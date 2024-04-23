@@ -1,0 +1,6 @@
+# dev files
+/target
+*.a
+
+# examples
+/examples/hello-world
