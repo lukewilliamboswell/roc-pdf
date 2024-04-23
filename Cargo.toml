@@ -1,14 +1,5 @@
-[package]
-name = "roc-pdf-experiment"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[lib]
-crate-type = ["staticlib"]
-
-[dependencies]
-libc = "0.2"
-roc_std = {path = "glue/roc_std"}
-roc_app = {path = "glue/roc_app"}
+[workspace]
+resolver = "2"
+members = [
+    "platform",
+]

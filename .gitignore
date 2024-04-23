@@ -1,6 +1,6 @@
 # dev files
 /target
-*.a
+platform/*.a
 
 # examples
 /examples/hello-world
