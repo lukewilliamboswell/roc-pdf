@@ -1,5 +1,5 @@
 [package]
-name = "roc-pdf-experiment"
+name = "host"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,3 +12,4 @@ crate-type = ["staticlib"]
 libc = "0.2"
 roc_std = {path = "glue/roc_std"}
 roc_app = {path = "glue/roc_app"}
+lopdf = "0.32.0"

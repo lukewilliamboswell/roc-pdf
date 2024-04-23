@@ -1,6 +1,10 @@
+.DS_Store
+
 # dev files
 /target
 platform/*.a
+platform/*.tar.br
+*.pdf
 
 # examples
-/examples/hello-world
+/examples/simple

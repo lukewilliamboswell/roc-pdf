@@ -1,3 +1,5 @@
+rm -f test.pdf
+
 bash build.sh
 
-roc run --prebuilt-platform examples/hello-world.roc
+roc dev --prebuilt-platform examples/simple.roc
