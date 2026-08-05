@@ -1,12 +1,11 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "protocol_version": 1,
   "toolchain": {
     "roc_optimization": "speed",
     "zig_version": "0.16.0",
     "zig_optimization": "ReleaseFast"
   },
-  "work_counters": ["passes", "byte_visits"],
   "cases": [
     {
       "name": "Gate 1 blank PDF",
@@ -16,6 +15,7 @@
       "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": { "pages": 1 },
+      "work_counters": ["passes", "byte_visits"],
       "expectations": {
         "arm64mac": { "allocations": 0, "work": [1, 667] },
         "x64musl": { "allocations": 0, "work": [1, 667] }
@@ -29,6 +29,7 @@
       "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": { "passes": 1 },
+      "work_counters": ["passes", "byte_visits"],
       "expectations": {
         "arm64mac": { "allocations": 1, "work": [1, 431] },
         "x64musl": { "allocations": 1, "work": [1, 431] }
@@ -42,6 +43,7 @@
       "args": ["scale"],
       "measurement_boundary": "before_fixture_main",
       "dimensions": { "passes": 4 },
+      "work_counters": ["passes", "byte_visits"],
       "expectations": {
         "arm64mac": { "allocations": 1, "work": [4, 1724] },
         "x64musl": { "allocations": 1, "work": [4, 1724] }

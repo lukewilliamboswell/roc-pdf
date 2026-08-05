@@ -49,6 +49,7 @@ class TestCase:
     args: tuple[str, ...]
     measurement_boundary: str
     dimensions: dict[str, int]
+    work_counters: tuple[str, ...]
     expectations: dict[str, Metrics]
 
 
@@ -56,7 +57,6 @@ class TestCase:
 class TestSuite:
     protocol_version: int
     toolchain: Toolchain
-    work_counters: tuple[str, ...]
     cases: tuple[TestCase, ...]
 
 
@@ -110,10 +110,10 @@ def load_suite() -> TestSuite:
     data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise SystemExit(f"{SPEC_PATH}: top level must be an object")
-    if set(data) != {"schema_version", "protocol_version", "toolchain", "work_counters", "cases"}:
+    if set(data) != {"schema_version", "protocol_version", "toolchain", "cases"}:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 1 or data["protocol_version"] != 1:
-        raise SystemExit(f"{SPEC_PATH}: schema_version and protocol_version must be 1")
+    if data["schema_version"] != 2 or data["protocol_version"] != 1:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 2 and protocol_version must be 1")
 
     raw_toolchain = data["toolchain"]
     toolchain_fields = {
@@ -137,9 +137,6 @@ def load_suite() -> TestSuite:
     if toolchain.zig_optimization not in {"ReleaseFast", "ReleaseSafe", "ReleaseSmall"}:
         raise SystemExit(f"{SPEC_PATH}: Zig host baselines require an optimized build")
 
-    work_counters = string_list(data["work_counters"], "work_counters")
-    if not work_counters or len(work_counters) != len(set(work_counters)):
-        raise SystemExit(f"{SPEC_PATH}: work_counters must be non-empty and unique")
     raw_cases = data.get("cases")
     if not isinstance(raw_cases, list) or not raw_cases:
         raise SystemExit(f"{SPEC_PATH}: cases must be a non-empty list")
@@ -157,6 +154,7 @@ def load_suite() -> TestSuite:
             "args",
             "measurement_boundary",
             "dimensions",
+            "work_counters",
             "expectations",
         }
         if set(raw) != required_fields:
@@ -178,6 +176,10 @@ def load_suite() -> TestSuite:
             or any(type(value) is not int or value < 0 for value in dimensions.values())
         ):
             raise SystemExit(f"{SPEC_PATH}: {name}: dimensions must be non-negative integer fields")
+
+        work_counters = string_list(raw["work_counters"], f"{name}.work_counters")
+        if not work_counters or len(work_counters) != len(set(work_counters)):
+            raise SystemExit(f"{SPEC_PATH}: {name}: work_counters must be non-empty and unique")
 
         raw_expectations = raw["expectations"]
         if not isinstance(raw_expectations, dict) or set(raw_expectations) != {"arm64mac", "x64musl"}:
@@ -215,6 +217,7 @@ def load_suite() -> TestSuite:
                 args,
                 measurement_boundary,
                 dimensions,
+                work_counters,
                 expectations,
             )
         )
@@ -237,7 +240,7 @@ def load_suite() -> TestSuite:
     for case in cases:
         if case.source.parent != case.snapshot.parent:
             raise SystemExit(f"{SPEC_PATH}: {case.name}: source and snapshot must be adjacent")
-    return TestSuite(data["protocol_version"], toolchain, work_counters, tuple(cases))
+    return TestSuite(data["protocol_version"], toolchain, tuple(cases))
 
 
 def native_roc_target() -> str:
@@ -290,12 +293,12 @@ def self_test_metrics(suite: TestSuite) -> None:
     case = suite.cases[0]
     expected = case.expectations["arm64mac"]
     allocation_regression = Metrics(expected.allocations + 1, expected.work)
-    if metrics_mismatch(expected, allocation_regression, suite.work_counters) is None:
+    if metrics_mismatch(expected, allocation_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted an allocation regression")
     changed_work = list(expected.work)
     changed_work[0] += 1
     work_regression = Metrics(expected.allocations, tuple(changed_work))
-    if metrics_mismatch(expected, work_regression, suite.work_counters) is None:
+    if metrics_mismatch(expected, work_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted a work regression")
     print("PASS performance baseline self-test", flush=True)
 
@@ -323,7 +326,6 @@ def run_case(
     build_dir: Path,
     target: str,
     protocol_version: int,
-    work_counters: tuple[str, ...],
     roc_optimization: str,
     update_snapshots: bool,
 ) -> None:
@@ -360,7 +362,7 @@ def run_case(
     work_text = match.group(3)
     actual_work = () if not work_text else tuple(int(value) for value in work_text.split(b","))
     actual_metrics = Metrics(int(match.group(2)), actual_work)
-    mismatch = metrics_mismatch(case.expectations[target], actual_metrics, work_counters)
+    mismatch = metrics_mismatch(case.expectations[target], actual_metrics, case.work_counters)
     if mismatch is not None:
         raise SystemExit(f"{case.name}: performance baseline mismatch: {mismatch}")
 
@@ -381,7 +383,7 @@ def run_case(
         f"PASS {case.name}: {describe_bytes(result.stdout)}, "
         f"{actual_metrics.allocations} allocations, "
         + ", ".join(
-            f"{name}={value}" for name, value in zip(work_counters, actual_metrics.work)
+            f"{name}={value}" for name, value in zip(case.work_counters, actual_metrics.work)
         ),
         flush=True,
     )
@@ -446,7 +448,6 @@ def main() -> None:
                 build_dir,
                 target,
                 suite.protocol_version,
-                suite.work_counters,
                 suite.toolchain.roc_optimization,
                 args.update_snapshots,
             )
