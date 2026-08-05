@@ -119,6 +119,45 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-SEMANTICS-ID-RELATIONSHIPS",
+      "summary": "Emitted structure identity, IDTree membership, destinations, annotations, and non-parental cross-relations use independent typed identities.",
+      "source_ids": ["iso-14289-2-2024", "iso-32000-2-2020-ec3", "iso-ts-32005-2023", "wtpdf-1-0-0"],
+      "references": ["architecture.md: Semantic document graph"],
+      "capabilities": ["Pdf20", "PdfUa2"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "not_required",
+      "positive_scenarios": ["examples/advanced_semantics_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-SEMANTICS-MATHML-BOUNDARY",
+      "summary": "MathML enters as a typed subtree or bounded validated parse result without unchecked markup or implicit associated files.",
+      "source_ids": ["iso-14289-2-2024", "iso-32000-2-2020-ec3", "mathml-core-2025-06-24", "wtpdf-1-0-0"],
+      "references": ["architecture.md: Semantic document graph"],
+      "capabilities": ["Pdf20", "PdfUa2"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "author_assertion_required",
+      "positive_scenarios": ["examples/advanced_semantics_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-SEMANTICS-NAMESPACE-ATTRIBUTES",
+      "summary": "Roles and role mappings retain namespace identity while structure attributes retain owner, typed value, and explicit applicability.",
+      "source_ids": ["iso-14289-2-2024", "iso-32000-2-2020-ec3", "iso-ts-32005-2023", "wtpdf-1-0-0"],
+      "references": ["architecture.md: Semantic document graph"],
+      "capabilities": ["Pdf20", "PdfUa2"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "not_required",
+      "positive_scenarios": ["examples/advanced_semantics_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-TEXT-SHAPED-RUN-EVIDENCE",
       "summary": "Every positioned glyph run retains exact occurrence, Unicode range, cluster, script, language, direction, substitution, and presentation evidence.",
       "source_ids": ["opentype-1-9-1", "uax14-r55", "uax29-r47", "uax9-r51", "unicode-17-0-0"],

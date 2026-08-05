@@ -31,6 +31,46 @@ Semantics :: [].{
 		index = |NamespaceId.(index)| index
 	}
 
+	StructureElementId :: U64.{
+		from_index : U64 -> StructureElementId
+		from_index = |index| StructureElementId.(index)
+
+		index : StructureElementId -> U64
+		index = |StructureElementId.(index)| index
+	}
+
+	ElementId :: U64.{
+		from_index : U64 -> ElementId
+		from_index = |index| ElementId.(index)
+
+		index : ElementId -> U64
+		index = |ElementId.(index)| index
+	}
+
+	DestinationId :: U64.{
+		from_index : U64 -> DestinationId
+		from_index = |index| DestinationId.(index)
+
+		index : DestinationId -> U64
+		index = |DestinationId.(index)| index
+	}
+
+	MathMlSubtreeId :: U64.{
+		from_index : U64 -> MathMlSubtreeId
+		from_index = |index| MathMlSubtreeId.(index)
+
+		index : MathMlSubtreeId -> U64
+		index = |MathMlSubtreeId.(index)| index
+	}
+
+	AssertionId :: U64.{
+		from_index : U64 -> AssertionId
+		from_index = |index| AssertionId.(index)
+
+		index : AssertionId -> U64
+		index = |AssertionId.(index)| index
+	}
+
 	AnnotationId :: U64.{
 		from_index : U64 -> AnnotationId
 		from_index = |index| AnnotationId.(index)
@@ -102,6 +142,12 @@ Semantics :: [].{
 	Namespace : { id : NamespaceId, kind : NamespaceKind, uri : Str }
 	NamespaceKind : [Extension(Str), MathMl, Pdf17, Pdf20]
 	Role : { local_name : Str, namespace : NamespaceId }
+	RoleMapping : { from : Role, to : Role }
+
+	ElementIdentifier : {
+		id : ElementId,
+		value : Str,
+	}
 
 	NodeParent : [DocumentRoot, ParentNode(NodeId)]
 
@@ -117,10 +163,12 @@ Semantics :: [].{
 	Node : {
 		attributes : Range,
 		content : Range,
+		element_identifier : [HasElementIdentifier(ElementId), NoElementIdentifier],
 		id : NodeId,
 		language : Language,
 		parent : NodeParent,
 		role : Role,
+		structure_element : StructureElementId,
 		text_properties : Range,
 	}
 
@@ -174,9 +222,16 @@ Semantics :: [].{
 	]
 
 	AttributeOwner : [Artifact, Layout, List, Namespace(NamespaceId), Table]
+	AttributeName : [
+		Namespaced({ local_name : Str, namespace : NamespaceId }),
+		Standard(Str),
+	]
+	RoleFamily : [ArtifactRoles, BlockRoles, InlineRoles, ListRoles, TableRoles]
+	AttributeApplicability : [AllRoles, ExactRoles(Range), Family(RoleFamily)]
 	AttributeValue : [Integer(I64), Name(Str), Names(List(Str)), Text(Str)]
 	StructureAttribute : {
-		name : Str,
+		applicability : AttributeApplicability,
+		name : AttributeName,
 		owner : AttributeOwner,
 		value : AttributeValue,
 	}
@@ -194,12 +249,45 @@ Semantics :: [].{
 	}
 
 	Relationship : [
+		AnnotationFor({ annotation : AnnotationId, owner : ElementId }),
 		CaptionFor({ caption : NodeId, target : NodeId }),
-		DestinationTarget({ source : NodeId, target : NodeId }),
-		HeaderFor({ cell : NodeId, header : NodeId }),
+		DestinationTarget({ destination : DestinationId, target : ElementId }),
+		HeaderFor({ cell : ElementId, header : ElementId }),
 		LabelFor({ label : NodeId, target : NodeId }),
 		NoteFor({ note : NodeId, target : NodeId }),
+		ReferenceTo({ source : ElementId, target : ElementId }),
 	]
+
+	MathMlValidationWork : {
+		attribute_visits : U64,
+		node_visits : U64,
+		utf8_bytes : U64,
+	}
+	MathMlOrigin : [
+		Typed,
+		ValidatedParse({ source : NonTextSourceId, work : MathMlValidationWork }),
+	]
+
+	## The subtree references already-normalized semantic nodes. No unchecked
+	## markup string crosses this boundary or becomes an associated file.
+	MathMlSubtree : {
+		id : MathMlSubtreeId,
+		namespace : NamespaceId,
+		nodes : Range,
+		origin : MathMlOrigin,
+		root : NodeId,
+	}
+
+	AuthorAssertionKind : [
+		AlternativeTextMeaningful,
+		ReadingOrderMeaningful,
+		TableHeadersMeaningful,
+	]
+	AuthorAssertion : {
+		id : AssertionId,
+		kind : AuthorAssertionKind,
+		node : NodeId,
+	}
 
 	LayoutFragment : {
 		content_stream : ContentStreamId,
@@ -215,17 +303,22 @@ Semantics :: [].{
 	## themselves are never duplicated.
 	Store : {
 		annotations : List(Annotation),
+		assertions : List(AuthorAssertion),
+		attribute_roles : List(Role),
 		attributes : List(StructureAttribute),
 		content_spine : List(ContentSpineItem),
 		contextual_artifacts : List(ContextualArtifact),
 		document_root : NodeId,
 		fragments : List(LayoutFragment),
+		element_identifiers : List(ElementIdentifier),
+		mathml_subtrees : List(MathMlSubtree),
 		namespaces : List(Namespace),
 		nodes : List(Node),
 		non_text_sources : List(List(U8)),
 		occurrence_fragments : List(FragmentId),
 		occurrences : List(ContentOccurrence),
 		relationships : List(Relationship),
+		role_mappings : List(RoleMapping),
 		text_properties : List(TextProperty),
 		text_sources : List(TextSource),
 	}
@@ -239,6 +332,12 @@ expect Semantics.OccurrenceId.from_index(11).index() == 11
 
 ## Layout fragment IDs preserve their dense index.
 expect Semantics.FragmentId.from_index(13).index() == 13
+
+## Emitted structure-element IDs remain independent of semantic node IDs.
+expect Semantics.StructureElementId.from_index(19).index() == 19
+
+## IDTree element identities preserve their dense index.
+expect Semantics.ElementId.from_index(23).index() == 23
 
 ## Ranges preserve their exact start offset.
 expect Semantics.Range.from_start_and_length(5, 8).start() == 5
