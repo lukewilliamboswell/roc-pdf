@@ -54,6 +54,19 @@ Image :: [].{
 		orientation : OrientationEvidence,
 	}
 
+	## Encoded JPEG source bytes cross a bounded inspection boundary before they
+	## become a `ValidatedJpeg` or enter the normalized resource store.
+	JpegSource : {
+		bytes : List(U8),
+		color_space : Color.SpaceId,
+		orientation_policy : OrientationPolicy,
+	}
+	SourceResource : {
+		id : Id,
+		payload : [EncodedJpeg(JpegSource), PackedPixels(PackedRaster)],
+	}
+	SourceStore : { resources : List(SourceResource) }
+
 	Resource : {
 		id : Id,
 		payload : [Jpeg(ValidatedJpeg), Raster(PackedRaster)],

@@ -1,4 +1,6 @@
+import KernelColor
 import KernelGeometry
+import KernelImage
 import KernelScene
 import KernelSemantics
 import KernelTagged
