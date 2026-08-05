@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+
+*.rh
+*.rm
+*.roc-format-failed*
+
+generated-docs/
+.roc-pdf-tmp/
+.DS_Store
