@@ -99,10 +99,10 @@
       "references": ["ISO 32000-2:2020 7.3", "architecture.md: Internal PDF object plan"],
       "capabilities": ["Pdf20"],
       "implementation": "partial",
-      "machine_verification": "roc_unit_positive_atomic_negative_and_exact_work; pending_sealing_optimized_pipeline_and_independent_parser",
+      "machine_verification": "roc_unit_positive_atomic_negative_exact_work_and_linear_sealing; pending_optimized_pipeline_and_independent_parser",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelObject.roc"],
-      "negative_scenarios": ["package/KernelObject.roc"],
+      "positive_scenarios": ["package/KernelObject.roc", "package/KernelSeal.roc"],
+      "negative_scenarios": ["package/KernelObject.roc", "package/KernelSeal.roc"],
       "external_rule_ids": []
     },
     {

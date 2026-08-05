@@ -7,6 +7,9 @@ KernelObject :: [].{
 
 		index : ValueId -> U64
 		index = |ValueId.(index)| index
+
+		is_eq : ValueId, ValueId -> Bool
+		is_eq = |ValueId.(left), ValueId.(right)| left == right
 	}
 
 	NameId :: U64.{
@@ -15,6 +18,9 @@ KernelObject :: [].{
 
 		index : NameId -> U64
 		index = |NameId.(index)| index
+
+		is_eq : NameId, NameId -> Bool
+		is_eq = |NameId.(left), NameId.(right)| left == right
 	}
 
 	ByteStringId :: U64.{
@@ -23,6 +29,9 @@ KernelObject :: [].{
 
 		index : ByteStringId -> U64
 		index = |ByteStringId.(index)| index
+
+		is_eq : ByteStringId, ByteStringId -> Bool
+		is_eq = |ByteStringId.(left), ByteStringId.(right)| left == right
 	}
 
 	TextStringId :: U64.{
@@ -31,6 +40,9 @@ KernelObject :: [].{
 
 		index : TextStringId -> U64
 		index = |TextStringId.(index)| index
+
+		is_eq : TextStringId, TextStringId -> Bool
+		is_eq = |TextStringId.(left), TextStringId.(right)| left == right
 	}
 
 	PayloadId :: U64.{
@@ -39,6 +51,9 @@ KernelObject :: [].{
 
 		index : PayloadId -> U64
 		index = |PayloadId.(index)| index
+
+		is_eq : PayloadId, PayloadId -> Bool
+		is_eq = |PayloadId.(left), PayloadId.(right)| left == right
 	}
 
 	StreamId :: U64.{
@@ -47,6 +62,9 @@ KernelObject :: [].{
 
 		index : StreamId -> U64
 		index = |StreamId.(index)| index
+
+		is_eq : StreamId, StreamId -> Bool
+		is_eq = |StreamId.(left), StreamId.(right)| left == right
 	}
 
 	ObjectId :: U64.{
@@ -56,11 +74,15 @@ KernelObject :: [].{
 
 		number : ObjectId -> U64
 		number = |ObjectId.(number)| number
+
+		is_eq : ObjectId, ObjectId -> Bool
+		is_eq = |ObjectId.(left), ObjectId.(right)| left == right
 	}
 
 	Span : { length : U64, start : U64 }
 	DictionaryEntry : { key : NameId, value : ValueId }
-	Object : { id : ObjectId, value : ValueId }
+	ObjectContent : [LengthOf(StreamId), Stored(ValueId)]
+	Object : { content : ObjectContent, id : ObjectId }
 
 	PayloadKind : [Generated, UnchangedResource]
 	Payload : {
@@ -75,6 +97,7 @@ KernelObject :: [].{
 		filter : FilterPlan,
 		id : StreamId,
 		length_object : ObjectId,
+		object : ObjectId,
 		source : PayloadId,
 	}
 
@@ -437,41 +460,60 @@ KernelObject :: [].{
 		}
 	}
 
-	add_stream : Builder, List(DictionaryEntry), FilterPlan, ObjectId, PayloadId -> Try({ builder : Builder, id : ValueId }, Error)
-	add_stream = |builder, entries, filter, length_object, source| {
+	add_stream_object : Builder, List(DictionaryEntry), FilterPlan, PayloadId -> Try({ builder : Builder, id : ObjectId, length_object : ObjectId, value : ValueId }, Error)
+	add_stream_object = |builder, entries, filter, source| {
 		match check_index(PayloadId.index(source), builder.store.payloads.len(), PayloadIndex) {
 			Err(error) => Err(error)
 			Ok(_) => match checked_increment(builder.store.streams.len(), builder.limits.max_streams, Streams) {
 				Err(error) => Err(error)
-				Ok(_) => match validate_dictionary(builder, entries) {
+				Ok(_) => match checked_total(builder.store.objects.len(), 2, builder.limits.max_objects, Objects) {
 					Err(error) => Err(error)
-					Ok(validation) => match checked_total(builder.store.dictionary_entries.len(), entries.len(), builder.limits.max_dictionary_entries, DictionaryEntries) {
+					Ok(length_number) => match validate_dictionary(builder, entries) {
 						Err(error) => Err(error)
-						Ok(_) => match checked_increment(validation.max_child_depth, builder.limits.max_direct_depth, DirectDepth) {
+						Ok(validation) => match checked_total(builder.store.dictionary_entries.len(), entries.len(), builder.limits.max_dictionary_entries, DictionaryEntries) {
 							Err(error) => Err(error)
-							Ok(depth) => match add_dictionary_work(builder.work, entries.len(), validation.key_byte_comparisons, 1) {
+							Ok(_) => match checked_increment(validation.max_child_depth, builder.limits.max_direct_depth, DirectDepth) {
 								Err(error) => Err(error)
-								Ok(work) => {
-									start = builder.store.dictionary_entries.len()
-									dictionary_entries = append_all(builder.store.dictionary_entries, entries)
-									stream_id = StreamId.from_index(builder.store.streams.len())
-									stream = {
-										dictionary: { start, length: entries.len() },
-										filter,
-										id: stream_id,
-										length_object,
-										source,
+								Ok(depth) => match add_dictionary_work(builder.work, entries.len(), validation.key_byte_comparisons, 1) {
+									Err(error) => Err(error)
+									Ok(work) => {
+										start = builder.store.dictionary_entries.len()
+										dictionary_entries = append_all(builder.store.dictionary_entries, entries)
+										stream_id = StreamId.from_index(builder.store.streams.len())
+										object_id = object_id_from_nonzero(builder.store.objects.len() + 1)
+										length_object = object_id_from_nonzero(length_number)
+										stream = {
+											dictionary: { start, length: entries.len() },
+											filter,
+											id: stream_id,
+											length_object,
+											object: object_id,
+											source,
+										}
+										before_value = {
+											..builder,
+											store: {
+												..builder.store,
+												dictionary_entries,
+												streams: builder.store.streams.append(stream),
+											},
+											work,
+										}
+										match add_value(before_value, Stream(stream_id), depth) {
+											Err(error) => Err(error)
+											Ok(added_value) => {
+												objects = added_value.builder.store.objects
+													.append({ content: Stored(added_value.id), id: object_id })
+													.append({ content: LengthOf(stream_id), id: length_object })
+												Ok({
+													builder: { ..added_value.builder, store: { ..added_value.builder.store, objects } },
+													id: object_id,
+													length_object,
+													value: added_value.id,
+												})
+											}
+										}
 									}
-									with_stream = {
-										..builder,
-										store: {
-											..builder.store,
-											dictionary_entries,
-											streams: builder.store.streams.append(stream),
-										},
-										work,
-									}
-									add_value(with_stream, Stream(stream_id), depth)
 								}
 							}
 						}
@@ -491,7 +533,7 @@ KernelObject :: [].{
 					Err(error) => Err(error)
 					Ok(work) => {
 						object_id = object_id_from_nonzero(number)
-						object = { id: object_id, value }
+						object = { content: Stored(value), id: object_id }
 						Ok({
 							builder: {
 								..builder,
@@ -961,26 +1003,29 @@ expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_payload(initial, [1, 2, 3], UnchangedResource) {
 		Err(_) => False
-		Ok(payload) => match KernelObject.ObjectId.from_number(2) {
+		Ok(payload) => match KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id) {
 			Err(_) => False
-			Ok(length_object) => match KernelObject.add_stream(payload.builder, [], Unfiltered, length_object, payload.id) {
-				Err(_) => False
-				Ok(stream_value) => {
-					counts = KernelObject.counts(stream_value.builder)
-					actual =
-						\\payloads: ${Str.inspect(counts.payloads)}
-						\\streams: ${Str.inspect(counts.streams)}
-						\\values: ${Str.inspect(counts.values)}
-						\\work: ${Str.inspect(stream_value.builder.work)}
+			Ok(stream_value) => {
+				counts = KernelObject.counts(stream_value.builder)
+				actual =
+					\\payloads: ${Str.inspect(counts.payloads)}
+					\\streams: ${Str.inspect(counts.streams)}
+					\\values: ${Str.inspect(counts.values)}
+					\\objects: ${Str.inspect(counts.objects)}
+					\\object number: ${Str.inspect(KernelObject.ObjectId.number(stream_value.id))}
+					\\length object number: ${Str.inspect(KernelObject.ObjectId.number(stream_value.length_object))}
+					\\work: ${Str.inspect(stream_value.builder.work)}
 
-					expected =
-						\\payloads: 1
-						\\streams: 1
-						\\values: 1
-						\\work: { bytes_checked: 0, edges_appended: 0, index_checks: 1, values_appended: 1 }
+				expected =
+					\\payloads: 1
+					\\streams: 1
+					\\values: 1
+					\\objects: 2
+					\\object number: 1
+					\\length object number: 2
+					\\work: { bytes_checked: 0, edges_appended: 0, index_checks: 1, values_appended: 1 }
 
-					actual == expected
-				}
+				actual == expected
 			}
 		}
 	}

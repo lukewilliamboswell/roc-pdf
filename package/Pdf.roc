@@ -2,6 +2,7 @@ import Conformance
 import Document
 import KernelLex
 import KernelObject
+import KernelSeal
 import Theme
 
 Pdf :: [].{
@@ -122,6 +123,29 @@ expect KernelObject.counts(
 		max_values: 0,
 	}),
 ).objects == 0
+
+## Sealing remains private and accepts the empty construction store.
+expect match KernelSeal.seal(
+	KernelObject.init({
+		max_array_items: 0,
+		max_byte_string_bytes: 0,
+		max_byte_strings: 0,
+		max_dictionary_entries: 0,
+		max_direct_depth: 0,
+		max_name_bytes: 0,
+		max_names: 0,
+		max_objects: 0,
+		max_payload_bytes: 0,
+		max_payloads: 0,
+		max_streams: 0,
+		max_text_string_bytes: 0,
+		max_text_strings: 0,
+		max_values: 0,
+	}),
+) {
+	Ok(_) => True
+	Err(_) => False
+}
 
 ## Gate 0 facade calls fail transactionally instead of emitting placeholder bytes.
 expect {
