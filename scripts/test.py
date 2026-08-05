@@ -13,6 +13,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from check_pdf_structure import validate_pdf
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = ROOT / "tests" / "spec.json"
@@ -384,6 +386,11 @@ def run_case(
         flush=True,
     )
 
+    expected_pages = case.dimensions.get("pages")
+    if expected_pages is not None:
+        validate_pdf(result.stdout, expected_pages)
+        print(f"PASS {case.name}: independent offsets, lengths, xref, and page facts", flush=True)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -397,6 +404,7 @@ def main() -> None:
     target = native_roc_target()
 
     command(sys.executable, "scripts/check_contracts.py", "--self-test")
+    command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
     verify_toolchain(suite.toolchain)
 

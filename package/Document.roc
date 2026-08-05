@@ -253,6 +253,12 @@ Document :: { authoring : DocumentAuthoring }.{
 		Compact(compact) => compact.language
 		Simple(simple) => simple.language
 	}
+
+	block_count : Document -> U64
+	block_count = |document| match document.authoring {
+		Compact(compact) => compact.block_kinds.len()
+		Simple(simple) => simple.contents.len()
+	}
 }
 
 append_artifact : DocumentBuilder, PageArtifactKind, Str -> DocumentBuilder

@@ -45,3 +45,14 @@ jobs:
 
       - name: Test
         run: ./scripts/test.py
+
+      - name: Install pinned qpdf
+        if: runner.os == 'Linux'
+        run: |
+          curl -L --fail --output /tmp/qpdf-12.3.2-linux.zip https://github.com/qpdf/qpdf/releases/download/v12.3.2/qpdf-12.3.2-bin-linux-x86_64.zip
+          echo '44f2c53bf784c0143128d80d2b9946e9793962c5bb403b75c0024cb4d8e346b9  /tmp/qpdf-12.3.2-linux.zip' | sha256sum --check
+          unzip -q /tmp/qpdf-12.3.2-linux.zip -d /tmp/qpdf-12.3.2
+
+      - name: Validate structural PDF with qpdf 12.3.2
+        if: runner.os == 'Linux'
+        run: /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_blank/snapshot.pdf

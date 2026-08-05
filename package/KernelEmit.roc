@@ -1,0 +1,647 @@
+import KernelLex
+import KernelObject
+import KernelSeal
+import KernelStructure
+
+SegmentOwnership : [Generated, SharedResource]
+
+Retention : [OwnResourceChunks, ShareResourceChunks]
+
+PayloadPhase : {
+	bytes : List(U8),
+	next_object : U64,
+	ownership : SegmentOwnership,
+}
+
+XrefEntriesPhase : {
+	entry : U64,
+	size : U64,
+	xref_offset : U64,
+}
+
+Phase : [
+	Finished,
+	Header,
+	Object(U64),
+	Payload(PayloadPhase),
+	StreamSuffix(U64),
+	XrefEntries(XrefEntriesPhase),
+	XrefPrefix,
+	XrefSuffix(U64),
+]
+
+KernelEmit :: [].{
+	Error : [
+		ArithmeticOverflow,
+		DeflateInputNotYetSupported(KernelObject.StreamId),
+		IndexInvariant,
+		NestedStreamValue,
+		StreamDictionaryNotYetSupported(KernelObject.StreamId),
+		StreamLengthUnavailable(KernelObject.StreamId),
+	]
+
+	Segment : { bytes : List(U8), ownership : SegmentOwnership }
+	Step : [Done, Emit(Segment, Encoder)]
+
+	Encoder :: {
+		offsets : List(U64),
+		phase : Phase,
+		plan : KernelStructure.Plan,
+		position : U64,
+		retention : Retention,
+		stream_lengths : List(U64),
+	}.{
+		next : Encoder -> Try(Step, Error)
+		next = |encoder| next_segment(encoder)
+
+		next_infallible : Encoder -> Step
+		next_infallible = |encoder| match next_segment(encoder) {
+			Ok(step) => step
+			Err(_) => {
+				crash "sealed structural emission invariant failed"
+			}
+		}
+	}
+
+	start : KernelStructure.Plan, Retention -> Try(Encoder, Error)
+	start = |plan, retention| {
+		validate_emittable(plan)?
+		Ok(
+			Encoder.{
+				offsets: [],
+				phase: Header,
+				plan,
+				position: 0,
+				retention,
+				stream_lengths: [],
+			},
+		)
+	}
+
+	to_bytes : KernelStructure.Plan -> Try(List(U8), Error)
+	to_bytes = |plan| {
+		var $encoder = start(plan, OwnResourceChunks)?
+		var $output = []
+		var $done = False
+		while $done == False {
+			match Encoder.next($encoder)? {
+				Done => {
+					$done = True
+				}
+				Emit(segment, next) => {
+					$output = append_all($output, segment.bytes)
+					$encoder = next
+				}
+			}
+		}
+		Ok($output)
+	}
+}
+
+validate_emittable : KernelStructure.Plan -> Try({}, KernelEmit.Error)
+validate_emittable = |plan| {
+	store = plan_store(plan)
+	length = store.streams.len()
+	var $index = 0
+	var $error = NoError
+	while $index < length and $error == NoError {
+		stream = list_at(store.streams, $index)
+		if stream.dictionary.length != 0 {
+			$error = Unsupported(stream.id)
+		} else if stream.filter == Deflate {
+			payload = list_at(store.payloads, KernelObject.PayloadId.index(stream.source))
+			if payload.bytes.is_empty() == False {
+				$error = UnsupportedDeflate(stream.id)
+			}
+		}
+		$index = $index + 1
+	}
+
+	match $error {
+		Unsupported(stream) => Err(StreamDictionaryNotYetSupported(stream))
+		UnsupportedDeflate(stream) => Err(DeflateInputNotYetSupported(stream))
+		NoError => Ok({})
+	}
+}
+
+next_segment : KernelEmit.Encoder -> Try(KernelEmit.Step, KernelEmit.Error)
+next_segment = |encoder| match encoder.phase {
+	Finished => Ok(Done)
+	Header => emit_generated(
+		encoder,
+		append_pdf_header([]),
+		Object(0),
+	)
+	Object(index) => emit_object(encoder, index)
+	Payload(payload) => {
+		next_encoder = encoder_with_phase(encoder, StreamSuffix(payload.next_object))
+		if payload.bytes.is_empty() {
+			next_segment(next_encoder)
+		} else {
+			emit_bytes(next_encoder, payload.bytes, payload.ownership)
+		}
+	}
+	StreamSuffix(next_object) => emit_generated(
+		encoder,
+		append_stream_suffix([]),
+		next_object_phase(encoder.plan, next_object),
+	)
+	XrefPrefix => emit_xref_prefix(encoder)
+	XrefEntries(state) => emit_xref_entries(encoder, state)
+	XrefSuffix(xref_offset) => emit_generated(
+		encoder,
+		append_xref_suffix([], xref_offset),
+		Finished,
+	)
+}
+
+emit_object : KernelEmit.Encoder, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_object = |encoder, index| {
+	store = plan_store(encoder.plan)
+	if index >= store.objects.len() {
+		next_segment(encoder_with_phase(encoder, XrefPrefix))
+	} else {
+		object = list_at(store.objects, index)
+		offsets = encoder.offsets.append(encoder.position)
+		with_offset = encoder_with_offsets(encoder, offsets)
+		match object.content {
+			LengthOf(stream_id) => {
+				stream_index = KernelObject.StreamId.index(stream_id)
+				match encoder.stream_lengths.get(stream_index) {
+					Err(OutOfBounds) => Err(StreamLengthUnavailable(stream_id))
+					Ok(length) => {
+						var $bytes = append_object_header([], object.id)
+						$bytes = KernelLex.append_unsigned($bytes, length)
+						$bytes = append_end_object($bytes)
+						emit_generated(with_offset, $bytes, next_object_phase(encoder.plan, index + 1))
+					}
+				}
+			}
+			Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
+				Stream(stream_id) => emit_stream_prefix(with_offset, object.id, stream_id, index + 1)
+				_ => {
+					var $bytes = append_object_header([], object.id)
+					$bytes = emit_value($bytes, store, value_id)?
+					$bytes = append_end_object($bytes)
+					emit_generated(with_offset, $bytes, next_object_phase(encoder.plan, index + 1))
+				}
+			}
+		}
+	}
+}
+
+emit_stream_prefix : KernelEmit.Encoder, KernelObject.ObjectId, KernelObject.StreamId, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_stream_prefix = |encoder, object_id, stream_id, next_object| {
+	store = plan_store(encoder.plan)
+	stream = list_at(store.streams, KernelObject.StreamId.index(stream_id))
+	payload = list_at(store.payloads, KernelObject.PayloadId.index(stream.source))
+
+	{ bytes: emitted_payload, ownership } = match stream.filter {
+		Deflate => {
+			{ bytes: [3, 0], ownership: Generated }
+		}
+		Unfiltered => match payload.kind {
+			Generated => { bytes: payload.bytes, ownership: Generated }
+			UnchangedResource => if encoder.retention == ShareResourceChunks {
+				{ bytes: payload.bytes, ownership: SharedResource }
+			} else {
+				{ bytes: copy_bytes(payload.bytes), ownership: Generated }
+			}
+		}
+	}
+
+	if KernelObject.StreamId.index(stream_id) != encoder.stream_lengths.len() {
+		Err(IndexInvariant)
+	} else {
+		stream_lengths = encoder.stream_lengths.append(emitted_payload.len())
+		var $prefix = append_object_header([], object_id)
+		$prefix = append_stream_dictionary($prefix, stream, emitted_payload.len())
+		$prefix = append_stream_keyword($prefix)
+		with_length = encoder_with_stream_lengths(encoder, stream_lengths)
+		next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership }))
+		emit_bytes(next, $prefix, Generated)
+	}
+}
+
+emit_xref_prefix : KernelEmit.Encoder -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_xref_prefix = |encoder| {
+	xref_object = KernelStructure.Plan.xref_object(encoder.plan)
+	xref_offset = encoder.position
+	offsets = encoder.offsets.append(xref_offset)
+	size = checked_add(KernelObject.ObjectId.number(xref_object), 1)?
+	stream_length = checked_times_small(size, 11)?
+	root = KernelStructure.Plan.root(encoder.plan)
+
+	var $prefix = append_object_header([], xref_object)
+	$prefix = append_xref_dictionary($prefix, size, stream_length, root)
+	$prefix = append_stream_keyword($prefix)
+	next = encoder_with_phase(encoder_with_offsets(encoder, offsets), XrefEntries({ entry: 0, size, xref_offset }))
+	emit_bytes(next, $prefix, Generated)
+}
+
+emit_xref_entries : KernelEmit.Encoder, XrefEntriesPhase -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_xref_entries = |encoder, state| {
+	if state.entry >= state.size {
+		next_segment(encoder_with_phase(encoder, XrefSuffix(state.xref_offset)))
+	} else {
+		end = U64.min(state.size, state.entry + xref_entries_per_chunk)
+		var $entry = state.entry
+		var $bytes = List.with_capacity((end - state.entry) * 11)
+		while $entry < end {
+			if $entry == 0 {
+				$bytes = append_xref_entry($bytes, 0, 0, 65535)
+			} else {
+				offset = list_at(encoder.offsets, $entry - 1)
+				$bytes = append_xref_entry($bytes, 1, offset, 0)
+			}
+			$entry = $entry + 1
+		}
+		next = encoder_with_phase(encoder, XrefEntries({ ..state, entry: end }))
+		emit_bytes(next, $bytes, Generated)
+	}
+}
+
+xref_entries_per_chunk : U64
+xref_entries_per_chunk = 256
+
+emit_generated : KernelEmit.Encoder, List(U8), Phase -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_generated = |encoder, bytes, phase| {
+	next = encoder_with_phase(encoder, phase)
+	emit_bytes(next, bytes, Generated)
+}
+
+emit_bytes : KernelEmit.Encoder, List(U8), SegmentOwnership -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_bytes = |next, bytes, ownership| {
+	position = checked_add(next.position, bytes.len())?
+	Ok(Emit({ bytes, ownership }, encoder_with_position(next, position)))
+}
+
+encoder_with_phase : KernelEmit.Encoder, Phase -> KernelEmit.Encoder
+encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
+	offsets: encoder.offsets,
+	phase,
+	plan: encoder.plan,
+	position: encoder.position,
+	retention: encoder.retention,
+	stream_lengths: encoder.stream_lengths,
+}
+
+encoder_with_offsets : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
+encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
+	offsets,
+	phase: encoder.phase,
+	plan: encoder.plan,
+	position: encoder.position,
+	retention: encoder.retention,
+	stream_lengths: encoder.stream_lengths,
+}
+
+encoder_with_position : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
+encoder_with_position = |encoder, position| KernelEmit.Encoder.{
+	offsets: encoder.offsets,
+	phase: encoder.phase,
+	plan: encoder.plan,
+	position,
+	retention: encoder.retention,
+	stream_lengths: encoder.stream_lengths,
+}
+
+encoder_with_stream_lengths : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
+encoder_with_stream_lengths = |encoder, stream_lengths| KernelEmit.Encoder.{
+	offsets: encoder.offsets,
+	phase: encoder.phase,
+	plan: encoder.plan,
+	position: encoder.position,
+	retention: encoder.retention,
+	stream_lengths,
+}
+
+next_object_phase : KernelStructure.Plan, U64 -> Phase
+next_object_phase = |plan, index| {
+	store = plan_store(plan)
+	if index < store.objects.len() Object(index) else XrefPrefix
+}
+
+emit_value : List(U8), KernelObject.Store, KernelObject.ValueId -> Try(List(U8), KernelEmit.Error)
+emit_value = |output, store, value_id| match list_at(store.values, KernelObject.ValueId.index(value_id)) {
+	Array(span) => emit_array(output, store, span)
+	Boolean(value) => Ok(KernelLex.append_boolean(output, value))
+	ByteString(string) => Ok(KernelLex.append_byte_string(output, list_at(store.byte_strings, KernelObject.ByteStringId.index(string))))
+	Dictionary(span) => emit_dictionary(output, store, span)
+	Integer(value) => Ok(KernelLex.append_integer(output, value))
+	Name(name) => Ok(KernelLex.append_name(output, list_at(store.names, KernelObject.NameId.index(name))))
+	Null => Ok(KernelLex.append_null(output))
+	Real(value) => Ok(KernelLex.append_real(output, value))
+	Reference(object) => Ok(append_reference(output, object))
+	Stream(_) => Err(NestedStreamValue)
+	TextString(string) => Ok(KernelLex.append_text_string(output, list_at(store.text_strings, KernelObject.TextStringId.index(string))))
+}
+
+emit_array : List(U8), KernelObject.Store, KernelObject.Span -> Try(List(U8), KernelEmit.Error)
+emit_array = |output, store, span| {
+	var $out = output.append(91)
+	var $index = 0
+	while $index < span.length {
+		if $index > 0 {
+			$out = $out.append(32)
+		}
+		value = list_at(store.array_items, span.start + $index)
+		$out = emit_value($out, store, value)?
+		$index = $index + 1
+	}
+	Ok($out.append(93))
+}
+
+emit_dictionary : List(U8), KernelObject.Store, KernelObject.Span -> Try(List(U8), KernelEmit.Error)
+emit_dictionary = |output, store, span| {
+	var $out = append_dictionary_open(output)
+	var $index = 0
+	while $index < span.length {
+		entry = list_at(store.dictionary_entries, span.start + $index)
+		$out = $out.append(32)
+		$out = KernelLex.append_name($out, list_at(store.names, KernelObject.NameId.index(entry.key)))
+		$out = $out.append(32)
+		$out = emit_value($out, store, entry.value)?
+		$index = $index + 1
+	}
+	Ok(append_dictionary_close($out))
+}
+
+append_pdf_header : List(U8) -> List(U8)
+append_pdf_header = |output| {
+	var $out = output
+	$out = $out.append(37)
+	$out = $out.append(80)
+	$out = $out.append(68)
+	$out = $out.append(70)
+	$out = $out.append(45)
+	$out = $out.append(50)
+	$out = $out.append(46)
+	$out = $out.append(48)
+	$out = $out.append(10)
+	$out = $out.append(37)
+	$out = $out.append(226)
+	$out = $out.append(227)
+	$out = $out.append(207)
+	$out = $out.append(211)
+	$out.append(10)
+}
+
+append_object_header : List(U8), KernelObject.ObjectId -> List(U8)
+append_object_header = |output, object| {
+	var $out = KernelLex.append_unsigned(output, KernelObject.ObjectId.number(object))
+	$out = $out.append(32)
+	$out = $out.append(48)
+	$out = $out.append(32)
+	$out = $out.append(111)
+	$out = $out.append(98)
+	$out = $out.append(106)
+	$out.append(10)
+}
+
+append_end_object : List(U8) -> List(U8)
+append_end_object = |output| {
+	var $out = output.append(10)
+	$out = $out.append(101)
+	$out = $out.append(110)
+	$out = $out.append(100)
+	$out = $out.append(111)
+	$out = $out.append(98)
+	$out = $out.append(106)
+	$out.append(10)
+}
+
+append_dictionary_open : List(U8) -> List(U8)
+append_dictionary_open = |output| output.append(60).append(60)
+
+append_dictionary_close : List(U8) -> List(U8)
+append_dictionary_close = |output| output.append(32).append(62).append(62)
+
+append_reference : List(U8), KernelObject.ObjectId -> List(U8)
+append_reference = |output, object| {
+	var $out = KernelLex.append_unsigned(output, KernelObject.ObjectId.number(object))
+	$out = $out.append(32)
+	$out = $out.append(48)
+	$out = $out.append(32)
+	$out.append(82)
+}
+
+append_stream_dictionary : List(U8), KernelObject.Stream, U64 -> List(U8)
+append_stream_dictionary = |output, stream, _length| {
+	var $out = append_dictionary_open(output)
+	match stream.filter {
+		Deflate => {
+			$out = append_filter_entry($out)
+		}
+		Unfiltered => {}
+	}
+	$out = append_length_entry($out, stream.length_object)
+	append_dictionary_close($out)
+}
+
+append_filter_entry : List(U8) -> List(U8)
+append_filter_entry = |output| {
+	var $out = output.append(32)
+	$out = append_ascii_filter_name($out)
+	$out = $out.append(32)
+	append_ascii_flate_decode_name($out)
+}
+
+append_length_entry : List(U8), KernelObject.ObjectId -> List(U8)
+append_length_entry = |output, object| {
+	var $out = output.append(32)
+	$out = append_ascii_length_name($out)
+	$out = $out.append(32)
+	append_reference($out, object)
+}
+
+append_ascii_filter_name : List(U8) -> List(U8)
+append_ascii_filter_name = |output| output.append(47).append(70).append(105).append(108).append(116).append(101).append(114)
+
+append_ascii_flate_decode_name : List(U8) -> List(U8)
+append_ascii_flate_decode_name = |output| output.append(47).append(70).append(108).append(97).append(116).append(101).append(68).append(101).append(99).append(111).append(100).append(101)
+
+append_ascii_length_name : List(U8) -> List(U8)
+append_ascii_length_name = |output| output.append(47).append(76).append(101).append(110).append(103).append(116).append(104)
+
+append_stream_keyword : List(U8) -> List(U8)
+append_stream_keyword = |output| {
+	var $out = output.append(10)
+	$out = $out.append(115)
+	$out = $out.append(116)
+	$out = $out.append(114)
+	$out = $out.append(101)
+	$out = $out.append(97)
+	$out = $out.append(109)
+	$out.append(10)
+}
+
+append_stream_suffix : List(U8) -> List(U8)
+append_stream_suffix = |output| {
+	var $out = output.append(10)
+	$out = $out.append(101)
+	$out = $out.append(110)
+	$out = $out.append(100)
+	$out = $out.append(115)
+	$out = $out.append(116)
+	$out = $out.append(114)
+	$out = $out.append(101)
+	$out = $out.append(97)
+	$out = $out.append(109)
+	append_end_object($out)
+}
+
+append_xref_dictionary : List(U8), U64, U64, KernelObject.ObjectId -> List(U8)
+append_xref_dictionary = |output, size, stream_length, root| {
+	var $out = append_dictionary_open(output)
+	$out = append_ascii_index_entry($out, size)
+	$out = append_direct_length_entry($out, stream_length)
+	$out = append_ascii_root_entry($out, root)
+	$out = append_ascii_size_entry($out, size)
+	$out = append_ascii_type_xref_entry($out)
+	$out = append_ascii_w_entry($out)
+	append_dictionary_close($out)
+}
+
+append_ascii_index_entry : List(U8), U64 -> List(U8)
+append_ascii_index_entry = |output, size| {
+	var $out = output.append(32).append(47).append(73).append(110).append(100).append(101).append(120).append(32).append(91).append(48).append(32)
+	$out = KernelLex.append_unsigned($out, size)
+	$out.append(93)
+}
+
+append_direct_length_entry : List(U8), U64 -> List(U8)
+append_direct_length_entry = |output, length| {
+	var $out = output.append(32)
+	$out = append_ascii_length_name($out).append(32)
+	KernelLex.append_unsigned($out, length)
+}
+
+append_ascii_root_entry : List(U8), KernelObject.ObjectId -> List(U8)
+append_ascii_root_entry = |output, root| {
+	var $out = output.append(32).append(47).append(82).append(111).append(111).append(116).append(32)
+	append_reference($out, root)
+}
+
+append_ascii_size_entry : List(U8), U64 -> List(U8)
+append_ascii_size_entry = |output, size| {
+	var $out = output.append(32).append(47).append(83).append(105).append(122).append(101).append(32)
+	KernelLex.append_unsigned($out, size)
+}
+
+append_ascii_type_xref_entry : List(U8) -> List(U8)
+append_ascii_type_xref_entry = |output| output.append(32).append(47).append(84).append(121).append(112).append(101).append(32).append(47).append(88).append(82).append(101).append(102)
+
+append_ascii_w_entry : List(U8) -> List(U8)
+append_ascii_w_entry = |output| output.append(32).append(47).append(87).append(32).append(91).append(49).append(32).append(56).append(32).append(50).append(93)
+
+append_xref_entry : List(U8), U8, U64, U16 -> List(U8)
+append_xref_entry = |output, entry_type, offset, generation| {
+	var $out = output.append(entry_type)
+	var $shift = 56
+	while $shift >= 0 {
+		$out = $out.append(offset.shr_wrap($shift.to_u8_wrap()).to_u8_wrap())
+		if $shift == 0 {
+			$shift = -8
+		} else {
+			$shift = $shift - 8
+		}
+	}
+	$out = $out.append(generation.shr_wrap(8).to_u8_wrap())
+	$out.append(generation.to_u8_wrap())
+}
+
+append_xref_suffix : List(U8), U64 -> List(U8)
+append_xref_suffix = |output, xref_offset| {
+	var $out = append_stream_suffix(output)
+	$out = $out.append(115).append(116).append(97).append(114).append(116).append(120).append(114).append(101).append(102).append(10)
+	$out = KernelLex.append_unsigned($out, xref_offset)
+	$out = $out.append(10).append(37).append(37).append(69).append(79).append(70).append(10)
+	$out
+}
+
+copy_bytes : List(U8) -> List(U8)
+copy_bytes = |source| append_all(List.with_capacity(source.len()), source)
+
+append_all : List(U8), List(U8) -> List(U8)
+append_all = |target, source| {
+	length = source.len()
+	var $out = List.reserve(target, length)
+	var $index = 0
+	while $index < length {
+		$out = $out.append(list_at(source, $index))
+		$index = $index + 1
+	}
+	$out
+}
+
+plan_store : KernelStructure.Plan -> KernelObject.Store
+plan_store = |plan| KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan))
+
+list_at : List(a), U64 -> a
+list_at = |list, index| match list.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "emission-plan index invariant failed"
+	}
+}
+
+checked_add : U64, U64 -> Try(U64, KernelEmit.Error)
+checked_add = |left, right| match U64.plus_try(left, right) {
+	Err(Overflow) => Err(ArithmeticOverflow)
+	Ok(total) => Ok(total)
+}
+
+checked_times_small : U64, U64 -> Try(U64, KernelEmit.Error)
+checked_times_small = |value, multiplier| {
+	var $total = 0
+	var $index = 0
+	var $error = NoError
+	while $index < multiplier and $error == NoError {
+		match U64.plus_try($total, value) {
+			Err(Overflow) => {
+				$error = Overflowed
+			}
+			Ok(next) => {
+				$total = next
+			}
+		}
+		$index = $index + 1
+	}
+
+	match $error {
+		Overflowed => Err(ArithmeticOverflow)
+		NoError => Ok($total)
+	}
+}
+
+## Buffered emission writes a PDF 2.0 header, binary marker, and EOF marker.
+expect {
+	plan = KernelStructure.build_blank(1, KernelStructure.PageSize.A4)?
+	bytes = KernelEmit.to_bytes(plan)?
+
+	bytes.sublist({ start: 0, len: 15 }) == [37, 80, 68, 70, 45, 50, 46, 48, 10, 37, 226, 227, 207, 211, 10] and
+		bytes.sublist({ start: bytes.len() - 6, len: 6 }) == [37, 37, 69, 79, 70, 10]
+}
+
+## The chunk transition concatenates byte-identically with buffered emission.
+expect {
+	plan = KernelStructure.build_blank(3, KernelStructure.PageSize.Letter)?
+	expected = KernelEmit.to_bytes(plan)?
+	var $encoder = KernelEmit.start(plan, ShareResourceChunks)?
+	var $actual = []
+	var $done = False
+	while $done == False {
+		match KernelEmit.Encoder.next($encoder)? {
+			Done => {
+				$done = True
+			}
+			Emit(segment, next) => {
+				$actual = append_all($actual, segment.bytes)
+				$encoder = next
+			}
+		}
+	}
+
+	$actual == expected
+}

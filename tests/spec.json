@@ -9,6 +9,19 @@
   "work_counters": ["passes", "byte_visits"],
   "cases": [
     {
+      "name": "Gate 1 blank PDF",
+      "scenario_revision": "gate1-blank-v1",
+      "source": "tests/gate1_blank/main.roc",
+      "snapshot": "tests/gate1_blank/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1 },
+      "expectations": {
+        "arm64mac": { "allocations": 0, "work": [1, 521] },
+        "x64musl": { "allocations": 0, "work": [1, 521] }
+      }
+    },
+    {
       "name": "placeholder PDF x1",
       "scenario_revision": "placeholder-v1",
       "source": "tests/placeholder/main.roc",
