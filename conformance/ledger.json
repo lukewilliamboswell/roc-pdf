@@ -67,6 +67,19 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-LEXICAL-CANONICAL",
+      "summary": "Private PDF lexical emission uses exact canonical booleans, integers, finite fixed-decimal reals, names, byte strings, and Unicode text strings.",
+      "source_ids": ["iso-32000-2-2020-ec3"],
+      "references": ["ISO 32000-2:2020 7.3", "architecture.md: Deterministic serialization"],
+      "capabilities": ["Pdf20"],
+      "implementation": "partial",
+      "machine_verification": "roc_unit_positive_and_atomic_negative; pending_optimized_pipeline_and_independent_parser",
+      "human_verification": "not_required",
+      "positive_scenarios": ["package/KernelLex.roc"],
+      "negative_scenarios": ["package/KernelLex.roc"],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-NAMED-DESTINATION-SD",
       "summary": "A named-destination dictionary uses SD as defined by GoTo action Table 202.",
       "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],

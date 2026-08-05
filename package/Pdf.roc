@@ -1,5 +1,6 @@
 import Conformance
 import Document
+import KernelLex
 import Theme
 
 Pdf :: [].{
@@ -97,6 +98,9 @@ expect {
 
 	claims.pdf20 and claims.static_pdf_a4 and claims.pdf_ua2 and !claims.wtpdf_accessibility
 }
+
+## The lexical implementation remains a private package module.
+expect KernelLex.boolean(True) == Str.to_utf8("true")
 
 ## Gate 0 facade calls fail transactionally instead of emitting placeholder bytes.
 expect {

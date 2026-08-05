@@ -252,17 +252,23 @@ def validate_ledger(value: object, source_ids: set[str]) -> None:
         unknown_capabilities = set(capabilities) - CAPABILITIES
         if unknown_capabilities:
             fail(f"{path}.capabilities", f"unknown capabilities: {sorted(unknown_capabilities)}")
-        if requirement["implementation"] not in {"defined_only", "planned"}:
-            fail(f"{path}.implementation", "Gate 0 must not claim implemented behavior")
+        if requirement["implementation"] not in {"defined_only", "implemented", "partial", "planned"}:
+            fail(f"{path}.implementation", "must be defined_only, partial, implemented, or planned")
         require_string(requirement["machine_verification"], f"{path}.machine_verification")
         require_string(requirement["human_verification"], f"{path}.human_verification")
+        scenario_values: dict[str, list[str]] = {}
         for field in ("positive_scenarios", "negative_scenarios", "external_rule_ids"):
             values = require_string_list(requirement[field], f"{path}.{field}")
+            scenario_values[field] = values
             if field.endswith("scenarios"):
                 for scenario in values:
                     scenario_path = (ROOT / scenario).resolve()
                     if not scenario_path.is_relative_to(ROOT) or not scenario_path.is_file():
                         fail(f"{path}.{field}", f"scenario does not exist: {scenario}")
+
+        if requirement["implementation"] in {"implemented", "partial"}:
+            if not scenario_values["positive_scenarios"] or not scenario_values["negative_scenarios"]:
+                fail(f"{path}.implementation", "executable work requires positive and negative scenarios")
 
     if ids != sorted(set(ids)):
         fail("ledger.requirements", "requirement ids must be sorted and unique")
