@@ -38,6 +38,7 @@ KernelEmit :: [].{
 		IdentifierInputTooLarge,
 		IndexInvariant,
 		NestedStreamValue,
+		OutputBoundExceeded({ bound : U64, position : U64 }),
 		ReservedStreamKey(KernelObject.NameId),
 		StreamLengthUnavailable(KernelObject.StreamId),
 	]
@@ -48,6 +49,7 @@ KernelEmit :: [].{
 	Encoder :: {
 		file_id : List(U8),
 		offsets : List(U64),
+		output_bound : U64,
 		phase : Phase,
 		plan : KernelStructure.Plan,
 		position : U64,
@@ -57,6 +59,9 @@ KernelEmit :: [].{
 		next : Encoder -> Try(Step, Error)
 		next = |encoder| next_segment(encoder)
 
+		output_bound : Encoder -> U64
+		output_bound = |encoder| encoder.output_bound
+
 		next_infallible : Encoder -> Step
 		next_infallible = |encoder| match next_segment(encoder) {
 			Ok(step) => step
@@ -64,6 +69,29 @@ KernelEmit :: [].{
 				crash "sealed structural emission invariant failed"
 			}
 		}
+	}
+
+	CountingSink :: {
+		offsets : List(U64),
+		position : U64,
+	}.{
+		start : U64 -> CountingSink
+		start = |position| CountingSink.{ offsets: [], position }
+
+		mark_object : CountingSink -> CountingSink
+		mark_object = |sink| CountingSink.{ offsets: sink.offsets.append(sink.position), position: sink.position }
+
+		position : CountingSink -> U64
+		position = |sink| sink.position
+
+		write : CountingSink, U64 -> Try(CountingSink, Error)
+		write = |sink, length| {
+			next_position = checked_add(sink.position, length)?
+			Ok(CountingSink.{ offsets: sink.offsets, position: next_position })
+		}
+
+		xref_entry : CountingSink, U64 -> List(U8)
+		xref_entry = |sink, index| append_xref_entry([], 1, list_at(sink.offsets, index), 0)
 	}
 
 	start : KernelStructure.Plan, Retention -> Try(Encoder, Error)
@@ -75,6 +103,7 @@ KernelEmit :: [].{
 			Encoder.{
 				file_id,
 				offsets: List.with_capacity(store.objects.len() + 1),
+				output_bound: KernelStructure.Plan.output_bound(plan),
 				phase: Header,
 				plan,
 				position: 0,
@@ -283,13 +312,18 @@ emit_generated = |encoder, bytes, phase| {
 emit_bytes : KernelEmit.Encoder, List(U8), SegmentOwnership -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_bytes = |next, bytes, ownership| {
 	position = checked_add(next.position, bytes.len())?
-	Ok(Emit({ bytes, ownership }, encoder_with_position(next, position)))
+	if position > next.output_bound {
+		Err(OutputBoundExceeded({ bound: next.output_bound, position }))
+	} else {
+		Ok(Emit({ bytes, ownership }, encoder_with_position(next, position)))
+	}
 }
 
 encoder_with_phase : KernelEmit.Encoder, Phase -> KernelEmit.Encoder
 encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
+	output_bound: encoder.output_bound,
 	phase,
 	plan: encoder.plan,
 	position: encoder.position,
@@ -301,6 +335,7 @@ encoder_with_offsets : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
 encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
 	file_id: encoder.file_id,
 	offsets,
+	output_bound: encoder.output_bound,
 	phase: encoder.phase,
 	plan: encoder.plan,
 	position: encoder.position,
@@ -312,6 +347,7 @@ encoder_with_position : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_position = |encoder, position| KernelEmit.Encoder.{
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
+	output_bound: encoder.output_bound,
 	phase: encoder.phase,
 	plan: encoder.plan,
 	position,
@@ -323,6 +359,7 @@ encoder_with_stream_lengths : KernelEmit.Encoder, List(U64) -> KernelEmit.Encode
 encoder_with_stream_lengths = |encoder, stream_lengths| KernelEmit.Encoder.{
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
+	output_bound: encoder.output_bound,
 	phase: encoder.phase,
 	plan: encoder.plan,
 	position: encoder.position,
@@ -777,6 +814,39 @@ expect {
 	stream = list_at(stream_object.builder.store.streams, 0)
 
 	reserved_stream_key(stream_object.builder.store, stream.dictionary) == Reserved(filter.id)
+}
+
+## The structural bound covers a multi-level plan before emission starts.
+expect {
+	plan = KernelStructure.build_blank(4096, A4)?
+	encoder = KernelEmit.start(plan, OwnResourceChunks)?
+	bytes = KernelEmit.to_bytes(plan)?
+
+	KernelEmit.Encoder.output_bound(encoder) == KernelStructure.Plan.output_bound(plan) and
+		bytes.len() <= KernelEmit.Encoder.output_bound(encoder)
+}
+
+## The counting sink preserves fixed-width offsets beyond four GiB.
+expect {
+	sink = KernelEmit.CountingSink.start(4294967312)
+	marked = KernelEmit.CountingSink.mark_object(sink)
+	written = KernelEmit.CountingSink.write(marked, 8192)?
+
+	actual =
+		\\entry: ${Str.inspect(KernelEmit.CountingSink.xref_entry(written, 0))}
+		\\position: ${Str.inspect(KernelEmit.CountingSink.position(written))}
+
+	expected =
+		\\entry: [1, 0, 0, 0, 1, 0, 0, 0, 16, 0, 0]
+		\\position: 4294975504
+
+	actual == expected
+}
+
+## The counting sink reports overflow before accepting a segment length.
+expect match KernelEmit.CountingSink.write(KernelEmit.CountingSink.start(18446744073709551615), 1) {
+	Err(ArithmeticOverflow) => True
+	_ => False
 }
 
 ## Buffered emission writes a PDF 2.0 header, binary marker, and EOF marker.

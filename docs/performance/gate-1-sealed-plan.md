@@ -48,7 +48,8 @@ retention decision without undoing an intermediate arena.
 
 ## Evidence still required
 
-Gate 1 completion still requires exact output-bound proofs, independent offset
-and length recalculation, optimized allocation/ARC cases, structural parser and
-qpdf validation, stress and greater-than-4 GiB counting-sink fixtures, and
-shared/owned backing-allocation retention tests.
+The current blank structural plan now stores its checked output bound before
+emission, and an independent counting sink covers offsets beyond 4 GiB. Gate 1
+completion still requires extending that proof to non-empty resource and
+compression plans, plus shared/owned backing-allocation retention tests and
+the remaining external validators.

@@ -30,8 +30,11 @@ Generated chunks are owned. The transition also distinguishes seamless
 unchanged-resource slices from owned copies, but the present blank fixture has
 no unchanged resource and therefore does not evidence either retention path.
 Xref entries are emitted in batches of at most 256 entries. Page-tree
-dictionaries remain bounded by the fixed fanout of 32; other generated segment
-bounds still need to be stated and evidenced before Gate 1 completion.
+dictionaries remain bounded by the fixed fanout of 32. The sealed plan stores
+the checked `4096 + 1024 * page_count` whole-output bound proved in
+`gate-1-output-bounds.md`; each emission transition checks it as an internal
+invariant. A counting sink independently verifies fixed-width xref offsets
+beyond 4 GiB and checked position overflow.
 
 The empty content stream is encoded as the canonical eight-byte zlib-wrapped
 DEFLATE stream required by `/FlateDecode`. Non-empty DEFLATE input is rejected
@@ -53,6 +56,7 @@ qpdf 12.3.2 from its checksum-pinned official binary release.
 Gate 1 completion still requires exact scaling and copied-byte counters,
 non-empty stateful DEFLATE through `roc-deflate`, stream dictionary integration
 fixtures, balanced-tree stress over thousands of pages, shared and owned
-retention tests against actual backing allocations, a greater-than-4 GiB
-counting sink, cross-system hash evidence, and the pinned Arlington and strict-
-parser validators.
+retention tests against actual backing allocations, cross-system hash
+evidence, and the pinned Arlington and strict-parser validators. Non-empty
+resource and compression plans must extend the current blank-plan output-bound
+proof with checked payload bounds.

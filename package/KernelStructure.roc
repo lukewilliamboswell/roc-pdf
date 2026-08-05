@@ -13,6 +13,7 @@ KernelStructure :: [].{
 	]
 
 	Plan :: {
+		output_bound : U64,
 		page_count : U64,
 		page_size : PageSize,
 		root : KernelObject.ObjectId,
@@ -22,6 +23,9 @@ KernelStructure :: [].{
 	}.{
 		object_count : Plan -> U64
 		object_count = |plan| KernelSeal.Plan.counts(plan.sealed).objects
+
+		output_bound : Plan -> U64
+		output_bound = |plan| plan.output_bound
 
 		page_count : Plan -> U64
 		page_count = |plan| plan.page_count
@@ -68,6 +72,7 @@ TreeShape : {
 
 build_nonempty : U64, KernelStructure.PageSize -> Try(KernelStructure.Plan, KernelStructure.Error)
 build_nonempty = |page_count, page_size| {
+	output_bound = blank_output_bound(page_count)?
 	shape = build_tree_shape(page_count)?
 	leaf_count = list_at(shape.level_counts, shape.level_counts.len() - 1)
 	object_limit = checked_add(checked_linear(page_count, 3, 1)?, shape.nodes)?
@@ -168,6 +173,7 @@ build_nonempty = |page_count, page_size| {
 
 	Ok(
 		KernelStructure.Plan.{
+			output_bound,
 			page_count,
 			page_size,
 			root: catalog_object.id,
@@ -492,6 +498,21 @@ checked_add = |left, right| match U64.plus_try(left, right) {
 	Ok(total) => Ok(total)
 }
 
+checked_times : U64, U64 -> Try(U64, KernelStructure.Error)
+checked_times = |left, right| match U64.times_try(left, right) {
+	Err(Overflow) => Err(PlanSizeOverflow)
+	Ok(total) => Ok(total)
+}
+
+blank_bytes_per_page_bound : U64
+blank_bytes_per_page_bound = 1024
+
+blank_fixed_bytes_bound : U64
+blank_fixed_bytes_bound = 4096
+
+blank_output_bound : U64 -> Try(U64, KernelStructure.Error)
+blank_output_bound = |page_count| checked_add(checked_times(page_count, blank_bytes_per_page_bound)?, blank_fixed_bytes_bound)
+
 ## One blank page lowers to catalog, pages, page, stream, and length objects.
 expect {
 	plan = KernelStructure.build_blank(1, A4)?
@@ -571,3 +592,6 @@ expect match KernelStructure.build_blank(max_pages + 1, A4) {
 	Err(PageLimitExceeded({ attempted, limit })) => attempted == max_pages + 1 and limit == max_pages
 	_ => False
 }
+
+## The maximum accepted plan fixes a checked pre-emission output bound.
+expect blank_output_bound(max_pages) == Ok(1073745920)

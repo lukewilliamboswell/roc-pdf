@@ -59,9 +59,9 @@ store kind.
 
 ## Evidence still required
 
-Gate 1 completion still requires sealing-time forward-reference validation,
-compact emission-plan measurements, exact optimized allocation scenarios,
-thousands-of-pages stress cases, greater-than-4 GiB counting-sink coverage,
-and shared-versus-owned backing-storage retention evidence. Allocation or work
-baseline changes will be reviewed as representation changes, not mechanically
-accepted.
+Gate 1 now has sealing-time reference validation, compact emission-plan
+measurements, exact optimized allocation scenarios, and thousands-of-pages
+stress plus greater-than-4-GiB counting-sink coverage. Completion still
+requires shared-versus-owned backing-storage retention evidence. Allocation or
+work baseline changes will be reviewed as representation changes, not
+mechanically accepted.
