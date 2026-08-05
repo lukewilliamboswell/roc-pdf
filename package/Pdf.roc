@@ -3,6 +3,7 @@ import Document
 import KernelLex
 import KernelObject
 import KernelSeal
+import KernelStructure
 import Theme
 
 Pdf :: [].{
@@ -144,6 +145,12 @@ expect match KernelSeal.seal(
 	}),
 ) {
 	Ok(_) => True
+	Err(_) => False
+}
+
+## The blank-page structural lowerer is private to the package.
+expect match KernelStructure.build_blank(1, KernelStructure.PageSize.A4) {
+	Ok(plan) => KernelStructure.Plan.object_count(plan) == 5
 	Err(_) => False
 }
 
