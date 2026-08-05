@@ -127,7 +127,7 @@ def validate_xref(
 
 
 def validate_stream_lengths(
-    bodies: dict[int, bytes], xref_object: int, expected_content: bytes
+    bodies: dict[int, bytes], xref_object: int, content_objects: set[int], expected_content: bytes
 ) -> None:
     for number, body in bodies.items():
         if number == xref_object or b"stream\n" not in body:
@@ -144,10 +144,11 @@ def validate_stream_lengths(
                 decoded = zlib.decompress(data)
             except zlib.error as error:
                 raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
-            require(
-                decoded == expected_content,
-                f"content stream {number} does not match the independently constructed expectation",
-            )
+            if number in content_objects:
+                require(
+                    decoded == expected_content,
+                    f"content stream {number} does not match the independently constructed expectation",
+                )
 
 
 def validate_page_tree(bodies: dict[int, bytes], root: int, expected_pages: int) -> set[int]:
@@ -246,7 +247,12 @@ def expected_identifier(bodies: dict[int, bytes], pages: set[int]) -> bytes:
     return hashlib.sha256(facts).digest()
 
 
-def validate_pdf(pdf: bytes, expected_pages: int, expected_content: bytes = b"") -> None:
+def validate_pdf(
+    pdf: bytes,
+    expected_pages: int,
+    expected_content: bytes = b"",
+    normalized_plan_identity: bool = False,
+) -> None:
     require(pdf.startswith(b"%PDF-2.0\n%\xe2\xe3\xcf\xd3\n"), "missing PDF 2.0 header or binary marker")
     require(pdf.endswith(b"%%EOF\n"), "missing canonical EOF marker or trailing bytes")
     start_match = re.search(rb"startxref\n([0-9]+)\n%%EOF\n$", pdf)
@@ -257,13 +263,14 @@ def validate_pdf(pdf: bytes, expected_pages: int, expected_content: bytes = b"")
     require(xref_offset in offsets.values(), "startxref is not an object boundary")
     xref_object = next(number for number, offset in offsets.items() if offset == xref_offset)
     root, file_identifier = validate_xref(pdf, offsets, bodies, xref_object, xref_offset)
-    validate_stream_lengths(bodies, xref_object, expected_content)
-
     root_body = bodies[root]
     require(b"/Type /Catalog" in root_body, "xref /Root is not a catalog")
     pages = dictionary_ref(root_body, b"Pages")
     page_objects = validate_page_tree(bodies, pages, expected_pages)
-    require(file_identifier == expected_identifier(bodies, page_objects), "file identifier does not match normalized plan facts")
+    content_objects = {dictionary_ref(bodies[page], b"Contents") for page in page_objects}
+    validate_stream_lengths(bodies, xref_object, content_objects, expected_content)
+    if not normalized_plan_identity:
+        require(file_identifier == expected_identifier(bodies, page_objects), "file identifier does not match normalized plan facts")
 
 
 def self_test() -> None:

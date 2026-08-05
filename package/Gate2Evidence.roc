@@ -1,12 +1,15 @@
 import KernelColor
 import KernelContent
+import KernelEmit
 import KernelGeometry
 import KernelGate2Objects
 import KernelGate2PageObjects
+import KernelGate2PipelineFixture
 import KernelGate2TaggedObjects
 import KernelGate2ResourceObjects
 import KernelGate2Structure
 import KernelImage
+import KernelObject
 import KernelResourceUse
 import KernelScene
 import KernelSemantics
@@ -36,6 +39,34 @@ Gate2Evidence :: [].{
 
 		{ x: transformed.x.raw(), y: transformed.y.raw() }
 	}
+
+	minimal_pdf : U64 -> Try(List(U8), [EvidenceFailure, InvalidRuntimeGuard])
+	minimal_pdf = |runtime_guard| if runtime_guard == 0 build_minimal_pdf({}) else Err(InvalidRuntimeGuard)
+}
+
+build_minimal_pdf : {} -> Try(List(U8), [EvidenceFailure, InvalidRuntimeGuard])
+build_minimal_pdf = |_| {
+	pipeline = KernelGate2PipelineFixture.pipeline({}) ? |_| EvidenceFailure
+	object_limits : KernelObject.Limits
+	object_limits = {
+		max_array_items: 192,
+		max_byte_string_bytes: 0,
+		max_byte_strings: 0,
+		max_dictionary_entries: 320,
+		max_direct_depth: 8,
+		max_name_bytes: 3072,
+		max_names: 128,
+		max_objects: 16,
+		max_payload_bytes: 1024,
+		max_payloads: 3,
+		max_streams: 3,
+		max_text_string_bytes: 64,
+		max_text_strings: 1,
+		max_values: 640,
+	}
+	plan = KernelGate2Structure.Plan.build(pipeline.tagged, pipeline.colors, pipeline.images, pipeline.content, pipeline.objects, KernelGate2Structure.Limits.make({ object_limits, output_bound: 65536 })) ? |_| EvidenceFailure
+	bytes = KernelEmit.to_bytes(KernelGate2Structure.Plan.structure(plan)) ? |_| EvidenceFailure
+	Ok(bytes)
 }
 
 ## The Gate 2 evidence package links the private analytical geometry kernel.

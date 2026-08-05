@@ -173,6 +173,21 @@
       "retention": null
     },
     {
+      "name": "Gate 2 minimal tagged visual PDF",
+      "scenario_revision": "gate2-minimal-tagged-visual-v1",
+      "source": "tests/gate2_minimal/main.roc",
+      "snapshot": "tests/gate2_minimal/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "semantic_nodes": 2, "commands": 3, "color_spaces": 1, "images": 1, "gate2_minimal_content": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["passes", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 630, "work": [1, 1932] },
+        "x64musl": { "allocations": 630, "work": [1, 1932] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",

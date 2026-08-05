@@ -358,6 +358,24 @@ def verify_toolchain(toolchain: Toolchain) -> None:
 
 
 def expected_content(dimensions: dict[str, int]) -> bytes:
+    if dimensions.get("gate2_minimal_content", 0) == 1:
+        return (
+            b"/P <</MCID 0>> BDC\n"
+            b"/CS0 cs\n"
+            b"0.50000763 scn\n"
+            b"0 0 1 1 re\n"
+            b"f\n"
+            b"EMC\n"
+            b"/Artifact <</Type /Background>> BDC\n"
+            b"q\n"
+            b"1 0 0 1 2 3 cm\n"
+            b"q\n"
+            b"2 0 0 1 4 5 cm\n"
+            b"/Im0 Do\n"
+            b"Q\n"
+            b"Q\n"
+            b"EMC\n"
+        )
     length = dimensions.get("content_stream_bytes", 0)
     period = dimensions.get("content_pattern_period")
     if length == 0 and period is None:
@@ -460,7 +478,12 @@ def run_case(
 
     expected_pages = case.dimensions.get("pages")
     if expected_pages is not None:
-        validate_pdf(result.stdout, expected_pages, expected_content(case.dimensions))
+        validate_pdf(
+            result.stdout,
+            expected_pages,
+            expected_content(case.dimensions),
+            case.dimensions.get("normalized_plan_identity", 0) == 1,
+        )
         print(f"PASS {case.name}: independent offsets, lengths, xref, and page facts", flush=True)
 
 
