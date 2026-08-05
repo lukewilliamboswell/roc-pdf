@@ -22,6 +22,20 @@
       }
     },
     {
+      "name": "Gate 1 balanced 4096-page PDF",
+      "scenario_revision": "gate1-pages-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["stress"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096 },
+      "work_counters": ["pages", "tree_nodes", "objects", "values", "array_edges", "dictionary_edges", "build_edges", "references", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 113794, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] },
+        "x64musl": { "allocations": 113794, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] }
+      }
+    },
+    {
       "name": "placeholder PDF x1",
       "scenario_revision": "placeholder-v1",
       "source": "tests/placeholder/main.roc",

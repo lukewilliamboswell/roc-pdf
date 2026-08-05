@@ -70,15 +70,16 @@ KernelEmit :: [].{
 	start = |plan, retention| {
 		validate_emittable(plan)?
 		file_id = KernelSha256.digest(identifier_facts(plan)) ? |_| IdentifierInputTooLarge
+		store = plan_store(plan)
 		Ok(
 			Encoder.{
 				file_id,
-				offsets: [],
+				offsets: List.with_capacity(store.objects.len() + 1),
 				phase: Header,
 				plan,
 				position: 0,
 				retention,
-				stream_lengths: [],
+				stream_lengths: List.with_capacity(store.streams.len()),
 			},
 		)
 	}
@@ -623,15 +624,14 @@ append_ascii_w_entry = |output| output.append(32).append(47).append(87).append(3
 append_xref_entry : List(U8), U8, U64, U16 -> List(U8)
 append_xref_entry = |output, entry_type, offset, generation| {
 	var $out = output.append(entry_type)
-	var $shift = 56
-	while $shift >= 0 {
-		$out = $out.append(offset.shr_wrap($shift.to_u8_wrap()).to_u8_wrap())
-		if $shift == 0 {
-			$shift = -8
-		} else {
-			$shift = $shift - 8
-		}
-	}
+	$out = $out.append(offset.shr_wrap(56).to_u8_wrap())
+	$out = $out.append(offset.shr_wrap(48).to_u8_wrap())
+	$out = $out.append(offset.shr_wrap(40).to_u8_wrap())
+	$out = $out.append(offset.shr_wrap(32).to_u8_wrap())
+	$out = $out.append(offset.shr_wrap(24).to_u8_wrap())
+	$out = $out.append(offset.shr_wrap(16).to_u8_wrap())
+	$out = $out.append(offset.shr_wrap(8).to_u8_wrap())
+	$out = $out.append(offset.to_u8_wrap())
 	$out = $out.append(generation.shr_wrap(8).to_u8_wrap())
 	$out.append(generation.to_u8_wrap())
 }
@@ -671,15 +671,14 @@ identifier_facts = |plan| {
 	$facts = append_all($facts, Str.to_utf8("blank"))
 	$facts = $facts.append(0)
 	page_count = KernelStructure.Plan.page_count(plan)
-	var $shift = 56
-	while $shift >= 0 {
-		$facts = $facts.append(page_count.shr_wrap($shift.to_u8_wrap()).to_u8_wrap())
-		if $shift == 0 {
-			$shift = -8
-		} else {
-			$shift = $shift - 8
-		}
-	}
+	$facts = $facts.append(page_count.shr_wrap(56).to_u8_wrap())
+	$facts = $facts.append(page_count.shr_wrap(48).to_u8_wrap())
+	$facts = $facts.append(page_count.shr_wrap(40).to_u8_wrap())
+	$facts = $facts.append(page_count.shr_wrap(32).to_u8_wrap())
+	$facts = $facts.append(page_count.shr_wrap(24).to_u8_wrap())
+	$facts = $facts.append(page_count.shr_wrap(16).to_u8_wrap())
+	$facts = $facts.append(page_count.shr_wrap(8).to_u8_wrap())
+	$facts = $facts.append(page_count.to_u8_wrap())
 	$facts.append(
 		match KernelStructure.Plan.page_size(plan) {
 			A4 => 0

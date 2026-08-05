@@ -42,7 +42,17 @@ a deterministic 4,096-page shape. The independent byte checker recursively
 walks `/Kids`, `/Parent`, and `/Count` and rejects cycles, unreachable nodes,
 mixed child kinds, and fanout violations.
 
-Gate 1 completion still requires an optimized thousands-page byte fixture with
-exact allocations and visits, broader reusable builders for the other required
-tree kinds, cross-system hashes, retained-memory evidence, and the remaining
-external validators.
+The pinned optimized 4,096-page whole-pipeline fixture records exactly 113,794
+Roc allocations, 133 tree nodes, 12,422 objects, 17,186 values, 4,232 array
+edges, 21,013 dictionary edges, 25,245 total builder edges, 8,585 checked
+references, and 1,084,927 emitted-byte visits. Its exact output hash is
+`bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`.
+The independent checker validates all 4,096 pages and every xref offset. This
+fixture exposed dynamic-shift code generation that corrupted runtime `U64`
+byte emission; fixed-position shifts now make both offsets and identifier facts
+correct for non-constant large plans.
+
+Gate 1 completion still requires broader reusable builders for the other
+required tree kinds, retained-memory evidence, and the remaining external
+validators. CI must confirm the checked-in allocation count and hash on x64
+Linux before the cross-system evidence is complete.

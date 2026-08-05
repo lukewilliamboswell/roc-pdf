@@ -125,9 +125,9 @@
       "references": ["ISO 32000-2:2020 7.7.2", "ISO 32000-2:2020 7.7.3", "architecture.md: Internal PDF object plan"],
       "capabilities": ["Pdf20"],
       "implementation": "partial",
-      "machine_verification": "roc_unit_blank_single_depth_transition_and_4096_page_shape; independent_recursive_page_tree_parser; pending_optimized_thousands_page_emission",
+      "machine_verification": "roc_unit_blank_single_depth_transition_and_4096_page_shape; optimized_4096_page_exact_allocations_and_work; independent_recursive_page_tree_and_xref_parser; pending_cross_system_ci",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelStructure.roc"],
+      "positive_scenarios": ["package/KernelStructure.roc", "tests/gate1_pages/main.roc"],
       "negative_scenarios": ["package/KernelStructure.roc"],
       "external_rule_ids": []
     },

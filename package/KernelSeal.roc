@@ -34,11 +34,17 @@ KernelSeal :: [].{
 		source_bytes : SourceBytes,
 		store : KernelObject.Store,
 	}.{
+		build_work : Plan -> KernelObject.Work
+		build_work = |plan| plan.build_work
+
 		counts : Plan -> KernelObject.Counts
 		counts = |plan| counts_from_store(plan.store)
 
 		seal_work : Plan -> Work
 		seal_work = |plan| plan.seal_work
+
+		source_bytes : Plan -> SourceBytes
+		source_bytes = |plan| plan.source_bytes
 
 		store : Plan -> KernelObject.Store
 		store = |plan| plan.store
