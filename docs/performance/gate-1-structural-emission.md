@@ -13,9 +13,10 @@ generated key fail before emission. The facade exposes this slice only for an
 empty `Standard` document; meaningful content and stricter profiles fail
 transactionally rather than silently producing a blank or downgraded file.
 
-The checked-in one-page snapshot is partial Gate 1 evidence. It does not claim
-support for non-empty content, stateful DEFLATE, the other balanced tree kinds,
-or the later profile gates.
+The public facade remains intentionally blank at this gate, while an internal
+one-page generated-content probe exercises the same sealed-plan and chunk
+transition with non-empty dynamic DEFLATE. The snapshots remain partial Gate 1
+evidence; they do not claim meaningful scene content or later profile gates.
 
 ## Ownership, traversal, and bounds
 
@@ -32,16 +33,18 @@ backing allocations, including final-use release and the caller-retention
 tradeoff described in `gate-1-resource-retention.md`.
 Xref entries are emitted in batches of at most 256 entries. Page-tree
 dictionaries remain bounded by the fixed fanout of 32. The sealed plan stores
-the checked `4096 + 1024 * page_count` whole-output bound proved in
-`gate-1-output-bounds.md`; each emission transition checks it as an internal
-invariant. A counting sink independently verifies fixed-width xref offsets
-beyond 4 GiB and checked position overflow.
+the checked structural bound proved in `gate-1-output-bounds.md`, plus an exact
+conservative compressor bound for a non-empty generated stream; each emission
+transition checks it as an internal invariant. A counting sink independently
+verifies fixed-width xref offsets beyond 4 GiB and checked position overflow.
 
 The empty content stream is encoded as the canonical eight-byte zlib-wrapped
-DEFLATE stream required by `/FlateDecode`. Non-empty DEFLATE input is rejected
-before emission. The pinned `roc-deflate` integration and stateful bounded
-compression transition remain a Gate 1 requirement; this empty-stream special
-case is not evidence for them.
+DEFLATE stream required by `/FlateDecode`. Non-empty generated input enters a
+preflighted stateful transition that emits one bounded compressed chunk per
+65,535-byte block, carries bit and Adler-32 state, records exact compression
+work, and releases its source after the last chunk. `gate-1-deflate.md` records
+the algorithm, bound, allocation evidence, independent decompression, and the
+still-open production-through-`roc-deflate` dependency gate.
 
 ## Current evidence and remaining work
 
@@ -54,9 +57,9 @@ and page facts from the original bytes, and its negative twins corrupt an
 offset, a length reference, and the EOF marker. Linux CI additionally runs
 qpdf 12.3.2 from its checksum-pinned official binary release.
 
-Gate 1 completion still requires exact scaling and copied-byte counters,
-non-empty stateful DEFLATE through `roc-deflate`, stream dictionary integration
-fixtures, stress for the remaining balanced-tree kinds, cross-system hash
-evidence, and the pinned Arlington and strict-parser validators. Non-empty
-compression plans must extend the current structural output-bound proof with a
-checked compressor bound.
+Gate 1 completion still requires production compression through `roc-deflate`,
+object lowering for the non-page balanced structures, comprehensive negative
+twins, cross-system hash evidence, and the pinned Arlington and strict-parser
+validators. The non-empty generated-stream probe now covers stream dictionary
+integration, stateful bounded chunks, exact compression work, source release,
+and a checked compressor output bound.

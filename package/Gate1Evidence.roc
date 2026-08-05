@@ -1,4 +1,5 @@
 import KernelBalanced
+import KernelDeflate
 import KernelEmit
 import KernelIndex
 import KernelObject
@@ -128,6 +129,34 @@ Gate1Evidence :: [].{
 		}
 	}
 
+	generate_deflate_stream : U64 -> { bytes : List(U8), work : List(U64) }
+	generate_deflate_stream = |input_bytes| {
+		input = deflate_input(input_bytes)
+		plan = match KernelStructure.build_deflate_stream_probe(input, input_bytes) {
+			Ok(value) => value
+			Err(_) => {
+				crash "Gate 1 DEFLATE stress plan invariant failed"
+			}
+		}
+		result = capture_generated(plan)
+		work = result.deflate
+		{
+			bytes: result.bytes,
+			work: [
+				input_bytes,
+				KernelDeflate.Work.blocks(work),
+				KernelDeflate.Work.candidate_visits(work),
+				KernelDeflate.Work.hash_inserts(work),
+				KernelDeflate.Work.tokens(work),
+				KernelDeflate.Work.matches(work),
+				KernelDeflate.Work.emitted_bytes(work),
+				KernelDeflate.Work.max_chunk_bytes(work),
+				result.generated_segments,
+				result.bytes.len(),
+			],
+		}
+	}
+
 	retention_probe : U8 -> {
 		backing : List(U8),
 		bytes : List(U8),
@@ -176,6 +205,51 @@ Gate1Evidence :: [].{
 			],
 		}
 	}
+}
+
+deflate_input : U64 -> List(U8)
+deflate_input = |count| {
+	var $bytes = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		byte = match U64.mod_by($index, 4) {
+			0 => 113
+			1 => 32
+			2 => 81
+			_ => 10
+		}
+		$bytes = $bytes.append(byte)
+		$index = $index + 1
+	}
+	$bytes
+}
+
+capture_generated : KernelStructure.Plan -> { bytes : List(U8), deflate : KernelDeflate.Work, generated_segments : U64 }
+capture_generated = |plan| {
+	var $encoder = match KernelEmit.start(plan, OwnResourceChunks) {
+		Ok(value) => value
+		Err(_) => {
+			crash "Gate 1 generated encoder invariant failed"
+		}
+	}
+	var $bytes = []
+	var $generated_segments = 0
+	var $done = False
+	while $done == False {
+		match KernelEmit.Encoder.next_infallible($encoder) {
+			Done => {
+				$done = True
+			}
+			Emit(segment, next) => {
+				$bytes = append_all($bytes, segment.bytes)
+				if segment.ownership == Generated {
+					$generated_segments = $generated_segments + 1
+				}
+				$encoder = next
+			}
+		}
+	}
+	{ bytes: $bytes, deflate: KernelEmit.Encoder.deflate_work($encoder), generated_segments: $generated_segments }
 }
 
 outline_entries : U64 -> List(KernelOutline.Entry)

@@ -1,3 +1,4 @@
+import KernelDeflate
 import KernelLex
 import KernelObject
 import KernelSeal
@@ -15,6 +16,12 @@ PayloadPhase : {
 	release : [KeepPayload, ReleasePayload(KernelObject.PayloadId)],
 }
 
+DeflatePhase : {
+	encoder : KernelDeflate.Encoder,
+	emitted_length : U64,
+	next_object : U64,
+}
+
 XrefEntriesPhase : {
 	entry : U64,
 	size : U64,
@@ -22,6 +29,7 @@ XrefEntriesPhase : {
 }
 
 Phase : [
+	DeflatePayload(DeflatePhase),
 	Finished,
 	Header,
 	Object(U64),
@@ -35,7 +43,8 @@ Phase : [
 KernelEmit :: [].{
 	Error : [
 		ArithmeticOverflow,
-		DeflateInputNotYetSupported(KernelObject.StreamId),
+		Deflate(KernelDeflate.Error),
+		DeflateRequiresGeneratedPayload(KernelObject.StreamId),
 		IdentifierInputTooLarge,
 		IndexInvariant,
 		NestedStreamValue,
@@ -49,6 +58,7 @@ KernelEmit :: [].{
 
 	Encoder :: {
 		copied_resource_bytes : U64,
+		deflate_work : KernelDeflate.Work,
 		file_id : List(U8),
 		offsets : List(U64),
 		output_bound : U64,
@@ -60,6 +70,9 @@ KernelEmit :: [].{
 	}.{
 		copied_resource_bytes : Encoder -> U64
 		copied_resource_bytes = |encoder| encoder.copied_resource_bytes
+
+		deflate_work : Encoder -> KernelDeflate.Work
+		deflate_work = |encoder| encoder.deflate_work
 
 		next : Encoder -> Try(Step, Error)
 		next = |encoder| next_segment(encoder)
@@ -107,6 +120,7 @@ KernelEmit :: [].{
 		Ok(
 			Encoder.{
 				copied_resource_bytes: 0,
+				deflate_work: KernelDeflate.Work.zero,
 				file_id,
 				offsets: List.with_capacity(store.objects.len() + 1),
 				output_bound: KernelStructure.Plan.output_bound(plan),
@@ -155,8 +169,15 @@ validate_emittable = |plan| {
 		}
 		if $error == NoError and stream.filter == Deflate {
 			payload = list_at(store.payloads, KernelObject.PayloadId.index(stream.source))
-			if payload.bytes.is_empty() == False {
-				$error = UnsupportedDeflate(stream.id)
+			if payload.kind != Generated {
+				$error = InvalidDeflateKind(stream.id)
+			} else if payload.bytes.is_empty() == False {
+				match prepare_deflate(payload.bytes) {
+					Err(deflate_error) => {
+						$error = InvalidDeflate(deflate_error)
+					}
+					Ok(_) => {}
+				}
 			}
 		}
 		$index = $index + 1
@@ -164,9 +185,16 @@ validate_emittable = |plan| {
 
 	match $error {
 		InvalidReserved(key) => Err(ReservedStreamKey(key))
-		UnsupportedDeflate(stream) => Err(DeflateInputNotYetSupported(stream))
+		InvalidDeflate(error) => Err(Deflate(error))
+		InvalidDeflateKind(stream) => Err(DeflateRequiresGeneratedPayload(stream))
 		NoError => Ok({})
 	}
+}
+
+prepare_deflate : List(U8) -> Try(KernelDeflate.Plan, KernelDeflate.Error)
+prepare_deflate = |bytes| {
+	bound = KernelDeflate.output_bound(bytes.len())?
+	KernelDeflate.Plan.prepare(bytes, KernelDeflate.Limits.make({ max_input_bytes: bytes.len(), max_output_bytes: bound }))
 }
 
 next_segment : KernelEmit.Encoder -> Try(KernelEmit.Step, KernelEmit.Error)
@@ -178,6 +206,7 @@ next_segment = |encoder| match encoder.phase {
 		Object(0),
 	)
 	Object(index) => emit_object(encoder, index)
+	DeflatePayload(state) => emit_deflate_payload(encoder, state)
 	Payload(payload) => {
 		next_plan = match payload.release {
 			KeepPayload => encoder.plan
@@ -245,43 +274,92 @@ emit_stream_prefix = |encoder, object_id, stream_id, next_object| {
 	stream = list_at(store.streams, KernelObject.StreamId.index(stream_id))
 	payload = list_at(store.payloads, KernelObject.PayloadId.index(stream.source))
 
-	{ bytes: emitted_payload, ownership } = match stream.filter {
-		Deflate => {
-			{ bytes: [120, 156, 3, 0, 0, 0, 0, 1], ownership: Generated }
-		}
-		Unfiltered => match payload.kind {
-			Generated => { bytes: payload.bytes, ownership: Generated }
-			UnchangedResource => if encoder.retention == ShareResourceChunks {
-				{ bytes: payload.bytes, ownership: SharedResource }
+	match stream.filter {
+		Deflate => emit_deflate_stream_prefix(encoder, object_id, stream, payload, next_object)
+		Unfiltered => {
+			{ bytes: emitted_payload, ownership } = match payload.kind {
+				Generated => { bytes: payload.bytes, ownership: Generated }
+				UnchangedResource => if encoder.retention == ShareResourceChunks {
+					{ bytes: payload.bytes, ownership: SharedResource }
+				} else {
+					{ bytes: copy_bytes(payload.bytes), ownership: OwnedResource }
+				}
+			}
+
+			if KernelObject.StreamId.index(stream_id) != encoder.stream_lengths.len() {
+				Err(IndexInvariant)
 			} else {
-				{ bytes: copy_bytes(payload.bytes), ownership: OwnedResource }
+				copied_resource_bytes = if ownership == OwnedResource {
+					checked_add(encoder.copied_resource_bytes, payload.bytes.len())?
+				} else {
+					encoder.copied_resource_bytes
+				}
+				stream_lengths = encoder.stream_lengths.append(emitted_payload.len())
+				release = payload_release(encoder.plan, stream)
+				var $prefix = append_object_header([], object_id)
+				$prefix = append_stream_dictionary($prefix, store, stream)?
+				$prefix = append_stream_keyword($prefix)
+				with_length = encoder_with_stream_lengths(encoder_with_copied_resource_bytes(encoder, copied_resource_bytes), stream_lengths)
+				next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership, release }))
+				emit_bytes(next, $prefix, Generated)
 			}
 		}
 	}
+}
 
-	if KernelObject.StreamId.index(stream_id) != encoder.stream_lengths.len() {
+emit_deflate_stream_prefix : KernelEmit.Encoder, KernelObject.ObjectId, KernelObject.Stream, KernelObject.Payload, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_deflate_stream_prefix = |encoder, object_id, stream, payload, next_object| {
+	if KernelObject.StreamId.index(stream.id) != encoder.stream_lengths.len() {
 		Err(IndexInvariant)
+	} else if payload.kind != Generated {
+		Err(DeflateRequiresGeneratedPayload(stream.id))
 	} else {
-		copied_resource_bytes = if ownership == OwnedResource {
-			checked_add(encoder.copied_resource_bytes, payload.bytes.len())?
-		} else {
-			encoder.copied_resource_bytes
-		}
-		stream_lengths = encoder.stream_lengths.append(emitted_payload.len())
-		release = match payload.kind {
-			Generated => KeepPayload
-			UnchangedResource => match KernelSeal.Plan.payload_last_use(KernelStructure.Plan.sealed(encoder.plan), stream.source) {
-				LastStream(last) => if KernelObject.StreamId.is_eq(last, stream.id) ReleasePayload(stream.source) else KeepPayload
-				Unused => KeepPayload
-			}
-		}
+		store = plan_store(encoder.plan)
 		var $prefix = append_object_header([], object_id)
 		$prefix = append_stream_dictionary($prefix, store, stream)?
 		$prefix = append_stream_keyword($prefix)
-		with_length = encoder_with_stream_lengths(encoder_with_copied_resource_bytes(encoder, copied_resource_bytes), stream_lengths)
-		next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership, release }))
-		emit_bytes(next, $prefix, Generated)
+		if payload.bytes.is_empty() {
+			stream_lengths = encoder.stream_lengths.append(8)
+			with_work = encoder_with_stream_lengths(encoder, stream_lengths)
+			next = encoder_with_phase(with_work, Payload({ bytes: [120, 156, 3, 0, 0, 0, 0, 1], next_object, ownership: Generated, release: KeepPayload }))
+			emit_bytes(next, $prefix, Generated)
+		} else {
+			plan = prepare_deflate(payload.bytes) ? Deflate
+			compressor = KernelDeflate.Encoder.start(plan)
+			release = payload_release(encoder.plan, stream)
+			next_plan = match release {
+				KeepPayload => encoder.plan
+				ReleasePayload(payload_id) => KernelStructure.Plan.release_payload_bytes(encoder.plan, payload_id)
+			}
+			next = encoder_with_plan_and_phase(encoder, next_plan, DeflatePayload({ emitted_length: 0, encoder: compressor, next_object }))
+			emit_bytes(next, $prefix, Generated)
+		}
 	}
+}
+
+emit_deflate_payload : KernelEmit.Encoder, DeflatePhase -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_deflate_payload = |encoder, state| match KernelDeflate.Encoder.next(state.encoder) {
+	Err(error) => Err(Deflate(error))
+	Ok(Done(work)) => {
+		stream_lengths = encoder.stream_lengths.append(state.emitted_length)
+		deflate_work = KernelDeflate.Work.add(encoder.deflate_work, work) ? Deflate
+		next = encoder_with_deflate_work(
+			encoder_with_stream_lengths(encoder, stream_lengths),
+			deflate_work,
+		)
+		next_segment(encoder_with_phase(next, StreamSuffix(state.next_object)))
+	}
+	Ok(Emit(bytes, next_compressor)) => {
+		emitted_length = checked_add(state.emitted_length, bytes.len())?
+		next = encoder_with_phase(encoder, DeflatePayload({ emitted_length, encoder: next_compressor, next_object: state.next_object }))
+		emit_bytes(next, bytes, Generated)
+	}
+}
+
+payload_release : KernelStructure.Plan, KernelObject.Stream -> [KeepPayload, ReleasePayload(KernelObject.PayloadId)]
+payload_release = |plan, stream| match KernelSeal.Plan.payload_last_use(KernelStructure.Plan.sealed(plan), stream.source) {
+	LastStream(last) => if KernelObject.StreamId.is_eq(last, stream.id) ReleasePayload(stream.source) else KeepPayload
+	Unused => KeepPayload
 }
 
 emit_xref_prefix : KernelEmit.Encoder -> Try(KernelEmit.Step, KernelEmit.Error)
@@ -344,6 +422,7 @@ emit_bytes = |next, bytes, ownership| {
 encoder_with_phase : KernelEmit.Encoder, Phase -> KernelEmit.Encoder
 encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
+	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
@@ -357,6 +436,7 @@ encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
 encoder_with_plan_and_phase : KernelEmit.Encoder, KernelStructure.Plan, Phase -> KernelEmit.Encoder
 encoder_with_plan_and_phase = |encoder, plan, phase| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
+	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
@@ -370,6 +450,7 @@ encoder_with_plan_and_phase = |encoder, plan, phase| KernelEmit.Encoder.{
 encoder_with_copied_resource_bytes : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_copied_resource_bytes = |encoder, copied_resource_bytes| KernelEmit.Encoder.{
 	copied_resource_bytes,
+	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
@@ -383,6 +464,7 @@ encoder_with_copied_resource_bytes = |encoder, copied_resource_bytes| KernelEmit
 encoder_with_offsets : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
 encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
+	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
 	offsets,
 	output_bound: encoder.output_bound,
@@ -396,6 +478,7 @@ encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
 encoder_with_position : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_position = |encoder, position| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
+	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
@@ -409,6 +492,7 @@ encoder_with_position = |encoder, position| KernelEmit.Encoder.{
 encoder_with_stream_lengths : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
 encoder_with_stream_lengths = |encoder, stream_lengths| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
+	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
@@ -417,6 +501,20 @@ encoder_with_stream_lengths = |encoder, stream_lengths| KernelEmit.Encoder.{
 	position: encoder.position,
 	retention: encoder.retention,
 	stream_lengths,
+}
+
+encoder_with_deflate_work : KernelEmit.Encoder, KernelDeflate.Work -> KernelEmit.Encoder
+encoder_with_deflate_work = |encoder, deflate_work| KernelEmit.Encoder.{
+	copied_resource_bytes: encoder.copied_resource_bytes,
+	deflate_work,
+	file_id: encoder.file_id,
+	offsets: encoder.offsets,
+	output_bound: encoder.output_bound,
+	phase: encoder.phase,
+	plan: encoder.plan,
+	position: encoder.position,
+	retention: encoder.retention,
+	stream_lengths: encoder.stream_lengths,
 }
 
 next_object_phase : KernelStructure.Plan, U64 -> Phase
@@ -759,6 +857,10 @@ identifier_facts = |plan| {
 	$facts = $facts.append(0)
 	$facts = match KernelStructure.Plan.identity(plan) {
 		Blank => append_all($facts, Str.to_utf8("blank"))
+		GeneratedContentDigest(digest) => {
+			with_kind = append_all($facts, Str.to_utf8("generated-content"))
+			append_all(with_kind.append(0), digest)
+		}
 		UnchangedContentDigest(digest) => {
 			with_kind = append_all($facts, Str.to_utf8("unchanged-content"))
 			append_all(with_kind.append(0), digest)
@@ -816,6 +918,31 @@ checked_times_small = |value, multiplier| {
 	match $error {
 		Overflowed => Err(ArithmeticOverflow)
 		NoError => Ok($total)
+	}
+}
+
+contains_bytes : List(U8), List(U8) -> Bool
+contains_bytes = |haystack, needle| {
+	if needle.is_empty() {
+		True
+	} else {
+		var $start = 0
+		var $found = False
+		while $found == False and $start + needle.len() <= haystack.len() {
+			var $index = 0
+			var $matches = True
+			while $matches and $index < needle.len() {
+				if list_at(haystack, $start + $index) != list_at(needle, $index) {
+					$matches = False
+				}
+				$index = $index + 1
+			}
+			if $matches {
+				$found = True
+			}
+			$start = $start + 1
+		}
+		$found
 	}
 }
 
@@ -882,6 +1009,44 @@ expect {
 
 	KernelEmit.Encoder.output_bound(encoder) == KernelStructure.Plan.output_bound(plan) and
 		bytes.len() <= KernelEmit.Encoder.output_bound(encoder)
+}
+
+## Nonempty generated streams compress statefully and release their source at the transition.
+expect {
+	input = Str.to_utf8("q 0 0 100 100 re f Q\nq 0 0 100 100 re f Q\n")
+	plan = KernelStructure.build_deflate_stream_probe(input, input.len())?
+	deflate_bound = KernelDeflate.output_bound(input.len())?
+	deflate_plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: deflate_bound }))?
+	expected = KernelDeflate.to_bytes(deflate_plan)?
+	var $encoder = KernelEmit.start(plan, ShareResourceChunks)?
+	var $bytes = []
+	var $released = False
+	var $done = False
+	while $done == False {
+		match KernelEmit.Encoder.next($encoder)? {
+			Done => {
+				$done = True
+			}
+			Emit(segment, next) => {
+				$bytes = append_all($bytes, segment.bytes)
+				match next.phase {
+					DeflatePayload(_) => {
+						store = plan_store(next.plan)
+						$released = list_at(store.payloads, 0).bytes.is_empty()
+					}
+					_ => {}
+				}
+				$encoder = next
+			}
+		}
+	}
+	work = KernelEmit.Encoder.deflate_work($encoder)
+
+	$released and
+		contains_bytes($bytes, expected.bytes) and
+			KernelDeflate.Work.blocks(work) == 1 and
+				KernelDeflate.Work.input_bytes(work) == input.len() and
+					KernelDeflate.Work.emitted_bytes(work) == expected.bytes.len()
 }
 
 ## The counting sink preserves fixed-width offsets beyond four GiB.

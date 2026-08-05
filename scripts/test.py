@@ -357,6 +357,17 @@ def verify_toolchain(toolchain: Toolchain) -> None:
         )
 
 
+def expected_content(dimensions: dict[str, int]) -> bytes:
+    length = dimensions.get("content_stream_bytes", 0)
+    period = dimensions.get("content_pattern_period")
+    if length == 0 and period is None:
+        return b""
+    if period != 4:
+        raise SystemExit("content_stream_bytes requires the versioned four-byte q/Q pattern")
+    pattern = b"q Q\n"
+    return (pattern * ((length + len(pattern) - 1) // len(pattern)))[:length]
+
+
 def run_case(
     case: TestCase,
     index: int,
@@ -449,7 +460,7 @@ def run_case(
 
     expected_pages = case.dimensions.get("pages")
     if expected_pages is not None:
-        validate_pdf(result.stdout, expected_pages)
+        validate_pdf(result.stdout, expected_pages, expected_content(case.dimensions))
         print(f"PASS {case.name}: independent offsets, lengths, xref, and page facts", flush=True)
 
 

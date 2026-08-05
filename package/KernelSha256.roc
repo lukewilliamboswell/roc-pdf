@@ -9,6 +9,8 @@ ShaState : {
 	h : U32,
 }
 
+CompressResult : { schedule : List(U32), state : ShaState }
+
 KernelSha256 :: [].{
 	Error : [InputTooLarge]
 
@@ -23,9 +25,12 @@ KernelSha256 :: [].{
 			blocks = ceil_div_64(with_marker_and_length)
 			constants = round_constants
 			var $state = initial_state
+			var $schedule = List.repeat(0, 64)
 			var $block = 0
 			while $block < blocks {
-				$state = compress_block($state, input, $block, blocks, bit_length, constants)
+				compressed = compress_block($state, input, $block, blocks, bit_length, constants, $schedule)
+				$state = compressed.state
+				$schedule = compressed.schedule
 				$block = $block + 1
 			}
 			Ok(state_bytes($state))
@@ -113,10 +118,10 @@ round_constants = [
 	0xc67178f2,
 ]
 
-compress_block : ShaState, List(U8), U64, U64, U64, List(U32) -> ShaState
-compress_block = |state, input, block, blocks, bit_length, constants| {
+compress_block : ShaState, List(U8), U64, U64, U64, List(U32), List(U32) -> CompressResult
+compress_block = |state, input, block, blocks, bit_length, constants, schedule| {
 	block_start = block * 64
-	var $schedule = List.with_capacity(64)
+	var $schedule = schedule
 	var $word = 0
 	while $word < 16 {
 		byte_start = block_start + $word * 4
@@ -124,7 +129,7 @@ compress_block = |state, input, block, blocks, bit_length, constants| {
 			.bitwise_or(padded_byte(input, byte_start + 1, blocks, bit_length).to_u32().shl_wrap(16))
 			.bitwise_or(padded_byte(input, byte_start + 2, blocks, bit_length).to_u32().shl_wrap(8))
 			.bitwise_or(padded_byte(input, byte_start + 3, blocks, bit_length).to_u32())
-		$schedule = $schedule.append(value)
+		$schedule = word_set($schedule, $word, value)
 		$word = $word + 1
 	}
 	while $word < 64 {
@@ -133,7 +138,7 @@ compress_block = |state, input, block, blocks, bit_length, constants| {
 		small_0 = rotate_right(before_15, 7).bitwise_xor(rotate_right(before_15, 18)).bitwise_xor(before_15.shr_wrap(3))
 		small_1 = rotate_right(before_2, 17).bitwise_xor(rotate_right(before_2, 19)).bitwise_xor(before_2.shr_wrap(10))
 		value = add4(word_at($schedule, $word - 16), small_0, word_at($schedule, $word - 7), small_1)
-		$schedule = $schedule.append(value)
+		$schedule = word_set($schedule, $word, value)
 		$word = $word + 1
 	}
 
@@ -160,14 +165,17 @@ compress_block = |state, input, block, blocks, bit_length, constants| {
 	}
 
 	{
-		a: U32.plus_wrap(state.a, $working.a),
-		b: U32.plus_wrap(state.b, $working.b),
-		c: U32.plus_wrap(state.c, $working.c),
-		d: U32.plus_wrap(state.d, $working.d),
-		e: U32.plus_wrap(state.e, $working.e),
-		f: U32.plus_wrap(state.f, $working.f),
-		g: U32.plus_wrap(state.g, $working.g),
-		h: U32.plus_wrap(state.h, $working.h),
+		schedule: $schedule,
+		state: {
+			a: U32.plus_wrap(state.a, $working.a),
+			b: U32.plus_wrap(state.b, $working.b),
+			c: U32.plus_wrap(state.c, $working.c),
+			d: U32.plus_wrap(state.d, $working.d),
+			e: U32.plus_wrap(state.e, $working.e),
+			f: U32.plus_wrap(state.f, $working.f),
+			g: U32.plus_wrap(state.g, $working.g),
+			h: U32.plus_wrap(state.h, $working.h),
+		},
 	}
 }
 
@@ -224,6 +232,14 @@ word_at = |words, index| match words.get(index) {
 	Ok(word) => word
 	Err(OutOfBounds) => {
 		crash "SHA-256 schedule invariant failed"
+	}
+}
+
+word_set : List(U32), U64, U32 -> List(U32)
+word_set = |words, index, value| match words.set(index, value) {
+	Ok(updated) => updated
+	Err(OutOfBounds) => {
+		crash "SHA-256 schedule update invariant failed"
 	}
 }
 

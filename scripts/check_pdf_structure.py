@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BLANK_SNAPSHOT = ROOT / "tests" / "gate1_blank" / "snapshot.pdf"
+DEFLATE_SNAPSHOT = ROOT / "tests" / "gate1_deflate" / "snapshot.pdf"
 OBJECT_HEADER = re.compile(rb"(?m)^([1-9][0-9]*) 0 obj\n")
 
 
@@ -125,7 +126,9 @@ def validate_xref(
     return dictionary_ref(dictionary, b"Root"), bytes.fromhex(identifier.group(1).decode("ascii"))
 
 
-def validate_stream_lengths(bodies: dict[int, bytes], xref_object: int) -> None:
+def validate_stream_lengths(
+    bodies: dict[int, bytes], xref_object: int, expected_content: bytes
+) -> None:
     for number, body in bodies.items():
         if number == xref_object or b"stream\n" not in body:
             continue
@@ -141,7 +144,10 @@ def validate_stream_lengths(bodies: dict[int, bytes], xref_object: int) -> None:
                 decoded = zlib.decompress(data)
             except zlib.error as error:
                 raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
-            require(decoded == b"", f"Gate 1 blank stream {number} is not empty")
+            require(
+                decoded == expected_content,
+                f"content stream {number} does not match the independently constructed expectation",
+            )
 
 
 def validate_page_tree(bodies: dict[int, bytes], root: int, expected_pages: int) -> set[int]:
@@ -204,7 +210,7 @@ def expected_identifier(bodies: dict[int, bytes], pages: set[int]) -> bytes:
     else:
         raise ValidationError(f"unsupported media box {media_box!r}")
 
-    content_payloads: list[bytes | None] = []
+    content_payloads: list[tuple[str, bytes]] = []
     for page in pages:
         content_object = dictionary_ref(bodies[page], b"Contents")
         body = bodies.get(content_object)
@@ -219,25 +225,28 @@ def expected_identifier(bodies: dict[int, bytes], pages: set[int]) -> bytes:
                 decoded = zlib.decompress(data)
             except zlib.error as error:
                 raise ValidationError(f"content stream {content_object} has invalid zlib DEFLATE: {error}") from error
-            require(decoded == b"", f"compressed content stream {content_object} is not empty")
-            content_payloads.append(None)
+            content_payloads.append(("blank" if decoded == b"" else "generated", decoded))
         else:
-            content_payloads.append(data)
+            content_payloads.append(("unchanged", data))
 
     prefix = b"roc-pdf:document-id:v1\x00"
-    if all(payload is None for payload in content_payloads):
+    kinds = {kind for kind, _ in content_payloads}
+    require(len(kinds) == 1, "mixed content identity modes")
+    kind = next(iter(kinds))
+    payloads = [payload for _, payload in content_payloads]
+    require(len(set(payloads)) == 1, "content streams do not share one identity")
+    if kind == "blank":
         identity = b"blank"
+    elif kind == "generated":
+        identity = b"generated-content\x00" + hashlib.sha256(payloads[0]).digest()
     else:
-        require(all(payload is not None for payload in content_payloads), "mixed content identity modes")
-        unchanged = [payload for payload in content_payloads if payload is not None]
-        require(len(set(unchanged)) == 1, "unchanged content streams do not share one identity")
-        identity = b"unchanged-content\x00" + hashlib.sha256(unchanged[0]).digest()
+        identity = b"unchanged-content\x00" + hashlib.sha256(payloads[0]).digest()
 
     facts = prefix + identity + b"\x00" + len(pages).to_bytes(8, "big") + size_code
     return hashlib.sha256(facts).digest()
 
 
-def validate_pdf(pdf: bytes, expected_pages: int) -> None:
+def validate_pdf(pdf: bytes, expected_pages: int, expected_content: bytes = b"") -> None:
     require(pdf.startswith(b"%PDF-2.0\n%\xe2\xe3\xcf\xd3\n"), "missing PDF 2.0 header or binary marker")
     require(pdf.endswith(b"%%EOF\n"), "missing canonical EOF marker or trailing bytes")
     start_match = re.search(rb"startxref\n([0-9]+)\n%%EOF\n$", pdf)
@@ -248,7 +257,7 @@ def validate_pdf(pdf: bytes, expected_pages: int) -> None:
     require(xref_offset in offsets.values(), "startxref is not an object boundary")
     xref_object = next(number for number, offset in offsets.items() if offset == xref_offset)
     root, file_identifier = validate_xref(pdf, offsets, bodies, xref_object, xref_offset)
-    validate_stream_lengths(bodies, xref_object)
+    validate_stream_lengths(bodies, xref_object, expected_content)
 
     root_body = bodies[root]
     require(b"/Type /Catalog" in root_body, "xref /Root is not a catalog")
@@ -260,6 +269,22 @@ def validate_pdf(pdf: bytes, expected_pages: int) -> None:
 def self_test() -> None:
     pdf = BLANK_SNAPSHOT.read_bytes()
     validate_pdf(pdf, 1)
+
+    deflate_pdf = DEFLATE_SNAPSHOT.read_bytes()
+    generated_content = b"q Q\n" * 65536
+    validate_pdf(deflate_pdf, 1, generated_content)
+    corrupt_deflate = deflate_pdf.replace(b"x\x9c", b"x\x9d", 1)
+    for label, candidate, content in [
+        ("corrupt DEFLATE", corrupt_deflate, generated_content),
+        ("wrong generated content", deflate_pdf, generated_content[:-1]),
+    ]:
+        try:
+            validate_pdf(candidate, 1, content)
+        except ValidationError:
+            pass
+        else:
+            raise SystemExit(f"structural checker accepted {label}")
+
     start_match = re.search(rb"startxref\n([0-9]+)\n%%EOF\n$", pdf)
     require(start_match is not None, "self-test fixture has no startxref")
     bad_startxref = (
@@ -292,6 +317,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("pdf", nargs="?", type=Path)
     parser.add_argument("--pages", type=int, default=1)
+    parser.add_argument("--content-stream-bytes", type=int, default=0)
+    parser.add_argument("--content-pattern-period", type=int)
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
@@ -299,7 +326,17 @@ def main() -> None:
         return
     if args.pdf is None:
         raise SystemExit("a PDF path is required")
-    validate_pdf(args.pdf.read_bytes(), args.pages)
+    if args.content_stream_bytes == 0 and args.content_pattern_period is None:
+        content = b""
+    elif args.content_pattern_period == 4:
+        pattern = b"q Q\n"
+        content = (
+            pattern
+            * ((args.content_stream_bytes + len(pattern) - 1) // len(pattern))
+        )[: args.content_stream_bytes]
+    else:
+        raise SystemExit("nonempty content requires --content-pattern-period=4")
+    validate_pdf(args.pdf.read_bytes(), args.pages, content)
     print(f"PASS independent PDF structure check: {args.pdf}")
 
 

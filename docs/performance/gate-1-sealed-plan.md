@@ -48,9 +48,9 @@ retention decision without undoing an intermediate arena.
 
 ## Evidence still required
 
-The current blank structural plan now stores its checked output bound before
-emission, and an independent counting sink covers offsets beyond 4 GiB. Gate 1
-completion still requires extending that proof to non-empty compression plans
-and the remaining external validators. Shared/owned
+The current blank structural plan stores its checked output bound before
+emission, the generated-stream probe adds a checked multi-block compressor
+bound, and an independent counting sink covers offsets beyond 4 GiB. Gate 1
+completion still requires the remaining external validators. Shared/owned
 unchanged-resource retention is now checked against actual backing allocations
 and final-use release.
