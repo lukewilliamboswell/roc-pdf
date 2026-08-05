@@ -56,6 +56,7 @@ REQUIRED_SOURCES = {
     "iso-32000-2-2020-ec3",
     "iso-ts-32005-2023",
     "jpeg-10918-1-1994",
+    "mathml-core-2025-06-24",
     "opentype-1-9-1",
     "pdf-issues-ec3",
     "uax14-r55",
@@ -404,7 +405,12 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
     test_matrix = copy.deepcopy(matrix)
     test_ledger = copy.deepcopy(ledger)
     if mutate == "digest":
-        test_baseline["sources"][10]["pin"]["value"] = "0" * 64
+        errata_source = next(
+            source
+            for source in test_baseline["sources"]
+            if source["id"] == "pdf-issues-ec3"
+        )
+        errata_source["pin"]["value"] = "0" * 64
     elif mutate == "profile":
         test_matrix["profiles"][0]["claims"] = ["Pdf20"]
     elif mutate == "source":

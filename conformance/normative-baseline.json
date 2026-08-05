@@ -75,6 +75,14 @@
       "pin": { "kind": "publication_identifier", "value": "ISO/IEC 10918-1:1994" }
     },
     {
+      "id": "mathml-core-2025-06-24",
+      "title": "MathML Core",
+      "revision": "W3C Candidate Recommendation Snapshot, 2025-06-24",
+      "url": "https://www.w3.org/TR/2025/CR-mathml-core-20250624/",
+      "retrieved_on": "2026-08-05",
+      "pin": { "kind": "publication_identifier", "value": "MathML Core CR 2025-06-24" }
+    },
+    {
       "id": "opentype-1-9-1",
       "title": "OpenType specification",
       "revision": "1.9.1, 2024-05-31",
