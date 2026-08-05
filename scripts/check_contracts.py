@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import NoReturn
 
@@ -14,10 +16,22 @@ CONFORMANCE = ROOT / "conformance"
 BASELINE_PATH = CONFORMANCE / "normative-baseline.json"
 MATRIX_PATH = CONFORMANCE / "capability-matrix.json"
 LEDGER_PATH = CONFORMANCE / "ledger.json"
+ASSET_MANIFEST_PATH = ROOT / "assets" / "provenance.json"
 DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
 SOURCE_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 RULE_ID = re.compile(r"ROC-PDF-[A-Z0-9]+(?:-[A-Z0-9]+)*\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+BINARY_ASSET_SUFFIXES = {".a", ".icc", ".icm", ".jpeg", ".jpg", ".o", ".otf", ".pdf", ".png", ".ttf"}
+ASSET_KINDS = {
+    "expected_pdf",
+    "font",
+    "fuzz_seed",
+    "hyphenation",
+    "icc_profile",
+    "image",
+    "test_toolchain",
+    "unicode_data",
+}
 
 CAPABILITIES = {
     "Pdf20",
@@ -264,6 +278,116 @@ def validate_ledger(value: object, source_ids: set[str]) -> None:
             fail(rule_id, f"must independently pin {issue_reference} to the EC3 source")
 
 
+def repository_binary_assets() -> set[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+    )
+    return {
+        path
+        for raw_path in result.stdout.split(b"\0")
+        if raw_path
+        for path in [raw_path.decode("utf-8")]
+        if Path(path).suffix.lower() in BINARY_ASSET_SUFFIXES
+    }
+
+
+def validate_assets(value: object) -> None:
+    document = require_object(value, "asset-provenance", {"schema_version", "assets"})
+    require_version(document, "asset-provenance")
+    raw_assets = document["assets"]
+    if not isinstance(raw_assets, list):
+        fail("asset-provenance.assets", "must be a list")
+
+    ids: list[str] = []
+    paths: list[str] = []
+    for index, raw_asset in enumerate(raw_assets):
+        path = f"asset-provenance.assets[{index}]"
+        required_keys = {
+            "id",
+            "path",
+            "kind",
+            "bytes",
+            "sha256",
+            "license",
+            "attribution",
+            "modification_permitted",
+            "redistribution_permitted",
+            "origin",
+        }
+        if isinstance(raw_asset, dict) and raw_asset.get("kind") == "hyphenation":
+            required_keys.add("language")
+        asset = require_object(raw_asset, path, required_keys)
+        asset_id = require_string(asset["id"], f"{path}.id")
+        if SOURCE_ID.fullmatch(asset_id) is None:
+            fail(f"{path}.id", "must be a lowercase kebab-case identifier")
+        ids.append(asset_id)
+
+        repository_path = require_string(asset["path"], f"{path}.path")
+        resolved_path = (ROOT / repository_path).resolve()
+        if not resolved_path.is_relative_to(ROOT) or not resolved_path.is_file():
+            fail(f"{path}.path", "must name an existing repository file")
+        paths.append(repository_path)
+        if asset["kind"] not in ASSET_KINDS:
+            fail(f"{path}.kind", f"must be one of {sorted(ASSET_KINDS)}")
+        if asset["kind"] == "hyphenation":
+            language = require_string(asset["language"], f"{path}.language")
+            if re.fullmatch(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", language) is None:
+                fail(f"{path}.language", "must be a syntactically valid BCP 47 tag")
+
+        byte_count = asset["bytes"]
+        if type(byte_count) is not int or byte_count < 0:
+            fail(f"{path}.bytes", "must be a non-negative integer")
+        payload = resolved_path.read_bytes()
+        if len(payload) != byte_count:
+            fail(f"{path}.bytes", f"expected {byte_count}, found {len(payload)}")
+        digest = require_string(asset["sha256"], f"{path}.sha256")
+        if SHA256.fullmatch(digest) is None or hashlib.sha256(payload).hexdigest() != digest:
+            fail(f"{path}.sha256", "does not match the retained bytes")
+        require_string(asset["license"], f"{path}.license")
+        attribution = require_string(asset["attribution"], f"{path}.attribution")
+        if "/" in attribution:
+            attribution_path = (ROOT / attribution).resolve()
+            if not attribution_path.is_relative_to(ROOT) or not attribution_path.is_file():
+                fail(f"{path}.attribution", "referenced attribution file does not exist")
+        for field in ("modification_permitted", "redistribution_permitted"):
+            if type(asset[field]) is not bool:
+                fail(f"{path}.{field}", "must be a boolean")
+
+        origin = asset["origin"]
+        if not isinstance(origin, dict):
+            fail(f"{path}.origin", "must be an object")
+        if origin.get("kind") == "external":
+            external = require_object(
+                origin,
+                f"{path}.origin",
+                {"kind", "source_url", "upstream_revision"},
+            )
+            source_url = require_string(external["source_url"], f"{path}.origin.source_url")
+            revision = require_string(external["upstream_revision"], f"{path}.origin.upstream_revision")
+            if not source_url.startswith("https://") or revision not in source_url:
+                fail(f"{path}.origin", "external URL must be https and contain its immutable revision")
+        elif origin.get("kind") == "generated":
+            generated = require_object(origin, f"{path}.origin", {"kind", "generator"})
+            generator = (ROOT / require_string(generated["generator"], f"{path}.origin.generator")).resolve()
+            if not generator.is_relative_to(ROOT) or not generator.is_file():
+                fail(f"{path}.origin.generator", "must name an existing repository file")
+        else:
+            fail(f"{path}.origin.kind", "must be external or generated")
+
+    if ids != sorted(set(ids)):
+        fail("asset-provenance.assets", "asset ids must be sorted and unique")
+    if len(paths) != len(set(paths)):
+        fail("asset-provenance.assets", "asset paths must be unique")
+    tracked_assets = repository_binary_assets()
+    if set(paths) != tracked_assets:
+        missing = sorted(tracked_assets - set(paths))
+        extra = sorted(set(paths) - tracked_assets)
+        fail("asset-provenance.assets", f"must cover tracked binary assets; missing={missing}, extra={extra}")
+
+
 def validate_documents(baseline: object, matrix: object, ledger: object) -> None:
     source_ids = validate_baseline(baseline)
     validate_matrix(matrix)
@@ -272,6 +396,7 @@ def validate_documents(baseline: object, matrix: object, ledger: object) -> None
 
 def validate_repository() -> None:
     validate_documents(load(BASELINE_PATH), load(MATRIX_PATH), load(LEDGER_PATH))
+    validate_assets(load(ASSET_MANIFEST_PATH))
 
 
 def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: str) -> None:
@@ -302,6 +427,16 @@ def self_test() -> None:
     validate_documents(baseline, matrix, ledger)
     for mutation in ("digest", "profile", "source", "issue"):
         expect_rejected(baseline, matrix, ledger, mutation)
+    assets = load(ASSET_MANIFEST_PATH)
+    validate_assets(assets)
+    changed_assets = copy.deepcopy(assets)
+    changed_assets["assets"][0]["sha256"] = "0" * 64
+    try:
+        validate_assets(changed_assets)
+    except ContractError:
+        pass
+    else:
+        raise ContractError("self-test asset digest mutation was accepted")
 
 
 def main() -> None:
@@ -315,7 +450,7 @@ def main() -> None:
             validate_repository()
     except ContractError as error:
         raise SystemExit(error) from error
-    print("PASS conformance contracts")
+    print("PASS repository contracts")
 
 
 if __name__ == "__main__":
