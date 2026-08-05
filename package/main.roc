@@ -7,6 +7,8 @@ package
 		Scene,
 		Text,
 		Font,
+		Image,
+		Color,
 		Metadata,
 		Encode,
 		Conformance,

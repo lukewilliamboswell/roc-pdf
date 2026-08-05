@@ -1,6 +1,6 @@
+import Color
 import Font
 import Layout
-import Scene
 
 Theme :: {
 	body : TextStyle,
@@ -12,7 +12,7 @@ Theme :: {
 	title : TextStyle,
 }.{
 	TextStyle : {
-		color : Scene.Color,
+		color : Color.Value,
 		font : Font.FaceId,
 		leading : Layout.Unit,
 		size : Layout.Unit,
@@ -29,7 +29,7 @@ Theme :: {
 	## supplies and validates the corresponding font resource.
 	default : Theme
 	default = {
-		black : Scene.Color
+		black : Color.Value
 		black = Rgb({ blue: 0, green: 0, red: 0 })
 
 		body = {

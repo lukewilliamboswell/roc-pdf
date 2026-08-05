@@ -1,3 +1,5 @@
+import Color
+import Image
 import Layout
 import Semantics
 import Text
@@ -19,14 +21,6 @@ Scene :: [].{
 		index = |PathId.(index)| index
 	}
 
-	ImageId :: U64.{
-		from_index : U64 -> ImageId
-		from_index = |index| ImageId.(index)
-
-		index : ImageId -> U64
-		index = |ImageId.(index)| index
-	}
-
 	Matrix : {
 		a : Layout.Unit,
 		b : Layout.Unit,
@@ -35,8 +29,6 @@ Scene :: [].{
 		e : Layout.Unit,
 		f : Layout.Unit,
 	}
-
-	Color : [Gray(U16), Rgb({ blue : U16, green : U16, red : U16 })]
 
 	PageArtifactKind : [
 		Background,
@@ -55,23 +47,23 @@ Scene :: [].{
 	]
 
 	PathStyle : {
-		fill : [NoFill, SolidFill(Color)],
-		stroke : [NoStroke, SolidStroke({ color : Color, width : Layout.Unit })],
+		fill : [NoFill, SolidFill(Color.Value)],
+		stroke : [NoStroke, SolidStroke({ color : Color.Value, width : Layout.Unit })],
 	}
 
 	TextRenderingMode : [Fill, FillAndStroke]
 	TextPaint : {
-		fill : Color,
+		fill : Color.Value,
 		mode : TextRenderingMode,
 		opacity : U16,
-		stroke : [NoStroke, Stroke({ color : Color, width : Layout.Unit })],
+		stroke : [NoStroke, Stroke({ color : Color.Value, width : Layout.Unit })],
 	}
 
 	## Child ranges point into the same command arena, preserving balanced
 	## graphics-state nesting without allocating recursive command values.
 	Command : [
 		Clip({ children : Semantics.Range, path : PathId }),
-		DrawImage(ImageId),
+		DrawImage(Image.Id),
 		DrawPath({ path : PathId, style : PathStyle }),
 		DrawText({ paint : TextPaint, run : Text.RunId }),
 		Opacity({ children : Semantics.Range, opacity : U16 }),
@@ -105,9 +97,6 @@ expect Scene.GroupId.from_index(2).index() == 2
 
 ## Path IDs preserve their dense index.
 expect Scene.PathId.from_index(4).index() == 4
-
-## Image IDs preserve their dense index.
-expect Scene.ImageId.from_index(8).index() == 8
 
 ## Nested public type modules construct opaque scene group IDs directly.
 expect Scene.GroupId.from_index(10).index() == 10

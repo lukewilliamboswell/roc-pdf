@@ -119,6 +119,32 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-RESOURCE-COLOR-ICC",
+      "summary": "ICC profiles, typed component counts, color spaces, output intent, and blend space cross the trusted boundary as validated explicit facts.",
+      "source_ids": ["icc-1-2001-04", "iso-19005-4-2020", "iso-32000-2-2020-ec3"],
+      "references": ["architecture.md: Images and color"],
+      "capabilities": ["Pdf20", "StaticPdfA4"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "not_required",
+      "positive_scenarios": ["examples/advanced_resource_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-RESOURCE-IMAGE-VALIDATION",
+      "summary": "Raster and JPEG resources retain checked packed planes or encoded bytes with dimensions, color, alpha, and orientation evidence.",
+      "source_ids": ["iso-32000-2-2020-ec3", "jpeg-10918-1-1994"],
+      "references": ["architecture.md: Images and color"],
+      "capabilities": ["Pdf20", "StaticPdfA4"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "not_required",
+      "positive_scenarios": ["examples/advanced_resource_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-SEMANTICS-ID-RELATIONSHIPS",
       "summary": "Emitted structure identity, IDTree membership, destinations, annotations, and non-parental cross-relations use independent typed identities.",
       "source_ids": ["iso-14289-2-2024", "iso-32000-2-2020-ec3", "iso-ts-32005-2023", "wtpdf-1-0-0"],

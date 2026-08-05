@@ -3,6 +3,7 @@ app [main!] {
 	pdf: "../package/main.roc",
 }
 
+import pdf.Color
 import pdf.Font
 import pdf.Layout
 import pdf.Scene
