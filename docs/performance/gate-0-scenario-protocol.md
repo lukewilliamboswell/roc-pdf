@@ -5,7 +5,7 @@
 - Scenario schema: 1
 - Roc-to-host metrics protocol: 1
 - Roc toolchain selector: `nightly-2026-August-04-1cb06bc`
-- Roc compiler identity: `Roc compiler version debug-8d15ae62`
+- Roc compiler identity: `Roc compiler version nightly-2026-August-04-1cb06bc`
 - Roc optimization: `speed`
 - Zig version: 0.16.0
 - Zig host optimization: `ReleaseFast`
