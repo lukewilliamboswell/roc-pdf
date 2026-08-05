@@ -36,7 +36,7 @@ KernelEmit :: [].{
 		DeflateInputNotYetSupported(KernelObject.StreamId),
 		IndexInvariant,
 		NestedStreamValue,
-		StreamDictionaryNotYetSupported(KernelObject.StreamId),
+		ReservedStreamKey(KernelObject.NameId),
 		StreamLengthUnavailable(KernelObject.StreamId),
 	]
 
@@ -106,9 +106,13 @@ validate_emittable = |plan| {
 	var $error = NoError
 	while $index < length and $error == NoError {
 		stream = list_at(store.streams, $index)
-		if stream.dictionary.length != 0 {
-			$error = Unsupported(stream.id)
-		} else if stream.filter == Deflate {
+		match reserved_stream_key(store, stream.dictionary) {
+			Reserved(key) => {
+				$error = InvalidReserved(key)
+			}
+			NoReserved => {}
+		}
+		if $error == NoError and stream.filter == Deflate {
 			payload = list_at(store.payloads, KernelObject.PayloadId.index(stream.source))
 			if payload.bytes.is_empty() == False {
 				$error = UnsupportedDeflate(stream.id)
@@ -118,7 +122,7 @@ validate_emittable = |plan| {
 	}
 
 	match $error {
-		Unsupported(stream) => Err(StreamDictionaryNotYetSupported(stream))
+		InvalidReserved(key) => Err(ReservedStreamKey(key))
 		UnsupportedDeflate(stream) => Err(DeflateInputNotYetSupported(stream))
 		NoError => Ok({})
 	}
@@ -215,7 +219,7 @@ emit_stream_prefix = |encoder, object_id, stream_id, next_object| {
 	} else {
 		stream_lengths = encoder.stream_lengths.append(emitted_payload.len())
 		var $prefix = append_object_header([], object_id)
-		$prefix = append_stream_dictionary($prefix, stream, emitted_payload.len())
+		$prefix = append_stream_dictionary($prefix, store, stream)?
 		$prefix = append_stream_keyword($prefix)
 		with_length = encoder_with_stream_lengths(encoder, stream_lengths)
 		next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership }))
@@ -426,17 +430,79 @@ append_reference = |output, object| {
 	$out.append(82)
 }
 
-append_stream_dictionary : List(U8), KernelObject.Stream, U64 -> List(U8)
-append_stream_dictionary = |output, stream, _length| {
+append_stream_dictionary : List(U8), KernelObject.Store, KernelObject.Stream -> Try(List(U8), KernelEmit.Error)
+append_stream_dictionary = |output, store, stream| {
 	var $out = append_dictionary_open(output)
-	match stream.filter {
-		Deflate => {
+	var $filter_pending = stream.filter == Deflate
+	var $length_pending = True
+	var $index = 0
+	while $index < stream.dictionary.length {
+		entry = list_at(store.dictionary_entries, stream.dictionary.start + $index)
+		name = list_at(store.names, KernelObject.NameId.index(entry.key))
+		key_bytes = KernelLex.Name.bytes(name)
+		if $filter_pending and compare_ascii(key_bytes, [70, 105, 108, 116, 101, 114]) == Greater {
 			$out = append_filter_entry($out)
+			$filter_pending = False
 		}
-		Unfiltered => {}
+		if $length_pending and compare_ascii(key_bytes, [76, 101, 110, 103, 116, 104]) == Greater {
+			$out = append_length_entry($out, stream.length_object)
+			$length_pending = False
+		}
+		$out = $out.append(32)
+		$out = KernelLex.append_name($out, name)
+		$out = $out.append(32)
+		$out = emit_value($out, store, entry.value)?
+		$index = $index + 1
 	}
-	$out = append_length_entry($out, stream.length_object)
-	append_dictionary_close($out)
+	if $filter_pending {
+		$out = append_filter_entry($out)
+	}
+	if $length_pending {
+		$out = append_length_entry($out, stream.length_object)
+	}
+	Ok(append_dictionary_close($out))
+}
+
+reserved_stream_key : KernelObject.Store, KernelObject.Span -> [NoReserved, Reserved(KernelObject.NameId)]
+reserved_stream_key = |store, span| {
+	var $index = 0
+	var $result = NoReserved
+	while $index < span.length and $result == NoReserved {
+		entry = list_at(store.dictionary_entries, span.start + $index)
+		name = list_at(store.names, KernelObject.NameId.index(entry.key))
+		bytes = KernelLex.Name.bytes(name)
+		if compare_ascii(bytes, [70, 105, 108, 116, 101, 114]) == Equal or compare_ascii(bytes, [76, 101, 110, 103, 116, 104]) == Equal {
+			$result = Reserved(entry.key)
+		}
+		$index = $index + 1
+	}
+	$result
+}
+
+compare_ascii : List(U8), List(U8) -> [Equal, Greater, Less]
+compare_ascii = |left, right| {
+	shared = U64.min(left.len(), right.len())
+	var $index = 0
+	var $ordering = Equal
+	while $index < shared and $ordering == Equal {
+		left_byte = list_at(left, $index)
+		right_byte = list_at(right, $index)
+		if left_byte < right_byte {
+			$ordering = Less
+		} else if left_byte > right_byte {
+			$ordering = Greater
+		}
+		$index = $index + 1
+	}
+	if $ordering != Equal {
+		$ordering
+	} else if left.len() < right.len() {
+		Less
+	} else if left.len() > right.len() {
+		Greater
+	} else {
+		Equal
+	}
 }
 
 append_filter_entry : List(U8) -> List(U8)
@@ -613,6 +679,61 @@ checked_times_small = |value, multiplier| {
 		Overflowed => Err(ArithmeticOverflow)
 		NoError => Ok($total)
 	}
+}
+
+emission_test_limits : KernelObject.Limits
+emission_test_limits = {
+	max_array_items: 0,
+	max_byte_string_bytes: 0,
+	max_byte_strings: 0,
+	max_dictionary_entries: 4,
+	max_direct_depth: 4,
+	max_name_bytes: 32,
+	max_names: 4,
+	max_objects: 2,
+	max_payload_bytes: 0,
+	max_payloads: 1,
+	max_streams: 1,
+	max_text_string_bytes: 0,
+	max_text_strings: 0,
+	max_values: 2,
+}
+
+## Planned stream keys merge canonically around generated Filter and Length keys.
+expect {
+	decode_parms = KernelObject.add_name(KernelObject.init(emission_test_limits), Str.to_utf8("DecodeParms"))?
+	metadata = KernelObject.add_name(decode_parms.builder, Str.to_utf8("Metadata"))?
+	null = KernelObject.add_null(metadata.builder)?
+	payload = KernelObject.add_payload(null.builder, [], Generated)?
+	stream_object = KernelObject.add_stream_object(
+		payload.builder,
+		[
+			{ key: decode_parms.id, value: null.id },
+			{ key: metadata.id, value: null.id },
+		],
+		Deflate,
+		payload.id,
+	)?
+	stream = list_at(stream_object.builder.store.streams, 0)
+	actual = append_stream_dictionary([], stream_object.builder.store, stream)?
+
+	actual == Str.to_utf8("<< /DecodeParms null /Filter /FlateDecode /Length 2 0 R /Metadata null >>")
+}
+
+## Planned stream dictionaries cannot override generated Filter or Length entries.
+expect {
+	filter = KernelObject.add_name(KernelObject.init(emission_test_limits), Str.to_utf8("Filter"))?
+	null = KernelObject.add_null(filter.builder)?
+	payload = KernelObject.add_payload(null.builder, [], Generated)?
+	stream_object = KernelObject.add_stream_object(
+		payload.builder,
+		[{ key: filter.id, value: null.id }],
+		Unfiltered,
+		payload.id,
+	)?
+	stream = list_at(stream_object.builder.store.streams, 0)
+
+	reserved_stream_key(stream_object.builder.store, stream.dictionary) == Reserved(filter.id)
 }
 
 ## Buffered emission writes a PDF 2.0 header, binary marker, and EOF marker.

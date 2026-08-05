@@ -60,7 +60,7 @@
       "references": ["ISO 32000-2:2020 7.5", "architecture.md: Deterministic serialization"],
       "capabilities": ["Pdf20"],
       "implementation": "partial",
-      "machine_verification": "roc_unit_buffered_chunk_identity; independent_offsets_lengths_xref_and_page_facts; qpdf_12_3_2_linux_ci; pending_arlington_strict_parser_cross_system_hash_large_offset_and_retention_evidence",
+      "machine_verification": "roc_unit_buffered_chunk_identity_and_canonical_stream_dictionary_merge; independent_offsets_lengths_xref_and_page_facts; qpdf_12_3_2_linux_ci; pending_arlington_strict_parser_cross_system_hash_large_offset_and_retention_evidence",
       "human_verification": "not_required",
       "positive_scenarios": ["package/KernelEmit.roc", "scripts/check_pdf_structure.py", "tests/gate1_blank/main.roc"],
       "negative_scenarios": ["scripts/check_pdf_structure.py"],
