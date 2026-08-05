@@ -8,3 +8,7 @@ __pycache__/
 generated-docs/
 .roc-pdf-tmp/
 .DS_Store
+
+tests/platform/.zig-cache/
+tests/platform/zig-out/
+tests/platform/targets/*/libhost.a

@@ -1,0 +1,15 @@
+.{
+    .name = .roc_pdf_test_platform,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{},
+    .fingerprint = 0x4fc7d69c45beea4e,
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "main.roc",
+        "host.zig",
+        "roc_platform_abi.zig",
+        "targets",
+    },
+}

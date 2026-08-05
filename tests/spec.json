@@ -1,0 +1,10 @@
+{
+  "cases": [
+    {
+      "name": "placeholder PDF",
+      "source": "tests/placeholder/main.roc",
+      "snapshot": "tests/placeholder/snapshot.pdf",
+      "allocations": 1
+    }
+  ]
+}
