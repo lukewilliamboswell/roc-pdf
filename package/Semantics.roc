@@ -55,6 +55,14 @@ Semantics :: [].{
 		index = |TextSourceId.(index)| index
 	}
 
+	TextPropertyId :: U64.{
+		from_index : U64 -> TextPropertyId
+		from_index = |index| TextPropertyId.(index)
+
+		index : TextPropertyId -> U64
+		index = |TextPropertyId.(index)| index
+	}
+
 	NonTextSourceId :: U64.{
 		from_index : U64 -> NonTextSourceId
 		from_index = |index| NonTextSourceId.(index)

@@ -5,6 +5,8 @@ package
 		Semantics,
 		Layout,
 		Scene,
+		Text,
+		Font,
 		Conformance,
 		Theme,
 	]

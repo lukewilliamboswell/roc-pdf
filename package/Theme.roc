@@ -1,3 +1,4 @@
+import Font
 import Layout
 import Scene
 
@@ -10,17 +11,9 @@ Theme :: {
 	paragraph_spacing : Layout.Unit,
 	title : TextStyle,
 }.{
-	FontFaceId :: U64.{
-		from_index : U64 -> FontFaceId
-		from_index = |index| FontFaceId.(index)
-
-		index : FontFaceId -> U64
-		index = |FontFaceId.(index)| index
-	}
-
 	TextStyle : {
 		color : Scene.Color,
-		font : FontFaceId,
+		font : Font.FaceId,
 		leading : Layout.Unit,
 		size : Layout.Unit,
 	}
@@ -41,7 +34,7 @@ Theme :: {
 
 		body = {
 			color: black,
-			font: FontFaceId.from_index(0),
+			font: Font.FaceId.from_index(0),
 			leading: Layout.Unit.from_raw(14000),
 			size: Layout.Unit.from_raw(11000),
 		}
@@ -52,7 +45,7 @@ Theme :: {
 			code: body,
 			heading: {
 				color: black,
-				font: FontFaceId.from_index(0),
+				font: Font.FaceId.from_index(0),
 				leading: Layout.Unit.from_raw(18000),
 				size: Layout.Unit.from_raw(15000),
 			},
@@ -65,7 +58,7 @@ Theme :: {
 			paragraph_spacing: Layout.Unit.from_raw(8000),
 			title: {
 				color: black,
-				font: FontFaceId.from_index(0),
+				font: Font.FaceId.from_index(0),
 				leading: Layout.Unit.from_raw(28000),
 				size: Layout.Unit.from_raw(24000),
 			},
@@ -74,7 +67,7 @@ Theme :: {
 }
 
 ## Nested theme font references preserve their dense resource index.
-expect Theme.FontFaceId.from_index(3).index() == 3
+expect Font.FaceId.from_index(3).index() == 3
 
 ## The versioned default theme uses an exact 72-point left margin.
 expect Layout.Unit.raw(Theme.default.page_margin.left) == 72000

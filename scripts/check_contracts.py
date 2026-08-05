@@ -410,7 +410,12 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
     elif mutate == "source":
         test_ledger["requirements"][0]["source_ids"] = ["unknown-source"]
     elif mutate == "issue":
-        test_ledger["requirements"][1]["references"] = ["ISO 32000-2:2020 12.6.4.2 Table 202"]
+        issue_requirement = next(
+            requirement
+            for requirement in test_ledger["requirements"]
+            if requirement["id"] == "ROC-PDF-PDF20-GOTO-D-DESTINATION"
+        )
+        issue_requirement["references"] = ["ISO 32000-2:2020 12.6.4.2 Table 202"]
     else:
         raise AssertionError(mutate)
     try:

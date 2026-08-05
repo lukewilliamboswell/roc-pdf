@@ -1,5 +1,6 @@
 import Layout
 import Semantics
+import Text
 
 Scene :: [].{
 	GroupId :: U64.{
@@ -16,14 +17,6 @@ Scene :: [].{
 
 		index : PathId -> U64
 		index = |PathId.(index)| index
-	}
-
-	GlyphRunId :: U64.{
-		from_index : U64 -> GlyphRunId
-		from_index = |index| GlyphRunId.(index)
-
-		index : GlyphRunId -> U64
-		index = |GlyphRunId.(index)| index
 	}
 
 	ImageId :: U64.{
@@ -66,13 +59,21 @@ Scene :: [].{
 		stroke : [NoStroke, SolidStroke({ color : Color, width : Layout.Unit })],
 	}
 
+	TextRenderingMode : [Fill, FillAndStroke]
+	TextPaint : {
+		fill : Color,
+		mode : TextRenderingMode,
+		opacity : U16,
+		stroke : [NoStroke, Stroke({ color : Color, width : Layout.Unit })],
+	}
+
 	## Child ranges point into the same command arena, preserving balanced
 	## graphics-state nesting without allocating recursive command values.
 	Command : [
 		Clip({ children : Semantics.Range, path : PathId }),
 		DrawImage(ImageId),
 		DrawPath({ path : PathId, style : PathStyle }),
-		DrawText(GlyphRunId),
+		DrawText({ paint : TextPaint, run : Text.RunId }),
 		Opacity({ children : Semantics.Range, opacity : U16 }),
 		Transform({ children : Semantics.Range, matrix : Matrix }),
 	]
@@ -104,9 +105,6 @@ expect Scene.GroupId.from_index(2).index() == 2
 
 ## Path IDs preserve their dense index.
 expect Scene.PathId.from_index(4).index() == 4
-
-## Glyph-run IDs preserve their dense index.
-expect Scene.GlyphRunId.from_index(6).index() == 6
 
 ## Image IDs preserve their dense index.
 expect Scene.ImageId.from_index(8).index() == 8
