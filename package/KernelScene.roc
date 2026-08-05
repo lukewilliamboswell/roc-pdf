@@ -54,6 +54,12 @@ KernelScene :: [].{
 	Resources :: { color_spaces : U64, images : U64 }.{
 		make : { color_spaces : U64, images : U64 } -> Resources
 		make = |resources| Resources.(resources)
+
+		color_space_count : Resources -> U64
+		color_space_count = |resources| resources.color_spaces
+
+		image_count : Resources -> U64
+		image_count = |resources| resources.images
 	}
 
 	Work : {
@@ -71,9 +77,12 @@ KernelScene :: [].{
 		path_visits : U64,
 	}
 
-	Plan :: { scenes : Scene.Store, work : Work }.{
+	Plan :: { resources : Resources, scenes : Scene.Store, work : Work }.{
 		build : Scene.Store, Resources, Limits -> Try(Plan, Error)
 		build = |scenes, resources, limits| build_plan(scenes, resources, limits)
+
+		resources : Plan -> Resources
+		resources = |plan| plan.resources
 
 		scenes : Plan -> Scene.Store
 		scenes = |plan| plan.scenes
@@ -110,6 +119,7 @@ build_plan = |scenes, resources, limits| {
 
 	Ok(
 		KernelScene.Plan.{
+			resources,
 			scenes,
 			work: {
 				child_ranges: command_work.child_ranges,

@@ -1,0 +1,358 @@
+import Color
+import Image
+import KernelColor
+import KernelImage
+import KernelScene
+import Layout
+import Scene
+import Semantics
+
+KernelResourceUse :: [].{
+	IndexKind : [ColorSpaceIndex, ImageIndex]
+	Error : [
+		ArithmeticOverflow,
+		ColorComponentMismatch({ actual : Color.ComponentCount, command : U64, expected : Color.ComponentCount, space : U64 }),
+		CountMismatch({ actual : U64, declared : U64, kind : IndexKind }),
+		OrphanResource({ index : U64, kind : IndexKind }),
+	]
+
+	Work : {
+		color_space_resources : U64,
+		command_visits : U64,
+		image_color_references : U64,
+		image_placements : U64,
+		image_resources : U64,
+		image_reuses : U64,
+		path_color_references : U64,
+	}
+
+	## Counts retain direct normalized resource use without scanning emitted PDF
+	## operators. Image payload bytes remain owned only by `KernelImage.Plan`.
+	Plan :: {
+		color_use_counts : List(U64),
+		image_use_counts : List(U64),
+		work : Work,
+	}.{
+		build : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(Plan, Error)
+		build = |scenes, colors, images| build_plan(scenes, colors, images)
+
+		color_use_count : Plan, Color.SpaceId -> U64
+		color_use_count = |plan, space| list_at(plan.color_use_counts, space.index())
+
+		image_use_count : Plan, Image.Id -> U64
+		image_use_count = |plan, image| list_at(plan.image_use_counts, image.index())
+
+		work : Plan -> Work
+		work = |plan| plan.work
+	}
+}
+
+CommandUse := {
+	color_counts : List(U64),
+	image_counts : List(U64),
+	image_placements : U64,
+	path_colors : U64,
+}
+
+build_plan : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(KernelResourceUse.Plan, KernelResourceUse.Error)
+build_plan = |scene_plan, color_plan, image_plan| {
+	declared = KernelScene.Plan.resources(scene_plan)
+	color_count = KernelColor.Plan.space_count(color_plan)
+	image_count = KernelImage.Plan.resource_count(image_plan)
+	if KernelScene.Resources.color_space_count(declared) != color_count {
+		Err(CountMismatch({ actual: color_count, declared: KernelScene.Resources.color_space_count(declared), kind: ColorSpaceIndex }))
+	} else if KernelScene.Resources.image_count(declared) != image_count {
+		Err(CountMismatch({ actual: image_count, declared: KernelScene.Resources.image_count(declared), kind: ImageIndex }))
+	} else {
+		scenes = KernelScene.Plan.scenes(scene_plan)
+		command_use = collect_command_use(scenes.commands, color_plan, color_count, image_count)?
+		with_images = collect_image_colors(KernelImage.Plan.store(image_plan), command_use.color_counts)?
+		ensure_used(command_use.image_counts, ImageIndex)?
+		ensure_used(with_images.color_counts, ColorSpaceIndex)?
+		image_reuses = checked_sub(command_use.image_placements, image_count)?
+		Ok(
+			KernelResourceUse.Plan.{
+				color_use_counts: with_images.color_counts,
+				image_use_counts: command_use.image_counts,
+				work: {
+					color_space_resources: color_count,
+					command_visits: scenes.commands.len(),
+					image_color_references: with_images.image_colors,
+					image_placements: command_use.image_placements,
+					image_resources: image_count,
+					image_reuses,
+					path_color_references: command_use.path_colors,
+				},
+			},
+		)
+	}
+}
+
+collect_command_use : List(Scene.Command), KernelColor.Plan, U64, U64 -> Try(CommandUse, KernelResourceUse.Error)
+collect_command_use = |commands, colors, color_count, image_count| {
+	var $color_counts = List.repeat(0, color_count)
+	var $image_counts = List.repeat(0, image_count)
+	var $path_colors = 0
+	var $image_placements = 0
+	var $index = 0
+	var $error = NoError
+	while $index < commands.len() and $error == NoError {
+		match list_at(commands, $index) {
+			DrawImage({ image, placement: _ }) => match increment($image_counts, image.index()) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(counts) => {
+					$image_counts = counts
+					$image_placements = match checked_add($image_placements, 1) {
+						Err(error) => {
+							$error = Invalid(error)
+							$image_placements
+						}
+						Ok(value) => value
+					}
+				}
+			}
+			DrawPath({ path: _, style }) => match collect_style(style, $index, colors, $color_counts) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(collected) => {
+					$color_counts = collected.counts
+					$path_colors = match checked_add($path_colors, collected.references) {
+						Err(error) => {
+							$error = Invalid(error)
+							$path_colors
+						}
+						Ok(value) => value
+					}
+				}
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok({ color_counts: $color_counts, image_counts: $image_counts, image_placements: $image_placements, path_colors: $path_colors })
+	}
+}
+
+collect_style : Scene.PathStyle, U64, KernelColor.Plan, List(U64) -> Try({ counts : List(U64), references : U64 }, KernelResourceUse.Error)
+collect_style = |style, command, colors, counts| {
+	with_fill = match style.fill {
+		NoFill => Ok({ counts, references: 0 })
+		SolidFill({ color, rule: _ }) => collect_color(color, command, colors, counts)
+	}?
+	match style.stroke {
+		NoStroke => Ok(with_fill)
+		SolidStroke(stroke) => {
+			with_stroke = collect_color(stroke.color, command, colors, with_fill.counts)?
+			Ok({ counts: with_stroke.counts, references: checked_add(with_fill.references, with_stroke.references)? })
+		}
+	}
+}
+
+collect_color : Color.Value, U64, KernelColor.Plan, List(U64) -> Try({ counts : List(U64), references : U64 }, KernelResourceUse.Error)
+collect_color = |color, command, colors, counts| {
+	expected = KernelColor.Plan.components(colors, color.space)
+	actual = match color.channels {
+		Gray(_) => One
+		Rgb(_) => Three
+	}
+	if actual != expected {
+		Err(ColorComponentMismatch({ actual, command, expected, space: color.space.index() }))
+	} else {
+		Ok({ counts: increment(counts, color.space.index())?, references: 1 })
+	}
+}
+
+collect_image_colors : Image.Store, List(U64) -> Try({ color_counts : List(U64), image_colors : U64 }, KernelResourceUse.Error)
+collect_image_colors = |store, initial_counts| {
+	var $counts = initial_counts
+	var $index = 0
+	var $error = NoError
+	while $index < store.resources.len() and $error == NoError {
+		resource = list_at(store.resources, $index)
+		space = match resource.payload {
+			Jpeg(jpeg) => jpeg.color_space
+			Raster(raster) => raster.color_space
+		}
+		match increment($counts, space.index()) {
+			Err(error) => {
+				$error = Invalid(error)
+			}
+			Ok(counts) => {
+				$counts = counts
+			}
+		}
+		$index = $index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok({ color_counts: $counts, image_colors: store.resources.len() })
+	}
+}
+
+ensure_used : List(U64), KernelResourceUse.IndexKind -> Try({}, KernelResourceUse.Error)
+ensure_used = |counts, kind| {
+	var $index = 0
+	var $unused = NoUnused
+	while $index < counts.len() and $unused == NoUnused {
+		if list_at(counts, $index) == 0 {
+			$unused = Unused($index)
+		}
+		$index = $index + 1
+	}
+	match $unused {
+		NoUnused => Ok({})
+		Unused(index) => Err(OrphanResource({ index, kind }))
+	}
+}
+
+increment : List(U64), U64 -> Try(List(U64), KernelResourceUse.Error)
+increment = |counts, index| {
+	next = checked_add(list_at(counts, index), 1)?
+	Ok(list_set(counts, index, next))
+}
+
+checked_add : U64, U64 -> Try(U64, KernelResourceUse.Error)
+checked_add = |left, right| match U64.plus_try(left, right) {
+	Err(Overflow) => Err(ArithmeticOverflow)
+	Ok(value) => Ok(value)
+}
+
+checked_sub : U64, U64 -> Try(U64, KernelResourceUse.Error)
+checked_sub = |left, right| match U64.minus_try(left, right) {
+	Err(_) => Err(ArithmeticOverflow)
+	Ok(value) => Ok(value)
+}
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "validated resource-use index escaped"
+	}
+}
+
+list_set : List(a), U64, a -> List(a)
+list_set = |items, index, value| match items.set(index, value) {
+	Ok(next) => next
+	Err(OutOfBounds) => {
+		crash "validated resource-use update escaped"
+	}
+}
+
+unit : I64 -> Layout.Unit
+unit = |raw| Layout.Unit.from_raw(raw)
+
+rect : I64, I64, I64, I64 -> Layout.Rect
+rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
+
+gray_space : U64 -> Color.SpaceRecord
+gray_space = |index| {
+	id: Color.SpaceId.from_index(index),
+	space: CalibratedGray({ black_point: { x: 0, y: 0, z: 0 }, white_point: { x: 950000, y: 1000000, z: 1089000 } }),
+}
+
+gray_value : U64 -> Color.Value
+gray_value = |space| { channels: Gray(32768), space: Color.SpaceId.from_index(space) }
+
+test_scene : Color.Value, U64 -> Scene.Store
+test_scene = |color, image_count| {
+	image_commands = if image_count == 0 [] else [
+		DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+		DrawImage({ image: Image.Id.from_index(0), placement: rect(1000, 0, 1000, 1000) }),
+	]
+	commands = [DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color, rule: Nonzero }), stroke: NoStroke } })].concat(image_commands)
+	{
+		commands,
+		dash_lengths: [],
+		groups: [{ commands: Semantics.Range.from_start_and_length(0, commands.len()), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+		page_groups: [Scene.GroupId.from_index(0)],
+		pages: [{ boxes: { art: rect(0, 0, 10000, 10000), bleed: rect(0, 0, 10000, 10000), crop: rect(0, 0, 10000, 10000), media: rect(0, 0, 10000, 10000), trim: rect(0, 0, 10000, 10000) }, id: Semantics.PageId.from_index(0), paint_order: Semantics.Range.from_start_and_length(0, 1), rotation: Rotate0 }],
+		path_segments: [Rectangle(rect(0, 0, 1000, 1000))],
+		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) }],
+	}
+}
+
+scene_limits : U64 -> KernelScene.Limits
+scene_limits = |commands| KernelScene.Limits.make({ max_commands: commands, max_dash_lengths: 0, max_graphics_depth: 1, max_groups: 1, max_pages: 1, max_path_segments: 1, max_paths: 1 })
+
+image_sources : Image.SourceStore
+image_sources = {
+	resources: [
+		{
+			id: Image.Id.from_index(0),
+			payload: PackedPixels({ alpha: NoAlpha, color_space: Color.SpaceId.from_index(0), dimensions: { height: 1, width: 1 }, format: Gray8, pixels: [127], row_stride: 1 }),
+		},
+	],
+}
+
+color_limits : U64 -> KernelColor.Limits
+color_limits = |spaces| KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: spaces, max_tags: 0 })
+
+image_limits : KernelImage.Limits
+image_limits = KernelImage.Limits.make({ max_decoded_bytes: 1, max_encoded_bytes: 0, max_height: 1, max_markers: 0, max_resources: 1, max_width: 1 })
+
+## Repeated placements count twice while retaining one image payload resource.
+expect {
+	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0)], tags: [] }, color_limits(1))?
+	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
+	scene = test_scene(gray_value(0), 1)
+	scenes = KernelScene.Plan.build(scene, KernelScene.Resources.make({ color_spaces: 1, images: 1 }), scene_limits(3))?
+	plan = KernelResourceUse.Plan.build(scenes, colors, images)?
+	work = KernelResourceUse.Plan.work(plan)
+	KernelResourceUse.Plan.color_use_count(plan, Color.SpaceId.from_index(0)) == 2 and KernelResourceUse.Plan.image_use_count(plan, Image.Id.from_index(0)) == 2 and work.image_resources == 1 and work.image_placements == 2 and work.image_reuses == 1 and work.path_color_references == 1 and work.image_color_references == 1 and work.command_visits == 3
+}
+
+## Channel shape must agree with the selected validated color space.
+expect {
+	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0)], tags: [] }, color_limits(1))?
+	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
+	rgb : Color.Value
+	rgb = { channels: Rgb({ blue: 0, green: 0, red: 0 }), space: Color.SpaceId.from_index(0) }
+	scene = test_scene(rgb, 1)
+	scenes = KernelScene.Plan.build(scene, KernelScene.Resources.make({ color_spaces: 1, images: 1 }), scene_limits(3))?
+	match KernelResourceUse.Plan.build(scenes, colors, images) {
+		Err(ColorComponentMismatch({ actual: Three, command: 0, expected: One, space: 0 })) => True
+		_ => False
+	}
+}
+
+## Declared scene resource counts cannot diverge from inspected stores.
+expect {
+	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0)], tags: [] }, color_limits(1))?
+	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
+	scene = test_scene(gray_value(0), 1)
+	scenes = KernelScene.Plan.build(scene, KernelScene.Resources.make({ color_spaces: 2, images: 1 }), scene_limits(3))?
+	match KernelResourceUse.Plan.build(scenes, colors, images) {
+		Err(CountMismatch({ actual: 1, declared: 2, kind: ColorSpaceIndex })) => True
+		_ => False
+	}
+}
+
+## Validated image payloads that never receive a placement are rejected.
+expect {
+	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0)], tags: [] }, color_limits(1))?
+	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
+	scene = test_scene(gray_value(0), 0)
+	scenes = KernelScene.Plan.build(scene, KernelScene.Resources.make({ color_spaces: 1, images: 1 }), scene_limits(1))?
+	match KernelResourceUse.Plan.build(scenes, colors, images) {
+		Err(OrphanResource({ index: 0, kind: ImageIndex })) => True
+		_ => False
+	}
+}
+
+## Color spaces enter the normalized closure only when paint or image data uses them.
+expect {
+	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0), gray_space(1)], tags: [] }, color_limits(2))?
+	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
+	scene = test_scene(gray_value(0), 1)
+	scenes = KernelScene.Plan.build(scene, KernelScene.Resources.make({ color_spaces: 2, images: 1 }), scene_limits(3))?
+	match KernelResourceUse.Plan.build(scenes, colors, images) {
+		Err(OrphanResource({ index: 1, kind: ColorSpaceIndex })) => True
+		_ => False
+	}
+}

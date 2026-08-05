@@ -1,6 +1,7 @@
 import KernelColor
 import KernelGeometry
 import KernelImage
+import KernelResourceUse
 import KernelScene
 import KernelSemantics
 import KernelTagged

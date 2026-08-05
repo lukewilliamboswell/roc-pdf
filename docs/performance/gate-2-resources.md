@@ -18,5 +18,14 @@ duplicates, and EXIF bytes are omitted from one compact sanitized payload.
 Orientations requiring a pixel transform are rejected unless the caller has
 provided display-ready input.
 
-Both plans expose deterministic byte, row, marker, profile, tag, space, and
-resource work counters.
+`KernelResourceUse` joins the checked scene, color, and image plans. It rejects
+cardinality drift, color-channel/component mismatches, and orphan normalized
+resources before lowering. Dense per-resource counters record direct path and
+image dependencies; repeated placements increment only a scalar image-use
+counter and continue to reference one inspected payload.
+
+The join traverses the command arena and image descriptor store once. Updating
+unique dense count lists has no payload-sized copies, and the result retains no
+second image, ICC, raster, or JPEG byte list. The plans expose deterministic
+byte, row, marker, profile, tag, space, command, placement, and reuse work
+counters.
