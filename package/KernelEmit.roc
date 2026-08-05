@@ -535,7 +535,7 @@ emit_value = |output, store, value_id| match list_at(store.values, KernelObject.
 	Real(value) => Ok(KernelLex.append_real(output, value))
 	Reference(object) => Ok(append_reference(output, object))
 	Stream(_) => Err(NestedStreamValue)
-	TextString(string) => Ok(KernelLex.append_text_string(output, list_at(store.text_strings, KernelObject.TextStringId.index(string))))
+	TextString(string) => Ok(KernelLex.append_text(output, list_at(store.text_strings, KernelObject.TextStringId.index(string))))
 }
 
 emit_array : List(U8), KernelObject.Store, KernelObject.Span -> Try(List(U8), KernelEmit.Error)
@@ -962,6 +962,72 @@ emission_test_limits = {
 	max_text_string_bytes: 0,
 	max_text_strings: 0,
 	max_values: 2,
+}
+
+## Every direct lexical value crosses the flat store, sealing, and shared value emitter.
+expect {
+	limits : KernelObject.Limits
+	limits = {
+		max_array_items: 8,
+		max_byte_string_bytes: 2,
+		max_byte_strings: 1,
+		max_dictionary_entries: 2,
+		max_direct_depth: 3,
+		max_name_bytes: 6,
+		max_names: 3,
+		max_objects: 1,
+		max_payload_bytes: 0,
+		max_payloads: 0,
+		max_streams: 0,
+		max_text_string_bytes: 5,
+		max_text_strings: 1,
+		max_values: 10,
+	}
+	a_key = KernelObject.add_name(KernelObject.init(limits), Str.to_utf8("A"))?
+	b_key = KernelObject.add_name(a_key.builder, Str.to_utf8("B"))?
+	escaped_name = KernelObject.add_name(b_key.builder, [78, 32, 47, 35])?
+	byte_string = KernelObject.add_byte_string(escaped_name.builder, [0, 255])?
+	text_string = KernelObject.add_text_string(byte_string.builder, "A😀")?
+	null = KernelObject.add_null(text_string.builder)?
+	boolean = KernelObject.add_boolean(null.builder, True)?
+	integer = KernelObject.add_integer(boolean.builder, I64.lowest)?
+	decimal = KernelLex.Decimal.from_coefficient(1200, 3)?
+	real = KernelObject.add_real(integer.builder, decimal)?
+	name = KernelObject.add_name_value(real.builder, escaped_name.id)?
+	bytes = KernelObject.add_byte_string_value(name.builder, byte_string.id)?
+	text = KernelObject.add_text_string_value(bytes.builder, text_string.id)?
+	object_id = KernelObject.ObjectId.from_number(1)?
+	reference = KernelObject.add_reference(text.builder, object_id)?
+	array = KernelObject.add_array(reference.builder, [null.id, boolean.id, integer.id, real.id, name.id, bytes.id, text.id, reference.id])?
+	dictionary = KernelObject.add_dictionary(
+		array.builder,
+		[{ key: a_key.id, value: array.id }, { key: b_key.id, value: text.id }],
+	)?
+	object = KernelObject.add_object(dictionary.builder, dictionary.id)?
+	sealed = KernelSeal.seal(object.builder)?
+	store = KernelSeal.Plan.store(sealed)
+
+	var $actual = emit_value([], store, null.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, boolean.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, integer.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, real.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, name.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, bytes.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, text.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, reference.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, array.id)?
+	$actual = $actual.append(124)
+	$actual = emit_value($actual, store, dictionary.id)?
+
+	$actual == Str.to_utf8("null|true|-9223372036854775808|1.2|/N#20#2F#23|<00FF>|<FEFF0041D83DDE00>|1 0 R|[null true -9223372036854775808 1.2 /N#20#2F#23 <00FF> <FEFF0041D83DDE00> 1 0 R]|<< /A [null true -9223372036854775808 1.2 /N#20#2F#23 <00FF> <FEFF0041D83DDE00> 1 0 R] /B <FEFF0041D83DDE00> >>")
 }
 
 ## Planned stream keys merge canonically around generated Filter and Length keys.

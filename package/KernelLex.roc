@@ -24,6 +24,14 @@ KernelLex :: [].{
 		bytes = |Name.(bytes)| bytes
 	}
 
+	Text :: List(U8).{
+		from_str : Str -> Text
+		from_str = |value| Text.(Str.to_utf8(value))
+
+		bytes : Text -> List(U8)
+		bytes = |Text.(bytes)| bytes
+	}
+
 	## Decimal is an exact signed coefficient and a base-10 scale. Floating-point
 	## values never enter the lexical boundary.
 	Decimal :: { coefficient : I64, scale : U8 }.{
@@ -43,10 +51,10 @@ KernelLex :: [].{
 	}
 
 	boolean : Bool -> List(U8)
-	boolean = |value| append_keyword_boolean([], value)
+	boolean = |value| append_keyword_boolean(List.with_capacity(if value 4 else 5), value)
 
 	null_value : List(U8)
-	null_value = append_keyword_null([])
+	null_value = append_keyword_null(List.with_capacity(4))
 
 	integer : I64 -> List(U8)
 	integer = |value| append_i64([], value)
@@ -91,28 +99,33 @@ KernelLex :: [].{
 
 	append_text_string : List(U8), Str -> List(U8)
 	append_text_string = |output, value| write_text_string(output, value)
+
+	append_text : List(U8), Text -> List(U8)
+	append_text = |output, value| write_text_utf8(output, Text.bytes(value))
 }
 
 append_keyword_boolean : List(U8), Bool -> List(U8)
 append_keyword_boolean = |output, value| {
-	var $out = List.reserve(output, if value 4 else 5)
-	if value {
-		$out = $out.append(116)
-		$out = $out.append(114)
-		$out = $out.append(117)
-		$out.append(101)
-	} else {
-		$out = $out.append(102)
-		$out = $out.append(97)
-		$out = $out.append(108)
-		$out = $out.append(115)
-		$out.append(101)
+	length = if value 4 else 5
+	var $out = output
+	var $index = 0
+	while $index < length {
+		byte = match $index {
+			0 => if value 116 else 102
+			1 => if value 114 else 97
+			2 => if value 117 else 108
+			3 => if value 101 else 115
+			_ => 101
+		}
+		$out = $out.append(byte)
+		$index = $index + 1
 	}
+	$out
 }
 
 append_keyword_null : List(U8) -> List(U8)
 append_keyword_null = |output| {
-	var $out = List.reserve(output, 4)
+	var $out = output
 	$out = $out.append(110)
 	$out = $out.append(117)
 	$out = $out.append(108)
@@ -239,8 +252,10 @@ write_byte_string = |output, bytes| {
 }
 
 write_text_string : List(U8), Str -> List(U8)
-write_text_string = |output, value| {
-	utf8 = Str.to_utf8(value)
+write_text_string = |output, value| write_text_utf8(output, Str.to_utf8(value))
+
+write_text_utf8 : List(U8), List(U8) -> List(U8)
+write_text_utf8 = |output, utf8| {
 	length = utf8.len()
 	var $out = output.append(60)
 	$out = append_hex_byte($out, 254)

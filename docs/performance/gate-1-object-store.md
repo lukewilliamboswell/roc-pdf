@@ -6,8 +6,8 @@
 graph. It implements dense IDs, flat value and edge stores, preassigned stream
 length-object references, explicit payload ownership kinds, checked dimensions,
 direct-depth limits, canonical dictionary-key validation, and exact work
-counters. The ledger remains `partial` until sealing validates all forward
-references and the optimized emitter consumes the compact plan.
+counters. Sealing validates all forward references and the optimized emitter
+consumes the same compact plan.
 
 The module is imported privately by `Pdf` so its tests are in the package test
 closure. It is intentionally absent from `package/main.roc`; object numbers,
@@ -24,6 +24,8 @@ spans, streams, and lexical storage are not public facade types.
   not form recursive Roc lists or retain parent containers through child nodes.
 - A stream retains a payload ID and a separately preassigned indirect length
   object ID. It never embeds or duplicates payload bytes.
+- Text strings retain their UTF-8 byte list once, so emission does not allocate
+  another `Str.to_utf8` conversion per use.
 - Generated and unchanged-resource payloads retain their input byte list once.
   The later chunk-retention policy will decide whether unchanged caller slices
   may be shared or must be copied into owned chunks.
@@ -57,12 +59,16 @@ Count, cumulative-byte, direct-depth, index, and work arithmetic is checked
 before mutation. Errors report the exact dimension, attempted value, limit, or
 store kind.
 
-## Evidence still required
+## Executable evidence
 
 Gate 1 now has sealing-time reference validation, compact emission-plan
 measurements, exact optimized allocation scenarios, and thousands-of-pages
 stress plus greater-than-4-GiB counting-sink coverage. It also has
 shared-versus-owned backing-storage retention and final-use release evidence.
-Remaining Gate 1 work is tracked at the structural-emission and roadmap
-boundaries. Allocation or work baseline changes will be reviewed as
-representation changes, not mechanically accepted.
+An exact all-value integration check now constructs, seals, and emits every
+direct value form through this store, including nested arrays/dictionaries and
+a resolved reference. The strict PDFBox lane separately checks the emitted
+structural object range, references, and streams. Remaining later-feature
+object lowerers consume this completed kernel at their roadmap gates.
+Allocation or work baseline changes are reviewed as representation changes,
+not mechanically accepted.

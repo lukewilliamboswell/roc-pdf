@@ -15,7 +15,7 @@ main! = |args| {
 	} else {
 		""
 	}
-	if mode == "indexes" or mode == "outlines" or mode == "resources" {
+	if mode == "indexes" or mode == "lexical" or mode == "outlines" or mode == "resources" {
 		entry_count = if args.len() > 2 {
 			match args.get(2) {
 				Ok(text) => match U64.from_str(text) {
@@ -29,6 +29,8 @@ main! = |args| {
 		}
 		if mode == "indexes" {
 			Gate1Evidence.generate_blank_with_indexes(entry_count)
+		} else if mode == "lexical" {
+			Gate1Evidence.generate_blank_with_lexical_values(entry_count)
 		} else if mode == "outlines" {
 			Gate1Evidence.generate_blank_with_outline(entry_count)
 		} else {

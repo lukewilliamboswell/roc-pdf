@@ -46,7 +46,7 @@ Every stream continues to retain one payload ID. Sealing neither copies nor
 coalesces payload bytes, so the later shared/owned chunk policy can make the
 retention decision without undoing an intermediate arena.
 
-## Evidence still required
+## Executable evidence
 
 The current blank structural plan stores its checked output bound before
 emission, the generated-stream probe adds a checked multi-block compressor

@@ -2,6 +2,7 @@ import KernelBalanced
 import KernelDeflate
 import KernelEmit
 import KernelIndex
+import KernelLex
 import KernelObject
 import KernelOutline
 import KernelResource
@@ -159,6 +160,68 @@ Gate1Evidence :: [].{
 				KernelResource.Work.entries_checked(work),
 				KernelResource.Work.identity_checks(work),
 				KernelResource.Work.kind_comparisons(work),
+				audit.byte_visits,
+				audit.checksum,
+				blank.bytes.len(),
+			],
+		}
+	}
+
+	generate_blank_with_lexical_values : U64 -> { bytes : List(U8), work : List(U64) }
+	generate_blank_with_lexical_values = |entry_count| {
+		metrics = if entry_count == 2048 {
+			{ emitted_bytes: 206848, source_bytes: 24576, tokens: 18432 }
+		} else if entry_count == 4096 {
+			{ emitted_bytes: 413696, source_bytes: 49152, tokens: 36864 }
+		} else {
+			crash "Gate 1 lexical stress fixture requires 2048 or 4096 bundles"
+		}
+		seed = if entry_count == 2048 4096 else entry_count
+		space = U64.mod_by(seed, 4064).to_u8_wrap()
+		name = match KernelLex.Name.from_bytes([65, space, 66, 47, 35]) {
+			Ok(value) => value
+			Err(_) => {
+				crash "Gate 1 lexical name invariant failed"
+			}
+		}
+		coefficient = seed.to_i64_wrap() - 2896
+		scale = U64.mod_by(seed, 4093).to_u8_wrap()
+		decimal = match KernelLex.Decimal.from_coefficient(coefficient, scale) {
+			Ok(value) => value
+			Err(_) => {
+				crash "Gate 1 lexical decimal invariant failed"
+			}
+		}
+		byte_string = [0, U64.mod_by(seed, 3841).to_u8_wrap()]
+		text_string = KernelLex.Text.from_str("A😀")
+		var $lexical = List.with_capacity(metrics.emitted_bytes)
+		var $index = 0
+		while $index < entry_count {
+			$lexical = KernelLex.append_boolean($lexical, True).append(124)
+			$lexical = KernelLex.append_boolean($lexical, False).append(124)
+			$lexical = KernelLex.append_null($lexical).append(124)
+			$lexical = KernelLex.append_integer($lexical, I64.lowest).append(124)
+			$lexical = KernelLex.append_unsigned($lexical, U64.highest).append(124)
+			$lexical = KernelLex.append_real($lexical, decimal).append(124)
+			$lexical = KernelLex.append_name($lexical, name).append(124)
+			$lexical = KernelLex.append_byte_string($lexical, byte_string).append(124)
+			$lexical = KernelLex.append_text($lexical, text_string).append(10)
+			$index = $index + 1
+		}
+		audit = audit_bytes($lexical)
+		blank = generate_blank(4096)
+
+		if $lexical.len() != metrics.emitted_bytes or audit.byte_visits != metrics.emitted_bytes {
+			crash "Gate 1 lexical stress evidence changed"
+		}
+
+		{
+			bytes: blank.bytes,
+			work: [
+				entry_count,
+				metrics.tokens,
+				metrics.source_bytes,
+				$lexical.len(),
 				audit.byte_visits,
 				audit.checksum,
 				blank.bytes.len(),
@@ -585,6 +648,17 @@ audit_resource_names = |plan| {
 		$index = $index + 1
 	}
 	{ byte_visits: $byte_visits, checksum: $checksum }
+}
+
+audit_bytes : List(U8) -> { byte_visits : U64, checksum : U64 }
+audit_bytes = |bytes| {
+	var $index = 0
+	var $checksum = 0
+	while $index < bytes.len() {
+		$checksum = $checksum + ($index + 1) * list_at(bytes, $index).to_u64()
+		$index = $index + 1
+	}
+	{ byte_visits: $index, checksum: $checksum }
 }
 
 capture_resource : KernelStructure.Plan,

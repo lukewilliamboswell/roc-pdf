@@ -178,7 +178,7 @@ KernelObject :: [].{
 		objects : List(Object),
 		payloads : List(Payload),
 		streams : List(Stream),
-		text_strings : List(Str),
+		text_strings : List(KernelLex.Text),
 		values : List(Value),
 	}
 
@@ -300,7 +300,8 @@ KernelObject :: [].{
 
 	add_text_string : Builder, Str -> Try({ builder : Builder, id : TextStringId }, Error)
 	add_text_string = |builder, text| {
-		byte_length = Str.to_utf8(text).len()
+		lexical_text = KernelLex.Text.from_str(text)
+		byte_length = KernelLex.Text.bytes(lexical_text).len()
 		match checked_increment(builder.store.text_strings.len(), builder.limits.max_text_strings, TextStrings) {
 			Err(error) => Err(error)
 			Ok(_) => match checked_total(builder.total_text_string_bytes, byte_length, builder.limits.max_text_string_bytes, TextStringBytes) {
@@ -320,7 +321,7 @@ KernelObject :: [].{
 						Ok({
 							builder: {
 								..builder,
-								store: { ..builder.store, text_strings: builder.store.text_strings.append(text) },
+								store: { ..builder.store, text_strings: builder.store.text_strings.append(lexical_text) },
 								total_text_string_bytes,
 								work,
 							},

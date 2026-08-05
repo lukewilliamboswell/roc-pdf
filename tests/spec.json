@@ -83,6 +83,36 @@
       "retention": null
     },
     {
+      "name": "Gate 1 bulk lexical values x2048",
+      "scenario_revision": "gate1-lexical-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["lexical", "2048"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "lexical_bundles": 2048 },
+      "work_counters": ["bundles", "tokens", "source_bytes", "emitted_bytes", "byte_visits", "byte_checksum", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 113797, "work": [2048, 18432, 24576, 206848, 206848, 1416541943808, 1084927] },
+        "x64musl": { "allocations": 113797, "work": [2048, 18432, 24576, 206848, 206848, 1416541943808, 1084927] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 bulk lexical values x4096",
+      "scenario_revision": "gate1-lexical-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["lexical", "4096"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "lexical_bundles": 4096 },
+      "work_counters": ["bundles", "tokens", "source_bytes", "emitted_bytes", "byte_visits", "byte_checksum", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 113797, "work": [4096, 36864, 49152, 413696, 413696, 5666285907968, 1084927] },
+        "x64musl": { "allocations": 113797, "work": [4096, 36864, 49152, 413696, 413696, 5666285907968, 1084927] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 one-block dynamic DEFLATE",
       "scenario_revision": "gate1-deflate-one-block-v1",
       "source": "tests/gate1_deflate_one_block/main.roc",
