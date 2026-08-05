@@ -1,1 +1,1 @@
-package [Foo] {}
+package [Conformance, Foo] {}
