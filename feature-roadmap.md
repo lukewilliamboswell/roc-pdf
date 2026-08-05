@@ -261,8 +261,9 @@ within an early correctness gate.
 - Flate streams through `roc-deflate`.
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
-- Deterministic balanced builders for page, name, number, ID, ParentTree, and
-  outline structures, with fixed fanout and exact ordering/limit rules.
+- Deterministic fixed-fanout balanced builders for page, name, number, ID, and
+  ParentTree structures, plus deterministic linked outline hierarchies with
+  exact ordering/count/limit rules.
 - Blank, single-page, and multi-page documents.
 - Buffered bytes and the byte-identical pure chunk encoder.
 - Flat object/value/edge stores, a consumption-shaped builder, and bulk lexical
@@ -289,8 +290,9 @@ within an early correctness gate.
 - Negative twins cover malformed numeric values, duplicate keys, bad
   references, offset/count overflow, invalid names/strings, non-monotonic tree
   keys, bad limits/counts, and size limits.
-- Stress fixtures exercise thousands of pages and large name, number, ID, and
-  ParentTree structures without changing the documented representation rule.
+- Stress fixtures exercise thousands of pages and large name, number, ID,
+  ParentTree, and outline structures without changing the documented
+  representation rule.
 - Buffered/chunked and shared/owned-chunk hashes agree; a counting sink verifies
   offsets beyond 4 GiB; output-bound proofs prevent late encoder errors.
 - Retained-chunk tests demonstrate that seamless slices pin the actual source

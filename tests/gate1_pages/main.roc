@@ -15,7 +15,7 @@ main! = |args| {
 	} else {
 		""
 	}
-	if mode == "indexes" {
+	if mode == "indexes" or mode == "outlines" {
 		entry_count = if args.len() > 2 {
 			match args.get(2) {
 				Ok(text) => match U64.from_str(text) {
@@ -27,7 +27,11 @@ main! = |args| {
 		} else {
 			0
 		}
-		Gate1Evidence.generate_blank_with_indexes(entry_count)
+		if mode == "indexes" {
+			Gate1Evidence.generate_blank_with_indexes(entry_count)
+		} else {
+			Gate1Evidence.generate_blank_with_outline(entry_count)
+		}
 	} else {
 		page_count = if mode == "stress" 4096 else 2048
 		Gate1Evidence.generate_blank(page_count)

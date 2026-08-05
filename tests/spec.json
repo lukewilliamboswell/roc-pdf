@@ -53,6 +53,21 @@
       "retention": null
     },
     {
+      "name": "Gate 1 linked outline plan",
+      "scenario_revision": "gate1-outline-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["outlines", "4096"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "outline_entries": 4096, "outline_depth": 1 },
+      "work_counters": ["entries", "root_count", "top_level", "parents", "leaves", "previous_links", "next_links", "identity_checksum", "entries_checked", "items_appended", "item_rewrites", "count_accumulations", "max_depth", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 113799, "work": [4096, 2112, 128, 128, 3968, 3967, 3967, 16773120, 4096, 4096, 15999, 4096, 1, 1084927] },
+        "x64musl": { "allocations": 113799, "work": [4096, 2112, 128, 128, 3968, 3967, 3967, 16773120, 4096, 4096, 15999, 4096, 1, 1084927] }
+      },
+      "retention": null
+    },
+    {
       "name": "placeholder PDF x1",
       "scenario_revision": "placeholder-v1",
       "source": "tests/placeholder/main.roc",

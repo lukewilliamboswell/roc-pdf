@@ -132,6 +132,19 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-OUTLINE-PLAN",
+      "summary": "Outline preorder seals into deterministic parent, sibling, child, root, and visible-descendant Count facts without synthetic balancing items.",
+      "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],
+      "references": ["ISO 32000-2:2020 12.3.3 Tables 150 and 151", "architecture.md: Internal PDF object plan"],
+      "capabilities": ["Pdf20"],
+      "implementation": "partial",
+      "machine_verification": "roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work; pending_outline_object_lowering_and_external_parser",
+      "human_verification": "not_required",
+      "positive_scenarios": ["package/KernelOutline.roc", "tests/gate1_pages/main.roc"],
+      "negative_scenarios": ["package/KernelOutline.roc"],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-STRUCTURE-LOWERING",
       "summary": "Blank pages lower deterministically to a fixed-fanout left-packed balanced page tree, page dictionaries, resources, and consecutive content-stream length pairs.",
       "source_ids": ["iso-32000-2-2020-ec3"],

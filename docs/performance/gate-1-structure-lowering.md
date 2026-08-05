@@ -55,6 +55,7 @@ correct for non-constant large plans.
 
 The same allocation count, hash, counters, and independent structure checks run
 on x64musl CI. Name, ID, number, and ParentTree plans are recorded separately in
-`gate-1-balanced-indexes.md`; the outline hierarchy and remaining external
-validators are still required for Gate 1 completion. Unchanged-resource
-retention evidence is recorded separately in `gate-1-resource-retention.md`.
+`gate-1-balanced-indexes.md`; the outline hierarchy is recorded in
+`gate-1-outline-hierarchy.md`. The remaining external validators are still
+required for Gate 1 completion. Unchanged-resource retention evidence is
+recorded separately in `gate-1-resource-retention.md`.

@@ -39,5 +39,5 @@ the existing page path.
 
 This slice establishes only the reusable topology and its page-tree use. Name,
 number, ID, and ParentTree rules and evidence are recorded separately in
-`gate-1-balanced-indexes.md`; the outline hierarchy still requires its own
-builder and evidence before the balanced-builder capability is complete.
+`gate-1-balanced-indexes.md`. The structurally distinct linked outline hierarchy
+is recorded in `gate-1-outline-hierarchy.md`.

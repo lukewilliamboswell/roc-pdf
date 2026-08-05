@@ -2,6 +2,7 @@ import KernelBalanced
 import KernelEmit
 import KernelIndex
 import KernelObject
+import KernelOutline
 import KernelSeal
 import KernelStructure
 
@@ -88,6 +89,45 @@ Gate1Evidence :: [].{
 		}
 	}
 
+	generate_blank_with_outline : U64 -> { bytes : List(U8), work : List(U64) }
+	generate_blank_with_outline = |entry_count| {
+		entries = outline_entries(entry_count)
+		limits = KernelOutline.Limits.make({ max_depth: 1, max_entries: entry_count, text_string_count: entry_count, value_count: entry_count })
+		plan = match KernelOutline.Plan.build(entries, limits) {
+			Ok(value) => value
+			Err(_) => {
+				crash "Gate 1 outline stress plan invariant failed"
+			}
+		}
+		audit = audit_outline(plan)
+		work = KernelOutline.Plan.work(plan)
+		blank = generate_blank(entry_count)
+
+		if entry_count != 4096 or KernelOutline.Plan.root_count(plan) != 2112 or KernelOutline.ItemId.index(KernelOutline.Plan.root_first(plan)) != 0 or KernelOutline.ItemId.index(KernelOutline.Plan.root_last(plan)) != 4064 or audit.top_level != 128 or audit.parents != 128 or audit.leaves != 3968 or audit.previous_links != 3967 or audit.next_links != 3967 or audit.identity_checksum != 16773120 or KernelOutline.Work.entries_checked(work) != 4096 or KernelOutline.Work.items_appended(work) != 4096 or KernelOutline.Work.item_rewrites(work) != 15999 or KernelOutline.Work.count_accumulations(work) != 4096 or KernelOutline.Work.max_depth_seen(work) != 1 {
+			crash "Gate 1 outline stress evidence changed"
+		}
+
+		{
+			bytes: blank.bytes,
+			work: [
+				entry_count,
+				KernelOutline.Plan.root_count(plan),
+				audit.top_level,
+				audit.parents,
+				audit.leaves,
+				audit.previous_links,
+				audit.next_links,
+				audit.identity_checksum,
+				KernelOutline.Work.entries_checked(work),
+				KernelOutline.Work.items_appended(work),
+				KernelOutline.Work.item_rewrites(work),
+				KernelOutline.Work.count_accumulations(work),
+				KernelOutline.Work.max_depth_seen(work),
+				blank.bytes.len(),
+			],
+		}
+	}
+
 	retention_probe : U8 -> {
 		backing : List(U8),
 		bytes : List(U8),
@@ -136,6 +176,135 @@ Gate1Evidence :: [].{
 			],
 		}
 	}
+}
+
+outline_entries : U64 -> List(KernelOutline.Entry)
+outline_entries = |count| {
+	var $entries = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		within_group = U64.mod_by($index, 32)
+		group = U64.div_by($index, 32)
+		depth = if within_group == 0 0 else 1
+		open = depth == 0 and U64.mod_by(group, 2) == 0
+		$entries = $entries.append(
+			KernelOutline.Entry.make({
+				depth,
+				open,
+				target: TargetValue(KernelObject.ValueId.from_index($index)),
+				title: KernelObject.TextStringId.from_index($index),
+			}),
+		)
+		$index = $index + 1
+	}
+	$entries
+}
+
+audit_outline : KernelOutline.Plan -> { identity_checksum : U64, leaves : U64, next_links : U64, parents : U64, previous_links : U64, top_level : U64 }
+audit_outline = |plan| {
+	var $identity_checksum = 0
+	var $leaves = 0
+	var $next_links = 0
+	var $parents = 0
+	var $previous_links = 0
+	var $top_level = 0
+	var $index = 0
+	while $index < KernelOutline.Plan.entry_count(plan) {
+		item = KernelOutline.Plan.item_at(plan, $index)
+		within_group = U64.mod_by($index, 32)
+		is_top = within_group == 0
+		expected_parent = if is_top Absent else At($index - within_group)
+		expected_previous = if is_top {
+			if $index == 0 Absent else At($index - 32)
+		} else if within_group == 1 {
+			Absent
+		} else {
+			At($index - 1)
+		}
+		expected_next = if is_top {
+			if $index + 32 < KernelOutline.Plan.entry_count(plan) At($index + 32) else Absent
+		} else if within_group == 31 {
+			Absent
+		} else {
+			At($index + 1)
+		}
+
+		if outline_parent_matches(KernelOutline.Item.parent(item), expected_parent) == False or outline_link_matches(KernelOutline.Item.previous(item), expected_previous) == False or outline_link_matches(KernelOutline.Item.next(item), expected_next) == False {
+			crash "Gate 1 outline relationship evidence changed"
+		}
+
+		match KernelOutline.Item.previous(item) {
+			NoItem => {}
+			OutlineItem(_) => {
+				$previous_links = $previous_links + 1
+			}
+		}
+		match KernelOutline.Item.next(item) {
+			NoItem => {}
+			OutlineItem(_) => {
+				$next_links = $next_links + 1
+			}
+		}
+
+		if is_top {
+			$top_level = $top_level + 1
+			if outline_link_matches(KernelOutline.Item.first(item), At($index + 1)) == False or outline_link_matches(KernelOutline.Item.last(item), At($index + 31)) == False or outline_count_is_31(KernelOutline.Item.count(item)) == False {
+				crash "Gate 1 outline parent evidence changed"
+			}
+			$parents = $parents + 1
+		} else {
+			if outline_link_matches(KernelOutline.Item.first(item), Absent) == False or outline_link_matches(KernelOutline.Item.last(item), Absent) == False or outline_count_is_leaf(KernelOutline.Item.count(item)) == False {
+				crash "Gate 1 outline leaf evidence changed"
+			}
+			$leaves = $leaves + 1
+		}
+
+		$identity_checksum = $identity_checksum + KernelObject.TextStringId.index(KernelOutline.Item.title(item))
+		match KernelOutline.Item.target(item) {
+			NoTarget => {
+				crash "Gate 1 outline target evidence changed"
+			}
+			TargetValue(value) => {
+				$identity_checksum = $identity_checksum + KernelObject.ValueId.index(value)
+			}
+		}
+		$index = $index + 1
+	}
+	{
+		identity_checksum: $identity_checksum,
+		leaves: $leaves,
+		next_links: $next_links,
+		parents: $parents,
+		previous_links: $previous_links,
+		top_level: $top_level,
+	}
+}
+
+outline_link_matches : KernelOutline.Link, [Absent, At(U64)] -> Bool
+outline_link_matches = |link, expected| match (link, expected) {
+	(NoItem, Absent) => True
+	(OutlineItem(id), At(index)) => KernelOutline.ItemId.index(id) == index
+	_ => False
+}
+
+outline_parent_matches : KernelOutline.Parent, [Absent, At(U64)] -> Bool
+outline_parent_matches = |parent, expected| match (parent, expected) {
+	(OutlineRoot, Absent) => True
+	(OutlineParent(id), At(index)) => KernelOutline.ItemId.index(id) == index
+	_ => False
+}
+
+outline_count_is_31 : KernelOutline.Count -> Bool
+outline_count_is_31 = |count| match count {
+	ClosedCount(value) => value == 31
+	Leaf => False
+	OpenCount(value) => value == 31
+}
+
+outline_count_is_leaf : KernelOutline.Count -> Bool
+outline_count_is_leaf = |count| match count {
+	Leaf => True
+	_ => False
 }
 
 build_byte_tree : List(KernelIndex.ByteEntry), KernelIndex.ByteKind, KernelIndex.Limits -> KernelIndex.ByteTree
