@@ -404,7 +404,8 @@ def main() -> None:
     target = native_roc_target()
 
     command(sys.executable, "scripts/check_contracts.py", "--self-test")
-    command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
+    if not args.update_snapshots:
+        command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
     verify_toolchain(suite.toolchain)
 
@@ -449,6 +450,9 @@ def main() -> None:
                 suite.toolchain.roc_optimization,
                 args.update_snapshots,
             )
+
+    if args.update_snapshots:
+        command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
 
 
 if __name__ == "__main__":

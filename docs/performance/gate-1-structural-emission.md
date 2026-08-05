@@ -31,15 +31,16 @@ segments are currently bounded by the fixed 32-page structure slice; replacing
 that temporary bound requires the balanced builders and explicit per-segment
 output bounds.
 
-The empty content stream is encoded as the canonical two-byte raw DEFLATE
-stream. Non-empty DEFLATE input is rejected before emission. The pinned
-`roc-deflate` integration and stateful bounded compression transition remain a
-Gate 1 requirement; this empty-stream special case is not evidence for them.
+The empty content stream is encoded as the canonical eight-byte zlib-wrapped
+DEFLATE stream required by `/FlateDecode`. Non-empty DEFLATE input is rejected
+before emission. The pinned `roc-deflate` integration and stateful bounded
+compression transition remain a Gate 1 requirement; this empty-stream special
+case is not evidence for them.
 
 ## Current evidence and remaining work
 
 The pinned optimized one-page scenario records exactly zero Roc allocations
-after the fixture measurement boundary and `[1, 521]` deterministic work. That
+after the fixture measurement boundary and `[1, 527]` deterministic work. That
 zero is a whole-fixture result under compiler specialization, not a general
 zero-allocation claim for construction or emission. The independent checker
 recalculates object offsets, xref entries, direct and indirect stream lengths,

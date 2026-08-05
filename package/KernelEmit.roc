@@ -198,7 +198,7 @@ emit_stream_prefix = |encoder, object_id, stream_id, next_object| {
 
 	{ bytes: emitted_payload, ownership } = match stream.filter {
 		Deflate => {
-			{ bytes: [3, 0], ownership: Generated }
+			{ bytes: [120, 156, 3, 0, 0, 0, 0, 1], ownership: Generated }
 		}
 		Unfiltered => match payload.kind {
 			Generated => { bytes: payload.bytes, ownership: Generated }

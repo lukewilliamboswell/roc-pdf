@@ -35,6 +35,18 @@ def dictionary_ref(dictionary: bytes, name: bytes) -> int:
     return int(match.group(1))
 
 
+def dictionary_ref_array(dictionary: bytes, name: bytes) -> list[int]:
+    match = re.search(rb"/" + re.escape(name) + rb" \[([^]]*)\](?:\s|$)", dictionary)
+    if match is None:
+        raise ValidationError(f"missing reference array /{name.decode('ascii')}")
+    contents = match.group(1).strip()
+    require(bool(contents), f"/{name.decode('ascii')} must not be empty")
+    references = re.findall(rb"([1-9][0-9]*) 0 R", contents)
+    canonical = b" ".join(number + b" 0 R" for number in references)
+    require(canonical == contents, f"/{name.decode('ascii')} is not a canonical reference array")
+    return [int(number) for number in references]
+
+
 def object_slices(pdf: bytes) -> tuple[dict[int, int], dict[int, bytes]]:
     matches = list(OBJECT_HEADER.finditer(pdf))
     require(bool(matches), "no indirect objects")
@@ -122,10 +134,53 @@ def validate_stream_lengths(bodies: dict[int, bytes], xref_object: int) -> None:
         _, data = stream_parts(body, length)
         if b"/Filter /FlateDecode" in dictionary:
             try:
-                decoded = zlib.decompress(data, -15)
+                decoded = zlib.decompress(data)
             except zlib.error as error:
-                raise ValidationError(f"object {number} has invalid raw DEFLATE: {error}") from error
+                raise ValidationError(f"object {number} has invalid zlib DEFLATE: {error}") from error
             require(decoded == b"", f"Gate 1 blank stream {number} is not empty")
+
+
+def validate_page_tree(bodies: dict[int, bytes], root: int, expected_pages: int) -> None:
+    seen_nodes: set[int] = set()
+    seen_pages: set[int] = set()
+
+    def walk(node: int, parent: int | None) -> int:
+        require(node not in seen_nodes, f"page-tree node {node} is repeated or cyclic")
+        body = bodies.get(node)
+        require(body is not None, f"missing page-tree node {node}")
+        require(b"/Type /Pages" in body, f"page-tree node {node} is not /Pages")
+        if parent is None:
+            require(b"/Parent " not in body, "root page-tree node has /Parent")
+        else:
+            require(dictionary_ref(body, b"Parent") == parent, f"page-tree node {node} has wrong /Parent")
+        seen_nodes.add(node)
+
+        kids = dictionary_ref_array(body, b"Kids")
+        require(len(kids) <= 32, f"page-tree node {node} exceeds fixed fanout 32")
+        child_kinds: set[str] = set()
+        descendants = 0
+        for child in kids:
+            child_body = bodies.get(child)
+            require(child_body is not None, f"missing page-tree child {child}")
+            if b"/Type /Pages" in child_body:
+                child_kinds.add("node")
+                descendants += walk(child, node)
+            else:
+                require(b"/Type /Page " in child_body, f"page-tree child {child} is neither /Pages nor /Page")
+                require(child not in seen_pages, f"page {child} occurs more than once")
+                require(dictionary_ref(child_body, b"Parent") == node, f"page {child} has wrong /Parent")
+                seen_pages.add(child)
+                child_kinds.add("page")
+                descendants += 1
+        require(len(child_kinds) == 1, f"page-tree node {node} mixes node and page children")
+        require(dictionary_int(body, b"Count") == descendants, f"page-tree node {node} has wrong /Count")
+        return descendants
+
+    require(walk(root, None) == expected_pages, "page-tree descendant count mismatch")
+    all_nodes = {number for number, body in bodies.items() if b"/Type /Pages" in body}
+    all_pages = {number for number, body in bodies.items() if b"/Type /Page " in body}
+    require(seen_nodes == all_nodes, "unreachable page-tree node")
+    require(seen_pages == all_pages, "unreachable page object")
 
 
 def validate_pdf(pdf: bytes, expected_pages: int) -> None:
@@ -144,19 +199,23 @@ def validate_pdf(pdf: bytes, expected_pages: int) -> None:
     root_body = bodies[root]
     require(b"/Type /Catalog" in root_body, "xref /Root is not a catalog")
     pages = dictionary_ref(root_body, b"Pages")
-    pages_body = bodies[pages]
-    require(b"/Type /Pages" in pages_body, "catalog /Pages is not a page-tree node")
-    require(dictionary_int(pages_body, b"Count") == expected_pages, "page-tree /Count mismatch")
-    actual_pages = sum(b"/Type /Page " in body for body in bodies.values())
-    require(actual_pages == expected_pages, "page object count mismatch")
+    validate_page_tree(bodies, pages, expected_pages)
 
 
 def self_test() -> None:
     pdf = BLANK_SNAPSHOT.read_bytes()
     validate_pdf(pdf, 1)
+    start_match = re.search(rb"startxref\n([0-9]+)\n%%EOF\n$", pdf)
+    require(start_match is not None, "self-test fixture has no startxref")
+    bad_startxref = (
+        b"startxref\n"
+        + str(int(start_match.group(1)) + 1).encode("ascii")
+        + b"\n%%EOF\n"
+    )
     mutations = [
-        pdf.replace(b"startxref\n318", b"startxref\n319", 1),
+        pdf.replace(start_match.group(0), bad_startxref, 1),
         pdf.replace(b"/Length 5 0 R", b"/Length 3 0 R", 1),
+        pdf.replace(b"/Parent 2 0 R", b"/Parent 1 0 R", 1),
         pdf[:-1] + b"x",
     ]
     for index, mutation in enumerate(mutations):
