@@ -93,7 +93,7 @@ KernelObject :: [].{
 		last_use : PayloadUse,
 	}
 
-	FilterPlan : [Deflate, Unfiltered]
+	FilterPlan : [Dct, Deflate, Unfiltered]
 	Stream : {
 		dictionary : Span,
 		filter : FilterPlan,

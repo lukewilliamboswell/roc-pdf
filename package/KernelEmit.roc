@@ -275,35 +275,39 @@ emit_stream_prefix = |encoder, object_id, stream_id, next_object| {
 	payload = list_at(store.payloads, KernelObject.PayloadId.index(stream.source))
 
 	match stream.filter {
+		Dct => emit_stored_stream_prefix(encoder, object_id, stream, payload, next_object)
 		Deflate => emit_deflate_stream_prefix(encoder, object_id, stream, payload, next_object)
-		Unfiltered => {
-			{ bytes: emitted_payload, ownership } = match payload.kind {
-				Generated => { bytes: payload.bytes, ownership: Generated }
-				UnchangedResource => if encoder.retention == ShareResourceChunks {
-					{ bytes: payload.bytes, ownership: SharedResource }
-				} else {
-					{ bytes: copy_bytes(payload.bytes), ownership: OwnedResource }
-				}
-			}
+		Unfiltered => emit_stored_stream_prefix(encoder, object_id, stream, payload, next_object)
+	}
+}
 
-			if KernelObject.StreamId.index(stream_id) != encoder.stream_lengths.len() {
-				Err(IndexInvariant)
-			} else {
-				copied_resource_bytes = if ownership == OwnedResource {
-					checked_add(encoder.copied_resource_bytes, payload.bytes.len())?
-				} else {
-					encoder.copied_resource_bytes
-				}
-				stream_lengths = encoder.stream_lengths.append(emitted_payload.len())
-				release = payload_release(encoder.plan, stream)
-				var $prefix = append_object_header([], object_id)
-				$prefix = append_stream_dictionary($prefix, store, stream)?
-				$prefix = append_stream_keyword($prefix)
-				with_length = encoder_with_stream_lengths(encoder_with_copied_resource_bytes(encoder, copied_resource_bytes), stream_lengths)
-				next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership, release }))
-				emit_bytes(next, $prefix, Generated)
-			}
+emit_stored_stream_prefix : KernelEmit.Encoder, KernelObject.ObjectId, KernelObject.Stream, KernelObject.Payload, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_stored_stream_prefix = |encoder, object_id, stream, payload, next_object| {
+	{ bytes: emitted_payload, ownership } = match payload.kind {
+		Generated => { bytes: payload.bytes, ownership: Generated }
+		UnchangedResource => if encoder.retention == ShareResourceChunks {
+			{ bytes: payload.bytes, ownership: SharedResource }
+		} else {
+			{ bytes: copy_bytes(payload.bytes), ownership: OwnedResource }
 		}
+	}
+
+	if KernelObject.StreamId.index(stream.id) != encoder.stream_lengths.len() {
+		Err(IndexInvariant)
+	} else {
+		copied_resource_bytes = if ownership == OwnedResource {
+			checked_add(encoder.copied_resource_bytes, payload.bytes.len())?
+		} else {
+			encoder.copied_resource_bytes
+		}
+		stream_lengths = encoder.stream_lengths.append(emitted_payload.len())
+		release = payload_release(encoder.plan, stream)
+		var $prefix = append_object_header([], object_id)
+		$prefix = append_stream_dictionary($prefix, plan_store(encoder.plan), stream)?
+		$prefix = append_stream_keyword($prefix)
+		with_length = encoder_with_stream_lengths(encoder_with_copied_resource_bytes(encoder, copied_resource_bytes), stream_lengths)
+		next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership, release }))
+		emit_bytes(next, $prefix, Generated)
 	}
 }
 
@@ -630,7 +634,7 @@ append_reference = |output, object| {
 append_stream_dictionary : List(U8), KernelObject.Store, KernelObject.Stream -> Try(List(U8), KernelEmit.Error)
 append_stream_dictionary = |output, store, stream| {
 	var $out = append_dictionary_open(output)
-	var $filter_pending = stream.filter == Deflate
+	var $filter_pending = stream.filter != Unfiltered
 	var $length_pending = True
 	var $index = 0
 	while $index < stream.dictionary.length {
@@ -638,7 +642,7 @@ append_stream_dictionary = |output, store, stream| {
 		name = list_at(store.names, KernelObject.NameId.index(entry.key))
 		key_bytes = KernelLex.Name.bytes(name)
 		if $filter_pending and compare_ascii(key_bytes, [70, 105, 108, 116, 101, 114]) == Greater {
-			$out = append_filter_entry($out)
+			$out = append_filter_entry($out, stream.filter)
 			$filter_pending = False
 		}
 		if $length_pending and compare_ascii(key_bytes, [76, 101, 110, 103, 116, 104]) == Greater {
@@ -652,7 +656,7 @@ append_stream_dictionary = |output, store, stream| {
 		$index = $index + 1
 	}
 	if $filter_pending {
-		$out = append_filter_entry($out)
+		$out = append_filter_entry($out, stream.filter)
 	}
 	if $length_pending {
 		$out = append_length_entry($out, stream.length_object)
@@ -702,12 +706,16 @@ compare_ascii = |left, right| {
 	}
 }
 
-append_filter_entry : List(U8) -> List(U8)
-append_filter_entry = |output| {
+append_filter_entry : List(U8), KernelObject.FilterPlan -> List(U8)
+append_filter_entry = |output, filter| {
 	var $out = output.append(32)
 	$out = append_ascii_filter_name($out)
 	$out = $out.append(32)
-	append_ascii_flate_decode_name($out)
+	match filter {
+		Dct => append_ascii_dct_decode_name($out)
+		Deflate => append_ascii_flate_decode_name($out)
+		Unfiltered => $out
+	}
 }
 
 append_length_entry : List(U8), KernelObject.ObjectId -> List(U8)
@@ -720,6 +728,9 @@ append_length_entry = |output, object| {
 
 append_ascii_filter_name : List(U8) -> List(U8)
 append_ascii_filter_name = |output| output.append(47).append(70).append(105).append(108).append(116).append(101).append(114)
+
+append_ascii_dct_decode_name : List(U8) -> List(U8)
+append_ascii_dct_decode_name = |output| output.append(47).append(68).append(67).append(84).append(68).append(101).append(99).append(111).append(100).append(101)
 
 append_ascii_flate_decode_name : List(U8) -> List(U8)
 append_ascii_flate_decode_name = |output| output.append(47).append(70).append(108).append(97).append(116).append(101).append(68).append(101).append(99).append(111).append(100).append(101)
@@ -1049,6 +1060,17 @@ expect {
 	actual = append_stream_dictionary([], stream_object.builder.store, stream)?
 
 	actual == Str.to_utf8("<< /DecodeParms null /Filter /FlateDecode /Length 2 0 R /Metadata null >>")
+}
+
+## Sanitized JPEG streams retain their bytes and declare the DCT filter.
+expect {
+	limits = { ..emission_test_limits, max_payload_bytes: 4 }
+	payload = KernelObject.add_payload(KernelObject.init(limits), [0xff, 0xd8, 0xff, 0xd9], UnchangedResource)?
+	stream_object = KernelObject.add_stream_object(payload.builder, [], Dct, payload.id)?
+	stream = list_at(stream_object.builder.store.streams, 0)
+	actual = append_stream_dictionary([], stream_object.builder.store, stream)?
+
+	actual == Str.to_utf8("<< /Filter /DCTDecode /Length 2 0 R >>")
 }
 
 ## Planned stream dictionaries cannot override generated Filter or Length entries.
