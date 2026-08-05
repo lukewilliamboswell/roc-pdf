@@ -68,6 +68,21 @@
       "retention": null
     },
     {
+      "name": "Gate 1 stable resource names",
+      "scenario_revision": "gate1-resource-names-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["resources", "4096"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "resource_entries": 4096 },
+      "work_counters": ["resource_entries", "planned_names", "name_bytes", "entries_checked", "identity_checks", "kind_comparisons", "name_byte_visits", "name_checksum", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 113797, "work": [4096, 4096, 19373, 4096, 4096, 4095, 19373, 2307784361, 1084927] },
+        "x64musl": { "allocations": 113797, "work": [4096, 4096, 19373, 4096, 4096, 4095, 19373, 2307784361, 1084927] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 one-block dynamic DEFLATE",
       "scenario_revision": "gate1-deflate-one-block-v1",
       "source": "tests/gate1_deflate_one_block/main.roc",

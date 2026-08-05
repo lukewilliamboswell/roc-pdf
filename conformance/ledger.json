@@ -145,6 +145,19 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-RESOURCE-NAME-PLAN",
+      "summary": "Resource kinds and dense identities seal into stable canonical names in explicit kind order without map iteration.",
+      "source_ids": ["iso-32000-2-2020-ec3"],
+      "references": ["ISO 32000-2:2020 7.8.3", "architecture.md: Deterministic serialization"],
+      "capabilities": ["Pdf20"],
+      "implementation": "implemented",
+      "machine_verification": "roc_unit_prefix_decimal_width_kind_order_dense_identity_limits_and_atomic_negative; optimized_4096_resource_exact_allocations_and_work; byte_identical_shared_snapshot_and_exact_performance_vector_on_arm64mac_and_x64musl",
+      "human_verification": "not_required",
+      "positive_scenarios": ["package/KernelResource.roc", "tests/gate1_pages/main.roc"],
+      "negative_scenarios": ["package/KernelResource.roc"],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-STRUCTURE-LOWERING",
       "summary": "Blank pages lower deterministically to a fixed-fanout left-packed balanced page tree, page dictionaries, resources, and consecutive content-stream length pairs.",
       "source_ids": ["iso-32000-2-2020-ec3"],

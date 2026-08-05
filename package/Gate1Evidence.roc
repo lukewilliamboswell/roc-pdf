@@ -4,6 +4,7 @@ import KernelEmit
 import KernelIndex
 import KernelObject
 import KernelOutline
+import KernelResource
 import KernelSeal
 import KernelStructure
 
@@ -124,6 +125,42 @@ Gate1Evidence :: [].{
 				KernelOutline.Work.item_rewrites(work),
 				KernelOutline.Work.count_accumulations(work),
 				KernelOutline.Work.max_depth_seen(work),
+				blank.bytes.len(),
+			],
+		}
+	}
+
+	generate_blank_with_resource_names : U64 -> { bytes : List(U8), work : List(U64) }
+	generate_blank_with_resource_names = |entry_count| {
+		entries = resource_name_entries(entry_count)
+		plan = match KernelResource.Plan.build(
+			entries,
+			KernelResource.Limits.make({ max_entries: entry_count, max_name_bytes: U64.highest }),
+		) {
+			Ok(value) => value
+			Err(_) => {
+				crash "Gate 1 resource-name stress plan invariant failed"
+			}
+		}
+		audit = audit_resource_names(plan)
+		work = KernelResource.Plan.work(plan)
+		blank = generate_blank(entry_count)
+
+		if entry_count != 4096 or KernelResource.Plan.entry_count(plan) != 4096 or KernelResource.Plan.name_bytes(plan) != 19373 or audit.byte_visits != 19373 {
+			crash "Gate 1 resource-name stress evidence changed"
+		}
+
+		{
+			bytes: blank.bytes,
+			work: [
+				entry_count,
+				KernelResource.Plan.entry_count(plan),
+				KernelResource.Plan.name_bytes(plan),
+				KernelResource.Work.entries_checked(work),
+				KernelResource.Work.identity_checks(work),
+				KernelResource.Work.kind_comparisons(work),
+				audit.byte_visits,
+				audit.checksum,
 				blank.bytes.len(),
 			],
 		}
@@ -505,6 +542,49 @@ index_number_entries = |count| {
 		$index = $index + 1
 	}
 	$entries
+}
+
+resource_name_entries : U64 -> List(KernelResource.Entry)
+resource_name_entries = |count| {
+	var $entries = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		$entries = $entries.append(KernelResource.Entry.make(Font, $index))
+		$index = $index + 1
+	}
+	$entries
+}
+
+audit_resource_names : KernelResource.Plan -> { byte_visits : U64, checksum : U64 }
+audit_resource_names = |plan| {
+	var $index = 0
+	var $byte_visits = 0
+	var $checksum = 0
+	while $index < KernelResource.Plan.entry_count(plan) {
+		entry = KernelResource.Plan.entry_at(plan, $index)
+		match KernelResource.Entry.kind(entry) {
+			Font => {}
+			_ => {
+				crash "Gate 1 resource-name kind changed"
+			}
+		}
+		if KernelResource.Entry.identity(entry) != $index {
+			crash "Gate 1 resource-name identity changed"
+		}
+		name = KernelResource.Plan.name_at(plan, $index)
+		if name.is_empty() or list_at(name, 0) != 70 {
+			crash "Gate 1 resource-name prefix changed"
+		}
+		var $byte_index = 0
+		while $byte_index < name.len() {
+			byte = list_at(name, $byte_index).to_u64()
+			$checksum = $checksum + ($index + 1) * byte
+			$byte_visits = $byte_visits + 1
+			$byte_index = $byte_index + 1
+		}
+		$index = $index + 1
+	}
+	{ byte_visits: $byte_visits, checksum: $checksum }
 }
 
 capture_resource : KernelStructure.Plan,
