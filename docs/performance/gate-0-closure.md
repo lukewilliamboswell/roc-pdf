@@ -38,9 +38,11 @@ The future PDF value store, object IDs, tree builders, lowering stages, sealed
 plan implementation, lexical writer, compressor state, and byte-emission
 machinery are private. Gate 1 must not add them to `package/main.roc`.
 
-## Next gate
+## Gate 1 handoff
 
-Gate 1 may begin with the private flat object/value/edge stores and checked
-canonical lexical kernel. The facade must continue returning
-`CapabilityUnavailable` until every Gate 1 capability and evidence item is
-satisfied; a partial structural kernel is not a public generation claim.
+This review required the facade to continue returning `CapabilityUnavailable`
+until every Gate 1 capability and evidence item was satisfied; a partial
+structural kernel was not a public generation claim. That condition was later
+satisfied by the evidence aggregated in `gate-1-closure.md`. The original
+Gate 0 define-only claims remain intentionally narrower than that later
+runtime evidence.

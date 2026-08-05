@@ -29,10 +29,11 @@ expose PDF objects, perform compression, derive identifiers, or emit bytes.
 ## Complexity and ownership
 
 For `n` stream bytes, match search is bounded by `O(128 * n)` candidate visits;
-window and block state are bounded constants. A future implementation records
-input bytes, candidate visits, blocks, and emitted bytes so compression ratio
-cannot hide a work regression. It writes statefully into bounded output chunks
-and never retains both complete uncompressed and compressed streams.
+window and block state are bounded constants. The Gate 1 implementation records
+input bytes, candidate visits, hash inserts, tokens, matches, blocks, emitted
+bytes, and maximum chunk size so compression ratio cannot hide a work
+regression. It writes statefully into bounded output chunks and never retains
+both complete uncompressed and compressed streams.
 
 Canonical ordering operates on dense planned stores. Dictionary sorting is
 `O(k log k)` comparisons for `k` unique keys unless the planner constructs them
@@ -49,5 +50,5 @@ performance evidence.
 
 `examples/advanced_encode_contract.roc` compiles explicit metadata inputs and
 the fixed canonical policy. Package expects pin number, compression, xref, and
-identifier choices. Runtime lexical, digest, XML, compression, and byte-equality
-evidence belongs to the gates implementing those operations.
+identifier choices. Gate 1 now supplies runtime lexical, digest, compression,
+and byte-equality evidence; XML evidence belongs to the gate implementing XML.

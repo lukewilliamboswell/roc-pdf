@@ -2,7 +2,7 @@
 
 ## Pinned configuration
 
-- Scenario schema: 1
+- Scenario schema: 2
 - Roc-to-host metrics protocol: 1
 - Roc toolchain selector and compiler identity: read solely from `.roc-version`;
   the harness requires `roc version` to report that exact release
@@ -17,7 +17,9 @@ shape, or `.roc-version` mismatch before accepting scenario results.
 ## Measurement ABI and ownership
 
 A compiled scenario returns one fixed record containing owned PDF bytes and a
-flat `List(U64)` whose positions are named by `tests/spec.json`. The host emits
+flat `List(U64)` whose positions are named per scenario by `tests/spec.json`.
+This permits each feature slice to report its actual deterministic operations
+without widening the allocation-measurement ABI or mislabelling counters. The host emits
 the PDF bytes unchanged, reports the counter values and allocation events in
 one versioned line, and then decrements both lists. The metrics ABI contains no
 strings, maps, closures, or per-counter records.

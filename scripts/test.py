@@ -13,6 +13,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from check_pdf_structure import validate_pdf
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = ROOT / "tests" / "spec.json"
@@ -23,12 +25,23 @@ ZIG = os.environ.get("ZIG", "zig")
 METRICS_REPORT = re.compile(
     rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
 )
+RETENTION_REPORT = re.compile(
+    rb"ROC_RETENTION protocol=([0-9]+) backing_refs=([0-9]+) source_offset=([0-9]+) owned_capacity=([0-9]+)\r?\n"
+    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
+)
 
 
 @dataclass(frozen=True)
 class Metrics:
     allocations: int
     work: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class Retention:
+    backing_refs: int
+    source_offset: int
+    owned_capacity: int
 
 
 @dataclass(frozen=True)
@@ -47,14 +60,15 @@ class TestCase:
     args: tuple[str, ...]
     measurement_boundary: str
     dimensions: dict[str, int]
+    work_counters: tuple[str, ...]
     expectations: dict[str, Metrics]
+    retention: Retention | None
 
 
 @dataclass(frozen=True)
 class TestSuite:
     protocol_version: int
     toolchain: Toolchain
-    work_counters: tuple[str, ...]
     cases: tuple[TestCase, ...]
 
 
@@ -108,10 +122,10 @@ def load_suite() -> TestSuite:
     data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise SystemExit(f"{SPEC_PATH}: top level must be an object")
-    if set(data) != {"schema_version", "protocol_version", "toolchain", "work_counters", "cases"}:
+    if set(data) != {"schema_version", "protocol_version", "toolchain", "cases"}:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 1 or data["protocol_version"] != 1:
-        raise SystemExit(f"{SPEC_PATH}: schema_version and protocol_version must be 1")
+    if data["schema_version"] != 3 or data["protocol_version"] != 1:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 3 and protocol_version must be 1")
 
     raw_toolchain = data["toolchain"]
     toolchain_fields = {
@@ -135,9 +149,6 @@ def load_suite() -> TestSuite:
     if toolchain.zig_optimization not in {"ReleaseFast", "ReleaseSafe", "ReleaseSmall"}:
         raise SystemExit(f"{SPEC_PATH}: Zig host baselines require an optimized build")
 
-    work_counters = string_list(data["work_counters"], "work_counters")
-    if not work_counters or len(work_counters) != len(set(work_counters)):
-        raise SystemExit(f"{SPEC_PATH}: work_counters must be non-empty and unique")
     raw_cases = data.get("cases")
     if not isinstance(raw_cases, list) or not raw_cases:
         raise SystemExit(f"{SPEC_PATH}: cases must be a non-empty list")
@@ -155,7 +166,9 @@ def load_suite() -> TestSuite:
             "args",
             "measurement_boundary",
             "dimensions",
+            "work_counters",
             "expectations",
+            "retention",
         }
         if set(raw) != required_fields:
             raise SystemExit(f"{SPEC_PATH}: every case must contain exactly {sorted(required_fields)}")
@@ -176,6 +189,10 @@ def load_suite() -> TestSuite:
             or any(type(value) is not int or value < 0 for value in dimensions.values())
         ):
             raise SystemExit(f"{SPEC_PATH}: {name}: dimensions must be non-negative integer fields")
+
+        work_counters = string_list(raw["work_counters"], f"{name}.work_counters")
+        if not work_counters or len(work_counters) != len(set(work_counters)):
+            raise SystemExit(f"{SPEC_PATH}: {name}: work_counters must be non-empty and unique")
 
         raw_expectations = raw["expectations"]
         if not isinstance(raw_expectations, dict) or set(raw_expectations) != {"arm64mac", "x64musl"}:
@@ -198,6 +215,26 @@ def load_suite() -> TestSuite:
                 )
             expectations[target] = Metrics(allocations, tuple(work))
 
+        raw_retention = raw["retention"]
+        if raw_retention is None:
+            retention = None
+        else:
+            retention_fields = {"backing_refs", "source_offset", "owned_capacity"}
+            if (
+                not isinstance(raw_retention, dict)
+                or set(raw_retention) != retention_fields
+                or any(type(value) is not int or value < 0 for value in raw_retention.values())
+            ):
+                raise SystemExit(
+                    f"{SPEC_PATH}: {name}.retention must contain exactly "
+                    f"{sorted(retention_fields)}"
+                )
+            retention = Retention(
+                backing_refs=raw_retention["backing_refs"],
+                source_offset=raw_retention["source_offset"],
+                owned_capacity=raw_retention["owned_capacity"],
+            )
+
         source = repository_path(raw.get("source"), f"{name}.source")
         snapshot = repository_path(raw.get("snapshot"), f"{name}.snapshot")
         if not source.is_file():
@@ -213,13 +250,18 @@ def load_suite() -> TestSuite:
                 args,
                 measurement_boundary,
                 dimensions,
+                work_counters,
                 expectations,
+                retention,
             )
         )
 
     names = [case.name for case in cases]
     if len(names) != len(set(names)):
         raise SystemExit(f"{SPEC_PATH}: case names must be unique")
+    retention_cases = [case for case in cases if case.retention is not None]
+    if len(retention_cases) != 1:
+        raise SystemExit(f"{SPEC_PATH}: exactly one backing-allocation retention case is required")
 
     discovered_snapshots = set((ROOT / "tests").glob("*/snapshot.pdf"))
     discovered_sources = {snapshot.parent / "main.roc" for snapshot in discovered_snapshots}
@@ -235,7 +277,7 @@ def load_suite() -> TestSuite:
     for case in cases:
         if case.source.parent != case.snapshot.parent:
             raise SystemExit(f"{SPEC_PATH}: {case.name}: source and snapshot must be adjacent")
-    return TestSuite(data["protocol_version"], toolchain, work_counters, tuple(cases))
+    return TestSuite(data["protocol_version"], toolchain, tuple(cases))
 
 
 def native_roc_target() -> str:
@@ -288,12 +330,12 @@ def self_test_metrics(suite: TestSuite) -> None:
     case = suite.cases[0]
     expected = case.expectations["arm64mac"]
     allocation_regression = Metrics(expected.allocations + 1, expected.work)
-    if metrics_mismatch(expected, allocation_regression, suite.work_counters) is None:
+    if metrics_mismatch(expected, allocation_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted an allocation regression")
     changed_work = list(expected.work)
     changed_work[0] += 1
     work_regression = Metrics(expected.allocations, tuple(changed_work))
-    if metrics_mismatch(expected, work_regression, suite.work_counters) is None:
+    if metrics_mismatch(expected, work_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted a work regression")
     print("PASS performance baseline self-test", flush=True)
 
@@ -315,13 +357,23 @@ def verify_toolchain(toolchain: Toolchain) -> None:
         )
 
 
+def expected_content(dimensions: dict[str, int]) -> bytes:
+    length = dimensions.get("content_stream_bytes", 0)
+    period = dimensions.get("content_pattern_period")
+    if length == 0 and period is None:
+        return b""
+    if period != 4:
+        raise SystemExit("content_stream_bytes requires the versioned four-byte q/Q pattern")
+    pattern = b"q Q\n"
+    return (pattern * ((length + len(pattern) - 1) // len(pattern)))[:length]
+
+
 def run_case(
     case: TestCase,
     index: int,
     build_dir: Path,
     target: str,
     protocol_version: int,
-    work_counters: tuple[str, ...],
     roc_optimization: str,
     update_snapshots: bool,
 ) -> None:
@@ -344,21 +396,43 @@ def run_case(
             f"stderr: {result.stderr.decode('utf-8', errors='replace')}"
         )
 
-    match = METRICS_REPORT.fullmatch(result.stderr)
+    if case.retention is None:
+        match = METRICS_REPORT.fullmatch(result.stderr)
+        protocol_group = 1
+        allocations_group = 2
+        work_group = 3
+    else:
+        match = RETENTION_REPORT.fullmatch(result.stderr)
+        protocol_group = 5
+        allocations_group = 6
+        work_group = 7
     if match is None:
         raise SystemExit(
-            f"{case.name}: expected one versioned ROC_METRICS line on stderr, got "
+            f"{case.name}: expected its versioned evidence report on stderr, got "
             f"{result.stderr!r}"
         )
-    actual_protocol = int(match.group(1))
+    if case.retention is not None:
+        retention_protocol = int(match.group(1))
+        actual_retention = Retention(
+            backing_refs=int(match.group(2)),
+            source_offset=int(match.group(3)),
+            owned_capacity=int(match.group(4)),
+        )
+        if retention_protocol != protocol_version or actual_retention != case.retention:
+            raise SystemExit(
+                f"{case.name}: retention evidence mismatch: "
+                f"expected {case.retention}, got {actual_retention}"
+            )
+
+    actual_protocol = int(match.group(protocol_group))
     if actual_protocol != protocol_version:
         raise SystemExit(
             f"{case.name}: expected protocol {protocol_version}, got {actual_protocol}"
         )
-    work_text = match.group(3)
+    work_text = match.group(work_group)
     actual_work = () if not work_text else tuple(int(value) for value in work_text.split(b","))
-    actual_metrics = Metrics(int(match.group(2)), actual_work)
-    mismatch = metrics_mismatch(case.expectations[target], actual_metrics, work_counters)
+    actual_metrics = Metrics(int(match.group(allocations_group)), actual_work)
+    mismatch = metrics_mismatch(case.expectations[target], actual_metrics, case.work_counters)
     if mismatch is not None:
         raise SystemExit(f"{case.name}: performance baseline mismatch: {mismatch}")
 
@@ -379,10 +453,15 @@ def run_case(
         f"PASS {case.name}: {describe_bytes(result.stdout)}, "
         f"{actual_metrics.allocations} allocations, "
         + ", ".join(
-            f"{name}={value}" for name, value in zip(work_counters, actual_metrics.work)
+            f"{name}={value}" for name, value in zip(case.work_counters, actual_metrics.work)
         ),
         flush=True,
     )
+
+    expected_pages = case.dimensions.get("pages")
+    if expected_pages is not None:
+        validate_pdf(result.stdout, expected_pages, expected_content(case.dimensions))
+        print(f"PASS {case.name}: independent offsets, lengths, xref, and page facts", flush=True)
 
 
 def main() -> None:
@@ -397,6 +476,10 @@ def main() -> None:
     target = native_roc_target()
 
     command(sys.executable, "scripts/check_contracts.py", "--self-test")
+    command(sys.executable, "scripts/check_arlington.py", "--self-test")
+    command(sys.executable, "scripts/check_pdfbox.py", "--self-test")
+    if not args.update_snapshots:
+        command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
     verify_toolchain(suite.toolchain)
 
@@ -413,11 +496,13 @@ def main() -> None:
         "--check",
         "build.zig",
         "host.zig",
+        "retention_host.zig",
         "roc_platform_abi.zig",
         cwd=TEST_PLATFORM,
     )
     roc("check", "package/main.roc")
     roc("test", "package/main.roc")
+    roc("test", "package/evidence.roc")
     for fixture in compile_fixtures:
         roc("test", relative(fixture))
     command(
@@ -437,10 +522,12 @@ def main() -> None:
                 build_dir,
                 target,
                 suite.protocol_version,
-                suite.work_counters,
                 suite.toolchain.roc_optimization,
                 args.update_snapshots,
             )
+
+    if args.update_snapshots:
+        command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
 
 
 if __name__ == "__main__":

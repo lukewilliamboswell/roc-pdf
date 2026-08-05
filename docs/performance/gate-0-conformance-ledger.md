@@ -30,6 +30,7 @@ snapshot, or production retained-memory result.
 ## Gate evidence
 
 `scripts/check_contracts.py --self-test` validates the checked-in corpus and
-then proves that an altered EC3 digest, facade mapping, source reference, or
-individually pinned errata rule is rejected. The existing Roc profile expects
-remain the independent executable check of the public typed mapping.
+then proves that an altered EC3 digest, facade mapping, capability availability,
+source reference, or individually pinned errata rule is rejected. The existing
+Roc profile expects remain the independent executable check of the public typed
+mapping.

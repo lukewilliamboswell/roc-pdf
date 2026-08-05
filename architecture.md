@@ -308,6 +308,17 @@ their streams, allowing the encoder to run validated content recipes through
 lexical emission and stateful deterministic DEFLATE without buffering the
 entire uncompressed or compressed stream.
 
+The baseline DEFLATE transition is a private, package-owned pure Roc
+implementation. Its internal seam accepts preflighted input and checked
+limits, exposes a conservative output bound, and yields deterministic bounded
+chunks plus explicit work and source-release facts. `roc-deflate` is pinned as
+an independent test-only decompression oracle; it is not the production
+compressor. A future `roc-deflate` release may replace the owned implementation
+only when it can satisfy that same stateful seam and after its byte policy,
+bounds, ownership, deterministic work, allocation, and retention evidence have
+been reviewed together. Such a replacement cannot weaken these contracts or
+silently change emitted bytes.
+
 The initial xref stream is unfiltered, covers the complete contiguous object
 range, and uses `/W [1 8 2]`; its direct length is therefore 11 bytes per entry
 with checked multiplication. The encoder retains `U64` offsets proportional to
@@ -1087,11 +1098,18 @@ their defined integer types; numeric operands are finite; every rendered
 resource is declared; and every tagged content item has a valid semantic
 parent.
 
-Large index structures use reusable deterministic balanced builders. Each tree
-kind defines a fixed maximum fanout, partitioning rule, ordering, exact `Count`
-and `Limits` behavior where applicable, checked key uniqueness, and monotonicity.
-The output does not change from a flat to a balanced representation based on an
-undocumented size heuristic.
+Large index structures use reusable deterministic balanced builders. Each
+balanced tree kind defines a fixed maximum fanout, partitioning rule, ordering,
+exact `Count` and `Limits` behavior where applicable, checked key uniqueness,
+and monotonicity. The output does not change from a flat to a balanced
+representation based on an undocumented size heuristic.
+
+Document outlines are ordered linked hierarchies rather than balanced search
+trees. Planning preserves authored preorder and open/closed state and seals
+exact parent, sibling, first/last-child, and visible-descendant `Count` facts.
+It never inserts synthetic grouping items to balance sibling lists because
+those items would alter the visible document outline. Entry and depth limits
+are explicit and checked before an outline plan can escape.
 
 The initial file representation uses PDF 2.0 xref streams. Object streams are
 an independent compression optimization and are not required by the

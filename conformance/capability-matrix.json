@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "capabilities": [
-    { "id": "Pdf20", "requires": [], "availability": "defined_only" },
+    { "id": "Pdf20", "requires": [], "availability": "available" },
     { "id": "PdfA4f", "requires": ["Pdf20"], "availability": "future" },
     { "id": "PdfUa2", "requires": ["Pdf20"], "availability": "defined_only" },
     { "id": "StaticPdfA4", "requires": ["Pdf20"], "availability": "defined_only" },
