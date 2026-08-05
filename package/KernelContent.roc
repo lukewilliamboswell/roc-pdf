@@ -1,8 +1,7 @@
 import Color
 import Image
+import KernelGate2Fixture
 import KernelLex
-import KernelScene
-import KernelSemantics
 import KernelTagged
 import Layout
 import Scene
@@ -601,70 +600,9 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-empty_range : Semantics.Range
-empty_range = Semantics.Range.from_start_and_length(0, 0)
-
-unit : I64 -> Layout.Unit
-unit = |raw| Layout.Unit.from_raw(raw)
-
-rect : I64, I64, I64, I64 -> Layout.Rect
-rect = |x, y, width, height| { origin: { x: unit(x), y: unit(y) }, size: { height: unit(height), width: unit(width) } }
-
-test_semantics : Semantics.Store
-test_semantics = {
-	annotations: [],
-	assertions: [],
-	attribute_roles: [],
-	attributes: [],
-	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContentOccurrence(Semantics.OccurrenceId.from_index(0))],
-	contextual_artifacts: [],
-	document_root: Semantics.NodeId.from_index(0),
-	element_identifiers: [],
-	fragments: [{ content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: ByteRange(empty_range) }],
-	mathml_subtrees: [],
-	namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
-	nodes: [
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
-		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(1, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
-	],
-	non_text_sources: [[]],
-	occurrence_fragments: [],
-	occurrences: [{ fragments: empty_range, id: Semantics.OccurrenceId.from_index(0), language: Inherited, source: NonText(Semantics.NonTextSourceId.from_index(0), ByteRange(empty_range)), text_properties: empty_range }],
-	relationships: [],
-	role_mappings: [],
-	text_properties: [],
-	text_sources: [],
-}
-
-test_scene : Scene.Store
-test_scene = {
-	commands: [
-		DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(32768), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
-		Transform({ children: Semantics.Range.from_start_and_length(2, 1), matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(2000), f: unit(3000) } }),
-		DrawImage({ image: Image.Id.from_index(0), placement: rect(4000, 5000, 2000, 1000) }),
-	],
-	dash_lengths: [],
-	groups: [
-		{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) },
-		{ commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: PageArtifact(Background) },
-	],
-	page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1)],
-	pages: [{ boxes: { art: rect(0, 0, 10000, 10000), bleed: rect(0, 0, 10000, 10000), crop: rect(0, 0, 10000, 10000), media: rect(0, 0, 10000, 10000), trim: rect(0, 0, 10000, 10000) }, id: Semantics.PageId.from_index(0), paint_order: Semantics.Range.from_start_and_length(0, 2), rotation: Rotate0 }],
-	path_segments: [Rectangle(rect(0, 0, 1000, 1000))],
-	paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) }],
-}
-
-test_tagged_plan : U64 -> Try(KernelTagged.Plan, [Semantic(KernelSemantics.Error), Scene(KernelScene.Error), Tagged(KernelTagged.Error)])
-test_tagged_plan = |content_streams| {
-	semantics = KernelSemantics.Plan.build(test_semantics, 1, content_streams, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })) ? Semantic
-	scenes = KernelScene.Plan.build(test_scene, KernelScene.Resources.make({ color_spaces: 1, images: 1 }), KernelScene.Limits.make({ max_commands: 3, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 2, max_pages: 1, max_path_segments: 1, max_paths: 1 })) ? Scene
-	plan = KernelTagged.Plan.build(semantics, scenes) ? Tagged
-	Ok(plan)
-}
-
 ## Content lowering preserves paint order, nesting, marked ownership, and exact fixed-point numbers.
 expect {
-	tagged = test_tagged_plan(1)?
+	tagged = KernelGate2Fixture.tagged_plan(1)?
 	plan = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 1 }))?
 	stream = KernelContent.Plan.stream(plan, Semantics.ContentStreamId.from_index(0))
 	expected =
@@ -688,7 +626,7 @@ expect {
 
 ## Content work counts each arena command and balanced graphics pair once.
 expect {
-	tagged = test_tagged_plan(1)?
+	tagged = KernelGate2Fixture.tagged_plan(1)?
 	plan = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 1 }))?
 	work = KernelContent.Plan.work(plan)
 	work.command_visits == 3 and work.group_visits == 2 and work.graphics_state_pairs == 2 and work.image_placements == 1 and work.path_segments == 1 and work.marked_fragment_groups == 1 and work.marked_artifact_groups == 1 and work.bytes_emitted == KernelContent.Plan.stream(plan, Semantics.ContentStreamId.from_index(0)).bytes.len()
@@ -700,18 +638,18 @@ expect {
 	stroke = {
 		cap: ProjectingSquareCap,
 		color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) },
-		dash: Dashed({ lengths: Semantics.Range.from_start_and_length(0, 2), phase: unit(250) }),
+		dash: Dashed({ lengths: Semantics.Range.from_start_and_length(0, 2), phase: KernelGate2Fixture.unit(250) }),
 		join: BevelJoin,
-		miter_limit: unit(10000),
-		width: unit(500),
+		miter_limit: KernelGate2Fixture.unit(10000),
+		width: KernelGate2Fixture.unit(500),
 	}
 	scenes = {
-		..test_scene,
+		..KernelGate2Fixture.scene,
 		commands: [
 			Clip({ children: Semantics.Range.from_start_and_length(1, 1), path: Scene.PathId.from_index(0) }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: NoFill, stroke: SolidStroke(stroke) } }),
 		],
-		dash_lengths: [unit(1000), unit(500)],
+		dash_lengths: [KernelGate2Fixture.unit(1000), KernelGate2Fixture.unit(500)],
 	}
 	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes, 512)?
 	expected =
@@ -734,13 +672,13 @@ expect {
 ## RGB channel order and every Gate 2 path segment have canonical operators.
 expect {
 	segments = [
-		MoveTo({ x: unit(0), y: unit(0) }),
-		LineTo({ x: unit(1000), y: unit(0) }),
-		CubicTo({ control_1: { x: unit(1000), y: unit(500) }, control_2: { x: unit(500), y: unit(1000) }, end: { x: unit(0), y: unit(1000) } }),
+		MoveTo({ x: KernelGate2Fixture.unit(0), y: KernelGate2Fixture.unit(0) }),
+		LineTo({ x: KernelGate2Fixture.unit(1000), y: KernelGate2Fixture.unit(0) }),
+		CubicTo({ control_1: { x: KernelGate2Fixture.unit(1000), y: KernelGate2Fixture.unit(500) }, control_2: { x: KernelGate2Fixture.unit(500), y: KernelGate2Fixture.unit(1000) }, end: { x: KernelGate2Fixture.unit(0), y: KernelGate2Fixture.unit(1000) } }),
 		Close,
 	]
 	scenes = {
-		..test_scene,
+		..KernelGate2Fixture.scene,
 		commands: [DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Rgb({ blue: 0, green: 32768, red: 65535 }), space: Color.SpaceId.from_index(0) }, rule: EvenOdd }), stroke: NoStroke } })],
 		path_segments: segments,
 		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, segments.len()) }],
@@ -759,7 +697,7 @@ expect {
 
 ## Gate 2 currently requires one deterministic content stream per page.
 expect {
-	tagged = test_tagged_plan(2)?
+	tagged = KernelGate2Fixture.tagged_plan(2)?
 	match KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 2 })) {
 		Err(ContentStreamCountMismatch({ pages: 1, streams: 2 })) => True
 		_ => False
@@ -768,7 +706,7 @@ expect {
 
 ## A content limit rejects the plan instead of returning a partial stream.
 expect {
-	tagged = test_tagged_plan(1)?
+	tagged = KernelGate2Fixture.tagged_plan(1)?
 	match KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 32, max_content_streams: 1 })) {
 		Err(LimitExceeded({ attempted: _, dimension: ContentBytes, limit: 32 })) => True
 		_ => False
