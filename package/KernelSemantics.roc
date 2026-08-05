@@ -56,9 +56,15 @@ KernelSemantics :: [].{
 		reverse_writes : U64,
 	}
 
-	Plan :: { store : Semantics.Store, work : Work }.{
+	Plan :: { content_stream_count : U64, page_count : U64, store : Semantics.Store, work : Work }.{
 		build : Semantics.Store, U64, U64, Limits -> Try(Plan, Error)
 		build = |store, page_count, content_stream_count, limits| build_plan(store, page_count, content_stream_count, limits)
+
+		content_stream_count : Plan -> U64
+		content_stream_count = |plan| plan.content_stream_count
+
+		page_count : Plan -> U64
+		page_count = |plan| plan.page_count
 
 		store : Plan -> Semantics.Store
 		store = |plan| plan.store
@@ -89,6 +95,8 @@ build_plan = |store, page_count, content_stream_count, limits| {
 
 	Ok(
 		KernelSemantics.Plan.{
+			content_stream_count,
+			page_count,
 			store: normalized,
 			work: {
 				attribute_visits: graph_work.attribute_visits,

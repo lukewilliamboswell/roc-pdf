@@ -1,6 +1,7 @@
 import KernelGeometry
 import KernelScene
 import KernelSemantics
+import KernelTagged
 import Layout
 import Scene
 
