@@ -386,6 +386,32 @@ This is the first genuinely useful public document milestone.
   different implemented profile; incomplete `Archive` or `AccessibleArchive`
   claims remain unavailable.
 
+### Upstream Unicode coordination
+
+The preferred pure Roc Unicode building blocks are tracked as independently
+resolvable issues in [`roc-lang/unicode`](https://github.com/roc-lang/unicode).
+These links coordinate reusable dependency work; they do not replace this
+roadmap's capability gates or evidence. Before adopting any result, pin its
+exact release asset or revision and digest, record its Unicode data provenance,
+and verify the applicable correctness, ownership, allocation, and deterministic
+work requirements locally.
+
+| Upstream issue | Reusable boundary |
+| --- | --- |
+| [#36: Unicode 17 upgrade and auditable versioning](https://github.com/roc-lang/unicode/issues/36) | One synchronized Unicode/UCD/UAX data version, source manifest, deterministic generation, and public version identity. |
+| [#35: Unicode 17 extended-grapheme conformance](https://github.com/roc-lang/unicode/issues/35) | Complete un-tailored UAX #29 grapheme boundaries, regressions, official conformance tests, and fuzzing. |
+| [#37: zero-copy grapheme byte ranges](https://github.com/roc-lang/unicode/issues/37) | Source-preserving UTF-8 boundary ranges and an allocation-conscious walk API for cluster-based font selection. |
+| [#38: Unicode 17 line-break opportunities](https://github.com/roc-lang/unicode/issues/38) | UAX #14 boundary analysis, explicit tailoring, and validated seams for separately versioned complex-context analyzers and hyphenators. |
+| [#39: Unicode 17 bidirectional analysis](https://github.com/roc-lang/unicode/issues/39) | UAX #9 levels, logical and visual mappings, directional runs, per-line reordering, brackets, and mirroring facts. |
+| [#41: Script and Script_Extensions](https://github.com/roc-lang/unicode/issues/41) | Normative Unicode script properties plus an explicitly named, non-normative script-itemization policy. |
+| [#42: panic-free, resource-bounded public APIs](https://github.com/roc-lang/unicode/issues/42) | Typed failure, checked limits, bounded traversal, adversarial tests, fuzzing, and documented allocation/copy/retention behavior. |
+| [#43: bounded shaping-oriented Unicode properties](https://github.com/roc-lang/unicode/issues/43) | Generated UCD properties needed by independent text engines without moving OpenType parsing or shaping into the Unicode package. |
+
+Language-specific hyphenation data remains a separate licensed and pinned
+dependency. OpenType parsing, GSUB/GPOS processing, glyph selection, and shaping
+remain separate pure Roc components; the upstream Unicode issues provide facts
+and analysis boundaries rather than those font-specific behaviors.
+
 ### Gate evidence
 
 - Each independent extractor matches an explicit normalized expectation for
