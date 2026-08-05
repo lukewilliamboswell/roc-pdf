@@ -6,15 +6,16 @@
 explicit transition drives buffered and chunked output. It writes the header,
 binary marker, generation-zero indirect objects, indirect stream lengths, an
 unfiltered xref stream with fixed-width `[1 8 2]` entries, `startxref`, and the
-EOF marker. Planned stream dictionary entries merge in unsigned-byte order
+EOF marker. The xref dictionary carries a deterministic SHA-256 file-
+identifier pair. Planned stream dictionary entries merge in unsigned-byte order
 with generated `/Filter` and `/Length` entries; attempts to override either
 generated key fail before emission. The facade exposes this slice only for an
 empty `Standard` document; meaningful content and stricter profiles fail
 transactionally rather than silently producing a blank or downgraded file.
 
 The checked-in one-page snapshot is partial Gate 1 evidence. It does not claim
-support for non-empty content, stateful DEFLATE, file identifiers, balanced
-large trees, or the later profile gates.
+support for non-empty content, stateful DEFLATE, the other balanced tree kinds,
+or the later profile gates.
 
 ## Ownership, traversal, and bounds
 
@@ -41,7 +42,7 @@ case is not evidence for them.
 ## Current evidence and remaining work
 
 The pinned optimized one-page scenario records exactly zero Roc allocations
-after the fixture measurement boundary and `[1, 527]` deterministic work. That
+after the fixture measurement boundary and `[1, 667]` deterministic work. That
 zero is a whole-fixture result under compiler specialization, not a general
 zero-allocation claim for construction or emission. The independent checker
 recalculates object offsets, xref entries, direct and indirect stream lengths,
@@ -50,8 +51,8 @@ offset, a length reference, and the EOF marker. Linux CI additionally runs
 qpdf 12.3.2 from its checksum-pinned official binary release.
 
 Gate 1 completion still requires exact scaling and copied-byte counters,
-non-empty stateful DEFLATE through `roc-deflate`, file identifiers, stream
-dictionary integration fixtures, balanced-tree stress over thousands of pages,
-shared and owned retention tests against actual backing allocations, a
-greater-than-4 GiB counting sink, cross-system hash evidence, and the pinned
-Arlington and strict-parser validators.
+non-empty stateful DEFLATE through `roc-deflate`, stream dictionary integration
+fixtures, balanced-tree stress over thousands of pages, shared and owned
+retention tests against actual backing allocations, a greater-than-4 GiB
+counting sink, cross-system hash evidence, and the pinned Arlington and strict-
+parser validators.

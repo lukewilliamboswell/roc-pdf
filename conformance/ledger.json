@@ -20,11 +20,11 @@
       "source_ids": ["deflate-rfc1951", "iso-32000-2-2020-ec3"],
       "references": ["architecture.md: Deterministic serialization"],
       "capabilities": ["Pdf20"],
-      "implementation": "defined_only",
-      "machine_verification": "schema_and_roc_contract",
+      "implementation": "partial",
+      "machine_verification": "schema_and_roc_contract; sha256_nist_vectors; independent_blank_plan_identifier_recalculation; pending_stateful_dynamic_deflate",
       "human_verification": "architecture_review",
-      "positive_scenarios": ["examples/advanced_encode_contract.roc"],
-      "negative_scenarios": [],
+      "positive_scenarios": ["examples/advanced_encode_contract.roc", "package/KernelSha256.roc", "scripts/check_pdf_structure.py"],
+      "negative_scenarios": ["scripts/check_pdf_structure.py"],
       "external_rule_ids": []
     },
     {

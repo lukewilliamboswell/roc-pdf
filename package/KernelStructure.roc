@@ -14,6 +14,7 @@ KernelStructure :: [].{
 
 	Plan :: {
 		page_count : U64,
+		page_size : PageSize,
 		root : KernelObject.ObjectId,
 		sealed : KernelSeal.Plan,
 		tree_nodes : U64,
@@ -24,6 +25,9 @@ KernelStructure :: [].{
 
 		page_count : Plan -> U64
 		page_count = |plan| plan.page_count
+
+		page_size : Plan -> PageSize
+		page_size = |plan| plan.page_size
 
 		root : Plan -> KernelObject.ObjectId
 		root = |plan| plan.root
@@ -165,6 +169,7 @@ build_nonempty = |page_count, page_size| {
 	Ok(
 		KernelStructure.Plan.{
 			page_count,
+			page_size,
 			root: catalog_object.id,
 			sealed,
 			tree_nodes: shape.nodes,

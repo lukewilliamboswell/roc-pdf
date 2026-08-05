@@ -1,6 +1,7 @@
 import KernelLex
 import KernelObject
 import KernelSeal
+import KernelSha256
 import KernelStructure
 
 SegmentOwnership : [Generated, SharedResource]
@@ -34,6 +35,7 @@ KernelEmit :: [].{
 	Error : [
 		ArithmeticOverflow,
 		DeflateInputNotYetSupported(KernelObject.StreamId),
+		IdentifierInputTooLarge,
 		IndexInvariant,
 		NestedStreamValue,
 		ReservedStreamKey(KernelObject.NameId),
@@ -44,6 +46,7 @@ KernelEmit :: [].{
 	Step : [Done, Emit(Segment, Encoder)]
 
 	Encoder :: {
+		file_id : List(U8),
 		offsets : List(U64),
 		phase : Phase,
 		plan : KernelStructure.Plan,
@@ -66,8 +69,10 @@ KernelEmit :: [].{
 	start : KernelStructure.Plan, Retention -> Try(Encoder, Error)
 	start = |plan, retention| {
 		validate_emittable(plan)?
+		file_id = KernelSha256.digest(identifier_facts(plan)) ? |_| IdentifierInputTooLarge
 		Ok(
 			Encoder.{
+				file_id,
 				offsets: [],
 				phase: Header,
 				plan,
@@ -237,7 +242,7 @@ emit_xref_prefix = |encoder| {
 	root = KernelStructure.Plan.root(encoder.plan)
 
 	var $prefix = append_object_header([], xref_object)
-	$prefix = append_xref_dictionary($prefix, size, stream_length, root)
+	$prefix = append_xref_dictionary($prefix, size, stream_length, root, encoder.file_id)
 	$prefix = append_stream_keyword($prefix)
 	next = encoder_with_phase(encoder_with_offsets(encoder, offsets), XrefEntries({ entry: 0, size, xref_offset }))
 	emit_bytes(next, $prefix, Generated)
@@ -282,6 +287,7 @@ emit_bytes = |next, bytes, ownership| {
 
 encoder_with_phase : KernelEmit.Encoder, Phase -> KernelEmit.Encoder
 encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
+	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	phase,
 	plan: encoder.plan,
@@ -292,6 +298,7 @@ encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
 
 encoder_with_offsets : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
 encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
+	file_id: encoder.file_id,
 	offsets,
 	phase: encoder.phase,
 	plan: encoder.plan,
@@ -302,6 +309,7 @@ encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
 
 encoder_with_position : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_position = |encoder, position| KernelEmit.Encoder.{
+	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	phase: encoder.phase,
 	plan: encoder.plan,
@@ -312,6 +320,7 @@ encoder_with_position = |encoder, position| KernelEmit.Encoder.{
 
 encoder_with_stream_lengths : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
 encoder_with_stream_lengths = |encoder, stream_lengths| KernelEmit.Encoder.{
+	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	phase: encoder.phase,
 	plan: encoder.plan,
@@ -557,9 +566,10 @@ append_stream_suffix = |output| {
 	append_end_object($out)
 }
 
-append_xref_dictionary : List(U8), U64, U64, KernelObject.ObjectId -> List(U8)
-append_xref_dictionary = |output, size, stream_length, root| {
+append_xref_dictionary : List(U8), U64, U64, KernelObject.ObjectId, List(U8) -> List(U8)
+append_xref_dictionary = |output, size, stream_length, root, file_id| {
 	var $out = append_dictionary_open(output)
+	$out = append_ascii_id_entry($out, file_id)
 	$out = append_ascii_index_entry($out, size)
 	$out = append_direct_length_entry($out, stream_length)
 	$out = append_ascii_root_entry($out, root)
@@ -567,6 +577,15 @@ append_xref_dictionary = |output, size, stream_length, root| {
 	$out = append_ascii_type_xref_entry($out)
 	$out = append_ascii_w_entry($out)
 	append_dictionary_close($out)
+}
+
+append_ascii_id_entry : List(U8), List(U8) -> List(U8)
+append_ascii_id_entry = |output, file_id| {
+	var $out = output.append(32).append(47).append(73).append(68).append(32).append(91)
+	$out = KernelLex.append_byte_string($out, file_id)
+	$out = $out.append(32)
+	$out = KernelLex.append_byte_string($out, file_id)
+	$out.append(93)
 }
 
 append_ascii_index_entry : List(U8), U64 -> List(U8)
@@ -643,6 +662,31 @@ append_all = |target, source| {
 
 plan_store : KernelStructure.Plan -> KernelObject.Store
 plan_store = |plan| KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan))
+
+identifier_facts : KernelStructure.Plan -> List(U8)
+identifier_facts = |plan| {
+	var $facts = List.with_capacity(41)
+	$facts = append_all($facts, Str.to_utf8("roc-pdf:document-id:v1"))
+	$facts = $facts.append(0)
+	$facts = append_all($facts, Str.to_utf8("blank"))
+	$facts = $facts.append(0)
+	page_count = KernelStructure.Plan.page_count(plan)
+	var $shift = 56
+	while $shift >= 0 {
+		$facts = $facts.append(page_count.shr_wrap($shift.to_u8_wrap()).to_u8_wrap())
+		if $shift == 0 {
+			$shift = -8
+		} else {
+			$shift = $shift - 8
+		}
+	}
+	$facts.append(
+		match KernelStructure.Plan.page_size(plan) {
+			A4 => 0
+			Letter => 1
+		},
+	)
+}
 
 list_at : List(a), U64 -> a
 list_at = |list, index| match list.get(index) {

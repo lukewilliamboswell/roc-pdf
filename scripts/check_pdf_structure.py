@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import zlib
 from pathlib import Path
@@ -88,13 +89,16 @@ def validate_xref(
     bodies: dict[int, bytes],
     xref_object: int,
     xref_offset: int,
-) -> int:
+) -> tuple[int, bytes]:
     body = bodies[xref_object]
     marker_offset = body.find(b"stream\n")
     require(marker_offset >= 0, "xref object is not a stream")
     dictionary = body[:marker_offset]
     require(b"/Type /XRef" in dictionary, "startxref object is not /XRef")
     require(b"/W [1 8 2]" in dictionary, "xref /W is not [1 8 2]")
+    identifier = re.search(rb"/ID \[<([0-9A-F]{64})> <([0-9A-F]{64})>\]", dictionary)
+    require(identifier is not None, "xref has no canonical pair of SHA-256 file identifiers")
+    require(identifier.group(1) == identifier.group(2), "initial file identifier pair differs")
     size = dictionary_int(dictionary, b"Size")
     length = dictionary_int(dictionary, b"Length")
     require(length == size * 11, "xref length is not exactly 11 bytes per entry")
@@ -118,7 +122,7 @@ def validate_xref(
             require(entry_offset == offsets[number], f"object {number} xref offset mismatch")
 
     require(offsets[xref_object] == xref_offset, "startxref does not point to xref object")
-    return dictionary_ref(dictionary, b"Root")
+    return dictionary_ref(dictionary, b"Root"), bytes.fromhex(identifier.group(1).decode("ascii"))
 
 
 def validate_stream_lengths(bodies: dict[int, bytes], xref_object: int) -> None:
@@ -140,7 +144,7 @@ def validate_stream_lengths(bodies: dict[int, bytes], xref_object: int) -> None:
             require(decoded == b"", f"Gate 1 blank stream {number} is not empty")
 
 
-def validate_page_tree(bodies: dict[int, bytes], root: int, expected_pages: int) -> None:
+def validate_page_tree(bodies: dict[int, bytes], root: int, expected_pages: int) -> set[int]:
     seen_nodes: set[int] = set()
     seen_pages: set[int] = set()
 
@@ -181,6 +185,26 @@ def validate_page_tree(bodies: dict[int, bytes], root: int, expected_pages: int)
     all_pages = {number for number, body in bodies.items() if b"/Type /Page " in body}
     require(seen_nodes == all_nodes, "unreachable page-tree node")
     require(seen_pages == all_pages, "unreachable page object")
+    return seen_pages
+
+
+def expected_blank_identifier(bodies: dict[int, bytes], pages: set[int]) -> bytes:
+    media_boxes = {
+        match.group(1)
+        for page in pages
+        for match in [re.search(rb"/MediaBox \[0 0 ([0-9]+ [0-9]+)\]", bodies[page])]
+        if match is not None
+    }
+    require(len(media_boxes) == 1, "blank pages do not share one supported media box")
+    media_box = next(iter(media_boxes))
+    if media_box == b"595 842":
+        size_code = b"\x00"
+    elif media_box == b"612 792":
+        size_code = b"\x01"
+    else:
+        raise ValidationError(f"unsupported blank media box {media_box!r}")
+    facts = b"roc-pdf:document-id:v1\x00blank\x00" + len(pages).to_bytes(8, "big") + size_code
+    return hashlib.sha256(facts).digest()
 
 
 def validate_pdf(pdf: bytes, expected_pages: int) -> None:
@@ -193,13 +217,14 @@ def validate_pdf(pdf: bytes, expected_pages: int) -> None:
     offsets, bodies = object_slices(pdf)
     require(xref_offset in offsets.values(), "startxref is not an object boundary")
     xref_object = next(number for number, offset in offsets.items() if offset == xref_offset)
-    root = validate_xref(pdf, offsets, bodies, xref_object, xref_offset)
+    root, file_identifier = validate_xref(pdf, offsets, bodies, xref_object, xref_offset)
     validate_stream_lengths(bodies, xref_object)
 
     root_body = bodies[root]
     require(b"/Type /Catalog" in root_body, "xref /Root is not a catalog")
     pages = dictionary_ref(root_body, b"Pages")
-    validate_page_tree(bodies, pages, expected_pages)
+    page_objects = validate_page_tree(bodies, pages, expected_pages)
+    require(file_identifier == expected_blank_identifier(bodies, page_objects), "file identifier does not match normalized plan facts")
 
 
 def self_test() -> None:
@@ -212,10 +237,16 @@ def self_test() -> None:
         + str(int(start_match.group(1)) + 1).encode("ascii")
         + b"\n%%EOF\n"
     )
+    identifier = re.search(rb"/ID \[<([0-9A-F]{64})>", pdf)
+    require(identifier is not None, "self-test fixture has no identifier")
+    identifier_start = identifier.start(1)
+    replacement = b"0" if pdf[identifier_start : identifier_start + 1] != b"0" else b"1"
+    bad_identifier = pdf[:identifier_start] + replacement + pdf[identifier_start + 1 :]
     mutations = [
         pdf.replace(start_match.group(0), bad_startxref, 1),
         pdf.replace(b"/Length 5 0 R", b"/Length 3 0 R", 1),
         pdf.replace(b"/Parent 2 0 R", b"/Parent 1 0 R", 1),
+        bad_identifier,
         pdf[:-1] + b"x",
     ]
     for index, mutation in enumerate(mutations):

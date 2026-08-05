@@ -17,8 +17,8 @@
       "measurement_boundary": "before_fixture_main",
       "dimensions": { "pages": 1 },
       "expectations": {
-        "arm64mac": { "allocations": 0, "work": [1, 527] },
-        "x64musl": { "allocations": 0, "work": [1, 527] }
+        "arm64mac": { "allocations": 0, "work": [1, 667] },
+        "x64musl": { "allocations": 0, "work": [1, 667] }
       }
     },
     {
