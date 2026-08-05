@@ -8,6 +8,7 @@ import os
 import platform
 import re
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -206,6 +207,7 @@ def main() -> None:
     cases = load_cases()
     target = native_roc_target()
 
+    command(sys.executable, "scripts/check_contracts.py", "--self-test")
     roc("version")
     command(ZIG, "version")
 

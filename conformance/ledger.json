@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "ROC-PDF-CONFORMANCE-EXACT-CLAIMS",
+      "summary": "Requested claims are exact and never silently downgraded.",
+      "source_ids": ["iso-14289-2-2024", "iso-19005-4-2020", "iso-32000-2-2020-ec3", "wtpdf-1-0-0"],
+      "references": ["architecture.md: Scope and claims"],
+      "capabilities": ["Pdf20", "PdfA4f", "PdfUa2", "StaticPdfA4", "WtpdfAccessibility", "WtpdfReuse"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "architecture_review",
+      "positive_scenarios": ["examples/pdf_facade.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-PDF20-GOTO-D-DESTINATION",
+      "summary": "A GoTo action D entry accepts only an explicit or named destination.",
+      "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],
+      "references": ["ISO 32000-2:2020 12.6.4.2 Table 202", "pdf-issues#140"],
+      "capabilities": ["Pdf20"],
+      "implementation": "planned",
+      "machine_verification": "pending_gate_8",
+      "human_verification": "not_required",
+      "positive_scenarios": [],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-PDF20-NAMED-DESTINATION-SD",
+      "summary": "A named-destination dictionary uses SD as defined by GoTo action Table 202.",
+      "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],
+      "references": ["ISO 32000-2:2020 12.3.2.4", "pdf-issues#162"],
+      "capabilities": ["Pdf20"],
+      "implementation": "planned",
+      "machine_verification": "pending_gate_8",
+      "human_verification": "not_required",
+      "positive_scenarios": [],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-PROFILE-ACCESSIBLE-ARCHIVE",
+      "summary": "AccessibleArchive maps exactly to Pdf20, StaticPdfA4, and PdfUa2.",
+      "source_ids": ["iso-14289-2-2024", "iso-19005-4-2020", "iso-32000-2-2020-ec3"],
+      "references": ["feature-roadmap.md: Gate 0"],
+      "capabilities": ["Pdf20", "PdfUa2", "StaticPdfA4"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "not_required",
+      "positive_scenarios": ["examples/gate0_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-PROFILE-ARCHIVE",
+      "summary": "Archive maps exactly to Pdf20 and StaticPdfA4.",
+      "source_ids": ["iso-19005-4-2020", "iso-32000-2-2020-ec3"],
+      "references": ["feature-roadmap.md: Gate 0"],
+      "capabilities": ["Pdf20", "StaticPdfA4"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "not_required",
+      "positive_scenarios": ["examples/gate0_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-PROFILE-STANDARD",
+      "summary": "Standard maps exactly to Pdf20.",
+      "source_ids": ["iso-32000-2-2020-ec3"],
+      "references": ["feature-roadmap.md: Gate 0"],
+      "capabilities": ["Pdf20"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "not_required",
+      "positive_scenarios": ["examples/gate0_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    }
+  ]
+}
