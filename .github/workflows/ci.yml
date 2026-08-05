@@ -57,5 +57,19 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_blank/snapshot.pdf
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_deflate_one_block/snapshot.pdf
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_deflate/snapshot.pdf
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_pages/snapshot.pdf
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_retention/snapshot.pdf
+
+      - name: Validate object model with veraPDF Arlington 1.30.2
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm -d --name gate1-arlington -p 127.0.0.1:18080:8080 verapdf/arlington@sha256:1543368902c393771557e2a1da69e64ad72b69db32e6efebd38a09a7b86eacbc
+          trap 'docker stop gate1-arlington' EXIT
+          python3 scripts/check_arlington.py \
+            tests/gate1_blank/snapshot.pdf \
+            tests/gate1_deflate_one_block/snapshot.pdf \
+            tests/gate1_deflate/snapshot.pdf \
+            tests/gate1_pages/snapshot.pdf \
+            tests/gate1_retention/snapshot.pdf

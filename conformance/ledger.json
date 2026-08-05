@@ -60,11 +60,11 @@
       "references": ["ISO 32000-2:2020 7.5", "architecture.md: Deterministic serialization"],
       "capabilities": ["Pdf20"],
       "implementation": "partial",
-      "machine_verification": "roc_unit_buffered_chunk_identity_canonical_stream_dictionary_merge_and_bounded_deflate_transition; independent_offsets_lengths_xref_page_and_generated_content_facts; optimized_multiblock_deflate_exact_allocations_and_work; qpdf_12_3_2_linux_ci; pending_arlington_strict_parser_cross_system_hash_and_complete_negative_evidence",
+      "machine_verification": "roc_unit_buffered_chunk_identity_canonical_stream_dictionary_merge_and_bounded_deflate_transition; independent_offsets_lengths_xref_page_and_generated_content_facts; optimized_multiblock_deflate_exact_allocations_and_work; qpdf_12_3_2_linux_ci; verapdf_arlington_1_30_2_digest_pinned_zero_failures_all_structural_snapshots; pending_strict_parser_cross_system_hash_and_complete_negative_evidence",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelEmit.roc", "scripts/check_pdf_structure.py", "tests/gate1_blank/main.roc", "tests/gate1_deflate/main.roc", "tests/gate1_deflate_one_block/main.roc"],
-      "negative_scenarios": ["scripts/check_pdf_structure.py"],
-      "external_rule_ids": []
+      "positive_scenarios": ["package/KernelEmit.roc", "scripts/check_arlington.py", "scripts/check_pdf_structure.py", "tests/gate1_blank/main.roc", "tests/gate1_deflate/main.roc", "tests/gate1_deflate_one_block/main.roc"],
+      "negative_scenarios": ["scripts/check_arlington.py", "scripts/check_pdf_structure.py"],
+      "external_rule_ids": ["arlington2.0"]
     },
     {
       "id": "ROC-PDF-PDF20-GOTO-D-DESTINATION",

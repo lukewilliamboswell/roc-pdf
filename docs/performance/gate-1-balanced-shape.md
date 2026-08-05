@@ -32,7 +32,7 @@ item shape. The maximum has level counts `[1, 32, 1024, 32768]` and exactly
 The pinned optimized 4,096-page whole-pipeline fixture remains byte-identical:
 1,084,927 bytes with SHA-256
 `bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`.
-Its exact 113,795 allocations and all page, node, object, value, edge,
+Its exact 113,793 allocations and all page, node, object, value, edge,
 reference, and emitted-byte counters are unchanged. This demonstrates that the
 opaque accessor boundary adds neither output work nor retained allocation to
 the existing page path.

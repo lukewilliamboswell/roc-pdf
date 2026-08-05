@@ -45,14 +45,14 @@ the small shared segment pins the caller's entire 8,192-byte allocation.
 The buffered, shared-chunk, and owned-chunk paths each emit 703 byte-identical
 bytes with SHA-256
 `3ab3cc3e9162be5bfacdfb3012900256a087973484f21e194e2d87516ff18cb8`.
-The fixture records one shared range, one owned range, and an exact 214 Roc
+The fixture records one shared range, one owned range, and an exact 194 Roc
 allocation events under the pinned optimized arm64mac build. Encoder counters
 record zero shared-resource copied bytes and exactly 64 owned-resource copied
-bytes. The ordinary 4,096-page fixture increases by one fixed allocation—from
-113,794 to 113,795—
-because maintaining the final-use fact triggers one copy-on-write transition
-for the payload store; deterministic object, edge, reference, and byte work is
-unchanged, so there is no allocation per payload or emitted range.
+bytes. The ordinary 4,096-page fixture now records 113,793 allocations. One
+fixed event remains attributable to the final-use fact's copy-on-write
+transition for the payload store; later SHA-256 schedule reuse removed two
+unrelated digest events. Deterministic object, edge, reference, and byte work
+is unchanged, so there is no allocation per payload or emitted range.
 
 The same pointer, capacity, reference-count, allocation-count, work, hash, and
 independent structural assertions run on x64musl CI. qpdf checks the original

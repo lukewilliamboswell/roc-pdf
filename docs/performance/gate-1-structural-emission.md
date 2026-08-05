@@ -55,11 +55,14 @@ zero-allocation claim for construction or emission. The independent checker
 recalculates object offsets, xref entries, direct and indirect stream lengths,
 and page facts from the original bytes, and its negative twins corrupt an
 offset, a length reference, and the EOF marker. Linux CI additionally runs
-qpdf 12.3.2 from its checksum-pinned official binary release.
+qpdf 12.3.2 from its checksum-pinned official binary release and veraPDF
+Arlington 1.30.2 from an immutable image digest. Arlington reports zero failed
+rules or checks for every structural snapshot within its documented object-
+model scope.
 
 Gate 1 completion still requires production compression through `roc-deflate`,
 object lowering for the non-page balanced structures, comprehensive negative
-twins, cross-system hash evidence, and the pinned Arlington and strict-parser
-validators. The non-empty generated-stream probe now covers stream dictionary
+twins, cross-system hash evidence, and the pinned strict-parser validator. The
+non-empty generated-stream probe now covers stream dictionary
 integration, stateful bounded chunks, exact compression work, source release,
 and a checked compressor output bound.

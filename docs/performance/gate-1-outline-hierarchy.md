@@ -45,7 +45,7 @@ accumulations, and maximum depth one.
 
 The outline fixture adds exactly four Roc allocations to the unchanged
 4,096-page path: the caller entry list, final item list, and the two-element
-ancestor stack's growth. Its total is 113,799 allocations; there is no
+ancestor stack's growth. Its total is 113,797 allocations; there is no
 allocation per item or relationship. It emits the same 1,084,927-byte PDF with
 SHA-256
 `bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`.
