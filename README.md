@@ -2,8 +2,10 @@
 
 A pure [Roc](https://www.roc-lang.org/) package for generating PDF/UA-2 documents.
 
-This project is in its initial scaffolding stage. Its public API currently contains only a
-placeholder `Foo` module.
+This project is implementing the Gate 0 contracts in the feature roadmap. The
+package currently exposes define-only `Conformance`, `Semantics`, `Layout`, and
+`Scene` types plus the temporary `Foo` harness fixture. It does not yet claim a
+PDF generation capability.
 
 ## Design
 
@@ -36,6 +38,10 @@ Linux x86-64. Each test application's `main!` receives `List(Str)` process argum
 the generated `List(U8)` PDF; the host writes those bytes to stdout and reports the number of Roc
 allocation events separately. The driver requires both the PDF snapshot and allocation count to
 match the case specification.
+
+Public contract examples under `examples/` are formatting- and compile-checked
+by the same driver. They establish type-level Gate 0 evidence without claiming
+that the later runtime behavior exists.
 
 Each integration case lives in its own directory under `tests/`, with its `main.roc` application
 and `snapshot.pdf` adjacent to one another. The case and expected allocation count are registered

@@ -210,6 +210,8 @@ def main() -> None:
     command(ZIG, "version")
 
     roc_sources = sorted((ROOT / "package").glob("*.roc"))
+    compile_fixtures = sorted((ROOT / "examples").glob("*.roc"))
+    roc_sources += compile_fixtures
     roc_sources += sorted(case.source for case in cases)
     roc_sources.append(TEST_PLATFORM / "main.roc")
     for source in roc_sources:
@@ -226,6 +228,8 @@ def main() -> None:
     )
     roc("check", "package/main.roc")
     roc("test", "package/main.roc")
+    for fixture in compile_fixtures:
+        roc("check", relative(fixture))
     command(ZIG, "build", "-Doptimize=ReleaseSafe", cwd=TEST_PLATFORM)
 
     TEMP_ROOT.mkdir(exist_ok=True)
