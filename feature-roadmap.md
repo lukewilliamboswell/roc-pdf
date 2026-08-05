@@ -8,7 +8,7 @@ capability-gated rather than schedule-based. Gates state observable completion
 criteria and dependency order; they do not prescribe task ownership or a
 calendar.
 
-A capability is complete only when it:
+Once a capability has executable behavior, it is complete only when it:
 
 - Has a typed public representation.
 - Preserves every fact required by later stages.
@@ -20,6 +20,18 @@ A capability is complete only when it:
 - Has documented author obligations where quality cannot be machine verified.
 - Meets its declared algorithmic-complexity, allocation, ARC, and retained-
   memory contracts in optimized builds.
+
+Gate 0 is different: it defines contracts and test machinery but does not claim
+that later PDF behavior exists. For a define-only capability, the applicable
+completion criteria are a typed representation where the boundary is public,
+preservation of every fact required downstream, documented author obligations,
+traceability to pinned standards, and declared complexity/ownership/performance
+contracts. Compile checks, schema consistency checks, and harness self-tests may
+exercise those definitions. Runtime validation and diagnostics, deterministic
+serialization, positive and negative feature behavior, structural inspection,
+external conformance oracles, and measured optimized performance become
+mandatory only in the gate that implements the behavior. Gate 0 prototypes are
+not accepted as substitutes for that later evidence.
 
 No gate permits fallback output, profile downgrade, font substitution, feature
 removal, outlining, or rasterization after an error.
@@ -114,31 +126,56 @@ per emitted byte, glyph, path command, or object. Allocation counts do not
 replace scaling counters, copied-byte measurements, retention tests, or
 controlled timing and memory jobs.
 
+A pinned compiler or target change uses a distinct bulk re-baseline protocol:
+
+1. Run the complete allocation suite with the old and proposed toolchains on
+   the same controlled host, target, optimization mode, scenarios, and inputs.
+2. Compare the full distribution, investigate every outlier, and inspect a
+   representative sample from each subsystem and allocation shape.
+3. Confirm deterministic work counters and compare allocated/copied bytes, ARC,
+   retained memory, and controlled timing so a toolchain-wide count shift does
+   not conceal an architectural regression.
+4. Record the compiler/target delta as the shared cause, list any feature-
+   caused changes separately, and update `.roc-version`, toolchain metadata,
+   and all accepted baselines atomically.
+
+This protocol permits reviewed bulk acceptance of a compiler-caused shift. It
+does not permit blanket acceptance when outliers, feature-caused changes, or
+algorithmic-counter changes remain unexplained.
+
 Gate completion aggregates the performance records of its slices. A favorable
 whole-gate benchmark cannot conceal a regression in a focused scenario, and a
 performance concern cannot be deferred merely because the capability is still
 within an early correctness gate.
 
-## Gate 0: standards, content, layout, and test contract
+## Gate 0: standards, representation, and test contract
 
 ### Capabilities
 
 - Pin ISO 32000-2:2020, ISO 19005-4:2020, ISO 14289-2:2024,
   ISO/TS 32005:2023, WTPDF 1.0, and the selected resolved errata.
-- Pin the applicable normative references and data versions for Unicode,
-  UAX #9, BCP 47/RFC 5646, OpenType, ICC, XMP/XML, JPEG, DEFLATE, and other
-  implemented dependencies.
+- Pin the applicable normative references and data versions for the Unicode
+  Standard and UCD, UAX #9, UAX #14, UAX #29, BCP 47/RFC 5646, OpenType, ICC,
+  XMP/XML, JPEG, DEFLATE, and other implemented dependencies. Define the
+  provenance and licensing contract for language-specific hyphenation data.
 - Establish the machine-readable conformance ledger and stable internal rule
   IDs.
 - Establish the composable capability matrix for `Pdf20`, `StaticPdfA4`,
   `PdfUa2`, WTPDF accessibility/reuse, and future `PdfA4f`.
+- Define the facade mapping `Standard = Pdf20`,
+  `Archive = Pdf20 + StaticPdfA4`, and
+  `AccessibleArchive = Pdf20 + StaticPdfA4 + PdfUa2`; WTPDF declarations and
+  `PdfA4f` remain orthogonal explicit capabilities.
 - Define the one-import `pdf.Pdf` facade, `Pdf.to_bytes` default contract,
   `Pdf.to_chunks` encoder contract, and explicit option-taking paths using
   current Roc type-module, associated-item, `Try`, `List(a)`, and package-
   import syntax.
-- Define the required high-level author facts—initially metadata title,
-  visible semantic document title, and language—and typed constructors that
+- Define the required high-level author facts—metadata title and language—and
+  the stricter default-facade policy that `AccessibleArchive` additionally
+  requires a visible semantic document title. Define typed constructors that
   distinguish meaningful content from artifacts without boolean flags.
+- Define `Theme` as typed convenience-layout typography, spacing, page-margin,
+  and visual policy that cannot carry semantics or weaken conformance.
 - Define opaque semantic, content-occurrence, layout-fragment, namespace,
   annotation, and structure identities and exactly one PDF 2.0 `Document` root.
 - Define the ordered content spine that interleaves child nodes, direct content,
@@ -179,27 +216,29 @@ within an early correctness gate.
 
 ### Gate evidence
 
-- The architecture can represent direct paragraph text interleaved with a link
-  child and more direct text; one occurrence split across pages and streams;
+- The typed schemas and contract examples can represent direct paragraph text
+  interleaved with a link child and more direct text; one occurrence split
+  across pages and streams;
   paint order differing from reading order; page artifacts; and contextual
   Artifact nodes without inferring any relationship.
-- A custom block can fragment while preserving occurrence identity and typed
-  continuation state.
-- A stable reference layout succeeds; a cyclic and a budget-exhausting layout
-  produce distinct stable errors and no approximate `PreparedDocument`.
-- Invalid identity, ownership, namespace, structure attribute, language,
-  relationship, font coverage, and fragment examples produce stable errors and
-  no bytes.
+- The fragmentation contract can represent a custom block continuation without
+  losing occurrence identity, and the stabilization contract represents
+  success, cycle, and budget exhaustion as distinct outcomes. This is a type
+  and invariant review, not evidence that either engine exists.
+- Diagnostic schemas assign distinct stable codes to the planned identity,
+  ownership, namespace, structure-attribute, language, relationship, font-
+  coverage, fragment, cycle, and budget errors without claiming runtime
+  detection at this gate.
 - The normative corpus and ledger are compiled/versioned package data changed
   only through review; independently pinned external tool versions can be
   upgraded without redefining that baseline.
 - The same scenario protocol runs on every supported host.
 - Public API examples compile with the pinned Roc compiler and do not require
   imports of advanced layout, scene, font, or conformance modules.
-- Flat-store prototypes demonstrate that repeated placements and fragments
-  retain one payload plus scalar IDs/ranges rather than payload copies.
-- Facade-list and compact-builder authoring benchmarks include construction
-  allocations and establish the intended large-document path.
+- Flat-store schemas and size/ownership accounting show that repeated
+  placements and fragments retain one payload plus scalar IDs/ranges rather
+  than requiring payload copies. Executable allocation evidence belongs to the
+  gate implementing each store.
 - Focused harness self-tests prove that allocation counts exclude Python and
   validator work, reset at each declared whole-pipeline or phase boundary, and
   reproduce exactly for the pinned optimized compiler, target, fixture
@@ -295,8 +334,10 @@ within an early correctness gate.
   another PDF generator as their oracle.
 - Negative twins cover unbalanced or invalid geometry, non-finite operands,
   invalid page boxes, invalid image dimensions/channels, malformed JPEGs,
-  orphan/duplicate MCIDs, missing ParentTree entries, unowned content, and
-  confusion between page and contextual artifacts.
+  invalid semantic/content/fragment identities, orphan/duplicate MCIDs,
+  missing ParentTree entries, unowned content, and confusion between page and
+  contextual artifacts. Each rejection has a stable diagnostic and emits no
+  bytes.
 - A normalized structure representation asserts exact mixed `/K` order rather
   than only tree parentage.
 - A million-command stress fixture has bounded stack use, linear visits, and no
@@ -326,6 +367,10 @@ This is the first genuinely useful public document milestone.
 - A small convenience shaping/layout path may initially support a constrained
   explicitly declared script set, while the PDF boundary accepts fully shaped
   multilingual runs.
+- Line breaking and grapheme-cluster font selection use the pinned UAX #14 and
+  UAX #29 data and rules. Any automatic hyphenation uses only explicitly
+  supported language pattern sets whose revision, license, digest, and
+  deterministic normalization are recorded in the asset manifest.
 - The `Pdf.document`, title, heading, paragraph, list, built-in theme,
   single-column pagination, explicit breaks, keeps, widow/orphan policy, and
   `Pdf.to_bytes` facade provide a useful one-import path without exposing
@@ -336,8 +381,10 @@ This is the first genuinely useful public document milestone.
 - Font-table offset/range views, once-per-face coverage/`cmap`/GSUB/GPOS data,
   contiguous glyph buffers, global used-glyph accumulation, and once-only
   composite closure/subset-table emission.
-- `Pdf.Options.default` selects the strongest completed profile;
-  `Pdf.Options.with_profile` is the only way to request a weaker profile.
+- At this gate `Pdf.Options.default` selects public profile `Standard`, whose
+  claim set is `Pdf20`. `Pdf.Options.with_profile` is the only way to request a
+  different implemented profile; incomplete `Archive` or `AccessibleArchive`
+  claims remain unavailable.
 
 ### Gate evidence
 
@@ -357,12 +404,18 @@ This is the first genuinely useful public document milestone.
 - Negative twins cover license restrictions, corrupt/overlapping tables,
   composite cycles, integer overflow, invalid composite closure, uncovered
   scalars, unsupported shaping, ambiguous mappings without `ActualText`, and
-  undeclared glyph use.
+  undeclared glyph use. Font coverage and shaping failures have stable
+  diagnostics and emit no bytes.
+- Unicode fixtures pin UAX #14 line-break and UAX #29 grapheme boundaries,
+  including version-sensitive cases. Each supported hyphenation language has
+  revision-pinned positive, negative, extraction, and determinism fixtures.
 - Compile-checked public examples pin modern Roc syntax and assert that the
   default and explicit-option entrypoints produce the intended profile.
-- Adversarial paragraph, break, table, font-fallback, and convergence cases
-  meet their declared operation-count bounds; accepted page scenes are
-  materialized once.
+- Facade-list and compact-builder authoring benchmarks include construction
+  allocations and establish the intended large-document path.
+- Adversarial paragraph, line-break, font-selection, shaping, and single-column
+  pagination cases meet their declared operation-count bounds; accepted page
+  scenes are materialized once.
 
 ## Gate 4: production visual document model
 
@@ -379,7 +432,12 @@ This is the first genuinely useful public document milestone.
   groups where required.
 - XMP metadata with canonical serialization.
 - Document language.
-- URI and internal GoTo links, named and structured destinations.
+- URI links and typed internal destinations that pair a semantic structure
+  target with an explicit layout anchor.
+- Internal GoTo actions containing both `/SD` and a deterministic post-layout
+  geometric `/D` fallback. Named destinations provide a reusable authored-name
+  registry for outlines, cross-references, and public destination names; they
+  do not replace the pair on link actions.
 - Outlines, page labels, and supported annotations.
 - Annotation appearances produced through the same scene/resource pipeline.
 - Explicit direct-edge resource dependency DAG with cycle rejection, closure
@@ -401,7 +459,11 @@ This is the first genuinely useful public document milestone.
   forms, image alpha, and color management.
 - Metadata, output intents, image profiles, blending spaces, links,
   destinations, outlines, labels, and appearances are inspected structurally.
-- Navigation is exercised in independent processors.
+- Structural inspection confirms every internal GoTo has matching `/SD` and
+  `/D` targets and every applicable named-destination dictionary carries the
+  same paired facts. Independent processors must navigate successfully through
+  the geometric fallback; `/SD` support is recorded separately and is not an
+  interoperability prerequisite.
 - Reused resources are byte-deterministic and confirmed equal, not merely hash
   collisions.
 - Digest-collision buckets use deterministic descriptor/length partitioning and
@@ -411,8 +473,9 @@ This is the first genuinely useful public document milestone.
 - Negative twins cover resource cycles and missing nested resources, invalid
   ICC/JPEG/font data, conflicting JPEG orientation, uncharacterized color,
   unsupported blend behavior, remote-file destinations, malformed annotation
-  ownership/appearance/OBJR/quadpoints, and forbidden actions. Supported URI
-  actions are not external rendering resources.
+  ownership/appearance/OBJR/quadpoints, `/SD`-only internal links, mismatched
+  structure/geometric targets, missing layout anchors, and forbidden actions.
+  Supported URI actions are not external rendering resources.
 
 The initial profile does not include CMYK, Separation/DeviceN/spot color,
 overprint, luminosity masks, non-Normal blending, rollover/down annotation
@@ -435,8 +498,9 @@ appearances, or annotation types other than links.
   and attachments under package policy. Supported URI link actions remain
   annotation data rather than rendering dependencies.
 - Keep PDF/A-4f and PDF/A-4e outside this capability.
-- Advance `Pdf.Options.default` to `StaticPdfA4`; failure returns a structured
-  error and never falls back to ordinary PDF 2.0.
+- Advance `Pdf.Options.default` to public profile `Archive`, whose claim set is
+  `Pdf20 + StaticPdfA4`; failure returns a structured error and never falls
+  back to `Standard`/ordinary PDF 2.0.
 
 ### Gate evidence
 
@@ -463,7 +527,13 @@ appearances, or annotation types other than links.
 - Figures and captions with author-supplied alternatives.
 - Simple tables with captions, logical grids, spans, header cells, scope, IDs,
   and explicit header associations.
-- Links, link annotations, structure destinations, and OBJR ownership.
+- Links, link annotations, paired structure and geometric destinations, and
+  OBJR ownership. `/SD` expresses the semantic target while `/D` preserves
+  navigation in readers that do not implement structure destinations.
+- XMP `dc:title` agreeing with the authored metadata title and catalog
+  `/ViewerPreferences` with `/DisplayDocTitle true`.
+- Required catalog `/MarkInfo` and per-page `/Tabs` entries and values, driven
+  by explicit PDF/UA-2 ledger requirements.
 - Page- and stream-spanning occurrences and exact mixed structure order.
 - Page-content artifacts and contextual Artifact structure elements.
 - Language inheritance and nested language changes.
@@ -487,6 +557,12 @@ appearances, or annotation types other than links.
   cycles, illegal namespace/containment/attributes, invalid language
   inheritance, broken table headers, and untagged annotations.
 - Structure-tree extraction agrees across independent inspection paths.
+- Structural inspection verifies `dc:title`, `DisplayDocTitle`, `/MarkInfo`,
+  and every applicable page `/Tabs` value. Atomic negative twins omit or
+  mismatch each requirement independently.
+- For every internal link, `/SD` resolves to its semantic target, `/D` resolves
+  to the post-layout geometry of the declared anchor, and both identify the
+  same authored destination.
 - Human-reviewed scenarios cover reading order, heading navigation, lists,
   links, figures, simple tables, nested language, and artifact behavior.
 - Human protocols pin AT/reader versions, tasks, expected observable navigation
@@ -494,7 +570,10 @@ appearances, or annotation types other than links.
   speech or UI output.
 - Negative twins cover missing or empty required alternatives, misleading
   structure relationships detectable mechanically, skipped ownership, missing
-  Unicode, bad heading representation, and inaccessible annotation structure.
+  Unicode, bad heading representation, inaccessible annotation structure,
+  invalid namespace/attribute/language/relationship facts, and missing or
+  mismatched destination pairs. Each failure has a stable diagnostic and emits
+  no bytes.
 
 Unsupported semantic constructs are rejected; they are never flattened into
 paragraphs or figures.
@@ -505,6 +584,9 @@ paragraphs or figures.
 
 - Audit every PDF/UA-2 and applicable ISO/TS 32005 requirement against the
   conformance ledger for the explicitly supported Gate 0-6 vocabulary.
+- Build that audit clause-by-clause from the pinned standards and errata; the
+  requirements named in the architecture and roadmap are cross-checks, not the
+  source or an exhaustive checklist.
 - Classify every requirement as applicable, inapplicable because the feature is
   rejected, machine-verifiable, human-verifiable, or both.
 - Cover every applicable machine-verifiable requirement with positive and
@@ -558,6 +640,9 @@ or structure role; unsupported inputs remain errors.
   and invalid intersections.
 - Reference layouts cover convergence, cycles, and budget exhaustion without
   accepted approximations.
+- Custom-block fixtures fragment across columns and pages while preserving
+  occurrence identity, typed continuation state, semantic ownership, and
+  bounded operation/allocation evidence.
 - Human AT review covers table navigation, multi-column order, footnotes,
   references, and mixed language/direction.
 - Every accepted capability preserves Gate 7's full applicable-requirements
@@ -638,6 +723,14 @@ Every oracle receives the exact bytes emitted by Roc.
   its license rather than the package's default license.
 - [Noto fonts](https://notofonts.github.io/noto-docs/website/use/) under
   OFL-1.1 provide fixed multilingual font fixtures.
+- Every retained Unicode Character Database file and Unicode conformance test
+  file records the Unicode version, exact source path, digest, applicable
+  Unicode data license, and whether it is production data or test-only data.
+- Hyphenation patterns are selected per language only after license and
+  redistribution review. Each normalized production pattern file and its
+  upstream source records language, revision, digest, license, attribution,
+  transformation procedure, and associated test corpus; system dictionaries
+  and unversioned pattern collections are never used.
 - The [PDF corpus index](https://github.com/pdf-association/pdf-corpora) helps
   discover additional material, but each corpus requires an independent
   license and safety review.
@@ -649,8 +742,9 @@ and attributed Roc scenarios.
 Every retained external asset records its source URL, upstream revision,
 cryptographic digest, license identifier, required attribution, and whether
 modification or redistribution is permitted. The same manifest covers fonts,
-ICC profiles, images, and expected renderings. Isartor files must not be copied
-into the repository because their terms prohibit redistribution.
+ICC profiles, images, Unicode/UCD data, hyphenation patterns, fuzz seeds, and
+expected renderings. Isartor files must not be copied into the repository
+because their terms prohibit redistribution.
 
 ## CI gates
 
@@ -671,6 +765,9 @@ into the repository because their terms prohibit redistribution.
 - Focused copied-byte, retention, cache, unique/shared-input, and ARC checks
   whenever the slice changes ownership, representation, traversal, or output
   behavior.
+- A `.roc-version`, target, or optimization-policy change runs the documented
+  old/new bulk re-baseline protocol; CI rejects an atomic baseline update that
+  lacks its toolchain comparison, outlier review, and separated feature deltas.
 
 ### Extended
 
@@ -679,6 +776,10 @@ into the repository because their terms prohibit redistribution.
 - Arlington validation.
 - Upstream corpora used to verify the validators themselves.
 - Random small typed scenarios with minimized retained seeds.
+- Deterministic corpus-mutation fuzzing of font, JPEG, PNG, and ICC inspectors,
+  or coverage-guided fuzzing when reliable Roc coverage is available, under
+  input/work/memory/time bounds with minimized failures retained as ordinary
+  regression tests.
 - Bounded large-document, offset, subset, stream, and structure stress suites.
 - Controlled timing, peak-RSS, allocation, copied-byte, time-to-first-chunk,
   and integrated serializer-versus-`roc-deflate` benchmarks.

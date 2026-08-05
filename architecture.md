@@ -24,7 +24,12 @@ informal label "PDF 2.0":
 - ISO 32000-2:2020, including the resolved errata artifact named in the
   conformance ledger. The initial baseline is Errata Collection 3, identified
   there by source revision, retrieval date, and cryptographic digest rather
-  than by its mutable download URL alone.
+  than by its mutable download URL alone. This collection incorporates the
+  ISO-approved structure-destination clarifications from
+  [issue 140](https://github.com/pdf-association/pdf-issues/issues/140) and
+  [issue 162](https://github.com/pdf-association/pdf-issues/issues/162); both
+  resolutions are pinned as individual ledger requirements rather than being
+  assumed from the collection label.
 - ISO 19005-4:2020 and its resolved errata for PDF/A-4.
 - ISO 14289-2:2024 for PDF/UA-2.
 - ISO/TS 32005:2023 and its resolved errata for the containment of structure
@@ -32,8 +37,14 @@ informal label "PDF 2.0":
 - WTPDF 1.0 when WTPDF accessibility or reuse is claimed.
 
 The ledger also pins every applicable normative dependency and data version,
-including Unicode, Unicode Standard Annex #9, BCP 47/RFC 5646, OpenType, ICC,
-XMP/XML, JPEG, and DEFLATE specifications.
+including the Unicode Standard and Unicode Character Database, Unicode
+Standard Annex #9 for bidirectional text, Unicode Standard Annex #14 for line
+breaking, Unicode Standard Annex #29 for text segmentation, BCP 47/RFC 5646,
+OpenType, ICC, XMP/XML, JPEG, and DEFLATE specifications. Any hyphenation
+pattern set is a separately pinned, licensed data dependency with language,
+revision, digest, and provenance; no unversioned system dictionary participates
+in deterministic layout.
+
 The PDF Association maintains an archive of ISO 32000-2's
 [normative references](https://pdfa.org/pdf-2-0/). A pure implementation does
 not make those dependencies implicit.
@@ -346,9 +357,12 @@ seamless slices, the object-offset table, bounded cache state, compressor
 state, and one or a bounded number of owned output chunks. It is not a
 constant-memory promise. Whole-document conformance, global font subsetting,
 destinations, the structure tree, and xref offsets require global facts.
-Optional deterministic parallel work uses fixed page/resource/font tasks and a
-canonical merge order independent of scheduling; ordered serialization and
-offset accumulation remain sequential.
+The pure package exposes no concurrency capability and does not promise that
+any work executes in parallel. Page, resource, and font work is nevertheless
+decomposed into explicit independent tasks with a canonical merge order so a
+future Roc compiler optimization or a separately designed platform-assisted
+evaluation seam could evaluate eligible tasks concurrently without changing
+bytes. Ordered serialization and offset accumulation remain sequential.
 
 Document identifier derivation uses a versioned, domain-separated digest of
 explicit normalized or plan data. It never requires hashing final serialized
@@ -457,6 +471,30 @@ Pdf :: [].{
 }
 ```
 
+The public profile names map to conformance claims exactly as follows:
+
+| `Pdf.Profile` | Required claim set | Meaning |
+| --- | --- | --- |
+| `AccessibleArchive` | `Pdf20 + StaticPdfA4 + PdfUa2` | Self-contained accessible archive; WTPDF accessibility is declared only through its separately validated declaration capability |
+| `Archive` | `Pdf20 + StaticPdfA4` | Self-contained static archive without a PDF/UA-2 claim |
+| `Standard` | `Pdf20` | The implemented generation-only PDF 2.0 subset without archival or accessibility conformance claims |
+
+`Profile` selects requirements, not feature availability or reader behavior.
+Choosing a weaker profile never repairs, substitutes, or removes unsupported
+input. Orthogonal claims such as `WtpdfAccessibility`, `WtpdfReuse`, and future
+`PdfA4f` remain explicit conformance capabilities rather than additional
+meanings hidden inside the three facade values.
+
+`Theme` is the typed visual and layout policy used by the convenience authoring
+path. It contains exact font policies and text styles; page margins and default
+spacing; heading, paragraph, list, table, caption, and code presentation; and
+typed color and decoration choices. It does not contain semantic roles,
+language, metadata, alternative text, reading order, conformance claims, output
+intent, serializer options, or system-font names. A theme references only
+validated packaged or caller-provided resources, and a theme override cannot
+weaken the selected profile. The built-in theme is versioned because changing
+its metrics, fonts, or spacing can change pagination and bytes.
+
 The common path is deliberately short:
 
 ```roc
@@ -512,11 +550,20 @@ visible and carry the fields required by that choice.
 ### Defaults contract
 
 `Pdf.to_bytes` is equivalent to `Pdf.to_bytes_with(document,
-Pdf.Options.default)`. The defaults form a documented, versioned contract:
+Pdf.Options.default)`. This section states the enduring post-Gate-7 default
+contract. During delivery, the roadmap advances the default only to a public
+profile whose complete claim set has been implemented and validated; an
+unfinished claim is never selected implicitly. The enduring defaults are:
 
-- PDF 2.0 only.
-- Combined `StaticPdfA4 + PdfUa2` target.
+- PDF version 2.0 only; no legacy output.
+- `AccessibleArchive`, requiring the combined `Pdf20 + StaticPdfA4 + PdfUa2`
+  claim set in the mapping above.
 - Tagged output derived from the typed document structure.
+- Canonical XMP whose `dc:title` agrees with the authored metadata title, and
+  catalog `/ViewerPreferences << /DisplayDocTitle true >>`.
+- The required catalog `/MarkInfo` and page `/Tabs` values for the selected
+  tagged and PDF/UA-2 claims, as defined clause-by-clause in the conformance
+  ledger.
 - Embedded and deterministically subsetted package fonts with known embedding
   rights; no system-font lookup or substitution.
 - The pinned sRGB output intent and color-managed static profile.
@@ -536,9 +583,14 @@ bytes is a reviewed package-version change.
 
 The facade never silently weakens these defaults. If accessible archival output
 cannot be produced, `Pdf.to_bytes` returns a structured error explaining the
-missing author fact—including a missing visible semantic title—or unsupported
-feature. Authors who intentionally need a
-less constrained PDF select `Archive` or `Standard` explicitly with
+missing author fact or unsupported feature. As an intentional facade policy,
+`AccessibleArchive` additionally requires a visible semantic `Title` block
+that is distinct from the metadata title. PDF/UA-2 itself requires the metadata
+title and title-display preference, not a visible `Title` structure element;
+this stricter requirement is a package usability policy intended to keep the
+default document's visible and reader-displayed identity explicit. `Archive`
+and `Standard` do not impose that extra visible-title policy. Authors who
+intentionally need a less constrained PDF select `Archive` or `Standard` with
 `Pdf.Options.with_profile`; this is an opt-out, not an automatic downgrade.
 
 ```roc
@@ -959,10 +1011,28 @@ Annotation appearances are subject to the same font, color, graphics, and
 content-ownership rules as ordinary page content. Arbitrary actions and raw
 annotation dictionaries are unavailable.
 
-The initial annotation union contains URI links and internal GoTo links using
-structure destinations. Rollover/down appearances and every other annotation
-type are unsupported until a separate capability defines their structure
-ownership, OBJR, appearance, focus behavior, and profile rules.
+The initial annotation union contains URI links and internal GoTo links. Each
+linkable internal target names both a semantic structure target and an explicit
+layout anchor occurrence. After layout, `PreparedDocument` resolves that anchor
+to a deterministic geometric destination using its exact page and fragment
+geometry. Lowering emits every internal GoTo action with both `/SD`, identifying
+the structure destination required by PDF/UA-2, and `/D`, identifying the
+geometric destination used by current readers. A target without a resolvable
+geometric anchor is rejected rather than emitted as an `/SD`-only link.
+
+Named destinations are the deterministic reusable registry for authored public
+destination names, outlines, cross-references, and other features that refer to
+a destination by name. A named destination associated with a semantic target
+contains the same paired structure and geometric destination facts. It does not
+replace the direct `/SD` plus `/D` pair on a link's GoTo action. Structure and
+geometric targets are validated to identify the same authored destination, and
+navigation tests exercise the geometric fallback independently of structural
+inspection. This policy implements the pinned Errata Collection 3 resolutions
+for issues 140 and 162 without assuming that shipping readers navigate `/SD`.
+
+Rollover/down appearances and every other annotation type are unsupported until
+a separate capability defines their structure ownership, OBJR, appearance,
+focus behavior, and profile rules.
 
 ## Conformance validation
 
@@ -1129,6 +1199,7 @@ Conceptual public modules are:
 - `Metadata`: logical metadata and author assertions.
 - `Conformance`: capability selection and structured diagnostics.
 - `Encode`: buffered bytes and pure chunk encoding.
+- `Theme`: typed convenience-layout typography, spacing, and visual policy.
 
 Consumers import these as `pdf.Document`, `pdf.Scene`, and so on. A dot after
 the lowercase package shorthand selects an exposed type module; nested types
@@ -1187,7 +1258,11 @@ ledger; majority behavior does not define correctness.
 The test suite maintains a machine-readable conformance ledger. Each internal
 requirement records the relevant standard clauses, applicable capabilities,
 machine and human verification status, positive and negative scenarios, and
-external validator rule identifiers.
+external validator rule identifiers. The prose examples in this architecture
+are not an exhaustive checklist: mechanical requirements such as XMP
+`dc:title`, `/ViewerPreferences /DisplayDocTitle`, `/MarkInfo`, and page `/Tabs`
+are implemented because their pinned clauses appear in the ledger, not merely
+because they are named here.
 
 Every public API example is also a compile fixture checked with the Roc version
 pinned by the package. Documentation must not preserve obsolete module,
@@ -1210,6 +1285,17 @@ large offsets, page and object counts, balanced page/name/number/ID trees,
 subsets, MCIDs, streams, resource dependency graphs, and deep legal
 structures.
 
+Attacker-controlled binary inspectors have a separate fuzzing lane. It mutates
+small valid and invalid font, JPEG, PNG, and ICC corpus seeds and invokes the
+pure Roc inspection boundary under deterministic input-size, work, memory, and
+diagnostic limits. Coverage-guided generation is used when Roc tooling exposes
+reliable coverage; otherwise deterministic corpus mutation is required. A
+panic, out-of-bounds access, non-termination, uncontrolled allocation, or
+acceptance of an unsanitized resource is a failure. Minimized reproductions are
+retained with asset provenance and promoted to ordinary regression tests. This
+lane complements rather than replaces typed construct generation and atomic
+hand-authored negative twins.
+
 Performance evidence uses pinned optimized Roc builds and combines controlled
 timing and peak-RSS jobs with deterministic operation counters. Every focused
 test case records the exact number of Roc allocations after resetting the
@@ -1222,6 +1308,16 @@ comparable only under the same configuration. An increased count fails review
 until its ownership or representation cause is understood and the checked-in
 baseline is accepted deliberately; a decrease is also recorded deliberately
 rather than silently rewriting expectations.
+
+A pinned Roc compiler or target upgrade uses an explicit bulk re-baseline
+procedure rather than treating every changed count as an implementation
+regression. The old and proposed toolchains run the full allocation suite on
+the same controlled host and inputs; all outliers and a representative sample
+from every subsystem are investigated alongside deterministic work, copied-
+byte, ARC, timing, and retained-memory evidence. The review records the
+toolchain change as the shared cause, separates any feature-caused deltas, and
+updates `.roc-version`, compiler metadata, and allocation baselines atomically.
+Unexplained outliers or changed algorithmic counters block the upgrade.
 
 Allocation count is a design signal, not the sole performance oracle. Each
 phase also records input/output counts, node and edge visits, allocated bytes,
