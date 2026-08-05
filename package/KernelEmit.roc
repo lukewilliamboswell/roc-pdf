@@ -626,7 +626,7 @@ expect {
 
 ## The chunk transition concatenates byte-identically with buffered emission.
 expect {
-	plan = KernelStructure.build_blank(3, KernelStructure.PageSize.Letter)?
+	plan = KernelStructure.build_blank(33, KernelStructure.PageSize.Letter)?
 	expected = KernelEmit.to_bytes(plan)?
 	var $encoder = KernelEmit.start(plan, ShareResourceChunks)?
 	var $actual = []

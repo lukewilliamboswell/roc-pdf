@@ -16,6 +16,7 @@ KernelStructure :: [].{
 		page_count : U64,
 		root : KernelObject.ObjectId,
 		sealed : KernelSeal.Plan,
+		tree_nodes : U64,
 		xref_object : KernelObject.ObjectId,
 	}.{
 		object_count : Plan -> U64
@@ -29,6 +30,9 @@ KernelStructure :: [].{
 
 		sealed : Plan -> KernelSeal.Plan
 		sealed = |plan| plan.sealed
+
+		tree_node_count : Plan -> U64
+		tree_node_count = |plan| plan.tree_nodes
 
 		xref_object : Plan -> KernelObject.ObjectId
 		xref_object = |plan| plan.xref_object
@@ -47,14 +51,25 @@ KernelStructure :: [].{
 }
 
 max_pages : U64
-max_pages = 32
+max_pages = 1048576
+
+page_tree_fanout : U64
+page_tree_fanout = 32
+
+TreeShape : {
+	level_counts : List(U64),
+	level_offsets : List(U64),
+	nodes : U64,
+}
 
 build_nonempty : U64, KernelStructure.PageSize -> Try(KernelStructure.Plan, KernelStructure.Error)
 build_nonempty = |page_count, page_size| {
-	object_limit = checked_linear(page_count, 3, 2)?
-	value_limit = checked_linear(page_count, 4, 32)?
-	dictionary_limit = checked_linear(page_count, 5, 5)?
-	array_limit = checked_add(page_count, 4)?
+	shape = build_tree_shape(page_count)?
+	leaf_count = list_at(shape.level_counts, shape.level_counts.len() - 1)
+	object_limit = checked_add(checked_linear(page_count, 3, 1)?, shape.nodes)?
+	value_limit = checked_add(checked_add(checked_linear(page_count, 4, 9)?, checked_linear(shape.nodes, 5, 0)?)?, leaf_count)?
+	dictionary_limit = checked_add(checked_linear(page_count, 5, 1)?, checked_linear(shape.nodes, 4, 0)?)?
+	array_limit = checked_add(checked_add(page_count, shape.nodes)?, 3)?
 
 	limits : KernelObject.Limits
 	limits = {
@@ -101,21 +116,20 @@ build_nonempty = |page_count, page_size| {
 	catalog_object = KernelObject.add_object(catalog.builder, catalog.id) ? Object
 	ensure_object_number(catalog_object.id, 1)?
 
-	page_references = add_page_references(catalog_object.builder, page_count)?
-	kids = KernelObject.add_array(page_references.builder, page_references.values) ? Object
-	count = KernelObject.add_integer(kids.builder, page_count.to_i64_wrap()) ? Object
-	pages = KernelObject.add_dictionary(
-		count.builder,
-		[
-			{ key: count_name.id, value: count.id },
-			{ key: kids_name.id, value: kids.id },
-			{ key: type_name.id, value: pages_type.id },
-		],
-	) ? Object
-	pages_object = KernelObject.add_object(pages.builder, pages.id) ? Object
-	ensure_object_number(pages_object.id, 2)?
+	page_tree = add_page_tree_nodes(
+		catalog_object.builder,
+		shape,
+		page_count,
+		{
+			count: count_name.id,
+			kids: kids_name.id,
+			pages_type: pages_type.id,
+			parent: parent_name.id,
+			type_name: type_name.id,
+		},
+	)?
 
-	zero_x = KernelObject.add_integer(pages_object.builder, 0) ? Object
+	zero_x = KernelObject.add_integer(page_tree, 0) ? Object
 	zero_y = KernelObject.add_integer(zero_x.builder, 0) ? Object
 	{ width, height } = page_dimensions(page_size)
 	width_value = KernelObject.add_integer(zero_y.builder, width) ? Object
@@ -125,17 +139,18 @@ build_nonempty = |page_count, page_size| {
 		[zero_x.id, zero_y.id, width_value.id, height_value.id],
 	) ? Object
 	resources = KernelObject.add_dictionary(media_box.builder, []) ? Object
-	parent = KernelObject.add_reference(resources.builder, pages_id) ? Object
+	parents = add_leaf_parent_references(resources.builder, shape)?
 
 	finished = add_pages(
-		parent.builder,
+		parents.builder,
+		shape,
 		page_count,
 		{
 			contents: contents_name.id,
 			media_box: media_box_name.id,
 			page_type: page_type.id,
 			parent: parent_name.id,
-			parent_value: parent.id,
+			parent_values: parents.values,
 			resources: resources_name.id,
 			resources_value: resources.id,
 			type_name: type_name.id,
@@ -152,6 +167,7 @@ build_nonempty = |page_count, page_size| {
 			page_count,
 			root: catalog_object.id,
 			sealed,
+			tree_nodes: shape.nodes,
 			xref_object,
 		},
 	)
@@ -163,22 +179,137 @@ PageFacts : {
 	media_box_value : KernelObject.ValueId,
 	page_type : KernelObject.ValueId,
 	parent : KernelObject.NameId,
-	parent_value : KernelObject.ValueId,
+	parent_values : List(KernelObject.ValueId),
 	resources : KernelObject.NameId,
 	resources_value : KernelObject.ValueId,
 	type_name : KernelObject.NameId,
 }
 
-add_page_references : KernelObject.Builder, U64 -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelStructure.Error)
-add_page_references = |builder, page_count| {
+PageTreeFacts : {
+	count : KernelObject.NameId,
+	kids : KernelObject.NameId,
+	pages_type : KernelObject.ValueId,
+	parent : KernelObject.NameId,
+	type_name : KernelObject.NameId,
+}
+
+build_tree_shape : U64 -> Try(TreeShape, KernelStructure.Error)
+build_tree_shape = |page_count| {
+	var $bottom_counts = [ceil_div(page_count, page_tree_fanout)?]
+	var $current = list_at($bottom_counts, 0)
+	while $current > 1 {
+		$current = ceil_div($current, page_tree_fanout)?
+		$bottom_counts = $bottom_counts.append($current)
+	}
+
+	level_count = $bottom_counts.len()
+	var $level_counts = List.with_capacity(level_count)
+	var $reverse_index = level_count
+	while $reverse_index > 0 {
+		$reverse_index = $reverse_index - 1
+		$level_counts = $level_counts.append(list_at($bottom_counts, $reverse_index))
+	}
+
+	var $level_offsets = List.with_capacity(level_count)
+	var $nodes = 0
+	var $index = 0
+	while $index < level_count {
+		$level_offsets = $level_offsets.append($nodes)
+		$nodes = checked_add($nodes, list_at($level_counts, $index))?
+		$index = $index + 1
+	}
+
+	Ok({ level_counts: $level_counts, level_offsets: $level_offsets, nodes: $nodes })
+}
+
+add_page_tree_nodes : KernelObject.Builder, TreeShape, U64, PageTreeFacts -> Try(KernelObject.Builder, KernelStructure.Error)
+add_page_tree_nodes = |builder, shape, page_count, facts| {
 	var $builder = builder
-	var $values = List.with_capacity(page_count)
+	var $level = 0
+	var $error = NoError
+	while $level < shape.level_counts.len() and $error == NoError {
+		level_nodes = list_at(shape.level_counts, $level)
+		var $node = 0
+		while $node < level_nodes and $error == NoError {
+			match add_page_tree_node($builder, shape, page_count, facts, $level, $node) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(next) => {
+					$builder = next
+				}
+			}
+			$node = $node + 1
+		}
+		$level = $level + 1
+	}
+
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok($builder)
+	}
+}
+
+add_page_tree_node : KernelObject.Builder, TreeShape, U64, PageTreeFacts, U64, U64 -> Try(KernelObject.Builder, KernelStructure.Error)
+add_page_tree_node = |builder, shape, page_count, facts, level, node| {
+	is_leaf = level + 1 == shape.level_counts.len()
+	child_start = checked_linear(node, page_tree_fanout, 0)?
+	available = if is_leaf page_count else list_at(shape.level_counts, level + 1)
+	child_count = bounded_count(child_start, available, page_tree_fanout)
+	first_child = if is_leaf {
+		page_object_number(shape, child_start)?
+	} else {
+		node_object_number(shape, level + 1, child_start)?
+	}
+	stride = if is_leaf 3 else 1
+	children = add_object_references(builder, first_child, child_count, stride)?
+	kids = KernelObject.add_array(children.builder, children.values) ? Object
+	page_capacity = node_page_capacity(shape.level_counts.len(), level)?
+	page_start = checked_linear(node, page_capacity, 0)?
+	descendants = bounded_count(page_start, page_count, page_capacity)
+	count = KernelObject.add_integer(kids.builder, descendants.to_i64_wrap()) ? Object
+
+	with_dictionary = if level == 0 {
+		KernelObject.add_dictionary(
+			count.builder,
+			[
+				{ key: facts.count, value: count.id },
+				{ key: facts.kids, value: kids.id },
+				{ key: facts.type_name, value: facts.pages_type },
+			],
+		) ? Object
+	} else {
+		parent_index = U64.div_by(node, page_tree_fanout)
+		parent_number = node_object_number(shape, level - 1, parent_index)?
+		parent_object = KernelObject.ObjectId.from_number(parent_number) ? Object
+		parent = KernelObject.add_reference(count.builder, parent_object) ? Object
+		KernelObject.add_dictionary(
+			parent.builder,
+			[
+				{ key: facts.count, value: count.id },
+				{ key: facts.kids, value: kids.id },
+				{ key: facts.parent, value: parent.id },
+				{ key: facts.type_name, value: facts.pages_type },
+			],
+		) ? Object
+	}
+
+	object = KernelObject.add_object(with_dictionary.builder, with_dictionary.id) ? Object
+	expected = node_object_number(shape, level, node)?
+	ensure_object_number(object.id, expected)?
+	Ok(object.builder)
+}
+
+add_object_references : KernelObject.Builder, U64, U64, U64 -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelStructure.Error)
+add_object_references = |builder, first_number, count, stride| {
+	var $builder = builder
+	var $values = List.with_capacity(count)
 	var $index = 0
 	var $error = NoError
-	while $index < page_count and $error == NoError {
-		page_number = page_object_number($index)?
-		page_object = KernelObject.ObjectId.from_number(page_number) ? Object
-		match KernelObject.add_reference($builder, page_object) {
+	while $index < count and $error == NoError {
+		number = checked_linear($index, stride, first_number)?
+		object = KernelObject.ObjectId.from_number(number) ? Object
+		match KernelObject.add_reference($builder, object) {
 			Err(error) => {
 				$error = Invalid(Object(error))
 			}
@@ -196,14 +327,24 @@ add_page_references = |builder, page_count| {
 	}
 }
 
-add_pages : KernelObject.Builder, U64, PageFacts -> Try(KernelObject.Builder, KernelStructure.Error)
-add_pages = |builder, page_count, facts| {
+add_leaf_parent_references : KernelObject.Builder, TreeShape -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelStructure.Error)
+add_leaf_parent_references = |builder, shape| {
+	leaf_level = shape.level_counts.len() - 1
+	leaf_count = list_at(shape.level_counts, leaf_level)
+	first_leaf = node_object_number(shape, leaf_level, 0)?
+	add_object_references(builder, first_leaf, leaf_count, 1)
+}
+
+add_pages : KernelObject.Builder, TreeShape, U64, PageFacts -> Try(KernelObject.Builder, KernelStructure.Error)
+add_pages = |builder, shape, page_count, facts| {
 	var $builder = builder
 	var $index = 0
 	var $error = NoError
 	while $index < page_count and $error == NoError {
-		page_number = page_object_number($index)?
+		page_number = page_object_number(shape, $index)?
 		content_number = checked_add(page_number, 1)?
+		leaf_index = U64.div_by($index, page_tree_fanout)
+		parent_value = list_at(facts.parent_values, leaf_index)
 
 		content_object = KernelObject.ObjectId.from_number(content_number) ? Object
 		match KernelObject.add_reference($builder, content_object) {
@@ -215,7 +356,7 @@ add_pages = |builder, page_count, facts| {
 				[
 					{ key: facts.contents, value: contents.id },
 					{ key: facts.media_box, value: facts.media_box_value },
-					{ key: facts.parent, value: facts.parent_value },
+					{ key: facts.parent, value: parent_value },
 					{ key: facts.resources, value: facts.resources_value },
 					{ key: facts.type_name, value: facts.page_type },
 				],
@@ -258,8 +399,50 @@ add_pages = |builder, page_count, facts| {
 	}
 }
 
-page_object_number : U64 -> Try(U64, KernelStructure.Error)
-page_object_number = |index| checked_linear(index, 3, 3)
+node_object_number : TreeShape, U64, U64 -> Try(U64, KernelStructure.Error)
+node_object_number = |shape, level, index| checked_add(checked_add(2, list_at(shape.level_offsets, level))?, index)
+
+page_object_number : TreeShape, U64 -> Try(U64, KernelStructure.Error)
+page_object_number = |shape, index| checked_linear(index, 3, checked_add(2, shape.nodes)?)
+
+node_page_capacity : U64, U64 -> Try(U64, KernelStructure.Error)
+node_page_capacity = |levels, level| {
+	remaining = levels - level
+	var $capacity = 1
+	var $index = 0
+	while $index < remaining {
+		$capacity = checked_linear($capacity, page_tree_fanout, 0)?
+		$index = $index + 1
+	}
+	Ok($capacity)
+}
+
+bounded_count : U64, U64, U64 -> U64
+bounded_count = |start, available, limit|
+	if start >= available {
+		0
+	} else {
+		remaining = available - start
+		if remaining < limit remaining else limit
+	}
+
+ceil_div : U64, U64 -> Try(U64, KernelStructure.Error)
+ceil_div = |value, divisor| {
+	quotient = U64.div_by(value, divisor)
+	if U64.mod_by(value, divisor) == 0 {
+		Ok(quotient)
+	} else {
+		checked_add(quotient, 1)
+	}
+}
+
+list_at : List(a), U64 -> a
+list_at = |list, index| match list.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "page-tree shape invariant failed"
+	}
+}
 
 ensure_object_number : KernelObject.ObjectId, U64 -> Try({}, KernelStructure.Error)
 ensure_object_number = |actual, expected|
@@ -327,8 +510,49 @@ expect {
 expect {
 	plan = KernelStructure.build_blank(3, Letter)?
 
-	KernelStructure.Plan.object_count(plan) == 11 and
-		KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(plan)) == 12
+	actual =
+		\\nodes: ${Str.inspect(KernelStructure.Plan.tree_node_count(plan))}
+		\\objects: ${Str.inspect(KernelStructure.Plan.object_count(plan))}
+		\\xref: ${Str.inspect(KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(plan)))}
+
+	expected =
+		\\nodes: 1
+		\\objects: 11
+		\\xref: 12
+
+	actual == expected
+}
+
+## The 33rd page creates two leaf nodes under one fixed-fanout root.
+expect {
+	plan = KernelStructure.build_blank(33, A4)?
+
+	actual =
+		\\nodes: ${Str.inspect(KernelStructure.Plan.tree_node_count(plan))}
+		\\objects: ${Str.inspect(KernelStructure.Plan.object_count(plan))}
+		\\xref: ${Str.inspect(KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(plan)))}
+
+	expected =
+		\\nodes: 3
+		\\objects: 103
+		\\xref: 104
+
+	actual == expected
+}
+
+## Thousands of pages preserve one balanced depth and deterministic node counts.
+expect {
+	plan = KernelStructure.build_blank(4096, A4)?
+
+	actual =
+		\\nodes: ${Str.inspect(KernelStructure.Plan.tree_node_count(plan))}
+		\\objects: ${Str.inspect(KernelStructure.Plan.object_count(plan))}
+
+	expected =
+		\\nodes: 133
+		\\objects: 12422
+
+	actual == expected
 }
 
 ## Zero pages is a named structural failure and creates no partial plan.

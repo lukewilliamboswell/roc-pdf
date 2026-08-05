@@ -26,10 +26,9 @@ xref-stream length.
 Generated chunks are owned. The transition also distinguishes seamless
 unchanged-resource slices from owned copies, but the present blank fixture has
 no unchanged resource and therefore does not evidence either retention path.
-Xref entries are emitted in batches of at most 256 entries. Other generated
-segments are currently bounded by the fixed 32-page structure slice; replacing
-that temporary bound requires the balanced builders and explicit per-segment
-output bounds.
+Xref entries are emitted in batches of at most 256 entries. Page-tree
+dictionaries remain bounded by the fixed fanout of 32; other generated segment
+bounds still need to be stated and evidenced before Gate 1 completion.
 
 The empty content stream is encoded as the canonical eight-byte zlib-wrapped
 DEFLATE stream required by `/FlateDecode`. Non-empty DEFLATE input is rejected
