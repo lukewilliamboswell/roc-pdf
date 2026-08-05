@@ -9,9 +9,9 @@ references, stream ownership, and the consecutive indirect length-object pair
 for every stream. No public type in `package/main.roc` exposes the builder,
 store, or sealed plan.
 
-This slice remains partial Gate 1 evidence. Catalog/page-tree invariants,
-output bounds, xref dimensions, and the emission state machine will extend the
-same sealing transaction before the facade can return an encoder or bytes.
+Catalog/page-tree invariants, output bounds, xref dimensions, and the emission
+state machine now consume this same sealing transaction before the facade can
+return an encoder or bytes.
 
 ## Representation and traversal
 
@@ -50,7 +50,7 @@ retention decision without undoing an intermediate arena.
 
 The current blank structural plan stores its checked output bound before
 emission, the generated-stream probe adds a checked multi-block compressor
-bound, and an independent counting sink covers offsets beyond 4 GiB. Gate 1
-completion still requires the remaining external validators. Shared/owned
-unchanged-resource retention is now checked against actual backing allocations
-and final-use release.
+bound, and an independent counting sink covers offsets beyond 4 GiB. qpdf,
+Arlington, and strict PDFBox lanes now validate the emitted structural plans.
+Shared/owned unchanged-resource retention is checked against actual backing
+allocations and final-use release.

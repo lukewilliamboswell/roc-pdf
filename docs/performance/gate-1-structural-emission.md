@@ -60,9 +60,13 @@ Arlington 1.30.2 from an immutable image digest. Arlington reports zero failed
 rules or checks for every structural snapshot within its documented object-
 model scope.
 
-Gate 1 completion still requires production compression through `roc-deflate`,
-and object lowering for the non-page balanced structures. The complete atomic
-negative matrix and byte-identical supported-system evidence are recorded in
+Gate 1 completion still requires production compression through `roc-deflate`.
+The non-page index and outline requirements at this gate are sealed builders;
+their feature-specific object lowering remains at Gates 2 and 4, where valid
+ParentTree, IDTree, named-destination, page-label, and outline payloads exist.
+Emitting unreachable or placeholder objects here would violate the stage
+contracts rather than complete Gate 1. The complete atomic negative matrix and
+byte-identical supported-system evidence are recorded in
 `gate-1-negative-determinism.md`; the pinned PDFBox strict-parser lane is
 recorded in `gate-1-pdfbox.md`. The non-empty generated-stream probe now covers
 stream dictionary
