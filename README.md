@@ -5,6 +5,11 @@ A pure [Roc](https://www.roc-lang.org/) package for generating PDF/UA-2 document
 This project is in its initial scaffolding stage. Its public API currently contains only a
 placeholder `Foo` module.
 
+## Design
+
+- [Architecture](architecture.md)
+- [Feature roadmap](feature-roadmap.md)
+
 ## Requirements
 
 - Python 3
