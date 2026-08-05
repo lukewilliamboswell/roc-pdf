@@ -105,5 +105,5 @@ expect {
 	contract_report == expected
 }
 
-main! : List(Str) => List(U8)
-main! = |_| []
+main! : List(Str) => { bytes : List(U8), work : List(U64) }
+main! = |_| { bytes: [], work: [] }

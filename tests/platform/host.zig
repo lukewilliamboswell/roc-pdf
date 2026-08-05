@@ -13,7 +13,12 @@ const HostEnv = struct {
     roc_env: abi.RocEnv,
 };
 
-extern fn roc_main(args: abi.RocList(abi.RocStr)) callconv(.c) abi.RocListWith(u8, false);
+const ScenarioResult = extern struct {
+    bytes: abi.RocListWith(u8, false),
+    work: abi.RocListWith(u64, false),
+};
+
+extern fn roc_main(args: abi.RocList(abi.RocStr)) callconv(.c) ScenarioResult;
 
 var roc_host: ?*abi.RocHost = null;
 var allocation_events: usize = 0;
@@ -77,19 +82,33 @@ fn platformMain(argc: usize, argv: [*][*:0]u8) c_int {
     const args = buildStrArgsList(argc, argv, &host);
     allocation_events = 0;
 
-    var pdf = roc_main(args);
-    std.Io.File.stdout().writeStreamingAll(io, pdf.items()) catch return 1;
-    pdf.decref(&host);
+    var result = roc_main(args);
+    std.Io.File.stdout().writeStreamingAll(io, result.bytes.items()) catch return 1;
+    reportMetrics(io, result.work.items()) catch return 1;
+    result.bytes.decref(&host);
+    result.work.decref(&host);
 
     if (host_env.gpa.deinit() == .leak) {
         std.Io.File.stderr().writeStreamingAll(io, "ROC_HOST_LEAK\n") catch {};
         return 1;
     }
 
-    var buffer: [64]u8 = undefined;
-    const report = std.fmt.bufPrint(&buffer, "ROC_ALLOCATIONS={d}\n", .{allocation_events}) catch return 1;
-    std.Io.File.stderr().writeStreamingAll(io, report) catch return 1;
     return 0;
+}
+
+fn reportMetrics(io: std.Io, work: []const u64) !void {
+    const stderr = std.Io.File.stderr();
+    var buffer: [64]u8 = undefined;
+    const allocations = try std.fmt.bufPrint(&buffer, "{d}", .{allocation_events});
+    try stderr.writeStreamingAll(io, "ROC_METRICS protocol=1 allocations=");
+    try stderr.writeStreamingAll(io, allocations);
+    try stderr.writeStreamingAll(io, " work=");
+    for (work, 0..) |value, index| {
+        if (index != 0) try stderr.writeStreamingAll(io, ",");
+        const formatted = try std.fmt.bufPrint(&buffer, "{d}", .{value});
+        try stderr.writeStreamingAll(io, formatted);
+    }
+    try stderr.writeStreamingAll(io, "\n");
 }
 
 fn buildStrArgsList(
