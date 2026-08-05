@@ -3,7 +3,6 @@ app [main!] {
 	pdf: "../package/main.roc",
 }
 
-import pdf.Foo
 import pdf.Layout
 import pdf.Scene
 import pdf.Semantics
@@ -107,4 +106,4 @@ expect {
 }
 
 main! : List(Str) => List(U8)
-main! = |_| Foo.placeholder_pdf(0)
+main! = |_| []

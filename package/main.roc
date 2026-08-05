@@ -1,1 +1,11 @@
-package [Conformance, Foo, Layout, Scene, Semantics] {}
+package
+	[
+		Pdf,
+		Document,
+		Semantics,
+		Layout,
+		Scene,
+		Conformance,
+		Theme,
+	]
+	{}

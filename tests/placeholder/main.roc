@@ -1,9 +1,8 @@
 app [main!] {
 	pf: platform "../platform/main.roc",
-	pdf: "../../package/main.roc",
 }
 
-import pdf.Foo
+import Fixture
 
 main! : List(Str) => List(U8)
 main! = |args| {
@@ -12,5 +11,5 @@ main! = |args| {
 	} else {
 		431
 	}
-	Foo.placeholder_pdf(percent_offset)
+	Fixture.placeholder_pdf(percent_offset)
 }

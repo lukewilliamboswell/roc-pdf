@@ -212,8 +212,7 @@ def main() -> None:
     roc_sources = sorted((ROOT / "package").glob("*.roc"))
     compile_fixtures = sorted((ROOT / "examples").glob("*.roc"))
     roc_sources += compile_fixtures
-    roc_sources += sorted(case.source for case in cases)
-    roc_sources.append(TEST_PLATFORM / "main.roc")
+    roc_sources += sorted((ROOT / "tests").rglob("*.roc"))
     for source in roc_sources:
         roc("fmt", "--check", relative(source))
 
