@@ -12,7 +12,7 @@ and explicitly requests the `arlington2.0` profile.
 Arlington checks the PDF object model derived from ISO 32000-2:2020. Its own
 documented limitations exclude lexical dialect rules, content-stream operators
 and operands, and file-layout rules such as xref data, incremental updates, and
-linearization. The independent structural checker, qpdf, and the pending strict
+linearization. The independent structural checker, qpdf, and strict PDFBox
 parser lane remain separate evidence for those claims. Arlington is not treated
 as the source of truth or as a repair step.
 

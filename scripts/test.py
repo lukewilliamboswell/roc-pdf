@@ -477,6 +477,7 @@ def main() -> None:
 
     command(sys.executable, "scripts/check_contracts.py", "--self-test")
     command(sys.executable, "scripts/check_arlington.py", "--self-test")
+    command(sys.executable, "scripts/check_pdfbox.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)

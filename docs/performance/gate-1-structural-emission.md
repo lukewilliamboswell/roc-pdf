@@ -62,7 +62,8 @@ model scope.
 
 Gate 1 completion still requires production compression through `roc-deflate`,
 object lowering for the non-page balanced structures, comprehensive negative
-twins, cross-system hash evidence, and the pinned strict-parser validator. The
-non-empty generated-stream probe now covers stream dictionary
+twins, and cross-system hash evidence. The pinned PDFBox strict-parser lane is
+recorded in `gate-1-pdfbox.md`. The non-empty generated-stream probe now covers
+stream dictionary
 integration, stateful bounded chunks, exact compression work, source release,
 and a checked compressor output bound.

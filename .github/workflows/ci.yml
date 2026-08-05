@@ -62,6 +62,23 @@ jobs:
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_pages/snapshot.pdf
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_retention/snapshot.pdf
 
+      - name: Install Java 17 for PDFBox
+        if: runner.os == 'Linux'
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install pinned Apache PDFBox
+        if: runner.os == 'Linux'
+        run: |
+          curl -L --fail --output /tmp/pdfbox-app-3.0.8.jar https://archive.apache.org/dist/pdfbox/3.0.8/pdfbox-app-3.0.8.jar
+          echo '768847238f683568507bf73570a2b6fedcbe58b25c7b4f97fba536ba110b290fe96ba065aed58629d41fb94857d76bc1978c2f31d294b553c69f287f71ee9600  /tmp/pdfbox-app-3.0.8.jar' | sha512sum --check
+
+      - name: Parse strictly with Apache PDFBox 3.0.8
+        if: runner.os == 'Linux'
+        run: python3 scripts/check_pdfbox.py --jar /tmp/pdfbox-app-3.0.8.jar
+
       - name: Validate object model with veraPDF Arlington 1.30.2
         if: runner.os == 'Linux'
         run: |
