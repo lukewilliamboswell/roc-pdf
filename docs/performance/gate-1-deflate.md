@@ -2,13 +2,14 @@
 
 ## Scope and byte contract
 
-`KernelDeflate` implements the private generated-stream compression transition
-used by the sealed structural plan. Non-empty input is wrapped in zlib and
-partitioned into blocks of at most 65,535 source bytes. Each block uses the
-canonical dynamic-Huffman declaration, a 32 KiB hash-chain match window,
-newest-first greedy matching, a maximum match length of 258 bytes, and at most
-128 candidate visits per token. Bit and Adler-32 state cross block boundaries;
-the empty stream retains the canonical eight-byte fixed-block encoding.
+`KernelDeflate` is the package-owned private generated-stream compression
+transition used by the sealed structural plan. Non-empty input is wrapped in
+zlib and partitioned into blocks of at most 65,535 source bytes. Each block
+uses the canonical dynamic-Huffman declaration, a 32 KiB hash-chain match
+window, newest-first greedy matching, a maximum match length of 258 bytes, and
+at most 128 candidate visits per token. Bit and Adler-32 state cross block
+boundaries; the empty stream retains the canonical eight-byte fixed-block
+encoding.
 
 The policy is deterministic and package-versioned. Changing the block size,
 tree declaration, match order, search limit, or empty-stream special case is a
@@ -61,16 +62,23 @@ identity.
 
 Unit tests cover the empty byte contract, input and output limits, dynamic
 block type, Adler-32 trailer, the full 32 KiB distance code, a multi-block round
-trip, and raw-DEFLATE decompression through pinned `roc-deflate` 0.1.0.
+trip, and raw-DEFLATE decompression through pinned `roc-deflate` 0.1.0. The
+independent Python checker separately reconstructs the generated source and
+decompresses the exact PDF stream with zlib, so neither the owned encoder nor
+one decoder is the sole correctness oracle.
 
-## Remaining dependency gate
+## Ownership and replacement seam
 
-The production incremental dynamic encoder is currently private
-`KernelDeflate` code. Pinned `roc-deflate` 0.1.0 exposes only a one-shot fixed-
-Huffman compressor, so it is used as an independent decompression oracle but
-cannot supply this transition without losing the required stateful chunks,
-dynamic policy, or performance bounds. Consequently the roadmap capability
-"Flate streams through `roc-deflate`" remains open pending an upstream
-incremental dynamic API or an explicitly reviewed architecture change. The
-fixture proves the required compression behavior; it does not silently relabel
-the dependency integration as complete.
+The production encoder is intentionally the private `KernelDeflate`
+implementation. Pinned `roc-deflate` 0.1.0 exposes only a one-shot fixed-
+Huffman compressor, so tests use its decompressor as an independent oracle and
+no production compression path calls it.
+
+The replacement seam is the preflighted plan, conservative output bound,
+stateful `start`/`next` transition, bounded owned chunks, explicit work facts,
+and final-source-release behavior consumed by `KernelEmit`. A future
+`roc-deflate` release may replace the implementation when it can provide this
+contract. Adoption requires a reviewed byte-policy decision and the complete
+determinism, bound, allocation, work, and retention suite; matching a round
+trip alone is insufficient. Until then the owned implementation is the Gate 1
+production path rather than a temporary fallback.

@@ -308,6 +308,17 @@ their streams, allowing the encoder to run validated content recipes through
 lexical emission and stateful deterministic DEFLATE without buffering the
 entire uncompressed or compressed stream.
 
+The baseline DEFLATE transition is a private, package-owned pure Roc
+implementation. Its internal seam accepts preflighted input and checked
+limits, exposes a conservative output bound, and yields deterministic bounded
+chunks plus explicit work and source-release facts. `roc-deflate` is pinned as
+an independent test-only decompression oracle; it is not the production
+compressor. A future `roc-deflate` release may replace the owned implementation
+only when it can satisfy that same stateful seam and after its byte policy,
+bounds, ownership, deterministic work, allocation, and retention evidence have
+been reviewed together. Such a replacement cannot weaken these contracts or
+silently change emitted bytes.
+
 The initial xref stream is unfiltered, covers the complete contiguous object
 range, and uses `/W [1 8 2]`; its direct length is therefore 11 bytes per entry
 with checked multiplication. The encoder retains `U64` offsets proportional to

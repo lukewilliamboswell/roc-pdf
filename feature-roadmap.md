@@ -258,7 +258,10 @@ within an early correctness gate.
 - Catalog, page tree, page objects, content streams, resources, and trailer
   information.
 - Xref streams, `startxref`, and end-of-file marker.
-- Flate streams through `roc-deflate`.
+- Flate streams through the private package-owned stateful compressor seam;
+  pinned `roc-deflate` independently decompresses its raw blocks in tests and
+  may replace the implementation only after it can satisfy the same byte,
+  bound, ownership, work, allocation, and retention contracts.
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
 - Deterministic fixed-fanout balanced builders for page, name, number, ID, and
@@ -810,7 +813,8 @@ because their terms prohibit redistribution.
   regression tests.
 - Bounded large-document, offset, subset, stream, and structure stress suites.
 - Controlled timing, peak-RSS, allocation, copied-byte, time-to-first-chunk,
-  and integrated serializer-versus-`roc-deflate` benchmarks.
+  and integrated serializer/compressor benchmarks, including comparison with
+  `roc-deflate` when it offers a compatible stateful seam.
 
 ### Release
 
