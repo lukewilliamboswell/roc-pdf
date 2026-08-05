@@ -28,6 +28,13 @@ validation consumes these page and path arenas directly with indexed loops and
 records its own per-segment and per-command work before the representation is
 accepted as the million-command path.
 
+`KernelScene` validates the normalized arenas iteratively. It marks each
+segment, group, and command exactly once, rejects overlap and orphan storage,
+and uses an explicit range worklist for nested graphics-state groups. Its work
+record separates page, box, path, segment, group-edge, command, child-range,
+dash, color, and image-placement visits. The worklist and ownership marks are
+linear auxiliary storage with no dependence on the host call stack.
+
 The prepared scene owns each path segment and dash scalar once. Placements and
 commands carry scalar IDs or ranges, so repeated drawing and resource reuse do
 not duplicate geometric or image payloads.

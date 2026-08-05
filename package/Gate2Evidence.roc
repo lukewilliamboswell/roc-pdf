@@ -1,4 +1,5 @@
 import KernelGeometry
+import KernelScene
 import Layout
 import Scene
 
