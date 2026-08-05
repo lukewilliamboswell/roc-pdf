@@ -1,4 +1,5 @@
 import KernelColor
+import KernelContent
 import KernelGeometry
 import KernelImage
 import KernelResourceUse
