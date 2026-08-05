@@ -4,6 +4,7 @@ import KernelGeometry
 import KernelGate2Objects
 import KernelGate2PageObjects
 import KernelGate2TaggedObjects
+import KernelGate2ResourceObjects
 import KernelImage
 import KernelResourceUse
 import KernelScene
