@@ -872,6 +872,10 @@ identifier_facts = |plan| {
 			with_kind = append_all($facts, Str.to_utf8("generated-content"))
 			append_all(with_kind.append(0), digest)
 		}
+		NormalizedPlanDigest(digest) => {
+			with_kind = append_all($facts, Str.to_utf8("normalized-plan"))
+			append_all(with_kind.append(0), digest)
+		}
 		UnchangedContentDigest(digest) => {
 			with_kind = append_all($facts, Str.to_utf8("unchanged-content"))
 			append_all(with_kind.append(0), digest)
@@ -888,9 +892,10 @@ identifier_facts = |plan| {
 	$facts = $facts.append(page_count.shr_wrap(8).to_u8_wrap())
 	$facts = $facts.append(page_count.to_u8_wrap())
 	$facts.append(
-		match KernelStructure.Plan.page_size(plan) {
-			A4 => 0
-			Letter => 1
+		match KernelStructure.Plan.page_geometry(plan) {
+			Fixed(A4) => 0
+			Fixed(Letter) => 1
+			Variable => 2
 		},
 	)
 }
