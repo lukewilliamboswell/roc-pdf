@@ -10,7 +10,13 @@ dimension, stride, multiplication, color-component, and exact decoded-length
 rules. Pixel and alpha planes remain packed byte lists. The normalized store
 reuses each validated raster payload and scene placements carry only image IDs.
 
-Both plans expose deterministic byte, row, profile, tag, space, and resource
-work counters. JPEG marker inspection and sanitation is the next bounded
-resource slice; encoded input currently fails explicitly rather than crossing
-the normalized resource boundary.
+JPEG preparation scans bounded marker segments and entropy ranges iteratively,
+checks frame dimensions, component tables, quantization and Huffman table
+shapes, scan headers, JFIF/Adobe metadata, and TIFF/EXIF orientation. Relevant
+decoder metadata is retained; comments, unrelated application segments, ICC
+duplicates, and EXIF bytes are omitted from one compact sanitized payload.
+Orientations requiring a pixel transform are rejected unless the caller has
+provided display-ready input.
+
+Both plans expose deterministic byte, row, marker, profile, tag, space, and
+resource work counters.
