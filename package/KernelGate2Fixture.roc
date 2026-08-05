@@ -26,7 +26,10 @@ KernelGate2Fixture :: [].{
 	scene = test_scene
 
 	tagged_plan : U64 -> Try(KernelTagged.Plan, Error)
-	tagged_plan = |content_streams| build_tagged_plan(content_streams)
+	tagged_plan = |content_streams| build_tagged_plan(test_semantics, content_streams)
+
+	contextual_tagged_plan : U64 -> Try(KernelTagged.Plan, Error)
+	contextual_tagged_plan = |content_streams| build_tagged_plan(contextual_semantics, content_streams)
 }
 
 test_semantics : Semantics.Store
@@ -73,10 +76,30 @@ test_scene = {
 	paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, 1) }],
 }
 
-build_tagged_plan : U64 -> Try(KernelTagged.Plan, KernelGate2Fixture.Error)
-build_tagged_plan = |content_streams| {
-	semantics = KernelSemantics.Plan.build(test_semantics, 1, content_streams, KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })) ? Semantic
+contextual_semantics : Semantics.Store
+contextual_semantics = {
+	..test_semantics,
+	attributes: [{ applicability: AllRoles, name: Standard("Type"), owner: Artifact, value: Name("Pagination") }],
+	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0))],
+	contextual_artifacts: [{ attributes: Semantics.Range.from_start_and_length(0, 1), id: Semantics.ContextualArtifactId.from_index(0), parent: Semantics.NodeId.from_index(0) }],
+	nodes: [
+		{ ..list_at(test_semantics.nodes, 0), content: Semantics.Range.from_start_and_length(0, 2) },
+		{ ..list_at(test_semantics.nodes, 1), content: Semantics.Range.from_start_and_length(2, 1) },
+	],
+}
+
+build_tagged_plan : Semantics.Store, U64 -> Try(KernelTagged.Plan, KernelGate2Fixture.Error)
+build_tagged_plan = |semantic_store, content_streams| {
+	semantics = KernelSemantics.Plan.build(semantic_store, 1, content_streams, KernelSemantics.Limits.make({ max_attributes: semantic_store.attributes.len(), max_content_spine: semantic_store.content_spine.len(), max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })) ? Semantic
 	scenes = KernelScene.Plan.build(test_scene, KernelScene.Resources.make({ color_spaces: 1, images: 1 }), KernelScene.Limits.make({ max_commands: 3, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 2, max_pages: 1, max_path_segments: 1, max_paths: 1 })) ? Scene
 	plan = KernelTagged.Plan.build(semantics, scenes) ? Tagged
 	Ok(plan)
+}
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "Gate 2 fixture index escaped"
+	}
 }

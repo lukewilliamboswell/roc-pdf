@@ -2,6 +2,7 @@ import KernelColor
 import KernelContent
 import KernelGeometry
 import KernelGate2Objects
+import KernelGate2TaggedObjects
 import KernelImage
 import KernelResourceUse
 import KernelScene
