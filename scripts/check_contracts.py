@@ -41,6 +41,14 @@ CAPABILITIES = {
     "WtpdfAccessibility",
     "WtpdfReuse",
 }
+CAPABILITY_AVAILABILITY = {
+    "Pdf20": "available",
+    "PdfA4f": "future",
+    "PdfUa2": "defined_only",
+    "StaticPdfA4": "defined_only",
+    "WtpdfAccessibility": "defined_only",
+    "WtpdfReuse": "defined_only",
+}
 PROFILES = {
     "AccessibleArchive": ["Pdf20", "PdfUa2", "StaticPdfA4"],
     "Archive": ["Pdf20", "StaticPdfA4"],
@@ -184,8 +192,12 @@ def validate_matrix(value: object) -> None:
         capability_id = require_string(capability["id"], f"{path}.id")
         capability_ids.append(capability_id)
         dependencies[capability_id] = require_string_list(capability["requires"], f"{path}.requires")
-        if capability["availability"] not in {"defined_only", "future"}:
-            fail(f"{path}.availability", "Gate 0 must not claim executable availability")
+        expected_availability = CAPABILITY_AVAILABILITY.get(capability_id)
+        if capability["availability"] != expected_availability:
+            fail(
+                f"{path}.availability",
+                f"must be {expected_availability!r} at the current capability gate",
+            )
 
     if capability_ids != sorted(CAPABILITIES):
         fail("capability-matrix.capabilities", "must contain every capability sorted by id")
@@ -419,6 +431,8 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
         errata_source["pin"]["value"] = "0" * 64
     elif mutate == "profile":
         test_matrix["profiles"][0]["claims"] = ["Pdf20"]
+    elif mutate == "availability":
+        test_matrix["capabilities"][0]["availability"] = "defined_only"
     elif mutate == "source":
         test_ledger["requirements"][0]["source_ids"] = ["unknown-source"]
     elif mutate == "issue":
@@ -442,7 +456,7 @@ def self_test() -> None:
     matrix = load(MATRIX_PATH)
     ledger = load(LEDGER_PATH)
     validate_documents(baseline, matrix, ledger)
-    for mutation in ("digest", "profile", "source", "issue"):
+    for mutation in ("digest", "profile", "availability", "source", "issue"):
         expect_rejected(baseline, matrix, ledger, mutation)
     assets = load(ASSET_MANIFEST_PATH)
     validate_assets(assets)

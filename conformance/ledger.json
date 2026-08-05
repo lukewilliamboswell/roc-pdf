@@ -7,11 +7,11 @@
       "source_ids": ["iso-14289-2-2024", "iso-19005-4-2020", "iso-32000-2-2020-ec3", "wtpdf-1-0-0"],
       "references": ["architecture.md: Scope and claims"],
       "capabilities": ["Pdf20", "PdfA4f", "PdfUa2", "StaticPdfA4", "WtpdfAccessibility", "WtpdfReuse"],
-      "implementation": "defined_only",
-      "machine_verification": "schema_and_roc_contract",
+      "implementation": "partial",
+      "machine_verification": "schema_and_roc_contract; standard_profile_runtime_and_transactional_unavailable_profile_errors",
       "human_verification": "architecture_review",
-      "positive_scenarios": ["examples/pdf_facade.roc"],
-      "negative_scenarios": [],
+      "positive_scenarios": ["examples/pdf_facade.roc", "package/Pdf.roc"],
+      "negative_scenarios": ["package/Pdf.roc"],
       "external_rule_ids": []
     },
     {
@@ -215,11 +215,11 @@
       "source_ids": ["iso-32000-2-2020-ec3"],
       "references": ["feature-roadmap.md: Gate 0"],
       "capabilities": ["Pdf20"],
-      "implementation": "defined_only",
-      "machine_verification": "schema_and_roc_contract",
+      "implementation": "implemented",
+      "machine_verification": "schema_and_roc_contract; roc_unit_blank_standard_emission_and_exact_claim_set",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/gate0_contract.roc"],
-      "negative_scenarios": [],
+      "positive_scenarios": ["examples/gate0_contract.roc", "package/Pdf.roc"],
+      "negative_scenarios": ["package/Pdf.roc"],
       "external_rule_ids": []
     },
     {

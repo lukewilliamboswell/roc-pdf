@@ -34,6 +34,8 @@ modules. It does not claim layout, validation, sealing, or PDF emission.
   baselines are required before the compact builder is claimed as the
   implemented large-document authoring path.
 
-Until Gate 1 is complete, every facade serialization entrypoint returns the
-typed `CapabilityUnavailable(Pdf20Generation)` error and no bytes. This is an
-explicit delivery-state result, not fallback PDF output or a profile downgrade.
+At Gate 0 every facade serialization entrypoint returned the typed
+`CapabilityUnavailable(Pdf20Generation)` error and no bytes. Gate 1 later
+enabled structural blank `Standard` documents; meaningful authoring content
+and stricter profiles still fail explicitly instead of producing fallback PDF
+output or a profile downgrade.

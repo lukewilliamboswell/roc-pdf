@@ -2,15 +2,18 @@
 
 A pure [Roc](https://www.roc-lang.org/) package for generating PDF/UA-2 documents.
 
-The Gate 0 standards, representation, and test contracts are defined and
-cross-host evidenced. The package exposes the high-level `Pdf` facade plus the
+The Gate 1 PDF 2.0 structural kernel is implemented and cross-host evidenced.
+The package exposes the high-level `Pdf` facade plus the
 advanced conceptual `Document`, `Semantics`, `Layout`, `Scene`, `Text`, `Font`,
 `Image`, `Color`, `Metadata`, `Encode`, `Conformance`, and `Theme` boundaries.
 PDF object, lowering, and serialization internals are not public.
 
-Gate 1 structural generation is not implemented yet. Facade serialization
-therefore fails transactionally with a typed capability-unavailable error; the
-project does not yet claim a PDF generation capability.
+The facade currently generates deterministic blank, single-page PDF 2.0
+documents under the `Standard` profile. Meaningful authoring content belongs
+to later visual and text gates and returns `UnsupportedAuthoringContent`;
+`Archive` and `AccessibleArchive` remain explicitly unavailable until their
+profile gates close. No request is silently downgraded or replaced with blank
+output.
 
 ## Design
 
@@ -45,8 +48,8 @@ allocation events separately. The driver requires both the PDF snapshot and allo
 match the case specification.
 
 Public contract examples under `examples/` are formatting- and compile-checked
-by the same driver. They establish type-level Gate 0 evidence without claiming
-that the later runtime behavior exists.
+by the same driver. Runtime Gate 1 behavior is exercised by package tests and
+the optimized structural fixtures.
 
 Each integration case lives in its own directory under `tests/`, with its `main.roc` application
 and `snapshot.pdf` adjacent to one another. The case and expected allocation count are registered

@@ -13,10 +13,11 @@ generated key fail before emission. The facade exposes this slice only for an
 empty `Standard` document; meaningful content and stricter profiles fail
 transactionally rather than silently producing a blank or downgraded file.
 
-The public facade remains intentionally blank at this gate, while an internal
-one-page generated-content probe exercises the same sealed-plan and chunk
-transition with non-empty dynamic DEFLATE. The snapshots remain partial Gate 1
-evidence; they do not claim meaningful scene content or later profile gates.
+The public facade remains intentionally limited to blank documents at this
+gate, while an internal one-page generated-content probe exercises the same
+sealed-plan and chunk transition with non-empty dynamic DEFLATE. Together with
+the other evidence aggregated in `gate-1-closure.md`, the snapshots complete
+Gate 1; they do not claim meaningful scene content or later profile gates.
 
 ## Ownership, traversal, and bounds
 

@@ -225,6 +225,28 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
 }
 
+## Archive remains unavailable rather than silently emitting Standard output.
+expect {
+	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
+	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+
+	match Pdf.to_bytes_with(document, options) {
+		Err(CapabilityUnavailable(PdfA4Generation)) => True
+		_ => False
+	}
+}
+
+## AccessibleArchive remains unavailable rather than dropping its UA claim.
+expect {
+	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
+	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)
+
+	match Pdf.to_bytes_with(document, options) {
+		Err(CapabilityUnavailable(PdfUa2Generation)) => True
+		_ => False
+	}
+}
+
 ## Chunked facade output is byte-identical with buffered output.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
