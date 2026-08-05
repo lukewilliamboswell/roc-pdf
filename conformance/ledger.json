@@ -80,6 +80,19 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PREPARED-STAGE-CONTRACT",
+      "summary": "Prepared documents contain exact resolved layout, semantic ownership, scenes, validated resources, bounded work, and no speculative handlers or unresolved references.",
+      "source_ids": ["icc-1-2001-04", "iso-32000-2-2020-ec3", "jpeg-10918-1-1994", "opentype-1-9-1"],
+      "references": ["architecture.md: ARC and phase ownership", "architecture.md: Advanced integration boundary"],
+      "capabilities": ["Pdf20"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "architecture_review",
+      "positive_scenarios": ["examples/advanced_prepared_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PROFILE-ACCESSIBLE-ARCHIVE",
       "summary": "AccessibleArchive maps exactly to Pdf20, StaticPdfA4, and PdfUa2.",
       "source_ids": ["iso-14289-2-2024", "iso-19005-4-2020", "iso-32000-2-2020-ec3"],

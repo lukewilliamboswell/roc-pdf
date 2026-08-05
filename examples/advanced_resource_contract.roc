@@ -7,6 +7,17 @@ import pdf.Color
 import pdf.Image
 import pdf.Semantics
 
+## Prepared color values identify the exact validated color-space resource.
+expect {
+	color : Color.Value
+	color = {
+		channels: Rgb({ blue: 300, green: 200, red: 100 }),
+		space: Color.SpaceId.from_index(1),
+	}
+
+	color.space.index() == 1
+}
+
 ## ICC profile bytes are retained once and tags remain validated source ranges.
 expect {
 	profile : Color.IccProfile

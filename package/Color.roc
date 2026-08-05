@@ -55,7 +55,12 @@ Color :: [].{
 		space : Space,
 	}
 
-	Value : [Gray(U16), Rgb({ blue : U16, green : U16, red : U16 })]
+	Channels : [Gray(U16), Rgb({ blue : U16, green : U16, red : U16 })]
+
+	## Authoring colors name their source space without inventing a resource ID.
+	## Preparation resolves that space to an exact validated store entry.
+	SourceValue : [Srgb(Channels)]
+	Value : { channels : Channels, space : SpaceId }
 	BlendMode : [Normal]
 	BlendSpace : { space : SpaceId }
 

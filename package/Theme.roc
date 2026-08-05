@@ -12,7 +12,7 @@ Theme :: {
 	title : TextStyle,
 }.{
 	TextStyle : {
-		color : Color.Value,
+		color : Color.SourceValue,
 		font : Font.FaceId,
 		leading : Layout.Unit,
 		size : Layout.Unit,
@@ -29,8 +29,8 @@ Theme :: {
 	## supplies and validates the corresponding font resource.
 	default : Theme
 	default = {
-		black : Color.Value
-		black = Rgb({ blue: 0, green: 0, red: 0 })
+		black : Color.SourceValue
+		black = Srgb(Rgb({ blue: 0, green: 0, red: 0 }))
 
 		body = {
 			color: black,

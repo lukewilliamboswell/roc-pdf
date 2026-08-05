@@ -18,8 +18,9 @@ orientation, compress data, place images, or emit PDF objects.
 - Validated JPEG bytes remain one encoded allocation. Dimension, component,
   color-space, and orientation evidence are fixed-shape facts beside it.
 - Repeated scene placements carry one `Image.Id`; Scene no longer owns a second
-  image identity. Theme and Scene likewise consume `Color.Value` rather than
-  duplicate color unions.
+  image identity. A theme names an explicit source sRGB value, while a prepared
+  scene color carries the exact validated `Color.SpaceId`; neither duplicates
+  the channel union or invents a resource ID during authoring.
 
 ## Complexity and lifetime
 

@@ -40,12 +40,26 @@ Conformance :: [].{
 		Page(U64),
 		Resource(U64),
 	]
+	ValidationStage : [AuthoringValidation, LoweredPlanValidation, ProfileValidation]
 
 	Diagnostic : {
+		clause_references : List(Str),
 		code : DiagnosticCode,
+		details : List(Str),
 		location : DiagnosticLocation,
 		requirement_ids : List(Str),
-		details : List(Str),
+		stage : ValidationStage,
+	}
+
+	DiagnosticTruncation : [Complete, Truncated]
+
+	## Validators consume one bounded accumulator and stop at a deterministic
+	## count or byte limit. They do not rescan the rejected document merely to
+	## count findings that cannot be retained.
+	DiagnosticBatch : {
+		detail_bytes : U64,
+		diagnostics : List(Diagnostic),
+		truncation : DiagnosticTruncation,
 	}
 
 	## Dimension-specific limits are carried through every compiler stage.

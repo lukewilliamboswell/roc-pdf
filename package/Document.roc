@@ -1,4 +1,12 @@
+import Color
+import Conformance
+import Font
+import Image
+import Layout
+import Metadata
+import Scene
 import Semantics
+import Text
 
 DocumentBlock :: [
 	Bullets(List(Str)),
@@ -123,6 +131,90 @@ Document :: { authoring : DocumentAuthoring }.{
 	Builder : DocumentBuilder
 	PageArtifactKind : PageArtifactKind
 
+	## Reusable resource identity is independent of the scene group that uses
+	## it. Placements carry only this scalar edge, never another payload copy.
+	Resource : [
+		ColorSpace(Color.SpaceId),
+		Font(Font.InstanceId),
+		IccProfile(Color.ProfileId),
+		Image(Image.Id),
+	]
+	ResourceUse : { group : Scene.GroupId, resource : Resource }
+
+	PreparedLayout : {
+		placements : List(Layout.Placement),
+		references : Layout.ResolvedReferences,
+	}
+
+	ResourceInspectionWork : {
+		color : Color.InspectionWork,
+		image : Image.InspectionWork,
+	}
+	PreparationWork : {
+		copied_payload_bytes : U64,
+		font_planning : Font.PlanWork,
+		layout : Layout.Work,
+		reference_passes : U64,
+		retained_payload_bytes : U64,
+		resource_edges : U64,
+		resource_inspection : ResourceInspectionWork,
+		scene_commands : U64,
+		semantic_nodes : U64,
+	}
+
+	## The prepared boundary contains only stable data. All layout-affecting
+	## references have exact values; custom handlers and speculative caches are
+	## absent. The semantics store owns the single Document root and content spine.
+	Prepared : {
+		blend_space : Color.BlendSpace,
+		claims : Conformance.ClaimSet,
+		colors : Color.Store,
+		fonts : Font.Store,
+		images : Image.Store,
+		layout : PreparedLayout,
+		metadata : Metadata.Logical,
+		output_intent : Color.OutputIntent,
+		policy : Conformance.ResourcePolicy,
+		resource_uses : List(ResourceUse),
+		scenes : Scene.Store,
+		semantics : Semantics.Store,
+		text : Text.Store,
+		work : PreparationWork,
+	}
+	PreparationResult : Try(Prepared, Conformance.DiagnosticBatch)
+
+	Phase : [
+		Authoring,
+		ConformanceAndLowering,
+		Emission,
+		FontPlanning,
+		LayoutStabilization,
+		NormalizedInput,
+		PreparedBoundary,
+		SealedPlan,
+	]
+	Lifetime : [ReleaseAfter(Phase), RetainThroughEmission]
+	LifetimePolicy : {
+		authoring_blocks : Lifetime,
+		custom_handlers : Lifetime,
+		decoded_image_intermediates : Lifetime,
+		layout_caches : Lifetime,
+		prepared_scenes : Lifetime,
+		resource_inspection_intermediates : Lifetime,
+		validated_resource_bytes : Lifetime,
+	}
+
+	lifetimes : LifetimePolicy
+	lifetimes = {
+		authoring_blocks: ReleaseAfter(NormalizedInput),
+		custom_handlers: ReleaseAfter(LayoutStabilization),
+		decoded_image_intermediates: ReleaseAfter(PreparedBoundary),
+		layout_caches: ReleaseAfter(PreparedBoundary),
+		prepared_scenes: ReleaseAfter(ConformanceAndLowering),
+		resource_inspection_intermediates: ReleaseAfter(PreparedBoundary),
+		validated_resource_bytes: RetainThroughEmission,
+	}
+
 	from_blocks : { contents : List(DocumentBlock), language : Str, title : Str } -> Document
 	from_blocks = |{ contents, language, title: document_title }|
 		Document.{
@@ -192,3 +284,6 @@ expect {
 
 	document.metadata_title() == "Report" and document.language() == "en-AU"
 }
+
+## Prepared documents cannot retain authoring blocks or layout handlers.
+expect Document.lifetimes.custom_handlers == ReleaseAfter(LayoutStabilization)

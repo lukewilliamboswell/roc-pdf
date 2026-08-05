@@ -76,7 +76,11 @@ expect {
 
 ## Text paint admits only the initial visible rendering modes.
 expect {
-	black = Rgb({ blue: 0, green: 0, red: 0 })
+	black : Color.Value
+	black = {
+		channels: Rgb({ blue: 0, green: 0, red: 0 }),
+		space: Color.SpaceId.from_index(0),
+	}
 	paint : Scene.TextPaint
 	paint = {
 		fill: black,
@@ -85,7 +89,12 @@ expect {
 		stroke: NoStroke,
 	}
 
-	paint.fill == black and Layout.Unit.units_per_point == 1000
+	channels_are_black = match paint.fill.channels {
+		Rgb({ blue, green, red }) => blue == 0 and green == 0 and red == 0
+		_ => False
+	}
+
+	channels_are_black and paint.fill.space.index() == 0 and Layout.Unit.units_per_point == 1000
 }
 
 main! : List(Str) => { bytes : List(U8), work : List(U64) }

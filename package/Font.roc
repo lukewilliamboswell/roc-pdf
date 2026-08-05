@@ -80,6 +80,7 @@ Font :: [].{
 		id : InstanceId,
 		kind : InstanceKind,
 	}
+	InstanceKey : { face : FaceId, kind : InstanceKind }
 
 	Policy : {
 
