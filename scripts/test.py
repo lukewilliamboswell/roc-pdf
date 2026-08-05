@@ -33,8 +33,6 @@ class Metrics:
 
 @dataclass(frozen=True)
 class Toolchain:
-    roc_revision: str
-    roc_version_output: str
     roc_optimization: str
     zig_version: str
     zig_optimization: str
@@ -117,8 +115,6 @@ def load_suite() -> TestSuite:
 
     raw_toolchain = data["toolchain"]
     toolchain_fields = {
-        "roc_revision",
-        "roc_version_output",
         "roc_optimization",
         "zig_version",
         "zig_optimization",
@@ -126,10 +122,6 @@ def load_suite() -> TestSuite:
     if not isinstance(raw_toolchain, dict) or set(raw_toolchain) != toolchain_fields:
         raise SystemExit(f"{SPEC_PATH}: toolchain must contain exactly {sorted(toolchain_fields)}")
     toolchain = Toolchain(
-        roc_revision=non_empty_string(raw_toolchain["roc_revision"], "toolchain.roc_revision"),
-        roc_version_output=non_empty_string(
-            raw_toolchain["roc_version_output"], "toolchain.roc_version_output"
-        ),
         roc_optimization=non_empty_string(
             raw_toolchain["roc_optimization"], "toolchain.roc_optimization"
         ),
@@ -308,15 +300,13 @@ def self_test_metrics(suite: TestSuite) -> None:
 
 def verify_toolchain(toolchain: Toolchain) -> None:
     pinned_roc = (ROOT / ".roc-version").read_text(encoding="utf-8").strip()
-    if pinned_roc != toolchain.roc_revision:
-        raise SystemExit(
-            f"{SPEC_PATH}: expected .roc-version {toolchain.roc_revision}, got {pinned_roc}"
-        )
+    if not pinned_roc:
+        raise SystemExit(".roc-version must contain the pinned Roc release")
     actual_roc = command_output(ROC, "version")
-    if actual_roc != toolchain.roc_version_output:
+    expected_roc = f"Roc compiler version {pinned_roc}"
+    if actual_roc != expected_roc:
         raise SystemExit(
-            f"{SPEC_PATH}: expected Roc version output {toolchain.roc_version_output!r}, "
-            f"got {actual_roc!r}"
+            f".roc-version expects Roc version output {expected_roc!r}, got {actual_roc!r}"
         )
     actual_zig = command_output(ZIG, "version")
     if actual_zig != toolchain.zig_version:

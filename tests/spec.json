@@ -2,8 +2,6 @@
   "schema_version": 1,
   "protocol_version": 1,
   "toolchain": {
-    "roc_revision": "nightly-2026-August-04-1cb06bc",
-    "roc_version_output": "Roc compiler version nightly-2026-August-04-1cb06bc",
     "roc_optimization": "speed",
     "zig_version": "0.16.0",
     "zig_optimization": "ReleaseFast"
