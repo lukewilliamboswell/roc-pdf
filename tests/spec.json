@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "protocol_version": 1,
   "toolchain": {
     "roc_optimization": "speed",
@@ -19,11 +19,12 @@
       "expectations": {
         "arm64mac": { "allocations": 0, "work": [1, 667] },
         "x64musl": { "allocations": 0, "work": [1, 667] }
-      }
+      },
+      "retention": null
     },
     {
       "name": "Gate 1 balanced 4096-page PDF",
-      "scenario_revision": "gate1-pages-v1",
+      "scenario_revision": "gate1-pages-v2",
       "source": "tests/gate1_pages/main.roc",
       "snapshot": "tests/gate1_pages/snapshot.pdf",
       "args": ["stress"],
@@ -31,9 +32,10 @@
       "dimensions": { "pages": 4096 },
       "work_counters": ["pages", "tree_nodes", "objects", "values", "array_edges", "dictionary_edges", "build_edges", "references", "byte_visits"],
       "expectations": {
-        "arm64mac": { "allocations": 113794, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] },
-        "x64musl": { "allocations": 113794, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] }
-      }
+        "arm64mac": { "allocations": 113795, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] },
+        "x64musl": { "allocations": 113795, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] }
+      },
+      "retention": null
     },
     {
       "name": "placeholder PDF x1",
@@ -47,7 +49,8 @@
       "expectations": {
         "arm64mac": { "allocations": 1, "work": [1, 431] },
         "x64musl": { "allocations": 1, "work": [1, 431] }
-      }
+      },
+      "retention": null
     },
     {
       "name": "placeholder PDF x4",
@@ -61,7 +64,23 @@
       "expectations": {
         "arm64mac": { "allocations": 1, "work": [4, 1724] },
         "x64musl": { "allocations": 1, "work": [4, 1724] }
-      }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 unchanged-resource retention",
+      "scenario_revision": "gate1-retention-v1",
+      "source": "tests/gate1_retention/main.roc",
+      "snapshot": "tests/gate1_retention/snapshot.pdf",
+      "args": ["32"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "backing_bytes": 8192, "resource_bytes": 64 },
+      "work_counters": ["buffered_bytes", "shared_bytes", "owned_bytes", "shared_ranges", "owned_ranges", "shared_copied_bytes", "owned_copied_bytes", "resource_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 214, "work": [703, 703, 703, 1, 1, 0, 64, 64] },
+        "x64musl": { "allocations": 214, "work": [703, 703, 703, 1, 1, 0, 64, 64] }
+      },
+      "retention": { "backing_refs": 3, "source_offset": 4096, "owned_capacity": 64 }
     }
   ]
 }

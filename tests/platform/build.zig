@@ -43,6 +43,24 @@ pub fn build(b: *std.Build) void {
             host.getEmittedBin(),
             b.pathJoin(&.{ "targets", roc_target.directory(), "libhost.a" }),
         );
+
+        const retention_host = b.addLibrary(.{
+            .name = "retention_host",
+            .linkage = .static,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("retention_host.zig"),
+                .target = b.resolveTargetQuery(roc_target.query()),
+                .optimize = optimize,
+                .strip = optimize != .Debug,
+                .pic = true,
+            }),
+        });
+        retention_host.bundle_compiler_rt = true;
+
+        copy_hosts.addCopyFileToSource(
+            retention_host.getEmittedBin(),
+            b.pathJoin(&.{ "targets", roc_target.directory(), "libretention_host.a" }),
+        );
     }
 
     b.getInstallStep().dependOn(&copy_hosts.step);

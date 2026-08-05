@@ -4,7 +4,7 @@ import KernelSeal
 import KernelSha256
 import KernelStructure
 
-SegmentOwnership : [Generated, SharedResource]
+SegmentOwnership : [Generated, OwnedResource, SharedResource]
 
 Retention : [OwnResourceChunks, ShareResourceChunks]
 
@@ -12,6 +12,7 @@ PayloadPhase : {
 	bytes : List(U8),
 	next_object : U64,
 	ownership : SegmentOwnership,
+	release : [KeepPayload, ReleasePayload(KernelObject.PayloadId)],
 }
 
 XrefEntriesPhase : {
@@ -47,6 +48,7 @@ KernelEmit :: [].{
 	Step : [Done, Emit(Segment, Encoder)]
 
 	Encoder :: {
+		copied_resource_bytes : U64,
 		file_id : List(U8),
 		offsets : List(U64),
 		output_bound : U64,
@@ -56,6 +58,9 @@ KernelEmit :: [].{
 		retention : Retention,
 		stream_lengths : List(U64),
 	}.{
+		copied_resource_bytes : Encoder -> U64
+		copied_resource_bytes = |encoder| encoder.copied_resource_bytes
+
 		next : Encoder -> Try(Step, Error)
 		next = |encoder| next_segment(encoder)
 
@@ -101,6 +106,7 @@ KernelEmit :: [].{
 		store = plan_store(plan)
 		Ok(
 			Encoder.{
+				copied_resource_bytes: 0,
 				file_id,
 				offsets: List.with_capacity(store.objects.len() + 1),
 				output_bound: KernelStructure.Plan.output_bound(plan),
@@ -173,7 +179,11 @@ next_segment = |encoder| match encoder.phase {
 	)
 	Object(index) => emit_object(encoder, index)
 	Payload(payload) => {
-		next_encoder = encoder_with_phase(encoder, StreamSuffix(payload.next_object))
+		next_plan = match payload.release {
+			KeepPayload => encoder.plan
+			ReleasePayload(payload_id) => KernelStructure.Plan.release_payload_bytes(encoder.plan, payload_id)
+		}
+		next_encoder = encoder_with_plan_and_phase(encoder, next_plan, StreamSuffix(payload.next_object))
 		if payload.bytes.is_empty() {
 			next_segment(next_encoder)
 		} else {
@@ -244,7 +254,7 @@ emit_stream_prefix = |encoder, object_id, stream_id, next_object| {
 			UnchangedResource => if encoder.retention == ShareResourceChunks {
 				{ bytes: payload.bytes, ownership: SharedResource }
 			} else {
-				{ bytes: copy_bytes(payload.bytes), ownership: Generated }
+				{ bytes: copy_bytes(payload.bytes), ownership: OwnedResource }
 			}
 		}
 	}
@@ -252,12 +262,24 @@ emit_stream_prefix = |encoder, object_id, stream_id, next_object| {
 	if KernelObject.StreamId.index(stream_id) != encoder.stream_lengths.len() {
 		Err(IndexInvariant)
 	} else {
+		copied_resource_bytes = if ownership == OwnedResource {
+			checked_add(encoder.copied_resource_bytes, payload.bytes.len())?
+		} else {
+			encoder.copied_resource_bytes
+		}
 		stream_lengths = encoder.stream_lengths.append(emitted_payload.len())
+		release = match payload.kind {
+			Generated => KeepPayload
+			UnchangedResource => match KernelSeal.Plan.payload_last_use(KernelStructure.Plan.sealed(encoder.plan), stream.source) {
+				LastStream(last) => if KernelObject.StreamId.is_eq(last, stream.id) ReleasePayload(stream.source) else KeepPayload
+				Unused => KeepPayload
+			}
+		}
 		var $prefix = append_object_header([], object_id)
 		$prefix = append_stream_dictionary($prefix, store, stream)?
 		$prefix = append_stream_keyword($prefix)
-		with_length = encoder_with_stream_lengths(encoder, stream_lengths)
-		next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership }))
+		with_length = encoder_with_stream_lengths(encoder_with_copied_resource_bytes(encoder, copied_resource_bytes), stream_lengths)
+		next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership, release }))
 		emit_bytes(next, $prefix, Generated)
 	}
 }
@@ -321,6 +343,7 @@ emit_bytes = |next, bytes, ownership| {
 
 encoder_with_phase : KernelEmit.Encoder, Phase -> KernelEmit.Encoder
 encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
+	copied_resource_bytes: encoder.copied_resource_bytes,
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
@@ -331,8 +354,35 @@ encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
 	stream_lengths: encoder.stream_lengths,
 }
 
+encoder_with_plan_and_phase : KernelEmit.Encoder, KernelStructure.Plan, Phase -> KernelEmit.Encoder
+encoder_with_plan_and_phase = |encoder, plan, phase| KernelEmit.Encoder.{
+	copied_resource_bytes: encoder.copied_resource_bytes,
+	file_id: encoder.file_id,
+	offsets: encoder.offsets,
+	output_bound: encoder.output_bound,
+	phase,
+	plan,
+	position: encoder.position,
+	retention: encoder.retention,
+	stream_lengths: encoder.stream_lengths,
+}
+
+encoder_with_copied_resource_bytes : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
+encoder_with_copied_resource_bytes = |encoder, copied_resource_bytes| KernelEmit.Encoder.{
+	copied_resource_bytes,
+	file_id: encoder.file_id,
+	offsets: encoder.offsets,
+	output_bound: encoder.output_bound,
+	phase: encoder.phase,
+	plan: encoder.plan,
+	position: encoder.position,
+	retention: encoder.retention,
+	stream_lengths: encoder.stream_lengths,
+}
+
 encoder_with_offsets : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
 encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
+	copied_resource_bytes: encoder.copied_resource_bytes,
 	file_id: encoder.file_id,
 	offsets,
 	output_bound: encoder.output_bound,
@@ -345,6 +395,7 @@ encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
 
 encoder_with_position : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_position = |encoder, position| KernelEmit.Encoder.{
+	copied_resource_bytes: encoder.copied_resource_bytes,
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
@@ -357,6 +408,7 @@ encoder_with_position = |encoder, position| KernelEmit.Encoder.{
 
 encoder_with_stream_lengths : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
 encoder_with_stream_lengths = |encoder, stream_lengths| KernelEmit.Encoder.{
+	copied_resource_bytes: encoder.copied_resource_bytes,
 	file_id: encoder.file_id,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
@@ -702,10 +754,16 @@ plan_store = |plan| KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan))
 
 identifier_facts : KernelStructure.Plan -> List(U8)
 identifier_facts = |plan| {
-	var $facts = List.with_capacity(41)
+	var $facts = List.with_capacity(80)
 	$facts = append_all($facts, Str.to_utf8("roc-pdf:document-id:v1"))
 	$facts = $facts.append(0)
-	$facts = append_all($facts, Str.to_utf8("blank"))
+	$facts = match KernelStructure.Plan.identity(plan) {
+		Blank => append_all($facts, Str.to_utf8("blank"))
+		UnchangedContentDigest(digest) => {
+			with_kind = append_all($facts, Str.to_utf8("unchanged-content"))
+			append_all(with_kind.append(0), digest)
+		}
+	}
 	$facts = $facts.append(0)
 	page_count = KernelStructure.Plan.page_count(plan)
 	$facts = $facts.append(page_count.shr_wrap(56).to_u8_wrap())
@@ -847,6 +905,66 @@ expect {
 expect match KernelEmit.CountingSink.write(KernelEmit.CountingSink.start(18446744073709551615), 1) {
 	Err(ArithmeticOverflow) => True
 	_ => False
+}
+
+## Shared and owned policies emit identical bytes while classifying the unchanged range.
+expect {
+	plan = KernelStructure.build_unchanged_stream_probe(Str.to_utf8("% unchanged range\n"))?
+	var $shared_encoder = KernelEmit.start(plan, ShareResourceChunks)?
+	var $shared_bytes = []
+	var $shared_ranges = 0
+	var $released_after_range = False
+	var $shared_done = False
+	while $shared_done == False {
+		match KernelEmit.Encoder.next($shared_encoder)? {
+			Done => {
+				$shared_done = True
+			}
+			Emit(segment, next) => {
+				$shared_bytes = append_all($shared_bytes, segment.bytes)
+				if segment.ownership == SharedResource {
+					$shared_ranges = $shared_ranges + 1
+					next_store = plan_store(next.plan)
+					$released_after_range = list_at(next_store.payloads, 0).bytes.is_empty()
+				}
+				$shared_encoder = next
+			}
+		}
+	}
+
+	var $owned_encoder = KernelEmit.start(plan, OwnResourceChunks)?
+	var $owned_bytes = []
+	var $owned_ranges = 0
+	var $owned_done = False
+	while $owned_done == False {
+		match KernelEmit.Encoder.next($owned_encoder)? {
+			Done => {
+				$owned_done = True
+			}
+			Emit(segment, next) => {
+				$owned_bytes = append_all($owned_bytes, segment.bytes)
+				if segment.ownership == OwnedResource {
+					$owned_ranges = $owned_ranges + 1
+				}
+				$owned_encoder = next
+			}
+		}
+	}
+
+	$shared_ranges == 1 and
+		$owned_ranges == 1 and
+			$released_after_range and
+				KernelEmit.Encoder.copied_resource_bytes($shared_encoder) == 0 and
+					KernelEmit.Encoder.copied_resource_bytes($owned_encoder) == Str.to_utf8("% unchanged range\n").len() and
+						$shared_bytes == $owned_bytes
+}
+
+## Unchanged bytes participate in deterministic file identity.
+expect {
+	left = KernelStructure.build_unchanged_stream_probe(Str.to_utf8("% left\n"))?
+	right = KernelStructure.build_unchanged_stream_probe(Str.to_utf8("% right\n"))?
+
+	identifier_facts(left) != identifier_facts(right)
 }
 
 ## Buffered emission writes a PDF 2.0 header, binary marker, and EOF marker.

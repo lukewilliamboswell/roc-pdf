@@ -3,22 +3,23 @@
 ## Scope
 
 The current `KernelStructure.Plan` represents one through 1,048,576 blank
-pages. Its lowerer computes and stores a checked byte bound before allocating
-the object stores. `KernelEmit` carries that scalar through every state and
-checks each transition against it as an internal invariant. Therefore an
-accepted plan cannot discover a size-bound error after returning output.
+pages and an evidence-only one-page unchanged-stream variant. Its lowerer
+computes and stores a checked byte bound before allocating the object stores.
+`KernelEmit` carries that scalar through every state and checks each transition
+against it as an internal invariant. Therefore an accepted plan cannot discover
+a size-bound error after returning output.
 
 The bound for this plan kind is:
 
 ```text
-4096 + 1024 * page_count
+4096 + 1024 * page_count + payload_bytes
 ```
 
-Both the multiplication and addition use checked `U64` operations. At the
-maximum accepted page count the bound is 1,073,745,920 bytes. Future plan kinds
-with unchanged resources or non-empty compressed streams must add their own
-checked payload and compression bounds before they can enter the same sealed
-plan.
+Both the multiplication and additions use checked `U64` operations. Blank
+plans use zero payload bytes; at the maximum accepted page count their bound is
+1,073,745,920 bytes. The unchanged-stream plan adds the exact unfiltered byte
+length. Future non-empty compressed streams must add a checked compressor bound
+before they can enter the same sealed plan.
 
 ## Derivation
 
@@ -49,10 +50,12 @@ covers the header and binary marker, catalog, xref object header and
 dictionary (including both 32-byte identifiers), stream framing,
 `startxref`, EOF marker, and the constant 33 xref bytes with ample margin.
 
-This proof depends on the current blank structural representation, fixed
-fanout, fixed-width xref format, and empty eight-byte zlib stream. Changing any
-of those requires reviewing the constants rather than accepting a snapshot or
-allocation change mechanically.
+The unchanged unfiltered stream omits `/FlateDecode`, so the blank-plan syntax
+allowance remains conservative and its exact payload length is the only added
+term. This proof otherwise depends on the current structural representation,
+fixed fanout, fixed-width xref format, and empty eight-byte zlib stream.
+Changing any of those requires reviewing the constants rather than accepting a
+snapshot or allocation change mechanically.
 
 ## Executable evidence
 

@@ -25,12 +25,23 @@ ZIG = os.environ.get("ZIG", "zig")
 METRICS_REPORT = re.compile(
     rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
 )
+RETENTION_REPORT = re.compile(
+    rb"ROC_RETENTION protocol=([0-9]+) backing_refs=([0-9]+) source_offset=([0-9]+) owned_capacity=([0-9]+)\r?\n"
+    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
+)
 
 
 @dataclass(frozen=True)
 class Metrics:
     allocations: int
     work: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class Retention:
+    backing_refs: int
+    source_offset: int
+    owned_capacity: int
 
 
 @dataclass(frozen=True)
@@ -51,6 +62,7 @@ class TestCase:
     dimensions: dict[str, int]
     work_counters: tuple[str, ...]
     expectations: dict[str, Metrics]
+    retention: Retention | None
 
 
 @dataclass(frozen=True)
@@ -112,8 +124,8 @@ def load_suite() -> TestSuite:
         raise SystemExit(f"{SPEC_PATH}: top level must be an object")
     if set(data) != {"schema_version", "protocol_version", "toolchain", "cases"}:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 2 or data["protocol_version"] != 1:
-        raise SystemExit(f"{SPEC_PATH}: schema_version must be 2 and protocol_version must be 1")
+    if data["schema_version"] != 3 or data["protocol_version"] != 1:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 3 and protocol_version must be 1")
 
     raw_toolchain = data["toolchain"]
     toolchain_fields = {
@@ -156,6 +168,7 @@ def load_suite() -> TestSuite:
             "dimensions",
             "work_counters",
             "expectations",
+            "retention",
         }
         if set(raw) != required_fields:
             raise SystemExit(f"{SPEC_PATH}: every case must contain exactly {sorted(required_fields)}")
@@ -202,6 +215,26 @@ def load_suite() -> TestSuite:
                 )
             expectations[target] = Metrics(allocations, tuple(work))
 
+        raw_retention = raw["retention"]
+        if raw_retention is None:
+            retention = None
+        else:
+            retention_fields = {"backing_refs", "source_offset", "owned_capacity"}
+            if (
+                not isinstance(raw_retention, dict)
+                or set(raw_retention) != retention_fields
+                or any(type(value) is not int or value < 0 for value in raw_retention.values())
+            ):
+                raise SystemExit(
+                    f"{SPEC_PATH}: {name}.retention must contain exactly "
+                    f"{sorted(retention_fields)}"
+                )
+            retention = Retention(
+                backing_refs=raw_retention["backing_refs"],
+                source_offset=raw_retention["source_offset"],
+                owned_capacity=raw_retention["owned_capacity"],
+            )
+
         source = repository_path(raw.get("source"), f"{name}.source")
         snapshot = repository_path(raw.get("snapshot"), f"{name}.snapshot")
         if not source.is_file():
@@ -219,12 +252,16 @@ def load_suite() -> TestSuite:
                 dimensions,
                 work_counters,
                 expectations,
+                retention,
             )
         )
 
     names = [case.name for case in cases]
     if len(names) != len(set(names)):
         raise SystemExit(f"{SPEC_PATH}: case names must be unique")
+    retention_cases = [case for case in cases if case.retention is not None]
+    if len(retention_cases) != 1:
+        raise SystemExit(f"{SPEC_PATH}: exactly one backing-allocation retention case is required")
 
     discovered_snapshots = set((ROOT / "tests").glob("*/snapshot.pdf"))
     discovered_sources = {snapshot.parent / "main.roc" for snapshot in discovered_snapshots}
@@ -348,20 +385,42 @@ def run_case(
             f"stderr: {result.stderr.decode('utf-8', errors='replace')}"
         )
 
-    match = METRICS_REPORT.fullmatch(result.stderr)
+    if case.retention is None:
+        match = METRICS_REPORT.fullmatch(result.stderr)
+        protocol_group = 1
+        allocations_group = 2
+        work_group = 3
+    else:
+        match = RETENTION_REPORT.fullmatch(result.stderr)
+        protocol_group = 5
+        allocations_group = 6
+        work_group = 7
     if match is None:
         raise SystemExit(
-            f"{case.name}: expected one versioned ROC_METRICS line on stderr, got "
+            f"{case.name}: expected its versioned evidence report on stderr, got "
             f"{result.stderr!r}"
         )
-    actual_protocol = int(match.group(1))
+    if case.retention is not None:
+        retention_protocol = int(match.group(1))
+        actual_retention = Retention(
+            backing_refs=int(match.group(2)),
+            source_offset=int(match.group(3)),
+            owned_capacity=int(match.group(4)),
+        )
+        if retention_protocol != protocol_version or actual_retention != case.retention:
+            raise SystemExit(
+                f"{case.name}: retention evidence mismatch: "
+                f"expected {case.retention}, got {actual_retention}"
+            )
+
+    actual_protocol = int(match.group(protocol_group))
     if actual_protocol != protocol_version:
         raise SystemExit(
             f"{case.name}: expected protocol {protocol_version}, got {actual_protocol}"
         )
-    work_text = match.group(3)
+    work_text = match.group(work_group)
     actual_work = () if not work_text else tuple(int(value) for value in work_text.split(b","))
-    actual_metrics = Metrics(int(match.group(2)), actual_work)
+    actual_metrics = Metrics(int(match.group(allocations_group)), actual_work)
     mismatch = metrics_mismatch(case.expectations[target], actual_metrics, case.work_counters)
     if mismatch is not None:
         raise SystemExit(f"{case.name}: performance baseline mismatch: {mismatch}")
@@ -424,6 +483,7 @@ def main() -> None:
         "--check",
         "build.zig",
         "host.zig",
+        "retention_host.zig",
         "roc_platform_abi.zig",
         cwd=TEST_PLATFORM,
     )

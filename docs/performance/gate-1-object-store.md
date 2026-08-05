@@ -61,7 +61,8 @@ store kind.
 
 Gate 1 now has sealing-time reference validation, compact emission-plan
 measurements, exact optimized allocation scenarios, and thousands-of-pages
-stress plus greater-than-4-GiB counting-sink coverage. Completion still
-requires shared-versus-owned backing-storage retention evidence. Allocation or
-work baseline changes will be reviewed as representation changes, not
-mechanically accepted.
+stress plus greater-than-4-GiB counting-sink coverage. It also has
+shared-versus-owned backing-storage retention and final-use release evidence.
+Remaining Gate 1 work is tracked at the structural-emission and roadmap
+boundaries. Allocation or work baseline changes will be reviewed as
+representation changes, not mechanically accepted.

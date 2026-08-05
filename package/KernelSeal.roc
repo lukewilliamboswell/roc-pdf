@@ -1,10 +1,12 @@
 import KernelObject
 
 KernelSeal :: [].{
-	StoreKind : [ArrayEdge, ByteStringValue, DictionaryEdge, NameValue, ObjectContent, StreamValue, TextStringValue]
+	StoreKind : [ArrayEdge, ByteStringValue, DictionaryEdge, NameValue, ObjectContent, PayloadValue, StreamValue, TextStringValue]
 	Error : [
 		IndexOutOfRange({ available : U64, index : U64, kind : StoreKind }),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : U64 }),
+		PayloadLastUseInvalid({ last_stream : KernelObject.StreamId, payload : KernelObject.PayloadId }),
+		PayloadUseMissing({ payload : KernelObject.PayloadId, stream : KernelObject.StreamId }),
 		ReferenceOutOfRange({ available : U64, source : KernelObject.ValueId, target : KernelObject.ObjectId }),
 		SpanOutOfRange({ available : U64, kind : StoreKind, length : U64, start : U64 }),
 		SpanOverflow(StoreKind),
@@ -39,6 +41,22 @@ KernelSeal :: [].{
 
 		counts : Plan -> KernelObject.Counts
 		counts = |plan| counts_from_store(plan.store)
+
+		payload_last_use : Plan, KernelObject.PayloadId -> KernelObject.PayloadUse
+		payload_last_use = |plan, payload| list_at(plan.store.payloads, KernelObject.PayloadId.index(payload)).last_use
+
+		release_payload_bytes : Plan, KernelObject.PayloadId -> Plan
+		release_payload_bytes = |plan, payload_id| {
+			index = KernelObject.PayloadId.index(payload_id)
+			payload = list_at(plan.store.payloads, index)
+			payloads = list_set(plan.store.payloads, index, { ..payload, bytes: [] })
+			Plan.{
+				build_work: plan.build_work,
+				seal_work: plan.seal_work,
+				source_bytes: plan.source_bytes,
+				store: { ..plan.store, payloads },
+			}
+		}
 
 		seal_work : Plan -> Work
 		seal_work = |plan| plan.seal_work
@@ -221,7 +239,11 @@ validate_streams = |store| {
 		object_number = KernelObject.ObjectId.number(stream.object)
 		length_number = KernelObject.ObjectId.number(stream.length_object)
 
-		if stream.id != stream_id {
+		source_index = KernelObject.PayloadId.index(stream.source)
+
+		if source_index >= store.payloads.len() {
+			$error = Invalid(IndexOutOfRange({ available: store.payloads.len(), index: source_index, kind: PayloadValue }))
+		} else if stream.id != stream_id {
 			$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
 		} else if object_number == 0 or object_number > store.objects.len() {
 			$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
@@ -236,23 +258,34 @@ validate_streams = |store| {
 				}),
 			)
 		} else {
-			object = list_at(store.objects, object_number - 1)
-			length_object = list_at(store.objects, length_number - 1)
-			match object.content {
-				Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
-					Stream(actual) => if actual != stream_id {
-						$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
+			payload = list_at(store.payloads, source_index)
+			match payload.last_use {
+				Unused => {
+					$error = Invalid(PayloadUseMissing({ payload: payload.id, stream: stream_id }))
+				}
+				LastStream(last) => if KernelObject.StreamId.index(last) < $index {
+					$error = Invalid(PayloadLastUseInvalid({ last_stream: last, payload: payload.id }))
+				}
+			}
+			if $error == NoError {
+				object = list_at(store.objects, object_number - 1)
+				match object.content {
+					Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
+						Stream(actual) => if actual != stream_id {
+							$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
+						}
+						_ => {
+							$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
+						}
 					}
 					_ => {
 						$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
 					}
 				}
-				_ => {
-					$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
-				}
 			}
 
 			if $error == NoError {
+				length_object = list_at(store.objects, length_number - 1)
 				match length_object.content {
 					LengthOf(actual) => if actual != stream_id {
 						$error = Invalid(StreamLengthObjectMismatch({ length_object: stream.length_object, stream: stream_id }))
@@ -264,6 +297,21 @@ validate_streams = |store| {
 			}
 		}
 		$index = $index + 1
+	}
+
+	var $payload_index = 0
+	while $payload_index < store.payloads.len() and $error == NoError {
+		payload = list_at(store.payloads, $payload_index)
+		match payload.last_use {
+			Unused => {}
+			LastStream(last) => {
+				last_index = KernelObject.StreamId.index(last)
+				if last_index >= store.streams.len() or list_at(store.streams, last_index).source != payload.id {
+					$error = Invalid(PayloadLastUseInvalid({ last_stream: last, payload: payload.id }))
+				}
+			}
+		}
+		$payload_index = $payload_index + 1
 	}
 
 	match $error {
@@ -300,6 +348,14 @@ counts_from_store = |store| {
 list_at : List(a), U64 -> a
 list_at = |list, index| match list.get(index) {
 	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "sealed object-plan index invariant failed"
+	}
+}
+
+list_set : List(a), U64, a -> List(a)
+list_set = |list, index, value| match list.set(index, value) {
+	Ok(updated) => updated
 	Err(OutOfBounds) => {
 		crash "sealed object-plan index invariant failed"
 	}
@@ -373,6 +429,35 @@ expect {
 	plan = KernelSeal.seal(stream.builder)?
 
 	KernelSeal.Plan.counts(plan).objects == 2 and KernelSeal.Plan.seal_work(plan).streams_checked == 1
+}
+
+## Sealing verifies and retains the final stream use for payload release.
+expect {
+	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], UnchangedResource)?
+	first = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
+	second = KernelObject.add_stream_object(first.builder, [], Unfiltered, payload.id)?
+	plan = KernelSeal.seal(second.builder)?
+
+	match KernelSeal.Plan.payload_last_use(plan, payload.id) {
+		LastStream(stream) => KernelObject.StreamId.index(stream) == 1
+		Unused => False
+	}
+}
+
+## A missing final-use fact is rejected before any payload can be emitted.
+expect {
+	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], UnchangedResource)?
+	stream = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
+	stored = stream.builder.store.payloads.get(0)?
+	bad_store = { ..stream.builder.store, payloads: [{ ..stored, last_use: Unused }] }
+	bad_builder = { ..stream.builder, store: bad_store }
+
+	match KernelSeal.seal(bad_builder) {
+		Err(PayloadUseMissing({ payload: actual_payload, stream: actual_stream })) => {
+			actual_payload == payload.id and KernelObject.StreamId.index(actual_stream) == 0
+		}
+		_ => False
+	}
 }
 
 ## A non-adjacent stream-length object is rejected before emission.

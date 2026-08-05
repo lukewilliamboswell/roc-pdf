@@ -85,10 +85,12 @@ KernelObject :: [].{
 	Object : { content : ObjectContent, id : ObjectId }
 
 	PayloadKind : [Generated, UnchangedResource]
+	PayloadUse : [LastStream(StreamId), Unused]
 	Payload : {
 		bytes : List(U8),
 		id : PayloadId,
 		kind : PayloadKind,
+		last_use : PayloadUse,
 	}
 
 	FilterPlan : [Deflate, Unfiltered]
@@ -338,7 +340,7 @@ KernelObject :: [].{
 				Err(error) => Err(error)
 				Ok(total_payload_bytes) => {
 					id = PayloadId.from_index(builder.store.payloads.len())
-					payload = { bytes, id, kind }
+					payload = { bytes, id, kind, last_use: Unused }
 					Ok({
 						builder: {
 							..builder,
@@ -490,11 +492,15 @@ KernelObject :: [].{
 											object: object_id,
 											source,
 										}
+										payload_index = PayloadId.index(source)
+										payload = list_at(builder.store.payloads, payload_index)
+										payloads = list_set(builder.store.payloads, payload_index, { ..payload, last_use: LastStream(stream_id) })
 										before_value = {
 											..builder,
 											store: {
 												..builder.store,
 												dictionary_entries,
+												payloads,
 												streams: builder.store.streams.append(stream),
 											},
 											work,
@@ -825,6 +831,14 @@ append_all = |target, source| {
 list_at : List(a), U64 -> a
 list_at = |list, index| match list.get(index) {
 	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "kernel object index invariant failed"
+	}
+}
+
+list_set : List(a), U64, a -> List(a)
+list_set = |list, index, value| match list.set(index, value) {
+	Ok(updated) => updated
 	Err(OutOfBounds) => {
 		crash "kernel object index invariant failed"
 	}

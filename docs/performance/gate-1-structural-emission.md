@@ -26,9 +26,10 @@ arrays, dictionaries, payloads, and xref entries without `Iter` in the hot
 path. Checked arithmetic covers byte positions, xref size, and fixed-width
 xref-stream length.
 
-Generated chunks are owned. The transition also distinguishes seamless
-unchanged-resource slices from owned copies, but the present blank fixture has
-no unchanged resource and therefore does not evidence either retention path.
+Generated chunks are owned. The optimized unchanged-resource fixture proves
+both seamless shared slices and bounded owned copies against their actual Roc
+backing allocations, including final-use release and the caller-retention
+tradeoff described in `gate-1-resource-retention.md`.
 Xref entries are emitted in batches of at most 256 entries. Page-tree
 dictionaries remain bounded by the fixed fanout of 32. The sealed plan stores
 the checked `4096 + 1024 * page_count` whole-output bound proved in
@@ -55,8 +56,7 @@ qpdf 12.3.2 from its checksum-pinned official binary release.
 
 Gate 1 completion still requires exact scaling and copied-byte counters,
 non-empty stateful DEFLATE through `roc-deflate`, stream dictionary integration
-fixtures, balanced-tree stress over thousands of pages, shared and owned
-retention tests against actual backing allocations, cross-system hash
+fixtures, stress for the remaining balanced-tree kinds, cross-system hash
 evidence, and the pinned Arlington and strict-parser validators. Non-empty
-resource and compression plans must extend the current blank-plan output-bound
-proof with checked payload bounds.
+compression plans must extend the current structural output-bound proof with a
+checked compressor bound.

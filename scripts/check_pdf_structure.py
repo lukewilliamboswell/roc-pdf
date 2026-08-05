@@ -188,22 +188,52 @@ def validate_page_tree(bodies: dict[int, bytes], root: int, expected_pages: int)
     return seen_pages
 
 
-def expected_blank_identifier(bodies: dict[int, bytes], pages: set[int]) -> bytes:
+def expected_identifier(bodies: dict[int, bytes], pages: set[int]) -> bytes:
     media_boxes = {
         match.group(1)
         for page in pages
         for match in [re.search(rb"/MediaBox \[0 0 ([0-9]+ [0-9]+)\]", bodies[page])]
         if match is not None
     }
-    require(len(media_boxes) == 1, "blank pages do not share one supported media box")
+    require(len(media_boxes) == 1, "pages do not share one supported media box")
     media_box = next(iter(media_boxes))
     if media_box == b"595 842":
         size_code = b"\x00"
     elif media_box == b"612 792":
         size_code = b"\x01"
     else:
-        raise ValidationError(f"unsupported blank media box {media_box!r}")
-    facts = b"roc-pdf:document-id:v1\x00blank\x00" + len(pages).to_bytes(8, "big") + size_code
+        raise ValidationError(f"unsupported media box {media_box!r}")
+
+    content_payloads: list[bytes | None] = []
+    for page in pages:
+        content_object = dictionary_ref(bodies[page], b"Contents")
+        body = bodies.get(content_object)
+        require(body is not None, f"missing content stream {content_object}")
+        marker_offset = body.find(b"stream\n")
+        require(marker_offset >= 0, f"content object {content_object} is not a stream")
+        dictionary = body[:marker_offset]
+        length_object = dictionary_ref(dictionary, b"Length")
+        _, data = stream_parts(body, indirect_length(bodies, length_object))
+        if b"/Filter /FlateDecode" in dictionary:
+            try:
+                decoded = zlib.decompress(data)
+            except zlib.error as error:
+                raise ValidationError(f"content stream {content_object} has invalid zlib DEFLATE: {error}") from error
+            require(decoded == b"", f"compressed content stream {content_object} is not empty")
+            content_payloads.append(None)
+        else:
+            content_payloads.append(data)
+
+    prefix = b"roc-pdf:document-id:v1\x00"
+    if all(payload is None for payload in content_payloads):
+        identity = b"blank"
+    else:
+        require(all(payload is not None for payload in content_payloads), "mixed content identity modes")
+        unchanged = [payload for payload in content_payloads if payload is not None]
+        require(len(set(unchanged)) == 1, "unchanged content streams do not share one identity")
+        identity = b"unchanged-content\x00" + hashlib.sha256(unchanged[0]).digest()
+
+    facts = prefix + identity + b"\x00" + len(pages).to_bytes(8, "big") + size_code
     return hashlib.sha256(facts).digest()
 
 
@@ -224,7 +254,7 @@ def validate_pdf(pdf: bytes, expected_pages: int) -> None:
     require(b"/Type /Catalog" in root_body, "xref /Root is not a catalog")
     pages = dictionary_ref(root_body, b"Pages")
     page_objects = validate_page_tree(bodies, pages, expected_pages)
-    require(file_identifier == expected_blank_identifier(bodies, page_objects), "file identifier does not match normalized plan facts")
+    require(file_identifier == expected_identifier(bodies, page_objects), "file identifier does not match normalized plan facts")
 
 
 def self_test() -> None:

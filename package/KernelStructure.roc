@@ -1,9 +1,13 @@
 import KernelObject
 import KernelSeal
+import KernelSha256
+
+ContentPlan : [EmptyGenerated, Unchanged(List(U8))]
 
 KernelStructure :: [].{
 	PageSize := [A4, Letter]
 	Error : [
+		IdentityInputTooLarge,
 		Object(KernelObject.Error),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : U64 }),
 		PageCountZero,
@@ -13,6 +17,7 @@ KernelStructure :: [].{
 	]
 
 	Plan :: {
+		identity : [Blank, UnchangedContentDigest(List(U8))],
 		output_bound : U64,
 		page_count : U64,
 		page_size : PageSize,
@@ -21,6 +26,9 @@ KernelStructure :: [].{
 		tree_nodes : U64,
 		xref_object : KernelObject.ObjectId,
 	}.{
+		identity : Plan -> [Blank, UnchangedContentDigest(List(U8))]
+		identity = |plan| plan.identity
+
 		object_count : Plan -> U64
 		object_count = |plan| KernelSeal.Plan.counts(plan.sealed).objects
 
@@ -32,6 +40,18 @@ KernelStructure :: [].{
 
 		page_size : Plan -> PageSize
 		page_size = |plan| plan.page_size
+
+		release_payload_bytes : Plan, KernelObject.PayloadId -> Plan
+		release_payload_bytes = |plan, payload| Plan.{
+			identity: plan.identity,
+			output_bound: plan.output_bound,
+			page_count: plan.page_count,
+			page_size: plan.page_size,
+			root: plan.root,
+			sealed: KernelSeal.Plan.release_payload_bytes(plan.sealed, payload),
+			tree_nodes: plan.tree_nodes,
+			xref_object: plan.xref_object,
+		}
 
 		root : Plan -> KernelObject.ObjectId
 		root = |plan| plan.root
@@ -53,9 +73,12 @@ KernelStructure :: [].{
 		} else if page_count > max_pages {
 			Err(PageLimitExceeded({ attempted: page_count, limit: max_pages }))
 		} else {
-			build_nonempty(page_count, page_size)
+			build_nonempty(page_count, page_size, EmptyGenerated)
 		}
 	}
+
+	build_unchanged_stream_probe : List(U8) -> Try(Plan, Error)
+	build_unchanged_stream_probe = |bytes| build_nonempty(1, A4, Unchanged(bytes))
 }
 
 max_pages : U64
@@ -70,9 +93,15 @@ TreeShape : {
 	nodes : U64,
 }
 
-build_nonempty : U64, KernelStructure.PageSize -> Try(KernelStructure.Plan, KernelStructure.Error)
-build_nonempty = |page_count, page_size| {
-	output_bound = blank_output_bound(page_count)?
+build_nonempty : U64, KernelStructure.PageSize, ContentPlan -> Try(KernelStructure.Plan, KernelStructure.Error)
+build_nonempty = |page_count, page_size, content_plan| {
+	payload_bytes = content_plan_bytes(content_plan).len()
+	payload_total = checked_times(page_count, payload_bytes)?
+	output_bound = checked_add(blank_output_bound(page_count)?, payload_total)?
+	identity = match content_plan {
+		EmptyGenerated => Blank
+		Unchanged(bytes) => UnchangedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
+	}
 	shape = build_tree_shape(page_count)?
 	leaf_count = list_at(shape.level_counts, shape.level_counts.len() - 1)
 	object_limit = checked_add(checked_linear(page_count, 3, 1)?, shape.nodes)?
@@ -90,7 +119,7 @@ build_nonempty = |page_count, page_size| {
 		max_name_bytes: 128,
 		max_names: 10,
 		max_objects: object_limit,
-		max_payload_bytes: 0,
+		max_payload_bytes: payload_total,
 		max_payloads: page_count,
 		max_streams: page_count,
 		max_text_string_bytes: 0,
@@ -154,6 +183,7 @@ build_nonempty = |page_count, page_size| {
 		parents.builder,
 		shape,
 		page_count,
+		content_plan,
 		{
 			contents: contents_name.id,
 			media_box: media_box_name.id,
@@ -173,6 +203,7 @@ build_nonempty = |page_count, page_size| {
 
 	Ok(
 		KernelStructure.Plan.{
+			identity,
 			output_bound,
 			page_count,
 			page_size,
@@ -346,8 +377,8 @@ add_leaf_parent_references = |builder, shape| {
 	add_object_references(builder, first_leaf, leaf_count, 1)
 }
 
-add_pages : KernelObject.Builder, TreeShape, U64, PageFacts -> Try(KernelObject.Builder, KernelStructure.Error)
-add_pages = |builder, shape, page_count, facts| {
+add_pages : KernelObject.Builder, TreeShape, U64, ContentPlan, PageFacts -> Try(KernelObject.Builder, KernelStructure.Error)
+add_pages = |builder, shape, page_count, content_plan, facts| {
 	var $builder = builder
 	var $index = 0
 	var $error = NoError
@@ -382,11 +413,15 @@ add_pages = |builder, shape, page_count, facts| {
 					Ok(page_object) => if KernelObject.ObjectId.number(page_object.id) != page_number {
 						$error = Invalid(ObjectOrder({ actual: page_object.id, expected: page_number }))
 					} else {
-						match KernelObject.add_payload(page_object.builder, [], Generated) {
+						{ bytes, filter, kind } = match content_plan {
+							EmptyGenerated => { bytes: [], filter: Deflate, kind: Generated }
+							Unchanged(source) => { bytes: source, filter: Unfiltered, kind: UnchangedResource }
+						}
+						match KernelObject.add_payload(page_object.builder, bytes, kind) {
 							Err(error) => {
 								$error = Invalid(Object(error))
 							}
-							Ok(payload) => match KernelObject.add_stream_object(payload.builder, [], Deflate, payload.id) {
+							Ok(payload) => match KernelObject.add_stream_object(payload.builder, [], filter, payload.id) {
 								Err(error) => {
 									$error = Invalid(Object(error))
 								}
@@ -513,6 +548,12 @@ blank_fixed_bytes_bound = 4096
 blank_output_bound : U64 -> Try(U64, KernelStructure.Error)
 blank_output_bound = |page_count| checked_add(checked_times(page_count, blank_bytes_per_page_bound)?, blank_fixed_bytes_bound)
 
+content_plan_bytes : ContentPlan -> List(U8)
+content_plan_bytes = |content_plan| match content_plan {
+	EmptyGenerated => []
+	Unchanged(bytes) => bytes
+}
+
 ## One blank page lowers to catalog, pages, page, stream, and length objects.
 expect {
 	plan = KernelStructure.build_blank(1, A4)?
@@ -595,3 +636,21 @@ expect match KernelStructure.build_blank(max_pages + 1, A4) {
 
 ## The maximum accepted plan fixes a checked pre-emission output bound.
 expect blank_output_bound(max_pages) == Ok(1073745920)
+
+## An unchanged stream extends the sealed bound and identity without copying its bytes.
+expect {
+	bytes = [37, 32, 114, 101, 115, 111, 117, 114, 99, 101, 10]
+	plan = KernelStructure.build_unchanged_stream_probe(bytes)?
+	store = KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan))
+	payload = list_at(store.payloads, 0)
+	stream = list_at(store.streams, 0)
+
+	KernelStructure.Plan.output_bound(plan) == blank_output_bound(1)? + bytes.len() and
+		payload.bytes == bytes and
+			payload.kind == UnchangedResource and
+				stream.filter == Unfiltered and
+					match KernelStructure.Plan.identity(plan) {
+						UnchangedContentDigest(digest) => digest.len() == 32
+						Blank => False
+					}
+}
