@@ -1,0 +1,43 @@
+# Gate 1 shared balanced shape
+
+## Representation rule
+
+`KernelBalanced.Shape` is the shared topology for Gate 1 balanced structures.
+It always uses a maximum fanout of 32 and left-packed breadth-first levels.
+There is no flat-to-balanced size threshold: one item creates a root leaf, and
+the 33rd item creates a root above two leaves. Tree-specific lowerers retain
+their own ordering, key, `Limits`, `Count`, and object-numbering policy instead
+of placing PDF semantics in the shared shape.
+
+The opaque shape stores only the accepted item count, one node count and offset
+per level, and the total node count. It does not store per-item or per-node
+child ranges. Accessors derive a node's contiguous child-node and descendant-
+item spans arithmetically from the sealed shape. The shape builder rejects zero
+items and the caller's explicit item limit before allocating level storage;
+node-offset accumulation is checked `U64` arithmetic.
+
+## Page-tree integration evidence
+
+The page-tree lowerer now consumes the shared shape rather than maintaining a
+second topology implementation. Its PDF-specific work remains separate:
+object numbering, parent references, descendant `/Count` values, `/Kids`
+arrays, and checked object-store limits are all derived during structural
+lowering.
+
+Focused tests cover one item, the 33-item depth transition, the 4,096-item
+stress shape, zero and over-limit failures, and the maximum accepted 1,048,576-
+item shape. The maximum has level counts `[1, 32, 1024, 32768]` and exactly
+33,825 nodes.
+
+The pinned optimized 4,096-page whole-pipeline fixture remains byte-identical:
+1,084,927 bytes with SHA-256
+`bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`.
+Its exact 113,795 allocations and all page, node, object, value, edge,
+reference, and emitted-byte counters are unchanged. This demonstrates that the
+opaque accessor boundary adds neither output work nor retained allocation to
+the existing page path.
+
+This slice establishes only the reusable topology and its page-tree use. Name,
+number, ID, ParentTree, and outline ordering and node representations require
+their own builders and evidence before the balanced-builder capability is
+complete.

@@ -10,10 +10,11 @@ media boxes, empty resource dictionaries, contents, parent links, descendant
 counts, and generation-zero references are all represented through the same
 checked flat stores used by the generic kernel.
 
-The page tree uses a fixed fanout of 32 and a left-packed partition. Every leaf
-is at the same depth; each non-root node and page has an explicit parent; and
-each node records its exact descendant page count. The explicit package limit
-is checked before shape or store allocation.
+The page tree consumes the shared opaque `KernelBalanced.Shape`: fixed fanout
+32, left-packed breadth-first levels, and no flat-to-balanced threshold. Every
+leaf is at the same depth; each non-root node and page has an explicit parent;
+and each node records its exact descendant page count. The explicit package
+limit is checked before shape or store allocation.
 
 ## Representation and traversal
 
@@ -35,14 +36,14 @@ The lowerer does not materialize serialized objects, compressed streams, xref
 bytes, or a list of per-page object lists. It produces the compact replayable
 sealed plan consumed by the forthcoming shared emission transition.
 
-## Evidence still required
+## Evidence
 
 Focused Roc tests cover the single-node tree, the 33-page depth transition, and
 a deterministic 4,096-page shape. The independent byte checker recursively
 walks `/Kids`, `/Parent`, and `/Count` and rejects cycles, unreachable nodes,
 mixed child kinds, and fanout violations.
 
-The pinned optimized 4,096-page whole-pipeline fixture records exactly 113,794
+The pinned optimized 4,096-page whole-pipeline fixture records exactly 113,795
 Roc allocations, 133 tree nodes, 12,422 objects, 17,186 values, 4,232 array
 edges, 21,013 dictionary edges, 25,245 total builder edges, 8,585 checked
 references, and 1,084,927 emitted-byte visits. Its exact output hash is
@@ -52,7 +53,8 @@ fixture exposed dynamic-shift code generation that corrupted runtime `U64`
 byte emission; fixed-position shifts now make both offsets and identifier facts
 correct for non-constant large plans.
 
-Gate 1 completion still requires broader reusable builders for the other
-required tree kinds, retained-memory evidence, and the remaining external
-validators. CI must confirm the checked-in allocation count and hash on x64
-Linux before the cross-system evidence is complete.
+The same allocation count, hash, counters, and independent structure checks run
+on x64musl CI. Gate 1 completion still requires tree-specific builders for the
+other required kinds and the remaining external validators. Unchanged-resource
+retention evidence is recorded separately in
+`gate-1-resource-retention.md`.

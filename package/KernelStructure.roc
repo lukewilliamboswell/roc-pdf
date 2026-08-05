@@ -1,3 +1,4 @@
+import KernelBalanced
 import KernelObject
 import KernelSeal
 import KernelSha256
@@ -14,6 +15,7 @@ KernelStructure :: [].{
 		PageLimitExceeded({ attempted : U64, limit : U64 }),
 		PlanSizeOverflow,
 		Seal(KernelSeal.Error),
+		Shape(KernelBalanced.Error),
 	]
 
 	Plan :: {
@@ -84,15 +86,6 @@ KernelStructure :: [].{
 max_pages : U64
 max_pages = 1048576
 
-page_tree_fanout : U64
-page_tree_fanout = 32
-
-TreeShape : {
-	level_counts : List(U64),
-	level_offsets : List(U64),
-	nodes : U64,
-}
-
 build_nonempty : U64, KernelStructure.PageSize, ContentPlan -> Try(KernelStructure.Plan, KernelStructure.Error)
 build_nonempty = |page_count, page_size, content_plan| {
 	payload_bytes = content_plan_bytes(content_plan).len()
@@ -102,12 +95,14 @@ build_nonempty = |page_count, page_size, content_plan| {
 		EmptyGenerated => Blank
 		Unchanged(bytes) => UnchangedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
 	}
-	shape = build_tree_shape(page_count)?
-	leaf_count = list_at(shape.level_counts, shape.level_counts.len() - 1)
-	object_limit = checked_add(checked_linear(page_count, 3, 1)?, shape.nodes)?
-	value_limit = checked_add(checked_add(checked_linear(page_count, 4, 9)?, checked_linear(shape.nodes, 5, 0)?)?, leaf_count)?
-	dictionary_limit = checked_add(checked_linear(page_count, 5, 1)?, checked_linear(shape.nodes, 4, 0)?)?
-	array_limit = checked_add(checked_add(page_count, shape.nodes)?, 3)?
+	shape = KernelBalanced.Shape.build(page_count, max_pages) ? Shape
+	leaf_level = KernelBalanced.Shape.leaf_level(shape)
+	leaf_count = KernelBalanced.Shape.level_node_count(shape, leaf_level)
+	node_count = KernelBalanced.Shape.node_count(shape)
+	object_limit = checked_add(checked_linear(page_count, 3, 1)?, node_count)?
+	value_limit = checked_add(checked_add(checked_linear(page_count, 4, 9)?, checked_linear(node_count, 5, 0)?)?, leaf_count)?
+	dictionary_limit = checked_add(checked_linear(page_count, 5, 1)?, checked_linear(node_count, 4, 0)?)?
+	array_limit = checked_add(checked_add(page_count, node_count)?, 3)?
 
 	limits : KernelObject.Limits
 	limits = {
@@ -157,7 +152,6 @@ build_nonempty = |page_count, page_size, content_plan| {
 	page_tree = add_page_tree_nodes(
 		catalog_object.builder,
 		shape,
-		page_count,
 		{
 			count: count_name.id,
 			kids: kids_name.id,
@@ -209,7 +203,7 @@ build_nonempty = |page_count, page_size, content_plan| {
 			page_size,
 			root: catalog_object.id,
 			sealed,
-			tree_nodes: shape.nodes,
+			tree_nodes: node_count,
 			xref_object,
 		},
 	)
@@ -235,45 +229,16 @@ PageTreeFacts : {
 	type_name : KernelObject.NameId,
 }
 
-build_tree_shape : U64 -> Try(TreeShape, KernelStructure.Error)
-build_tree_shape = |page_count| {
-	var $bottom_counts = [ceil_div(page_count, page_tree_fanout)?]
-	var $current = list_at($bottom_counts, 0)
-	while $current > 1 {
-		$current = ceil_div($current, page_tree_fanout)?
-		$bottom_counts = $bottom_counts.append($current)
-	}
-
-	level_count = $bottom_counts.len()
-	var $level_counts = List.with_capacity(level_count)
-	var $reverse_index = level_count
-	while $reverse_index > 0 {
-		$reverse_index = $reverse_index - 1
-		$level_counts = $level_counts.append(list_at($bottom_counts, $reverse_index))
-	}
-
-	var $level_offsets = List.with_capacity(level_count)
-	var $nodes = 0
-	var $index = 0
-	while $index < level_count {
-		$level_offsets = $level_offsets.append($nodes)
-		$nodes = checked_add($nodes, list_at($level_counts, $index))?
-		$index = $index + 1
-	}
-
-	Ok({ level_counts: $level_counts, level_offsets: $level_offsets, nodes: $nodes })
-}
-
-add_page_tree_nodes : KernelObject.Builder, TreeShape, U64, PageTreeFacts -> Try(KernelObject.Builder, KernelStructure.Error)
-add_page_tree_nodes = |builder, shape, page_count, facts| {
+add_page_tree_nodes : KernelObject.Builder, KernelBalanced.Shape, PageTreeFacts -> Try(KernelObject.Builder, KernelStructure.Error)
+add_page_tree_nodes = |builder, shape, facts| {
 	var $builder = builder
 	var $level = 0
 	var $error = NoError
-	while $level < shape.level_counts.len() and $error == NoError {
-		level_nodes = list_at(shape.level_counts, $level)
+	while $level < KernelBalanced.Shape.level_count(shape) and $error == NoError {
+		level_nodes = KernelBalanced.Shape.level_node_count(shape, $level)
 		var $node = 0
 		while $node < level_nodes and $error == NoError {
-			match add_page_tree_node($builder, shape, page_count, facts, $level, $node) {
+			match add_page_tree_node($builder, shape, facts, $level, $node) {
 				Err(error) => {
 					$error = Invalid(error)
 				}
@@ -292,23 +257,26 @@ add_page_tree_nodes = |builder, shape, page_count, facts| {
 	}
 }
 
-add_page_tree_node : KernelObject.Builder, TreeShape, U64, PageTreeFacts, U64, U64 -> Try(KernelObject.Builder, KernelStructure.Error)
-add_page_tree_node = |builder, shape, page_count, facts, level, node| {
-	is_leaf = level + 1 == shape.level_counts.len()
-	child_start = checked_linear(node, page_tree_fanout, 0)?
-	available = if is_leaf page_count else list_at(shape.level_counts, level + 1)
-	child_count = bounded_count(child_start, available, page_tree_fanout)
+add_page_tree_node : KernelObject.Builder, KernelBalanced.Shape, PageTreeFacts, U64, U64 -> Try(KernelObject.Builder, KernelStructure.Error)
+add_page_tree_node = |builder, shape, facts, level, node| {
+	is_leaf = level == KernelBalanced.Shape.leaf_level(shape)
+	child_span = if is_leaf {
+		KernelBalanced.Shape.item_span(shape, level, node)
+	} else {
+		KernelBalanced.Shape.child_span(shape, level, node)
+	}
+	child_start = KernelBalanced.Span.start(child_span)
+	child_count = KernelBalanced.Span.length(child_span)
 	first_child = if is_leaf {
 		page_object_number(shape, child_start)?
 	} else {
-		node_object_number(shape, level + 1, child_start)?
+		checked_add(2, child_start)?
 	}
 	stride = if is_leaf 3 else 1
 	children = add_object_references(builder, first_child, child_count, stride)?
 	kids = KernelObject.add_array(children.builder, children.values) ? Object
-	page_capacity = node_page_capacity(shape.level_counts.len(), level)?
-	page_start = checked_linear(node, page_capacity, 0)?
-	descendants = bounded_count(page_start, page_count, page_capacity)
+	item_span = KernelBalanced.Shape.item_span(shape, level, node)
+	descendants = KernelBalanced.Span.length(item_span)
 	count = KernelObject.add_integer(kids.builder, descendants.to_i64_wrap()) ? Object
 
 	with_dictionary = if level == 0 {
@@ -321,7 +289,7 @@ add_page_tree_node = |builder, shape, page_count, facts, level, node| {
 			],
 		) ? Object
 	} else {
-		parent_index = U64.div_by(node, page_tree_fanout)
+		parent_index = U64.div_by(node, KernelBalanced.Shape.fanout)
 		parent_number = node_object_number(shape, level - 1, parent_index)?
 		parent_object = KernelObject.ObjectId.from_number(parent_number) ? Object
 		parent = KernelObject.add_reference(count.builder, parent_object) ? Object
@@ -369,15 +337,15 @@ add_object_references = |builder, first_number, count, stride| {
 	}
 }
 
-add_leaf_parent_references : KernelObject.Builder, TreeShape -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelStructure.Error)
+add_leaf_parent_references : KernelObject.Builder, KernelBalanced.Shape -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelStructure.Error)
 add_leaf_parent_references = |builder, shape| {
-	leaf_level = shape.level_counts.len() - 1
-	leaf_count = list_at(shape.level_counts, leaf_level)
+	leaf_level = KernelBalanced.Shape.leaf_level(shape)
+	leaf_count = KernelBalanced.Shape.level_node_count(shape, leaf_level)
 	first_leaf = node_object_number(shape, leaf_level, 0)?
 	add_object_references(builder, first_leaf, leaf_count, 1)
 }
 
-add_pages : KernelObject.Builder, TreeShape, U64, ContentPlan, PageFacts -> Try(KernelObject.Builder, KernelStructure.Error)
+add_pages : KernelObject.Builder, KernelBalanced.Shape, U64, ContentPlan, PageFacts -> Try(KernelObject.Builder, KernelStructure.Error)
 add_pages = |builder, shape, page_count, content_plan, facts| {
 	var $builder = builder
 	var $index = 0
@@ -385,7 +353,7 @@ add_pages = |builder, shape, page_count, content_plan, facts| {
 	while $index < page_count and $error == NoError {
 		page_number = page_object_number(shape, $index)?
 		content_number = checked_add(page_number, 1)?
-		leaf_index = U64.div_by($index, page_tree_fanout)
+		leaf_index = U64.div_by($index, KernelBalanced.Shape.fanout)
 		parent_value = list_at(facts.parent_values, leaf_index)
 
 		content_object = KernelObject.ObjectId.from_number(content_number) ? Object
@@ -445,42 +413,11 @@ add_pages = |builder, shape, page_count, content_plan, facts| {
 	}
 }
 
-node_object_number : TreeShape, U64, U64 -> Try(U64, KernelStructure.Error)
-node_object_number = |shape, level, index| checked_add(checked_add(2, list_at(shape.level_offsets, level))?, index)
+node_object_number : KernelBalanced.Shape, U64, U64 -> Try(U64, KernelStructure.Error)
+node_object_number = |shape, level, index| checked_add(checked_add(2, KernelBalanced.Shape.level_offset(shape, level))?, index)
 
-page_object_number : TreeShape, U64 -> Try(U64, KernelStructure.Error)
-page_object_number = |shape, index| checked_linear(index, 3, checked_add(2, shape.nodes)?)
-
-node_page_capacity : U64, U64 -> Try(U64, KernelStructure.Error)
-node_page_capacity = |levels, level| {
-	remaining = levels - level
-	var $capacity = 1
-	var $index = 0
-	while $index < remaining {
-		$capacity = checked_linear($capacity, page_tree_fanout, 0)?
-		$index = $index + 1
-	}
-	Ok($capacity)
-}
-
-bounded_count : U64, U64, U64 -> U64
-bounded_count = |start, available, limit|
-	if start >= available {
-		0
-	} else {
-		remaining = available - start
-		if remaining < limit remaining else limit
-	}
-
-ceil_div : U64, U64 -> Try(U64, KernelStructure.Error)
-ceil_div = |value, divisor| {
-	quotient = U64.div_by(value, divisor)
-	if U64.mod_by(value, divisor) == 0 {
-		Ok(quotient)
-	} else {
-		checked_add(quotient, 1)
-	}
-}
+page_object_number : KernelBalanced.Shape, U64 -> Try(U64, KernelStructure.Error)
+page_object_number = |shape, index| checked_linear(index, 3, checked_add(2, KernelBalanced.Shape.node_count(shape))?)
 
 list_at : List(a), U64 -> a
 list_at = |list, index| match list.get(index) {
