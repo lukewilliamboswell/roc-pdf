@@ -32,6 +32,7 @@ KernelGate2Objects :: [].{
 
 	Work : {
 		color_space_objects : U64,
+		contextual_artifact_objects : U64,
 		image_objects : U64,
 		namespace_objects : U64,
 		object_identities : U64,
@@ -45,6 +46,7 @@ KernelGate2Objects :: [].{
 	Plan :: {
 		catalog : KernelObject.ObjectId,
 		color_spaces : List(KernelObject.ObjectId),
+		contextual_artifacts : List(KernelObject.ObjectId),
 		images : List(ImageObjects),
 		namespaces : List(KernelObject.ObjectId),
 		pages : List(PageObjects),
@@ -60,8 +62,44 @@ KernelGate2Objects :: [].{
 		build : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.Plan, KernelContent.Plan, Limits -> Try(Plan, Error)
 		build = |tagged, colors, images, resource_use, content, limits| build_plan(tagged, colors, images, resource_use, content, limits)
 
+		catalog : Plan -> KernelObject.ObjectId
+		catalog = |plan| plan.catalog
+
+		color_spaces : Plan -> List(KernelObject.ObjectId)
+		color_spaces = |plan| plan.color_spaces
+
+		contextual_artifacts : Plan -> List(KernelObject.ObjectId)
+		contextual_artifacts = |plan| plan.contextual_artifacts
+
+		images : Plan -> List(ImageObjects)
+		images = |plan| plan.images
+
+		namespaces : Plan -> List(KernelObject.ObjectId)
+		namespaces = |plan| plan.namespaces
+
 		object_count : Plan -> U64
 		object_count = |plan| plan.work.object_identities
+
+		pages : Plan -> List(PageObjects)
+		pages = |plan| plan.pages
+
+		page_tree : Plan -> List(KernelObject.ObjectId)
+		page_tree = |plan| plan.page_tree
+
+		page_tree_shape : Plan -> KernelBalanced.Shape
+		page_tree_shape = |plan| plan.page_tree_shape
+
+		parent_tree : Plan -> KernelObject.ObjectId
+		parent_tree = |plan| plan.parent_tree
+
+		profiles : Plan -> List(ProfileObjects)
+		profiles = |plan| plan.profiles
+
+		struct_tree_root : Plan -> KernelObject.ObjectId
+		struct_tree_root = |plan| plan.struct_tree_root
+
+		structure_elements : Plan -> List(KernelObject.ObjectId)
+		structure_elements = |plan| plan.structure_elements
 
 		work : Plan -> Work
 		work = |plan| plan.work
@@ -73,6 +111,7 @@ KernelGate2Objects :: [].{
 
 ObjectCounts := {
 	color_spaces : U64,
+	contextual_artifacts : U64,
 	image_alpha : List(Bool),
 	namespaces : U64,
 	pages : U64,
@@ -99,6 +138,7 @@ build_plan = |tagged, colors, images, resource_use, content, limits| {
 		build_counts(
 			{
 				color_spaces: color_count,
+				contextual_artifacts: semantic_store.contextual_artifacts.len(),
 				image_alpha: alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -140,7 +180,7 @@ build_counts = |counts, limits| {
 		page_tree_count = KernelBalanced.Shape.node_count(shape)
 		alpha_count = count_true(counts.image_alpha)
 		fixed_count = checked_add(3, counts.namespaces)?
-		structure_end = checked_add(fixed_count, counts.structure_elements)?
+		structure_end = checked_add(checked_add(fixed_count, counts.structure_elements)?, counts.contextual_artifacts)?
 		page_tree_end = checked_add(structure_end, page_tree_count)?
 		page_object_count = checked_times(counts.pages, 3)?
 		pages_end = checked_add(page_tree_end, page_object_count)?
@@ -160,7 +200,9 @@ build_counts = |counts, limits| {
 			namespaces = object_ids(4, counts.namespaces)
 			structure_start = checked_add(4, counts.namespaces)?
 			structure_elements = object_ids(structure_start, counts.structure_elements)
-			page_tree_start = checked_add(structure_start, counts.structure_elements)?
+			contextual_start = checked_add(structure_start, counts.structure_elements)?
+			contextual_artifacts = object_ids(contextual_start, counts.contextual_artifacts)
+			page_tree_start = checked_add(contextual_start, counts.contextual_artifacts)?
 			page_tree = object_ids(page_tree_start, page_tree_count)
 			pages_start = checked_add(page_tree_start, page_tree_count)?
 			pages = page_rows(pages_start, counts.pages)
@@ -175,6 +217,7 @@ build_counts = |counts, limits| {
 				KernelGate2Objects.Plan.{
 					catalog,
 					color_spaces,
+					contextual_artifacts,
 					images,
 					namespaces,
 					pages,
@@ -186,6 +229,7 @@ build_counts = |counts, limits| {
 					structure_elements,
 					work: {
 						color_space_objects: counts.color_spaces,
+						contextual_artifact_objects: counts.contextual_artifacts,
 						image_objects: base_image_objects,
 						namespace_objects: counts.namespaces,
 						object_identities: object_count,
@@ -303,8 +347,8 @@ list_at = |items, index| match items.get(index) {
 ## Object families receive stable contiguous identities, including alpha masks.
 expect {
 	plan = build_counts(
-		{ color_spaces: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
-		KernelGate2Objects.Limits.make({ max_objects: 19, max_pages: 1 }),
+		{ color_spaces: 1, contextual_artifacts: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
+		KernelGate2Objects.Limits.make({ max_objects: 20, max_pages: 1 }),
 	)?
 	first_page = list_at(plan.pages, 0)
 	profile = list_at(plan.profiles, 0)
@@ -316,44 +360,45 @@ expect {
 				KernelObject.ObjectId.number(list_at(plan.namespaces, 0)) == 4 and
 					KernelObject.ObjectId.number(list_at(plan.structure_elements, 0)) == 5 and
 						KernelObject.ObjectId.number(list_at(plan.structure_elements, 1)) == 6 and
-							KernelObject.ObjectId.number(list_at(plan.page_tree, 0)) == 7 and
-								KernelObject.ObjectId.number(first_page.page) == 8 and
-									KernelObject.ObjectId.number(first_page.content.stream) == 9 and
-										KernelObject.ObjectId.number(first_page.content.length) == 10 and
-											KernelObject.ObjectId.number(profile.profile) == 11 and
-												KernelObject.ObjectId.number(profile.stream.length) == 12 and
-													KernelObject.ObjectId.number(list_at(plan.color_spaces, 0)) == 13 and
-														KernelObject.ObjectId.number(first_image.image.stream) == 14 and
-															first_image.soft_mask == NoSoftMask and
-																KernelObject.ObjectId.number(second_image.image.stream) == 16 and
-																	match second_image.soft_mask {
-																		HasSoftMask(mask) => KernelObject.ObjectId.number(mask.stream) == 18 and KernelObject.ObjectId.number(mask.length) == 19 and KernelObject.ObjectId.number(plan.xref) == 20
-																		NoSoftMask => False
-																	}
+							KernelObject.ObjectId.number(list_at(plan.contextual_artifacts, 0)) == 7 and
+								KernelObject.ObjectId.number(list_at(plan.page_tree, 0)) == 8 and
+									KernelObject.ObjectId.number(first_page.page) == 9 and
+										KernelObject.ObjectId.number(first_page.content.stream) == 10 and
+											KernelObject.ObjectId.number(first_page.content.length) == 11 and
+												KernelObject.ObjectId.number(profile.profile) == 12 and
+													KernelObject.ObjectId.number(profile.stream.length) == 13 and
+														KernelObject.ObjectId.number(list_at(plan.color_spaces, 0)) == 14 and
+															KernelObject.ObjectId.number(first_image.image.stream) == 15 and
+																first_image.soft_mask == NoSoftMask and
+																	KernelObject.ObjectId.number(second_image.image.stream) == 17 and
+																		match second_image.soft_mask {
+																			HasSoftMask(mask) => KernelObject.ObjectId.number(mask.stream) == 19 and KernelObject.ObjectId.number(mask.length) == 20 and KernelObject.ObjectId.number(plan.xref) == 21
+																			NoSoftMask => False
+																		}
 }
 
 ## Object work separates stored objects from the generated xref object.
 expect {
 	plan = build_counts(
-		{ color_spaces: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
-		KernelGate2Objects.Limits.make({ max_objects: 19, max_pages: 1 }),
+		{ color_spaces: 1, contextual_artifacts: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
+		KernelGate2Objects.Limits.make({ max_objects: 20, max_pages: 1 }),
 	)?
 	work = KernelGate2Objects.Plan.work(plan)
-	work.object_identities == 19 and work.page_objects == 3 and work.page_tree_objects == 1 and work.profile_objects == 2 and work.image_objects == 4 and work.soft_mask_objects == 2 and work.structure_objects == 2
+	work.object_identities == 20 and work.page_objects == 3 and work.page_tree_objects == 1 and work.profile_objects == 2 and work.image_objects == 4 and work.soft_mask_objects == 2 and work.structure_objects == 2 and work.contextual_artifact_objects == 1
 }
 
 ## Object limits reject the whole plan before any builder mutation.
 expect match build_counts(
-	{ color_spaces: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
-	KernelGate2Objects.Limits.make({ max_objects: 18, max_pages: 1 }),
+	{ color_spaces: 1, contextual_artifacts: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
+	KernelGate2Objects.Limits.make({ max_objects: 19, max_pages: 1 }),
 ) {
-	Err(LimitExceeded({ attempted: 19, dimension: Objects, limit: 18 })) => True
+	Err(LimitExceeded({ attempted: 20, dimension: Objects, limit: 19 })) => True
 	_ => False
 }
 
 ## A PDF object plan cannot omit the page-tree root.
 expect match build_counts(
-	{ color_spaces: 0, image_alpha: [], namespaces: 1, pages: 0, profiles: 0, structure_elements: 1 },
+	{ color_spaces: 0, contextual_artifacts: 0, image_alpha: [], namespaces: 1, pages: 0, profiles: 0, structure_elements: 1 },
 	KernelGate2Objects.Limits.make({ max_objects: 8, max_pages: 1 }),
 ) {
 	Err(PageCountZero) => True
