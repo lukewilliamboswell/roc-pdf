@@ -2,11 +2,15 @@
 
 A pure [Roc](https://www.roc-lang.org/) package for generating PDF/UA-2 documents.
 
-This project is implementing the Gate 0 contracts in the feature roadmap. The
-package currently exposes define-only `Pdf`, `Document`, `Theme`,
-`Conformance`, `Semantics`, `Layout`, and `Scene` contracts. Facade
-serialization fails transactionally with a typed capability-unavailable error;
-the project does not yet claim a PDF generation capability.
+The Gate 0 standards, representation, and test contracts are defined and
+cross-host evidenced. The package exposes the high-level `Pdf` facade plus the
+advanced conceptual `Document`, `Semantics`, `Layout`, `Scene`, `Text`, `Font`,
+`Image`, `Color`, `Metadata`, `Encode`, `Conformance`, and `Theme` boundaries.
+PDF object, lowering, and serialization internals are not public.
+
+Gate 1 structural generation is not implemented yet. Facade serialization
+therefore fails transactionally with a typed capability-unavailable error; the
+project does not yet claim a PDF generation capability.
 
 ## Design
 

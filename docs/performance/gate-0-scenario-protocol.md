@@ -43,10 +43,9 @@ This makes a work-only regression observable even when bytes and allocations
 are unchanged. The harness self-test injects one extra allocation and one extra
 work unit independently and proves that both reports are rejected.
 
-The values above were measured on `arm64mac`. The same one-allocation baseline
-is declared for the 64-bit `x64musl` ABI and is enforced when the suite runs on
-that host; Gate 0 should not be reported as cross-host evidenced until that run
-is retained in CI.
+The CI matrix enforces these exact values on native `arm64mac` and 64-bit
+`x64musl` runners. Gate 0 cross-host evidence is accepted only when both jobs
+succeed for the same commit.
 
 ## Complexity and retention
 
