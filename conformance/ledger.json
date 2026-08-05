@@ -15,6 +15,19 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-EMISSION-CANONICAL-POLICY",
+      "summary": "Number, ordering, identifier, escaping, newline, xref, and DEFLATE choices are fixed package-versioned byte policies.",
+      "source_ids": ["deflate-rfc1951", "iso-32000-2-2020-ec3"],
+      "references": ["architecture.md: Deterministic serialization"],
+      "capabilities": ["Pdf20"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "architecture_review",
+      "positive_scenarios": ["examples/advanced_encode_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-FONT-PLAN-BEFORE-SHAPING",
       "summary": "Font selection assigns whole source grapheme clusters to exact validated static instances before shaping.",
       "source_ids": ["opentype-1-9-1", "uax29-r47", "unicode-17-0-0"],
@@ -24,6 +37,19 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
       "positive_scenarios": ["examples/advanced_text_contract.roc"],
+      "negative_scenarios": [],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-METADATA-EXPLICIT-INPUTS",
+      "summary": "Logical metadata requires authored title and language while timestamps and identifiers are explicit or deterministically derived.",
+      "source_ids": ["iso-16684-1-2019", "iso-19005-4-2020", "xml-1-0-fifth-edition"],
+      "references": ["architecture.md: Defaults contract"],
+      "capabilities": ["Pdf20", "StaticPdfA4"],
+      "implementation": "defined_only",
+      "machine_verification": "schema_and_roc_contract",
+      "human_verification": "not_required",
+      "positive_scenarios": ["examples/advanced_encode_contract.roc"],
       "negative_scenarios": [],
       "external_rule_ids": []
     },
