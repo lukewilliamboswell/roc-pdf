@@ -61,8 +61,9 @@ rules or checks for every structural snapshot within its documented object-
 model scope.
 
 Gate 1 completion still requires production compression through `roc-deflate`,
-object lowering for the non-page balanced structures, comprehensive negative
-twins, and cross-system hash evidence. The pinned PDFBox strict-parser lane is
+and object lowering for the non-page balanced structures. The complete atomic
+negative matrix and byte-identical supported-system evidence are recorded in
+`gate-1-negative-determinism.md`; the pinned PDFBox strict-parser lane is
 recorded in `gate-1-pdfbox.md`. The non-empty generated-stream probe now covers
 stream dictionary
 integration, stateful bounded chunks, exact compression work, source release,

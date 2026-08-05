@@ -982,6 +982,69 @@ expect {
 	}
 }
 
+## A lexically invalid name is rejected before assigning an ID or retaining bytes.
+expect {
+	initial = KernelObject.init(test_limits)
+	match KernelObject.add_name(initial, [65, 0, 66]) {
+		Err(Lexical(NullNameByte(index))) => {
+			index == 1 and KernelObject.counts(initial).names == 0
+		}
+		_ => False
+	}
+}
+
+## Aggregate byte limits reject names and both string stores without changing the builder.
+expect {
+	limits = {
+		..test_limits,
+		max_byte_string_bytes: 2,
+		max_name_bytes: 2,
+		max_text_string_bytes: 2,
+	}
+	initial = KernelObject.init(limits)
+	bad_name = KernelObject.add_name(initial, [65, 66, 67])
+	bad_bytes = KernelObject.add_byte_string(initial, [0, 1, 2])
+	bad_text = KernelObject.add_text_string(initial, "abc")
+	counts = KernelObject.counts(initial)
+
+	match bad_name {
+		Err(LimitExceeded({ attempted, dimension: NameBytes, limit })) => attempted == 3 and limit == 2
+		_ => False
+	} and match bad_bytes {
+		Err(LimitExceeded({ attempted, dimension: ByteStringBytes, limit })) => attempted == 3 and limit == 2
+		_ => False
+	} and match bad_text {
+		Err(LimitExceeded({ attempted, dimension: TextStringBytes, limit })) => attempted == 3 and limit == 2
+		_ => False
+	} and counts.names == 0 and counts.byte_strings == 0 and counts.text_strings == 0
+}
+
+## Payload byte limits fail before retaining source bytes or assigning an ID.
+expect {
+	limits = { ..test_limits, max_payload_bytes: 2 }
+	initial = KernelObject.init(limits)
+	match KernelObject.add_payload(initial, [1, 2, 3], Generated) {
+		Err(LimitExceeded({ attempted, dimension: PayloadBytes, limit })) => {
+			attempted == 3 and limit == 2 and KernelObject.counts(initial).payloads == 0
+		}
+		_ => False
+	}
+}
+
+## Count and aggregate-size arithmetic report overflow instead of wrapping.
+expect {
+	count = checked_increment(U64.highest, U64.highest, Objects)
+	total = checked_total(U64.highest, 1, U64.highest, NameBytes)
+
+	match count {
+		Err(Overflow(Objects)) => True
+		_ => False
+	} and match total {
+		Err(Overflow(NameBytes)) => True
+		_ => False
+	}
+}
+
 ## Scalar values obey the same direct-depth limit as containers.
 expect {
 	limits = { ..test_limits, max_direct_depth: 0 }
