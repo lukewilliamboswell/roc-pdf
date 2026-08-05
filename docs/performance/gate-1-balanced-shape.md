@@ -38,6 +38,6 @@ opaque accessor boundary adds neither output work nor retained allocation to
 the existing page path.
 
 This slice establishes only the reusable topology and its page-tree use. Name,
-number, ID, ParentTree, and outline ordering and node representations require
-their own builders and evidence before the balanced-builder capability is
-complete.
+number, ID, and ParentTree rules and evidence are recorded separately in
+`gate-1-balanced-indexes.md`; the outline hierarchy still requires its own
+builder and evidence before the balanced-builder capability is complete.

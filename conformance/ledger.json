@@ -80,6 +80,19 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-INDEX-PLAN",
+      "summary": "Name, ID, number, and ParentTree entries seal into deterministic fixed-fanout plans with exact root, child, ordering, Limits, and earlier-store value rules.",
+      "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],
+      "references": ["ISO 32000-2:2020 7.9.6 Table 36", "ISO 32000-2:2020 7.9.7 Table 37", "architecture.md: Internal PDF object plan"],
+      "capabilities": ["Pdf20"],
+      "implementation": "partial",
+      "machine_verification": "roc_unit_ordering_limits_value_bounds_and_atomic_negative; optimized_four_tree_4096_entry_exact_allocations_and_work; pending_tree_object_lowering_and_external_parser",
+      "human_verification": "not_required",
+      "positive_scenarios": ["package/KernelIndex.roc", "tests/gate1_pages/main.roc"],
+      "negative_scenarios": ["package/KernelIndex.roc"],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-LEXICAL-CANONICAL",
       "summary": "Private PDF lexical emission uses exact canonical booleans, integers, finite fixed-decimal reals, names, byte strings, and Unicode text strings.",
       "source_ids": ["iso-32000-2-2020-ec3"],

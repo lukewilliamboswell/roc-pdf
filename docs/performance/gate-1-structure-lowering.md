@@ -54,7 +54,7 @@ byte emission; fixed-position shifts now make both offsets and identifier facts
 correct for non-constant large plans.
 
 The same allocation count, hash, counters, and independent structure checks run
-on x64musl CI. Gate 1 completion still requires tree-specific builders for the
-other required kinds and the remaining external validators. Unchanged-resource
-retention evidence is recorded separately in
-`gate-1-resource-retention.md`.
+on x64musl CI. Name, ID, number, and ParentTree plans are recorded separately in
+`gate-1-balanced-indexes.md`; the outline hierarchy and remaining external
+validators are still required for Gate 1 completion. Unchanged-resource
+retention evidence is recorded separately in `gate-1-resource-retention.md`.

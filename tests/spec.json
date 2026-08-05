@@ -38,6 +38,21 @@
       "retention": null
     },
     {
+      "name": "Gate 1 balanced index plans",
+      "scenario_revision": "gate1-indexes-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["indexes", "4096"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "entries_per_tree": 4096, "trees": 4 },
+      "work_counters": ["entries", "nodes", "limit_nodes", "leaf_entries", "limit_checksum", "entries_checked", "key_bytes_checked", "ordering_steps", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 117906, "work": [16384, 532, 528, 16384, 2162160, 16384, 32768, 49110, 1084927] },
+        "x64musl": { "allocations": 117906, "work": [16384, 532, 528, 16384, 2162160, 16384, 32768, 49110, 1084927] }
+      },
+      "retention": null
+    },
+    {
       "name": "placeholder PDF x1",
       "scenario_revision": "placeholder-v1",
       "source": "tests/placeholder/main.roc",
