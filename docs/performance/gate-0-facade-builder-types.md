@@ -1,0 +1,39 @@
+# Gate 0 facade, theme, and builder type slice
+
+This record covers the define-only `Pdf`, `Document`, and `Theme` public type
+modules. It does not claim layout, validation, sealing, or PDF emission.
+
+## Representation and ownership contract
+
+- The common facade accepts a simple `List(Document.Block)` authoring value.
+  That list remains an ergonomic front end and will normalize exactly once.
+- `Document.builder` writes block descriptors and text payloads into separate
+  flat buffers. Descriptors carry scalar text IDs or exact ranges; the builder
+  never accumulates a `List(Document.Block)` or a recursive semantic tree.
+- Builder methods consume and return one nominal state. They do not retain an
+  alias to either list across append operations. Bullet string references are
+  transferred by a direct indexed `while` loop rather than a stored `Iter` or
+  adapter chain; string byte payloads are not duplicated.
+- `Theme` is a fixed-shape visual/layout record. It contains typed font IDs,
+  fixed-point sizes and spacing, margins, and colors, but no semantic role,
+  language, metadata, conformance, or serializer policy.
+- `Pdf.Options` carries the exact public profile, page size, theme, and chunk
+  retention policy. WTPDF and PDF/A-4f remain orthogonal to its profile union.
+
+## Complexity and allocation contract
+
+- Adding a scalar-text block is amortized `O(1)` and appends one descriptor and
+  one text reference. Adding `n` bullet items is `O(n)` direct visits and
+  appends one descriptor plus `n` text references.
+- Finishing the builder is `O(1)` and transfers the compact state into the
+  opaque `Document`; it does not rebuild blocks or copy payload strings.
+- No function closure or `Iter` value is stored in a document, builder, theme,
+  or options value.
+- This Gate 0 slice is compile- and unit-tested as a define-only contract.
+  Exact optimized allocation, ARC, copied-byte, shared-input, and scaled-work
+  baselines are required before the compact builder is claimed as the
+  implemented large-document authoring path.
+
+Until Gate 1 is complete, every facade serialization entrypoint returns the
+typed `CapabilityUnavailable(Pdf20Generation)` error and no bytes. This is an
+explicit delivery-state result, not fallback PDF output or a profile downgrade.

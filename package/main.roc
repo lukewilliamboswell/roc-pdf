@@ -1,1 +1,17 @@
-package [Foo] {}
+package
+	[
+		Pdf,
+		Document,
+		Semantics,
+		Layout,
+		Scene,
+		Text,
+		Font,
+		Image,
+		Color,
+		Metadata,
+		Encode,
+		Conformance,
+		Theme,
+	]
+	{}

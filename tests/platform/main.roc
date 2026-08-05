@@ -1,6 +1,6 @@
 platform ""
 	requires {
-		main! : List(Str) => List(U8)
+		main! : List(Str) => { bytes : List(U8), work : List(U64) }
 	}
 	exposes []
 	packages {}
@@ -11,5 +11,5 @@ platform ""
 		x64musl: { inputs: ["crt1.o", "libhost.a", app, "libc.a"] },
 	}
 
-main_for_host! : List(Str) => List(U8)
+main_for_host! : List(Str) => { bytes : List(U8), work : List(U64) }
 main_for_host! = |args| main!(args)

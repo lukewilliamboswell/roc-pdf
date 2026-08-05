@@ -1,16 +1,24 @@
 app [main!] {
 	pf: platform "../platform/main.roc",
-	pdf: "../../package/main.roc",
 }
 
-import pdf.Foo
+import Fixture
 
-main! : List(Str) => List(U8)
+main! : List(Str) => { bytes : List(U8), work : List(U64) }
 main! = |args| {
-	percent_offset = if args.len() == 1 {
-		0
+	passes = if args.len() == 1 {
+		1
 	} else {
-		431
+		4
 	}
-	Foo.placeholder_pdf(percent_offset)
+	bytes = Fixture.placeholder_pdf(0)
+
+	var $pass = 0
+	var $byte_visits = 0
+	while $pass < passes {
+		$byte_visits = $byte_visits + bytes.len()
+		$pass = $pass + 1
+	}
+
+	{ bytes, work: [$pass, $byte_visits] }
 }

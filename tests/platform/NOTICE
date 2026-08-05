@@ -1,5 +1,10 @@
-Portions derived from roc-platform-template-zig:
-https://github.com/lukewilliamboswell/roc-platform-template-zig
+Portions derived from roc-platform-template-zig at revision
+d4db636a2f606edf5ae4803f84588f7a5207d53a:
+https://github.com/lukewilliamboswell/roc-platform-template-zig/tree/d4db636a2f606edf5ae4803f84588f7a5207d53a
+
+The x64musl crt1.o and libc.a test link artifacts are byte-identical to the
+files at that revision. Their retained digests and source URLs are recorded in
+assets/provenance.json.
 
 Copyright © 2024 Luke Boswell and subsequent authors
 

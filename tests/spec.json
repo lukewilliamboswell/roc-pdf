@@ -1,10 +1,38 @@
 {
+  "schema_version": 1,
+  "protocol_version": 1,
+  "toolchain": {
+    "roc_optimization": "speed",
+    "zig_version": "0.16.0",
+    "zig_optimization": "ReleaseFast"
+  },
+  "work_counters": ["passes", "byte_visits"],
   "cases": [
     {
-      "name": "placeholder PDF",
+      "name": "placeholder PDF x1",
+      "scenario_revision": "placeholder-v1",
       "source": "tests/placeholder/main.roc",
       "snapshot": "tests/placeholder/snapshot.pdf",
-      "allocations": 1
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "passes": 1 },
+      "expectations": {
+        "arm64mac": { "allocations": 1, "work": [1, 431] },
+        "x64musl": { "allocations": 1, "work": [1, 431] }
+      }
+    },
+    {
+      "name": "placeholder PDF x4",
+      "scenario_revision": "placeholder-v1",
+      "source": "tests/placeholder/main.roc",
+      "snapshot": "tests/placeholder/snapshot.pdf",
+      "args": ["scale"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "passes": 4 },
+      "expectations": {
+        "arm64mac": { "allocations": 1, "work": [4, 1724] },
+        "x64musl": { "allocations": 1, "work": [4, 1724] }
+      }
     }
   ]
 }
