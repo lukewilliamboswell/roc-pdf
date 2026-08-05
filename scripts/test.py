@@ -229,7 +229,7 @@ def main() -> None:
     roc("check", "package/main.roc")
     roc("test", "package/main.roc")
     for fixture in compile_fixtures:
-        roc("check", relative(fixture))
+        roc("test", relative(fixture))
     command(ZIG, "build", "-Doptimize=ReleaseSafe", cwd=TEST_PLATFORM)
 
     TEMP_ROOT.mkdir(exist_ok=True)

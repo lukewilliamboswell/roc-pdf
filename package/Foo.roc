@@ -15,5 +15,8 @@ Foo :: {}.{
 	}
 }
 
+## The temporary harness value remains stable until the facade replaces it.
 expect Foo.placeholder == "foo"
+
+## The temporary harness PDF retains its exact snapshot size.
 expect Foo.placeholder_pdf(0).len() == 431
