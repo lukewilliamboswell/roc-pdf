@@ -1,50 +1,8 @@
 import KernelEmit
-import KernelFont
 import KernelStructure
 import KernelUnicode
-import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
-Gate3Evidence :: [].{
-	font_inspection : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
-	font_inspection = |runtime_guard| {
-		if runtime_guard != 0 {
-			return Err(InvalidRuntimeGuard)
-		}
-		font = KernelFont.inspect(
-			built_in_font_bytes,
-			KernelFont.Limits.make({
-				max_bytes: 200000,
-				max_cmap_mappings: 10000,
-				max_glyphs: 10000,
-				max_tables: 32,
-			}),
-		) ? |_| EvidenceFailure
-		glyph_a = match KernelFont.glyph_for_scalar(font, 0x41) {
-			None => return Err(EvidenceFailure)
-			Some(glyph) => glyph
-		}
-		width_a = KernelFont.advance_width(font, glyph_a) ? |_| EvidenceFailure
-		plan = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
-		bytes = KernelEmit.to_bytes(plan) ? |_| EvidenceFailure
-		Ok({
-			bytes,
-			work: [
-				font.bytes.len(),
-				font.tables.len(),
-				font.metrics.glyph_count,
-				font.coverage.len(),
-				font.work.checksum_bytes,
-				font.work.cmap_mapping_visits,
-				font.work.loca_entries,
-				font.work.overlap_comparisons,
-				font.work.glyph_visits,
-				font.work.component_edge_visits,
-				glyph_a.to_u64(),
-				width_a.to_u64(),
-			],
-		})
-	}
-
+Gate3UnicodeEvidence :: [].{
 	unicode_analysis : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	unicode_analysis = |repetitions| {
 		if repetitions == 0 or repetitions > 100000 {
@@ -96,11 +54,6 @@ Gate3Evidence :: [].{
 }
 
 expect {
-	result = Gate3Evidence.unicode_analysis(2)?
+	result = Gate3UnicodeEvidence.unicode_analysis(2)?
 	result.work == [2, 18, 12, 10, 13, 5]
-}
-
-expect {
-	result = Gate3Evidence.font_inspection(0)?
-	result.work.len() == 12
 }

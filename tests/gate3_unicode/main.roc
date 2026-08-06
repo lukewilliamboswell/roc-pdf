@@ -3,24 +3,10 @@ app [main!] {
 	evidence: "../../package/evidence.roc",
 }
 
-import evidence.Gate3Evidence
+import evidence.Gate3UnicodeEvidence
 
 main! : List(Str) => { bytes : List(U8), work : List(U64) }
 main! = |args| {
-	mode = match args.get(1) {
-		Ok(value) => value
-		Err(OutOfBounds) => {
-			crash "Gate 3 evidence requires a mode or repetition count"
-		}
-	}
-	if mode == "font" {
-		return match Gate3Evidence.font_inspection(args.len() - 2) {
-			Ok(result) => result
-			Err(_) => {
-				crash "Gate 3 font evidence failed"
-			}
-		}
-	}
 	repetitions = if args.len() > 1 {
 		match args.get(1) {
 			Ok(text) => match U64.from_str(text) {
@@ -37,7 +23,7 @@ main! = |args| {
 		crash "Gate 3 Unicode evidence requires a repetition count"
 	}
 
-	match Gate3Evidence.unicode_analysis(repetitions) {
+	match Gate3UnicodeEvidence.unicode_analysis(repetitions) {
 		Ok(result) => result
 		Err(_) => {
 			crash "Gate 3 Unicode evidence failed"

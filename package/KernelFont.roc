@@ -31,7 +31,8 @@ KernelFont :: [].{
 	}
 
 	Table : { checksum : U32, length : U64, offset : U64, tag : U32 }
-	ComponentEdge : { child : U32, parent : U32 }
+	ComponentEdge : { child : U32, component_offset : U64, parent : U32 }
+	HorizontalMetric : { advance_width : U16, left_side_bearing : I64 }
 	CoverageSpan : { first : U32, last : U32 }
 	CmapGroup : { end : U32, start : U32, start_glyph : U32 }
 	CmapSegment : { delta : I64, end : U32, range_offset : U16, range_offset_location : U64, start : U32 }
@@ -83,17 +84,32 @@ KernelFont :: [].{
 
 	advance_width : Inspection, U32 -> Try(U16, Error)
 	advance_width = |font, glyph| {
-		if glyph.to_u64() >= font.metrics.glyph_count {
-			return Err(InvalidHorizontalMetrics)
-		}
-		hmtx = required_table(font.tables, tag_hmtx)?
-		metric_index = if glyph.to_u64() < font.metrics.number_of_h_metrics {
-			glyph.to_u64()
-		} else {
-			font.metrics.number_of_h_metrics - 1
-		}
-		Ok(read_u16(font.bytes, hmtx.offset + metric_index * 4))
+		metric = horizontal_metric_for(font, glyph)?
+		Ok(metric.advance_width)
 	}
+
+	horizontal_metric : Inspection, U32 -> Try(HorizontalMetric, Error)
+	horizontal_metric = |font, glyph| horizontal_metric_for(font, glyph)
+}
+
+horizontal_metric_for : KernelFont.Inspection, U32 -> Try(KernelFont.HorizontalMetric, KernelFont.Error)
+horizontal_metric_for = |font, glyph| {
+	if glyph.to_u64() >= font.metrics.glyph_count {
+		return Err(InvalidHorizontalMetrics)
+	}
+	hmtx = required_table(font.tables, tag_hmtx)?
+	metric_index = if glyph.to_u64() < font.metrics.number_of_h_metrics {
+		glyph.to_u64()
+	} else {
+		font.metrics.number_of_h_metrics - 1
+	}
+	advance_width = read_u16(font.bytes, hmtx.offset + metric_index * 4)
+	left_side_bearing_offset = if glyph.to_u64() < font.metrics.number_of_h_metrics {
+		hmtx.offset + glyph.to_u64() * 4 + 2
+	} else {
+		hmtx.offset + font.metrics.number_of_h_metrics * 4 + (glyph.to_u64() - font.metrics.number_of_h_metrics) * 2
+	}
+	Ok({ advance_width, left_side_bearing: signed_i16(read_u16(font.bytes, left_side_bearing_offset)) })
 }
 
 inspect_font : List(U8), KernelFont.Limits -> Try(KernelFont.Inspection, KernelFont.Error)
@@ -480,7 +496,8 @@ inspect_composite_glyph = |bytes, start, end, glyph, glyph_count, relative_offse
 			return Err(InvalidGlyph({ glyph, offset: relative_offset }))
 		}
 		$cursor = $cursor + additional
-		$edges = $edges.append({ child, parent: glyph })
+		component_offset = relative_offset + ($cursor - start) - additional - 2
+		$edges = $edges.append({ child, component_offset, parent: glyph })
 		$has_instructions = $has_instructions or flags.bitwise_and(0x0100) != 0
 		$more = flags.bitwise_and(0x0020) != 0
 		$first = False
@@ -1040,13 +1057,13 @@ expect match validate_simple_glyph(
 
 ## Composite closure is acyclic and its actual depth fits maxp's declaration.
 expect validate_component_graph(
-	[{ child: 0, parent: 1 }, { child: 1, parent: 2 }],
+	[{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }],
 	3,
 	2,
 ) == Ok({ edge_visits: 2 })
 
 expect match validate_component_graph(
-	[{ child: 1, parent: 0 }, { child: 0, parent: 1 }],
+	[{ child: 1, component_offset: 10, parent: 0 }, { child: 0, component_offset: 20, parent: 1 }],
 	2,
 	2,
 ) {
@@ -1055,7 +1072,7 @@ expect match validate_component_graph(
 }
 
 expect match validate_component_graph(
-	[{ child: 0, parent: 1 }, { child: 1, parent: 2 }],
+	[{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }],
 	3,
 	1,
 ) {

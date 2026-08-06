@@ -205,8 +205,8 @@
     {
       "name": "Gate 3 built-in TrueType inspection",
       "scenario_revision": "gate3-font-inspection-v2",
-      "source": "tests/gate3_unicode/main.roc",
-      "snapshot": "tests/gate3_unicode/snapshot.pdf",
+      "source": "tests/gate3_font/main.roc",
+      "snapshot": "tests/gate3_font/snapshot.pdf",
       "args": ["font"],
       "measurement_boundary": "before_fixture_main",
       "dimensions": { "component_edges": 1713, "font_bytes": 166300, "font_glyphs": 1376, "font_tables": 17 },
@@ -229,6 +229,21 @@
       "expectations": {
         "arm64mac": { "allocations": 176, "work": [1000, 9000, 6000, 5000, 6001, 2999] },
         "x64musl": { "allocations": 176, "work": [1000, 9000, 6000, 5000, 6001, 2999] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 deterministic font plan",
+      "scenario_revision": "gate3-font-plan-v1",
+      "source": "tests/gate3_font/main.roc",
+      "snapshot": "tests/gate3_font/snapshot.pdf",
+      "args": ["plan"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "component_edges": 1713, "font_bytes": 166300, "font_glyphs": 1376, "usage_records": 3 },
+      "work_counters": ["font_bytes", "usage_visits", "retained_glyphs", "component_index_visits", "component_edge_visits", "glyph_scans", "entries", "glyph_a", "glyph_e_acute", "subset_a", "subset_e_acute", "prefix_checksum"],
+      "expectations": {
+        "arm64mac": { "allocations": 75, "work": [166300, 3, 5, 1713, 2, 1376, 5, 2, 305, 1, 3, 450] },
+        "x64musl": { "allocations": 75, "work": [166300, 3, 5, 1713, 2, 1376, 5, 2, 305, 1, 3, 450] }
       },
       "retention": null
     },
