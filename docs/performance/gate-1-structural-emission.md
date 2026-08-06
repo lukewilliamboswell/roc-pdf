@@ -45,7 +45,7 @@ preflighted stateful transition that emits one bounded compressed chunk per
 65,535-byte block, carries bit and Adler-32 state, records exact compression
 work, and releases its source after the last chunk. `gate-1-deflate.md` records
 the owned algorithm, replacement seam, bound, allocation evidence, and
-independent `roc-deflate` and zlib decompression.
+independent zlib decompression of the emitted PDF stream.
 
 ## Current evidence and remaining work
 
@@ -61,9 +61,9 @@ Arlington 1.30.2 from an immutable image digest. Arlington reports zero failed
 rules or checks for every structural snapshot within its documented object-
 model scope.
 
-Production compression uses the private package-owned stateful implementation;
-`roc-deflate` remains an independent decompression oracle until a compatible
-release can undergo the full replacement review. The non-page index and
+Production compression uses the private package-owned stateful implementation,
+and no compression package appears in the package dependency graph. The
+non-page index and
 outline requirements at this gate are sealed builders;
 their feature-specific object lowering remains at Gates 2 and 4, where valid
 ParentTree, IDTree, named-destination, page-label, and outline payloads exist.

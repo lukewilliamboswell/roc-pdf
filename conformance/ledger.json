@@ -21,7 +21,7 @@
       "references": ["architecture.md: Deterministic serialization"],
       "capabilities": ["Pdf20"],
       "implementation": "implemented",
-      "machine_verification": "schema_and_roc_contract; sha256_nist_vectors_and_reused_schedule; independent_blank_and_generated_content_identifier_recalculation; roc_unit_owned_dynamic_multiblock_limits_adler_max_distance_and_independent_roc_deflate_roundtrip; optimized_one_and_five_block_exact_allocations_and_work; independent_zlib_payload_reconstruction_and_negative_twins; package_owned_stateful_encoder_transition_with_bounded_chunks_and_final_source_release",
+      "machine_verification": "schema_and_roc_contract; sha256_nist_vectors_and_reused_schedule; independent_blank_and_generated_content_identifier_recalculation; roc_unit_owned_dynamic_multiblock_limits_exact_adler_and_max_distance; optimized_one_and_five_block_exact_allocations_and_work; independent_zlib_payload_reconstruction_and_negative_twins; package_owned_stateful_encoder_transition_with_bounded_chunks_and_final_source_release",
       "human_verification": "architecture_review",
       "positive_scenarios": ["examples/advanced_encode_contract.roc", "package/KernelDeflate.roc", "package/KernelSha256.roc", "scripts/check_pdf_structure.py", "tests/gate1_deflate/main.roc", "tests/gate1_deflate_one_block/main.roc"],
       "negative_scenarios": ["scripts/check_pdf_structure.py"],

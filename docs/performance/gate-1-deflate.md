@@ -61,24 +61,22 @@ and rejects corrupt compressed data and an incorrect generated-content
 identity.
 
 Unit tests cover the empty byte contract, input and output limits, dynamic
-block type, Adler-32 trailer, the full 32 KiB distance code, a multi-block round
-trip, and raw-DEFLATE decompression through pinned `roc-deflate` 0.1.0. The
-independent Python checker separately reconstructs the generated source and
-decompresses the exact PDF stream with zlib, so neither the owned encoder nor
-one decoder is the sole correctness oracle.
+block type, exact Adler-32 trailers, the full 32 KiB distance code, and state
+carried across the multi-block boundary. The independent Python checker
+reconstructs the generated source and decompresses the exact one-block and
+five-block PDF streams with zlib. Exact retained bytes, bounds, work, and
+allocation evidence provide additional independent failure boundaries around
+that decompression oracle.
 
 ## Ownership and replacement seam
 
 The production encoder is intentionally the private `KernelDeflate`
-implementation. Pinned `roc-deflate` 0.1.0 exposes only a one-shot fixed-
-Huffman compressor, so tests use its decompressor as an independent oracle and
-no production compression path calls it.
+implementation, and the package manifests declare no compression dependency.
 
 The replacement seam is the preflighted plan, conservative output bound,
 stateful `start`/`next` transition, bounded owned chunks, explicit work facts,
-and final-source-release behavior consumed by `KernelEmit`. A future
-`roc-deflate` release may replace the implementation when it can provide this
-contract. Adoption requires a reviewed byte-policy decision and the complete
+and final-source-release behavior consumed by `KernelEmit`. Any future
+replacement requires a reviewed byte-policy decision and the complete
 determinism, bound, allocation, work, and retention suite; matching a round
-trip alone is insufficient. Until then the owned implementation is the Gate 1
-production path rather than a temporary fallback.
+trip alone is insufficient. The owned implementation is the Gate 1 production
+path rather than a temporary fallback.

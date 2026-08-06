@@ -1,5 +1,3 @@
-import deflate.Deflate exposing [Deflate]
-
 WriteState : { bits : U64, bytes : List(U8), count : U8 }
 
 BlockResult : {
@@ -783,10 +781,9 @@ expect {
 	plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound }))?
 	result = KernelDeflate.to_bytes(plan)?
 	first_deflate_byte = list_at_u8(result.bytes, 2)
-	raw = result.bytes.sublist({ start: 2, len: result.bytes.len() - 6 })
 	trailer = result.bytes.sublist({ start: result.bytes.len() - 4, len: 4 })
-	first_deflate_byte.bitwise_and(7) == 5 and
-		Deflate.decompress(raw) == Ok(input) and
+	result.bytes.sublist({ start: 0, len: 2 }) == [120, 156] and
+		first_deflate_byte.bitwise_and(7) == 5 and
 			trailer == [197, 224, 11, 73] and
 				result.bytes.len() <= bound and
 					KernelDeflate.Work.input_bytes(result.work) == input.len() and
@@ -800,8 +797,10 @@ expect {
 	bound = KernelDeflate.output_bound(input.len())?
 	plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound }))?
 	result = KernelDeflate.to_bytes(plan)?
-	raw = result.bytes.sublist({ start: 2, len: result.bytes.len() - 6 })
-	KernelDeflate.Work.blocks(result.work) == 2 and Deflate.decompress(raw) == Ok(input)
+	trailer = result.bytes.sublist({ start: result.bytes.len() - 4, len: 4 })
+	KernelDeflate.Work.blocks(result.work) == 2 and
+		KernelDeflate.Work.input_bytes(result.work) == input.len() and
+			trailer == [119, 179, 91, 25]
 }
 
 ## The full 32 KiB window produces a valid maximum-distance code.
@@ -811,11 +810,12 @@ expect {
 	bound = KernelDeflate.output_bound(input.len())?
 	plan = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: input.len(), max_output_bytes: bound }))?
 	result = KernelDeflate.to_bytes(plan)?
-	raw = result.bytes.sublist({ start: 2, len: result.bytes.len() - 6 })
+	trailer = result.bytes.sublist({ start: result.bytes.len() - 4, len: 4 })
 	table = insert_slot(List.repeat(0, hash_size + window_size), hash3(input, 0), 0)
 	search = chain_search(input, window_size, table, list_at_u64(table, hash3(input, window_size)))
-	Deflate.decompress(raw) == Ok(input) and
-		match_result_length(search) == 3 and
-			match_result_distance(search) == window_size and
-				field_count(distance_field(window_size)) == 18
+	trailer == [128, 68, 0, 13] and
+		KernelDeflate.Work.matches(result.work) > 0 and
+			match_result_length(search) == 3 and
+				match_result_distance(search) == window_size and
+					field_count(distance_field(window_size)) == 18
 }

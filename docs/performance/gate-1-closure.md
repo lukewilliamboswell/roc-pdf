@@ -18,7 +18,7 @@ PDF/UA-2 behavior assigned to later gates.
 | Sealing, stable allocation, stream lengths, and checked bounds | `KernelSeal`, `gate-1-sealed-plan.md`, `gate-1-output-bounds.md` |
 | Catalog, page trees, pages, resources, streams, and trailer | `KernelStructure`, `gate-1-structure-lowering.md`, `gate-1-balanced-shape.md` |
 | Xref stream, identifiers, `startxref`, and EOF | `KernelEmit`, `gate-1-identifiers.md`, `gate-1-structural-emission.md` |
-| Stateful bounded DEFLATE | `KernelDeflate`, `gate-1-deflate.md`; independent `roc-deflate` and zlib decoding |
+| Stateful bounded DEFLATE | `KernelDeflate`, `gate-1-deflate.md`; independent zlib decoding of exact emitted streams |
 | Stable resource names | `KernelResource`, `gate-1-resource-names.md` |
 | Page, name, number, ID, and ParentTree builders | `KernelTree`, `gate-1-balanced-indexes.md` |
 | Linked outline hierarchy | `KernelOutline`, `gate-1-outline-hierarchy.md` |
@@ -45,10 +45,10 @@ Scaled fixtures distinguish fixed allocations from per-item work, while
 one-shot/shared inputs, immediate/retained output, bounded errors, and source
 release cover the ownership cases required by the roadmap.
 
-The package-owned compressor is deliberately replaceable. A future
-`roc-deflate` adoption must preserve the current byte identity, bounds,
-ownership, deterministic work, exact allocation, and retention contracts; its
-present use as an independent decoder oracle is not a production dependency.
+The package-owned compressor is deliberately replaceable, but any replacement
+must preserve the current byte identity, bounds, ownership, deterministic work,
+exact allocation, and retention contracts. No compression package is retained
+as either a production or test dependency.
 
 ## Public-boundary audit
 
