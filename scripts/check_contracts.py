@@ -21,7 +21,7 @@ DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
 SOURCE_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 RULE_ID = re.compile(r"ROC-PDF-[A-Z0-9]+(?:-[A-Z0-9]+)*\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
-BINARY_ASSET_SUFFIXES = {".a", ".icc", ".icm", ".jpeg", ".jpg", ".o", ".otf", ".pdf", ".png", ".ttf"}
+BINARY_ASSET_SUFFIXES = {".a", ".icc", ".icm", ".jar", ".jpeg", ".jpg", ".o", ".otf", ".pdf", ".png", ".tgz", ".ttf", ".zip"}
 ASSET_KINDS = {
     "expected_pdf",
     "font",
@@ -40,6 +40,14 @@ CAPABILITIES = {
     "StaticPdfA4",
     "WtpdfAccessibility",
     "WtpdfReuse",
+}
+CAPABILITY_AVAILABILITY = {
+    "Pdf20": "available",
+    "PdfA4f": "future",
+    "PdfUa2": "defined_only",
+    "StaticPdfA4": "defined_only",
+    "WtpdfAccessibility": "defined_only",
+    "WtpdfReuse": "defined_only",
 }
 PROFILES = {
     "AccessibleArchive": ["Pdf20", "PdfUa2", "StaticPdfA4"],
@@ -184,8 +192,12 @@ def validate_matrix(value: object) -> None:
         capability_id = require_string(capability["id"], f"{path}.id")
         capability_ids.append(capability_id)
         dependencies[capability_id] = require_string_list(capability["requires"], f"{path}.requires")
-        if capability["availability"] not in {"defined_only", "future"}:
-            fail(f"{path}.availability", "Gate 0 must not claim executable availability")
+        expected_availability = CAPABILITY_AVAILABILITY.get(capability_id)
+        if capability["availability"] != expected_availability:
+            fail(
+                f"{path}.availability",
+                f"must be {expected_availability!r} at the current capability gate",
+            )
 
     if capability_ids != sorted(CAPABILITIES):
         fail("capability-matrix.capabilities", "must contain every capability sorted by id")
@@ -252,17 +264,23 @@ def validate_ledger(value: object, source_ids: set[str]) -> None:
         unknown_capabilities = set(capabilities) - CAPABILITIES
         if unknown_capabilities:
             fail(f"{path}.capabilities", f"unknown capabilities: {sorted(unknown_capabilities)}")
-        if requirement["implementation"] not in {"defined_only", "planned"}:
-            fail(f"{path}.implementation", "Gate 0 must not claim implemented behavior")
+        if requirement["implementation"] not in {"defined_only", "implemented", "partial", "planned"}:
+            fail(f"{path}.implementation", "must be defined_only, partial, implemented, or planned")
         require_string(requirement["machine_verification"], f"{path}.machine_verification")
         require_string(requirement["human_verification"], f"{path}.human_verification")
+        scenario_values: dict[str, list[str]] = {}
         for field in ("positive_scenarios", "negative_scenarios", "external_rule_ids"):
             values = require_string_list(requirement[field], f"{path}.{field}")
+            scenario_values[field] = values
             if field.endswith("scenarios"):
                 for scenario in values:
                     scenario_path = (ROOT / scenario).resolve()
                     if not scenario_path.is_relative_to(ROOT) or not scenario_path.is_file():
                         fail(f"{path}.{field}", f"scenario does not exist: {scenario}")
+
+        if requirement["implementation"] in {"implemented", "partial"}:
+            if not scenario_values["positive_scenarios"] or not scenario_values["negative_scenarios"]:
+                fail(f"{path}.implementation", "executable work requires positive and negative scenarios")
 
     if ids != sorted(set(ids)):
         fail("ledger.requirements", "requirement ids must be sorted and unique")
@@ -413,6 +431,8 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
         errata_source["pin"]["value"] = "0" * 64
     elif mutate == "profile":
         test_matrix["profiles"][0]["claims"] = ["Pdf20"]
+    elif mutate == "availability":
+        test_matrix["capabilities"][0]["availability"] = "defined_only"
     elif mutate == "source":
         test_ledger["requirements"][0]["source_ids"] = ["unknown-source"]
     elif mutate == "issue":
@@ -436,7 +456,7 @@ def self_test() -> None:
     matrix = load(MATRIX_PATH)
     ledger = load(LEDGER_PATH)
     validate_documents(baseline, matrix, ledger)
-    for mutation in ("digest", "profile", "source", "issue"):
+    for mutation in ("digest", "profile", "availability", "source", "issue"):
         expect_rejected(baseline, matrix, ledger, mutation)
     assets = load(ASSET_MANIFEST_PATH)
     validate_assets(assets)

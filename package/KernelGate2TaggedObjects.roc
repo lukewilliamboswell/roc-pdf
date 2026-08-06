@@ -1,0 +1,558 @@
+import KernelGate2Objects
+import KernelGate2PipelineFixture
+import KernelObject
+import KernelTagged
+import Semantics
+
+KernelGate2TaggedObjects :: [].{
+	Error : [
+		Object(KernelObject.Error),
+		ObjectOrder({ actual : KernelObject.ObjectId, expected : KernelObject.ObjectId }),
+	]
+
+	Work : {
+		contextual_artifacts : U64,
+		k_items : U64,
+		namespaces : U64,
+		parent_entries : U64,
+		parent_rows : U64,
+		structure_elements : U64,
+	}
+
+	Plan :: { builder : KernelObject.Builder, work : Work }.{
+		build : KernelTagged.Plan, KernelGate2Objects.Plan, KernelObject.Limits -> Try(Plan, Error)
+		build = |tagged, objects, limits| build_plan(tagged, objects, limits)
+
+		builder : Plan -> KernelObject.Builder
+		builder = |plan| plan.builder
+
+		work : Plan -> Work
+		work = |plan| plan.work
+	}
+}
+
+Names := {
+	a : KernelObject.NameId,
+	artifact : KernelObject.NameId,
+	catalog : KernelObject.NameId,
+	k : KernelObject.NameId,
+	mark_info : KernelObject.NameId,
+	marked : KernelObject.NameId,
+	mcid : KernelObject.NameId,
+	mcr : KernelObject.NameId,
+	namespaces : KernelObject.NameId,
+	namespace : KernelObject.NameId,
+	ns : KernelObject.NameId,
+	nums : KernelObject.NameId,
+	o : KernelObject.NameId,
+	p : KernelObject.NameId,
+	pages : KernelObject.NameId,
+	pagination : KernelObject.NameId,
+	parent_tree : KernelObject.NameId,
+	parent_tree_next_key : KernelObject.NameId,
+	pg : KernelObject.NameId,
+	s : KernelObject.NameId,
+	struct_elem : KernelObject.NameId,
+	struct_tree_root : KernelObject.NameId,
+	type_name : KernelObject.NameId,
+}
+
+build_plan : KernelTagged.Plan, KernelGate2Objects.Plan, KernelObject.Limits -> Try(KernelGate2TaggedObjects.Plan, KernelGate2TaggedObjects.Error)
+build_plan = |tagged, objects, limits| {
+	semantics = KernelTagged.Plan.semantics(tagged)
+	added_names = add_names(KernelObject.init(limits))?
+	with_catalog = add_catalog(added_names.builder, added_names.names, objects)?
+	with_root = add_structure_root(with_catalog, added_names.names, tagged, objects)?
+	with_parent_tree = add_parent_tree(with_root, added_names.names, tagged, objects)?
+	with_namespaces = add_namespaces(with_parent_tree, added_names.names, semantics, objects)?
+	with_structure = add_structure_elements(with_namespaces, added_names.names, tagged, objects)?
+	with_artifacts = add_contextual_artifacts(with_structure, added_names.names, semantics, objects)?
+	Ok(
+		KernelGate2TaggedObjects.Plan.{
+			builder: with_artifacts,
+			work: {
+				contextual_artifacts: semantics.contextual_artifacts.len(),
+				k_items: KernelTagged.Plan.k_items(tagged).len(),
+				namespaces: semantics.namespaces.len(),
+				parent_entries: KernelTagged.Plan.parent_entries(tagged).len(),
+				parent_rows: KernelTagged.Plan.parent_rows(tagged).len(),
+				structure_elements: semantics.nodes.len(),
+			},
+		},
+	)
+}
+
+add_names : KernelObject.Builder -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate2TaggedObjects.Error)
+add_names = |builder| {
+	a = KernelObject.add_name(builder, Str.to_utf8("A")) ? Object
+	artifact = KernelObject.add_name(a.builder, Str.to_utf8("Artifact")) ? Object
+	catalog = KernelObject.add_name(artifact.builder, Str.to_utf8("Catalog")) ? Object
+	k = KernelObject.add_name(catalog.builder, Str.to_utf8("K")) ? Object
+	mark_info = KernelObject.add_name(k.builder, Str.to_utf8("MarkInfo")) ? Object
+	marked = KernelObject.add_name(mark_info.builder, Str.to_utf8("Marked")) ? Object
+	mcid = KernelObject.add_name(marked.builder, Str.to_utf8("MCID")) ? Object
+	mcr = KernelObject.add_name(mcid.builder, Str.to_utf8("MCR")) ? Object
+	namespace = KernelObject.add_name(mcr.builder, Str.to_utf8("Namespace")) ? Object
+	namespaces = KernelObject.add_name(namespace.builder, Str.to_utf8("Namespaces")) ? Object
+	ns = KernelObject.add_name(namespaces.builder, Str.to_utf8("NS")) ? Object
+	nums = KernelObject.add_name(ns.builder, Str.to_utf8("Nums")) ? Object
+	o = KernelObject.add_name(nums.builder, Str.to_utf8("O")) ? Object
+	p = KernelObject.add_name(o.builder, Str.to_utf8("P")) ? Object
+	pages = KernelObject.add_name(p.builder, Str.to_utf8("Pages")) ? Object
+	pagination = KernelObject.add_name(pages.builder, Str.to_utf8("Pagination")) ? Object
+	parent_tree = KernelObject.add_name(pagination.builder, Str.to_utf8("ParentTree")) ? Object
+	parent_tree_next_key = KernelObject.add_name(parent_tree.builder, Str.to_utf8("ParentTreeNextKey")) ? Object
+	pg = KernelObject.add_name(parent_tree_next_key.builder, Str.to_utf8("Pg")) ? Object
+	s = KernelObject.add_name(pg.builder, Str.to_utf8("S")) ? Object
+	struct_elem = KernelObject.add_name(s.builder, Str.to_utf8("StructElem")) ? Object
+	struct_tree_root = KernelObject.add_name(struct_elem.builder, Str.to_utf8("StructTreeRoot")) ? Object
+	type_name = KernelObject.add_name(struct_tree_root.builder, Str.to_utf8("Type")) ? Object
+	Ok({
+		builder: type_name.builder,
+		names: {
+			a: a.id,
+			artifact: artifact.id,
+			catalog: catalog.id,
+			k: k.id,
+			mark_info: mark_info.id,
+			marked: marked.id,
+			mcid: mcid.id,
+			mcr: mcr.id,
+			namespace: namespace.id,
+			namespaces: namespaces.id,
+			ns: ns.id,
+			nums: nums.id,
+			o: o.id,
+			p: p.id,
+			pages: pages.id,
+			pagination: pagination.id,
+			parent_tree: parent_tree.id,
+			parent_tree_next_key: parent_tree_next_key.id,
+			pg: pg.id,
+			s: s.id,
+			struct_elem: struct_elem.id,
+			struct_tree_root: struct_tree_root.id,
+			type_name: type_name.id,
+		},
+	})
+}
+
+add_catalog : KernelObject.Builder, Names, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_catalog = |builder, names, objects| {
+	marked = KernelObject.add_boolean(builder, True) ? Object
+	mark_info = KernelObject.add_dictionary(marked.builder, [{ key: names.marked, value: marked.id }]) ? Object
+	pages = KernelObject.add_reference(mark_info.builder, list_at(KernelGate2Objects.Plan.page_tree(objects), 0)) ? Object
+	structure = KernelObject.add_reference(pages.builder, KernelGate2Objects.Plan.struct_tree_root(objects)) ? Object
+	type_value = add_name_value(structure.builder, names.catalog)?
+	dictionary = KernelObject.add_dictionary(
+		type_value.builder,
+		[
+			{ key: names.mark_info, value: mark_info.id },
+			{ key: names.pages, value: pages.id },
+			{ key: names.struct_tree_root, value: structure.id },
+			{ key: names.type_name, value: type_value.id },
+		],
+	) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, KernelGate2Objects.Plan.catalog(objects))?
+	Ok(object.builder)
+}
+
+add_structure_root : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_structure_root = |builder, names, tagged, objects| {
+	semantics = KernelTagged.Plan.semantics(tagged)
+	document = list_at(semantics.nodes, semantics.document_root.index())
+	k = KernelObject.add_reference(builder, list_at(KernelGate2Objects.Plan.structure_elements(objects), document.structure_element.index())) ? Object
+	namespace_refs = add_references(k.builder, KernelGate2Objects.Plan.namespaces(objects))?
+	namespaces = KernelObject.add_array(namespace_refs.builder, namespace_refs.values) ? Object
+	parent_tree = KernelObject.add_reference(namespaces.builder, KernelGate2Objects.Plan.parent_tree(objects)) ? Object
+	next_key = KernelObject.add_integer(parent_tree.builder, KernelTagged.Plan.parent_rows(tagged).len().to_i64_wrap()) ? Object
+	type_value = add_name_value(next_key.builder, names.struct_tree_root)?
+	dictionary = KernelObject.add_dictionary(
+		type_value.builder,
+		[
+			{ key: names.k, value: k.id },
+			{ key: names.namespaces, value: namespaces.id },
+			{ key: names.parent_tree, value: parent_tree.id },
+			{ key: names.parent_tree_next_key, value: next_key.id },
+			{ key: names.type_name, value: type_value.id },
+		],
+	) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, KernelGate2Objects.Plan.struct_tree_root(objects))?
+	Ok(object.builder)
+}
+
+add_parent_tree : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_parent_tree = |builder, names, tagged, objects| {
+	rows = KernelTagged.Plan.parent_rows(tagged)
+	entries = KernelTagged.Plan.parent_entries(tagged)
+	structure = KernelGate2Objects.Plan.structure_elements(objects)
+	var $builder = builder
+	var $numbers = List.with_capacity(rows.len() * 2)
+	var $row_index = 0
+	var $error = NoError
+	while $row_index < rows.len() and $error == NoError {
+		row = list_at(rows, $row_index)
+		match KernelObject.add_integer($builder, row.content_stream.index().to_i64_wrap()) {
+			Err(error) => {
+				$error = Invalid(error)
+			}
+			Ok(key) => match add_parent_entry_references(key.builder, entries, row.entries, structure) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(references) => match KernelObject.add_array(references.builder, references.values) {
+					Err(error) => {
+						$error = Invalid(error)
+					}
+					Ok(array) => {
+						$builder = array.builder
+						$numbers = $numbers.append(key.id).append(array.id)
+					}
+				}
+			}
+		}
+		$row_index = $row_index + 1
+	}
+	match $error {
+		Invalid(error) => Err(Object(error))
+		NoError => {
+			nums = KernelObject.add_array($builder, $numbers) ? Object
+			dictionary = KernelObject.add_dictionary(nums.builder, [{ key: names.nums, value: nums.id }]) ? Object
+			object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+			ensure_object(object.id, KernelGate2Objects.Plan.parent_tree(objects))?
+			Ok(object.builder)
+		}
+	}
+}
+
+add_namespaces : KernelObject.Builder, Names, Semantics.Store, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_namespaces = |builder, names, semantics, objects| {
+	ids = KernelGate2Objects.Plan.namespaces(objects)
+	var $builder = builder
+	var $index = 0
+	var $error = NoError
+	while $index < semantics.namespaces.len() and $error == NoError {
+		namespace = list_at(semantics.namespaces, $index)
+		match add_namespace($builder, names, namespace, list_at(ids, namespace.id.index())) {
+			Err(error) => {
+				$error = Invalid(error)
+			}
+			Ok(next) => {
+				$builder = next
+			}
+		}
+		$index = $index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok($builder)
+	}
+}
+
+add_namespace : KernelObject.Builder, Names, Semantics.Namespace, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_namespace = |builder, names, namespace, expected| {
+	text = KernelObject.add_text_string(builder, namespace.uri) ? Object
+	text_value = KernelObject.add_text_string_value(text.builder, text.id) ? Object
+	type_value = add_name_value(text_value.builder, names.namespace)?
+	dictionary = KernelObject.add_dictionary(
+		type_value.builder,
+		[
+			{ key: names.ns, value: text_value.id },
+			{ key: names.type_name, value: type_value.id },
+		],
+	) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, expected)?
+	Ok(object.builder)
+}
+
+add_structure_elements : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_structure_elements = |builder, names, tagged, objects| {
+	semantics = KernelTagged.Plan.semantics(tagged)
+	nodes_by_structure = index_nodes_by_structure(semantics.nodes)
+	ids = KernelGate2Objects.Plan.structure_elements(objects)
+	var $builder = builder
+	var $structure_index = 0
+	var $error = NoError
+	while $structure_index < ids.len() and $error == NoError {
+		node = list_at(semantics.nodes, list_at(nodes_by_structure, $structure_index).index())
+		match add_structure_element($builder, names, tagged, objects, node, list_at(ids, $structure_index)) {
+			Err(error) => {
+				$error = Invalid(error)
+			}
+			Ok(next) => {
+				$builder = next
+			}
+		}
+		$structure_index = $structure_index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok($builder)
+	}
+}
+
+add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan, Semantics.Node, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_structure_element = |builder, names, tagged, objects, node, expected| {
+	node_k = list_at(KernelTagged.Plan.node_k(tagged), node.id.index())
+	k_values = add_k_items(builder, names, KernelTagged.Plan.k_items(tagged), node_k.items, objects)?
+	k = KernelObject.add_array(k_values.builder, k_values.values) ? Object
+	ns = KernelObject.add_reference(k.builder, list_at(KernelGate2Objects.Plan.namespaces(objects), node.role.namespace.index())) ? Object
+	parent_object = match node.parent {
+		DocumentRoot => KernelGate2Objects.Plan.struct_tree_root(objects)
+		ParentNode(parent) => {
+			parent_node = list_at(KernelTagged.Plan.semantics(tagged).nodes, parent.index())
+			list_at(KernelGate2Objects.Plan.structure_elements(objects), parent_node.structure_element.index())
+		}
+	}
+	p = KernelObject.add_reference(ns.builder, parent_object) ? Object
+	role_name = KernelObject.add_name(p.builder, Str.to_utf8(node.role.local_name)) ? Object
+	s = KernelObject.add_name_value(role_name.builder, role_name.id) ? Object
+	type_value = add_name_value(s.builder, names.struct_elem)?
+	entries = if node_k.items.length() == 0 {
+		[
+			{ key: names.ns, value: ns.id },
+			{ key: names.p, value: p.id },
+			{ key: names.s, value: s.id },
+			{ key: names.type_name, value: type_value.id },
+		]
+	} else {
+		[
+			{ key: names.k, value: k.id },
+			{ key: names.ns, value: ns.id },
+			{ key: names.p, value: p.id },
+			{ key: names.s, value: s.id },
+			{ key: names.type_name, value: type_value.id },
+		]
+	}
+	dictionary = KernelObject.add_dictionary(type_value.builder, entries) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, expected)?
+	Ok(object.builder)
+}
+
+add_k_items : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, KernelGate2Objects.Plan -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelGate2TaggedObjects.Error)
+add_k_items = |builder, names, items, range, objects| {
+	var $builder = builder
+	var $values = List.with_capacity(range.length())
+	var $index = range.start()
+	end = range.start() + range.length()
+	var $error = NoError
+	while $index < end and $error == NoError {
+		item = list_at(items, $index)
+		added = match item {
+			ChildStructure(child) => KernelObject.add_reference($builder, list_at(KernelGate2Objects.Plan.structure_elements(objects), child.index()))
+			ContextualArtifactChild(artifact) => KernelObject.add_reference($builder, list_at(KernelGate2Objects.Plan.contextual_artifacts(objects), artifact.index()))
+			MarkedContent(reference) => add_mcr($builder, names, reference, objects)
+		}
+		match added {
+			Err(error) => {
+				$error = Invalid(error)
+			}
+			Ok(value) => {
+				$builder = value.builder
+				$values = $values.append(value.id)
+			}
+		}
+		$index = $index + 1
+	}
+	match $error {
+		Invalid(error) => Err(Object(error))
+		NoError => Ok({ builder: $builder, values: $values })
+	}
+}
+
+add_mcr : KernelObject.Builder, Names, KernelTagged.MarkedContentReference, KernelGate2Objects.Plan -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
+add_mcr = |builder, names, reference, objects| {
+	mcid = KernelObject.add_integer(builder, reference.mcid.to_i64_wrap())?
+	page = list_at(KernelGate2Objects.Plan.pages(objects), reference.page.index())
+	pg = KernelObject.add_reference(mcid.builder, page.page)?
+	type_value = KernelObject.add_name_value(pg.builder, names.mcr)?
+	KernelObject.add_dictionary(
+		type_value.builder,
+		[
+			{ key: names.mcid, value: mcid.id },
+			{ key: names.pg, value: pg.id },
+			{ key: names.type_name, value: type_value.id },
+		],
+	)
+}
+
+add_contextual_artifacts : KernelObject.Builder, Names, Semantics.Store, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_contextual_artifacts = |builder, names, semantics, objects| {
+	ids = KernelGate2Objects.Plan.contextual_artifacts(objects)
+	structure = KernelGate2Objects.Plan.structure_elements(objects)
+	var $builder = builder
+	var $index = 0
+	var $error = NoError
+	while $index < semantics.contextual_artifacts.len() and $error == NoError {
+		artifact = list_at(semantics.contextual_artifacts, $index)
+		parent = list_at(semantics.nodes, artifact.parent.index())
+		match add_contextual_artifact($builder, names, list_at(structure, parent.structure_element.index()), list_at(ids, artifact.id.index())) {
+			Err(error) => {
+				$error = Invalid(error)
+			}
+			Ok(next) => {
+				$builder = next
+			}
+		}
+		$index = $index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok($builder)
+	}
+}
+
+add_contextual_artifact : KernelObject.Builder, Names, KernelObject.ObjectId, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_contextual_artifact = |builder, names, parent_object, expected| {
+	owner = add_name_value(builder, names.artifact)?
+	pagination = add_name_value(owner.builder, names.pagination)?
+	attributes = KernelObject.add_dictionary(
+		pagination.builder,
+		[
+			{ key: names.o, value: owner.id },
+			{ key: names.type_name, value: pagination.id },
+		],
+	) ? Object
+	parent = KernelObject.add_reference(attributes.builder, parent_object) ? Object
+	s = add_name_value(parent.builder, names.artifact)?
+	type_value = add_name_value(s.builder, names.struct_elem)?
+	dictionary = KernelObject.add_dictionary(
+		type_value.builder,
+		[
+			{ key: names.a, value: attributes.id },
+			{ key: names.p, value: parent.id },
+			{ key: names.s, value: s.id },
+			{ key: names.type_name, value: type_value.id },
+		],
+	) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, expected)?
+	Ok(object.builder)
+}
+
+add_parent_entry_references : KernelObject.Builder, List(KernelTagged.MarkedContentReference), Semantics.Range, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelObject.Error)
+add_parent_entry_references = |builder, entries, range, structure| {
+	var $builder = builder
+	var $values = List.with_capacity(range.length())
+	var $index = range.start()
+	end = range.start() + range.length()
+	var $error = NoError
+	while $index < end and $error == NoError {
+		reference = list_at(entries, $index)
+		match KernelObject.add_reference($builder, list_at(structure, reference.structure_element.index())) {
+			Err(error) => {
+				$error = Invalid(error)
+			}
+			Ok(added) => {
+				$builder = added.builder
+				$values = $values.append(added.id)
+			}
+		}
+		$index = $index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok({ builder: $builder, values: $values })
+	}
+}
+
+add_references : KernelObject.Builder, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelGate2TaggedObjects.Error)
+add_references = |builder, objects| {
+	var $builder = builder
+	var $values = List.with_capacity(objects.len())
+	var $index = 0
+	var $error = NoError
+	while $index < objects.len() and $error == NoError {
+		match KernelObject.add_reference($builder, list_at(objects, $index)) {
+			Err(error) => {
+				$error = Invalid(error)
+			}
+			Ok(added) => {
+				$builder = added.builder
+				$values = $values.append(added.id)
+			}
+		}
+		$index = $index + 1
+	}
+	match $error {
+		Invalid(error) => Err(Object(error))
+		NoError => Ok({ builder: $builder, values: $values })
+	}
+}
+
+add_name_value : KernelObject.Builder, KernelObject.NameId -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelGate2TaggedObjects.Error)
+add_name_value = |builder, name| {
+	added = KernelObject.add_name_value(builder, name) ? Object
+	Ok(added)
+}
+
+index_nodes_by_structure : List(Semantics.Node) -> List(Semantics.NodeId)
+index_nodes_by_structure = |nodes| {
+	var $index = List.repeat(Semantics.NodeId.from_index(0), nodes.len())
+	var $node_index = 0
+	while $node_index < nodes.len() {
+		node = list_at(nodes, $node_index)
+		$index = list_set($index, node.structure_element.index(), node.id)
+		$node_index = $node_index + 1
+	}
+	$index
+}
+
+ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelGate2TaggedObjects.Error)
+ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "validated tagged-object index escaped"
+	}
+}
+
+list_set : List(a), U64, a -> List(a)
+list_set = |items, index, value| match items.set(index, value) {
+	Ok(next) => next
+	Err(OutOfBounds) => {
+		crash "validated tagged-object update escaped"
+	}
+}
+
+test_limits : KernelObject.Limits
+test_limits = {
+	max_array_items: 64,
+	max_byte_string_bytes: 0,
+	max_byte_strings: 0,
+	max_dictionary_entries: 128,
+	max_direct_depth: 8,
+	max_name_bytes: 1024,
+	max_names: 64,
+	max_objects: 16,
+	max_payload_bytes: 0,
+	max_payloads: 0,
+	max_streams: 0,
+	max_text_string_bytes: 64,
+	max_text_strings: 1,
+	max_values: 256,
+}
+
+## The tagged prefix consumes every planned object identity before the page tree.
+expect {
+	pipeline = KernelGate2PipelineFixture.pipeline({})?
+	plan = KernelGate2TaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
+	counts = KernelObject.counts(KernelGate2TaggedObjects.Plan.builder(plan))
+	first_page_tree = list_at(KernelGate2Objects.Plan.page_tree(pipeline.objects), 0)
+	counts.objects + 1 == KernelObject.ObjectId.number(first_page_tree) and KernelGate2TaggedObjects.Plan.work(plan) == { contextual_artifacts: 0, k_items: 2, namespaces: 1, parent_entries: 1, parent_rows: 1, structure_elements: 2 }
+}
+
+## Contextual Artifact structure elements remain distinct planned objects.
+expect {
+	pipeline = KernelGate2PipelineFixture.contextual_pipeline({})?
+	plan = KernelGate2TaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
+	counts = KernelObject.counts(KernelGate2TaggedObjects.Plan.builder(plan))
+	first_page_tree = list_at(KernelGate2Objects.Plan.page_tree(pipeline.objects), 0)
+	counts.objects + 1 == KernelObject.ObjectId.number(first_page_tree) and KernelGate2TaggedObjects.Plan.work(plan).contextual_artifacts == 1 and KernelGate2TaggedObjects.Plan.work(plan).k_items == 3
+}

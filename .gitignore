@@ -12,3 +12,4 @@ generated-docs/
 tests/platform/.zig-cache/
 tests/platform/zig-out/
 tests/platform/targets/*/libhost.a
+tests/platform/targets/*/libretention_host.a

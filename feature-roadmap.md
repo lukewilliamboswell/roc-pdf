@@ -258,11 +258,14 @@ within an early correctness gate.
 - Catalog, page tree, page objects, content streams, resources, and trailer
   information.
 - Xref streams, `startxref`, and end-of-file marker.
-- Flate streams through `roc-deflate`.
+- Flate streams through the private package-owned stateful compressor seam;
+  the independent Python checker uses zlib to reconstruct the exact emitted
+  payload, while the package dependency graph remains compressor-free.
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
-- Deterministic balanced builders for page, name, number, ID, ParentTree, and
-  outline structures, with fixed fanout and exact ordering/limit rules.
+- Deterministic fixed-fanout balanced builders for page, name, number, ID, and
+  ParentTree structures, plus deterministic linked outline hierarchies with
+  exact ordering/count/limit rules.
 - Blank, single-page, and multi-page documents.
 - Buffered bytes and the byte-identical pure chunk encoder.
 - Flat object/value/edge stores, a consumption-shaped builder, and bulk lexical
@@ -289,8 +292,9 @@ within an early correctness gate.
 - Negative twins cover malformed numeric values, duplicate keys, bad
   references, offset/count overflow, invalid names/strings, non-monotonic tree
   keys, bad limits/counts, and size limits.
-- Stress fixtures exercise thousands of pages and large name, number, ID, and
-  ParentTree structures without changing the documented representation rule.
+- Stress fixtures exercise thousands of pages and large name, number, ID,
+  ParentTree, and outline structures without changing the documented
+  representation rule.
 - Buffered/chunked and shared/owned-chunk hashes agree; a counting sink verifies
   offsets beyond 4 GiB; output-bound proofs prevent late encoder errors.
 - Retained-chunk tests demonstrate that seamless slices pin the actual source
@@ -343,6 +347,14 @@ within an early correctness gate.
 - A million-command stress fixture has bounded stack use, linear visits, and no
   payload duplication per placement.
 
+### Closure status
+
+Gate 2 is closed. The capability, negative, exact-structure, renderer, and
+performance aggregation is recorded in
+`docs/performance/gate-2-closure.md`. This closes the private minimal tagged
+visual kernel only; it does not make Gate 3 authoring or later conformance
+profiles available.
+
 ## Gate 3: searchable international text and useful layout
 
 This is the first genuinely useful public document milestone.
@@ -385,6 +397,32 @@ This is the first genuinely useful public document milestone.
   claim set is `Pdf20`. `Pdf.Options.with_profile` is the only way to request a
   different implemented profile; incomplete `Archive` or `AccessibleArchive`
   claims remain unavailable.
+
+### Upstream Unicode coordination
+
+The preferred pure Roc Unicode building blocks are tracked as independently
+resolvable issues in [`roc-lang/unicode`](https://github.com/roc-lang/unicode).
+These links coordinate reusable dependency work; they do not replace this
+roadmap's capability gates or evidence. Before adopting any result, pin its
+exact release asset or revision and digest, record its Unicode data provenance,
+and verify the applicable correctness, ownership, allocation, and deterministic
+work requirements locally.
+
+| Upstream issue | Reusable boundary |
+| --- | --- |
+| [#36: Unicode 17 upgrade and auditable versioning](https://github.com/roc-lang/unicode/issues/36) | One synchronized Unicode/UCD/UAX data version, source manifest, deterministic generation, and public version identity. |
+| [#35: Unicode 17 extended-grapheme conformance](https://github.com/roc-lang/unicode/issues/35) | Complete un-tailored UAX #29 grapheme boundaries, regressions, official conformance tests, and fuzzing. |
+| [#37: zero-copy grapheme byte ranges](https://github.com/roc-lang/unicode/issues/37) | Source-preserving UTF-8 boundary ranges and an allocation-conscious walk API for cluster-based font selection. |
+| [#38: Unicode 17 line-break opportunities](https://github.com/roc-lang/unicode/issues/38) | UAX #14 boundary analysis, explicit tailoring, and validated seams for separately versioned complex-context analyzers and hyphenators. |
+| [#39: Unicode 17 bidirectional analysis](https://github.com/roc-lang/unicode/issues/39) | UAX #9 levels, logical and visual mappings, directional runs, per-line reordering, brackets, and mirroring facts. |
+| [#41: Script and Script_Extensions](https://github.com/roc-lang/unicode/issues/41) | Normative Unicode script properties plus an explicitly named, non-normative script-itemization policy. |
+| [#42: panic-free, resource-bounded public APIs](https://github.com/roc-lang/unicode/issues/42) | Typed failure, checked limits, bounded traversal, adversarial tests, fuzzing, and documented allocation/copy/retention behavior. |
+| [#43: bounded shaping-oriented Unicode properties](https://github.com/roc-lang/unicode/issues/43) | Generated UCD properties needed by independent text engines without moving OpenType parsing or shaping into the Unicode package. |
+
+Language-specific hyphenation data remains a separate licensed and pinned
+dependency. OpenType parsing, GSUB/GPOS processing, glyph selection, and shaping
+remain separate pure Roc components; the upstream Unicode issues provide facts
+and analysis boundaries rather than those font-specific behaviors.
 
 ### Gate evidence
 
@@ -746,6 +784,22 @@ ICC profiles, images, Unicode/UCD data, hyphenation patterns, fuzz seeds, and
 expected renderings. Isartor files must not be copied into the repository
 because their terms prohibit redistribution.
 
+Small, redistributable release artifacts used by ordinary CI are retained
+under `vendor/` as their exact upstream bytes. CI verifies their manifest
+digest before use and has no network fallback. An upgrade is an explicit
+reviewed commit that updates the artifact, license and attribution material,
+provenance record, CI reference, and affected evidence together. Git LFS is
+not used because it would make a separate remote service part of checkout and
+historical reproducibility.
+
+Large platform-specific compiler toolchains, JDKs, and container images are
+not committed to Git. Their action source is pinned by full commit identity,
+their selected version or image digest is exact, and a network-isolated CI
+deployment pre-provisions them in its immutable runner image. `.roc-version`
+remains the sole Roc compiler-version pin. Copyrighted or non-redistributable
+standards and test assets remain digest-pinned references rather than vendored
+bytes.
+
 ## CI gates
 
 ### Per change
@@ -782,7 +836,7 @@ because their terms prohibit redistribution.
   regression tests.
 - Bounded large-document, offset, subset, stream, and structure stress suites.
 - Controlled timing, peak-RSS, allocation, copied-byte, time-to-first-chunk,
-  and integrated serializer-versus-`roc-deflate` benchmarks.
+  and integrated serializer/compressor benchmarks.
 
 ### Release
 

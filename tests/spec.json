@@ -1,13 +1,147 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "protocol_version": 1,
   "toolchain": {
     "roc_optimization": "speed",
     "zig_version": "0.16.0",
     "zig_optimization": "ReleaseFast"
   },
-  "work_counters": ["passes", "byte_visits"],
   "cases": [
+    {
+      "name": "Gate 1 blank PDF",
+      "scenario_revision": "gate1-blank-v1",
+      "source": "tests/gate1_blank/main.roc",
+      "snapshot": "tests/gate1_blank/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1 },
+      "work_counters": ["passes", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 0, "work": [1, 667] },
+        "x64musl": { "allocations": 0, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 balanced 4096-page PDF",
+      "scenario_revision": "gate1-pages-v2",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["stress"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096 },
+      "work_counters": ["pages", "tree_nodes", "objects", "values", "array_edges", "dictionary_edges", "build_edges", "references", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 113793, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] },
+        "x64musl": { "allocations": 113793, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 balanced index plans",
+      "scenario_revision": "gate1-indexes-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["indexes", "4096"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "entries_per_tree": 4096, "trees": 4 },
+      "work_counters": ["entries", "nodes", "limit_nodes", "leaf_entries", "limit_checksum", "entries_checked", "key_bytes_checked", "ordering_steps", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 117904, "work": [16384, 532, 528, 16384, 2162160, 16384, 32768, 49110, 1084927] },
+        "x64musl": { "allocations": 117904, "work": [16384, 532, 528, 16384, 2162160, 16384, 32768, 49110, 1084927] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 linked outline plan",
+      "scenario_revision": "gate1-outline-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["outlines", "4096"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "outline_entries": 4096, "outline_depth": 1 },
+      "work_counters": ["entries", "root_count", "top_level", "parents", "leaves", "previous_links", "next_links", "identity_checksum", "entries_checked", "items_appended", "item_rewrites", "count_accumulations", "max_depth", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 113797, "work": [4096, 2112, 128, 128, 3968, 3967, 3967, 16773120, 4096, 4096, 15999, 4096, 1, 1084927] },
+        "x64musl": { "allocations": 113797, "work": [4096, 2112, 128, 128, 3968, 3967, 3967, 16773120, 4096, 4096, 15999, 4096, 1, 1084927] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 stable resource names",
+      "scenario_revision": "gate1-resource-names-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["resources", "4096"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "resource_entries": 4096 },
+      "work_counters": ["resource_entries", "planned_names", "name_bytes", "entries_checked", "identity_checks", "kind_comparisons", "name_byte_visits", "name_checksum", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 113797, "work": [4096, 4096, 19373, 4096, 4096, 4095, 19373, 2307784361, 1084927] },
+        "x64musl": { "allocations": 113797, "work": [4096, 4096, 19373, 4096, 4096, 4095, 19373, 2307784361, 1084927] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 bulk lexical values x2048",
+      "scenario_revision": "gate1-lexical-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["lexical", "2048"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "lexical_bundles": 2048 },
+      "work_counters": ["bundles", "tokens", "source_bytes", "emitted_bytes", "byte_visits", "byte_checksum", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 113797, "work": [2048, 18432, 24576, 206848, 206848, 1416541943808, 1084927] },
+        "x64musl": { "allocations": 113797, "work": [2048, 18432, 24576, 206848, 206848, 1416541943808, 1084927] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 bulk lexical values x4096",
+      "scenario_revision": "gate1-lexical-v1",
+      "source": "tests/gate1_pages/main.roc",
+      "snapshot": "tests/gate1_pages/snapshot.pdf",
+      "args": ["lexical", "4096"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 4096, "lexical_bundles": 4096 },
+      "work_counters": ["bundles", "tokens", "source_bytes", "emitted_bytes", "byte_visits", "byte_checksum", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 113797, "work": [4096, 36864, 49152, 413696, 413696, 5666285907968, 1084927] },
+        "x64musl": { "allocations": 113797, "work": [4096, 36864, 49152, 413696, 413696, 5666285907968, 1084927] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 one-block dynamic DEFLATE",
+      "scenario_revision": "gate1-deflate-one-block-v1",
+      "source": "tests/gate1_deflate_one_block/main.roc",
+      "snapshot": "tests/gate1_deflate_one_block/snapshot.pdf",
+      "args": ["65535"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "compression_input_bytes": 65535, "content_stream_bytes": 65535, "content_pattern_period": 4, "deflate_blocks": 1 },
+      "work_counters": ["input_bytes", "blocks", "candidate_visits", "hash_inserts", "tokens", "matches", "compressed_bytes", "max_compressed_chunk_bytes", "generated_segments", "pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 114, "work": [65535, 1, 381, 65533, 258, 254, 461, 461, 11, 1122] },
+        "x64musl": { "allocations": 114, "work": [65535, 1, 381, 65533, 258, 254, 461, 461, 11, 1122] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 stateful dynamic DEFLATE",
+      "scenario_revision": "gate1-deflate-v1",
+      "source": "tests/gate1_deflate/main.roc",
+      "snapshot": "tests/gate1_deflate/snapshot.pdf",
+      "args": ["262144"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "compression_input_bytes": 262144, "content_stream_bytes": 262144, "content_pattern_period": 4, "deflate_blocks": 5 },
+      "work_counters": ["input_bytes", "blocks", "candidate_visits", "hash_inserts", "tokens", "matches", "compressed_bytes", "max_compressed_chunk_bytes", "generated_segments", "pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 126, "work": [262144, 5, 1524, 262134, 1036, 1016, 1864, 456, 15, 2527] },
+        "x64musl": { "allocations": 126, "work": [262144, 5, 1524, 262134, 1036, 1016, 1864, 456, 15, 2527] }
+      },
+      "retention": null
+    },
     {
       "name": "placeholder PDF x1",
       "scenario_revision": "placeholder-v1",
@@ -16,10 +150,12 @@
       "args": [],
       "measurement_boundary": "before_fixture_main",
       "dimensions": { "passes": 1 },
+      "work_counters": ["passes", "byte_visits"],
       "expectations": {
         "arm64mac": { "allocations": 1, "work": [1, 431] },
         "x64musl": { "allocations": 1, "work": [1, 431] }
-      }
+      },
+      "retention": null
     },
     {
       "name": "placeholder PDF x4",
@@ -29,10 +165,57 @@
       "args": ["scale"],
       "measurement_boundary": "before_fixture_main",
       "dimensions": { "passes": 4 },
+      "work_counters": ["passes", "byte_visits"],
       "expectations": {
         "arm64mac": { "allocations": 1, "work": [4, 1724] },
         "x64musl": { "allocations": 1, "work": [4, 1724] }
-      }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 2 minimal tagged visual PDF",
+      "scenario_revision": "gate2-minimal-tagged-visual-v2-contextual-artifact",
+      "source": "tests/gate2_minimal/main.roc",
+      "snapshot": "tests/gate2_minimal/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "semantic_nodes": 2, "commands": 3, "color_spaces": 1, "images": 1, "gate2_minimal_content": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["passes", "byte_visits"],
+      "expectations": {
+        "arm64mac": { "allocations": 662, "work": [1, 2059] },
+        "x64musl": { "allocations": 662, "work": [1, 2059] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 2 million-command image reuse",
+      "scenario_revision": "gate2-million-command-v1",
+      "source": "tests/gate2_stress/main.roc",
+      "snapshot": "tests/gate2_stress/snapshot.pdf",
+      "args": ["1000000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "commands": 1000000, "images": 1, "image_payload_bytes": 1 },
+      "work_counters": ["commands", "scene_command_visits", "scene_image_placements", "scene_max_graphics_depth", "content_command_visits", "content_image_placements", "content_max_frame_depth", "resource_command_visits", "image_reuses", "image_resources", "image_use_count", "image_payload_bytes", "content_bytes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 129, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] },
+        "x64musl": { "allocations": 129, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 1 unchanged-resource retention",
+      "scenario_revision": "gate1-retention-v1",
+      "source": "tests/gate1_retention/main.roc",
+      "snapshot": "tests/gate1_retention/snapshot.pdf",
+      "args": ["32"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "backing_bytes": 8192, "resource_bytes": 64 },
+      "work_counters": ["buffered_bytes", "shared_bytes", "owned_bytes", "shared_ranges", "owned_ranges", "shared_copied_bytes", "owned_copied_bytes", "resource_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 194, "work": [703, 703, 703, 1, 1, 0, 64, 64] },
+        "x64musl": { "allocations": 194, "work": [703, 703, 703, 1, 1, 0, 64, 64] }
+      },
+      "retention": { "backing_refs": 3, "source_offset": 4096, "owned_capacity": 64 }
     }
   ]
 }

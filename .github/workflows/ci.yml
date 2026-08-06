@@ -26,7 +26,7 @@ jobs:
           - ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install Zig
         uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29
@@ -45,3 +45,53 @@ jobs:
 
       - name: Test
         run: ./scripts/test.py
+
+      - name: Extract vendored qpdf 12.3.2
+        if: runner.os == 'Linux'
+        run: |
+          echo '44f2c53bf784c0143128d80d2b9946e9793962c5bb403b75c0024cb4d8e346b9  vendor/qpdf/qpdf-12.3.2-bin-linux-x86_64.zip' | sha256sum --check
+          unzip -q vendor/qpdf/qpdf-12.3.2-bin-linux-x86_64.zip -d /tmp/qpdf-12.3.2
+
+      - name: Validate structural PDF with qpdf 12.3.2
+        if: runner.os == 'Linux'
+        run: |
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_blank/snapshot.pdf
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_deflate_one_block/snapshot.pdf
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_deflate/snapshot.pdf
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_pages/snapshot.pdf
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_retention/snapshot.pdf
+
+      - name: Install Java 17 for PDFBox
+        if: runner.os == 'Linux'
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Parse strictly with Apache PDFBox 3.0.8
+        if: runner.os == 'Linux'
+        run: python3 scripts/check_pdfbox.py
+
+      - name: Extract vendored PDFium Chromium 7988
+        if: runner.os == 'Linux'
+        run: |
+          echo '7358c15e26a746cd67854887ea11b3b807c436056788eee9294fb972b8f8e0be  vendor/pdfium/pdfium-linux-x64-7988.tgz' | sha256sum --check
+          mkdir -p /tmp/pdfium-7988
+          tar -xzf vendor/pdfium/pdfium-linux-x64-7988.tgz -C /tmp/pdfium-7988
+          cc -std=c11 -Wall -Wextra -Werror -O2 -I/tmp/pdfium-7988/include scripts/pdfium_render.c -L/tmp/pdfium-7988/lib -Wl,-rpath,/tmp/pdfium-7988/lib -lpdfium -o /tmp/pdfium-render
+
+      - name: Compare Gate 2 PDFium and PDFBox rendering
+        if: runner.os == 'Linux'
+        run: python3 scripts/check_gate2_renderers.py --pdfium-renderer /tmp/pdfium-render
+
+      - name: Validate object model with veraPDF Arlington 1.30.2
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm -d --name gate1-arlington -p 127.0.0.1:18080:8080 verapdf/arlington@sha256:1543368902c393771557e2a1da69e64ad72b69db32e6efebd38a09a7b86eacbc
+          trap 'docker stop gate1-arlington' EXIT
+          python3 scripts/check_arlington.py \
+            tests/gate1_blank/snapshot.pdf \
+            tests/gate1_deflate_one_block/snapshot.pdf \
+            tests/gate1_deflate/snapshot.pdf \
+            tests/gate1_pages/snapshot.pdf \
+            tests/gate1_retention/snapshot.pdf
