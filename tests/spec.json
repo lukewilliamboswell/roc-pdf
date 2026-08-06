@@ -278,6 +278,21 @@
       "retention": null
     },
     {
+      "name": "Gate 3 simple and advanced shaping",
+      "scenario_revision": "gate3-shaping-v1",
+      "source": "tests/gate3_shape/main.roc",
+      "snapshot": "tests/gate3_shape/snapshot.pdf",
+      "args": ["shape"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "advanced_glyphs": 1, "font_bytes": 166300, "simple_glyphs": 8, "simple_scalars": 8 },
+      "work_counters": ["font_bytes", "simple_source_bytes", "simple_scalars", "simple_graphemes", "simple_script_runs", "simple_scalar_visits", "simple_cluster_visits", "simple_glyph_visits", "simple_metric_reads", "simple_runs", "simple_glyphs", "simple_advance", "simple_glyph_checksum", "advanced_source_bytes", "advanced_scalars", "advanced_runs", "advanced_clusters", "advanced_glyphs", "advanced_glyph_index_visits", "advanced_auxiliary_visits", "advanced_glyph_checksum", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 89, "work": [166300, 9, 8, 8, 1, 8, 8, 8, 8, 1, 8, 49247, 2067, 3, 2, 1, 1, 1, 1, 1, 5, 667] },
+        "x64musl": { "allocations": 89, "work": [166300, 9, 8, 8, 1, 8, 8, 8, 8, 1, 8, 49247, 2067, 3, 2, 1, 1, 1, 1, 1, 5, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",
