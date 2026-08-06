@@ -174,7 +174,7 @@
     },
     {
       "name": "Gate 2 minimal tagged visual PDF",
-      "scenario_revision": "gate2-minimal-tagged-visual-v1",
+      "scenario_revision": "gate2-minimal-tagged-visual-v2-contextual-artifact",
       "source": "tests/gate2_minimal/main.roc",
       "snapshot": "tests/gate2_minimal/snapshot.pdf",
       "args": [],
@@ -182,8 +182,8 @@
       "dimensions": { "pages": 1, "semantic_nodes": 2, "commands": 3, "color_spaces": 1, "images": 1, "gate2_minimal_content": 1, "normalized_plan_identity": 1 },
       "work_counters": ["passes", "byte_visits"],
       "expectations": {
-        "arm64mac": { "allocations": 634, "work": [1, 1939] },
-        "x64musl": { "allocations": 634, "work": [1, 1939] }
+        "arm64mac": { "allocations": 662, "work": [1, 2059] },
+        "x64musl": { "allocations": 662, "work": [1, 2059] }
       },
       "retention": null
     },

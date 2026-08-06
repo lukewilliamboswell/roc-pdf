@@ -81,10 +81,10 @@ contextual_semantics = {
 	..test_semantics,
 	attributes: [{ applicability: AllRoles, name: Standard("Type"), owner: Artifact, value: Name("Pagination") }],
 	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0))],
-	contextual_artifacts: [{ attributes: Semantics.Range.from_start_and_length(0, 1), id: Semantics.ContextualArtifactId.from_index(0), parent: Semantics.NodeId.from_index(0) }],
+	contextual_artifacts: [{ attributes: Semantics.Range.from_start_and_length(0, 1), id: Semantics.ContextualArtifactId.from_index(0), parent: Semantics.NodeId.from_index(1) }],
 	nodes: [
-		{ ..list_at(test_semantics.nodes, 0), content: Semantics.Range.from_start_and_length(0, 2) },
-		{ ..list_at(test_semantics.nodes, 1), content: Semantics.Range.from_start_and_length(2, 1) },
+		{ ..list_at(test_semantics.nodes, 0), content: Semantics.Range.from_start_and_length(0, 1) },
+		{ ..list_at(test_semantics.nodes, 1), content: Semantics.Range.from_start_and_length(1, 2) },
 	],
 }
 

@@ -13,6 +13,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from check_gate2 import validate_gate2_pdf
 from check_pdf_structure import validate_pdf
 
 
@@ -485,6 +486,9 @@ def run_case(
             case.dimensions.get("normalized_plan_identity", 0) == 1,
         )
         print(f"PASS {case.name}: independent offsets, lengths, xref, and page facts", flush=True)
+        if case.dimensions.get("gate2_minimal_content", 0) == 1:
+            validate_gate2_pdf(result.stdout)
+            print(f"PASS {case.name}: exact normalized tagged structure and resources", flush=True)
 
 
 def main() -> None:
@@ -501,6 +505,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_contracts.py", "--self-test")
     command(sys.executable, "scripts/check_arlington.py", "--self-test")
     command(sys.executable, "scripts/check_pdfbox.py", "--self-test")
+    command(sys.executable, "scripts/check_gate2.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)

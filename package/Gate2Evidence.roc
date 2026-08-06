@@ -48,7 +48,7 @@ Gate2Evidence :: [].{
 
 build_minimal_pdf : {} -> Try(List(U8), [EvidenceFailure, InvalidRuntimeGuard])
 build_minimal_pdf = |_| {
-	pipeline = KernelGate2PipelineFixture.pipeline({}) ? |_| EvidenceFailure
+	pipeline = KernelGate2PipelineFixture.contextual_pipeline({}) ? |_| EvidenceFailure
 	object_limits : KernelObject.Limits
 	object_limits = {
 		max_array_items: 192,
