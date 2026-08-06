@@ -361,7 +361,7 @@ def expected_content(dimensions: dict[str, int]) -> bytes:
     if dimensions.get("gate2_minimal_content", 0) == 1:
         return (
             b"/P <</MCID 0>> BDC\n"
-            b"/CS0 cs\n"
+            b"/CS1_0 cs\n"
             b"0.50000763 scn\n"
             b"0 0 1 1 re\n"
             b"f\n"
@@ -371,7 +371,7 @@ def expected_content(dimensions: dict[str, int]) -> bytes:
             b"1 0 0 1 2 3 cm\n"
             b"q\n"
             b"2 0 0 1 4 5 cm\n"
-            b"/Im0 Do\n"
+            b"/Im1_0 Do\n"
             b"Q\n"
             b"Q\n"
             b"EMC\n"

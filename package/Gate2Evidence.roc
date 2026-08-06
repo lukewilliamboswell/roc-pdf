@@ -7,6 +7,7 @@ import KernelGate2PageObjects
 import KernelGate2PipelineFixture
 import KernelGate2TaggedObjects
 import KernelGate2ResourceObjects
+import KernelGate2ResourceName
 import KernelGate2Structure
 import KernelImage
 import KernelObject

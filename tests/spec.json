@@ -182,8 +182,8 @@
       "dimensions": { "pages": 1, "semantic_nodes": 2, "commands": 3, "color_spaces": 1, "images": 1, "gate2_minimal_content": 1, "normalized_plan_identity": 1 },
       "work_counters": ["passes", "byte_visits"],
       "expectations": {
-        "arm64mac": { "allocations": 630, "work": [1, 1932] },
-        "x64musl": { "allocations": 630, "work": [1, 1932] }
+        "arm64mac": { "allocations": 634, "work": [1, 1939] },
+        "x64musl": { "allocations": 634, "work": [1, 1939] }
       },
       "retention": null
     },

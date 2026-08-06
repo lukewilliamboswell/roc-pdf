@@ -2,6 +2,7 @@ import KernelBalanced
 import KernelContent
 import KernelGate2Objects
 import KernelGate2PipelineFixture
+import KernelGate2ResourceName
 import KernelGate2TaggedObjects
 import KernelLex
 import KernelObject
@@ -152,7 +153,7 @@ add_named_references = |builder, prefix, objects| {
 	var $index = 0
 	var $error = NoError
 	while $index < objects.len() and $error == NoError {
-		name_bytes = Str.to_utf8("${prefix}${Str.inspect($index)}")
+		name_bytes = KernelGate2ResourceName.bytes(prefix, $index)
 		match KernelObject.add_name($builder, name_bytes) {
 			Err(error) => {
 				$error = Invalid(error)

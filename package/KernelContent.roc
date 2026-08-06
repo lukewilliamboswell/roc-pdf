@@ -1,6 +1,7 @@
 import Color
 import Image
 import KernelGate2Fixture
+import KernelGate2ResourceName
 import KernelLex
 import KernelTagged
 import Layout
@@ -319,7 +320,7 @@ emit_image = |bytes, image, placement, limit| {
 	$out = append_literal($out, " ", limit)?
 	$out = append_layout($out, placement.origin.y, limit)?
 	$out = append_literal($out, " cm\n/Im", limit)?
-	$out = append_unsigned($out, image.index(), limit)?
+	$out = append_resource_index($out, image.index(), limit)?
 	append_literal($out, " Do\nQ\n", limit)
 }
 
@@ -399,7 +400,7 @@ emit_stroke = |bytes, stroke, dash_lengths, limit| {
 emit_color : List(U8), Color.Value, Bool, U64 -> Try(List(U8), KernelContent.Error)
 emit_color = |bytes, color, stroking, limit| {
 	var $out = append_literal(bytes, "/CS", limit)?
-	$out = append_unsigned($out, color.space.index(), limit)?
+	$out = append_resource_index($out, color.space.index(), limit)?
 	$out = append_literal($out, if stroking " CS\n" else " cs\n", limit)?
 	match color.channels {
 		Gray(gray) => {
@@ -505,6 +506,12 @@ append_unsigned = |bytes, value, limit| {
 	Ok(KernelLex.append_unsigned(reserved, value))
 }
 
+append_resource_index : List(U8), U64, U64 -> Try(List(U8), KernelContent.Error)
+append_resource_index = |bytes, value, limit| {
+	reserved = reserve_exact(bytes, KernelGate2ResourceName.suffix_length(value), limit)?
+	Ok(KernelGate2ResourceName.append(reserved, value))
+}
+
 append_literal : List(U8), Str, U64 -> Try(List(U8), KernelContent.Error)
 append_literal = |bytes, value, limit| append_bytes(bytes, Str.to_utf8(value), limit)
 
@@ -607,7 +614,7 @@ expect {
 	stream = KernelContent.Plan.stream(plan, Semantics.ContentStreamId.from_index(0))
 	expected =
 		\\/P <</MCID 0>> BDC
-		\\/CS0 cs
+		\\/CS1_0 cs
 		\\0.50000763 scn
 		\\0 0 1 1 re
 		\\f
@@ -617,7 +624,7 @@ expect {
 		\\1 0 0 1 2 3 cm
 		\\q
 		\\2 0 0 1 4 5 cm
-		\\/Im0 Do
+		\\/Im1_0 Do
 		\\Q
 		\\Q
 		\\EMC
@@ -656,7 +663,7 @@ expect {
 		\\q
 		\\0 0 1 1 re
 		\\W n
-		\\/CS0 CS
+		\\/CS1_0 CS
 		\\1 SCN
 		\\0.5 w
 		\\2 J
@@ -685,7 +692,7 @@ expect {
 	}
 	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes, 512)?
 	expected =
-		\\/CS0 cs
+		\\/CS1_0 cs
 		\\1 0.50000763 0 scn
 		\\0 0 m
 		\\1 0 l
