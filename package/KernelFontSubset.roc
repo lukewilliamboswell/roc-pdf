@@ -78,7 +78,7 @@ build_subset = |font, plan| {
 	head = set_u16(set_u32(source.head, 8, 0), 50, 1)
 	hhea = set_u16(source.hhea, 34, plan.entries.len().to_u16_wrap())
 	maxp = set_u16(source.maxp, 4, plan.entries.len().to_u16_wrap())
-	name = build_name(plan.prefix)
+	name = build_name(font, plan.prefix)
 	post = build_post({})
 	tables : SfntTables
 	tables = {
@@ -269,25 +269,29 @@ build_cmap = |font, plan| {
 	Ok({ bytes: concat_bytes($bytes, $groups), mappings: $mapping_count })
 }
 
-build_name : List(U8) -> List(U8)
-build_name = |prefix| {
-	family = concat_bytes(concat_bytes(prefix, [0x2b]), Str.to_utf8("Roc PDF Sans"))
-	full = concat_bytes(concat_bytes(prefix, [0x2b]), Str.to_utf8("Roc PDF Sans Regular"))
-	postscript = concat_bytes(concat_bytes(prefix, [0x2b]), Str.to_utf8("RocPdfSans-Regular"))
-	family_utf16 = ascii_utf16be(family)
-	full_utf16 = ascii_utf16be(full)
-	postscript_utf16 = ascii_utf16be(postscript)
+build_name : KernelFont.Inspection, List(U8) -> List(U8)
+build_name = |font, prefix| {
+	prefix_utf16 = ascii_utf16be(concat_bytes(prefix, [0x2b]))
+	family = font.names.family_utf16be
+	full = font.names.full_utf16be
+	postscript = font.names.postscript_utf16be
+	family_length = prefix_utf16.len() + family.length
+	full_length = prefix_utf16.len() + full.length
+	postscript_length = prefix_utf16.len() + postscript.length
 	string_offset = 42
-	var $bytes = List.with_capacity(string_offset + family_utf16.len() + full_utf16.len() + postscript_utf16.len())
+	var $bytes = List.with_capacity(string_offset + family_length + full_length + postscript_length)
 	$bytes = append_u16($bytes, 0)
 	$bytes = append_u16($bytes, 3)
 	$bytes = append_u16($bytes, string_offset.to_u16_wrap())
-	$bytes = append_name_record($bytes, 1, family_utf16.len(), 0)
-	$bytes = append_name_record($bytes, 4, full_utf16.len(), family_utf16.len())
-	$bytes = append_name_record($bytes, 6, postscript_utf16.len(), family_utf16.len() + full_utf16.len())
-	$bytes = concat_bytes($bytes, family_utf16)
-	$bytes = concat_bytes($bytes, full_utf16)
-	concat_bytes($bytes, postscript_utf16)
+	$bytes = append_name_record($bytes, 1, family_length, 0)
+	$bytes = append_name_record($bytes, 4, full_length, family_length)
+	$bytes = append_name_record($bytes, 6, postscript_length, family_length + full_length)
+	$bytes = concat_bytes($bytes, prefix_utf16)
+	$bytes = append_range($bytes, font.bytes, family.offset, family.length)
+	$bytes = concat_bytes($bytes, prefix_utf16)
+	$bytes = append_range($bytes, font.bytes, full.offset, full.length)
+	$bytes = concat_bytes($bytes, prefix_utf16)
+	append_range($bytes, font.bytes, postscript.offset, postscript.length)
 }
 
 build_post : {} -> List(U8)

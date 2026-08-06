@@ -13,6 +13,7 @@ from check_gate2_renderers import Raster, read_ppm
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "gate3_text" / "snapshot.pdf"
+CALLER_SNAPSHOT = ROOT / "tests" / "gate3_caller_text" / "snapshot.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 
@@ -89,7 +90,7 @@ def compile_pdfbox_renderer(classes: Path) -> None:
     )
 
 
-def check_renderers(renderer: Path, working_directory: Path | None) -> None:
+def check_renderers(renderer: Path, working_directory: Path | None, snapshot: Path, label: str) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
     require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-gate3-render-") as temporary_name:
@@ -100,12 +101,12 @@ def check_renderers(renderer: Path, working_directory: Path | None) -> None:
         pdfium_output = temporary / "pdfium.ppm"
         compile_pdfbox_renderer(classes)
         subprocess.run(
-            ["java", "-Djava.awt.headless=true", "-cp", f"{classes}{os.pathsep}{PDFBOX_JAR}", "PdfBoxRender", str(SNAPSHOT), str(pdfbox_output), "72"],
+            ["java", "-Djava.awt.headless=true", "-cp", f"{classes}{os.pathsep}{PDFBOX_JAR}", "PdfBoxRender", str(snapshot), str(pdfbox_output), "72"],
             cwd=ROOT,
             check=True,
         )
         subprocess.run(
-            [str(renderer), str(SNAPSHOT), str(pdfium_output), "1"],
+            [str(renderer), str(snapshot), str(pdfium_output), "1"],
             cwd=working_directory or ROOT,
             check=True,
         )
@@ -115,7 +116,7 @@ def check_renderers(renderer: Path, working_directory: Path | None) -> None:
         assert_close("PDFium Chromium 7988", pdfium, EXPECTED)
         assert_close("PDFium versus PDFBox", pdfium, pdfbox)
     print(
-        "PASS Gate 3 renderers: PDFium Chromium 7988 and PDFBox 3.0.8 independently render "
+        f"PASS Gate 3 {label} renderers: PDFium Chromium 7988 and PDFBox 3.0.8 independently render "
         "visible text within the declared 72-dpi bounds, pixel-count, and grayscale-ink tolerances"
     )
 
@@ -141,13 +142,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
+    parser.add_argument("--caller", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
         return
     require(args.pdfium_renderer is not None, "--pdfium-renderer is required unless --self-test is used")
-    check_renderers(args.pdfium_renderer.resolve(), args.pdfium_working_directory)
+    snapshot = CALLER_SNAPSHOT if args.caller else SNAPSHOT
+    label = "caller-font text" if args.caller else "built-in text"
+    check_renderers(args.pdfium_renderer.resolve(), args.pdfium_working_directory, snapshot, label)
 
 
 if __name__ == "__main__":

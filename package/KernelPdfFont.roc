@@ -18,10 +18,8 @@ KernelPdfFont :: [].{
 	]
 
 	Descriptor : {
-		cap_height : I64,
 		flags : I64,
 		italic_angle : I64,
-		postscript_name : List(U8),
 		stem_v : I64,
 	}
 
@@ -109,7 +107,8 @@ build_plan = |builder, font, font_plan, subset, descriptor, mappings, limits| {
 	if descriptor.flags < 0 or descriptor.stem_v <= 0 {
 		return Err(InvalidDescriptor)
 	}
-	if !valid_postscript_name(descriptor.postscript_name) {
+	postscript_name = KernelFont.postscript_name(font)
+	if !valid_postscript_name(postscript_name) {
 		return Err(InvalidPostScriptName)
 	}
 	if font_plan.prefix.len() != 6 or font_plan.entries.len() == 0 or font_plan.entries.len() > 65535 {
@@ -123,7 +122,7 @@ build_plan = |builder, font, font_plan, subset, descriptor, mappings, limits| {
 	mapping_work = validate_mappings(font_plan, mappings, limits)?
 	cid_map = build_cid_map(font_plan)?
 	to_unicode = build_to_unicode(mappings, limits.max_to_unicode_bytes)?
-	base_font_bytes = build_base_font_name(font_plan.prefix, descriptor.postscript_name)
+	base_font_bytes = build_base_font_name(font_plan.prefix, postscript_name)
 	added_names = add_names(builder)?
 	base_font = KernelObject.add_name(added_names.builder, base_font_bytes) ? Object
 
@@ -237,7 +236,7 @@ add_names = |builder| {
 add_descriptor : KernelObject.Builder, Names, KernelObject.NameId, KernelObject.ObjectId, KernelFont.Inspection, KernelPdfFont.Descriptor -> Try({ builder : KernelObject.Builder, id : KernelObject.ObjectId }, KernelPdfFont.Error)
 add_descriptor = |builder, names, base_font, font_file, font, descriptor| {
 	ascent = add_scaled_integer(builder, font.metrics.ascent, font.metrics.units_per_em)?
-	cap_height = add_scaled_integer(ascent.builder, descriptor.cap_height, font.metrics.units_per_em)?
+	cap_height = add_scaled_integer(ascent.builder, font.metrics.cap_height, font.metrics.units_per_em)?
 	descent = add_scaled_integer(cap_height.builder, font.metrics.descent, font.metrics.units_per_em)?
 	flags = KernelObject.add_integer(descent.builder, descriptor.flags) ? Object
 	x_min = add_scaled_integer(flags.builder, font.metrics.x_min, font.metrics.units_per_em)?

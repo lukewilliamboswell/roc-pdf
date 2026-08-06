@@ -28,7 +28,7 @@ ownership, and public layout integration remain subsequent Gate 3 slices.
 The fixture renders and extracts `Café PDF` on one A4 page. It embeds a fresh
 6,776-byte sanitized TrueType subset, an identity CID-to-GID map for eleven
 planned entries, eight exact `ToUnicode` rows, one CIDFontType2 descendant, and
-one Type 0 parent. The tracked PDF is 9,095 bytes and contains fourteen
+one Type 0 parent. The tracked PDF is 9,094 bytes and contains fourteen
 non-xref objects; unlike the earlier Gate 3 protocol carriers, it is visibly
 nonblank in ordinary readers.
 
@@ -46,15 +46,19 @@ engines.
 
 | Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,095 | 187 |
-| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,095 | 187 |
+| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,094 | 187 |
+| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,094 | 187 |
 
 The exact work vector records, in order: 166,300 source-font bytes, one run,
 eight shaped glyphs, eleven font-plan entries, 6,776 subset bytes, eight source
 scalars, one text run, one placement, eight emitted glyphs, eight mappings, 271
 content bytes, one font, nine font objects, fourteen total objects, 7,047
-uncompressed payload bytes, and 9,095 emitted bytes.
+uncompressed payload bytes, and 9,094 emitted bytes. The one-byte snapshot
+reduction records the exact OS/2 CapHeight instead of the former hardcoded
+descriptor value; glyph data and rendered pixels are unchanged.
 
-This is pipeline evidence, not Gate 3 closure. It does not yet claim the public
-caller-font/theme path, paragraph layout and pagination, explicit text color,
-advanced multilingual `ActualText`, accessibility tagging, or facade output.
+This is pipeline evidence, not Gate 3 closure. The public caller-font/theme path
+is covered by the subsequent caller-font text slice. Paragraph layout and
+pagination, explicit text color, advanced multilingual `ActualText`,
+accessibility tagging, facade output, caller source-refcount evidence, and
+multi-placement parse reuse remain open.

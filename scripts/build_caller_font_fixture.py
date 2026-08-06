@@ -14,6 +14,7 @@ from fontTools.ttLib import TTFont
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "vendor" / "fonts" / "Inter-4.1-Regular.ttf"
 OUTPUT = ROOT / "tests" / "assets" / "CallerFont-Regular.ttf"
+RESTRICTED_OUTPUT = ROOT / "tests" / "assets" / "CallerFont-Restricted.ttf"
 SOURCE_SHA256 = "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82"
 FONTTOOLS_VERSION = "4.61.1"
 SCALARS = {0x20, 0x43, 0x44, 0x46, 0x50, 0x61, 0x66, 0xE9}
@@ -39,7 +40,7 @@ def rename_font(font: TTFont) -> None:
             record.string = replacement.encode(record.getEncoding())
 
 
-def build(output: Path) -> None:
+def build(output: Path, restricted: bool) -> None:
     require_source = sha256(SOURCE)
     if require_source != SOURCE_SHA256:
         raise SystemExit(f"unexpected Inter source digest: {require_source}")
@@ -64,6 +65,7 @@ def build(output: Path) -> None:
     worker.populate(unicodes=SCALARS)
     worker.subset(font)
     rename_font(font)
+    font["OS/2"].fsType = 0x0002 if restricted else 0
 
     output.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary_name = tempfile.mkstemp(prefix="CallerFont-", suffix=".ttf", dir=output.parent)
@@ -82,14 +84,18 @@ def main() -> None:
     args = parser.parse_args()
     if args.check:
         with tempfile.TemporaryDirectory(prefix="roc-pdf-caller-font-") as directory:
-            candidate = Path(directory) / OUTPUT.name
-            build(candidate)
-            if not OUTPUT.exists() or candidate.read_bytes() != OUTPUT.read_bytes():
-                raise SystemExit(f"{OUTPUT} is not the deterministic generated caller-font fixture")
+            temporary = Path(directory)
+            for output, restricted in ((OUTPUT, False), (RESTRICTED_OUTPUT, True)):
+                candidate = temporary / output.name
+                build(candidate, restricted)
+                if not output.exists() or candidate.read_bytes() != output.read_bytes():
+                    raise SystemExit(f"{output} is not a deterministic generated caller-font fixture")
         print(f"PASS caller font fixture {sha256(OUTPUT)}")
+        print(f"PASS restricted caller font fixture {sha256(RESTRICTED_OUTPUT)}")
     else:
-        build(OUTPUT)
-        print(f"Wrote {OUTPUT} ({OUTPUT.stat().st_size} bytes, sha256={sha256(OUTPUT)})")
+        for output, restricted in ((OUTPUT, False), (RESTRICTED_OUTPUT, True)):
+            build(output, restricted)
+            print(f"Wrote {output} ({output.stat().st_size} bytes, sha256={sha256(output)})")
 
 
 if __name__ == "__main__":

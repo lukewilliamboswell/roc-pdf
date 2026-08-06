@@ -25,7 +25,8 @@ Gate3FontEvidence :: [].{
 				store.faces.len() != 1 or
 					store.instances.len() != 1 or
 						store.policies.len() != 1 or
-							list_at(store.resources, 0).bytes.len() != caller_font_bytes.len() {
+							list_at(store.resources, 0).bytes.len() != caller_font_bytes.len() or
+								list_at(store.faces, 0).postscript_name.len() != 25 {
 			return Err(EvidenceFailure)
 		}
 		bytes = blank_pdf(runtime_guard)?

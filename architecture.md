@@ -533,6 +533,12 @@ its once-produced inspection facts; it does not copy the font payload into a
 second byte list. `Theme.with_font` accepts the returned face handle. A caller
 cannot register a name, path, URL, partial stream, or caller-selected identity.
 
+Validated font identity and metrics are source facts. Inspection records exact
+ranges for the selected family, full, and PostScript name strings and the OS/2
+CapHeight. Subsetting prefixes and copies those retained ranges; PDF font
+dictionaries and descriptors consume the same facts. Neither caller metadata
+nor a packaged-font constant may rename a subset or replace a validated metric.
+
 Caller-provided means external to the package distribution, not external to the
 generated document. Every selected resource is validated under the same
 conformance, security, determinism, ownership, and retention rules as a packaged

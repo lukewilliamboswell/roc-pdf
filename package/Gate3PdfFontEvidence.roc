@@ -104,10 +104,8 @@ required_glyph = |font, scalar| match KernelFont.glyph_for_scalar(font, scalar) 
 
 descriptor : KernelPdfFont.Descriptor
 descriptor = {
-	cap_height: 2076,
 	flags: 32,
 	italic_angle: 0,
-	postscript_name: Str.to_utf8("RocPdfSans-Regular"),
 	stem_v: 80,
 }
 

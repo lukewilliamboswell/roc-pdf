@@ -68,6 +68,7 @@ Font :: [].{
 		embedding_rights : EmbeddingRights,
 		format : Format,
 		id : FaceId,
+		postscript_name : List(U8),
 		provision : ShapingProvision,
 		resource : ResourceId,
 		scripts : Semantics.Range,
@@ -186,6 +187,11 @@ Font :: [].{
 
 		store : Registry -> Store
 		store = |Registry.(state)| state.store
+
+		## The advanced fixed-layout boundary consumes the validation facts
+		## retained by registration. This never reparses or copies font bytes.
+		prepared_face : Registry, FaceId -> Try(KernelFont.Inspection, ResourceError)
+		prepared_face = |registry, face| registry_inspection(registry, face)
 	}
 }
 
@@ -234,6 +240,7 @@ register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimi
 			embedding_rights: font_rights,
 			format: OpenTypeTrueType,
 			id: face,
+			postscript_name: KernelFont.postscript_name(inspection),
 			provision: registration.provision,
 			resource,
 			scripts: Semantics.Range.from_start_and_length(script_start, registration.scripts.len()),
@@ -258,6 +265,16 @@ register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimi
 			table_visits: inspection.work.directory_entries,
 		},
 	})
+}
+
+registry_inspection : Font.Registry, Font.FaceId -> Try(KernelFont.Inspection, Font.ResourceError)
+registry_inspection = |Font.Registry.(state), face| {
+	index = face.index()
+	if index >= state.inspections.len() or index >= state.store.faces.len() or list_at(state.store.faces, index).id.index() != index {
+		Err(UnknownFace(face))
+	} else {
+		Ok(list_at(state.inspections, index))
+	}
 }
 
 validate_scripts : List(Font.Script) -> Try({}, Font.ResourceError)

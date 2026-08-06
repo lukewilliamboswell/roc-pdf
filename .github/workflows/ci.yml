@@ -87,7 +87,9 @@ jobs:
 
       - name: Extract Gate 3 text with Apache PDFBox 3.0.8
         if: runner.os == 'Linux'
-        run: python3 scripts/check_gate3_text.py --pdfbox-extraction
+        run: |
+          python3 scripts/check_gate3_text.py --pdfbox-extraction
+          python3 scripts/check_gate3_caller_text.py --pdfbox-extraction
 
       - name: Extract vendored PDFium Chromium 7988
         if: runner.os == 'Linux'
@@ -103,7 +105,9 @@ jobs:
 
       - name: Validate Gate 3 text with PDFium and PDFBox rendering
         if: runner.os == 'Linux'
-        run: python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render
+        run: |
+          python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render
+          python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render --caller
 
       - name: Validate object model with veraPDF Arlington 1.30.2
         if: runner.os == 'Linux'

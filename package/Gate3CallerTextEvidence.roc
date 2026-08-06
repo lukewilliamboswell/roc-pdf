@@ -8,14 +8,15 @@ import KernelObject
 import KernelPdfFont
 import KernelPdfText
 import KernelShape
-import KernelStructure
 import KernelUnicode
 import Layout
 import Semantics
 import Text
-import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import Theme
+import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
+import "../tests/assets/CallerFont-Restricted.ttf" as restricted_font_bytes : List(U8)
 
-Gate3TextEvidence :: [].{
+Gate3CallerTextEvidence :: [].{
 	visible_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
 	visible_text = |runtime_guard| {
 		if runtime_guard != 0 {
@@ -28,16 +29,19 @@ Gate3TextEvidence :: [].{
 		Ok({
 			bytes,
 			work: [
-				sample.font.bytes.len(),
+				sample.registration.input_bytes,
+				sample.registration.retained_input_bytes,
+				sample.registration.copied_input_bytes,
+				sample.registration.table_visits,
+				sample.registration.glyph_visits,
+				sample.registration.cmap_mapping_visits,
+				sample.registration.component_edge_visits,
+				sample.selected_face,
 				sample.shape.store.runs.len(),
 				sample.shape.store.glyphs.len(),
 				sample.font_plan.entries.len(),
 				sample.subset.work.output_bytes,
 				text_work.source_scalar_visits,
-				text_work.run_visits,
-				text_work.placement_visits,
-				text_work.glyph_visits,
-				text_work.mappings,
 				text_work.content_bytes,
 				structure_work.fonts,
 				structure_work.font_objects,
@@ -50,8 +54,9 @@ Gate3TextEvidence :: [].{
 }
 
 Sample := {
-	font : KernelFont.Inspection,
 	font_plan : KernelFontPlan.Plan,
+	registration : Font.RegistrationWork,
+	selected_face : U64,
 	shape : KernelShape.Shape,
 	structure : KernelGate3TextStructure.Plan,
 	subset : KernelFontSubset.Subset,
@@ -60,21 +65,27 @@ Sample := {
 
 build_sample : {} -> Try(Sample, [AnalysisFailure, FontFailure, FontPlanFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample = |_| {
+	registered = Font.Registry.empty.register(
+		caller_font_bytes,
+		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+		Font.ValidationLimits.default,
+	) ? |_| FontFailure
+	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
+	theme = Theme.with_font(Theme.default, registered.face)
+	if theme.body_font().index() != registered.face.index() {
+		return Err(FontFailure)
+	}
 	analysis = KernelUnicode.analyze(
 		source,
 		{ max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 },
 	) ? |_| AnalysisFailure
-	font = KernelFont.inspect(
-		built_in_font_bytes,
-		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
-	) ? |_| FontFailure
 	shape = KernelShape.shape_simple(
 		font,
 		source,
 		analysis,
 		{
 			direction: LeftToRight,
-			instance: Font.InstanceId.from_index(0),
+			instance: registered.instance,
 			language: Language("en-AU"),
 			occurrence: Semantics.OccurrenceId.from_index(0),
 			script: Font.Script.from_iso15924("Latn"),
@@ -83,8 +94,7 @@ build_sample = |_| {
 		},
 		KernelShape.Limits.make({ max_clusters: 32, max_glyphs: 32, max_scalars: 32, max_source_bytes: 128 }),
 	) ? |_| ShapeFailure
-	usages = glyph_usages(shape.store.glyphs)
-	font_plan = KernelFontPlan.plan(font, usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| FontPlanFailure
+	font_plan = KernelFontPlan.plan(font, glyph_usages(shape.store.glyphs), KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
 	text = KernelPdfText.Plan.build(
 		semantics,
@@ -102,7 +112,15 @@ build_sample = |_| {
 			object_limits,
 		}),
 	) ? |_| StructureFailure
-	Ok({ font, font_plan, shape, structure, subset, text })
+	Ok({
+		font_plan,
+		registration: registered.work,
+		selected_face: theme.body_font().index(),
+		shape,
+		structure,
+		subset,
+		text,
+	})
 }
 
 glyph_usages : List(Text.Glyph) -> List(KernelFontPlan.Usage)
@@ -212,44 +230,25 @@ object_limits = {
 	max_values: 256,
 }
 
-expect {
-	sample = build_sample({})?
-	structure = KernelGate3TextStructure.Plan.structure(sample.structure)
-	font_objects = KernelGate3TextStructure.Plan.font_objects(sample.structure)
-	first = list_at(font_objects, 0)
-	KernelStructure.Plan.object_count(structure) == 14 and
-		KernelObject.ObjectId.number(first.font_file) == 6 and
-			KernelObject.ObjectId.number(first.type0) == 14 and
-				KernelPdfText.Plan.mappings(sample.text).len() == 1 and
-					list_at(KernelPdfText.Plan.mappings(sample.text), 0).len() == 8
+## The prohibited twin is checksum-valid but never returns usable handles.
+expect match Font.Registry.empty.register(
+	restricted_font_bytes,
+	{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+	Font.ValidationLimits.default,
+) {
+	Err(EmbeddingRightsProhibited({ fs_type: 2 })) => Bool.True
+	_ => Bool.False
 }
 
-## Placement and ActualText failures are atomic rather than guessed or omitted.
 expect {
 	sample = build_sample({})?
-	placement = { origin: { x: Layout.Unit.from_raw(72000), y: Layout.Unit.from_raw(700000) }, run: Text.RunId.from_index(0) }
-	limits = KernelPdfText.Limits.make({ max_content_bytes: 4096, max_mappings: 64, max_placements: 8, max_source_scalars: 64 })
-	missing_rejected = match KernelPdfText.Plan.build(semantics, sample.shape.store, [sample.font_plan], [], limits) {
-		Err(RunInvalid({ run: 0 })) => Bool.True
-		_ => Bool.False
-	}
-	duplicate_rejected = match KernelPdfText.Plan.build(semantics, sample.shape.store, [sample.font_plan], [placement, placement], limits) {
-		Err(PlacementInvalid({ placement: 1 })) => Bool.True
-		_ => Bool.False
-	}
-	run = list_at(sample.shape.store.runs, 0)
-	override_store = { ..sample.shape.store, runs: [{ ..run, actual_text: SemanticOverride(Semantics.TextPropertyId.from_index(0)) }] }
-	override_rejected = match KernelPdfText.Plan.build(semantics, override_store, [sample.font_plan], [placement], limits) {
-		Err(ActualTextRequired({ run: 0 })) => Bool.True
-		_ => Bool.False
-	}
-	missing_rejected and duplicate_rejected and override_rejected
+	KernelGate3TextStructure.Plan.work(sample.structure).fonts == 1 and sample.selected_face == 0
 }
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
 	Err(OutOfBounds) => {
-		crash "Gate 3 text evidence index escaped"
+		crash "Gate 3 caller text evidence index escaped"
 	}
 	Ok(value) => value
 }

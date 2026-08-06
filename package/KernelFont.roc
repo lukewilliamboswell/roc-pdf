@@ -18,6 +18,8 @@ KernelFont :: [].{
 		InvalidGlyph({ glyph : U32, offset : U64 }),
 		InvalidLoca,
 		InvalidMaxp,
+		InvalidName,
+		InvalidOs2,
 		InvalidTableRange({ length : U64, offset : U64, tag : U32 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		MissingTable(U32),
@@ -41,8 +43,15 @@ KernelFont :: [].{
 		Format12({ groups : List(CmapGroup) }),
 	]
 	EmbeddingRights : [Editable, Installable, PreviewAndPrint]
+	NameRange : { length : U64, offset : U64 }
+	Names : {
+		family_utf16be : NameRange,
+		full_utf16be : NameRange,
+		postscript_utf16be : NameRange,
+	}
 	Metrics : {
 		ascent : I64,
+		cap_height : I64,
 		descent : I64,
 		glyph_count : U64,
 		index_to_loc_format : U8,
@@ -72,6 +81,7 @@ KernelFont :: [].{
 		embedding_rights : EmbeddingRights,
 		loca_offsets : List(U64),
 		metrics : Metrics,
+		names : Names,
 		tables : List(Table),
 		work : Work,
 	}
@@ -90,6 +100,9 @@ KernelFont :: [].{
 
 	horizontal_metric : Inspection, U32 -> Try(HorizontalMetric, Error)
 	horizontal_metric = |font, glyph| horizontal_metric_for(font, glyph)
+
+	postscript_name : Inspection -> List(U8)
+	postscript_name = |font| postscript_name_bytes(font)
 }
 
 horizontal_metric_for : KernelFont.Inspection, U32 -> Try(KernelFont.HorizontalMetric, KernelFont.Error)
@@ -172,7 +185,7 @@ inspect_font = |bytes, limits| {
 	hmtx = required_table($tables, tag_hmtx)?
 	loca = required_table($tables, tag_loca)?
 	_ = required_table($tables, tag_glyf)?
-	_ = required_table($tables, tag_name)?
+	name = required_table($tables, tag_name)?
 	os2 = required_table($tables, tag_os2)?
 	_ = required_table($tables, tag_post)?
 	cmap_table = required_table($tables, tag_cmap)?
@@ -185,7 +198,8 @@ inspect_font = |bytes, limits| {
 	glyf = required_table($tables, tag_glyf)?
 	loca_offsets = inspect_loca(bytes, loca, glyf, glyph_count, head_metrics.index_to_loc_format)?
 	glyph_result = inspect_glyphs(bytes, glyf, loca_offsets, glyph_count, maxp_metrics.max_component_depth)?
-	embedding_rights = inspect_embedding_rights(bytes, os2)?
+	os2_result = inspect_os2(bytes, os2)?
+	names = inspect_names(bytes, name)?
 	cmap_result = inspect_cmap(bytes, cmap_table, glyph_count, limits.max_cmap_mappings)?
 	digest = KernelSha256.digest(bytes) ? |_| ArithmeticOverflow
 
@@ -195,10 +209,11 @@ inspect_font = |bytes, limits| {
 		components: glyph_result.components,
 		coverage: cmap_result.coverage,
 		digest,
-		embedding_rights,
+		embedding_rights: os2_result.embedding_rights,
 		loca_offsets,
 		metrics: {
 			ascent: horizontal.ascent,
+			cap_height: os2_result.cap_height,
 			descent: horizontal.descent,
 			glyph_count,
 			index_to_loc_format: head_metrics.index_to_loc_format,
@@ -210,6 +225,7 @@ inspect_font = |bytes, limits| {
 			y_max: head_metrics.y_max,
 			y_min: head_metrics.y_min,
 		},
+		names,
 		tables: $tables,
 		work: {
 			checksum_bytes: bytes.len() + $tables.fold(0, |total, table| total + padded_length(table.length)),
@@ -601,25 +617,146 @@ validate_component_graph = |edges, glyph_count, declared_depth| {
 	}
 }
 
-inspect_embedding_rights : List(U8), KernelFont.Table -> Try(KernelFont.EmbeddingRights, KernelFont.Error)
-inspect_embedding_rights = |bytes, table| {
-	if table.length < 10 {
-		problem : KernelFont.Error
-		problem = InvalidEmbeddingRights(0xffff)
-		return Err(problem)
+inspect_os2 : List(U8), KernelFont.Table -> Try({ cap_height : I64, embedding_rights : KernelFont.EmbeddingRights }, KernelFont.Error)
+inspect_os2 = |bytes, table| {
+	if table.length < 90 or read_u16(bytes, table.offset) < 2 {
+		return Err(InvalidOs2)
 	}
 	fs_type = read_u16(bytes, table.offset + 8)
-	if fs_type.bitwise_and(0x0002) != 0 or fs_type.bitwise_and(0x0100) != 0 or fs_type.bitwise_and(0x0200) != 0 {
+	embedding_rights = if fs_type.bitwise_and(0x0002) != 0 or fs_type.bitwise_and(0x0100) != 0 or fs_type.bitwise_and(0x0200) != 0 {
 		problem : KernelFont.Error
 		problem = InvalidEmbeddingRights(fs_type)
-		Err(problem)
+		return Err(problem)
 	} else if fs_type.bitwise_and(0x0008) != 0 {
-		Ok(Editable)
+		Editable
 	} else if fs_type.bitwise_and(0x0004) != 0 {
-		Ok(PreviewAndPrint)
+		PreviewAndPrint
 	} else {
-		Ok(Installable)
+		Installable
 	}
+	cap_height = signed_i16(read_u16(bytes, table.offset + 88))
+	if cap_height <= 0 {
+		Err(InvalidOs2)
+	} else {
+		Ok({ cap_height, embedding_rights })
+	}
+}
+
+inspect_names : List(U8), KernelFont.Table -> Try(KernelFont.Names, KernelFont.Error)
+inspect_names = |bytes, table| {
+	if table.length < 6 {
+		return Err(InvalidName)
+	}
+	format = read_u16(bytes, table.offset)
+	count = read_u16(bytes, table.offset + 2).to_u64()
+	string_offset = read_u16(bytes, table.offset + 4).to_u64()
+	record_end = checked_add(6, checked_times(count, 12)?)?
+	if format > 1 or record_end > table.length or string_offset < record_end or string_offset > table.length {
+		return Err(InvalidName)
+	}
+	empty : KernelFont.NameRange
+	empty = { length: 0, offset: 0 }
+	var $family = empty
+	var $full = empty
+	var $postscript = empty
+	var $family_priority = 0
+	var $full_priority = 0
+	var $postscript_priority = 0
+	var $index = 0
+	while $index < count {
+		record = table.offset + 6 + $index * 12
+		platform_id = read_u16(bytes, record)
+		encoding = read_u16(bytes, record + 2)
+		language = read_u16(bytes, record + 4)
+		name_id = read_u16(bytes, record + 6)
+		length = read_u16(bytes, record + 8).to_u64()
+		offset = read_u16(bytes, record + 10).to_u64()
+		if length % 2 != 0 or offset > table.length - string_offset or length > table.length - string_offset - offset {
+			return Err(InvalidName)
+		}
+		range : KernelFont.NameRange
+		range = { length, offset: table.offset + string_offset + offset }
+		priority = if platform_id == 3 and language == 0x0409 {
+			if encoding == 10 2 else if encoding == 1 1 else 0
+		} else {
+			0
+		}
+		if priority > 0 and (name_id == 1 or name_id == 4 or name_id == 6) {
+			if length == 0 or !valid_utf16be(bytes, range) {
+				return Err(InvalidName)
+			}
+			if name_id == 1 and priority > $family_priority {
+				$family = range
+				$family_priority = priority
+			} else if name_id == 4 and priority > $full_priority {
+				$full = range
+				$full_priority = priority
+			} else if name_id == 6 and priority > $postscript_priority {
+				if !valid_postscript_utf16be(bytes, range) {
+					return Err(InvalidName)
+				}
+				$postscript = range
+				$postscript_priority = priority
+			}
+		}
+		$index = $index + 1
+	}
+	if $family_priority == 0 or $full_priority == 0 or $postscript_priority == 0 {
+		Err(InvalidName)
+	} else {
+		Ok({ family_utf16be: $family, full_utf16be: $full, postscript_utf16be: $postscript })
+	}
+}
+
+valid_utf16be : List(U8), KernelFont.NameRange -> Bool
+valid_utf16be = |bytes, range| {
+	var $index = 0
+	while $index < range.length {
+		unit = read_u16(bytes, range.offset + $index)
+		if unit >= 0xd800 and unit <= 0xdbff {
+			if $index + 4 > range.length {
+				return False
+			}
+			low = read_u16(bytes, range.offset + $index + 2)
+			if low < 0xdc00 or low > 0xdfff {
+				return False
+			}
+			$index = $index + 4
+		} else if unit >= 0xdc00 and unit <= 0xdfff {
+			return False
+		} else {
+			$index = $index + 2
+		}
+	}
+	True
+}
+
+valid_postscript_utf16be : List(U8), KernelFont.NameRange -> Bool
+valid_postscript_utf16be = |bytes, range| {
+	var $index = 0
+	while $index < range.length {
+		unit = read_u16(bytes, range.offset + $index)
+		if unit > 0x7e or unit < 0x21 or postscript_delimiter(unit.to_u8_wrap()) {
+			return False
+		}
+		$index = $index + 2
+	}
+	True
+}
+
+postscript_delimiter : U8 -> Bool
+postscript_delimiter = |byte| byte == 0x28 or byte == 0x29 or byte == 0x3c or byte == 0x3e or byte == 0x5b or byte == 0x5d or byte == 0x7b or byte == 0x7d or byte == 0x2f or byte == 0x25
+
+postscript_name_bytes : KernelFont.Inspection -> List(U8)
+postscript_name_bytes = |font| {
+	range = font.names.postscript_utf16be
+	var $result = List.with_capacity(range.length / 2)
+	var $index = 0
+	while $index < range.length {
+		$result = $result.append(list_at(font.bytes, range.offset + $index + 1))
+		$index = $index + 2
+	}
+	$result
 }
 
 inspect_cmap : List(U8), KernelFont.Table, U64, U64 -> Try({ cmap : KernelFont.Cmap, coverage : List(KernelFont.CoverageSpan), mapping_visits : U64 }, KernelFont.Error)
@@ -1070,6 +1207,12 @@ expect match validate_component_graph(
 	Err(CompositeCycle) => Bool.True
 	_ => Bool.False
 }
+
+## Name parsing rejects malformed surrogate structure and PostScript delimiters.
+expect valid_utf16be([0xd8, 0x00, 0xdc, 0x00], { length: 4, offset: 0 })
+expect !valid_utf16be([0xd8, 0x00, 0x00, 0x41], { length: 4, offset: 0 })
+expect valid_postscript_utf16be([0x00, 0x46, 0x00, 0x6f, 0x00, 0x6e, 0x00, 0x74], { length: 8, offset: 0 })
+expect !valid_postscript_utf16be([0x00, 0x46, 0x00, 0x2f, 0x00, 0x31], { length: 6, offset: 0 })
 
 expect match validate_component_graph(
 	[{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }],

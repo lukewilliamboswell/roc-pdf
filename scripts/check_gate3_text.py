@@ -135,6 +135,7 @@ def validate_gate3_text_pdf(pdf: bytes) -> None:
 
     descriptor_body = bodies[descriptor]
     require(b"/Type /FontDescriptor" in descriptor_body, "font descriptor has wrong type")
+    require(b"/CapHeight 728" in descriptor_body, "font descriptor does not use the validated OS/2 CapHeight")
     font_file = dictionary_ref(descriptor_body, b"FontFile2")
     base_names = re.findall(rb"/(?:BaseFont|FontName) /([A-Z]{6}\+RocPdfSans-Regular)", type0_body + cid_body + descriptor_body)
     require(len(base_names) == 3 and len(set(base_names)) == 1, "subset font names are not one exact identity")
@@ -195,6 +196,7 @@ def self_test() -> None:
         replace_once(pdf, b"/F1_0 14 0 R", b"/F1_0 13 0 R"),
         replace_once(pdf, b"/CIDToGIDMap 8 0 R", b"/CIDToGIDMap 9 0 R"),
         replace_once(pdf, b"/Length1 6776", b"/Length1 6775"),
+        replace_once(pdf, b"/CapHeight 728", b"/CapHeight 729"),
     )
     for index, mutation in enumerate(mutations):
         try:
