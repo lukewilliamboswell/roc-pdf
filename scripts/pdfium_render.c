@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "fpdfview.h"
 
@@ -11,25 +12,32 @@ static void fail(const char *message) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        fail("usage: pdfium_render INPUT.pdf OUTPUT.ppm");
+    if (argc != 3 && argc != 4) {
+        fail("usage: pdfium_render INPUT.pdf OUTPUT.ppm [1]");
+    }
+    float scale = 10.0f;
+    if (argc == 4) {
+        if (strcmp(argv[3], "1") != 0) {
+            fail("pdfium_render supports only scale 1 or the default scale 10");
+        }
+        scale = 1.0f;
     }
 
     FPDF_InitLibrary();
     FPDF_DOCUMENT document = FPDF_LoadDocument(argv[1], NULL);
     if (document == NULL) {
-        fail("PDFium could not load the Gate 2 fixture");
+        fail("PDFium could not load the renderer fixture");
     }
     if (FPDF_GetPageCount(document) != 1) {
-        fail("Gate 2 renderer fixture must have one page");
+        fail("renderer fixture must have one page");
     }
 
     FPDF_PAGE page = FPDF_LoadPage(document, 0);
     if (page == NULL) {
         fail("PDFium could not load page zero");
     }
-    int width = (int)(FPDF_GetPageWidthF(page) * 10.0f + 0.5f);
-    int height = (int)(FPDF_GetPageHeightF(page) * 10.0f + 0.5f);
+    int width = (int)(FPDF_GetPageWidthF(page) * scale + 0.5f);
+    int height = (int)(FPDF_GetPageHeightF(page) * scale + 0.5f);
     if (width <= 0 || height <= 0) {
         fail("PDFium returned invalid page dimensions");
     }

@@ -125,6 +125,7 @@ advanced_store = {
 			language: Language("en-AU"),
 			occurrence: Semantics.OccurrenceId.from_index(1),
 			script: Font.Script.from_iso15924("Latn"),
+			size: Layout.Unit.from_raw(11000),
 			source: {
 				scalars: Semantics.Range.from_start_and_length(0, 2),
 				utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
@@ -175,6 +176,8 @@ expect {
 		glyph_indices: [0, 0],
 	}
 	notdef_store = { ..advanced_store, glyphs: [{ ..base_glyph, id: Text.GlyphId.from_raw(0) }] }
+	base_run = list_at(advanced_store.runs, 0)
+	bad_size_store = { ..advanced_store, runs: [{ ..base_run, size: Layout.Unit.from_raw(0) }] }
 	bad_source_store = {
 		..advanced_store,
 		clusters: [
@@ -210,7 +213,11 @@ expect {
 		Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => Bool.True
 		_ => Bool.False
 	}
-	duplicate_rejected and notdef_rejected and source_rejected
+	size_rejected = match KernelShape.validate_advanced(font, "À", bad_size_store, context, limits) {
+		Err(AdvancedRunInvalid({ reason: Size, run: 0 })) => Bool.True
+		_ => Bool.False
+	}
+	duplicate_rejected and notdef_rejected and source_rejected and size_rejected
 }
 
 list_at : List(a), U64 -> a

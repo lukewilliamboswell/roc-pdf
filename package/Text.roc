@@ -111,6 +111,7 @@ Text :: [].{
 		language : Semantics.Language,
 		occurrence : Semantics.OccurrenceId,
 		script : Font.Script,
+		size : Layout.Unit,
 		source : Semantics.TextRange,
 		substitutions : Semantics.Range,
 		transformations : Semantics.Range,

@@ -20,7 +20,7 @@ KernelShape :: [].{
 		NotdefGlyph({ scalar : U32, scalar_index : U64 }),
 		AdvancedClusterInvalid({ cluster : U64, reason : [Cardinality, GlyphIndexRange, SourceRange] }),
 		AdvancedGlyphInvalid({ glyph : U64, reason : [Advance, GlyphId] }),
-		AdvancedRunInvalid({ reason : [AuxiliaryRange, ClusterRange, GlyphRange, RunId, SourceRange], run : U64 }),
+		AdvancedRunInvalid({ reason : [AuxiliaryRange, ClusterRange, GlyphRange, RunId, Size, SourceRange], run : U64 }),
 		DuplicateGlyphReference({ glyph : U64, run : U64 }),
 		GlyphOutsideRun({ glyph : U64, run : U64 }),
 		InstanceMismatch({ actual : Font.InstanceId, expected : Font.InstanceId, run : U64 }),
@@ -192,6 +192,7 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 		language: options.language,
 		occurrence: options.occurrence,
 		script: options.script,
+		size: Layout.Unit.from_raw(size),
 		source: {
 			scalars: Semantics.Range.from_start_and_length(0, scalar_count),
 			utf8_bytes: Semantics.Range.from_start_and_length(0, source_bytes),
@@ -295,6 +296,9 @@ validate_advanced_store = |font, source, store, context, limits| {
 		}
 		if run.writing_mode != Horizontal {
 			return Err(UnsupportedWritingMode(run.writing_mode))
+		}
+		if run.size.raw() <= 0 {
+			return Err(AdvancedRunInvalid({ reason: Size, run: $run_index }))
 		}
 		if !valid_text_range(run.source, boundaries, source_bytes, scalar_count) or run.source.scalars.start() != $source_scalar_cursor or run.source.utf8_bytes.start() != $source_byte_cursor {
 			return Err(AdvancedRunInvalid({ reason: SourceRange, run: $run_index }))

@@ -308,6 +308,21 @@
       "retention": null
     },
     {
+      "name": "Gate 3 visible searchable text",
+      "scenario_revision": "gate3-visible-text-v1",
+      "source": "tests/gate3_text/main.roc",
+      "snapshot": "tests/gate3_text/snapshot.pdf",
+      "args": ["visible"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "font_bytes": 166300, "glyphs": 8, "unicode_mappings": 8, "objects": 14, "gate3_visible_text": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "runs", "glyphs", "font_plan_entries", "subset_bytes", "source_scalars", "text_runs", "placements", "text_glyphs", "unicode_mappings", "content_bytes", "fonts", "font_objects", "objects", "payload_bytes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 187, "work": [166300, 1, 8, 11, 6776, 8, 1, 1, 8, 8, 271, 1, 9, 14, 7047, 9095] },
+        "x64musl": { "allocations": 187, "work": [166300, 1, 8, 11, 6776, 8, 1, 1, 8, 8, 271, 1, 9, 14, 7047, 9095] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",

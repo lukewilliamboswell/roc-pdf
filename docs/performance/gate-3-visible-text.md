@@ -1,0 +1,60 @@
+# Gate 3 visible searchable text slice
+
+This slice joins the earlier Unicode analysis, bounded shaping, deterministic
+font plan, sanitized subset, and Type 0 font-object stages into one real PDF 2.0
+page. The page content selects the exact planned font resource and run size,
+positions each glyph with checked layout arithmetic, and emits 16-bit CIDs. The
+page resource dictionary references the Type 0 font produced from the same font
+plan; later stages do not rediscover font identity from serialized operators.
+
+Logical Unicode remains owned by the semantic occurrence. Text lowering builds
+one bounded scalar cache for the semantic sources, walks each placed run once,
+and derives each CID mapping from the run's explicit cluster range. Every run
+must be placed exactly once and every content CID must receive one mapping.
+Conflicting mappings, missing retained glyphs, absent occurrences, invalid
+ranges, and unplaced or duplicate runs are typed errors before a PDF structure
+is returned.
+
+The current accepted lowering boundary is deliberately narrower than the
+architecture's full advanced interchange: each cluster may cover one or more
+source scalars but must emit exactly one glyph, and the run must use
+occurrence-derived text. A multi-glyph cluster or semantic override receives
+`ActualTextRequired`; it is never approximated with a guessed `ToUnicode`
+mapping. Explicit `ActualText`, reordered clusters, text paint, tagged-text
+ownership, and public layout integration remain subsequent Gate 3 slices.
+
+## Independent output evidence
+
+The fixture renders and extracts `Café PDF` on one A4 page. It embeds a fresh
+6,776-byte sanitized TrueType subset, an identity CID-to-GID map for eleven
+planned entries, eight exact `ToUnicode` rows, one CIDFontType2 descendant, and
+one Type 0 parent. The tracked PDF is 9,095 bytes and contains fourteen
+non-xref objects; unlike the earlier Gate 3 protocol carriers, it is visibly
+nonblank in ordinary readers.
+
+The independent structural checker reconstructs the displayed string from the
+content CIDs and `ToUnicode`, verifies the exact widths and subset digest, and
+rejects same-length negative twins for a changed Unicode row, wrong page font,
+wrong CID map, and wrong embedded-font length. PDFBox 3.0.8 must independently
+extract the exact UTF-8 bytes `Café PDF\n`. PDFBox and PDFium also render at 72
+dpi and must each match an independently pinned ink region within explicit
+tolerances: two pixels per bound, 60 antialiased pixels, 40 dark pixels, and
+6,000 grayscale-ink units. The same tolerances bound agreement between the two
+engines.
+
+## Pinned optimized evidence
+
+| Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,095 | 187 |
+| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,095 | 187 |
+
+The exact work vector records, in order: 166,300 source-font bytes, one run,
+eight shaped glyphs, eleven font-plan entries, 6,776 subset bytes, eight source
+scalars, one text run, one placement, eight emitted glyphs, eight mappings, 271
+content bytes, one font, nine font objects, fourteen total objects, 7,047
+uncompressed payload bytes, and 9,095 emitted bytes.
+
+This is pipeline evidence, not Gate 3 closure. It does not yet claim the public
+caller-font/theme path, paragraph layout and pagination, explicit text color,
+advanced multilingual `ActualText`, accessibility tagging, or facade output.

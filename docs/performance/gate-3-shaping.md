@@ -17,6 +17,7 @@ trust their relationships. A bounded validation pass builds one scalar-to-byte
 boundary list and proves:
 
 - dense run IDs and exact instance/occurrence ownership;
+- a positive layout size carried by every run for later PDF text scaling;
 - complete ordered source, run, cluster, glyph, and auxiliary partitions;
 - cluster-kind cardinality and exact UTF-8/scalar boundaries;
 - valid nonzero glyph IDs and horizontal advances;
@@ -25,8 +26,8 @@ boundary list and proves:
 
 Validation returns the same flat `Text.Store`; it does not copy glyph or
 cluster payloads. Negative twins reject a duplicate glyph reference, `.notdef`,
-and an inconsistent Unicode byte range without returning a partially validated
-store.
+a non-positive size, and an inconsistent Unicode byte range without returning a
+partially validated store.
 
 ## Pinned optimized evidence
 

@@ -72,6 +72,7 @@ jobs:
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_deflate/snapshot.pdf
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_pages/snapshot.pdf
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_retention/snapshot.pdf
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate3_text/snapshot.pdf
 
       - name: Install Java 17 for PDFBox
         if: runner.os == 'Linux'
@@ -84,6 +85,10 @@ jobs:
         if: runner.os == 'Linux'
         run: python3 scripts/check_pdfbox.py
 
+      - name: Extract Gate 3 text with Apache PDFBox 3.0.8
+        if: runner.os == 'Linux'
+        run: python3 scripts/check_gate3_text.py --pdfbox-extraction
+
       - name: Extract vendored PDFium Chromium 7988
         if: runner.os == 'Linux'
         run: |
@@ -95,6 +100,10 @@ jobs:
       - name: Compare Gate 2 PDFium and PDFBox rendering
         if: runner.os == 'Linux'
         run: python3 scripts/check_gate2_renderers.py --pdfium-renderer /tmp/pdfium-render
+
+      - name: Validate Gate 3 text with PDFium and PDFBox rendering
+        if: runner.os == 'Linux'
+        run: python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render
 
       - name: Validate object model with veraPDF Arlington 1.30.2
         if: runner.os == 'Linux'

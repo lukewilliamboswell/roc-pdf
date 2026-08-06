@@ -903,6 +903,7 @@ The PDF package consumes positioned glyph runs, not unshaped strings:
 ```text
 GlyphRun
 |- exact validated font instance
+|- positive layout size used to scale the selected instance
 |- content occurrence ID and exact scalar range
 |- glyph IDs, advances, and offsets
 |- explicit range-relative Unicode-to-glyph cluster mapping
