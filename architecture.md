@@ -188,6 +188,8 @@ The compact stores use these rules:
 - Fixed-shape records live in contiguous lists indexed by those IDs.
 - Variable children, keys, commands, clusters, and dependencies are spans into
   flat scalar or record buffers.
+- Scene-command ownership ranges follow canonical dense arena visitation order;
+  a scalar cursor rejects gaps and repeats without a per-command ownership map.
 - Source text, font/image/ICC bytes, paths, glyph arrays, content recipes, and
   compressed inputs are each owned once; every relationship uses an ID and an
   exact `(start, length)` range.

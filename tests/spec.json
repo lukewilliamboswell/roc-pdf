@@ -188,6 +188,21 @@
       "retention": null
     },
     {
+      "name": "Gate 2 million-command image reuse",
+      "scenario_revision": "gate2-million-command-v1",
+      "source": "tests/gate2_stress/main.roc",
+      "snapshot": "tests/gate2_stress/snapshot.pdf",
+      "args": ["1000000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "commands": 1000000, "images": 1, "image_payload_bytes": 1 },
+      "work_counters": ["commands", "scene_command_visits", "scene_image_placements", "scene_max_graphics_depth", "content_command_visits", "content_image_placements", "content_max_frame_depth", "resource_command_visits", "image_reuses", "image_resources", "image_use_count", "image_payload_bytes", "content_bytes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 129, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] },
+        "x64musl": { "allocations": 129, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",

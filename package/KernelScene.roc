@@ -287,8 +287,8 @@ validate_pages = |scenes| {
 
 validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, image_placements : U64, max_graphics_depth : U64 }, KernelScene.Error)
 validate_groups = |scenes, resources, max_depth| {
-	var $owners = List.repeat(0, scenes.commands.len())
 	var $group_index = 0
+	var $expected_command = 0
 	var $child_ranges = 0
 	var $color_references = 0
 	var $command_visits = 0
@@ -318,33 +318,32 @@ validate_groups = |scenes, resources, max_depth| {
 						Ok(span) => {
 							var $command_index = span.start
 							while $command_index < span.end and $error == NoError {
-								match mark_once($owners, $command_index, CommandIndex) {
-									Err(error) => {
-										$error = Invalid(error)
-									}
-									Ok(next_owners) => {
-										$owners = next_owners
-										match validate_command(list_at(scenes.commands, $command_index), $command_index, scenes, resources) {
-											Err(error) => {
-												$error = Invalid(error)
-											}
-											Ok(work) => {
-												$color_references = $color_references + work.color_references
-												$dash_values = $dash_values + work.dash_values
-												$image_placements = $image_placements + work.image_placements
-												match work.children {
-													Leaf => {}
-													Nested(children) => if children.length() == 0 {
-														$error = Invalid(EmptyCommandRange({ group: $group_index }))
-													} else {
-														match U64.plus_try(frame.depth, 1) {
-															Err(Overflow) => {
-																$error = Invalid(ArithmeticOverflow)
-															}
-															Ok(depth) => {
-																$frames = $frames.append(Frame.{ depth, range: children })
-																$child_ranges = $child_ranges + 1
-															}
+								if $command_index < $expected_command {
+									$error = Invalid(DuplicateOwnership({ index: $command_index, kind: CommandIndex }))
+								} else if $command_index > $expected_command {
+									$error = Invalid(Orphaned({ index: $expected_command, kind: CommandIndex }))
+								} else {
+									$expected_command = $expected_command + 1
+									match validate_command(list_at(scenes.commands, $command_index), $command_index, scenes, resources) {
+										Err(error) => {
+											$error = Invalid(error)
+										}
+										Ok(work) => {
+											$color_references = $color_references + work.color_references
+											$dash_values = $dash_values + work.dash_values
+											$image_placements = $image_placements + work.image_placements
+											match work.children {
+												Leaf => {}
+												Nested(children) => if children.length() == 0 {
+													$error = Invalid(EmptyCommandRange({ group: $group_index }))
+												} else {
+													match U64.plus_try(frame.depth, 1) {
+														Err(Overflow) => {
+															$error = Invalid(ArithmeticOverflow)
+														}
+														Ok(depth) => {
+															$frames = $frames.append(Frame.{ depth, range: children })
+															$child_ranges = $child_ranges + 1
 														}
 													}
 												}
@@ -366,8 +365,9 @@ validate_groups = |scenes, resources, max_depth| {
 
 	match $error {
 		Invalid(error) => Err(error)
-		NoError => {
-			ensure_all_owned($owners, CommandIndex)?
+		NoError => if $expected_command < scenes.commands.len() {
+			Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
+		} else {
 			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, image_placements: $image_placements, max_graphics_depth: $maximum_depth })
 		}
 	}

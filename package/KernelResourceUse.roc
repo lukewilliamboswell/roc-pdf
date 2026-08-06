@@ -95,23 +95,22 @@ collect_command_use = |commands, colors, color_count, image_count| {
 	var $path_colors = 0
 	var $image_placements = 0
 	var $index = 0
-	var $error = NoError
+
+	## Every per-resource count and the placement total are bounded by the
+	## in-memory command length, so one preflight keeps the hot loop infallible.
+	var $error = if commands.len() == U64.highest Invalid(ArithmeticOverflow) else NoError
 	while $index < commands.len() and $error == NoError {
 		match list_at(commands, $index) {
-			DrawImage({ image, placement: _ }) => match increment($image_counts, image.index()) {
-				Err(error) => {
-					$error = Invalid(error)
-				}
-				Ok(counts) => {
-					$image_counts = counts
-					$image_placements = match checked_add($image_placements, 1) {
-						Err(error) => {
-							$error = Invalid(error)
-							$image_placements
-						}
-						Ok(value) => value
+			DrawImage({ image, placement: _ }) => {
+				image_index = image.index()
+				next_count = list_at($image_counts, image_index) + 1
+				$image_counts = match $image_counts.set(image_index, next_count) {
+					Err(OutOfBounds) => {
+						crash "validated image-use update escaped"
 					}
+					Ok(counts) => counts
 				}
+				$image_placements = $image_placements + 1
 			}
 			DrawPath({ path: _, style }) => match collect_style(style, $index, colors, $color_counts) {
 				Err(error) => {

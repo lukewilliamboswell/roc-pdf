@@ -91,6 +91,12 @@ KernelLex :: [].{
 	append_real : List(U8), Decimal -> List(U8)
 	append_real = |output, value| append_decimal(output, Decimal.coefficient(value), Decimal.scale(value))
 
+	append_thousandths : List(U8), I64 -> List(U8)
+	append_thousandths = |output, coefficient| append_decimal(output, coefficient, 3)
+
+	append_billionths : List(U8), I64 -> List(U8)
+	append_billionths = |output, coefficient| append_decimal(output, coefficient, 9)
+
 	append_name : List(U8), Name -> List(U8)
 	append_name = |output, value| append_name_bytes(output, Name.bytes(value))
 
@@ -382,3 +388,6 @@ expect {
 		Err(_) => False
 	}
 }
+
+## Fixed kernel scales append without constructing an opaque Decimal value.
+expect KernelLex.append_thousandths([], -25) == Str.to_utf8("-0.025") and KernelLex.append_billionths([], 1) == Str.to_utf8("0.000000001")

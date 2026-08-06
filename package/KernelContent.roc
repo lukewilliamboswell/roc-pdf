@@ -33,6 +33,7 @@ KernelContent :: [].{
 		image_placements : U64,
 		marked_artifact_groups : U64,
 		marked_fragment_groups : U64,
+		max_frame_depth : U64,
 		path_segments : U64,
 	}
 
@@ -55,7 +56,7 @@ MarkedSlot := [HasMarked(KernelTagged.MarkedContentReference), MissingMarked]
 
 Frame := { close_graphics : Bool, end : U64, next : U64 }
 
-EmitWork := { bytes : List(U8), command_visits : U64, graphics_state_pairs : U64, image_placements : U64, path_segments : U64 }
+EmitWork := { bytes : List(U8), command_visits : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, path_segments : U64 }
 
 build_plan : KernelTagged.Plan, KernelContent.Limits -> Try(KernelContent.Plan, KernelContent.Error)
 build_plan = |tagged, limits| {
@@ -75,14 +76,15 @@ build_plan = |tagged, limits| {
 		var $graphics_pairs = 0
 		var $group_visits = 0
 		var $image_placements = 0
+		var $max_frame_depth = 0
 		var $artifact_groups = 0
 		var $fragment_groups = 0
 		var $path_segments = 0
 		var $error = NoError
 		while $page_index < scenes.pages.len() and $error == NoError {
 			page = list_at(scenes.pages, $page_index)
-			var $bytes = []
 			page_limit = limits.max_content_bytes - $total_bytes
+			var $bytes = List.with_capacity(U64.min(page_limit, initial_content_capacity))
 			var $edge = page.paint_order.start()
 			end = $edge + page.paint_order.length()
 			while $edge < end and $error == NoError {
@@ -108,6 +110,7 @@ build_plan = |tagged, limits| {
 									$command_visits = $command_visits + emitted.command_visits
 									$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
 									$image_placements = $image_placements + emitted.image_placements
+									$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
 									$path_segments = $path_segments + emitted.path_segments
 								}
 							}
@@ -145,6 +148,7 @@ build_plan = |tagged, limits| {
 						image_placements: $image_placements,
 						marked_artifact_groups: $artifact_groups,
 						marked_fragment_groups: $fragment_groups,
+						max_frame_depth: $max_frame_depth,
 						path_segments: $path_segments,
 					},
 				},
@@ -197,18 +201,19 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 emit_commands : List(U8), Semantics.Range, Scene.Store, U64 -> Try(EmitWork, KernelContent.Error)
 emit_commands = |initial, root, scenes, limit| {
 	var $bytes = initial
-	var $frames = [Frame.{ close_graphics: False, end: root.start() + root.length(), next: root.start() }]
-	var $active = 1
+	var $frames = []
+	var $current = Frame.{ close_graphics: False, end: root.start() + root.length(), next: root.start() }
+	var $active = 0
+	var $done = False
 	var $command_visits = 0
 	var $graphics_pairs = 0
 	var $image_placements = 0
+	var $max_frame_depth = 1
 	var $path_segments = 0
 	var $error = NoError
-	while $active > 0 and $error == NoError {
-		frame_index = $active - 1
-		frame = list_at($frames, frame_index)
-		if frame.next >= frame.end {
-			if frame.close_graphics {
+	while $done == False and $error == NoError {
+		if $current.next >= $current.end {
+			if $current.close_graphics {
 				match append_literal($bytes, "Q\n", limit) {
 					Err(error) => {
 						$error = Invalid(error)
@@ -218,10 +223,15 @@ emit_commands = |initial, root, scenes, limit| {
 					}
 				}
 			}
-			$active = $active - 1
+			if $active == 0 {
+				$done = True
+			} else {
+				$active = $active - 1
+				$current = list_at($frames, $active)
+			}
 		} else {
-			command_index = frame.next
-			$frames = list_set($frames, frame_index, { ..frame, next: frame.next + 1 })
+			command_index = $current.next
+			$current = { ..$current, next: $current.next + 1 }
 			command = list_at(scenes.commands, command_index)
 			match command {
 				Clip({ children, path }) => match emit_clip_open($bytes, path, scenes, limit) {
@@ -231,17 +241,23 @@ emit_commands = |initial, root, scenes, limit| {
 					Ok(opened) => {
 						$bytes = opened.bytes
 						$path_segments = $path_segments + opened.path_segments
-						$frames = push_frame($frames, $active, Frame.{ close_graphics: True, end: children.start() + children.length(), next: children.start() })
+						$frames = push_frame($frames, $active, $current)
 						$active = $active + 1
+						$current = Frame.{ close_graphics: True, end: children.start() + children.length(), next: children.start() }
+						$max_frame_depth = U64.max($max_frame_depth, $active + 1)
 						$graphics_pairs = $graphics_pairs + 1
 					}
 				}
-				DrawImage({ image, placement }) => match emit_image($bytes, image, placement, limit) {
-					Err(error) => {
-						$error = Invalid(error)
-					}
-					Ok(bytes) => {
-						$bytes = bytes
+				DrawImage({ image, placement }) => {
+					required = image_length(image, placement)
+					if $bytes.len() > limit or required > limit - $bytes.len() {
+						attempted = match U64.plus_try($bytes.len(), required) {
+							Err(Overflow) => U64.highest
+							Ok(total) => total
+						}
+						$error = Invalid(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
+					} else {
+						$bytes = emit_image_unchecked($bytes, image, placement)
 						$graphics_pairs = $graphics_pairs + 1
 						$image_placements = $image_placements + 1
 					}
@@ -267,8 +283,10 @@ emit_commands = |initial, root, scenes, limit| {
 					}
 					Ok(bytes) => {
 						$bytes = bytes
-						$frames = push_frame($frames, $active, Frame.{ close_graphics: True, end: children.start() + children.length(), next: children.start() })
+						$frames = push_frame($frames, $active, $current)
 						$active = $active + 1
+						$current = Frame.{ close_graphics: True, end: children.start() + children.length(), next: children.start() }
+						$max_frame_depth = U64.max($max_frame_depth, $active + 1)
 						$graphics_pairs = $graphics_pairs + 1
 					}
 				}
@@ -278,7 +296,7 @@ emit_commands = |initial, root, scenes, limit| {
 	}
 	match $error {
 		Invalid(error) => Err(error)
-		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, path_segments: $path_segments })
+		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, path_segments: $path_segments })
 	}
 }
 
@@ -309,19 +327,130 @@ emit_clip_open = |bytes, path, scenes, limit| {
 	Ok({ bytes: append_literal(emitted.bytes, "W n\n", limit)?, path_segments: emitted.path_segments })
 }
 
-emit_image : List(U8), Image.Id, Layout.Rect, U64 -> Try(List(U8), KernelContent.Error)
-emit_image = |bytes, image, placement, limit| {
-	var $out = append_literal(bytes, "q\n", limit)?
-	$out = append_layout($out, placement.size.width, limit)?
-	$out = append_literal($out, " 0 0 ", limit)?
-	$out = append_layout($out, placement.size.height, limit)?
-	$out = append_literal($out, " ", limit)?
-	$out = append_layout($out, placement.origin.x, limit)?
-	$out = append_literal($out, " ", limit)?
-	$out = append_layout($out, placement.origin.y, limit)?
-	$out = append_literal($out, " cm\n/Im", limit)?
-	$out = append_resource_index($out, image.index(), limit)?
-	append_literal($out, " Do\nQ\n", limit)
+emit_image_unchecked : List(U8), Image.Id, Layout.Rect -> List(U8)
+emit_image_unchecked = |bytes, image, placement| {
+	var $out = append_all_unchecked(bytes, image_open_bytes)
+	$out = append_thousandths_unchecked($out, placement.size.width.raw())
+	$out = append_all_unchecked($out, image_matrix_middle_bytes)
+	$out = append_thousandths_unchecked($out, placement.size.height.raw())
+	$out = append_all_unchecked($out, space_bytes)
+	$out = append_thousandths_unchecked($out, placement.origin.x.raw())
+	$out = append_all_unchecked($out, space_bytes)
+	$out = append_thousandths_unchecked($out, placement.origin.y.raw())
+	$out = append_all_unchecked($out, image_name_prefix_bytes)
+	$out = KernelGate2ResourceName.append($out, image.index())
+	append_all_unchecked($out, image_close_bytes)
+}
+
+image_length : Image.Id, Layout.Rect -> U64
+image_length = |image, placement| {
+	image_open_bytes.len() +
+		decimal_length(placement.size.width.raw(), 3) +
+		image_matrix_middle_bytes.len() +
+		decimal_length(placement.size.height.raw(), 3) +
+		space_bytes.len() +
+		decimal_length(placement.origin.x.raw(), 3) +
+		space_bytes.len() +
+		decimal_length(placement.origin.y.raw(), 3) +
+		image_name_prefix_bytes.len() +
+		KernelGate2ResourceName.suffix_length(image.index()) +
+		image_close_bytes.len()
+}
+
+image_open_bytes : List(U8)
+image_open_bytes = [113, 10]
+
+image_matrix_middle_bytes : List(U8)
+image_matrix_middle_bytes = [32, 48, 32, 48, 32]
+
+space_bytes : List(U8)
+space_bytes = [32]
+
+image_name_prefix_bytes : List(U8)
+image_name_prefix_bytes = [32, 99, 109, 10, 47, 73, 109]
+
+image_close_bytes : List(U8)
+image_close_bytes = [32, 68, 111, 10, 81, 10]
+
+append_all_unchecked : List(U8), List(U8) -> List(U8)
+append_all_unchecked = |target, source| {
+	var $out = target
+	var $index = 0
+	while $index < source.len() {
+		$out = $out.append(list_at(source, $index))
+		$index = $index + 1
+	}
+	$out
+}
+
+append_thousandths_unchecked : List(U8), I64 -> List(U8)
+append_thousandths_unchecked = |output, coefficient| {
+	if coefficient == 0 {
+		output.append(48)
+	} else {
+		magnitude = if coefficient < 0 U64.minus_wrap(0, coefficient.to_u64_wrap()) else coefficient.to_u64_wrap()
+		var $normalized = magnitude
+		var $scale = 3
+		while $scale > 0 and U64.mod_by($normalized, 10) == 0 {
+			$normalized = U64.div_by($normalized, 10)
+			$scale = $scale - 1
+		}
+		var $out = if coefficient < 0 output.append(45) else output
+		if $scale == 0 {
+			var $remaining = $normalized
+			var $divisor = 1
+			while $remaining >= 10 {
+				$remaining = U64.div_by($remaining, 10)
+				$divisor = $divisor * 10
+			}
+			while $divisor > 0 {
+				digit = U64.mod_by(U64.div_by($normalized, $divisor), 10)
+				$out = $out.append((48 + digit).to_u8_wrap())
+				$divisor = U64.div_by($divisor, 10)
+			}
+			$out
+		} else {
+			power = match $scale {
+				1 => 10
+				2 => 100
+				_ => 1000
+			}
+			whole = U64.div_by($normalized, power)
+			fraction = U64.mod_by($normalized, power)
+			var $whole_remaining = whole
+			var $whole_divisor = 1
+			while $whole_remaining >= 10 {
+				$whole_remaining = U64.div_by($whole_remaining, 10)
+				$whole_divisor = $whole_divisor * 10
+			}
+			while $whole_divisor > 0 {
+				digit = U64.mod_by(U64.div_by(whole, $whole_divisor), 10)
+				$out = $out.append((48 + digit).to_u8_wrap())
+				$whole_divisor = U64.div_by($whole_divisor, 10)
+			}
+			$out = $out.append(46)
+			var $fraction_divisor = U64.div_by(power, 10)
+			while $fraction_divisor > 0 {
+				digit = U64.mod_by(U64.div_by(fraction, $fraction_divisor), 10)
+				$out = $out.append((48 + digit).to_u8_wrap())
+				$fraction_divisor = U64.div_by($fraction_divisor, 10)
+			}
+			$out
+		}
+	}
+}
+
+## The hot layout writer is byte-identical to the general lexical boundary.
+expect {
+	values = [I64.lowest, -25, 0, 1, 1200, I64.highest]
+	var $index = 0
+	var $same = True
+	while $index < values.len() and $same {
+		value = list_at(values, $index)
+		$same = append_thousandths_unchecked([], value) == KernelLex.append_thousandths([], value)
+		$index = $index + 1
+	}
+	$same
 }
 
 emit_draw_path : List(U8), Scene.PathId, Scene.PathStyle, Scene.Store, U64 -> Try({ bytes : List(U8), path_segments : U64 }, KernelContent.Error)
@@ -468,28 +597,18 @@ append_point = |bytes, point, limit| {
 
 append_layout : List(U8), Layout.Unit, U64 -> Try(List(U8), KernelContent.Error)
 append_layout = |bytes, value, limit| {
-	decimal = match KernelLex.Decimal.from_coefficient(value.raw(), 3) {
-		Err(_) => {
-			crash "fixed Gate 2 layout scale escaped"
-		}
-		Ok(decimal_value) => decimal_value
-	}
-	reserved = reserve_exact(bytes, decimal_length(KernelLex.Decimal.coefficient(decimal), KernelLex.Decimal.scale(decimal)), limit)?
-	Ok(KernelLex.append_real(reserved, decimal))
+	coefficient = value.raw()
+	reserved = reserve_exact(bytes, decimal_length(coefficient, 3), limit)?
+	Ok(KernelLex.append_thousandths(reserved, coefficient))
 }
 
 append_channel : List(U8), U16, U64 -> Try(List(U8), KernelContent.Error)
 append_channel = |bytes, value, limit| {
 	numerator = value.to_u64() * 1000000000
 	coefficient = round_half_even(numerator, 65535)
-	decimal = match KernelLex.Decimal.from_coefficient(coefficient.to_i64_wrap(), 9) {
-		Err(_) => {
-			crash "fixed Gate 2 channel scale escaped"
-		}
-		Ok(decimal_value) => decimal_value
-	}
-	reserved = reserve_exact(bytes, decimal_length(KernelLex.Decimal.coefficient(decimal), KernelLex.Decimal.scale(decimal)), limit)?
-	Ok(KernelLex.append_real(reserved, decimal))
+	coefficient_i64 = coefficient.to_i64_wrap()
+	reserved = reserve_exact(bytes, decimal_length(coefficient_i64, 9), limit)?
+	Ok(KernelLex.append_billionths(reserved, coefficient_i64))
 }
 
 round_half_even : U64, U64 -> U64
@@ -537,9 +656,14 @@ reserve_exact = |bytes, additional, limit| {
 	if attempted > limit {
 		Err(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
 	} else {
-		Ok(List.reserve(bytes, additional))
+		remaining = limit - bytes.len()
+		geometric_spare = U64.max(additional, attempted)
+		Ok(List.reserve(bytes, U64.min(remaining, geometric_spare)))
 	}
 }
+
+initial_content_capacity : U64
+initial_content_capacity = 4096
 
 unsigned_length : U64 -> U64
 unsigned_length = |value| {
@@ -636,7 +760,7 @@ expect {
 	tagged = KernelGate2Fixture.tagged_plan(1)?
 	plan = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 1 }))?
 	work = KernelContent.Plan.work(plan)
-	work.command_visits == 3 and work.group_visits == 2 and work.graphics_state_pairs == 2 and work.image_placements == 1 and work.path_segments == 1 and work.marked_fragment_groups == 1 and work.marked_artifact_groups == 1 and work.bytes_emitted == KernelContent.Plan.stream(plan, Semantics.ContentStreamId.from_index(0)).bytes.len()
+	work.command_visits == 3 and work.group_visits == 2 and work.graphics_state_pairs == 2 and work.image_placements == 1 and work.max_frame_depth == 2 and work.path_segments == 1 and work.marked_fragment_groups == 1 and work.marked_artifact_groups == 1 and work.bytes_emitted == KernelContent.Plan.stream(plan, Semantics.ContentStreamId.from_index(0)).bytes.len()
 }
 
 ## Clip, stroke, cap, join, miter, and dash operators lower from typed values.
