@@ -506,6 +506,34 @@ validated packaged or caller-provided resources, and a theme override cannot
 weaken the selected profile. The built-in theme is versioned because changing
 its metrics, fonts, or spacing can change pagination and bytes.
 
+Packaging and PDF embedding are separate boundaries. The core package ships
+only the small, audited deterministic assets required by its default facade,
+including its deliberately limited built-in font coverage and, when the static
+profile is available, its default sRGB profile. Broad multilingual fonts,
+specialist typefaces, images, and language-specific data are not accumulated in
+the core package merely to make them selectable. They may be supplied by the
+application or by optional pure Roc asset packages chosen by the application.
+Test corpora and fixture assets are not production package dependencies.
+
+The package performs no resource acquisition effects. An application or its
+platform may read a file, fetch a response, query a store, or obtain bytes from
+another package, but it passes the complete replayable `List(U8)` value into
+the pure PDF API before validation and generation. Before Gate 3 is complete,
+the public facade or `Font` boundary provides a typed constructor and registry
+path that validates those bytes and returns an opaque font face or policy handle
+that a `Theme` can select. Callers never invent dense resource IDs or provide a
+system-font name. The same pattern applies to other large caller-provided
+resources as their gates make them public.
+
+Caller-provided means external to the package distribution, not external to the
+generated document. Every selected resource is validated under the same
+conformance, security, determinism, ownership, and retention rules as a packaged
+resource. Font subsetting reduces the font program embedded in an individual
+PDF; it is not a reason to bundle the original broad font collection with the
+core package. `StaticPdfA4` output embeds the resulting subset and all other
+required resources, and never leaves a file, network, system-font, or optional
+asset-package dependency for the PDF reader to resolve.
+
 The common path is deliberately short:
 
 ```roc
@@ -575,8 +603,10 @@ unfinished claim is never selected implicitly. The enduring defaults are:
 - The required catalog `/MarkInfo` and page `/Tabs` values for the selected
   tagged and PDF/UA-2 claims, as defined clause-by-clause in the conformance
   ledger.
-- Embedded and deterministically subsetted package fonts with known embedding
-  rights; no system-font lookup or substitution.
+- Embedded and deterministically subsetted selected fonts with known embedding
+  rights. The default theme selects the small packaged face; an overriding
+  theme may select a validated caller-provided face. There is no system-font
+  lookup or substitution.
 - The pinned sRGB output intent and color-managed static profile.
 - Deterministic object planning, metadata, identifiers, compression, and byte
   output.
@@ -816,6 +846,13 @@ that future capability is selected; the initial policy accepts static
 instances. Selection uses those facts rather than system lookup or best-effort
 fallback. Uncovered scalars and unsupported shaping are errors before final
 layout.
+
+The caller-provided path starts from complete replayable font bytes acquired by
+the application or its platform. Validation produces the same opaque face and
+instance identities used for packaged fonts, so subsequent planning does not
+branch on provenance. Optional font/data packages provide ordinary explicit
+inputs through this boundary; they do not become hidden runtime services or
+grant `roc-pdf` filesystem or network access.
 
 ## Page scenes and content ownership
 

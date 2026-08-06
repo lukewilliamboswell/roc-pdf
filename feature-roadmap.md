@@ -366,6 +366,11 @@ This is the first genuinely useful public document milestone.
   script, language, embedding rights, and font instance.
 - Font identity, metrics, widths, embedding rights, and exact instance
   selection.
+- A public typed caller-resource path accepts complete replayable font bytes,
+  validates them, registers opaque faces and policies, and makes those handles
+  selectable by `Theme` without caller-assigned resource IDs. The application
+  or its platform owns file, network, store, or optional asset-package
+  acquisition; the pure PDF package performs no acquisition effects.
 - Type 0 fonts, CID descendants, CID assignment, and embedded font programs.
 - Whole-font embedding followed by deterministic subsetting.
 - Composite-glyph closure and deterministic subset prefixes.
@@ -387,6 +392,11 @@ This is the first genuinely useful public document milestone.
   single-column pagination, explicit breaks, keeps, widow/orphan policy, and
   `Pdf.to_bytes` facade provide a useful one-import path without exposing
   glyphs, scenes, resources, profiles, or object plans.
+- The core distribution contains only the small, audited face needed by the
+  built-in theme. Broader multilingual and specialist coverage is supplied by
+  callers or optional pure Roc asset packages and does not become a mandatory
+  core-package payload. Packaged and caller-provided faces enter the same
+  validation, planning, subsetting, and conformance pipeline.
 - Compact cursor continuations, speculative measurement separated from final
   page materialization, and exact bounded caches for font parsing/coverage,
   shaping, measurement, and hyphenation.
@@ -437,6 +447,15 @@ and analysis boundaries rather than those font-specific behaviors.
   case transformations, and bidirectional logical/visual order.
 - Embedded font programs and subsets pass independent font validation and have
   the exact glyph closure expected.
+- A public end-to-end fixture supplies a valid font whose bytes are absent from
+  the core production package, registers it through the caller-resource API,
+  selects it through a `Theme`, and proves deterministic parsing, coverage,
+  shaping, subsetting, embedding, extraction, and rendering. Structural
+  inspection proves that the PDF contains the expected sanitized subset and no
+  external font reference; package/distribution inspection proves that the
+  fixture font did not become a core production asset. Its atomic negative twin
+  supplies invalid or embedding-prohibited caller bytes and receives a stable
+  error with no emitted PDF.
 - Font widths, glyph positioning, CID maps, and Unicode maps are structurally
   inspected.
 - Negative twins cover license restrictions, corrupt/overlapping tables,
@@ -451,6 +470,11 @@ and analysis boundaries rather than those font-specific behaviors.
   default and explicit-option entrypoints produce the intended profile.
 - Facade-list and compact-builder authoring benchmarks include construction
   allocations and establish the intended large-document path.
+- Caller-font performance evidence records input-byte copying, parse/cache
+  work, source-byte retention through final subset emission, and unique versus
+  deliberately shared inputs. Reusing one caller-provided face across many
+  placements retains one source payload and does not reparse or copy it per
+  placement.
 - Adversarial paragraph, line-break, font-selection, shaping, and single-column
   pagination cases meet their declared operation-count bounds; accepted page
   scenes are materialized once.
@@ -760,7 +784,8 @@ Every oracle receives the exact bytes emitted by Roc.
   namespace, artifact, and MathML study. Copying or modifying material follows
   its license rather than the package's default license.
 - [Noto fonts](https://notofonts.github.io/noto-docs/website/use/) under
-  OFL-1.1 provide fixed multilingual font fixtures.
+  OFL-1.1 provide fixed multilingual font fixtures. Their use as fixtures does
+  not make the Noto collection a production dependency of the core package.
 - Every retained Unicode Character Database file and Unicode conformance test
   file records the Unicode version, exact source path, digest, applicable
   Unicode data license, and whether it is production data or test-only data.
@@ -791,6 +816,15 @@ reviewed commit that updates the artifact, license and attribution material,
 provenance record, CI reference, and affected evidence together. Git LFS is
 not used because it would make a separate remote service part of checkout and
 historical reproducibility.
+
+Repository and CI availability does not imply core-package distribution.
+Production defaults contain only the minimal audited assets required by the
+facade contract. Broader fonts and language data remain test-only inputs or
+separately versioned optional asset packages; applications opt into those
+packages and pass their bytes through the same public caller-resource boundary.
+Generated `StaticPdfA4` files nevertheless embed every selected font subset and
+required resource, so no optional package or acquisition source is a rendering
+dependency of the resulting PDF.
 
 Large platform-specific compiler toolchains, JDKs, and container images are
 not committed to Git. Their action source is pinned by full commit identity,
