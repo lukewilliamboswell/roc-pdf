@@ -3,6 +3,7 @@ import KernelContent
 import KernelEmit
 import KernelGate2Identity
 import KernelGate2Objects
+import KernelGate2OutputBound
 import KernelGate2PageObjects
 import KernelGate2PipelineFixture
 import KernelGate2ResourceObjects
@@ -16,19 +17,21 @@ import KernelTagged
 KernelGate2Structure :: [].{
 	Error : [
 		Identity(KernelGate2Identity.Error),
+		OutputBound(KernelGate2OutputBound.Error),
 		Pages(KernelGate2PageObjects.Error),
 		Resources(KernelGate2ResourceObjects.Error),
 		Seal(KernelSeal.Error),
 		TaggedObjects(KernelGate2TaggedObjects.Error),
 	]
 
-	Limits :: { object_limits : KernelObject.Limits, output_bound : U64 }.{
-		make : { object_limits : KernelObject.Limits, output_bound : U64 } -> Limits
+	Limits :: { object_limits : KernelObject.Limits }.{
+		make : { object_limits : KernelObject.Limits } -> Limits
 		make = |limits| Limits.(limits)
 	}
 
 	Work : {
 		identity : KernelGate2Identity.Work,
+		output_bound : KernelGate2OutputBound.Work,
 		pages : KernelGate2PageObjects.Work,
 		resources : KernelGate2ResourceObjects.Work,
 		tagged_objects : KernelGate2TaggedObjects.Work,
@@ -53,9 +56,10 @@ build_plan = |tagged, colors, images, content, objects, limits| {
 	resources = KernelGate2ResourceObjects.Plan.build(pages, colors, images, objects) ? Resources
 	sealed = KernelSeal.seal(KernelGate2ResourceObjects.Plan.builder(resources)) ? Seal
 	identity = KernelGate2Identity.digest(sealed) ? Identity
+	bound = KernelGate2OutputBound.calculate(sealed, KernelGate2Objects.Plan.xref(objects)) ? OutputBound
 	structure = KernelStructure.Plan.from_sealed({
 		identity: NormalizedPlanDigest(identity.digest),
-		output_bound: limits.output_bound,
+		output_bound: KernelGate2OutputBound.Bound.bytes(bound),
 		page_count: KernelTagged.Plan.scenes(tagged).pages.len(),
 		root: KernelGate2Objects.Plan.catalog(objects),
 		sealed,
@@ -67,6 +71,7 @@ build_plan = |tagged, colors, images, content, objects, limits| {
 			structure,
 			work: {
 				identity: identity.work,
+				output_bound: KernelGate2OutputBound.Bound.work(bound),
 				pages: KernelGate2PageObjects.Plan.work(pages),
 				resources: KernelGate2ResourceObjects.Plan.work(resources),
 				tagged_objects: KernelGate2TaggedObjects.Plan.work(prefix),
@@ -96,7 +101,7 @@ test_object_limits = {
 test_plan : {} -> Try(KernelGate2Structure.Plan, [Fixture(KernelGate2PipelineFixture.Error), Structure(KernelGate2Structure.Error)])
 test_plan = |_| {
 	pipeline = KernelGate2PipelineFixture.pipeline({}) ? Fixture
-	plan = KernelGate2Structure.Plan.build(pipeline.tagged, pipeline.colors, pipeline.images, pipeline.content, pipeline.objects, KernelGate2Structure.Limits.make({ object_limits: test_object_limits, output_bound: 65536 })) ? Structure
+	plan = KernelGate2Structure.Plan.build(pipeline.tagged, pipeline.colors, pipeline.images, pipeline.content, pipeline.objects, KernelGate2Structure.Limits.make({ object_limits: test_object_limits })) ? Structure
 	Ok(plan)
 }
 
@@ -106,7 +111,42 @@ expect {
 	structure = KernelGate2Structure.Plan.structure(plan)
 	first = KernelEmit.to_bytes(structure)?
 	second = KernelEmit.to_bytes(structure)?
-	starts_with(first, Str.to_utf8("%PDF-2.0\n")) and first == second and first.len() < KernelStructure.Plan.output_bound(structure)
+	starts_with(first, Str.to_utf8("%PDF-2.0\n")) and first == second
+}
+
+## The sealed object graph proves an emission bound before encoding begins.
+expect {
+	plan = test_plan({})?
+	structure = KernelGate2Structure.Plan.structure(plan)
+	bytes = KernelEmit.to_bytes(structure)?
+	bytes.len() <= KernelStructure.Plan.output_bound(structure)
+}
+
+## Bound construction visits each sealed object once and is linear in serialized value occurrences.
+expect {
+	plan = test_plan({})?
+	structure = KernelGate2Structure.Plan.structure(plan)
+	bound_work = KernelGate2Structure.Plan.work(plan).output_bound
+	bound_work.object_visits == KernelStructure.Plan.object_count(structure)
+}
+
+## Bound construction traverses direct values and looks up each stream payload twice.
+expect {
+	plan = test_plan({})?
+	structure = KernelGate2Structure.Plan.structure(plan)
+	bound_work = KernelGate2Structure.Plan.work(plan).output_bound
+	stream_count = KernelSeal.Plan.counts(KernelStructure.Plan.sealed(structure)).streams
+	bound_work.payload_bound_lookups == stream_count * 2 and bound_work.value_visits > 0
+}
+
+## An xref identifier outside the sealed object sequence cannot acquire a bound.
+expect {
+	plan = test_plan({})?
+	structure = KernelGate2Structure.Plan.structure(plan)
+	match KernelGate2OutputBound.calculate(KernelStructure.Plan.sealed(structure), KernelStructure.Plan.root(structure)) {
+		Err(XrefObjectMismatch({ actual, expected })) => KernelObject.ObjectId.is_eq(actual, KernelStructure.Plan.root(structure)) and expected == KernelStructure.Plan.object_count(structure) + 1
+		_ => False
+	}
 }
 
 ## The file identity covers the sealed normalized plan and all payload source bytes.

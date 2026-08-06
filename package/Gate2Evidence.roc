@@ -3,6 +3,7 @@ import KernelContent
 import KernelEmit
 import KernelGeometry
 import KernelGate2Objects
+import KernelGate2OutputBound
 import KernelGate2PageObjects
 import KernelGate2PipelineFixture
 import KernelGate2TaggedObjects
@@ -65,7 +66,16 @@ build_minimal_pdf = |_| {
 		max_text_strings: 1,
 		max_values: 640,
 	}
-	plan = KernelGate2Structure.Plan.build(pipeline.tagged, pipeline.colors, pipeline.images, pipeline.content, pipeline.objects, KernelGate2Structure.Limits.make({ object_limits, output_bound: 65536 })) ? |_| EvidenceFailure
+	plan = KernelGate2Structure.Plan.build(
+		pipeline.tagged,
+		pipeline.colors,
+		pipeline.images,
+		pipeline.content,
+		pipeline.objects,
+		KernelGate2Structure.Limits.make({
+			object_limits: object_limits,
+		}),
+	) ? |_| EvidenceFailure
 	bytes = KernelEmit.to_bytes(KernelGate2Structure.Plan.structure(plan)) ? |_| EvidenceFailure
 	Ok(bytes)
 }
