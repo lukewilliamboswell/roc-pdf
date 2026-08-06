@@ -203,6 +203,51 @@
       "retention": null
     },
     {
+      "name": "Gate 3 built-in TrueType inspection",
+      "scenario_revision": "gate3-font-inspection-v2",
+      "source": "tests/gate3_unicode/main.roc",
+      "snapshot": "tests/gate3_unicode/snapshot.pdf",
+      "args": ["font"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "component_edges": 1713, "font_bytes": 166300, "font_glyphs": 1376, "font_tables": 17 },
+      "work_counters": ["font_bytes", "tables", "glyphs", "coverage_spans", "checksum_bytes", "cmap_mappings", "loca_entries", "overlap_comparisons", "glyph_visits", "component_edge_visits", "glyph_a", "width_a"],
+      "expectations": {
+        "arm64mac": { "allocations": 65, "work": [166300, 17, 1376, 26, 332316, 468, 1377, 136, 1376, 1713, 2, 1413] },
+        "x64musl": { "allocations": 65, "work": [166300, 17, 1376, 26, 332316, 468, 1377, 136, 1376, 1713, 2, 1413] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 Unicode analysis x1000",
+      "scenario_revision": "gate3-unicode-analysis-v1",
+      "source": "tests/gate3_unicode/main.roc",
+      "snapshot": "tests/gate3_unicode/snapshot.pdf",
+      "args": ["1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "unicode_version_major": 17, "repetitions": 1000, "source_bytes": 9000 },
+      "work_counters": ["repetitions", "source_bytes", "scalars", "graphemes", "line_boundaries", "script_runs"],
+      "expectations": {
+        "arm64mac": { "allocations": 176, "work": [1000, 9000, 6000, 5000, 6001, 2999] },
+        "x64musl": { "allocations": 176, "work": [1000, 9000, 6000, 5000, 6001, 2999] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 Unicode analysis x10000",
+      "scenario_revision": "gate3-unicode-analysis-v1",
+      "source": "tests/gate3_unicode/main.roc",
+      "snapshot": "tests/gate3_unicode/snapshot.pdf",
+      "args": ["10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "unicode_version_major": 17, "repetitions": 10000, "source_bytes": 90000 },
+      "work_counters": ["repetitions", "source_bytes", "scalars", "graphemes", "line_boundaries", "script_runs"],
+      "expectations": {
+        "arm64mac": { "allocations": 191, "work": [10000, 90000, 60000, 50000, 60001, 29999] },
+        "x64musl": { "allocations": 191, "work": [10000, 90000, 60000, 50000, 60001, 29999] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",

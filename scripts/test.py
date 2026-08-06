@@ -348,15 +348,44 @@ def self_test_metrics(suite: TestSuite) -> None:
     print("PASS performance baseline self-test", flush=True)
 
 
+def roc_version_matches_pin(pinned_roc: str, actual_roc: str) -> bool:
+    expected_roc = f"Roc compiler version {pinned_roc}"
+    if actual_roc == expected_roc:
+        return True
+
+    pin_match = re.fullmatch(r"nightly-[0-9]{4}-[A-Za-z]+-[0-9]{2}-([0-9a-f]+)", pinned_roc)
+    build_match = re.fullmatch(r"Roc compiler version release-fast-([0-9a-f]+)", actual_roc)
+    if pin_match is None or build_match is None:
+        return False
+
+    pinned_commit = pin_match.group(1)
+    build_commit = build_match.group(1)
+    return len(pinned_commit) >= 7 and build_commit.startswith(pinned_commit)
+
+
+def self_test_roc_version_pin() -> None:
+    pin = "nightly-2026-August-05-24f0b47"
+    if not roc_version_matches_pin(pin, f"Roc compiler version {pin}"):
+        raise SystemExit("Roc version verifier rejected the nightly tag identity")
+    if not roc_version_matches_pin(pin, "Roc compiler version release-fast-24f0b476"):
+        raise SystemExit("Roc version verifier rejected the identical release-fast commit")
+    if roc_version_matches_pin(pin, "Roc compiler version release-fast-deadbeef"):
+        raise SystemExit("Roc version verifier accepted a different compiler commit")
+    if roc_version_matches_pin("nightly-invalid", "Roc compiler version release-fast-24f0b476"):
+        raise SystemExit("Roc version verifier accepted a malformed nightly pin")
+    print("PASS Roc compiler pin self-test", flush=True)
+
+
 def verify_toolchain(toolchain: Toolchain) -> None:
     pinned_roc = (ROOT / ".roc-version").read_text(encoding="utf-8").strip()
     if not pinned_roc:
         raise SystemExit(".roc-version must contain the pinned Roc release")
     actual_roc = command_output(ROC, "version")
     expected_roc = f"Roc compiler version {pinned_roc}"
-    if actual_roc != expected_roc:
+    if not roc_version_matches_pin(pinned_roc, actual_roc):
         raise SystemExit(
-            f".roc-version expects Roc version output {expected_roc!r}, got {actual_roc!r}"
+            f".roc-version expects {expected_roc!r} or an identical release-fast commit, "
+            f"got {actual_roc!r}"
         )
     actual_zig = command_output(ZIG, "version")
     if actual_zig != toolchain.zig_version:
@@ -560,6 +589,7 @@ def main() -> None:
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
+    self_test_roc_version_pin()
     verify_toolchain(suite.toolchain)
 
     roc_sources = sorted((ROOT / "package").glob("*.roc"))

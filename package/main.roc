@@ -14,4 +14,4 @@ package
 		Conformance,
 		Theme,
 	]
-	{}
+	{ unicode: "../../unicode/package/main.roc" }
