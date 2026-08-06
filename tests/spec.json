@@ -263,6 +263,21 @@
       "retention": null
     },
     {
+      "name": "Gate 3 sanitized TrueType subset",
+      "scenario_revision": "gate3-font-subset-v1",
+      "source": "tests/gate3_subset/main.roc",
+      "snapshot": "tests/gate3_subset/snapshot.pdf",
+      "args": ["subset"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "font_bytes": 166300, "retained_glyphs": 5, "subset_bytes": 5864 },
+      "work_counters": ["font_bytes", "usage_visits", "retained_glyphs", "entry_visits", "source_glyph_bytes", "component_rewrites", "glyf_bytes", "hmtx_bytes", "loca_bytes", "cmap_mappings", "tables", "subset_bytes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 104, "work": [166300, 3, 5, 10, 992, 2, 992, 20, 24, 2, 14, 5864, 667] },
+        "x64musl": { "allocations": 104, "work": [166300, 3, 5, 10, 992, 2, 992, 20, 24, 2, 14, 5864, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",
