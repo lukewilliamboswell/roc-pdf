@@ -1,4 +1,5 @@
 import Semantics
+import KernelFont
 
 Font :: [].{
 	ResourceId :: U64.{
@@ -139,13 +140,174 @@ Font :: [].{
 	## Rejection is transactional and never carries a partial usable plan.
 	PlanResult : [Complete(Plan), Rejected(List(PlanError))]
 
+	ValidationDimension : [CmapMappings, FontBytes, Glyphs, Tables]
+	ResourceError : [
+		EmbeddingRightsProhibited({ fs_type : U16 }),
+		InvalidFont,
+		InvalidScript({ index : U64 }),
+		LimitExceeded({ attempted : U64, dimension : ValidationDimension, limit : U64 }),
+		UnknownFace(FaceId),
+		UnsupportedFormat(U32),
+	]
+	ValidationLimits :: { max_bytes : U64, max_cmap_mappings : U64, max_glyphs : U64, max_tables : U64 }.{
+		default : ValidationLimits
+		default = ValidationLimits.{ max_bytes: 2000000, max_cmap_mappings: 1200000, max_glyphs: 65535, max_tables: 128 }
+
+		make : { max_bytes : U64, max_cmap_mappings : U64, max_glyphs : U64, max_tables : U64 } -> ValidationLimits
+		make = |limits| ValidationLimits.(limits)
+	}
+
+	Registration : { provision : ShapingProvision, scripts : List(Script) }
+	RegistrationWork : {
+		cmap_mapping_visits : U64,
+		component_edge_visits : U64,
+		copied_input_bytes : U64,
+		glyph_visits : U64,
+		input_bytes : U64,
+		retained_input_bytes : U64,
+		table_visits : U64,
+	}
+
 	Store : {
 		coverage_spans : List(ScalarSpan),
 		faces : List(Face),
 		instances : List(Instance),
+		policies : List(Policy),
 		resources : List(Resource),
 		scripts : List(Script),
 	}
+
+	Registry :: { inspections : List(KernelFont.Inspection), store : Store }.{
+		empty : Registry
+		empty = Registry.({ inspections: [], store: empty_store })
+
+		register : Registry, List(U8), Registration, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
+		register = |registry, bytes, registration, limits| register_font(registry, bytes, registration, limits)
+
+		store : Registry -> Store
+		store = |Registry.(state)| state.store
+	}
+}
+
+empty_store : Font.Store
+empty_store = { coverage_spans: [], faces: [], instances: [], policies: [], resources: [], scripts: [] }
+
+register_font : Font.Registry, List(U8), Font.Registration, Font.ValidationLimits -> Try({ face : Font.FaceId, instance : Font.InstanceId, policy : Font.PolicyId, registry : Font.Registry, work : Font.RegistrationWork }, Font.ResourceError)
+register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimits.(limits)| {
+	validate_scripts(registration.scripts)?
+	inspection = KernelFont.inspect(bytes, KernelFont.Limits.make(limits)) ? map_font_error
+	resource_index = state.store.resources.len()
+	face_index = state.store.faces.len()
+	instance_index = state.store.instances.len()
+	policy_index = state.store.policies.len()
+	if resource_index != face_index or face_index != instance_index or instance_index != policy_index or state.inspections.len() != face_index {
+		return Err(InvalidFont)
+	}
+	resource = Font.ResourceId.from_index(resource_index)
+	face = Font.FaceId.from_index(face_index)
+	instance = Font.InstanceId.from_index(instance_index)
+	policy = Font.PolicyId.from_index(policy_index)
+	coverage_start = state.store.coverage_spans.len()
+	var $coverage = state.store.coverage_spans
+	var $coverage_index = 0
+	while $coverage_index < inspection.coverage.len() {
+		span = list_at(inspection.coverage, $coverage_index)
+		$coverage = $coverage.append({ first: span.first, last: span.last })
+		$coverage_index = $coverage_index + 1
+	}
+	script_start = state.store.scripts.len()
+	var $scripts = state.store.scripts
+	var $script_index = 0
+	while $script_index < registration.scripts.len() {
+		$scripts = $scripts.append(list_at(registration.scripts, $script_index))
+		$script_index = $script_index + 1
+	}
+	font_rights = match inspection.embedding_rights {
+		Editable => Editable
+		Installable => Installable
+		PreviewAndPrint => PreviewAndPrint
+	}
+	store = {
+		coverage_spans: $coverage,
+		faces: state.store.faces.append({
+			coverage: Semantics.Range.from_start_and_length(coverage_start, inspection.coverage.len()),
+			embedding_rights: font_rights,
+			format: OpenTypeTrueType,
+			id: face,
+			provision: registration.provision,
+			resource,
+			scripts: Semantics.Range.from_start_and_length(script_start, registration.scripts.len()),
+		}),
+		instances: state.store.instances.append({ face, id: instance, kind: Static }),
+		policies: state.store.policies.append({ id: policy, instances: [instance] }),
+		resources: state.store.resources.append({ bytes, id: resource }),
+		scripts: $scripts,
+	}
+	Ok({
+		face,
+		instance,
+		policy,
+		registry: Font.Registry.({ inspections: state.inspections.append(inspection), store }),
+		work: {
+			cmap_mapping_visits: inspection.work.cmap_mapping_visits,
+			component_edge_visits: inspection.work.component_edge_visits,
+			copied_input_bytes: 0,
+			glyph_visits: inspection.work.glyph_visits,
+			input_bytes: bytes.len(),
+			retained_input_bytes: inspection.bytes.len(),
+			table_visits: inspection.work.directory_entries,
+		},
+	})
+}
+
+validate_scripts : List(Font.Script) -> Try({}, Font.ResourceError)
+validate_scripts = |scripts| {
+	if scripts.is_empty() {
+		return Err(InvalidScript({ index: 0 }))
+	}
+	var $index = 0
+	while $index < scripts.len() {
+		bytes = Str.to_utf8(list_at(scripts, $index).as_str())
+		if bytes.len() != 4 or !ascii_upper(list_at(bytes, 0)) or !ascii_lower(list_at(bytes, 1)) or !ascii_lower(list_at(bytes, 2)) or !ascii_lower(list_at(bytes, 3)) {
+			return Err(InvalidScript({ index: $index }))
+		}
+		var $previous = 0
+		while $previous < $index {
+			if list_at(scripts, $previous).as_str() == list_at(scripts, $index).as_str() {
+				return Err(InvalidScript({ index: $index }))
+			}
+			$previous = $previous + 1
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
+map_font_error : KernelFont.Error -> Font.ResourceError
+map_font_error = |error| match error {
+	InvalidEmbeddingRights(fs_type) => {
+		problem : Font.ResourceError
+		problem = EmbeddingRightsProhibited({ fs_type: fs_type })
+		problem
+	}
+	LimitExceeded({ attempted, dimension, limit }) => LimitExceeded({ attempted, dimension, limit })
+	CmapLimitExceeded({ attempted, limit }) => LimitExceeded({ attempted, dimension: CmapMappings, limit })
+	UnsupportedFontProgram(signature) => UnsupportedFormat(signature)
+	_ => InvalidFont
+}
+
+ascii_upper : U8 -> Bool
+ascii_upper = |byte| byte >= 0x41 and byte <= 0x5a
+
+ascii_lower : U8 -> Bool
+ascii_lower = |byte| byte >= 0x61 and byte <= 0x7a
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Err(OutOfBounds) => {
+		crash "validated font registry index escaped"
+	}
+	Ok(value) => value
 }
 
 ## Font resource IDs preserve their dense index.

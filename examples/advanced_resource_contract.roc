@@ -4,8 +4,11 @@ app [main!] {
 }
 
 import pdf.Color
+import pdf.Font
 import pdf.Image
 import pdf.Semantics
+import pdf.Theme
+import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 
 ## Prepared color values identify the exact validated color-space resource.
 expect {
@@ -16,6 +19,35 @@ expect {
 	}
 
 	color.space.index() == 1
+}
+
+## Complete caller-owned bytes are validated once, assigned opaque dense
+## handles, attached to options, and selected through Theme without a font name
+## or caller-assigned resource ID.
+expect {
+	registered = Font.Registry.empty.register(
+		caller_font_bytes,
+		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+		Font.ValidationLimits.default,
+	)?
+	store = registered.registry.store()
+	theme = Theme.with_font(Theme.default, registered.face)
+	registered.face.index() == 0 and
+		registered.instance.index() == 0 and
+			registered.policy.index() == 0 and
+				registered.work.input_bytes == caller_font_bytes.len() and
+					registered.work.retained_input_bytes == caller_font_bytes.len() and
+						registered.work.copied_input_bytes == 0 and
+							list_at(store.resources, 0).bytes.len() == caller_font_bytes.len() and
+								theme.body_font().index() == registered.face.index()
+}
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Err(OutOfBounds) => {
+		crash "caller resource contract index escaped"
+	}
+	Ok(value) => value
 }
 
 ## ICC profile bytes are retained once and tags remain validated source ranges.

@@ -525,6 +525,14 @@ that a `Theme` can select. Callers never invent dense resource IDs or provide a
 system-font name. The same pattern applies to other large caller-provided
 resources as their gates make them public.
 
+`Font.Registry.register` is that font boundary. Registration is transactional:
+it validates the complete byte allocation and declared script provision before
+allocating dense resource, face, static-instance, and policy handles. The
+returned registry retains the original immutable input allocation together with
+its once-produced inspection facts; it does not copy the font payload into a
+second byte list. `Theme.with_font` accepts the returned face handle. A caller
+cannot register a name, path, URL, partial stream, or caller-selected identity.
+
 Caller-provided means external to the package distribution, not external to the
 generated document. Every selected resource is validated under the same
 conformance, security, determinism, ownership, and retention rules as a packaged

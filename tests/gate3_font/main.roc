@@ -29,5 +29,13 @@ main! = |args| {
 			Ok(result) => result
 		}
 	}
+	if mode == "caller" {
+		return match Gate3FontEvidence.caller_registration(args.len() - 2) {
+			Err(_) => {
+				crash "Gate 3 caller font registration evidence failed"
+			}
+			Ok(result) => result
+		}
+	}
 	crash "unknown Gate 3 font evidence mode"
 }

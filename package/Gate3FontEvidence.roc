@@ -1,10 +1,57 @@
+import Font
 import KernelEmit
 import KernelFont
 import KernelFontPlan
 import KernelStructure
+import Theme
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 
 Gate3FontEvidence :: [].{
+	caller_registration : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	caller_registration = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		registered = Font.Registry.empty.register(
+			caller_font_bytes,
+			{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+			Font.ValidationLimits.default,
+		) ? |_| EvidenceFailure
+		store = registered.registry.store()
+		theme = Theme.with_font(Theme.default, registered.face)
+		if theme.body_font().index() != registered.face.index() or
+			store.resources.len() != 1 or
+				store.faces.len() != 1 or
+					store.instances.len() != 1 or
+						store.policies.len() != 1 or
+							list_at(store.resources, 0).bytes.len() != caller_font_bytes.len() {
+			return Err(EvidenceFailure)
+		}
+		bytes = blank_pdf(runtime_guard)?
+		Ok({
+			bytes,
+			work: [
+				registered.work.input_bytes,
+				registered.work.retained_input_bytes,
+				registered.work.copied_input_bytes,
+				registered.work.table_visits,
+				registered.work.glyph_visits,
+				registered.work.cmap_mapping_visits,
+				registered.work.component_edge_visits,
+				store.coverage_spans.len(),
+				registered.face.index(),
+				registered.instance.index(),
+				registered.policy.index(),
+				store.resources.len(),
+				store.faces.len(),
+				store.instances.len(),
+				store.policies.len(),
+				bytes.len(),
+			],
+		})
+	}
+
 	font_inspection : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
 	font_inspection = |runtime_guard| {
 		if runtime_guard != 0 {
@@ -136,4 +183,14 @@ expect {
 expect {
 	result = Gate3FontEvidence.font_planning(0)?
 	result.work.len() == 12
+}
+
+## Invalid caller bytes fail without returning a usable face or registry.
+expect match Font.Registry.empty.register(
+	List.repeat(0, 12),
+	{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+	Font.ValidationLimits.default,
+) {
+	Err(UnsupportedFormat(0)) => Bool.True
+	_ => Bool.False
 }

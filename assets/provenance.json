@@ -18,6 +18,21 @@
       }
     },
     {
+      "id": "caller-font-regular-fixture",
+      "path": "tests/assets/CallerFont-Regular.ttf",
+      "kind": "font",
+      "bytes": 7816,
+      "sha256": "a43eb0baf17422e20dc6a6538cbe49e64617e423e8f0b4c5d09fea4d9ff751bf",
+      "license": "OFL-1.1",
+      "attribution": "vendor/fonts/Inter-OFL-1.1.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_caller_font_fixture.py"
+      }
+    },
+    {
       "id": "gate1-balanced-pages-pdf-snapshot",
       "path": "tests/gate1_pages/snapshot.pdf",
       "kind": "expected_pdf",
