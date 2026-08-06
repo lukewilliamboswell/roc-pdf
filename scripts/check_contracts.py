@@ -21,7 +21,7 @@ DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
 SOURCE_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 RULE_ID = re.compile(r"ROC-PDF-[A-Z0-9]+(?:-[A-Z0-9]+)*\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
-BINARY_ASSET_SUFFIXES = {".a", ".icc", ".icm", ".jar", ".jpeg", ".jpg", ".o", ".otf", ".pdf", ".png", ".ttf"}
+BINARY_ASSET_SUFFIXES = {".a", ".icc", ".icm", ".jar", ".jpeg", ".jpg", ".o", ".otf", ".pdf", ".png", ".tgz", ".ttf", ".zip"}
 ASSET_KINDS = {
     "expected_pdf",
     "font",

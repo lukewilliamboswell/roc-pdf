@@ -2,9 +2,9 @@
 
 ## Parser pin and strict boundary
 
-Linux CI selects Temurin Java 17 through an immutable `setup-java` action
-revision, then downloads Apache PDFBox 3.0.8's standalone application jar from
-the Apache release archive and verifies SHA-512
+Linux CI selects the exact Temurin 17.0.20+8 build through an immutable
+`setup-java` action revision, then uses Apache PDFBox 3.0.8's vendored
+standalone application jar and verifies SHA-512
 `768847238f683568507bf73570a2b6fedcbe58b25c7b4f97fba536ba110b290fe96ba065aed58629d41fb94857d76bc1978c2f31d294b553c69f287f71ee9600`.
 The checker also reads the jar manifest and rejects any implementation version
 other than 3.0.8.

@@ -123,6 +123,22 @@
       }
     },
     {
+      "id": "pdfium-chromium-7988-linux-x64-archive",
+      "path": "vendor/pdfium/pdfium-linux-x64-7988.tgz",
+      "kind": "test_toolchain",
+      "bytes": 3675602,
+      "sha256": "7358c15e26a746cd67854887ea11b3b807c436056788eee9294fb972b8f8e0be",
+      "license": "BSD-3-Clause and bundled third-party licenses",
+      "attribution": "vendor/pdfium/NOTICE.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "external",
+        "source_url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7988/pdfium-linux-x64.tgz",
+        "upstream_revision": "chromium/7988"
+      }
+    },
+    {
       "id": "placeholder-pdf-snapshot",
       "path": "tests/placeholder/snapshot.pdf",
       "kind": "expected_pdf",
@@ -135,6 +151,22 @@
       "origin": {
         "kind": "generated",
         "generator": "tests/placeholder/main.roc"
+      }
+    },
+    {
+      "id": "qpdf-12-3-2-linux-x64-archive",
+      "path": "vendor/qpdf/qpdf-12.3.2-bin-linux-x86_64.zip",
+      "kind": "test_toolchain",
+      "bytes": 4025945,
+      "sha256": "44f2c53bf784c0143128d80d2b9946e9793962c5bb403b75c0024cb4d8e346b9",
+      "license": "Apache-2.0 and bundled third-party library licenses",
+      "attribution": "vendor/qpdf/NOTICE.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "external",
+        "source_url": "https://github.com/qpdf/qpdf/releases/download/v12.3.2/qpdf-12.3.2-bin-linux-x86_64.zip",
+        "upstream_revision": "12.3.2"
       }
     },
     {

@@ -3,9 +3,9 @@
 ## Fixture and oracle
 
 The retained Gate 2 PDF is rendered at 720 dpi by PDFium Chromium 7988 and
-Apache PDFBox 3.0.8. PDFium is loaded from the checksum-pinned
-`pdfium-linux-x64.tgz` release artifact; PDFBox uses the vendored, provenance-
-tracked application JAR. PDFBox is the required non-PDFium renderer.
+Apache PDFBox 3.0.8. Both are loaded from checksum-pinned, provenance-tracked
+release artifacts under `vendor/`; CI performs no per-run HTTP fetch for
+either renderer. PDFBox is the required non-PDFium renderer.
 
 The expected 100 by 100 RGB raster is constructed directly from the typed
 fixture, not from either renderer and not from another PDF generator. One PDF
@@ -24,8 +24,8 @@ renderers must equal the independent 30,000-byte expectation and each other.
 
 ## Pinning and failure boundary
 
-The PDFium Chromium 7988 Linux archive is downloaded from the immutable
-`chromium/7988` release and checked against SHA-256
+The vendored PDFium Chromium 7988 Linux archive is the unmodified immutable
+`chromium/7988` release artifact and is checked against SHA-256
 `7358c15e26a746cd67854887ea11b3b807c436056788eee9294fb972b8f8e0be`.
 CI compiles the small `pdfium_render.c` adapter with warnings as errors against
 that archive. The PDFBox adapter is likewise compiled with all Java lint

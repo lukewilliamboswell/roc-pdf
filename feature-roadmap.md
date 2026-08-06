@@ -784,6 +784,22 @@ ICC profiles, images, Unicode/UCD data, hyphenation patterns, fuzz seeds, and
 expected renderings. Isartor files must not be copied into the repository
 because their terms prohibit redistribution.
 
+Small, redistributable release artifacts used by ordinary CI are retained
+under `vendor/` as their exact upstream bytes. CI verifies their manifest
+digest before use and has no network fallback. An upgrade is an explicit
+reviewed commit that updates the artifact, license and attribution material,
+provenance record, CI reference, and affected evidence together. Git LFS is
+not used because it would make a separate remote service part of checkout and
+historical reproducibility.
+
+Large platform-specific compiler toolchains, JDKs, and container images are
+not committed to Git. Their action source is pinned by full commit identity,
+their selected version or image digest is exact, and a network-isolated CI
+deployment pre-provisions them in its immutable runner image. `.roc-version`
+remains the sole Roc compiler-version pin. Copyrighted or non-redistributable
+standards and test assets remain digest-pinned references rather than vendored
+bytes.
+
 ## CI gates
 
 ### Per change

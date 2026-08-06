@@ -56,7 +56,7 @@ zero-allocation claim for construction or emission. The independent checker
 recalculates object offsets, xref entries, direct and indirect stream lengths,
 and page facts from the original bytes, and its negative twins corrupt an
 offset, a length reference, and the EOF marker. Linux CI additionally runs
-qpdf 12.3.2 from its checksum-pinned official binary release and veraPDF
+qpdf 12.3.2 from its checksum-pinned vendored official binary release and veraPDF
 Arlington 1.30.2 from an immutable image digest. Arlington reports zero failed
 rules or checks for every structural snapshot within its documented object-
 model scope.
