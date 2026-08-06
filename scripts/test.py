@@ -73,6 +73,13 @@ class TestSuite:
     cases: tuple[TestCase, ...]
 
 
+@dataclass(frozen=True)
+class BaselineDelta:
+    case_name: str
+    expected: Metrics
+    actual: Metrics
+
+
 def command(executable: str, *args: str, cwd: Path = ROOT) -> None:
     command = [executable, *args]
     print("+", " ".join(command), flush=True)
@@ -395,7 +402,9 @@ def run_case(
     protocol_version: int,
     roc_optimization: str,
     update_snapshots: bool,
-) -> None:
+    compare_baselines: bool,
+    linux_x64_container: str | None,
+) -> BaselineDelta | None:
     executable = build_dir / f"case-{index}"
     roc(
         "build",
@@ -406,7 +415,23 @@ def run_case(
         "--no-cache",
     )
 
-    invocation = [executable, *case.args]
+    if linux_x64_container is None:
+        invocation = [executable, *case.args]
+    else:
+        invocation = [
+            "docker",
+            "run",
+            "--rm",
+            "--platform",
+            "linux/amd64",
+            "--volume",
+            f"{ROOT}:{ROOT}:ro",
+            "--workdir",
+            str(ROOT),
+            linux_x64_container,
+            executable,
+            *case.args,
+        ]
     print("+", " ".join(str(value) for value in invocation), flush=True)
     result = subprocess.run(invocation, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
@@ -451,9 +476,12 @@ def run_case(
     work_text = match.group(work_group)
     actual_work = () if not work_text else tuple(int(value) for value in work_text.split(b","))
     actual_metrics = Metrics(int(match.group(allocations_group)), actual_work)
-    mismatch = metrics_mismatch(case.expectations[target], actual_metrics, case.work_counters)
+    expected_metrics = case.expectations[target]
+    mismatch = metrics_mismatch(expected_metrics, actual_metrics, case.work_counters)
     if mismatch is not None:
-        raise SystemExit(f"{case.name}: performance baseline mismatch: {mismatch}")
+        if not compare_baselines:
+            raise SystemExit(f"{case.name}: performance baseline mismatch: {mismatch}")
+        print(f"DELTA {case.name}: {mismatch}", flush=True)
 
     expected = case.snapshot.read_bytes()
     if update_snapshots:
@@ -490,6 +518,10 @@ def run_case(
             validate_gate2_pdf(result.stdout)
             print(f"PASS {case.name}: exact normalized tagged structure and resources", flush=True)
 
+    if mismatch is None:
+        return None
+    return BaselineDelta(case.name, expected_metrics, actual_metrics)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -498,9 +530,27 @@ def main() -> None:
         action="store_true",
         help="Replace PDF snapshots with the generated output after all other assertions pass",
     )
+    parser.add_argument(
+        "--compare-baselines",
+        action="store_true",
+        help=(
+            "Run every case and report baseline differences after validating snapshots and "
+            "structural evidence; this mode never accepts changed baselines"
+        ),
+    )
+    parser.add_argument(
+        "--linux-x64-container",
+        metavar="IMAGE",
+        help=(
+            "Cross-compile x64musl cases and execute them in the named local linux/amd64 "
+            "container image"
+        ),
+    )
     args = parser.parse_args()
+    if args.update_snapshots and args.compare_baselines:
+        parser.error("--update-snapshots and --compare-baselines cannot be combined")
     suite = load_suite()
-    target = native_roc_target()
+    target = "x64musl" if args.linux_x64_container is not None else native_roc_target()
 
     command(sys.executable, "scripts/check_contracts.py", "--self-test")
     command(sys.executable, "scripts/check_arlington.py", "--self-test")
@@ -542,10 +592,11 @@ def main() -> None:
     )
 
     TEMP_ROOT.mkdir(exist_ok=True)
+    baseline_deltas: list[BaselineDelta] = []
     with tempfile.TemporaryDirectory(prefix="test-", dir=TEMP_ROOT) as temporary:
         build_dir = Path(temporary)
         for index, case in enumerate(suite.cases):
-            run_case(
+            delta = run_case(
                 case,
                 index,
                 build_dir,
@@ -553,10 +604,30 @@ def main() -> None:
                 suite.protocol_version,
                 suite.toolchain.roc_optimization,
                 args.update_snapshots,
+                args.compare_baselines,
+                args.linux_x64_container,
             )
+            if delta is not None:
+                baseline_deltas.append(delta)
 
     if args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
+
+    if baseline_deltas:
+        print("\nAllocation baseline comparison:", flush=True)
+        print("| Case | Expected | Actual | Delta | Work counters |", flush=True)
+        print("| --- | ---: | ---: | ---: | --- |", flush=True)
+        for delta in baseline_deltas:
+            work_status = "unchanged" if delta.expected.work == delta.actual.work else "CHANGED"
+            allocation_delta = delta.actual.allocations - delta.expected.allocations
+            print(
+                f"| {delta.case_name} | {delta.expected.allocations} | "
+                f"{delta.actual.allocations} | {allocation_delta:+d} | {work_status} |",
+                flush=True,
+            )
+        raise SystemExit(
+            "Performance baselines differ; review and update tests/spec.json deliberately"
+        )
 
 
 if __name__ == "__main__":

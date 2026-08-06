@@ -27,4 +27,7 @@ The work record exposes exact bytes, command/group visits, path segments,
 balanced graphics-state pairs, image placements, and fragment/artifact marked
 groups. The optimized million-command fixture records exactly one million
 command visits and image placements, a maximum frame depth of one, 29,000,023
-content bytes, and 129 total Roc allocations while reusing one image payload.
+content bytes, and 136 total Roc allocations while reusing one image payload.
+The seven-allocation compiler-caused shift from the original 129 count is
+reviewed in `roc-nightly-2026-August-05-24f0b47.md`; it is fixed rather than
+per-command.
