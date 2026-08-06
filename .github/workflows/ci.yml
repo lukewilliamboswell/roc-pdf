@@ -73,6 +73,19 @@ jobs:
         if: runner.os == 'Linux'
         run: python3 scripts/check_pdfbox.py
 
+      - name: Install pinned PDFium Chromium 7988
+        if: runner.os == 'Linux'
+        run: |
+          curl -L --fail --output /tmp/pdfium-linux-x64-7988.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7988/pdfium-linux-x64.tgz
+          echo '7358c15e26a746cd67854887ea11b3b807c436056788eee9294fb972b8f8e0be  /tmp/pdfium-linux-x64-7988.tgz' | sha256sum --check
+          mkdir -p /tmp/pdfium-7988
+          tar -xzf /tmp/pdfium-linux-x64-7988.tgz -C /tmp/pdfium-7988
+          cc -std=c11 -Wall -Wextra -Werror -O2 -I/tmp/pdfium-7988/include scripts/pdfium_render.c -L/tmp/pdfium-7988/lib -Wl,-rpath,/tmp/pdfium-7988/lib -lpdfium -o /tmp/pdfium-render
+
+      - name: Compare Gate 2 PDFium and PDFBox rendering
+        if: runner.os == 'Linux'
+        run: python3 scripts/check_gate2_renderers.py --pdfium-renderer /tmp/pdfium-render
+
       - name: Validate object model with veraPDF Arlington 1.30.2
         if: runner.os == 'Linux'
         run: |
