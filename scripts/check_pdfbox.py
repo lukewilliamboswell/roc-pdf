@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "scripts" / "StrictPdfCheck.java"
 PDFBOX_VERSION = "3.0.8"
+VENDORED_JAR = ROOT / "vendor" / "pdfbox" / f"pdfbox-app-{PDFBOX_VERSION}.jar"
 PDFBOX_SHA512 = (
     "768847238f683568507bf73570a2b6fedcbe58b25c7b4f97fba536ba110b290fe"
     "96ba065aed58629d41fb94857d76bc1978c2f31d294b553c69f287f71ee9600"
@@ -141,6 +142,7 @@ def run_recovery_negative(jar: Path, classes: Path, temporary: Path) -> None:
 
 
 def self_test() -> None:
+    verify_jar(VENDORED_JAR)
     discovered = {path.parent.name for path in (ROOT / "tests").glob("gate1_*/snapshot.pdf")}
     declared = {fixture.name for fixture in FIXTURES}
     require(discovered == declared, "PDFBox fixture table must cover every Gate 1 snapshot")
@@ -153,13 +155,12 @@ def self_test() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--jar", type=Path)
+    parser.add_argument("--jar", type=Path, default=VENDORED_JAR)
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
         return
-    require(args.jar is not None, "--jar is required unless --self-test is used")
     jar = args.jar.resolve()
     verify_jar(jar)
     with tempfile.TemporaryDirectory(prefix="roc-pdf-pdfbox-") as temporary_name:

@@ -2,6 +2,22 @@
   "schema_version": 1,
   "assets": [
     {
+      "id": "apache-pdfbox-app-jar",
+      "path": "vendor/pdfbox/pdfbox-app-3.0.8.jar",
+      "kind": "test_toolchain",
+      "bytes": 13602031,
+      "sha256": "f6b3a80c39747ff0ef5d06708bc03882152403de58dbef4a1fbffbee568eceb1",
+      "license": "Apache-2.0 and bundled third-party licenses",
+      "attribution": "vendor/pdfbox/NOTICE.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "external",
+        "source_url": "https://archive.apache.org/dist/pdfbox/3.0.8/pdfbox-app-3.0.8.jar",
+        "upstream_revision": "3.0.8"
+      }
+    },
+    {
       "id": "gate1-balanced-pages-pdf-snapshot",
       "path": "tests/gate1_pages/snapshot.pdf",
       "kind": "expected_pdf",
