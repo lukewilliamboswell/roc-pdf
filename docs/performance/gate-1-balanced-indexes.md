@@ -57,12 +57,13 @@ The builders are exercised beside the unchanged 4,096-page output, so its
 `bef875d56c7b93c4120aaea9e9f19bc90b3f4857e507a8bdb6aff6a8e07e5756`
 remain independently checked.
 
-The combined fixture records exactly 117,904 Roc allocations, 4,111 above the
+The combined fixture records exactly 138,385 Roc allocations, 4,111 above the
 page-only fixture. Of those, 4,096 are the evidence caller's four-byte key
 lists. The remaining fixed 15 cover the two dense input entry lists and four
 compact shapes; there is no allocation per output node or second allocation
 per retained key. CI applies the same exact count and work vector on arm64mac
-and x64musl.
+and x64musl. The shared compiler-caused increase from the original 117,904
+count is reviewed in `roc-nightly-2026-August-05-24f0b47.md`.
 
 This slice seals reusable index topology and ordering facts. It does not claim
 the separate outline hierarchy builder or optional feature-specific object

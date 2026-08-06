@@ -43,7 +43,7 @@ a deterministic 4,096-page shape. The independent byte checker recursively
 walks `/Kids`, `/Parent`, and `/Count` and rejects cycles, unreachable nodes,
 mixed child kinds, and fanout violations.
 
-The pinned optimized 4,096-page whole-pipeline fixture records exactly 113,793
+The pinned optimized 4,096-page whole-pipeline fixture records exactly 134,274
 Roc allocations, 133 tree nodes, 12,422 objects, 17,186 values, 4,232 array
 edges, 21,013 dictionary edges, 25,245 total builder edges, 8,585 checked
 references, and 1,084,927 emitted-byte visits. Its exact output hash is
@@ -51,7 +51,9 @@ references, and 1,084,927 emitted-byte visits. Its exact output hash is
 The independent checker validates all 4,096 pages and every xref offset. This
 fixture exposed dynamic-shift code generation that corrupted runtime `U64`
 byte emission; fixed-position shifts now make both offsets and identifier facts
-correct for non-constant large plans.
+correct for non-constant large plans. The compiler-caused increase from the
+original 113,793 allocation count is reviewed in
+`roc-nightly-2026-August-05-24f0b47.md`.
 
 The same allocation count, hash, counters, and independent structure checks run
 on x64musl CI. Name, ID, number, and ParentTree plans are recorded separately in

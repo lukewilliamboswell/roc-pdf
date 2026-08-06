@@ -27,7 +27,9 @@ minimal fixture is the reviewed fixed cost of one contextual Artifact object
 and its mixed `/K` relationship; it is not proportional to paint commands or
 resource payload size.
 
-The million-command fixture remains at 129 allocations. It visits exactly one
+The million-command fixture now records 136 allocations. The seven-allocation
+compiler-caused shift from its original 129 count is reviewed in
+`roc-nightly-2026-August-05-24f0b47.md`. It visits exactly one
 million scene, content, and resource commands, records 999,999 reuses of one
 one-byte image payload, reaches graphics depth one, and produces 29,000,023
 content bytes without copying the image payload per placement. The fixture is
