@@ -13,5 +13,6 @@ structure kids follow the mixed semantic content spine.
 The plan stores scalar IDs and ranges rather than duplicating scene commands,
 fragment records, or payload bytes. Its work record counts paint edges,
 fragment and artifact groups, occurrence-owner edges, ParentTree prefix/write
-steps, and emitted normalized `/K` items. Optimized allocation evidence remains
-part of the Gate 2 fixture before the gate is declared complete.
+steps, and emitted normalized `/K` items. The retained contextual fixture emits
+an exact `[contextual-Artifact, MCR]` mixed `/K` array, and its fixed allocation
+delta is reviewed in `gate-2-closure.md`.

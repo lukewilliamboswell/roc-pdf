@@ -13,5 +13,7 @@ exactly once. Semantic depth is budgeted without using the host call stack.
 
 The deterministic work record separates namespace, occurrence, fragment,
 counting, prefix, reverse-write, node, content, and attribute visits. The
-optimized Gate 2 fixture will pin allocations and these counters at its Roc
-measurement boundary before the capability is declared complete.
+optimized contextual Gate 2 fixture pins the integrated pipeline at 662 Roc
+allocations. The exact semantic work remains asserted by focused unit tests,
+while the emitted checker independently verifies the resulting namespace,
+contextual Artifact, mixed `/K`, MCID, and ParentTree relationships.

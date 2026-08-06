@@ -799,6 +799,18 @@ expect {
 	}
 }
 
+## Zero raster dimensions are rejected before stride or payload arithmetic.
+expect {
+	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
+	sources : Image.SourceStore
+	sources = { resources: [{ id: Image.Id.from_index(0), payload: PackedPixels({ ..test_raster, dimensions: { ..test_raster.dimensions, width: 0 } }) }] }
+
+	match KernelImage.Plan.build(sources, colors, test_limits) {
+		Err(InvalidDimensions({ height: 2, resource: 0, width: 0 })) => True
+		_ => False
+	}
+}
+
 ## Supported JPEG markers are checked and irrelevant comments are stripped.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?

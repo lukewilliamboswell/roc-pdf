@@ -667,6 +667,28 @@ expect {
 	}
 }
 
+## Fragment identities remain dense before any reverse-index write.
+expect {
+	fragments = list_set(test_store.fragments, 0, { ..test_fragment(0, 1), id: Semantics.FragmentId.from_index(3) })
+	bad = { ..test_store, fragments }
+
+	match KernelSemantics.Plan.build(bad, 1, 1, test_limits) {
+		Err(NonDenseIdentity({ actual: 3, expected: 0, kind: FragmentIndex })) => True
+		_ => False
+	}
+}
+
+## Fragment content-stream identities are checked before ParentTree planning.
+expect {
+	fragments = list_set(test_store.fragments, 0, { ..test_fragment(0, 1), content_stream: Semantics.ContentStreamId.from_index(1) })
+	bad = { ..test_store, fragments }
+
+	match KernelSemantics.Plan.build(bad, 1, 1, test_limits) {
+		Err(IndexOutOfRange({ available: 1, index: 1, kind: FragmentIndex })) => True
+		_ => False
+	}
+}
+
 ## Contextual Artifact structure attributes cannot leak onto ordinary nodes.
 expect {
 	root = list_at(test_store.nodes, 0)

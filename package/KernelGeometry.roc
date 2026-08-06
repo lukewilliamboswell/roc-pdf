@@ -140,6 +140,16 @@ expect {
 	KernelGeometry.validate_page(bad) == Err(BoxOutside({ inner: ArtBox, outer: CropBox }))
 }
 
+## Non-positive page boxes are rejected before containment is considered.
+expect {
+	bad = {
+		..test_page,
+		boxes: { ..test_page.boxes, art: page_rect(1000, 1000, 0, 8000) },
+	}
+
+	KernelGeometry.validate_page(bad) == Err(NonPositiveBox(ArtBox))
+}
+
 ## Affine point transforms use checked fixed-point half-even rounding.
 expect {
 	matrix : Scene.Matrix

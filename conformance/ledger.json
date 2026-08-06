@@ -171,6 +171,19 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-TAGGED-VISUAL-KERNEL",
+      "summary": "The private minimal visual kernel emits checked geometry, typed color and images, exact meaningful-paint ownership, page and contextual Artifacts, MCIDs, ParentTree rows, and mixed structure order.",
+      "source_ids": ["iso-32000-2-2020-ec3", "jpeg-10918-1-1994"],
+      "references": ["docs/performance/gate-2-closure.md", "feature-roadmap.md: Gate 2"],
+      "capabilities": ["Pdf20"],
+      "implementation": "implemented",
+      "machine_verification": "roc_unit_checked_geometry_scene_semantics_tagged_color_image_resource_content_and_object_plans; exact_contextual_artifact_mixed_k_parenttree_mcid_boxes_resources_and_pixels; atomic_internal_and_emitted_negative_matrix; pdfium_chromium_7988_and_pdfbox_3_0_8_exact_independent_raster; optimized_contextual_minimal_exact_allocations_bytes_and_work; optimized_million_command_constant_allocations_linear_visits_bounded_stack_and_single_payload_reuse",
+      "human_verification": "not_required",
+      "positive_scenarios": ["package/KernelGate2Structure.roc", "scripts/check_gate2.py", "scripts/check_gate2_renderers.py", "tests/gate2_minimal/main.roc", "tests/gate2_stress/main.roc"],
+      "negative_scenarios": ["package/KernelGeometry.roc", "package/KernelImage.roc", "package/KernelScene.roc", "package/KernelSemantics.roc", "package/KernelTagged.roc", "scripts/check_gate2.py"],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PREPARED-STAGE-CONTRACT",
       "summary": "Prepared documents contain exact resolved layout, semantic ownership, scenes, validated resources, bounded work, and no speculative handlers or unresolved references.",
       "source_ids": ["icc-1-2001-04", "iso-32000-2-2020-ec3", "jpeg-10918-1-1994", "opentype-1-9-1"],

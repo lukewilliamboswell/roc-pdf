@@ -25,5 +25,6 @@ page cannot allocate beyond the remaining document budget.
 
 The work record exposes exact bytes, command/group visits, path segments,
 balanced graphics-state pairs, image placements, and fragment/artifact marked
-groups. Optimized million-command allocation and work evidence remains a Gate
-2 completion requirement before this slice is claimed complete.
+groups. The optimized million-command fixture records exactly one million
+command visits and image placements, a maximum frame depth of one, 29,000,023
+content bytes, and 129 total Roc allocations while reusing one image payload.

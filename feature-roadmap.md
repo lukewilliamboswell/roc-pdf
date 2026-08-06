@@ -347,6 +347,14 @@ within an early correctness gate.
 - A million-command stress fixture has bounded stack use, linear visits, and no
   payload duplication per placement.
 
+### Closure status
+
+Gate 2 is closed. The capability, negative, exact-structure, renderer, and
+performance aggregation is recorded in
+`docs/performance/gate-2-closure.md`. This closes the private minimal tagged
+visual kernel only; it does not make Gate 3 authoring or later conformance
+profiles available.
+
 ## Gate 3: searchable international text and useful layout
 
 This is the first genuinely useful public document milestone.
