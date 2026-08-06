@@ -293,6 +293,21 @@
       "retention": null
     },
     {
+      "name": "Gate 3 Type 0 PDF font objects",
+      "scenario_revision": "gate3-pdf-font-objects-v1",
+      "source": "tests/gate3_pdf_font/main.roc",
+      "snapshot": "tests/gate3_pdf_font/snapshot.pdf",
+      "args": ["objects"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "font_bytes": 166300, "font_objects": 9, "retained_glyphs": 5, "unicode_mappings": 2 },
+      "work_counters": ["font_bytes", "subset_bytes", "embedded_font_bytes", "cid_map_bytes", "to_unicode_bytes", "unicode_mappings", "unicode_scalars", "widths", "tables", "font_objects", "sealed_objects", "sealed_streams", "sealed_payloads", "object_bytes_checked", "object_edges_appended", "object_index_checks", "object_values_appended", "sealed_objects_checked", "sealed_references_checked", "sealed_streams_checked", "sealed_values_checked", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 271, "work": [166300, 5864, 5864, 10, 352, 2, 2, 5, 14, 9, 9, 3, 3, 298, 40, 85, 46, 9, 5, 3, 46, 667] },
+        "x64musl": { "allocations": 271, "work": [166300, 5864, 5864, 10, 352, 2, 2, 5, 14, 9, 9, 3, 3, 298, 40, 85, 46, 9, 5, 3, 46, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",
