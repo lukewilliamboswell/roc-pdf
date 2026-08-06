@@ -18,6 +18,9 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: roc-pdf
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +30,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: roc-pdf
+
+      - name: Checkout pinned Unicode dependency
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: roc-lang/unicode
+          ref: f9b23ae87b1655d7c2b1c6fe049ccbf02f6e2fe5
+          path: unicode
 
       - name: Install Zig
         uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29
