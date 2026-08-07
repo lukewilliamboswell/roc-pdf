@@ -23,6 +23,10 @@ checks that occurrence and fragment scalar ranges name the same UTF-8 span; and
 normalizes the occurrence-to-fragment reverse index. Text properties have one
 node or occurrence owner. The ordinary Gate 2 semantic plan remains unchanged
 and continues to reject text stores rather than silently widening its claim.
+The Gate 3 text path additionally accepts only the PDF 2.0 block roles needed
+by the facade (`P`, headings, and list structure); the Gate 2 path remains
+restricted to `Document` and `P`, and unsupported inline or later-gate roles
+still fail before tagging.
 
 `KernelTagged` consumes the validated semantic plan and typed scene plan. The
 fixture therefore proves its fragment group, paint edge, MCID, ParentTree row,

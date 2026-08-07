@@ -404,7 +404,7 @@ validate_graph = |store, max_depth, text_allowed| {
 					Ok(next_node_owners) => {
 						$node_owners = next_node_owners
 						node = list_at(store.nodes, node_index)
-						if !valid_gate_2_role(node, node_index == store.document_root.index()) {
+						if !valid_role(node, node_index == store.document_root.index(), text_allowed) {
 							$error = Invalid(UnsupportedRole({ node: node_index }))
 						} else if (node.text_properties.length() != 0 and !text_allowed) or node.element_identifier != NoElementIdentifier {
 							$error = Invalid(UnsupportedStoreContent)
@@ -561,12 +561,26 @@ validate_dense_graph_identities = |store| {
 	}
 }
 
-valid_gate_2_role : Semantics.Node, Bool -> Bool
-valid_gate_2_role = |node, is_root| {
+valid_role : Semantics.Node, Bool, Bool -> Bool
+valid_role = |node, is_root, gate_3_text| {
 	if node.role.namespace.index() != 0 {
 		False
 	} else if is_root {
 		node.role.local_name == "Document"
+	} else if gate_3_text {
+		name = node.role.local_name
+		name == "P" or
+			name == "H" or
+				name == "H1" or
+					name == "H2" or
+						name == "H3" or
+							name == "H4" or
+								name == "H5" or
+									name == "H6" or
+										name == "L" or
+											name == "LI" or
+												name == "Lbl" or
+													name == "LBody"
 	} else {
 		node.role.local_name == "P"
 	}
@@ -746,6 +760,20 @@ expect {
 		Err(UnsupportedRole({ node: 0 })) => True
 		_ => False
 	}
+}
+
+## Gate 3 text authoring adds block roles without widening the Gate 2 subset.
+expect {
+	paragraph = list_at(test_store.nodes, 1)
+	heading = { ..paragraph, role: { ..paragraph.role, local_name: "H2" } }
+	list_body = { ..paragraph, role: { ..paragraph.role, local_name: "LBody" } }
+	span = { ..paragraph, role: { ..paragraph.role, local_name: "Span" } }
+
+	valid_role(paragraph, False, False) and
+		!valid_role(heading, False, False) and
+			valid_role(heading, False, True) and
+				valid_role(list_body, False, True) and
+					!valid_role(span, False, True)
 }
 
 ## Fragment occurrence identities are checked before prefix-sum indexing.
