@@ -818,6 +818,96 @@
       "retention": null
     },
     {
+      "name": "Gate 3 facade owned scene composition",
+      "scenario_revision": "gate3-facade-scenes-v1",
+      "source": "tests/gate3_facade_fragments/main.roc",
+      "snapshot": "tests/gate3_facade_fragments/snapshot.pdf",
+      "args": ["scene", "3"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 1, "semantic_occurrences": 3, "semantic_fragments": 6, "text_runs": 6, "scene_groups": 6, "scene_commands": 12, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "runs", "command_writes", "group_writes", "page_group_writes", "page_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 147, "work": [3, 6, 12, 6, 6, 1, 12, 6, 6, 6, 6, 6, 6, 667] },
+        "x64musl": { "allocations": 147, "work": [3, 6, 12, 6, 6, 1, 12, 6, 6, 6, 6, 6, 6, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade scene prepared-input control x1000",
+      "scenario_revision": "gate3-facade-scenes-v1",
+      "source": "tests/gate3_facade_scenes/main.roc",
+      "snapshot": "tests/gate3_facade_scenes/snapshot.pdf",
+      "args": ["prepare", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 32, "final_runs": 2000, "matched_scene_control": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "planned_pages", "placements", "styles", "runs", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 65, "work": [1000, 32, 2000, 2000, 2000, 667] },
+        "x64musl": { "allocations": 65, "work": [1000, 32, 2000, 2000, 2000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade scene arena x1000",
+      "scenario_revision": "gate3-facade-scenes-v1",
+      "source": "tests/gate3_facade_scenes/main.roc",
+      "snapshot": "tests/gate3_facade_scenes/snapshot.pdf",
+      "args": ["arena", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 32, "final_runs": 2000, "scene_commands": 4000, "scene_groups": 2000, "allocation_delta_from_control": 5, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "page_writes", "placement_visits", "color_checks", "command_writes", "group_writes", "page_group_writes", "pages", "commands", "groups", "page_group_edges", "color_spaces", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 70, "work": [1000, 32, 2000, 2000, 4000, 2000, 2000, 32, 4000, 2000, 2000, 1, 667] },
+        "x64musl": { "allocations": 70, "work": [1000, 32, 2000, 2000, 4000, 2000, 2000, 32, 4000, 2000, 2000, 1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade scene prepared-input control x10000",
+      "scenario_revision": "gate3-facade-scenes-v1",
+      "source": "tests/gate3_facade_scenes/main.roc",
+      "snapshot": "tests/gate3_facade_scenes/snapshot.pdf",
+      "args": ["prepare", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 313, "final_runs": 20000, "matched_scene_control": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "planned_pages", "placements", "styles", "runs", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 69, "work": [10000, 313, 20000, 20000, 20000, 667] },
+        "x64musl": { "allocations": 69, "work": [10000, 313, 20000, 20000, 20000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade scene arena x10000",
+      "scenario_revision": "gate3-facade-scenes-v1",
+      "source": "tests/gate3_facade_scenes/main.roc",
+      "snapshot": "tests/gate3_facade_scenes/snapshot.pdf",
+      "args": ["arena", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 313, "final_runs": 20000, "scene_commands": 40000, "scene_groups": 20000, "allocation_delta_from_control": 5, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "page_writes", "placement_visits", "color_checks", "command_writes", "group_writes", "page_group_writes", "pages", "commands", "groups", "page_group_edges", "color_spaces", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 74, "work": [10000, 313, 20000, 20000, 40000, 20000, 20000, 313, 40000, 20000, 20000, 1, 667] },
+        "x64musl": { "allocations": 74, "work": [10000, 313, 20000, 20000, 40000, 20000, 20000, 313, 40000, 20000, 20000, 1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade scene atomic negatives",
+      "scenario_revision": "gate3-facade-scenes-v1",
+      "source": "tests/gate3_facade_scenes/main.roc",
+      "snapshot": "tests/gate3_facade_scenes/snapshot.pdf",
+      "args": ["negative", "2"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "unsupported_color": 1, "invalid_page_size": 1, "group_limit": 1, "invalid_placement": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["unsupported_color_rejected", "invalid_page_size_rejected", "group_limit_rejected", "invalid_placement_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 71, "work": [1, 1, 1, 1, 667] },
+        "x64musl": { "allocations": 71, "work": [1, 1, 1, 1, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",

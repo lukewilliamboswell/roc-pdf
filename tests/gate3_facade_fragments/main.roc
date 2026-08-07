@@ -18,6 +18,7 @@ main! = |args| {
 		"arena" => Gate3FacadeFragmentEvidence.arena(repetitions)
 		"negative" => Gate3FacadeFragmentEvidence.negative(repetitions)
 		"prepare" => Gate3FacadeFragmentEvidence.prepare(repetitions)
+		"scene" => Gate3FacadeFragmentEvidence.scene_validate(repetitions)
 		"validate" => Gate3FacadeFragmentEvidence.validate(repetitions)
 		_ => {
 			crash "Gate 3 facade fragment mode is invalid"

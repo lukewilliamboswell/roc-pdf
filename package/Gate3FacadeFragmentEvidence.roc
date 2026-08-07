@@ -1,8 +1,13 @@
+import Color
 import Font
+import KernelColor
 import KernelEmit
 import KernelFacadeFragments
+import KernelFacadeScenes
+import KernelScene
 import KernelSemantics
 import KernelStructure
+import KernelTextOwnership
 import KernelTextSemantics
 import Layout
 import Semantics
@@ -17,6 +22,9 @@ Gate3FacadeFragmentEvidence :: [].{
 
 	prepare : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	prepare = |repetitions| evidence_prepare(repetitions)
+
+	scene_validate : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+	scene_validate = |repetitions| evidence_scene_validate(repetitions)
 
 	validate : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	validate = |repetitions| evidence_validate(repetitions)
@@ -95,6 +103,51 @@ evidence_validate = |repetitions| {
 			semantic_work.fragment_validation_visits,
 			semantic_work.prefix_steps,
 			semantic_work.reverse_writes,
+			bytes.len(),
+		],
+	})
+}
+
+evidence_scene_validate : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+evidence_scene_validate = |repetitions| {
+	input = synthetic_input(repetitions)?
+	arena = KernelFacadeFragments.Arena.build_prepared(input.preliminary, input.prepared, fragment_limits(input.prepared)) ? |_| EvidenceFailure
+	fragments = KernelFacadeFragments.Arena.fragments(arena)
+	page_count = input.prepared.pages.len()
+	semantics = KernelTextSemantics.Plan.attach_fragments(input.preliminary, fragments, page_count, page_count, semantic_limits(input.repetitions, fragments.len())) ? |_| EvidenceFailure
+	run_count = input.prepared.text.runs.len()
+	styles = List.repeat({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(12000) }, run_count)
+	scenes = KernelFacadeScenes.Plan.build_prepared(
+		semantics,
+		{
+			page_size: { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
+			pages: input.prepared.pages,
+			placements: input.prepared.placements,
+			styles,
+			text: input.prepared.text,
+		},
+		scene_limits(run_count, page_count),
+	) ? |_| EvidenceFailure
+	scene_work = KernelFacadeScenes.Plan.work(scenes)
+	ownership_work = KernelTextOwnership.Plan.work(KernelFacadeScenes.Plan.ownership(scenes))
+	structure = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+	bytes = KernelEmit.to_bytes(structure) ? |_| EvidenceFailure
+	Ok({
+		bytes,
+		work: [
+			repetitions,
+			run_count,
+			scene_work.command_writes,
+			scene_work.group_writes,
+			scene_work.page_group_writes,
+			scene_work.page_writes,
+			ownership_work.command_visits,
+			ownership_work.group_visits,
+			ownership_work.run_visits,
+			ownership_work.fragment_prefix_steps,
+			ownership_work.fragment_writes,
+			ownership_work.range_checks,
+			ownership_work.text_fragments,
 			bytes.len(),
 		],
 	})
@@ -323,6 +376,16 @@ semantic_limits = |occurrences, fragments| KernelSemantics.Limits.make({
 	max_nodes: 2,
 	max_occurrences: occurrences,
 	max_semantic_depth: 2,
+})
+
+scene_limits : U64, U64 -> KernelFacadeScenes.Limits
+scene_limits = |runs, pages| KernelFacadeScenes.Limits.make({
+	color: KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 }),
+	max_commands: runs * 2,
+	max_groups: runs,
+	max_page_group_edges: runs,
+	max_pages: pages,
+	scene: KernelScene.Limits.make({ max_commands: runs * 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: runs, max_pages: pages, max_path_segments: 0, max_paths: 0 }),
 })
 
 full_source_range : Semantics.TextRange
