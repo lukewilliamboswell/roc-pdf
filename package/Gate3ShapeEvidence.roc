@@ -1,6 +1,7 @@
 import Font
 import KernelEmit
 import KernelFont
+import KernelLineLayout
 import KernelShape
 import KernelStructure
 import KernelUnicode
@@ -246,18 +247,56 @@ expect {
 		{ occurrence: Semantics.OccurrenceId.from_index(0), size: Layout.Unit.from_raw(11000), source: Semantics.TextSourceId.from_index(0) },
 		{ occurrence: Semantics.OccurrenceId.from_index(1), size: Layout.Unit.from_raw(11000), source: Semantics.TextSourceId.from_index(1) },
 		{ occurrence: Semantics.OccurrenceId.from_index(2), size: Layout.Unit.from_raw(11000), source: Semantics.TextSourceId.from_index(2) },
+		{ occurrence: Semantics.OccurrenceId.from_index(3), size: Layout.Unit.from_raw(11000), source: Semantics.TextSourceId.from_index(1) },
 	]
-	batch = KernelShape.shape_simple_batch(font, sources, batch_options, requests, KernelShape.Limits.make({ max_clusters: 4, max_glyphs: 4, max_scalars: 4, max_source_bytes: 6 }))?
+	batch = KernelShape.shape_simple_batch(font, sources, batch_options, requests, KernelShape.Limits.make({ max_clusters: 5, max_glyphs: 5, max_scalars: 5, max_source_bytes: 7 }))?
 	first = list_at(batch.store.runs, 0)
 	second = list_at(batch.store.runs, 1)
 	third = list_at(batch.store.runs, 2)
-	dense = batch.store.glyph_indices == [0, 1, 2, 3] and first.id.index() == 0 and first.clusters.start() == 0 and first.clusters.length() == 2 and second.id.index() == 1 and second.clusters.start() == 2 and second.clusters.length() == 1 and third.id.index() == 2 and third.clusters.start() == 3 and third.clusters.length() == 1
+	fourth = list_at(batch.store.runs, 3)
+	second_lines = KernelLineLayout.Plan.build_run(
+		analysis_c,
+		batch.store,
+		Text.RunId.from_index(1),
+		Layout.Unit.from_raw(20000),
+		KernelLineLayout.Limits.make({ max_boundaries: 2, max_candidates: 1, max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_lines: 1 }),
+	)?
+	second_line = list_at(KernelLineLayout.Plan.lines(second_lines), 0)
+	line_limits = KernelLineLayout.Limits.make({ max_boundaries: 3, max_candidates: 2, max_clusters: 2, max_glyph_indices: 2, max_glyphs: 2, max_lines: 1 })
+	line_requests = [
+		{ source: Semantics.TextSourceId.from_index(0), width: Layout.Unit.from_raw(20000) },
+		{ source: Semantics.TextSourceId.from_index(1), width: Layout.Unit.from_raw(20000) },
+		{ source: Semantics.TextSourceId.from_index(2), width: Layout.Unit.from_raw(20000) },
+		{ source: Semantics.TextSourceId.from_index(1), width: Layout.Unit.from_raw(20000) },
+	]
+	line_batch = KernelLineLayout.BatchPlan.build(
+		sources,
+		requests,
+		batch.store,
+		line_requests,
+		KernelLineLayout.BatchLimits.make({ line: line_limits, max_key_probes: 16, max_lines: 4, max_runs: 4, max_table_slots: 8, max_templates: 3 }),
+	)?
+	line_work = KernelLineLayout.BatchPlan.work(line_batch)
+	line_ranges = KernelLineLayout.BatchPlan.run_lines(line_batch)
+	lines = KernelLineLayout.BatchPlan.lines(line_batch)
+	last_line = list_at(lines, 3)
+	dense = batch.store.glyph_indices == [0, 1, 2, 3, 4] and first.id.index() == 0 and first.clusters.start() == 0 and first.clusters.length() == 2 and second.id.index() == 1 and second.clusters.start() == 2 and second.clusters.length() == 1 and third.id.index() == 2 and third.clusters.start() == 3 and third.clusters.length() == 1 and fourth.id.index() == 3 and fourth.clusters.start() == 4 and fourth.clusters.length() == 1
 	bounded = match KernelShape.shape_simple_batch(font, sources, batch_options, requests, KernelShape.Limits.make({ max_clusters: 4, max_glyphs: 4, max_scalars: 2, max_source_bytes: 6 })) {
 		Err(LimitExceeded({ attempted: 3, dimension: Scalars, limit: 2 })) => True
 		_ => False
 	}
+	probe_bounded = match KernelLineLayout.BatchPlan.build(
+		sources,
+		requests,
+		batch.store,
+		line_requests,
+		KernelLineLayout.BatchLimits.make({ line: line_limits, max_key_probes: 0, max_lines: 4, max_runs: 4, max_table_slots: 8, max_templates: 3 }),
+	) {
+		Err(LimitExceeded({ attempted: 1, dimension: KeyProbes, limit: 0 })) => True
+		_ => False
+	}
 
-	dense and bounded and batch.work.scalar_visits == 4 and batch.work.glyph_visits == 4 and batch.work.metric_reads == 4 and batch.work.script_run_visits == 3 and batch.advances.len() == 3
+	dense and bounded and probe_bounded and second_line.clusters.start() == 2 and second_line.clusters.length() == 1 and second_line.source.scalars.start() == 0 and second_line.source.scalars.length() == 1 and list_at(line_ranges, 3).start() == 3 and last_line.clusters.start() == 4 and last_line.source.scalars.start() == 0 and line_work.boundary_visits == 7 and line_work.cache_hits == 1 and line_work.cluster_visits == 4 and line_work.line_writes == 4 and line_work.run_visits == 4 and line_work.table_slots == 8 and line_work.templates == 3 and batch.work.scalar_visits == 5 and batch.work.glyph_visits == 5 and batch.work.metric_reads == 4 and batch.work.script_run_visits == 3 and batch.advances.len() == 4
 }
 
 list_at : List(a), U64 -> a

@@ -1,6 +1,7 @@
 import Document
 import Font
 import KernelEmit
+import KernelFacadeLines
 import KernelFacadeSources
 import KernelFacadeSemantics
 import KernelFacadeShape
@@ -27,6 +28,9 @@ Gate3FacadeEvidence :: [].{
 
 	line_layout : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	line_layout = |repetitions| evidence_line_layout(repetitions)
+
+	line_facade : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+	line_facade = |repetitions| evidence_line_facade(repetitions)
 
 	page_layout : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	page_layout = |repetitions| evidence_page_layout(repetitions)
@@ -189,6 +193,102 @@ evidence_shape_facade = |repetitions| {
 			batch.store.glyphs.len(),
 			work.font_bytes,
 			work.font_tables,
+			bytes.len(),
+		],
+	})
+}
+
+evidence_line_facade : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+evidence_line_facade = |repetitions| {
+	if repetitions == 0 or repetitions > 100000 {
+		return Err(InvalidRepetitions)
+	}
+	authoring = Document.normalize(build_with_builder(repetitions))
+	nodes = repetitions + 10
+	occurrences = repetitions + 6
+	content = repetitions * 2 + 15
+	inputs = repetitions + 6
+	semantic = KernelFacadeSemantics.Plan.build(
+		authoring,
+		KernelFacadeSemantics.Limits.make({
+			max_artifacts: 0,
+			max_content_spine: content,
+			max_nodes: nodes,
+			max_occurrences: occurrences,
+			max_properties: 2,
+			max_source_inputs: inputs,
+			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			sources: KernelFacadeSources.Limits.make({
+				max_hash_probes: inputs * 100,
+				max_inputs: inputs,
+				max_source_bytes: inputs * 32,
+				max_source_scalars: inputs * 32,
+				max_table_slots: inputs * 4 + 8,
+				max_unique_sources: inputs,
+				unicode: { max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 },
+			}),
+			text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: 2, max_text_property_bytes: 8, max_text_source_bytes: inputs * 32, max_text_source_scalars: inputs * 32, max_text_sources: inputs }),
+		}),
+	) ? |_| EvidenceFailure
+	text_units = repetitions * 4 + 21
+	text_bytes = repetitions * 4 + 25
+	text_plan = KernelFacadeSemantics.Plan.preliminary(semantic)
+	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
+	font = KernelFont.inspect(built_in_font_bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+	shape = KernelFacadeShape.Plan.build(
+		KernelFacadeSemantics.Plan.authoring(semantic),
+		KernelFacadeSemantics.Plan.block_ownership(semantic),
+		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
+		source_store,
+		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
+		font,
+		Theme.default,
+		KernelFacadeShape.Limits.make({
+			max_requests: occurrences,
+			shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }),
+		}),
+	) ? |_| EvidenceFailure
+	line = KernelFacadeLines.Plan.build(
+		shape,
+		source_store,
+		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
+		Theme.default,
+		KernelFacadeLines.Limits.make({
+			line: KernelLineLayout.BatchLimits.make({
+				line: KernelLineLayout.Limits.make({ max_boundaries: 33, max_candidates: 64, max_clusters: 32, max_glyph_indices: 32, max_glyphs: 32, max_lines: 32 }),
+				max_key_probes: occurrences * 16,
+				max_lines: text_units,
+				max_runs: occurrences,
+				max_table_slots: occurrences * 4 + 8,
+				max_templates: occurrences,
+			}),
+			max_blocks: authoring.blocks.len(),
+			max_runs: occurrences,
+		}),
+	) ? |_| EvidenceFailure
+	work = KernelFacadeLines.Plan.work(line)
+	line_work = work.line
+	structure = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+	bytes = KernelEmit.to_bytes(structure) ? |_| EvidenceFailure
+	Ok({
+		bytes,
+		work: [
+			repetitions,
+			work.blocks,
+			work.block_mapping_visits,
+			work.run_writes,
+			work.content_width,
+			line_work.run_visits,
+			line_work.templates,
+			line_work.cache_hits,
+			line_work.key_probes,
+			line_work.table_slots,
+			line_work.boundary_visits,
+			line_work.cluster_visits,
+			line_work.glyph_index_visits,
+			line_work.glyph_visits,
+			line_work.candidate_visits,
+			line_work.line_writes,
 			bytes.len(),
 		],
 	})

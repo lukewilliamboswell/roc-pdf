@@ -55,6 +55,7 @@ KernelFacadeShape :: [].{
 	}
 	Plan :: {
 		block_runs : List(BlockRuns),
+		requests : List(KernelShape.SimpleRequest),
 		shape : KernelShape.Batch,
 		styles : List(RunStyle),
 		work : Work,
@@ -64,6 +65,9 @@ KernelFacadeShape :: [].{
 
 		block_runs : Plan -> List(BlockRuns)
 		block_runs = |plan| plan.block_runs
+
+		requests : Plan -> List(KernelShape.SimpleRequest)
+		requests = |plan| plan.requests
 
 		shape : Plan -> KernelShape.Batch
 		shape = |plan| plan.shape
@@ -86,6 +90,7 @@ build_plan = |authoring, owners, store, source_store, artifact_count, font, them
 	Ok(
 		KernelFacadeShape.Plan.{
 			block_runs: preparation.block_runs,
+			requests: preparation.requests,
 			shape,
 			styles: preparation.styles,
 			work: {

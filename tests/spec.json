@@ -443,6 +443,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 facade cached line layout x1000",
+      "scenario_revision": "gate3-facade-cached-line-layout-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["lines", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "normalized_blocks": 1004, "line_runs": 1006, "line_templates": 6, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraphs", "blocks", "block_mapping_visits", "run_writes", "content_width", "run_visits", "templates", "cache_hits", "key_probes", "table_slots", "boundary_visits", "cluster_visits", "glyph_index_visits", "glyph_visits", "candidate_visits", "line_writes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 319, "work": [1000, 1004, 1004, 1006, 451000, 1006, 6, 1000, 1012, 2048, 30, 24, 24, 24, 24, 1006, 667] },
+        "x64musl": { "allocations": 319, "work": [1000, 1004, 1004, 1006, 451000, 1006, 6, 1000, 1012, 2048, 30, 24, 24, 24, 24, 1006, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade cached line layout x10000",
+      "scenario_revision": "gate3-facade-cached-line-layout-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["lines", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "normalized_blocks": 10004, "line_runs": 10006, "line_templates": 6, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraphs", "blocks", "block_mapping_visits", "run_writes", "content_width", "run_visits", "templates", "cache_hits", "key_probes", "table_slots", "boundary_visits", "cluster_visits", "glyph_index_visits", "glyph_visits", "candidate_visits", "line_writes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 356, "work": [10000, 10004, 10004, 10006, 451000, 10006, 6, 10000, 10012, 32768, 30, 24, 24, 24, 24, 10006, 667] },
+        "x64musl": { "allocations": 356, "work": [10000, 10004, 10004, 10006, 451000, 10006, 6, 10000, 10012, 32768, 30, 24, 24, 24, 24, 10006, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 built-in TrueType inspection",
       "scenario_revision": "gate3-font-inspection-v2",
       "source": "tests/gate3_font/main.roc",
