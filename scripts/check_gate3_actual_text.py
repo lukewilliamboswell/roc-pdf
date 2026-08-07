@@ -31,12 +31,20 @@ ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "gate3_actual_text" / "snapshot.pdf"
 EXPECTED_TEXT = b"fa\n"
 EXPECTED_CONTENT = (
+    b"/P <</MCID 0>> BDC\n"
+    b"q\n"
+    b"1 0 0 1 72 700 cm\n"
     b"/Span <</ActualText <FEFF00660061>>> BDC\n"
+    b"/CS1_0 cs\n"
+    b"0 scn\n"
     b"BT\n"
+    b"0 Tr\n"
     b"/F1_0 11 Tf\n"
-    b"1 0 0 1 72 700 Tm\n<0001> Tj\n"
-    b"1 0 0 1 78 700 Tm\n<0002> Tj\n"
+    b"1 0 0 1 0 0 Tm\n<0001> Tj\n"
+    b"1 0 0 1 6 0 Tm\n<0002> Tj\n"
     b"ET\n"
+    b"EMC\n"
+    b"Q\n"
     b"EMC\n"
 )
 EXPECTED_MAPPINGS = {0x0001: (0x0061,), 0x0002: (0x0066,)}
@@ -46,11 +54,26 @@ EXPECTED_SUBSET_SHA256 = "82a6b44a06ffea8cb1a01fafe00a8cc5c8b1bc2434e29e01feb6ed
 def validate_gate3_actual_text_pdf(pdf: bytes) -> None:
     validate_pdf(pdf, 1, EXPECTED_CONTENT, normalized_plan_identity=True)
     _, bodies = object_slices(pdf)
+
+    catalog = only_object(bodies, b"/Type /Catalog ", "catalog")
+    catalog_body = bodies[catalog]
+    require(b"/MarkInfo << /Marked true >>" in catalog_body, "ActualText catalog does not declare marked content")
+    structure_root = dictionary_ref(catalog_body, b"StructTreeRoot")
+    require(b"/Type /StructTreeRoot" in bodies[structure_root], "ActualText structure root has the wrong type")
+
     page = only_object(bodies, b"/Type /Page ", "page")
-    _, content = decoded_stream(bodies, dictionary_ref(bodies[page], b"Contents"))
-    resources = re.search(rb"/Resources << /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>", bodies[page])
-    require(resources is not None, "ActualText page does not have one exact font resource")
-    type0_body = bodies[int(resources.group(1))]
+    page_body = bodies[page]
+    require(b"/StructParents 0" in page_body, "ActualText page does not have the planned ParentTree key")
+    require(b"/Tabs /S" in page_body, "ActualText page tab order is not structure order")
+    _, content = decoded_stream(bodies, dictionary_ref(page_body, b"Contents"))
+    resources = re.search(
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        page_body,
+    )
+    require(resources is not None, "ActualText page does not have the exact color/font resource closure")
+    color_space = int(resources.group(1))
+    require(b"/CalGray" in bodies[color_space], "ActualText color resource is not calibrated Gray")
+    type0_body = bodies[int(resources.group(2))]
     require(b"/Subtype /Type0" in type0_body and b"/Encoding /Identity-H" in type0_body, "ActualText page font is not Identity-H Type 0")
     descendants = dictionary_ref_array(type0_body, b"DescendantFonts")
     require(len(descendants) == 1, "ActualText Type 0 font does not have one descendant")
@@ -74,11 +97,19 @@ def validate_actual_text_content(content: bytes, mappings: dict[int, tuple[int, 
     direct_text = "".join(chr(scalar) for cid in shown_cids for scalar in mappings[cid])
     require(direct_text == "af", "ActualText fixture does not prove visual glyph reordering")
 
-    actual_match = re.fullmatch(rb"/Span <</ActualText <([0-9A-F]+)>>> BDC", content.splitlines()[0])
+    actual_match = re.search(rb"(?m)^/Span <</ActualText <([0-9A-F]+)>>> BDC$", content)
     require(actual_match is not None, "ActualText marked-content property is not canonical")
     actual_bytes = bytes.fromhex(actual_match.group(1).decode("ascii"))
     require(actual_bytes.decode("utf-16") == "fa", "ActualText property does not restore logical source order")
-    require(content.count(b" BDC\n") == content.count(b"EMC\n") == 1, "ActualText marked content is not balanced")
+    require(content.count(b" BDC\n") == content.count(b"EMC\n") == 2, "ActualText and fragment marked content are not balanced")
+    require(
+        content.index(b"/P <</MCID 0>> BDC\n")
+        < content.index(b"/Span <</ActualText ")
+        < content.index(b"BT\n")
+        < content.index(b"ET\n")
+        < content.index(b"EMC\n"),
+        "ActualText is not nested inside its fragment and around the text object",
+    )
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:
@@ -111,7 +142,7 @@ def self_test() -> None:
     validate_gate3_actual_text_pdf(pdf)
     mutations = (
         replace_once(pdf, b"<0001> <0061>", b"<0001> <0062>"),
-        replace_once(pdf, b"/F1_0 14 0 R", b"/F1_0 13 0 R"),
+        replace_once(pdf, b"/F1_0 20 0 R", b"/F1_0 19 0 R"),
     )
     for index, mutation in enumerate(mutations):
         try:

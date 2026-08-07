@@ -11,10 +11,11 @@ range, wrong property kinds, and empty values fail atomically.
 `ActualText` scalars have a distinct cumulative resource limit. Occurrence
 ranges are checked before copying from the once-built source-scalar cache;
 semantic overrides check the next scalar before appending it. PDF lowering
-emits one canonical `/Span` marked-content sequence around the affected run and
-encodes a BOM-prefixed UTF-16BE hex string, including surrogate pairs for valid
-supplementary scalars. The ordinary one-to-one fixture takes the unchanged path
-and retains its exact bytes and 187-allocation baseline.
+prepares one canonical `/Span` marked-content sequence around the affected run
+and encodes a BOM-prefixed UTF-16BE hex string, including surrogate pairs for
+valid supplementary scalars. Scene content lowering nests that span inside the
+fragment MCID and transform, then adds validated calibrated paint and text
+rendering mode. The ordinary one-to-one fixture takes the no-`ActualText` path.
 
 Every painted CID still receives a deterministic `ToUnicode` entry. A repeated
 CID with incompatible source mappings remains `UnicodeMappingConflict` when no
@@ -31,7 +32,10 @@ Its semantic source is logical `fa`, while the validated advanced store paints
 the glyphs in visual order `af` and points its two logical `Reordered` clusters
 back to those glyph positions. The content stream therefore shows CIDs whose
 direct `ToUnicode` reconstruction is `af`, surrounded by
-`/ActualText <FEFF00660061>`, which restores `fa`.
+`/ActualText <FEFF00660061>`, which restores `fa`. The fragment-owned scene
+group, text ownership join, MCID, ParentTree entry, structure `/K` items,
+calibrated Gray resource, and Type 0 font now form one tagged 20-object graph;
+the legacy untagged carrier is no longer built.
 
 The independent checker reconstructs both orders separately, validates the
 balanced marked-content syntax, exact two-row CMap, exact caller-font widths,
@@ -50,17 +54,28 @@ before any PDF is returned.
 
 | Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 2 / 2 | 5,956 | 119 | 8,137 | 174 |
-| x64musl | speed | 2 / 2 | 5,956 | 119 | 8,137 | 174 |
+| arm64mac | speed | 2 / 2 | 5,956 | 179 | 9,035 | 306 |
+| x64musl | speed | 2 / 2 | 5,956 | 179 | 9,035 | 306 |
 
-The exact work vector records, in order: 7,816 caller-font bytes, one run, two
-clusters, two glyphs, two glyph-index visits, three font-plan entries, 5,956
-subset bytes, two cached source scalars, one ActualText run, two ActualText
-scalars, zero resolved mapping conflicts, two Unicode mappings, 119 content
-bytes, fourteen PDF objects, and 8,137 emitted bytes. The whole fixture uses
-174 Roc allocations. Retaining the full font inspection in the fixture result
-was measured at 181 allocations and rejected; the final phase result keeps only
-the facts needed by later stages.
+The exact work vector begins with 7,816 caller-font bytes, one run, two
+clusters, two glyphs, and two glyph-index visits. It then records the same scene,
+semantic, tagged, ownership, resource, and content traversals as the ordinary
+tagged text fixture: two scene commands, one text placement, one fragment and
+occurrence, one ownership range check, one calibrated color reference, and a
+179-byte final content stream. The remaining counters record a three-entry font
+plan, 5,956 subset bytes, two cached source scalars, one prepared run, zero
+parallel placements, two text glyphs, one ActualText run, two ActualText
+scalars, zero resolved mapping conflicts, two Unicode mappings, 103 prepared
+text bytes, one font, nine font objects, twenty objects, 6,135 font/content
+payload bytes, and 9,035 emitted bytes.
+
+The whole fixture uses 306 Roc allocations, an increase of 132 over the earlier
+protocol carrier. The increase is reviewed as the bounded semantic/source
+arrays, scene and ownership arenas, tagged MCID/ParentTree/structure plans,
+calibrated color and resource plans, prepared-run carrier, tagged content/page
+objects, reserved font identities, and final sealed tagged structure. The
+7,816-byte source and 5,956-byte subset remain single payloads rather than being
+copied per placement.
 
 This is a Gate 3 feature slice, not Gate 3 closure. The remaining evidence
 matrix still includes combining marks, ligatures, supplementary-plane text,

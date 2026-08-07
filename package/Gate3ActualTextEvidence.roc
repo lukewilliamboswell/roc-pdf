@@ -1,16 +1,31 @@
+import Color
 import Font
 import KernelEmit
+import KernelContent
+import KernelColor
 import KernelFont
 import KernelFontPlan
 import KernelFontSubset
-import KernelGate3TextStructure
+import KernelGate2Objects
+import KernelGate3FontObjects
+import KernelGate3TaggedTextStructure
+import KernelImage
 import KernelObject
 import KernelPdfFont
 import KernelPdfText
+import KernelResourceUse
+import KernelScene
+import KernelSemantics
 import KernelShape
+import KernelStructure
+import KernelTagged
+import KernelTextSemantics
+import KernelTextOwnership
 import Layout
 import Semantics
+import Scene
 import Text
+import Image
 import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 
 Gate3ActualTextEvidence :: [].{
@@ -20,9 +35,16 @@ Gate3ActualTextEvidence :: [].{
 			return Err(InvalidRuntimeGuard)
 		}
 		sample = build_sample({}) ? |_| EvidenceFailure
-		bytes = KernelEmit.to_bytes(KernelGate3TextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
-		text_work = KernelPdfText.Plan.work(sample.text)
-		structure_work = KernelGate3TextStructure.Plan.work(sample.structure)
+		bytes = KernelEmit.to_bytes(KernelGate3TaggedTextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
+		text_work = KernelPdfText.ScenePlan.work(sample.text)
+		content_work = KernelContent.Plan.work(sample.content)
+		resource_work = KernelResourceUse.TextPlan.work(sample.resource_use)
+		scene_work = KernelScene.Plan.work(sample.scene)
+		semantic_work = KernelTextSemantics.Plan.work(sample.semantic)
+		semantic_plan_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(sample.semantic))
+		tagged_work = KernelTagged.Plan.work(KernelTextOwnership.Plan.tagged(sample.ownership))
+		ownership_work = KernelTextOwnership.Plan.work(sample.ownership)
+		structure_work = KernelGate3TaggedTextStructure.Plan.work(sample.structure)
 		Ok({
 			bytes,
 			work: [
@@ -31,15 +53,61 @@ Gate3ActualTextEvidence :: [].{
 				sample.shape.work.cluster_visits,
 				sample.shape.work.glyph_visits,
 				sample.shape.work.glyph_index_visits,
+				scene_work.command_visits,
+				scene_work.color_references,
+				scene_work.text_placements,
+				scene_work.max_graphics_depth,
+				semantic_plan_work.attribute_visits,
+				semantic_plan_work.content_visits,
+				semantic_plan_work.fragment_count_visits,
+				semantic_plan_work.fragment_validation_visits,
+				semantic_plan_work.max_semantic_depth,
+				semantic_plan_work.namespace_visits,
+				semantic_plan_work.node_visits,
+				semantic_plan_work.occurrence_visits,
+				semantic_plan_work.prefix_steps,
+				semantic_plan_work.reverse_writes,
+				semantic_work.property_bytes,
+				semantic_work.property_visits,
+				semantic_work.source_bytes,
+				semantic_work.source_scalars,
+				semantic_work.source_visits,
+				tagged_work.artifact_groups,
+				tagged_work.fragment_groups,
+				tagged_work.k_items,
+				tagged_work.node_k_ranges,
+				tagged_work.occurrence_owner_edges,
+				tagged_work.paint_edges,
+				tagged_work.parent_prefix_steps,
+				tagged_work.parent_writes,
+				ownership_work.command_visits,
+				ownership_work.group_visits,
+				ownership_work.run_visits,
+				ownership_work.fragment_prefix_steps,
+				ownership_work.fragment_writes,
+				ownership_work.range_checks,
+				ownership_work.text_fragments,
+				resource_work.command_visits,
+				resource_work.color_space_resources,
+				resource_work.text_color_references,
+				content_work.command_visits,
+				content_work.text_placements,
+				content_work.bytes_emitted,
 				sample.font_plan.entries.len(),
 				sample.subset.work.output_bytes,
 				text_work.source_scalar_visits,
+				text_work.run_visits,
+				text_work.placement_visits,
+				text_work.glyph_visits,
 				text_work.actual_text_runs,
 				text_work.actual_text_scalars,
 				text_work.mapping_conflicts_resolved,
 				text_work.mappings,
 				text_work.content_bytes,
+				structure_work.fonts,
+				structure_work.font_objects,
 				structure_work.objects,
+				structure_work.font_program_bytes + structure_work.content_bytes,
 				bytes.len(),
 			],
 		})
@@ -47,15 +115,20 @@ Gate3ActualTextEvidence :: [].{
 }
 
 Sample := {
+	content : KernelContent.Plan,
 	font_plan : KernelFontPlan.Plan,
+	ownership : KernelTextOwnership.Plan,
 	registration : Font.RegistrationWork,
+	resource_use : KernelResourceUse.TextPlan,
 	shape : KernelShape.Validated,
-	structure : KernelGate3TextStructure.Plan,
+	scene : KernelScene.Plan,
+	semantic : KernelTextSemantics.Plan,
+	structure : KernelGate3TaggedTextStructure.Plan,
 	subset : KernelFontSubset.Subset,
-	text : KernelPdfText.Plan,
+	text : KernelPdfText.ScenePlan,
 }
 
-build_sample : {} -> Try(Sample, [FontFailure, FontPlanFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample = |_| {
 	registered = Font.Registry.empty.register(
 		caller_font_bytes,
@@ -63,6 +136,13 @@ build_sample = |_| {
 		Font.ValidationLimits.default,
 	) ? |_| FontFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
+	semantic = KernelTextSemantics.Plan.build(
+		semantics,
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
+	) ? |_| SemanticFailure
 	f_glyph = required_glyph(font, 0x66) ? |_| FontFailure
 	a_glyph = required_glyph(font, 0x61) ? |_| FontFailure
 	store = reordered_store(registered.instance, f_glyph, a_glyph)
@@ -82,26 +162,101 @@ build_sample = |_| {
 			max_transformations: 0,
 		}),
 	) ? |_| ShapeFailure
+	scene = KernelScene.Plan.build(
+		text_scene,
+		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
+		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
+	) ? |_| SceneFailure
+	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| OwnershipFailure
 	font_plan = KernelFontPlan.plan(font, glyph_usages(shape.store.glyphs), KernelFontPlan.Limits.make({ max_retained_glyphs: 16 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
-	text = KernelPdfText.Plan.build(
-		semantics,
-		shape.store,
+	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
+	images = KernelImage.Plan.build(
+		empty_image_sources,
+		colors,
+		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
+	) ? |_| ImageFailure
+	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? |_| ResourceFailure
+	text = KernelPdfText.ScenePlan.build(
+		ownership,
 		[font_plan],
-		[{ origin: { x: Layout.Unit.from_raw(72000), y: Layout.Unit.from_raw(700000) }, run: Text.RunId.from_index(0) }],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 2, max_content_bytes: 1024, max_mappings: 8, max_placements: 1, max_source_scalars: 2 }),
+		KernelPdfText.Limits.make({ max_actual_text_scalars: 2, max_content_bytes: 1024, max_mappings: 8, max_placements: 0, max_source_scalars: 2 }),
 	) ? |_| TextFailure
-	structure = KernelGate3TextStructure.Plan.build(
+	tagged = KernelTextOwnership.Plan.tagged(ownership)
+	content = KernelContent.Plan.build_with_text(
+		tagged,
+		KernelPdfText.ScenePlan.content(text),
+		KernelContent.Limits.make({ max_content_bytes: 2048, max_content_streams: 1 }),
+	) ? |_| ContentFailure
+	base_objects = KernelGate2Objects.Plan.build_with_text(
+		tagged,
+		colors,
+		images,
+		resource_use,
+		content,
+		KernelGate2Objects.Limits.make({ max_objects: 32, max_pages: 1 }),
+	) ? |_| ObjectFailure
+	font_objects = KernelGate3FontObjects.Plan.build(base_objects, 1, 32) ? |_| FontObjectFailure
+	structure = KernelGate3TaggedTextStructure.Plan.build(
+		tagged,
+		colors,
+		images,
+		content,
+		font_objects,
 		text,
 		[{ descriptor, font, plan: font_plan, subset }],
-		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
-		KernelGate3TextStructure.Limits.make({
+		KernelGate3TaggedTextStructure.Limits.make({
 			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 2048, max_unicode_mappings: 8, max_unicode_scalars: 8 }),
-			object_limits,
+			object_limits: tagged_object_limits,
 		}),
 	) ? |_| StructureFailure
-	Ok({ font_plan, registration: registered.work, shape, structure, subset, text })
+	Ok({ content, font_plan, ownership, registration: registered.work, resource_use, scene, semantic, shape, structure, subset, text })
 }
+
+text_scene : Scene.Store
+text_scene = {
+	commands: [
+		Transform({
+			children: Semantics.Range.from_start_and_length(1, 1),
+			matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) },
+		}),
+		DrawText({
+			paint: {
+				fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
+				mode: Fill,
+				opacity: 65535,
+				stroke: NoStroke,
+			},
+			run: Text.RunId.from_index(0),
+		}),
+	],
+	dash_lengths: [],
+	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	page_groups: [Scene.GroupId.from_index(0)],
+	pages: [
+		{
+			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
+			id: Semantics.PageId.from_index(0),
+			paint_order: Semantics.Range.from_start_and_length(0, 1),
+			rotation: Rotate0,
+		},
+	],
+	path_segments: [],
+	paths: [],
+}
+
+a4_box : Layout.Rect
+a4_box = { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) } }
+
+text_colors : Color.Store
+text_colors = {
+	profiles: [],
+	spaces: [{ id: Color.SpaceId.from_index(0), space: CalibratedGray({ black_point: { x: 0, y: 0, z: 0 }, white_point: { x: 950000, y: 1000000, z: 1089000 } }) }],
+	tags: [],
+}
+
+empty_image_sources : Image.SourceStore
+empty_image_sources = { resources: [] }
 
 required_glyph : KernelFont.Inspection, U32 -> Try(U32, [FontFailure])
 required_glyph = |font, scalar| match KernelFont.glyph_for_scalar(font, scalar) {
@@ -249,28 +404,36 @@ semantics = {
 descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
-object_limits : KernelObject.Limits
-object_limits = {
+tagged_object_limits : KernelObject.Limits
+tagged_object_limits = {
 	max_array_items: 64,
 	max_byte_string_bytes: 0,
 	max_byte_strings: 0,
 	max_dictionary_entries: 128,
 	max_direct_depth: 8,
-	max_name_bytes: 2048,
-	max_names: 64,
-	max_objects: 14,
+	max_name_bytes: 3072,
+	max_names: 96,
+	max_objects: 32,
 	max_payload_bytes: 200000,
 	max_payloads: 4,
 	max_streams: 4,
-	max_text_string_bytes: 32,
-	max_text_strings: 2,
+	max_text_string_bytes: 64,
+	max_text_strings: 4,
 	max_values: 256,
 }
 
 expect {
 	sample = build_sample({})?
-	work = KernelPdfText.Plan.work(sample.text)
-	work.actual_text_runs == 1 and work.actual_text_scalars == 2 and work.mappings == 2
+	work = KernelPdfText.ScenePlan.work(sample.text)
+	structure = KernelGate3TaggedTextStructure.Plan.structure(sample.structure)
+	font_objects = KernelGate3TaggedTextStructure.Plan.font_objects(sample.structure)
+	first = list_at(font_objects, 0)
+	work.actual_text_runs == 1 and
+		work.actual_text_scalars == 2 and
+			work.mappings == 2 and
+				KernelStructure.Plan.object_count(structure) == 20 and
+					KernelObject.ObjectId.number(first.font_file) == 12 and
+						KernelObject.ObjectId.number(first.type0) == 20
 }
 
 ## A many-to-many advanced cluster is accepted only with occurrence-derived

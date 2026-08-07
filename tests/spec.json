@@ -354,16 +354,16 @@
     },
     {
       "name": "Gate 3 reordered ActualText",
-      "scenario_revision": "gate3-reordered-actual-text-v1",
+      "scenario_revision": "gate3-reordered-actual-text-v2-tagged-scene-content",
       "source": "tests/gate3_actual_text/main.roc",
       "snapshot": "tests/gate3_actual_text/snapshot.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
-      "dimensions": { "pages": 1, "font_bytes": 7816, "glyphs": 2, "unicode_mappings": 2, "objects": 14, "gate3_actual_text": 1, "normalized_plan_identity": 1 },
-      "work_counters": ["font_bytes", "runs", "clusters", "glyphs", "glyph_indices", "font_plan_entries", "subset_bytes", "source_scalars", "actual_text_runs", "actual_text_scalars", "mapping_conflicts_resolved", "unicode_mappings", "content_bytes", "objects", "output_bytes"],
+      "dimensions": { "pages": 1, "font_bytes": 7816, "glyphs": 2, "scene_commands": 2, "scene_text_placements": 1, "semantic_nodes": 2, "semantic_occurrences": 1, "semantic_fragments": 1, "text_sources": 1, "unicode_mappings": 2, "objects": 20, "gate3_actual_text": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "runs", "clusters", "glyphs", "glyph_indices", "scene_command_visits", "scene_color_references", "scene_text_placements", "scene_max_graphics_depth", "semantic_attribute_visits", "semantic_content_visits", "semantic_fragment_count_visits", "semantic_fragment_validation_visits", "semantic_max_depth", "semantic_namespace_visits", "semantic_node_visits", "semantic_occurrence_visits", "semantic_prefix_steps", "semantic_reverse_writes", "semantic_text_property_bytes", "semantic_text_property_visits", "semantic_text_source_bytes", "semantic_text_source_scalars", "semantic_text_source_visits", "tagged_artifact_groups", "tagged_fragment_groups", "tagged_k_items", "tagged_node_k_ranges", "tagged_occurrence_owner_edges", "tagged_paint_edges", "tagged_parent_prefix_steps", "tagged_parent_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "resource_command_visits", "resource_color_spaces", "resource_text_color_references", "content_command_visits", "content_text_placements", "content_stream_bytes", "font_plan_entries", "subset_bytes", "source_scalars", "text_runs", "placements", "text_glyphs", "actual_text_runs", "actual_text_scalars", "mapping_conflicts_resolved", "unicode_mappings", "prepared_text_bytes", "fonts", "font_objects", "objects", "payload_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 174, "work": [7816, 1, 2, 2, 2, 3, 5956, 2, 1, 2, 0, 2, 119, 14, 8137] },
-        "x64musl": { "allocations": 174, "work": [7816, 1, 2, 2, 2, 3, 5956, 2, 1, 2, 0, 2, 119, 14, 8137] }
+        "arm64mac": { "allocations": 306, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 103, 1, 9, 20, 6135, 9035] },
+        "x64musl": { "allocations": 306, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 103, 1, 9, 20, 6135, 9035] }
       },
       "retention": null
     },
