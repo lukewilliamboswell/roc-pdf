@@ -26,8 +26,17 @@ and continues to reject text stores rather than silently widening its claim.
 `KernelTagged` consumes the validated semantic plan and typed scene plan. The
 fixture therefore proves its fragment group, paint edge, MCID, ParentTree row,
 and structure `/K` items before the legacy text-content object graph is built.
-The next slice joins the run's exact occurrence/range to that fragment and then
-replaces the legacy untagged object graph.
+
+`KernelTextOwnership` now builds that tagged plan and joins every scene
+`DrawText` to the text store. Each dense run must be painted exactly once by a
+fragment-owned group. Counts and prefix sums form a run-to-fragment reverse
+index in linear time; scanning runs in their normalized source order then proves
+that every text fragment's scalar and UTF-8 ranges are covered exactly without
+gaps or overlap. Artifact-owned text is explicitly unsupported until its
+generated-text and extraction policy exists. Orphan, duplicate, artifact,
+occurrence-mismatched, and incomplete-range twins all fail before lowering.
+The next slice makes content emission consume this join and replaces the legacy
+untagged object graph.
 
 Logical Unicode remains owned by the semantic occurrence. Text lowering builds
 one bounded scalar cache for the semantic sources, walks each placed run once,
@@ -67,8 +76,8 @@ engines.
 
 | Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,094 | 216 |
-| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,094 | 216 |
+| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,094 | 221 |
+| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,094 | 221 |
 
 The exact work vector records, in order: 166,300 source-font bytes, one run,
 eight shaped glyphs; two scene-command visits, one scene color reference, one
@@ -79,15 +88,19 @@ zero text-property bytes and visits, nine source bytes, eight source scalars,
 and one source. Tagged work records zero artifact groups, one fragment group,
 two `/K` items, two node ranges, one occurrence-owner edge, one paint edge, one
 ParentTree prefix step, and one ParentTree write. The remaining counters are
-eleven font-plan entries, 6,776 subset bytes, eight source scalars, one text run,
-one placement, eight emitted glyphs, eight mappings, 271 content bytes, one
-font, nine font objects, fourteen total objects, 7,047 uncompressed payload
-bytes, and 9,094 emitted bytes.
+followed by ownership work: two command visits, one group, one run, one fragment
+prefix step, one fragment write, one range check, and one text fragment. The
+remaining counters are eleven font-plan entries, 6,776 subset bytes, eight
+source scalars, one text run, one placement, eight emitted glyphs, eight
+mappings, 271 content bytes, one font, nine font objects, fourteen total
+objects, 7,047 uncompressed payload bytes, and 9,094 emitted bytes.
 
 The first four added allocations remain the reviewed dense scene arenas. The
 next 25 are bounded scalar-offset/source-fact arrays, semantic ownership and
 reverse-index arrays, and tagged MCID/ParentTree/`/K` planning arrays. No font,
-text-content, or output bytes change.
+text-content, or output bytes change. The ownership join adds five bounded
+arrays: run owners, fragment counts, fragment starts/cursors, fragment-run
+reverse entries, and the dense run-to-fragment map.
 The one-byte snapshot
 reduction records the exact OS/2 CapHeight instead of the former hardcoded
 descriptor value; glyph data and rendered pixels are unchanged.

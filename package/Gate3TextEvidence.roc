@@ -14,6 +14,7 @@ import KernelShape
 import KernelStructure
 import KernelTagged
 import KernelTextSemantics
+import KernelTextOwnership
 import KernelUnicode
 import Layout
 import Semantics
@@ -33,7 +34,8 @@ Gate3TextEvidence :: [].{
 		scene_work = KernelScene.Plan.work(sample.scene)
 		semantic_work = KernelTextSemantics.Plan.work(sample.semantic)
 		semantic_plan_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(sample.semantic))
-		tagged_work = KernelTagged.Plan.work(sample.tagged)
+		tagged_work = KernelTagged.Plan.work(KernelTextOwnership.Plan.tagged(sample.ownership))
+		ownership_work = KernelTextOwnership.Plan.work(sample.ownership)
 		structure_work = KernelGate3TextStructure.Plan.work(sample.structure)
 		Ok({
 			bytes,
@@ -68,6 +70,13 @@ Gate3TextEvidence :: [].{
 				tagged_work.paint_edges,
 				tagged_work.parent_prefix_steps,
 				tagged_work.parent_writes,
+				ownership_work.command_visits,
+				ownership_work.group_visits,
+				ownership_work.run_visits,
+				ownership_work.fragment_prefix_steps,
+				ownership_work.fragment_writes,
+				ownership_work.range_checks,
+				ownership_work.text_fragments,
 				sample.font_plan.entries.len(),
 				sample.subset.work.output_bytes,
 				text_work.source_scalar_visits,
@@ -89,16 +98,16 @@ Gate3TextEvidence :: [].{
 Sample := {
 	font : KernelFont.Inspection,
 	font_plan : KernelFontPlan.Plan,
+	ownership : KernelTextOwnership.Plan,
 	shape : KernelShape.Shape,
 	scene : KernelScene.Plan,
 	semantic : KernelTextSemantics.Plan,
 	structure : KernelGate3TextStructure.Plan,
 	subset : KernelFontSubset.Subset,
-	tagged : KernelTagged.Plan,
 	text : KernelPdfText.Plan,
 }
 
-build_sample : {} -> Try(Sample, [AnalysisFailure, FontFailure, FontPlanFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TaggedFailure, TextFailure])
+build_sample : {} -> Try(Sample, [AnalysisFailure, FontFailure, FontPlanFailure, OwnershipFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample = |_| {
 	analysis = KernelUnicode.analyze(
 		source,
@@ -135,7 +144,7 @@ build_sample = |_| {
 		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
 		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
 	) ? |_| SceneFailure
-	tagged = KernelTagged.Plan.build(KernelTextSemantics.Plan.semantics(semantic), scene) ? |_| TaggedFailure
+	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| OwnershipFailure
 	usages = glyph_usages(shape.store.glyphs)
 	font_plan = KernelFontPlan.plan(font, usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
@@ -155,7 +164,7 @@ build_sample = |_| {
 			object_limits,
 		}),
 	) ? |_| StructureFailure
-	Ok({ font, font_plan, scene, semantic, shape, structure, subset, tagged, text })
+	Ok({ font, font_plan, ownership, scene, semantic, shape, structure, subset, text })
 }
 
 text_scene : Scene.Store
@@ -332,6 +341,79 @@ expect {
 		_ => Bool.False
 	}
 	missing_rejected and duplicate_rejected and override_rejected
+}
+
+## Every shaped run must have exactly one fragment-owned scene placement.
+expect {
+	sample = build_sample({})?
+	run = list_at(sample.shape.store.runs, 0)
+	orphaned_text = { ..sample.shape.store, runs: [run, { ..run, id: Text.RunId.from_index(1) }] }
+	match KernelTextOwnership.Plan.build(sample.semantic, sample.scene, orphaned_text) {
+		Err(OrphanRun({ run: 1 })) => True
+		_ => False
+	}
+}
+
+## Run occurrence identity and fragment source coverage are explicit join facts.
+expect {
+	sample = build_sample({})?
+	run = list_at(sample.shape.store.runs, 0)
+	wrong_occurrence = { ..sample.shape.store, runs: [{ ..run, occurrence: Semantics.OccurrenceId.from_index(1) }] }
+	short_source = {
+		..sample.shape.store,
+		runs: [{ ..run, source: { scalars: Semantics.Range.from_start_and_length(0, 7), utf8_bytes: Semantics.Range.from_start_and_length(0, 8) } }],
+	}
+	occurrence_rejected = match KernelTextOwnership.Plan.build(sample.semantic, sample.scene, wrong_occurrence) {
+		Err(OccurrenceMismatch({ fragment: 0, run: 0 })) => True
+		_ => False
+	}
+	coverage_rejected = match KernelTextOwnership.Plan.build(sample.semantic, sample.scene, short_source) {
+		Err(FragmentTextCoverageMismatch({ fragment: 0 })) => True
+		_ => False
+	}
+	occurrence_rejected and coverage_rejected
+}
+
+## Duplicate run placement and artifact-owned text are rejected before lowering.
+expect {
+	sample = build_sample({})?
+	draw = list_at(text_scene.commands, 1)
+	transform = list_at(text_scene.commands, 0)
+	duplicate_transform = match transform {
+		Transform({ matrix, children: _ }) => Transform({ children: Semantics.Range.from_start_and_length(1, 2), matrix })
+		_ => transform
+	}
+	duplicate_store = { ..text_scene, commands: [duplicate_transform, draw, draw] }
+	duplicate_scene = KernelScene.Plan.build(
+		duplicate_store,
+		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 1 }),
+		KernelScene.Limits.make({ max_commands: 3, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
+	)?
+	page = list_at(text_scene.pages, 0)
+	artifact_store = {
+		..text_scene,
+		commands: [draw, draw],
+		groups: [
+			{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) },
+			{ commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.GroupId.from_index(1), owner: Fragment(Semantics.FragmentId.from_index(0)) },
+		],
+		page_groups: [Scene.GroupId.from_index(0), Scene.GroupId.from_index(1)],
+		pages: [{ ..page, paint_order: Semantics.Range.from_start_and_length(0, 2) }],
+	}
+	artifact_scene = KernelScene.Plan.build(
+		artifact_store,
+		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 1 }),
+		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 1, max_groups: 2, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
+	)?
+	duplicate_rejected = match KernelTextOwnership.Plan.build(sample.semantic, duplicate_scene, sample.shape.store) {
+		Err(DuplicateRunOwnership({ run: 0 })) => True
+		_ => False
+	}
+	artifact_rejected = match KernelTextOwnership.Plan.build(sample.semantic, artifact_scene, sample.shape.store) {
+		Err(ArtifactTextUnsupported({ group: 0, run: 0 })) => True
+		_ => False
+	}
+	duplicate_rejected and artifact_rejected
 }
 
 list_at : List(a), U64 -> a
