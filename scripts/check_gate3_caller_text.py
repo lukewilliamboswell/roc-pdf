@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from check_gate3_text import (
-    EXPECTED_CONTENT,
+    LEGACY_EXPECTED_CONTENT as EXPECTED_CONTENT,
     EXPECTED_MAPPINGS,
     EXPECTED_TEXT,
     check_pdfbox_extraction,

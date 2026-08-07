@@ -27,7 +27,7 @@ SNAPSHOT = ROOT / "tests" / "gate3_text" / "snapshot.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 EXPECTED_TEXT = "Café PDF\n".encode()
-EXPECTED_CONTENT = (
+LEGACY_EXPECTED_CONTENT = (
     b"BT\n"
     b"/F1_0 11 Tf\n"
     b"1 0 0 1 72 700 Tm\n<0001> Tj\n"
@@ -39,6 +39,27 @@ EXPECTED_CONTENT = (
     b"1 0 0 1 106.815 700 Tm\n<0002> Tj\n"
     b"1 0 0 1 114.753 700 Tm\n<0003> Tj\n"
     b"ET\n"
+)
+EXPECTED_CONTENT = (
+    b"/P <</MCID 0>> BDC\n"
+    b"q\n"
+    b"1 0 0 1 72 700 cm\n"
+    b"/CS1_0 cs\n"
+    b"0 scn\n"
+    b"BT\n"
+    b"0 Tr\n"
+    b"/F1_0 11 Tf\n"
+    b"1 0 0 1 0 0 Tm\n<0001> Tj\n"
+    b"1 0 0 1 8.035 0 Tm\n<0005> Tj\n"
+    b"1 0 0 1 14.212 0 Tm\n<0008> Tj\n"
+    b"1 0 0 1 18.283 0 Tm\n<0007> Tj\n"
+    b"1 0 0 1 24.696 0 Tm\n<000A> Tj\n"
+    b"1 0 0 1 27.79 0 Tm\n<0004> Tj\n"
+    b"1 0 0 1 34.815 0 Tm\n<0002> Tj\n"
+    b"1 0 0 1 42.753 0 Tm\n<0003> Tj\n"
+    b"ET\n"
+    b"Q\n"
+    b"EMC\n"
 )
 EXPECTED_MAPPINGS = {
     0x0001: (0x0043,),
@@ -110,11 +131,24 @@ def validate_gate3_text_pdf(pdf: bytes) -> None:
     validate_pdf(pdf, 1, EXPECTED_CONTENT, normalized_plan_identity=True)
     _, bodies = object_slices(pdf)
 
+    catalog = only_object(bodies, b"/Type /Catalog ", "catalog")
+    catalog_body = bodies[catalog]
+    require(b"/MarkInfo << /Marked true >>" in catalog_body, "catalog does not declare marked content")
+    structure_root = dictionary_ref(catalog_body, b"StructTreeRoot")
+    require(b"/Type /StructTreeRoot" in bodies[structure_root], "catalog structure root has the wrong type")
+
     page = only_object(bodies, b"/Type /Page ", "page")
     page_body = bodies[page]
-    resources = re.search(rb"/Resources << /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>", page_body)
-    require(resources is not None, "page does not have the exact one-font resource closure")
-    type0 = int(resources.group(1))
+    require(b"/StructParents 0" in page_body, "page does not have the planned ParentTree key")
+    require(b"/Tabs /S" in page_body, "page tab order is not structure order")
+    resources = re.search(
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        page_body,
+    )
+    require(resources is not None, "page does not have the exact color/font resource closure")
+    color_space = int(resources.group(1))
+    require(b"/CalGray" in bodies[color_space], "text color resource is not calibrated Gray")
+    type0 = int(resources.group(2))
     type0_body = bodies[type0]
     require(b"/Subtype /Type0" in type0_body, "page font is not Type 0")
     require(b"/Encoding /Identity-H" in type0_body, "Type 0 font does not use Identity-H")
@@ -193,8 +227,8 @@ def self_test() -> None:
     validate_gate3_text_pdf(pdf)
     mutations = (
         replace_once(pdf, b"<0007> <00E9>", b"<0007> <00E8>"),
-        replace_once(pdf, b"/F1_0 14 0 R", b"/F1_0 13 0 R"),
-        replace_once(pdf, b"/CIDToGIDMap 8 0 R", b"/CIDToGIDMap 9 0 R"),
+        replace_once(pdf, b"/F1_0 20 0 R", b"/F1_0 19 0 R"),
+        replace_once(pdf, b"/CIDToGIDMap 14 0 R", b"/CIDToGIDMap 15 0 R"),
         replace_once(pdf, b"/Length1 6776", b"/Length1 6775"),
         replace_once(pdf, b"/CapHeight 728", b"/CapHeight 729"),
     )

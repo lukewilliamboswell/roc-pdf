@@ -2,8 +2,9 @@
 
 This slice joins the earlier Unicode analysis, bounded shaping, deterministic
 font plan, sanitized subset, and Type 0 font-object stages into one real PDF 2.0
-page. The page content selects the exact planned font resource and run size,
-positions each glyph with checked layout arithmetic, and emits 16-bit CIDs. The
+page. The scene transform places a local-coordinate run; the page content
+selects the exact planned font resource and run size, positions each glyph with
+checked layout arithmetic, and emits 16-bit CIDs. The
 page resource dictionary references the Type 0 font produced from the same font
 plan; later stages do not rediscover font identity from serialized operators.
 
@@ -25,7 +26,7 @@ and continues to reject text stores rather than silently widening its claim.
 
 `KernelTagged` consumes the validated semantic plan and typed scene plan. The
 fixture therefore proves its fragment group, paint edge, MCID, ParentTree row,
-and structure `/K` items before either text-content path is built.
+and structure `/K` items before text content is built.
 
 `KernelTextOwnership` now builds that tagged plan and joins every scene
 `DrawText` to the text store. Each dense run must be painted exactly once by a
@@ -49,8 +50,8 @@ widened. The additive tagged-page path installs each planned Type 0 reference
 under its deterministic `F` resource name. `KernelGate3TaggedTextStructure`
 now composes tagged objects, scene content, ordinary resources, and the reserved
 font families into one sealed structure and verifies their planned identities
-before xref. The next slice switches the visible fixture from the legacy graph
-to this path and reviews the resulting snapshot and allocation changes.
+before xref. The visible fixture consumes this path; no parallel legacy text or
+object graph is built.
 
 Logical Unicode remains owned by the semantic occurrence. Text lowering builds
 one bounded scalar cache for the semantic sources, walks each placed run once,
@@ -72,9 +73,10 @@ missing evidence remains an error rather than an inferred mapping.
 The fixture renders and extracts `Café PDF` on one A4 page. It embeds a fresh
 6,776-byte sanitized TrueType subset, an identity CID-to-GID map for eleven
 planned entries, eight exact `ToUnicode` rows, one CIDFontType2 descendant, and
-one Type 0 parent. The tracked PDF is 9,094 bytes and contains fourteen
-non-xref objects; unlike the earlier Gate 3 protocol carriers, it is visibly
-nonblank in ordinary readers.
+one Type 0 parent. The tracked PDF is 10,000 bytes and contains twenty non-xref
+objects, including the tagged structure, calibrated Gray resource, and
+scene-owned content stream; unlike the earlier Gate 3 protocol carriers, it is
+visibly nonblank in ordinary readers.
 
 The independent structural checker reconstructs the displayed string from the
 content CIDs and `ToUnicode`, verifies the exact widths and subset digest, and
@@ -90,8 +92,8 @@ engines.
 
 | Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,094 | 221 |
-| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,094 | 221 |
+| arm64mac | speed | 8 / 8 | 6,776 | 317 | 10,000 | 318 |
+| x64musl | speed | 8 / 8 | 6,776 | 317 | 10,000 | 318 |
 
 The exact work vector records, in order: 166,300 source-font bytes, one run,
 eight shaped glyphs; two scene-command visits, one scene color reference, one
@@ -103,24 +105,29 @@ and one source. Tagged work records zero artifact groups, one fragment group,
 two `/K` items, two node ranges, one occurrence-owner edge, one paint edge, one
 ParentTree prefix step, and one ParentTree write. The remaining counters are
 followed by ownership work: two command visits, one group, one run, one fragment
-prefix step, one fragment write, one range check, and one text fragment. The
-remaining counters are eleven font-plan entries, 6,776 subset bytes, eight
-source scalars, one text run, one placement, eight emitted glyphs, eight
-mappings, 271 content bytes, one font, nine font objects, fourteen total
-objects, 7,047 uncompressed payload bytes, and 9,094 emitted bytes.
+prefix step, one fragment write, one range check, and one text fragment.
+Resource work records two commands, one color space, and one text-color
+reference. Content work records two commands, one text placement, and 317
+stream bytes. The remaining counters are eleven font-plan entries, 6,776 subset
+bytes, eight source scalars, one text run, zero parallel placements, eight
+emitted glyphs, eight mappings, 245 prepared text bytes, one font, nine font
+objects, twenty total objects, 7,093 uncompressed font/content payload bytes,
+and 10,000 emitted bytes.
 
 The first four added allocations remain the reviewed dense scene arenas. The
 next 25 are bounded scalar-offset/source-fact arrays, semantic ownership and
-reverse-index arrays, and tagged MCID/ParentTree/`/K` planning arrays. No font,
-text-content, or output bytes change. The ownership join adds five bounded
-arrays: run owners, fragment counts, fragment starts/cursors, fragment-run
-reverse entries, and the dense run-to-fragment map.
-The one-byte snapshot
-reduction records the exact OS/2 CapHeight instead of the former hardcoded
-descriptor value; glyph data and rendered pixels are unchanged.
+reverse-index arrays, and tagged MCID/ParentTree/`/K` planning arrays. The
+ownership join adds five bounded arrays: run owners, fragment counts, fragment
+starts/cursors, fragment-run reverse entries, and the dense run-to-fragment map.
+The migration from 221 to 318 allocations executes the previously absent
+calibrated-color, empty-image, text-resource-use, prepared-run, scene-content,
+Gate 2 object-family, page/resource dictionary, Gate 3 font-identity, and sealed
+tagged-structure plans. These are bounded stage outputs or builder arenas; the
+166,300-byte source font and 6,776-byte subset remain single payloads, and no
+placement retains or reparses either.
 
 This is pipeline evidence, not Gate 3 closure. The public caller-font/theme path
 is covered by the subsequent caller-font text slice. Paragraph layout and
 pagination, theme-driven text color, the rest of the multilingual script matrix,
-scene-driven paint emission, accessibility tagging, facade output, caller
+facade output, caller
 source-refcount evidence, and multi-placement parse reuse remain open.
