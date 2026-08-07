@@ -125,18 +125,36 @@ validate_property_ownership = |store, byte_limit| {
 	var $visits = 0
 	var $node_index = 0
 	while $node_index < store.nodes.len() {
-		marked = mark_property_range(list_at(store.nodes, $node_index).text_properties, $node_index, $owners, store.text_properties, $bytes, byte_limit)?
-		$owners = marked.owners
-		$bytes = marked.bytes
-		$visits = checked_add($visits, marked.visits)?
+		range = list_at(store.nodes, $node_index).text_properties
+		if range.length() == 0 {
+			if range.start() > store.text_properties.len() {
+				return Err(TextPropertySpanOutOfRange({ available: store.text_properties.len(), length: 0, owner: $node_index, start: range.start() }))
+			}
+		} else {
+			marked = mark_property_range(range, $node_index, $owners, store.text_properties, $bytes, byte_limit)?
+			$owners = marked.owners
+			$bytes = marked.bytes
+			$visits = checked_add($visits, marked.visits)?
+		}
 		$node_index = $node_index + 1
 	}
 	var $occurrence_index = 0
 	while $occurrence_index < store.occurrences.len() {
-		marked = mark_property_range(list_at(store.occurrences, $occurrence_index).text_properties, store.nodes.len() + $occurrence_index, $owners, store.text_properties, $bytes, byte_limit)?
-		$owners = marked.owners
-		$bytes = marked.bytes
-		$visits = checked_add($visits, marked.visits)?
+		range = list_at(store.occurrences, $occurrence_index).text_properties
+		if store.nodes.len() > U64.highest - $occurrence_index {
+			return Err(ArithmeticOverflow)
+		}
+		owner = store.nodes.len() + $occurrence_index
+		if range.length() == 0 {
+			if range.start() > store.text_properties.len() {
+				return Err(TextPropertySpanOutOfRange({ available: store.text_properties.len(), length: 0, owner, start: range.start() }))
+			}
+		} else {
+			marked = mark_property_range(range, owner, $owners, store.text_properties, $bytes, byte_limit)?
+			$owners = marked.owners
+			$bytes = marked.bytes
+			$visits = checked_add($visits, marked.visits)?
+		}
 		$occurrence_index = $occurrence_index + 1
 	}
 	var $index = 0
@@ -294,6 +312,17 @@ expect {
 	too_small = KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 2, max_text_source_bytes: 3, max_text_source_scalars: 1, max_text_sources: 1 })
 	match KernelTextSemantics.Plan.build(test_store, 1, 1, semantic_limits, too_small) {
 		Err(LimitExceeded({ attempted: 2, dimension: TextSourceScalars, limit: 1 })) => True
+		_ => False
+	}
+}
+
+## Empty property ranges still validate their cursor without allocating a
+## per-owner marking result.
+expect {
+	node = list_at(test_store.nodes, 0)
+	bad = { ..test_store, nodes: [{ ..node, text_properties: Semantics.Range.from_start_and_length(2, 0) }] }
+	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
+		Err(TextPropertySpanOutOfRange({ available: 1, length: 0, owner: 0, start: 2 })) => True
 		_ => False
 	}
 }

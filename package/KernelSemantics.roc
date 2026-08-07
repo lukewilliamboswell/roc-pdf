@@ -397,94 +397,90 @@ validate_graph = |store, max_depth, text_allowed| {
 			if frame.depth > max_depth {
 				$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: SemanticDepth, limit: max_depth }))
 			} else {
-				match mark_once($node_owners, node_index, NodeIndex) {
-					Err(error) => {
-						$error = Invalid(error)
-					}
-					Ok(next_node_owners) => {
-						$node_owners = next_node_owners
-						node = list_at(store.nodes, node_index)
-						if !valid_role(node, node_index == store.document_root.index(), text_allowed) {
-							$error = Invalid(UnsupportedRole({ node: node_index }))
-						} else if (node.text_properties.length() != 0 and !text_allowed) or node.element_identifier != NoElementIdentifier {
-							$error = Invalid(UnsupportedStoreContent)
-						} else if node_index == store.document_root.index() and node.parent != DocumentRoot {
-							$error = Invalid(InvalidDocumentRoot({ node: node_index }))
-						} else {
-							$maximum_depth = U64.max($maximum_depth, frame.depth)
-							match mark_attribute_range(node.attributes, node_index, False, $attribute_owners, store.attributes) {
-								Err(error) => {
-									$error = Invalid(error)
-								}
-								Ok(marked) => {
-									$attribute_owners = marked.owners
-									$attribute_visits = $attribute_visits + marked.visits
-									match validate_span(node.content, store.content_spine.len(), ContentIndex, node_index) {
-										Err(error) => {
-											$error = Invalid(error)
-										}
-										Ok(span) => {
-											var $content_index = span.start
-											while $content_index < span.end and $error == NoError {
-												match mark_once($content_owners, $content_index, ContentIndex) {
-													Err(error) => {
-														$error = Invalid(error)
+				if list_at($node_owners, node_index) != 0 {
+					$error = Invalid(DuplicateOwnership({ index: node_index, kind: NodeIndex }))
+				} else {
+					$node_owners = list_set($node_owners, node_index, 1)
+					node = list_at(store.nodes, node_index)
+					if !valid_role(node, node_index == store.document_root.index(), text_allowed) {
+						$error = Invalid(UnsupportedRole({ node: node_index }))
+					} else if (node.text_properties.length() != 0 and !text_allowed) or node.element_identifier != NoElementIdentifier {
+						$error = Invalid(UnsupportedStoreContent)
+					} else if node_index == store.document_root.index() and node.parent != DocumentRoot {
+						$error = Invalid(InvalidDocumentRoot({ node: node_index }))
+					} else {
+						$maximum_depth = U64.max($maximum_depth, frame.depth)
+						match mark_attribute_range(node.attributes, node_index, False, $attribute_owners, store.attributes) {
+							Err(error) => {
+								$error = Invalid(error)
+							}
+							Ok(marked) => {
+								$attribute_owners = marked.owners
+								$attribute_visits = $attribute_visits + marked.visits
+								match validate_span(node.content, store.content_spine.len(), ContentIndex, node_index) {
+									Err(error) => {
+										$error = Invalid(error)
+									}
+									Ok(span) => {
+										var $content_index = span.start
+										while $content_index < span.end and $error == NoError {
+											if list_at($content_owners, $content_index) != 0 {
+												$error = Invalid(DuplicateOwnership({ index: $content_index, kind: ContentIndex }))
+											} else {
+												$content_owners = list_set($content_owners, $content_index, 1)
+												item = list_at(store.content_spine, $content_index)
+												match item {
+													AnnotationOccurrence(_) => {
+														$error = Invalid(UnsupportedAnnotation({ content: $content_index }))
 													}
-													Ok(next_content_owners) => {
-														$content_owners = next_content_owners
-														item = list_at(store.content_spine, $content_index)
-														match item {
-															AnnotationOccurrence(_) => {
-																$error = Invalid(UnsupportedAnnotation({ content: $content_index }))
-															}
-															ChildNode(child) => {
-																child_index = child.index()
-																if child_index >= store.nodes.len() {
-																	$error = Invalid(IndexOutOfRange({ available: store.nodes.len(), index: child_index, kind: NodeIndex }))
+													ChildNode(child) => {
+														child_index = child.index()
+														if child_index >= store.nodes.len() {
+															$error = Invalid(IndexOutOfRange({ available: store.nodes.len(), index: child_index, kind: NodeIndex }))
+														} else {
+															child_node = list_at(store.nodes, child_index)
+															match child_node.parent {
+																DocumentRoot => {
+																	$error = Invalid(InvalidParent({ actual: child_index, expected: node_index, node: child_index }))
+																}
+																ParentNode(parent) => if parent.index() != node_index {
+																	$error = Invalid(InvalidParent({ actual: parent.index(), expected: node_index, node: child_index }))
 																} else {
-																	child_node = list_at(store.nodes, child_index)
-																	match child_node.parent {
-																		DocumentRoot => {
-																			$error = Invalid(InvalidParent({ actual: child_index, expected: node_index, node: child_index }))
-																		}
-																		ParentNode(parent) => if parent.index() != node_index {
-																			$error = Invalid(InvalidParent({ actual: parent.index(), expected: node_index, node: child_index }))
-																		} else {
-																			depth = U64.plus_try(frame.depth, 1) ? |_| ArithmeticOverflow
-																			$frames = $frames.append(NodeFrame.{ depth, node: child })
-																		}
-																	}
+																	depth = U64.plus_try(frame.depth, 1) ? |_| ArithmeticOverflow
+																	$frames = $frames.append(NodeFrame.{ depth, node: child })
 																}
 															}
-															ContentOccurrence(occurrence) => match mark_index($occurrence_owners, occurrence.index(), OccurrenceIndex) {
-																Err(error) => {
-																	$error = Invalid(error)
-																}
-																Ok(next_owners) => {
-																	$occurrence_owners = next_owners
-																}
+														}
+													}
+													ContentOccurrence(occurrence) => {
+														occurrence_index = occurrence.index()
+														if occurrence_index >= $occurrence_owners.len() {
+															$error = Invalid(IndexOutOfRange({ available: $occurrence_owners.len(), index: occurrence_index, kind: OccurrenceIndex }))
+														} else if list_at($occurrence_owners, occurrence_index) != 0 {
+															$error = Invalid(DuplicateOwnership({ index: occurrence_index, kind: OccurrenceIndex }))
+														} else {
+															$occurrence_owners = list_set($occurrence_owners, occurrence_index, 1)
+														}
+													}
+													ContextualArtifact(artifact) => {
+														artifact_index = artifact.index()
+														match mark_index($artifact_owners, artifact_index, ContextualArtifactIndex) {
+															Err(error) => {
+																$error = Invalid(error)
 															}
-															ContextualArtifact(artifact) => {
-																artifact_index = artifact.index()
-																match mark_index($artifact_owners, artifact_index, ContextualArtifactIndex) {
-																	Err(error) => {
-																		$error = Invalid(error)
-																	}
-																	Ok(next_owners) => {
-																		$artifact_owners = next_owners
-																		artifact_record = list_at(store.contextual_artifacts, artifact_index)
-																		if artifact_record.parent.index() != node_index {
-																			$error = Invalid(InvalidParent({ actual: artifact_record.parent.index(), expected: node_index, node: artifact_index }))
-																		} else {
-																			match mark_attribute_range(artifact_record.attributes, artifact_index, True, $attribute_owners, store.attributes) {
-																				Err(error) => {
-																					$error = Invalid(error)
-																				}
-																				Ok(artifact_marked) => {
-																					$attribute_owners = artifact_marked.owners
-																					$attribute_visits = $attribute_visits + artifact_marked.visits
-																				}
-																			}
+															Ok(next_owners) => {
+																$artifact_owners = next_owners
+																artifact_record = list_at(store.contextual_artifacts, artifact_index)
+																if artifact_record.parent.index() != node_index {
+																	$error = Invalid(InvalidParent({ actual: artifact_record.parent.index(), expected: node_index, node: artifact_index }))
+																} else {
+																	match mark_attribute_range(artifact_record.attributes, artifact_index, True, $attribute_owners, store.attributes) {
+																		Err(error) => {
+																			$error = Invalid(error)
+																		}
+																		Ok(artifact_marked) => {
+																			$attribute_owners = artifact_marked.owners
+																			$attribute_visits = $attribute_visits + artifact_marked.visits
 																		}
 																	}
 																}
@@ -492,9 +488,9 @@ validate_graph = |store, max_depth, text_allowed| {
 														}
 													}
 												}
-												$content_index = $content_index + 1
-												$content_visits = $content_visits + 1
 											}
+											$content_index = $content_index + 1
+											$content_visits = $content_visits + 1
 										}
 									}
 								}
@@ -534,15 +530,10 @@ validate_dense_graph_identities = |store| {
 			structure_index = node.structure_element.index()
 			if structure_index >= store.nodes.len() {
 				$error = Invalid(IndexOutOfRange({ available: store.nodes.len(), index: structure_index, kind: StructureElementIndex }))
+			} else if list_at($structure_ids, structure_index) != 0 {
+				$error = Invalid(DuplicateOwnership({ index: structure_index, kind: StructureElementIndex }))
 			} else {
-				match mark_once($structure_ids, structure_index, StructureElementIndex) {
-					Err(error) => {
-						$error = Invalid(error)
-					}
-					Ok(next) => {
-						$structure_ids = next
-					}
-				}
+				$structure_ids = list_set($structure_ids, structure_index, 1)
 			}
 		}
 		$node_index = $node_index + 1
@@ -569,18 +560,19 @@ valid_role = |node, is_root, gate_3_text| {
 		node.role.local_name == "Document"
 	} else if gate_3_text {
 		name = node.role.local_name
-		name == "P" or
-			name == "H" or
-				name == "H1" or
-					name == "H2" or
-						name == "H3" or
-							name == "H4" or
-								name == "H5" or
-									name == "H6" or
-										name == "L" or
-											name == "LI" or
-												name == "Lbl" or
-													name == "LBody"
+		name == "Title" or
+			name == "P" or
+				name == "H" or
+					name == "H1" or
+						name == "H2" or
+							name == "H3" or
+								name == "H4" or
+									name == "H5" or
+										name == "H6" or
+											name == "L" or
+												name == "LI" or
+													name == "Lbl" or
+														name == "LBody"
 	} else {
 		node.role.local_name == "P"
 	}
@@ -765,15 +757,18 @@ expect {
 ## Gate 3 text authoring adds block roles without widening the Gate 2 subset.
 expect {
 	paragraph = list_at(test_store.nodes, 1)
+	title = { ..paragraph, role: { ..paragraph.role, local_name: "Title" } }
 	heading = { ..paragraph, role: { ..paragraph.role, local_name: "H2" } }
 	list_body = { ..paragraph, role: { ..paragraph.role, local_name: "LBody" } }
 	span = { ..paragraph, role: { ..paragraph.role, local_name: "Span" } }
 
 	valid_role(paragraph, False, False) and
-		!valid_role(heading, False, False) and
-			valid_role(heading, False, True) and
-				valid_role(list_body, False, True) and
-					!valid_role(span, False, True)
+		!valid_role(title, False, False) and
+			!valid_role(heading, False, False) and
+				valid_role(title, False, True) and
+					valid_role(heading, False, True) and
+						valid_role(list_body, False, True) and
+							!valid_role(span, False, True)
 }
 
 ## Fragment occurrence identities are checked before prefix-sum indexing.

@@ -2,10 +2,13 @@ import Document
 import Font
 import KernelEmit
 import KernelFacadeSources
+import KernelFacadeSemantics
 import KernelLineLayout
 import KernelPageLayout
+import KernelSemantics
 import KernelShape
 import KernelStructure
+import KernelTextSemantics
 import KernelUnicode
 import Layout
 import Semantics
@@ -24,6 +27,9 @@ Gate3FacadeEvidence :: [].{
 	page_layout : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	page_layout = |repetitions| evidence_page_layout(repetitions)
 
+	semantic_facade : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+	semantic_facade = |repetitions| evidence_semantic_facade(repetitions)
+
 	source_cache_shared : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	source_cache_shared = |repetitions| evidence_source_cache(repetitions, SharedSources)
 
@@ -34,6 +40,69 @@ Gate3FacadeEvidence :: [].{
 Authoring := [Builder, Simple]
 
 SourcePattern := [SharedSources, UniqueSources]
+
+evidence_semantic_facade : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+evidence_semantic_facade = |repetitions| {
+	if repetitions == 0 or repetitions > 100000 {
+		return Err(InvalidRepetitions)
+	}
+	authoring = Document.normalize(build_with_builder(repetitions))
+	nodes = repetitions + 10
+	occurrences = repetitions + 6
+	content = repetitions * 2 + 15
+	inputs = repetitions + 6
+	plan = KernelFacadeSemantics.Plan.build(
+		authoring,
+		KernelFacadeSemantics.Limits.make({
+			max_artifacts: 0,
+			max_content_spine: content,
+			max_nodes: nodes,
+			max_occurrences: occurrences,
+			max_properties: 2,
+			max_source_inputs: inputs,
+			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			sources: KernelFacadeSources.Limits.make({
+				max_hash_probes: inputs * 100,
+				max_inputs: inputs,
+				max_source_bytes: inputs * 32,
+				max_source_scalars: inputs * 32,
+				max_table_slots: inputs * 4 + 8,
+				max_unique_sources: inputs,
+				unicode: { max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 },
+			}),
+			text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: 2, max_text_property_bytes: 8, max_text_source_bytes: inputs * 32, max_text_source_scalars: inputs * 32, max_text_sources: inputs }),
+		}),
+	) ? |_| EvidenceFailure
+	work = KernelFacadeSemantics.Plan.work(plan)
+	source_work = KernelFacadeSources.Plan.work(KernelFacadeSemantics.Plan.sources(plan))
+	text_plan = KernelFacadeSemantics.Plan.preliminary(plan)
+	semantic_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(text_plan))
+	text_work = KernelTextSemantics.Plan.work(text_plan)
+	structure = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+	bytes = KernelEmit.to_bytes(structure) ? |_| EvidenceFailure
+	Ok({
+		bytes,
+		work: [
+			repetitions + 3,
+			authoring.blocks.len(),
+			work.node_writes,
+			work.occurrence_writes,
+			work.content_writes,
+			work.property_writes,
+			work.source_inputs,
+			source_work.unique_sources,
+			work.lists,
+			work.list_items,
+			semantic_work.node_visits,
+			semantic_work.content_visits,
+			semantic_work.occurrence_visits,
+			semantic_work.max_semantic_depth,
+			text_work.source_bytes,
+			text_work.source_scalars,
+			bytes.len(),
+		],
+	})
+}
 
 normalize : U64, Authoring -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 normalize = |repetitions, authoring| {
@@ -419,6 +488,11 @@ expect {
 expect {
 	result = Gate3FacadeEvidence.page_layout(10)?
 	result.work.len() == 9
+}
+
+expect {
+	result = Gate3FacadeEvidence.semantic_facade(2)?
+	result.work == [5, 6, 12, 8, 19, 2, 8, 6, 1, 2, 12, 19, 8, 4, 26, 24, 667]
 }
 
 expect {

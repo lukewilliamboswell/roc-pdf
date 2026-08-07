@@ -197,8 +197,8 @@
       "dimensions": { "pages": 1, "commands": 1000000, "images": 1, "image_payload_bytes": 1 },
       "work_counters": ["commands", "scene_command_visits", "scene_image_placements", "scene_max_graphics_depth", "content_command_visits", "content_image_placements", "content_max_frame_depth", "resource_command_visits", "image_reuses", "image_resources", "image_use_count", "image_payload_bytes", "content_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 136, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] },
-        "x64musl": { "allocations": 136, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] }
+        "arm64mac": { "allocations": 131, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] },
+        "x64musl": { "allocations": 131, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] }
       },
       "retention": null
     },
@@ -379,6 +379,36 @@
       "expectations": {
         "arm64mac": { "allocations": 187980, "work": [10000, 10000, 0, 32768, 88890, 10479, 10478, 93195, 88890, 88890, 667] },
         "x64musl": { "allocations": 187980, "work": [10000, 10000, 0, 32768, 88890, 10479, 10478, 93195, 88890, 88890, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade semantic planning x1000",
+      "scenario_revision": "gate3-facade-semantic-planning-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["semantics", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authoring_blocks": 1003, "normalized_blocks": 1004, "semantic_nodes": 1010, "semantic_occurrences": 1006, "content_spine_items": 2015, "normalized_plan_identity": 1 },
+      "work_counters": ["authoring_blocks", "normalized_blocks", "semantic_nodes", "semantic_occurrences", "content_spine_items", "text_properties", "source_inputs", "unique_sources", "lists", "list_items", "semantic_node_visits", "semantic_content_visits", "semantic_occurrence_visits", "max_semantic_depth", "text_source_bytes", "text_source_scalars", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 256, "work": [1003, 1004, 1010, 1006, 2015, 2, 1006, 6, 1, 2, 1010, 2015, 1006, 4, 26, 24, 667] },
+        "x64musl": { "allocations": 256, "work": [1003, 1004, 1010, 1006, 2015, 2, 1006, 6, 1, 2, 1010, 2015, 1006, 4, 26, 24, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade semantic planning x10000",
+      "scenario_revision": "gate3-facade-semantic-planning-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["semantics", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authoring_blocks": 10003, "normalized_blocks": 10004, "semantic_nodes": 10010, "semantic_occurrences": 10006, "content_spine_items": 20015, "normalized_plan_identity": 1 },
+      "work_counters": ["authoring_blocks", "normalized_blocks", "semantic_nodes", "semantic_occurrences", "content_spine_items", "text_properties", "source_inputs", "unique_sources", "lists", "list_items", "semantic_node_visits", "semantic_content_visits", "semantic_occurrence_visits", "max_semantic_depth", "text_source_bytes", "text_source_scalars", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 293, "work": [10003, 10004, 10010, 10006, 20015, 2, 10006, 6, 1, 2, 10010, 20015, 10006, 4, 26, 24, 667] },
+        "x64musl": { "allocations": 293, "work": [10003, 10004, 10010, 10006, 20015, 2, 10006, 6, 1, 2, 10010, 20015, 10006, 4, 26, 24, 667] }
       },
       "retention": null
     },
