@@ -9,7 +9,7 @@ import Text
 import unicode.Scalar
 
 KernelPdfText :: [].{
-	Dimension : [ContentBytes, Mappings, Placements, SourceScalars]
+	Dimension : [ActualTextScalars, ContentBytes, Mappings, Placements, SourceScalars]
 	Error : [
 		ActualTextRequired({ run : U64 }),
 		ArithmeticOverflow,
@@ -24,16 +24,19 @@ KernelPdfText :: [].{
 		UnicodeMappingConflict({ cid : U32, font : U64 }),
 	]
 
-	Limits :: { max_content_bytes : U64, max_mappings : U64, max_placements : U64, max_source_scalars : U64 }.{
-		make : { max_content_bytes : U64, max_mappings : U64, max_placements : U64, max_source_scalars : U64 } -> Limits
+	Limits :: { max_actual_text_scalars : U64, max_content_bytes : U64, max_mappings : U64, max_placements : U64, max_source_scalars : U64 }.{
+		make : { max_actual_text_scalars : U64, max_content_bytes : U64, max_mappings : U64, max_placements : U64, max_source_scalars : U64 } -> Limits
 		make = |limits| Limits.(limits)
 	}
 
 	Placement : { origin : Layout.Point, run : Text.RunId }
 
 	Work : {
+		actual_text_runs : U64,
+		actual_text_scalars : U64,
 		content_bytes : U64,
 		glyph_visits : U64,
+		mapping_conflicts_resolved : U64,
 		mappings : U64,
 		placement_visits : U64,
 		run_visits : U64,
@@ -61,6 +64,10 @@ FontState := { mappings : List(MappingSlot), plan : KernelFontPlan.Plan }
 
 ScalarCache := { starts : List(U64), values : List(U32) }
 
+ActualText := [NoActualText, UseActualText(List(U32))]
+
+RunSource := { id : Semantics.TextSourceId, occurrence : Semantics.ContentOccurrence, range : Semantics.TextRange }
+
 build_plan : Semantics.Store, Text.Store, List(KernelFontPlan.Plan), List(KernelPdfText.Placement), KernelPdfText.Limits -> Try(KernelPdfText.Plan, KernelPdfText.Error)
 build_plan = |semantics, text, fonts, placements, limits| {
 	check_limit(placements.len(), limits.max_placements, Placements)?
@@ -69,7 +76,10 @@ build_plan = |semantics, text, fonts, placements, limits| {
 	var $states = states
 	var $placed = List.repeat(False, text.runs.len())
 	var $bytes = List.with_capacity(U64.min(limits.max_content_bytes, initial_capacity))
+	var $actual_text_runs = 0
+	var $actual_text_scalars = 0
 	var $glyph_visits = 0
+	var $mapping_conflicts = 0
 	var $placement_index = 0
 	while $placement_index < placements.len() {
 		placement = list_at(placements, $placement_index)
@@ -85,12 +95,20 @@ build_plan = |semantics, text, fonts, placements, limits| {
 		if font_index >= $states.len() {
 			return Err(FontPlanInvalid({ font: font_index }))
 		}
-		match run.actual_text {
-			FromOccurrence => {}
-			SemanticOverride(_) => return Err(ActualTextRequired({ run: run_index }))
+		actual_text = actual_text_for_run(semantics, scalars, text, run, run_index, $actual_text_scalars, limits.max_actual_text_scalars)?
+		actual_length = match actual_text {
+			NoActualText => 0
+			UseActualText(values) => values.len()
 		}
-		$states = collect_run_mappings($states, font_index, semantics, scalars, text, run, run_index)?
-		emitted = emit_run($bytes, text, run, placement.origin, list_at($states, font_index).plan, limits.max_content_bytes)?
+		if actual_length > 0 {
+			$actual_text_runs = checked_add($actual_text_runs, 1)?
+			$actual_text_scalars = checked_add($actual_text_scalars, actual_length)?
+			check_limit($actual_text_scalars, limits.max_actual_text_scalars, ActualTextScalars)?
+		}
+		collected = collect_run_mappings($states, font_index, semantics, scalars, text, run, run_index, actual_length > 0)?
+		$states = collected.states
+		$mapping_conflicts = checked_add($mapping_conflicts, collected.conflicts)?
+		emitted = emit_run($bytes, text, run, placement.origin, list_at($states, font_index).plan, actual_text, limits.max_content_bytes)?
 		$bytes = emitted.bytes
 		$glyph_visits = checked_add($glyph_visits, emitted.glyphs)?
 		$placed = list_set($placed, run_index, True)
@@ -109,8 +127,11 @@ build_plan = |semantics, text, fonts, placements, limits| {
 			bytes: $bytes,
 			mappings: finished.mappings,
 			work: {
+				actual_text_runs: $actual_text_runs,
+				actual_text_scalars: $actual_text_scalars,
 				content_bytes: $bytes.len(),
 				glyph_visits: $glyph_visits,
+				mapping_conflicts_resolved: $mapping_conflicts,
 				mappings: finished.count,
 				placement_visits: placements.len(),
 				run_visits: text.runs.len(),
@@ -161,9 +182,9 @@ build_scalar_cache = |sources, limit| {
 	Ok({ starts: $starts, values: $values })
 }
 
-collect_run_mappings : List(FontState), U64, Semantics.Store, ScalarCache, Text.Store, Text.Run, U64 -> Try(List(FontState), KernelPdfText.Error)
-collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_index| {
-	if run.occurrence.index() >= semantics.occurrences.len() or run.clusters.start() > text.clusters.len() or run.clusters.length() > text.clusters.len() - run.clusters.start() {
+run_source : Semantics.Store, Text.Run, U64 -> Try(RunSource, KernelPdfText.Error)
+run_source = |semantics, run, run_index| {
+	if run.occurrence.index() >= semantics.occurrences.len() {
 		return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
 	}
 	occurrence = list_at(semantics.occurrences, run.occurrence.index())
@@ -172,43 +193,136 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 	}
 	source = match occurrence.source {
 		Text(source_id, UnicodeRange(range)) => if source_id.index() < semantics.text_sources.len() {
-			{ id: source_id, range }
+			{ id: source_id, occurrence, range }
 		} else {
 			return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
 		}
 		_ => return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
 	}
-	if run.source.scalars.start() > source.range.scalars.length() or run.source.scalars.length() > source.range.scalars.length() - run.source.scalars.start() {
+	if !relative_text_range_fits(run.source, source.range) {
 		return Err(RunInvalid({ run: run_index }))
 	}
-	state = list_at(states, font_index)
-	var $slots = state.mappings
+	Ok(source)
+}
+
+relative_text_range_fits : Semantics.TextRange, Semantics.TextRange -> Bool
+relative_text_range_fits = |inner, outer| relative_range_fits(inner.scalars, outer.scalars) and relative_range_fits(inner.utf8_bytes, outer.utf8_bytes)
+
+relative_range_fits : Semantics.Range, Semantics.Range -> Bool
+relative_range_fits = |inner, outer| inner.start() <= outer.length() and inner.length() <= outer.length() - inner.start()
+
+actual_text_for_run : Semantics.Store, ScalarCache, Text.Store, Text.Run, U64, U64, U64 -> Try(ActualText, KernelPdfText.Error)
+actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
+	source = run_source(semantics, run, run_index)?
+	match run.actual_text {
+		FromOccurrence => {
+			if !requires_actual_text(text, run, run_index)? {
+				return Ok(NoActualText)
+			}
+			attempted = checked_add(used, run.source.scalars.length())?
+			check_limit(attempted, limit, ActualTextScalars)?
+			start = checked_add(source.range.scalars.start(), run.source.scalars.start())?
+			values = source_scalars(scalars, source.id, start, run.source.scalars.length(), run_index)?
+			if values.len() == 0 {
+				Err(ActualTextRequired({ run: run_index }))
+			} else {
+				Ok(UseActualText(values))
+			}
+		}
+		SemanticOverride(property_id) => {
+			property_index = property_id.index()
+			property_start = source.occurrence.text_properties.start()
+			property_length = source.occurrence.text_properties.length()
+			if property_index < property_start or property_index - property_start >= property_length or property_index >= semantics.text_properties.len() {
+				return Err(ActualTextRequired({ run: run_index }))
+			}
+			value = match list_at(semantics.text_properties, property_index) {
+				ActualText(actual) => actual
+				_ => return Err(ActualTextRequired({ run: run_index }))
+			}
+			var $values = []
+			for located in Scalar.iter(value) {
+				attempted = checked_add(used, checked_add($values.len(), 1)?)?
+				check_limit(attempted, limit, ActualTextScalars)?
+				$values = $values.append(Scalar.to_u32(located.scalar))
+			}
+			if $values.len() == 0 {
+				Err(ActualTextRequired({ run: run_index }))
+			} else {
+				Ok(UseActualText($values))
+			}
+		}
+	}
+}
+
+requires_actual_text : Text.Store, Text.Run, U64 -> Try(Bool, KernelPdfText.Error)
+requires_actual_text = |text, run, run_index| {
+	if run.direction == RightToLeft or run.transformations.length() > 0 {
+		return Ok(True)
+	}
+	if run.clusters.start() > text.clusters.len() or run.clusters.length() > text.clusters.len() - run.clusters.start() {
+		return Err(RunInvalid({ run: run_index }))
+	}
 	var $cluster_index = run.clusters.start()
 	cluster_end = run.clusters.start() + run.clusters.length()
 	while $cluster_index < cluster_end {
 		cluster = list_at(text.clusters, $cluster_index)
-		if cluster.glyphs.length() != 1 or cluster.glyphs.start() >= text.glyph_indices.len() or cluster.source.scalars.length() == 0 or cluster.source.scalars.start() > source.range.scalars.length() or cluster.source.scalars.length() > source.range.scalars.length() - cluster.source.scalars.start() {
-			return Err(ActualTextRequired({ run: run_index }))
+		if cluster.glyphs.length() != 1 {
+			return Ok(True)
 		}
-		glyph_index = list_at(text.glyph_indices, cluster.glyphs.start())
-		if glyph_index < run.glyphs.start() or glyph_index >= run.glyphs.start() + run.glyphs.length() {
-			return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
-		}
-		glyph = list_at(text.glyphs, glyph_index).id.raw()
-		cid = cid_for_glyph(state.plan, glyph, run_index)?
-		source_start = checked_add(source.range.scalars.start(), cluster.source.scalars.start())?
-		mapping = source_scalars(scalars, source.id, source_start, cluster.source.scalars.length(), run_index)?
-		match list_at($slots, cid.to_u64()) {
-			Unmapped => {
-				$slots = list_set($slots, cid.to_u64(), Mapped(mapping))
-			}
-			Mapped(existing) => if existing != mapping {
-				return Err(UnicodeMappingConflict({ cid, font: font_index }))
-			}
+		match cluster.kind {
+			Contextual | Reordered => return Ok(True)
+			_ => {}
 		}
 		$cluster_index = $cluster_index + 1
 	}
-	Ok(list_set(states, font_index, { mappings: $slots, plan: state.plan }))
+	Ok(False)
+}
+
+collect_run_mappings : List(FontState), U64, Semantics.Store, ScalarCache, Text.Store, Text.Run, U64, Bool -> Try({ conflicts : U64, states : List(FontState) }, KernelPdfText.Error)
+collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_index, allow_conflicts| {
+	if run.clusters.start() > text.clusters.len() or run.clusters.length() > text.clusters.len() - run.clusters.start() {
+		return Err(RunInvalid({ run: run_index }))
+	}
+	source = run_source(semantics, run, run_index)?
+	state = list_at(states, font_index)
+	var $slots = state.mappings
+	var $conflicts = 0
+	var $cluster_index = run.clusters.start()
+	cluster_end = run.clusters.start() + run.clusters.length()
+	while $cluster_index < cluster_end {
+		cluster = list_at(text.clusters, $cluster_index)
+		if cluster.glyphs.length() == 0 or cluster.glyphs.start() > text.glyph_indices.len() or cluster.glyphs.length() > text.glyph_indices.len() - cluster.glyphs.start() or cluster.source.scalars.length() == 0 or !relative_text_range_fits(cluster.source, source.range) {
+			return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
+		}
+		source_start = checked_add(source.range.scalars.start(), cluster.source.scalars.start())?
+		mapping = source_scalars(scalars, source.id, source_start, cluster.source.scalars.length(), run_index)?
+		var $glyph_reference = cluster.glyphs.start()
+		glyph_reference_end = cluster.glyphs.start() + cluster.glyphs.length()
+		while $glyph_reference < glyph_reference_end {
+			glyph_index = list_at(text.glyph_indices, $glyph_reference)
+			if glyph_index < run.glyphs.start() or glyph_index >= run.glyphs.start() + run.glyphs.length() {
+				return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
+			}
+			glyph = list_at(text.glyphs, glyph_index).id.raw()
+			cid = cid_for_glyph(state.plan, glyph, run_index)?
+			match list_at($slots, cid.to_u64()) {
+				Unmapped => {
+					$slots = list_set($slots, cid.to_u64(), Mapped(mapping))
+				}
+				Mapped(existing) => if existing != mapping {
+					if allow_conflicts {
+						$conflicts = checked_add($conflicts, 1)?
+					} else {
+						return Err(UnicodeMappingConflict({ cid, font: font_index }))
+					}
+				}
+			}
+			$glyph_reference = $glyph_reference + 1
+		}
+		$cluster_index = $cluster_index + 1
+	}
+	Ok({ conflicts: $conflicts, states: list_set(states, font_index, { mappings: $slots, plan: state.plan }) })
 }
 
 source_scalars : ScalarCache, Semantics.TextSourceId, U64, U64, U64 -> Try(List(U32), KernelPdfText.Error)
@@ -272,10 +386,14 @@ finish_mappings = |states, limit| {
 	Ok({ count: $count, mappings: $all })
 }
 
-emit_run : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
-emit_run = |bytes, text, run, origin, font, limit| {
+emit_run : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, ActualText, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
+emit_run = |bytes, text, run, origin, font, actual_text, limit| {
 	font_index = run.instance.index()
-	var $out = append_literal(bytes, "BT\n/", limit)?
+	var $out = match actual_text {
+		NoActualText => bytes
+		UseActualText(values) => append_actual_text_begin(bytes, values, run.id.index(), limit)?
+	}
+	$out = append_literal($out, "BT\n/", limit)?
 	$out = append_bytes($out, KernelGate2ResourceName.bytes("F", font_index), limit)?
 	$out = append_literal($out, " ", limit)?
 	$out = append_layout($out, run.size, limit)?
@@ -304,7 +422,42 @@ emit_run = |bytes, text, run, origin, font, limit| {
 		$glyph_index = $glyph_index + 1
 	}
 	$out = append_literal($out, "ET\n", limit)?
+	$out = match actual_text {
+		NoActualText => $out
+		UseActualText(_) => append_literal($out, "EMC\n", limit)?
+	}
 	Ok({ bytes: $out, glyphs: run.glyphs.length() })
+}
+
+append_actual_text_begin : List(U8), List(U32), U64, U64 -> Try(List(U8), KernelPdfText.Error)
+append_actual_text_begin = |bytes, scalars, run, limit| {
+	var $out = append_literal(bytes, "/Span <</ActualText <FEFF", limit)?
+	var $index = 0
+	while $index < scalars.len() {
+		$out = append_utf16_scalar($out, list_at(scalars, $index), run, limit)?
+		$index = $index + 1
+	}
+	append_literal($out, ">>> BDC\n", limit)
+}
+
+append_utf16_scalar : List(U8), U32, U64, U64 -> Try(List(U8), KernelPdfText.Error)
+append_utf16_scalar = |bytes, scalar, run, limit| {
+	if scalar > 0x10ffff or (scalar >= 0xd800 and scalar <= 0xdfff) {
+		return Err(
+			RunInvalid(
+				{ run: run },
+			),
+		)
+	}
+	if scalar <= 0xffff {
+		append_hex_u16(bytes, scalar.to_u16_wrap(), limit)
+	} else {
+		adjusted = scalar - 0x10000
+		high = 0xd800 + adjusted.shr_wrap(10)
+		low = 0xdc00 + adjusted.bitwise_and(0x3ff)
+		with_high = append_hex_u16(bytes, high.to_u16_wrap(), limit)?
+		append_hex_u16(with_high, low.to_u16_wrap(), limit)
+	}
 }
 
 append_layout : List(U8), Layout.Unit, U64 -> Try(List(U8), KernelPdfText.Error)

@@ -14,6 +14,7 @@ from check_gate2_renderers import Raster, read_ppm
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "gate3_text" / "snapshot.pdf"
 CALLER_SNAPSHOT = ROOT / "tests" / "gate3_caller_text" / "snapshot.pdf"
+ACTUAL_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_actual_text" / "snapshot.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 
@@ -27,6 +28,7 @@ class InkMetrics:
 
 
 EXPECTED = InkMetrics(bounds=(72, 133, 120, 142), changed_pixels=241, dark_pixels=100, ink=29490)
+ACTUAL_TEXT_EXPECTED = InkMetrics(bounds=(72, 133, 81, 142), changed_pixels=60, dark_pixels=27, ink=6883)
 BOUNDS_TOLERANCE = 2
 CHANGED_PIXELS_TOLERANCE = 60
 DARK_PIXELS_TOLERANCE = 40
@@ -90,7 +92,7 @@ def compile_pdfbox_renderer(classes: Path) -> None:
     )
 
 
-def check_renderers(renderer: Path, working_directory: Path | None, snapshot: Path, label: str) -> None:
+def check_renderers(renderer: Path, working_directory: Path | None, snapshot: Path, label: str, expected: InkMetrics) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
     require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-gate3-render-") as temporary_name:
@@ -112,8 +114,8 @@ def check_renderers(renderer: Path, working_directory: Path | None, snapshot: Pa
         )
         pdfbox = ink_metrics(read_ppm(pdfbox_output))
         pdfium = ink_metrics(read_ppm(pdfium_output))
-        assert_close("PDFBox 3.0.8", pdfbox, EXPECTED)
-        assert_close("PDFium Chromium 7988", pdfium, EXPECTED)
+        assert_close("PDFBox 3.0.8", pdfbox, expected)
+        assert_close("PDFium Chromium 7988", pdfium, expected)
         assert_close("PDFium versus PDFBox", pdfium, pdfbox)
     print(
         f"PASS Gate 3 {label} renderers: PDFium Chromium 7988 and PDFBox 3.0.8 independently render "
@@ -123,6 +125,7 @@ def check_renderers(renderer: Path, working_directory: Path | None, snapshot: Pa
 
 def self_test() -> None:
     assert_close("exact synthetic", EXPECTED, EXPECTED)
+    assert_close("exact ActualText synthetic", ACTUAL_TEXT_EXPECTED, ACTUAL_TEXT_EXPECTED)
     mutation = InkMetrics(
         bounds=(EXPECTED.bounds[0] + BOUNDS_TOLERANCE + 1, *EXPECTED.bounds[1:]),
         changed_pixels=EXPECTED.changed_pixels,
@@ -143,15 +146,27 @@ def main() -> None:
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
     parser.add_argument("--caller", action="store_true")
+    parser.add_argument("--actual-text", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
         return
     require(args.pdfium_renderer is not None, "--pdfium-renderer is required unless --self-test is used")
-    snapshot = CALLER_SNAPSHOT if args.caller else SNAPSHOT
-    label = "caller-font text" if args.caller else "built-in text"
-    check_renderers(args.pdfium_renderer.resolve(), args.pdfium_working_directory, snapshot, label)
+    require(not (args.caller and args.actual_text), "--caller and --actual-text are mutually exclusive")
+    if args.actual_text:
+        snapshot = ACTUAL_TEXT_SNAPSHOT
+        label = "reordered ActualText"
+        expected = ACTUAL_TEXT_EXPECTED
+    elif args.caller:
+        snapshot = CALLER_SNAPSHOT
+        label = "caller-font text"
+        expected = EXPECTED
+    else:
+        snapshot = SNAPSHOT
+        label = "built-in text"
+        expected = EXPECTED
+    check_renderers(args.pdfium_renderer.resolve(), args.pdfium_working_directory, snapshot, label, expected)
 
 
 if __name__ == "__main__":

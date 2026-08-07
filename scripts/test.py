@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from check_gate2 import validate_gate2_pdf
+from check_gate3_actual_text import EXPECTED_CONTENT as GATE3_ACTUAL_TEXT_CONTENT
+from check_gate3_actual_text import validate_gate3_actual_text_pdf
 from check_gate3_caller_text import validate_gate3_caller_text_pdf
 from check_gate3_text import EXPECTED_CONTENT as GATE3_TEXT_CONTENT
 from check_gate3_text import validate_gate3_text_pdf
@@ -398,6 +400,8 @@ def verify_toolchain(toolchain: Toolchain) -> None:
 
 
 def expected_content(dimensions: dict[str, int]) -> bytes:
+    if dimensions.get("gate3_actual_text", 0) == 1:
+        return GATE3_ACTUAL_TEXT_CONTENT
     if dimensions.get("gate3_visible_text", 0) == 1 or dimensions.get("gate3_caller_text", 0) == 1:
         return GATE3_TEXT_CONTENT
     if dimensions.get("gate2_minimal_content", 0) == 1:
@@ -557,6 +561,9 @@ def run_case(
         if case.dimensions.get("gate3_caller_text", 0) == 1:
             validate_gate3_caller_text_pdf(result.stdout)
             print(f"PASS {case.name}: exact caller font identity, CID, Unicode mapping, and visible text facts", flush=True)
+        if case.dimensions.get("gate3_actual_text", 0) == 1:
+            validate_gate3_actual_text_pdf(result.stdout)
+            print(f"PASS {case.name}: exact visual reordering and logical ActualText facts", flush=True)
 
     if mismatch is None:
         return None
@@ -614,6 +621,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate2_renderers.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_caller_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_actual_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")

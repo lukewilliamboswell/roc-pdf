@@ -939,6 +939,23 @@ supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
 never a second run-local string.
 
+PDF text lowering requires `ActualText` for right-to-left runs, explicit
+source-to-presentation transformations, reordered or contextual clusters, and
+clusters that reference more than one painted glyph. Occurrence-derived text
+copies the run's exact scalar range from the bounded source cache. A semantic
+override is accepted only when its dense ID lies within that occurrence's
+owned text-property range and identifies an `ActualText` value. Both paths are
+bounded by a cumulative scalar limit before content emission. The value is
+serialized canonically as a BOM-prefixed UTF-16BE hex string around the run's
+marked-content sequence.
+
+Every painted CID retains a `ToUnicode` entry even when `ActualText` is
+authoritative. If one CID has different occurrence mappings, lowering rejects
+the ambiguity unless the affected run has explicit `ActualText`; in that case
+it retains the first mapping in deterministic traversal order and records the
+resolved conflict as work evidence. Exact logical extraction still comes from
+`ActualText`, not from that necessarily lossy per-CID fallback.
+
 Presentation evidence explicitly covers inserted discretionary hyphens,
 suppressed soft hyphens, generated labels and counters, ligature replacement
 boundaries, case transformations, bidirectional logical versus visual order,

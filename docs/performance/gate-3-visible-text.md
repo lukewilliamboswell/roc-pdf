@@ -15,13 +15,12 @@ Conflicting mappings, missing retained glyphs, absent occurrences, invalid
 ranges, and unplaced or duplicate runs are typed errors before a PDF structure
 is returned.
 
-The current accepted lowering boundary is deliberately narrower than the
-architecture's full advanced interchange: each cluster may cover one or more
-source scalars but must emit exactly one glyph, and the run must use
-occurrence-derived text. A multi-glyph cluster or semantic override receives
-`ActualTextRequired`; it is never approximated with a guessed `ToUnicode`
-mapping. Explicit `ActualText`, reordered clusters, text paint, tagged-text
-ownership, and public layout integration remain subsequent Gate 3 slices.
+This fixture exercises the simple no-`ActualText` path and remains byte-stable.
+The subsequent
+[reordered ActualText slice](gate-3-actual-text.md) expands the same lowering
+boundary to reordered, context-dependent, multi-glyph, right-to-left, and
+transformed runs, plus occurrence-owned semantic overrides. Unsupported or
+missing evidence remains an error rather than an inferred mapping.
 
 ## Independent output evidence
 
@@ -59,6 +58,6 @@ descriptor value; glyph data and rendered pixels are unchanged.
 
 This is pipeline evidence, not Gate 3 closure. The public caller-font/theme path
 is covered by the subsequent caller-font text slice. Paragraph layout and
-pagination, explicit text color, advanced multilingual `ActualText`,
+pagination, explicit text color, the rest of the multilingual script matrix,
 accessibility tagging, facade output, caller source-refcount evidence, and
 multi-placement parse reuse remain open.

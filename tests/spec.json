@@ -353,6 +353,21 @@
       "retention": null
     },
     {
+      "name": "Gate 3 reordered ActualText",
+      "scenario_revision": "gate3-reordered-actual-text-v1",
+      "source": "tests/gate3_actual_text/main.roc",
+      "snapshot": "tests/gate3_actual_text/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "font_bytes": 7816, "glyphs": 2, "unicode_mappings": 2, "objects": 14, "gate3_actual_text": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "runs", "clusters", "glyphs", "glyph_indices", "font_plan_entries", "subset_bytes", "source_scalars", "actual_text_runs", "actual_text_scalars", "mapping_conflicts_resolved", "unicode_mappings", "content_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 174, "work": [7816, 1, 2, 2, 2, 3, 5956, 2, 1, 2, 0, 2, 119, 14, 8137] },
+        "x64musl": { "allocations": 174, "work": [7816, 1, 2, 2, 2, 3, 5956, 2, 1, 2, 0, 2, 119, 14, 8137] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",

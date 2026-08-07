@@ -101,7 +101,7 @@ build_sample = |_| {
 		shape.store,
 		[font_plan],
 		[{ origin: { x: Layout.Unit.from_raw(72000), y: Layout.Unit.from_raw(700000) }, run: Text.RunId.from_index(0) }],
-		KernelPdfText.Limits.make({ max_content_bytes: 4096, max_mappings: 64, max_placements: 8, max_source_scalars: 64 }),
+		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 8, max_source_scalars: 64 }),
 	) ? |_| TextFailure
 	structure = KernelGate3TextStructure.Plan.build(
 		text,
