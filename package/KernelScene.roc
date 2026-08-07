@@ -4,10 +4,12 @@ import KernelGeometry
 import Layout
 import Scene
 import Semantics
+import Text
 
 KernelScene :: [].{
 	Dimension : [Commands, DashLengths, GraphicsDepth, Groups, Pages, PathSegments, Paths]
-	IndexKind : [ColorSpaceIndex, CommandIndex, DashIndex, GroupIndex, ImageIndex, PageGroupEdgeIndex, PageIndex, PathIndex, SegmentIndex]
+	IndexKind : [ColorSpaceIndex, CommandIndex, DashIndex, GroupIndex, ImageIndex, PageGroupEdgeIndex, PageIndex, PathIndex, SegmentIndex, TextRunIndex]
+	TextPaintReason : [FillAndStrokeMissingStroke, FillHasStroke, OpacityNotOpaque, StrokeWidthNonPositive]
 	Error : [
 		ArithmeticOverflow,
 		DashAllZero({ command : U64 }),
@@ -26,6 +28,7 @@ KernelScene :: [].{
 		NonPositiveRect({ index : U64, kind : IndexKind }),
 		Orphaned({ index : U64, kind : IndexKind }),
 		SpanOutOfRange({ available : U64, kind : IndexKind, length : U64, owner : U64, start : U64 }),
+		TextPaintInvalid({ command : U64, reason : TextPaintReason }),
 		UnsupportedCommand({ command : U64 }),
 		UnpaintedPath({ command : U64 }),
 	]
@@ -51,15 +54,21 @@ KernelScene :: [].{
 		make = |limits| Limits.(limits)
 	}
 
-	Resources :: { color_spaces : U64, images : U64 }.{
+	Resources :: { color_spaces : U64, images : U64, text_runs : U64 }.{
 		make : { color_spaces : U64, images : U64 } -> Resources
-		make = |resources| Resources.(resources)
+		make = |resources| Resources.({ color_spaces: resources.color_spaces, images: resources.images, text_runs: 0 })
+
+		with_text : { color_spaces : U64, images : U64, text_runs : U64 } -> Resources
+		with_text = |resources| Resources.(resources)
 
 		color_space_count : Resources -> U64
 		color_space_count = |resources| resources.color_spaces
 
 		image_count : Resources -> U64
 		image_count = |resources| resources.images
+
+		text_run_count : Resources -> U64
+		text_run_count = |resources| resources.text_runs
 	}
 
 	Work : {
@@ -75,6 +84,7 @@ KernelScene :: [].{
 		page_visits : U64,
 		path_segments : U64,
 		path_visits : U64,
+		text_placements : U64,
 	}
 
 	Plan :: { resources : Resources, scenes : Scene.Store, work : Work }.{
@@ -99,6 +109,7 @@ CommandWork := {
 	color_references : U64,
 	dash_values : U64,
 	image_placements : U64,
+	text_placements : U64,
 }
 
 scene_failure : KernelScene.Error -> Try(a, KernelScene.Error)
@@ -134,6 +145,7 @@ build_plan = |scenes, resources, limits| {
 				page_visits: scenes.pages.len(),
 				path_segments: path_work.path_segments,
 				path_visits: scenes.paths.len(),
+				text_placements: command_work.text_placements,
 			},
 		},
 	)
@@ -285,7 +297,7 @@ validate_pages = |scenes| {
 	}
 }
 
-validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, image_placements : U64, max_graphics_depth : U64 }, KernelScene.Error)
+validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, image_placements : U64, max_graphics_depth : U64, text_placements : U64 }, KernelScene.Error)
 validate_groups = |scenes, resources, max_depth| {
 	var $group_index = 0
 	var $expected_command = 0
@@ -294,6 +306,7 @@ validate_groups = |scenes, resources, max_depth| {
 	var $command_visits = 0
 	var $dash_values = 0
 	var $image_placements = 0
+	var $text_placements = 0
 	var $maximum_depth = 0
 	var $error = NoError
 	while $group_index < scenes.groups.len() and $error == NoError {
@@ -332,6 +345,7 @@ validate_groups = |scenes, resources, max_depth| {
 											$color_references = $color_references + work.color_references
 											$dash_values = $dash_values + work.dash_values
 											$image_placements = $image_placements + work.image_placements
+											$text_placements = $text_placements + work.text_placements
 											match work.children {
 												Leaf => {}
 												Nested(children) => if children.length() == 0 {
@@ -368,7 +382,7 @@ validate_groups = |scenes, resources, max_depth| {
 		NoError => if $expected_command < scenes.commands.len() {
 			Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
 		} else {
-			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, image_placements: $image_placements, max_graphics_depth: $maximum_depth })
+			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, image_placements: $image_placements, max_graphics_depth: $maximum_depth, text_placements: $text_placements })
 		}
 	}
 }
@@ -377,7 +391,7 @@ validate_command : Scene.Command, U64, Scene.Store, KernelScene.Resources -> Try
 validate_command = |command, index, scenes, resources| match command {
 	Clip({ children, path }) => {
 		validate_path_id(path, scenes.paths.len())?
-		Ok({ children: Nested(children), color_references: 0, dash_values: 0, image_placements: 0 })
+		Ok({ children: Nested(children), color_references: 0, dash_values: 0, image_placements: 0, text_placements: 0 })
 	}
 	DrawImage({ image, placement }) => {
 		if image.index() >= resources.images {
@@ -385,17 +399,48 @@ validate_command = |command, index, scenes, resources| match command {
 		} else if !positive_rect(placement) {
 			Err(NonPositiveRect({ index, kind: CommandIndex }))
 		} else {
-			Ok({ children: Leaf, color_references: 0, dash_values: 0, image_placements: 1 })
+			Ok({ children: Leaf, color_references: 0, dash_values: 0, image_placements: 1, text_placements: 0 })
 		}
 	}
 	DrawPath({ path, style }) => {
 		validate_path_id(path, scenes.paths.len())?
 		work = validate_style(style, index, scenes.dash_lengths, resources.color_spaces)?
-		Ok({ children: Leaf, color_references: work.color_references, dash_values: work.dash_values, image_placements: 0 })
+		Ok({ children: Leaf, color_references: work.color_references, dash_values: work.dash_values, image_placements: 0, text_placements: 0 })
 	}
-	DrawText(_) => Err(UnsupportedCommand({ command: index }))
+	DrawText({ paint, run }) => {
+		if run.index() >= resources.text_runs {
+			return Err(IndexOutOfRange({ available: resources.text_runs, index: run.index(), kind: TextRunIndex }))
+		}
+		colors = validate_text_paint(paint, index, resources.color_spaces)?
+		Ok({ children: Leaf, color_references: colors, dash_values: 0, image_placements: 0, text_placements: 1 })
+	}
 	Opacity(_) => Err(UnsupportedCommand({ command: index }))
-	Transform({ children, matrix: _ }) => Ok({ children: Nested(children), color_references: 0, dash_values: 0, image_placements: 0 })
+	Transform({ children, matrix: _ }) => Ok({ children: Nested(children), color_references: 0, dash_values: 0, image_placements: 0, text_placements: 0 })
+}
+
+validate_text_paint : Scene.TextPaint, U64, U64 -> Try(U64, KernelScene.Error)
+validate_text_paint = |paint, command, color_space_count| {
+	if paint.opacity != 65535 {
+		return Err(TextPaintInvalid({ command, reason: OpacityNotOpaque }))
+	}
+	validate_color(paint.fill, color_space_count)?
+	match paint.mode {
+		Fill => match paint.stroke {
+			NoStroke => Ok(1)
+			Stroke(_) => Err(TextPaintInvalid({ command, reason: FillHasStroke }))
+		}
+		FillAndStroke => match paint.stroke {
+			NoStroke => Err(TextPaintInvalid({ command, reason: FillAndStrokeMissingStroke }))
+			Stroke({ color, width }) => {
+				validate_color(color, color_space_count)?
+				if width.raw() <= 0 {
+					Err(TextPaintInvalid({ command, reason: StrokeWidthNonPositive }))
+				} else {
+					Ok(2)
+				}
+			}
+		}
+	}
 }
 
 validate_style : Scene.PathStyle, U64, List(Layout.Unit), U64 -> Try({ color_references : U64, dash_values : U64 }, KernelScene.Error)
@@ -640,6 +685,78 @@ test_limits = KernelScene.Limits.make({ max_commands: 4, max_dash_lengths: 2, ma
 
 test_resources : KernelScene.Resources
 test_resources = KernelScene.Resources.make({ color_spaces: 1, images: 1 })
+
+test_text_paint : Scene.TextPaint
+test_text_paint = {
+	fill: test_color,
+	mode: Fill,
+	opacity: 65535,
+	stroke: NoStroke,
+}
+
+text_store : Scene.Store
+text_store = {
+	..test_store,
+	commands: [DrawText({ paint: test_text_paint, run: Text.RunId.from_index(0) })],
+	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+}
+
+text_limits : KernelScene.Limits
+text_limits = KernelScene.Limits.make({ max_commands: 1, max_dash_lengths: 2, max_graphics_depth: 1, max_groups: 1, max_pages: 1, max_path_segments: 5, max_paths: 1 })
+
+text_resources : KernelScene.Resources
+text_resources = KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 1 })
+
+## Visible text paint is a validated scene fact with an exact run reference.
+expect {
+	plan = KernelScene.Plan.build(text_store, text_resources, text_limits)?
+	work = KernelScene.Plan.work(plan)
+	work.text_placements == 1 and work.color_references == 1 and KernelScene.Resources.text_run_count(KernelScene.Plan.resources(plan)) == 1
+}
+
+## A text command cannot refer to a run absent from the prepared text store.
+expect {
+	command = list_at(text_store.commands, 0)
+	bad_command = match command {
+		DrawText({ paint, run: _ }) => DrawText({ paint, run: Text.RunId.from_index(1) })
+		_ => command
+	}
+	bad = { ..text_store, commands: [bad_command] }
+	match KernelScene.Plan.build(bad, text_resources, text_limits) {
+		Err(IndexOutOfRange({ available: 1, index: 1, kind: TextRunIndex })) => True
+		_ => False
+	}
+}
+
+## Gate 3 text paint is opaque until an ExtGState capability is implemented.
+expect {
+	bad = { ..text_store, commands: [DrawText({ paint: { ..test_text_paint, opacity: 65534 }, run: Text.RunId.from_index(0) })] }
+	match KernelScene.Plan.build(bad, text_resources, text_limits) {
+		Err(TextPaintInvalid({ command: 0, reason: OpacityNotOpaque })) => True
+		_ => False
+	}
+}
+
+## Fill-only and fill-and-stroke modes require matching typed stroke policy.
+expect {
+	stroke = Stroke({ color: test_color, width: unit(500) })
+	fill_with_stroke = { ..text_store, commands: [DrawText({ paint: { ..test_text_paint, stroke }, run: Text.RunId.from_index(0) })] }
+	fill_and_stroke_without = { ..text_store, commands: [DrawText({ paint: { ..test_text_paint, mode: FillAndStroke }, run: Text.RunId.from_index(0) })] }
+	bad_width = { ..text_store, commands: [DrawText({ paint: { ..test_text_paint, mode: FillAndStroke, stroke: Stroke({ color: test_color, width: unit(0) }) }, run: Text.RunId.from_index(0) })] }
+	fill_rejected = match KernelScene.Plan.build(fill_with_stroke, text_resources, text_limits) {
+		Err(TextPaintInvalid({ command: 0, reason: FillHasStroke })) => True
+		_ => False
+	}
+	missing_rejected = match KernelScene.Plan.build(fill_and_stroke_without, text_resources, text_limits) {
+		Err(TextPaintInvalid({ command: 0, reason: FillAndStrokeMissingStroke })) => True
+		_ => False
+	}
+	width_rejected = match KernelScene.Plan.build(bad_width, text_resources, text_limits) {
+		Err(TextPaintInvalid({ command: 0, reason: StrokeWidthNonPositive })) => True
+		_ => False
+	}
+	fill_rejected and missing_rejected and width_rejected
+}
 
 ## Flat scene validation visits every stored relationship exactly once.
 expect {

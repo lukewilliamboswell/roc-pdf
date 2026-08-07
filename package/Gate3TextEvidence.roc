@@ -1,3 +1,4 @@
+import Color
 import Font
 import KernelEmit
 import KernelFont
@@ -7,11 +8,13 @@ import KernelGate3TextStructure
 import KernelObject
 import KernelPdfFont
 import KernelPdfText
+import KernelScene
 import KernelShape
 import KernelStructure
 import KernelUnicode
 import Layout
 import Semantics
+import Scene
 import Text
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
@@ -24,6 +27,7 @@ Gate3TextEvidence :: [].{
 		sample = build_sample({}) ? |_| EvidenceFailure
 		bytes = KernelEmit.to_bytes(KernelGate3TextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
 		text_work = KernelPdfText.Plan.work(sample.text)
+		scene_work = KernelScene.Plan.work(sample.scene)
 		structure_work = KernelGate3TextStructure.Plan.work(sample.structure)
 		Ok({
 			bytes,
@@ -31,6 +35,10 @@ Gate3TextEvidence :: [].{
 				sample.font.bytes.len(),
 				sample.shape.store.runs.len(),
 				sample.shape.store.glyphs.len(),
+				scene_work.command_visits,
+				scene_work.color_references,
+				scene_work.text_placements,
+				scene_work.max_graphics_depth,
 				sample.font_plan.entries.len(),
 				sample.subset.work.output_bytes,
 				text_work.source_scalar_visits,
@@ -53,12 +61,13 @@ Sample := {
 	font : KernelFont.Inspection,
 	font_plan : KernelFontPlan.Plan,
 	shape : KernelShape.Shape,
+	scene : KernelScene.Plan,
 	structure : KernelGate3TextStructure.Plan,
 	subset : KernelFontSubset.Subset,
 	text : KernelPdfText.Plan,
 }
 
-build_sample : {} -> Try(Sample, [AnalysisFailure, FontFailure, FontPlanFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_sample : {} -> Try(Sample, [AnalysisFailure, FontFailure, FontPlanFailure, SceneFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample = |_| {
 	analysis = KernelUnicode.analyze(
 		source,
@@ -83,6 +92,11 @@ build_sample = |_| {
 		},
 		KernelShape.Limits.make({ max_clusters: 32, max_glyphs: 32, max_scalars: 32, max_source_bytes: 128 }),
 	) ? |_| ShapeFailure
+	scene = KernelScene.Plan.build(
+		text_scene,
+		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
+		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
+	) ? |_| SceneFailure
 	usages = glyph_usages(shape.store.glyphs)
 	font_plan = KernelFontPlan.plan(font, usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
@@ -102,8 +116,43 @@ build_sample = |_| {
 			object_limits,
 		}),
 	) ? |_| StructureFailure
-	Ok({ font, font_plan, shape, structure, subset, text })
+	Ok({ font, font_plan, scene, shape, structure, subset, text })
 }
+
+text_scene : Scene.Store
+text_scene = {
+	commands: [
+		Transform({
+			children: Semantics.Range.from_start_and_length(1, 1),
+			matrix: { a: Layout.Unit.from_raw(1000), b: Layout.Unit.from_raw(0), c: Layout.Unit.from_raw(0), d: Layout.Unit.from_raw(1000), e: Layout.Unit.from_raw(72000), f: Layout.Unit.from_raw(700000) },
+		}),
+		DrawText({
+			paint: {
+				fill: { channels: Rgb({ blue: 0, green: 0, red: 0 }), space: Color.SpaceId.from_index(0) },
+				mode: Fill,
+				opacity: 65535,
+				stroke: NoStroke,
+			},
+			run: Text.RunId.from_index(0),
+		}),
+	],
+	dash_lengths: [],
+	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
+	page_groups: [Scene.GroupId.from_index(0)],
+	pages: [
+		{
+			boxes: { art: a4_box, bleed: a4_box, crop: a4_box, media: a4_box, trim: a4_box },
+			id: Semantics.PageId.from_index(0),
+			paint_order: Semantics.Range.from_start_and_length(0, 1),
+			rotation: Rotate0,
+		},
+	],
+	path_segments: [],
+	paths: [],
+}
+
+a4_box : Layout.Rect
+a4_box = { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) } }
 
 glyph_usages : List(Text.Glyph) -> List(KernelFontPlan.Usage)
 glyph_usages = |glyphs| {

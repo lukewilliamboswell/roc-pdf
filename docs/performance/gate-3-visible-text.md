@@ -7,6 +7,14 @@ positions each glyph with checked layout arithmetic, and emits 16-bit CIDs. The
 page resource dictionary references the Type 0 font produced from the same font
 plan; later stages do not rediscover font identity from serialized operators.
 
+The fixture now also enters text through the typed scene boundary. A fragment-
+owned group contains one translation transform and one `DrawText` command. Scene
+validation checks the dense run identity, calibrated fill-color identity,
+opaque paint policy, page ownership, command ownership, and graphics depth
+before text lowering starts. Fill-only paint cannot carry a stroke;
+fill-and-stroke paint must carry a positive-width calibrated stroke. Non-opaque
+text remains a typed error until the later ExtGState capability exists.
+
 Logical Unicode remains owned by the semantic occurrence. Text lowering builds
 one bounded scalar cache for the semantic sources, walks each placed run once,
 and derives each CID mapping from the run's explicit cluster range. Every run
@@ -45,19 +53,23 @@ engines.
 
 | Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,094 | 187 |
-| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,094 | 187 |
+| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,094 | 191 |
+| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,094 | 191 |
 
 The exact work vector records, in order: 166,300 source-font bytes, one run,
-eight shaped glyphs, eleven font-plan entries, 6,776 subset bytes, eight source
-scalars, one text run, one placement, eight emitted glyphs, eight mappings, 271
-content bytes, one font, nine font objects, fourteen total objects, 7,047
-uncompressed payload bytes, and 9,094 emitted bytes. The one-byte snapshot
+eight shaped glyphs; two scene-command visits, one scene color reference, one
+scene text placement, and graphics depth two; eleven font-plan entries, 6,776
+subset bytes, eight source scalars, one text run, one placement, eight emitted
+glyphs, eight mappings, 271 content bytes, one font, nine font objects, fourteen
+total objects, 7,047 uncompressed payload bytes, and 9,094 emitted bytes. The
+four-allocation increase is the reviewed cost of the dense command, group,
+page-group-edge, and page arenas; no font, text-content, or output bytes change.
+The one-byte snapshot
 reduction records the exact OS/2 CapHeight instead of the former hardcoded
 descriptor value; glyph data and rendered pixels are unchanged.
 
 This is pipeline evidence, not Gate 3 closure. The public caller-font/theme path
 is covered by the subsequent caller-font text slice. Paragraph layout and
-pagination, explicit text color, the rest of the multilingual script matrix,
-accessibility tagging, facade output, caller source-refcount evidence, and
-multi-placement parse reuse remain open.
+pagination, theme-driven text color, the rest of the multilingual script matrix,
+scene-driven paint emission, accessibility tagging, facade output, caller
+source-refcount evidence, and multi-placement parse reuse remain open.
