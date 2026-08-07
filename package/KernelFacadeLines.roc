@@ -20,7 +20,7 @@ KernelFacadeLines :: [].{
 		make : { line : KernelLineLayout.BatchLimits, max_blocks : U64, max_runs : U64 } -> Limits
 		make = |limits| Limits.(limits)
 	}
-	BlockLines : [TextBlock({ body : Semantics.Range, label : [Label(Semantics.Range), NoLabel] })]
+	BlockLines : [TextBlock({ body : Semantics.Range, body_offset : Layout.Unit, label : [Label(Semantics.Range), NoLabel] })]
 	Work : {
 		block_mapping_visits : U64,
 		blocks : U64,
@@ -105,11 +105,15 @@ build_plan = |shape, sources, page, theme, limits| {
 			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
 			TextBlock({ body, label }) => {
 				body_lines = list_at(run_lines, body.index())
+				body_offset = match label {
+					NoLabel => Layout.Unit.from_raw(0)
+					Label(_) => Layout.Unit.from_raw(indent.to_i64_wrap())
+				}
 				label_lines = match label {
 					NoLabel => NoLabel
 					Label(label_run) => Label(list_at(run_lines, label_run.index()))
 				}
-				$blocks = $blocks.append(TextBlock({ body: body_lines, label: label_lines }))
+				$blocks = $blocks.append(TextBlock({ body: body_lines, body_offset, label: label_lines }))
 			}
 		}
 		$block_index = $block_index + 1

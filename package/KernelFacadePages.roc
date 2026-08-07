@@ -24,6 +24,7 @@ KernelFacadePages :: [].{
 	}
 	Row : {
 		body_line : U64,
+		body_offset : Layout.Unit,
 		body_run : Text.RunId,
 		label : [Label({ line : U64, run : Text.RunId }), NoLabel],
 	}
@@ -65,7 +66,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 	var $block_index = 0
 	while $block_index < block_lines.len() {
 		match list_at(block_lines, $block_index) {
-			TextBlock({ body, label }) => {
+			TextBlock({ body, body_offset: _, label }) => {
 				body_end = range_end(body)?
 				if body.length() == 0 or body_end > lines.len() {
 					return Err(InvalidBlock({ block: $block_index }))
@@ -92,7 +93,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 		line_block = list_at(block_lines, $block_index)
 		run_block = list_at(block_runs, $block_index)
 		match (line_block, run_block) {
-			(TextBlock({ body: body_lines, label: label_lines }), TextBlock({ body: body_run, label: label_run })) => {
+			(TextBlock({ body: body_lines, body_offset, label: label_lines }), TextBlock({ body: body_run, label: label_run })) => {
 				body_index = body_run.index()
 				if body_index >= shape_batch.store.runs.len() {
 					return Err(InvalidRun({ block: $block_index, run: body_index }))
@@ -121,7 +122,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 						return Err(InvalidLine({ block: $block_index, line: body_line_index }))
 					}
 					$visual_lines = $visual_lines.append(list_at(lines, body_line_index))
-					$rows = $rows.append({ body_line: body_line_index, body_run, label })
+					$rows = $rows.append({ body_line: body_line_index, body_offset, body_run, label })
 					$local = $local + 1
 				}
 				minimum = U64.min(2, body_lines.length())

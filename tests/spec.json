@@ -668,6 +668,66 @@
       "retention": null
     },
     {
+      "name": "Gate 3 facade text prepared-input control x1000",
+      "scenario_revision": "gate3-facade-text-materialization-v1",
+      "source": "tests/gate3_facade_text/main.roc",
+      "snapshot": "tests/gate3_facade_text/snapshot.pdf",
+      "args": ["prepare", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 32, "source_runs": 1000, "planned_lines": 2000, "matched_materialization_control": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["repetitions", "source_runs", "planned_lines", "visual_rows", "planned_pages", "page_placements", "shaped_runs", "clusters", "glyph_indices", "glyphs", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 72, "work": [1000, 1000, 2000, 2000, 32, 2000, 1000, 6000, 6000, 6000, 667] },
+        "x64musl": { "allocations": 72, "work": [1000, 1000, 2000, 2000, 32, 2000, 1000, 6000, 6000, 6000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade text materialization x1000",
+      "scenario_revision": "gate3-facade-text-materialization-v1",
+      "source": "tests/gate3_facade_text/main.roc",
+      "snapshot": "tests/gate3_facade_text/snapshot.pdf",
+      "args": ["materialize", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 32, "source_runs": 1000, "final_runs": 2000, "allocation_delta_from_control": 8, "normalized_plan_identity": 1 },
+      "work_counters": ["repetitions", "source_runs", "planned_lines", "visual_rows", "planned_pages", "visual_placements", "final_run_writes", "cluster_visits", "glyph_index_visits", "glyph_writes", "final_runs", "final_clusters", "final_glyph_indices", "final_glyphs", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 80, "work": [1000, 1000, 2000, 2000, 32, 2000, 2000, 6000, 6000, 6000, 2000, 6000, 6000, 6000, 667] },
+        "x64musl": { "allocations": 80, "work": [1000, 1000, 2000, 2000, 32, 2000, 2000, 6000, 6000, 6000, 2000, 6000, 6000, 6000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade text prepared-input control x10000",
+      "scenario_revision": "gate3-facade-text-materialization-v1",
+      "source": "tests/gate3_facade_text/main.roc",
+      "snapshot": "tests/gate3_facade_text/snapshot.pdf",
+      "args": ["prepare", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 313, "source_runs": 10000, "planned_lines": 20000, "matched_materialization_control": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["repetitions", "source_runs", "planned_lines", "visual_rows", "planned_pages", "page_placements", "shaped_runs", "clusters", "glyph_indices", "glyphs", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 77, "work": [10000, 10000, 20000, 20000, 313, 20000, 10000, 60000, 60000, 60000, 667] },
+        "x64musl": { "allocations": 77, "work": [10000, 10000, 20000, 20000, 313, 20000, 10000, 60000, 60000, 60000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade text materialization x10000",
+      "scenario_revision": "gate3-facade-text-materialization-v1",
+      "source": "tests/gate3_facade_text/main.roc",
+      "snapshot": "tests/gate3_facade_text/snapshot.pdf",
+      "args": ["materialize", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 313, "source_runs": 10000, "final_runs": 20000, "allocation_delta_from_control": 8, "normalized_plan_identity": 1 },
+      "work_counters": ["repetitions", "source_runs", "planned_lines", "visual_rows", "planned_pages", "visual_placements", "final_run_writes", "cluster_visits", "glyph_index_visits", "glyph_writes", "final_runs", "final_clusters", "final_glyph_indices", "final_glyphs", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 85, "work": [10000, 10000, 20000, 20000, 313, 20000, 20000, 60000, 60000, 60000, 20000, 60000, 60000, 60000, 667] },
+        "x64musl": { "allocations": 85, "work": [10000, 10000, 20000, 20000, 313, 20000, 20000, 60000, 60000, 60000, 20000, 60000, 60000, 60000, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",
