@@ -25,7 +25,7 @@ and continues to reject text stores rather than silently widening its claim.
 
 `KernelTagged` consumes the validated semantic plan and typed scene plan. The
 fixture therefore proves its fragment group, paint edge, MCID, ParentTree row,
-and structure `/K` items before the legacy text-content object graph is built.
+and structure `/K` items before either text-content path is built.
 
 `KernelTextOwnership` now builds that tagged plan and joins every scene
 `DrawText` to the text store. Each dense run must be painted exactly once by a
@@ -35,8 +35,16 @@ that every text fragment's scalar and UTF-8 ranges are covered exactly without
 gaps or overlap. Artifact-owned text is explicitly unsupported until its
 generated-text and extraction policy exists. Orphan, duplicate, artifact,
 occurrence-mismatched, and incomplete-range twins all fail before lowering.
-The next slice makes content emission consume this join and replaces the legacy
-untagged object graph.
+
+Scene text lowering now consumes this join and prepares exactly one bounded,
+local-coordinate glyph body per run. `KernelContent` combines that body with
+the validated scene transform, calibrated fill or stroke colors, text rendering
+mode, and fragment MCID. Its evidence fixes the operator order as marked
+content, transform, color, `BT`, `Tr`, font selection, glyph operators, `ET`,
+and balanced closure. The dependency-free prepared-run carrier lives at the
+content boundary, so standalone Gate 2 packages do not acquire the Gate 3
+Unicode dependency. The next slice replaces the legacy untagged object graph
+with this tagged scene-content plan and its font resources.
 
 Logical Unicode remains owned by the semantic occurrence. Text lowering builds
 one bounded scalar cache for the semantic sources, walks each placed run once,

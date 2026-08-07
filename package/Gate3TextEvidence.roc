@@ -1,6 +1,7 @@
 import Color
 import Font
 import KernelEmit
+import KernelContent
 import KernelFont
 import KernelFontPlan
 import KernelFontSubset
@@ -343,6 +344,68 @@ expect {
 	missing_rejected and duplicate_rejected and override_rejected
 }
 
+## Scene text lowering prepares every owned run once in local coordinates.
+expect {
+	sample = build_sample({})?
+	plan = KernelPdfText.ScenePlan.build(
+		sample.ownership,
+		[sample.font_plan],
+		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
+	)?
+	work = KernelPdfText.ScenePlan.work(plan)
+	run = KernelPdfText.ScenePlan.run(plan, Text.RunId.from_index(0))
+	KernelPdfText.ScenePlan.run_count(plan) == 1 and
+		run.body.len() > 0 and
+			run.actual_text_begin.len() == 0 and
+				!run.close_actual_text and
+					KernelPdfText.ScenePlan.mappings(plan) == KernelPdfText.Plan.mappings(sample.text) and
+						work.run_visits == 1 and
+							work.placement_visits == 0 and
+								work.glyph_visits == 8
+}
+
+## The scene plan applies its content-byte bound cumulatively across runs.
+expect {
+	sample = build_sample({})?
+	accepted = KernelPdfText.ScenePlan.build(
+		sample.ownership,
+		[sample.font_plan],
+		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
+	)?
+	required = KernelPdfText.ScenePlan.work(accepted).content_bytes
+	match KernelPdfText.ScenePlan.build(
+		sample.ownership,
+		[sample.font_plan],
+		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: required - 1, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
+	) {
+		Err(LimitExceeded({ attempted: _, dimension: ContentBytes, limit: _ })) => True
+		_ => False
+	}
+}
+
+## Tagged content lowering consumes scene placement, typed paint, and prepared glyph operators.
+expect {
+	sample = build_sample({})?
+	text = KernelPdfText.ScenePlan.build(
+		sample.ownership,
+		[sample.font_plan],
+		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
+	)?
+	content = KernelContent.Plan.build_with_text(
+		KernelTextOwnership.Plan.tagged(sample.ownership),
+		KernelPdfText.ScenePlan.content(text),
+		KernelContent.Limits.make({ max_content_bytes: 4096, max_content_streams: 1 }),
+	)?
+	stream = KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index(0))
+	work = KernelContent.Plan.work(content)
+	prefix = Str.to_utf8("/P <</MCID 0>> BDC\nq\n1 0 0 1 72 700 cm\n/CS1_0 cs\n0 0 0 scn\nBT\n0 Tr\n/F1_0 11 Tf\n")
+	starts_with(stream.bytes, prefix) and
+		work.command_visits == 2 and
+			work.graphics_state_pairs == 1 and
+				work.marked_fragment_groups == 1 and
+					work.text_placements == 1
+}
+
 ## Every shaped run must have exactly one fragment-owned scene placement.
 expect {
 	sample = build_sample({})?
@@ -422,4 +485,19 @@ list_at = |items, index| match items.get(index) {
 		crash "Gate 3 text evidence index escaped"
 	}
 	Ok(value) => value
+}
+
+starts_with : List(U8), List(U8) -> Bool
+starts_with = |bytes, prefix| {
+	if prefix.len() > bytes.len() {
+		False
+	} else {
+		var $index = 0
+		var $same = True
+		while $index < prefix.len() and $same {
+			$same = list_at(bytes, $index) == list_at(prefix, $index)
+			$index = $index + 1
+		}
+		$same
+	}
 }

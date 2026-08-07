@@ -1,8 +1,11 @@
 import Font
+import KernelContent
 import KernelFontPlan
 import KernelGate2ResourceName
 import KernelLex
 import KernelPdfFont
+import KernelTagged
+import KernelTextOwnership
 import Layout
 import Semantics
 import Text
@@ -54,6 +57,28 @@ KernelPdfText :: [].{
 		mappings = |plan| plan.mappings
 
 		work : Plan -> Work
+		work = |plan| plan.work
+	}
+
+	## Scene lowering prepares one local-coordinate text object per validated run.
+	## Placement and marked-content ownership remain facts of the scene/tagged plans.
+	ScenePlan :: { content : KernelContent.TextPlan, mappings : List(List(KernelPdfFont.UnicodeMapping)), work : Work }.{
+		build : KernelTextOwnership.Plan, List(KernelFontPlan.Plan), Limits -> Try(ScenePlan, Error)
+		build = |ownership, fonts, limits| build_scene_plan(ownership, fonts, limits)
+
+		content : ScenePlan -> KernelContent.TextPlan
+		content = |plan| plan.content
+
+		mappings : ScenePlan -> List(List(KernelPdfFont.UnicodeMapping))
+		mappings = |plan| plan.mappings
+
+		run : ScenePlan, Text.RunId -> KernelContent.TextRun
+		run = |plan, run| KernelContent.TextPlan.run(plan.content, run.index())
+
+		run_count : ScenePlan -> U64
+		run_count = |plan| KernelContent.TextPlan.run_count(plan.content)
+
+		work : ScenePlan -> Work
 		work = |plan| plan.work
 	}
 }
@@ -134,6 +159,76 @@ build_plan = |semantics, text, fonts, placements, limits| {
 				mapping_conflicts_resolved: $mapping_conflicts,
 				mappings: finished.count,
 				placement_visits: placements.len(),
+				run_visits: text.runs.len(),
+				source_scalar_visits: scalars.values.len(),
+			},
+		},
+	)
+}
+
+build_scene_plan : KernelTextOwnership.Plan, List(KernelFontPlan.Plan), KernelPdfText.Limits -> Try(KernelPdfText.ScenePlan, KernelPdfText.Error)
+build_scene_plan = |ownership, fonts, limits| {
+	text = KernelTextOwnership.Plan.text(ownership)
+	semantics = KernelTagged.Plan.semantics(KernelTextOwnership.Plan.tagged(ownership))
+	states = initialize_fonts(fonts)?
+	scalars = build_scalar_cache(semantics.text_sources, limits.max_source_scalars)?
+	var $states = states
+	var $runs = List.with_capacity(text.runs.len())
+	var $actual_text_runs = 0
+	var $actual_text_scalars = 0
+	var $content_bytes = 0
+	var $glyph_visits = 0
+	var $mapping_conflicts = 0
+	var $run_index = 0
+	while $run_index < text.runs.len() {
+		run = list_at(text.runs, $run_index)
+		if run.id.index() != $run_index or run.size.raw() <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
+			return Err(RunInvalid({ run: $run_index }))
+		}
+		font_index = run.instance.index()
+		if font_index >= $states.len() {
+			return Err(FontPlanInvalid({ font: font_index }))
+		}
+		actual_text = actual_text_for_run(semantics, scalars, text, run, $run_index, $actual_text_scalars, limits.max_actual_text_scalars)?
+		actual_length = match actual_text {
+			NoActualText => 0
+			UseActualText(values) => values.len()
+		}
+		if actual_length > 0 {
+			$actual_text_runs = checked_add($actual_text_runs, 1)?
+			$actual_text_scalars = checked_add($actual_text_scalars, actual_length)?
+			check_limit($actual_text_scalars, limits.max_actual_text_scalars, ActualTextScalars)?
+		}
+		collected = collect_run_mappings($states, font_index, semantics, scalars, text, run, $run_index, actual_length > 0)?
+		$states = collected.states
+		$mapping_conflicts = checked_add($mapping_conflicts, collected.conflicts)?
+		remaining = if $content_bytes > limits.max_content_bytes 0 else limits.max_content_bytes - $content_bytes
+		actual_text_begin = match actual_text {
+			NoActualText => []
+			UseActualText(values) => append_actual_text_begin([], values, run.id.index(), remaining)?
+		}
+		remaining_body = remaining - actual_text_begin.len()
+		emitted = emit_run_body([], text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, remaining_body)?
+		run_bytes = checked_add(actual_text_begin.len(), emitted.bytes.len())?
+		$content_bytes = checked_add($content_bytes, run_bytes)?
+		check_limit($content_bytes, limits.max_content_bytes, ContentBytes)?
+		$runs = $runs.append({ actual_text_begin, body: emitted.bytes, close_actual_text: actual_length > 0 })
+		$glyph_visits = checked_add($glyph_visits, emitted.glyphs)?
+		$run_index = $run_index + 1
+	}
+	finished = finish_mappings($states, limits.max_mappings)?
+	Ok(
+		KernelPdfText.ScenePlan.{
+			content: KernelContent.TextPlan.make($runs),
+			mappings: finished.mappings,
+			work: {
+				actual_text_runs: $actual_text_runs,
+				actual_text_scalars: $actual_text_scalars,
+				content_bytes: $content_bytes,
+				glyph_visits: $glyph_visits,
+				mapping_conflicts_resolved: $mapping_conflicts,
+				mappings: finished.count,
+				placement_visits: 0,
 				run_visits: text.runs.len(),
 				source_scalar_visits: scalars.values.len(),
 			},
@@ -388,12 +483,24 @@ finish_mappings = |states, limit| {
 
 emit_run : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, ActualText, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
 emit_run = |bytes, text, run, origin, font, actual_text, limit| {
-	font_index = run.instance.index()
 	var $out = match actual_text {
 		NoActualText => bytes
 		UseActualText(values) => append_actual_text_begin(bytes, values, run.id.index(), limit)?
 	}
-	$out = append_literal($out, "BT\n/", limit)?
+	$out = append_literal($out, "BT\n", limit)?
+	emitted = emit_run_body($out, text, run, origin, font, limit)?
+	$out = append_literal(emitted.bytes, "ET\n", limit)?
+	$out = match actual_text {
+		NoActualText => $out
+		UseActualText(_) => append_literal($out, "EMC\n", limit)?
+	}
+	Ok({ bytes: $out, glyphs: emitted.glyphs })
+}
+
+emit_run_body : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
+emit_run_body = |bytes, text, run, origin, font, limit| {
+	font_index = run.instance.index()
+	var $out = append_literal(bytes, "/", limit)?
 	$out = append_bytes($out, KernelGate2ResourceName.bytes("F", font_index), limit)?
 	$out = append_literal($out, " ", limit)?
 	$out = append_layout($out, run.size, limit)?
@@ -420,11 +527,6 @@ emit_run = |bytes, text, run, origin, font, actual_text, limit| {
 		$cursor_x = checked_i64_add($cursor_x, glyph.advance_x.raw())?
 		$cursor_y = checked_i64_add($cursor_y, glyph.advance_y.raw())?
 		$glyph_index = $glyph_index + 1
-	}
-	$out = append_literal($out, "ET\n", limit)?
-	$out = match actual_text {
-		NoActualText => $out
-		UseActualText(_) => append_literal($out, "EMC\n", limit)?
 	}
 	Ok({ bytes: $out, glyphs: run.glyphs.length() })
 }
@@ -536,3 +638,6 @@ list_set = |items, index, value| match items.set(index, value) {
 
 initial_capacity : U64
 initial_capacity = 1024
+
+content : ScenePlan -> KernelContent.TextPlan
+content = |plan| plan.content
