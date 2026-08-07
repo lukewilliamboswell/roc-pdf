@@ -263,6 +263,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 shaped-cluster line selection x1000",
+      "scenario_revision": "gate3-line-layout-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["layout", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "paragraph_units": 1000, "scalars": 6000, "clusters": 6000, "glyphs": 6000, "lines": 3000, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraph_units", "scalars", "line_boundaries", "clusters", "glyph_index_visits", "glyphs", "candidate_visits", "lines", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 97, "work": [1000, 6000, 6001, 6000, 6000, 6000, 11998, 3000, 667] },
+        "x64musl": { "allocations": 97, "work": [1000, 6000, 6001, 6000, 6000, 6000, 11998, 3000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 shaped-cluster line selection x10000",
+      "scenario_revision": "gate3-line-layout-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["layout", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "paragraph_units": 10000, "scalars": 60000, "clusters": 60000, "glyphs": 60000, "lines": 30000, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraph_units", "scalars", "line_boundaries", "clusters", "glyph_index_visits", "glyphs", "candidate_visits", "lines", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 105, "work": [10000, 60000, 60001, 60000, 60000, 60000, 119998, 30000, 667] },
+        "x64musl": { "allocations": 105, "work": [10000, 60000, 60001, 60000, 60000, 60000, 119998, 30000, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 built-in TrueType inspection",
       "scenario_revision": "gate3-font-inspection-v2",
       "source": "tests/gate3_font/main.roc",
