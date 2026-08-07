@@ -203,6 +203,66 @@
       "retention": null
     },
     {
+      "name": "Gate 3 simple-list authoring normalization x1000",
+      "scenario_revision": "gate3-authoring-normalization-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["simple", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authoring_blocks": 1003, "normalized_blocks": 1004, "normalized_plan_identity": 1 },
+      "work_counters": ["authoring_blocks", "normalized_blocks", "text_bytes", "titles", "headings", "paragraphs", "bullet_items", "lists", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 85, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] },
+        "x64musl": { "allocations": 85, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 compact-builder authoring normalization x1000",
+      "scenario_revision": "gate3-authoring-normalization-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["builder", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authoring_blocks": 1003, "normalized_blocks": 1004, "normalized_plan_identity": 1 },
+      "work_counters": ["authoring_blocks", "normalized_blocks", "text_bytes", "titles", "headings", "paragraphs", "bullet_items", "lists", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 120, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] },
+        "x64musl": { "allocations": 120, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 simple-list authoring normalization x10000",
+      "scenario_revision": "gate3-authoring-normalization-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["simple", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authoring_blocks": 10003, "normalized_blocks": 10004, "normalized_plan_identity": 1 },
+      "work_counters": ["authoring_blocks", "normalized_blocks", "text_bytes", "titles", "headings", "paragraphs", "bullet_items", "lists", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 93, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] },
+        "x64musl": { "allocations": 93, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 compact-builder authoring normalization x10000",
+      "scenario_revision": "gate3-authoring-normalization-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["builder", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authoring_blocks": 10003, "normalized_blocks": 10004, "normalized_plan_identity": 1 },
+      "work_counters": ["authoring_blocks", "normalized_blocks", "text_bytes", "titles", "headings", "paragraphs", "bullet_items", "lists", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 145, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] },
+        "x64musl": { "allocations": 145, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 built-in TrueType inspection",
       "scenario_revision": "gate3-font-inspection-v2",
       "source": "tests/gate3_font/main.roc",
