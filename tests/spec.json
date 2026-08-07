@@ -473,6 +473,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 facade row pagination x1000",
+      "scenario_revision": "gate3-facade-row-pagination-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["paginate", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 32, "normalized_blocks": 1004, "visual_rows": 1004, "label_rows": 2, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraphs", "block_planning_visits", "block_writes", "row_writes", "label_rows", "page_block_visits", "page_line_visits", "keep_policy_visits", "fragment_writes", "page_writes", "placement_writes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 357, "work": [1000, 1004, 1004, 1004, 2, 1004, 1004, 1004, 1004, 32, 1004, 667] },
+        "x64musl": { "allocations": 357, "work": [1000, 1004, 1004, 1004, 2, 1004, 1004, 1004, 1004, 32, 1004, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade row pagination x10000",
+      "scenario_revision": "gate3-facade-row-pagination-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["paginate", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 313, "normalized_blocks": 10004, "visual_rows": 10004, "label_rows": 2, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraphs", "block_planning_visits", "block_writes", "row_writes", "label_rows", "page_block_visits", "page_line_visits", "keep_policy_visits", "fragment_writes", "page_writes", "placement_writes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 408, "work": [10000, 10004, 10004, 10004, 2, 10004, 10004, 10004, 10004, 313, 10004, 667] },
+        "x64musl": { "allocations": 408, "work": [10000, 10004, 10004, 10004, 2, 10004, 10004, 10004, 10004, 313, 10004, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 built-in TrueType inspection",
       "scenario_revision": "gate3-font-inspection-v2",
       "source": "tests/gate3_font/main.roc",

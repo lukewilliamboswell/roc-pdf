@@ -19,6 +19,7 @@ main! = |args| {
 		"layout" => Gate3FacadeEvidence.line_layout(repetitions)
 		"lines" => Gate3FacadeEvidence.line_facade(repetitions)
 		"pages" => Gate3FacadeEvidence.page_layout(repetitions)
+		"paginate" => Gate3FacadeEvidence.page_facade(repetitions)
 		"semantics" => Gate3FacadeEvidence.semantic_facade(repetitions)
 		"shape" => Gate3FacadeEvidence.shape_facade(repetitions)
 		"simple" => Gate3FacadeEvidence.normalize_simple(repetitions)
