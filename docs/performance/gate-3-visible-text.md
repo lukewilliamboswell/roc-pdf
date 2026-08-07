@@ -46,9 +46,11 @@ content boundary, so standalone Gate 2 packages do not acquire the Gate 3
 Unicode dependency. A separate Gate 3 object wrapper appends nine stable object
 identities per font and moves only xref; the enduring Gate 2 object plan is not
 widened. The additive tagged-page path installs each planned Type 0 reference
-under its deterministic `F` resource name. The next slice replaces the legacy
-untagged object graph by orchestrating these plans and emitting the reserved
-font objects.
+under its deterministic `F` resource name. `KernelGate3TaggedTextStructure`
+now composes tagged objects, scene content, ordinary resources, and the reserved
+font families into one sealed structure and verifies their planned identities
+before xref. The next slice switches the visible fixture from the legacy graph
+to this path and reviews the resulting snapshot and allocation changes.
 
 Logical Unicode remains owned by the semantic occurrence. Text lowering builds
 one bounded scalar cache for the semantic sources, walks each placed run once,

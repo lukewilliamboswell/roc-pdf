@@ -2,13 +2,19 @@ import Color
 import Font
 import KernelEmit
 import KernelContent
+import KernelColor
 import KernelFont
 import KernelFontPlan
 import KernelFontSubset
 import KernelGate3TextStructure
+import KernelGate2Objects
+import KernelGate3FontObjects
+import KernelGate3TaggedTextStructure
+import KernelImage
 import KernelObject
 import KernelPdfFont
 import KernelPdfText
+import KernelResourceUse
 import KernelScene
 import KernelSemantics
 import KernelShape
@@ -21,6 +27,7 @@ import Layout
 import Semantics
 import Scene
 import Text
+import Image
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Gate3TextEvidence :: [].{
@@ -177,7 +184,7 @@ text_scene = {
 		}),
 		DrawText({
 			paint: {
-				fill: { channels: Rgb({ blue: 0, green: 0, red: 0 }), space: Color.SpaceId.from_index(0) },
+				fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
 				mode: Fill,
 				opacity: 65535,
 				stroke: NoStroke,
@@ -202,6 +209,16 @@ text_scene = {
 
 a4_box : Layout.Rect
 a4_box = { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) } }
+
+text_colors : Color.Store
+text_colors = {
+	profiles: [],
+	spaces: [{ id: Color.SpaceId.from_index(0), space: CalibratedGray({ black_point: { x: 0, y: 0, z: 0 }, white_point: { x: 950000, y: 1000000, z: 1089000 } }) }],
+	tags: [],
+}
+
+empty_image_sources : Image.SourceStore
+empty_image_sources = { resources: [] }
 
 glyph_usages : List(Text.Glyph) -> List(KernelFontPlan.Usage)
 glyph_usages = |glyphs| {
@@ -398,12 +415,63 @@ expect {
 	)?
 	stream = KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index(0))
 	work = KernelContent.Plan.work(content)
-	prefix = Str.to_utf8("/P <</MCID 0>> BDC\nq\n1 0 0 1 72 700 cm\n/CS1_0 cs\n0 0 0 scn\nBT\n0 Tr\n/F1_0 11 Tf\n")
+	prefix = Str.to_utf8("/P <</MCID 0>> BDC\nq\n1 0 0 1 72 700 cm\n/CS1_0 cs\n0 scn\nBT\n0 Tr\n/F1_0 11 Tf\n")
 	starts_with(stream.bytes, prefix) and
 		work.command_visits == 2 and
 			work.graphics_state_pairs == 1 and
 				work.marked_fragment_groups == 1 and
 					work.text_placements == 1
+}
+
+## The tagged object graph emits scene content and the reserved font family together.
+expect {
+	sample = build_sample({})?
+	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 }))?
+	images = KernelImage.Plan.build(
+		empty_image_sources,
+		colors,
+		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
+	)?
+	resource_use = KernelResourceUse.TextPlan.build(sample.scene, colors, images)?
+	text = KernelPdfText.ScenePlan.build(
+		sample.ownership,
+		[sample.font_plan],
+		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
+	)?
+	tagged = KernelTextOwnership.Plan.tagged(sample.ownership)
+	content = KernelContent.Plan.build_with_text(
+		tagged,
+		KernelPdfText.ScenePlan.content(text),
+		KernelContent.Limits.make({ max_content_bytes: 4096, max_content_streams: 1 }),
+	)?
+	base = KernelGate2Objects.Plan.build_with_text(
+		tagged,
+		colors,
+		images,
+		resource_use,
+		content,
+		KernelGate2Objects.Limits.make({ max_objects: 32, max_pages: 1 }),
+	)?
+	objects = KernelGate3FontObjects.Plan.build(base, 1, 32)?
+	plan = KernelGate3TaggedTextStructure.Plan.build(
+		tagged,
+		colors,
+		images,
+		content,
+		objects,
+		text,
+		[{ descriptor, font: sample.font, plan: sample.font_plan, subset: sample.subset }],
+		KernelGate3TaggedTextStructure.Limits.make({
+			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 8192, max_unicode_mappings: 64, max_unicode_scalars: 128 }),
+			object_limits: { ..object_limits, max_name_bytes: 3072, max_names: 96, max_objects: 32, max_text_string_bytes: 64, max_text_strings: 4 },
+		}),
+	)?
+	structure = KernelGate3TaggedTextStructure.Plan.structure(plan)
+	font = list_at(KernelGate3TaggedTextStructure.Plan.font_objects(plan), 0)
+	bytes = KernelEmit.to_bytes(structure)?
+	KernelStructure.Plan.object_count(structure) == KernelGate3FontObjects.Plan.object_count(objects) and
+		KernelObject.ObjectId.is_eq(font.type0, list_at(KernelGate3FontObjects.Plan.fonts(objects), 0).type0) and
+			bytes.len() > 0
 }
 
 ## Every shaped run must have exactly one fragment-owned scene placement.

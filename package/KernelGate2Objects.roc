@@ -62,6 +62,9 @@ KernelGate2Objects :: [].{
 		build : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.Plan, KernelContent.Plan, Limits -> Try(Plan, Error)
 		build = |tagged, colors, images, resource_use, content, limits| build_plan(tagged, colors, images, resource_use, content, limits)
 
+		build_with_text : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.TextPlan, KernelContent.Plan, Limits -> Try(Plan, Error)
+		build_with_text = |tagged, colors, images, resource_use, content, limits| build_text_plan(tagged, colors, images, resource_use, content, limits)
+
 		catalog : Plan -> KernelObject.ObjectId
 		catalog = |plan| plan.catalog
 
@@ -125,6 +128,37 @@ build_plan = |tagged, colors, images, resource_use, content, limits| {
 	color_store = KernelColor.Plan.store(colors)
 	image_store = KernelImage.Plan.store(images)
 	resource_work = KernelResourceUse.Plan.work(resource_use)
+	color_count = color_store.spaces.len()
+	image_count = image_store.resources.len()
+	if resource_work.color_space_resources != color_count {
+		Err(ResourceCountMismatch({ actual: resource_work.color_space_resources, expected: color_count, kind: ColorSpaces }))
+	} else if resource_work.image_resources != image_count {
+		Err(ResourceCountMismatch({ actual: resource_work.image_resources, expected: image_count, kind: Images }))
+	} else if KernelContent.Plan.stream_count(content) != KernelTagged.Plan.scenes(tagged).pages.len() {
+		Err(LimitExceeded({ attempted: KernelContent.Plan.stream_count(content), dimension: Pages, limit: KernelTagged.Plan.scenes(tagged).pages.len() }))
+	} else {
+		alpha = collect_alpha(image_store)
+		build_counts(
+			{
+				color_spaces: color_count,
+				contextual_artifacts: semantic_store.contextual_artifacts.len(),
+				image_alpha: alpha,
+				namespaces: semantic_store.namespaces.len(),
+				pages: KernelContent.Plan.stream_count(content),
+				profiles: color_store.profiles.len(),
+				structure_elements: semantic_store.nodes.len(),
+			},
+			limits,
+		)
+	}
+}
+
+build_text_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.TextPlan, KernelContent.Plan, KernelGate2Objects.Limits -> Try(KernelGate2Objects.Plan, KernelGate2Objects.Error)
+build_text_plan = |tagged, colors, images, resource_use, content, limits| {
+	semantic_store = KernelTagged.Plan.semantics(tagged)
+	color_store = KernelColor.Plan.store(colors)
+	image_store = KernelImage.Plan.store(images)
+	resource_work = KernelResourceUse.TextPlan.work(resource_use)
 	color_count = color_store.spaces.len()
 	image_count = image_store.resources.len()
 	if resource_work.color_space_resources != color_count {
