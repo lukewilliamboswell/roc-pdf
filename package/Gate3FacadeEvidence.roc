@@ -2,6 +2,7 @@ import Document
 import Font
 import KernelEmit
 import KernelLineLayout
+import KernelPageLayout
 import KernelShape
 import KernelStructure
 import KernelUnicode
@@ -18,6 +19,9 @@ Gate3FacadeEvidence :: [].{
 
 	line_layout : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	line_layout = |repetitions| evidence_line_layout(repetitions)
+
+	page_layout : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+	page_layout = |repetitions| evidence_page_layout(repetitions)
 }
 
 Authoring := [Builder, Simple]
@@ -170,6 +174,92 @@ synthetic_line_input = |scalars| {
 	}
 }
 
+evidence_page_layout : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+evidence_page_layout = |repetitions| {
+	if repetitions == 0 or repetitions > 100000 {
+		return Err(InvalidRepetitions)
+	}
+	input = synthetic_page_input(repetitions)
+	line_count = repetitions * 6
+	plan = KernelPageLayout.Plan.build(
+		input.blocks,
+		input.lines,
+		{
+			margins: {
+				bottom: Layout.Unit.from_raw(1000),
+				left: Layout.Unit.from_raw(1000),
+				right: Layout.Unit.from_raw(1000),
+				top: Layout.Unit.from_raw(1000),
+			},
+			page: { height: Layout.Unit.from_raw(12000), width: Layout.Unit.from_raw(10000) },
+		},
+		KernelPageLayout.Limits.make({
+			max_blocks: repetitions,
+			max_fragments: line_count,
+			max_lines: line_count,
+			max_pages: line_count,
+			max_placements: line_count,
+		}),
+	) ? |_| EvidenceFailure
+	work = KernelPageLayout.Plan.work(plan)
+	structure = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+	bytes = KernelEmit.to_bytes(structure) ? |_| EvidenceFailure
+	Ok({
+		bytes,
+		work: [
+			repetitions,
+			line_count,
+			work.block_visits,
+			work.line_visits,
+			work.keep_policy_visits,
+			work.fragment_writes,
+			work.page_writes,
+			work.placement_writes,
+			bytes.len(),
+		],
+	})
+}
+
+synthetic_page_input : U64 -> { blocks : List(KernelPageLayout.Block), lines : List(KernelLineLayout.Line) }
+synthetic_page_input = |block_count| {
+	line_count = block_count * 6
+	var $blocks = List.with_capacity(block_count)
+	var $lines = List.with_capacity(line_count)
+	var $block_index = 0
+	while $block_index < block_count {
+		line_start = $lines.len()
+		var $local = 0
+		while $local < 6 {
+			$lines = $lines.append({
+				advance: Layout.Unit.from_raw(3000),
+				clusters: Semantics.Range.from_start_and_length(line_start + $local, 1),
+				source: {
+					scalars: Semantics.Range.from_start_and_length($local, 1),
+					utf8_bytes: Semantics.Range.from_start_and_length($local, 1),
+				},
+			})
+			$local = $local + 1
+		}
+		kept = $block_index % 5 == 0
+		$blocks = $blocks.append({
+			baseline_offset: Layout.Unit.from_raw(800),
+			leading: Layout.Unit.from_raw(1000),
+			lines: Semantics.Range.from_start_and_length(line_start, 6),
+			occurrence: Semantics.OccurrenceId.from_index($block_index),
+			policy: {
+				break_before: $block_index > 0 and $block_index % 10 == 0,
+				keep_together: kept,
+				keep_with_next: $block_index % 10 == 5 and $block_index + 1 < block_count,
+				minimum_first_lines: 2,
+				minimum_last_lines: 2,
+			},
+			space_after: Layout.Unit.from_raw(0),
+		})
+		$block_index = $block_index + 1
+	}
+	{ blocks: $blocks, lines: $lines }
+}
+
 build_with_list : U64 -> Document
 build_with_list = |repetitions| {
 	var $blocks = [Document.title("Report"), Document.heading(1, "Summary")]
@@ -265,4 +355,9 @@ expect {
 expect {
 	result = Gate3FacadeEvidence.line_layout(1)?
 	result.work == [1, 6, 7, 6, 6, 6, 10, 3, 667]
+}
+
+expect {
+	result = Gate3FacadeEvidence.page_layout(10)?
+	result.work.len() == 9
 }

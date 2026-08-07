@@ -17,6 +17,7 @@ main! = |args| {
 	result = match mode {
 		"builder" => Gate3FacadeEvidence.normalize_builder(repetitions)
 		"layout" => Gate3FacadeEvidence.line_layout(repetitions)
+		"pages" => Gate3FacadeEvidence.page_layout(repetitions)
 		"simple" => Gate3FacadeEvidence.normalize_simple(repetitions)
 		_ => {
 			crash "Gate 3 facade authoring mode is invalid"

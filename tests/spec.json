@@ -293,6 +293,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 single-column pagination x1000",
+      "scenario_revision": "gate3-page-layout-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["pages", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "authoring_blocks": 1000, "input_lines": 6000, "layout_fragments": 1400, "layout_pages": 600, "line_placements": 6000, "normalized_plan_identity": 1 },
+      "work_counters": ["blocks", "input_lines", "block_visits", "line_visits", "keep_policy_visits", "fragments", "pages", "placements", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 106, "work": [1000, 6000, 1000, 6000, 1000, 1400, 600, 6000, 667] },
+        "x64musl": { "allocations": 106, "work": [1000, 6000, 1000, 6000, 1000, 1400, 600, 6000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 single-column pagination x10000",
+      "scenario_revision": "gate3-page-layout-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["pages", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "authoring_blocks": 10000, "input_lines": 60000, "layout_fragments": 14000, "layout_pages": 6000, "line_placements": 60000, "normalized_plan_identity": 1 },
+      "work_counters": ["blocks", "input_lines", "block_visits", "line_visits", "keep_policy_visits", "fragments", "pages", "placements", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 118, "work": [10000, 60000, 10000, 60000, 10000, 14000, 6000, 60000, 667] },
+        "x64musl": { "allocations": 118, "work": [10000, 60000, 10000, 60000, 10000, 14000, 6000, 60000, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 built-in TrueType inspection",
       "scenario_revision": "gate3-font-inspection-v2",
       "source": "tests/gate3_font/main.roc",
