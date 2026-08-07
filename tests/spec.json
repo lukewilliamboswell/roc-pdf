@@ -323,6 +323,66 @@
       "retention": null
     },
     {
+      "name": "Gate 3 shared facade source cache x1000",
+      "scenario_revision": "gate3-facade-source-cache-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["source-shared", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "input_sources": 1000, "unique_sources": 1, "unicode_analyses": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["inputs", "unique_sources", "adjacent_hits", "table_slots", "hash_scalar_visits", "probes", "equality_checks", "equality_byte_bound", "unique_source_bytes", "unique_source_scalars", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 83, "work": [1000, 1, 999, 2048, 4, 1, 999, 3996, 4, 4, 667] },
+        "x64musl": { "allocations": 83, "work": [1000, 1, 999, 2048, 4, 1, 999, 3996, 4, 4, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 shared facade source cache x10000",
+      "scenario_revision": "gate3-facade-source-cache-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["source-shared", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "input_sources": 10000, "unique_sources": 1, "unicode_analyses": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["inputs", "unique_sources", "adjacent_hits", "table_slots", "hash_scalar_visits", "probes", "equality_checks", "equality_byte_bound", "unique_source_bytes", "unique_source_scalars", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 89, "work": [10000, 1, 9999, 32768, 4, 1, 9999, 39996, 4, 4, 667] },
+        "x64musl": { "allocations": 89, "work": [10000, 1, 9999, 32768, 4, 1, 9999, 39996, 4, 4, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 unique facade source cache x1000",
+      "scenario_revision": "gate3-facade-source-cache-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["source-unique", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "input_sources": 1000, "unique_sources": 1000, "unicode_analyses": 1000, "normalized_plan_identity": 1 },
+      "work_counters": ["inputs", "unique_sources", "adjacent_hits", "table_slots", "hash_scalar_visits", "probes", "equality_checks", "equality_byte_bound", "unique_source_bytes", "unique_source_scalars", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 16976, "work": [1000, 1000, 0, 2048, 7890, 1762, 1761, 13980, 7890, 7890, 667] },
+        "x64musl": { "allocations": 16976, "work": [1000, 1000, 0, 2048, 7890, 1762, 1761, 13980, 7890, 7890, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 unique facade source cache x10000",
+      "scenario_revision": "gate3-facade-source-cache-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["source-unique", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "input_sources": 10000, "unique_sources": 10000, "unicode_analyses": 10000, "normalized_plan_identity": 1 },
+      "work_counters": ["inputs", "unique_sources", "adjacent_hits", "table_slots", "hash_scalar_visits", "probes", "equality_checks", "equality_byte_bound", "unique_source_bytes", "unique_source_scalars", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 187980, "work": [10000, 10000, 0, 32768, 88890, 10479, 10478, 93195, 88890, 88890, 667] },
+        "x64musl": { "allocations": 187980, "work": [10000, 10000, 0, 32768, 88890, 10479, 10478, 93195, 88890, 88890, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 built-in TrueType inspection",
       "scenario_revision": "gate3-font-inspection-v2",
       "source": "tests/gate3_font/main.roc",

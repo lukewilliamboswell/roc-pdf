@@ -386,11 +386,10 @@ checked_mul = |left, right| {
 	if left == 0 or right == 0 {
 		return Ok(0)
 	}
-	product = left * right
-	if product / right != left {
+	if left > U64.highest / right {
 		Err(ArithmeticOverflow)
 	} else {
-		Ok(product)
+		Ok(left * right)
 	}
 }
 

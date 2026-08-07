@@ -19,6 +19,8 @@ main! = |args| {
 		"layout" => Gate3FacadeEvidence.line_layout(repetitions)
 		"pages" => Gate3FacadeEvidence.page_layout(repetitions)
 		"simple" => Gate3FacadeEvidence.normalize_simple(repetitions)
+		"source-shared" => Gate3FacadeEvidence.source_cache_shared(repetitions)
+		"source-unique" => Gate3FacadeEvidence.source_cache_unique(repetitions)
 		_ => {
 			crash "Gate 3 facade authoring mode is invalid"
 		}

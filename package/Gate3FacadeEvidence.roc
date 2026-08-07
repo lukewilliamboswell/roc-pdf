@@ -1,6 +1,7 @@
 import Document
 import Font
 import KernelEmit
+import KernelFacadeSources
 import KernelLineLayout
 import KernelPageLayout
 import KernelShape
@@ -22,9 +23,17 @@ Gate3FacadeEvidence :: [].{
 
 	page_layout : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	page_layout = |repetitions| evidence_page_layout(repetitions)
+
+	source_cache_shared : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+	source_cache_shared = |repetitions| evidence_source_cache(repetitions, SharedSources)
+
+	source_cache_unique : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+	source_cache_unique = |repetitions| evidence_source_cache(repetitions, UniqueSources)
 }
 
 Authoring := [Builder, Simple]
+
+SourcePattern := [SharedSources, UniqueSources]
 
 normalize : U64, Authoring -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 normalize = |repetitions, authoring| {
@@ -260,6 +269,56 @@ synthetic_page_input = |block_count| {
 	{ blocks: $blocks, lines: $lines }
 }
 
+evidence_source_cache : U64, SourcePattern -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+evidence_source_cache = |repetitions, pattern| {
+	if repetitions == 0 or repetitions > 100000 {
+		return Err(InvalidRepetitions)
+	}
+	inputs = match pattern {
+		SharedSources => List.repeat("Body", repetitions)
+		UniqueSources => {
+			var $values = List.with_capacity(repetitions)
+			var $index = 0
+			while $index < repetitions {
+				$values = $values.append("Body ${Str.inspect($index)}")
+				$index = $index + 1
+			}
+			$values
+		}
+	}
+	plan = KernelFacadeSources.Plan.build(
+		inputs,
+		KernelFacadeSources.Limits.make({
+			max_hash_probes: repetitions * 100,
+			max_inputs: repetitions,
+			max_source_bytes: repetitions * 32,
+			max_source_scalars: repetitions * 32,
+			max_table_slots: repetitions * 4 + 8,
+			max_unique_sources: repetitions,
+			unicode: { max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 },
+		}),
+	) ? |_| EvidenceFailure
+	work = KernelFacadeSources.Plan.work(plan)
+	structure = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+	bytes = KernelEmit.to_bytes(structure) ? |_| EvidenceFailure
+	Ok({
+		bytes,
+		work: [
+			work.inputs,
+			work.unique_sources,
+			work.adjacent_hits,
+			work.table_slots,
+			work.hash_scalar_visits,
+			work.probes,
+			work.equality_checks,
+			work.equality_byte_bound,
+			work.unique_source_bytes,
+			work.unique_source_scalars,
+			bytes.len(),
+		],
+	})
+}
+
 build_with_list : U64 -> Document
 build_with_list = |repetitions| {
 	var $blocks = [Document.title("Report"), Document.heading(1, "Summary")]
@@ -360,4 +419,17 @@ expect {
 expect {
 	result = Gate3FacadeEvidence.page_layout(10)?
 	result.work.len() == 9
+}
+
+expect {
+	limits = KernelFacadeSources.Limits.make({
+		max_hash_probes: 8,
+		max_inputs: 1,
+		max_source_bytes: 4,
+		max_source_scalars: 4,
+		max_table_slots: 8,
+		max_unique_sources: 1,
+		unicode: { max_graphemes: 4, max_line_boundaries: 5, max_scalars: 4, max_script_runs: 1 },
+	})
+	KernelFacadeSources.Plan.sources(KernelFacadeSources.Plan.build(["Body"], limits)?).len() == 1
 }
