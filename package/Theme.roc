@@ -78,6 +78,24 @@ Theme :: {
 
 	body_font : Theme -> Font.FaceId
 	body_font = |theme| theme.body.font
+
+	body_style : Theme -> TextStyle
+	body_style = |theme| theme.body
+
+	heading_style : Theme -> TextStyle
+	heading_style = |theme| theme.heading
+
+	title_style : Theme -> TextStyle
+	title_style = |theme| theme.title
+
+	bullet_indent : Theme -> Layout.Unit
+	bullet_indent = |theme| theme.bullet_indent
+
+	page_margin : Theme -> PageMargin
+	page_margin = |theme| theme.page_margin
+
+	paragraph_spacing : Theme -> Layout.Unit
+	paragraph_spacing = |theme| theme.paragraph_spacing
 }
 
 ## Nested theme font references preserve their dense resource index.

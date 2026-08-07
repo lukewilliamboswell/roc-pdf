@@ -413,6 +413,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 facade batch shaping x1000",
+      "scenario_revision": "gate3-facade-batch-shaping-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["shape", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "normalized_blocks": 1004, "shape_requests": 1006, "unique_sources": 6, "scalars": 4021, "glyphs": 4021, "font_bytes": 166300, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraphs", "shape_requests", "source_bytes", "scalars", "glyphs", "metric_reads", "script_run_visits", "runs", "clusters", "glyph_index_visits", "glyph_records", "font_bytes", "font_tables", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 283, "work": [1000, 1006, 4025, 4021, 4021, 24, 6, 1006, 4021, 4021, 4021, 166300, 17, 667] },
+        "x64musl": { "allocations": 283, "work": [1000, 1006, 4025, 4021, 4021, 24, 6, 1006, 4021, 4021, 4021, 166300, 17, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade batch shaping x10000",
+      "scenario_revision": "gate3-facade-batch-shaping-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["shape", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "normalized_blocks": 10004, "shape_requests": 10006, "unique_sources": 6, "scalars": 40021, "glyphs": 40021, "font_bytes": 166300, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraphs", "shape_requests", "source_bytes", "scalars", "glyphs", "metric_reads", "script_run_visits", "runs", "clusters", "glyph_index_visits", "glyph_records", "font_bytes", "font_tables", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 320, "work": [10000, 10006, 40025, 40021, 40021, 24, 6, 10006, 40021, 40021, 40021, 166300, 17, 667] },
+        "x64musl": { "allocations": 320, "work": [10000, 10006, 40025, 40021, 40021, 24, 6, 10006, 40021, 40021, 40021, 166300, 17, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 built-in TrueType inspection",
       "scenario_revision": "gate3-font-inspection-v2",
       "source": "tests/gate3_font/main.roc",

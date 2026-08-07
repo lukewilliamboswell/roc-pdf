@@ -220,6 +220,46 @@ expect {
 	duplicate_rejected and notdef_rejected and source_rejected and size_rejected
 }
 
+## Batch shaping writes dense global ranges and glyph indices without a
+## temporary Text.Store per source.
+expect {
+	font = KernelFont.inspect(
+		built_in_font_bytes,
+		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
+	)?
+	analysis_ab = KernelUnicode.analyze("AB", { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 })?
+	analysis_c = KernelUnicode.analyze("C", { max_graphemes: 1, max_line_boundaries: 2, max_scalars: 1, max_script_runs: 1 })?
+	analysis_bullet = KernelUnicode.analyze("•", { max_graphemes: 1, max_line_boundaries: 2, max_scalars: 1, max_script_runs: 1 })?
+	batch_options = {
+		direction: LeftToRight,
+		instance: Font.InstanceId.from_index(0),
+		language: Language("en-AU"),
+		script: Font.Script.from_iso15924("Latn"),
+		writing_mode: Horizontal,
+	}
+	sources = [
+		{ analysis: analysis_ab, unicode: "AB" },
+		{ analysis: analysis_c, unicode: "C" },
+		{ analysis: analysis_bullet, unicode: "•" },
+	]
+	requests = [
+		{ occurrence: Semantics.OccurrenceId.from_index(0), size: Layout.Unit.from_raw(11000), source: Semantics.TextSourceId.from_index(0) },
+		{ occurrence: Semantics.OccurrenceId.from_index(1), size: Layout.Unit.from_raw(11000), source: Semantics.TextSourceId.from_index(1) },
+		{ occurrence: Semantics.OccurrenceId.from_index(2), size: Layout.Unit.from_raw(11000), source: Semantics.TextSourceId.from_index(2) },
+	]
+	batch = KernelShape.shape_simple_batch(font, sources, batch_options, requests, KernelShape.Limits.make({ max_clusters: 4, max_glyphs: 4, max_scalars: 4, max_source_bytes: 6 }))?
+	first = list_at(batch.store.runs, 0)
+	second = list_at(batch.store.runs, 1)
+	third = list_at(batch.store.runs, 2)
+	dense = batch.store.glyph_indices == [0, 1, 2, 3] and first.id.index() == 0 and first.clusters.start() == 0 and first.clusters.length() == 2 and second.id.index() == 1 and second.clusters.start() == 2 and second.clusters.length() == 1 and third.id.index() == 2 and third.clusters.start() == 3 and third.clusters.length() == 1
+	bounded = match KernelShape.shape_simple_batch(font, sources, batch_options, requests, KernelShape.Limits.make({ max_clusters: 4, max_glyphs: 4, max_scalars: 2, max_source_bytes: 6 })) {
+		Err(LimitExceeded({ attempted: 3, dimension: Scalars, limit: 2 })) => True
+		_ => False
+	}
+
+	dense and bounded and batch.work.scalar_visits == 4 and batch.work.glyph_visits == 4 and batch.work.metric_reads == 4 and batch.work.script_run_visits == 3 and batch.advances.len() == 3
+}
+
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
 	Err(OutOfBounds) => {
