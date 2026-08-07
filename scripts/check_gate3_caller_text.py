@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from check_gate3_text import (
-    LEGACY_EXPECTED_CONTENT as EXPECTED_CONTENT,
+    EXPECTED_CONTENT,
     EXPECTED_MAPPINGS,
     EXPECTED_TEXT,
     check_pdfbox_extraction,
@@ -75,10 +75,25 @@ def subset_names(font: bytes) -> dict[int, str]:
 def validate_gate3_caller_text_pdf(pdf: bytes) -> None:
     validate_pdf(pdf, 1, EXPECTED_CONTENT, normalized_plan_identity=True)
     _, bodies = object_slices(pdf)
+
+    catalog = only_object(bodies, b"/Type /Catalog ", "catalog")
+    catalog_body = bodies[catalog]
+    require(b"/MarkInfo << /Marked true >>" in catalog_body, "caller catalog does not declare marked content")
+    structure_root = dictionary_ref(catalog_body, b"StructTreeRoot")
+    require(b"/Type /StructTreeRoot" in bodies[structure_root], "caller catalog structure root has the wrong type")
+
     page = only_object(bodies, b"/Type /Page ", "page")
-    resources = re.search(rb"/Resources << /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>", bodies[page])
-    require(resources is not None, "caller page does not have one exact font resource")
-    type0_body = bodies[int(resources.group(1))]
+    page_body = bodies[page]
+    require(b"/StructParents 0" in page_body, "caller page does not have the planned ParentTree key")
+    require(b"/Tabs /S" in page_body, "caller page tab order is not structure order")
+    resources = re.search(
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        page_body,
+    )
+    require(resources is not None, "caller page does not have the exact color/font resource closure")
+    color_space = int(resources.group(1))
+    require(b"/CalGray" in bodies[color_space], "caller text color resource is not calibrated Gray")
+    type0_body = bodies[int(resources.group(2))]
     require(b"/Subtype /Type0" in type0_body and b"/Encoding /Identity-H" in type0_body, "caller page font is not Identity-H Type 0")
     descendants = dictionary_ref_array(type0_body, b"DescendantFonts")
     require(len(descendants) == 1, "caller Type 0 font does not have one descendant")
