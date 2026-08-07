@@ -2,7 +2,7 @@ import Semantics
 
 KernelSemantics :: [].{
 	Dimension : [Attributes, ContentSpine, Fragments, Namespaces, Nodes, Occurrences, SemanticDepth]
-	IndexKind : [AttributeIndex, ContentIndex, ContextualArtifactIndex, FragmentIndex, NamespaceIndex, NodeIndex, NonTextSourceIndex, OccurrenceIndex, StructureElementIndex]
+	IndexKind : [AttributeIndex, ContentIndex, ContextualArtifactIndex, FragmentIndex, NamespaceIndex, NodeIndex, NonTextSourceIndex, OccurrenceIndex, StructureElementIndex, TextSourceIndex]
 	Error : [
 		ArithmeticOverflow,
 		DuplicateOwnership({ index : U64, kind : IndexKind }),
@@ -21,6 +21,12 @@ KernelSemantics :: [].{
 		UnsupportedStoreContent,
 		UnsupportedTextOccurrence({ occurrence : U64 }),
 	]
+
+	TextSourceFact : {
+		byte_count : U64,
+		scalar_byte_offsets : List(U64),
+		scalar_count : U64,
+	}
 
 	Limits :: {
 		max_attributes : U64,
@@ -60,6 +66,9 @@ KernelSemantics :: [].{
 		build : Semantics.Store, U64, U64, Limits -> Try(Plan, Error)
 		build = |store, page_count, content_stream_count, limits| build_plan(store, page_count, content_stream_count, limits)
 
+		build_text_validated : Semantics.Store, List(TextSourceFact), U64, U64, Limits -> Try(Plan, Error)
+		build_text_validated = |store, text_source_facts, page_count, content_stream_count, limits| build_text_plan(store, text_source_facts, page_count, content_stream_count, limits)
+
 		content_stream_count : Plan -> U64
 		content_stream_count = |plan| plan.content_stream_count
 
@@ -72,6 +81,7 @@ KernelSemantics :: [].{
 		work : Plan -> Work
 		work = |plan| plan.work
 	}
+
 }
 
 NodeFrame := { depth : U64, node : Semantics.NodeId }
@@ -87,12 +97,49 @@ build_plan = |store, page_count, content_stream_count, limits| {
 	check_limit(store.occurrences.len(), limits.max_occurrences, Occurrences)?
 
 	namespace_work = validate_namespaces(store.namespaces)?
-	occurrence_work = validate_occurrences(store)?
-	fragment_work = validate_fragments(store, page_count, content_stream_count)?
+	occurrence_work = validate_occurrences(store, [], False)?
+	fragment_work = validate_fragments(store, [], page_count, content_stream_count)?
 	reverse = build_reverse_index(store.occurrences, store.fragments)?
 	normalized = { ..store, occurrence_fragments: reverse.fragment_ids, occurrences: reverse.occurrences }
-	graph_work = validate_graph(normalized, limits.max_semantic_depth)?
+	graph_work = validate_graph(normalized, limits.max_semantic_depth, False)?
 
+	Ok(
+		KernelSemantics.Plan.{
+			content_stream_count,
+			page_count,
+			store: normalized,
+			work: {
+				attribute_visits: graph_work.attribute_visits,
+				content_visits: graph_work.content_visits,
+				fragment_count_visits: reverse.count_visits,
+				fragment_validation_visits: fragment_work,
+				max_semantic_depth: graph_work.max_depth,
+				namespace_visits: namespace_work,
+				node_visits: graph_work.node_visits,
+				occurrence_visits: occurrence_work,
+				prefix_steps: reverse.prefix_steps,
+				reverse_writes: reverse.reverse_writes,
+			},
+		},
+	)
+}
+
+build_text_plan : Semantics.Store, List(KernelSemantics.TextSourceFact), U64, U64, KernelSemantics.Limits -> Try(KernelSemantics.Plan, KernelSemantics.Error)
+build_text_plan = |store, text_source_facts, page_count, content_stream_count, limits| {
+	validate_text_subset(store)?
+	check_limit(store.attributes.len(), limits.max_attributes, Attributes)?
+	check_limit(store.content_spine.len(), limits.max_content_spine, ContentSpine)?
+	check_limit(store.fragments.len(), limits.max_fragments, Fragments)?
+	check_limit(store.namespaces.len(), limits.max_namespaces, Namespaces)?
+	check_limit(store.nodes.len(), limits.max_nodes, Nodes)?
+	check_limit(store.occurrences.len(), limits.max_occurrences, Occurrences)?
+
+	namespace_work = validate_namespaces(store.namespaces)?
+	occurrence_work = validate_occurrences(store, text_source_facts, True)?
+	fragment_work = validate_fragments(store, text_source_facts, page_count, content_stream_count)?
+	reverse = build_reverse_index(store.occurrences, store.fragments)?
+	normalized = { ..store, occurrence_fragments: reverse.fragment_ids, occurrences: reverse.occurrences }
+	graph_work = validate_graph(normalized, limits.max_semantic_depth, True)?
 	Ok(
 		KernelSemantics.Plan.{
 			content_stream_count,
@@ -132,35 +179,57 @@ validate_namespaces = |namespaces| {
 
 validate_gate_2_subset : Semantics.Store -> Try({}, KernelSemantics.Error)
 validate_gate_2_subset = |store| {
-	if !store.annotations.is_empty() or
-		!store.assertions.is_empty() or
-			!store.attribute_roles.is_empty() or
-				!store.element_identifiers.is_empty() or
-					!store.mathml_subtrees.is_empty() or
-						!store.relationships.is_empty() or
-							!store.role_mappings.is_empty() or
-								!store.text_properties.is_empty() or
-									!store.text_sources.is_empty() {
+	validate_text_subset(store)?
+	if !store.text_properties.is_empty() or !store.text_sources.is_empty() {
 		Err(UnsupportedStoreContent)
 	} else {
 		Ok({})
 	}
 }
 
-validate_occurrences : Semantics.Store -> Try(U64, KernelSemantics.Error)
-validate_occurrences = |store| {
+validate_text_subset : Semantics.Store -> Try({}, KernelSemantics.Error)
+validate_text_subset = |store| {
+	if !store.annotations.is_empty() or
+		!store.assertions.is_empty() or
+			!store.attribute_roles.is_empty() or
+				!store.element_identifiers.is_empty() or
+					!store.mathml_subtrees.is_empty() or
+						!store.relationships.is_empty() or
+							!store.role_mappings.is_empty() {
+		Err(UnsupportedStoreContent)
+	} else {
+		Ok({})
+	}
+}
+
+validate_occurrences : Semantics.Store, List(KernelSemantics.TextSourceFact), Bool -> Try(U64, KernelSemantics.Error)
+validate_occurrences = |store, text_facts, text_allowed| {
 	var $index = 0
 	var $error = NoError
 	while $index < store.occurrences.len() and $error == NoError {
 		occurrence = list_at(store.occurrences, $index)
 		if occurrence.id.index() != $index {
 			$error = Invalid(NonDenseIdentity({ actual: occurrence.id.index(), expected: $index, kind: OccurrenceIndex }))
-		} else if occurrence.text_properties.length() != 0 {
+		} else if occurrence.text_properties.length() != 0 and !text_allowed {
 			$error = Invalid(UnsupportedStoreContent)
 		} else {
 			match occurrence.source {
-				Text(_, _) => {
+				Text(source, range) => if !text_allowed {
 					$error = Invalid(UnsupportedTextOccurrence({ occurrence: $index }))
+				} else {
+					source_index = source.index()
+					if source_index >= text_facts.len() {
+						$error = Invalid(IndexOutOfRange({ available: text_facts.len(), index: source_index, kind: TextSourceIndex }))
+					} else {
+						match range {
+							ByteRange(_) => {
+								$error = Invalid(UnsupportedTextOccurrence({ occurrence: $index }))
+							}
+							UnicodeRange(text_range) => if !valid_text_range(text_range, list_at(text_facts, source_index)) {
+								$error = Invalid(UnsupportedTextOccurrence({ occurrence: $index }))
+							}
+						}
+					}
 				}
 				NonText(source, range) => {
 					source_index = source.index()
@@ -190,8 +259,8 @@ validate_occurrences = |store| {
 	}
 }
 
-validate_fragments : Semantics.Store, U64, U64 -> Try(U64, KernelSemantics.Error)
-validate_fragments = |store, page_count, content_stream_count| {
+validate_fragments : Semantics.Store, List(KernelSemantics.TextSourceFact), U64, U64 -> Try(U64, KernelSemantics.Error)
+validate_fragments = |store, text_facts, page_count, content_stream_count| {
 	var $index = 0
 	var $error = NoError
 	while $index < store.fragments.len() and $error == NoError {
@@ -204,7 +273,7 @@ validate_fragments = |store, page_count, content_stream_count| {
 			$error = Invalid(IndexOutOfRange({ available: page_count, index: fragment.page.index(), kind: FragmentIndex }))
 		} else if fragment.content_stream.index() >= content_stream_count {
 			$error = Invalid(IndexOutOfRange({ available: content_stream_count, index: fragment.content_stream.index(), kind: FragmentIndex }))
-		} else if !fragment_range_valid(fragment, list_at(store.occurrences, fragment.occurrence.index())) {
+		} else if !fragment_range_valid(fragment, list_at(store.occurrences, fragment.occurrence.index()), text_facts) {
 			$error = Invalid(FragmentRangeOutsideOccurrence({ fragment: $index }))
 		}
 		$index = $index + 1
@@ -215,11 +284,34 @@ validate_fragments = |store, page_count, content_stream_count| {
 	}
 }
 
-fragment_range_valid : Semantics.LayoutFragment, Semantics.ContentOccurrence -> Bool
-fragment_range_valid = |fragment, occurrence| match (fragment.source_range, occurrence.source) {
+fragment_range_valid : Semantics.LayoutFragment, Semantics.ContentOccurrence, List(KernelSemantics.TextSourceFact) -> Bool
+fragment_range_valid = |fragment, occurrence, text_facts| match (fragment.source_range, occurrence.source) {
 	(ByteRange(fragment_range), NonText(_, ByteRange(occurrence_range))) => range_contains(occurrence_range, fragment_range)
+	(UnicodeRange(fragment_range), Text(source, UnicodeRange(occurrence_range))) => if source.index() < text_facts.len() {
+		valid_text_range(fragment_range, list_at(text_facts, source.index())) and text_range_contains(occurrence_range, fragment_range)
+	} else {
+		False
+	}
 	_ => False
 }
+
+valid_text_range : Semantics.TextRange, KernelSemantics.TextSourceFact -> Bool
+valid_text_range = |range, fact| {
+	scalar_start = range.scalars.start()
+	scalar_length = range.scalars.length()
+	byte_start = range.utf8_bytes.start()
+	byte_length = range.utf8_bytes.length()
+	if scalar_start > fact.scalar_count or scalar_length > fact.scalar_count - scalar_start or byte_start > fact.byte_count or byte_length > fact.byte_count - byte_start {
+		False
+	} else {
+		scalar_end = scalar_start + scalar_length
+		byte_end = byte_start + byte_length
+		list_at(fact.scalar_byte_offsets, scalar_start) == byte_start and list_at(fact.scalar_byte_offsets, scalar_end) == byte_end
+	}
+}
+
+text_range_contains : Semantics.TextRange, Semantics.TextRange -> Bool
+text_range_contains = |outer, inner| range_contains(outer.scalars, inner.scalars) and range_contains(outer.utf8_bytes, inner.utf8_bytes)
 
 range_contains : Semantics.Range, Semantics.Range -> Bool
 range_contains = |outer, inner| {
@@ -280,8 +372,8 @@ build_reverse_index = |occurrences, fragments| {
 	Ok({ count_visits: fragments.len(), fragment_ids: $fragment_ids, occurrences: $normalized_occurrences, prefix_steps: occurrences.len(), reverse_writes: fragments.len() })
 }
 
-validate_graph : Semantics.Store, U64 -> Try({ attribute_visits : U64, content_visits : U64, max_depth : U64, node_visits : U64 }, KernelSemantics.Error)
-validate_graph = |store, max_depth| {
+validate_graph : Semantics.Store, U64, Bool -> Try({ attribute_visits : U64, content_visits : U64, max_depth : U64, node_visits : U64 }, KernelSemantics.Error)
+validate_graph = |store, max_depth, text_allowed| {
 	if store.nodes.len() == 0 or store.document_root.index() >= store.nodes.len() {
 		Err(InvalidDocumentRoot({ node: store.document_root.index() }))
 	} else {
@@ -314,7 +406,7 @@ validate_graph = |store, max_depth| {
 						node = list_at(store.nodes, node_index)
 						if !valid_gate_2_role(node, node_index == store.document_root.index()) {
 							$error = Invalid(UnsupportedRole({ node: node_index }))
-						} else if node.text_properties.length() != 0 or node.element_identifier != NoElementIdentifier {
+						} else if (node.text_properties.length() != 0 and !text_allowed) or node.element_identifier != NoElementIdentifier {
 							$error = Invalid(UnsupportedStoreContent)
 						} else if node_index == store.document_root.index() and node.parent != DocumentRoot {
 							$error = Invalid(InvalidDocumentRoot({ node: node_index }))

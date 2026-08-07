@@ -9,8 +9,11 @@ import KernelObject
 import KernelPdfFont
 import KernelPdfText
 import KernelScene
+import KernelSemantics
 import KernelShape
 import KernelStructure
+import KernelTagged
+import KernelTextSemantics
 import KernelUnicode
 import Layout
 import Semantics
@@ -28,6 +31,9 @@ Gate3TextEvidence :: [].{
 		bytes = KernelEmit.to_bytes(KernelGate3TextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
 		text_work = KernelPdfText.Plan.work(sample.text)
 		scene_work = KernelScene.Plan.work(sample.scene)
+		semantic_work = KernelTextSemantics.Plan.work(sample.semantic)
+		semantic_plan_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(sample.semantic))
+		tagged_work = KernelTagged.Plan.work(sample.tagged)
 		structure_work = KernelGate3TextStructure.Plan.work(sample.structure)
 		Ok({
 			bytes,
@@ -39,6 +45,29 @@ Gate3TextEvidence :: [].{
 				scene_work.color_references,
 				scene_work.text_placements,
 				scene_work.max_graphics_depth,
+				semantic_plan_work.attribute_visits,
+				semantic_plan_work.content_visits,
+				semantic_plan_work.fragment_count_visits,
+				semantic_plan_work.fragment_validation_visits,
+				semantic_plan_work.max_semantic_depth,
+				semantic_plan_work.namespace_visits,
+				semantic_plan_work.node_visits,
+				semantic_plan_work.occurrence_visits,
+				semantic_plan_work.prefix_steps,
+				semantic_plan_work.reverse_writes,
+				semantic_work.property_bytes,
+				semantic_work.property_visits,
+				semantic_work.source_bytes,
+				semantic_work.source_scalars,
+				semantic_work.source_visits,
+				tagged_work.artifact_groups,
+				tagged_work.fragment_groups,
+				tagged_work.k_items,
+				tagged_work.node_k_ranges,
+				tagged_work.occurrence_owner_edges,
+				tagged_work.paint_edges,
+				tagged_work.parent_prefix_steps,
+				tagged_work.parent_writes,
 				sample.font_plan.entries.len(),
 				sample.subset.work.output_bytes,
 				text_work.source_scalar_visits,
@@ -62,17 +91,26 @@ Sample := {
 	font_plan : KernelFontPlan.Plan,
 	shape : KernelShape.Shape,
 	scene : KernelScene.Plan,
+	semantic : KernelTextSemantics.Plan,
 	structure : KernelGate3TextStructure.Plan,
 	subset : KernelFontSubset.Subset,
+	tagged : KernelTagged.Plan,
 	text : KernelPdfText.Plan,
 }
 
-build_sample : {} -> Try(Sample, [AnalysisFailure, FontFailure, FontPlanFailure, SceneFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_sample : {} -> Try(Sample, [AnalysisFailure, FontFailure, FontPlanFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TaggedFailure, TextFailure])
 build_sample = |_| {
 	analysis = KernelUnicode.analyze(
 		source,
 		{ max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 },
 	) ? |_| AnalysisFailure
+	semantic = KernelTextSemantics.Plan.build(
+		semantics,
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 }),
+	) ? |_| SemanticFailure
 	font = KernelFont.inspect(
 		built_in_font_bytes,
 		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
@@ -97,6 +135,7 @@ build_sample = |_| {
 		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
 		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
 	) ? |_| SceneFailure
+	tagged = KernelTagged.Plan.build(KernelTextSemantics.Plan.semantics(semantic), scene) ? |_| TaggedFailure
 	usages = glyph_usages(shape.store.glyphs)
 	font_plan = KernelFontPlan.plan(font, usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
@@ -116,7 +155,7 @@ build_sample = |_| {
 			object_limits,
 		}),
 	) ? |_| StructureFailure
-	Ok({ font, font_plan, scene, shape, structure, subset, text })
+	Ok({ font, font_plan, scene, semantic, shape, structure, subset, tagged, text })
 }
 
 text_scene : Scene.Store

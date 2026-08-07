@@ -15,6 +15,20 @@ before text lowering starts. Fill-only paint cannot carry a stroke;
 fill-and-stroke paint must carry a positive-width calibrated stroke. Non-opaque
 text remains a typed error until the later ExtGState capability exists.
 
+Text semantics now cross a dedicated `KernelTextSemantics.Plan` boundary before
+tagging. It bounds source bytes, source scalars, text properties, and property
+bytes; records every scalar-to-UTF-8 boundary without retaining source slices;
+checks that occurrence and fragment scalar ranges name the same UTF-8 span; and
+normalizes the occurrence-to-fragment reverse index. Text properties have one
+node or occurrence owner. The ordinary Gate 2 semantic plan remains unchanged
+and continues to reject text stores rather than silently widening its claim.
+
+`KernelTagged` consumes the validated semantic plan and typed scene plan. The
+fixture therefore proves its fragment group, paint edge, MCID, ParentTree row,
+and structure `/K` items before the legacy text-content object graph is built.
+The next slice joins the run's exact occurrence/range to that fragment and then
+replaces the legacy untagged object graph.
+
 Logical Unicode remains owned by the semantic occurrence. Text lowering builds
 one bounded scalar cache for the semantic sources, walks each placed run once,
 and derives each CID mapping from the run's explicit cluster range. Every run
@@ -53,17 +67,27 @@ engines.
 
 | Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,094 | 191 |
-| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,094 | 191 |
+| arm64mac | speed | 8 / 8 | 6,776 | 271 | 9,094 | 216 |
+| x64musl | speed | 8 / 8 | 6,776 | 271 | 9,094 | 216 |
 
 The exact work vector records, in order: 166,300 source-font bytes, one run,
 eight shaped glyphs; two scene-command visits, one scene color reference, one
-scene text placement, and graphics depth two; eleven font-plan entries, 6,776
-subset bytes, eight source scalars, one text run, one placement, eight emitted
-glyphs, eight mappings, 271 content bytes, one font, nine font objects, fourteen
-total objects, 7,047 uncompressed payload bytes, and 9,094 emitted bytes. The
-four-allocation increase is the reviewed cost of the dense command, group,
-page-group-edge, and page arenas; no font, text-content, or output bytes change.
+scene text placement, and graphics depth two. Semantic work records zero
+attributes, two content items, one fragment count and validation, depth two,
+one namespace, two nodes, one occurrence, one prefix step, one reverse write,
+zero text-property bytes and visits, nine source bytes, eight source scalars,
+and one source. Tagged work records zero artifact groups, one fragment group,
+two `/K` items, two node ranges, one occurrence-owner edge, one paint edge, one
+ParentTree prefix step, and one ParentTree write. The remaining counters are
+eleven font-plan entries, 6,776 subset bytes, eight source scalars, one text run,
+one placement, eight emitted glyphs, eight mappings, 271 content bytes, one
+font, nine font objects, fourteen total objects, 7,047 uncompressed payload
+bytes, and 9,094 emitted bytes.
+
+The first four added allocations remain the reviewed dense scene arenas. The
+next 25 are bounded scalar-offset/source-fact arrays, semantic ownership and
+reverse-index arrays, and tagged MCID/ParentTree/`/K` planning arrays. No font,
+text-content, or output bytes change.
 The one-byte snapshot
 reduction records the exact OS/2 CapHeight instead of the former hardcoded
 descriptor value; glyph data and rendered pixels are unchanged.
