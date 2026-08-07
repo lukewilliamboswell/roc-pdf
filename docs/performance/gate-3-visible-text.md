@@ -43,8 +43,12 @@ mode, and fragment MCID. Its evidence fixes the operator order as marked
 content, transform, color, `BT`, `Tr`, font selection, glyph operators, `ET`,
 and balanced closure. The dependency-free prepared-run carrier lives at the
 content boundary, so standalone Gate 2 packages do not acquire the Gate 3
-Unicode dependency. The next slice replaces the legacy untagged object graph
-with this tagged scene-content plan and its font resources.
+Unicode dependency. A separate Gate 3 object wrapper appends nine stable object
+identities per font and moves only xref; the enduring Gate 2 object plan is not
+widened. The additive tagged-page path installs each planned Type 0 reference
+under its deterministic `F` resource name. The next slice replaces the legacy
+untagged object graph by orchestrating these plans and emitting the reserved
+font objects.
 
 Logical Unicode remains owned by the semantic occurrence. Text lowering builds
 one bounded scalar cache for the semantic sources, walks each placed run once,
