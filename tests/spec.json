@@ -728,6 +728,96 @@
       "retention": null
     },
     {
+      "name": "Gate 3 facade fragment prepared-input control x1000",
+      "scenario_revision": "gate3-facade-fragments-v1",
+      "source": "tests/gate3_facade_fragments/main.roc",
+      "snapshot": "tests/gate3_facade_fragments/snapshot.pdf",
+      "args": ["prepare", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 32, "semantic_occurrences": 1000, "final_runs": 2000, "matched_fragment_control": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "planned_pages", "placements", "runs", "clusters", "glyph_indices", "glyphs", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 95, "work": [1000, 32, 2000, 2000, 6000, 6000, 6000, 667] },
+        "x64musl": { "allocations": 95, "work": [1000, 32, 2000, 2000, 6000, 6000, 6000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade fragment arena x1000",
+      "scenario_revision": "gate3-facade-fragments-v1",
+      "source": "tests/gate3_facade_fragments/main.roc",
+      "snapshot": "tests/gate3_facade_fragments/snapshot.pdf",
+      "args": ["arena", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 32, "semantic_occurrences": 1000, "final_fragments": 2000, "allocation_delta_from_control": 2, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "planned_pages", "placements", "page_visits", "placement_visits", "fragment_writes", "continuation_reads", "continuation_writes", "fragments", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 97, "work": [1000, 32, 2000, 32, 2000, 2000, 2000, 2000, 2000, 667] },
+        "x64musl": { "allocations": 97, "work": [1000, 32, 2000, 32, 2000, 2000, 2000, 2000, 2000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade fragment prepared-input control x10000",
+      "scenario_revision": "gate3-facade-fragments-v1",
+      "source": "tests/gate3_facade_fragments/main.roc",
+      "snapshot": "tests/gate3_facade_fragments/snapshot.pdf",
+      "args": ["prepare", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 313, "semantic_occurrences": 10000, "final_runs": 20000, "matched_fragment_control": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "planned_pages", "placements", "runs", "clusters", "glyph_indices", "glyphs", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 105, "work": [10000, 313, 20000, 20000, 60000, 60000, 60000, 667] },
+        "x64musl": { "allocations": 105, "work": [10000, 313, 20000, 20000, 60000, 60000, 60000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade fragment arena x10000",
+      "scenario_revision": "gate3-facade-fragments-v1",
+      "source": "tests/gate3_facade_fragments/main.roc",
+      "snapshot": "tests/gate3_facade_fragments/snapshot.pdf",
+      "args": ["arena", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 313, "semantic_occurrences": 10000, "final_fragments": 20000, "allocation_delta_from_control": 2, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "planned_pages", "placements", "page_visits", "placement_visits", "fragment_writes", "continuation_reads", "continuation_writes", "fragments", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 107, "work": [10000, 313, 20000, 313, 20000, 20000, 20000, 20000, 20000, 667] },
+        "x64musl": { "allocations": 107, "work": [10000, 313, 20000, 313, 20000, 20000, 20000, 20000, 20000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade fragment semantic attachment",
+      "scenario_revision": "gate3-facade-fragments-v1",
+      "source": "tests/gate3_facade_fragments/main.roc",
+      "snapshot": "tests/gate3_facade_fragments/snapshot.pdf",
+      "args": ["validate", "3"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "planned_pages": 1, "semantic_occurrences": 3, "semantic_fragments": 6, "reused_source_analysis": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["occurrences", "fragments", "reverse_entries", "fragment_count_visits", "fragment_validation_visits", "occurrence_prefix_steps", "reverse_writes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 93, "work": [3, 6, 6, 6, 6, 3, 6, 667] },
+        "x64musl": { "allocations": 93, "work": [3, 6, 6, 6, 6, 3, 6, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 facade fragment atomic negatives",
+      "scenario_revision": "gate3-facade-fragments-v1",
+      "source": "tests/gate3_facade_fragments/main.roc",
+      "snapshot": "tests/gate3_facade_fragments/snapshot.pdf",
+      "args": ["negative", "2"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "invalid_page": 1, "invalid_source_range": 1, "fragment_limit": 1, "preexisting_fragments": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["invalid_page_rejected", "invalid_source_range_rejected", "fragment_limit_rejected", "preexisting_fragments_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 97, "work": [1, 1, 1, 1, 667] },
+        "x64musl": { "allocations": 97, "work": [1, 1, 1, 1, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",

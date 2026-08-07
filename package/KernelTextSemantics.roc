@@ -43,6 +43,11 @@ KernelTextSemantics :: [].{
 		build : Semantics.Store, U64, U64, KernelSemantics.Limits, Limits -> Try(Plan, Error)
 		build = |store, page_count, content_stream_count, semantic_limits, limits| build_plan(store, page_count, content_stream_count, semantic_limits, limits)
 
+		## Layout attaches final fragments after source validation. Reuse the
+		## exact scalar/byte facts produced by `build`; do not rescan source text.
+		attach_fragments : Plan, List(Semantics.LayoutFragment), U64, U64, KernelSemantics.Limits -> Try(Plan, Error)
+		attach_fragments = |plan, fragments, page_count, content_stream_count, semantic_limits| attach_fragment_plan(plan, fragments, page_count, content_stream_count, semantic_limits)
+
 		semantics : Plan -> KernelSemantics.Plan
 		semantics = |plan| plan.semantics
 
@@ -80,6 +85,14 @@ build_plan = |store, page_count, content_stream_count, semantic_limits, limits| 
 			},
 		},
 	)
+}
+
+attach_fragment_plan : KernelTextSemantics.Plan, List(Semantics.LayoutFragment), U64, U64, KernelSemantics.Limits -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+attach_fragment_plan = |plan, fragments, page_count, content_stream_count, semantic_limits| {
+	preliminary = KernelSemantics.Plan.store(plan.semantics)
+	store = { ..preliminary, fragments, occurrence_fragments: [] }
+	semantics = KernelSemantics.Plan.build_text_validated(store, plan.source_facts, page_count, content_stream_count, semantic_limits) ? Semantic
+	Ok(KernelTextSemantics.Plan.{ semantics, source_facts: plan.source_facts, work: plan.work })
 }
 
 prepare : Semantics.Store, KernelTextSemantics.Limits -> Try(Prepared, KernelTextSemantics.Error)
