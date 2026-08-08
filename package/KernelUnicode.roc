@@ -57,11 +57,10 @@ KernelUnicode :: [].{
 		ScriptRunLimitExceeded({ limit : U64, required : U64 }),
 	]
 
-	## This source revision is the temporary reviewed dependency identity. A
-	## released package replaces both this value and package/main.roc's local path
-	## atomically after its archive digest and evidence have been pinned.
+	## The released package tag resolves to this reviewed source identity. Its
+	## immutable archive URL and digest are recorded with the Gate 3 evidence.
 	source_revision : Str
-	source_revision = "f9b23ae87b1655d7c2b1c6fe049ccbf02f6e2fe5"
+	source_revision = "f5cd8d6a9a345f0a589ed46625ee865e70f48e35"
 
 	version : Str
 	version = UnicodeVersion.to_str(UnicodeVersion.current)

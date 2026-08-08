@@ -1,13 +1,15 @@
 # Gate 3 Unicode analysis slice
 
-This slice pins the temporary local `roc-lang/unicode` dependency at commit
-`f9b23ae87b1655d7c2b1c6fe049ccbf02f6e2fe5`. Both repositories use Roc
+This slice pins `roc-lang/unicode` release `3.0.0`, whose tag resolves to commit
+`f5cd8d6a9a345f0a589ed46625ee865e70f48e35`. Its immutable GitHub release
+asset is `ACj5ceJnEY6vaejuQArN1naVzcxeThATZrKYYgzJCZJ5.tar.zst` (161,147 bytes,
+SHA-256 `343e175400a2d5ca5c32cd47dbe9f81a517b2f6f6c2ec47024e615db0228fff9`).
+The release and this repository both use Roc
 `nightly-2026-August-05-24f0b47`. The dependency reports Unicode 17.0.0,
 UAX #14 revision 55, UAX #29 revision 47, and the independently versioned
-`ConservativeScxV1` script-itemization policy. The relative source dependency
-in `package/main.roc` and `package/evidence.roc` is temporary; replacing it
-with a release requires a reviewed archive revision and digest without changing
-the pinned Unicode semantics implicitly.
+`ConservativeScxV1` script-itemization policy. Updating the release URL,
+resolved source revision, archive digest, or pinned Unicode semantics requires
+a reviewed change with affected correctness and performance evidence.
 
 ## Representation and ownership
 
