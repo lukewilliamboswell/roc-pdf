@@ -1,9 +1,19 @@
 import Color
 import Font
 import KernelColor
+import KernelContent
 import KernelEmit
 import KernelFacadeFragments
+import KernelFacadeOutput
 import KernelFacadeScenes
+import KernelFont
+import KernelFontPlan
+import KernelGate2Objects
+import KernelGate3TaggedTextStructure
+import KernelImage
+import KernelObject
+import KernelPdfFont
+import KernelPdfText
 import KernelScene
 import KernelSemantics
 import KernelStructure
@@ -12,6 +22,7 @@ import KernelTextSemantics
 import Layout
 import Semantics
 import Text
+import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Gate3FacadeFragmentEvidence :: [].{
 	arena : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
@@ -26,8 +37,77 @@ Gate3FacadeFragmentEvidence :: [].{
 	scene_validate : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	scene_validate = |repetitions| evidence_scene_validate(repetitions)
 
+	output_validate : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+	output_validate = |repetitions| evidence_output_validate(repetitions)
+
 	validate : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	validate = |repetitions| evidence_validate(repetitions)
+}
+
+evidence_output_validate : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+evidence_output_validate = |repetitions| {
+	input = synthetic_input(repetitions)?
+	font = KernelFont.inspect(
+		built_in_font_bytes,
+		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
+	) ? |_| EvidenceFailure
+	prepared = { ..input.prepared, text: remap_output_glyphs(input.prepared.text, font) ? |_| EvidenceFailure }
+	arena = KernelFacadeFragments.Arena.build_prepared(input.preliminary, prepared, fragment_limits(prepared)) ? |_| EvidenceFailure
+	fragments = KernelFacadeFragments.Arena.fragments(arena)
+	page_count = prepared.pages.len()
+	semantics = KernelTextSemantics.Plan.attach_fragments(input.preliminary, fragments, page_count, page_count, semantic_limits(input.repetitions, fragments.len())) ? |_| EvidenceFailure
+	run_count = prepared.text.runs.len()
+	styles = List.repeat({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(12000) }, run_count)
+	scenes = KernelFacadeScenes.Plan.build_prepared(
+		semantics,
+		{
+			page_size: { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
+			pages: prepared.pages,
+			placements: prepared.placements,
+			styles,
+			text: prepared.text,
+		},
+		scene_limits(run_count, page_count),
+	) ? |_| EvidenceFailure
+	output = KernelFacadeOutput.Plan.build(scenes, font, descriptor, output_limits(page_count)) ? |_| EvidenceFailure
+	bytes = KernelEmit.to_bytes(KernelFacadeOutput.Plan.structure(output)) ? |_| EvidenceFailure
+	work = KernelFacadeOutput.Plan.work(output)
+	Ok({
+		bytes,
+		work: [
+			repetitions,
+			run_count,
+			work.glyph_usages,
+			work.font_entries,
+			work.subset_bytes,
+			work.resource_command_visits,
+			work.text_runs,
+			work.text_glyph_visits,
+			work.text_content_bytes,
+			work.content_command_visits,
+			work.content_bytes,
+			work.font_objects,
+			work.objects,
+			bytes.len(),
+		],
+	})
+}
+
+remap_output_glyphs : Text.Store, KernelFont.Inspection -> Try(Text.Store, [EvidenceFailure])
+remap_output_glyphs = |store, font| {
+	var $glyphs = List.with_capacity(store.glyphs.len())
+	var $index = 0
+	while $index < store.glyphs.len() {
+		glyph = list_at(store.glyphs, $index)
+		scalar = (0x61 + $index % 6).to_u32_wrap()
+		glyph_id = match KernelFont.glyph_for_scalar(font, scalar) {
+			None => return Err(EvidenceFailure)
+			Some(value) => Text.GlyphId.from_raw(value)
+		}
+		$glyphs = $glyphs.append({ ..glyph, id: glyph_id })
+		$index = $index + 1
+	}
+	Ok({ ..store, glyphs: $glyphs })
 }
 
 Input := {
@@ -387,6 +467,41 @@ scene_limits = |runs, pages| KernelFacadeScenes.Limits.make({
 	max_pages: pages,
 	scene: KernelScene.Limits.make({ max_commands: runs * 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: runs, max_pages: pages, max_path_segments: 0, max_paths: 0 }),
 })
+
+output_limits : U64 -> KernelFacadeOutput.Limits
+output_limits = |pages| KernelFacadeOutput.Limits.make({
+	content: KernelContent.Limits.make({ max_content_bytes: 65536, max_content_streams: pages }),
+	font_plan: KernelFontPlan.Limits.make({ max_retained_glyphs: 64 }),
+	images: KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
+	max_objects: 128,
+	objects: KernelGate2Objects.Limits.make({ max_objects: 119, max_pages: pages }),
+	structure: KernelGate3TaggedTextStructure.Limits.make({
+		font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 8192, max_unicode_mappings: 64, max_unicode_scalars: 128 }),
+		object_limits: output_object_limits,
+	}),
+	text: KernelPdfText.Limits.make({ max_actual_text_scalars: 4096, max_content_bytes: 65536, max_mappings: 64, max_placements: 0, max_source_scalars: 4096 }),
+})
+
+descriptor : KernelPdfFont.Descriptor
+descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
+
+output_object_limits : KernelObject.Limits
+output_object_limits = {
+	max_array_items: 256,
+	max_byte_string_bytes: 0,
+	max_byte_strings: 0,
+	max_dictionary_entries: 512,
+	max_direct_depth: 8,
+	max_name_bytes: 4096,
+	max_names: 128,
+	max_objects: 128,
+	max_payload_bytes: 200000,
+	max_payloads: 8,
+	max_streams: 8,
+	max_text_string_bytes: 256,
+	max_text_strings: 8,
+	max_values: 1024,
+}
 
 full_source_range : Semantics.TextRange
 full_source_range = {

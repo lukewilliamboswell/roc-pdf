@@ -78,7 +78,7 @@ KernelFacadeScenes :: [].{
 		work : Arena -> Work
 		work = |arena| arena.work
 	}
-	Plan :: { colors : KernelColor.Plan, ownership : KernelTextOwnership.Plan, work : Work }.{
+	Plan :: { colors : KernelColor.Plan, ownership : KernelTextOwnership.Plan, scene : KernelScene.Plan, work : Work }.{
 		build : KernelFacadeFragments.Plan, Layout.Size, Limits -> Try(Plan, Error)
 		build = |fragments, page_size, limits| build_plan(fragments, page_size, limits)
 
@@ -90,6 +90,11 @@ KernelFacadeScenes :: [].{
 
 		ownership : Plan -> KernelTextOwnership.Plan
 		ownership = |plan| plan.ownership
+
+		## Downstream resource and content lowering consume the already-validated
+		## scene plan rather than rebuilding it from incidental arena data.
+		scene : Plan -> KernelScene.Plan
+		scene = |plan| plan.scene
 
 		work : Plan -> Work
 		work = |plan| plan.work
@@ -121,7 +126,7 @@ build_validated = |semantics, prepared, limits| {
 		limits.scene,
 	) ? Scene
 	ownership = KernelTextOwnership.Plan.build(semantics, scene, text) ? Ownership
-	Ok(KernelFacadeScenes.Plan.{ colors, ownership, work: arena.work })
+	Ok(KernelFacadeScenes.Plan.{ colors, ownership, scene, work: arena.work })
 }
 
 prepare_arena : KernelFacadeScenes.Prepared -> KernelFacadeScenes.ArenaPrepared

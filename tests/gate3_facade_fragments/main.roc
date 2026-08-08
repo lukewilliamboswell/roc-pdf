@@ -17,6 +17,7 @@ main! = |args| {
 	result = match mode {
 		"arena" => Gate3FacadeFragmentEvidence.arena(repetitions)
 		"negative" => Gate3FacadeFragmentEvidence.negative(repetitions)
+		"output" => Gate3FacadeFragmentEvidence.output_validate(repetitions)
 		"prepare" => Gate3FacadeFragmentEvidence.prepare(repetitions)
 		"scene" => Gate3FacadeFragmentEvidence.scene_validate(repetitions)
 		"validate" => Gate3FacadeFragmentEvidence.validate(repetitions)
