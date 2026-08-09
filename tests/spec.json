@@ -938,6 +938,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 ordered multi-face advanced output",
+      "scenario_revision": "gate3-multiface-v1-selected-ranges-output",
+      "source": "tests/gate3_multiface_text/main.roc",
+      "snapshot": "tests/gate3_multiface_text/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "caller_latin_bytes": 7816, "test_cjk_bytes": 2104, "selected_face_ranges": 3, "font_resources": 2, "objects": 29, "gate3_multiface_text": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["graphemes", "face_visits", "coverage_spans", "selected_face_ranges", "caller_latin_bytes", "test_cjk_bytes", "runs", "clusters", "glyphs", "latin_font_entries", "cjk_font_entries", "unicode_mappings", "fonts", "font_objects", "objects", "font_program_bytes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 196, "work": [3, 4, 15, 3, 7816, 2104, 3, 3, 3, 5, 2, 3, 2, 18, 29, 6900, 11319] },
+        "x64musl": { "allocations": 196, "work": [3, 4, 15, 3, 7816, 2104, 3, 3, 3, 5, 2, 3, 2, 18, 29, 6900, 11319] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 ordered multi-face script mismatch atomic negative",
+      "scenario_revision": "gate3-multiface-v1-selected-ranges-output",
+      "source": "tests/gate3_multiface_text_negative/main.roc",
+      "snapshot": "tests/gate3_multiface_text_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "font_selection_rejected": 1, "script_mismatch": 1, "emitted_pdf_bytes": 0 },
+      "work_counters": ["script_mismatch_rejected", "emitted_pdf_bytes", "harness_carrier_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 41, "work": [1, 0, 667] },
+        "x64musl": { "allocations": 41, "work": [1, 0, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 CJK text atomic negative",
       "scenario_revision": "gate3-cjk-v1-noto-sc-static-fixture",
       "source": "tests/gate3_cjk_text_negative/main.roc",

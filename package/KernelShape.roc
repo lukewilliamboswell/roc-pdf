@@ -26,6 +26,8 @@ KernelShape :: [].{
 		DuplicateGlyphReference({ glyph : U64, run : U64 }),
 		GlyphOutsideRun({ glyph : U64, run : U64 }),
 		InstanceMismatch({ actual : Font.InstanceId, expected : Font.InstanceId, run : U64 }),
+		SelectedFaceMissing({ instance : Font.InstanceId, run : U64 }),
+		SelectedFaceRangeMismatch({ run : U64 }),
 		OccurrenceMismatch({ actual : Semantics.OccurrenceId, expected : Semantics.OccurrenceId, run : U64 }),
 		UnreferencedGlyph({ glyph : U64, run : U64 }),
 		UnsupportedCluster({ grapheme : U64, scalars : U64 }),
@@ -48,6 +50,13 @@ KernelShape :: [].{
 		instance : Font.InstanceId,
 		occurrence : Semantics.OccurrenceId,
 	}
+
+	## This is the explicit handoff from ordered font planning. A range is the
+	## planner's cluster range, not a range reconstructed from glyph IDs or
+	## coverage during shaping. The inspection is the once-retained validation
+	## result for that selected static instance.
+	SelectedFace : { font : KernelFont.Inspection, range : Font.FaceRange }
+	SelectedContext : { faces : List(SelectedFace), occurrence : Semantics.OccurrenceId }
 
 	ValidationWork : {
 		auxiliary_visits : U64,
@@ -124,6 +133,12 @@ KernelShape :: [].{
 	## instance/occurrence ownership, glyph legality, and horizontal advances.
 	validate_advanced : KernelFont.Inspection, Str, Text.Store, AdvancedContext, AdvancedLimits -> Try(Validated, Error)
 	validate_advanced = |font, source, store, context, limits| validate_advanced_store(font, source, store, context, limits)
+
+	## Advanced multi-face callers retain the selected `Font.FaceRange` facts
+	## through validation. Every run must consume one exact selected range; this
+	## boundary never repeats coverage selection or chooses another font.
+	validate_advanced_selected : Str, Text.Store, SelectedContext, AdvancedLimits -> Try(Validated, Error)
+	validate_advanced_selected = |source, store, context, limits| validate_advanced_selected_store(source, store, context, limits)
 
 	## A GSUB fact is consumed alongside an advanced run when that run claims a
 	## ligature. The fact is already font-validated; this boundary proves that it
@@ -481,8 +496,16 @@ validate_scripts = |runs, source_bytes, scalar_count, expected| {
 script_compatible : Str, Str -> Bool
 script_compatible = |actual, expected| actual == expected or (expected == latin_script and (actual == common_script or actual == inherited_script))
 
+AdvancedValidation := [Single({ context : KernelShape.AdvancedContext, font : KernelFont.Inspection }), Selected(KernelShape.SelectedContext)]
+
 validate_advanced_store : KernelFont.Inspection, Str, Text.Store, KernelShape.AdvancedContext, KernelShape.AdvancedLimits -> Try(KernelShape.Validated, KernelShape.Error)
-validate_advanced_store = |font, source, store, context, limits| {
+validate_advanced_store = |font, source, store, context, limits| validate_advanced_with_selection(Single({ context, font }), source, store, limits)
+
+validate_advanced_selected_store : Str, Text.Store, KernelShape.SelectedContext, KernelShape.AdvancedLimits -> Try(KernelShape.Validated, KernelShape.Error)
+validate_advanced_selected_store = |source, store, context, limits| validate_advanced_with_selection(Selected(context), source, store, limits)
+
+validate_advanced_with_selection : AdvancedValidation, Str, Text.Store, KernelShape.AdvancedLimits -> Try(KernelShape.Validated, KernelShape.Error)
+validate_advanced_with_selection = |selection, source, store, limits| {
 	source_bytes = source.count_utf8_bytes()
 	if source_bytes == 0 or store.runs.len() == 0 {
 		return Err(EmptySource)
@@ -526,12 +549,7 @@ validate_advanced_store = |font, source, store, context, limits| {
 		if run.id.index() != $run_index {
 			return Err(AdvancedRunInvalid({ reason: RunId, run: $run_index }))
 		}
-		if run.instance.index() != context.instance.index() {
-			return Err(InstanceMismatch({ actual: run.instance, expected: context.instance, run: $run_index }))
-		}
-		if run.occurrence.index() != context.occurrence.index() {
-			return Err(OccurrenceMismatch({ actual: run.occurrence, expected: context.occurrence, run: $run_index }))
-		}
+		font = selected_font_for_run(selection, run, $run_index)?
 		if run.writing_mode != Horizontal {
 			return Err(UnsupportedWritingMode(run.writing_mode))
 		}
@@ -673,6 +691,44 @@ validate_advanced_store = |font, source, store, context, limits| {
 		},
 	})
 }
+
+selected_font_for_run : AdvancedValidation, Text.Run, U64 -> Try(KernelFont.Inspection, KernelShape.Error)
+selected_font_for_run = |selection, run, run_index| match selection {
+	Single({ context, font }) => {
+		if run.instance.index() != context.instance.index() {
+			Err(InstanceMismatch({ actual: run.instance, expected: context.instance, run: run_index }))
+		} else if run.occurrence.index() != context.occurrence.index() {
+			Err(OccurrenceMismatch({ actual: run.occurrence, expected: context.occurrence, run: run_index }))
+		} else {
+			Ok(font)
+		}
+	}
+	Selected(context) => {
+		if run.occurrence.index() != context.occurrence.index() {
+			return Err(OccurrenceMismatch({ actual: run.occurrence, expected: context.occurrence, run: run_index }))
+		}
+		var $index = 0
+		var $matching_instance = False
+		while $index < context.faces.len() {
+			selected = list_at(context.faces, $index)
+			if selected.range.instance.index() == run.instance.index() {
+				$matching_instance = True
+				if ranges_equal(selected.range.clusters, run.clusters) {
+					return Ok(selected.font)
+				}
+			}
+			$index = $index + 1
+		}
+		if $matching_instance {
+			Err(SelectedFaceRangeMismatch({ run: run_index }))
+		} else {
+			Err(SelectedFaceMissing({ instance: run.instance, run: run_index }))
+		}
+	}
+}
+
+ranges_equal : Semantics.Range, Semantics.Range -> Bool
+ranges_equal = |left, right| left.start() == right.start() and left.length() == right.length()
 
 validate_ligature_fact : Text.Store, KernelGsub.Fact -> Try({}, KernelShape.Error)
 validate_ligature_fact = |store, fact| {

@@ -25,6 +25,7 @@ from check_gate3_cjk_text import EXPECTED_CONTENT as GATE3_CJK_TEXT_CONTENT
 from check_gate3_cjk_text import validate_gate3_cjk_text_pdf
 from check_gate3_ligature import EXPECTED_CONTENT as GATE3_LIGATURE_CONTENT
 from check_gate3_ligature import validate_ligature_pdf
+from check_gate3_multiface_text import validate_gate3_multiface_text_pdf
 from check_gate3_soft_hyphen import EXPECTED_CONTENT as GATE3_SOFT_HYPHEN_CONTENT
 from check_gate3_soft_hyphen import validate_soft_hyphen_pdf
 from check_gate3_external_discretionary_hyphen import EXPECTED_CONTENT as GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
@@ -599,6 +600,9 @@ def run_case(
             expected_text, _ = fixture_oracle()
             validate_facade_output_pdf(result.stdout, expected_text)
             print(f"PASS {case.name}: independent offsets, lengths, xref, page, authored facade paragraph, Type 0 font, CID, and Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_multiface_text", 0) == 1:
+            validate_gate3_multiface_text_pdf(result.stdout)
+            print(f"PASS {case.name}: exact selected Latin/CJK Type 0 resources, CID maps, and Unicode mappings", flush=True)
         elif case.dimensions.get("gate3_generated_label", 0) == 1:
             validate_generated_labels_pdf(result.stdout)
             print(f"PASS {case.name}: independent offsets, lengths, xref, typed list ownership, labels, Type 0 font, CID, and Unicode mapping facts", flush=True)
@@ -710,6 +714,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate3_supplementary_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_cjk_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_ligature.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_multiface_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_soft_hyphen.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_external_discretionary_hyphen.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_renderers.py", "--self-test")

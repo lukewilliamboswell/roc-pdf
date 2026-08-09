@@ -18,6 +18,7 @@ ACTUAL_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_actual_text" / "snapshot.pdf"
 SUPPLEMENTARY_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_supplementary_text" / "snapshot.pdf"
 CJK_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_cjk_text" / "snapshot.pdf"
 LIGATURE_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_ligature_text" / "snapshot.pdf"
+MULTIFACE_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_multiface_text" / "snapshot.pdf"
 SOFT_HYPHEN_SNAPSHOT = ROOT / "tests" / "gate3_soft_hyphen" / "snapshot.pdf"
 EXTERNAL_DISCRETIONARY_HYPHEN_SNAPSHOT = ROOT / "tests" / "gate3_external_discretionary_hyphen" / "snapshot.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
@@ -42,6 +43,8 @@ PDFBOX_CJK_EXPECTED = InkMetrics(bounds=(73, 132, 81, 142), changed_pixels=47, d
 PDFIUM_CJK_EXPECTED = InkMetrics(bounds=(72, 132, 82, 142), changed_pixels=77, dark_pixels=32, ink=7649)
 PDFBOX_LIGATURE_EXPECTED = InkMetrics(bounds=(72, 133, 78, 141), changed_pixels=42, dark_pixels=19, ink=4579)
 PDFIUM_LIGATURE_EXPECTED = InkMetrics(bounds=(72, 133, 78, 141), changed_pixels=53, dark_pixels=20, ink=4959)
+PDFBOX_MULTIFACE_EXPECTED = InkMetrics(bounds=(72, 132, 95, 142), changed_pixels=130, dark_pixels=52, ink=15844)
+PDFIUM_MULTIFACE_EXPECTED = InkMetrics(bounds=(72, 132, 96, 142), changed_pixels=174, dark_pixels=64, ink=17144)
 PDFBOX_SOFT_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 131, 144), changed_pixels=271, dark_pixels=118, ink=32548)
 PDFIUM_SOFT_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 132, 144), changed_pixels=352, dark_pixels=121, ink=35014)
 PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 90, 142), changed_pixels=82, dark_pixels=36, ink=9433)
@@ -165,6 +168,8 @@ def self_test() -> None:
     assert_close("exact PDFium CJK synthetic", PDFIUM_CJK_EXPECTED, PDFIUM_CJK_EXPECTED)
     assert_close("exact PDFBox ligature synthetic", PDFBOX_LIGATURE_EXPECTED, PDFBOX_LIGATURE_EXPECTED)
     assert_close("exact PDFium ligature synthetic", PDFIUM_LIGATURE_EXPECTED, PDFIUM_LIGATURE_EXPECTED)
+    assert_close("exact PDFBox multi-face synthetic", PDFBOX_MULTIFACE_EXPECTED, PDFBOX_MULTIFACE_EXPECTED)
+    assert_close("exact PDFium multi-face synthetic", PDFIUM_MULTIFACE_EXPECTED, PDFIUM_MULTIFACE_EXPECTED)
     assert_close("exact PDFBox soft-hyphen synthetic", PDFBOX_SOFT_HYPHEN_EXPECTED, PDFBOX_SOFT_HYPHEN_EXPECTED)
     assert_close("exact PDFium soft-hyphen synthetic", PDFIUM_SOFT_HYPHEN_EXPECTED, PDFIUM_SOFT_HYPHEN_EXPECTED)
     assert_close("exact PDFBox external discretionary-hyphen synthetic", PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED, PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED)
@@ -206,6 +211,7 @@ def main() -> None:
     parser.add_argument("--supplementary", action="store_true")
     parser.add_argument("--cjk", action="store_true")
     parser.add_argument("--ligature", action="store_true")
+    parser.add_argument("--multiface", action="store_true")
     parser.add_argument("--soft-hyphen", action="store_true")
     parser.add_argument("--external-discretionary-hyphen", action="store_true")
     parser.add_argument("--self-test", action="store_true")
@@ -214,7 +220,7 @@ def main() -> None:
         self_test()
         return
     require(args.pdfium_renderer is not None, "--pdfium-renderer is required unless --self-test is used")
-    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk, args.ligature, args.soft_hyphen, args.external_discretionary_hyphen)) <= 1, "renderer fixture selectors are mutually exclusive")
+    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk, args.ligature, args.multiface, args.soft_hyphen, args.external_discretionary_hyphen)) <= 1, "renderer fixture selectors are mutually exclusive")
     if args.actual_text:
         snapshot = ACTUAL_TEXT_SNAPSHOT
         label = "reordered ActualText"
@@ -235,6 +241,11 @@ def main() -> None:
         label = "parsed fi ligature text"
         pdfbox_expected = PDFBOX_LIGATURE_EXPECTED
         pdfium_expected = PDFIUM_LIGATURE_EXPECTED
+    elif args.multiface:
+        snapshot = MULTIFACE_TEXT_SNAPSHOT
+        label = "ordered multi-face text"
+        pdfbox_expected = PDFBOX_MULTIFACE_EXPECTED
+        pdfium_expected = PDFIUM_MULTIFACE_EXPECTED
     elif args.soft_hyphen:
         snapshot = SOFT_HYPHEN_SNAPSHOT
         label = "selected soft-hyphen text"
