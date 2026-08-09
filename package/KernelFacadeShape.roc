@@ -14,6 +14,7 @@ KernelFacadeShape :: [].{
 	Dimension : [Requests]
 	Error : [
 		ArtifactTextPending({ artifacts : U64 }),
+		GeneratedLabelEvidenceInvalid({ block : U64, occurrence : U64 }),
 		InvalidOccurrence({ block : U64, occurrence : U64 }),
 		LanguageMismatch({ occurrence : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
@@ -162,6 +163,9 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 							return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrence_index }))
 						}
 						occurrence = list_at(store.occurrences, occurrence_index)
+						if !generated_label_evidence_valid(occurrence, store.text_properties) {
+							return Err(GeneratedLabelEvidenceInvalid({ block: $block_index, occurrence: occurrence_index }))
+						}
 						if occurrence.language != batch_language {
 							return Err(LanguageMismatch({ occurrence: occurrence_index }))
 						}
@@ -241,6 +245,43 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 		return Err(OccurrenceCoverage({ actual: $request_index, expected: occurrence_count }))
 	}
 	Ok(KernelFacadeShape.Preparation.{ block_runs: $block_runs, options: batch_options, requests: $requests, styles: $styles })
+}
+
+## Labels are generated presentation, not punctuation inferred from a layout
+## position. The source occurrence and its sole generated-text property remain
+## coupled before shaping so later text lowering receives an explicit fact.
+generated_label_evidence_valid : Semantics.ContentOccurrence, List(Semantics.TextProperty) -> Bool
+generated_label_evidence_valid = |occurrence, properties| {
+	match occurrence.source {
+		Text(_, UnicodeRange(source_range)) => {
+			property_range = occurrence.text_properties
+			if property_range.length() != 1 or property_range.start() >= properties.len() {
+				False
+			} else {
+				match list_at(properties, property_range.start()) {
+					SourceToPresentation({ kind: GeneratedText, presentation, source }) => presentation == "•" and text_ranges_equal(source, source_range)
+					_ => False
+				}
+			}
+		}
+		_ => False
+	}
+}
+
+text_ranges_equal : Semantics.TextRange, Semantics.TextRange -> Bool
+text_ranges_equal = |left, right| {
+	scalars_equal = ranges_equal(left.scalars, right.scalars)
+	bytes_equal = ranges_equal(left.utf8_bytes, right.utf8_bytes)
+	scalars_equal and bytes_equal
+}
+
+ranges_equal : Semantics.Range, Semantics.Range -> Bool
+ranges_equal = |left, right| {
+	left_start = left.start()
+	right_start = right.start()
+	left_length = left.length()
+	right_length = right.length()
+	left_start == right_start and left_length == right_length
 }
 
 style_for : Document.NormalizedBlockKind, Theme -> Theme.TextStyle

@@ -713,6 +713,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 generated list-label text",
+      "scenario_revision": "gate3-generated-label-v1-explicit-presentation",
+      "source": "tests/gate3_generated_label/main.roc",
+      "snapshot": "tests/gate3_generated_label/snapshot.pdf",
+      "args": ["0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "list_items": 2, "generated_labels": 2, "gate3_generated_label": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1703, "work": [11468] },
+        "x64musl": { "allocations": 1703, "work": [11468] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 generated list-label atomic negative",
+      "scenario_revision": "gate3-generated-label-v1-explicit-presentation",
+      "source": "tests/gate3_generated_label_negative/main.roc",
+      "snapshot": "tests/gate3_generated_label_negative/snapshot.pdf",
+      "args": ["0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "generated_label_property_rejected": 1, "emitted_pdf_bytes": 0 },
+      "work_counters": ["generated_label_property_rejected", "evidence_pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 44, "work": [1, 667] },
+        "x64musl": { "allocations": 44, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 caller-font visible searchable text",
       "scenario_revision": "gate3-caller-font-visible-text-v2-tagged-scene-content",
       "source": "tests/gate3_caller_text/main.roc",
