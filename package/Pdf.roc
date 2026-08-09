@@ -1,5 +1,6 @@
 import Conformance
 import Document
+import Font
 import KernelLex
 import KernelEmit
 import KernelFacadePipeline
@@ -38,6 +39,12 @@ import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8
 Pdf :: [].{
 	Profile := [AccessibleArchive, Archive, Standard]
 
+	## The facade records whether its selected theme face is the small packaged
+	## face or one of the opaque faces retained by a caller font registry. Both
+	## cases resolve to one validated inspection before the shared pipeline; no
+	## later stage branches on font provenance.
+	FontSource := [BuiltIn, Registered(Font.Registry)]
+
 	PageSize := [A4, Letter]
 	ChunkRetention := [OwnChunks, ShareUnchangedResources]
 
@@ -46,11 +53,13 @@ Pdf :: [].{
 		CapabilityUnavailable(Feature),
 		InternalGenerationFailure,
 		InvalidDocument(List(Conformance.Diagnostic)),
+		InvalidFontResource(Font.ResourceError),
 		UnsupportedAuthoringContent({ blocks : U64 }),
 	]
 
 	Options :: {
 		chunk_retention : ChunkRetention,
+		font_source : FontSource,
 		page_size : PageSize,
 		profile : Profile,
 		theme : Theme,
@@ -58,6 +67,7 @@ Pdf :: [].{
 		default : Options
 		default = Options.{
 			chunk_retention: ShareUnchangedResources,
+			font_source: BuiltIn,
 			page_size: A4,
 			profile: Standard,
 			theme: Theme.default,
@@ -71,6 +81,12 @@ Pdf :: [].{
 
 		with_theme : Options, Theme -> Options
 		with_theme = |options, theme| { ..options, theme }
+
+		## A registry is the complete public caller-resource boundary. It carries
+		## the original immutable font bytes and the once-produced inspection
+		## facts; callers still select only the returned opaque face through Theme.
+		with_font_registry : Options, Font.Registry -> Options
+		with_font_registry = |options, registry| { ..options, font_source: Registered(registry) }
 
 		with_chunk_retention : Options, ChunkRetention -> Options
 		with_chunk_retention = |options, chunk_retention| { ..options, chunk_retention }
@@ -164,7 +180,7 @@ build_standard_plan = |doc, options| {
 		plan = KernelStructure.build_blank(1, structure_page_size(options.page_size)) ? |_| InternalGenerationFailure
 		return Ok(plan)
 	}
-	font = KernelFont.inspect(built_in_font_bytes, standard_font_limits) ? |_| InternalGenerationFailure
+	font = selected_font(options)?
 	pipeline = KernelFacadePipeline.Plan.build(
 		Document.normalize(doc),
 		font,
@@ -174,6 +190,34 @@ build_standard_plan = |doc, options| {
 		standard_pipeline_limits,
 	) ? |_| UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
 	Ok(KernelFacadePipeline.Plan.structure(pipeline))
+}
+
+selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)
+selected_font = |options| match options.font_source {
+	BuiltIn => {
+
+		## The packaged face has the same dense facade identity as the initial
+		## caller registry face. The shaping stage consumes only the validated
+		## inspection and typed Theme face, never a provenance flag.
+		if Theme.body_font(options.theme).index() != 0 {
+			Err(InvalidFontResource(UnknownFace(Theme.body_font(options.theme))))
+		} else {
+			selected_built_in_font({})
+		}
+	}
+	Registered(registry) => selected_registered_font(registry, Theme.body_font(options.theme))
+}
+
+selected_built_in_font : {} -> Try(KernelFont.Inspection, Pdf.Error)
+selected_built_in_font = |_| {
+	font = KernelFont.inspect(built_in_font_bytes, standard_font_limits) ? |_| InternalGenerationFailure
+	Ok(font)
+}
+
+selected_registered_font : Font.Registry, Font.FaceId -> Try(KernelFont.Inspection, Pdf.Error)
+selected_registered_font = |registry, face| {
+	font = registry.prepared_face(face) ? InvalidFontResource
+	Ok(font)
 }
 
 validate_standard_request : Pdf.Options -> Try({}, Pdf.Error)

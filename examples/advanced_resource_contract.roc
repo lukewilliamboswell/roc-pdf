@@ -6,6 +6,7 @@ app [main!] {
 import pdf.Color
 import pdf.Font
 import pdf.Image
+import pdf.Pdf
 import pdf.Semantics
 import pdf.Theme
 import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
@@ -19,6 +20,43 @@ expect {
 	}
 
 	color.space.index() == 1
+}
+
+## A registered caller face is selected by Theme and reaches the one-import
+## facade without exposing a resource ID or any PDF object detail.
+expect {
+	registered = Font.Registry.empty.register(
+		caller_font_bytes,
+		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+		Font.ValidationLimits.default,
+	)?
+	theme = Theme.with_font(Theme.default, registered.face)
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), registered.registry)
+	document = Pdf.document({
+		contents: [Pdf.paragraph("Café PDF")],
+		language: "en-AU",
+		title: "Caller font facade",
+	})
+	bytes = Pdf.to_bytes_with(document, options)?
+
+	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
+}
+
+## The facade does not substitute the packaged font if a selected caller face
+## is absent from the supplied registry. The failed Try has no PDF byte value.
+expect {
+	theme = Theme.with_font(Theme.default, Font.FaceId.from_index(1))
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), Font.Registry.empty)
+	document = Pdf.document({
+		contents: [Pdf.paragraph("No fallback")],
+		language: "en-AU",
+		title: "Unknown caller face",
+	})
+
+	match Pdf.to_bytes_with(document, options) {
+		Err(InvalidFontResource(UnknownFace(face))) => face.index() == 1
+		_ => False
+	}
 }
 
 ## Complete caller-owned bytes are validated once, assigned opaque dense
