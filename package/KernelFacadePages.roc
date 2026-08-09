@@ -25,8 +25,8 @@ KernelFacadePages :: [].{
 	Row : {
 		body_line : U64,
 		body_offset : Layout.Unit,
-		body_run : Text.RunId,
-		label : [Label({ line : U64, run : Text.RunId }), NoLabel],
+		body_runs : KernelFacadeShape.LogicalRun,
+		label : [Label({ line : U64, runs : KernelFacadeShape.LogicalRun }), NoLabel],
 	}
 	Work : {
 		block_planning_visits : U64,
@@ -67,17 +67,17 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 	while $block_index < block_lines.len() {
 		match list_at(block_lines, $block_index) {
 			TextBlock({ body, body_offset: _, label }) => {
-				body_end = range_end(body)?
-				if body.length() == 0 or body_end > lines.len() {
+				body_end = range_end(body.lines)?
+				if body.lines.length() == 0 or body_end > lines.len() {
 					return Err(InvalidBlock({ block: $block_index }))
 				}
 				match label {
 					NoLabel => {}
-					Label(label_lines) => if label_lines.length() != 1 or range_end(label_lines)? > lines.len() {
+					Label(label_lines) => if label_lines.lines.length() != 1 or range_end(label_lines.lines)? > lines.len() {
 						return Err(InvalidBlock({ block: $block_index }))
 					}
 				}
-				$row_count = checked_add($row_count, body.length())?
+				$row_count = checked_add($row_count, body.lines.length())?
 				check_limit($row_count, limits.max_rows, Rows)?
 			}
 		}
@@ -94,7 +94,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 		run_block = list_at(block_runs, $block_index)
 		match (line_block, run_block) {
 			(TextBlock({ body: body_lines, body_offset, label: label_lines }), TextBlock({ body: body_run, label: label_run })) => {
-				body_index = body_run.index()
+				body_index = single_run_index(body_run, $block_index)?
 				if body_index >= shape_batch.store.runs.len() {
 					return Err(InvalidRun({ block: $block_index, run: body_index }))
 				}
@@ -102,16 +102,17 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 				body_style = list_at(styles, body_index)
 				visual_start = $visual_lines.len()
 				var $local = 0
-				while $local < body_lines.length() {
-					body_line_index = body_lines.start() + $local
+				while $local < body_lines.lines.length() {
+					body_line_index = body_lines.lines.start() + $local
 					label = if $local == 0 {
 						match (label_lines, label_run) {
 							(NoLabel, NoLabel) => NoLabel
-							(Label(label_range), Label(label_id)) => if label_id.index() >= shape_batch.store.runs.len() {
-								return Err(InvalidRun({ block: $block_index, run: label_id.index() }))
+							(Label(label_range), Label(label_id)) => if label_id.physical.start() >= shape_batch.store.runs.len() {
+								return Err(InvalidRun({ block: $block_index, run: label_id.physical.start() }))
 							} else {
+								_label_index = single_run_index(label_id, $block_index)?
 								$label_rows = checked_add($label_rows, 1)?
-								Label({ line: label_range.start(), run: label_id })
+								Label({ line: label_range.lines.start(), runs: label_id })
 							}
 							_ => return Err(InvalidBlock({ block: $block_index }))
 						}
@@ -122,16 +123,16 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 						return Err(InvalidLine({ block: $block_index, line: body_line_index }))
 					}
 					$visual_lines = $visual_lines.append(list_at(lines, body_line_index))
-					$rows = $rows.append({ body_line: body_line_index, body_offset, body_run, label })
+					$rows = $rows.append({ body_line: body_line_index, body_offset, body_runs: body_run, label })
 					$local = $local + 1
 				}
-				minimum = U64.min(2, body_lines.length())
+				minimum = U64.min(2, body_lines.lines.length())
 				keep_with_next = keeps_with_next(author_block.kind) and $block_index + 1 < block_lines.len()
 				space_after = if continues_list(authoring.blocks, $block_index) Layout.Unit.from_raw(0) else Theme.paragraph_spacing(theme)
 				$page_blocks = $page_blocks.append({
 					baseline_offset: body_record.size,
 					leading: body_style.leading,
-					lines: Semantics.Range.from_start_and_length(visual_start, body_lines.length()),
+					lines: Semantics.Range.from_start_and_length(visual_start, body_lines.lines.length()),
 					occurrence: body_record.occurrence,
 					policy: {
 						break_before: False,
@@ -169,6 +170,16 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 			},
 		},
 	)
+}
+
+single_run_index : KernelFacadeShape.LogicalRun, U64 -> Try(U64, KernelFacadePages.Error)
+single_run_index = |logical, block| {
+	physical = logical.physical
+	if physical.length() != 1 {
+		Err(InvalidRun({ block, run: physical.start() }))
+	} else {
+		Ok(physical.start())
+	}
 }
 
 keeps_together : Document.NormalizedBlockKind -> Bool

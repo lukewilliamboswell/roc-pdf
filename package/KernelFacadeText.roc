@@ -93,7 +93,10 @@ KernelFacadeText :: [].{
 	}
 }
 
-PaintRequest := { line : U64, origin : Layout.Point, page : Semantics.PageId, source_run : Text.RunId }
+## The request remains attached to the logical run range selected before line
+## breaking. The current materializer rejects a range wider than one physical
+## run explicitly; it no longer relies on a bare run ID to hide that boundary.
+PaintRequest := { line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
 
 build_plan : KernelFacadeShape.Plan, KernelFacadeLines.Plan, KernelFacadePages.Plan, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
 build_plan = |shape_plan, line_plan, page_plan, limits| {
@@ -157,7 +160,7 @@ build_prepared_plan = |prepared, limits| {
 			match row.label {
 				NoLabel => {}
 				Label(label) => {
-					$requests = $requests.append({ line: label.line, origin: placement.baseline, page: page.id, source_run: label.run })
+					$requests = $requests.append({ line: label.line, origin: placement.baseline, page: page.id, source_runs: label.runs })
 				}
 			}
 			if row.body_offset.raw() < 0 {
@@ -165,7 +168,7 @@ build_prepared_plan = |prepared, limits| {
 			}
 			body_x = checked_i64_add(placement.baseline.x.raw(), row.body_offset.raw())?
 			body_origin = { x: Layout.Unit.from_raw(body_x), y: placement.baseline.y }
-			$requests = $requests.append({ line: row.body_line, origin: body_origin, page: page.id, source_run: row.body_run })
+			$requests = $requests.append({ line: row.body_line, origin: body_origin, page: page.id, source_runs: row.body_runs })
 			$placement_cursor = $placement_cursor + 1
 		}
 		$page_records = $page_records.append({
@@ -186,7 +189,7 @@ build_prepared_plan = |prepared, limits| {
 	var $request_index = 0
 	while $request_index < $requests.len() {
 		request = list_at($requests, $request_index)
-		source_run_index = request.source_run.index()
+		source_run_index = single_run_index(request.source_runs)?
 		if source_run_index >= shape.runs.len() or request.line >= lines.len() {
 			return Err(InvalidLine({ line: request.line, run: source_run_index }))
 		}
@@ -282,6 +285,16 @@ build_prepared_plan = |prepared, limits| {
 			},
 		},
 	)
+}
+
+single_run_index : KernelFacadeShape.LogicalRun -> Try(U64, KernelFacadeText.Error)
+single_run_index = |logical| {
+	physical = logical.physical
+	if physical.length() != 1 {
+		Err(InvalidRun({ run: physical.start() }))
+	} else {
+		Ok(physical.start())
+	}
 }
 
 text_range_within : Semantics.TextRange, Semantics.TextRange -> Bool
@@ -395,7 +408,12 @@ test_prepared = |shape| {
 	page_placements: [{ baseline: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(20) }, fragment: Semantics.FragmentId.from_index(0), line: 0 }],
 	pages: [{ fragments: Semantics.Range.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.Range.from_start_and_length(0, 1) }],
 	rows: [
-		{ body_line: 1, body_offset: Layout.Unit.from_raw(5), body_run: Text.RunId.from_index(0), label: Label({ line: 0, run: Text.RunId.from_index(0) }) },
+		{
+			body_line: 1,
+			body_offset: Layout.Unit.from_raw(5),
+			body_runs: { physical: Semantics.Range.from_start_and_length(0, 1) },
+			label: Label({ line: 0, runs: { physical: Semantics.Range.from_start_and_length(0, 1) } }),
+		},
 	],
 	shape,
 	styles: [test_style],
@@ -428,6 +446,21 @@ expect {
 	bad = { ..test_text, glyph_indices: [9, 1] }
 	match KernelFacadeText.Plan.build_prepared(test_prepared(bad), test_limits) {
 		Err(InvalidGlyph({ glyph: 9, line: 0 })) => True
+		_ => False
+	}
+}
+
+## A later multi-face selector may widen this relation, but this single-run
+## materializer must reject it before it can emit a partial visual run.
+expect {
+	prepared = test_prepared(test_text)
+	row = list_at(prepared.rows, 0)
+	bad = {
+		..prepared,
+		rows: [{ ..row, body_runs: { physical: Semantics.Range.from_start_and_length(0, 2) } }],
+	}
+	match KernelFacadeText.Plan.build_prepared(bad, test_limits) {
+		Err(InvalidRun({ run: 0 })) => True
 		_ => False
 	}
 }

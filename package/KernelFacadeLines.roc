@@ -20,7 +20,12 @@ KernelFacadeLines :: [].{
 		make : { line : KernelLineLayout.BatchLimits, max_blocks : U64, max_runs : U64 } -> Limits
 		make = |limits| Limits.(limits)
 	}
-	BlockLines : [TextBlock({ body : Semantics.Range, body_offset : Layout.Unit, label : [Label(Semantics.Range), NoLabel] })]
+
+	## Preserve the logical-to-physical shaped-run relation alongside the line
+	## ranges. The present line breaker accepts one physical run per logical
+	## request; that restriction is checked below rather than encoded as an
+	## accidental equality of dense IDs.
+	BlockLines : [TextBlock({ body : { lines : Semantics.Range, runs : KernelFacadeShape.LogicalRun }, body_offset : Layout.Unit, label : [Label({ lines : Semantics.Range, runs : KernelFacadeShape.LogicalRun }), NoLabel] })]
 	Work : {
 		block_mapping_visits : U64,
 		blocks : U64,
@@ -71,7 +76,7 @@ build_plan = |shape, sources, page, theme, limits| {
 				match label {
 					NoLabel => {}
 					Label(label_run) => {
-						label_index = label_run.index()
+						label_index = single_run_index(label_run, $block_index)?
 						if label_index != $next_run or label_index >= run_count {
 							return Err(InvalidRun({ block: $block_index, run: label_index }))
 						}
@@ -79,7 +84,7 @@ build_plan = |shape, sources, page, theme, limits| {
 						$next_run = checked_add($next_run, 1)?
 					}
 				}
-				body_index = body.index()
+				body_index = single_run_index(body, $block_index)?
 				if body_index != $next_run or body_index >= run_count {
 					return Err(InvalidRun({ block: $block_index, run: body_index }))
 				}
@@ -104,16 +109,20 @@ build_plan = |shape, sources, page, theme, limits| {
 		match list_at(block_runs, $block_index) {
 			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
 			TextBlock({ body, label }) => {
-				body_lines = list_at(run_lines, body.index())
+				body_index = single_run_index(body, $block_index)?
+				body_lines = list_at(run_lines, body_index)
 				body_offset = match label {
 					NoLabel => Layout.Unit.from_raw(0)
 					Label(_) => Layout.Unit.from_raw(indent.to_i64_wrap())
 				}
 				label_lines = match label {
 					NoLabel => NoLabel
-					Label(label_run) => Label(list_at(run_lines, label_run.index()))
+					Label(label_run) => {
+						label_index = single_run_index(label_run, $block_index)?
+						Label({ lines: list_at(run_lines, label_index), runs: label_run })
+					}
 				}
-				$blocks = $blocks.append(TextBlock({ body: body_lines, body_offset, label: label_lines }))
+				$blocks = $blocks.append(TextBlock({ body: { lines: body_lines, runs: body }, body_offset, label: label_lines }))
 			}
 		}
 		$block_index = $block_index + 1
@@ -131,6 +140,20 @@ build_plan = |shape, sources, page, theme, limits| {
 			},
 		},
 	)
+}
+
+## The existing LTR facade path is deliberately narrow, but it now states
+## that boundary in terms of the logical range it receives. A later physical
+## multi-run line-breaker can consume a longer range without rewriting block
+## ownership or recovering a relationship from run IDs.
+single_run_index : KernelFacadeShape.LogicalRun, U64 -> Try(U64, KernelFacadeLines.Error)
+single_run_index = |logical, block| {
+	physical = logical.physical
+	if physical.length() != 1 {
+		Err(InvalidRun({ block, run: physical.start() }))
+	} else {
+		Ok(physical.start())
+	}
 }
 
 calculate_content_width : Layout.Size, Theme.PageMargin -> Try(U64, KernelFacadeLines.Error)
@@ -185,6 +208,11 @@ expect match calculate_content_width(
 	{ bottom: Layout.Unit.from_raw(0), left: Layout.Unit.from_raw(500), right: Layout.Unit.from_raw(500), top: Layout.Unit.from_raw(0) },
 ) {
 	Err(InvalidGeometry) => True
+	_ => False
+}
+
+expect match single_run_index({ physical: Semantics.Range.from_start_and_length(4, 2) }, 7) {
+	Err(InvalidRun({ block: 7, run: 4 })) => True
 	_ => False
 }
 

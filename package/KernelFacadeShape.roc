@@ -26,7 +26,15 @@ KernelFacadeShape :: [].{
 		make : { max_requests : U64, shape : KernelShape.Limits } -> Limits
 		make = |limits| Limits.(limits)
 	}
-	BlockRuns : [ArtifactBlock(U64), TextBlock({ body : Text.RunId, label : [Label(Text.RunId), NoLabel] })]
+
+	## A logical authoring occurrence may become more than one physical shaped
+	## run when an earlier font plan selects different faces by grapheme
+	## cluster. Keep that relationship explicit here, before line breaking has
+	## an opportunity to split or place it. The current built-in Latin path
+	## creates exactly one physical run; later multi-face materialization will
+	## be allowed to widen this range without changing block ownership.
+	LogicalRun : { physical : Semantics.Range }
+	BlockRuns : [ArtifactBlock(U64), TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel] })]
 	RunStyle : { color : Color.SourceValue, leading : Layout.Unit }
 	Work : {
 		font_bytes : U64,
@@ -80,6 +88,9 @@ KernelFacadeShape :: [].{
 		work = |plan| plan.work
 	}
 }
+
+logical_run_single : Text.RunId -> KernelFacadeShape.LogicalRun
+logical_run_single = |run| { physical: Semantics.Range.from_start_and_length(run.index(), 1) }
 
 build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_plan = |authoring, owners, store, source_store, artifact_count, font, theme, limits| {
@@ -176,7 +187,7 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 						if source_id.index() >= source_count {
 							return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrence_index }))
 						}
-						run = Text.RunId.from_index($request_index)
+						run = logical_run_single(Text.RunId.from_index($request_index))
 						$requests = match $requests.set(
 							$request_index,
 							{
@@ -214,7 +225,7 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 				if source_id.index() >= source_count {
 					return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrence_index }))
 				}
-				body_run = Text.RunId.from_index($request_index)
+				body_run = logical_run_single(Text.RunId.from_index($request_index))
 				$requests = match $requests.set(
 					$request_index,
 					{
