@@ -41,9 +41,16 @@ The independent checker reconstructs both orders separately, validates the
 balanced marked-content syntax, exact two-row CMap, exact caller-font widths,
 5,956-byte sanitized subset and subset digest, and rejects atomic negative
 twins for the logical value, marked-content balance, CMap, and page font.
-PDFBox 3.0.8 independently extracts exact UTF-8 `fa\n`. PDFBox rendering pins
-the 72-dpi ink bounds and CI compares the same file with PDFium Chromium 7988
-under the existing explicit renderer tolerances.
+PDFBox 3.0.8 independently extracts exact UTF-8 `fa\n`. PDFBox and PDFium
+each pin their own 72-dpi ink metrics, while their geometry must agree within
+the explicit bound tolerance. Pixel coverage and grayscale ink remain
+renderer-specific because the two independent rasterizers antialias glyph edges
+differently.
+
+| Renderer | Bounds | Changed pixels | Dark pixels | Grayscale ink |
+| --- | --- | ---: | ---: | ---: |
+| PDFBox 3.0.8 | `(72, 133, 81, 142)` | 60 | 27 | 6,883 |
+| PDFium Chromium 7988 | `(71, 133, 82, 142)` | 78 | 27 | 7,350 |
 
 Roc evidence separately validates a two-glyph `ManyToMany` cluster through the
 advanced shaping boundary. It also accepts an occurrence-owned semantic

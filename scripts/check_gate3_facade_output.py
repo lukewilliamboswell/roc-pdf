@@ -157,7 +157,8 @@ def main() -> None:
     parser.add_argument("--pdfbox-extraction", action="store_true")
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
-    parser.add_argument("--renderer-metrics")
+    parser.add_argument("--pdfbox-renderer-metrics")
+    parser.add_argument("--pdfium-renderer-metrics")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
@@ -165,8 +166,11 @@ def main() -> None:
         return
     if args.pdf is None or args.expected_text is None:
         parser.error("pdf and --expected-text are required unless --self-test is used")
-    if (args.pdfium_renderer is None) != (args.renderer_metrics is None):
-        parser.error("--pdfium-renderer and --renderer-metrics must be supplied together")
+    renderer_arguments = (args.pdfium_renderer, args.pdfbox_renderer_metrics, args.pdfium_renderer_metrics)
+    if any(value is not None for value in renderer_arguments) and any(value is None for value in renderer_arguments):
+        parser.error(
+            "--pdfium-renderer, --pdfbox-renderer-metrics, and --pdfium-renderer-metrics must be supplied together"
+        )
     pdf = args.pdf.resolve()
     validate_facade_output_pdf(pdf.read_bytes(), args.expected_text)
     print(f"PASS Gate 3 facade output structure, font, CID, ToUnicode, and content checks: {pdf}")
@@ -178,7 +182,8 @@ def main() -> None:
             args.pdfium_working_directory,
             pdf,
             "facade output",
-            parse_metrics(args.renderer_metrics),
+            parse_metrics(args.pdfbox_renderer_metrics),
+            parse_metrics(args.pdfium_renderer_metrics),
         )
 
 

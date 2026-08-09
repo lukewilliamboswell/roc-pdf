@@ -22,7 +22,10 @@ from the original emitted bytes:
   the decoded stream, with one deterministic subset identity shared by all
   three PDF font dictionaries; and
 - independent PDFBox and PDFium 72-dpi rendering within newly measured,
-  explicitly checked ink bounds and tolerances.
+  explicitly checked per-renderer ink bounds and tolerances, with their
+  geometry checked against each other separately. Glyph-edge antialiasing
+  coverage is renderer-specific evidence, not a reason to widen a shared
+  pixel-count tolerance.
 
 `scripts/check_gate3_facade_output.py` carries these assertions without
 hard-coding object IDs, subset digest, width sequence, content layout, or

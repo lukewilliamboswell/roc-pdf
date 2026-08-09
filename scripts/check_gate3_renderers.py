@@ -27,8 +27,10 @@ class InkMetrics:
     ink: int
 
 
-EXPECTED = InkMetrics(bounds=(72, 133, 120, 142), changed_pixels=241, dark_pixels=100, ink=29490)
-ACTUAL_TEXT_EXPECTED = InkMetrics(bounds=(72, 133, 81, 142), changed_pixels=60, dark_pixels=27, ink=6883)
+PDFBOX_EXPECTED = InkMetrics(bounds=(72, 133, 120, 142), changed_pixels=241, dark_pixels=100, ink=29490)
+PDFIUM_EXPECTED = InkMetrics(bounds=(72, 133, 120, 142), changed_pixels=313, dark_pixels=109, ink=31149)
+PDFBOX_ACTUAL_TEXT_EXPECTED = InkMetrics(bounds=(72, 133, 81, 142), changed_pixels=60, dark_pixels=27, ink=6883)
+PDFIUM_ACTUAL_TEXT_EXPECTED = InkMetrics(bounds=(71, 133, 82, 142), changed_pixels=78, dark_pixels=27, ink=7350)
 BOUNDS_TOLERANCE = 2
 CHANGED_PIXELS_TOLERANCE = 60
 DARK_PIXELS_TOLERANCE = 40
@@ -84,6 +86,13 @@ def assert_close(label: str, actual: InkMetrics, expected: InkMetrics) -> None:
     )
 
 
+def assert_geometry_agreement(pdfium: InkMetrics, pdfbox: InkMetrics) -> None:
+    require(
+        all(abs(pdfium_value - pdfbox_value) <= BOUNDS_TOLERANCE for pdfium_value, pdfbox_value in zip(pdfium.bounds, pdfbox.bounds)),
+        f"PDFium versus PDFBox: ink bounds {pdfium.bounds} exceed ±{BOUNDS_TOLERANCE} from {pdfbox.bounds}",
+    )
+
+
 def compile_pdfbox_renderer(classes: Path) -> None:
     subprocess.run(
         ["javac", "-Xlint:all", "-Werror", "-encoding", "UTF-8", "-cp", str(PDFBOX_JAR), "-d", str(classes), str(PDFBOX_SOURCE)],
@@ -92,7 +101,14 @@ def compile_pdfbox_renderer(classes: Path) -> None:
     )
 
 
-def check_renderers(renderer: Path, working_directory: Path | None, snapshot: Path, label: str, expected: InkMetrics) -> None:
+def check_renderers(
+    renderer: Path,
+    working_directory: Path | None,
+    snapshot: Path,
+    label: str,
+    pdfbox_expected: InkMetrics,
+    pdfium_expected: InkMetrics,
+) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
     require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-gate3-render-") as temporary_name:
@@ -114,9 +130,9 @@ def check_renderers(renderer: Path, working_directory: Path | None, snapshot: Pa
         )
         pdfbox = ink_metrics(read_ppm(pdfbox_output))
         pdfium = ink_metrics(read_ppm(pdfium_output))
-        assert_close("PDFBox 3.0.8", pdfbox, expected)
-        assert_close("PDFium Chromium 7988", pdfium, expected)
-        assert_close("PDFium versus PDFBox", pdfium, pdfbox)
+        assert_close("PDFBox 3.0.8", pdfbox, pdfbox_expected)
+        assert_close("PDFium Chromium 7988", pdfium, pdfium_expected)
+        assert_geometry_agreement(pdfium, pdfbox)
     print(
         f"PASS Gate 3 {label} renderers: PDFium Chromium 7988 and PDFBox 3.0.8 independently render "
         "visible text within the declared 72-dpi bounds, pixel-count, and grayscale-ink tolerances"
@@ -124,20 +140,35 @@ def check_renderers(renderer: Path, working_directory: Path | None, snapshot: Pa
 
 
 def self_test() -> None:
-    assert_close("exact synthetic", EXPECTED, EXPECTED)
-    assert_close("exact ActualText synthetic", ACTUAL_TEXT_EXPECTED, ACTUAL_TEXT_EXPECTED)
+    assert_close("exact PDFBox synthetic", PDFBOX_EXPECTED, PDFBOX_EXPECTED)
+    assert_close("exact PDFium synthetic", PDFIUM_EXPECTED, PDFIUM_EXPECTED)
+    assert_close("exact PDFBox ActualText synthetic", PDFBOX_ACTUAL_TEXT_EXPECTED, PDFBOX_ACTUAL_TEXT_EXPECTED)
+    assert_close("exact PDFium ActualText synthetic", PDFIUM_ACTUAL_TEXT_EXPECTED, PDFIUM_ACTUAL_TEXT_EXPECTED)
+    assert_geometry_agreement(PDFIUM_EXPECTED, PDFBOX_EXPECTED)
     mutation = InkMetrics(
-        bounds=(EXPECTED.bounds[0] + BOUNDS_TOLERANCE + 1, *EXPECTED.bounds[1:]),
-        changed_pixels=EXPECTED.changed_pixels,
-        dark_pixels=EXPECTED.dark_pixels,
-        ink=EXPECTED.ink,
+        bounds=(PDFBOX_EXPECTED.bounds[0] + BOUNDS_TOLERANCE + 1, *PDFBOX_EXPECTED.bounds[1:]),
+        changed_pixels=PDFBOX_EXPECTED.changed_pixels,
+        dark_pixels=PDFBOX_EXPECTED.dark_pixels,
+        ink=PDFBOX_EXPECTED.ink,
     )
     try:
-        assert_close("negative twin", mutation, EXPECTED)
+        assert_close("negative twin", mutation, PDFBOX_EXPECTED)
     except SystemExit:
         pass
     else:
         raise SystemExit("Gate 3 renderer checker accepted an out-of-bounds negative twin")
+    geometry_mutation = InkMetrics(
+        bounds=(PDFIUM_EXPECTED.bounds[0] + BOUNDS_TOLERANCE + 1, *PDFIUM_EXPECTED.bounds[1:]),
+        changed_pixels=PDFIUM_EXPECTED.changed_pixels,
+        dark_pixels=PDFIUM_EXPECTED.dark_pixels,
+        ink=PDFIUM_EXPECTED.ink,
+    )
+    try:
+        assert_geometry_agreement(geometry_mutation, PDFBOX_EXPECTED)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("Gate 3 renderer checker accepted a cross-renderer geometry mismatch")
     print("PASS Gate 3 renderer checker self-test")
 
 
@@ -157,16 +188,26 @@ def main() -> None:
     if args.actual_text:
         snapshot = ACTUAL_TEXT_SNAPSHOT
         label = "reordered ActualText"
-        expected = ACTUAL_TEXT_EXPECTED
+        pdfbox_expected = PDFBOX_ACTUAL_TEXT_EXPECTED
+        pdfium_expected = PDFIUM_ACTUAL_TEXT_EXPECTED
     elif args.caller:
         snapshot = CALLER_SNAPSHOT
         label = "caller-font text"
-        expected = EXPECTED
+        pdfbox_expected = PDFBOX_EXPECTED
+        pdfium_expected = PDFIUM_EXPECTED
     else:
         snapshot = SNAPSHOT
         label = "built-in text"
-        expected = EXPECTED
-    check_renderers(args.pdfium_renderer.resolve(), args.pdfium_working_directory, snapshot, label, expected)
+        pdfbox_expected = PDFBOX_EXPECTED
+        pdfium_expected = PDFIUM_EXPECTED
+    check_renderers(
+        args.pdfium_renderer.resolve(),
+        args.pdfium_working_directory,
+        snapshot,
+        label,
+        pdfbox_expected,
+        pdfium_expected,
+    )
 
 
 if __name__ == "__main__":

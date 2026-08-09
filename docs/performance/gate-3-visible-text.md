@@ -87,10 +87,17 @@ content CIDs and `ToUnicode`, verifies the exact widths and subset digest, and
 rejects same-length negative twins for a changed Unicode row, wrong page font,
 wrong CID map, and wrong embedded-font length. PDFBox 3.0.8 must independently
 extract the exact UTF-8 bytes `Café PDF\n`. PDFBox and PDFium also render at 72
-dpi and must each match an independently pinned ink region within explicit
-tolerances: two pixels per bound, 60 antialiased pixels, 40 dark pixels, and
-6,000 grayscale-ink units. The same tolerances bound agreement between the two
-engines.
+dpi. Each renderer has its own pinned ink metrics within explicit tolerances:
+two pixels per bound, 60 antialiased pixels, 40 dark pixels, and 6,000
+grayscale-ink units. Their ink bounds must also agree within two pixels. The
+renderers use different antialiasing coverage rules, so pixel count and
+grayscale ink are checked against their respective measurements rather than
+treated as a cross-renderer conformance vote.
+
+| Renderer | Bounds | Changed pixels | Dark pixels | Grayscale ink |
+| --- | --- | ---: | ---: | ---: |
+| PDFBox 3.0.8 | `(72, 133, 120, 142)` | 241 | 100 | 29,490 |
+| PDFium Chromium 7988 | `(72, 133, 120, 142)` | 313 | 109 | 31,149 |
 
 ## Pinned optimized evidence
 
