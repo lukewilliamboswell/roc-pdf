@@ -548,6 +548,21 @@
       "retention": null
     },
     {
+      "name": "Gate 3 bounded bidi prerequisite",
+      "scenario_revision": "gate3-bidi-single-level-boundary-v1",
+      "source": "tests/gate3_bidi/main.roc",
+      "snapshot": "tests/gate3_bidi/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "paragraphs": 2, "scalars": 6, "clusters": 6, "single_level_lines": 2, "atomic_negatives": 2 },
+      "work_counters": ["paragraph_scalar_visits", "paragraph_strong_class_visits", "line_scalar_visits", "line_cluster_visits", "visual_order_writes", "atomic_negative_rejections", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 70, "work": [6, 6, 6, 6, 6, 2, 667] },
+        "x64musl": { "allocations": 70, "work": [6, 6, 6, 6, 6, 2, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 deterministic font plan",
       "scenario_revision": "gate3-font-plan-v1",
       "source": "tests/gate3_font/main.roc",

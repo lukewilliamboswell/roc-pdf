@@ -18,7 +18,7 @@ This audit does **not** implement that output. A manually reversed glyph list,
 a manually asserted `RightToLeft` run, or a reader-dependent text order would
 not be UAX #9 evidence and is not an acceptable substitute.
 
-## Existing facts and the missing boundary
+## Existing facts and the bounded prerequisite now present
 
 The pinned Unicode 17 package exports `BidiClass` plus the `BidiProperties`
 mirror and paired-bracket data. Those are scalar properties only: its own
@@ -43,9 +43,19 @@ Consequently the existing reordered `fa`/`af` ActualText fixture is valuable
 context-dependent extraction evidence, not real right-to-left output. It
 must not be relabelled as such.
 
+`KernelBidiBoundary` now makes the first dependency explicit without claiming
+that it resolves UAX #9 generally. It records P2/P3 paragraph base level and
+a source-relative scalar-class buffer, then can produce a separate per-line
+visual cluster-ID sequence only when every selected scalar is one strong level:
+all `L` at even level or all `R`/`AL` at odd level. The logical source and
+cluster ranges remain separate. Mixed direction, neutrals, numbers, isolates,
+brackets, and mirrors fail the boundary; the fact is private and is not yet
+consumed by shaping or PDF lowering. Its exact dev evidence and ownership
+review are recorded in `gate-3-bidi-boundary.md`.
+
 ## Required smallest prerequisite
 
-Add one bounded UAX #9 revision-51 analysis-and-line-resolution boundary before
+Extend the bounded UAX #9 revision-51 analysis-and-line-resolution boundary before
 any RTL output fixture. It must consume the existing immutable source once and
 return compact, explicit facts rather than a reordered string:
 
