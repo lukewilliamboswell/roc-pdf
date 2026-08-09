@@ -112,6 +112,10 @@ BatchKey := { instance : U64, size : I64, source : U64, width : I64 }
 
 Template := { cluster_length : U64, cluster_start : U64, lines : Semantics.Range }
 
+## Keep a selected run's dense-store bounds together across the internal
+## layout boundary. The planner validates this range before consuming it.
+RangeBounds := { cluster_end : U64, cluster_start : U64, glyph_end : U64, glyph_start : U64 }
+
 empty_slot : U64
 empty_slot = U64.highest
 
@@ -301,7 +305,7 @@ table_capacity = |requests, limit| {
 }
 
 build_plan : KernelUnicode.UnicodeAnalysis, Text.Store, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
-build_plan = |analysis, store, width, limits| build_range(analysis, store, 0, store.clusters.len(), 0, store.glyphs.len(), width, limits)
+build_plan = |analysis, store, width, limits| build_range(analysis, store, { cluster_end: store.clusters.len(), cluster_start: 0, glyph_end: store.glyphs.len(), glyph_start: 0 }, width, limits)
 
 build_run_plan : KernelUnicode.UnicodeAnalysis, Text.Store, Text.RunId, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
 build_run_plan = |analysis, store, run_id, width, limits| {
@@ -315,7 +319,7 @@ build_run_plan = |analysis, store, run_id, width, limits| {
 	if run.id.index() != run_index or run.clusters.length() == 0 or run.glyphs.length() == 0 or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() {
 		return Err(InvalidRun({ run: run_index }))
 	}
-	plan = build_range(analysis, store, run.clusters.start(), cluster_end, run.glyphs.start(), glyph_end, width, limits)?
+	plan = build_range(analysis, store, { cluster_end, cluster_start: run.clusters.start(), glyph_end, glyph_start: run.glyphs.start() }, width, limits)?
 	if plan.work.glyph_index_visits != run.glyphs.length() {
 		Err(InvalidRun({ run: run_index }))
 	} else {
@@ -323,8 +327,12 @@ build_run_plan = |analysis, store, run_id, width, limits| {
 	}
 }
 
-build_range : KernelUnicode.UnicodeAnalysis, Text.Store, U64, U64, U64, U64, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
-build_range = |analysis, store, cluster_start, cluster_end, glyph_start, glyph_end, width, limits| {
+build_range : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
+build_range = |analysis, store, bounds, width, limits| {
+	cluster_start = bounds.cluster_start
+	cluster_end = bounds.cluster_end
+	glyph_start = bounds.glyph_start
+	glyph_end = bounds.glyph_end
 	max_width = width.raw()
 	if max_width <= 0 {
 		return Err(InvalidWidth(max_width))
@@ -391,7 +399,7 @@ build_range = |analysis, store, cluster_start, cluster_end, glyph_start, glyph_e
 			work: {
 				boundary_visits: boundary_work.visits,
 				candidate_visits: $candidate_visits,
-				cluster_visits: measure.cluster_visits,
+				cluster_visits: cluster_count,
 				glyph_index_visits: measure.glyph_index_visits,
 				glyph_visits: measure.glyph_index_visits,
 				line_writes: $lines.len(),
