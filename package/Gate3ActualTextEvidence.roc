@@ -28,8 +28,67 @@ import Text
 import Image
 import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../vendor/fonts/Inter-4.1-Regular.ttf" as supplementary_font_bytes : List(U8)
 
 Gate3ActualTextEvidence :: [].{
+	supplementary_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	supplementary_text = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		sample = build_supplementary_sample({}) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(KernelGate3TaggedTextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
+		text_work = KernelPdfText.ScenePlan.work(sample.text)
+		Ok({
+			bytes,
+			work: [
+				sample.font.bytes.len(),
+				sample.shape.work.run_visits,
+				sample.shape.work.cluster_visits,
+				sample.shape.work.glyph_visits,
+				sample.shape.work.glyph_index_visits,
+				text_work.source_scalar_visits,
+				text_work.actual_text_runs,
+				text_work.actual_text_scalars,
+				text_work.mappings,
+				KernelContent.Plan.work(sample.content).bytes_emitted,
+				KernelGate3TaggedTextStructure.Plan.work(sample.structure).objects,
+				bytes.len(),
+			],
+		})
+	}
+
+	supplementary_negative : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	supplementary_negative = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		font = KernelFont.inspect(
+			supplementary_font_bytes,
+			KernelFont.Limits.make({ max_bytes: 500000, max_cmap_mappings: 10000, max_glyphs: 5000, max_tables: 32 }),
+		) ? |_| EvidenceFailure
+		glyph = required_glyph(font, 0x1f12f) ? |_| EvidenceFailure
+		store = supplementary_store(Font.InstanceId.from_index(0), glyph)
+		cluster = list_at(store.clusters, 0)
+		bad_store = { ..store, clusters: [{ ..cluster, source: { ..supplementary_source_range, utf8_bytes: Semantics.Range.from_start_and_length(0, 3) } }] }
+		rejected = match KernelShape.validate_advanced(
+			font,
+			supplementary_source,
+			bad_store,
+			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
+			KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 1, max_source_bytes: 4, max_substitutions: 0, max_transformations: 0 }),
+		) {
+			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => Bool.True
+			_ => Bool.False
+		}
+		if !rejected {
+			return Err(EvidenceFailure)
+		}
+		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
+		Ok({ bytes, work: [1, bytes.len()] })
+	}
+
 	combining_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
 	combining_text = |runtime_guard| {
 		if runtime_guard != 0 {
@@ -221,8 +280,34 @@ build_combining_sample = |_| {
 	build_sample_from(font, semantic, combining_source, store)
 }
 
+## This fixture is an advanced-boundary caller asset, not a built-in-theme
+## resource. Its cmap contains U+1F12F, so the final ToUnicode row must use a
+## UTF-16 surrogate pair without the PDF layer inventing any Unicode relation.
+build_supplementary_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_supplementary_sample = |_| {
+	font = KernelFont.inspect(
+		supplementary_font_bytes,
+		KernelFont.Limits.make({ max_bytes: 500000, max_cmap_mappings: 10000, max_glyphs: 5000, max_tables: 32 }),
+	) ? |_| FontFailure
+	semantic = KernelTextSemantics.Plan.build(
+		supplementary_semantics,
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 4, max_text_source_scalars: 1, max_text_sources: 1 }),
+	) ? |_| SemanticFailure
+	glyph = required_glyph(font, 0x1f12f) ? |_| FontFailure
+	store = supplementary_store(Font.InstanceId.from_index(0), glyph)
+	build_sample_from_with_source_limits(font, semantic, supplementary_source, store, 1, 4)
+}
+
 build_sample_from : KernelFont.Inspection, KernelTextSemantics.Plan, Str, Text.Store -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample_from = |font, semantic, source_text, store| {
+	build_sample_from_with_source_limits(font, semantic, source_text, store, 2, 3)
+}
+
+build_sample_from_with_source_limits : KernelFont.Inspection, KernelTextSemantics.Plan, Str, Text.Store, U64, U64 -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_sample_from_with_source_limits = |font, semantic, source_text, store, max_scalars, max_source_bytes| {
 	shape = KernelShape.validate_advanced(
 		font,
 		source_text,
@@ -233,8 +318,8 @@ build_sample_from = |font, semantic, source_text, store| {
 			max_glyph_indices: 2,
 			max_glyphs: 2,
 			max_runs: 1,
-			max_scalars: 2,
-			max_source_bytes: 3,
+			max_scalars,
+			max_source_bytes,
 			max_substitutions: 0,
 			max_transformations: 0,
 		}),
@@ -257,7 +342,7 @@ build_sample_from = |font, semantic, source_text, store| {
 	text = KernelPdfText.ScenePlan.build(
 		ownership,
 		[font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: 2, max_content_bytes: 1024, max_mappings: 8, max_placements: 0, max_source_scalars: 2 }),
+		KernelPdfText.Limits.make({ max_actual_text_scalars: max_scalars, max_content_bytes: 1024, max_mappings: 8, max_placements: 0, max_source_scalars: max_scalars }),
 	) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(
@@ -428,6 +513,44 @@ combining_store = |instance, agrave_glyph| {
 	}
 }
 
+supplementary_store : Font.InstanceId, U32 -> Text.Store
+supplementary_store = |instance, glyph| {
+	zero = Layout.Unit.from_raw(0)
+	{
+		clusters: [
+			{
+				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				kind: OneToOne,
+				source: supplementary_source_range,
+			},
+		],
+		glyph_indices: [0],
+		glyphs: [
+			{ advance_x: Layout.Unit.from_raw(11000), advance_y: zero, id: Text.GlyphId.from_raw(glyph), offset_x: zero, offset_y: zero },
+		],
+		runs: [
+			{
+				actual_text: FromOccurrence,
+				clusters: Semantics.Range.from_start_and_length(0, 1),
+				direction: LeftToRight,
+				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				id: Text.RunId.from_index(0),
+				instance,
+				language: Language("en-AU"),
+				occurrence: Semantics.OccurrenceId.from_index(0),
+				script: Font.Script.from_iso15924("Latn"),
+				size: Layout.Unit.from_raw(11000),
+				source: supplementary_source_range,
+				substitutions: empty_range,
+				transformations: empty_range,
+				writing_mode: Horizontal,
+			},
+		],
+		substitutions: [],
+		transformations: [],
+	}
+}
+
 glyph_usages : List(Text.Glyph) -> List(KernelFontPlan.Usage)
 glyph_usages = |glyphs| {
 	var $usages = List.with_capacity(glyphs.len())
@@ -445,6 +568,9 @@ source = "fa"
 combining_source : Str
 combining_source = "À"
 
+supplementary_source : Str
+supplementary_source = "🄯"
+
 text_range : U64, U64 -> Semantics.TextRange
 text_range = |start, length| {
 	{
@@ -460,6 +586,12 @@ combining_source_range : Semantics.TextRange
 combining_source_range = {
 	scalars: Semantics.Range.from_start_and_length(0, 2),
 	utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+}
+
+supplementary_source_range : Semantics.TextRange
+supplementary_source_range = {
+	scalars: Semantics.Range.from_start_and_length(0, 1),
+	utf8_bytes: Semantics.Range.from_start_and_length(0, 4),
 }
 
 empty_range : Semantics.Range
@@ -534,6 +666,14 @@ combining_semantics = {
 	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(combining_source_range) }],
 	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(combining_source_range)) }],
 	text_sources: [{ unicode: combining_source }],
+}
+
+supplementary_semantics : Semantics.Store
+supplementary_semantics = {
+	..semantics,
+	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(supplementary_source_range) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(supplementary_source_range)) }],
+	text_sources: [{ unicode: supplementary_source }],
 }
 
 descriptor : KernelPdfFont.Descriptor

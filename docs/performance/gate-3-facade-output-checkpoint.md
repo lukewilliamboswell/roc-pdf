@@ -86,7 +86,7 @@ do not switch this probe to `--opt=speed`.
 1. Promote the caller-font facade fixture with separately reviewed dev-backend
    allocation, snapshot, retention, and parse-reuse evidence.
 2. Complete the remaining multilingual and text-behavior matrix required by
-   the roadmap, including supplementary-plane, RTL, CJK, ligature, hyphenation,
+   the roadmap, including RTL, CJK, ligature, hyphenation,
    generated-label, and case-transformation output.
 3. Audit every Gate 3 roadmap row, including caller-font behavior and
    performance bounds, before adding the Gate 3 closure record.
