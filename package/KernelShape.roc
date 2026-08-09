@@ -1,5 +1,6 @@
 import Font
 import KernelFont
+import KernelGsub
 import KernelUnicode
 import Layout
 import Semantics
@@ -123,6 +124,16 @@ KernelShape :: [].{
 	## instance/occurrence ownership, glyph legality, and horizontal advances.
 	validate_advanced : KernelFont.Inspection, Str, Text.Store, AdvancedContext, AdvancedLimits -> Try(Validated, Error)
 	validate_advanced = |font, source, store, context, limits| validate_advanced_store(font, source, store, context, limits)
+
+	## A GSUB fact is consumed alongside an advanced run when that run claims a
+	## ligature. The fact is already font-validated; this boundary proves that it
+	## names the run's exact ligature cluster, feature, and painted output glyph.
+	validate_advanced_with_ligature_fact : KernelFont.Inspection, Str, Text.Store, AdvancedContext, KernelGsub.Fact, AdvancedLimits -> Try(Validated, Error)
+	validate_advanced_with_ligature_fact = |font, source, store, context, fact, limits| {
+		validated = validate_advanced_store(font, source, store, context, limits)?
+		validate_ligature_fact(validated.store, fact)?
+		Ok(validated)
+	}
 }
 
 shape_simple_latin : KernelFont.Inspection, Str, KernelUnicode.UnicodeAnalysis, KernelShape.Options, KernelShape.Limits -> Try(KernelShape.Shape, KernelShape.Error)
@@ -638,6 +649,36 @@ validate_advanced_store = |font, source, store, context, limits| {
 			utf8_bytes: source_bytes,
 		},
 	})
+}
+
+validate_ligature_fact : Text.Store, KernelGsub.Fact -> Try({}, KernelShape.Error)
+validate_ligature_fact = |store, fact| {
+	var $cluster_index = 0
+	while $cluster_index < store.clusters.len() {
+		cluster = list_at(store.clusters, $cluster_index)
+		if cluster.kind == Ligature and cluster.source.scalars.length() == fact.input.len() {
+			var $substitution_index = 0
+			while $substitution_index < store.substitutions.len() {
+				substitution = list_at(store.substitutions, $substitution_index)
+				same_source = substitution.source.scalars.start() == cluster.source.scalars.start() and substitution.source.scalars.length() == cluster.source.scalars.length() and substitution.source.utf8_bytes.start() == cluster.source.utf8_bytes.start() and substitution.source.utf8_bytes.length() == cluster.source.utf8_bytes.length()
+				if substitution.feature.raw() == fact.feature and same_source {
+					if substitution.glyphs.length() != 1 {
+						return Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 }))
+					}
+					glyph = list_at(store.glyphs, substitution.glyphs.start())
+					if glyph.id.raw() == fact.output {
+						return Ok({})
+					} else {
+						return Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 }))
+					}
+				}
+				$substitution_index = $substitution_index + 1
+			}
+			return Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 }))
+		}
+		$cluster_index = $cluster_index + 1
+	}
+	Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 }))
 }
 
 scalar_boundaries : Str, U64 -> Try(List(U64), KernelShape.Error)

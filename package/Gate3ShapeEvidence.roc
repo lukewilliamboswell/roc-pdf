@@ -1,6 +1,7 @@
 import Font
 import KernelEmit
 import KernelFont
+import KernelGsub
 import KernelLineLayout
 import KernelShape
 import KernelStructure
@@ -162,6 +163,71 @@ blank_pdf = |runtime_guard| {
 expect {
 	result = Gate3ShapeEvidence.shaping(0)?
 	result.work.len() == 22
+}
+
+## A declared ligature cluster cannot enter the advanced boundary on a raw
+## glyph ID alone. Its GSUB fact proves the selected `ccmp` lookup and is then
+## consumed against the exact cluster, feature, and painted glyph.
+expect {
+	font = KernelFont.inspect(
+		built_in_font_bytes,
+		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
+	)?
+	base = match KernelFont.glyph_for_scalar(font, 0x0041) {
+		Some(glyph) => glyph
+		None => crash "built-in GSUB fixture lost A"
+	}
+	grave = match KernelFont.glyph_for_scalar(font, 0x0300) {
+		Some(glyph) => glyph
+		None => crash "built-in GSUB fixture lost combining grave"
+	}
+	fact = KernelGsub.validate_ligature(
+		font,
+		{ feature: 0x63636d70, input: [base, grave], language: Default, output: 5, script: 0x6c61746e },
+		KernelGsub.Limits.make({ max_feature_lookups: 8, max_ligature_components: 8, max_ligatures: 128, max_subtables: 16 }),
+	)?.fact
+	validated = KernelShape.validate_advanced_with_ligature_fact(
+		font,
+		"À",
+		advanced_store,
+		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(1) },
+		fact,
+		KernelShape.AdvancedLimits.make({ max_clusters: 8, max_glyph_indices: 8, max_glyphs: 8, max_runs: 4, max_scalars: 8, max_source_bytes: 32, max_substitutions: 4, max_transformations: 4 }),
+	)?
+	validated.store.glyphs.len() == 1
+}
+
+## The same otherwise-valid cluster is rejected when the retained GSUB fact
+## names a different painted output glyph.
+expect {
+	font = KernelFont.inspect(
+		built_in_font_bytes,
+		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
+	)?
+	base = match KernelFont.glyph_for_scalar(font, 0x0041) {
+		Some(glyph) => glyph
+		None => crash "built-in GSUB fixture lost A"
+	}
+	grave = match KernelFont.glyph_for_scalar(font, 0x0300) {
+		Some(glyph) => glyph
+		None => crash "built-in GSUB fixture lost combining grave"
+	}
+	fact = KernelGsub.validate_ligature(
+		font,
+		{ feature: 0x63636d70, input: [base, grave], language: Default, output: 5, script: 0x6c61746e },
+		KernelGsub.Limits.make({ max_feature_lookups: 8, max_ligature_components: 8, max_ligatures: 128, max_subtables: 16 }),
+	)?.fact
+	match KernelShape.validate_advanced_with_ligature_fact(
+		font,
+		"À",
+		advanced_store,
+		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(1) },
+		{ ..fact, output: 6 },
+		KernelShape.AdvancedLimits.make({ max_clusters: 8, max_glyph_indices: 8, max_glyphs: 8, max_runs: 4, max_scalars: 8, max_source_bytes: 32, max_substitutions: 4, max_transformations: 4 }),
+	) {
+		Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 })) => True
+		_ => False
+	}
 }
 
 expect {
