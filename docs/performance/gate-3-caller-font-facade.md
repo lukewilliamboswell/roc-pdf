@@ -66,3 +66,9 @@ It validates and selects finite ordered caller/test faces per supplied grapheme
 cluster, but the facade still has its one-face shaping and output handoff.
 Accordingly, this record remains a single-face facade checkpoint rather than a
 claim of public mixed-face output.
+
+The deliberately shared-versus-unique caller-input comparison and retention
+through two final subset emissions is recorded separately in
+[`gate-3-caller-font-retention.md`](gate-3-caller-font-retention.md). It closes
+the current one-face source-ownership evidence without claiming an ordered
+multi-face public cache.

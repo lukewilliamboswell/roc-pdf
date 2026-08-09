@@ -773,6 +773,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 caller-font shared registry retention",
+      "scenario_revision": "gate3-caller-font-shared-registry-v1",
+      "source": "tests/gate3_caller_facade/main.roc",
+      "snapshot": "tests/gate3_caller_facade/snapshot.pdf",
+      "args": ["shared-registry"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "caller_font_bytes": 7816, "caller_font_registrations": 1, "caller_font_shared_registry": 1, "facade_outputs": 2, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["input_bytes", "retained_input_bytes", "registry_copied_input_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "facade_outputs", "first_output_bytes", "second_output_bytes", "selected_source_bytes_after_outputs"],
+      "expectations": {
+        "arm64mac": { "allocations": 3111, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 10348, 10348, 7816] },
+        "x64musl": { "allocations": 3111, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 10348, 10348, 7816] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 caller-font unique registry retention control",
+      "scenario_revision": "gate3-caller-font-shared-registry-v1",
+      "source": "tests/gate3_caller_facade/main.roc",
+      "snapshot": "tests/gate3_caller_facade/snapshot.pdf",
+      "args": ["unique-registries"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "caller_font_bytes": 15632, "caller_font_input_allocations": 2, "caller_font_registrations": 2, "caller_font_unique_registry_control": 1, "facade_outputs": 2, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["input_allocations", "input_bytes", "retained_input_bytes", "registry_copied_input_bytes", "caller_copy_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "facade_outputs", "first_output_bytes", "second_output_bytes", "selected_source_bytes_after_outputs"],
+      "expectations": {
+        "arm64mac": { "allocations": 3151, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 10348, 10348, 15632] },
+        "x64musl": { "allocations": 3151, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 10348, 10348, 15632] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 public built-in Pdf facade output",
       "scenario_revision": "gate3-public-pdf-facade-v1",
       "source": "tests/gate3_pdf_facade/main.roc",
