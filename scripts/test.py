@@ -23,6 +23,8 @@ from check_gate3_supplementary_text import EXPECTED_CONTENT as GATE3_SUPPLEMENTA
 from check_gate3_supplementary_text import validate_gate3_supplementary_text_pdf
 from check_gate3_cjk_text import EXPECTED_CONTENT as GATE3_CJK_TEXT_CONTENT
 from check_gate3_cjk_text import validate_gate3_cjk_text_pdf
+from check_gate3_ligature import EXPECTED_CONTENT as GATE3_LIGATURE_CONTENT
+from check_gate3_ligature import validate_ligature_pdf
 from check_gate3_soft_hyphen import EXPECTED_CONTENT as GATE3_SOFT_HYPHEN_CONTENT
 from check_gate3_soft_hyphen import validate_soft_hyphen_pdf
 from check_gate3_external_discretionary_hyphen import EXPECTED_CONTENT as GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
@@ -440,6 +442,8 @@ def expected_content(dimensions: dict[str, int]) -> bytes:
         return GATE3_SUPPLEMENTARY_TEXT_CONTENT
     if dimensions.get("gate3_cjk_text", 0) == 1:
         return GATE3_CJK_TEXT_CONTENT
+    if dimensions.get("gate3_ligature_text", 0) == 1:
+        return GATE3_LIGATURE_CONTENT
     if dimensions.get("gate3_actual_text", 0) == 1:
         return GATE3_ACTUAL_TEXT_CONTENT
     if dimensions.get("gate3_visible_text", 0) == 1 or dimensions.get("gate3_caller_text", 0) == 1:
@@ -627,6 +631,9 @@ def run_case(
             if case.dimensions.get("gate3_cjk_text", 0) == 1:
                 validate_gate3_cjk_text_pdf(result.stdout)
                 print(f"PASS {case.name}: exact CJK CID widths, Unicode mapping, and sanitized subset facts", flush=True)
+            if case.dimensions.get("gate3_ligature_text", 0) == 1:
+                validate_ligature_pdf(result.stdout)
+                print(f"PASS {case.name}: parsed GSUB fact, ligature CID, ActualText, Unicode mapping, and sanitized subset facts", flush=True)
             if case.dimensions.get("gate3_soft_hyphen", 0) == 1:
                 validate_soft_hyphen_pdf(result.stdout)
                 print(f"PASS {case.name}: explicit U+00AD source, selected presentation, ActualText, CID, and subset facts", flush=True)
@@ -702,6 +709,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate3_actual_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_supplementary_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_cjk_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_ligature.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_soft_hyphen.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_external_discretionary_hyphen.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_renderers.py", "--self-test")

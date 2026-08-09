@@ -366,7 +366,7 @@ requires_actual_text = |text, run, run_index| {
 			return Ok(True)
 		}
 		match cluster.kind {
-			Contextual | Reordered => return Ok(True)
+			Contextual | Ligature | Reordered => return Ok(True)
 			_ => {}
 		}
 		$cluster_index = $cluster_index + 1

@@ -7,6 +7,7 @@ import KernelColor
 import KernelFont
 import KernelFontPlan
 import KernelFontSubset
+import KernelGsub
 import KernelGate2Objects
 import KernelGate3FontObjects
 import KernelGate3TaggedTextStructure
@@ -32,8 +33,68 @@ import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../vendor/fonts/Inter-4.1-Regular.ttf" as supplementary_font_bytes : List(U8)
 import "../tests/assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
+import "../tests/assets/IBMPlexSerif-FiLigature-Fixture.ttf" as ligature_font_bytes : List(U8)
 
 Gate3ActualTextEvidence :: [].{
+	ligature_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	ligature_text = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		sample = build_ligature_sample({}) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(KernelGate3TaggedTextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
+		text_work = KernelPdfText.ScenePlan.work(sample.text)
+		Ok({
+			bytes,
+			work: [
+				sample.font.bytes.len(),
+				sample.shape.work.run_visits,
+				sample.shape.work.cluster_visits,
+				sample.shape.work.glyph_visits,
+				sample.shape.work.glyph_index_visits,
+				text_work.source_scalar_visits,
+				text_work.actual_text_runs,
+				text_work.actual_text_scalars,
+				text_work.mappings,
+				KernelContent.Plan.work(sample.content).bytes_emitted,
+				KernelGate3TaggedTextStructure.Plan.work(sample.structure).objects,
+				bytes.len(),
+			],
+		})
+	}
+
+	## The exact parsed `liga` fact is part of the advanced boundary. Mutating
+	## only its output makes the otherwise valid `fi` run fail before a scene or
+	## PDF plan can be constructed.
+	ligature_negative : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	ligature_negative = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		font = ligature_font({}) ? |_| EvidenceFailure
+		f_glyph = required_glyph(font, 0x0066) ? |_| EvidenceFailure
+		i_glyph = required_glyph(font, 0x0069) ? |_| EvidenceFailure
+		fact = KernelGsub.validate_ligature(font, { feature: liga_feature, input: [f_glyph, i_glyph], language: Default, output: ligature_output_glyph, script: latin_script_tag }, ligature_gsub_limits({})) ? |_| EvidenceFailure
+		store = ligature_store(Font.InstanceId.from_index(0), ligature_output_glyph)
+		rejected = match KernelShape.validate_advanced_with_ligature_fact(
+			font,
+			ligature_source,
+			store,
+			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
+			{ ..fact.fact, output: i_glyph },
+			ligature_shape_limits({}),
+		) {
+			Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 })) => Bool.True
+			_ => Bool.False
+		}
+		if !rejected {
+			return Err(EvidenceFailure)
+		}
+		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
+		Ok({ bytes, work: [1, bytes.len()] })
+	}
+
 	supplementary_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
 	supplementary_text = |runtime_guard| {
 		if runtime_guard != 0 {
@@ -461,6 +522,40 @@ build_combining_sample = |_| {
 	build_sample_from(font, semantic, combining_source, store)
 }
 
+## IBM Plex Serif is a test-only advanced font fixture. Its subset retains the
+## parsed Type-4 `latn` default `liga` relation f(4) + i(5) -> glyph 6; the
+## run can cross this boundary only while that exact fact agrees with its
+## source cluster, substitution range, and painted glyph.
+build_ligature_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_ligature_sample = |_| {
+	font = ligature_font({}) ? |_| FontFailure
+	semantic = KernelTextSemantics.Plan.build(
+		ligature_semantics,
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
+	) ? |_| SemanticFailure
+	f_glyph = required_glyph(font, 0x0066) ? |_| FontFailure
+	i_glyph = required_glyph(font, 0x0069) ? |_| FontFailure
+	fact = KernelGsub.validate_ligature(font, { feature: liga_feature, input: [f_glyph, i_glyph], language: Default, output: ligature_output_glyph, script: latin_script_tag }, ligature_gsub_limits({})) ? |_| ShapeFailure
+	store = ligature_store(Font.InstanceId.from_index(0), ligature_output_glyph)
+	build_ligature_sample_from(font, semantic, store, fact.fact)
+}
+
+build_ligature_sample_from : KernelFont.Inspection, KernelTextSemantics.Plan, Text.Store, KernelGsub.Fact -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_ligature_sample_from = |font, semantic, store, fact| {
+	shape = KernelShape.validate_advanced_with_ligature_fact(
+		font,
+		ligature_source,
+		store,
+		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
+		fact,
+		ligature_shape_limits({}),
+	) ? |_| ShapeFailure
+	build_sample_after_shape(font, semantic, shape)
+}
+
 ## This fixture is an advanced-boundary caller asset, not a built-in-theme
 ## resource. Its cmap contains U+1F12F, so the final ToUnicode row must use a
 ## UTF-16 surrogate pair without the PDF layer inventing any Unicode relation.
@@ -568,6 +663,43 @@ build_sample_from_with_source_limits = |font, semantic, source_text, store, max_
 		[{ descriptor, font, plan: font_plan, subset }],
 		KernelGate3TaggedTextStructure.Limits.make({
 			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 2048, max_unicode_mappings: max_mappings, max_unicode_scalars: max_mappings }),
+			object_limits: tagged_object_limits,
+		}),
+	) ? |_| StructureFailure
+	Ok({ content, font, font_plan, ownership, resource_use, scene, semantic, shape, structure, subset, text })
+}
+
+## The fact-consuming ligature path reuses the ordinary post-shaping pipeline;
+## only its earlier advanced-shaping validation differs. It retains no parsed
+## GSUB tables or closures after the validated one-glyph run has been formed.
+build_sample_after_shape : KernelFont.Inspection, KernelTextSemantics.Plan, KernelShape.Validated -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_sample_after_shape = |font, semantic, shape| {
+	scene = KernelScene.Plan.build(
+		text_scene,
+		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
+		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
+	) ? |_| SceneFailure
+	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| OwnershipFailure
+	font_plan = KernelFontPlan.plan(font, glyph_usages(shape.store.glyphs), KernelFontPlan.Limits.make({ max_retained_glyphs: 16 })) ? |_| FontPlanFailure
+	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
+	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
+	images = KernelImage.Plan.build(empty_image_sources, colors, KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 })) ? |_| ImageFailure
+	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? |_| ResourceFailure
+	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], KernelPdfText.Limits.make({ max_actual_text_scalars: 2, max_content_bytes: 1024, max_mappings: 8, max_placements: 0, max_source_scalars: 2 })) ? |_| TextFailure
+	tagged = KernelTextOwnership.Plan.tagged(ownership)
+	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), KernelContent.Limits.make({ max_content_bytes: 2048, max_content_streams: 1 })) ? |_| ContentFailure
+	base_objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelGate2Objects.Limits.make({ max_objects: 32, max_pages: 1 })) ? |_| ObjectFailure
+	font_objects = KernelGate3FontObjects.Plan.build(base_objects, 1, 32) ? |_| FontObjectFailure
+	structure = KernelGate3TaggedTextStructure.Plan.build(
+		tagged,
+		colors,
+		images,
+		content,
+		font_objects,
+		text,
+		[{ descriptor, font, plan: font_plan, subset }],
+		KernelGate3TaggedTextStructure.Limits.make({
+			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 2048, max_unicode_mappings: 8, max_unicode_scalars: 8 }),
 			object_limits: tagged_object_limits,
 		}),
 	) ? |_| StructureFailure
@@ -708,6 +840,36 @@ combining_store = |instance, agrave_glyph| {
 			},
 		],
 		substitutions: [],
+		transformations: [],
+	}
+}
+
+ligature_store : Font.InstanceId, U32 -> Text.Store
+ligature_store = |instance, fi_glyph| {
+	zero = Layout.Unit.from_raw(0)
+	{
+		clusters: [{ glyphs: Semantics.Range.from_start_and_length(0, 1), kind: Ligature, source: source_range }],
+		glyph_indices: [0],
+		glyphs: [{ advance_x: Layout.Unit.from_raw(6963), advance_y: zero, id: Text.GlyphId.from_raw(fi_glyph), offset_x: zero, offset_y: zero }],
+		runs: [
+			{
+				actual_text: FromOccurrence,
+				clusters: Semantics.Range.from_start_and_length(0, 1),
+				direction: LeftToRight,
+				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				id: Text.RunId.from_index(0),
+				instance,
+				language: Language("en-AU"),
+				occurrence: Semantics.OccurrenceId.from_index(0),
+				script: Font.Script.from_iso15924("Latn"),
+				size: Layout.Unit.from_raw(11000),
+				source: source_range,
+				substitutions: Semantics.Range.from_start_and_length(0, 1),
+				transformations: empty_range,
+				writing_mode: Horizontal,
+			},
+		],
+		substitutions: [{ feature: Text.FeatureTag.from_raw(liga_feature), glyphs: Semantics.Range.from_start_and_length(0, 1), source: source_range }],
 		transformations: [],
 	}
 }
@@ -869,6 +1031,9 @@ glyph_usages = |glyphs| {
 
 source : Str
 source = "fa"
+
+ligature_source : Str
+ligature_source = "fi"
 
 combining_source : Str
 combining_source = "À"
@@ -1041,6 +1206,9 @@ combining_semantics = {
 	text_sources: [{ unicode: combining_source }],
 }
 
+ligature_semantics : Semantics.Store
+ligature_semantics = { ..semantics, text_sources: [{ unicode: ligature_source }] }
+
 supplementary_semantics : Semantics.Store
 supplementary_semantics = {
 	..semantics,
@@ -1077,6 +1245,33 @@ external_discretionary_hyphen_semantics = {
 
 descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
+
+liga_feature : U32
+liga_feature = 0x6c696761
+
+latin_script_tag : U32
+latin_script_tag = 0x6c61746e
+
+## This is the generated fixture's original-glyph identifier. It is not a
+## caller choice: `KernelGsub.validate_ligature` proves it from the selected
+## fixture table before the advanced run is accepted.
+ligature_output_glyph : U32
+ligature_output_glyph = 6
+
+ligature_font : {} -> Try(KernelFont.Inspection, [FontFailure])
+ligature_font = |_| {
+	font = KernelFont.inspect(
+		ligature_font_bytes,
+		KernelFont.Limits.make({ max_bytes: 4096, max_cmap_mappings: 16, max_glyphs: 16, max_tables: 32 }),
+	) ? |_| FontFailure
+	Ok(font)
+}
+
+ligature_gsub_limits : {} -> KernelGsub.Limits
+ligature_gsub_limits = |_| KernelGsub.Limits.make({ max_feature_lookups: 2, max_ligature_components: 2, max_ligatures: 4, max_subtables: 2 })
+
+ligature_shape_limits : {} -> KernelShape.AdvancedLimits
+ligature_shape_limits = |_| KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 2, max_source_bytes: 2, max_substitutions: 1, max_transformations: 0 })
 
 tagged_object_limits : KernelObject.Limits
 tagged_object_limits = {

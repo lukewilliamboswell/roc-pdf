@@ -1193,6 +1193,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 GSUB fi ligature searchable text",
+      "scenario_revision": "gate3-fi-ligature-v1-ibm-plex-serif-liga",
+      "source": "tests/gate3_ligature_text/main.roc",
+      "snapshot": "tests/gate3_ligature_text/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "font_bytes": 3424, "glyphs": 1, "ligature_clusters": 1, "actual_text_runs": 1, "unicode_mappings": 1, "objects": 20, "gate3_ligature_text": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "runs", "clusters", "glyphs", "glyph_indices", "source_scalars", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 144, "work": [3424, 1, 1, 1, 1, 2, 1, 2, 1, 154, 20, 5210] },
+        "x64musl": { "allocations": 144, "work": [3424, 1, 1, 1, 1, 2, 1, 2, 1, 154, 20, 5210] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 GSUB fi ligature atomic negative",
+      "scenario_revision": "gate3-fi-ligature-v1-ibm-plex-serif-liga",
+      "source": "tests/gate3_ligature_text_negative/main.roc",
+      "snapshot": "tests/gate3_ligature_text_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "gsub_output_mismatch_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
+      "work_counters": ["gsub_output_mismatch_rejected", "evidence_pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 46, "work": [1, 667] },
+        "x64musl": { "allocations": 46, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 unchanged-resource retention",
       "scenario_revision": "gate1-retention-v1",
       "source": "tests/gate1_retention/main.roc",
