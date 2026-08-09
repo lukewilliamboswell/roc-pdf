@@ -23,7 +23,6 @@ from check_gate3_facade_output import validate_facade_output_pdf
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "tests" / "gate3_pdf_facade" / "main.roc"
 TEMP_ROOT = ROOT / ".roc-pdf-tmp"
-PINNED_ROC_PATH = ROOT.parent / "roc-worktrees" / "fix-10697" / "zig-out" / "bin" / "roc"
 ZIG = os.environ.get("ZIG", "zig")
 PACKAGE_DEPENDENCY = 'pdf: "../../package/main.roc",'
 PLATFORM_DEPENDENCY = 'pf: platform "../platform/main.roc",'
@@ -41,10 +40,6 @@ def command(*args: str, cwd: Path = ROOT, env: dict[str, str] | None = None) -> 
     completed = subprocess.run(args, cwd=cwd, env=env, check=False)
     if completed.returncode != 0:
         raise TestFailure(f"command exited {completed.returncode}: {' '.join(args)}")
-
-
-def default_roc() -> str:
-    return str(PINNED_ROC_PATH) if PINNED_ROC_PATH.is_file() else "roc"
 
 
 def verify_pinned_roc(roc: str) -> None:
@@ -139,7 +134,7 @@ def isolated_environment(cache_dir: Path) -> dict[str, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--roc", default=os.environ.get("ROC", default_roc()))
+    parser.add_argument("--roc", default=os.environ.get("ROC", "roc"))
     parser.add_argument("--bundle-path", type=Path)
     args = parser.parse_args()
 

@@ -3,18 +3,7 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output_dir="$root_dir/dist"
-roc_bin="${ROC:-}"
-
-# Keep local package work convenient while roc-lang/roc#10700 is waiting for
-# an official nightly. CI sets ROC=roc and never relies on this sibling build.
-if [[ -z "$roc_bin" ]]; then
-    sibling_roc="$root_dir/../roc-worktrees/fix-10697/zig-out/bin/roc"
-    if [[ -x "$sibling_roc" ]]; then
-        roc_bin="$sibling_roc"
-    else
-        roc_bin="roc"
-    fi
-fi
+roc_bin="${ROC:-roc}"
 
 while (($# > 0)); do
     case "$1" in

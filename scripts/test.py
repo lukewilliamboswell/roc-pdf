@@ -41,22 +41,7 @@ SPEC_PATH = ROOT / "tests" / "spec.json"
 TEST_PLATFORM = ROOT / "tests" / "platform"
 TEMP_ROOT = ROOT / ".roc-pdf-tmp"
 
-# Interim toolchain while roc-lang/roc#10697 is unfixed in official nightlies:
-# the pinned compiler is a from-source build of the roc-lang/roc#10700 fix
-# branch living in the sibling checkout. `ROC` in the environment still wins,
-# and once a fixed nightly ships this fallback goes away with the pin bump.
-PATCHED_SIBLING_ROC = (
-    ROOT.parent / "roc-worktrees" / "fix-10697" / "zig-out" / "bin" / "roc"
-)
-
-
-def default_roc() -> str:
-    if PATCHED_SIBLING_ROC.is_file():
-        return str(PATCHED_SIBLING_ROC)
-    return "roc"
-
-
-ROC = os.environ.get("ROC", default_roc())
+ROC = os.environ.get("ROC", "roc")
 ZIG = os.environ.get("ZIG", "zig")
 METRICS_REPORT = re.compile(
     rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
