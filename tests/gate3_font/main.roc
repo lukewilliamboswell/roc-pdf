@@ -37,5 +37,13 @@ main! = |args| {
 			Ok(result) => result
 		}
 	}
+	if mode == "multi" {
+		return match Gate3FontEvidence.multi_face_planning(args.len() - 2) {
+			Err(_) => {
+				crash "Gate 3 multi-face planning evidence failed"
+			}
+			Ok(result) => result
+		}
+	}
 	crash "unknown Gate 3 font evidence mode"
 }

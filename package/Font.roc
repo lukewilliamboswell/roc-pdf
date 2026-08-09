@@ -92,6 +92,15 @@ Font :: [].{
 	}
 
 	SourceCluster : {
+
+		## These are the already-segmented scalar facts for exactly one grapheme
+		## cluster. Font planning deliberately does not decode UTF-8 or rediscover
+		## grapheme boundaries from a later source store.
+		scalars : List(U32),
+
+		## Script itemization is an earlier Unicode fact. A cluster does not borrow
+		## a neighbouring run's provision merely because it shares one source.
+		script : Script,
 		source : Semantics.TextRange,
 	}
 
@@ -99,7 +108,6 @@ Font :: [].{
 		clusters : List(SourceCluster),
 		language : Semantics.Language,
 		policy : PolicyId,
-		script : Script,
 		source : Semantics.TextSourceId,
 	}
 
@@ -133,9 +141,16 @@ Font :: [].{
 	}
 
 	PlanError : [
+		EmptyCluster({ cluster : U64, source : Semantics.TextRange }),
 		EmbeddingProhibited(FaceId),
+		InvalidPolicy(PolicyId),
 		MissingCoverage({ cluster : U64, source : Semantics.TextRange }),
 		UnsupportedBuiltInShaping({ cluster : U64, script : Script }),
+	]
+	PolicyError : [
+		AmbiguousFace(FaceId),
+		EmptyPolicy,
+		UnknownPolicyFace(FaceId),
 	]
 
 	## Rejection is transactional and never carries a partial usable plan.
@@ -192,6 +207,19 @@ Font :: [].{
 		## retained by registration. This never reparses or copies font bytes.
 		prepared_face : Registry, FaceId -> Try(KernelFont.Inspection, ResourceError)
 		prepared_face = |registry, face| registry_inspection(registry, face)
+
+		## A policy is the finite, ordered search space for one text style. It is
+		## constructed before planning, so selection never consults names, host
+		## fonts, or registry insertion order as an implicit fallback.
+		with_policy : Registry, List(FaceId) -> Try({ policy : PolicyId, registry : Registry }, PolicyError)
+		with_policy = |registry, faces| add_policy(registry, faces)
+
+		## Selection consumes caller-provided cluster facts and returns dense
+		## instance ranges. It is intentionally separate from shaping and PDF
+		## lowering: downstream stages receive the exact selected instance rather
+		## than needing to infer it again from glyphs or coverage tables.
+		plan : Registry, PlanRequest -> PlanResult
+		plan = |registry, request| plan_clusters(registry, request)
 	}
 }
 
@@ -274,6 +302,173 @@ registry_inspection = |Font.Registry.(state), face| {
 		Err(UnknownFace(face))
 	} else {
 		Ok(list_at(state.inspections, index))
+	}
+}
+
+add_policy : Font.Registry, List(Font.FaceId) -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Font.PolicyError)
+add_policy = |Font.Registry.(state), faces| {
+	if faces.is_empty() {
+		return Err(EmptyPolicy)
+	}
+	var $face_index = 0
+	while $face_index < faces.len() {
+		face = list_at(faces, $face_index)
+		if face.index() >= state.store.faces.len() or list_at(state.store.faces, face.index()).id.index() != face.index() {
+			return Err(UnknownPolicyFace(face))
+		}
+		var $previous = 0
+		while $previous < $face_index {
+			if list_at(faces, $previous).index() == face.index() {
+				return Err(AmbiguousFace(face))
+			}
+			$previous = $previous + 1
+		}
+		$face_index = $face_index + 1
+	}
+	policy = Font.PolicyId.from_index(state.store.policies.len())
+	var $instances = []
+	$face_index = 0
+	while $face_index < faces.len() {
+		face = list_at(faces, $face_index)
+
+		## Static-instance identity is validated at registration and remains dense.
+		$instances = $instances.append(Font.InstanceId.from_index(face.index()))
+		$face_index = $face_index + 1
+	}
+	store = { ..state.store, policies: state.store.policies.append({ id: policy, instances: $instances }) }
+	Ok({ policy, registry: Font.Registry.({ inspections: state.inspections, store }) })
+}
+
+plan_clusters : Font.Registry, Font.PlanRequest -> Font.PlanResult
+plan_clusters = |Font.Registry.(state), request| {
+	policy_index = request.policy.index()
+	if policy_index >= state.store.policies.len() {
+		return Rejected([InvalidPolicy(request.policy)])
+	}
+	policy = list_at(state.store.policies, policy_index)
+	if policy.id.index() != request.policy.index() or policy.instances.is_empty() {
+		return Rejected([InvalidPolicy(request.policy)])
+	}
+	var $ranges = []
+	var $errors = []
+	var $coverage_visits = 0
+	var $face_visits = 0
+	var $cluster_index = 0
+	while $cluster_index < request.clusters.len() {
+		cluster = list_at(request.clusters, $cluster_index)
+		if cluster.scalars.is_empty() {
+			$errors = $errors.append(EmptyCluster({ cluster: $cluster_index, source: cluster.source }))
+		} else {
+			match select_instance(state.store, policy, cluster, cluster.script, $coverage_visits, $face_visits) {
+				Err(work) => {
+					$coverage_visits = work.coverage_span_visits
+					$face_visits = work.face_visits
+					$errors = $errors.append(MissingCoverage({ cluster: $cluster_index, source: cluster.source }))
+				}
+				Ok(selected) => {
+					$coverage_visits = selected.coverage_span_visits
+					$face_visits = selected.face_visits
+					$ranges = append_face_range($ranges, selected.instance, $cluster_index)
+				}
+			}
+		}
+		$cluster_index = $cluster_index + 1
+	}
+	if $errors.is_empty() == False {
+		Rejected($errors)
+	} else {
+		Complete({ face_ranges: $ranges, work: { coverage_span_visits: $coverage_visits, face_visits: $face_visits, grapheme_visits: request.clusters.len() } })
+	}
+}
+
+select_instance : Font.Store, Font.Policy, Font.SourceCluster, Font.Script, U64, U64 -> Try({ coverage_span_visits : U64, face_visits : U64, instance : Font.InstanceId }, { coverage_span_visits : U64, face_visits : U64 })
+select_instance = |store, policy, cluster, script, prior_coverage, prior_faces| {
+	var $instance_index = 0
+	var $coverage_visits = prior_coverage
+	var $face_visits = prior_faces
+	while $instance_index < policy.instances.len() {
+		instance = list_at(policy.instances, $instance_index)
+		if instance.index() >= store.instances.len() {
+			return Err({ coverage_span_visits: $coverage_visits, face_visits: $face_visits })
+		}
+		instance_record = list_at(store.instances, instance.index())
+		face_index = instance_record.face.index()
+		if instance_record.id.index() != instance.index() or face_index >= store.faces.len() {
+			return Err({ coverage_span_visits: $coverage_visits, face_visits: $face_visits })
+		}
+		face = list_at(store.faces, face_index)
+		$face_visits = $face_visits + 1
+
+		if face.id.index() == instance_record.face.index() and face_supports_script(store, face, script) {
+			coverage = cluster_coverage(store, face, cluster.scalars, $coverage_visits)
+			$coverage_visits = coverage.visits
+			if coverage.covered {
+				return Ok({ coverage_span_visits: $coverage_visits, face_visits: $face_visits, instance })
+			}
+		}
+		$instance_index = $instance_index + 1
+	}
+	Err({ coverage_span_visits: $coverage_visits, face_visits: $face_visits })
+}
+
+face_supports_script : Font.Store, Font.Face, Font.Script -> Bool
+face_supports_script = |store, face, script| {
+	var $index = 0
+	while $index < face.scripts.length() {
+		script_index = face.scripts.start() + $index
+		if script_index >= store.scripts.len() {
+			return False
+		}
+		if list_at(store.scripts, script_index).as_str() == script.as_str() {
+			return True
+		}
+		$index = $index + 1
+	}
+	False
+}
+
+cluster_coverage : Font.Store, Font.Face, List(U32), U64 -> { covered : Bool, visits : U64 }
+cluster_coverage = |store, face, scalars, prior_visits| {
+	var $scalar_index = 0
+	var $visits = prior_visits
+	while $scalar_index < scalars.len() {
+		scalar = list_at(scalars, $scalar_index)
+		var $span_index = 0
+		var $covered = False
+		while $span_index < face.coverage.length() {
+			coverage_index = face.coverage.start() + $span_index
+			if coverage_index >= store.coverage_spans.len() {
+				return { covered: False, visits: $visits }
+			}
+			span = list_at(store.coverage_spans, coverage_index)
+			$visits = $visits + 1
+			if scalar >= span.first and scalar <= span.last {
+				$covered = True
+			}
+			$span_index = $span_index + 1
+		}
+		if $covered == False {
+			return { covered: False, visits: $visits }
+		}
+		$scalar_index = $scalar_index + 1
+	}
+	{ covered: True, visits: $visits }
+}
+
+append_face_range : List(Font.FaceRange), Font.InstanceId, U64 -> List(Font.FaceRange)
+append_face_range = |ranges, instance, cluster| {
+	if ranges.is_empty() {
+		return [{ clusters: Semantics.Range.from_start_and_length(cluster, 1), instance }]
+	}
+	last_index = ranges.len() - 1
+	last = list_at(ranges, last_index)
+	if last.instance.index() == instance.index() and last.clusters.start() + last.clusters.length() == cluster {
+		match ranges.set(last_index, { clusters: Semantics.Range.from_start_and_length(last.clusters.start(), last.clusters.length() + 1), instance }) {
+			Ok(updated) => updated
+			Err(OutOfBounds) => crash "validated font plan range update escaped"
+		}
+	} else {
+		ranges.append({ clusters: Semantics.Range.from_start_and_length(cluster, 1), instance })
 	}
 }
 

@@ -3,9 +3,11 @@ import KernelEmit
 import KernelFont
 import KernelFontPlan
 import KernelStructure
+import Semantics
 import Theme
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
+import "../tests/assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
 Gate3FontEvidence :: [].{
 	caller_registration : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -133,6 +135,94 @@ Gate3FontEvidence :: [].{
 			],
 		})
 	}
+
+	## The selection boundary receives already-segmented grapheme scalar facts;
+	## it checks each candidate face's retained cmap spans once and returns
+	## exact dense instance ranges. The fixture intentionally uses a caller
+	## Latin face followed by a test-only CJK face so the middle cluster proves
+	## an ordered second-face selection while the surrounding clusters reuse the
+	## first inspection and source allocation.
+	multi_face_planning : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	multi_face_planning = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		caller = Font.Registry.empty.register(
+			caller_font_bytes,
+			{ provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Latn")] },
+			Font.ValidationLimits.default,
+		) ? |_| EvidenceFailure
+		cjk = caller.registry.register(
+			cjk_font_bytes,
+			{ provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Hani")] },
+			Font.ValidationLimits.default,
+		) ? |_| EvidenceFailure
+		configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
+		if configured.registry.store().policies.len() != 3 {
+			return Err(EvidenceFailure)
+		}
+		request = plan_request(configured.policy, [cluster(0, "Latn", [0x43]), cluster(1, "Hani", [0x4e2d]), cluster(2, "Latn", [0x00e9])])
+		plan = match configured.registry.plan(request) {
+			Complete(value) => value
+			Rejected(_) => return Err(EvidenceFailure)
+		}
+		if plan.face_ranges.len() != 3 or
+			list_at(plan.face_ranges, 0).instance.index() != caller.instance.index() or
+				list_at(plan.face_ranges, 1).instance.index() != cjk.instance.index() or
+					list_at(plan.face_ranges, 2).instance.index() != caller.instance.index() {
+			return Err(EvidenceFailure)
+		}
+		uncovered = match configured.registry.plan(plan_request(configured.policy, [cluster(0, "Latn", [0x10ffff])])) {
+			Rejected([MissingCoverage({ cluster: 0, .. })]) => True
+			_ => False
+		}
+		mismatched_script = match configured.registry.plan(plan_request(configured.policy, [cluster(0, "Hani", [0x43])])) {
+			Rejected([MissingCoverage({ cluster: 0, .. })]) => True
+			_ => False
+		}
+		ambiguous = match cjk.registry.with_policy([caller.face, caller.face]) {
+			Err(AmbiguousFace(face)) => face.index() == caller.face.index()
+			_ => False
+		}
+		invalid = match cjk.registry.with_policy([Font.FaceId.from_index(99)]) {
+			Err(UnknownPolicyFace(face)) => face.index() == 99
+			_ => False
+		}
+		if uncovered == False or mismatched_script == False or ambiguous == False or invalid == False {
+			return Err(EvidenceFailure)
+		}
+		bytes = blank_pdf(runtime_guard)?
+		Ok({
+			bytes,
+			work: [
+				caller.work.input_bytes,
+				cjk.work.input_bytes,
+				caller.work.retained_input_bytes,
+				cjk.work.retained_input_bytes,
+				caller.work.copied_input_bytes + cjk.work.copied_input_bytes,
+				configured.registry.store().resources.len(),
+				configured.registry.store().faces.len(),
+				configured.registry.store().instances.len(),
+				configured.registry.store().policies.len(),
+				plan.work.grapheme_visits,
+				plan.work.face_visits,
+				plan.work.coverage_span_visits,
+				plan.face_ranges.len(),
+				bytes.len(),
+			],
+		})
+	}
+}
+
+cluster : U64, Str, List(U32) -> Font.SourceCluster
+cluster = |index, script, scalars| {
+	range = Semantics.Range.from_start_and_length(index, scalars.len())
+	{ scalars, script: Font.Script.from_iso15924(script), source: { scalars: range, utf8_bytes: range } }
+}
+
+plan_request : Font.PolicyId, List(Font.SourceCluster) -> Font.PlanRequest
+plan_request = |policy, clusters| {
+	{ clusters, language: Language("und"), policy, source: Semantics.TextSourceId.from_index(0) }
 }
 
 inspect_built_in : U64 -> Try(KernelFont.Inspection, [EvidenceFailure, InvalidRuntimeGuard])

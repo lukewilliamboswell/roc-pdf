@@ -59,3 +59,10 @@ facade has not yet lifted that one-face selection into the roadmap's finite
 ordered multi-face font policy and per-cluster coverage selection. Mixed-face
 or broader multilingual caller-font output remains an explicit unmet Gate 3
 dependency.
+
+The local ordered-policy planning seam is now recorded in
+[`gate-3-multiface-font-selection.md`](gate-3-multiface-font-selection.md).
+It validates and selects finite ordered caller/test faces per supplied grapheme
+cluster, but the facade still has its one-face shaping and output handoff.
+Accordingly, this record remains a single-face facade checkpoint rather than a
+claim of public mixed-face output.

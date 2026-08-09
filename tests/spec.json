@@ -578,6 +578,21 @@
       "retention": null
     },
     {
+      "name": "Gate 3 ordered multi-face cluster selection",
+      "scenario_revision": "gate3-ordered-multiface-selection-v1",
+      "source": "tests/gate3_font/main.roc",
+      "snapshot": "tests/gate3_font/snapshot.pdf",
+      "args": ["multi"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "atomic_negatives": 4, "clusters": 3, "faces": 2, "ordered_policy": 1 },
+      "work_counters": ["caller_input_bytes", "cjk_input_bytes", "caller_retained_bytes", "cjk_retained_bytes", "copied_input_bytes", "resources", "faces", "instances", "policies", "grapheme_visits", "face_visits", "coverage_span_visits", "face_ranges", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 75, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 3, 4, 15, 3, 667] },
+        "x64musl": { "allocations": 75, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 3, 4, 15, 3, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 Unicode analysis x10000",
       "scenario_revision": "gate3-unicode-analysis-v1",
       "source": "tests/gate3_unicode/main.roc",
