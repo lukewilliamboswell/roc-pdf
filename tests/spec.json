@@ -32,8 +32,8 @@
       "dimensions": { "pages": 4096 },
       "work_counters": ["pages", "tree_nodes", "objects", "values", "array_edges", "dictionary_edges", "build_edges", "references", "byte_visits"],
       "expectations": {
-        "arm64mac": { "allocations": 134274, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] },
-        "x64musl": { "allocations": 134274, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] }
+        "arm64mac": { "allocations": 134277, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] },
+        "x64musl": { "allocations": 134277, "work": [4096, 133, 12422, 17186, 4232, 21013, 25245, 8585, 1084927] }
       },
       "retention": null
     },
@@ -47,8 +47,8 @@
       "dimensions": { "pages": 4096, "entries_per_tree": 4096, "trees": 4 },
       "work_counters": ["entries", "nodes", "limit_nodes", "leaf_entries", "limit_checksum", "entries_checked", "key_bytes_checked", "ordering_steps", "byte_visits"],
       "expectations": {
-        "arm64mac": { "allocations": 138385, "work": [16384, 532, 528, 16384, 2162160, 16384, 32768, 49110, 1084927] },
-        "x64musl": { "allocations": 138385, "work": [16384, 532, 528, 16384, 2162160, 16384, 32768, 49110, 1084927] }
+        "arm64mac": { "allocations": 138396, "work": [16384, 532, 528, 16384, 2162160, 16384, 32768, 49110, 1084927] },
+        "x64musl": { "allocations": 138396, "work": [16384, 532, 528, 16384, 2162160, 16384, 32768, 49110, 1084927] }
       },
       "retention": null
     },
@@ -62,8 +62,8 @@
       "dimensions": { "pages": 4096, "outline_entries": 4096, "outline_depth": 1 },
       "work_counters": ["entries", "root_count", "top_level", "parents", "leaves", "previous_links", "next_links", "identity_checksum", "entries_checked", "items_appended", "item_rewrites", "count_accumulations", "max_depth", "byte_visits"],
       "expectations": {
-        "arm64mac": { "allocations": 134278, "work": [4096, 2112, 128, 128, 3968, 3967, 3967, 16773120, 4096, 4096, 15999, 4096, 1, 1084927] },
-        "x64musl": { "allocations": 134278, "work": [4096, 2112, 128, 128, 3968, 3967, 3967, 16773120, 4096, 4096, 15999, 4096, 1, 1084927] }
+        "arm64mac": { "allocations": 134281, "work": [4096, 2112, 128, 128, 3968, 3967, 3967, 16773120, 4096, 4096, 15999, 4096, 1, 1084927] },
+        "x64musl": { "allocations": 134281, "work": [4096, 2112, 128, 128, 3968, 3967, 3967, 16773120, 4096, 4096, 15999, 4096, 1, 1084927] }
       },
       "retention": null
     },
@@ -77,8 +77,8 @@
       "dimensions": { "pages": 4096, "resource_entries": 4096 },
       "work_counters": ["resource_entries", "planned_names", "name_bytes", "entries_checked", "identity_checks", "kind_comparisons", "name_byte_visits", "name_checksum", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 134278, "work": [4096, 4096, 19373, 4096, 4096, 4095, 19373, 2307784361, 1084927] },
-        "x64musl": { "allocations": 134278, "work": [4096, 4096, 19373, 4096, 4096, 4095, 19373, 2307784361, 1084927] }
+        "arm64mac": { "allocations": 134281, "work": [4096, 4096, 19373, 4096, 4096, 4095, 19373, 2307784361, 1084927] },
+        "x64musl": { "allocations": 134281, "work": [4096, 4096, 19373, 4096, 4096, 4095, 19373, 2307784361, 1084927] }
       },
       "retention": null
     },
@@ -92,8 +92,8 @@
       "dimensions": { "pages": 4096, "lexical_bundles": 2048 },
       "work_counters": ["bundles", "tokens", "source_bytes", "emitted_bytes", "byte_visits", "byte_checksum", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 134278, "work": [2048, 18432, 24576, 206848, 206848, 1416541943808, 1084927] },
-        "x64musl": { "allocations": 134278, "work": [2048, 18432, 24576, 206848, 206848, 1416541943808, 1084927] }
+        "arm64mac": { "allocations": 134281, "work": [2048, 18432, 24576, 206848, 206848, 1416541943808, 1084927] },
+        "x64musl": { "allocations": 134281, "work": [2048, 18432, 24576, 206848, 206848, 1416541943808, 1084927] }
       },
       "retention": null
     },
@@ -107,8 +107,8 @@
       "dimensions": { "pages": 4096, "lexical_bundles": 4096 },
       "work_counters": ["bundles", "tokens", "source_bytes", "emitted_bytes", "byte_visits", "byte_checksum", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 134278, "work": [4096, 36864, 49152, 413696, 413696, 5666285907968, 1084927] },
-        "x64musl": { "allocations": 134278, "work": [4096, 36864, 49152, 413696, 413696, 5666285907968, 1084927] }
+        "arm64mac": { "allocations": 134281, "work": [4096, 36864, 49152, 413696, 413696, 5666285907968, 1084927] },
+        "x64musl": { "allocations": 134281, "work": [4096, 36864, 49152, 413696, 413696, 5666285907968, 1084927] }
       },
       "retention": null
     },
@@ -122,8 +122,8 @@
       "dimensions": { "pages": 1, "compression_input_bytes": 65535, "content_stream_bytes": 65535, "content_pattern_period": 4, "deflate_blocks": 1 },
       "work_counters": ["input_bytes", "blocks", "candidate_visits", "hash_inserts", "tokens", "matches", "compressed_bytes", "max_compressed_chunk_bytes", "generated_segments", "pdf_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 120, "work": [65535, 1, 381, 65533, 258, 254, 461, 461, 11, 1122] },
-        "x64musl": { "allocations": 120, "work": [65535, 1, 381, 65533, 258, 254, 461, 461, 11, 1122] }
+        "arm64mac": { "allocations": 121, "work": [65535, 1, 381, 65533, 258, 254, 461, 461, 11, 1122] },
+        "x64musl": { "allocations": 121, "work": [65535, 1, 381, 65533, 258, 254, 461, 461, 11, 1122] }
       },
       "retention": null
     },
@@ -137,8 +137,8 @@
       "dimensions": { "pages": 1, "compression_input_bytes": 262144, "content_stream_bytes": 262144, "content_pattern_period": 4, "deflate_blocks": 5 },
       "work_counters": ["input_bytes", "blocks", "candidate_visits", "hash_inserts", "tokens", "matches", "compressed_bytes", "max_compressed_chunk_bytes", "generated_segments", "pdf_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 132, "work": [262144, 5, 1524, 262134, 1036, 1016, 1864, 456, 15, 2527] },
-        "x64musl": { "allocations": 132, "work": [262144, 5, 1524, 262134, 1036, 1016, 1864, 456, 15, 2527] }
+        "arm64mac": { "allocations": 133, "work": [262144, 5, 1524, 262134, 1036, 1016, 1864, 456, 15, 2527] },
+        "x64musl": { "allocations": 133, "work": [262144, 5, 1524, 262134, 1036, 1016, 1864, 456, 15, 2527] }
       },
       "retention": null
     },
@@ -182,8 +182,8 @@
       "dimensions": { "pages": 1, "semantic_nodes": 2, "commands": 3, "color_spaces": 1, "images": 1, "gate2_minimal_content": 1, "normalized_plan_identity": 1 },
       "work_counters": ["passes", "byte_visits"],
       "expectations": {
-        "arm64mac": { "allocations": 662, "work": [1, 2059] },
-        "x64musl": { "allocations": 662, "work": [1, 2059] }
+        "arm64mac": { "allocations": 642, "work": [1, 2059] },
+        "x64musl": { "allocations": 642, "work": [1, 2059] }
       },
       "retention": null
     },
@@ -197,8 +197,8 @@
       "dimensions": { "pages": 1, "commands": 1000000, "images": 1, "image_payload_bytes": 1 },
       "work_counters": ["commands", "scene_command_visits", "scene_image_placements", "scene_max_graphics_depth", "content_command_visits", "content_image_placements", "content_max_frame_depth", "resource_command_visits", "image_reuses", "image_resources", "image_use_count", "image_payload_bytes", "content_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 131, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] },
-        "x64musl": { "allocations": 131, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] }
+        "arm64mac": { "allocations": 111, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] },
+        "x64musl": { "allocations": 111, "work": [1000000, 1000000, 1000000, 1, 1000000, 1000000, 1, 1000000, 999999, 1, 1000000, 1, 29000023, 667] }
       },
       "retention": null
     },
@@ -212,8 +212,8 @@
       "dimensions": { "pages": 1, "authoring_blocks": 1003, "normalized_blocks": 1004, "normalized_plan_identity": 1 },
       "work_counters": ["authoring_blocks", "normalized_blocks", "text_bytes", "titles", "headings", "paragraphs", "bullet_items", "lists", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 85, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] },
-        "x64musl": { "allocations": 85, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] }
+        "arm64mac": { "allocations": 67, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] },
+        "x64musl": { "allocations": 67, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] }
       },
       "retention": null
     },
@@ -227,8 +227,8 @@
       "dimensions": { "pages": 1, "authoring_blocks": 1003, "normalized_blocks": 1004, "normalized_plan_identity": 1 },
       "work_counters": ["authoring_blocks", "normalized_blocks", "text_bytes", "titles", "headings", "paragraphs", "bullet_items", "lists", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 120, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] },
-        "x64musl": { "allocations": 120, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] }
+        "arm64mac": { "allocations": 102, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] },
+        "x64musl": { "allocations": 102, "work": [1003, 1004, 4019, 1, 1, 1000, 2, 1, 667] }
       },
       "retention": null
     },
@@ -242,8 +242,8 @@
       "dimensions": { "pages": 1, "authoring_blocks": 10003, "normalized_blocks": 10004, "normalized_plan_identity": 1 },
       "work_counters": ["authoring_blocks", "normalized_blocks", "text_bytes", "titles", "headings", "paragraphs", "bullet_items", "lists", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 93, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] },
-        "x64musl": { "allocations": 93, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] }
+        "arm64mac": { "allocations": 75, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] },
+        "x64musl": { "allocations": 75, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] }
       },
       "retention": null
     },
@@ -257,8 +257,8 @@
       "dimensions": { "pages": 1, "authoring_blocks": 10003, "normalized_blocks": 10004, "normalized_plan_identity": 1 },
       "work_counters": ["authoring_blocks", "normalized_blocks", "text_bytes", "titles", "headings", "paragraphs", "bullet_items", "lists", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 145, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] },
-        "x64musl": { "allocations": 145, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] }
+        "arm64mac": { "allocations": 127, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] },
+        "x64musl": { "allocations": 127, "work": [10003, 10004, 40019, 1, 1, 10000, 2, 1, 667] }
       },
       "retention": null
     },
@@ -272,8 +272,8 @@
       "dimensions": { "pages": 1, "paragraph_units": 1000, "scalars": 6000, "clusters": 6000, "glyphs": 6000, "lines": 3000, "normalized_plan_identity": 1 },
       "work_counters": ["paragraph_units", "scalars", "line_boundaries", "clusters", "glyph_index_visits", "glyphs", "candidate_visits", "lines", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 97, "work": [1000, 6000, 6001, 6000, 6000, 6000, 11998, 3000, 667] },
-        "x64musl": { "allocations": 97, "work": [1000, 6000, 6001, 6000, 6000, 6000, 11998, 3000, 667] }
+        "arm64mac": { "allocations": 79, "work": [1000, 6000, 6001, 6000, 6000, 6000, 11998, 3000, 667] },
+        "x64musl": { "allocations": 79, "work": [1000, 6000, 6001, 6000, 6000, 6000, 11998, 3000, 667] }
       },
       "retention": null
     },
@@ -287,8 +287,8 @@
       "dimensions": { "pages": 1, "paragraph_units": 10000, "scalars": 60000, "clusters": 60000, "glyphs": 60000, "lines": 30000, "normalized_plan_identity": 1 },
       "work_counters": ["paragraph_units", "scalars", "line_boundaries", "clusters", "glyph_index_visits", "glyphs", "candidate_visits", "lines", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 105, "work": [10000, 60000, 60001, 60000, 60000, 60000, 119998, 30000, 667] },
-        "x64musl": { "allocations": 105, "work": [10000, 60000, 60001, 60000, 60000, 60000, 119998, 30000, 667] }
+        "arm64mac": { "allocations": 87, "work": [10000, 60000, 60001, 60000, 60000, 60000, 119998, 30000, 667] },
+        "x64musl": { "allocations": 87, "work": [10000, 60000, 60001, 60000, 60000, 60000, 119998, 30000, 667] }
       },
       "retention": null
     },
@@ -302,8 +302,8 @@
       "dimensions": { "authoring_blocks": 1000, "input_lines": 6000, "layout_fragments": 1400, "layout_pages": 600, "line_placements": 6000, "normalized_plan_identity": 1 },
       "work_counters": ["blocks", "input_lines", "block_visits", "line_visits", "keep_policy_visits", "fragments", "pages", "placements", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 106, "work": [1000, 6000, 1000, 6000, 1000, 1400, 600, 6000, 667] },
-        "x64musl": { "allocations": 106, "work": [1000, 6000, 1000, 6000, 1000, 1400, 600, 6000, 667] }
+        "arm64mac": { "allocations": 88, "work": [1000, 6000, 1000, 6000, 1000, 1400, 600, 6000, 667] },
+        "x64musl": { "allocations": 88, "work": [1000, 6000, 1000, 6000, 1000, 1400, 600, 6000, 667] }
       },
       "retention": null
     },
@@ -317,8 +317,8 @@
       "dimensions": { "authoring_blocks": 10000, "input_lines": 60000, "layout_fragments": 14000, "layout_pages": 6000, "line_placements": 60000, "normalized_plan_identity": 1 },
       "work_counters": ["blocks", "input_lines", "block_visits", "line_visits", "keep_policy_visits", "fragments", "pages", "placements", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 118, "work": [10000, 60000, 10000, 60000, 10000, 14000, 6000, 60000, 667] },
-        "x64musl": { "allocations": 118, "work": [10000, 60000, 10000, 60000, 10000, 14000, 6000, 60000, 667] }
+        "arm64mac": { "allocations": 100, "work": [10000, 60000, 10000, 60000, 10000, 14000, 6000, 60000, 667] },
+        "x64musl": { "allocations": 100, "work": [10000, 60000, 10000, 60000, 10000, 14000, 6000, 60000, 667] }
       },
       "retention": null
     },
@@ -332,8 +332,8 @@
       "dimensions": { "input_sources": 1000, "unique_sources": 1, "unicode_analyses": 1, "normalized_plan_identity": 1 },
       "work_counters": ["inputs", "unique_sources", "adjacent_hits", "table_slots", "hash_scalar_visits", "probes", "equality_checks", "equality_byte_bound", "unique_source_bytes", "unique_source_scalars", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 83, "work": [1000, 1, 999, 2048, 4, 1, 999, 3996, 4, 4, 667] },
-        "x64musl": { "allocations": 83, "work": [1000, 1, 999, 2048, 4, 1, 999, 3996, 4, 4, 667] }
+        "arm64mac": { "allocations": 56, "work": [1000, 1, 999, 2048, 4, 1, 999, 3996, 4, 4, 667] },
+        "x64musl": { "allocations": 56, "work": [1000, 1, 999, 2048, 4, 1, 999, 3996, 4, 4, 667] }
       },
       "retention": null
     },
@@ -347,8 +347,8 @@
       "dimensions": { "input_sources": 10000, "unique_sources": 1, "unicode_analyses": 1, "normalized_plan_identity": 1 },
       "work_counters": ["inputs", "unique_sources", "adjacent_hits", "table_slots", "hash_scalar_visits", "probes", "equality_checks", "equality_byte_bound", "unique_source_bytes", "unique_source_scalars", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 89, "work": [10000, 1, 9999, 32768, 4, 1, 9999, 39996, 4, 4, 667] },
-        "x64musl": { "allocations": 89, "work": [10000, 1, 9999, 32768, 4, 1, 9999, 39996, 4, 4, 667] }
+        "arm64mac": { "allocations": 56, "work": [10000, 1, 9999, 32768, 4, 1, 9999, 39996, 4, 4, 667] },
+        "x64musl": { "allocations": 56, "work": [10000, 1, 9999, 32768, 4, 1, 9999, 39996, 4, 4, 667] }
       },
       "retention": null
     },
@@ -362,8 +362,8 @@
       "dimensions": { "input_sources": 1000, "unique_sources": 1000, "unicode_analyses": 1000, "normalized_plan_identity": 1 },
       "work_counters": ["inputs", "unique_sources", "adjacent_hits", "table_slots", "hash_scalar_visits", "probes", "equality_checks", "equality_byte_bound", "unique_source_bytes", "unique_source_scalars", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 16976, "work": [1000, 1000, 0, 2048, 7890, 1762, 1761, 13980, 7890, 7890, 667] },
-        "x64musl": { "allocations": 16976, "work": [1000, 1000, 0, 2048, 7890, 1762, 1761, 13980, 7890, 7890, 667] }
+        "arm64mac": { "allocations": 15958, "work": [1000, 1000, 0, 2048, 7890, 1762, 1761, 13980, 7890, 7890, 667] },
+        "x64musl": { "allocations": 15958, "work": [1000, 1000, 0, 2048, 7890, 1762, 1761, 13980, 7890, 7890, 667] }
       },
       "retention": null
     },
@@ -377,8 +377,8 @@
       "dimensions": { "input_sources": 10000, "unique_sources": 10000, "unicode_analyses": 10000, "normalized_plan_identity": 1 },
       "work_counters": ["inputs", "unique_sources", "adjacent_hits", "table_slots", "hash_scalar_visits", "probes", "equality_checks", "equality_byte_bound", "unique_source_bytes", "unique_source_scalars", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 187980, "work": [10000, 10000, 0, 32768, 88890, 10479, 10478, 93195, 88890, 88890, 667] },
-        "x64musl": { "allocations": 187980, "work": [10000, 10000, 0, 32768, 88890, 10479, 10478, 93195, 88890, 88890, 667] }
+        "arm64mac": { "allocations": 177962, "work": [10000, 10000, 0, 32768, 88890, 10479, 10478, 93195, 88890, 88890, 667] },
+        "x64musl": { "allocations": 177962, "work": [10000, 10000, 0, 32768, 88890, 10479, 10478, 93195, 88890, 88890, 667] }
       },
       "retention": null
     },
@@ -392,8 +392,8 @@
       "dimensions": { "pages": 1, "authoring_blocks": 1003, "normalized_blocks": 1004, "semantic_nodes": 1010, "semantic_occurrences": 1006, "content_spine_items": 2015, "normalized_plan_identity": 1 },
       "work_counters": ["authoring_blocks", "normalized_blocks", "semantic_nodes", "semantic_occurrences", "content_spine_items", "text_properties", "source_inputs", "unique_sources", "lists", "list_items", "semantic_node_visits", "semantic_content_visits", "semantic_occurrence_visits", "max_semantic_depth", "text_source_bytes", "text_source_scalars", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 256, "work": [1003, 1004, 1010, 1006, 2015, 2, 1006, 6, 1, 2, 1010, 2015, 1006, 4, 26, 24, 667] },
-        "x64musl": { "allocations": 256, "work": [1003, 1004, 1010, 1006, 2015, 2, 1006, 6, 1, 2, 1010, 2015, 1006, 4, 26, 24, 667] }
+        "arm64mac": { "allocations": 238, "work": [1003, 1004, 1010, 1006, 2015, 2, 1006, 6, 1, 2, 1010, 2015, 1006, 4, 26, 24, 667] },
+        "x64musl": { "allocations": 238, "work": [1003, 1004, 1010, 1006, 2015, 2, 1006, 6, 1, 2, 1010, 2015, 1006, 4, 26, 24, 667] }
       },
       "retention": null
     },
@@ -407,8 +407,8 @@
       "dimensions": { "pages": 1, "authoring_blocks": 10003, "normalized_blocks": 10004, "semantic_nodes": 10010, "semantic_occurrences": 10006, "content_spine_items": 20015, "normalized_plan_identity": 1 },
       "work_counters": ["authoring_blocks", "normalized_blocks", "semantic_nodes", "semantic_occurrences", "content_spine_items", "text_properties", "source_inputs", "unique_sources", "lists", "list_items", "semantic_node_visits", "semantic_content_visits", "semantic_occurrence_visits", "max_semantic_depth", "text_source_bytes", "text_source_scalars", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 293, "work": [10003, 10004, 10010, 10006, 20015, 2, 10006, 6, 1, 2, 10010, 20015, 10006, 4, 26, 24, 667] },
-        "x64musl": { "allocations": 293, "work": [10003, 10004, 10010, 10006, 20015, 2, 10006, 6, 1, 2, 10010, 20015, 10006, 4, 26, 24, 667] }
+        "arm64mac": { "allocations": 269, "work": [10003, 10004, 10010, 10006, 20015, 2, 10006, 6, 1, 2, 10010, 20015, 10006, 4, 26, 24, 667] },
+        "x64musl": { "allocations": 269, "work": [10003, 10004, 10010, 10006, 20015, 2, 10006, 6, 1, 2, 10010, 20015, 10006, 4, 26, 24, 667] }
       },
       "retention": null
     },
@@ -422,8 +422,8 @@
       "dimensions": { "pages": 1, "normalized_blocks": 1004, "shape_requests": 1006, "unique_sources": 6, "scalars": 4021, "glyphs": 4021, "font_bytes": 166300, "normalized_plan_identity": 1 },
       "work_counters": ["paragraphs", "shape_requests", "source_bytes", "scalars", "glyphs", "metric_reads", "script_run_visits", "runs", "clusters", "glyph_index_visits", "glyph_records", "font_bytes", "font_tables", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 283, "work": [1000, 1006, 4025, 4021, 4021, 24, 6, 1006, 4021, 4021, 4021, 166300, 17, 667] },
-        "x64musl": { "allocations": 283, "work": [1000, 1006, 4025, 4021, 4021, 24, 6, 1006, 4021, 4021, 4021, 166300, 17, 667] }
+        "arm64mac": { "allocations": 258, "work": [1000, 1006, 4025, 4021, 4021, 24, 6, 1006, 4021, 4021, 4021, 166300, 17, 667] },
+        "x64musl": { "allocations": 258, "work": [1000, 1006, 4025, 4021, 4021, 24, 6, 1006, 4021, 4021, 4021, 166300, 17, 667] }
       },
       "retention": null
     },
@@ -437,8 +437,8 @@
       "dimensions": { "pages": 1, "normalized_blocks": 10004, "shape_requests": 10006, "unique_sources": 6, "scalars": 40021, "glyphs": 40021, "font_bytes": 166300, "normalized_plan_identity": 1 },
       "work_counters": ["paragraphs", "shape_requests", "source_bytes", "scalars", "glyphs", "metric_reads", "script_run_visits", "runs", "clusters", "glyph_index_visits", "glyph_records", "font_bytes", "font_tables", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 320, "work": [10000, 10006, 40025, 40021, 40021, 24, 6, 10006, 40021, 40021, 40021, 166300, 17, 667] },
-        "x64musl": { "allocations": 320, "work": [10000, 10006, 40025, 40021, 40021, 24, 6, 10006, 40021, 40021, 40021, 166300, 17, 667] }
+        "arm64mac": { "allocations": 289, "work": [10000, 10006, 40025, 40021, 40021, 24, 6, 10006, 40021, 40021, 40021, 166300, 17, 667] },
+        "x64musl": { "allocations": 289, "work": [10000, 10006, 40025, 40021, 40021, 24, 6, 10006, 40021, 40021, 40021, 166300, 17, 667] }
       },
       "retention": null
     },
@@ -452,8 +452,8 @@
       "dimensions": { "pages": 1, "normalized_blocks": 1004, "line_runs": 1006, "line_templates": 6, "normalized_plan_identity": 1 },
       "work_counters": ["paragraphs", "blocks", "block_mapping_visits", "run_writes", "content_width", "run_visits", "templates", "cache_hits", "key_probes", "table_slots", "boundary_visits", "cluster_visits", "glyph_index_visits", "glyph_visits", "candidate_visits", "line_writes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 319, "work": [1000, 1004, 1004, 1006, 451000, 1006, 6, 1000, 1012, 2048, 30, 24, 24, 24, 24, 1006, 667] },
-        "x64musl": { "allocations": 319, "work": [1000, 1004, 1004, 1006, 451000, 1006, 6, 1000, 1012, 2048, 30, 24, 24, 24, 24, 1006, 667] }
+        "arm64mac": { "allocations": 294, "work": [1000, 1004, 1004, 1006, 451000, 1006, 6, 1000, 1012, 2048, 30, 24, 24, 24, 24, 1006, 667] },
+        "x64musl": { "allocations": 294, "work": [1000, 1004, 1004, 1006, 451000, 1006, 6, 1000, 1012, 2048, 30, 24, 24, 24, 24, 1006, 667] }
       },
       "retention": null
     },
@@ -467,8 +467,8 @@
       "dimensions": { "pages": 1, "normalized_blocks": 10004, "line_runs": 10006, "line_templates": 6, "normalized_plan_identity": 1 },
       "work_counters": ["paragraphs", "blocks", "block_mapping_visits", "run_writes", "content_width", "run_visits", "templates", "cache_hits", "key_probes", "table_slots", "boundary_visits", "cluster_visits", "glyph_index_visits", "glyph_visits", "candidate_visits", "line_writes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 356, "work": [10000, 10004, 10004, 10006, 451000, 10006, 6, 10000, 10012, 32768, 30, 24, 24, 24, 24, 10006, 667] },
-        "x64musl": { "allocations": 356, "work": [10000, 10004, 10004, 10006, 451000, 10006, 6, 10000, 10012, 32768, 30, 24, 24, 24, 24, 10006, 667] }
+        "arm64mac": { "allocations": 325, "work": [10000, 10004, 10004, 10006, 451000, 10006, 6, 10000, 10012, 32768, 30, 24, 24, 24, 24, 10006, 667] },
+        "x64musl": { "allocations": 325, "work": [10000, 10004, 10004, 10006, 451000, 10006, 6, 10000, 10012, 32768, 30, 24, 24, 24, 24, 10006, 667] }
       },
       "retention": null
     },
@@ -482,8 +482,8 @@
       "dimensions": { "pages": 1, "planned_pages": 32, "normalized_blocks": 1004, "visual_rows": 1004, "label_rows": 2, "normalized_plan_identity": 1 },
       "work_counters": ["paragraphs", "block_planning_visits", "block_writes", "row_writes", "label_rows", "page_block_visits", "page_line_visits", "keep_policy_visits", "fragment_writes", "page_writes", "placement_writes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 357, "work": [1000, 1004, 1004, 1004, 2, 1004, 1004, 1004, 1004, 32, 1004, 667] },
-        "x64musl": { "allocations": 357, "work": [1000, 1004, 1004, 1004, 2, 1004, 1004, 1004, 1004, 32, 1004, 667] }
+        "arm64mac": { "allocations": 332, "work": [1000, 1004, 1004, 1004, 2, 1004, 1004, 1004, 1004, 32, 1004, 667] },
+        "x64musl": { "allocations": 332, "work": [1000, 1004, 1004, 1004, 2, 1004, 1004, 1004, 1004, 32, 1004, 667] }
       },
       "retention": null
     },
@@ -497,8 +497,8 @@
       "dimensions": { "pages": 1, "planned_pages": 313, "normalized_blocks": 10004, "visual_rows": 10004, "label_rows": 2, "normalized_plan_identity": 1 },
       "work_counters": ["paragraphs", "block_planning_visits", "block_writes", "row_writes", "label_rows", "page_block_visits", "page_line_visits", "keep_policy_visits", "fragment_writes", "page_writes", "placement_writes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 408, "work": [10000, 10004, 10004, 10004, 2, 10004, 10004, 10004, 10004, 313, 10004, 667] },
-        "x64musl": { "allocations": 408, "work": [10000, 10004, 10004, 10004, 2, 10004, 10004, 10004, 10004, 313, 10004, 667] }
+        "arm64mac": { "allocations": 377, "work": [10000, 10004, 10004, 10004, 2, 10004, 10004, 10004, 10004, 313, 10004, 667] },
+        "x64musl": { "allocations": 377, "work": [10000, 10004, 10004, 10004, 2, 10004, 10004, 10004, 10004, 313, 10004, 667] }
       },
       "retention": null
     },
@@ -512,8 +512,8 @@
       "dimensions": { "component_edges": 1713, "font_bytes": 166300, "font_glyphs": 1376, "font_tables": 17 },
       "work_counters": ["font_bytes", "tables", "glyphs", "coverage_spans", "checksum_bytes", "cmap_mappings", "loca_entries", "overlap_comparisons", "glyph_visits", "component_edge_visits", "glyph_a", "width_a"],
       "expectations": {
-        "arm64mac": { "allocations": 65, "work": [166300, 17, 1376, 26, 332316, 468, 1377, 136, 1376, 1713, 2, 1413] },
-        "x64musl": { "allocations": 65, "work": [166300, 17, 1376, 26, 332316, 468, 1377, 136, 1376, 1713, 2, 1413] }
+        "arm64mac": { "allocations": 40, "work": [166300, 17, 1376, 26, 332316, 468, 1377, 136, 1376, 1713, 2, 1413] },
+        "x64musl": { "allocations": 40, "work": [166300, 17, 1376, 26, 332316, 468, 1377, 136, 1376, 1713, 2, 1413] }
       },
       "retention": null
     },
@@ -527,8 +527,8 @@
       "dimensions": { "font_bytes": 7816, "font_glyphs": 15, "font_tables": 17, "registered_faces": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "tables", "glyphs", "cmap_mappings", "component_edges", "coverage_spans", "face_id", "instance_id", "policy_id", "resources", "faces", "instances", "policies", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 75, "work": [7816, 7816, 0, 17, 15, 9, 4, 7, 0, 0, 0, 1, 1, 1, 1, 667] },
-        "x64musl": { "allocations": 75, "work": [7816, 7816, 0, 17, 15, 9, 4, 7, 0, 0, 0, 1, 1, 1, 1, 667] }
+        "arm64mac": { "allocations": 40, "work": [7816, 7816, 0, 17, 15, 9, 4, 7, 0, 0, 0, 1, 1, 1, 1, 667] },
+        "x64musl": { "allocations": 40, "work": [7816, 7816, 0, 17, 15, 9, 4, 7, 0, 0, 0, 1, 1, 1, 1, 667] }
       },
       "retention": null
     },
@@ -542,8 +542,8 @@
       "dimensions": { "unicode_version_major": 17, "repetitions": 1000, "source_bytes": 9000 },
       "work_counters": ["repetitions", "source_bytes", "scalars", "graphemes", "line_boundaries", "script_runs"],
       "expectations": {
-        "arm64mac": { "allocations": 176, "work": [1000, 9000, 6000, 5000, 6001, 2999] },
-        "x64musl": { "allocations": 176, "work": [1000, 9000, 6000, 5000, 6001, 2999] }
+        "arm64mac": { "allocations": 177, "work": [1000, 9000, 6000, 5000, 6001, 2999] },
+        "x64musl": { "allocations": 177, "work": [1000, 9000, 6000, 5000, 6001, 2999] }
       },
       "retention": null
     },
@@ -557,8 +557,8 @@
       "dimensions": { "component_edges": 1713, "font_bytes": 166300, "font_glyphs": 1376, "usage_records": 3 },
       "work_counters": ["font_bytes", "usage_visits", "retained_glyphs", "component_index_visits", "component_edge_visits", "glyph_scans", "entries", "glyph_a", "glyph_e_acute", "subset_a", "subset_e_acute", "prefix_checksum"],
       "expectations": {
-        "arm64mac": { "allocations": 75, "work": [166300, 3, 5, 1713, 2, 1376, 5, 2, 305, 1, 3, 450] },
-        "x64musl": { "allocations": 75, "work": [166300, 3, 5, 1713, 2, 1376, 5, 2, 305, 1, 3, 450] }
+        "arm64mac": { "allocations": 50, "work": [166300, 3, 5, 1713, 2, 1376, 5, 2, 305, 1, 3, 450] },
+        "x64musl": { "allocations": 50, "work": [166300, 3, 5, 1713, 2, 1376, 5, 2, 305, 1, 3, 450] }
       },
       "retention": null
     },
@@ -572,8 +572,8 @@
       "dimensions": { "unicode_version_major": 17, "repetitions": 10000, "source_bytes": 90000 },
       "work_counters": ["repetitions", "source_bytes", "scalars", "graphemes", "line_boundaries", "script_runs"],
       "expectations": {
-        "arm64mac": { "allocations": 191, "work": [10000, 90000, 60000, 50000, 60001, 29999] },
-        "x64musl": { "allocations": 191, "work": [10000, 90000, 60000, 50000, 60001, 29999] }
+        "arm64mac": { "allocations": 192, "work": [10000, 90000, 60000, 50000, 60001, 29999] },
+        "x64musl": { "allocations": 192, "work": [10000, 90000, 60000, 50000, 60001, 29999] }
       },
       "retention": null
     },
@@ -587,8 +587,8 @@
       "dimensions": { "font_bytes": 166300, "retained_glyphs": 5, "subset_bytes": 5864 },
       "work_counters": ["font_bytes", "usage_visits", "retained_glyphs", "entry_visits", "source_glyph_bytes", "component_rewrites", "glyf_bytes", "hmtx_bytes", "loca_bytes", "cmap_mappings", "tables", "subset_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 94, "work": [166300, 3, 5, 10, 992, 2, 992, 20, 24, 2, 14, 5864, 667] },
-        "x64musl": { "allocations": 94, "work": [166300, 3, 5, 10, 992, 2, 992, 20, 24, 2, 14, 5864, 667] }
+        "arm64mac": { "allocations": 69, "work": [166300, 3, 5, 10, 992, 2, 992, 20, 24, 2, 14, 5864, 667] },
+        "x64musl": { "allocations": 69, "work": [166300, 3, 5, 10, 992, 2, 992, 20, 24, 2, 14, 5864, 667] }
       },
       "retention": null
     },
@@ -602,8 +602,8 @@
       "dimensions": { "advanced_glyphs": 1, "font_bytes": 166300, "simple_glyphs": 8, "simple_scalars": 8 },
       "work_counters": ["font_bytes", "simple_source_bytes", "simple_scalars", "simple_graphemes", "simple_script_runs", "simple_scalar_visits", "simple_cluster_visits", "simple_glyph_visits", "simple_metric_reads", "simple_runs", "simple_glyphs", "simple_advance", "simple_glyph_checksum", "advanced_source_bytes", "advanced_scalars", "advanced_runs", "advanced_clusters", "advanced_glyphs", "advanced_glyph_index_visits", "advanced_auxiliary_visits", "advanced_glyph_checksum", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 89, "work": [166300, 9, 8, 8, 1, 8, 8, 8, 8, 1, 8, 49247, 2067, 3, 2, 1, 1, 1, 1, 1, 5, 667] },
-        "x64musl": { "allocations": 89, "work": [166300, 9, 8, 8, 1, 8, 8, 8, 8, 1, 8, 49247, 2067, 3, 2, 1, 1, 1, 1, 1, 5, 667] }
+        "arm64mac": { "allocations": 64, "work": [166300, 9, 8, 8, 1, 8, 8, 8, 8, 1, 8, 49247, 2067, 3, 2, 1, 1, 1, 1, 1, 5, 667] },
+        "x64musl": { "allocations": 64, "work": [166300, 9, 8, 8, 1, 8, 8, 8, 8, 1, 8, 49247, 2067, 3, 2, 1, 1, 1, 1, 1, 5, 667] }
       },
       "retention": null
     },
@@ -617,8 +617,8 @@
       "dimensions": { "font_bytes": 166300, "font_objects": 9, "retained_glyphs": 5, "unicode_mappings": 2 },
       "work_counters": ["font_bytes", "subset_bytes", "embedded_font_bytes", "cid_map_bytes", "to_unicode_bytes", "unicode_mappings", "unicode_scalars", "widths", "tables", "font_objects", "sealed_objects", "sealed_streams", "sealed_payloads", "object_bytes_checked", "object_edges_appended", "object_index_checks", "object_values_appended", "sealed_objects_checked", "sealed_references_checked", "sealed_streams_checked", "sealed_values_checked", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 262, "work": [166300, 5864, 5864, 10, 352, 2, 2, 5, 14, 9, 9, 3, 3, 298, 40, 85, 46, 9, 5, 3, 46, 667] },
-        "x64musl": { "allocations": 262, "work": [166300, 5864, 5864, 10, 352, 2, 2, 5, 14, 9, 9, 3, 3, 298, 40, 85, 46, 9, 5, 3, 46, 667] }
+        "arm64mac": { "allocations": 241, "work": [166300, 5864, 5864, 10, 352, 2, 2, 5, 14, 9, 9, 3, 3, 298, 40, 85, 46, 9, 5, 3, 46, 667] },
+        "x64musl": { "allocations": 241, "work": [166300, 5864, 5864, 10, 352, 2, 2, 5, 14, 9, 9, 3, 3, 298, 40, 85, 46, 9, 5, 3, 46, 667] }
       },
       "retention": null
     },
@@ -632,8 +632,38 @@
       "dimensions": { "pages": 1, "font_bytes": 166300, "glyphs": 8, "scene_commands": 2, "scene_text_placements": 1, "semantic_nodes": 2, "semantic_occurrences": 1, "semantic_fragments": 1, "text_sources": 1, "unicode_mappings": 8, "objects": 20, "gate3_visible_text": 1, "normalized_plan_identity": 1 },
       "work_counters": ["font_bytes", "runs", "glyphs", "scene_command_visits", "scene_color_references", "scene_text_placements", "scene_max_graphics_depth", "semantic_attribute_visits", "semantic_content_visits", "semantic_fragment_count_visits", "semantic_fragment_validation_visits", "semantic_max_depth", "semantic_namespace_visits", "semantic_node_visits", "semantic_occurrence_visits", "semantic_prefix_steps", "semantic_reverse_writes", "semantic_text_property_bytes", "semantic_text_property_visits", "semantic_text_source_bytes", "semantic_text_source_scalars", "semantic_text_source_visits", "tagged_artifact_groups", "tagged_fragment_groups", "tagged_k_items", "tagged_node_k_ranges", "tagged_occurrence_owner_edges", "tagged_paint_edges", "tagged_parent_prefix_steps", "tagged_parent_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "resource_command_visits", "resource_color_spaces", "resource_text_color_references", "content_command_visits", "content_text_placements", "content_stream_bytes", "font_plan_entries", "subset_bytes", "source_scalars", "text_runs", "placements", "text_glyphs", "unicode_mappings", "prepared_text_bytes", "fonts", "font_objects", "objects", "payload_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 318, "work": [166300, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6776, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7093, 10000] },
-        "x64musl": { "allocations": 318, "work": [166300, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6776, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7093, 10000] }
+        "arm64mac": { "allocations": 144, "work": [166300, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6776, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7093, 10000] },
+        "x64musl": { "allocations": 144, "work": [166300, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6776, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7093, 10000] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 authored facade output",
+      "scenario_revision": "gate3-facade-output-v2-real-authoring",
+      "source": "tests/gate3_facade_output/main.roc",
+      "snapshot": "tests/gate3_facade_output/snapshot.pdf",
+      "args": ["visible", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authored_blocks": 1, "semantic_occurrences": 1, "line_runs": 1, "scene_commands": 2, "source_bytes": 32, "glyph_usages": 32, "objects": 20, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_blocks", "semantic_occurrences", "shaped_runs", "lines", "pages", "final_runs", "fragments", "scene_commands", "glyph_usages", "font_entries", "subset_bytes", "text_glyph_visits", "content_command_visits", "content_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1422, "work": [1, 1, 1, 1, 1, 1, 1, 2, 32, 24, 8692, 32, 2, 1048, 20, 12397] },
+        "x64musl": { "allocations": 1422, "work": [1, 1, 1, 1, 1, 1, 1, 2, 32, 24, 8692, 32, 2, 1048, 20, 12397] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 authored facade output atomic negative",
+      "scenario_revision": "gate3-facade-output-v2-real-authoring",
+      "source": "tests/gate3_facade_output_negative/main.roc",
+      "snapshot": "tests/gate3_facade_output_negative/snapshot.pdf",
+      "args": ["0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "line_run_limit_rejected": 1, "gate3_facade_output_negative": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["line_run_limit_rejected", "evidence_pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 98, "work": [1, 667] },
+        "x64musl": { "allocations": 98, "work": [1, 667] }
       },
       "retention": null
     },
@@ -647,8 +677,8 @@
       "dimensions": { "pages": 1, "font_bytes": 7816, "glyphs": 8, "scene_commands": 2, "scene_text_placements": 1, "semantic_nodes": 2, "semantic_occurrences": 1, "semantic_fragments": 1, "text_sources": 1, "unicode_mappings": 8, "objects": 20, "gate3_caller_text": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "selected_face", "runs", "shaped_glyphs", "scene_command_visits", "scene_color_references", "scene_text_placements", "scene_max_graphics_depth", "semantic_attribute_visits", "semantic_content_visits", "semantic_fragment_count_visits", "semantic_fragment_validation_visits", "semantic_max_depth", "semantic_namespace_visits", "semantic_node_visits", "semantic_occurrence_visits", "semantic_prefix_steps", "semantic_reverse_writes", "semantic_text_property_bytes", "semantic_text_property_visits", "semantic_text_source_bytes", "semantic_text_source_scalars", "semantic_text_source_visits", "tagged_artifact_groups", "tagged_fragment_groups", "tagged_k_items", "tagged_node_k_ranges", "tagged_occurrence_owner_edges", "tagged_paint_edges", "tagged_parent_prefix_steps", "tagged_parent_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "resource_command_visits", "resource_color_spaces", "resource_text_color_references", "content_command_visits", "content_text_placements", "content_stream_bytes", "font_plan_entries", "subset_bytes", "source_scalars", "text_runs", "placements", "text_glyphs", "unicode_mappings", "prepared_text_bytes", "fonts", "font_objects", "objects", "payload_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 311, "work": [7816, 7816, 0, 17, 15, 9, 4, 0, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6820, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7137, 10061] },
-        "x64musl": { "allocations": 311, "work": [7816, 7816, 0, 17, 15, 9, 4, 0, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6820, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7137, 10061] }
+        "arm64mac": { "allocations": 144, "work": [7816, 7816, 0, 17, 15, 9, 4, 0, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6820, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7137, 10061] },
+        "x64musl": { "allocations": 144, "work": [7816, 7816, 0, 17, 15, 9, 4, 0, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6820, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7137, 10061] }
       },
       "retention": null
     },
@@ -662,8 +692,8 @@
       "dimensions": { "pages": 1, "font_bytes": 7816, "glyphs": 2, "scene_commands": 2, "scene_text_placements": 1, "semantic_nodes": 2, "semantic_occurrences": 1, "semantic_fragments": 1, "text_sources": 1, "unicode_mappings": 2, "objects": 20, "gate3_actual_text": 1, "normalized_plan_identity": 1 },
       "work_counters": ["font_bytes", "runs", "clusters", "glyphs", "glyph_indices", "scene_command_visits", "scene_color_references", "scene_text_placements", "scene_max_graphics_depth", "semantic_attribute_visits", "semantic_content_visits", "semantic_fragment_count_visits", "semantic_fragment_validation_visits", "semantic_max_depth", "semantic_namespace_visits", "semantic_node_visits", "semantic_occurrence_visits", "semantic_prefix_steps", "semantic_reverse_writes", "semantic_text_property_bytes", "semantic_text_property_visits", "semantic_text_source_bytes", "semantic_text_source_scalars", "semantic_text_source_visits", "tagged_artifact_groups", "tagged_fragment_groups", "tagged_k_items", "tagged_node_k_ranges", "tagged_occurrence_owner_edges", "tagged_paint_edges", "tagged_parent_prefix_steps", "tagged_parent_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "resource_command_visits", "resource_color_spaces", "resource_text_color_references", "content_command_visits", "content_text_placements", "content_stream_bytes", "font_plan_entries", "subset_bytes", "source_scalars", "text_runs", "placements", "text_glyphs", "actual_text_runs", "actual_text_scalars", "mapping_conflicts_resolved", "unicode_mappings", "prepared_text_bytes", "fonts", "font_objects", "objects", "payload_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 306, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 103, 1, 9, 20, 6135, 9035] },
-        "x64musl": { "allocations": 306, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 103, 1, 9, 20, 6135, 9035] }
+        "arm64mac": { "allocations": 144, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 103, 1, 9, 20, 6135, 9035] },
+        "x64musl": { "allocations": 144, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 103, 1, 9, 20, 6135, 9035] }
       },
       "retention": null
     },
@@ -677,8 +707,8 @@
       "dimensions": { "pages": 1, "planned_pages": 32, "source_runs": 1000, "planned_lines": 2000, "matched_materialization_control": 1, "normalized_plan_identity": 1 },
       "work_counters": ["repetitions", "source_runs", "planned_lines", "visual_rows", "planned_pages", "page_placements", "shaped_runs", "clusters", "glyph_indices", "glyphs", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 72, "work": [1000, 1000, 2000, 2000, 32, 2000, 1000, 6000, 6000, 6000, 667] },
-        "x64musl": { "allocations": 72, "work": [1000, 1000, 2000, 2000, 32, 2000, 1000, 6000, 6000, 6000, 667] }
+        "arm64mac": { "allocations": 54, "work": [1000, 1000, 2000, 2000, 32, 2000, 1000, 6000, 6000, 6000, 667] },
+        "x64musl": { "allocations": 54, "work": [1000, 1000, 2000, 2000, 32, 2000, 1000, 6000, 6000, 6000, 667] }
       },
       "retention": null
     },
@@ -692,8 +722,8 @@
       "dimensions": { "pages": 1, "planned_pages": 32, "source_runs": 1000, "final_runs": 2000, "allocation_delta_from_control": 8, "normalized_plan_identity": 1 },
       "work_counters": ["repetitions", "source_runs", "planned_lines", "visual_rows", "planned_pages", "visual_placements", "final_run_writes", "cluster_visits", "glyph_index_visits", "glyph_writes", "final_runs", "final_clusters", "final_glyph_indices", "final_glyphs", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 80, "work": [1000, 1000, 2000, 2000, 32, 2000, 2000, 6000, 6000, 6000, 2000, 6000, 6000, 6000, 667] },
-        "x64musl": { "allocations": 80, "work": [1000, 1000, 2000, 2000, 32, 2000, 2000, 6000, 6000, 6000, 2000, 6000, 6000, 6000, 667] }
+        "arm64mac": { "allocations": 62, "work": [1000, 1000, 2000, 2000, 32, 2000, 2000, 6000, 6000, 6000, 2000, 6000, 6000, 6000, 667] },
+        "x64musl": { "allocations": 62, "work": [1000, 1000, 2000, 2000, 32, 2000, 2000, 6000, 6000, 6000, 2000, 6000, 6000, 6000, 667] }
       },
       "retention": null
     },
@@ -707,8 +737,8 @@
       "dimensions": { "pages": 1, "planned_pages": 313, "source_runs": 10000, "planned_lines": 20000, "matched_materialization_control": 1, "normalized_plan_identity": 1 },
       "work_counters": ["repetitions", "source_runs", "planned_lines", "visual_rows", "planned_pages", "page_placements", "shaped_runs", "clusters", "glyph_indices", "glyphs", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 77, "work": [10000, 10000, 20000, 20000, 313, 20000, 10000, 60000, 60000, 60000, 667] },
-        "x64musl": { "allocations": 77, "work": [10000, 10000, 20000, 20000, 313, 20000, 10000, 60000, 60000, 60000, 667] }
+        "arm64mac": { "allocations": 59, "work": [10000, 10000, 20000, 20000, 313, 20000, 10000, 60000, 60000, 60000, 667] },
+        "x64musl": { "allocations": 59, "work": [10000, 10000, 20000, 20000, 313, 20000, 10000, 60000, 60000, 60000, 667] }
       },
       "retention": null
     },
@@ -722,8 +752,8 @@
       "dimensions": { "pages": 1, "planned_pages": 313, "source_runs": 10000, "final_runs": 20000, "allocation_delta_from_control": 8, "normalized_plan_identity": 1 },
       "work_counters": ["repetitions", "source_runs", "planned_lines", "visual_rows", "planned_pages", "visual_placements", "final_run_writes", "cluster_visits", "glyph_index_visits", "glyph_writes", "final_runs", "final_clusters", "final_glyph_indices", "final_glyphs", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 85, "work": [10000, 10000, 20000, 20000, 313, 20000, 20000, 60000, 60000, 60000, 20000, 60000, 60000, 60000, 667] },
-        "x64musl": { "allocations": 85, "work": [10000, 10000, 20000, 20000, 313, 20000, 20000, 60000, 60000, 60000, 20000, 60000, 60000, 60000, 667] }
+        "arm64mac": { "allocations": 67, "work": [10000, 10000, 20000, 20000, 313, 20000, 20000, 60000, 60000, 60000, 20000, 60000, 60000, 60000, 667] },
+        "x64musl": { "allocations": 67, "work": [10000, 10000, 20000, 20000, 313, 20000, 20000, 60000, 60000, 60000, 20000, 60000, 60000, 60000, 667] }
       },
       "retention": null
     },
@@ -737,8 +767,8 @@
       "dimensions": { "pages": 1, "planned_pages": 32, "semantic_occurrences": 1000, "final_runs": 2000, "matched_fragment_control": 1, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "planned_pages", "placements", "runs", "clusters", "glyph_indices", "glyphs", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 95, "work": [1000, 32, 2000, 2000, 6000, 6000, 6000, 667] },
-        "x64musl": { "allocations": 95, "work": [1000, 32, 2000, 2000, 6000, 6000, 6000, 667] }
+        "arm64mac": { "allocations": 81, "work": [1000, 32, 2000, 2000, 6000, 6000, 6000, 667] },
+        "x64musl": { "allocations": 81, "work": [1000, 32, 2000, 2000, 6000, 6000, 6000, 667] }
       },
       "retention": null
     },
@@ -752,8 +782,8 @@
       "dimensions": { "pages": 1, "planned_pages": 32, "semantic_occurrences": 1000, "final_fragments": 2000, "allocation_delta_from_control": 2, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "planned_pages", "placements", "page_visits", "placement_visits", "fragment_writes", "continuation_reads", "continuation_writes", "fragments", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 97, "work": [1000, 32, 2000, 32, 2000, 2000, 2000, 2000, 2000, 667] },
-        "x64musl": { "allocations": 97, "work": [1000, 32, 2000, 32, 2000, 2000, 2000, 2000, 2000, 667] }
+        "arm64mac": { "allocations": 83, "work": [1000, 32, 2000, 32, 2000, 2000, 2000, 2000, 2000, 667] },
+        "x64musl": { "allocations": 83, "work": [1000, 32, 2000, 32, 2000, 2000, 2000, 2000, 2000, 667] }
       },
       "retention": null
     },
@@ -767,8 +797,8 @@
       "dimensions": { "pages": 1, "planned_pages": 313, "semantic_occurrences": 10000, "final_runs": 20000, "matched_fragment_control": 1, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "planned_pages", "placements", "runs", "clusters", "glyph_indices", "glyphs", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 105, "work": [10000, 313, 20000, 20000, 60000, 60000, 60000, 667] },
-        "x64musl": { "allocations": 105, "work": [10000, 313, 20000, 20000, 60000, 60000, 60000, 667] }
+        "arm64mac": { "allocations": 91, "work": [10000, 313, 20000, 20000, 60000, 60000, 60000, 667] },
+        "x64musl": { "allocations": 91, "work": [10000, 313, 20000, 20000, 60000, 60000, 60000, 667] }
       },
       "retention": null
     },
@@ -782,8 +812,8 @@
       "dimensions": { "pages": 1, "planned_pages": 313, "semantic_occurrences": 10000, "final_fragments": 20000, "allocation_delta_from_control": 2, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "planned_pages", "placements", "page_visits", "placement_visits", "fragment_writes", "continuation_reads", "continuation_writes", "fragments", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 107, "work": [10000, 313, 20000, 313, 20000, 20000, 20000, 20000, 20000, 667] },
-        "x64musl": { "allocations": 107, "work": [10000, 313, 20000, 313, 20000, 20000, 20000, 20000, 20000, 667] }
+        "arm64mac": { "allocations": 93, "work": [10000, 313, 20000, 313, 20000, 20000, 20000, 20000, 20000, 667] },
+        "x64musl": { "allocations": 93, "work": [10000, 313, 20000, 313, 20000, 20000, 20000, 20000, 20000, 667] }
       },
       "retention": null
     },
@@ -797,8 +827,8 @@
       "dimensions": { "pages": 1, "planned_pages": 1, "semantic_occurrences": 3, "semantic_fragments": 6, "reused_source_analysis": 1, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "fragments", "reverse_entries", "fragment_count_visits", "fragment_validation_visits", "occurrence_prefix_steps", "reverse_writes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 93, "work": [3, 6, 6, 6, 6, 3, 6, 667] },
-        "x64musl": { "allocations": 93, "work": [3, 6, 6, 6, 6, 3, 6, 667] }
+        "arm64mac": { "allocations": 80, "work": [3, 6, 6, 6, 6, 3, 6, 667] },
+        "x64musl": { "allocations": 80, "work": [3, 6, 6, 6, 6, 3, 6, 667] }
       },
       "retention": null
     },
@@ -812,8 +842,8 @@
       "dimensions": { "pages": 1, "invalid_page": 1, "invalid_source_range": 1, "fragment_limit": 1, "preexisting_fragments": 1, "normalized_plan_identity": 1 },
       "work_counters": ["invalid_page_rejected", "invalid_source_range_rejected", "fragment_limit_rejected", "preexisting_fragments_rejected", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 97, "work": [1, 1, 1, 1, 667] },
-        "x64musl": { "allocations": 97, "work": [1, 1, 1, 1, 667] }
+        "arm64mac": { "allocations": 84, "work": [1, 1, 1, 1, 667] },
+        "x64musl": { "allocations": 84, "work": [1, 1, 1, 1, 667] }
       },
       "retention": null
     },
@@ -827,8 +857,8 @@
       "dimensions": { "pages": 1, "planned_pages": 1, "semantic_occurrences": 3, "semantic_fragments": 6, "text_runs": 6, "scene_groups": 6, "scene_commands": 12, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "runs", "command_writes", "group_writes", "page_group_writes", "page_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 147, "work": [3, 6, 12, 6, 6, 1, 12, 6, 6, 6, 6, 6, 6, 667] },
-        "x64musl": { "allocations": 147, "work": [3, 6, 12, 6, 6, 1, 12, 6, 6, 6, 6, 6, 6, 667] }
+        "arm64mac": { "allocations": 146, "work": [3, 6, 12, 6, 6, 1, 12, 6, 6, 6, 6, 6, 6, 667] },
+        "x64musl": { "allocations": 146, "work": [3, 6, 12, 6, 6, 1, 12, 6, 6, 6, 6, 6, 6, 667] }
       },
       "retention": null
     },
@@ -842,8 +872,8 @@
       "dimensions": { "pages": 1, "planned_pages": 32, "final_runs": 2000, "matched_scene_control": 1, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "planned_pages", "placements", "styles", "runs", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 65, "work": [1000, 32, 2000, 2000, 2000, 667] },
-        "x64musl": { "allocations": 65, "work": [1000, 32, 2000, 2000, 2000, 667] }
+        "arm64mac": { "allocations": 47, "work": [1000, 32, 2000, 2000, 2000, 667] },
+        "x64musl": { "allocations": 47, "work": [1000, 32, 2000, 2000, 2000, 667] }
       },
       "retention": null
     },
@@ -857,8 +887,8 @@
       "dimensions": { "pages": 1, "planned_pages": 32, "final_runs": 2000, "scene_commands": 4000, "scene_groups": 2000, "allocation_delta_from_control": 5, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "page_writes", "placement_visits", "color_checks", "command_writes", "group_writes", "page_group_writes", "pages", "commands", "groups", "page_group_edges", "color_spaces", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 70, "work": [1000, 32, 2000, 2000, 4000, 2000, 2000, 32, 4000, 2000, 2000, 1, 667] },
-        "x64musl": { "allocations": 70, "work": [1000, 32, 2000, 2000, 4000, 2000, 2000, 32, 4000, 2000, 2000, 1, 667] }
+        "arm64mac": { "allocations": 52, "work": [1000, 32, 2000, 2000, 4000, 2000, 2000, 32, 4000, 2000, 2000, 1, 667] },
+        "x64musl": { "allocations": 52, "work": [1000, 32, 2000, 2000, 4000, 2000, 2000, 32, 4000, 2000, 2000, 1, 667] }
       },
       "retention": null
     },
@@ -872,8 +902,8 @@
       "dimensions": { "pages": 1, "planned_pages": 313, "final_runs": 20000, "matched_scene_control": 1, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "planned_pages", "placements", "styles", "runs", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 69, "work": [10000, 313, 20000, 20000, 20000, 667] },
-        "x64musl": { "allocations": 69, "work": [10000, 313, 20000, 20000, 20000, 667] }
+        "arm64mac": { "allocations": 51, "work": [10000, 313, 20000, 20000, 20000, 667] },
+        "x64musl": { "allocations": 51, "work": [10000, 313, 20000, 20000, 20000, 667] }
       },
       "retention": null
     },
@@ -887,8 +917,8 @@
       "dimensions": { "pages": 1, "planned_pages": 313, "final_runs": 20000, "scene_commands": 40000, "scene_groups": 20000, "allocation_delta_from_control": 5, "normalized_plan_identity": 1 },
       "work_counters": ["occurrences", "page_writes", "placement_visits", "color_checks", "command_writes", "group_writes", "page_group_writes", "pages", "commands", "groups", "page_group_edges", "color_spaces", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 74, "work": [10000, 313, 20000, 20000, 40000, 20000, 20000, 313, 40000, 20000, 20000, 1, 667] },
-        "x64musl": { "allocations": 74, "work": [10000, 313, 20000, 20000, 40000, 20000, 20000, 313, 40000, 20000, 20000, 1, 667] }
+        "arm64mac": { "allocations": 56, "work": [10000, 313, 20000, 20000, 40000, 20000, 20000, 313, 40000, 20000, 20000, 1, 667] },
+        "x64musl": { "allocations": 56, "work": [10000, 313, 20000, 20000, 40000, 20000, 20000, 313, 40000, 20000, 20000, 1, 667] }
       },
       "retention": null
     },
@@ -902,8 +932,8 @@
       "dimensions": { "pages": 1, "unsupported_color": 1, "invalid_page_size": 1, "group_limit": 1, "invalid_placement": 1, "normalized_plan_identity": 1 },
       "work_counters": ["unsupported_color_rejected", "invalid_page_size_rejected", "group_limit_rejected", "invalid_placement_rejected", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 71, "work": [1, 1, 1, 1, 667] },
-        "x64musl": { "allocations": 71, "work": [1, 1, 1, 1, 667] }
+        "arm64mac": { "allocations": 53, "work": [1, 1, 1, 1, 667] },
+        "x64musl": { "allocations": 53, "work": [1, 1, 1, 1, 667] }
       },
       "retention": null
     },
@@ -917,8 +947,8 @@
       "dimensions": { "pages": 1, "backing_bytes": 8192, "resource_bytes": 64 },
       "work_counters": ["buffered_bytes", "shared_bytes", "owned_bytes", "shared_ranges", "owned_ranges", "shared_copied_bytes", "owned_copied_bytes", "resource_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 200, "work": [703, 703, 703, 1, 1, 0, 64, 64] },
-        "x64musl": { "allocations": 200, "work": [703, 703, 703, 1, 1, 0, 64, 64] }
+        "arm64mac": { "allocations": 201, "work": [703, 703, 703, 1, 1, 0, 64, 64] },
+        "x64musl": { "allocations": 201, "work": [703, 703, 703, 1, 1, 0, 64, 64] }
       },
       "retention": { "backing_refs": 3, "source_offset": 4096, "owned_capacity": 64 }
     }

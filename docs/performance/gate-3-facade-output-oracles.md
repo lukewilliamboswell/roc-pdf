@@ -33,16 +33,20 @@ PDF and the authored expected text. Its checker self-test uses the existing
 visible-text fixture and rejects independent same-length changes to a
 `ToUnicode` row, `/Identity-H`, and embedded-font length.
 
-The public one-import fixture now exercises this input through
-`Pdf.to_bytes`. It remains outside `tests/spec.json` until its snapshot and
-exact dev-backend allocation record can join the separately reviewed baseline
-update. The fixture's direct structural invocation establishes this boundary
-without silently accepting that pending allocation delta. When it is promoted,
-the harness must invoke this checker after snapshot comparison and pin renderer
-metrics from the original bytes. Those values are properties of the facade
-pipeline; they are not inherited from the synthetic visible-text case.
+The facade-output fixture is registered in `tests/spec.json` with reviewed
+exact dev-backend allocation and deterministic-work records. The test harness
+invokes this checker after snapshot comparison. Its local
+`tests/gate3_facade_output/oracles.json` records the authored text and separate
+exact 72-dpi PDFBox 3.0.8 and PDFium Chromium 7988 metrics from the original
+bytes. These are renderer-specific observations, not a widened shared
+tolerance inherited from the synthetic visible-text case.
 
-The facade case has an implementation-owned atomic negative twin: an authored
-page artifact is rejected as unsupported with no `List(U8)` result. Mutating
-output bytes remains only the independent checker self-test and is not a
-substitute for that typed failure evidence.
+The implementation-owned line-run-limit atomic negative now verifies the
+stable typed failure before output planning. Mutating output bytes remains only
+the independent checker self-test and is not a substitute for that failure
+evidence.
+
+The separate public one-import fixture exercises the same authored paragraph
+through `Pdf.to_bytes`; its own public-boundary snapshot and allocation record
+remain a subsequent evidence slice rather than being inferred from this
+internal pipeline fixture.

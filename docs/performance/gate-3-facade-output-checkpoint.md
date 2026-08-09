@@ -20,10 +20,10 @@ renderer, extraction, or allocation evidence.
 - `KernelFacadeOutput` composes the validated scene through font planning,
   subsetting, resource use, PDF text, content streams, page objects, font
   objects, tagged structure, and deterministic emission.
-- Synthetic fragment evidence emits a non-blank, 9,888-byte PDF through that
-  output composition. Its diagnostic work record was
-  `1,2,6,7,6716,4,2,6,172,4,316,9,20,9888` with 1,164 allocations. These are
-  observations only, not accepted test baselines.
+- The repaired real-authoring path emits a deterministic 12,397-byte PDF for
+  `Café PDF generation in pure Roc.`. It is now a regular scenario with exact
+  dev-backend work/allocation evidence, direct CID/ToUnicode reconstruction,
+  PDFBox extraction, and fixture-local PDFBox/PDFium render metrics.
 - `KernelFacadePipeline` connects normalized authoring through semantics,
   shaping, line layout, pagination, text materialization, fragments, scenes,
   and output. A focused evidence executable records the current runtime
@@ -37,29 +37,16 @@ renderer, extraction, or allocation evidence.
 The built-in font is imported as `List(U8)` with Roc's byte-list `import`
 syntax. It is not embedded as Roc source.
 
-## Resolved line-layout blocker
+## Resolved line-layout boundary
 
-The smallest current real-authoring example is one paragraph:
-`Café PDF generation in pure Roc.` Semantics and shaping complete, but entering
-the line-layout stage traps with:
-
-```text
-[ROC CRASHED] Integer subtraction overflowed
-```
-
-The staged probe gives this boundary:
-
-| Stage | Result | Observed work prefix |
-| --- | --- | --- |
-| Semantics | succeeds | `0,1,0,0,0,0,0,0,0` |
-| Shape | succeeds | `1,1,1,0,0,0,0,0,0` |
-| Lines | integer-subtraction trap | no result |
-| Pages through output | not reached | no result |
-
-This previously placed the first failure in `KernelFacadeLines`/`KernelLineLayout`,
-before pagination, scene construction, font subsetting, or PDF emission. The
-patched compiler now completes that path; the stage probe remains a focused
-regression boundary rather than the only evidence of output.
+The original real-authoring overflow was resolved by the private
+`RangeBounds` boundary in `KernelLineLayout`. The complete staged path now
+reaches PDF emission. Its positive case has one semantic occurrence, one line,
+one page, one fragment, two scene commands, 32 glyph usages, and 20 objects.
+The atomic negative lowers the line-run limit to zero, receives the stable
+`Lines(LimitExceeded(...Runs...))` rejection before output planning, and emits
+no pipeline PDF; the evidence executable returns only its independent blank
+measurement artifact.
 
 ## Reproduction
 
@@ -77,8 +64,7 @@ Then run the staged probes:
 ./facade-output-probe probe 2
 ```
 
-Stages `0` and `1` succeed. Stage `2` reproduces the subtraction overflow. The
-full path reproduces it with:
+All staged probes and the full path now succeed:
 
 ```sh
 ./facade-output-probe visible 0
@@ -89,17 +75,12 @@ do not switch this probe to `--opt=speed`.
 
 ## Next steps
 
-1. Promote the public one-import fixture into `tests/spec.json` only together
-   with its separately reviewed dev-backend allocation baseline and snapshot.
-   Its structural checker already validates the original emitted bytes; its
-   baseline must not be accepted mechanically alongside the pending bulk
-   rebaseline.
-2. Complete the Gate 3 output evidence: structural font/CID/ToUnicode/content
-   assertions, PDFBox extraction, renderer checks, and independent PDF
-   validation oracles required by the roadmap.
-3. Complete the public caller-font/theme path and its source-retention and
-   multi-placement parse-reuse evidence.
-4. Audit every Gate 3 roadmap row, including caller-font behavior and
+1. Promote the public built-in and caller-font facade fixtures with separately
+   reviewed dev-backend allocation, snapshot, retention, and parse-reuse evidence.
+2. Complete the remaining multilingual and text-behavior matrix required by
+   the roadmap, including supplementary-plane, RTL, CJK, ligature, hyphenation,
+   generated-label, and case-transformation output.
+3. Audit every Gate 3 roadmap row, including caller-font behavior and
    performance bounds, before adding the Gate 3 closure record.
 
 Do not accept allocation or PDF snapshot changes mechanically while completing

@@ -11,20 +11,42 @@ second generator.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
 import tempfile
 from pathlib import Path
 
-from check_gate3_renderers import InkMetrics, check_renderers
+from check_gate2_renderers import read_ppm
+from check_gate3_renderers import InkMetrics, check_renderers, compile_pdfbox_renderer, ink_metrics
 from check_gate3_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SELF_TEST_SNAPSHOT = ROOT / "tests" / "gate3_text" / "snapshot.pdf"
+FIXTURE_ORACLE = ROOT / "tests" / "gate3_facade_output" / "oracles.json"
 CID_TOKEN = re.compile(rb"<([0-9A-F]{4})> Tj")
+
+
+def fixture_oracle() -> tuple[str, tuple[InkMetrics, InkMetrics]]:
+    raw = json.loads(FIXTURE_ORACLE.read_text(encoding="utf-8"))
+    if set(raw) != {"expected_text", "pdfbox_72dpi", "pdfium_72dpi"} or not isinstance(raw["expected_text"], str):
+        raise SystemExit(f"invalid facade-output fixture oracle: {FIXTURE_ORACLE}")
+    fields = ("x0", "y0", "x1", "y1", "changed", "dark", "ink")
+    parsed: list[InkMetrics] = []
+    for renderer in ("pdfbox_72dpi", "pdfium_72dpi"):
+        metrics = raw[renderer]
+        if not isinstance(metrics, dict) or set(metrics) != set(fields) or any(type(metrics[field]) is not int for field in fields):
+            raise SystemExit(f"invalid {renderer} metrics in facade-output fixture oracle: {FIXTURE_ORACLE}")
+        parsed.append(InkMetrics(
+            bounds=(metrics["x0"], metrics["y0"], metrics["x1"], metrics["y1"]),
+            changed_pixels=metrics["changed"],
+            dark_pixels=metrics["dark"],
+            ink=metrics["ink"],
+        ))
+    return raw["expected_text"], (parsed[0], parsed[1])
 
 
 def only_page_font(page: bytes) -> tuple[bytes, int]:
@@ -123,6 +145,30 @@ def check_pdfbox_extraction(pdf: Path, expected_text: str) -> None:
     print(f"PASS Gate 3 facade output PDFBox 3.0.8 extraction: exact UTF-8 {expected_text!r}")
 
 
+def check_fixture_renderers(renderer: Path, working_directory: Path | None, pdf: Path, expected: tuple[InkMetrics, InkMetrics]) -> None:
+    pdfbox_expected, pdfium_expected = expected
+    require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
+    require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    with tempfile.TemporaryDirectory(prefix="roc-pdf-gate3-facade-render-") as temporary_name:
+        temporary = Path(temporary_name)
+        classes = temporary / "classes"
+        classes.mkdir()
+        pdfbox_output = temporary / "pdfbox.ppm"
+        pdfium_output = temporary / "pdfium.ppm"
+        compile_pdfbox_renderer(classes)
+        subprocess.run(
+            ["java", "-Djava.awt.headless=true", "-cp", f"{classes}{os.pathsep}{PDFBOX_JAR}", "PdfBoxRender", str(pdf), str(pdfbox_output), "72"],
+            cwd=ROOT,
+            check=True,
+        )
+        subprocess.run([str(renderer), str(pdf), str(pdfium_output), "1"], cwd=working_directory or ROOT, check=True)
+        pdfbox_actual = ink_metrics(read_ppm(pdfbox_output))
+        pdfium_actual = ink_metrics(read_ppm(pdfium_output))
+        require(pdfbox_actual == pdfbox_expected, f"PDFBox 3.0.8 facade output metrics {pdfbox_actual}, expected {pdfbox_expected}")
+        require(pdfium_actual == pdfium_expected, f"PDFium Chromium 7988 facade output metrics {pdfium_actual}, expected {pdfium_expected}")
+    print("PASS Gate 3 facade output renderers: independently pinned exact 72-dpi PDFBox and PDFium metrics")
+
+
 def parse_metrics(value: str) -> InkMetrics:
     try:
         numbers = tuple(int(item) for item in value.split(","))
@@ -154,6 +200,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("pdf", nargs="?", type=Path)
     parser.add_argument("--expected-text")
+    parser.add_argument("--fixture-oracle", action="store_true")
     parser.add_argument("--pdfbox-extraction", action="store_true")
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
@@ -164,27 +211,39 @@ def main() -> None:
     if args.self_test:
         self_test()
         return
-    if args.pdf is None or args.expected_text is None:
-        parser.error("pdf and --expected-text are required unless --self-test is used")
-    renderer_arguments = (args.pdfium_renderer, args.pdfbox_renderer_metrics, args.pdfium_renderer_metrics)
-    if any(value is not None for value in renderer_arguments) and any(value is None for value in renderer_arguments):
-        parser.error(
-            "--pdfium-renderer, --pdfbox-renderer-metrics, and --pdfium-renderer-metrics must be supplied together"
-        )
+    if args.pdf is None:
+        parser.error("pdf is required unless --self-test is used")
+    if args.fixture_oracle:
+        if args.expected_text is not None or args.pdfbox_renderer_metrics is not None or args.pdfium_renderer_metrics is not None:
+            parser.error("--fixture-oracle cannot be combined with explicit text or renderer metrics")
+        expected_text, fixture_metrics = fixture_oracle()
+    else:
+        if args.expected_text is None:
+            parser.error("--expected-text is required unless --fixture-oracle is used")
+        expected_text = args.expected_text
+        fixture_metrics = None
+        renderer_arguments = (args.pdfium_renderer, args.pdfbox_renderer_metrics, args.pdfium_renderer_metrics)
+        if any(value is not None for value in renderer_arguments) and any(value is None for value in renderer_arguments):
+            parser.error(
+                "--pdfium-renderer, --pdfbox-renderer-metrics, and --pdfium-renderer-metrics must be supplied together"
+            )
     pdf = args.pdf.resolve()
-    validate_facade_output_pdf(pdf.read_bytes(), args.expected_text)
+    validate_facade_output_pdf(pdf.read_bytes(), expected_text)
     print(f"PASS Gate 3 facade output structure, font, CID, ToUnicode, and content checks: {pdf}")
     if args.pdfbox_extraction:
-        check_pdfbox_extraction(pdf, args.expected_text)
+        check_pdfbox_extraction(pdf, expected_text)
     if args.pdfium_renderer is not None:
-        check_renderers(
-            args.pdfium_renderer.resolve(),
-            args.pdfium_working_directory,
-            pdf,
-            "facade output",
-            parse_metrics(args.pdfbox_renderer_metrics),
-            parse_metrics(args.pdfium_renderer_metrics),
-        )
+        if fixture_metrics is not None:
+            check_fixture_renderers(args.pdfium_renderer.resolve(), args.pdfium_working_directory, pdf, fixture_metrics)
+        else:
+            check_renderers(
+                args.pdfium_renderer.resolve(),
+                args.pdfium_working_directory,
+                pdf,
+                "facade output",
+                parse_metrics(args.pdfbox_renderer_metrics),
+                parse_metrics(args.pdfium_renderer_metrics),
+            )
 
 
 if __name__ == "__main__":
