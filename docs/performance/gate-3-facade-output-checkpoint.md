@@ -29,10 +29,18 @@ renderer, extraction, or allocation evidence.
   and output. A focused evidence executable records the current runtime
   boundary without adding a passing snapshot case prematurely.
 - `Pdf.to_bytes` and `Pdf.to_bytes_with` now select that completed pipeline
-  for nonblank `Standard` documents. The public one-import fixture covers an
-  authored paragraph and an atomic unsupported-artifact rejection; blank
+  for nonblank `Standard` documents. The public one-import fixture is an
+  ordinary dev-backend scenario: it records the 12,397-byte snapshot, the
+  1,423-allocation construction-inclusive dev baseline, deterministic
+  output-byte work,
+  and the same structural/CID/ToUnicode oracle as the internal authored path.
+  The fixture also retains an atomic unsupported-artifact rejection; blank
   documents retain the structural blank path, while `Archive` and
   `AccessibleArchive` remain unavailable.
+
+The public measurement boundary, allocation cause, no-copy review, and oracle
+results are recorded in
+[gate-3-public-pdf-facade.md](gate-3-public-pdf-facade.md).
 
 The built-in font is imported as `List(U8)` with Roc's byte-list `import`
 syntax. It is not embedded as Roc source.
@@ -75,8 +83,8 @@ do not switch this probe to `--opt=speed`.
 
 ## Next steps
 
-1. Promote the public built-in and caller-font facade fixtures with separately
-   reviewed dev-backend allocation, snapshot, retention, and parse-reuse evidence.
+1. Promote the caller-font facade fixture with separately reviewed dev-backend
+   allocation, snapshot, retention, and parse-reuse evidence.
 2. Complete the remaining multilingual and text-behavior matrix required by
    the roadmap, including supplementary-plane, RTL, CJK, ligature, hyphenation,
    generated-label, and case-transformation output.

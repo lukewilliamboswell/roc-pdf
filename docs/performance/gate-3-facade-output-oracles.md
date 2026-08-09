@@ -47,6 +47,11 @@ the independent checker self-test and is not a substitute for that failure
 evidence.
 
 The separate public one-import fixture exercises the same authored paragraph
-through `Pdf.to_bytes`; its own public-boundary snapshot and allocation record
-remain a subsequent evidence slice rather than being inferred from this
-internal pipeline fixture.
+through `Pdf.to_bytes`. It is registered with its own byte-identical public
+snapshot, 1,423-allocation construction-inclusive dev-backend baseline, and
+deterministic output-byte work counter. The harness applies this structural
+oracle to the public fixture after comparing the original snapshot. The
+fixture uses the same authored string and measured renderer observations, so
+the explicit PDFBox extraction and independent PDFBox/PDFium 72-dpi checks can
+be run directly against its original bytes without treating an internal
+pipeline result as a substitute for the public boundary.

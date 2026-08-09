@@ -34,8 +34,24 @@ expect {
 }
 
 main! : List(Str) => { bytes : List(U8), work : List(U64) }
-main! = |_args| {
-	bytes = Pdf.to_bytes(facade_document) ?? []
+main! = |args| {
+	title = if list_at(args, 1) == "0" {
+		"Gate 3 public facade output"
+	} else {
+		crash "Gate 3 public facade runtime guard is invalid"
+	}
+	document = Pdf.document({
+		contents: [Pdf.paragraph("Café PDF generation in pure Roc.")],
+		language: "en-AU",
+		title,
+	})
+	bytes = Pdf.to_bytes(document) ?? []
 
 	{ bytes, work: [bytes.len()] }
+}
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Err(OutOfBounds) => crash "Gate 3 public facade argument missing"
+	Ok(value) => value
 }

@@ -668,6 +668,21 @@
       "retention": null
     },
     {
+      "name": "Gate 3 public built-in Pdf facade output",
+      "scenario_revision": "gate3-public-pdf-facade-v1",
+      "source": "tests/gate3_pdf_facade/main.roc",
+      "snapshot": "tests/gate3_pdf_facade/snapshot.pdf",
+      "args": ["0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authored_blocks": 1, "public_pdf_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1423, "work": [12397] },
+        "x64musl": { "allocations": 1423, "work": [12397] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 caller-font visible searchable text",
       "scenario_revision": "gate3-caller-font-visible-text-v2-tagged-scene-content",
       "source": "tests/gate3_caller_text/main.roc",
