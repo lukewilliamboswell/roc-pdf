@@ -1,19 +1,30 @@
 # roc-pdf
 
-A pure [Roc](https://www.roc-lang.org/) package for generating PDF/UA-2 documents.
+An early-development pure [Roc](https://www.roc-lang.org/) package for
+deterministic PDF 2.0 generation.
 
-The Gate 1 PDF 2.0 structural kernel is implemented and cross-host evidenced.
-The package exposes the high-level `Pdf` facade plus the
-advanced conceptual `Document`, `Semantics`, `Layout`, `Scene`, `Text`, `Font`,
-`Image`, `Color`, `Metadata`, `Encode`, `Conformance`, and `Theme` boundaries.
-PDF object, lowering, and serialization internals are not public.
+The package currently offers a usable public, single-face `Pdf.to_bytes`
+authoring path under the `Standard` profile. The built-in theme supports title,
+heading, paragraph, and bulleted-list constructors. It does not read, edit, or
+repair PDFs, and unsupported requests return typed errors rather than producing
+blank output, substituting fonts, outlining text, or rasterizing content.
 
-The facade currently generates deterministic blank, single-page PDF 2.0
-documents under the `Standard` profile. Meaningful authoring content belongs
-to later visual and text gates and returns `UnsupportedAuthoringContent`;
-`Archive` and `AccessibleArchive` remain explicitly unavailable until their
-profile gates close. No request is silently downgraded or replaced with blank
-output.
+This is not yet a PDF/A-4 or PDF/UA-2 package. `Archive` and
+`AccessibleArchive` deliberately return capability errors, and `Pdf.to_chunks`
+is not yet a delivery path for authored nonblank documents. Full bidirectional
+text, public multi-face coverage selection, and case-transformation support are
+also incomplete. Do not make archival or accessibility-conformance claims from
+this release candidate.
+
+The package exposes the high-level `Pdf` facade plus the advanced conceptual
+`Document`, `Semantics`, `Layout`, `Scene`, `Text`, `Font`, `Image`, `Color`,
+`Metadata`, `Encode`, `Conformance`, and `Theme` boundaries. PDF object,
+lowering, and serialization internals are not public.
+
+The current candidate scope is recorded in [the 0.1.0-rc1 release
+notes](docs/releases/0.1.0-rc1.md). Gate 3 remains open; its remaining closure
+boundaries are tracked in the [closure-readiness
+audit](docs/performance/gate-3-closure-readiness-audit.md).
 
 ## Design
 

@@ -3,6 +3,7 @@ import Document
 import Font
 import KernelLex
 import KernelEmit
+import KernelBuiltInFont
 import KernelFacadePipeline
 import KernelFont
 import KernelFontPlan
@@ -34,7 +35,6 @@ import KernelShape
 import KernelTextSemantics
 import Layout
 import Theme
-import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Pdf :: [].{
 	Profile := [AccessibleArchive, Archive, Standard]
@@ -210,7 +210,7 @@ selected_font = |options| match options.font_source {
 
 selected_built_in_font : {} -> Try(KernelFont.Inspection, Pdf.Error)
 selected_built_in_font = |_| {
-	font = KernelFont.inspect(built_in_font_bytes, standard_font_limits) ? |_| InternalGenerationFailure
+	font = KernelFont.inspect(KernelBuiltInFont.bytes, standard_font_limits) ? |_| InternalGenerationFailure
 	Ok(font)
 }
 
