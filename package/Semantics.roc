@@ -217,6 +217,7 @@ Semantics :: [].{
 		CaseMapping,
 		GeneratedText,
 		InsertedDiscretionaryHyphen,
+		SelectedSoftHyphen,
 		Ligature,
 		SuppressedSoftHyphen,
 	]

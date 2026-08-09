@@ -17,6 +17,7 @@ CALLER_SNAPSHOT = ROOT / "tests" / "gate3_caller_text" / "snapshot.pdf"
 ACTUAL_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_actual_text" / "snapshot.pdf"
 SUPPLEMENTARY_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_supplementary_text" / "snapshot.pdf"
 CJK_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_cjk_text" / "snapshot.pdf"
+SOFT_HYPHEN_SNAPSHOT = ROOT / "tests" / "gate3_soft_hyphen" / "snapshot.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 
@@ -37,6 +38,8 @@ PDFBOX_SUPPLEMENTARY_EXPECTED = InkMetrics(bounds=(72, 133, 81, 142), changed_pi
 PDFIUM_SUPPLEMENTARY_EXPECTED = InkMetrics(bounds=(72, 133, 81, 142), changed_pixels=77, dark_pixels=30, ink=8280)
 PDFBOX_CJK_EXPECTED = InkMetrics(bounds=(73, 132, 81, 142), changed_pixels=47, dark_pixels=20, ink=6866)
 PDFIUM_CJK_EXPECTED = InkMetrics(bounds=(72, 132, 82, 142), changed_pixels=77, dark_pixels=32, ink=7649)
+PDFBOX_SOFT_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 131, 144), changed_pixels=271, dark_pixels=118, ink=32548)
+PDFIUM_SOFT_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 132, 144), changed_pixels=352, dark_pixels=121, ink=35014)
 BOUNDS_TOLERANCE = 2
 CHANGED_PIXELS_TOLERANCE = 60
 DARK_PIXELS_TOLERANCE = 40
@@ -154,6 +157,8 @@ def self_test() -> None:
     assert_close("exact PDFium supplementary synthetic", PDFIUM_SUPPLEMENTARY_EXPECTED, PDFIUM_SUPPLEMENTARY_EXPECTED)
     assert_close("exact PDFBox CJK synthetic", PDFBOX_CJK_EXPECTED, PDFBOX_CJK_EXPECTED)
     assert_close("exact PDFium CJK synthetic", PDFIUM_CJK_EXPECTED, PDFIUM_CJK_EXPECTED)
+    assert_close("exact PDFBox soft-hyphen synthetic", PDFBOX_SOFT_HYPHEN_EXPECTED, PDFBOX_SOFT_HYPHEN_EXPECTED)
+    assert_close("exact PDFium soft-hyphen synthetic", PDFIUM_SOFT_HYPHEN_EXPECTED, PDFIUM_SOFT_HYPHEN_EXPECTED)
     assert_geometry_agreement(PDFIUM_EXPECTED, PDFBOX_EXPECTED)
     mutation = InkMetrics(
         bounds=(PDFBOX_EXPECTED.bounds[0] + BOUNDS_TOLERANCE + 1, *PDFBOX_EXPECTED.bounds[1:]),
@@ -190,13 +195,14 @@ def main() -> None:
     parser.add_argument("--actual-text", action="store_true")
     parser.add_argument("--supplementary", action="store_true")
     parser.add_argument("--cjk", action="store_true")
+    parser.add_argument("--soft-hyphen", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
         return
     require(args.pdfium_renderer is not None, "--pdfium-renderer is required unless --self-test is used")
-    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk)) <= 1, "--caller, --actual-text, --supplementary, and --cjk are mutually exclusive")
+    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk, args.soft_hyphen)) <= 1, "renderer fixture selectors are mutually exclusive")
     if args.actual_text:
         snapshot = ACTUAL_TEXT_SNAPSHOT
         label = "reordered ActualText"
@@ -212,6 +218,11 @@ def main() -> None:
         label = "CJK text"
         pdfbox_expected = PDFBOX_CJK_EXPECTED
         pdfium_expected = PDFIUM_CJK_EXPECTED
+    elif args.soft_hyphen:
+        snapshot = SOFT_HYPHEN_SNAPSHOT
+        label = "selected soft-hyphen text"
+        pdfbox_expected = PDFBOX_SOFT_HYPHEN_EXPECTED
+        pdfium_expected = PDFIUM_SOFT_HYPHEN_EXPECTED
     elif args.caller:
         snapshot = CALLER_SNAPSHOT
         label = "caller-font text"

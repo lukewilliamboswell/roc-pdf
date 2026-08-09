@@ -788,6 +788,66 @@
       "retention": null
     },
     {
+      "name": "Gate 3 selected soft-hyphen extraction",
+      "scenario_revision": "gate3-soft-hyphen-v1-explicit-selection",
+      "source": "tests/gate3_soft_hyphen/main.roc",
+      "snapshot": "tests/gate3_soft_hyphen/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "font_bytes": 166300, "source_scalars": 10, "selected_soft_hyphens": 1, "unicode_mappings": 8, "objects": 20, "gate3_soft_hyphen": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "opportunities", "selected_opportunities", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1122, "work": [166300, 1, 1, 1, 10, 8, 419, 20, 10115] },
+        "x64musl": { "allocations": 1122, "work": [166300, 1, 1, 1, 10, 8, 419, 20, 10115] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 malformed soft-hyphen opportunity atomic negative",
+      "scenario_revision": "gate3-soft-hyphen-v1-explicit-selection",
+      "source": "tests/gate3_soft_hyphen_malformed_negative/main.roc",
+      "snapshot": "tests/gate3_soft_hyphen_malformed_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "malformed_soft_hyphen_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
+      "work_counters": ["soft_hyphen_rejected", "evidence_pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 40, "work": [1, 667] },
+        "x64musl": { "allocations": 40, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 unselected soft-hyphen atomic negative",
+      "scenario_revision": "gate3-soft-hyphen-v1-explicit-selection",
+      "source": "tests/gate3_soft_hyphen_unselected_negative/main.roc",
+      "snapshot": "tests/gate3_soft_hyphen_unselected_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "unselected_soft_hyphen_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
+      "work_counters": ["soft_hyphen_rejected", "evidence_pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 40, "work": [1, 667] },
+        "x64musl": { "allocations": 40, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 external discretionary-hyphen selection atomic negative",
+      "scenario_revision": "gate3-soft-hyphen-v1-explicit-selection",
+      "source": "tests/gate3_external_discretionary_hyphen_negative/main.roc",
+      "snapshot": "tests/gate3_external_discretionary_hyphen_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "external_discretionary_hyphen_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
+      "work_counters": ["soft_hyphen_rejected", "evidence_pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 42, "work": [1, 667] },
+        "x64musl": { "allocations": 42, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 supplementary-plane searchable text",
       "scenario_revision": "gate3-supplementary-plane-v1-advanced-inter",
       "source": "tests/gate3_supplementary_text/main.roc",

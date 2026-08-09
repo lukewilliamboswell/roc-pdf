@@ -2,6 +2,7 @@ import Color
 import Font
 import KernelEmit
 import KernelContent
+import KernelDiscretionaryHyphen
 import KernelColor
 import KernelFont
 import KernelFontPlan
@@ -21,6 +22,7 @@ import KernelStructure
 import KernelTagged
 import KernelTextSemantics
 import KernelTextOwnership
+import KernelUnicode
 import Layout
 import Semantics
 import Scene
@@ -57,6 +59,77 @@ Gate3ActualTextEvidence :: [].{
 				bytes.len(),
 			],
 		})
+	}
+
+	## An explicit U+00AD is source text. A selected visible hyphen is a
+	## presentation fact, so ActualText restores that original source scalar
+	## rather than making U+002D the extracted replacement.
+	soft_hyphen_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	soft_hyphen_text = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		selection = selected_soft_hyphen({}) ? |_| EvidenceFailure
+		font = KernelFont.inspect(
+			built_in_font_bytes,
+			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
+		) ? |_| EvidenceFailure
+		semantic = KernelTextSemantics.Plan.build(
+			soft_hyphen_semantics,
+			1,
+			1,
+			KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+			KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 1, max_text_source_bytes: 11, max_text_source_scalars: 10, max_text_sources: 1 }),
+		) ? |_| EvidenceFailure
+		glyphs = [
+			required_glyph(font, 0x0063) ? |_| EvidenceFailure,
+			required_glyph(font, 0x006f) ? |_| EvidenceFailure,
+			required_glyph(font, 0x002d) ? |_| EvidenceFailure,
+			required_glyph(font, 0x006f) ? |_| EvidenceFailure,
+			required_glyph(font, 0x0070) ? |_| EvidenceFailure,
+			required_glyph(font, 0x0065) ? |_| EvidenceFailure,
+			required_glyph(font, 0x0072) ? |_| EvidenceFailure,
+			required_glyph(font, 0x0061) ? |_| EvidenceFailure,
+			required_glyph(font, 0x0074) ? |_| EvidenceFailure,
+			required_glyph(font, 0x0065) ? |_| EvidenceFailure,
+		]
+		store = soft_hyphen_store(Font.InstanceId.from_index(0), glyphs, selection)
+		sample = build_sample_from_with_source_limits(font, semantic, soft_hyphen_source, store, 10, 11, 1, 16, 10) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(KernelGate3TaggedTextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
+		text_work = KernelPdfText.ScenePlan.work(sample.text)
+		Ok({
+			bytes,
+			work: [
+				sample.font.bytes.len(),
+				1,
+				1,
+				text_work.actual_text_runs,
+				text_work.actual_text_scalars,
+				text_work.mappings,
+				KernelContent.Plan.work(sample.content).bytes_emitted,
+				KernelGate3TaggedTextStructure.Plan.work(sample.structure).objects,
+				bytes.len(),
+			],
+		})
+	}
+
+	soft_hyphen_negative : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	soft_hyphen_negative = |mode, runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		rejected = match mode {
+			"malformed" => malformed_soft_hyphen_rejected({}) ? |_| EvidenceFailure
+			"unselected" => unselected_soft_hyphen_rejected({}) ? |_| EvidenceFailure
+			"external" => external_hyphen_rejected({}) ? |_| EvidenceFailure
+			_ => Bool.False
+		}
+		if !rejected {
+			return Err(EvidenceFailure)
+		}
+		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
+		Ok({ bytes, work: [1, bytes.len()] })
 	}
 
 	supplementary_negative : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -359,7 +432,7 @@ build_supplementary_sample = |_| {
 	) ? |_| SemanticFailure
 	glyph = required_glyph(font, 0x1f12f) ? |_| FontFailure
 	store = supplementary_store(Font.InstanceId.from_index(0), glyph)
-	build_sample_from_with_source_limits(font, semantic, supplementary_source, store, 1, 4)
+	build_sample_from_with_source_limits(font, semantic, supplementary_source, store, 1, 4, 0, 8, 2)
 }
 
 build_cjk_sample : {} -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
@@ -377,30 +450,30 @@ build_cjk_sample = |_| {
 	) ? |_| SemanticFailure
 	glyph = required_glyph(font, 0x4e2d) ? |_| FontFailure
 	store = cjk_store(Font.InstanceId.from_index(0), glyph)
-	build_sample_from_with_source_limits(font, semantic, cjk_source, store, 1, 3)
+	build_sample_from_with_source_limits(font, semantic, cjk_source, store, 1, 3, 0, 8, 2)
 }
 
 build_sample_from : KernelFont.Inspection, KernelTextSemantics.Plan, Str, Text.Store -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
 build_sample_from = |font, semantic, source_text, store| {
-	build_sample_from_with_source_limits(font, semantic, source_text, store, 2, 3)
+	build_sample_from_with_source_limits(font, semantic, source_text, store, 2, 3, 0, 8, 2)
 }
 
-build_sample_from_with_source_limits : KernelFont.Inspection, KernelTextSemantics.Plan, Str, Text.Store, U64, U64 -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
-build_sample_from_with_source_limits = |font, semantic, source_text, store, max_scalars, max_source_bytes| {
+build_sample_from_with_source_limits : KernelFont.Inspection, KernelTextSemantics.Plan, Str, Text.Store, U64, U64, U64, U64, U64 -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_sample_from_with_source_limits = |font, semantic, source_text, store, max_scalars, max_source_bytes, max_transformations, max_mappings, max_glyphs| {
 	shape = KernelShape.validate_advanced(
 		font,
 		source_text,
 		store,
 		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
 		KernelShape.AdvancedLimits.make({
-			max_clusters: 2,
-			max_glyph_indices: 2,
-			max_glyphs: 2,
+			max_clusters: max_glyphs,
+			max_glyph_indices: max_glyphs,
+			max_glyphs,
 			max_runs: 1,
 			max_scalars,
 			max_source_bytes,
 			max_substitutions: 0,
-			max_transformations: 0,
+			max_transformations,
 		}),
 	) ? |_| ShapeFailure
 	scene = KernelScene.Plan.build(
@@ -421,7 +494,7 @@ build_sample_from_with_source_limits = |font, semantic, source_text, store, max_
 	text = KernelPdfText.ScenePlan.build(
 		ownership,
 		[font_plan],
-		KernelPdfText.Limits.make({ max_actual_text_scalars: max_scalars, max_content_bytes: 1024, max_mappings: 8, max_placements: 0, max_source_scalars: max_scalars }),
+		KernelPdfText.Limits.make({ max_actual_text_scalars: max_scalars, max_content_bytes: 1024, max_mappings, max_placements: 0, max_source_scalars: max_scalars }),
 	) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(
@@ -447,7 +520,7 @@ build_sample_from_with_source_limits = |font, semantic, source_text, store, max_
 		text,
 		[{ descriptor, font, plan: font_plan, subset }],
 		KernelGate3TaggedTextStructure.Limits.make({
-			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 2048, max_unicode_mappings: 8, max_unicode_scalars: 8 }),
+			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 2048, max_unicode_mappings: max_mappings, max_unicode_scalars: max_mappings }),
 			object_limits: tagged_object_limits,
 		}),
 	) ? |_| StructureFailure
@@ -668,6 +741,36 @@ cjk_store = |instance, glyph| {
 	}
 }
 
+soft_hyphen_store : Font.InstanceId, List(U32), KernelDiscretionaryHyphen.Selected -> Text.Store
+soft_hyphen_store = |instance, glyph_ids, selection| {
+	zero = Layout.Unit.from_raw(0)
+	{
+		clusters: List.map([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], |index| { glyphs: Semantics.Range.from_start_and_length(index, 1), kind: OneToOne, source: soft_hyphen_scalar_range(index) }),
+		glyph_indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+		glyphs: List.map(glyph_ids, |glyph_id| { advance_x: Layout.Unit.from_raw(6000), advance_y: zero, id: Text.GlyphId.from_raw(glyph_id), offset_x: zero, offset_y: zero }),
+		runs: [
+			{
+				actual_text: FromOccurrence,
+				clusters: Semantics.Range.from_start_and_length(0, 10),
+				direction: LeftToRight,
+				glyphs: Semantics.Range.from_start_and_length(0, 10),
+				id: Text.RunId.from_index(0),
+				instance,
+				language: Language("en-AU"),
+				script: Font.Script.from_iso15924("Latn"),
+				occurrence: Semantics.OccurrenceId.from_index(0),
+				size: Layout.Unit.from_raw(11000),
+				source: soft_hyphen_full_source_range,
+				substitutions: empty_range,
+				transformations: Semantics.Range.from_start_and_length(0, 1),
+				writing_mode: Horizontal,
+			},
+		],
+		substitutions: [],
+		transformations: [{ glyphs: Semantics.Range.from_start_and_length(2, 1), kind: SelectedSoftHyphen, source: selection.source }],
+	}
+}
+
 glyph_usages : List(Text.Glyph) -> List(KernelFontPlan.Usage)
 glyph_usages = |glyphs| {
 	var $usages = List.with_capacity(glyphs.len())
@@ -690,6 +793,11 @@ supplementary_source = "🄯"
 
 cjk_source : Str
 cjk_source = "中"
+
+## U+00AD is intentionally retained in source. Its selected presentation is
+## the hyphen glyph supplied by the validated font, never a rewritten source.
+soft_hyphen_source : Str
+soft_hyphen_source = "co­operate"
 
 text_range : U64, U64 -> Semantics.TextRange
 text_range = |start, length| {
@@ -718,6 +826,37 @@ cjk_source_range : Semantics.TextRange
 cjk_source_range = {
 	scalars: Semantics.Range.from_start_and_length(0, 1),
 	utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+}
+
+soft_hyphen_source_range : Semantics.TextRange
+soft_hyphen_source_range = {
+	scalars: Semantics.Range.from_start_and_length(2, 1),
+	utf8_bytes: Semantics.Range.from_start_and_length(2, 2),
+}
+
+soft_hyphen_full_source_range : Semantics.TextRange
+soft_hyphen_full_source_range = {
+	scalars: Semantics.Range.from_start_and_length(0, 10),
+	utf8_bytes: Semantics.Range.from_start_and_length(0, 11),
+}
+
+soft_hyphen_scalar_range : U64 -> Semantics.TextRange
+soft_hyphen_scalar_range = |index| {
+	byte_start = match index {
+		0 => 0
+		1 => 1
+		2 => 2
+		3 => 4
+		4 => 5
+		5 => 6
+		6 => 7
+		7 => 8
+		8 => 9
+		9 => 10
+		_ => crash "validated soft-hyphen scalar index escaped"
+	}
+	byte_length = if index == 2 2 else 1
+	{ scalars: Semantics.Range.from_start_and_length(index, 1), utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_length) }
 }
 
 empty_range : Semantics.Range
@@ -810,6 +949,15 @@ cjk_semantics = {
 	text_sources: [{ unicode: cjk_source }],
 }
 
+soft_hyphen_semantics : Semantics.Store
+soft_hyphen_semantics = {
+	..semantics,
+	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(soft_hyphen_full_source_range) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(soft_hyphen_full_source_range)), text_properties: Semantics.Range.from_start_and_length(0, 1) }],
+	text_properties: [SourceToPresentation({ kind: SelectedSoftHyphen, presentation: "-", source: soft_hyphen_source_range })],
+	text_sources: [{ unicode: soft_hyphen_source }],
+}
+
 descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
@@ -829,6 +977,66 @@ tagged_object_limits = {
 	max_text_string_bytes: 64,
 	max_text_strings: 4,
 	max_values: 256,
+}
+
+selected_soft_hyphen : {} -> Try(KernelDiscretionaryHyphen.Selected, [EvidenceFailure])
+selected_soft_hyphen = |_| {
+	analysis = KernelUnicode.analyze(soft_hyphen_source, { max_graphemes: 10, max_line_boundaries: 11, max_scalars: 10, max_script_runs: 3 }) ? |_| EvidenceFailure
+	plan = KernelDiscretionaryHyphen.Plan.build(
+		soft_hyphen_source,
+		analysis,
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: soft_hyphen_source_range }],
+		[SelectVisibleHyphen],
+	) ? |_| EvidenceFailure
+	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
+		Ok(selected) => Ok(selected)
+		Err(_) => Err(EvidenceFailure)
+	}
+}
+
+malformed_soft_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
+malformed_soft_hyphen_rejected = |_| {
+	analysis = KernelUnicode.analyze("-", { max_graphemes: 1, max_line_boundaries: 2, max_scalars: 1, max_script_runs: 1 }) ? |_| EvidenceFailure
+	match KernelDiscretionaryHyphen.Plan.build(
+		"-",
+		analysis,
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) } }],
+		[SelectVisibleHyphen],
+	) {
+		Err(InvalidExplicitSoftHyphen({ opportunity: 0 })) => Ok(Bool.True)
+		_ => Ok(Bool.False)
+	}
+}
+
+unselected_soft_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
+unselected_soft_hyphen_rejected = |_| {
+	analysis = KernelUnicode.analyze(soft_hyphen_source, { max_graphemes: 10, max_line_boundaries: 11, max_scalars: 10, max_script_runs: 3 }) ? |_| EvidenceFailure
+	plan = KernelDiscretionaryHyphen.Plan.build(
+		soft_hyphen_source,
+		analysis,
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: soft_hyphen_source_range }],
+		[NotSelected],
+	) ? |_| EvidenceFailure
+	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
+		Err(UnselectedOpportunity({ opportunity: 0 })) => Ok(Bool.True)
+		_ => Ok(Bool.False)
+	}
+}
+
+external_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
+external_hyphen_rejected = |_| {
+	analysis = KernelUnicode.analyze("ab", { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 }) ? |_| EvidenceFailure
+	boundary = { scalars: Semantics.Range.from_start_and_length(1, 0), utf8_bytes: Semantics.Range.from_start_and_length(1, 0) }
+	plan = KernelDiscretionaryHyphen.Plan.build(
+		"ab",
+		analysis,
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: boundary }],
+		[SelectVisibleHyphen],
+	) ? |_| EvidenceFailure
+	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
+		Err(ExternalPresentationUnsupported({ opportunity: 0 })) => Ok(Bool.True)
+		_ => Ok(Bool.False)
+	}
 }
 
 expect {
