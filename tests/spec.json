@@ -563,6 +563,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 UAX boundary seam vectors",
+      "scenario_revision": "gate3-uax14-r55-uax29-r47-seam-v1",
+      "source": "tests/gate3_unicode_vectors/main.roc",
+      "snapshot": "tests/gate3_unicode_vectors/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "unicode_version_major": 17, "uax14_revision": 55, "uax29_revision": 47, "official_vectors": 4, "atomic_negatives": 2 },
+      "work_counters": ["official_vectors", "source_bytes", "scalars", "graphemes", "line_boundaries", "script_runs", "crlf_graphemes", "indic_graphemes", "ak_ri_boundaries", "ai_space_ri_boundaries", "ak_ri_start", "ak_ri_middle", "ak_ri_end", "ai_space_ri_start", "ai_space_ri_after_ai", "ai_space_ri_after_space", "ai_space_ri_end"],
+      "expectations": {
+        "arm64mac": { "allocations": 44, "work": [4, 26, 10, 7, 14, 4, 1, 1, 3, 4, 0, 1, 2, 0, 0, 1, 2] },
+        "x64musl": { "allocations": 44, "work": [4, 26, 10, 7, 14, 4, 1, 1, 3, 4, 0, 1, 2, 0, 0, 1, 2] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 UAX boundary atomic limits",
+      "scenario_revision": "gate3-uax14-r55-uax29-r47-atomic-limits-v1",
+      "source": "tests/gate3_unicode_vectors_negative/main.roc",
+      "snapshot": "tests/gate3_unicode_vectors_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "unicode_version_major": 17, "uax14_revision": 55, "uax29_revision": 47, "atomic_negatives": 2 },
+      "work_counters": ["atomic_negative_rejections"],
+      "expectations": {
+        "arm64mac": { "allocations": 46, "work": [2] },
+        "x64musl": { "allocations": 46, "work": [2] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 bounded bidi prerequisite",
       "scenario_revision": "gate3-bidi-single-level-boundary-v1",
       "source": "tests/gate3_bidi/main.roc",

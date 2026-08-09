@@ -32,7 +32,7 @@ and shaping-oriented script itemization. Every scalar is visited a constant
 number of times. There is no paragraph-candidate rescan, comparison sort,
 recursive node, per-scalar substring, or stored `Iter`.
 
-## Pinned optimized evidence
+## Pinned dev-backend evidence
 
 The focused fixture resets the Roc allocation counter before source
 construction. It constructs repetitions of `a é漢 `, performs the full
@@ -40,18 +40,20 @@ analysis, releases it into scalar work counters, and emits the unchanged Gate 1
 blank PDF solely to use the common scenario protocol. Counts exclude Python
 and validators.
 
-| Target | Optimization | Repetitions | UTF-8 bytes | Scalars | Graphemes | Line boundaries | Script runs | Exact allocations |
+| Target | Backend | Repetitions | UTF-8 bytes | Scalars | Graphemes | Line boundaries | Script runs | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| arm64mac | speed | 1,000 | 9,000 | 6,000 | 5,000 | 6,001 | 2,999 | 176 |
-| arm64mac | speed | 10,000 | 90,000 | 60,000 | 50,000 | 60,001 | 29,999 | 191 |
-| x64musl | speed | 1,000 | 9,000 | 6,000 | 5,000 | 6,001 | 2,999 | 176 |
-| x64musl | speed | 10,000 | 90,000 | 60,000 | 50,000 | 60,001 | 29,999 | 191 |
+| arm64mac | dev | 1,000 | 9,000 | 6,000 | 5,000 | 6,001 | 2,999 | 177 |
+| arm64mac | dev | 10,000 | 90,000 | 60,000 | 50,000 | 60,001 | 29,999 | 192 |
+| x64musl | dev | 1,000 | 9,000 | 6,000 | 5,000 | 6,001 | 2,999 | 177 |
+| x64musl | dev | 10,000 | 90,000 | 60,000 | 50,000 | 60,001 | 29,999 | 192 |
 
 The exact work counters scale with source structure. The 10x input adds 15
 allocations from deterministic list-capacity growth, not one allocation per
 scalar, grapheme, boundary, or script run. The x64musl rows are accepted as the
 same pinned-compiler expectation and remain to be executed by the configured
-cross-target job.
+cross-target job. This reviewed record replaces the obsolete speed-backend
+table with the current dev-only allocation policy; it does not accept any
+implementation or work-counter change.
 
 This evidence establishes the Unicode analysis substrate only. It does not
 claim font parsing, shaping, layout, PDF text emission, or Gate 3 closure.
