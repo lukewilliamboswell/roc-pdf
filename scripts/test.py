@@ -27,7 +27,23 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = ROOT / "tests" / "spec.json"
 TEST_PLATFORM = ROOT / "tests" / "platform"
 TEMP_ROOT = ROOT / ".roc-pdf-tmp"
-ROC = os.environ.get("ROC", "roc")
+
+# Interim toolchain while roc-lang/roc#10697 is unfixed in official nightlies:
+# the pinned compiler is a from-source build of the roc-lang/roc#10700 fix
+# branch living in the sibling checkout. `ROC` in the environment still wins,
+# and once a fixed nightly ships this fallback goes away with the pin bump.
+PATCHED_SIBLING_ROC = (
+    ROOT.parent / "roc-worktrees" / "fix-10697" / "zig-out" / "bin" / "roc"
+)
+
+
+def default_roc() -> str:
+    if PATCHED_SIBLING_ROC.is_file():
+        return str(PATCHED_SIBLING_ROC)
+    return "roc"
+
+
+ROC = os.environ.get("ROC", default_roc())
 ZIG = os.environ.get("ZIG", "zig")
 METRICS_REPORT = re.compile(
     rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
@@ -158,8 +174,8 @@ def load_suite() -> TestSuite:
             raw_toolchain["zig_optimization"], "toolchain.zig_optimization"
         ),
     )
-    if toolchain.roc_optimization not in {"speed", "size"}:
-        raise SystemExit(f"{SPEC_PATH}: Roc allocation baselines require an optimized backend")
+    if toolchain.roc_optimization != "dev":
+        raise SystemExit(f"{SPEC_PATH}: Roc allocation baselines require the dev backend")
     if toolchain.zig_optimization not in {"ReleaseFast", "ReleaseSafe", "ReleaseSmall"}:
         raise SystemExit(f"{SPEC_PATH}: Zig host baselines require an optimized build")
 
@@ -326,9 +342,14 @@ def first_difference(expected: bytes, actual: bytes) -> str:
     )
 
 
-def metrics_mismatch(expected: Metrics, actual: Metrics, work_counters: tuple[str, ...]) -> str | None:
+def metrics_mismatch(
+    expected: Metrics,
+    actual: Metrics,
+    work_counters: tuple[str, ...],
+    check_allocations: bool = True,
+) -> str | None:
     differences: list[str] = []
-    if actual.allocations != expected.allocations:
+    if check_allocations and actual.allocations != expected.allocations:
         differences.append(
             f"allocations expected {expected.allocations}, got {actual.allocations}"
         )
@@ -441,6 +462,7 @@ def run_case(
     protocol_version: int,
     roc_optimization: str,
     update_snapshots: bool,
+    check_allocations: bool,
     compare_baselines: bool,
     linux_x64_container: str | None,
 ) -> BaselineDelta | None:
@@ -516,7 +538,12 @@ def run_case(
     actual_work = () if not work_text else tuple(int(value) for value in work_text.split(b","))
     actual_metrics = Metrics(int(match.group(allocations_group)), actual_work)
     expected_metrics = case.expectations[target]
-    mismatch = metrics_mismatch(expected_metrics, actual_metrics, case.work_counters)
+    mismatch = metrics_mismatch(
+        expected_metrics,
+        actual_metrics,
+        case.work_counters,
+        check_allocations,
+    )
     if mismatch is not None:
         if not compare_baselines:
             raise SystemExit(f"{case.name}: performance baseline mismatch: {mismatch}")
@@ -590,6 +617,11 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--allocation-baselines",
+        action="store_true",
+        help="Use the pinned dev backend and require exact Roc allocation baselines",
+    )
+    parser.add_argument(
         "--linux-x64-container",
         metavar="IMAGE",
         help=(
@@ -607,6 +639,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.update_snapshots and args.compare_baselines:
         parser.error("--update-snapshots and --compare-baselines cannot be combined")
+    check_allocations = args.allocation_baselines or args.compare_baselines
     suite = load_suite()
     if args.case_names:
         requested = set(args.case_names)
@@ -674,8 +707,9 @@ def main() -> None:
                 build_dir,
                 target,
                 suite.protocol_version,
-                suite.toolchain.roc_optimization,
+                suite.toolchain.roc_optimization if check_allocations else "dev",
                 args.update_snapshots,
+                check_allocations,
                 args.compare_baselines,
                 args.linux_x64_container,
             )

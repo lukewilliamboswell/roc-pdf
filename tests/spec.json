@@ -2,7 +2,7 @@
   "schema_version": 3,
   "protocol_version": 1,
   "toolchain": {
-    "roc_optimization": "speed",
+    "roc_optimization": "dev",
     "zig_version": "0.16.0",
     "zig_optimization": "ReleaseFast"
   },

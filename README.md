@@ -41,15 +41,26 @@ ROC=/path/to/roc ./scripts/test.py
 ```
 
 The spec-driven integration cases in [`tests/spec.json`](tests/spec.json) build
-real Roc applications with `--opt=dev`. The test-only Zig platform supports macOS AArch64 and
-Linux x86-64. Each test application's `main!` receives `List(Str)` process arguments and returns
-the generated `List(U8)` PDF; the host writes those bytes to stdout and reports the number of Roc
-allocation events separately. The driver requires both the PDF snapshot and allocation count to
-match the case specification.
+real Roc applications with `--opt=dev` by default. This fast path requires
+exact PDF snapshots, structural checks, and deterministic work counters. The
+test-only Zig platform supports macOS AArch64 and Linux x86-64.
+
+Exact Roc allocation baselines remain an explicit check, but use the same dev
+backend so contributors are never required to wait for `--opt=speed` builds:
+
+```sh
+./scripts/test.py --allocation-baselines
+```
+
+Use `--compare-baselines` to review dev-backend allocation deltas before
+deliberately updating the specification. Each test application's `main!`
+receives `List(Str)` process arguments and returns the generated `List(U8)`
+PDF; the host writes those bytes to stdout and reports Roc allocation events
+separately.
 
 Public contract examples under `examples/` are formatting- and compile-checked
 by the same driver. Runtime Gate 1 behavior is exercised by package tests and
-the optimized structural fixtures.
+the dev-backend structural fixtures.
 
 Each integration case lives in its own directory under `tests/`, with its `main.roc` application
 and `snapshot.pdf` adjacent to one another. The case and expected allocation count are registered

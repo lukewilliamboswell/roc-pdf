@@ -1,4 +1,4 @@
-# Gate 0 optimized scenario protocol
+# Gate 0 scenario protocol
 
 ## Pinned configuration
 
@@ -6,13 +6,22 @@
 - Roc-to-host metrics protocol: 1
 - Roc toolchain selector and compiler identity: read solely from `.roc-version`;
   the harness requires `roc version` to report that exact release
-- Roc optimization: `speed`
+- Default functional Roc optimization: `dev`
+- Allocation-baseline Roc optimization: `dev`
 - Zig version: 0.16.0
 - Zig host optimization: `ReleaseFast`
 - Supported baseline targets: `arm64mac` and `x64musl`
 
-The harness rejects a toolchain, optimization mode, protocol, target, counter
-shape, or `.roc-version` mismatch before accepting scenario results.
+`./scripts/test.py` is the fast functional path: it validates bytes,
+independent structural oracles, retention facts, and exact deterministic work
+counters with `--opt=dev`. `./scripts/test.py --allocation-baselines` uses the
+same pinned dev backend and additionally requires exact allocation counts.
+`--compare-baselines` also remains on the dev backend and reports rather than
+accepts allocation deltas.
+
+The harness rejects a toolchain, protocol, target, counter shape, or
+`.roc-version` mismatch before accepting scenario results. The allocation path
+additionally rejects an optimization-mode mismatch.
 
 ## Measurement ABI and ownership
 
@@ -33,8 +42,10 @@ and contract validation.
 ## Deterministic-work self-test
 
 The protocol fixture emits the same 431-byte PDF at two declared input scales.
-Both optimized runs retain the exact one-allocation result. A direct `while`
-loop reports the independently checked work:
+Both explicit allocation runs retain the exact one-allocation result under the
+dev backend. The default path checks the same deterministic work without
+treating its allocation count as a baseline. A direct `while` loop reports the
+independently checked work:
 
 | Scenario | Passes | Byte visits | Roc allocations |
 | --- | ---: | ---: | ---: |

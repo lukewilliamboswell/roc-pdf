@@ -60,7 +60,7 @@ pipeline succeeds.
 Build the focused executable:
 
 ```sh
-roc build tests/gate3_facade_output/main.roc --opt=speed --output=facade-output-probe
+roc build tests/gate3_facade_output/main.roc --opt=dev --output=facade-output-probe
 ```
 
 Then run the staged probes:
@@ -78,8 +78,8 @@ full path reproduces it with:
 ./facade-output-probe visible 0
 ```
 
-Optimized builds under the pinned compiler are currently slow, so the staged
-probe should be kept narrow while investigating the arithmetic invariant.
+The repository uses the dev backend for functional and allocation evidence;
+do not switch this probe to `--opt=speed`.
 
 ## Next steps
 

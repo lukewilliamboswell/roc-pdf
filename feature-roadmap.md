@@ -19,7 +19,7 @@ Once a capability has executable behavior, it is complete only when it:
 - Passes every applicable independent oracle and conformance profile.
 - Has documented author obligations where quality cannot be machine verified.
 - Meets its declared algorithmic-complexity, allocation, ARC, and retained-
-  memory contracts in optimized builds.
+  memory contracts under the pinned dev backend.
 
 Gate 0 is different: it defines contracts and test machinery but does not claim
 that later PDF behavior exists. For a define-only capability, the applicable
@@ -117,7 +117,7 @@ bytes, bytes copied, ARC increments/decrements, retained/live bytes, and peak
 RSS are also recorded where instrumentation supports them.
 
 Exact allocation equality is enforced only for the pinned compiler, target,
-and optimized build; results from other configurations are diagnostic. A count
+and dev backend; results from other configurations are diagnostic. A count
 increase cannot be accepted by mechanically regenerating the baseline: review
 must identify its representation or ownership cause and record why the feature
 benefit requires it. Decreases are likewise reviewed and recorded deliberately.
@@ -241,7 +241,7 @@ within an early correctness gate.
   gate implementing each store.
 - Focused harness self-tests prove that allocation counts exclude Python and
   validator work, reset at each declared whole-pipeline or phase boundary, and
-  reproduce exactly for the pinned optimized compiler, target, fixture
+  reproduce exactly for the pinned compiler, dev backend, target, fixture
   revision, and measurement boundary.
 - A deliberately introduced allocation regression fails the baseline check,
   while scaling fixtures demonstrate that deterministic work counters catch a
@@ -875,7 +875,7 @@ bytes.
 ### Release
 
 - Cross-platform byte-for-byte reproducibility.
-- Published performance evidence from the pinned optimized build, including
+- Published performance evidence from the pinned dev backend, including
   unique and deliberately shared pipeline inputs.
 - An audit that every shipped feature slice has a current allocation baseline,
   scaling record, and resolved performance-review decision.

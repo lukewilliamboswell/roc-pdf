@@ -1383,7 +1383,7 @@ retained with asset provenance and promoted to ordinary regression tests. This
 lane complements rather than replaces typed construct generation and atomic
 hand-authored negative twins.
 
-Performance evidence uses pinned optimized Roc builds and combines controlled
+Performance evidence uses the pinned Roc dev backend and combines controlled
 timing and peak-RSS jobs with deterministic operation counters. Every focused
 test case records the exact number of Roc allocations after resetting the
 allocator counter at its declared Roc measurement boundary. Whole-pipeline
@@ -1425,7 +1425,7 @@ chunks; unique and deliberately shared pipeline values; and offsets beyond 4
 GiB through a counting sink. Hot-loop codegen audits require no allocation or
 ARC operation per emitted byte, glyph, path command, or object in selected
 kernels. Direct loops and proposed `Iter` implementations are compared under
-the same optimized build before an iterator becomes a hot-path choice.
+the same pinned dev backend before an iterator becomes a hot-path choice.
 
 Ordinary CI uses PDFium and PDFBox as independent reader/render/extraction
 paths. PDF.js adds browser text-, annotation-, and structure-layer coverage.
