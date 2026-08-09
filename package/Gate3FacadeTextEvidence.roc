@@ -173,7 +173,7 @@ synthetic_input = |source_runs| {
 			$rows = $rows.append({
 				body_line: line_index,
 				body_offset: Layout.Unit.from_raw(0),
-				body_run: run_id,
+				body_runs: { physical: Semantics.Range.from_start_and_length($run_index, 1) },
 				label: NoLabel,
 			})
 			$line_local = $line_local + 1
