@@ -15,6 +15,7 @@ main! = |args| {
 		Ok(parsed) => parsed
 	}
 	result = match mode {
+		"negative" => Gate3FacadeOutputEvidence.negative(value)
 		"probe" => Gate3FacadeOutputEvidence.probe(value)
 		"visible" => Gate3FacadeOutputEvidence.visible(value)
 		_ => {

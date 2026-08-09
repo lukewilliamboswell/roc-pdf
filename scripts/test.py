@@ -17,6 +17,7 @@ from check_gate2 import validate_gate2_pdf
 from check_gate3_actual_text import EXPECTED_CONTENT as GATE3_ACTUAL_TEXT_CONTENT
 from check_gate3_actual_text import validate_gate3_actual_text_pdf
 from check_gate3_caller_text import validate_gate3_caller_text_pdf
+from check_gate3_facade_output import validate_facade_output_pdf
 from check_gate3_text import EXPECTED_CONTENT as GATE3_TEXT_CONTENT
 from check_gate3_text import validate_gate3_text_pdf
 from check_pdf_structure import validate_pdf
@@ -561,6 +562,9 @@ def run_case(
         if case.dimensions.get("gate3_caller_text", 0) == 1:
             validate_gate3_caller_text_pdf(result.stdout)
             print(f"PASS {case.name}: exact caller font identity, CID, Unicode mapping, and visible text facts", flush=True)
+        if case.dimensions.get("gate3_facade_output", 0) == 1:
+            validate_facade_output_pdf(result.stdout, "Café PDF generation in pure Roc.")
+            print(f"PASS {case.name}: authored facade paragraph, Type 0 font, CID, and Unicode mapping facts", flush=True)
         if case.dimensions.get("gate3_actual_text", 0) == 1:
             validate_gate3_actual_text_pdf(result.stdout)
             print(f"PASS {case.name}: exact visual reordering and logical ActualText facts", flush=True)
@@ -621,6 +625,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate2_renderers.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_caller_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_facade_output.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_actual_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_renderers.py", "--self-test")
     if not args.update_snapshots:

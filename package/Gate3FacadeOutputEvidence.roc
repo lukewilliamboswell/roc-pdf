@@ -32,6 +32,31 @@ import Theme
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Gate3FacadeOutputEvidence :: [].{
+	negative : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	negative = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		document = Document.from_blocks({
+			contents: [Document.paragraph("Café PDF generation in pure Roc.")],
+			language: "en-AU",
+			title: "Gate 3 facade output",
+		})
+		authoring = Document.normalize(document)
+		font = KernelFont.inspect(
+			built_in_font_bytes,
+			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
+		) ? |_| EvidenceFailure
+		bad_limits = pipeline_limits_for(0)
+		rejected = match KernelFacadePipeline.Plan.build(authoring, font, Theme.default, page_size, descriptor, bad_limits) {
+			Err(Lines(LimitExceeded({ attempted: 1, dimension: Runs, limit: 0 }))) => 1
+			_ => return Err(EvidenceFailure)
+		}
+		structure = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(structure) ? |_| EvidenceFailure
+		Ok({ bytes, work: [rejected, bytes.len()] })
+	}
+
 	probe : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
 	probe = |stage_code| {
 		stage = match stage_code {
@@ -118,7 +143,10 @@ descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 pipeline_limits : KernelFacadePipeline.Limits
-pipeline_limits = KernelFacadePipeline.Limits.make({
+pipeline_limits = pipeline_limits_for(1)
+
+pipeline_limits_for : U64 -> KernelFacadePipeline.Limits
+pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 128, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 128, max_occurrences: 1, max_pages: 128 }),
 	lines: KernelFacadeLines.Limits.make({
@@ -131,7 +159,7 @@ pipeline_limits = KernelFacadePipeline.Limits.make({
 			max_templates: 1,
 		}),
 		max_blocks: 1,
-		max_runs: 1,
+		max_runs: max_line_runs,
 	}),
 	output: KernelFacadeOutput.Limits.make({
 		content: KernelContent.Limits.make({ max_content_bytes: 65536, max_content_streams: 128 }),
