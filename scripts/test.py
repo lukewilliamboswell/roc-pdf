@@ -25,6 +25,8 @@ from check_gate3_cjk_text import EXPECTED_CONTENT as GATE3_CJK_TEXT_CONTENT
 from check_gate3_cjk_text import validate_gate3_cjk_text_pdf
 from check_gate3_soft_hyphen import EXPECTED_CONTENT as GATE3_SOFT_HYPHEN_CONTENT
 from check_gate3_soft_hyphen import validate_soft_hyphen_pdf
+from check_gate3_external_discretionary_hyphen import EXPECTED_CONTENT as GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
+from check_gate3_external_discretionary_hyphen import validate_external_discretionary_hyphen_pdf
 from check_gate3_generated_labels import validate_generated_labels_pdf
 from check_gate3_text import EXPECTED_CONTENT as GATE3_TEXT_CONTENT
 from check_gate3_text import validate_gate3_text_pdf
@@ -430,6 +432,8 @@ def verify_toolchain(toolchain: Toolchain) -> None:
 
 
 def expected_content(dimensions: dict[str, int]) -> bytes:
+    if dimensions.get("gate3_external_discretionary_hyphen", 0) == 1:
+        return GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
     if dimensions.get("gate3_soft_hyphen", 0) == 1:
         return GATE3_SOFT_HYPHEN_CONTENT
     if dimensions.get("gate3_supplementary_text", 0) == 1:
@@ -626,6 +630,9 @@ def run_case(
             if case.dimensions.get("gate3_soft_hyphen", 0) == 1:
                 validate_soft_hyphen_pdf(result.stdout)
                 print(f"PASS {case.name}: explicit U+00AD source, selected presentation, ActualText, CID, and subset facts", flush=True)
+            if case.dimensions.get("gate3_external_discretionary_hyphen", 0) == 1:
+                validate_external_discretionary_hyphen_pdf(result.stdout)
+                print(f"PASS {case.name}: external zero-width source boundary, selected visible hyphen, ActualText, CID, and subset facts", flush=True)
 
     if mismatch is None:
         return None
@@ -696,6 +703,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate3_supplementary_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_cjk_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_soft_hyphen.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_external_discretionary_hyphen.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")

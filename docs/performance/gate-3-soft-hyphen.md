@@ -15,18 +15,19 @@ the visible glyph never silently replaces source Unicode with U+002D. PDFBox
 `cooperate ` plus newline, while the structural oracle proves the retained
 source fact directly.
 
-An external hyphenation opportunity is represented as a validated zero-width
-source boundary. It is deliberately rejected at selection-to-presentation: the
-current advanced glyph boundary requires each painted glyph to own a nonempty
-source range. This is not a fallback. A future generated-glyph boundary must
-preserve the selected opportunity's identity and logical source range before it
-can lower dictionary hyphenation. No dictionary, language heuristic, or system
-resource is bundled or consulted.
+An external discretionary opportunity is a validated zero-width source
+boundary. The advanced boundary now represents its selected visible U+002D as
+`GeneratedDiscretionaryHyphen`, tied by dense transformation and owned
+text-property IDs to `InsertedDiscretionaryHyphen`. The positive fixture is
+logical `ab` with an explicit boundary between the scalars. Its direct CMap is
+the visible `a-b`, while `/ActualText` is exactly `ab`; the former preserves a
+complete CID mapping and the latter is authoritative logical extraction. This
+is an out-of-band caller fact, not dictionary hyphenation: no language
+heuristic, pattern set, or system resource is bundled or consulted.
 
-The atomic negatives independently reject a malformed explicit-SHY range, an
-unselected explicit opportunity asked for presentation, and a selected external
-zero-width opportunity. Each returns no feature PDF and emits only the common
-blank evidence carrier.
+The atomic negatives independently reject malformed and unselected external
+opportunities. Each returns no feature PDF and emits only the common blank
+evidence carrier.
 
 Structural inspection verifies the selected Type 0 subset's exact glyph
 closure, widths, CMap rows (including U+00AD), canonical `ActualText`, balanced
@@ -40,6 +41,18 @@ bytes. At 72 dpi, local original-byte rendering evidence is:
 
 The renderer bounds agree within the existing two-pixel geometry tolerance;
 coverage remains renderer-specific.
+
+For the external selected `ab` boundary, the visible `a-b` presentation has
+these local original-byte 72-dpi facts:
+
+| Renderer | Bounds | Changed pixels | Dark pixels | Grayscale ink |
+| --- | --- | ---: | ---: | ---: |
+| PDFBox 3.0.8 | `(72, 134, 90, 142)` | 82 | 36 | 9,433 |
+| PDFium Chromium 7988 | `(71, 133, 90, 142)` | 98 | 37 | 10,094 |
+
+Their geometry agrees within the declared two-pixel tolerance. PDFBox extracts
+logical `ab` plus its reader newline; structural inspection separately proves
+that the inserted U+002D CID remains present for direct presentation mapping.
 
 ## Dev-backend performance review
 
@@ -62,6 +75,15 @@ These integrated local dev-backend values were reviewed together; no speed-mode
 measurement or cross-platform allocation claim is made.
 
 This closes only the explicit soft-hyphen extraction row and establishes the
-typed discretionary-selection blocker. It does not claim automatic
-hyphenation, language patterns, generated zero-width glyph presentation, or
-Gate 3 closure.
+typed external discretionary-selection boundary. It does not claim automatic
+hyphenation, language patterns, line-break discovery, or Gate 3 closure.
+
+The external positive whole-pipeline boundary is before evidence construction.
+On the pinned local x64musl dev backend it allocates 1,040 times and emits
+9,125 bytes. Its deterministic work is `[166300, 1, 1, 1, 2, 3, 205, 20,
+9125]`: one retained built-in font payload, one caller-supplied opportunity and
+selection, one ActualText run over two logical scalars, three CID mappings,
+content bytes, objects, and output bytes. The malformed and unselected
+external negatives each allocate 40 times and retain the common `[1, 667]`
+blank-carrier work. These are local dev-backend records only; no speed-mode or
+cross-platform allocation claim is made.

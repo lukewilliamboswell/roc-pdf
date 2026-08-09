@@ -10,7 +10,8 @@ main! = |args| {
 	result = match args.get(1) {
 		Ok("malformed") => Gate3ActualTextEvidence.soft_hyphen_negative("malformed", args.len() - 2)
 		Ok("unselected") => Gate3ActualTextEvidence.soft_hyphen_negative("unselected", args.len() - 2)
-		Ok("external") => Gate3ActualTextEvidence.soft_hyphen_negative("external", args.len() - 2)
+		Ok("external-malformed") => Gate3ActualTextEvidence.soft_hyphen_negative("external-malformed", args.len() - 2)
+		Ok("external-unselected") => Gate3ActualTextEvidence.soft_hyphen_negative("external-unselected", args.len() - 2)
 		Err(OutOfBounds) => Gate3ActualTextEvidence.soft_hyphen_text(args.len() - 1)
 		Ok(_) => crash "Gate 3 soft-hyphen evidence mode is invalid"
 	}

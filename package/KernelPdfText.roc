@@ -387,11 +387,24 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 	cluster_end = run.clusters.start() + run.clusters.length()
 	while $cluster_index < cluster_end {
 		cluster = list_at(text.clusters, $cluster_index)
-		if cluster.glyphs.length() == 0 or cluster.glyphs.start() > text.glyph_indices.len() or cluster.glyphs.length() > text.glyph_indices.len() - cluster.glyphs.start() or cluster.source.scalars.length() == 0 or !relative_text_range_fits(cluster.source, source.range) {
+		if cluster.glyphs.length() == 0 or cluster.glyphs.start() > text.glyph_indices.len() or cluster.glyphs.length() > text.glyph_indices.len() - cluster.glyphs.start() or !relative_text_range_fits(cluster.source, source.range) {
 			return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
 		}
-		source_start = checked_add(source.range.scalars.start(), cluster.source.scalars.start())?
-		mapping = source_scalars(scalars, source.id, source_start, cluster.source.scalars.length(), run_index)?
+		mapping = match cluster.kind {
+			GeneratedDiscretionaryHyphen({ property, transformation: _ }) => {
+				if cluster.source.scalars.length() != 0 or cluster.source.utf8_bytes.length() != 0 or !generated_discretionary_property(source.occurrence, semantics.text_properties, property, cluster.source) {
+					return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
+				}
+				[0x002d]
+			}
+			_ => {
+				if cluster.source.scalars.length() == 0 {
+					return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
+				}
+				source_start = checked_add(source.range.scalars.start(), cluster.source.scalars.start())?
+				source_scalars(scalars, source.id, source_start, cluster.source.scalars.length(), run_index)?
+			}
+		}
 		var $glyph_reference = cluster.glyphs.start()
 		glyph_reference_end = cluster.glyphs.start() + cluster.glyphs.length()
 		while $glyph_reference < glyph_reference_end {
@@ -418,6 +431,24 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 		$cluster_index = $cluster_index + 1
 	}
 	Ok({ conflicts: $conflicts, states: list_set(states, font_index, { mappings: $slots, plan: state.plan }) })
+}
+
+generated_discretionary_property : Semantics.ContentOccurrence, List(Semantics.TextProperty), Semantics.TextPropertyId, Semantics.TextRange -> Bool
+generated_discretionary_property = |occurrence, properties, property_id, source| {
+	index = property_id.index()
+	range = occurrence.text_properties
+	if index < range.start() or index >= properties.len() or index - range.start() >= range.length() {
+		return Bool.False
+	}
+	match list_at(properties, index) {
+		SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation, source: property_source }) => presentation == "-" and text_ranges_equal(property_source, source)
+		_ => Bool.False
+	}
+}
+
+text_ranges_equal : Semantics.TextRange, Semantics.TextRange -> Bool
+text_ranges_equal = |left, right| {
+	left.scalars.start() == right.scalars.start() and left.scalars.length() == right.scalars.length() and left.utf8_bytes.start() == right.utf8_bytes.start() and left.utf8_bytes.length() == right.utf8_bytes.length()
 }
 
 source_scalars : ScalarCache, Semantics.TextSourceId, U64, U64, U64 -> Try(List(U32), KernelPdfText.Error)

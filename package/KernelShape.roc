@@ -20,7 +20,7 @@ KernelShape :: [].{
 		MetricFailure(U32),
 		MissingGlyph({ scalar : U32, scalar_index : U64 }),
 		NotdefGlyph({ scalar : U32, scalar_index : U64 }),
-		AdvancedClusterInvalid({ cluster : U64, reason : [Cardinality, GlyphIndexRange, SourceRange] }),
+		AdvancedClusterInvalid({ cluster : U64, reason : [Cardinality, GeneratedDiscretionary, GlyphIndexRange, SourceRange] }),
 		AdvancedGlyphInvalid({ glyph : U64, reason : [Advance, GlyphId] }),
 		AdvancedRunInvalid({ reason : [AuxiliaryRange, ClusterRange, GlyphRange, RunId, Size, SourceRange], run : U64 }),
 		DuplicateGlyphReference({ glyph : U64, run : U64 }),
@@ -504,6 +504,11 @@ validate_advanced_store = |font, source, store, context, limits| {
 		$glyph_index = $glyph_index + 1
 	}
 
+	## Generated discretionary clusters allocate this marker only when the new
+	## boundary is actually present. Its dense transformation index keeps
+	## validation linear and rejects an orphaned zero-width presentation fact.
+	var $generated_transformations = []
+
 	var $source_scalar_cursor = 0
 	var $source_byte_cursor = 0
 	var $glyph_cursor = 0
@@ -549,6 +554,7 @@ validate_advanced_store = |font, source, store, context, limits| {
 		}
 		run_glyph_end = range_end(run.glyphs, store.glyphs.len()) ? |_| AdvancedRunInvalid({ reason: GlyphRange, run: $run_index })
 		run_cluster_end = range_end(run.clusters, store.clusters.len()) ? |_| AdvancedRunInvalid({ reason: ClusterRange, run: $run_index })
+		transformation_end = range_end(run.transformations, store.transformations.len()) ? |_| AdvancedRunInvalid({ reason: AuxiliaryRange, run: $run_index })
 
 		$glyph_index = $glyph_cursor
 		while $glyph_index < run_glyph_end {
@@ -593,6 +599,23 @@ validate_advanced_store = |font, source, store, context, limits| {
 				$glyph_reference_visits = $glyph_reference_visits + 1
 				$glyph_reference_cursor = $glyph_reference_cursor + 1
 			}
+			match cluster.kind {
+				GeneratedDiscretionaryHyphen({ property: _, transformation }) => {
+					if $generated_transformations.is_empty() {
+						$generated_transformations = List.repeat(zero_marker, store.transformations.len())
+					}
+					if transformation < $transformation_cursor or transformation >= store.transformations.len() or transformation >= transformation_end {
+						return Err(AdvancedClusterInvalid({ cluster: $current_cluster, reason: GeneratedDiscretionary }))
+					}
+					fact = list_at(store.transformations, transformation)
+					glyph = list_at(store.glyph_indices, cluster.glyphs.start())
+					if fact.kind != InsertedDiscretionaryHyphen or fact.glyphs.start() != glyph or fact.glyphs.length() != 1 or !text_ranges_equal(fact.source, cluster.source) or fact.source.scalars.length() != 0 or fact.source.utf8_bytes.length() != 0 or list_at($generated_transformations, transformation) != zero_marker {
+						return Err(AdvancedClusterInvalid({ cluster: $current_cluster, reason: GeneratedDiscretionary }))
+					}
+					$generated_transformations = list_set($generated_transformations, transformation, referenced_marker)
+				}
+				_ => {}
+			}
 			$cluster_source_scalar = cluster_scalar_end
 			$cluster_source_byte = cluster_byte_end
 			$cluster_visits = $cluster_visits + 1
@@ -618,10 +641,10 @@ validate_advanced_store = |font, source, store, context, limits| {
 			$auxiliary_visits = $auxiliary_visits + 1
 			$substitution_cursor = $substitution_cursor + 1
 		}
-		transformation_end = range_end(run.transformations, store.transformations.len()) ? |_| AdvancedRunInvalid({ reason: AuxiliaryRange, run: $run_index })
 		while $transformation_cursor < transformation_end {
 			transformation = list_at(store.transformations, $transformation_cursor)
-			if !range_within(transformation.glyphs, run.glyphs) or transformation.glyphs.length() == 0 or transformation.source.scalars.length() == 0 or !valid_text_range(transformation.source, boundaries, source_bytes, scalar_count) or !text_range_within(transformation.source, run.source) {
+			generated = transformation.kind == InsertedDiscretionaryHyphen and transformation.source.scalars.length() == 0 and transformation.source.utf8_bytes.length() == 0
+			if !range_within(transformation.glyphs, run.glyphs) or transformation.glyphs.length() == 0 or !valid_text_range(transformation.source, boundaries, source_bytes, scalar_count) or !text_range_within(transformation.source, run.source) or (generated and ($generated_transformations.is_empty() or list_at($generated_transformations, $transformation_cursor) == zero_marker)) or (!generated and transformation.source.scalars.length() == 0) {
 				return Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: $run_index }))
 			}
 			$auxiliary_visits = $auxiliary_visits + 1
@@ -706,6 +729,11 @@ valid_text_range = |range, boundaries, source_bytes, scalar_count| {
 	list_at(boundaries, scalar_start) == byte_start and list_at(boundaries, scalar_end) == byte_end
 }
 
+text_ranges_equal : Semantics.TextRange, Semantics.TextRange -> Bool
+text_ranges_equal = |left, right| {
+	left.scalars.start() == right.scalars.start() and left.scalars.length() == right.scalars.length() and left.utf8_bytes.start() == right.utf8_bytes.start() and left.utf8_bytes.length() == right.utf8_bytes.length()
+}
+
 text_range_within : Semantics.TextRange, Semantics.TextRange -> Bool
 text_range_within = |inner, outer| range_within(inner.scalars, outer.scalars) and range_within(inner.utf8_bytes, outer.utf8_bytes)
 
@@ -735,6 +763,7 @@ valid_cluster_cardinality = |kind, scalars, glyphs| match kind {
 	ManyToMany => scalars > 1 and glyphs > 1
 	Reordered => scalars > 0 and glyphs > 0
 	Contextual => scalars > 0 and glyphs > 0
+	GeneratedDiscretionaryHyphen(_) => scalars == 0 and glyphs == 1
 }
 
 scale_advance : U16, I64, U16 -> Try(U64, KernelShape.Error)

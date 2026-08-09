@@ -113,6 +113,52 @@ Gate3ActualTextEvidence :: [].{
 		})
 	}
 
+	## An external line-break provider supplies this exact zero-width boundary;
+	## it supplies neither a dictionary nor a language guess. The selected
+	## presentation glyph is typed as an inserted discretionary hyphen, while
+	## ActualText keeps the occurrence's unchanged logical `ab` source.
+	external_discretionary_hyphen_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	external_discretionary_hyphen_text = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		selection = selected_external_discretionary_hyphen({}) ? |_| EvidenceFailure
+		font = KernelFont.inspect(
+			built_in_font_bytes,
+			KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
+		) ? |_| EvidenceFailure
+		semantic = KernelTextSemantics.Plan.build(
+			external_discretionary_hyphen_semantics,
+			1,
+			1,
+			KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+			KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 1, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
+		) ? |_| EvidenceFailure
+		glyphs = [
+			required_glyph(font, 0x0061) ? |_| EvidenceFailure,
+			required_glyph(font, 0x002d) ? |_| EvidenceFailure,
+			required_glyph(font, 0x0062) ? |_| EvidenceFailure,
+		]
+		store = external_discretionary_hyphen_store(Font.InstanceId.from_index(0), glyphs, selection)
+		sample = build_sample_from_with_source_limits(font, semantic, external_discretionary_hyphen_source, store, 2, 2, 1, 3, 3) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(KernelGate3TaggedTextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
+		text_work = KernelPdfText.ScenePlan.work(sample.text)
+		Ok({
+			bytes,
+			work: [
+				sample.font.bytes.len(),
+				1,
+				1,
+				text_work.actual_text_runs,
+				text_work.actual_text_scalars,
+				text_work.mappings,
+				KernelContent.Plan.work(sample.content).bytes_emitted,
+				KernelGate3TaggedTextStructure.Plan.work(sample.structure).objects,
+				bytes.len(),
+			],
+		})
+	}
+
 	soft_hyphen_negative : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
 	soft_hyphen_negative = |mode, runtime_guard| {
 		if runtime_guard != 0 {
@@ -121,7 +167,8 @@ Gate3ActualTextEvidence :: [].{
 		rejected = match mode {
 			"malformed" => malformed_soft_hyphen_rejected({}) ? |_| EvidenceFailure
 			"unselected" => unselected_soft_hyphen_rejected({}) ? |_| EvidenceFailure
-			"external" => external_hyphen_rejected({}) ? |_| EvidenceFailure
+			"external-malformed" => malformed_external_hyphen_rejected({}) ? |_| EvidenceFailure
+			"external-unselected" => unselected_external_hyphen_rejected({}) ? |_| EvidenceFailure
 			_ => Bool.False
 		}
 		if !rejected {
@@ -771,6 +818,44 @@ soft_hyphen_store = |instance, glyph_ids, selection| {
 	}
 }
 
+external_discretionary_hyphen_store : Font.InstanceId, List(U32), KernelDiscretionaryHyphen.Selected -> Text.Store
+external_discretionary_hyphen_store = |instance, glyph_ids, selection| {
+	zero = Layout.Unit.from_raw(0)
+	{
+		clusters: [
+			{ glyphs: Semantics.Range.from_start_and_length(0, 1), kind: OneToOne, source: external_discretionary_scalar_range(0) },
+			{
+				glyphs: Semantics.Range.from_start_and_length(1, 1),
+				kind: GeneratedDiscretionaryHyphen({ property: Semantics.TextPropertyId.from_index(0), transformation: 0 }),
+				source: selection.source,
+			},
+			{ glyphs: Semantics.Range.from_start_and_length(2, 1), kind: OneToOne, source: external_discretionary_scalar_range(1) },
+		],
+		glyph_indices: [0, 1, 2],
+		glyphs: List.map(glyph_ids, |glyph_id| { advance_x: Layout.Unit.from_raw(6000), advance_y: zero, id: Text.GlyphId.from_raw(glyph_id), offset_x: zero, offset_y: zero }),
+		runs: [
+			{
+				actual_text: FromOccurrence,
+				clusters: Semantics.Range.from_start_and_length(0, 3),
+				direction: LeftToRight,
+				glyphs: Semantics.Range.from_start_and_length(0, 3),
+				id: Text.RunId.from_index(0),
+				instance,
+				language: Language("en-AU"),
+				occurrence: Semantics.OccurrenceId.from_index(0),
+				script: Font.Script.from_iso15924("Latn"),
+				size: Layout.Unit.from_raw(11000),
+				source: external_discretionary_hyphen_full_source_range,
+				substitutions: empty_range,
+				transformations: Semantics.Range.from_start_and_length(0, 1),
+				writing_mode: Horizontal,
+			},
+		],
+		substitutions: [],
+		transformations: [{ glyphs: Semantics.Range.from_start_and_length(1, 1), kind: InsertedDiscretionaryHyphen, source: selection.source }],
+	}
+}
+
 glyph_usages : List(Text.Glyph) -> List(KernelFontPlan.Usage)
 glyph_usages = |glyphs| {
 	var $usages = List.with_capacity(glyphs.len())
@@ -798,6 +883,9 @@ cjk_source = "中"
 ## the hyphen glyph supplied by the validated font, never a rewritten source.
 soft_hyphen_source : Str
 soft_hyphen_source = "co­operate"
+
+external_discretionary_hyphen_source : Str
+external_discretionary_hyphen_source = "ab"
 
 text_range : U64, U64 -> Semantics.TextRange
 text_range = |start, length| {
@@ -840,6 +928,18 @@ soft_hyphen_full_source_range = {
 	utf8_bytes: Semantics.Range.from_start_and_length(0, 11),
 }
 
+external_discretionary_hyphen_boundary : Semantics.TextRange
+external_discretionary_hyphen_boundary = {
+	scalars: Semantics.Range.from_start_and_length(1, 0),
+	utf8_bytes: Semantics.Range.from_start_and_length(1, 0),
+}
+
+external_discretionary_hyphen_full_source_range : Semantics.TextRange
+external_discretionary_hyphen_full_source_range = {
+	scalars: Semantics.Range.from_start_and_length(0, 2),
+	utf8_bytes: Semantics.Range.from_start_and_length(0, 2),
+}
+
 soft_hyphen_scalar_range : U64 -> Semantics.TextRange
 soft_hyphen_scalar_range = |index| {
 	byte_start = match index {
@@ -857,6 +957,14 @@ soft_hyphen_scalar_range = |index| {
 	}
 	byte_length = if index == 2 2 else 1
 	{ scalars: Semantics.Range.from_start_and_length(index, 1), utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_length) }
+}
+
+external_discretionary_scalar_range : U64 -> Semantics.TextRange
+external_discretionary_scalar_range = |index| {
+	if index >= 2 {
+		crash "validated external discretionary scalar index escaped"
+	}
+	{ scalars: Semantics.Range.from_start_and_length(index, 1), utf8_bytes: Semantics.Range.from_start_and_length(index, 1) }
 }
 
 empty_range : Semantics.Range
@@ -958,6 +1066,15 @@ soft_hyphen_semantics = {
 	text_sources: [{ unicode: soft_hyphen_source }],
 }
 
+external_discretionary_hyphen_semantics : Semantics.Store
+external_discretionary_hyphen_semantics = {
+	..semantics,
+	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(external_discretionary_hyphen_full_source_range) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(external_discretionary_hyphen_full_source_range)), text_properties: Semantics.Range.from_start_and_length(0, 1) }],
+	text_properties: [SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation: "-", source: external_discretionary_hyphen_boundary })],
+	text_sources: [{ unicode: external_discretionary_hyphen_source }],
+}
+
 descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
@@ -994,6 +1111,21 @@ selected_soft_hyphen = |_| {
 	}
 }
 
+selected_external_discretionary_hyphen : {} -> Try(KernelDiscretionaryHyphen.Selected, [EvidenceFailure])
+selected_external_discretionary_hyphen = |_| {
+	analysis = KernelUnicode.analyze(external_discretionary_hyphen_source, { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 }) ? |_| EvidenceFailure
+	plan = KernelDiscretionaryHyphen.Plan.build(
+		external_discretionary_hyphen_source,
+		analysis,
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: external_discretionary_hyphen_boundary }],
+		[SelectVisibleHyphen],
+	) ? |_| EvidenceFailure
+	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
+		Ok({ kind: ExternalHyphenation, source: selected_source }) => if selected_source.scalars.length() == 0 and selected_source.utf8_bytes.length() == 0 Ok({ kind: ExternalHyphenation, source: selected_source }) else Err(EvidenceFailure)
+		_ => Err(EvidenceFailure)
+	}
+}
+
 malformed_soft_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
 malformed_soft_hyphen_rejected = |_| {
 	analysis = KernelUnicode.analyze("-", { max_graphemes: 1, max_line_boundaries: 2, max_scalars: 1, max_script_runs: 1 }) ? |_| EvidenceFailure
@@ -1023,18 +1155,31 @@ unselected_soft_hyphen_rejected = |_| {
 	}
 }
 
-external_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
-external_hyphen_rejected = |_| {
-	analysis = KernelUnicode.analyze("ab", { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 }) ? |_| EvidenceFailure
-	boundary = { scalars: Semantics.Range.from_start_and_length(1, 0), utf8_bytes: Semantics.Range.from_start_and_length(1, 0) }
-	plan = KernelDiscretionaryHyphen.Plan.build(
-		"ab",
+malformed_external_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
+malformed_external_hyphen_rejected = |_| {
+	analysis = KernelUnicode.analyze(external_discretionary_hyphen_source, { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 }) ? |_| EvidenceFailure
+	match KernelDiscretionaryHyphen.Plan.build(
+		external_discretionary_hyphen_source,
 		analysis,
-		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: boundary }],
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 1) } }],
 		[SelectVisibleHyphen],
+	) {
+		Err(InvalidSourceRange({ opportunity: 0 })) => Ok(Bool.True)
+		_ => Ok(Bool.False)
+	}
+}
+
+unselected_external_hyphen_rejected : {} -> Try(Bool, [EvidenceFailure])
+unselected_external_hyphen_rejected = |_| {
+	analysis = KernelUnicode.analyze(external_discretionary_hyphen_source, { max_graphemes: 2, max_line_boundaries: 3, max_scalars: 2, max_script_runs: 1 }) ? |_| EvidenceFailure
+	plan = KernelDiscretionaryHyphen.Plan.build(
+		external_discretionary_hyphen_source,
+		analysis,
+		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: external_discretionary_hyphen_boundary }],
+		[NotSelected],
 	) ? |_| EvidenceFailure
 	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
-		Err(ExternalPresentationUnsupported({ opportunity: 0 })) => Ok(Bool.True)
+		Err(UnselectedOpportunity({ opportunity: 0 })) => Ok(Bool.True)
 		_ => Ok(Bool.False)
 	}
 }

@@ -34,7 +34,6 @@ KernelDiscretionaryHyphen :: [].{
 
 	Error : [
 		ArithmeticOverflow,
-		ExternalPresentationUnsupported({ opportunity : U64 }),
 		InvalidExplicitSoftHyphen({ opportunity : U64 }),
 		InvalidOpportunityId({ actual : U64, expected : U64 }),
 		InvalidSourceRange({ opportunity : U64 }),
@@ -47,9 +46,10 @@ KernelDiscretionaryHyphen :: [].{
 		build : Str, KernelUnicode.UnicodeAnalysis, List(Opportunity), List(Selection) -> Try(Plan, Error)
 		build = |source, analysis, opportunities, selections| build_plan(source, analysis, opportunities, selections)
 
-		## A selected explicit soft hyphen becomes a source-preserving shaping
-		## transformation. It forces ActualText at PDF lowering so a visible
-		## hyphen glyph never substitutes for the original U+00AD source fact.
+		## Selection preserves the validated source coordinate. Explicit SHY
+		## selections retain their U+00AD source scalar; externally supplied
+		## selections retain their zero-width insertion boundary for the typed
+		## generated-glyph boundary.
 		selected : Plan, OpportunityId -> Try(Selected, Error)
 		selected = |plan, opportunity| selected_opportunity(plan, opportunity)
 	}
@@ -82,15 +82,7 @@ selected_opportunity = |plan, opportunity_id| {
 	selection = list_at(plan.selections, index)
 	match selection {
 		NotSelected => Err(UnselectedOpportunity({ opportunity: index }))
-		SelectVisibleHyphen => match opportunity.kind {
-			ExplicitSoftHyphen => Ok({ kind: ExplicitSoftHyphen, source: opportunity.source })
-
-			## There is deliberately no implicit source scalar for a dictionary
-			## insertion. The current advanced shaping boundary requires every
-			## painted glyph to own a nonempty source range, so callers receive a
-			## typed rejection until that boundary can represent a generated glyph.
-			ExternalHyphenation => Err(ExternalPresentationUnsupported({ opportunity: index }))
-		}
+		SelectVisibleHyphen => Ok({ kind: opportunity.kind, source: opportunity.source })
 	}
 }
 

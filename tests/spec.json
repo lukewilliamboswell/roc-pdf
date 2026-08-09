@@ -8,6 +8,21 @@
   },
   "cases": [
     {
+      "name": "Gate 3 selected external discretionary-hyphen extraction",
+      "scenario_revision": "gate3-external-discretionary-hyphen-v1-explicit-selection",
+      "source": "tests/gate3_external_discretionary_hyphen/main.roc",
+      "snapshot": "tests/gate3_external_discretionary_hyphen/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "font_bytes": 166300, "external_opportunities": 1, "selected_external_hyphens": 1, "source_scalars": 2, "unicode_mappings": 3, "objects": 20, "gate3_external_discretionary_hyphen": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "opportunities", "selected_opportunities", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1040, "work": [166300, 1, 1, 1, 2, 3, 205, 20, 9125] },
+        "x64musl": { "allocations": 1040, "work": [166300, 1, 1, 1, 2, 3, 205, 20, 9125] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 1 blank PDF",
       "scenario_revision": "gate1-blank-v1",
       "source": "tests/gate1_blank/main.roc",
@@ -848,13 +863,28 @@
       "retention": null
     },
     {
-      "name": "Gate 3 external discretionary-hyphen selection atomic negative",
-      "scenario_revision": "gate3-soft-hyphen-v1-explicit-selection",
+      "name": "Gate 3 malformed external discretionary-hyphen opportunity atomic negative",
+      "scenario_revision": "gate3-external-discretionary-hyphen-v1-explicit-selection",
       "source": "tests/gate3_external_discretionary_hyphen_negative/main.roc",
       "snapshot": "tests/gate3_external_discretionary_hyphen_negative/snapshot.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
-      "dimensions": { "pages": 1, "external_discretionary_hyphen_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
+      "dimensions": { "pages": 1, "malformed_external_discretionary_hyphen_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
+      "work_counters": ["soft_hyphen_rejected", "evidence_pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 40, "work": [1, 667] },
+        "x64musl": { "allocations": 40, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 unselected external discretionary-hyphen opportunity atomic negative",
+      "scenario_revision": "gate3-external-discretionary-hyphen-v1-explicit-selection",
+      "source": "tests/gate3_external_discretionary_hyphen_unselected_negative/main.roc",
+      "snapshot": "tests/gate3_external_discretionary_hyphen_unselected_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "unselected_external_discretionary_hyphen_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
       "work_counters": ["soft_hyphen_rejected", "evidence_pdf_bytes"],
       "expectations": {
         "arm64mac": { "allocations": 40, "work": [1, 667] },

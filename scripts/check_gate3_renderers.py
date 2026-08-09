@@ -18,6 +18,7 @@ ACTUAL_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_actual_text" / "snapshot.pdf"
 SUPPLEMENTARY_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_supplementary_text" / "snapshot.pdf"
 CJK_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_cjk_text" / "snapshot.pdf"
 SOFT_HYPHEN_SNAPSHOT = ROOT / "tests" / "gate3_soft_hyphen" / "snapshot.pdf"
+EXTERNAL_DISCRETIONARY_HYPHEN_SNAPSHOT = ROOT / "tests" / "gate3_external_discretionary_hyphen" / "snapshot.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 
@@ -40,6 +41,8 @@ PDFBOX_CJK_EXPECTED = InkMetrics(bounds=(73, 132, 81, 142), changed_pixels=47, d
 PDFIUM_CJK_EXPECTED = InkMetrics(bounds=(72, 132, 82, 142), changed_pixels=77, dark_pixels=32, ink=7649)
 PDFBOX_SOFT_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 131, 144), changed_pixels=271, dark_pixels=118, ink=32548)
 PDFIUM_SOFT_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 132, 144), changed_pixels=352, dark_pixels=121, ink=35014)
+PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 90, 142), changed_pixels=82, dark_pixels=36, ink=9433)
+PDFIUM_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED = InkMetrics(bounds=(71, 133, 90, 142), changed_pixels=98, dark_pixels=37, ink=10094)
 BOUNDS_TOLERANCE = 2
 CHANGED_PIXELS_TOLERANCE = 60
 DARK_PIXELS_TOLERANCE = 40
@@ -159,6 +162,8 @@ def self_test() -> None:
     assert_close("exact PDFium CJK synthetic", PDFIUM_CJK_EXPECTED, PDFIUM_CJK_EXPECTED)
     assert_close("exact PDFBox soft-hyphen synthetic", PDFBOX_SOFT_HYPHEN_EXPECTED, PDFBOX_SOFT_HYPHEN_EXPECTED)
     assert_close("exact PDFium soft-hyphen synthetic", PDFIUM_SOFT_HYPHEN_EXPECTED, PDFIUM_SOFT_HYPHEN_EXPECTED)
+    assert_close("exact PDFBox external discretionary-hyphen synthetic", PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED, PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED)
+    assert_close("exact PDFium external discretionary-hyphen synthetic", PDFIUM_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED, PDFIUM_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED)
     assert_geometry_agreement(PDFIUM_EXPECTED, PDFBOX_EXPECTED)
     mutation = InkMetrics(
         bounds=(PDFBOX_EXPECTED.bounds[0] + BOUNDS_TOLERANCE + 1, *PDFBOX_EXPECTED.bounds[1:]),
@@ -196,13 +201,14 @@ def main() -> None:
     parser.add_argument("--supplementary", action="store_true")
     parser.add_argument("--cjk", action="store_true")
     parser.add_argument("--soft-hyphen", action="store_true")
+    parser.add_argument("--external-discretionary-hyphen", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
         return
     require(args.pdfium_renderer is not None, "--pdfium-renderer is required unless --self-test is used")
-    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk, args.soft_hyphen)) <= 1, "renderer fixture selectors are mutually exclusive")
+    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk, args.soft_hyphen, args.external_discretionary_hyphen)) <= 1, "renderer fixture selectors are mutually exclusive")
     if args.actual_text:
         snapshot = ACTUAL_TEXT_SNAPSHOT
         label = "reordered ActualText"
@@ -223,6 +229,11 @@ def main() -> None:
         label = "selected soft-hyphen text"
         pdfbox_expected = PDFBOX_SOFT_HYPHEN_EXPECTED
         pdfium_expected = PDFIUM_SOFT_HYPHEN_EXPECTED
+    elif args.external_discretionary_hyphen:
+        snapshot = EXTERNAL_DISCRETIONARY_HYPHEN_SNAPSHOT
+        label = "selected external discretionary-hyphen text"
+        pdfbox_expected = PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED
+        pdfium_expected = PDFIUM_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED
     elif args.caller:
         snapshot = CALLER_SNAPSHOT
         label = "caller-font text"
