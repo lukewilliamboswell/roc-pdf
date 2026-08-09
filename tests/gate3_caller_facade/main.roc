@@ -9,10 +9,9 @@ import pdf.Theme
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/CallerFont-Restricted.ttf" as restricted_font_bytes : List(U8)
 
-## This unregistered focused fixture is deliberately kept outside spec.json
-## until its dev-backend allocation baseline is reviewed with the pending
-## Gate 3 rebaseline. It exercises the public facade rather than a private
-## evidence module.
+## This focused fixture exercises the public facade rather than a private
+## evidence module. Its registered dev-backend work proves one retained source
+## inspection is selected for three placements.
 main! : List(Str) => { bytes : List(U8), work : List(U64) }
 main! = |args| {
 	mode = list_at(args, 1)
@@ -38,6 +37,10 @@ positive = |runtime_argument_count| {
 	}
 	theme = Theme.with_font(Theme.default, registered.face)
 	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), registered.registry)
+	selected = match registered.registry.prepared_face(registered.face) {
+		Err(_) => crash "caller fixture selected face is unavailable"
+		Ok(value) => value
+	}
 	document = Pdf.document({
 		contents: [
 			Pdf.paragraph("Café PDF"),
@@ -67,6 +70,7 @@ positive = |runtime_argument_count| {
 			store.instances.len(),
 			store.policies.len(),
 			document.block_count(),
+			selected.bytes.len(),
 		],
 	}
 }

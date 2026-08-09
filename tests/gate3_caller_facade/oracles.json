@@ -1,0 +1,22 @@
+{
+  "direct_text": "Café PDFCafé PDFCafé PDF",
+  "pdfbox_text": "Café PDF\nCafé PDF\nCafé PDF",
+  "pdfbox_72dpi": {
+    "x0": 72,
+    "y0": 74,
+    "x1": 120,
+    "y1": 127,
+    "changed": 723,
+    "dark": 300,
+    "ink": 88470
+  },
+  "pdfium_72dpi": {
+    "x0": 72,
+    "y0": 74,
+    "x1": 120,
+    "y1": 127,
+    "changed": 939,
+    "dark": 327,
+    "ink": 93447
+  }
+}

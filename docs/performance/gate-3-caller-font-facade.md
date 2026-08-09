@@ -27,15 +27,35 @@ and no external font reference from the original bytes. Three placements use
 the one selected inspection and one embedded font resource; no per-placement
 registration, parse, source-payload copy, or PDF font object is constructed.
 
-The fixture's atomic negative mode registers checksum-valid restricted bytes.
-Registration returns `EmbeddingRightsProhibited` before any registry can be
-passed to `Pdf.Options`, and the mode emits an empty byte list. A separate
-unknown-face facade error covers a theme face not present in a registered
-source. Neither path falls back to the packaged face.
+The registered fixture is now `Gate 3 caller-font facade output` in
+`tests/spec.json`. On the pinned dev backend it emits a 10,348-byte snapshot
+with 1,576 Roc allocations. Its deterministic work record is 7,816 input and
+retained bytes, zero copied input bytes, 17 table, 15 glyph, nine cmap, and
+four component-edge inspection visits; exactly one resource, face, instance,
+and policy; three authored placements; and 7,816 selected source bytes. The
+three placements prove that one
+registered inspection and source payload feed the full facade pipeline rather
+than repeating registration, parse, or source-payload copies per placement.
+The source-specific subset names and OS/2 CapHeight are structurally checked,
+and fixture-local oracles pin PDFBox 3.0.8 and PDFium Chromium 7988 72-dpi
+metrics separately. PDFBox extraction is the expected three line-separated
+`Café PDF` placements; direct CID/ToUnicode reconstruction retains the
+paint-order concatenation.
 
-The fixture is intentionally not yet in `tests/spec.json`: its snapshot and
-exact dev-backend allocation record must join the pending reviewed Gate 3
-allocation rebaseline as one deliberate change. This document records the
-representation, ownership, structural, no-bytes, source-retention, and
-multi-placement parse-reuse evidence boundary; it does not claim Gate 3
-closure.
+`Gate 3 caller-font facade restricted-rights atomic negative` supplies
+checksum-valid restricted bytes. Registration returns
+`EmbeddingRightsProhibited` before any registry can be passed to `Pdf.Options`,
+emits exactly zero PDF bytes, and records 26 dev-backend allocations with work
+`[1, 0]`. Its tracked zero-byte `snapshot.pdf` is solely the independent
+harness expected-output carrier; it is not a PDF emitted on this rejection
+path, whose `emitted_pdf_bytes` remains zero. It therefore cannot fall back to
+the packaged face. A separate unknown-face facade error continues to cover a
+theme face absent from a registered source.
+
+This is public caller-font composition evidence, not Gate 3 closure. The
+current constrained facade resolves one selected `FaceId` to one inspection.
+Although `Font.Registry` stores dense face/instance/policy collections, the
+facade has not yet lifted that one-face selection into the roadmap's finite
+ordered multi-face font policy and per-cluster coverage selection. Mixed-face
+or broader multilingual caller-font output remains an explicit unmet Gate 3
+dependency.

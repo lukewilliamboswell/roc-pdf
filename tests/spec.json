@@ -668,6 +668,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 caller-font facade output",
+      "scenario_revision": "gate3-caller-font-facade-v2-public-evidence",
+      "source": "tests/gate3_caller_facade/main.roc",
+      "snapshot": "tests/gate3_caller_facade/snapshot.pdf",
+      "args": ["positive"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "caller_font_bytes": 7816, "caller_font_resources": 1, "caller_font_faces": 1, "caller_font_instances": 1, "caller_font_policies": 1, "authored_placements": 3, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "authored_placements", "selected_source_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1576, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] },
+        "x64musl": { "allocations": 1576, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 caller-font facade restricted-rights atomic negative",
+      "scenario_revision": "gate3-caller-font-facade-v2-public-evidence",
+      "source": "tests/gate3_caller_facade_negative/main.roc",
+      "snapshot": "tests/gate3_caller_facade_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "caller_font_restricted": 1, "registry_rejected_before_options": 1, "emitted_pdf_bytes": 0 },
+      "work_counters": ["embedding_rights_rejected", "emitted_pdf_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 26, "work": [1, 0] },
+        "x64musl": { "allocations": 26, "work": [1, 0] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 public built-in Pdf facade output",
       "scenario_revision": "gate3-public-pdf-facade-v1",
       "source": "tests/gate3_pdf_facade/main.roc",
