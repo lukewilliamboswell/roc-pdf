@@ -428,6 +428,7 @@ work requirements locally.
 | [#41: Script and Script_Extensions](https://github.com/roc-lang/unicode/issues/41) | Normative Unicode script properties plus an explicitly named, non-normative script-itemization policy. |
 | [#42: panic-free, resource-bounded public APIs](https://github.com/roc-lang/unicode/issues/42) | Typed failure, checked limits, bounded traversal, adversarial tests, fuzzing, and documented allocation/copy/retention behavior. |
 | [#43: bounded shaping-oriented Unicode properties](https://github.com/roc-lang/unicode/issues/43) | Generated UCD properties needed by independent text engines without moving OpenType parsing or shaping into the Unicode package. |
+| [#52: Unicode 17 full case mapping with source-range facts](https://github.com/roc-lang/unicode/issues/52) | Version-pinned full lower/upper/title mappings and case folding, with explicit policy, bounded failures, and source-to-output range facts for presentation and extraction. |
 
 Language-specific hyphenation data remains a separate licensed and pinned
 dependency. OpenType parsing, GSUB/GPOS processing, glyph selection, and shaping
