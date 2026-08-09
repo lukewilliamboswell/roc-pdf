@@ -52,7 +52,7 @@ The atomic shape-boundary negative allocates 44 times and has deterministic
 work `[1, 667]`: one rejected property and the independent blank evidence
 carrier. It does not inspect a font, shape a glyph, or create a pipeline PDF.
 Both exact allocations and work vectors are registered in `tests/spec.json`
-for the pinned dev backend. No `--opt=speed` result is used or claimed.
+for the pinned dev backend. No other backend result is used or claimed.
 
 This closes only the generated-label row of Gate 3's extraction matrix. It does
 not close Gate 3; ligature, supplementary-plane, RTL, CJK, hyphen behavior,

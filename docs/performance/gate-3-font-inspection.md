@@ -41,7 +41,13 @@ through subsetting and emission; the source is not copied by the inspection
 stage. The retained component edges are an earlier-stage fact consumed by
 subset closure rather than rediscovered from incidental glyph bytes.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+The speed-backend table is retained only as the representation-review record
+for this slice. It is not a current baseline or validation command; the exact
+dev-backend expectation is the matching scenario in
+[`tests/spec.json`](../../tests/spec.json), reviewed by
+[the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
 
 Measurement resets before the fixture enters Roc. It inspects the imported
 166,300-byte `Roc PDF Sans Regular` face, resolves `U+0041`, reads its advance,

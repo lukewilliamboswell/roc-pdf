@@ -21,7 +21,13 @@ Its exact byte count is checked against the configured limit before allocation.
 Context-dependent mappings and `ActualText` remain facts supplied by later text
 lowering; this module does not infer them from glyph identity.
 
-## Direct and optimized evidence
+## Direct evidence and historical optimized-backend record (superseded)
+
+The direct structural inspection remains current. The allocation table below
+is retained only as the former speed-backend representation review, not a
+current baseline or command. The matching exact dev-backend expectation is in
+[`tests/spec.json`](../../tests/spec.json) and the change of measurement mode is
+reviewed in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
 
 The focused fixture subsets the built-in face for `A`, `é`, and repeated `A`.
 Direct inspection proves the exact ten-byte CID map, the `U+0041` and `U+00E9`

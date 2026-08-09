@@ -24,7 +24,11 @@ earlier page candidate. Spacing after a completed block is bounded at the page
 edge; checked overflow remains an error rather than being treated as a page
 break.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+The table is preserved for the original pagination representation review. The
+current exact allocation baseline is the matching dev-backend scenario in
+[`tests/spec.json`](../../tests/spec.json).
 
 The stress pattern has six lines per block, a ten-line content box,
 widow/orphan minima of two, keep-together on every fifth block,

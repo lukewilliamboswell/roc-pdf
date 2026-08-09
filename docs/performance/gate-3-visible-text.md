@@ -99,7 +99,13 @@ treated as a cross-renderer conformance vote.
 | PDFBox 3.0.8 | `(72, 133, 120, 142)` | 241 | 100 | 29,490 |
 | PDFium Chromium 7988 | `(72, 133, 120, 142)` | 313 | 109 | 31,149 |
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+The table records the former speed-backend whole-pipeline review and is kept
+to explain the stage ownership decision. It is not a current allocation
+baseline. The matching exact dev-backend scenario is authoritative in
+[`tests/spec.json`](../../tests/spec.json); its reviewed mode transition is in
+[the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
 
 | Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |

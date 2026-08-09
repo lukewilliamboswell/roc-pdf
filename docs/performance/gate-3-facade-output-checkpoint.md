@@ -79,7 +79,7 @@ All staged probes and the full path now succeed:
 ```
 
 The repository uses the dev backend for functional and allocation evidence;
-do not switch this probe to `--opt=speed`.
+keep this probe on `--opt=dev`.
 
 ## Next steps
 

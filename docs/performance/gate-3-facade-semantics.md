@@ -45,7 +45,11 @@ identical bytes and deterministic work. The same fix reduced the Gate 2
 million-command fixture from 136 to 131 allocations; its bytes and work counters
 remain unchanged.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+This table remains as historical semantics-store review evidence. The current
+exact allocation baseline is the matching dev-backend scenario in
+[`tests/spec.json`](../../tests/spec.json).
 
 | Paragraphs | Normalized blocks | Nodes | Occurrences | Content items | Unique sources | Exact allocations |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |

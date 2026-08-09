@@ -27,7 +27,11 @@ validation, cluster measurement, and line writes are linear. Candidate visits
 are explicitly limited; the evidence pattern exercises the restart after every
 selected break and records exactly `2 * clusters - 2` candidate visits.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+This earlier table remains only as a representation-review record. Current
+validation uses the matching exact dev-backend scenario in
+[`tests/spec.json`](../../tests/spec.json), not this historical backend.
 
 | Paragraph units | Scalars/clusters/glyphs | Lines | Candidate visits | Exact allocations |
 | ---: | ---: | ---: | ---: | ---: |

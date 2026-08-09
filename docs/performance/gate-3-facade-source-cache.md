@@ -22,7 +22,11 @@ Empty input text, Unicode analysis failure, arithmetic overflow, table
 exhaustion, and every cumulative input/source/probe/slot limit fail
 transactionally.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+The table remains a historical cache-representation record. It is not a
+current allocation baseline; use the matching exact dev-backend scenario in
+[`tests/spec.json`](../../tests/spec.json).
 
 | Pattern | Inputs | Unique analyses | Table slots | Exact allocations |
 | --- | ---: | ---: | ---: | ---: |

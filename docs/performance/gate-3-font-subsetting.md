@@ -24,7 +24,12 @@ result before emission, and appends every payload once. The original font byte
 resource remains shared through glyph copying; inspection does not duplicate
 it.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+The speed-backend table is retained for its historical subset-representation
+review only. It is not a current allocation baseline; use the matching exact
+dev-backend scenario in [`tests/spec.json`](../../tests/spec.json), whose mode
+transition is reviewed in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
 
 The built-in face is planned for `A`, `é`, and a duplicate `A` use. Composite
 closure produces five glyphs and rewrites two component references. The fresh

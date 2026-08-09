@@ -38,7 +38,11 @@ and one block-to-label/body mapping per normalized block. The shaped store,
 Unicode sources, and font inspection stay shared. No per-occurrence
 `Text.Store`, Unicode analysis, glyph list, or copied source suffix is retained.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+The table is retained only as historical representation evidence. Current
+exact allocation validation uses the matching dev-backend scenario in
+[`tests/spec.json`](../../tests/spec.json).
 
 | Paragraphs | Blocks | Runs/lines | Templates | Cache hits | Key probes | Table slots | Exact allocations |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -49,5 +53,6 @@ Both cases derive a 451,000-unit A4 content width, visit the six unique line
 templates' 30 UAX #14 boundaries and 24 clusters/glyphs once, and materialize
 one accepted line per run. A tenfold scale adds 37 allocations. Template work
 stays constant; block/run mapping, cache hits, probes, and final line writes
-grow linearly. These figures use the pinned release-fast compiler commit and
-the repository's optimized no-cache evidence boundary.
+grow linearly. The current accepted values are the matching pinned dev-backend
+expectations in [`tests/spec.json`](../../tests/spec.json), not an optimized
+no-cache measurement.

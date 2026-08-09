@@ -21,7 +21,11 @@ keep earlier builder/normalization versions. The work vector records authoring
 descriptors, normalized blocks, referenced UTF-8 bytes, title/heading/paragraph/
 bullet counts, list count, and the structural evidence-carrier bytes.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+This earlier table documents the authoring-store representation decision only.
+Current exact allocation validation uses the matching dev-backend scenario in
+[`tests/spec.json`](../../tests/spec.json).
 
 | Path | Paragraphs | Authoring blocks | Normalized blocks | Text bytes | Exact allocations |
 | --- | ---: | ---: | ---: | ---: | ---: |

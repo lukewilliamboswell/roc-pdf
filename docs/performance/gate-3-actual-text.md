@@ -57,7 +57,13 @@ advanced shaping boundary. It also accepts an occurrence-owned semantic
 override of seven scalars and rejects the same request at a six-scalar limit
 before any PDF is returned.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+This table preserves the earlier speed-backend representation review. It is not
+a current allocation baseline and must not be rerun or accepted as one. The
+current exact dev-backend expectation is the matching scenario in
+[`tests/spec.json`](../../tests/spec.json), with the mode transition reviewed in
+[the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
 
 | Target | Optimization | Glyphs/mappings | Subset bytes | Content bytes | PDF bytes | Exact allocations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |

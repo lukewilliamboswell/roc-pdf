@@ -34,7 +34,11 @@ bounded. Arithmetic and invalid label/run/range relationships are typed
 failures. The two bullet labels in the scaled fixture remain two explicit row
 attachments at every scale.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+This table is retained as historical pagination representation evidence. It is
+not a current baseline; the matching exact dev-backend scenario in
+[`tests/spec.json`](../../tests/spec.json) is authoritative.
 
 | Paragraphs | Blocks/rows | Label rows | Planned pages | Fragments/placements | Exact allocations |
 | ---: | ---: | ---: | ---: | ---: | ---: |

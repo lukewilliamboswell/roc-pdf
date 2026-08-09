@@ -35,7 +35,7 @@ cross-platform claim.
 | Bounded parsing/coverage/shaping/measurement/hyphenation caches and compact continuations | Partial | The source cache, shaped-line cache, pagination/materialization, fragments, and scenes each have focused flat-store/linear-work evidence. | No closure-level evidence shows all declared cache kinds, especially font parse/coverage and hyphenation, with exact keys, bounded retention, hit/miss, and unique/shared cases. Hyphenation itself is not accepted; its cache can remain absent, but the closure record must explicitly classify it inapplicable rather than silently omit it. |
 | Public and caller-font performance/retention evidence | Partial | The caller facade records zero copied input bytes, one retained payload, one inspection, and three placements (`gate-3-caller-font-facade.md:30-43`). Facade list and compact-builder scale fixtures are registered. | The roadmap also requires unique **and deliberately shared** caller input evidence and source retention through final subset emission (`feature-roadmap.md:474-478`). The registered caller facade fixture proves multiple placements, not a separately measured deliberately shared registry/input case. |
 | Adversarial paragraph, line-break, font-selection, shaping, and pagination operation bounds; scenes materialized once | Partial | Scaled authoring, line-layout, pagination, materialization, fragments, and scene fixtures are registered; the facade checkpoint records one accepted staged output path (`docs/performance/gate-3-facade-output-checkpoint.md:48-57`). | Font-selection adversarial evidence cannot close before multi-face cluster selection exists. The missing bidi, ligature, discretionary, and case paths also have no relevant adversarial bound evidence. |
-| All Gate 3 performance records use the pinned dev backend | Unmet documentation/evidence hygiene | The current `tests/spec.json` baselines and the most recent slices use dev records, e.g. public/caller cases at `tests/spec.json:656-745`; no speed-mode run is required. | Eight older records present their accepted table as `speed`: `gate-3-actual-text.md`, `font-inspection.md`, `font-planning.md`, `font-subsetting.md`, `shaping.md`, `pdf-font-objects.md`, `unicode-analysis.md`, and `visible-text.md`. `gate-3-facade-text-materialization.md` also retains an obsolete `--opt=speed --no-cache` command. These must be deliberately reconciled to the dev baseline (not mechanically rewritten) before a closure document can claim dev-only evidence. |
+| All Gate 3 performance records use the pinned dev backend | Satisfied documentation/evidence hygiene | Exact current allocations are the dev-backend expectations in `tests/spec.json`; `dev-backend-allocation-rebaseline-2026-08-09.md` records the reviewed atomic mode transition. Historical speed-backend tables remain only as explicitly superseded representation-review evidence. | This removes a documentation blocker only. It does not satisfy any still-partial performance, cache, retention, or capability criterion. |
 
 ## Closure decision
 
@@ -59,9 +59,9 @@ than be relabelled as closure (`gate-3-facade-output-checkpoint.md:9-11`,
    hyphen presentation slice. Both need the normal original-byte structural,
    extractor, renderer, positive, atomic-negative, deterministic-work, and
    reviewed dev-allocation evidence.
-4. Add the project-owned UAX #14/#29 boundary-vector cases and reconcile the
-   remaining historical performance records to the dev-only policy with a
-   cause-based review.
+4. Add the project-owned UAX #14/#29 boundary-vector cases. The historical
+   allocation records have been deliberately superseded by the reviewed
+   dev-backend baseline, so no speed-mode rebaseline is required.
 5. Only after the preceding rows are satisfied should a new audit decide
    whether a Gate 3 closure record is justified. This audit intentionally does
    not create one.

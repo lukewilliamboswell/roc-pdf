@@ -24,7 +24,13 @@ and ordered retained original glyph IDs. It is deterministic input to the
 later document-level resource planner, which remains responsible for proving
 name uniqueness across all subsets in one output.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+The speed-backend table remains as historical evidence for rejecting the
+adjacency-copy representation. It is not a current allocation baseline; the
+matching exact dev-backend expectation is in
+[`tests/spec.json`](../../tests/spec.json) and its reviewed mode transition is
+recorded in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
 
 The retained built-in face is planned for `A`, `é`, and a duplicate `A` use.
 The plan retains five glyphs including glyph zero and two composite

@@ -46,7 +46,11 @@ both dense buffers to that exact length, and writes each index once. The
 preparation-only audit measures 259 allocations at 1,000 paragraphs and 296 at
 10,000. Full shaping adds 24 allocations at either scale.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+These former backend values are historical representation evidence only.
+Current exact allocation validation uses the matching dev-backend scenario in
+[`tests/spec.json`](../../tests/spec.json).
 
 | Paragraphs | Requests/runs | Scalars/clusters/glyphs | Unique sources | Source bytes | Exact allocations |
 | ---: | ---: | ---: | ---: | ---: | ---: |

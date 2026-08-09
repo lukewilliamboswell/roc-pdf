@@ -29,7 +29,12 @@ cluster payloads. Negative twins reject a duplicate glyph reference, `.notdef`,
 a non-positive size, and an inconsistent Unicode byte range without returning a
 partially validated store.
 
-## Pinned optimized evidence
+## Historical optimized-backend evidence (superseded)
+
+The speed-backend values preserve the original shaping representation review;
+they are not current allocation baselines. Current exact dev-backend values
+are the matching scenario in [`tests/spec.json`](../../tests/spec.json), with
+the transition reviewed in [the dev-backend rebaseline](dev-backend-allocation-rebaseline-2026-08-09.md).
 
 The convenience path shapes `Café PDF` at 11 points into eight glyphs and eight
 one-to-one clusters. The advanced path validates a real composition relationship
