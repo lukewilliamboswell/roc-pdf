@@ -18,6 +18,9 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: roc-pdf
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +30,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: roc-pdf
 
       - name: Install Zig
         uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29
@@ -60,6 +65,7 @@ jobs:
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_deflate/snapshot.pdf
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_pages/snapshot.pdf
           /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_retention/snapshot.pdf
+          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate3_text/snapshot.pdf
 
       - name: Install Java 17 for PDFBox
         if: runner.os == 'Linux'
@@ -72,6 +78,13 @@ jobs:
         if: runner.os == 'Linux'
         run: python3 scripts/check_pdfbox.py
 
+      - name: Extract Gate 3 text with Apache PDFBox 3.0.8
+        if: runner.os == 'Linux'
+        run: |
+          python3 scripts/check_gate3_text.py --pdfbox-extraction
+          python3 scripts/check_gate3_caller_text.py --pdfbox-extraction
+          python3 scripts/check_gate3_actual_text.py --pdfbox-extraction
+
       - name: Extract vendored PDFium Chromium 7988
         if: runner.os == 'Linux'
         run: |
@@ -83,6 +96,13 @@ jobs:
       - name: Compare Gate 2 PDFium and PDFBox rendering
         if: runner.os == 'Linux'
         run: python3 scripts/check_gate2_renderers.py --pdfium-renderer /tmp/pdfium-render
+
+      - name: Validate Gate 3 text with PDFium and PDFBox rendering
+        if: runner.os == 'Linux'
+        run: |
+          python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render
+          python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render --caller
+          python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render --actual-text
 
       - name: Validate object model with veraPDF Arlington 1.30.2
         if: runner.os == 'Linux'

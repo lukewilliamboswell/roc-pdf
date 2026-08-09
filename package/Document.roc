@@ -18,16 +18,26 @@ DocumentBlock :: [
 
 PageArtifactKind := [Footer, Header, PageNumber, Watermark]
 
-CompactBlockKind := [
-	Bullets(Semantics.Range),
-	Heading({ level : U8, text : U64 }),
-	PageArtifact({ kind : PageArtifactKind, text : U64 }),
-	Paragraph(U64),
-	Title(U64),
+NormalizedBlockKind := [
+	Bullet({ item : U64, list : U64 }),
+	Heading(U8),
+	PageArtifact(PageArtifactKind),
+	Paragraph,
+	Title,
 ]
 
+NormalizedBlock := { kind : NormalizedBlockKind, text : Str }
+
+NormalizedAuthoring := {
+	blocks : List(NormalizedBlock),
+	language : Str,
+	metadata_title : Str,
+}
+
 DocumentBuilder :: {
-	block_kinds : List(CompactBlockKind),
+	block_aux : List(U64),
+	block_tags : List(U8),
+	block_texts : List(U64),
 	language : Str,
 	metadata_title : Str,
 	text_sources : List(Str),
@@ -40,51 +50,89 @@ DocumentBuilder :: {
 	init : { language : Str, title : Str } -> DocumentBuilder
 	init = |{ language, title: document_title }|
 		DocumentBuilder.{
-			block_kinds: [],
+			block_aux: [],
+			block_tags: [],
+			block_texts: [],
 			language,
 			metadata_title: document_title,
 			text_sources: [],
 		}
 
 	add_title : DocumentBuilder, Str -> DocumentBuilder
-	add_title = |state, text| {
-		text_id = state.text_sources.len()
+	add_title = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, text| {
+		text_id = text_sources.len()
 
-		{
-			..state,
-			block_kinds: state.block_kinds.append(CompactBlockKind.Title(text_id)),
-			text_sources: state.text_sources.append(text),
+		DocumentBuilder.{
+			block_aux: block_aux.append(0),
+			block_tags: block_tags.append(title_tag),
+			block_texts: block_texts.append(text_id),
+			language,
+			metadata_title,
+			text_sources: text_sources.append(text),
 		}
 	}
 
 	add_heading : DocumentBuilder, U8, Str -> DocumentBuilder
-	add_heading = |state, level, text| {
-		text_id = state.text_sources.len()
+	add_heading = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, level, text| {
+		text_id = text_sources.len()
 
-		{
-			..state,
-			block_kinds: state.block_kinds.append(CompactBlockKind.Heading({ level, text: text_id })),
-			text_sources: state.text_sources.append(text),
+		DocumentBuilder.{
+			block_aux: block_aux.append(level.to_u64()),
+			block_tags: block_tags.append(heading_tag),
+			block_texts: block_texts.append(text_id),
+			language,
+			metadata_title,
+			text_sources: text_sources.append(text),
 		}
 	}
 
 	add_paragraph : DocumentBuilder, Str -> DocumentBuilder
-	add_paragraph = |state, text| {
-		text_id = state.text_sources.len()
+	add_paragraph = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, text| {
+		text_id = text_sources.len()
 
-		{
-			..state,
-			block_kinds: state.block_kinds.append(CompactBlockKind.Paragraph(text_id)),
-			text_sources: state.text_sources.append(text),
+		DocumentBuilder.{
+			block_aux: block_aux.append(0),
+			block_tags: block_tags.append(paragraph_tag),
+			block_texts: block_texts.append(text_id),
+			language,
+			metadata_title,
+			text_sources: text_sources.append(text),
+		}
+	}
+
+	## The large-document path appends a batch while all dense buffers stay
+	## uniquely owned inside one call; no intermediate builder versions escape.
+	add_paragraphs : DocumentBuilder, List(Str) -> DocumentBuilder
+	add_paragraphs = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, paragraphs| {
+		var $block_aux = block_aux
+		var $block_tags = block_tags
+		var $block_texts = block_texts
+		var $text_sources = text_sources
+		var $index = 0
+		while $index < paragraphs.len() {
+			text_id = $text_sources.len()
+			$block_aux = $block_aux.append(0)
+			$block_tags = $block_tags.append(paragraph_tag)
+			$block_texts = $block_texts.append(text_id)
+			$text_sources = $text_sources.append(list_at(paragraphs, $index))
+			$index = $index + 1
+		}
+		DocumentBuilder.{
+			block_aux: $block_aux,
+			block_tags: $block_tags,
+			block_texts: $block_texts,
+			language,
+			metadata_title,
+			text_sources: $text_sources,
 		}
 	}
 
 	add_bullets : DocumentBuilder, List(Str) -> DocumentBuilder
-	add_bullets = |state, items| {
-		start = state.text_sources.len()
+	add_bullets = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, items| {
+		start = text_sources.len()
 		length = items.len()
 
-		var $text_sources = state.text_sources
+		var $text_sources = text_sources
 		var $index = 0
 		while $index < length {
 			match items.get($index) {
@@ -98,9 +146,12 @@ DocumentBuilder :: {
 			$index = $index + 1
 		}
 
-		{
-			..state,
-			block_kinds: state.block_kinds.append(CompactBlockKind.Bullets(Semantics.Range.from_start_and_length(start, length))),
+		DocumentBuilder.{
+			block_aux: block_aux.append(length),
+			block_tags: block_tags.append(bullets_tag),
+			block_texts: block_texts.append(start),
+			language,
+			metadata_title,
 			text_sources: $text_sources,
 		}
 	}
@@ -113,7 +164,7 @@ DocumentBuilder :: {
 
 	stats : DocumentBuilder -> Stats
 	stats = |state| {
-		blocks: state.block_kinds.len(),
+		blocks: state.block_tags.len(),
 		text_sources: state.text_sources.len(),
 	}
 
@@ -129,6 +180,9 @@ DocumentAuthoring := [
 Document :: { authoring : DocumentAuthoring }.{
 	Block : DocumentBlock
 	Builder : DocumentBuilder
+	NormalizedBlock : NormalizedBlock
+	NormalizedBlockKind : NormalizedBlockKind
+	NormalizedAuthoring : NormalizedAuthoring
 	PageArtifactKind : PageArtifactKind
 
 	## Reusable resource identity is independent of the scene group that uses
@@ -256,20 +310,150 @@ Document :: { authoring : DocumentAuthoring }.{
 
 	block_count : Document -> U64
 	block_count = |document| match document.authoring {
-		Compact(compact) => compact.block_kinds.len()
+		Compact(compact) => compact.block_tags.len()
 		Simple(simple) => simple.contents.len()
+	}
+
+	## Both authoring front ends lower once to the same flat text/block store.
+	## String payloads remain shared values; block and list identity are scalar facts.
+	normalize : Document -> NormalizedAuthoring
+	normalize = |document| normalize_authoring(document.authoring)
+}
+
+normalize_authoring : DocumentAuthoring -> NormalizedAuthoring
+normalize_authoring = |authoring| match authoring {
+	Compact(compact) => normalize_compact(compact)
+	Simple(simple) => normalize_simple(simple)
+}
+
+normalize_compact : DocumentBuilder -> NormalizedAuthoring
+normalize_compact = |compact| {
+	var $blocks = []
+	var $block_index = 0
+	var $list_index = 0
+	while $block_index < compact.block_tags.len() {
+		tag = list_at(compact.block_tags, $block_index)
+		text = list_at(compact.block_texts, $block_index)
+		aux = list_at(compact.block_aux, $block_index)
+		if tag == bullets_tag {
+			var $item = 0
+			while $item < aux {
+				text_index = text + $item
+				$blocks = $blocks.append({ kind: Bullet({ item: $item, list: $list_index }), text: list_at(compact.text_sources, text_index) })
+				$item = $item + 1
+			}
+			$list_index = $list_index + 1
+		} else if tag == heading_tag {
+			$blocks = $blocks.append({ kind: Heading(aux.to_u8_wrap()), text: list_at(compact.text_sources, text) })
+		} else if tag == artifact_tag {
+			$blocks = $blocks.append({ kind: PageArtifact(decode_artifact(aux)), text: list_at(compact.text_sources, text) })
+		} else if tag == paragraph_tag {
+			$blocks = $blocks.append({ kind: Paragraph, text: list_at(compact.text_sources, text) })
+		} else if tag == title_tag {
+			$blocks = $blocks.append({ kind: Title, text: list_at(compact.text_sources, text) })
+		} else {
+			crash "compact authoring block tag escaped"
+		}
+		$block_index = $block_index + 1
+	}
+	{
+		blocks: $blocks,
+		language: compact.language,
+		metadata_title: compact.metadata_title,
+	}
+}
+
+normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str } -> NormalizedAuthoring
+normalize_simple = |simple| {
+	var $blocks = []
+	var $block_index = 0
+	var $list_index = 0
+	while $block_index < simple.contents.len() {
+		match list_at(simple.contents, $block_index) {
+			Bullets(items) => {
+				var $item = 0
+				while $item < items.len() {
+					$blocks = $blocks.append({ kind: Bullet({ item: $item, list: $list_index }), text: list_at(items, $item) })
+					$item = $item + 1
+				}
+				$list_index = $list_index + 1
+			}
+			Heading({ level, text }) => {
+				$blocks = $blocks.append({ kind: Heading(level), text })
+			}
+			PageArtifact({ kind, text }) => {
+				$blocks = $blocks.append({ kind: PageArtifact(kind), text })
+			}
+			Paragraph(text) => {
+				$blocks = $blocks.append({ kind: Paragraph, text })
+			}
+			Title(text) => {
+				$blocks = $blocks.append({ kind: Title, text })
+			}
+		}
+		$block_index = $block_index + 1
+	}
+	{
+		blocks: $blocks,
+		language: simple.language,
+		metadata_title: simple.metadata_title,
 	}
 }
 
 append_artifact : DocumentBuilder, PageArtifactKind, Str -> DocumentBuilder
-append_artifact = |builder, kind, text| {
-	text_id = builder.text_sources.len()
+append_artifact = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, kind, text| {
+	text_id = text_sources.len()
 
-	{
-		..builder,
-		block_kinds: builder.block_kinds.append(CompactBlockKind.PageArtifact({ kind, text: text_id })),
-		text_sources: builder.text_sources.append(text),
+	DocumentBuilder.{
+		block_aux: block_aux.append(encode_artifact(kind)),
+		block_tags: block_tags.append(artifact_tag),
+		block_texts: block_texts.append(text_id),
+		language,
+		metadata_title,
+		text_sources: text_sources.append(text),
 	}
+}
+
+encode_artifact : PageArtifactKind -> U64
+encode_artifact = |kind| match kind {
+	Footer => 0
+	Header => 1
+	PageNumber => 2
+	Watermark => 3
+}
+
+decode_artifact : U64 -> PageArtifactKind
+decode_artifact = |value| match value {
+	0 => Footer
+	1 => Header
+	2 => PageNumber
+	3 => Watermark
+	_ => {
+		crash "compact page artifact kind escaped"
+	}
+}
+
+bullets_tag : U8
+bullets_tag = 0
+
+heading_tag : U8
+heading_tag = 1
+
+artifact_tag : U8
+artifact_tag = 2
+
+paragraph_tag : U8
+paragraph_tag = 3
+
+title_tag : U8
+title_tag = 4
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Err(OutOfBounds) => {
+		crash "normalized authoring index escaped"
+	}
+	Ok(value) => value
 }
 
 ## The compact builder stores block descriptors and text payloads in separate flat buffers.
@@ -282,6 +466,57 @@ expect {
 		.add_page_footer("Page footer")
 
 	builder.stats() == { blocks: 5, text_sources: 6 }
+}
+
+## Simple and compact authoring normalize to identical scalar/list identities.
+expect {
+	simple = Document.from_blocks({
+		contents: [Document.title("Report"), Document.heading(2, "Details"), Document.bullets(["One", "Two"]), Document.paragraph("Done")],
+		language: "en-AU",
+		title: "Report",
+	})
+	compact = Document.builder({ language: "en-AU", title: "Report" })
+		.add_title("Report")
+		.add_heading(2, "Details")
+		.add_bullets(["One", "Two"])
+		.add_paragraph("Done")
+		.finish()
+	simple_store = Document.normalize(simple)
+	compact_store = Document.normalize(compact)
+	first = list_at(simple_store.blocks, 0)
+	second = list_at(simple_store.blocks, 1)
+	third = list_at(simple_store.blocks, 2)
+	fourth = list_at(simple_store.blocks, 3)
+	fifth = list_at(simple_store.blocks, 4)
+	first_kind = match first.kind {
+		Title => True
+		_ => False
+	}
+	second_kind = match second.kind {
+		Heading(2) => True
+		_ => False
+	}
+	third_kind = match third.kind {
+		Bullet({ item: 0, list: 0 }) => True
+		_ => False
+	}
+	fourth_kind = match fourth.kind {
+		Bullet({ item: 1, list: 0 }) => True
+		_ => False
+	}
+	fifth_kind = match fifth.kind {
+		Paragraph => True
+		_ => False
+	}
+
+	simple_store.blocks.len() == compact_store.blocks.len() and
+		simple_store.language == compact_store.language and
+			simple_store.metadata_title == compact_store.metadata_title and
+				first_kind and first.text == "Report" and
+					second_kind and second.text == "Details" and
+						third_kind and third.text == "One" and
+							fourth_kind and fourth.text == "Two" and
+								fifth_kind and fifth.text == "Done"
 }
 
 ## Finishing a builder preserves required metadata without rebuilding a block list.

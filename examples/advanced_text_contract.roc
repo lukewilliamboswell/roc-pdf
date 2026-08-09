@@ -65,6 +65,7 @@ expect {
 		language: Language("en-AU"),
 		occurrence: Semantics.OccurrenceId.from_index(4),
 		script: Font.Script.from_iso15924("Latn"),
+		size: Layout.Unit.from_raw(11000),
 		source: source_range,
 		substitutions: Semantics.Range.from_start_and_length(0, 0),
 		transformations: Semantics.Range.from_start_and_length(0, 0),

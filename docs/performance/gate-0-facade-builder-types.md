@@ -7,9 +7,9 @@ modules. It does not claim layout, validation, sealing, or PDF emission.
 
 - The common facade accepts a simple `List(Document.Block)` authoring value.
   That list remains an ergonomic front end and will normalize exactly once.
-- `Document.builder` writes block descriptors and text payloads into separate
-  flat buffers. Descriptors carry scalar text IDs or exact ranges; the builder
-  never accumulates a `List(Document.Block)` or a recursive semantic tree.
+- `Document.builder` writes block tags, text IDs, auxiliary scalar values, and
+  text payloads into separate flat buffers. The builder never accumulates a
+  boxed descriptor union, `List(Document.Block)`, or recursive semantic tree.
 - Builder methods consume and return one nominal state. They do not retain an
   alias to either list across append operations. Bullet string references are
   transferred by a direct indexed `while` loop rather than a stored `Iter` or
@@ -22,9 +22,11 @@ modules. It does not claim layout, validation, sealing, or PDF emission.
 
 ## Complexity and allocation contract
 
-- Adding a scalar-text block is amortized `O(1)` and appends one descriptor and
-  one text reference. Adding `n` bullet items is `O(n)` direct visits and
-  appends one descriptor plus `n` text references.
+- Scalar methods append one tag/text/auxiliary tuple and one text reference.
+  The large-input `add_paragraphs` operation keeps every dense buffer inside
+  one consumed call, performs amortized `O(1)` work per paragraph, and returns
+  only the final builder. Adding `n` bullet items is `O(n)` direct visits and
+  appends one scalar tuple plus `n` text references.
 - Finishing the builder is `O(1)` and transfers the compact state into the
   opaque `Document`; it does not rebuild blocks or copy payload strings.
 - No function closure or `Iter` value is stored in a document, builder, theme,
@@ -38,4 +40,6 @@ At Gate 0 every facade serialization entrypoint returned the typed
 `CapabilityUnavailable(Pdf20Generation)` error and no bytes. Gate 1 later
 enabled structural blank `Standard` documents; meaningful authoring content
 and stricter profiles still fail explicitly instead of producing fallback PDF
-output or a profile downgrade.
+output or a profile downgrade. Gate 3 runtime normalization and its scaled
+list/builder allocation evidence are recorded in
+[gate-3-authoring-normalization.md](gate-3-authoring-normalization.md).

@@ -56,6 +56,13 @@ Text :: [].{
 
 	ClusterKind : [
 		Contextual,
+
+		## A caller-selected external discretionary opportunity has no logical
+		## source scalar. Its one visible hyphen glyph is tied to an owned
+		## semantic SourceToPresentation property and a transformation record;
+		## lowering must use that typed fact rather than infer Unicode from the
+		## glyph ID.
+		GeneratedDiscretionaryHyphen({ property : Semantics.TextPropertyId, transformation : U64 }),
 		Ligature,
 		ManyToMany,
 		ManyToOne,
@@ -111,6 +118,7 @@ Text :: [].{
 		language : Semantics.Language,
 		occurrence : Semantics.OccurrenceId,
 		script : Font.Script,
+		size : Layout.Unit,
 		source : Semantics.TextRange,
 		substitutions : Semantics.Range,
 		transformations : Semantics.Range,

@@ -13,16 +13,20 @@ public final class PdfBoxRender {
     private PdfBoxRender() {}
 
     public static void main(String[] args) throws IOException {
-        if (args.length != 2) {
-            throw new IllegalArgumentException("usage: PdfBoxRender INPUT.pdf OUTPUT.ppm");
+        if (args.length != 2 && args.length != 3) {
+            throw new IllegalArgumentException("usage: PdfBoxRender INPUT.pdf OUTPUT.ppm [DPI]");
+        }
+        float dpi = args.length == 3 ? Float.parseFloat(args[2]) : 720.0f;
+        if (!Float.isFinite(dpi) || dpi <= 0.0f) {
+            throw new IllegalArgumentException("DPI must be finite and positive");
         }
         try (PDDocument document = Loader.loadPDF(new File(args[0]))) {
             if (document.getNumberOfPages() != 1) {
-                throw new IllegalArgumentException("Gate 2 renderer fixture must have one page");
+                throw new IllegalArgumentException("renderer fixture must have one page");
             }
             PDFRenderer renderer = new PDFRenderer(document);
             renderer.setSubsamplingAllowed(false);
-            BufferedImage image = renderer.renderImageWithDPI(0, 720.0f, ImageType.RGB);
+            BufferedImage image = renderer.renderImageWithDPI(0, dpi, ImageType.RGB);
             writePpm(image, new File(args[1]));
         }
     }

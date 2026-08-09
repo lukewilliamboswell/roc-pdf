@@ -1,0 +1,21 @@
+{
+  "expected_text": "Café PDF generation in pure Roc.",
+  "pdfbox_72dpi": {
+    "x0": 72,
+    "y0": 74,
+    "x1": 244,
+    "y1": 85,
+    "changed": 789,
+    "dark": 356,
+    "ink": 96130
+  },
+  "pdfium_72dpi": {
+    "x0": 72,
+    "y0": 74,
+    "x1": 244,
+    "y1": 85,
+    "changed": 1083,
+    "dark": 397,
+    "ink": 103058
+  }
+}

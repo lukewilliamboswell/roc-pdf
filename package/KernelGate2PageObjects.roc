@@ -4,6 +4,7 @@ import KernelGate2Objects
 import KernelGate2PipelineFixture
 import KernelGate2ResourceName
 import KernelGate2TaggedObjects
+import KernelGate3FontObjects
 import KernelLex
 import KernelObject
 import KernelTagged
@@ -29,6 +30,9 @@ KernelGate2PageObjects :: [].{
 	Plan :: { builder : KernelObject.Builder, work : Work }.{
 		build : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan -> Try(Plan, Error)
 		build = |prefix, tagged, content, objects| build_plan(prefix, tagged, content, objects)
+
+		build_with_fonts : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan -> Try(Plan, Error)
+		build_with_fonts = |prefix, tagged, content, objects| build_font_plan(prefix, tagged, content, objects)
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
@@ -66,6 +70,29 @@ build_plan : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Pla
 build_plan = |prefix, tagged, content, objects| {
 	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix))?
 	resources = add_resources(added_names.builder, added_names.names, objects)?
+	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
+	pages = add_pages(page_tree.builder, added_names.names, resources.value, tagged, content, objects)?
+	Ok(
+		KernelGate2PageObjects.Plan.{
+			builder: pages,
+			work: {
+				box_values: KernelTagged.Plan.scenes(tagged).pages.len() * 5,
+				content_streams: KernelContent.Plan.stream_count(content),
+				page_tree_edges: page_tree.edges,
+				page_tree_nodes: KernelBalanced.Shape.node_count(KernelGate2Objects.Plan.page_tree_shape(objects)),
+				pages: KernelTagged.Plan.scenes(tagged).pages.len(),
+				resource_references: resources.references,
+			},
+		},
+	)
+}
+
+build_font_plan : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
+build_font_plan = |prefix, tagged, content, font_objects| {
+	objects = KernelGate3FontObjects.Plan.base(font_objects)
+	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix))?
+	font_name = KernelObject.add_name(added_names.builder, Str.to_utf8("Font")) ? Object
+	resources = add_resources_with_fonts(font_name.builder, added_names.names, font_name.id, objects, KernelGate3FontObjects.Plan.fonts(font_objects))?
 	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
 	pages = add_pages(page_tree.builder, added_names.names, resources.value, tagged, content, objects)?
 	Ok(
@@ -144,6 +171,36 @@ add_resources = |builder, names, objects| {
 		],
 	) ? Object
 	Ok({ builder: resources.builder, references: colors.entries.len() + images.entries.len(), value: resources.id })
+}
+
+add_resources_with_fonts : KernelObject.Builder, Names, KernelObject.NameId, KernelGate2Objects.Plan, List(KernelGate3FontObjects.FontObjects) -> Try(Resources, KernelGate2PageObjects.Error)
+add_resources_with_fonts = |builder, names, font_name, objects, fonts| {
+	colors = add_named_references(builder, "CS", KernelGate2Objects.Plan.color_spaces(objects))?
+	images = add_image_references(colors.builder, KernelGate2Objects.Plan.images(objects))?
+	font_references = add_font_references(images.builder, fonts)?
+	color_dictionary = KernelObject.add_dictionary(font_references.builder, colors.entries) ? Object
+	image_dictionary = KernelObject.add_dictionary(color_dictionary.builder, images.entries) ? Object
+	font_dictionary = KernelObject.add_dictionary(image_dictionary.builder, font_references.entries) ? Object
+	resources = KernelObject.add_dictionary(
+		font_dictionary.builder,
+		[
+			{ key: names.color_space, value: color_dictionary.id },
+			{ key: font_name, value: font_dictionary.id },
+			{ key: names.x_object, value: image_dictionary.id },
+		],
+	) ? Object
+	Ok({ builder: resources.builder, references: colors.entries.len() + font_references.entries.len() + images.entries.len(), value: resources.id })
+}
+
+add_font_references : KernelObject.Builder, List(KernelGate3FontObjects.FontObjects) -> Try({ builder : KernelObject.Builder, entries : List(KernelObject.DictionaryEntry) }, KernelGate2PageObjects.Error)
+add_font_references = |builder, fonts| {
+	var $objects = List.with_capacity(fonts.len())
+	var $index = 0
+	while $index < fonts.len() {
+		$objects = $objects.append(list_at(fonts, $index).type0)
+		$index = $index + 1
+	}
+	add_named_references(builder, "F", $objects)
 }
 
 add_named_references : KernelObject.Builder, Str, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, entries : List(KernelObject.DictionaryEntry) }, KernelGate2PageObjects.Error)
@@ -433,4 +490,15 @@ expect {
 	first_color = list_at(KernelGate2Objects.Plan.color_spaces(pipeline.objects), 0)
 	work = KernelGate2PageObjects.Plan.work(plan)
 	counts.objects + 1 == KernelObject.ObjectId.number(first_color) and counts.payloads == 1 and counts.streams == 1 and work.pages == 1 and work.page_tree_nodes == 1 and work.page_tree_edges == 1 and work.box_values == 5 and work.resource_references == 2
+}
+
+## The additive Gate 3 path references each planned Type 0 font without widening Gate 2 plans.
+expect {
+	pipeline = KernelGate2PipelineFixture.pipeline({})?
+	fonts = KernelGate3FontObjects.Plan.build(pipeline.objects, 1, 24)?
+	prefix = KernelGate2TaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, { ..test_limits, max_objects: 24 })?
+	plan = KernelGate2PageObjects.Plan.build_with_fonts(prefix, pipeline.tagged, pipeline.content, fonts)?
+	work = KernelGate2PageObjects.Plan.work(plan)
+	font = list_at(KernelGate3FontObjects.Plan.fonts(fonts), 0)
+	KernelObject.ObjectId.number(font.type0) == KernelGate3FontObjects.Plan.object_count(fonts) and work.resource_references == 3
 }

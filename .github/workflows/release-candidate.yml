@@ -1,0 +1,99 @@
+name: Release candidate
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "The only supported release candidate tag: 0.1.0-rc1"
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-and-validate:
+    name: Bundle and validate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.0.0
+        with:
+          version: 0.16.0
+          use-cache: false
+
+      # This intentionally uses only released setup-roc inputs. It does not
+      # download, build, or provision the local roc-lang/roc#10700 patch.
+      - name: Read pinned Roc nightly
+        run: printf 'ROC_NIGHTLY_TAG=%s\n' "$(sed -n '1p' .roc-version)" >> "$GITHUB_ENV"
+
+      - name: Install Roc
+        uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
+        with:
+          version: nightly-new-compiler
+          nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
+
+      - name: Validate public package behavior with the dev backend
+        run: ROC=roc ./scripts/test.py --allocation-baselines
+
+      - name: Bundle package
+        run: ROC=roc ./scripts/bundle.sh --output-dir dist
+
+      - name: Validate a consumer against the served bundle
+        run: ROC=roc python3 ./scripts/test_bundle_consumer.py --bundle-path "$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)"
+
+      - name: Upload bundle
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: roc-pdf-0.1.0-rc1-bundle
+          path: dist/*.tar.zst
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish release candidate
+    needs: bundle-and-validate
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release notes
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Check release tag
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: test "$RELEASE_TAG" = "0.1.0-rc1"
+
+      - name: Download validated bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: roc-pdf-0.1.0-rc1-bundle
+          path: dist
+
+      - name: Create prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.tar.zst \
+            --title "$RELEASE_TAG" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --notes-file docs/releases/0.1.0-rc1.md

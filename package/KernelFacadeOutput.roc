@@ -1,0 +1,146 @@
+import Image
+import KernelContent
+import KernelFacadeScenes
+import KernelFont
+import KernelFontPlan
+import KernelFontSubset
+import KernelGate2Objects
+import KernelGate3FontObjects
+import KernelGate3TaggedTextStructure
+import KernelImage
+import KernelObject
+import KernelPdfFont
+import KernelPdfText
+import KernelResourceUse
+import KernelStructure
+import KernelTextOwnership
+import Text
+
+KernelFacadeOutput :: [].{
+	Error : [
+		Content(KernelContent.Error),
+		FontObjects(KernelGate3FontObjects.Error),
+		FontPlan(KernelFontPlan.Error),
+		Images(KernelImage.Error),
+		Objects(KernelGate2Objects.Error),
+		Resources(KernelResourceUse.Error),
+		Structure(KernelGate3TaggedTextStructure.Error),
+		Subset(KernelFontSubset.Error),
+		Text(KernelPdfText.Error),
+	]
+
+	Limits :: {
+		content : KernelContent.Limits,
+		font_plan : KernelFontPlan.Limits,
+		images : KernelImage.Limits,
+		max_objects : U64,
+		objects : KernelGate2Objects.Limits,
+		structure : KernelGate3TaggedTextStructure.Limits,
+		text : KernelPdfText.Limits,
+	}.{
+		make : {
+			content : KernelContent.Limits,
+			font_plan : KernelFontPlan.Limits,
+			images : KernelImage.Limits,
+			max_objects : U64,
+			objects : KernelGate2Objects.Limits,
+			structure : KernelGate3TaggedTextStructure.Limits,
+			text : KernelPdfText.Limits,
+		} -> Limits
+		make = |limits| Limits.(limits)
+	}
+
+	Work : {
+		content_bytes : U64,
+		content_command_visits : U64,
+		font_entries : U64,
+		font_objects : U64,
+		glyph_usages : U64,
+		objects : U64,
+		resource_command_visits : U64,
+		subset_bytes : U64,
+		text_content_bytes : U64,
+		text_glyph_visits : U64,
+		text_runs : U64,
+	}
+
+	Plan :: { structure : KernelStructure.Plan, work : Work }.{
+		build : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
+		build = |scenes, font, descriptor, limits| build_plan(scenes, font, descriptor, limits)
+
+		structure : Plan -> KernelStructure.Plan
+		structure = |plan| plan.structure
+
+		work : Plan -> Work
+		work = |plan| plan.work
+	}
+}
+
+build_plan : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
+build_plan = |scenes, font, descriptor, limits| {
+	ownership = KernelFacadeScenes.Plan.ownership(scenes)
+	scene = KernelFacadeScenes.Plan.scene(scenes)
+	colors = KernelFacadeScenes.Plan.colors(scenes)
+	text_store = KernelTextOwnership.Plan.text(ownership)
+	usages = glyph_usages(text_store.glyphs)
+	font_plan = KernelFontPlan.plan(font, usages, limits.font_plan) ? FontPlan
+	subset = KernelFontSubset.build(font, font_plan) ? Subset
+	images = KernelImage.Plan.build({ resources: [] }, colors, limits.images) ? Images
+	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? Resources
+	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], limits.text) ? Text
+	tagged = KernelTextOwnership.Plan.tagged(ownership)
+	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
+	objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
+	font_objects = KernelGate3FontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
+	structure = KernelGate3TaggedTextStructure.Plan.build(
+		tagged,
+		colors,
+		images,
+		content,
+		font_objects,
+		text,
+		[{ descriptor, font, plan: font_plan, subset }],
+		limits.structure,
+	) ? Structure
+	content_work = KernelContent.Plan.work(content)
+	resource_work = KernelResourceUse.TextPlan.work(resource_use)
+	text_work = KernelPdfText.ScenePlan.work(text)
+	structure_work = KernelGate3TaggedTextStructure.Plan.work(structure)
+	Ok(
+		KernelFacadeOutput.Plan.{
+			structure: KernelGate3TaggedTextStructure.Plan.structure(structure),
+			work: {
+				content_bytes: content_work.bytes_emitted,
+				content_command_visits: content_work.command_visits,
+				font_entries: font_plan.entries.len(),
+				font_objects: structure_work.font_objects,
+				glyph_usages: usages.len(),
+				objects: structure_work.objects,
+				resource_command_visits: resource_work.command_visits,
+				subset_bytes: subset.work.output_bytes,
+				text_content_bytes: text_work.content_bytes,
+				text_glyph_visits: text_work.glyph_visits,
+				text_runs: text_work.run_visits,
+			},
+		},
+	)
+}
+
+glyph_usages : List(Text.Glyph) -> List(KernelFontPlan.Usage)
+glyph_usages = |glyphs| {
+	var $usages = List.with_capacity(glyphs.len())
+	var $index = 0
+	while $index < glyphs.len() {
+		$usages = $usages.append({ glyph: list_at(glyphs, $index).id.raw() })
+		$index = $index + 1
+	}
+	$usages
+}
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Err(OutOfBounds) => {
+		crash "validated facade-output index escaped"
+	}
+	Ok(value) => value
+}

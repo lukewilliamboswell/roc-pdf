@@ -16,6 +16,7 @@ KernelContent :: [].{
 		FragmentStreamMismatch({ fragment : U64, page : U64, stream : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		MissingMarkedFragment({ fragment : U64 }),
+		TextRunInvalid({ prepared : U64, run : U64 }),
 		UnsupportedValidatedCommand({ command : U64 }),
 	]
 
@@ -35,11 +36,28 @@ KernelContent :: [].{
 		marked_fragment_groups : U64,
 		max_frame_depth : U64,
 		path_segments : U64,
+		text_placements : U64,
+	}
+
+	TextRun : { actual_text_begin : List(U8), body : List(U8), close_actual_text : Bool }
+
+	TextPlan :: { runs : List(TextRun) }.{
+		make : List(TextRun) -> TextPlan
+		make = |runs| TextPlan.{ runs }
+
+		run : TextPlan, U64 -> TextRun
+		run = |plan, run| list_at(plan.runs, run)
+
+		run_count : TextPlan -> U64
+		run_count = |plan| plan.runs.len()
 	}
 
 	Plan :: { streams : List(Stream), work : Work }.{
 		build : KernelTagged.Plan, Limits -> Try(Plan, Error)
-		build = |tagged, limits| build_plan(tagged, limits)
+		build = |tagged, limits| build_plan(tagged, NoText, limits)
+
+		build_with_text : KernelTagged.Plan, TextPlan, Limits -> Try(Plan, Error)
+		build_with_text = |tagged, text, limits| build_plan(tagged, WithText(text), limits)
 
 		stream : Plan, Semantics.ContentStreamId -> Stream
 		stream = |plan, stream| list_at(plan.streams, stream.index())
@@ -54,12 +72,14 @@ KernelContent :: [].{
 
 MarkedSlot := [HasMarked(KernelTagged.MarkedContentReference), MissingMarked]
 
+TextLowering := [NoText, WithText(KernelContent.TextPlan)]
+
 Frame := { close_graphics : Bool, end : U64, next : U64 }
 
-EmitWork := { bytes : List(U8), command_visits : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, path_segments : U64 }
+EmitWork := { bytes : List(U8), command_visits : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, path_segments : U64, text_placements : U64 }
 
-build_plan : KernelTagged.Plan, KernelContent.Limits -> Try(KernelContent.Plan, KernelContent.Error)
-build_plan = |tagged, limits| {
+build_plan : KernelTagged.Plan, TextLowering, KernelContent.Limits -> Try(KernelContent.Plan, KernelContent.Error)
+build_plan = |tagged, text, limits| {
 	scenes = KernelTagged.Plan.scenes(tagged)
 	semantics = KernelTagged.Plan.semantics(tagged)
 	stream_count = KernelTagged.Plan.parent_rows(tagged).len()
@@ -80,6 +100,7 @@ build_plan = |tagged, limits| {
 		var $artifact_groups = 0
 		var $fragment_groups = 0
 		var $path_segments = 0
+		var $text_placements = 0
 		var $error = NoError
 		while $page_index < scenes.pages.len() and $error == NoError {
 			page = list_at(scenes.pages, $page_index)
@@ -97,7 +118,7 @@ build_plan = |tagged, limits| {
 						$bytes = opened.bytes
 						$artifact_groups = $artifact_groups + opened.artifacts
 						$fragment_groups = $fragment_groups + opened.fragments
-						match emit_commands($bytes, group.commands, scenes, page_limit) {
+						match emit_commands($bytes, group.commands, scenes, text, page_limit) {
 							Err(error) => {
 								$error = Invalid(error)
 							}
@@ -112,6 +133,7 @@ build_plan = |tagged, limits| {
 									$image_placements = $image_placements + emitted.image_placements
 									$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
 									$path_segments = $path_segments + emitted.path_segments
+									$text_placements = $text_placements + emitted.text_placements
 								}
 							}
 						}
@@ -150,6 +172,7 @@ build_plan = |tagged, limits| {
 						marked_fragment_groups: $fragment_groups,
 						max_frame_depth: $max_frame_depth,
 						path_segments: $path_segments,
+						text_placements: $text_placements,
 					},
 				},
 			)
@@ -198,8 +221,8 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 	}
 }
 
-emit_commands : List(U8), Semantics.Range, Scene.Store, U64 -> Try(EmitWork, KernelContent.Error)
-emit_commands = |initial, root, scenes, limit| {
+emit_commands : List(U8), Semantics.Range, Scene.Store, TextLowering, U64 -> Try(EmitWork, KernelContent.Error)
+emit_commands = |initial, root, scenes, text, limit| {
 	var $bytes = initial
 	var $frames = []
 	var $current = Frame.{ close_graphics: False, end: root.start() + root.length(), next: root.start() }
@@ -210,6 +233,7 @@ emit_commands = |initial, root, scenes, limit| {
 	var $image_placements = 0
 	var $max_frame_depth = 1
 	var $path_segments = 0
+	var $text_placements = 0
 	var $error = NoError
 	while $done == False and $error == NoError {
 		if $current.next >= $current.end {
@@ -271,8 +295,23 @@ emit_commands = |initial, root, scenes, limit| {
 						$path_segments = $path_segments + emitted.path_segments
 					}
 				}
-				DrawText(_) => {
-					$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+				DrawText({ paint, run }) => match text {
+					NoText => {
+						$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+					}
+					WithText(plan) => if run.index() >= KernelContent.TextPlan.run_count(plan) {
+						$error = Invalid(TextRunInvalid({ prepared: KernelContent.TextPlan.run_count(plan), run: run.index() }))
+					} else {
+						match emit_text($bytes, paint, KernelContent.TextPlan.run(plan, run.index()), limit) {
+							Err(error) => {
+								$error = Invalid(error)
+							}
+							Ok(bytes) => {
+								$bytes = bytes
+								$text_placements = $text_placements + 1
+							}
+						}
+					}
 				}
 				Opacity(_) => {
 					$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
@@ -296,8 +335,31 @@ emit_commands = |initial, root, scenes, limit| {
 	}
 	match $error {
 		Invalid(error) => Err(error)
-		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, path_segments: $path_segments })
+		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, path_segments: $path_segments, text_placements: $text_placements })
 	}
+}
+
+emit_text : List(U8), Scene.TextPaint, KernelContent.TextRun, U64 -> Try(List(U8), KernelContent.Error)
+emit_text = |bytes, paint, run, limit| {
+	var $out = append_bytes(bytes, run.actual_text_begin, limit)?
+	$out = emit_color($out, paint.fill, False, limit)?
+	$out = match paint.mode {
+		Fill => append_literal($out, "BT\n0 Tr\n", limit)?
+		FillAndStroke => match paint.stroke {
+			NoStroke => {
+				crash "validated fill-and-stroke text lost its stroke"
+			}
+			Stroke({ color, width }) => {
+				var $stroked = emit_color($out, color, True, limit)?
+				$stroked = append_layout($stroked, width, limit)?
+				$stroked = append_literal($stroked, " w\nBT\n2 Tr\n", limit)?
+				$stroked
+			}
+		}
+	}
+	$out = append_bytes($out, run.body, limit)?
+	$out = append_literal($out, "ET\n", limit)?
+	if run.close_actual_text append_literal($out, "EMC\n", limit) else Ok($out)
 }
 
 push_frame : List(Frame), U64, Frame -> List(Frame)
@@ -782,7 +844,7 @@ expect {
 		],
 		dash_lengths: [KernelGate2Fixture.unit(1000), KernelGate2Fixture.unit(500)],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes, 512)?
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes, NoText, 512)?
 	expected =
 		\\q
 		\\0 0 1 1 re
@@ -814,7 +876,7 @@ expect {
 		path_segments: segments,
 		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, segments.len()) }],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes, 512)?
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes, NoText, 512)?
 	expected =
 		\\/CS1_0 cs
 		\\1 0.50000763 0 scn

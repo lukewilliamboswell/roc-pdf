@@ -45,6 +45,29 @@ KernelResourceUse :: [].{
 		work : Plan -> Work
 		work = |plan| plan.work
 	}
+
+	TextWork : {
+		color_space_resources : U64,
+		command_visits : U64,
+		image_color_references : U64,
+		image_placements : U64,
+		image_resources : U64,
+		image_reuses : U64,
+		path_color_references : U64,
+		text_color_references : U64,
+	}
+
+	TextPlan :: {
+		color_use_counts : List(U64),
+		image_use_counts : List(U64),
+		work : TextWork,
+	}.{
+		build : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(TextPlan, Error)
+		build = |scenes, colors, images| build_text_plan(scenes, colors, images)
+
+		work : TextPlan -> TextWork
+		work = |plan| plan.work
+	}
 }
 
 CommandUse := {
@@ -52,6 +75,14 @@ CommandUse := {
 	image_counts : List(U64),
 	image_placements : U64,
 	path_colors : U64,
+}
+
+TextCommandUse := {
+	color_counts : List(U64),
+	image_counts : List(U64),
+	image_placements : U64,
+	path_colors : U64,
+	text_colors : U64,
 }
 
 build_plan : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(KernelResourceUse.Plan, KernelResourceUse.Error)
@@ -82,6 +113,41 @@ build_plan = |scene_plan, color_plan, image_plan| {
 					image_resources: image_count,
 					image_reuses,
 					path_color_references: command_use.path_colors,
+				},
+			},
+		)
+	}
+}
+
+build_text_plan : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(KernelResourceUse.TextPlan, KernelResourceUse.Error)
+build_text_plan = |scene_plan, color_plan, image_plan| {
+	declared = KernelScene.Plan.resources(scene_plan)
+	color_count = KernelColor.Plan.space_count(color_plan)
+	image_count = KernelImage.Plan.resource_count(image_plan)
+	if KernelScene.Resources.color_space_count(declared) != color_count {
+		Err(CountMismatch({ actual: color_count, declared: KernelScene.Resources.color_space_count(declared), kind: ColorSpaceIndex }))
+	} else if KernelScene.Resources.image_count(declared) != image_count {
+		Err(CountMismatch({ actual: image_count, declared: KernelScene.Resources.image_count(declared), kind: ImageIndex }))
+	} else {
+		scenes = KernelScene.Plan.scenes(scene_plan)
+		command_use = collect_text_command_use(scenes.commands, color_plan, color_count, image_count)?
+		with_images = collect_image_colors(KernelImage.Plan.store(image_plan), command_use.color_counts)?
+		ensure_used(command_use.image_counts, ImageIndex)?
+		ensure_used(with_images.color_counts, ColorSpaceIndex)?
+		image_reuses = checked_sub(command_use.image_placements, image_count)?
+		Ok(
+			KernelResourceUse.TextPlan.{
+				color_use_counts: with_images.color_counts,
+				image_use_counts: command_use.image_counts,
+				work: {
+					color_space_resources: color_count,
+					command_visits: scenes.commands.len(),
+					image_color_references: with_images.image_colors,
+					image_placements: command_use.image_placements,
+					image_resources: image_count,
+					image_reuses,
+					path_color_references: command_use.path_colors,
+					text_color_references: command_use.text_colors,
 				},
 			},
 		)
@@ -134,6 +200,82 @@ collect_command_use = |commands, colors, color_count, image_count| {
 	match $error {
 		Invalid(error) => Err(error)
 		NoError => Ok({ color_counts: $color_counts, image_counts: $image_counts, image_placements: $image_placements, path_colors: $path_colors })
+	}
+}
+
+collect_text_command_use : List(Scene.Command), KernelColor.Plan, U64, U64 -> Try(TextCommandUse, KernelResourceUse.Error)
+collect_text_command_use = |commands, colors, color_count, image_count| {
+	var $color_counts = List.repeat(0, color_count)
+	var $image_counts = List.repeat(0, image_count)
+	var $path_colors = 0
+	var $text_colors = 0
+	var $image_placements = 0
+	var $index = 0
+	var $error = if commands.len() == U64.highest Invalid(ArithmeticOverflow) else NoError
+	while $index < commands.len() and $error == NoError {
+		match list_at(commands, $index) {
+			DrawImage({ image, placement: _ }) => {
+				image_index = image.index()
+				next_count = list_at($image_counts, image_index) + 1
+				$image_counts = match $image_counts.set(image_index, next_count) {
+					Err(OutOfBounds) => {
+						crash "validated image-use update escaped"
+					}
+					Ok(counts) => counts
+				}
+				$image_placements = $image_placements + 1
+			}
+			DrawPath({ path: _, style }) => match collect_style(style, $index, colors, $color_counts) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(collected) => {
+					$color_counts = collected.counts
+					$path_colors = match checked_add($path_colors, collected.references) {
+						Err(error) => {
+							$error = Invalid(error)
+							$path_colors
+						}
+						Ok(value) => value
+					}
+				}
+			}
+			DrawText({ paint, run: _ }) => {
+				match collect_text_paint(paint, $index, colors, $color_counts) {
+					Err(error) => {
+						$error = Invalid(error)
+					}
+					Ok(collected) => {
+						$color_counts = collected.counts
+						$text_colors = match checked_add($text_colors, collected.references) {
+							Err(error) => {
+								$error = Invalid(error)
+								$text_colors
+							}
+							Ok(value) => value
+						}
+					}
+				}
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok({ color_counts: $color_counts, image_counts: $image_counts, image_placements: $image_placements, path_colors: $path_colors, text_colors: $text_colors })
+	}
+}
+
+collect_text_paint : Scene.TextPaint, U64, KernelColor.Plan, List(U64) -> Try({ counts : List(U64), references : U64 }, KernelResourceUse.Error)
+collect_text_paint = |paint, command, colors, counts| {
+	with_fill = collect_color(paint.fill, command, colors, counts)?
+	match paint.stroke {
+		NoStroke => Ok(with_fill)
+		Stroke({ color, width: _ }) => {
+			with_stroke = collect_color(color, command, colors, with_fill.counts)?
+			Ok({ counts: with_stroke.counts, references: checked_add(with_fill.references, with_stroke.references)? })
+		}
 	}
 }
 

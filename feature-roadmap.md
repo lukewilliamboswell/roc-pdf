@@ -19,7 +19,7 @@ Once a capability has executable behavior, it is complete only when it:
 - Passes every applicable independent oracle and conformance profile.
 - Has documented author obligations where quality cannot be machine verified.
 - Meets its declared algorithmic-complexity, allocation, ARC, and retained-
-  memory contracts in optimized builds.
+  memory contracts under the pinned dev backend.
 
 Gate 0 is different: it defines contracts and test machinery but does not claim
 that later PDF behavior exists. For a define-only capability, the applicable
@@ -117,7 +117,7 @@ bytes, bytes copied, ARC increments/decrements, retained/live bytes, and peak
 RSS are also recorded where instrumentation supports them.
 
 Exact allocation equality is enforced only for the pinned compiler, target,
-and optimized build; results from other configurations are diagnostic. A count
+and dev backend; results from other configurations are diagnostic. A count
 increase cannot be accepted by mechanically regenerating the baseline: review
 must identify its representation or ownership cause and record why the feature
 benefit requires it. Decreases are likewise reviewed and recorded deliberately.
@@ -241,7 +241,7 @@ within an early correctness gate.
   gate implementing each store.
 - Focused harness self-tests prove that allocation counts exclude Python and
   validator work, reset at each declared whole-pipeline or phase boundary, and
-  reproduce exactly for the pinned optimized compiler, target, fixture
+  reproduce exactly for the pinned compiler, dev backend, target, fixture
   revision, and measurement boundary.
 - A deliberately introduced allocation regression fails the baseline check,
   while scaling fixtures demonstrate that deterministic work counters catch a
@@ -366,6 +366,11 @@ This is the first genuinely useful public document milestone.
   script, language, embedding rights, and font instance.
 - Font identity, metrics, widths, embedding rights, and exact instance
   selection.
+- A public typed caller-resource path accepts complete replayable font bytes,
+  validates them, registers opaque faces and policies, and makes those handles
+  selectable by `Theme` without caller-assigned resource IDs. The application
+  or its platform owns file, network, store, or optional asset-package
+  acquisition; the pure PDF package performs no acquisition effects.
 - Type 0 fonts, CID descendants, CID assignment, and embedded font programs.
 - Whole-font embedding followed by deterministic subsetting.
 - Composite-glyph closure and deterministic subset prefixes.
@@ -387,6 +392,11 @@ This is the first genuinely useful public document milestone.
   single-column pagination, explicit breaks, keeps, widow/orphan policy, and
   `Pdf.to_bytes` facade provide a useful one-import path without exposing
   glyphs, scenes, resources, profiles, or object plans.
+- The core distribution contains only the small, audited face needed by the
+  built-in theme. Broader multilingual and specialist coverage is supplied by
+  callers or optional pure Roc asset packages and does not become a mandatory
+  core-package payload. Packaged and caller-provided faces enter the same
+  validation, planning, subsetting, and conformance pipeline.
 - Compact cursor continuations, speculative measurement separated from final
   page materialization, and exact bounded caches for font parsing/coverage,
   shaping, measurement, and hyphenation.
@@ -418,6 +428,7 @@ work requirements locally.
 | [#41: Script and Script_Extensions](https://github.com/roc-lang/unicode/issues/41) | Normative Unicode script properties plus an explicitly named, non-normative script-itemization policy. |
 | [#42: panic-free, resource-bounded public APIs](https://github.com/roc-lang/unicode/issues/42) | Typed failure, checked limits, bounded traversal, adversarial tests, fuzzing, and documented allocation/copy/retention behavior. |
 | [#43: bounded shaping-oriented Unicode properties](https://github.com/roc-lang/unicode/issues/43) | Generated UCD properties needed by independent text engines without moving OpenType parsing or shaping into the Unicode package. |
+| [#52: Unicode 17 full case mapping with source-range facts](https://github.com/roc-lang/unicode/issues/52) | Version-pinned full lower/upper/title mappings and case folding, with explicit policy, bounded failures, and source-to-output range facts for presentation and extraction. |
 
 Language-specific hyphenation data remains a separate licensed and pinned
 dependency. OpenType parsing, GSUB/GPOS processing, glyph selection, and shaping
@@ -437,6 +448,15 @@ and analysis boundaries rather than those font-specific behaviors.
   case transformations, and bidirectional logical/visual order.
 - Embedded font programs and subsets pass independent font validation and have
   the exact glyph closure expected.
+- A public end-to-end fixture supplies a valid font whose bytes are absent from
+  the core production package, registers it through the caller-resource API,
+  selects it through a `Theme`, and proves deterministic parsing, coverage,
+  shaping, subsetting, embedding, extraction, and rendering. Structural
+  inspection proves that the PDF contains the expected sanitized subset and no
+  external font reference; package/distribution inspection proves that the
+  fixture font did not become a core production asset. Its atomic negative twin
+  supplies invalid or embedding-prohibited caller bytes and receives a stable
+  error with no emitted PDF.
 - Font widths, glyph positioning, CID maps, and Unicode maps are structurally
   inspected.
 - Negative twins cover license restrictions, corrupt/overlapping tables,
@@ -451,6 +471,11 @@ and analysis boundaries rather than those font-specific behaviors.
   default and explicit-option entrypoints produce the intended profile.
 - Facade-list and compact-builder authoring benchmarks include construction
   allocations and establish the intended large-document path.
+- Caller-font performance evidence records input-byte copying, parse/cache
+  work, source-byte retention through final subset emission, and unique versus
+  deliberately shared inputs. Reusing one caller-provided face across many
+  placements retains one source payload and does not reparse or copy it per
+  placement.
 - Adversarial paragraph, line-break, font-selection, shaping, and single-column
   pagination cases meet their declared operation-count bounds; accepted page
   scenes are materialized once.
@@ -760,7 +785,8 @@ Every oracle receives the exact bytes emitted by Roc.
   namespace, artifact, and MathML study. Copying or modifying material follows
   its license rather than the package's default license.
 - [Noto fonts](https://notofonts.github.io/noto-docs/website/use/) under
-  OFL-1.1 provide fixed multilingual font fixtures.
+  OFL-1.1 provide fixed multilingual font fixtures. Their use as fixtures does
+  not make the Noto collection a production dependency of the core package.
 - Every retained Unicode Character Database file and Unicode conformance test
   file records the Unicode version, exact source path, digest, applicable
   Unicode data license, and whether it is production data or test-only data.
@@ -791,6 +817,15 @@ reviewed commit that updates the artifact, license and attribution material,
 provenance record, CI reference, and affected evidence together. Git LFS is
 not used because it would make a separate remote service part of checkout and
 historical reproducibility.
+
+Repository and CI availability does not imply core-package distribution.
+Production defaults contain only the minimal audited assets required by the
+facade contract. Broader fonts and language data remain test-only inputs or
+separately versioned optional asset packages; applications opt into those
+packages and pass their bytes through the same public caller-resource boundary.
+Generated `StaticPdfA4` files nevertheless embed every selected font subset and
+required resource, so no optional package or acquisition source is a rendering
+dependency of the resulting PDF.
 
 Large platform-specific compiler toolchains, JDKs, and container images are
 not committed to Git. Their action source is pinned by full commit identity,
@@ -841,7 +876,7 @@ bytes.
 ### Release
 
 - Cross-platform byte-for-byte reproducibility.
-- Published performance evidence from the pinned optimized build, including
+- Published performance evidence from the pinned dev backend, including
   unique and deliberately shared pipeline inputs.
 - An audit that every shipped feature slice has a current allocation baseline,
   scaling record, and resolved performance-review decision.

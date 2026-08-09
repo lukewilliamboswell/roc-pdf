@@ -21,12 +21,11 @@ make_report = |summary| {
 	Pdf.to_bytes(document)
 }
 
-## The one-import facade rejects meaningful content until the visual gates land.
+## The one-import Standard facade emits authored content without exposing
+## resources, glyphs, scenes, or PDF objects.
 expect {
-	match make_report("Typed contract only") {
-		Err(UnsupportedAuthoringContent({ blocks })) => blocks == 4
-		_ => False
-	}
+	bytes = make_report("Typed facade output")?
+	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
 ## Nested profile and option modules use current package shorthand syntax.

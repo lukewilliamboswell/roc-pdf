@@ -14,6 +14,25 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from check_gate2 import validate_gate2_pdf
+from check_gate3_actual_text import EXPECTED_CONTENT as GATE3_ACTUAL_TEXT_CONTENT
+from check_gate3_actual_text import validate_gate3_actual_text_pdf
+from check_gate3_caller_text import validate_gate3_caller_text_pdf
+from check_gate3_caller_facade import validate_gate3_caller_facade_pdf
+from check_gate3_facade_output import fixture_oracle, validate_facade_output_pdf
+from check_gate3_supplementary_text import EXPECTED_CONTENT as GATE3_SUPPLEMENTARY_TEXT_CONTENT
+from check_gate3_supplementary_text import validate_gate3_supplementary_text_pdf
+from check_gate3_cjk_text import EXPECTED_CONTENT as GATE3_CJK_TEXT_CONTENT
+from check_gate3_cjk_text import validate_gate3_cjk_text_pdf
+from check_gate3_ligature import EXPECTED_CONTENT as GATE3_LIGATURE_CONTENT
+from check_gate3_ligature import validate_ligature_pdf
+from check_gate3_multiface_text import validate_gate3_multiface_text_pdf
+from check_gate3_soft_hyphen import EXPECTED_CONTENT as GATE3_SOFT_HYPHEN_CONTENT
+from check_gate3_soft_hyphen import validate_soft_hyphen_pdf
+from check_gate3_external_discretionary_hyphen import EXPECTED_CONTENT as GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
+from check_gate3_external_discretionary_hyphen import validate_external_discretionary_hyphen_pdf
+from check_gate3_generated_labels import validate_generated_labels_pdf
+from check_gate3_text import EXPECTED_CONTENT as GATE3_TEXT_CONTENT
+from check_gate3_text import validate_gate3_text_pdf
 from check_pdf_structure import validate_pdf
 
 
@@ -21,6 +40,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = ROOT / "tests" / "spec.json"
 TEST_PLATFORM = ROOT / "tests" / "platform"
 TEMP_ROOT = ROOT / ".roc-pdf-tmp"
+
 ROC = os.environ.get("ROC", "roc")
 ZIG = os.environ.get("ZIG", "zig")
 METRICS_REPORT = re.compile(
@@ -152,8 +172,8 @@ def load_suite() -> TestSuite:
             raw_toolchain["zig_optimization"], "toolchain.zig_optimization"
         ),
     )
-    if toolchain.roc_optimization not in {"speed", "size"}:
-        raise SystemExit(f"{SPEC_PATH}: Roc allocation baselines require an optimized backend")
+    if toolchain.roc_optimization != "dev":
+        raise SystemExit(f"{SPEC_PATH}: Roc allocation baselines require the dev backend")
     if toolchain.zig_optimization not in {"ReleaseFast", "ReleaseSafe", "ReleaseSmall"}:
         raise SystemExit(f"{SPEC_PATH}: Zig host baselines require an optimized build")
 
@@ -320,9 +340,14 @@ def first_difference(expected: bytes, actual: bytes) -> str:
     )
 
 
-def metrics_mismatch(expected: Metrics, actual: Metrics, work_counters: tuple[str, ...]) -> str | None:
+def metrics_mismatch(
+    expected: Metrics,
+    actual: Metrics,
+    work_counters: tuple[str, ...],
+    check_allocations: bool = True,
+) -> str | None:
     differences: list[str] = []
-    if actual.allocations != expected.allocations:
+    if check_allocations and actual.allocations != expected.allocations:
         differences.append(
             f"allocations expected {expected.allocations}, got {actual.allocations}"
         )
@@ -348,15 +373,44 @@ def self_test_metrics(suite: TestSuite) -> None:
     print("PASS performance baseline self-test", flush=True)
 
 
+def roc_version_matches_pin(pinned_roc: str, actual_roc: str) -> bool:
+    expected_roc = f"Roc compiler version {pinned_roc}"
+    if actual_roc == expected_roc:
+        return True
+
+    pin_match = re.fullmatch(r"nightly-[0-9]{4}-[A-Za-z]+-[0-9]{2}-([0-9a-f]+)", pinned_roc)
+    build_match = re.fullmatch(r"Roc compiler version release-fast-([0-9a-f]+)", actual_roc)
+    if pin_match is None or build_match is None:
+        return False
+
+    pinned_commit = pin_match.group(1)
+    build_commit = build_match.group(1)
+    return len(pinned_commit) >= 7 and build_commit.startswith(pinned_commit)
+
+
+def self_test_roc_version_pin() -> None:
+    pin = "nightly-2026-August-05-24f0b47"
+    if not roc_version_matches_pin(pin, f"Roc compiler version {pin}"):
+        raise SystemExit("Roc version verifier rejected the nightly tag identity")
+    if not roc_version_matches_pin(pin, "Roc compiler version release-fast-24f0b476"):
+        raise SystemExit("Roc version verifier rejected the identical release-fast commit")
+    if roc_version_matches_pin(pin, "Roc compiler version release-fast-deadbeef"):
+        raise SystemExit("Roc version verifier accepted a different compiler commit")
+    if roc_version_matches_pin("nightly-invalid", "Roc compiler version release-fast-24f0b476"):
+        raise SystemExit("Roc version verifier accepted a malformed nightly pin")
+    print("PASS Roc compiler pin self-test", flush=True)
+
+
 def verify_toolchain(toolchain: Toolchain) -> None:
     pinned_roc = (ROOT / ".roc-version").read_text(encoding="utf-8").strip()
     if not pinned_roc:
         raise SystemExit(".roc-version must contain the pinned Roc release")
     actual_roc = command_output(ROC, "version")
     expected_roc = f"Roc compiler version {pinned_roc}"
-    if actual_roc != expected_roc:
+    if not roc_version_matches_pin(pinned_roc, actual_roc):
         raise SystemExit(
-            f".roc-version expects Roc version output {expected_roc!r}, got {actual_roc!r}"
+            f".roc-version expects {expected_roc!r} or an identical release-fast commit, "
+            f"got {actual_roc!r}"
         )
     actual_zig = command_output(ZIG, "version")
     if actual_zig != toolchain.zig_version:
@@ -366,6 +420,20 @@ def verify_toolchain(toolchain: Toolchain) -> None:
 
 
 def expected_content(dimensions: dict[str, int]) -> bytes:
+    if dimensions.get("gate3_external_discretionary_hyphen", 0) == 1:
+        return GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
+    if dimensions.get("gate3_soft_hyphen", 0) == 1:
+        return GATE3_SOFT_HYPHEN_CONTENT
+    if dimensions.get("gate3_supplementary_text", 0) == 1:
+        return GATE3_SUPPLEMENTARY_TEXT_CONTENT
+    if dimensions.get("gate3_cjk_text", 0) == 1:
+        return GATE3_CJK_TEXT_CONTENT
+    if dimensions.get("gate3_ligature_text", 0) == 1:
+        return GATE3_LIGATURE_CONTENT
+    if dimensions.get("gate3_actual_text", 0) == 1:
+        return GATE3_ACTUAL_TEXT_CONTENT
+    if dimensions.get("gate3_visible_text", 0) == 1 or dimensions.get("gate3_caller_text", 0) == 1:
+        return GATE3_TEXT_CONTENT
     if dimensions.get("gate2_minimal_content", 0) == 1:
         return (
             b"/P <</MCID 0>> BDC\n"
@@ -402,6 +470,7 @@ def run_case(
     protocol_version: int,
     roc_optimization: str,
     update_snapshots: bool,
+    check_allocations: bool,
     compare_baselines: bool,
     linux_x64_container: str | None,
 ) -> BaselineDelta | None:
@@ -477,7 +546,12 @@ def run_case(
     actual_work = () if not work_text else tuple(int(value) for value in work_text.split(b","))
     actual_metrics = Metrics(int(match.group(allocations_group)), actual_work)
     expected_metrics = case.expectations[target]
-    mismatch = metrics_mismatch(expected_metrics, actual_metrics, case.work_counters)
+    mismatch = metrics_mismatch(
+        expected_metrics,
+        actual_metrics,
+        case.work_counters,
+        check_allocations,
+    )
     if mismatch is not None:
         if not compare_baselines:
             raise SystemExit(f"{case.name}: performance baseline mismatch: {mismatch}")
@@ -507,16 +581,54 @@ def run_case(
 
     expected_pages = case.dimensions.get("pages")
     if expected_pages is not None:
-        validate_pdf(
-            result.stdout,
-            expected_pages,
-            expected_content(case.dimensions),
-            case.dimensions.get("normalized_plan_identity", 0) == 1,
-        )
-        print(f"PASS {case.name}: independent offsets, lengths, xref, and page facts", flush=True)
-        if case.dimensions.get("gate2_minimal_content", 0) == 1:
-            validate_gate2_pdf(result.stdout)
-            print(f"PASS {case.name}: exact normalized tagged structure and resources", flush=True)
+        if case.dimensions.get("gate3_facade_output", 0) == 1:
+            expected_text, _ = fixture_oracle()
+            validate_facade_output_pdf(result.stdout, expected_text)
+            print(f"PASS {case.name}: independent offsets, lengths, xref, page, authored facade paragraph, Type 0 font, CID, and Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_multiface_text", 0) == 1:
+            validate_gate3_multiface_text_pdf(result.stdout)
+            print(f"PASS {case.name}: exact selected Latin/CJK Type 0 resources, CID maps, and Unicode mappings", flush=True)
+        elif case.dimensions.get("gate3_generated_label", 0) == 1:
+            validate_generated_labels_pdf(result.stdout)
+            print(f"PASS {case.name}: independent offsets, lengths, xref, typed list ownership, labels, Type 0 font, CID, and Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_caller_facade", 0) == 1:
+            validate_gate3_caller_facade_pdf(result.stdout)
+            print(f"PASS {case.name}: independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts", flush=True)
+        else:
+            validate_pdf(
+                result.stdout,
+                expected_pages,
+                expected_content(case.dimensions),
+                case.dimensions.get("normalized_plan_identity", 0) == 1,
+            )
+            print(f"PASS {case.name}: independent offsets, lengths, xref, and page facts", flush=True)
+            if case.dimensions.get("gate2_minimal_content", 0) == 1:
+                validate_gate2_pdf(result.stdout)
+                print(f"PASS {case.name}: exact normalized tagged structure and resources", flush=True)
+            if case.dimensions.get("gate3_visible_text", 0) == 1:
+                validate_gate3_text_pdf(result.stdout)
+                print(f"PASS {case.name}: exact font, CID, Unicode mapping, and visible text facts", flush=True)
+            if case.dimensions.get("gate3_caller_text", 0) == 1:
+                validate_gate3_caller_text_pdf(result.stdout)
+                print(f"PASS {case.name}: exact caller font identity, CID, Unicode mapping, and visible text facts", flush=True)
+            if case.dimensions.get("gate3_actual_text", 0) == 1:
+                validate_gate3_actual_text_pdf(result.stdout)
+                print(f"PASS {case.name}: exact visual reordering and logical ActualText facts", flush=True)
+            if case.dimensions.get("gate3_supplementary_text", 0) == 1:
+                validate_gate3_supplementary_text_pdf(result.stdout)
+                print(f"PASS {case.name}: exact supplementary-plane UTF-16BE, CID, Unicode mapping, and sanitized subset facts", flush=True)
+            if case.dimensions.get("gate3_cjk_text", 0) == 1:
+                validate_gate3_cjk_text_pdf(result.stdout)
+                print(f"PASS {case.name}: exact CJK CID widths, Unicode mapping, and sanitized subset facts", flush=True)
+            if case.dimensions.get("gate3_ligature_text", 0) == 1:
+                validate_ligature_pdf(result.stdout)
+                print(f"PASS {case.name}: parsed GSUB fact, ligature CID, ActualText, Unicode mapping, and sanitized subset facts", flush=True)
+            if case.dimensions.get("gate3_soft_hyphen", 0) == 1:
+                validate_soft_hyphen_pdf(result.stdout)
+                print(f"PASS {case.name}: explicit U+00AD source, selected presentation, ActualText, CID, and subset facts", flush=True)
+            if case.dimensions.get("gate3_external_discretionary_hyphen", 0) == 1:
+                validate_external_discretionary_hyphen_pdf(result.stdout)
+                print(f"PASS {case.name}: external zero-width source boundary, selected visible hyphen, ActualText, CID, and subset facts", flush=True)
 
     if mismatch is None:
         return None
@@ -539,6 +651,11 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--allocation-baselines",
+        action="store_true",
+        help="Use the pinned dev backend and require exact Roc allocation baselines",
+    )
+    parser.add_argument(
         "--linux-x64-container",
         metavar="IMAGE",
         help=(
@@ -546,20 +663,50 @@ def main() -> None:
             "container image"
         ),
     )
+    parser.add_argument(
+        "--case",
+        action="append",
+        dest="case_names",
+        metavar="NAME",
+        help="Run only the exact named case; repeat to select multiple cases",
+    )
     args = parser.parse_args()
     if args.update_snapshots and args.compare_baselines:
         parser.error("--update-snapshots and --compare-baselines cannot be combined")
+    check_allocations = args.allocation_baselines or args.compare_baselines
     suite = load_suite()
+    if args.case_names:
+        requested = set(args.case_names)
+        selected = tuple(case for case in suite.cases if case.name in requested)
+        missing = requested - {case.name for case in selected}
+        if missing:
+            raise SystemExit(f"unknown test case(s): {', '.join(sorted(missing))}")
+        suite = TestSuite(suite.protocol_version, suite.toolchain, selected)
     target = "x64musl" if args.linux_x64_container is not None else native_roc_target()
 
-    command(sys.executable, "scripts/check_contracts.py", "--self-test")
+    if not args.update_snapshots:
+        command(sys.executable, "scripts/check_contracts.py", "--self-test")
     command(sys.executable, "scripts/check_arlington.py", "--self-test")
     command(sys.executable, "scripts/check_pdfbox.py", "--self-test")
     command(sys.executable, "scripts/check_gate2.py", "--self-test")
     command(sys.executable, "scripts/check_gate2_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_caller_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_caller_facade.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_facade_output.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_generated_labels.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_actual_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_supplementary_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_cjk_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_ligature.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_multiface_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_soft_hyphen.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_external_discretionary_hyphen.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
+    self_test_roc_version_pin()
     verify_toolchain(suite.toolchain)
 
     roc_sources = sorted((ROOT / "package").glob("*.roc"))
@@ -602,8 +749,9 @@ def main() -> None:
                 build_dir,
                 target,
                 suite.protocol_version,
-                suite.toolchain.roc_optimization,
+                suite.toolchain.roc_optimization if check_allocations else "dev",
                 args.update_snapshots,
+                check_allocations,
                 args.compare_baselines,
                 args.linux_x64_container,
             )
@@ -611,6 +759,7 @@ def main() -> None:
                 baseline_deltas.append(delta)
 
     if args.update_snapshots:
+        command(sys.executable, "scripts/check_contracts.py", "--self-test")
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
 
     if baseline_deltas:

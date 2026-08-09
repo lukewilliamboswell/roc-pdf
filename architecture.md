@@ -506,6 +506,48 @@ validated packaged or caller-provided resources, and a theme override cannot
 weaken the selected profile. The built-in theme is versioned because changing
 its metrics, fonts, or spacing can change pagination and bytes.
 
+Packaging and PDF embedding are separate boundaries. The core package ships
+only the small, audited deterministic assets required by its default facade,
+including its deliberately limited built-in font coverage and, when the static
+profile is available, its default sRGB profile. Broad multilingual fonts,
+specialist typefaces, images, and language-specific data are not accumulated in
+the core package merely to make them selectable. They may be supplied by the
+application or by optional pure Roc asset packages chosen by the application.
+Test corpora and fixture assets are not production package dependencies.
+
+The package performs no resource acquisition effects. An application or its
+platform may read a file, fetch a response, query a store, or obtain bytes from
+another package, but it passes the complete replayable `List(U8)` value into
+the pure PDF API before validation and generation. Before Gate 3 is complete,
+the public facade or `Font` boundary provides a typed constructor and registry
+path that validates those bytes and returns an opaque font face or policy handle
+that a `Theme` can select. Callers never invent dense resource IDs or provide a
+system-font name. The same pattern applies to other large caller-provided
+resources as their gates make them public.
+
+`Font.Registry.register` is that font boundary. Registration is transactional:
+it validates the complete byte allocation and declared script provision before
+allocating dense resource, face, static-instance, and policy handles. The
+returned registry retains the original immutable input allocation together with
+its once-produced inspection facts; it does not copy the font payload into a
+second byte list. `Theme.with_font` accepts the returned face handle. A caller
+cannot register a name, path, URL, partial stream, or caller-selected identity.
+
+Validated font identity and metrics are source facts. Inspection records exact
+ranges for the selected family, full, and PostScript name strings and the OS/2
+CapHeight. Subsetting prefixes and copies those retained ranges; PDF font
+dictionaries and descriptors consume the same facts. Neither caller metadata
+nor a packaged-font constant may rename a subset or replace a validated metric.
+
+Caller-provided means external to the package distribution, not external to the
+generated document. Every selected resource is validated under the same
+conformance, security, determinism, ownership, and retention rules as a packaged
+resource. Font subsetting reduces the font program embedded in an individual
+PDF; it is not a reason to bundle the original broad font collection with the
+core package. `StaticPdfA4` output embeds the resulting subset and all other
+required resources, and never leaves a file, network, system-font, or optional
+asset-package dependency for the PDF reader to resolve.
+
 The common path is deliberately short:
 
 ```roc
@@ -575,8 +617,10 @@ unfinished claim is never selected implicitly. The enduring defaults are:
 - The required catalog `/MarkInfo` and page `/Tabs` values for the selected
   tagged and PDF/UA-2 claims, as defined clause-by-clause in the conformance
   ledger.
-- Embedded and deterministically subsetted package fonts with known embedding
-  rights; no system-font lookup or substitution.
+- Embedded and deterministically subsetted selected fonts with known embedding
+  rights. The default theme selects the small packaged face; an overriding
+  theme may select a validated caller-provided face. There is no system-font
+  lookup or substitution.
 - The pinned sRGB output intent and color-managed static profile.
 - Deterministic object planning, metadata, identifiers, compression, and byte
   output.
@@ -817,6 +861,13 @@ instances. Selection uses those facts rather than system lookup or best-effort
 fallback. Uncovered scalars and unsupported shaping are errors before final
 layout.
 
+The caller-provided path starts from complete replayable font bytes acquired by
+the application or its platform. Validation produces the same opaque face and
+instance identities used for packaged fonts, so subsequent planning does not
+branch on provenance. Optional font/data packages provide ordinary explicit
+inputs through this boundary; they do not become hidden runtime services or
+grant `roc-pdf` filesystem or network access.
+
 ## Page scenes and content ownership
 
 Pages contain a balanced scene tree rather than raw PDF content operators:
@@ -866,6 +917,7 @@ The PDF package consumes positioned glyph runs, not unshaped strings:
 ```text
 GlyphRun
 |- exact validated font instance
+|- positive layout size used to scale the selected instance
 |- content occurrence ID and exact scalar range
 |- glyph IDs, advances, and offsets
 |- explicit range-relative Unicode-to-glyph cluster mapping
@@ -886,6 +938,23 @@ only the shaping and presentation evidence for that range. An `OwnedGroup`
 supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
 never a second run-local string.
+
+PDF text lowering requires `ActualText` for right-to-left runs, explicit
+source-to-presentation transformations, reordered or contextual clusters, and
+clusters that reference more than one painted glyph. Occurrence-derived text
+copies the run's exact scalar range from the bounded source cache. A semantic
+override is accepted only when its dense ID lies within that occurrence's
+owned text-property range and identifies an `ActualText` value. Both paths are
+bounded by a cumulative scalar limit before content emission. The value is
+serialized canonically as a BOM-prefixed UTF-16BE hex string around the run's
+marked-content sequence.
+
+Every painted CID retains a `ToUnicode` entry even when `ActualText` is
+authoritative. If one CID has different occurrence mappings, lowering rejects
+the ambiguity unless the affected run has explicit `ActualText`; in that case
+it retains the first mapping in deterministic traversal order and records the
+resolved conflict as work evidence. Exact logical extraction still comes from
+`ActualText`, not from that necessarily lossy per-CID fallback.
 
 Presentation evidence explicitly covers inserted discretionary hyphens,
 suppressed soft hyphens, generated labels and counters, ligature replacement
@@ -1314,7 +1383,7 @@ retained with asset provenance and promoted to ordinary regression tests. This
 lane complements rather than replaces typed construct generation and atomic
 hand-authored negative twins.
 
-Performance evidence uses pinned optimized Roc builds and combines controlled
+Performance evidence uses the pinned Roc dev backend and combines controlled
 timing and peak-RSS jobs with deterministic operation counters. Every focused
 test case records the exact number of Roc allocations after resetting the
 allocator counter at its declared Roc measurement boundary. Whole-pipeline
@@ -1356,7 +1425,7 @@ chunks; unique and deliberately shared pipeline values; and offsets beyond 4
 GiB through a counting sink. Hot-loop codegen audits require no allocation or
 ARC operation per emitted byte, glyph, path command, or object in selected
 kernels. Direct loops and proposed `Iter` implementations are compared under
-the same optimized build before an iterator becomes a hot-path choice.
+the same pinned dev backend before an iterator becomes a hot-path choice.
 
 Ordinary CI uses PDFium and PDFBox as independent reader/render/extraction
 paths. PDF.js adds browser text-, annotation-, and structure-layer coverage.
