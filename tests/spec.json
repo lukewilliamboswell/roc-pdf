@@ -818,6 +818,36 @@
       "retention": null
     },
     {
+      "name": "Gate 3 CJK searchable text",
+      "scenario_revision": "gate3-cjk-v1-noto-sc-static-fixture",
+      "source": "tests/gate3_cjk_text/main.roc",
+      "snapshot": "tests/gate3_cjk_text/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "font_bytes": 2104, "glyphs": 1, "unicode_mappings": 1, "objects": 20, "gate3_cjk_text": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "runs", "clusters", "glyphs", "glyph_indices", "source_scalars", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 144, "work": [2104, 1, 1, 1, 1, 1, 0, 0, 1, 109, 20, 3957] },
+        "x64musl": { "allocations": 144, "work": [2104, 1, 1, 1, 1, 1, 0, 0, 1, 109, 20, 3957] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 CJK text atomic negative",
+      "scenario_revision": "gate3-cjk-v1-noto-sc-static-fixture",
+      "source": "tests/gate3_cjk_text_negative/main.roc",
+      "snapshot": "tests/gate3_cjk_text_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "cjk_source_range_rejected": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["cjk_source_range_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 46, "work": [1, 667] },
+        "x64musl": { "allocations": 46, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 facade text prepared-input control x1000",
       "scenario_revision": "gate3-facade-text-materialization-v1",
       "source": "tests/gate3_facade_text/main.roc",

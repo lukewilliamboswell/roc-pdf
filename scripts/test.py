@@ -21,6 +21,8 @@ from check_gate3_caller_facade import validate_gate3_caller_facade_pdf
 from check_gate3_facade_output import fixture_oracle, validate_facade_output_pdf
 from check_gate3_supplementary_text import EXPECTED_CONTENT as GATE3_SUPPLEMENTARY_TEXT_CONTENT
 from check_gate3_supplementary_text import validate_gate3_supplementary_text_pdf
+from check_gate3_cjk_text import EXPECTED_CONTENT as GATE3_CJK_TEXT_CONTENT
+from check_gate3_cjk_text import validate_gate3_cjk_text_pdf
 from check_gate3_generated_labels import validate_generated_labels_pdf
 from check_gate3_text import EXPECTED_CONTENT as GATE3_TEXT_CONTENT
 from check_gate3_text import validate_gate3_text_pdf
@@ -428,6 +430,8 @@ def verify_toolchain(toolchain: Toolchain) -> None:
 def expected_content(dimensions: dict[str, int]) -> bytes:
     if dimensions.get("gate3_supplementary_text", 0) == 1:
         return GATE3_SUPPLEMENTARY_TEXT_CONTENT
+    if dimensions.get("gate3_cjk_text", 0) == 1:
+        return GATE3_CJK_TEXT_CONTENT
     if dimensions.get("gate3_actual_text", 0) == 1:
         return GATE3_ACTUAL_TEXT_CONTENT
     if dimensions.get("gate3_visible_text", 0) == 1 or dimensions.get("gate3_caller_text", 0) == 1:
@@ -612,6 +616,9 @@ def run_case(
             if case.dimensions.get("gate3_supplementary_text", 0) == 1:
                 validate_gate3_supplementary_text_pdf(result.stdout)
                 print(f"PASS {case.name}: exact supplementary-plane UTF-16BE, CID, Unicode mapping, and sanitized subset facts", flush=True)
+            if case.dimensions.get("gate3_cjk_text", 0) == 1:
+                validate_gate3_cjk_text_pdf(result.stdout)
+                print(f"PASS {case.name}: exact CJK CID widths, Unicode mapping, and sanitized subset facts", flush=True)
 
     if mismatch is None:
         return None
@@ -680,6 +687,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate3_generated_labels.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_actual_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_supplementary_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_cjk_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")

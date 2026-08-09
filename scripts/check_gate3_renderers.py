@@ -16,6 +16,7 @@ SNAPSHOT = ROOT / "tests" / "gate3_text" / "snapshot.pdf"
 CALLER_SNAPSHOT = ROOT / "tests" / "gate3_caller_text" / "snapshot.pdf"
 ACTUAL_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_actual_text" / "snapshot.pdf"
 SUPPLEMENTARY_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_supplementary_text" / "snapshot.pdf"
+CJK_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_cjk_text" / "snapshot.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxRender.java"
 
@@ -34,6 +35,8 @@ PDFBOX_ACTUAL_TEXT_EXPECTED = InkMetrics(bounds=(72, 133, 81, 142), changed_pixe
 PDFIUM_ACTUAL_TEXT_EXPECTED = InkMetrics(bounds=(71, 133, 82, 142), changed_pixels=78, dark_pixels=27, ink=7350)
 PDFBOX_SUPPLEMENTARY_EXPECTED = InkMetrics(bounds=(72, 133, 81, 142), changed_pixels=65, dark_pixels=30, ink=7884)
 PDFIUM_SUPPLEMENTARY_EXPECTED = InkMetrics(bounds=(72, 133, 81, 142), changed_pixels=77, dark_pixels=30, ink=8280)
+PDFBOX_CJK_EXPECTED = InkMetrics(bounds=(73, 132, 81, 142), changed_pixels=47, dark_pixels=20, ink=6866)
+PDFIUM_CJK_EXPECTED = InkMetrics(bounds=(72, 132, 82, 142), changed_pixels=77, dark_pixels=32, ink=7649)
 BOUNDS_TOLERANCE = 2
 CHANGED_PIXELS_TOLERANCE = 60
 DARK_PIXELS_TOLERANCE = 40
@@ -149,6 +152,8 @@ def self_test() -> None:
     assert_close("exact PDFium ActualText synthetic", PDFIUM_ACTUAL_TEXT_EXPECTED, PDFIUM_ACTUAL_TEXT_EXPECTED)
     assert_close("exact PDFBox supplementary synthetic", PDFBOX_SUPPLEMENTARY_EXPECTED, PDFBOX_SUPPLEMENTARY_EXPECTED)
     assert_close("exact PDFium supplementary synthetic", PDFIUM_SUPPLEMENTARY_EXPECTED, PDFIUM_SUPPLEMENTARY_EXPECTED)
+    assert_close("exact PDFBox CJK synthetic", PDFBOX_CJK_EXPECTED, PDFBOX_CJK_EXPECTED)
+    assert_close("exact PDFium CJK synthetic", PDFIUM_CJK_EXPECTED, PDFIUM_CJK_EXPECTED)
     assert_geometry_agreement(PDFIUM_EXPECTED, PDFBOX_EXPECTED)
     mutation = InkMetrics(
         bounds=(PDFBOX_EXPECTED.bounds[0] + BOUNDS_TOLERANCE + 1, *PDFBOX_EXPECTED.bounds[1:]),
@@ -184,13 +189,14 @@ def main() -> None:
     parser.add_argument("--caller", action="store_true")
     parser.add_argument("--actual-text", action="store_true")
     parser.add_argument("--supplementary", action="store_true")
+    parser.add_argument("--cjk", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
         return
     require(args.pdfium_renderer is not None, "--pdfium-renderer is required unless --self-test is used")
-    require(sum((args.caller, args.actual_text, args.supplementary)) <= 1, "--caller, --actual-text, and --supplementary are mutually exclusive")
+    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk)) <= 1, "--caller, --actual-text, --supplementary, and --cjk are mutually exclusive")
     if args.actual_text:
         snapshot = ACTUAL_TEXT_SNAPSHOT
         label = "reordered ActualText"
@@ -201,6 +207,11 @@ def main() -> None:
         label = "supplementary-plane text"
         pdfbox_expected = PDFBOX_SUPPLEMENTARY_EXPECTED
         pdfium_expected = PDFIUM_SUPPLEMENTARY_EXPECTED
+    elif args.cjk:
+        snapshot = CJK_TEXT_SNAPSHOT
+        label = "CJK text"
+        pdfbox_expected = PDFBOX_CJK_EXPECTED
+        pdfium_expected = PDFIUM_CJK_EXPECTED
     elif args.caller:
         snapshot = CALLER_SNAPSHOT
         label = "caller-font text"
