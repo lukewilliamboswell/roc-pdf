@@ -2,11 +2,38 @@ import Conformance
 import Document
 import KernelLex
 import KernelEmit
+import KernelFacadePipeline
+import KernelFont
+import KernelFontPlan
+import KernelFacadeFragments
+import KernelFacadeLines
+import KernelFacadeOutput
+import KernelFacadePages
+import KernelFacadeScenes
+import KernelFacadeSemantics
+import KernelFacadeShape
+import KernelFacadeSources
+import KernelFacadeText
+import KernelColor
+import KernelContent
+import KernelGate2Objects
+import KernelGate3TaggedTextStructure
+import KernelImage
+import KernelLineLayout
+import KernelPageLayout
+import KernelPdfFont
+import KernelPdfText
+import KernelScene
 import KernelUnicode
 import KernelObject
 import KernelSeal
 import KernelStructure
+import KernelSemantics
+import KernelShape
+import KernelTextSemantics
+import Layout
 import Theme
+import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Pdf :: [].{
 	Profile := [AccessibleArchive, Archive, Standard]
@@ -80,15 +107,14 @@ Pdf :: [].{
 	page_footer : Str -> Document.Block
 	page_footer = |text| Document.page_footer(text)
 
-	## Gate 1 emits a structural blank document only. Meaningful authoring
-	## content and stricter profiles remain explicit unavailable capabilities.
+	## Standard authored content follows the completed typed facade pipeline.
+	## Archive claims remain unavailable until their independent gates close.
 	to_bytes : Document -> Try(List(U8), Error)
 	to_bytes = |doc| to_bytes_with(doc, Options.default)
 
 	to_bytes_with : Document, Options -> Try(List(U8), Error)
 	to_bytes_with = |doc, options| {
-		validate_gate_1_request(doc, options)?
-		plan = KernelStructure.build_blank(1, structure_page_size(options.page_size)) ? |_| InternalGenerationFailure
+		plan = build_standard_plan(doc, options)?
 		bytes = KernelEmit.to_bytes(plan) ? |_| InternalGenerationFailure
 		Ok(bytes)
 	}
@@ -131,10 +157,132 @@ validate_gate_1_request = |doc, options| {
 	}
 }
 
+build_standard_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
+build_standard_plan = |doc, options| {
+	validate_standard_request(options)?
+	if Document.block_count(doc) == 0 {
+		plan = KernelStructure.build_blank(1, structure_page_size(options.page_size)) ? |_| InternalGenerationFailure
+		return Ok(plan)
+	}
+	font = KernelFont.inspect(built_in_font_bytes, standard_font_limits) ? |_| InternalGenerationFailure
+	pipeline = KernelFacadePipeline.Plan.build(
+		Document.normalize(doc),
+		font,
+		options.theme,
+		layout_page_size(options.page_size),
+		standard_font_descriptor,
+		standard_pipeline_limits,
+	) ? |_| UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+	Ok(KernelFacadePipeline.Plan.structure(pipeline))
+}
+
+validate_standard_request : Pdf.Options -> Try({}, Pdf.Error)
+validate_standard_request = |options| {
+	match options.profile {
+		Archive => Err(Pdf.Error.CapabilityUnavailable(Pdf.Feature.PdfA4Generation))
+		AccessibleArchive => Err(Pdf.Error.CapabilityUnavailable(Pdf.Feature.PdfUa2Generation))
+		Standard => Ok({})
+	}
+}
+
 structure_page_size : Pdf.PageSize -> KernelStructure.PageSize
 structure_page_size = |page_size| match page_size {
 	A4 => KernelStructure.PageSize.A4
 	Letter => KernelStructure.PageSize.Letter
+}
+
+layout_page_size : Pdf.PageSize -> Layout.Size
+layout_page_size = |page_size| match page_size {
+	A4 => { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
+	Letter => { height: Layout.Unit.from_raw(792000), width: Layout.Unit.from_raw(612000) }
+}
+
+standard_font_limits : KernelFont.Limits
+standard_font_limits = KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })
+
+standard_font_descriptor : KernelPdfFont.Descriptor
+standard_font_descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
+
+standard_pipeline_limits : KernelFacadePipeline.Limits
+standard_pipeline_limits = KernelFacadePipeline.Limits.make({
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 4 }),
+	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 100000, max_occurrences: 2048, max_pages: 1024 }),
+	lines: KernelFacadeLines.Limits.make({
+		line: KernelLineLayout.BatchLimits.make({
+			line: KernelLineLayout.Limits.make({ max_boundaries: 1000001, max_candidates: 2000000, max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_lines: 1000000 }),
+			max_key_probes: 1000000,
+			max_lines: 1000000,
+			max_runs: 2048,
+			max_table_slots: 8192,
+			max_templates: 2048,
+		}),
+		max_blocks: 2048,
+		max_runs: 2048,
+	}),
+	output: KernelFacadeOutput.Limits.make({
+		content: KernelContent.Limits.make({ max_content_bytes: 16000000, max_content_streams: 1024 }),
+		font_plan: KernelFontPlan.Limits.make({ max_retained_glyphs: 10000 }),
+		images: KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
+		max_objects: 65536,
+		objects: KernelGate2Objects.Limits.make({ max_objects: 65527, max_pages: 1024 }),
+		structure: KernelGate3TaggedTextStructure.Limits.make({
+			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 1000000, max_unicode_mappings: 10000, max_unicode_scalars: 1000000 }),
+			object_limits: standard_object_limits,
+		}),
+		text: KernelPdfText.Limits.make({ max_actual_text_scalars: 1000000, max_content_bytes: 16000000, max_mappings: 10000, max_placements: 0, max_source_scalars: 1000000 }),
+	}),
+	pages: KernelFacadePages.Limits.make({
+		max_blocks: 2048,
+		max_rows: 1000000,
+		page: KernelPageLayout.Limits.make({ max_blocks: 2048, max_fragments: 1000000, max_lines: 1000000, max_pages: 1024, max_placements: 1000000 }),
+	}),
+	scenes: KernelFacadeScenes.Limits.make({
+		color: KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 }),
+		max_commands: 2000000,
+		max_groups: 1000000,
+		max_page_group_edges: 1000000,
+		max_pages: 1024,
+		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 0, max_paths: 0 }),
+	}),
+	semantics: KernelFacadeSemantics.Limits.make({
+		max_artifacts: 0,
+		max_content_spine: 8192,
+		max_nodes: 4096,
+		max_occurrences: 2048,
+		max_properties: 2048,
+		max_source_inputs: 2048,
+		semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 8192, max_fragments: 0, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 4 }),
+		sources: KernelFacadeSources.Limits.make({
+			max_hash_probes: 1000000,
+			max_inputs: 2048,
+			max_source_bytes: 1000000,
+			max_source_scalars: 1000000,
+			max_table_slots: 8192,
+			max_unique_sources: 2048,
+			unicode: { max_graphemes: 1000000, max_line_boundaries: 1000001, max_scalars: 1000000, max_script_runs: 2048 },
+		}),
+		text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: 2048, max_text_property_bytes: 1000000, max_text_source_bytes: 1000000, max_text_source_scalars: 1000000, max_text_sources: 2048 }),
+	}),
+	shape: KernelFacadeShape.Limits.make({ max_requests: 2048, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) }),
+	text: KernelFacadeText.Limits.make({ max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_pages: 1024, max_placements: 1000000, max_runs: 1000000 }),
+})
+
+standard_object_limits : KernelObject.Limits
+standard_object_limits = {
+	max_array_items: 1000000,
+	max_byte_string_bytes: 0,
+	max_byte_strings: 0,
+	max_dictionary_entries: 1000000,
+	max_direct_depth: 8,
+	max_name_bytes: 8192,
+	max_names: 100000,
+	max_objects: 65536,
+	max_payload_bytes: 16000000,
+	max_payloads: 100000,
+	max_streams: 100000,
+	max_text_string_bytes: 1000000,
+	max_text_strings: 2048,
+	max_values: 1000000,
 }
 
 ## Public profiles map to exact claim sets without enabling orthogonal WTPDF claims.
@@ -207,7 +355,7 @@ expect {
 	bytes.len() > 0
 }
 
-## Unsupported authoring content fails transactionally instead of emitting a blank fallback.
+## Standard authored content crosses the public facade without exposing PDF internals.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -215,8 +363,21 @@ expect {
 		title: "Report",
 	})
 
+	bytes = Pdf.to_bytes(document)?
+	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
+}
+
+## Unsupported page artifacts reject atomically through the facade; no blank
+## document or partial bytes can escape a Try error.
+expect {
+	document = Pdf.document({
+		contents: [Pdf.page_header("Running header")],
+		language: "en-AU",
+		title: "Artifact rejection",
+	})
+
 	match Pdf.to_bytes(document) {
-		Err(UnsupportedAuthoringContent({ blocks })) => blocks == 2
+		Err(UnsupportedAuthoringContent({ blocks })) => blocks == 1
 		_ => False
 	}
 }
@@ -227,6 +388,19 @@ expect {
 	bytes = Pdf.to_bytes(document)?
 
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
+}
+
+## The explicit Standard option takes the same authored-content path.
+expect {
+	document = Pdf.document({
+		contents: [Pdf.paragraph("Explicit Standard")],
+		language: "en-AU",
+		title: "Explicit Standard",
+	})
+	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard)
+	bytes = Pdf.to_bytes_with(document, options)?
+
+	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
 ## Archive remains unavailable rather than silently emitting Standard output.

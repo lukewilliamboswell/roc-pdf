@@ -7,7 +7,8 @@ Branch: `codex/gate-3`
 Draft PR: <https://github.com/lukewilliamboswell/roc-pdf/pull/6>
 
 This is a work-in-progress checkpoint. It does not close Gate 3 or claim that
-the high-level `Pdf` facade emits visible text yet.
+the high-level facade has completed the remaining multilingual, caller-font,
+renderer, extraction, or allocation evidence.
 
 ## Completed in this checkpoint
 
@@ -27,11 +28,16 @@ the high-level `Pdf` facade emits visible text yet.
   shaping, line layout, pagination, text materialization, fragments, scenes,
   and output. A focused evidence executable records the current runtime
   boundary without adding a passing snapshot case prematurely.
+- `Pdf.to_bytes` and `Pdf.to_bytes_with` now select that completed pipeline
+  for nonblank `Standard` documents. The public one-import fixture covers an
+  authored paragraph and an atomic unsupported-artifact rejection; blank
+  documents retain the structural blank path, while `Archive` and
+  `AccessibleArchive` remain unavailable.
 
 The built-in font is imported as `List(U8)` with Roc's byte-list `import`
 syntax. It is not embedded as Roc source.
 
-## Confirmed blocker
+## Resolved line-layout blocker
 
 The smallest current real-authoring example is one paragraph:
 `Café PDF generation in pure Roc.` Semantics and shaping complete, but entering
@@ -50,10 +56,10 @@ The staged probe gives this boundary:
 | Lines | integer-subtraction trap | no result |
 | Pages through output | not reached | no result |
 
-This places the first failure in `KernelFacadeLines`/`KernelLineLayout`, before
-pagination, scene construction, font subsetting, or PDF emission. Blank PDFs
-from older structural snapshot fixtures are not evidence that the visible-text
-pipeline succeeds.
+This previously placed the first failure in `KernelFacadeLines`/`KernelLineLayout`,
+before pagination, scene construction, font subsetting, or PDF emission. The
+patched compiler now completes that path; the stage probe remains a focused
+regression boundary rather than the only evidence of output.
 
 ## Reproduction
 
@@ -83,23 +89,17 @@ do not switch this probe to `--opt=speed`.
 
 ## Next steps
 
-1. Add a minimal shape-to-line diagnostic using the same source and call
-   `KernelLineLayout.Plan.build_simple` directly. This will distinguish the
-   core line breaker from the facade batch wrapper.
-2. Identify the exact unchecked subtraction and fix the violated invariant at
-   its owning stage. Invalid input or bounds must return a stable typed error;
-   the fix must not use saturation or silent fallback.
-3. Add an atomic negative case for the invariant and run its exact allocation,
-   deterministic-work, and snapshot evidence through `./scripts/test.py`.
-4. Re-run the real-authoring visible path. Once it succeeds, remove or convert
-   the temporary stage-probe API and add a dedicated non-blank PDF fixture with
-   reviewed allocation and work baselines.
-5. Complete the Gate 3 output evidence: structural font/CID/ToUnicode/content
+1. Promote the public one-import fixture into `tests/spec.json` only together
+   with its separately reviewed dev-backend allocation baseline and snapshot.
+   Its structural checker already validates the original emitted bytes; its
+   baseline must not be accepted mechanically alongside the pending bulk
+   rebaseline.
+2. Complete the Gate 3 output evidence: structural font/CID/ToUnicode/content
    assertions, PDFBox extraction, renderer checks, and independent PDF
    validation oracles required by the roadmap.
-6. Wire the completed pipeline into the Standard-profile `Pdf.to_bytes` facade,
-   keeping advanced object details out of the common path.
-7. Audit every Gate 3 roadmap row, including caller-font behavior and
+3. Complete the public caller-font/theme path and its source-retention and
+   multi-placement parse-reuse evidence.
+4. Audit every Gate 3 roadmap row, including caller-font behavior and
    performance bounds, before adding the Gate 3 closure record.
 
 Do not accept allocation or PDF snapshot changes mechanically while completing

@@ -1,8 +1,7 @@
 # Gate 3 facade-output oracle boundary
 
-This document records the evidence boundary prepared for the first real
-high-level `Pdf` facade output. It does not claim that output exists or close
-any Gate 3 capability.
+This document records the evidence boundary for the first real high-level
+`Pdf` facade output. It does not close any Gate 3 capability.
 
 The input case is one authored paragraph with the built-in theme and a
 `Standard` profile. The core slice must provide a deterministic nonblank PDF,
@@ -34,14 +33,16 @@ PDF and the authored expected text. Its checker self-test uses the existing
 visible-text fixture and rejects independent same-length changes to a
 `ToUnicode` row, `/Identity-H`, and embedded-font length.
 
-When the line-layout dependency is fixed, the integration change must add the
-facade-output fixture to `tests/spec.json`, give it the reviewed exact
-allocation and deterministic-work record, and invoke this checker from the
-test harness after snapshot comparison. It must also pin renderer metrics from
-the new original bytes. Those values must be reviewed as properties of the
-facade pipeline; they are not inherited from the synthetic visible-text case.
+The public one-import fixture now exercises this input through
+`Pdf.to_bytes`. It remains outside `tests/spec.json` until its snapshot and
+exact dev-backend allocation record can join the separately reviewed baseline
+update. The fixture's direct structural invocation establishes this boundary
+without silently accepting that pending allocation delta. When it is promoted,
+the harness must invoke this checker after snapshot comparison and pin renderer
+metrics from the original bytes. Those values are properties of the facade
+pipeline; they are not inherited from the synthetic visible-text case.
 
-The facade case still needs its implementation-owned atomic negative twin
-(invalid input or violated stage invariant, stable diagnostic, and no emitted
-PDF). Mutating output bytes is only the independent checker self-test and is
-not a substitute for that typed failure evidence.
+The facade case has an implementation-owned atomic negative twin: an authored
+page artifact is rejected as unsupported with no `List(U8)` result. Mutating
+output bytes remains only the independent checker self-test and is not a
+substitute for that typed failure evidence.
