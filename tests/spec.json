@@ -827,8 +827,8 @@
       "dimensions": { "pages": 1, "unselected_soft_hyphen_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
       "work_counters": ["soft_hyphen_rejected", "evidence_pdf_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 40, "work": [1, 667] },
-        "x64musl": { "allocations": 40, "work": [1, 667] }
+        "arm64mac": { "allocations": 41, "work": [1, 667] },
+        "x64musl": { "allocations": 41, "work": [1, 667] }
       },
       "retention": null
     },
@@ -842,8 +842,8 @@
       "dimensions": { "pages": 1, "external_discretionary_hyphen_rejected": 1, "emitted_pdf_bytes": 0, "normalized_plan_identity": 1 },
       "work_counters": ["soft_hyphen_rejected", "evidence_pdf_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 42, "work": [1, 667] },
-        "x64musl": { "allocations": 42, "work": [1, 667] }
+        "arm64mac": { "allocations": 40, "work": [1, 667] },
+        "x64musl": { "allocations": 40, "work": [1, 667] }
       },
       "retention": null
     },

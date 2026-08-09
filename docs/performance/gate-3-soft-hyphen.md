@@ -52,12 +52,14 @@ bytes. The larger bounded scalar/glyph arrays and one 6,868-byte subset are
 the architectural cost of exercising the real ten-scalar source path; the
 166,300-byte font input remains one payload.
 
-The malformed and unselected negatives allocate 40 times; the unsupported
-external selection allocates 42 due to its two-scalar boundary analysis. All
-three have deterministic work `[1, 667]`. They stop before font inspection,
-shaping, scene planning, or PDF text lowering. These are local dev-backend
-baselines only; no speed-mode measurement or cross-platform allocation claim is
-made.
+The malformed negative allocates 40 times. After the independently developed
+CJK evidence was integrated into the shared advanced-text evidence module, the
+dev backend's dead-code/monomorphization layout changed only the other two
+early carriers: unselected is 41 allocations and external selection is 40.
+Their emitted bytes and deterministic work `[1, 667]` remain unchanged. They
+stop before font inspection, shaping, scene planning, or PDF text lowering.
+These integrated local dev-backend values were reviewed together; no speed-mode
+measurement or cross-platform allocation claim is made.
 
 This closes only the explicit soft-hyphen extraction row and establishes the
 typed discretionary-selection blocker. It does not claim automatic
