@@ -477,16 +477,26 @@ def run_case(
     check_allocations: bool,
     compare_baselines: bool,
     linux_x64_container: str | None,
+    reuse_build_cache: bool,
 ) -> BaselineDelta | None:
     executable = build_dir / f"case-{index}"
-    roc(
+
+    # Every fixture is a thin wrapper over the same package modules, so a
+    # cold compiler cache recompiles that package once per case. Reuse is
+    # opt-in because a stale local cache would silently detach a snapshot or
+    # allocation baseline from the sources it claims to measure; it is safe
+    # exactly where the cache starts empty and is populated only from the
+    # checkout under test, which is what a fresh CI runner provides.
+    build_flags = [
         "build",
         relative(case.source),
         f"--opt={roc_optimization}",
         f"--target={target}",
         f"--output={executable}",
-        "--no-cache",
-    )
+    ]
+    if not reuse_build_cache:
+        build_flags.append("--no-cache")
+    roc(*build_flags)
 
     if linux_x64_container is None:
         invocation = [executable, *case.args]
@@ -680,6 +690,15 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--reuse-build-cache",
+        action="store_true",
+        help=(
+            "Reuse the Roc compiler cache across fixture builds instead of forcing a full "
+            "rebuild per case. Intended for a fresh CI runner, whose cache starts empty and "
+            "is populated only from the checkout under test"
+        ),
+    )
+    parser.add_argument(
         "--case",
         action="append",
         dest="case_names",
@@ -774,6 +793,7 @@ def main() -> None:
                 check_allocations,
                 args.compare_baselines,
                 args.linux_x64_container,
+                args.reuse_build_cache,
             )
             if delta is not None:
                 baseline_deltas.append(delta)

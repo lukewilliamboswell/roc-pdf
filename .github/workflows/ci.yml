@@ -21,12 +21,14 @@ jobs:
     defaults:
       run:
         working-directory: roc-pdf
+    # The pull-request gate runs the Linux target, which is the one with
+    # measured allocation baselines. macOS still runs on pushes to main and
+    # on demand, so platform-specific breakage is caught without paying for
+    # a second full suite on every push to a branch.
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-15
-          - ubuntu-22.04
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-22.04"]') || fromJSON('["ubuntu-22.04", "macos-15"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -48,8 +50,13 @@ jobs:
           version: nightly-new-compiler
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
+      # Every fixture is a thin wrapper over the same package modules, so a
+      # forced rebuild per case recompiles that package ~100 times. A fresh
+      # runner's cache starts empty and is filled only from this checkout,
+      # so reuse cannot detach a snapshot or baseline from its sources. The
+      # local default still forces a full rebuild per case.
       - name: Test
-        run: ./scripts/test.py
+        run: ./scripts/test.py --reuse-build-cache
 
       - name: Extract vendored qpdf 12.3.2
         if: runner.os == 'Linux'

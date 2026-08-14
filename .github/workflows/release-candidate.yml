@@ -20,12 +20,13 @@ jobs:
   bundle-and-validate:
     name: Bundle and validate (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # A pull request only needs the bundling evidence CI does not already
+    # produce, so it runs one Linux job. An actual release still bundles and
+    # validates on both platforms.
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-22.04
-          - macos-15
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-22.04"]') || fromJSON('["ubuntu-22.04", "macos-15"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -47,7 +48,12 @@ jobs:
           version: nightly-new-compiler
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
+      # On a pull request the CI workflow has already run this exact suite,
+      # so re-running it here would only duplicate ~50 minutes of runner
+      # time. A release still re-validates from scratch, because the bundle
+      # it publishes must be gated on its own complete run.
       - name: Validate public package behavior with the dev backend
+        if: github.event_name != 'pull_request'
         run: ROC=roc ./scripts/test.py --allocation-baselines
 
       - name: Bundle package
