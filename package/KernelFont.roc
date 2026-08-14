@@ -161,7 +161,7 @@ inspect_font = |bytes, limits| {
 		if $index > 0 and tag <= $previous_tag {
 			return Err(DuplicateOrUnorderedTable({ index: $index, tag }))
 		}
-		if offset % 4 != 0 or offset < directory_length or length > bytes.len() - offset {
+		if offset % 4 != 0 or offset < directory_length or offset > bytes.len() or length > bytes.len() - offset {
 			return Err(InvalidTableRange({ length, offset, tag }))
 		}
 		actual_checksum = table_checksum(bytes, offset, length, tag == tag_head)
