@@ -818,6 +818,51 @@
       "retention": null
     },
     {
+      "name": "Gate 3 chunked facade output shared resources",
+      "scenario_revision": "gate3-chunked-facade-v1-by-construction",
+      "source": "tests/gate3_pdf_facade_chunks/main.roc",
+      "snapshot": "tests/gate3_pdf_facade_chunks/snapshot.pdf",
+      "args": ["share"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authored_blocks": 1, "chunked_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["chunks", "max_chunk_bytes", "chunk_offset_weight", "byte_identical", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 2845, "work": [32, 8692, 208253, 1, 12397] },
+        "x64musl": { "allocations": 2845, "work": [32, 8692, 208253, 1, 12397] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 chunked facade output owned chunks",
+      "scenario_revision": "gate3-chunked-facade-v1-by-construction",
+      "source": "tests/gate3_pdf_facade_chunks/main.roc",
+      "snapshot": "tests/gate3_pdf_facade_chunks/snapshot.pdf",
+      "args": ["own"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "authored_blocks": 1, "chunked_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["chunks", "max_chunk_bytes", "chunk_offset_weight", "byte_identical", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 2845, "work": [32, 8692, 208253, 1, 12397] },
+        "x64musl": { "allocations": 2845, "work": [32, 8692, 208253, 1, 12397] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 chunked facade atomic negative",
+      "scenario_revision": "gate3-chunked-facade-v1-by-construction",
+      "source": "tests/gate3_pdf_facade_chunks_negative/main.roc",
+      "snapshot": "tests/gate3_pdf_facade_chunks_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "chunk_authoring_rejected": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["chunk_authoring_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 4, "work": [1, 667] },
+        "x64musl": { "allocations": 4, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
       "name": "Gate 3 generated list-label text",
       "scenario_revision": "gate3-generated-label-v1-explicit-presentation",
       "source": "tests/gate3_generated_label/main.roc",
