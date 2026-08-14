@@ -54,6 +54,7 @@ Pdf :: [].{
 		InternalGenerationFailure,
 		InvalidDocument(List(Conformance.Diagnostic)),
 		InvalidFontResource(Font.ResourceError),
+		InvalidFontSelection(List(Font.PlanError)),
 		UnsupportedAuthoringContent({ blocks : U64 }),
 	]
 
@@ -168,16 +169,52 @@ build_standard_plan = |doc, options| {
 		plan = KernelStructure.build_blank(1, structure_page_size(options.page_size)) ? |_| InternalGenerationFailure
 		return Ok(plan)
 	}
-	font = selected_font(options)?
-	pipeline = KernelFacadePipeline.Plan.build(
-		Document.normalize(doc),
-		font,
-		options.theme,
-		layout_page_size(options.page_size),
-		standard_font_descriptor,
-		standard_pipeline_limits,
-	) ? |_| UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+	pipeline = match selected_fonts(options)? {
+		Single(font) => KernelFacadePipeline.Plan.build(
+			Document.normalize(doc),
+			font,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			standard_pipeline_limits,
+		) ? |_| UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered(
+			Document.normalize(doc),
+			ordered,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			standard_pipeline_limits,
+		) ? |error| ordered_pipeline_error(error, ordered.policy, Document.block_count(doc))
+	}
 	Ok(KernelFacadePipeline.Plan.structure(pipeline))
+}
+
+## The Theme decides between exact style faces and an ordered policy. Policy
+## selection requires the caller registry that constructed the policy; the
+## packaged built-in face defines no policies, so that combination is a
+## stable typed error rather than an implicit single-face fallback.
+selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+selected_fonts = |options| match Theme.font_selection(options.theme) {
+	StyleFaces => Ok(Single(selected_font(options)?))
+	Policy(policy) => match options.font_source {
+		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
+		Registered(registry) => {
+			_faces = registry.policy_faces(policy) ? |_| InvalidFontSelection([InvalidPolicy(policy)])
+			Ok(Ordered({ policy, registry }))
+		}
+	}
+}
+
+## Ordered-selection failures surface the exact planner rejections; script
+## boundaries of the convenience path map to the planner's typed
+## unsupported-shaping fact. Everything else keeps the authored-content error.
+ordered_pipeline_error : KernelFacadePipeline.Error, Font.PolicyId, U64 -> Pdf.Error
+ordered_pipeline_error = |error, policy, blocks| match error {
+	Shape(FontSelectionRejected(errors)) => InvalidFontSelection(errors)
+	Shape(PolicyInvalid(_)) => InvalidFontSelection([InvalidPolicy(policy)])
+	Shape(UndeclaredScript({ script, source })) => InvalidFontSelection([UnsupportedBuiltInShaping({ cluster: source, script: Font.Script.from_iso15924(script) })])
+	_ => UnsupportedAuthoringContent({ blocks: blocks })
 }
 
 selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)

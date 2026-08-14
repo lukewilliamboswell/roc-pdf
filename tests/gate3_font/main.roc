@@ -45,5 +45,24 @@ main! = |args| {
 			Ok(result) => result
 		}
 	}
+	if mode == "probe" {
+		count = match args.get(2) {
+			Err(OutOfBounds) => {
+				crash "Gate 3 adversarial probe requires a cluster count"
+			}
+			Ok(value) => match U64.from_str(value) {
+				Err(_) => {
+					crash "Gate 3 adversarial probe cluster count is invalid"
+				}
+				Ok(parsed) => parsed
+			}
+		}
+		return match Gate3FontEvidence.multi_face_probe_scale(count, args.len() - 3) {
+			Err(_) => {
+				crash "Gate 3 adversarial probe evidence failed"
+			}
+			Ok(result) => result
+		}
+	}
 	crash "unknown Gate 3 font evidence mode"
 }

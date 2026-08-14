@@ -16,6 +16,7 @@ main! = |args| {
 	}
 	result = match mode {
 		"builder" => Gate3FacadeEvidence.normalize_builder(repetitions)
+		"ordered" => Gate3FacadeEvidence.ordered_facade(repetitions)
 		"layout" => Gate3FacadeEvidence.line_layout(repetitions)
 		"lines" => Gate3FacadeEvidence.line_facade(repetitions)
 		"pages" => Gate3FacadeEvidence.page_layout(repetitions)

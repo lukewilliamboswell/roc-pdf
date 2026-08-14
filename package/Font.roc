@@ -150,6 +150,7 @@ Font :: [].{
 	PolicyError : [
 		AmbiguousFace(FaceId),
 		EmptyPolicy,
+		UnknownPolicy(PolicyId),
 		UnknownPolicyFace(FaceId),
 	]
 
@@ -213,6 +214,12 @@ Font :: [].{
 		## fonts, or registry insertion order as an implicit fallback.
 		with_policy : Registry, List(FaceId) -> Try({ policy : PolicyId, registry : Registry }, PolicyError)
 		with_policy = |registry, faces| add_policy(registry, faces)
+
+		## The exact ordered face identities of one constructed policy. The
+		## facade resolves a Theme policy selection through this boundary; it
+		## never re-derives the order from instances or insertion history.
+		policy_faces : Registry, PolicyId -> Try(List(FaceId), PolicyError)
+		policy_faces = |registry, policy| registry_policy_faces(registry, policy)
 
 		## Selection consumes caller-provided cluster facts and returns dense
 		## instance ranges. It is intentionally separate from shaping and PDF
@@ -303,6 +310,29 @@ registry_inspection = |Font.Registry.(state), face| {
 	} else {
 		Ok(list_at(state.inspections, index))
 	}
+}
+
+registry_policy_faces : Font.Registry, Font.PolicyId -> Try(List(Font.FaceId), Font.PolicyError)
+registry_policy_faces = |Font.Registry.(state), policy| {
+	index = policy.index()
+	if index >= state.store.policies.len() {
+		return Err(UnknownPolicy(policy))
+	}
+	record = list_at(state.store.policies, index)
+	if record.id.index() != index or record.instances.is_empty() {
+		return Err(UnknownPolicy(policy))
+	}
+	var $faces = List.with_capacity(record.instances.len())
+	var $instance_index = 0
+	while $instance_index < record.instances.len() {
+		instance = list_at(record.instances, $instance_index)
+		if instance.index() >= state.store.instances.len() {
+			return Err(UnknownPolicy(policy))
+		}
+		$faces = $faces.append(list_at(state.store.instances, instance.index()).face)
+		$instance_index = $instance_index + 1
+	}
+	Ok($faces)
 }
 
 add_policy : Font.Registry, List(Font.FaceId) -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Font.PolicyError)

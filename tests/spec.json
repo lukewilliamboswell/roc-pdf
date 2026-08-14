@@ -593,17 +593,17 @@
       "retention": null
     },
     {
-      "name": "Gate 3 bounded bidi prerequisite",
-      "scenario_revision": "gate3-bidi-single-level-boundary-v1",
+      "name": "Gate 3 UAX 9 conformance vectors",
+      "scenario_revision": "gate3-uax9-r51-normative-vectors-v1",
       "source": "tests/gate3_bidi/main.roc",
       "snapshot": "tests/gate3_bidi/snapshot.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
-      "dimensions": { "paragraphs": 2, "scalars": 6, "clusters": 6, "single_level_lines": 2, "atomic_negatives": 2 },
-      "work_counters": ["paragraph_scalar_visits", "paragraph_strong_class_visits", "line_scalar_visits", "line_cluster_visits", "visual_order_writes", "atomic_negative_rejections", "output_bytes"],
+      "dimensions": { "pages": 1, "uax9_vectors": 7, "normalized_plan_identity": 1 },
+      "work_counters": ["vectors", "scalar_visits", "cluster_visits", "visual_writes", "removed_clusters", "visual_runs", "mirrored_brackets", "rejections", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 70, "work": [6, 6, 6, 6, 6, 2, 667] },
-        "x64musl": { "allocations": 70, "work": [6, 6, 6, 6, 6, 2, 667] }
+        "arm64mac": { "allocations": 40, "work": [7, 108, 55, 53, 2, 18, 4, 3, 667] },
+        "x64musl": { "allocations": 40, "work": [7, 108, 55, 53, 2, 18, 4, 3, 667] }
       },
       "retention": null
     },
@@ -1384,6 +1384,231 @@
       "expectations": {
         "arm64mac": { "allocations": 46, "work": [1, 667] },
         "x64musl": { "allocations": 46, "work": [1, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 resolved right-to-left text",
+      "scenario_revision": "gate3-rtl-uax9-r51-bracket-pair-v1",
+      "source": "tests/gate3_rtl_text/main.roc",
+      "snapshot": "tests/gate3_rtl_text/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "font_bytes": 5084, "glyphs": 14, "mirrored_brackets": 4, "actual_text_runs": 1, "unicode_mappings": 14, "objects": 20, "gate3_rtl_text": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "paragraph_level", "bidi_cluster_visits", "visual_writes", "visual_runs", "mirrored_brackets", "runs", "clusters", "glyphs", "source_scalars", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1181, "work": [5084, 1, 14, 14, 4, 4, 1, 14, 14, 14, 1, 14, 14, 590, 20, 7891] },
+        "x64musl": { "allocations": 1181, "work": [5084, 1, 14, 14, 4, 4, 1, 14, 14, 14, 1, 14, 14, 590, 20, 7891] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 right-to-left mismatched bidi fact atomic negative",
+      "scenario_revision": "gate3-rtl-uax9-r51-bracket-pair-v1",
+      "source": "tests/gate3_rtl_text_negative/main.roc",
+      "snapshot": "tests/gate3_rtl_text_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "bidi_fact_rejected": 2, "normalized_plan_identity": 1 },
+      "work_counters": ["bidi_fact_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 57, "work": [2, 667] },
+        "x64musl": { "allocations": 57, "work": [2, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 public ordered multi-face facade output",
+      "scenario_revision": "gate3-multiface-public-facade-v1",
+      "source": "tests/gate3_multiface_facade/main.roc",
+      "snapshot": "tests/gate3_multiface_facade/snapshot.pdf",
+      "args": ["positive"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "caller_font_faces": 2, "policy_faces": 2, "authored_blocks": 1, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["latin_input_bytes", "cjk_input_bytes", "latin_retained_bytes", "cjk_retained_bytes", "copied_input_bytes", "resources", "faces", "instances", "policies", "policy_faces", "authored_blocks", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1711, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 11416] },
+        "x64musl": { "allocations": 1711, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 11416] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 multi-face facade shared registry retention",
+      "scenario_revision": "gate3-multiface-public-facade-v1",
+      "source": "tests/gate3_multiface_facade/main.roc",
+      "snapshot": "tests/gate3_multiface_facade/snapshot.pdf",
+      "args": ["shared-registry"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "caller_font_faces": 2, "documents": 2, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "resources", "faces", "instances", "policies", "documents", "first_output_bytes", "second_output_bytes", "selected_source_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 3350, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 11416, 11416, 9920] },
+        "x64musl": { "allocations": 3350, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 11416, 11416, 9920] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 multi-face facade unique registries retention control",
+      "scenario_revision": "gate3-multiface-public-facade-v1",
+      "source": "tests/gate3_multiface_facade/main.roc",
+      "snapshot": "tests/gate3_multiface_facade/snapshot.pdf",
+      "args": ["unique-registries"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "caller_font_faces": 4, "documents": 2, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["registries", "input_bytes", "retained_input_bytes", "copied_input_bytes", "duplicated_caller_bytes", "resources", "faces", "instances", "policies", "documents", "first_output_bytes", "second_output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 3419, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 11416, 11416] },
+        "x64musl": { "allocations": 3419, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 11416, 11416] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 multi-face facade missing coverage atomic negative",
+      "scenario_revision": "gate3-multiface-public-facade-v1",
+      "source": "tests/gate3_multiface_facade_negative/main.roc",
+      "snapshot": "tests/gate3_multiface_facade_negative/snapshot.pdf",
+      "args": ["missing-coverage"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "missing_coverage_rejected": 1 },
+      "work_counters": ["missing_coverage_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 114, "work": [1, 0] },
+        "x64musl": { "allocations": 114, "work": [1, 0] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 multi-face facade undeclared script atomic negative",
+      "scenario_revision": "gate3-multiface-public-facade-v1",
+      "source": "tests/gate3_multiface_facade_negative/main.roc",
+      "snapshot": "tests/gate3_multiface_facade_negative/snapshot.pdf",
+      "args": ["undeclared-script"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "undeclared_script_rejected": 1 },
+      "work_counters": ["undeclared_script_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 114, "work": [1, 0] },
+        "x64musl": { "allocations": 114, "work": [1, 0] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 multi-face facade unknown policy atomic negative",
+      "scenario_revision": "gate3-multiface-public-facade-v1",
+      "source": "tests/gate3_multiface_facade_negative/main.roc",
+      "snapshot": "tests/gate3_multiface_facade_negative/snapshot.pdf",
+      "args": ["unknown-policy"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "unknown_policy_rejected": 1 },
+      "work_counters": ["unknown_policy_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 70, "work": [1, 0] },
+        "x64musl": { "allocations": 70, "work": [1, 0] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 multi-face facade builtin policy atomic negative",
+      "scenario_revision": "gate3-multiface-public-facade-v1",
+      "source": "tests/gate3_multiface_facade_negative/main.roc",
+      "snapshot": "tests/gate3_multiface_facade_negative/snapshot.pdf",
+      "args": ["builtin-policy"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "builtin_policy_rejected": 1 },
+      "work_counters": ["builtin_policy_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1, "work": [1, 0] },
+        "x64musl": { "allocations": 1, "work": [1, 0] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 adversarial ordered font selection x1000",
+      "scenario_revision": "gate3-ordered-selection-bounds-v1",
+      "source": "tests/gate3_font/main.roc",
+      "snapshot": "tests/gate3_font/snapshot.pdf",
+      "args": ["probe", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "clusters": 1000, "normalized_plan_identity": 1 },
+      "work_counters": ["clusters", "grapheme_visits", "face_visits", "coverage_span_visits", "face_ranges", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1083, "work": [1000, 1000, 1500, 4000, 1000, 667] },
+        "x64musl": { "allocations": 1083, "work": [1000, 1000, 1500, 4000, 1000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 adversarial ordered font selection x10000",
+      "scenario_revision": "gate3-ordered-selection-bounds-v1",
+      "source": "tests/gate3_font/main.roc",
+      "snapshot": "tests/gate3_font/snapshot.pdf",
+      "args": ["probe", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "clusters": 10000, "normalized_plan_identity": 1 },
+      "work_counters": ["clusters", "grapheme_visits", "face_visits", "coverage_span_visits", "face_ranges", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 10088, "work": [10000, 10000, 15000, 40000, 10000, 667] },
+        "x64musl": { "allocations": 10088, "work": [10000, 10000, 15000, 40000, 10000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 ordered multi-face facade scale x1000",
+      "scenario_revision": "gate3-ordered-facade-scale-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["ordered", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "paragraphs": 1000, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraphs", "unique_sources", "planned_sources", "selection_grapheme_visits", "selection_face_visits", "selection_coverage_span_visits", "selection_ranges", "fonts", "physical_runs", "metric_reads", "line_templates", "line_cache_hits", "line_key_probes", "line_writes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 241, "work": [1000, 1, 1, 3, 4, 15, 3, 2, 3000, 3, 1, 999, 1000, 1000, 667] },
+        "x64musl": { "allocations": 241, "work": [1000, 1, 1, 3, 4, 15, 3, 2, 3000, 3, 1, 999, 1000, 1000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 ordered multi-face facade scale x10000",
+      "scenario_revision": "gate3-ordered-facade-scale-v1",
+      "source": "tests/gate3_authoring/main.roc",
+      "snapshot": "tests/gate3_authoring/snapshot.pdf",
+      "args": ["ordered", "10000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "paragraphs": 10000, "normalized_plan_identity": 1 },
+      "work_counters": ["paragraphs", "unique_sources", "planned_sources", "selection_grapheme_visits", "selection_face_visits", "selection_coverage_span_visits", "selection_ranges", "fonts", "physical_runs", "metric_reads", "line_templates", "line_cache_hits", "line_key_probes", "line_writes", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 267, "work": [10000, 1, 1, 3, 4, 15, 3, 2, 30000, 3, 1, 9999, 10000, 10000, 667] },
+        "x64musl": { "allocations": 267, "work": [10000, 1, 1, 3, 4, 15, 3, 2, 30000, 3, 1, 9999, 10000, 10000, 667] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 case transformation text",
+      "scenario_revision": "gate3-case-transform-v1-unicode-default-upper",
+      "source": "tests/gate3_case_text/main.roc",
+      "snapshot": "tests/gate3_case_text/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "font_bytes": 166300, "glyphs": 3, "expanded_mappings": 1, "actual_text_runs": 1, "unicode_mappings": 2, "objects": 20, "gate3_case_text": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["font_bytes", "mapping_facts", "input_scalars", "output_scalars", "expanded_mappings", "runs", "clusters", "glyphs", "transformation_visits", "source_scalars", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1036, "work": [166300, 2, 2, 3, 1, 1, 2, 3, 2, 2, 1, 2, 2, 213, 20, 8875] },
+        "x64musl": { "allocations": 1036, "work": [166300, 2, 2, 3, 1, 1, 2, 3, 2, 2, 1, 2, 2, 213, 20, 8875] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 3 case transformation atomic negative",
+      "scenario_revision": "gate3-case-transform-v1-unicode-default-upper",
+      "source": "tests/gate3_case_text_negative/main.roc",
+      "snapshot": "tests/gate3_case_text_negative/snapshot.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "case_transform_rejected": 2, "normalized_plan_identity": 1 },
+      "work_counters": ["case_transform_rejected", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 54, "work": [2, 667] },
+        "x64musl": { "allocations": 54, "work": [2, 667] }
       },
       "retention": null
     },

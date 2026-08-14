@@ -26,7 +26,10 @@ from check_gate3_cjk_text import validate_gate3_cjk_text_pdf
 from check_gate3_combining import validate_combining_pdf
 from check_gate3_ligature import EXPECTED_CONTENT as GATE3_LIGATURE_CONTENT
 from check_gate3_ligature import validate_ligature_pdf
+from check_gate3_multiface_facade import validate_gate3_multiface_facade_pdf
 from check_gate3_multiface_text import validate_gate3_multiface_text_pdf
+from check_gate3_case_text import validate_gate3_case_pdf
+from check_gate3_rtl import validate_gate3_rtl_pdf
 from check_gate3_soft_hyphen import EXPECTED_CONTENT as GATE3_SOFT_HYPHEN_CONTENT
 from check_gate3_soft_hyphen import validate_soft_hyphen_pdf
 from check_gate3_external_discretionary_hyphen import EXPECTED_CONTENT as GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
@@ -592,12 +595,21 @@ def run_case(
         elif case.dimensions.get("gate3_generated_label", 0) == 1:
             validate_generated_labels_pdf(result.stdout)
             print(f"PASS {case.name}: independent offsets, lengths, xref, typed list ownership, labels, Type 0 font, CID, and Unicode mapping facts", flush=True)
-        elif case.dimensions.get("gate3_caller_facade", 0) == 1:
-            validate_gate3_caller_facade_pdf(result.stdout)
-            print(f"PASS {case.name}: independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts", flush=True)
         elif case.dimensions.get("gate3_combining_text", 0) == 1:
             validate_combining_pdf(result.stdout)
             print(f"PASS {case.name}: exact decomposed combining CID and two-scalar ToUnicode facts", flush=True)
+        elif case.dimensions.get("gate3_case_text", 0) == 1:
+            validate_gate3_case_pdf(result.stdout)
+            print(f"PASS {case.name}: resolved case presentation, logical ActualText, CID, and Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_rtl_text", 0) == 1:
+            validate_gate3_rtl_pdf(result.stdout)
+            print(f"PASS {case.name}: resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_multiface_facade", 0) == 1:
+            validate_gate3_multiface_facade_pdf(result.stdout)
+            print(f"PASS {case.name}: independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_caller_facade", 0) == 1:
+            validate_gate3_caller_facade_pdf(result.stdout)
+            print(f"PASS {case.name}: independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts", flush=True)
         else:
             validate_pdf(
                 result.stdout,
@@ -702,8 +714,11 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate3_actual_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_supplementary_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_cjk_text.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_combining.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_ligature.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_multiface_facade.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_case_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_combining.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_rtl.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_multiface_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_soft_hyphen.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_external_discretionary_hyphen.py", "--self-test")

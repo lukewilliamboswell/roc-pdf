@@ -45,9 +45,10 @@ scene runs, resources, Type 0/CID/ToUnicode lowering, extraction, rendering,
 and local dev-backend allocation evidence without retesting coverage or falling
 back to a packaged face.
 
-This is still not public multi-face PDF output. `Theme` and the current facade
-select one body face and `KernelFacadeShape` still produces one-font runs. The
-remaining public integration must preserve the same selected `FaceRange` facts
-from Unicode analysis through convenience shaping, global subset planning,
-scene runs, and resource lowering, then establish its own public mixed-face
-extraction/rendering, retention, and allocation evidence.
+The public integration this record anticipated has since landed:
+`Theme.with_font_policy` selects the ordered policy, the facade preserves the
+same selected `FaceRange` facts from Unicode analysis through convenience
+shaping, global subset planning, scene runs, and resource lowering, and the
+public mixed-face extraction/rendering, retention, and allocation evidence is
+recorded in
+[`gate-3-multiface-public-facade.md`](gate-3-multiface-public-facade.md).

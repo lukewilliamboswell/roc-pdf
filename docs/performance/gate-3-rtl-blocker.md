@@ -87,3 +87,16 @@ advanced shaping facts against the resolved directional runs, and lower the
 line's verified visual sequence with logical extraction evidence. This keeps
 the architecture's source, shaping, line-layout, and paint-order contracts
 separate and leaves Gate 3 open.
+
+## Closing pointer (2026-08-14)
+
+This dependency audit is closed. `roc-lang/unicode` 4.0.0 shipped the bounded
+UAX #9 revision-51 boundary this document required, and the resulting output
+slice — the rewritten `KernelBidiBoundary` over `unicode.Bidi`, its pinned
+normative conformance vectors, the typed shaping handoff
+`KernelShape.validate_advanced_with_bidi_order`, the provenanced Hebrew
+fixture face, and the registered positive and atomic-negative fixtures — is
+recorded in [`gate-3-rtl-text.md`](gate-3-rtl-text.md). The bounded
+single-level prerequisite described above has been replaced by that real
+resolver; `gate-3-bidi-boundary.md` remains the historical record of the
+prerequisite it superseded.

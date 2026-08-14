@@ -94,10 +94,8 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 		run_block = list_at(block_runs, $block_index)
 		match (line_block, run_block) {
 			(TextBlock({ body: body_lines, body_offset, label: label_lines }), TextBlock({ body: body_run, label: label_run })) => {
-				body_index = single_run_index(body_run, $block_index)?
-				if body_index >= shape_batch.store.runs.len() {
-					return Err(InvalidRun({ block: $block_index, run: body_index }))
-				}
+				body_index = logical_run_first(body_run, $block_index, shape_batch.store.runs.len())?
+				assert_logical_identity(shape_batch.store.runs, styles, body_run, $block_index)?
 				body_record = list_at(shape_batch.store.runs, body_index)
 				body_style = list_at(styles, body_index)
 				visual_start = $visual_lines.len()
@@ -107,10 +105,9 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 					label = if $local == 0 {
 						match (label_lines, label_run) {
 							(NoLabel, NoLabel) => NoLabel
-							(Label(label_range), Label(label_id)) => if label_id.physical.start() >= shape_batch.store.runs.len() {
-								return Err(InvalidRun({ block: $block_index, run: label_id.physical.start() }))
-							} else {
-								_label_index = single_run_index(label_id, $block_index)?
+							(Label(label_range), Label(label_id)) => {
+								_label_index = logical_run_first(label_id, $block_index, shape_batch.store.runs.len())?
+								assert_logical_identity(shape_batch.store.runs, styles, label_id, $block_index)?
 								$label_rows = checked_add($label_rows, 1)?
 								Label({ line: label_range.lines.start(), runs: label_id })
 							}
@@ -172,14 +169,52 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 	)
 }
 
-single_run_index : KernelFacadeShape.LogicalRun, U64 -> Try(U64, KernelFacadePages.Error)
-single_run_index = |logical, block| {
+## A logical run's physical range must be non-empty and inside the shaped
+## store; pagination consumes only its first run's identity facts after the
+## whole range is proven identical.
+logical_run_first : KernelFacadeShape.LogicalRun, U64, U64 -> Try(U64, KernelFacadePages.Error)
+logical_run_first = |logical, block, run_count| {
 	physical = logical.physical
-	if physical.length() != 1 {
-		Err(InvalidRun({ block, run: physical.start() }))
+	start = physical.start()
+	length = physical.length()
+	if length == 0 or start >= run_count or length > run_count - start {
+		Err(InvalidRun({ block, run: start }))
 	} else {
-		Ok(physical.start())
+		Ok(start)
 	}
+}
+
+## Every physical run of one logical occurrence must carry the identical
+## occurrence, size, and style: pagination treats the logical run as one
+## styled row source regardless of its face split.
+assert_logical_identity : List(Text.Run), List(KernelFacadeShape.RunStyle), KernelFacadeShape.LogicalRun, U64 -> Try({}, KernelFacadePages.Error)
+assert_logical_identity = |runs, styles, logical, block| {
+	start = logical.physical.start()
+	length = logical.physical.length()
+	if start >= runs.len() or length > runs.len() - start or start >= styles.len() or length > styles.len() - start {
+		return Err(InvalidRun({ block, run: start }))
+	}
+	first = list_at(runs, start)
+	first_style = list_at(styles, start)
+	var $index = start + 1
+	while $index < start + length {
+		run = list_at(runs, $index)
+		if run.occurrence.index() != first.occurrence.index() or run.size.raw() != first.size.raw() or !styles_equal(list_at(styles, $index), first_style) {
+			return Err(InvalidRun({ block, run: $index }))
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
+styles_equal : KernelFacadeShape.RunStyle, KernelFacadeShape.RunStyle -> Bool
+styles_equal = |left, right| {
+	colors = match (left.color, right.color) {
+		(Srgb(Gray(first)), Srgb(Gray(second))) => first == second
+		(Srgb(Rgb(first)), Srgb(Rgb(second))) => first.red == second.red and first.green == second.green and first.blue == second.blue
+		_ => False
+	}
+	colors and left.leading.raw() == right.leading.raw()
 }
 
 keeps_together : Document.NormalizedBlockKind -> Bool

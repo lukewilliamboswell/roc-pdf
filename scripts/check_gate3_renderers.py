@@ -19,6 +19,9 @@ SUPPLEMENTARY_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_supplementary_text" / "sna
 CJK_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_cjk_text" / "snapshot.pdf"
 LIGATURE_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_ligature_text" / "snapshot.pdf"
 MULTIFACE_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_multiface_text" / "snapshot.pdf"
+MULTIFACE_FACADE_SNAPSHOT = ROOT / "tests" / "gate3_multiface_facade" / "snapshot.pdf"
+RTL_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_rtl_text" / "snapshot.pdf"
+CASE_TEXT_SNAPSHOT = ROOT / "tests" / "gate3_case_text" / "snapshot.pdf"
 SOFT_HYPHEN_SNAPSHOT = ROOT / "tests" / "gate3_soft_hyphen" / "snapshot.pdf"
 EXTERNAL_DISCRETIONARY_HYPHEN_SNAPSHOT = ROOT / "tests" / "gate3_external_discretionary_hyphen" / "snapshot.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
@@ -45,6 +48,12 @@ PDFBOX_LIGATURE_EXPECTED = InkMetrics(bounds=(72, 133, 78, 141), changed_pixels=
 PDFIUM_LIGATURE_EXPECTED = InkMetrics(bounds=(72, 133, 78, 141), changed_pixels=53, dark_pixels=20, ink=4959)
 PDFBOX_MULTIFACE_EXPECTED = InkMetrics(bounds=(72, 132, 95, 142), changed_pixels=130, dark_pixels=52, ink=15844)
 PDFIUM_MULTIFACE_EXPECTED = InkMetrics(bounds=(72, 132, 96, 142), changed_pixels=174, dark_pixels=64, ink=17144)
+PDFBOX_MULTIFACE_FACADE_EXPECTED = InkMetrics(bounds=(72, 73, 96, 83), changed_pixels=129, dark_pixels=52, ink=15843)
+PDFIUM_MULTIFACE_FACADE_EXPECTED = InkMetrics(bounds=(72, 73, 97, 83), changed_pixels=178, dark_pixels=64, ink=17161)
+PDFBOX_CASE_EXPECTED = InkMetrics(bounds=(72, 133, 93, 142), changed_pixels=122, dark_pixels=59, ink=14186)
+PDFIUM_CASE_EXPECTED = InkMetrics(bounds=(71, 133, 93, 142), changed_pixels=155, dark_pixels=60, ink=15048)
+PDFBOX_RTL_EXPECTED = InkMetrics(bounds=(72, 133, 141, 144), changed_pixels=373, dark_pixels=150, ink=39329)
+PDFIUM_RTL_EXPECTED = InkMetrics(bounds=(72, 133, 141, 144), changed_pixels=491, dark_pixels=162, ink=43564)
 PDFBOX_SOFT_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 131, 144), changed_pixels=271, dark_pixels=118, ink=32548)
 PDFIUM_SOFT_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 132, 144), changed_pixels=352, dark_pixels=121, ink=35014)
 PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED = InkMetrics(bounds=(72, 134, 90, 142), changed_pixels=82, dark_pixels=36, ink=9433)
@@ -170,6 +179,12 @@ def self_test() -> None:
     assert_close("exact PDFium ligature synthetic", PDFIUM_LIGATURE_EXPECTED, PDFIUM_LIGATURE_EXPECTED)
     assert_close("exact PDFBox multi-face synthetic", PDFBOX_MULTIFACE_EXPECTED, PDFBOX_MULTIFACE_EXPECTED)
     assert_close("exact PDFium multi-face synthetic", PDFIUM_MULTIFACE_EXPECTED, PDFIUM_MULTIFACE_EXPECTED)
+    assert_close("exact PDFBox multiface-facade synthetic", PDFBOX_MULTIFACE_FACADE_EXPECTED, PDFBOX_MULTIFACE_FACADE_EXPECTED)
+    assert_close("exact PDFium multiface-facade synthetic", PDFIUM_MULTIFACE_FACADE_EXPECTED, PDFIUM_MULTIFACE_FACADE_EXPECTED)
+    assert_close("exact PDFBox case synthetic", PDFBOX_CASE_EXPECTED, PDFBOX_CASE_EXPECTED)
+    assert_close("exact PDFium case synthetic", PDFIUM_CASE_EXPECTED, PDFIUM_CASE_EXPECTED)
+    assert_close("exact PDFBox RTL synthetic", PDFBOX_RTL_EXPECTED, PDFBOX_RTL_EXPECTED)
+    assert_close("exact PDFium RTL synthetic", PDFIUM_RTL_EXPECTED, PDFIUM_RTL_EXPECTED)
     assert_close("exact PDFBox soft-hyphen synthetic", PDFBOX_SOFT_HYPHEN_EXPECTED, PDFBOX_SOFT_HYPHEN_EXPECTED)
     assert_close("exact PDFium soft-hyphen synthetic", PDFIUM_SOFT_HYPHEN_EXPECTED, PDFIUM_SOFT_HYPHEN_EXPECTED)
     assert_close("exact PDFBox external discretionary-hyphen synthetic", PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED, PDFBOX_EXTERNAL_DISCRETIONARY_HYPHEN_EXPECTED)
@@ -212,6 +227,9 @@ def main() -> None:
     parser.add_argument("--cjk", action="store_true")
     parser.add_argument("--ligature", action="store_true")
     parser.add_argument("--multiface", action="store_true")
+    parser.add_argument("--multiface-facade", action="store_true")
+    parser.add_argument("--rtl", action="store_true")
+    parser.add_argument("--case", action="store_true")
     parser.add_argument("--soft-hyphen", action="store_true")
     parser.add_argument("--external-discretionary-hyphen", action="store_true")
     parser.add_argument("--self-test", action="store_true")
@@ -220,7 +238,7 @@ def main() -> None:
         self_test()
         return
     require(args.pdfium_renderer is not None, "--pdfium-renderer is required unless --self-test is used")
-    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk, args.ligature, args.multiface, args.soft_hyphen, args.external_discretionary_hyphen)) <= 1, "renderer fixture selectors are mutually exclusive")
+    require(sum((args.caller, args.actual_text, args.supplementary, args.cjk, args.ligature, args.multiface, args.multiface_facade, args.rtl, args.case, args.soft_hyphen, args.external_discretionary_hyphen)) <= 1, "renderer fixture selectors are mutually exclusive")
     if args.actual_text:
         snapshot = ACTUAL_TEXT_SNAPSHOT
         label = "reordered ActualText"
@@ -241,6 +259,21 @@ def main() -> None:
         label = "parsed fi ligature text"
         pdfbox_expected = PDFBOX_LIGATURE_EXPECTED
         pdfium_expected = PDFIUM_LIGATURE_EXPECTED
+    elif args.case:
+        snapshot = CASE_TEXT_SNAPSHOT
+        label = "case transformation text"
+        pdfbox_expected = PDFBOX_CASE_EXPECTED
+        pdfium_expected = PDFIUM_CASE_EXPECTED
+    elif args.rtl:
+        snapshot = RTL_TEXT_SNAPSHOT
+        label = "resolved right-to-left text"
+        pdfbox_expected = PDFBOX_RTL_EXPECTED
+        pdfium_expected = PDFIUM_RTL_EXPECTED
+    elif args.multiface_facade:
+        snapshot = MULTIFACE_FACADE_SNAPSHOT
+        label = "public ordered multi-face facade text"
+        pdfbox_expected = PDFBOX_MULTIFACE_FACADE_EXPECTED
+        pdfium_expected = PDFIUM_MULTIFACE_FACADE_EXPECTED
     elif args.multiface:
         snapshot = MULTIFACE_TEXT_SNAPSHOT
         label = "ordered multi-face text"

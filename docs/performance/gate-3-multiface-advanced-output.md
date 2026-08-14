@@ -44,3 +44,7 @@ allocations and `[1,0,667]`. The extra bounded state is three selection facts,
 three run/cluster/glyph records, two global subset plans, and the second font's
 nine planned PDF objects; no source payload is copied or reparsed per run.
 These are local dev-backend baselines only, not a cross-platform rebaseline.
+
+The public facade integration this advanced boundary anticipated is now
+recorded in
+[`gate-3-multiface-public-facade.md`](gate-3-multiface-public-facade.md).

@@ -480,6 +480,17 @@ and analysis boundaries rather than those font-specific behaviors.
   pagination cases meet their declared operation-count bounds; accepted page
   scenes are materialized once.
 
+### Closure status
+
+Gate 3 is closed. The capability, negative, extraction, rendering, retention,
+cache, and adversarial-bound aggregation is recorded in
+`docs/performance/gate-3-closure.md`, and the row-by-row assessment behind it
+in `docs/performance/gate-3-closure-readiness-audit.md`. This closes the
+public single- and multi-face authoring boundary described above; it does not
+make Gate 4 graphics, the `Archive` or `AccessibleArchive` profiles, automatic
+hyphenation, or shaping beyond the declared boundary available. Those continue
+to fail transactionally.
+
 ## Gate 4: production visual document model
 
 ### Capabilities

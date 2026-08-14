@@ -91,3 +91,15 @@ scan and output emission are `O(n + output)` with explicit input, output, and
 mapping limits. No test command is applicable to this documentation-only audit;
 the required executable evidence begins with the dependency-valid adoption
 slice and uses `./scripts/test.py`'s default dev backend.
+
+## Closing pointer (2026-08-14)
+
+This dependency audit is closed. `roc-lang/unicode` 4.0.0 shipped the
+version-pinned full case mapping with source-to-output range facts this
+document required, and the resulting adoption — `KernelCaseTransform` with
+its local coverage, ordering, and shape validation, the lowering into the
+existing `SourceToPresentation`/`TransformationEvidence` plumbing, and the
+registered `aß` expansion fixture with its atomic negatives — is recorded in
+[`gate-3-case-transformation.md`](gate-3-case-transformation.md). Contextual
+sigma, Turkic and Lithuanian profiles, and titlecase remain future rows, as
+this audit anticipated.

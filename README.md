@@ -3,18 +3,23 @@
 An early-development pure [Roc](https://www.roc-lang.org/) package for
 deterministic PDF 2.0 generation.
 
-The package currently offers a usable public, single-face `Pdf.to_bytes`
-authoring path under the `Standard` profile. The built-in theme supports title,
-heading, paragraph, and bulleted-list constructors. It does not read, edit, or
-repair PDFs, and unsupported requests return typed errors rather than producing
-blank output, substituting fonts, outlining text, or rasterizing content.
+The package offers a usable public authoring path under the `Standard`
+profile: `Pdf.to_bytes`, `Pdf.to_bytes_with`, and `Pdf.to_chunks_with` all
+produce deterministic tagged PDF 2.0 output, and the buffered and chunked
+forms are byte-identical. The built-in theme supports title, heading,
+paragraph, and bulleted-list constructors, with either the packaged face or
+caller-registered faces selected through `Theme` — including a finite ordered
+multi-face policy with per-cluster coverage selection. It does not read, edit,
+or repair PDFs, and unsupported requests return typed errors rather than
+producing blank output, substituting fonts, outlining text, or rasterizing
+content.
 
-This is not yet a PDF/A-4 or PDF/UA-2 package. `Archive` and
-`AccessibleArchive` deliberately return capability errors, and `Pdf.to_chunks`
-is not yet a delivery path for authored nonblank documents. Full bidirectional
-text, public multi-face coverage selection, and case-transformation support are
-also incomplete. Do not make archival or accessibility-conformance claims from
-this release candidate.
+This is not a PDF/A-4 or PDF/UA-2 package. `Archive` and `AccessibleArchive`
+deliberately return capability errors, so do not make archival or
+accessibility-conformance claims from it. Automatic hyphenation is not
+accepted, and the convenience shaping path covers a declared script set;
+right-to-left and case-transformation output are available at the advanced
+integration boundary rather than through the one-import facade.
 
 The package exposes the high-level `Pdf` facade plus the advanced conceptual
 `Document`, `Semantics`, `Layout`, `Scene`, `Text`, `Font`, `Image`, `Color`,
@@ -22,9 +27,9 @@ The package exposes the high-level `Pdf` facade plus the advanced conceptual
 lowering, and serialization internals are not public.
 
 The current candidate scope is recorded in [the 0.1.0-rc1 release
-notes](docs/releases/0.1.0-rc1.md). Gate 3 remains open; its remaining closure
-boundaries are tracked in the [closure-readiness
-audit](docs/performance/gate-3-closure-readiness-audit.md).
+notes](docs/releases/0.1.0-rc1.md). Gate 3 is closed; its aggregated evidence
+is recorded in the [Gate 3 closure
+review](docs/performance/gate-3-closure.md).
 
 ## Design
 

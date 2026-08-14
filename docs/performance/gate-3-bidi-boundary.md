@@ -71,3 +71,11 @@ mirror decisions, conformance-vector corpus coverage, typed shaping handoff,
 font-coverage validation, and visual PDF lowering with logical `/ActualText`.
 Until those facts exist, all non-single-level inputs remain rejected and Gate 3
 remains open.
+
+## Superseded (2026-08-14)
+
+The single-level boundary recorded here has been replaced by a real UAX #9
+revision-51 resolver over the pinned dependency's `Bidi` module. This record
+remains as the historical account of the prerequisite; the resolver, its
+normative conformance vectors, and the right-to-left output slice are
+recorded in [`gate-3-rtl-text.md`](gate-3-rtl-text.md).

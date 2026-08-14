@@ -64,11 +64,14 @@ The local ordered-policy planning seam is now recorded in
 [`gate-3-multiface-font-selection.md`](gate-3-multiface-font-selection.md).
 It validates and selects finite ordered caller/test faces per supplied grapheme
 cluster, but the facade still has its one-face shaping and output handoff.
-Accordingly, this record remains a single-face facade checkpoint rather than a
-claim of public mixed-face output.
+Accordingly, this record remains the single-face facade evidence. The public
+ordered multi-face policy path that later widened this boundary is recorded in
+[`gate-3-multiface-public-facade.md`](gate-3-multiface-public-facade.md).
 
 The deliberately shared-versus-unique caller-input comparison and retention
 through two final subset emissions is recorded separately in
 [`gate-3-caller-font-retention.md`](gate-3-caller-font-retention.md). It closes
-the current one-face source-ownership evidence without claiming an ordered
-multi-face public cache.
+the one-face source-ownership evidence; the two-face extension and the ordered
+selection cache record live in
+[`gate-3-multiface-public-facade.md`](gate-3-multiface-public-facade.md) and
+[`gate-3-cache-closure.md`](gate-3-cache-closure.md).
