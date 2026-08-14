@@ -1,15 +1,17 @@
 # Gate 3 Unicode analysis slice
 
-This slice pins `roc-lang/unicode` release `3.0.0`, whose tag resolves to commit
-`f5cd8d6a9a345f0a589ed46625ee865e70f48e35`. Its immutable GitHub release
-asset is `ACj5ceJnEY6vaejuQArN1naVzcxeThATZrKYYgzJCZJ5.tar.zst` (161,147 bytes,
-SHA-256 `343e175400a2d5ca5c32cd47dbe9f81a517b2f6f6c2ec47024e615db0228fff9`).
+This slice pins `roc-lang/unicode` release `4.0.0`, whose tag resolves to commit
+`b689986172679aa9fbdcd7890e3031a48b1c582f`. Its immutable GitHub release
+asset is `3DGC3M4b2pxaRLg4i8cmxWkm2E2WbCPCLntQzf2mkbUV.tar.zst` (228,087 bytes,
+SHA-256 `4343719be2d54e73dc1f138a4527d828220acb1f21b9f79d8a319a611fbc7930`).
 The release and this repository both use Roc
-`nightly-2026-August-05-24f0b47`. The dependency reports Unicode 17.0.0,
+`nightly-2026-08-08-195c9e7`. The dependency reports Unicode 17.0.0,
 UAX #14 revision 55, UAX #29 revision 47, and the independently versioned
 `ConservativeScxV1` script-itemization policy. Updating the release URL,
 resolved source revision, archive digest, or pinned Unicode semantics requires
-a reviewed change with affected correctness and performance evidence.
+a reviewed change with affected correctness and performance evidence; the
+3.0.0 to 4.0.0 adoption record is
+[`gate-3-unicode-4.0.0-adoption.md`](gate-3-unicode-4.0.0-adoption.md).
 
 ## Representation and ownership
 

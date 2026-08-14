@@ -7,8 +7,8 @@ That corpus belongs to `roc-lang/unicode`; this evidence protects the PDF
 pipeline's exact UTF-8/scalar coordinate handoff against a dependency upgrade
 or an accidental loss of a fact between stages.
 
-The dependency is `roc-lang/unicode` 3.0.0 at reviewed source revision
-`f5cd8d6a9a345f0a589ed46625ee865e70f48e35`: Unicode 17.0.0, UAX #14 revision
+The dependency is `roc-lang/unicode` 4.0.0 at reviewed source revision
+`b689986172679aa9fbdcd7890e3031a48b1c582f`: Unicode 17.0.0, UAX #14 revision
 55, and UAX #29 revision 47. The selected inputs are independently transcribed
 from `GraphemeBreakTest-17.0.0.txt` (GB3 `CR × LF`; GB9c `0915 × 094D × 0915`)
 and `LineBreakTest-17.0.0.txt` (`1B05 ÷ 1F1E6`; `2757 × 0020 ÷ 1F1E6`). The
