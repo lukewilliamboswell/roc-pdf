@@ -438,7 +438,7 @@ Gate3ActualTextEvidence :: [].{
 		}
 		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
 		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
-		Ok({ bytes, work: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, bytes.len()] })
+		Ok({ bytes, work: [1, bytes.len()] })
 	}
 
 	reordered_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])

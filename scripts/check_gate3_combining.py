@@ -15,6 +15,7 @@ from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SNAPSHOT = ROOT / "tests" / "gate3_combining_text" / "snapshot.pdf"
 EXPECTED_TEXT = "A\u0300"
 
 
@@ -69,11 +70,30 @@ def check_pdfbox_extraction(pdf: Path) -> None:
     print("PASS Gate 3 PDFBox extraction preserves decomposed combining text")
 
 
+def self_test() -> None:
+    original = SNAPSHOT.read_bytes()
+    validate_combining_pdf(original)
+    for mutation in (
+        replace_once(original, b"<0002> <00410300>", b"<0002> <00410301>"),
+        replace_once(original, b"/Encoding /Identity-H", b"/Encoding /Identity-V"),
+    ):
+        try:
+            validate_combining_pdf(mutation)
+        except (ValidationError, ValueError):
+            continue
+        raise SystemExit("Gate 3 combining checker accepted an atomic structural negative")
+    print("PASS Gate 3 combining checker self-test")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("pdf", type=Path)
+    parser.add_argument("pdf", nargs="?", type=Path, default=SNAPSHOT)
     parser.add_argument("--pdfbox-extraction", action="store_true")
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
+    if args.self_test:
+        self_test()
+        return
     pdf = args.pdf.resolve()
     original = pdf.read_bytes()
     validate_combining_pdf(original)
