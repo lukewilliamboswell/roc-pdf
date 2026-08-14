@@ -37,9 +37,12 @@ The focused deterministic work vector is
 glyph-index visit; two source scalars; no `ActualText`; one mapping; 109
 prepared text bytes; twenty objects; and 8,712 emitted bytes. The built-in
 font is inspected once, its 166,300-byte input stays one payload, and its
-5,696-byte subset is written once. This evidence case is intentionally outside
-`tests/spec.json` until the pending dev allocation rebaseline can be reviewed
-atomically; no allocation baseline is changed by this slice.
+5,696-byte subset is written once. Since the reviewed dev-backend allocation
+rebaseline, the positive and atomic-negative cases are registered in
+`tests/spec.json` (`gate3-combining-v1-decomposed-built-in`) with byte-exact
+snapshots, 144 and 45 dev allocations, the full work vector above, and the
+`[1, 667]` counted rejection; `scripts/check_gate3_combining.py` runs in the
+common validator dispatch and self-test set.
 
 Remaining Gate 3 extraction/rendering matrix: ligature output, supplementary
 plane output, real right-to-left logical/visual output, CJK output,

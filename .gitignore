@@ -1,6 +1,10 @@
 __pycache__/
 *.py[cod]
 
+/basic_cli_pdf
+/main
+/*.pdf
+
 *.rh
 *.rm
 *.roc-format-failed*

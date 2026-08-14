@@ -37,6 +37,11 @@ KernelFacadeLines :: [].{
 		build : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build = |shape, sources, page, theme, limits| build_plan(shape, sources, page, theme, limits)
 
+		## The ordered multi-face path: one line-layout request per logical
+		## occurrence run, measured across its adjacent physical face runs.
+		build_ordered : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
+		build_ordered = |shape, sources, page, theme, limits| build_ordered_plan(shape, sources, page, theme, limits)
+
 		blocks : Plan -> List(BlockLines)
 		blocks = |plan| plan.blocks
 
@@ -140,6 +145,115 @@ build_plan = |shape, sources, page, theme, limits| {
 			},
 		},
 	)
+}
+
+build_ordered_plan : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
+build_ordered_plan = |shape, sources, page, theme, limits| {
+	block_runs = KernelFacadeShape.Plan.block_runs(shape)
+	shape_requests = KernelFacadeShape.Plan.requests(shape)
+	shape_batch = KernelFacadeShape.Plan.shape(shape)
+	run_count = shape_requests.len()
+	check_limit(block_runs.len(), limits.max_blocks, Blocks)?
+	check_limit(run_count, limits.max_runs, Runs)?
+	if run_count == 0 or run_count != shape_batch.store.runs.len() {
+		return Err(RunCoverage({ actual: shape_batch.store.runs.len(), expected: run_count }))
+	}
+	content_width = calculate_content_width(page, Theme.page_margin(theme))?
+	indent = positive_raw(Theme.bullet_indent(theme))?
+	if indent >= content_width {
+		return Err(InvalidGeometry)
+	}
+	body_width = content_width - indent
+	var $line_requests = []
+	var $logical_index_of_body = List.repeat(0, block_runs.len())
+	var $logical_index_of_label = List.repeat(0, block_runs.len())
+	var $next_physical = 0
+	var $block_index = 0
+	while $block_index < block_runs.len() {
+		match list_at(block_runs, $block_index) {
+			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
+			TextBlock({ body, label }) => {
+				match label {
+					NoLabel => {}
+					Label(label_run) => {
+						start = logical_run_bounds(label_run, $block_index, $next_physical, run_count)?
+						$logical_index_of_label = list_set($logical_index_of_label, $block_index, $line_requests.len())
+						$line_requests = $line_requests.append({
+							runs: label_run.physical,
+							source: list_at(shape_requests, start).source,
+							width: Layout.Unit.from_raw(indent.to_i64_wrap()),
+						})
+						$next_physical = checked_add(start, label_run.physical.length())?
+					}
+				}
+				body_start = logical_run_bounds(body, $block_index, $next_physical, run_count)?
+				width = match label {
+					NoLabel => content_width
+					Label(_) => body_width
+				}
+				$logical_index_of_body = list_set($logical_index_of_body, $block_index, $line_requests.len())
+				$line_requests = $line_requests.append({
+					runs: body.physical,
+					source: list_at(shape_requests, body_start).source,
+					width: Layout.Unit.from_raw(width.to_i64_wrap()),
+				})
+				$next_physical = checked_add(body_start, body.physical.length())?
+			}
+		}
+		$block_index = $block_index + 1
+	}
+	if $next_physical != run_count {
+		return Err(RunCoverage({ actual: $next_physical, expected: run_count }))
+	}
+	line = KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) ? LineLayout
+	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
+	var $blocks = List.with_capacity(block_runs.len())
+	$block_index = 0
+	while $block_index < block_runs.len() {
+		match list_at(block_runs, $block_index) {
+			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
+			TextBlock({ body, label }) => {
+				body_lines = list_at(run_lines, list_at($logical_index_of_body, $block_index))
+				body_offset = match label {
+					NoLabel => Layout.Unit.from_raw(0)
+					Label(_) => Layout.Unit.from_raw(indent.to_i64_wrap())
+				}
+				label_lines = match label {
+					NoLabel => NoLabel
+					Label(label_run) => Label({ lines: list_at(run_lines, list_at($logical_index_of_label, $block_index)), runs: label_run })
+				}
+				$blocks = $blocks.append(TextBlock({ body: { lines: body_lines, runs: body }, body_offset, label: label_lines }))
+			}
+		}
+		$block_index = $block_index + 1
+	}
+	Ok(
+		KernelFacadeLines.Plan.{
+			blocks: $blocks,
+			line,
+			work: {
+				block_mapping_visits: block_runs.len(),
+				blocks: block_runs.len(),
+				content_width,
+				line: KernelLineLayout.BatchPlan.work(line),
+				run_writes: $line_requests.len(),
+			},
+		},
+	)
+}
+
+## An ordered logical run names a non-empty adjacent physical range starting
+## exactly where the previous logical run ended.
+logical_run_bounds : KernelFacadeShape.LogicalRun, U64, U64, U64 -> Try(U64, KernelFacadeLines.Error)
+logical_run_bounds = |logical, block, expected_start, run_count| {
+	physical = logical.physical
+	start = physical.start()
+	length = physical.length()
+	if length == 0 or start != expected_start or start >= run_count or length > run_count - start {
+		Err(InvalidRun({ block, run: start }))
+	} else {
+		Ok(start)
+	}
 }
 
 ## The existing LTR facade path is deliberately narrow, but it now states

@@ -212,6 +212,58 @@ Gate3FontEvidence :: [].{
 			],
 		})
 	}
+
+	## Adversarial ordered selection: alternating Latin/Han clusters force the
+	## worst-case policy walk, because every Han cluster probes and rejects
+	## the first (Latin) face before selecting the second. Every reported
+	## dimension must stay linear in the cluster count, and the alternating
+	## pattern prevents any face-range merging.
+	multi_face_probe_scale : U64, U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	multi_face_probe_scale = |count, runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		if count == 0 or count % 2 != 0 {
+			return Err(EvidenceFailure)
+		}
+		caller = Font.Registry.empty.register(
+			caller_font_bytes,
+			{ provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Latn")] },
+			Font.ValidationLimits.default,
+		) ? |_| EvidenceFailure
+		cjk = caller.registry.register(
+			cjk_font_bytes,
+			{ provision: AdvancedRunsRequired, scripts: [Font.Script.from_iso15924("Hani")] },
+			Font.ValidationLimits.default,
+		) ? |_| EvidenceFailure
+		configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
+		var $clusters = List.with_capacity(count)
+		var $index = 0
+		while $index < count {
+			next = if $index % 2 == 0 cluster($index, "Latn", [0x43]) else cluster($index, "Hani", [0x4e2d])
+			$clusters = $clusters.append(next)
+			$index = $index + 1
+		}
+		plan = match configured.registry.plan(plan_request(configured.policy, $clusters)) {
+			Complete(value) => value
+			Rejected(_) => return Err(EvidenceFailure)
+		}
+		if plan.face_ranges.len() != count or plan.work.grapheme_visits != count {
+			return Err(EvidenceFailure)
+		}
+		bytes = blank_pdf(runtime_guard)?
+		Ok({
+			bytes,
+			work: [
+				count,
+				plan.work.grapheme_visits,
+				plan.work.face_visits,
+				plan.work.coverage_span_visits,
+				plan.face_ranges.len(),
+				bytes.len(),
+			],
+		})
+	}
 }
 
 cluster : U64, Str, List(U32) -> Font.SourceCluster

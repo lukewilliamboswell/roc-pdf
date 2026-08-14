@@ -60,7 +60,7 @@ KernelUnicode :: [].{
 	## The released package tag resolves to this reviewed source identity. Its
 	## immutable archive URL and digest are recorded with the Gate 3 evidence.
 	source_revision : Str
-	source_revision = "f5cd8d6a9a345f0a589ed46625ee865e70f48e35"
+	source_revision = "b689986172679aa9fbdcd7890e3031a48b1c582f"
 
 	version : Str
 	version = UnicodeVersion.to_str(UnicodeVersion.current)

@@ -3,6 +3,8 @@ import Font
 import KernelEmit
 import KernelContent
 import KernelDiscretionaryHyphen
+import KernelBidiBoundary
+import KernelCaseTransform
 import KernelColor
 import KernelFont
 import KernelFontPlan
@@ -29,11 +31,13 @@ import Semantics
 import Scene
 import Text
 import Image
+import unicode.Scalar
 import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../vendor/fonts/Inter-4.1-Regular.ttf" as supplementary_font_bytes : List(U8)
 import "../tests/assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 import "../tests/assets/IBMPlexSerif-FiLigature-Fixture.ttf" as ligature_font_bytes : List(U8)
+import "../tests/assets/IBMPlexSansHebrew-Rtl-Fixture.ttf" as rtl_font_bytes : List(U8)
 
 Gate3ActualTextEvidence :: [].{
 	ligature_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -93,6 +97,165 @@ Gate3ActualTextEvidence :: [].{
 		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
 		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
 		Ok({ bytes, work: [1, bytes.len()] })
+	}
+
+	## One real right-to-left paragraph: the UAX #9 bracket-pair example
+	## resolved by the pinned dependency, painted in the resolved visual
+	## order with mirrored bracket presentation, while `/ActualText` and the
+	## `ToUnicode` rows keep the untouched logical source.
+	rtl_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	rtl_text = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		resolved = resolve_rtl({})?
+		sample = build_rtl_sample(resolved) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(KernelGate3TaggedTextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
+		text_work = KernelPdfText.ScenePlan.work(sample.text)
+		Ok({
+			bytes,
+			work: [
+				resolved.font.bytes.len(),
+				resolved.paragraph.base_level.to_u64(),
+				resolved.order.work.cluster_visits,
+				resolved.order.work.visual_writes,
+				resolved.order.visual_runs.len(),
+				resolved.mirrored,
+				sample.shape.work.run_visits,
+				sample.shape.work.cluster_visits,
+				sample.shape.work.glyph_visits,
+				text_work.source_scalar_visits,
+				text_work.actual_text_runs,
+				text_work.actual_text_scalars,
+				text_work.mappings,
+				KernelContent.Plan.work(sample.content).bytes_emitted,
+				KernelGate3TaggedTextStructure.Plan.work(sample.structure).objects,
+				bytes.len(),
+			],
+		})
+	}
+
+	## Two atomic rejections of a mismatched bidi fact. The paint sequence and
+	## the mirrored presentation each come only from the resolved fact: a
+	## store that disagrees with either is rejected before a scene, object
+	## plan, or PDF exists.
+	rtl_negative : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	rtl_negative = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		resolved = resolve_rtl({})?
+		store = rtl_store(resolved)
+
+		## Swapping two painted glyph references keeps every logical fact
+		## intact but paints a sequence the resolution never produced.
+		swapped_indices = swap_at(store.glyph_indices, 0, 1)
+		order_rejected = match KernelShape.validate_advanced_with_bidi_order(
+			resolved.font,
+			rtl_source,
+			{ ..store, glyph_indices: swapped_indices },
+			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
+			resolved.order,
+			rtl_advanced_limits,
+		) {
+			Err(BidiOrderInvalid({ reason: PaintPosition, .. })) => Bool.True
+			_ => Bool.False
+		}
+
+		## Painting the bracket's own glyph instead of its mirrored partner
+		## is the classic unmirrored-fallback bug; it must not be accepted.
+		unmirrored = unmirror_first_bracket(resolved, store)?
+		mirror_rejected = match KernelShape.validate_advanced_with_bidi_order(
+			resolved.font,
+			rtl_source,
+			unmirrored,
+			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
+			resolved.order,
+			rtl_advanced_limits,
+		) {
+			Err(BidiOrderInvalid({ reason: MirrorGlyphMismatch, .. })) => Bool.True
+			_ => Bool.False
+		}
+		if !order_rejected or !mirror_rejected {
+			return Err(EvidenceFailure)
+		}
+		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
+		Ok({ bytes, work: [2, bytes.len()] })
+	}
+
+	## One source-to-presentation case transformation whose visible text
+	## differs from the authored Unicode: the full Unicode default uppercase
+	## of `aß`, whose expansion the dependency resolves to `ASS`. The
+	## presentation is shaped and painted; `/ActualText` and the `ToUnicode`
+	## rows keep the unchanged logical source.
+	case_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	case_text = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		mapping = case_mapping(runtime_guard)?
+		sample = build_case_sample(mapping) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(KernelGate3TaggedTextStructure.Plan.structure(sample.structure)) ? |_| EvidenceFailure
+		text_work = KernelPdfText.ScenePlan.work(sample.text)
+		Ok({
+			bytes,
+			work: [
+				sample.font.bytes.len(),
+				mapping.work.fact_visits,
+				mapping.work.input_scalar_visits,
+				mapping.work.output_scalar_visits,
+				mapping.expanded,
+				sample.shape.work.run_visits,
+				sample.shape.work.cluster_visits,
+				sample.shape.work.glyph_visits,
+				sample.shape.work.auxiliary_visits,
+				text_work.source_scalar_visits,
+				text_work.actual_text_runs,
+				text_work.actual_text_scalars,
+				text_work.mappings,
+				KernelContent.Plan.work(sample.content).bytes_emitted,
+				KernelGate3TaggedTextStructure.Plan.work(sample.structure).objects,
+				bytes.len(),
+			],
+		})
+	}
+
+	## Two atomic rejections. The transformed output cannot exceed its
+	## declared budget, and a cluster whose cardinality contradicts the
+	## resolved expansion is rejected before any scene or PDF plan exists.
+	case_negative : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
+	case_negative = |runtime_guard| {
+		if runtime_guard != 0 {
+			return Err(InvalidRuntimeGuard)
+		}
+		budget_rejected = match KernelCaseTransform.to_upper(
+			case_source,
+			case_limits(runtime_guard, 2),
+		) {
+			Err(Unicode(LimitExceeded({ dimension: OutputScalars, .. }))) => Bool.True
+			_ => Bool.False
+		}
+		mapping = case_mapping(runtime_guard)?
+		store = case_store(mapping.font)
+		expanded_cluster = list_at(store.clusters, 1)
+		malformed = { ..store, clusters: list_set(store.clusters, 1, { ..expanded_cluster, kind: OneToOne }) }
+		cardinality_rejected = match KernelShape.validate_advanced(
+			mapping.font,
+			case_source,
+			malformed,
+			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
+			case_advanced_limits,
+		) {
+			Err(AdvancedClusterInvalid({ cluster: 1, reason: Cardinality })) => Bool.True
+			_ => Bool.False
+		}
+		if !budget_rejected or !cardinality_rejected {
+			return Err(EvidenceFailure)
+		}
+		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
+		Ok({ bytes, work: [2, bytes.len()] })
 	}
 
 	multi_face_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -438,7 +601,7 @@ Gate3ActualTextEvidence :: [].{
 		}
 		blank = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
 		bytes = KernelEmit.to_bytes(blank) ? |_| EvidenceFailure
-		Ok({ bytes, work: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, bytes.len()] })
+		Ok({ bytes, work: [1, bytes.len()] })
 	}
 
 	reordered_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -540,6 +703,437 @@ MultiFaceSample := {
 ## The selected policy is deliberately built before any advanced run is
 ## accepted. Output receives only the selected instances and their once-parsed
 ## inspections; it neither revisits coverage nor has a packaged fallback.
+## The UAX #9 bracket-pair example from the normative Unicode 17.0.0
+## conformance corpus: Hebrew letters, two nested mirrored bracket pairs, two
+## neutrals, and two adjacent Latin pairs. Its resolved right-to-left order
+## and mirroring are pinned independently in `Gate3BidiEvidence`.
+rtl_source : Str
+rtl_source = "אב(גד[&ef].)gh"
+
+rtl_source_range : Semantics.TextRange
+rtl_source_range = {
+	scalars: Semantics.Range.from_start_and_length(0, 14),
+	utf8_bytes: Semantics.Range.from_start_and_length(0, 18),
+}
+
+rtl_semantics : Semantics.Store
+rtl_semantics = {
+	..semantics,
+	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(rtl_source_range) }],
+	occurrences: [{ ..list_at(semantics.occurrences, 0), language: Language("he"), source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(rtl_source_range)) }],
+	text_sources: [{ unicode: rtl_source }],
+}
+
+rtl_advanced_limits : KernelShape.AdvancedLimits
+rtl_advanced_limits = KernelShape.AdvancedLimits.make({ max_clusters: 14, max_glyph_indices: 14, max_glyphs: 14, max_runs: 1, max_scalars: 14, max_source_bytes: 18, max_substitutions: 0, max_transformations: 0 })
+
+ResolvedRtl := {
+	clusters : List(Text.Cluster),
+	font : KernelFont.Inspection,
+	mirrored : U64,
+	order : KernelBidiBoundary.LineOrder,
+	paragraph : KernelBidiBoundary.Paragraph,
+	scalars : List(U32),
+}
+
+## Analyze the source once, resolve its single line, and keep the facts the
+## store construction and its validation both consume.
+resolve_rtl : {} -> Try(ResolvedRtl, [EvidenceFailure, InvalidRuntimeGuard])
+resolve_rtl = |_| {
+	font = KernelFont.inspect(
+		rtl_font_bytes,
+		KernelFont.Limits.make({ max_bytes: 8192, max_cmap_mappings: 32, max_glyphs: 32, max_tables: 32 }),
+	) ? |_| EvidenceFailure
+	analysis = KernelUnicode.analyze(rtl_source, { max_graphemes: 16, max_line_boundaries: 17, max_scalars: 16, max_script_runs: 16 }) ? |_| EvidenceFailure
+	limits = KernelBidiBoundary.Limits.make({ max_clusters: 16, max_scalars: 16, max_visual_order: 16 })
+	paragraph = KernelBidiBoundary.analyze_paragraph(rtl_source, analysis, RightToLeft, limits) ? |_| EvidenceFailure
+	var $clusters = List.with_capacity(analysis.graphemes.len())
+	var $index = 0
+	while $index < analysis.graphemes.len() {
+		grapheme = list_at(analysis.graphemes, $index)
+		$clusters = $clusters.append({
+			glyphs: Semantics.Range.from_start_and_length($index, 1),
+			kind: Reordered,
+			source: {
+				scalars: Semantics.Range.from_start_and_length(grapheme.scalar_start, grapheme.scalar_end - grapheme.scalar_start),
+				utf8_bytes: Semantics.Range.from_start_and_length(grapheme.byte_start, grapheme.byte_end - grapheme.byte_start),
+			},
+		})
+		$index = $index + 1
+	}
+	if $clusters.len() != 14 {
+		return Err(EvidenceFailure)
+	}
+	var $scalars = List.with_capacity(14)
+	for located in Scalar.iter(rtl_source) {
+		$scalars = $scalars.append(Scalar.to_u32(located.scalar))
+	}
+	order = KernelBidiBoundary.resolve_line(
+		paragraph,
+		{ clusters: Semantics.Range.from_start_and_length(0, 14), source: rtl_source_range },
+		$clusters,
+		limits,
+	) ? |_| EvidenceFailure
+	var $mirrored = 0
+	var $mirror_index = 0
+	while $mirror_index < order.mirrors.len() {
+		if list_at(order.mirrors, $mirror_index).needs_glyph {
+			$mirrored = $mirrored + 1
+		}
+		$mirror_index = $mirror_index + 1
+	}
+	Ok(ResolvedRtl.({ clusters: $clusters, font, mirrored: $mirrored, order, paragraph, scalars: $scalars }))
+}
+
+## Build the advanced store the resolved facts describe: clusters stay in
+## logical order, the glyph buffer is the resolved paint sequence, and each
+## mirrored scalar contributes its partner's glyph from the same face.
+rtl_store : ResolvedRtl -> Text.Store
+rtl_store = |resolved| {
+	zero = Layout.Unit.from_raw(0)
+	visual = resolved.order.visual_clusters
+	var $glyphs = List.with_capacity(visual.len())
+	var $glyph_indices = List.repeat(0, visual.len())
+	var $visual_index = 0
+	while $visual_index < visual.len() {
+		logical = list_at(visual, $visual_index)
+		mirror = list_at(resolved.order.mirrors, $visual_index)
+		scalar = match mirror.glyph {
+			Some(mirrored) => mirrored
+			None => list_at(resolved.scalars, logical)
+		}
+		glyph = match KernelFont.glyph_for_scalar(resolved.font, scalar) {
+			Some(value) => value
+			None => crash "Gate 3 RTL fixture font lacks a required glyph"
+		}
+		width = match KernelFont.advance_width(resolved.font, glyph) {
+			Ok(value) => value
+			Err(_) => crash "Gate 3 RTL fixture font lacks a required advance"
+		}
+		$glyphs = $glyphs.append({
+			advance_x: Layout.Unit.from_raw(scaled_advance(width, resolved.font.metrics.units_per_em)),
+			advance_y: zero,
+			id: Text.GlyphId.from_raw(glyph),
+			offset_x: zero,
+			offset_y: zero,
+		})
+		$glyph_indices = list_set($glyph_indices, logical, $visual_index)
+		$visual_index = $visual_index + 1
+	}
+	{
+		clusters: resolved.clusters,
+		glyph_indices: $glyph_indices,
+		glyphs: $glyphs,
+		runs: [
+			{
+				actual_text: FromOccurrence,
+				clusters: Semantics.Range.from_start_and_length(0, 14),
+				direction: RightToLeft,
+				glyphs: Semantics.Range.from_start_and_length(0, 14),
+				id: Text.RunId.from_index(0),
+				instance: Font.InstanceId.from_index(0),
+				language: Language("he"),
+				occurrence: Semantics.OccurrenceId.from_index(0),
+				script: Font.Script.from_iso15924("Hebr"),
+				size: Layout.Unit.from_raw(11000),
+				source: rtl_source_range,
+				substitutions: empty_range,
+				transformations: empty_range,
+				writing_mode: Horizontal,
+			},
+		],
+		substitutions: [],
+		transformations: [],
+	}
+}
+
+## The fixture scales the inspected advance exactly as shaping does, so no
+## metric is hand-copied into the evidence.
+scaled_advance : U16, U16 -> I64
+scaled_advance = |width, units_per_em| {
+	if units_per_em == 0 {
+		crash "Gate 3 RTL fixture font has no em square"
+	}
+	product = width.to_u64() * 11000
+	((product + units_per_em.to_u64() / 2) / units_per_em.to_u64()).to_i64_wrap()
+}
+
+## Replace the first mirrored bracket's painted glyph with the glyph of its
+## own scalar, which is exactly the unmirrored-fallback mistake.
+unmirror_first_bracket : ResolvedRtl, Text.Store -> Try(Text.Store, [EvidenceFailure, InvalidRuntimeGuard])
+unmirror_first_bracket = |resolved, store| {
+	var $visual_index = 0
+	while $visual_index < resolved.order.mirrors.len() {
+		if list_at(resolved.order.mirrors, $visual_index).needs_glyph {
+			logical = list_at(resolved.order.visual_clusters, $visual_index)
+			own_scalar = list_at(resolved.scalars, logical)
+			own_glyph = match KernelFont.glyph_for_scalar(resolved.font, own_scalar) {
+				Some(value) => value
+				None => return Err(EvidenceFailure)
+			}
+			painted = list_at(store.glyphs, $visual_index)
+			return Ok({ ..store, glyphs: list_set(store.glyphs, $visual_index, { ..painted, id: Text.GlyphId.from_raw(own_glyph) }) })
+		}
+		$visual_index = $visual_index + 1
+	}
+	Err(EvidenceFailure)
+}
+
+swap_at : List(U64), U64, U64 -> List(U64)
+swap_at = |items, first, second| {
+	left = list_at(items, first)
+	right = list_at(items, second)
+	list_set(list_set(items, first, right), second, left)
+}
+
+build_rtl_sample : ResolvedRtl -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_rtl_sample = |resolved| {
+	semantic = KernelTextSemantics.Plan.build(
+		rtl_semantics,
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 18, max_text_source_scalars: 14, max_text_sources: 1 }),
+	) ? |_| SemanticFailure
+	shape = KernelShape.validate_advanced_with_bidi_order(
+		resolved.font,
+		rtl_source,
+		rtl_store(resolved),
+		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
+		resolved.order,
+		rtl_advanced_limits,
+	) ? |_| ShapeFailure
+	build_rtl_sample_after_shape(resolved.font, semantic, shape)
+}
+
+build_rtl_sample_after_shape : KernelFont.Inspection, KernelTextSemantics.Plan, KernelShape.Validated -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_rtl_sample_after_shape = |font, semantic, shape| {
+	scene = KernelScene.Plan.build(
+		text_scene,
+		KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: shape.store.runs.len() }),
+		KernelScene.Limits.make({ max_commands: 2, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 0, max_paths: 0 }),
+	) ? |_| SceneFailure
+	ownership = KernelTextOwnership.Plan.build(semantic, scene, shape.store) ? |_| OwnershipFailure
+	font_plan = KernelFontPlan.plan(font, glyph_usages(shape.store.glyphs), KernelFontPlan.Limits.make({ max_retained_glyphs: 32 })) ? |_| FontPlanFailure
+	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
+	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
+	images = KernelImage.Plan.build(
+		empty_image_sources,
+		colors,
+		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
+	) ? |_| ImageFailure
+	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? |_| ResourceFailure
+	text = KernelPdfText.ScenePlan.build(
+		ownership,
+		[font_plan],
+		KernelPdfText.Limits.make({ max_actual_text_scalars: 32, max_content_bytes: 4096, max_mappings: 32, max_placements: 0, max_source_scalars: 32 }),
+	) ? |_| TextFailure
+	tagged = KernelTextOwnership.Plan.tagged(ownership)
+	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), KernelContent.Limits.make({ max_content_bytes: 8192, max_content_streams: 1 })) ? |_| ContentFailure
+	base_objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelGate2Objects.Limits.make({ max_objects: 32, max_pages: 1 })) ? |_| ObjectFailure
+	font_objects = KernelGate3FontObjects.Plan.build(base_objects, 1, 32) ? |_| FontObjectFailure
+	structure = KernelGate3TaggedTextStructure.Plan.build(
+		tagged,
+		colors,
+		images,
+		content,
+		font_objects,
+		text,
+		[{ descriptor, font, plan: font_plan, subset }],
+		KernelGate3TaggedTextStructure.Limits.make({
+			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 32, max_unicode_scalars: 32 }),
+			object_limits: rtl_object_limits,
+		}),
+	) ? |_| StructureFailure
+	Ok({ content, font, font_plan, ownership, resource_use, scene, semantic, shape, structure, subset, text })
+}
+
+rtl_object_limits : KernelObject.Limits
+rtl_object_limits = { ..multi_face_object_limits, max_text_strings: 8 }
+
+## Full Unicode default uppercase of `aß`. The expansion is resolved by the
+## pinned dependency, never a fixture-local table.
+case_source : Str
+case_source = "aß"
+
+case_presentation : Str
+case_presentation = "ASS"
+
+case_source_range : Semantics.TextRange
+case_source_range = {
+	scalars: Semantics.Range.from_start_and_length(0, 2),
+	utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
+}
+
+case_semantics : Semantics.Store
+case_semantics = {
+	..semantics,
+	fragments: [{ ..list_at(semantics.fragments, 0), source_range: UnicodeRange(case_source_range) }],
+	occurrences: [
+		{
+			..list_at(semantics.occurrences, 0),
+			source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(case_source_range)),
+			text_properties: Semantics.Range.from_start_and_length(0, 1),
+		},
+	],
+	text_properties: [SourceToPresentation({ kind: CaseMapping, presentation: case_presentation, source: case_source_range })],
+	text_sources: [{ unicode: case_source }],
+}
+
+## The budget depends on the fixture's validated runtime guard, so the
+## transformation is a real runtime request rather than a constant the
+## compiler could fold away.
+case_limits : U64, U64 -> KernelCaseTransform.Limits
+case_limits = |runtime_guard, max_output_scalars| {
+	if runtime_guard == 0 {
+		KernelCaseTransform.Limits.make({ max_input_bytes: 8, max_input_scalars: 4, max_mapping_facts: 4, max_output_bytes: 8, max_output_scalars: max_output_scalars })
+	} else {
+		KernelCaseTransform.Limits.make({ max_input_bytes: 0, max_input_scalars: 0, max_mapping_facts: 0, max_output_bytes: 0, max_output_scalars: 0 })
+	}
+}
+
+case_advanced_limits : KernelShape.AdvancedLimits
+case_advanced_limits = KernelShape.AdvancedLimits.make({ max_clusters: 2, max_glyph_indices: 3, max_glyphs: 3, max_runs: 1, max_scalars: 3, max_source_bytes: 3, max_substitutions: 0, max_transformations: 2 })
+
+CaseMappingFacts := {
+	expanded : U64,
+	font : KernelFont.Inspection,
+	work : KernelCaseTransform.Work,
+}
+
+## Resolve the mapping and check it is the expansion this row exists to
+## exercise: one simple replacement and one expanded mapping, together
+## covering the whole source.
+case_mapping : U64 -> Try(CaseMappingFacts, [EvidenceFailure, InvalidRuntimeGuard])
+case_mapping = |runtime_guard| {
+	font = KernelFont.inspect(
+		built_in_font_bytes,
+		KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 }),
+	) ? |_| EvidenceFailure
+	result = KernelCaseTransform.to_upper(case_source, case_limits(runtime_guard, 8)) ? |_| EvidenceFailure
+	if result.text != case_presentation or result.unicode_version != "17.0.0" or result.facts.len() != 2 {
+		return Err(EvidenceFailure)
+	}
+	simple = list_at(result.facts, 0)
+	expanded = list_at(result.facts, 1)
+	shapes_expected = simple.shape == Simple and expanded.shape == Expanded
+	ranges_expected = simple.input.scalars.length() == 1 and simple.output.scalars.length() == 1 and expanded.input.scalars.length() == 1 and expanded.output.scalars.length() == 2 and expanded.input.utf8_bytes.start() == 1 and expanded.input.utf8_bytes.length() == 2 and expanded.output.utf8_bytes.start() == 1 and expanded.output.utf8_bytes.length() == 2
+	if !shapes_expected or !ranges_expected or simple.contextual or expanded.contextual {
+		return Err(EvidenceFailure)
+	}
+	var $expanded_count = 0
+	var $index = 0
+	while $index < result.facts.len() {
+		if list_at(result.facts, $index).shape == Expanded {
+			$expanded_count = $expanded_count + 1
+		}
+		$index = $index + 1
+	}
+	Ok(CaseMappingFacts.({ expanded: $expanded_count, font, work: result.work }))
+}
+
+## The presentation is shaped: one glyph for the simple mapping and two for
+## the expansion, with each cluster keeping its exact source range so the
+## `ToUnicode` rows and required `/ActualText` still recover `aß`.
+case_store : KernelFont.Inspection -> Text.Store
+case_store = |font| {
+	zero = Layout.Unit.from_raw(0)
+	upper_a = required_case_glyph(font, 0x0041)
+	upper_s = required_case_glyph(font, 0x0053)
+	{
+		clusters: [
+			{
+				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				kind: OneToOne,
+				source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) },
+			},
+			{
+				glyphs: Semantics.Range.from_start_and_length(1, 2),
+				kind: OneToMany,
+				source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 2) },
+			},
+		],
+		glyph_indices: [0, 1, 2],
+		glyphs: [
+			{ advance_x: Layout.Unit.from_raw(case_advance(font, upper_a)), advance_y: zero, id: Text.GlyphId.from_raw(upper_a), offset_x: zero, offset_y: zero },
+			{ advance_x: Layout.Unit.from_raw(case_advance(font, upper_s)), advance_y: zero, id: Text.GlyphId.from_raw(upper_s), offset_x: zero, offset_y: zero },
+			{ advance_x: Layout.Unit.from_raw(case_advance(font, upper_s)), advance_y: zero, id: Text.GlyphId.from_raw(upper_s), offset_x: zero, offset_y: zero },
+		],
+		runs: [
+			{
+				actual_text: FromOccurrence,
+				clusters: Semantics.Range.from_start_and_length(0, 2),
+				direction: LeftToRight,
+				glyphs: Semantics.Range.from_start_and_length(0, 3),
+				id: Text.RunId.from_index(0),
+				instance: Font.InstanceId.from_index(0),
+				language: Language("en-AU"),
+				occurrence: Semantics.OccurrenceId.from_index(0),
+				script: Font.Script.from_iso15924("Latn"),
+				size: Layout.Unit.from_raw(11000),
+				source: case_source_range,
+				substitutions: empty_range,
+				transformations: Semantics.Range.from_start_and_length(0, 2),
+				writing_mode: Horizontal,
+			},
+		],
+		substitutions: [],
+
+		## One transformation per resolved mapping, carrying that mapping's
+		## exact source range so later lowering never infers it from glyphs.
+		transformations: [
+			{
+				glyphs: Semantics.Range.from_start_and_length(0, 1),
+				kind: CaseMapping,
+				source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) },
+			},
+			{
+				glyphs: Semantics.Range.from_start_and_length(1, 2),
+				kind: CaseMapping,
+				source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 2) },
+			},
+		],
+	}
+}
+
+required_case_glyph : KernelFont.Inspection, U32 -> U32
+required_case_glyph = |font, scalar| match KernelFont.glyph_for_scalar(font, scalar) {
+	Some(glyph) => glyph
+	None => crash "Gate 3 case fixture font lacks a required glyph"
+}
+
+case_advance : KernelFont.Inspection, U32 -> I64
+case_advance = |font, glyph| {
+	width = match KernelFont.advance_width(font, glyph) {
+		Ok(value) => value
+		Err(_) => crash "Gate 3 case fixture font lacks a required advance"
+	}
+	units = font.metrics.units_per_em.to_u64()
+	if units == 0 {
+		crash "Gate 3 case fixture font has no em square"
+	}
+	((width.to_u64() * 11000 + units / 2) / units).to_i64_wrap()
+}
+
+build_case_sample : CaseMappingFacts -> Try(Sample, [ColorFailure, ContentFailure, FontFailure, FontObjectFailure, FontPlanFailure, ImageFailure, ObjectFailure, OwnershipFailure, ResourceFailure, SceneFailure, SemanticFailure, ShapeFailure, StructureFailure, SubsetFailure, TextFailure])
+build_case_sample = |mapping| {
+	semantic = KernelTextSemantics.Plan.build(
+		case_semantics,
+		1,
+		1,
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 8, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 }),
+	) ? |_| SemanticFailure
+	shape = KernelShape.validate_advanced(
+		mapping.font,
+		case_source,
+		case_store(mapping.font),
+		{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
+		case_advanced_limits,
+	) ? |_| ShapeFailure
+	build_sample_after_shape(mapping.font, semantic, shape)
+}
+
 build_multi_face_sample : {} -> Try(MultiFaceSample, [EvidenceFailure])
 build_multi_face_sample = |_| {
 	registry = multi_face_registry({})?
@@ -1813,6 +2407,14 @@ expect {
 	accepted = KernelPdfText.Plan.build(semantics, reordered.store, [font_plan], [placement], limits)?
 	work = KernelPdfText.Plan.work(accepted)
 	plain_rejected and work.mapping_conflicts_resolved == 1 and work.mappings == 1
+}
+
+list_set : List(a), U64, a -> List(a)
+list_set = |items, index, value| match items.set(index, value) {
+	Ok(updated) => updated
+	Err(OutOfBounds) => {
+		crash "Gate 3 actual-text evidence write escaped"
+	}
 }
 
 list_at : List(a), U64 -> a

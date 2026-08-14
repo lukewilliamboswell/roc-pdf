@@ -69,9 +69,23 @@ KernelLineLayout :: [].{
 		table_slots : U64,
 		templates : U64,
 	}
+
+	## One logical layout request may span several adjacent physical shaped
+	## runs produced by ordered multi-face selection. Line selection measures
+	## the merged contiguous cluster range, so a line may legally cross the
+	## face boundary; the later text materializer splits paint runs again.
+	LogicalRunRequest : { runs : Semantics.Range, source : Semantics.TextSourceId, width : Layout.Unit }
+
 	BatchPlan :: { lines : List(Line), run_lines : List(Semantics.Range), work : BatchWork }.{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
 		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, limits)
+
+		## The ordered multi-face batch. The template cache stays keyed by the
+		## existing `BatchKey`: one policy per build makes the physical split
+		## of a source deterministic, so source, first-instance, size, and
+		## width remain a complete cache identity.
+		build_logical : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), BatchLimits -> Try(BatchPlan, Error)
+		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, limits)
 
 		lines : BatchPlan -> List(Line)
 		lines = |plan| plan.lines
@@ -272,6 +286,214 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 			},
 		},
 	)
+}
+
+## The merged dense-store bounds and identity facts of one logical request's
+## adjacent physical runs, proven contiguous before any measurement.
+LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, size : I64 }
+
+build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
+build_logical_batch = |sources, store, requests, limits| {
+	if requests.len() == 0 or store.runs.len() == 0 {
+		return Err(InvalidAnalysis)
+	}
+	check_limit(requests.len(), limits.max_runs, Runs)?
+	capacity = table_capacity(requests.len(), limits.max_table_slots)?
+	var $assignments = List.repeat(empty_slot, requests.len())
+	var $slots = List.repeat(empty_slot, capacity)
+	var $keys = []
+	var $templates = []
+	var $template_lines = []
+	var $total_lines = 0
+	var $boundary_visits = 0
+	var $cache_hits = 0
+	var $candidate_visits = 0
+	var $template_cluster_visits = 0
+	var $glyph_index_visits = 0
+	var $glyph_visits = 0
+	var $key_probes = 0
+	var $run_cursor = 0
+	var $previous_template = empty_slot
+	var $request_index = 0
+	while $request_index < requests.len() {
+		request = list_at(requests, $request_index)
+		source_index = request.source.index()
+		if source_index >= sources.len() or request.width.raw() <= 0 {
+			return Err(InvalidRun({ run: $request_index }))
+		}
+		logical = logical_bounds(store, request.runs, $run_cursor)?
+		$run_cursor = range_end(request.runs)?
+		key = { instance: logical.instance, size: logical.size, source: source_index, width: request.width.raw() }
+		var $template_index = empty_slot
+		var $insertion_slot = empty_slot
+		if $previous_template != empty_slot {
+			$key_probes = checked_add($key_probes, 1)?
+			check_limit($key_probes, limits.max_key_probes, KeyProbes)?
+			if key_equal(key, list_at($keys, $previous_template)) {
+				$template_index = $previous_template
+				$cache_hits = checked_add($cache_hits, 1)?
+			}
+		}
+		if $template_index == empty_slot {
+			hashed = hash_key(key)
+			var $probe = 0
+			while $probe < capacity and $template_index == empty_slot and $insertion_slot == empty_slot {
+				$key_probes = checked_add($key_probes, 1)?
+				check_limit($key_probes, limits.max_key_probes, KeyProbes)?
+				slot_index = (hashed + $probe) % capacity
+				candidate = list_at($slots, slot_index)
+				if candidate == empty_slot {
+					$insertion_slot = slot_index
+				} else if key_equal(key, list_at($keys, candidate)) {
+					$template_index = candidate
+					$cache_hits = checked_add($cache_hits, 1)?
+				}
+				$probe = $probe + 1
+			}
+			if $template_index == empty_slot and $insertion_slot == empty_slot {
+				return Err(TableExhausted)
+			}
+		}
+		if $template_index == empty_slot {
+			template_count = checked_add($templates.len(), 1)?
+			check_limit(template_count, limits.max_templates, Templates)?
+			source = list_at(sources, source_index)
+			bounds = logical.bounds
+			selected = build_range(source.analysis, store, bounds, request.width, limits.line)?
+			if selected.work.glyph_index_visits != logical.glyph_length {
+				return Err(InvalidRun({ run: $request_index }))
+			}
+			line_start = $template_lines.len()
+			var $line_index = 0
+			while $line_index < selected.lines.len() {
+				$template_lines = $template_lines.append(list_at(selected.lines, $line_index))
+				$line_index = $line_index + 1
+			}
+			$template_index = $templates.len()
+			$keys = $keys.append(key)
+			$slots = list_set($slots, $insertion_slot, $template_index)
+			$templates = $templates.append({
+				cluster_length: bounds.cluster_end - bounds.cluster_start,
+				cluster_start: bounds.cluster_start,
+				lines: Semantics.Range.from_start_and_length(line_start, selected.lines.len()),
+			})
+			$boundary_visits = checked_add($boundary_visits, selected.work.boundary_visits)?
+			$candidate_visits = checked_add($candidate_visits, selected.work.candidate_visits)?
+			$template_cluster_visits = checked_add($template_cluster_visits, bounds.cluster_end - bounds.cluster_start)?
+			$glyph_index_visits = checked_add($glyph_index_visits, selected.work.glyph_index_visits)?
+			$glyph_visits = checked_add($glyph_visits, selected.work.glyph_visits)?
+		}
+		line_count = list_at($templates, $template_index).lines.length()
+		$total_lines = checked_add($total_lines, line_count)?
+		check_limit($total_lines, limits.max_lines, Lines)?
+		$assignments = match $assignments.set($request_index, $template_index) {
+			Err(OutOfBounds) => return Err(InvalidRun({ run: $request_index }))
+			Ok(updated) => updated
+		}
+		$previous_template = $template_index
+		$request_index = $request_index + 1
+	}
+	if $run_cursor != store.runs.len() {
+		return Err(InvalidAnalysis)
+	}
+	var $lines = List.with_capacity($total_lines)
+	var $run_lines = List.repeat(Semantics.Range.from_start_and_length(0, 0), requests.len())
+	$request_index = 0
+	$run_cursor = 0
+	while $request_index < requests.len() {
+		request = list_at(requests, $request_index)
+		logical = logical_bounds(store, request.runs, $run_cursor)?
+		$run_cursor = range_end(request.runs)?
+		bounds = logical.bounds
+		template = list_at($templates, list_at($assignments, $request_index))
+		merged_length = bounds.cluster_end - bounds.cluster_start
+		if merged_length != template.cluster_length or bounds.cluster_start < template.cluster_start {
+			return Err(InvalidRun({ run: $request_index }))
+		}
+		cluster_delta = bounds.cluster_start - template.cluster_start
+		line_start = $lines.len()
+		line_end = checked_add(template.lines.start(), template.lines.length())?
+		var $template_line = template.lines.start()
+		while $template_line < line_end {
+			line = list_at($template_lines, $template_line)
+			shifted_start = checked_add(line.clusters.start(), cluster_delta)?
+			shifted_end = checked_add(shifted_start, line.clusters.length())?
+			if shifted_end > bounds.cluster_end {
+				return Err(InvalidRun({ run: $request_index }))
+			}
+			$lines = $lines.append({
+				advance: line.advance,
+				clusters: Semantics.Range.from_start_and_length(shifted_start, line.clusters.length()),
+				source: line.source,
+			})
+			$template_line = $template_line + 1
+		}
+		$run_lines = match $run_lines.set($request_index, Semantics.Range.from_start_and_length(line_start, template.lines.length())) {
+			Err(OutOfBounds) => return Err(InvalidRun({ run: $request_index }))
+			Ok(updated) => updated
+		}
+		$request_index = $request_index + 1
+	}
+	Ok(
+		KernelLineLayout.BatchPlan.{
+			lines: $lines,
+			run_lines: $run_lines,
+			work: {
+				boundary_visits: $boundary_visits,
+				cache_hits: $cache_hits,
+				candidate_visits: $candidate_visits,
+				cluster_visits: $template_cluster_visits,
+				glyph_index_visits: $glyph_index_visits,
+				glyph_visits: $glyph_visits,
+				key_probes: $key_probes,
+				line_writes: $lines.len(),
+				run_visits: requests.len(),
+				table_slots: capacity,
+				templates: $templates.len(),
+			},
+		},
+	)
+}
+
+## Validates one logical request's physical runs: dense IDs, adjacency of
+## cluster and glyph ranges, and one occurrence, size, and source span. The
+## returned merged bounds cover the whole logical range.
+logical_bounds : Text.Store, Semantics.Range, U64 -> Try(LogicalBounds, KernelLineLayout.Error)
+logical_bounds = |store, run_range, expected_start| {
+	run_start = run_range.start()
+	run_count = run_range.length()
+	run_end = range_end(run_range)?
+	if run_count == 0 or run_start != expected_start or run_end > store.runs.len() {
+		return Err(InvalidRun({ run: run_start }))
+	}
+	first = list_at(store.runs, run_start)
+	first_cluster_end = range_end(first.clusters)?
+	first_glyph_end = range_end(first.glyphs)?
+	if first.id.index() != run_start or first.clusters.length() == 0 or first.glyphs.length() == 0 or first_cluster_end > store.clusters.len() or first_glyph_end > store.glyphs.len() {
+		return Err(InvalidRun({ run: run_start }))
+	}
+	var $cluster_end = first_cluster_end
+	var $glyph_end = first_glyph_end
+	var $glyph_length = first.glyphs.length()
+	var $index = run_start + 1
+	while $index < run_end {
+		run = list_at(store.runs, $index)
+		cluster_end = range_end(run.clusters)?
+		glyph_end = range_end(run.glyphs)?
+		if run.id.index() != $index or run.clusters.length() == 0 or run.glyphs.length() == 0 or run.clusters.start() != $cluster_end or run.glyphs.start() != $glyph_end or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() or run.occurrence.index() != first.occurrence.index() or run.size.raw() != first.size.raw() {
+			return Err(InvalidRun({ run: $index }))
+		}
+		$cluster_end = cluster_end
+		$glyph_end = glyph_end
+		$glyph_length = checked_add($glyph_length, run.glyphs.length())?
+		$index = $index + 1
+	}
+	Ok({
+		bounds: { cluster_end: $cluster_end, cluster_start: first.clusters.start(), glyph_end: $glyph_end, glyph_start: first.glyphs.start() },
+		glyph_length: $glyph_length,
+		instance: first.instance.index(),
+		size: first.size.raw(),
+	})
 }
 
 key_equal : BatchKey, BatchKey -> Bool

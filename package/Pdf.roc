@@ -54,6 +54,7 @@ Pdf :: [].{
 		InternalGenerationFailure,
 		InvalidDocument(List(Conformance.Diagnostic)),
 		InvalidFontResource(Font.ResourceError),
+		InvalidFontSelection(List(Font.PlanError)),
 		UnsupportedAuthoringContent({ blocks : U64 }),
 	]
 
@@ -138,10 +139,14 @@ Pdf :: [].{
 	to_chunks : Document -> Try(Encode, Error)
 	to_chunks = |doc| to_chunks_with(doc, Options.default)
 
+	## Chunked delivery drives the same emission transition as `to_bytes_with`
+	## over the same sealed plan, so the concatenated chunks are byte-identical
+	## to the buffered output by construction. Every document error occurs
+	## while building that plan, before sealing: a rejected document yields a
+	## typed error and no partial chunk sequence.
 	to_chunks_with : Document, Options -> Try(Encode, Error)
 	to_chunks_with = |doc, options| {
-		validate_gate_1_request(doc, options)?
-		plan = KernelStructure.build_blank(1, structure_page_size(options.page_size)) ? |_| InternalGenerationFailure
+		plan = build_standard_plan(doc, options)?
 		retention = match options.chunk_retention {
 			OwnChunks => OwnResourceChunks
 			ShareUnchangedResources => ShareResourceChunks
@@ -157,22 +162,6 @@ Pdf :: [].{
 	}
 }
 
-validate_gate_1_request : Document, Pdf.Options -> Try({}, Pdf.Error)
-validate_gate_1_request = |doc, options| {
-	match options.profile {
-		Archive => Err(Pdf.Error.CapabilityUnavailable(Pdf.Feature.PdfA4Generation))
-		AccessibleArchive => Err(Pdf.Error.CapabilityUnavailable(Pdf.Feature.PdfUa2Generation))
-		Standard => {
-			blocks = Document.block_count(doc)
-			if blocks == 0 {
-				Ok({})
-			} else {
-				Err(Pdf.Error.UnsupportedAuthoringContent({ blocks: blocks }))
-			}
-		}
-	}
-}
-
 build_standard_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_standard_plan = |doc, options| {
 	validate_standard_request(options)?
@@ -180,16 +169,52 @@ build_standard_plan = |doc, options| {
 		plan = KernelStructure.build_blank(1, structure_page_size(options.page_size)) ? |_| InternalGenerationFailure
 		return Ok(plan)
 	}
-	font = selected_font(options)?
-	pipeline = KernelFacadePipeline.Plan.build(
-		Document.normalize(doc),
-		font,
-		options.theme,
-		layout_page_size(options.page_size),
-		standard_font_descriptor,
-		standard_pipeline_limits,
-	) ? |_| UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+	pipeline = match selected_fonts(options)? {
+		Single(font) => KernelFacadePipeline.Plan.build(
+			Document.normalize(doc),
+			font,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			standard_pipeline_limits,
+		) ? |_| UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered(
+			Document.normalize(doc),
+			ordered,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			standard_pipeline_limits,
+		) ? |error| ordered_pipeline_error(error, ordered.policy, Document.block_count(doc))
+	}
 	Ok(KernelFacadePipeline.Plan.structure(pipeline))
+}
+
+## The Theme decides between exact style faces and an ordered policy. Policy
+## selection requires the caller registry that constructed the policy; the
+## packaged built-in face defines no policies, so that combination is a
+## stable typed error rather than an implicit single-face fallback.
+selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+selected_fonts = |options| match Theme.font_selection(options.theme) {
+	StyleFaces => Ok(Single(selected_font(options)?))
+	Policy(policy) => match options.font_source {
+		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
+		Registered(registry) => {
+			_faces = registry.policy_faces(policy) ? |_| InvalidFontSelection([InvalidPolicy(policy)])
+			Ok(Ordered({ policy, registry }))
+		}
+	}
+}
+
+## Ordered-selection failures surface the exact planner rejections; script
+## boundaries of the convenience path map to the planner's typed
+## unsupported-shaping fact. Everything else keeps the authored-content error.
+ordered_pipeline_error : KernelFacadePipeline.Error, Font.PolicyId, U64 -> Pdf.Error
+ordered_pipeline_error = |error, policy, blocks| match error {
+	Shape(FontSelectionRejected(errors)) => InvalidFontSelection(errors)
+	Shape(PolicyInvalid(_)) => InvalidFontSelection([InvalidPolicy(policy)])
+	Shape(UndeclaredScript({ script, source })) => InvalidFontSelection([UnsupportedBuiltInShaping({ cluster: source, script: Font.Script.from_iso15924(script) })])
+	_ => UnsupportedAuthoringContent({ blocks: blocks })
 }
 
 selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)
@@ -489,6 +514,69 @@ expect {
 	}
 
 	$actual == expected
+}
+
+## Authored chunked output is byte-identical to buffered output and arrives
+## in more than one plan-derived chunk.
+expect {
+	document = Pdf.document({
+		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
+		language: "en-AU",
+		title: "Report",
+	})
+	expected = Pdf.to_bytes(document)?
+	collected = collect_chunks(Pdf.to_chunks(document)?)
+
+	collected.chunks >= 2 and collected.bytes == expected
+}
+
+## Unsupported authored content rejects atomically before any chunk exists.
+expect {
+	document = Pdf.document({
+		contents: [Pdf.page_header("Running header")],
+		language: "en-AU",
+		title: "Chunk rejection",
+	})
+
+	match Pdf.to_chunks(document) {
+		Err(UnsupportedAuthoringContent({ blocks })) => blocks == 1
+		_ => False
+	}
+}
+
+## The owned-chunk retention mode concatenates to the identical authored bytes.
+expect {
+	document = Pdf.document({
+		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
+		language: "en-AU",
+		title: "Report",
+	})
+	expected = Pdf.to_bytes(document)?
+	options = Pdf.Options.with_chunk_retention(Pdf.Options.default, Pdf.ChunkRetention.OwnChunks)
+	collected = collect_chunks(Pdf.to_chunks_with(document, options)?)
+
+	collected.bytes == expected
+}
+
+collect_chunks : Pdf.Encode -> { bytes : List(U8), chunks : U64 }
+collect_chunks = |encoder| {
+	var $encoder = encoder
+	var $bytes = []
+	var $chunks = 0
+	var $done = False
+	while $done == False {
+		match Pdf.next_chunk($encoder) {
+			Done => {
+				$done = True
+			}
+			Emit(chunk, next) => {
+				$bytes = append_pdf_bytes($bytes, chunk)
+				$chunks = $chunks + 1
+				$encoder = next
+			}
+		}
+	}
+	{ bytes: $bytes, chunks: $chunks }
 }
 
 append_pdf_bytes : List(U8), List(U8) -> List(U8)

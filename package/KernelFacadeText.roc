@@ -141,7 +141,6 @@ build_prepared_plan = |prepared, limits| {
 	check_limit(run_count, limits.max_placements, Placements)?
 	check_limit(run_count, limits.max_runs, Runs)?
 	var $requests = List.with_capacity(run_count)
-	var $page_records = List.with_capacity(pages.len())
 	var $placement_cursor = 0
 	var $page_index = 0
 	while $page_index < pages.len() {
@@ -149,7 +148,6 @@ build_prepared_plan = |prepared, limits| {
 		if page.id.index() != $page_index or page.placements.start() != $placement_cursor or !range_fits(page.placements, page_placements.len()) {
 			return Err(InvalidPage({ page: $page_index }))
 		}
-		page_run_start = $requests.len()
 		page_placement_end = range_end(page.placements)?
 		while $placement_cursor < page_placement_end {
 			placement = list_at(page_placements, $placement_cursor)
@@ -171,10 +169,6 @@ build_prepared_plan = |prepared, limits| {
 			$requests = $requests.append({ line: row.body_line, origin: body_origin, page: page.id, source_runs: row.body_runs })
 			$placement_cursor = $placement_cursor + 1
 		}
-		$page_records = $page_records.append({
-			id: page.id,
-			runs: Semantics.Range.from_start_and_length(page_run_start, $requests.len() - page_run_start),
-		})
 		$page_index = $page_index + 1
 	}
 	if $placement_cursor != rows.len() or $requests.len() != run_count {
@@ -186,77 +180,124 @@ build_prepared_plan = |prepared, limits| {
 	var $placements = List.with_capacity(run_count)
 	var $runs = List.with_capacity(run_count)
 	var $final_styles = List.with_capacity(run_count)
+
+	## Page run ranges are counted over the final materialized runs, because
+	## one paint request may split into several physical face runs.
+	var $page_records = List.with_capacity(pages.len())
+	var $page_cursor = 0
+	var $page_run_start = 0
 	var $request_index = 0
 	while $request_index < $requests.len() {
 		request = list_at($requests, $request_index)
-		source_run_index = single_run_index(request.source_runs)?
-		if source_run_index >= shape.runs.len() or request.line >= lines.len() {
-			return Err(InvalidLine({ line: request.line, run: source_run_index }))
-		}
-		run = list_at(shape.runs, source_run_index)
-		line = list_at(lines, request.line)
-		if run.id.index() != source_run_index or !range_fits(run.clusters, shape.clusters.len()) or !range_fits(run.glyphs, shape.glyphs.len()) or run.clusters.length() == 0 or run.glyphs.length() == 0 {
-			return Err(InvalidRun({ run: source_run_index }))
-		}
-		if run.substitutions.length() != 0 or run.transformations.length() != 0 {
-			return Err(UnsupportedRunEvidence({ run: source_run_index }))
-		}
-		if line.clusters.length() == 0 or !range_within(line.clusters, run.clusters) or !text_range_within(line.source, run.source) {
-			return Err(InvalidLine({ line: request.line, run: source_run_index }))
-		}
-		cluster_start = $clusters.len()
-		glyph_start = $glyphs.len()
-		var $source_scalar = line.source.scalars.start()
-		var $source_byte = line.source.utf8_bytes.start()
-		var $cluster_index = line.clusters.start()
-		cluster_end = range_end(line.clusters)?
-		while $cluster_index < cluster_end {
-			cluster = list_at(shape.clusters, $cluster_index)
-			if cluster.source.scalars.start() != $source_scalar or cluster.source.utf8_bytes.start() != $source_byte or !range_fits(cluster.glyphs, shape.glyph_indices.len()) or cluster.glyphs.length() == 0 {
-				return Err(InvalidCluster({ cluster: $cluster_index, line: request.line }))
-			}
-			$source_scalar = range_end(cluster.source.scalars)?
-			$source_byte = range_end(cluster.source.utf8_bytes)?
-			if $source_scalar > range_end(line.source.scalars)? or $source_byte > range_end(line.source.utf8_bytes)? {
-				return Err(InvalidCluster({ cluster: $cluster_index, line: request.line }))
-			}
-			new_references = $glyph_indices.len()
-			var $reference = cluster.glyphs.start()
-			reference_end = range_end(cluster.glyphs)?
-			while $reference < reference_end {
-				glyph_index = list_at(shape.glyph_indices, $reference)
-				if glyph_index < run.glyphs.start() or glyph_index >= range_end(run.glyphs)? {
-					return Err(InvalidGlyph({ glyph: glyph_index, line: request.line }))
-				}
-				check_limit(checked_add($glyphs.len(), 1)?, limits.max_glyphs, Glyphs)?
-				check_limit(checked_add($glyph_indices.len(), 1)?, limits.max_glyph_indices, GlyphIndices)?
-				$glyph_indices = $glyph_indices.append($glyphs.len())
-				$glyphs = $glyphs.append(list_at(shape.glyphs, glyph_index))
-				$reference = $reference + 1
-			}
-			check_limit(checked_add($clusters.len(), 1)?, limits.max_clusters, Clusters)?
-			$clusters = $clusters.append({
-				..cluster,
-				glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
+		while $page_cursor < request.page.index() {
+			$page_records = $page_records.append({
+				id: Semantics.PageId.from_index($page_cursor),
+				runs: Semantics.Range.from_start_and_length($page_run_start, $runs.len() - $page_run_start),
 			})
-			$cluster_index = $cluster_index + 1
+			$page_cursor = $page_cursor + 1
+			$page_run_start = $runs.len()
 		}
-		if $source_scalar != range_end(line.source.scalars)? or $source_byte != range_end(line.source.utf8_bytes)? {
-			return Err(InvalidLine({ line: request.line, run: source_run_index }))
+		if request.source_runs.physical.length() != 1 {
+			split = paint_split_logical(
+				{
+					clusters: $clusters,
+					glyph_indices: $glyph_indices,
+					glyphs: $glyphs,
+					placements: $placements,
+					runs: $runs,
+					styles: $final_styles,
+				},
+				shape,
+				styles,
+				lines,
+				request,
+				limits,
+			)?
+			$clusters = split.clusters
+			$glyph_indices = split.glyph_indices
+			$glyphs = split.glyphs
+			$placements = split.placements
+			$runs = split.runs
+			$final_styles = split.styles
+			$request_index = $request_index + 1
+		} else {
+			source_run_index = single_run_index(request.source_runs)?
+			if source_run_index >= shape.runs.len() or request.line >= lines.len() {
+				return Err(InvalidLine({ line: request.line, run: source_run_index }))
+			}
+			run = list_at(shape.runs, source_run_index)
+			line = list_at(lines, request.line)
+			if run.id.index() != source_run_index or !range_fits(run.clusters, shape.clusters.len()) or !range_fits(run.glyphs, shape.glyphs.len()) or run.clusters.length() == 0 or run.glyphs.length() == 0 {
+				return Err(InvalidRun({ run: source_run_index }))
+			}
+			if run.substitutions.length() != 0 or run.transformations.length() != 0 {
+				return Err(UnsupportedRunEvidence({ run: source_run_index }))
+			}
+			if line.clusters.length() == 0 or !range_within(line.clusters, run.clusters) or !text_range_within(line.source, run.source) {
+				return Err(InvalidLine({ line: request.line, run: source_run_index }))
+			}
+			cluster_start = $clusters.len()
+			glyph_start = $glyphs.len()
+			var $source_scalar = line.source.scalars.start()
+			var $source_byte = line.source.utf8_bytes.start()
+			var $cluster_index = line.clusters.start()
+			cluster_end = range_end(line.clusters)?
+			while $cluster_index < cluster_end {
+				cluster = list_at(shape.clusters, $cluster_index)
+				if cluster.source.scalars.start() != $source_scalar or cluster.source.utf8_bytes.start() != $source_byte or !range_fits(cluster.glyphs, shape.glyph_indices.len()) or cluster.glyphs.length() == 0 {
+					return Err(InvalidCluster({ cluster: $cluster_index, line: request.line }))
+				}
+				$source_scalar = range_end(cluster.source.scalars)?
+				$source_byte = range_end(cluster.source.utf8_bytes)?
+				if $source_scalar > range_end(line.source.scalars)? or $source_byte > range_end(line.source.utf8_bytes)? {
+					return Err(InvalidCluster({ cluster: $cluster_index, line: request.line }))
+				}
+				new_references = $glyph_indices.len()
+				var $reference = cluster.glyphs.start()
+				reference_end = range_end(cluster.glyphs)?
+				while $reference < reference_end {
+					glyph_index = list_at(shape.glyph_indices, $reference)
+					if glyph_index < run.glyphs.start() or glyph_index >= range_end(run.glyphs)? {
+						return Err(InvalidGlyph({ glyph: glyph_index, line: request.line }))
+					}
+					check_limit(checked_add($glyphs.len(), 1)?, limits.max_glyphs, Glyphs)?
+					check_limit(checked_add($glyph_indices.len(), 1)?, limits.max_glyph_indices, GlyphIndices)?
+					$glyph_indices = $glyph_indices.append($glyphs.len())
+					$glyphs = $glyphs.append(list_at(shape.glyphs, glyph_index))
+					$reference = $reference + 1
+				}
+				check_limit(checked_add($clusters.len(), 1)?, limits.max_clusters, Clusters)?
+				$clusters = $clusters.append({
+					..cluster,
+					glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
+				})
+				$cluster_index = $cluster_index + 1
+			}
+			if $source_scalar != range_end(line.source.scalars)? or $source_byte != range_end(line.source.utf8_bytes)? {
+				return Err(InvalidLine({ line: request.line, run: source_run_index }))
+			}
+			new_run_id = Text.RunId.from_index($runs.len())
+			$runs = $runs.append({
+				..run,
+				clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
+				glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
+				id: new_run_id,
+				source: line.source,
+				substitutions: Semantics.Range.from_start_and_length(0, 0),
+				transformations: Semantics.Range.from_start_and_length(0, 0),
+			})
+			$placements = $placements.append({ origin: request.origin, page: request.page, run: new_run_id })
+			$final_styles = $final_styles.append(list_at(styles, source_run_index))
+			$request_index = $request_index + 1
 		}
-		new_run_id = Text.RunId.from_index($runs.len())
-		$runs = $runs.append({
-			..run,
-			clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
-			glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
-			id: new_run_id,
-			source: line.source,
-			substitutions: Semantics.Range.from_start_and_length(0, 0),
-			transformations: Semantics.Range.from_start_and_length(0, 0),
+	}
+	while $page_cursor < pages.len() {
+		$page_records = $page_records.append({
+			id: Semantics.PageId.from_index($page_cursor),
+			runs: Semantics.Range.from_start_and_length($page_run_start, $runs.len() - $page_run_start),
 		})
-		$placements = $placements.append({ origin: request.origin, page: request.page, run: new_run_id })
-		$final_styles = $final_styles.append(list_at(styles, source_run_index))
-		$request_index = $request_index + 1
+		$page_cursor = $page_cursor + 1
+		$page_run_start = $runs.len()
 	}
 	if $clusters.len() != shape.clusters.len() or $glyph_indices.len() != shape.glyph_indices.len() or $glyphs.len() != shape.glyphs.len() {
 		return Err(InvalidRun({ run: $runs.len() }))
@@ -285,6 +326,144 @@ build_prepared_plan = |prepared, limits| {
 			},
 		},
 	)
+}
+
+## The lists a paint request appends to, moved through the split helper so
+## every buffer keeps its unique in-place ownership.
+PaintAccumulator : {
+	clusters : List(Text.Cluster),
+	glyph_indices : List(U64),
+	glyphs : List(Text.Glyph),
+	placements : List(KernelFacadeText.Placement),
+	runs : List(Text.Run),
+	styles : List(KernelFacadeShape.RunStyle),
+}
+
+## Materialize one line of a logical run that spans several physical face
+## runs: one final run and placement per overlapped physical segment, with
+## origins advanced by the accumulated widths of the preceding segments.
+paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), PaintRequest, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
+paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
+	var $clusters = accumulator.clusters
+	var $glyph_indices = accumulator.glyph_indices
+	var $glyphs = accumulator.glyphs
+	var $placements = accumulator.placements
+	var $runs = accumulator.runs
+	var $final_styles = accumulator.styles
+	physical_start = request.source_runs.physical.start()
+	physical_end = range_end(request.source_runs.physical)?
+	if physical_end > shape.runs.len() or physical_end <= physical_start or request.line >= lines.len() or physical_end > styles.len() {
+		return Err(InvalidLine({ line: request.line, run: physical_start }))
+	}
+	line = list_at(lines, request.line)
+	first = list_at(shape.runs, physical_start)
+	last = list_at(shape.runs, physical_end - 1)
+	last_cluster_end = range_end(last.clusters)?
+	last_scalar_end = range_end(last.source.scalars)?
+	last_byte_end = range_end(last.source.utf8_bytes)?
+	if last_cluster_end < first.clusters.start() or last_scalar_end < first.source.scalars.start() or last_byte_end < first.source.utf8_bytes.start() {
+		return Err(InvalidRun({ run: physical_start }))
+	}
+	merged_clusters = Semantics.Range.from_start_and_length(first.clusters.start(), last_cluster_end - first.clusters.start())
+	merged_source = {
+		scalars: Semantics.Range.from_start_and_length(first.source.scalars.start(), last_scalar_end - first.source.scalars.start()),
+		utf8_bytes: Semantics.Range.from_start_and_length(first.source.utf8_bytes.start(), last_byte_end - first.source.utf8_bytes.start()),
+	}
+	if line.clusters.length() == 0 or !range_within(line.clusters, merged_clusters) or !text_range_within(line.source, merged_source) {
+		return Err(InvalidLine({ line: request.line, run: physical_start }))
+	}
+	line_cluster_end = range_end(line.clusters)?
+	line_scalar_end = range_end(line.source.scalars)?
+	line_byte_end = range_end(line.source.utf8_bytes)?
+	var $advance_offset = 0
+	var $source_scalar = line.source.scalars.start()
+	var $source_byte = line.source.utf8_bytes.start()
+	var $physical = physical_start
+	while $physical < physical_end {
+		run = list_at(shape.runs, $physical)
+		if run.id.index() != $physical or !range_fits(run.clusters, shape.clusters.len()) or !range_fits(run.glyphs, shape.glyphs.len()) or run.clusters.length() == 0 or run.glyphs.length() == 0 {
+			return Err(InvalidRun({ run: $physical }))
+		}
+		if run.substitutions.length() != 0 or run.transformations.length() != 0 {
+			return Err(UnsupportedRunEvidence({ run: $physical }))
+		}
+		run_cluster_end = range_end(run.clusters)?
+		segment_start = if line.clusters.start() > run.clusters.start() line.clusters.start() else run.clusters.start()
+		segment_end = if line_cluster_end < run_cluster_end line_cluster_end else run_cluster_end
+		if segment_end > segment_start {
+			cluster_start_new = $clusters.len()
+			glyph_start_new = $glyphs.len()
+			segment_first = list_at(shape.clusters, segment_start)
+			segment_scalar_start = segment_first.source.scalars.start()
+			segment_byte_start = segment_first.source.utf8_bytes.start()
+			var $segment_advance = 0
+			var $cluster_index = segment_start
+			while $cluster_index < segment_end {
+				cluster = list_at(shape.clusters, $cluster_index)
+				if cluster.source.scalars.start() != $source_scalar or cluster.source.utf8_bytes.start() != $source_byte or !range_fits(cluster.glyphs, shape.glyph_indices.len()) or cluster.glyphs.length() == 0 {
+					return Err(InvalidCluster({ cluster: $cluster_index, line: request.line }))
+				}
+				$source_scalar = range_end(cluster.source.scalars)?
+				$source_byte = range_end(cluster.source.utf8_bytes)?
+				if $source_scalar > line_scalar_end or $source_byte > line_byte_end {
+					return Err(InvalidCluster({ cluster: $cluster_index, line: request.line }))
+				}
+				new_references = $glyph_indices.len()
+				var $reference = cluster.glyphs.start()
+				reference_end = range_end(cluster.glyphs)?
+				while $reference < reference_end {
+					glyph_index = list_at(shape.glyph_indices, $reference)
+					if glyph_index < run.glyphs.start() or glyph_index >= range_end(run.glyphs)? {
+						return Err(InvalidGlyph({ glyph: glyph_index, line: request.line }))
+					}
+					check_limit(checked_add($glyphs.len(), 1)?, limits.max_glyphs, Glyphs)?
+					check_limit(checked_add($glyph_indices.len(), 1)?, limits.max_glyph_indices, GlyphIndices)?
+					glyph = list_at(shape.glyphs, glyph_index)
+					$segment_advance = checked_i64_add($segment_advance, glyph.advance_x.raw())?
+					$glyph_indices = $glyph_indices.append($glyphs.len())
+					$glyphs = $glyphs.append(glyph)
+					$reference = $reference + 1
+				}
+				check_limit(checked_add($clusters.len(), 1)?, limits.max_clusters, Clusters)?
+				$clusters = $clusters.append({
+					..cluster,
+					glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
+				})
+				$cluster_index = $cluster_index + 1
+			}
+			check_limit(checked_add($runs.len(), 1)?, limits.max_runs, Runs)?
+			check_limit(checked_add($placements.len(), 1)?, limits.max_placements, Placements)?
+			new_run_id = Text.RunId.from_index($runs.len())
+			origin_x = checked_i64_add(request.origin.x.raw(), $advance_offset)?
+			$runs = $runs.append({
+				..run,
+				clusters: Semantics.Range.from_start_and_length(cluster_start_new, $clusters.len() - cluster_start_new),
+				glyphs: Semantics.Range.from_start_and_length(glyph_start_new, $glyphs.len() - glyph_start_new),
+				id: new_run_id,
+				source: {
+					scalars: Semantics.Range.from_start_and_length(segment_scalar_start, $source_scalar - segment_scalar_start),
+					utf8_bytes: Semantics.Range.from_start_and_length(segment_byte_start, $source_byte - segment_byte_start),
+				},
+				substitutions: Semantics.Range.from_start_and_length(0, 0),
+				transformations: Semantics.Range.from_start_and_length(0, 0),
+			})
+			$placements = $placements.append({ origin: { x: Layout.Unit.from_raw(origin_x), y: request.origin.y }, page: request.page, run: new_run_id })
+			$final_styles = $final_styles.append(list_at(styles, $physical))
+			$advance_offset = checked_i64_add($advance_offset, $segment_advance)?
+		}
+		$physical = $physical + 1
+	}
+	if $source_scalar != line_scalar_end or $source_byte != line_byte_end {
+		return Err(InvalidLine({ line: request.line, run: physical_start }))
+	}
+	Ok({
+		clusters: $clusters,
+		glyph_indices: $glyph_indices,
+		glyphs: $glyphs,
+		placements: $placements,
+		runs: $runs,
+		styles: $final_styles,
+	})
 }
 
 single_run_index : KernelFacadeShape.LogicalRun -> Try(U64, KernelFacadeText.Error)
@@ -450,8 +629,9 @@ expect {
 	}
 }
 
-## A later multi-face selector may widen this relation, but this single-run
-## materializer must reject it before it can emit a partial visual run.
+## The multi-face materializer accepts a widened logical range only when its
+## physical runs actually exist; a range past the shaped store is rejected
+## before it can emit a partial visual run.
 expect {
 	prepared = test_prepared(test_text)
 	row = list_at(prepared.rows, 0)
@@ -460,7 +640,7 @@ expect {
 		rows: [{ ..row, body_runs: { physical: Semantics.Range.from_start_and_length(0, 2) } }],
 	}
 	match KernelFacadeText.Plan.build_prepared(bad, test_limits) {
-		Err(InvalidRun({ run: 0 })) => True
+		Err(InvalidLine({ line: 1, run: 0 })) => True
 		_ => False
 	}
 }

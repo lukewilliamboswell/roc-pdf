@@ -6,6 +6,7 @@ Theme :: {
 	body : TextStyle,
 	bullet_indent : Layout.Unit,
 	code : TextStyle,
+	font_selection : FontSelection,
 	heading : TextStyle,
 	page_margin : PageMargin,
 	paragraph_spacing : Layout.Unit,
@@ -17,6 +18,12 @@ Theme :: {
 		leading : Layout.Unit,
 		size : Layout.Unit,
 	}
+
+	## `StyleFaces` selects each style's exact single face. `Policy` selects a
+	## registry-constructed finite ordered policy for per-cluster coverage
+	## selection; the policy identity is Theme-selectable state, never inferred
+	## from registry insertion order.
+	FontSelection : [Policy(Font.PolicyId), StyleFaces]
 
 	PageMargin : {
 		bottom : Layout.Unit,
@@ -43,6 +50,7 @@ Theme :: {
 			body,
 			bullet_indent: Layout.Unit.from_raw(18000),
 			code: body,
+			font_selection: StyleFaces,
 			heading: {
 				color: black,
 				font: Font.FaceId.from_index(0),
@@ -70,11 +78,21 @@ Theme :: {
 		body: { ..theme.body, font },
 		bullet_indent: theme.bullet_indent,
 		code: { ..theme.code, font },
+		font_selection: StyleFaces,
 		heading: { ..theme.heading, font },
 		page_margin: theme.page_margin,
 		paragraph_spacing: theme.paragraph_spacing,
 		title: { ..theme.title, font },
 	}
+
+	## Select an ordered multi-face policy for the whole document body. Style
+	## faces remain recorded but the pipeline resolves fonts per grapheme
+	## cluster through the policy's registry search space.
+	with_font_policy : Theme, Font.PolicyId -> Theme
+	with_font_policy = |theme, policy| { ..theme, font_selection: Policy(policy) }
+
+	font_selection : Theme -> FontSelection
+	font_selection = |theme| theme.font_selection
 
 	body_font : Theme -> Font.FaceId
 	body_font = |theme| theme.body.font

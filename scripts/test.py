@@ -23,9 +23,13 @@ from check_gate3_supplementary_text import EXPECTED_CONTENT as GATE3_SUPPLEMENTA
 from check_gate3_supplementary_text import validate_gate3_supplementary_text_pdf
 from check_gate3_cjk_text import EXPECTED_CONTENT as GATE3_CJK_TEXT_CONTENT
 from check_gate3_cjk_text import validate_gate3_cjk_text_pdf
+from check_gate3_combining import validate_combining_pdf
 from check_gate3_ligature import EXPECTED_CONTENT as GATE3_LIGATURE_CONTENT
 from check_gate3_ligature import validate_ligature_pdf
+from check_gate3_multiface_facade import validate_gate3_multiface_facade_pdf
 from check_gate3_multiface_text import validate_gate3_multiface_text_pdf
+from check_gate3_case_text import validate_gate3_case_pdf
+from check_gate3_rtl import validate_gate3_rtl_pdf
 from check_gate3_soft_hyphen import EXPECTED_CONTENT as GATE3_SOFT_HYPHEN_CONTENT
 from check_gate3_soft_hyphen import validate_soft_hyphen_pdf
 from check_gate3_external_discretionary_hyphen import EXPECTED_CONTENT as GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
@@ -324,6 +328,11 @@ def relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
 
 
+def source_key(source: Path) -> str:
+    """Filename-safe identity of a fixture source within one build directory."""
+    return relative(source).replace("/", "_").removesuffix(".roc")
+
+
 def describe_bytes(value: bytes) -> str:
     return f"{len(value)} bytes, sha256={hashlib.sha256(value).hexdigest()}"
 
@@ -473,16 +482,34 @@ def run_case(
     check_allocations: bool,
     compare_baselines: bool,
     linux_x64_container: str | None,
+    reuse_build_cache: bool,
 ) -> BaselineDelta | None:
-    executable = build_dir / f"case-{index}"
-    roc(
-        "build",
-        relative(case.source),
-        f"--opt={roc_optimization}",
-        f"--target={target}",
-        f"--output={executable}",
-        "--no-cache",
-    )
+    # Half the registered cases differ from another case only in the runtime
+    # arguments they pass to the same fixture, and every case in one run
+    # compiles with the same optimization and target. Keying the executable
+    # on the source therefore builds each fixture exactly once per run
+    # instead of once per case, without weakening what is compiled: the
+    # source is still built from the current working tree under the same
+    # flags before any case that uses it runs.
+    executable = build_dir / f"source-{source_key(case.source)}"
+    if not executable.exists():
+        # Every fixture is a thin wrapper over the same package modules, so a
+        # cold compiler cache recompiles that package once per source. Reuse
+        # is opt-in because a stale local cache would silently detach a
+        # snapshot or allocation baseline from the sources it claims to
+        # measure; it is safe exactly where the cache starts empty and is
+        # populated only from the checkout under test, which is what a fresh
+        # CI runner provides.
+        build_flags = [
+            "build",
+            relative(case.source),
+            f"--opt={roc_optimization}",
+            f"--target={target}",
+            f"--output={executable}",
+        ]
+        if not reuse_build_cache:
+            build_flags.append("--no-cache")
+        roc(*build_flags)
 
     if linux_x64_container is None:
         invocation = [executable, *case.args]
@@ -591,6 +618,18 @@ def run_case(
         elif case.dimensions.get("gate3_generated_label", 0) == 1:
             validate_generated_labels_pdf(result.stdout)
             print(f"PASS {case.name}: independent offsets, lengths, xref, typed list ownership, labels, Type 0 font, CID, and Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_combining_text", 0) == 1:
+            validate_combining_pdf(result.stdout)
+            print(f"PASS {case.name}: exact decomposed combining CID and two-scalar ToUnicode facts", flush=True)
+        elif case.dimensions.get("gate3_case_text", 0) == 1:
+            validate_gate3_case_pdf(result.stdout)
+            print(f"PASS {case.name}: resolved case presentation, logical ActualText, CID, and Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_rtl_text", 0) == 1:
+            validate_gate3_rtl_pdf(result.stdout)
+            print(f"PASS {case.name}: resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts", flush=True)
+        elif case.dimensions.get("gate3_multiface_facade", 0) == 1:
+            validate_gate3_multiface_facade_pdf(result.stdout)
+            print(f"PASS {case.name}: independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts", flush=True)
         elif case.dimensions.get("gate3_caller_facade", 0) == 1:
             validate_gate3_caller_facade_pdf(result.stdout)
             print(f"PASS {case.name}: independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts", flush=True)
@@ -664,6 +703,15 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--reuse-build-cache",
+        action="store_true",
+        help=(
+            "Reuse the Roc compiler cache across fixture builds instead of forcing a full "
+            "rebuild per case. Intended for a fresh CI runner, whose cache starts empty and "
+            "is populated only from the checkout under test"
+        ),
+    )
+    parser.add_argument(
         "--case",
         action="append",
         dest="case_names",
@@ -699,6 +747,10 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate3_supplementary_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_cjk_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_ligature.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_multiface_facade.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_case_text.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_combining.py", "--self-test")
+    command(sys.executable, "scripts/check_gate3_rtl.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_multiface_text.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_soft_hyphen.py", "--self-test")
     command(sys.executable, "scripts/check_gate3_external_discretionary_hyphen.py", "--self-test")
@@ -754,6 +806,7 @@ def main() -> None:
                 check_allocations,
                 args.compare_baselines,
                 args.linux_x64_container,
+                args.reuse_build_cache,
             )
             if delta is not None:
                 baseline_deltas.append(delta)

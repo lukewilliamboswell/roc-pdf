@@ -19,6 +19,8 @@ import Semantics
 import Text
 import Theme
 import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
+import "../tests/assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
 Gate3FacadeEvidence :: [].{
 	normalize_builder : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
@@ -50,6 +52,9 @@ Gate3FacadeEvidence :: [].{
 
 	source_cache_unique : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
 	source_cache_unique = |repetitions| evidence_source_cache(repetitions, UniqueSources)
+
+	ordered_facade : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+	ordered_facade = |repetitions| evidence_ordered_facade(repetitions)
 }
 
 Authoring := [Builder, Simple]
@@ -694,6 +699,128 @@ build_with_list = |repetitions| {
 	}
 	$blocks = $blocks.append(Document.bullets(["One", "Two"]))
 	Document.from_blocks({ contents: $blocks, language: "en-AU", title: "Report" })
+}
+
+## Repeated mixed-script paragraphs through the ordered multi-face facade
+## stages: coverage selection and the physical split happen once for the one
+## unique source, every later occurrence reuses them, the line template cache
+## hits for every repetition after the first, and exactly two dense fonts are
+## selected regardless of the repetition count.
+evidence_ordered_facade : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
+evidence_ordered_facade = |repetitions| {
+	if repetitions == 0 or repetitions > 100000 {
+		return Err(InvalidRepetitions)
+	}
+	caller = Font.Registry.empty.register(
+		caller_font_bytes,
+		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+		Font.ValidationLimits.default,
+	) ? |_| EvidenceFailure
+	cjk = caller.registry.register(
+		cjk_font_bytes,
+		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] },
+		Font.ValidationLimits.default,
+	) ? |_| EvidenceFailure
+	configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
+	theme = Theme.with_font_policy(Theme.default, configured.policy)
+	authoring = Document.normalize(
+		Document.from_blocks({
+			contents: List.repeat(Document.paragraph("C中é"), repetitions),
+			language: "en-AU",
+			title: "Ordered facade scale",
+		}),
+	)
+	nodes = repetitions + 10
+	occurrences = repetitions + 6
+	content = repetitions * 2 + 15
+	inputs = repetitions + 6
+	semantic = KernelFacadeSemantics.Plan.build(
+		authoring,
+		KernelFacadeSemantics.Limits.make({
+			max_artifacts: 0,
+			max_content_spine: content,
+			max_nodes: nodes,
+			max_occurrences: occurrences,
+			max_properties: 2,
+			max_source_inputs: inputs,
+			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			sources: KernelFacadeSources.Limits.make({
+				max_hash_probes: inputs * 100,
+				max_inputs: inputs,
+				max_source_bytes: inputs * 32,
+				max_source_scalars: inputs * 32,
+				max_table_slots: inputs * 4 + 8,
+				max_unique_sources: inputs,
+				unicode: { max_graphemes: 32, max_line_boundaries: 33, max_scalars: 32, max_script_runs: 8 },
+			}),
+			text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: 2, max_text_property_bytes: 8, max_text_source_bytes: inputs * 32, max_text_source_scalars: inputs * 32, max_text_sources: inputs }),
+		}),
+	) ? |_| EvidenceFailure
+	text_plan = KernelFacadeSemantics.Plan.preliminary(semantic)
+	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantic))
+	sources_work = KernelFacadeSources.Plan.work(KernelFacadeSemantics.Plan.sources(semantic))
+	physical_budget = repetitions * 3 + 8
+	text_units = repetitions * 4 + 21
+	text_bytes = repetitions * 8 + 25
+	shape = KernelFacadeShape.Plan.build_ordered(
+		KernelFacadeSemantics.Plan.authoring(semantic),
+		KernelFacadeSemantics.Plan.block_ownership(semantic),
+		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
+		source_store,
+		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
+		{ policy: configured.policy, registry: configured.registry },
+		theme,
+		KernelFacadeShape.Limits.make({
+			max_requests: physical_budget,
+			shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }),
+		}),
+	) ? |_| EvidenceFailure
+	selection = match KernelFacadeShape.Plan.selection(shape) {
+		OrderedFaces(ordered) => ordered
+		SingleFace => return Err(EvidenceFailure)
+	}
+	line = KernelFacadeLines.Plan.build_ordered(
+		shape,
+		source_store,
+		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
+		theme,
+		KernelFacadeLines.Limits.make({
+			line: KernelLineLayout.BatchLimits.make({
+				line: KernelLineLayout.Limits.make({ max_boundaries: 33, max_candidates: 64, max_clusters: 32, max_glyph_indices: 32, max_glyphs: 32, max_lines: 32 }),
+				max_key_probes: physical_budget * 16,
+				max_lines: text_units,
+				max_runs: physical_budget,
+				max_table_slots: physical_budget * 4 + 8,
+				max_templates: physical_budget,
+			}),
+			max_blocks: authoring.blocks.len(),
+			max_runs: physical_budget,
+		}),
+	) ? |_| EvidenceFailure
+	line_work = KernelFacadeLines.Plan.work(line).line
+	shape_store = KernelFacadeShape.Plan.shape(shape).store
+	structure = KernelStructure.build_blank(1, A4) ? |_| EvidenceFailure
+	bytes = KernelEmit.to_bytes(structure) ? |_| EvidenceFailure
+	Ok({
+		bytes,
+		work: [
+			repetitions,
+			sources_work.unique_sources,
+			selection.work.planned_sources,
+			selection.work.grapheme_visits,
+			selection.work.face_visits,
+			selection.work.coverage_span_visits,
+			selection.work.selection_ranges,
+			selection.fonts.len(),
+			shape_store.runs.len(),
+			KernelFacadeShape.Plan.work(shape).metric_reads,
+			line_work.templates,
+			line_work.cache_hits,
+			line_work.key_probes,
+			line_work.line_writes,
+			bytes.len(),
+		],
+	})
 }
 
 build_with_builder : U64 -> Document

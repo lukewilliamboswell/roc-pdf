@@ -21,12 +21,14 @@ jobs:
     defaults:
       run:
         working-directory: roc-pdf
+    # The pull-request gate runs the Linux target, which is the one with
+    # measured allocation baselines. macOS still runs on pushes to main and
+    # on demand, so platform-specific breakage is caught without paying for
+    # a second full suite on every push to a branch.
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-15
-          - ubuntu-22.04
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-22.04"]') || fromJSON('["ubuntu-22.04", "macos-15"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -48,8 +50,13 @@ jobs:
           version: nightly-new-compiler
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
+      # Every fixture is a thin wrapper over the same package modules, so a
+      # forced rebuild per case recompiles that package ~100 times. A fresh
+      # runner's cache starts empty and is filled only from this checkout,
+      # so reuse cannot detach a snapshot or baseline from its sources. The
+      # local default still forces a full rebuild per case.
       - name: Test
-        run: ./scripts/test.py
+        run: ./scripts/test.py --reuse-build-cache
 
       - name: Extract vendored qpdf 12.3.2
         if: runner.os == 'Linux'
@@ -57,15 +64,21 @@ jobs:
           echo '44f2c53bf784c0143128d80d2b9946e9793962c5bb403b75c0024cb4d8e346b9  vendor/qpdf/qpdf-12.3.2-bin-linux-x86_64.zip' | sha256sum --check
           unzip -q vendor/qpdf/qpdf-12.3.2-bin-linux-x86_64.zip -d /tmp/qpdf-12.3.2
 
-      - name: Validate structural PDF with qpdf 12.3.2
+      # Every non-empty snapshot is checked. Zero-byte snapshots belong to
+      # negatives that deliberately emit no PDF, so they are skipped rather
+      # than special-cased into a hand-maintained list.
+      - name: Validate every snapshot with qpdf 12.3.2
         if: runner.os == 'Linux'
         run: |
-          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_blank/snapshot.pdf
-          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_deflate_one_block/snapshot.pdf
-          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_deflate/snapshot.pdf
-          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_pages/snapshot.pdf
-          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate1_retention/snapshot.pdf
-          /tmp/qpdf-12.3.2/bin/qpdf --check tests/gate3_text/snapshot.pdf
+          checked=0
+          for snapshot in tests/*/snapshot.pdf; do
+            if [ -s "$snapshot" ]; then
+              /tmp/qpdf-12.3.2/bin/qpdf --check "$snapshot"
+              checked=$((checked + 1))
+            fi
+          done
+          echo "qpdf checked $checked snapshots"
+          test "$checked" -ge 46
 
       - name: Install Java 17 for PDFBox
         if: runner.os == 'Linux'
@@ -84,6 +97,19 @@ jobs:
           python3 scripts/check_gate3_text.py --pdfbox-extraction
           python3 scripts/check_gate3_caller_text.py --pdfbox-extraction
           python3 scripts/check_gate3_actual_text.py --pdfbox-extraction
+          python3 scripts/check_gate3_supplementary_text.py --pdfbox-extraction
+          python3 scripts/check_gate3_cjk_text.py --pdfbox-extraction
+          python3 scripts/check_gate3_combining.py tests/gate3_combining_text/snapshot.pdf --pdfbox-extraction
+          python3 scripts/check_gate3_ligature.py --pdfbox-extraction
+          python3 scripts/check_gate3_multiface_text.py --pdfbox-extraction
+          python3 scripts/check_gate3_multiface_facade.py --pdfbox-extraction
+          python3 scripts/check_gate3_rtl.py --pdfbox-extraction
+          python3 scripts/check_gate3_case_text.py --pdfbox-extraction
+          python3 scripts/check_gate3_soft_hyphen.py --pdfbox-extraction
+          python3 scripts/check_gate3_external_discretionary_hyphen.py --pdfbox-extraction
+          python3 scripts/check_gate3_generated_labels.py tests/gate3_generated_label/snapshot.pdf --pdfbox-extraction
+          python3 scripts/check_gate3_caller_facade.py --pdfbox-extraction
+          python3 scripts/check_gate3_facade_output.py tests/gate3_pdf_facade/snapshot.pdf --fixture-oracle --pdfbox-extraction
 
       - name: Extract vendored PDFium Chromium 7988
         if: runner.os == 'Linux'
@@ -100,10 +126,19 @@ jobs:
       - name: Validate Gate 3 text with PDFium and PDFBox rendering
         if: runner.os == 'Linux'
         run: |
-          python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render
-          python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render --caller
-          python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render --actual-text
+          for mode in "" --caller --actual-text --supplementary --cjk --ligature --multiface --multiface-facade --rtl --case --soft-hyphen --external-discretionary-hyphen; do
+            python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render $mode
+          done
+          python3 scripts/check_gate3_facade_output.py tests/gate3_pdf_facade/snapshot.pdf --fixture-oracle --pdfium-renderer /tmp/pdfium-render
+          python3 scripts/check_gate3_generated_labels.py tests/gate3_generated_label/snapshot.pdf --pdfium-renderer /tmp/pdfium-render
+          python3 scripts/check_gate3_caller_facade.py --pdfium-renderer /tmp/pdfium-render
 
+      # The Arlington set is deliberately still the Gate 1 structural
+      # snapshots. Widening it to the Gate 2 and Gate 3 snapshots requires
+      # verifying each one against the pinned validator first, and no Gate 3
+      # evidence record claims an Arlington result yet; adding unverified
+      # inputs here would assert a conformance fact this repository has not
+      # actually observed.
       - name: Validate object model with veraPDF Arlington 1.30.2
         if: runner.os == 'Linux'
         run: |

@@ -45,7 +45,10 @@ before any registry can be shared or supplied to `Pdf.Options`; it emits zero
 PDF bytes. This slice adds no new accepted font format, fallback, or
 cross-registry cache.
 
-This evidence is limited to the current single-face public facade. Ordered
-multi-face policy/output needs its own retention and cache review when it
-becomes the public selection path. Hyphenation is not accepted at Gate 3, so a
-hyphenation cache is inapplicable rather than silently claimed here.
+This evidence covers the single-face public facade. The ordered multi-face
+policy path became a public selection path with its own two-face
+shared/unique retention modes and cache review, recorded in
+[`gate-3-multiface-public-facade.md`](gate-3-multiface-public-facade.md) and
+[`gate-3-cache-closure.md`](gate-3-cache-closure.md). Hyphenation is not
+accepted at Gate 3, so a hyphenation cache is inapplicable rather than
+silently claimed here.
