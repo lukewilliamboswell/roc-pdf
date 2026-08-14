@@ -328,6 +328,11 @@ def relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
 
 
+def source_key(source: Path) -> str:
+    """Filename-safe identity of a fixture source within one build directory."""
+    return relative(source).replace("/", "_").removesuffix(".roc")
+
+
 def describe_bytes(value: bytes) -> str:
     return f"{len(value)} bytes, sha256={hashlib.sha256(value).hexdigest()}"
 
@@ -479,24 +484,32 @@ def run_case(
     linux_x64_container: str | None,
     reuse_build_cache: bool,
 ) -> BaselineDelta | None:
-    executable = build_dir / f"case-{index}"
-
-    # Every fixture is a thin wrapper over the same package modules, so a
-    # cold compiler cache recompiles that package once per case. Reuse is
-    # opt-in because a stale local cache would silently detach a snapshot or
-    # allocation baseline from the sources it claims to measure; it is safe
-    # exactly where the cache starts empty and is populated only from the
-    # checkout under test, which is what a fresh CI runner provides.
-    build_flags = [
-        "build",
-        relative(case.source),
-        f"--opt={roc_optimization}",
-        f"--target={target}",
-        f"--output={executable}",
-    ]
-    if not reuse_build_cache:
-        build_flags.append("--no-cache")
-    roc(*build_flags)
+    # Half the registered cases differ from another case only in the runtime
+    # arguments they pass to the same fixture, and every case in one run
+    # compiles with the same optimization and target. Keying the executable
+    # on the source therefore builds each fixture exactly once per run
+    # instead of once per case, without weakening what is compiled: the
+    # source is still built from the current working tree under the same
+    # flags before any case that uses it runs.
+    executable = build_dir / f"source-{source_key(case.source)}"
+    if not executable.exists():
+        # Every fixture is a thin wrapper over the same package modules, so a
+        # cold compiler cache recompiles that package once per source. Reuse
+        # is opt-in because a stale local cache would silently detach a
+        # snapshot or allocation baseline from the sources it claims to
+        # measure; it is safe exactly where the cache starts empty and is
+        # populated only from the checkout under test, which is what a fresh
+        # CI runner provides.
+        build_flags = [
+            "build",
+            relative(case.source),
+            f"--opt={roc_optimization}",
+            f"--target={target}",
+            f"--output={executable}",
+        ]
+        if not reuse_build_cache:
+            build_flags.append("--no-cache")
+        roc(*build_flags)
 
     if linux_x64_container is None:
         invocation = [executable, *case.args]
