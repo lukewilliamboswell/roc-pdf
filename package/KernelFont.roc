@@ -1222,3 +1222,43 @@ expect match validate_component_graph(
 	Err(CompositeDepthMismatch({ actual: 2, declared: 1 })) => Bool.True
 	_ => Bool.False
 }
+
+## A 28-byte font holding one `cmap` record with the given range. The header
+## carries the only search values `valid_search_header` accepts for one table,
+## so these fixtures reach the table-range check instead of failing earlier.
+single_table_font : U32, U32 -> List(U8)
+single_table_font = |offset, length| {
+	header = [0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00]
+	with_tag = append_u32(header, tag_cmap)
+	with_checksum = append_u32(with_tag, 0)
+	append_u32(append_u32(with_checksum, offset), length)
+}
+
+append_u32 : List(U8), U32 -> List(U8)
+append_u32 = |bytes, value| bytes
+	.append(value.shr_wrap(24).to_u8_wrap())
+	.append(value.shr_wrap(16).to_u8_wrap())
+	.append(value.shr_wrap(8).to_u8_wrap())
+	.append(value.to_u8_wrap())
+
+single_table_limits : KernelFont.Limits
+single_table_limits = KernelFont.Limits.make({ max_bytes: 28, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 1 })
+
+## A table record starting past end-of-font is rejected before any table byte is
+## read. Regression for the unsigned `bytes.len() - offset` bound, which wrapped
+## to a huge value and let the range pass validation; the checksum walk then read
+## outside the font. This is the atomic twin of the retained field reproduction
+## `tests/assets/FontTableRangeOverflow-FuzzSeed.ttf`, whose first table record
+## declares offset 1908 in a 316-byte font.
+expect match KernelFont.inspect(single_table_font(0x40, 4), single_table_limits) {
+	Err(InvalidTableRange({ length: 4, offset: 0x40, tag: 0x636d6170 })) => Bool.True
+	_ => Bool.False
+}
+
+## The exact end-of-font boundary stays legal, so the overflow guard cannot be
+## tightened into rejecting a zero-length table that ends the font. This record
+## clears the range check and fails later on the whole-font checksum instead.
+expect match KernelFont.inspect(single_table_font(28, 0), single_table_limits) {
+	Err(FontChecksumMismatch({ actual: 0x636f619c })) => Bool.True
+	_ => Bool.False
+}
