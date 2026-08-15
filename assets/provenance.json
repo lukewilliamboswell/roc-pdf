@@ -63,6 +63,21 @@
       }
     },
     {
+      "id": "font-table-range-overflow-fuzz-seed",
+      "path": "tests/assets/FontTableRangeOverflow-FuzzSeed.ttf",
+      "kind": "fuzz_seed",
+      "bytes": 316,
+      "sha256": "90866ba1cd98a985fcff3cd02aec6e2b9530229e7ccddece6950a8b2ffacc505",
+      "license": "OFL-1.1",
+      "attribution": "vendor/fonts/Inter-OFL-1.1.txt",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "fuzz/font_inspector_mutation.roc"
+      }
+    },
+    {
       "id": "gate1-balanced-pages-pdf-snapshot",
       "path": "tests/gate1_pages/snapshot.pdf",
       "kind": "expected_pdf",

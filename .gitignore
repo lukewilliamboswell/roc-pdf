@@ -11,6 +11,12 @@ __pycache__/
 
 generated-docs/
 .roc-pdf-tmp/
+.roc-fuzz/
+facade_output_equivalence
+font_inspector_mutation
+font_inspector_repair
+font_subset_roundtrip
+jpeg_inspector_mutation
 .DS_Store
 
 tests/platform/.zig-cache/

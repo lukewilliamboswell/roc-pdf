@@ -781,6 +781,7 @@ def main() -> None:
     roc("check", "package/main.roc")
     roc("test", "package/main.roc")
     roc("test", "package/evidence.roc")
+    roc("test", "package/fuzz_evidence.roc")
     for fixture in compile_fixtures:
         roc("test", relative(fixture))
     command(
