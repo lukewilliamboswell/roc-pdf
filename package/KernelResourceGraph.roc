@@ -153,14 +153,38 @@ KernelResourceGraph :: [].{
 
 	Canonical : { descriptor : Descriptor, length : U64, start : U64 }
 
+	## The versioned, domain-separated identity digest of one source range.
+	## This is exactly the procedure `Plan.build` hashes with, exposed so Gate 4
+	## canonical recipes can embed dependency identities without a second
+	## digest implementation. Descriptor facts and byte length precede the
+	## payload, so equal bytes under different descriptors never share a digest.
+	identity_digest : Source, List(U8) -> Try(List(U8), Error)
+	identity_digest = |source, payload_bytes| {
+		available = payload_bytes.len()
+		end = match U64.plus_try(source.start, source.length) {
+			Err(Overflow) => available + 1
+			Ok(value) => value
+		}
+		if end > available {
+			Err(PayloadRangeInvalid({ available, length: source.length, resource: 0, start: source.start }))
+		} else {
+			match KernelSha256.digest_range(identity_prefix(source), payload_bytes, source.start, source.length) {
+				Err(_) => Err(DigestFailed({ resource: 0 }))
+				Ok(bytes) => Ok(bytes)
+			}
+		}
+	}
+
 	## The successful stage result. It keeps only the facts later planning and
 	## lowering need: canonical resource descriptors and payload ranges, the
 	## direct dependency store, the deterministic plan order, the per-root direct
-	## dictionaries, and the placement ownership records. The authoring-side
-	## source list, the raw edge list, and the source-to-canonical map are all
-	## consumed and dropped.
+	## dictionaries, the placement ownership records, and the source-to-canonical
+	## map that lowering consumes to name authored references. The
+	## authoring-side source list and the raw edge list are consumed and
+	## dropped.
 	Plan :: {
 		canonical : List(Canonical),
+		canonical_of : List(U64),
 		dependency_offsets : List(U64),
 		dependency_targets : List(U64),
 		order : List(U64),
@@ -172,6 +196,11 @@ KernelResourceGraph :: [].{
 	}.{
 		build : Input, Limits -> Try(Plan, Error)
 		build = |input, limits| build_plan(input, limits)
+
+		## The canonical identity of one authored source resource. Later stages
+		## consume this map instead of re-deriving identity.
+		canonical_index : Plan, U64 -> U64
+		canonical_index = |plan, source| list_at(plan.canonical_of, source)
 
 		## Canonical resources, i.e. unique payload identities after
 		## deduplication.
@@ -212,6 +241,9 @@ KernelResourceGraph :: [].{
 
 		placement_at : Plan, U64 -> Placement
 		placement_at = |plan, index| list_at(plan.placements, index)
+
+		placements : Plan -> List(Placement)
+		placements = |plan| plan.placements
 
 		work : Plan -> Work
 		work = |plan| plan.work
@@ -281,6 +313,7 @@ build_plan = |input, limits| {
 	Ok(
 		KernelResourceGraph.Plan.{
 			canonical: classes.canonical,
+			canonical_of: classes.canonical_of,
 			dependency_offsets: dependencies.offsets,
 			dependency_targets: dependencies.heads,
 			order: planned.order,
@@ -1976,4 +2009,19 @@ expect {
 		work.unique_payloads == 3 and
 			work.deduplicated_payloads == 3 and work.descriptor_partitions == 2 and
 				KernelResourceGraph.Plan.root_dictionary(plan, 0).len() == 3
+}
+
+## The exposed identity digest matches the descriptor-then-payload procedure:
+## equal bytes with different descriptors differ, and an impossible range is
+## the same atomic rejection the planner reports.
+expect {
+	bytes = [1, 2, 3, 4]
+	first = KernelResourceGraph.identity_digest({ descriptor: test_descriptor(Image, 0), length: 4, start: 0 }, bytes)?
+	same = KernelResourceGraph.identity_digest({ descriptor: test_descriptor(Image, 0), length: 4, start: 0 }, bytes)?
+	other = KernelResourceGraph.identity_digest({ descriptor: test_descriptor(Image, 1), length: 4, start: 0 }, bytes)?
+	out_of_range = match KernelResourceGraph.identity_digest({ descriptor: test_descriptor(Image, 0), length: 5, start: 0 }, bytes) {
+		Err(PayloadRangeInvalid(_)) => Bool.True
+		_ => Bool.False
+	}
+	first.len() == 32 and first == same and first != other and out_of_range
 }

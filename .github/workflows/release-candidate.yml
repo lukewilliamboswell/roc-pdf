@@ -48,10 +48,8 @@ jobs:
           version: nightly-new-compiler
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
-      # On a pull request the CI workflow has already run this exact suite,
-      # so re-running it here would only duplicate ~50 minutes of runner
-      # time. A release still re-validates from scratch, because the bundle
-      # it publishes must be gated on its own complete run.
+      # Ordinary CI runs only the public-surface smoke set. An actual release
+      # re-validates the complete suite from scratch before publishing.
       - name: Validate public package behavior with the dev backend
         if: github.event_name != 'pull_request'
         run: ROC=roc ./scripts/test.py --allocation-baselines

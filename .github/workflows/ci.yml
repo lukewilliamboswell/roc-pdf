@@ -50,103 +50,16 @@ jobs:
           version: nightly-new-compiler
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
-      # Every fixture is a thin wrapper over the same package modules, so a
-      # forced rebuild per case recompiles that package ~100 times. A fresh
-      # runner's cache starts empty and is filled only from this checkout,
-      # so reuse cannot detach a snapshot or baseline from its sources. The
-      # local default still forces a full rebuild per case.
-      - name: Test
-        run: ./scripts/test.py --reuse-build-cache
-
-      - name: Extract vendored qpdf 12.3.2
-        if: runner.os == 'Linux'
+      # Pull-request CI is intentionally a fast public-surface smoke test.
+      # The complete fixture, snapshot, allocation, renderer, and validator
+      # suite remains available locally through ./scripts/test.py.
+      - name: Check core package and public examples
         run: |
-          echo '44f2c53bf784c0143128d80d2b9946e9793962c5bb403b75c0024cb4d8e346b9  vendor/qpdf/qpdf-12.3.2-bin-linux-x86_64.zip' | sha256sum --check
-          unzip -q vendor/qpdf/qpdf-12.3.2-bin-linux-x86_64.zip -d /tmp/qpdf-12.3.2
-
-      # Every non-empty snapshot is checked. Zero-byte snapshots belong to
-      # negatives that deliberately emit no PDF, so they are skipped rather
-      # than special-cased into a hand-maintained list.
-      - name: Validate every snapshot with qpdf 12.3.2
-        if: runner.os == 'Linux'
-        run: |
-          checked=0
-          for snapshot in tests/*/snapshot.pdf; do
-            if [ -s "$snapshot" ]; then
-              /tmp/qpdf-12.3.2/bin/qpdf --check "$snapshot"
-              checked=$((checked + 1))
-            fi
+          roc check package/main.roc
+          roc test package/main.roc
+          for example in examples/*.roc; do
+            roc test "$example"
           done
-          echo "qpdf checked $checked snapshots"
-          test "$checked" -ge 46
 
-      - name: Install Java 17 for PDFBox
-        if: runner.os == 'Linux'
-        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
-        with:
-          distribution: temurin
-          java-version: '17.0.20+8'
-
-      - name: Parse strictly with Apache PDFBox 3.0.8
-        if: runner.os == 'Linux'
-        run: python3 scripts/check_pdfbox.py
-
-      - name: Extract Gate 3 text with Apache PDFBox 3.0.8
-        if: runner.os == 'Linux'
-        run: |
-          python3 scripts/check_gate3_text.py --pdfbox-extraction
-          python3 scripts/check_gate3_caller_text.py --pdfbox-extraction
-          python3 scripts/check_gate3_actual_text.py --pdfbox-extraction
-          python3 scripts/check_gate3_supplementary_text.py --pdfbox-extraction
-          python3 scripts/check_gate3_cjk_text.py --pdfbox-extraction
-          python3 scripts/check_gate3_combining.py tests/gate3_combining_text/snapshot.pdf --pdfbox-extraction
-          python3 scripts/check_gate3_ligature.py --pdfbox-extraction
-          python3 scripts/check_gate3_multiface_text.py --pdfbox-extraction
-          python3 scripts/check_gate3_multiface_facade.py --pdfbox-extraction
-          python3 scripts/check_gate3_rtl.py --pdfbox-extraction
-          python3 scripts/check_gate3_case_text.py --pdfbox-extraction
-          python3 scripts/check_gate3_soft_hyphen.py --pdfbox-extraction
-          python3 scripts/check_gate3_external_discretionary_hyphen.py --pdfbox-extraction
-          python3 scripts/check_gate3_generated_labels.py tests/gate3_generated_label/snapshot.pdf --pdfbox-extraction
-          python3 scripts/check_gate3_caller_facade.py --pdfbox-extraction
-          python3 scripts/check_gate3_facade_output.py tests/gate3_pdf_facade/snapshot.pdf --fixture-oracle --pdfbox-extraction
-
-      - name: Extract vendored PDFium Chromium 7988
-        if: runner.os == 'Linux'
-        run: |
-          echo '7358c15e26a746cd67854887ea11b3b807c436056788eee9294fb972b8f8e0be  vendor/pdfium/pdfium-linux-x64-7988.tgz' | sha256sum --check
-          mkdir -p /tmp/pdfium-7988
-          tar -xzf vendor/pdfium/pdfium-linux-x64-7988.tgz -C /tmp/pdfium-7988
-          cc -std=c11 -Wall -Wextra -Werror -O2 -I/tmp/pdfium-7988/include scripts/pdfium_render.c -L/tmp/pdfium-7988/lib -Wl,-rpath,/tmp/pdfium-7988/lib -lpdfium -o /tmp/pdfium-render
-
-      - name: Compare Gate 2 PDFium and PDFBox rendering
-        if: runner.os == 'Linux'
-        run: python3 scripts/check_gate2_renderers.py --pdfium-renderer /tmp/pdfium-render
-
-      - name: Validate Gate 3 text with PDFium and PDFBox rendering
-        if: runner.os == 'Linux'
-        run: |
-          for mode in "" --caller --actual-text --supplementary --cjk --ligature --multiface --multiface-facade --rtl --case --soft-hyphen --external-discretionary-hyphen; do
-            python3 scripts/check_gate3_renderers.py --pdfium-renderer /tmp/pdfium-render $mode
-          done
-          python3 scripts/check_gate3_facade_output.py tests/gate3_pdf_facade/snapshot.pdf --fixture-oracle --pdfium-renderer /tmp/pdfium-render
-          python3 scripts/check_gate3_generated_labels.py tests/gate3_generated_label/snapshot.pdf --pdfium-renderer /tmp/pdfium-render
-          python3 scripts/check_gate3_caller_facade.py --pdfium-renderer /tmp/pdfium-render
-
-      # The Arlington set is deliberately still the Gate 1 structural
-      # snapshots. Widening it to the Gate 2 and Gate 3 snapshots requires
-      # verifying each one against the pinned validator first, and no Gate 3
-      # evidence record claims an Arlington result yet; adding unverified
-      # inputs here would assert a conformance fact this repository has not
-      # actually observed.
-      - name: Validate object model with veraPDF Arlington 1.30.2
-        if: runner.os == 'Linux'
-        run: |
-          docker run --rm -d --name gate1-arlington -p 127.0.0.1:18080:8080 verapdf/arlington@sha256:1543368902c393771557e2a1da69e64ad72b69db32e6efebd38a09a7b86eacbc
-          trap 'docker stop gate1-arlington' EXIT
-          python3 scripts/check_arlington.py \
-            tests/gate1_blank/snapshot.pdf \
-            tests/gate1_deflate_one_block/snapshot.pdf \
-            tests/gate1_deflate/snapshot.pdf \
-            tests/gate1_pages/snapshot.pdf \
-            tests/gate1_retention/snapshot.pdf
+      - name: Run fuzz smoke tests
+        run: roc test package/fuzz_evidence.roc

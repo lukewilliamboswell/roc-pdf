@@ -23,6 +23,12 @@ it does not close Gate 4.
   an exact range of an already-owned allocation. `digest` is now defined in
   terms of it and is byte-for-byte unchanged.
 
+The Form XObject slice later extended this module compatibly:
+`identity_digest` exposes the unchanged versioned identity procedure for one
+source range (so canonical form recipes embed dependency identities without a
+second digest implementation), and the plan additionally exposes `placements`
+and the retained `canonical_index` map described under Ownership.
+
 ## Why a new representation
 
 `KernelResource` assigns PDF dictionary *names* to an already-planned dense
@@ -114,9 +120,13 @@ transactional: no plan, no partial plan, and no PDF bytes.
   placements.
 - **Retained.** The one `payload_bytes` allocation (moved, not copied), the
   canonical descriptor/range list, the direct dependency store and its reverse
-  index, the plan order, the per-root dictionaries, and the placement records.
-- **Dropped.** The authoring-side source list, the raw edge list, and the
-  source-to-canonical map. No authoring tree or scene store survives.
+  index, the plan order, the per-root dictionaries, the placement records,
+  and — since the Form XObject slice — the source-to-canonical map, which
+  lowering consumes through `canonical_index` instead of re-deriving identity.
+  The map is one already-built `U64` list per source, so retaining it changes
+  no allocation count.
+- **Dropped.** The authoring-side source list and the raw edge list. No
+  authoring tree or scene store survives.
 - **Copied payload bytes: 0.** Deduplicated resources *share exact ranges* of
   the single owned allocation; identity, ordering, and equality all read that
   allocation in place. The plan does not compact payloads into a second buffer,

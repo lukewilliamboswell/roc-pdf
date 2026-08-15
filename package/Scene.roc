@@ -21,6 +21,14 @@ Scene :: [].{
 		index = |PathId.(index)| index
 	}
 
+	FormId :: U64.{
+		from_index : U64 -> FormId
+		from_index = |index| FormId.(index)
+
+		index : FormId -> U64
+		index = |FormId.(index)| index
+	}
+
 	Matrix : {
 		a : Layout.Unit,
 		b : Layout.Unit,
@@ -114,12 +122,17 @@ Scene :: [].{
 
 	## Child ranges point into the same command arena, preserving balanced
 	## graphics-state nesting without allocating recursive command values.
+	## `PlaceForm` invokes a Form XObject at an explicit placement transform;
+	## its ownership is inherited from the containing owned scene group, and a
+	## placement inside form content inherits transitively through the
+	## outermost page-level placement.
 	Command : [
 		Clip({ children : Semantics.Range, path : PathId }),
 		DrawImage({ image : Image.Id, placement : Layout.Rect }),
 		DrawPath({ path : PathId, style : PathStyle }),
 		DrawText({ paint : TextPaint, run : Text.RunId }),
 		Opacity({ children : Semantics.Range, opacity : U16 }),
+		PlaceForm({ form : FormId, transform : Matrix }),
 		Transform({ children : Semantics.Range, matrix : Matrix }),
 	]
 
@@ -148,6 +161,25 @@ Scene :: [].{
 		path_segments : List(PathSegment),
 		paths : List(Path),
 	}
+
+	## A Form XObject's content is a range into the flat form-command arena;
+	## its `/Matrix` is the documented canonical identity because placement
+	## transforms are entirely placement-side facts. Paths, dash values, and
+	## text runs are shared with the page store; only the command arena is
+	## separate so page and form content each keep dense once-each ownership.
+	Form : {
+		bbox : Layout.Rect,
+		commands : Semantics.Range,
+		id : FormId,
+	}
+
+	FormStore : {
+		commands : List(Command),
+		forms : List(Form),
+	}
+
+	no_forms : FormStore
+	no_forms = { commands: [], forms: [] }
 }
 
 ## Scene group IDs preserve their dense index.
@@ -161,3 +193,6 @@ expect Scene.coordinate_model.units_per_point == 1000
 
 ## Nested public type modules construct opaque scene group IDs directly.
 expect Scene.GroupId.from_index(10).index() == 10
+
+## Form IDs preserve their dense index and the empty store carries no forms.
+expect Scene.FormId.from_index(3).index() == 3 and Scene.no_forms.forms.len() == 0

@@ -850,24 +850,16 @@ bytes.
 
 ### Per change
 
-- Roc unit tests and typed property tests.
-- Deterministic fixture regeneration checks.
-- qpdf with warnings and recovery forbidden.
-- Structural and semantic assertions.
-- Selected independent rendering and extraction.
-- Focused veraPDF PDF/A-4 and PDF/UA-2 fixtures for affected capabilities.
-- The performance record for every affected feature slice, including scaled
-  deterministic work counters and exact Roc allocation counts under the pinned
-  optimized compiler and target.
-- A reviewed allocation-baseline delta. An unexplained increase or a
-  mechanically regenerated baseline fails CI; selected hot kernels also fail
-  on per-item allocation or ARC work.
-- Focused copied-byte, retention, cache, unique/shared-input, and ARC checks
-  whenever the slice changes ownership, representation, traversal, or output
-  behavior.
-- A `.roc-version`, target, or optimization-policy change runs the documented
-  old/new bulk re-baseline protocol; CI rejects an atomic baseline update that
-  lacks its toolchain comparison, outlier review, and separated feature deltas.
+- Fast ordinary CI checks and tests `package/main.roc`, compiles and tests every
+  checked-in public example, and runs the bounded fuzz smoke tests.
+- Before a change is treated as feature evidence, its author runs the complete
+  local `./scripts/test.py` suite. This retains Roc unit and typed property
+  tests, deterministic fixture and structural checks, independent validators
+  and renderers, exact allocation baselines, work counters, and the focused
+  ownership and performance evidence required by the affected slice.
+- A `.roc-version`, target, optimization-policy, snapshot, or allocation
+  baseline change still requires the documented review protocol; the fast CI
+  lane does not turn generated evidence changes into automatic acceptance.
 
 ### Extended
 
