@@ -12,16 +12,28 @@ and compared with zero pixel and zero channel tolerance in both renderers:
   transform;
 - the nested DAG renders each parent's shared bases and its own marker.
 
+When ``--mutool`` names a ``mutool`` binary built from the vendored
+``vendor/mupdf/mupdf-1.28.2-source.tgz``, MuPDF renders the same fixtures as
+the extended-diversity third renderer. MuPDF interprets CalGray as the linear
+luminance ISO 32000-2 defines and re-encodes it through the sRGB transfer
+curve for display, where PDFium and PDFBox map CalGray values directly to
+device gray; the geometry is identical, so the checker compares MuPDF against
+the same independent rasters with every non-endpoint gray passed through
+MuPDF's pinned tone mapping, still with zero pixel and zero channel
+tolerance.
+
 The text fixture paints the same shaped run as the Gate 3 text fixture inside
 a meaningful form, so it must reproduce the Gate 3 ink metrics within the same
-declared tolerances, and PDFBox text extraction must return exactly the
-logical text; the artifact-only showcase must extract nothing.
+declared tolerances, and both PDFBox and MuPDF text extraction must return
+exactly the logical text; the artifact-only showcase must extract nothing.
 
-The deep-chain fixture records a version-scoped tool limitation: PDFium 7988
-stops expanding nested form XObjects at depth 40 and PDFBox 3.0.8 at depth 50
-(logging "recursion is too deep"), well below the fixture's legal depth of 64.
-The checker asserts each renderer paints the chain exactly to its pinned
-depth, so an upgrade that changes either limit is caught explicitly.
+The deep-chain fixture records version-scoped tool limitations: PDFium 7988
+stops expanding nested form XObjects at depth 40, PDFBox 3.0.8 at depth 50
+(logging "recursion is too deep"), and MuPDF 1.28.2 renders a chain of depth
+60 but fails outright from depth 61 with "exception stack overflow" — all
+below the fixture's legal depth of 64. The checker asserts each renderer holds
+its pinned behavior, so an upgrade that changes any limit is caught
+explicitly.
 """
 from __future__ import annotations
 
@@ -65,6 +77,23 @@ INK_TOLERANCE = 6000
 PDFIUM_DEEP_REACH = 39
 PDFBOX_DEEP_REACH = 49
 
+## MuPDF 1.28.2 renders CalGray calorimetrically: a linear-luminance value v
+## in [0, 1] displays as the sRGB encoding of v, produced through its ICC
+## pipeline per RGB channel. These pinned triples cover every gray the
+## fixtures paint; the vector and image pipelines round the half-way case of
+## 128 differently, and 192 lands one code value higher in green, both of
+## which are likewise pinned.
+MUTOOL_VECTOR_TONES = {
+    16: (70, 70, 70),
+    32: (99, 99, 99),
+    64: (137, 137, 137),
+    96: (165, 165, 165),
+    128: (187, 187, 187),
+    192: (224, 225, 224),
+    255: (255, 255, 255),
+}
+MUTOOL_IMAGE_TONES = {0: (0, 0, 0), 64: (137, 137, 137), 128: (188, 188, 188), 255: (255, 255, 255)}
+MUTOOL_TEXT_EXPECTED = InkMetrics(bounds=(72, 133, 120, 142), changed_pixels=247, dark_pixels=106, ink=29669)
 
 
 def require(condition: bool, message: str) -> None:
@@ -73,30 +102,52 @@ def require(condition: bool, message: str) -> None:
 
 
 class Expectation:
-    def __init__(self) -> None:
-        self.pixels = bytearray((255, 255, 255)) * (SIZE * SIZE)
+    """An independent raster built from the typed scenario.
 
-    def fill(self, left: int, bottom: int, width: int, height: int, value: int) -> None:
+    ``vector_tones``/``image_tones`` map each authored device-gray value to
+    the value the renderer under test displays; the identity mapping describes
+    PDFium and PDFBox, and the pinned sRGB tables describe MuPDF.
+    """
+
+    def __init__(
+        self,
+        vector_tones: dict[int, tuple[int, int, int]] | None = None,
+        image_tones: dict[int, tuple[int, int, int]] | None = None,
+    ) -> None:
+        self.pixels = bytearray((255, 255, 255)) * (SIZE * SIZE)
+        self.vector_tones = vector_tones or {}
+        self.image_tones = image_tones or {}
+
+    def paint(self, left: int, bottom: int, width: int, height: int, triple: tuple[int, int, int]) -> None:
         for y in range(bottom, bottom + height):
             row = SIZE - 1 - y
             for x in range(left, left + width):
                 offset = (row * SIZE + x) * 3
-                self.pixels[offset : offset + 3] = bytes((value, value, value))
+                self.pixels[offset : offset + 3] = bytes(triple)
+
+    def fill(self, left: int, bottom: int, width: int, height: int, value: int) -> None:
+        self.paint(left, bottom, width, height, self.vector_tones.get(value, (value, value, value)))
+
+    def image_cell(self, left: int, bottom: int, width: int, height: int, value: int) -> None:
+        self.paint(left, bottom, width, height, self.image_tones.get(value, (value, value, value)))
 
     def image(self, left: int, bottom: int) -> None:
         ## The 2x2 gray fixture image stretched to 20x10 points: four 10x5
         ## cells in source row order, top row first.
-        self.fill(left, bottom + 5, 10, 5, 0)
-        self.fill(left + 10, bottom + 5, 10, 5, 64)
-        self.fill(left, bottom, 10, 5, 128)
-        self.fill(left + 10, bottom, 10, 5, 255)
+        self.image_cell(left, bottom + 5, 10, 5, 0)
+        self.image_cell(left + 10, bottom + 5, 10, 5, 64)
+        self.image_cell(left, bottom, 10, 5, 128)
+        self.image_cell(left + 10, bottom, 10, 5, 255)
 
     def raster(self) -> Raster:
         return Raster(SIZE, SIZE, bytes(self.pixels))
 
 
-def showcase_expectation() -> Raster:
-    exp = Expectation()
+def showcase_expectation(
+    vector_tones: dict[int, tuple[int, int, int]] | None = None,
+    image_tones: dict[int, tuple[int, int, int]] | None = None,
+) -> Raster:
+    exp = Expectation(vector_tones, image_tones)
     exp.fill(0, 90, 20, 10, 64)      # semantic B placement, first painted
     exp.fill(40, 90, 10, 10, 32)     # ordinary page path inside the artifact group
     exp.fill(0, 75, 10, 10, 128)     # artifact form A, first placement
@@ -113,8 +164,8 @@ def showcase_expectation() -> Raster:
     return exp.raster()
 
 
-def repeat_expectation() -> Raster:
-    exp = Expectation()
+def repeat_expectation(vector_tones: dict[int, tuple[int, int, int]] | None = None) -> Raster:
+    exp = Expectation(vector_tones)
     exp.fill(0, 95, 4, 4, 32)        # the meaningful anchor path
     for column in range(10):
         for row in range(9):
@@ -122,8 +173,8 @@ def repeat_expectation() -> Raster:
     return exp.raster()
 
 
-def dag_expectation(parents: int) -> Raster:
-    exp = Expectation()
+def dag_expectation(parents: int, vector_tones: dict[int, tuple[int, int, int]] | None = None) -> Raster:
+    exp = Expectation(vector_tones)
     exp.fill(0, 95, 4, 4, 32)
     for parent in range(parents):
         left = (parent % 10) * 10
@@ -224,6 +275,30 @@ def render_both(renderer: Path, working_directory: Path | None, classes: Path, s
     return read_ppm(pdfium_output), read_ppm(pdfbox_output)
 
 
+def render_mutool(mutool: Path, snapshot: Path, output: Path, expect_failure: bool = False) -> bool:
+    result = subprocess.run(
+        [str(mutool), "draw", "-q", "-r", "72", "-c", "rgb", "-o", str(output), str(snapshot)],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if expect_failure:
+        return result.returncode != 0
+    require(result.returncode == 0, f"mutool failed on {snapshot}: {result.stderr.decode(errors='replace')[:200]}")
+    return True
+
+
+def extract_text_mutool(mutool: Path, snapshot: Path, output: Path) -> str:
+    subprocess.run(
+        [str(mutool), "draw", "-q", "-F", "txt", "-o", str(output), str(snapshot)],
+        cwd=ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return output.read_text(encoding="utf-8")
+
+
 def extract_text(classes: Path, snapshot: Path) -> str:
     result = subprocess.run(
         ["java", "-Djava.awt.headless=true", "-cp", f"{classes}{os.pathsep}{PDFBOX_JAR}", "PdfBoxTextExtract", str(snapshot)],
@@ -234,23 +309,29 @@ def extract_text(classes: Path, snapshot: Path) -> str:
     return result.stdout.decode("utf-8")
 
 
-def check_renderers(renderer: Path, working_directory: Path | None) -> None:
+def check_renderers(renderer: Path, working_directory: Path | None, mutool: Path | None) -> None:
     require(renderer.is_file(), f"PDFium renderer does not exist: {renderer}")
     require(PDFBOX_JAR.is_file(), f"vendored PDFBox JAR does not exist: {PDFBOX_JAR}")
+    if mutool is not None:
+        require(mutool.is_file(), f"mutool does not exist: {mutool}")
     with tempfile.TemporaryDirectory(prefix="roc-pdf-gate4-render-") as temporary_name:
         temporary = Path(temporary_name)
         classes = temporary / "classes"
         classes.mkdir()
         compile_java(classes)
 
-        for name, snapshot, expected in (
-            ("showcase", SHOWCASE_SNAPSHOT, showcase_expectation()),
-            ("repeat-1000", REPEAT_SNAPSHOT, repeat_expectation()),
-            ("dag-8", DAG_SNAPSHOT, dag_expectation(8)),
+        for name, snapshot, expected, mutool_expected in (
+            ("showcase", SHOWCASE_SNAPSHOT, showcase_expectation(), showcase_expectation(MUTOOL_VECTOR_TONES, MUTOOL_IMAGE_TONES)),
+            ("repeat-1000", REPEAT_SNAPSHOT, repeat_expectation(), repeat_expectation(MUTOOL_VECTOR_TONES)),
+            ("dag-8", DAG_SNAPSHOT, dag_expectation(8), dag_expectation(8, MUTOOL_VECTOR_TONES)),
         ):
             pdfium, pdfbox = render_both(renderer, working_directory, classes, snapshot, temporary, name)
             assert_exact(f"PDFium Chromium 7988 {name}", pdfium, expected)
             assert_exact(f"PDFBox 3.0.8 {name}", pdfbox, expected)
+            if mutool is not None:
+                mutool_output = temporary / f"{name}-mutool.ppm"
+                render_mutool(mutool, snapshot, mutool_output)
+                assert_exact(f"MuPDF 1.28.2 {name}", read_ppm(mutool_output), mutool_expected)
 
         pdfium_text, pdfbox_text = render_both(renderer, working_directory, classes, TEXT_SNAPSHOT, temporary, "text")
         pdfium_metrics = ink_metrics(pdfium_text)
@@ -267,6 +348,20 @@ def check_renderers(renderer: Path, working_directory: Path | None) -> None:
         artifact_only = extract_text(classes, SHOWCASE_SNAPSHOT)
         require(artifact_only.strip() == "", f"artifact-only fixture extracted {artifact_only!r}")
 
+        if mutool is not None:
+            mutool_text_output = temporary / "text-mutool.ppm"
+            render_mutool(mutool, TEXT_SNAPSHOT, mutool_text_output)
+            mutool_metrics = ink_metrics(read_ppm(mutool_text_output))
+            assert_close("MuPDF 1.28.2 text-in-form", mutool_metrics, MUTOOL_TEXT_EXPECTED)
+            require(
+                all(abs(a - e) <= BOUNDS_TOLERANCE for a, e in zip(mutool_metrics.bounds, pdfium_metrics.bounds)),
+                "MuPDF and PDFium text geometry disagrees beyond the declared tolerance",
+            )
+            mutool_extracted = extract_text_mutool(mutool, TEXT_SNAPSHOT, temporary / "text-mutool.txt")
+            require(mutool_extracted.strip() == "Café PDF", f"mutool text extraction returned {mutool_extracted!r}")
+            mutool_artifact = extract_text_mutool(mutool, SHOWCASE_SNAPSHOT, temporary / "showcase-mutool.txt")
+            require(mutool_artifact.strip() == "", f"mutool extracted {mutool_artifact!r} from the artifact-only fixture")
+
         pdfium_deep, pdfbox_deep = render_both(renderer, working_directory, classes, DEEP_SNAPSHOT, temporary, "deep")
         require(
             deep_reach(pdfium_deep) == PDFIUM_DEEP_REACH,
@@ -276,10 +371,19 @@ def check_renderers(renderer: Path, working_directory: Path | None) -> None:
             deep_reach(pdfbox_deep) == PDFBOX_DEEP_REACH,
             f"PDFBox nested-form depth reach changed from the pinned {PDFBOX_DEEP_REACH}",
         )
+        if mutool is not None:
+            ## MuPDF 1.28.2 renders a 60-deep chain but fails outright at 61
+            ## and beyond; the legal 64-deep fixture therefore must fail, and
+            ## a release that changes this limit is caught here.
+            require(
+                render_mutool(mutool, DEEP_SNAPSHOT, temporary / "deep-mutool.ppm", expect_failure=True),
+                "MuPDF unexpectedly rendered the 64-deep chain; its pinned depth limit changed",
+            )
+    third = " MuPDF 1.28.2 agrees through its pinned CalGray tone mapping and depth limit." if mutool is not None else ""
     print(
         "PASS Gate 4 form renderers: PDFium Chromium 7988 and PDFBox 3.0.8 match the independent "
         "showcase/repeat/DAG rasters exactly, reproduce the Gate 3 text metrics inside a form, "
-        "extract the logical text, and hold their pinned nested-form depth limits"
+        "extract the logical text, and hold their pinned nested-form depth limits." + third
     )
 
 
@@ -294,6 +398,10 @@ def self_test() -> None:
     dag = dag_expectation(8)
     require(dag.pixels[((SIZE - 1 - 13) * SIZE + 22) * 3] == 16, "dag marker expectation is wrong")
     require(dag.pixels[((SIZE - 1 - 10) * SIZE + 37) * 3] == 128, "dag base expectation is wrong")
+    mutool_showcase = showcase_expectation(MUTOOL_VECTOR_TONES, MUTOOL_IMAGE_TONES)
+    require(mutool_showcase.pixels[((SIZE - 1 - 95) * SIZE + 5) * 3] == 137, "mutool vector tone expectation is wrong")
+    require(mutool_showcase.pixels[((SIZE - 1 - 92) * SIZE + 65) * 3] == 188, "mutool image tone expectation is wrong")
+    require(mutool_showcase.pixels[((SIZE - 1 - 97) * SIZE + 65) * 3] == 0, "mutool endpoint tone expectation is wrong")
 
     mutation = bytearray(showcase.pixels)
     mutation[(50 * SIZE + 50) * 3] = 254
@@ -325,13 +433,14 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdfium-renderer", type=Path)
     parser.add_argument("--pdfium-working-directory", type=Path)
+    parser.add_argument("--mutool", type=Path, help="mutool built from vendor/mupdf/mupdf-1.28.2-source.tgz")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
         return
     require(args.pdfium_renderer is not None, "--pdfium-renderer is required unless --self-test is used")
-    check_renderers(args.pdfium_renderer.resolve(), args.pdfium_working_directory)
+    check_renderers(args.pdfium_renderer.resolve(), args.pdfium_working_directory, args.mutool.resolve() if args.mutool is not None else None)
 
 
 if __name__ == "__main__":

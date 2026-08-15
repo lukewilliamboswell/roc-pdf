@@ -1069,6 +1069,22 @@
       }
     },
     {
+      "id": "mupdf-1-28-2-source-archive",
+      "path": "vendor/mupdf/mupdf-1.28.2-source.tgz",
+      "kind": "test_toolchain",
+      "bytes": 68898646,
+      "sha256": "44075a84e329db55b9bef5f342a70fd26d69e48ad1d33cb89d9664581c641156",
+      "license": "AGPL-3.0-only and bundled third-party licenses",
+      "attribution": "vendor/mupdf/NOTICE.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "external",
+        "source_url": "https://mupdf.com/downloads/archive/mupdf-1.28.2-source.tar.gz",
+        "upstream_revision": "1.28.2"
+      }
+    },
+    {
       "id": "pdfium-chromium-7988-linux-x64-archive",
       "path": "vendor/pdfium/pdfium-linux-x64-7988.tgz",
       "kind": "test_toolchain",
@@ -1128,6 +1144,22 @@
       "origin": {
         "kind": "generated",
         "generator": "scripts/build_builtin_font.py"
+      }
+    },
+    {
+      "id": "verapdf-greenfield-1-30-2-installer",
+      "path": "vendor/verapdf/verapdf-greenfield-1.30.2-installer.zip",
+      "kind": "test_toolchain",
+      "bytes": 32923960,
+      "sha256": "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838",
+      "license": "MPL-2.0 OR GPL-3.0-or-later, and bundled third-party licenses",
+      "attribution": "vendor/verapdf/NOTICE.md",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "external",
+        "source_url": "https://software.verapdf.org/releases/1.30/verapdf-greenfield-1.30.2-installer.zip",
+        "upstream_revision": "1.30.2"
       }
     },
     {

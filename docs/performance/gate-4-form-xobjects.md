@@ -299,15 +299,37 @@ itself. `qpdf --check` (12.3.2) passes every snapshot with no warnings.
 
 Independent structural checking is `scripts/check_gate4_forms.py`; pinned
 rendering, extraction, and the version-scoped nested-form depth limits of the
-pinned readers (PDFium Chromium 7988 stops at depth 40, PDFBox 3.0.8 at depth
-50 — both below the fixture's legal 64) are `scripts/check_gate4_form_renderers.py`.
-The showcase, repeat, and DAG rasters are constructed independently from the
-typed scenarios and match both renderers with zero pixel and zero channel
-tolerance; the text-in-form fixture reproduces the Gate 3 text ink metrics
-and extracts exactly its logical text, and the artifact-only showcase
-extracts nothing. MuPDF/Poppler and veraPDF are not vendored in this
-repository's pinned tool set, so no such check ran; PDFium and PDFBox are the
-repository's pinned reader matrix.
+pinned readers are `scripts/check_gate4_form_renderers.py`. The showcase,
+repeat, and DAG rasters are constructed independently from the typed
+scenarios and match PDFium Chromium 7988 and PDFBox 3.0.8 with zero pixel and
+zero channel tolerance; the text-in-form fixture reproduces the Gate 3 text
+ink metrics and extracts exactly its logical text, and the artifact-only
+showcase extracts nothing.
+
+MuPDF 1.28.2 is vendored as its exact upstream source archive
+(`vendor/mupdf/`), and veraPDF greenfield 1.30.2 as its signed upstream
+installer (`vendor/verapdf/`); `scripts/provision_extended_tools.py` verifies
+both against `assets/provenance.json` and builds/installs them without
+network access. With `--mutool`, the renderer checker runs MuPDF as the
+extended-diversity third renderer: it matches the same independent rasters
+with zero tolerance through its pinned CalGray handling (MuPDF displays the
+linear CalGray luminance ISO 32000-2 defines through the sRGB transfer curve
+per ICC channel, where PDFium and PDFBox map CalGray directly to device
+gray — the exact per-value triples are pinned, including the vector/image
+rounding split at 128 and the green-channel offset at 192), reproduces the
+text metrics and extraction, and holds its own pinned nesting limit (renders
+a 60-deep chain, fails outright from 61 with an exception-stack limit error,
+versus PDFium's silent stop at 40 and PDFBox's logged stop at 50). Poppler
+remains unvendored — upstream publishes no pinned artifact and MuPDF fills
+the diversity role.
+
+veraPDF is provisioned but deliberately not wired into this slice's
+evidence: this slice claims `Pdf20`/`Standard` only. As a one-off smoke
+check, veraPDF 1.30.2 parsed the showcase and text fixtures completely under
+an explicit `--flavour 4` run and reported exactly one failed PDF/A-4 rule —
+6.7.2.1-1, the missing XMP metadata stream that is precisely the deferred
+Gate 4/5 capability. That run is recorded as tool validation, not as any
+conformance claim; its evidence lane begins with the XMP and PDF/A slices.
 
 The compiler-defect workaround in `Gate4FormTextEvidence` (all const-evaluable
 analysis/inspection/shaping calls live in one `build_prelude` body) is
