@@ -63,7 +63,18 @@ KernelResourceUse :: [].{
 		work : TextWork,
 	}.{
 		build : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(TextPlan, Error)
-		build = |scenes, colors, images| build_text_plan(scenes, colors, images)
+		build = |scenes, colors, images| build_text_plan(scenes, [], colors, images)
+
+		## Gate 4 scenes count direct use across the page and form command
+		## arenas, so a resource used only inside form content is not an
+		## orphan.
+		build_with_forms : KernelScene.FormPlan, KernelColor.Plan, KernelImage.Plan -> Try(TextPlan, Error)
+		build_with_forms = |form_plan, colors, images| build_text_plan(
+			KernelScene.FormPlan.page(form_plan),
+			KernelScene.FormPlan.forms(form_plan).commands,
+			colors,
+			images,
+		)
 
 		work : TextPlan -> TextWork
 		work = |plan| plan.work
@@ -119,8 +130,8 @@ build_plan = |scene_plan, color_plan, image_plan| {
 	}
 }
 
-build_text_plan : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(KernelResourceUse.TextPlan, KernelResourceUse.Error)
-build_text_plan = |scene_plan, color_plan, image_plan| {
+build_text_plan : KernelScene.Plan, List(Scene.Command), KernelColor.Plan, KernelImage.Plan -> Try(KernelResourceUse.TextPlan, KernelResourceUse.Error)
+build_text_plan = |scene_plan, form_commands, color_plan, image_plan| {
 	declared = KernelScene.Plan.resources(scene_plan)
 	color_count = KernelColor.Plan.space_count(color_plan)
 	image_count = KernelImage.Plan.resource_count(image_plan)
@@ -130,24 +141,26 @@ build_text_plan = |scene_plan, color_plan, image_plan| {
 		Err(CountMismatch({ actual: image_count, declared: KernelScene.Resources.image_count(declared), kind: ImageIndex }))
 	} else {
 		scenes = KernelScene.Plan.scenes(scene_plan)
-		command_use = collect_text_command_use(scenes.commands, color_plan, color_count, image_count)?
+		page_use = collect_text_command_use(scenes.commands, color_plan, List.repeat(0, color_count), List.repeat(0, image_count))?
+		command_use = collect_text_command_use(form_commands, color_plan, page_use.color_counts, page_use.image_counts)?
 		with_images = collect_image_colors(KernelImage.Plan.store(image_plan), command_use.color_counts)?
 		ensure_used(command_use.image_counts, ImageIndex)?
 		ensure_used(with_images.color_counts, ColorSpaceIndex)?
-		image_reuses = checked_sub(command_use.image_placements, image_count)?
+		image_placements = checked_add(page_use.image_placements, command_use.image_placements)?
+		image_reuses = checked_sub(image_placements, image_count)?
 		Ok(
 			KernelResourceUse.TextPlan.{
 				color_use_counts: with_images.color_counts,
 				image_use_counts: command_use.image_counts,
 				work: {
 					color_space_resources: color_count,
-					command_visits: scenes.commands.len(),
+					command_visits: scenes.commands.len() + form_commands.len(),
 					image_color_references: with_images.image_colors,
-					image_placements: command_use.image_placements,
+					image_placements,
 					image_resources: image_count,
 					image_reuses,
-					path_color_references: command_use.path_colors,
-					text_color_references: command_use.text_colors,
+					path_color_references: checked_add(page_use.path_colors, command_use.path_colors)?,
+					text_color_references: checked_add(page_use.text_colors, command_use.text_colors)?,
 				},
 			},
 		)
@@ -203,10 +216,10 @@ collect_command_use = |commands, colors, color_count, image_count| {
 	}
 }
 
-collect_text_command_use : List(Scene.Command), KernelColor.Plan, U64, U64 -> Try(TextCommandUse, KernelResourceUse.Error)
-collect_text_command_use = |commands, colors, color_count, image_count| {
-	var $color_counts = List.repeat(0, color_count)
-	var $image_counts = List.repeat(0, image_count)
+collect_text_command_use : List(Scene.Command), KernelColor.Plan, List(U64), List(U64) -> Try(TextCommandUse, KernelResourceUse.Error)
+collect_text_command_use = |commands, colors, initial_color_counts, initial_image_counts| {
+	var $color_counts = initial_color_counts
+	var $image_counts = initial_image_counts
 	var $path_colors = 0
 	var $text_colors = 0
 	var $image_placements = 0

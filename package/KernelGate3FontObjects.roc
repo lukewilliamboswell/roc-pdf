@@ -7,6 +7,12 @@ KernelGate3FontObjects :: [].{
 
 	FontObjects : { first : KernelObject.ObjectId, type0 : KernelObject.ObjectId }
 
+	## Planned object identities per Type 0 font: font file, its length, the
+	## descriptor, ToUnicode stream and length, CIDFont, widths, CMap-facing
+	## objects, and the Type 0 font itself.
+	font_object_count : U64
+	font_object_count = objects_per_font
+
 	Work : { font_objects : U64, fonts : U64, object_identities : U64 }
 
 	Plan :: { base : KernelGate2Objects.Plan, fonts : List(FontObjects), work : Work, xref : KernelObject.ObjectId }.{

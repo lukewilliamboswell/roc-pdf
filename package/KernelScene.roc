@@ -7,8 +7,8 @@ import Semantics
 import Text
 
 KernelScene :: [].{
-	Dimension : [Commands, DashLengths, GraphicsDepth, Groups, Pages, PathSegments, Paths]
-	IndexKind : [ColorSpaceIndex, CommandIndex, DashIndex, GroupIndex, ImageIndex, PageGroupEdgeIndex, PageIndex, PathIndex, SegmentIndex, TextRunIndex]
+	Dimension : [Commands, DashLengths, FormCommands, Forms, GraphicsDepth, Groups, Pages, PathSegments, Paths]
+	IndexKind : [ColorSpaceIndex, CommandIndex, DashIndex, FormCommandIndex, FormIndex, GroupIndex, ImageIndex, PageGroupEdgeIndex, PageIndex, PathIndex, SegmentIndex, TextRunIndex]
 	TextPaintReason : [FillAndStrokeMissingStroke, FillHasStroke, OpacityNotOpaque, StrokeWidthNonPositive]
 	Error : [
 		ArithmeticOverflow,
@@ -17,7 +17,9 @@ KernelScene :: [].{
 		DashPhaseNegative({ command : U64 }),
 		DuplicateOwnership({ index : U64, kind : IndexKind }),
 		EmptyCommandRange({ group : U64 }),
+		EmptyForm({ form : U64 }),
 		EmptyPath({ path : U64 }),
+		FormTransformSingular({ command : U64 }),
 		Geometry(KernelGeometry.Error),
 		IndexOutOfRange({ available : U64, index : U64, kind : IndexKind }),
 		InvalidPathOrder({ path : U64, segment : U64 }),
@@ -54,15 +56,24 @@ KernelScene :: [].{
 		make = |limits| Limits.(limits)
 	}
 
-	Resources :: { color_spaces : U64, images : U64, text_runs : U64 }.{
+	Resources :: { color_spaces : U64, forms : U64, images : U64, text_runs : U64 }.{
 		make : { color_spaces : U64, images : U64 } -> Resources
-		make = |resources| Resources.({ color_spaces: resources.color_spaces, images: resources.images, text_runs: 0 })
+		make = |resources| Resources.({ color_spaces: resources.color_spaces, forms: 0, images: resources.images, text_runs: 0 })
 
 		with_text : { color_spaces : U64, images : U64, text_runs : U64 } -> Resources
-		with_text = |resources| Resources.(resources)
+		with_text = |resources| Resources.({ color_spaces: resources.color_spaces, forms: 0, images: resources.images, text_runs: resources.text_runs })
+
+		## Gate 4 scenes additionally declare their dense form count; the older
+		## constructors keep declaring zero, so a Gate 2 or Gate 3 scene still
+		## rejects any form placement.
+		with_forms : { color_spaces : U64, forms : U64, images : U64, text_runs : U64 } -> Resources
+		with_forms = |resources| Resources.(resources)
 
 		color_space_count : Resources -> U64
 		color_space_count = |resources| resources.color_spaces
+
+		form_count : Resources -> U64
+		form_count = |resources| resources.forms
 
 		image_count : Resources -> U64
 		image_count = |resources| resources.images
@@ -76,6 +87,7 @@ KernelScene :: [].{
 		color_references : U64,
 		command_visits : U64,
 		dash_values : U64,
+		form_placements : U64,
 		group_visits : U64,
 		image_placements : U64,
 		max_graphics_depth : U64,
@@ -100,6 +112,38 @@ KernelScene :: [].{
 		work : Plan -> Work
 		work = |plan| plan.work
 	}
+
+	FormLimits :: { max_form_commands : U64, max_forms : U64 }.{
+		make : { max_form_commands : U64, max_forms : U64 } -> FormLimits
+		make = |limits| FormLimits.(limits)
+	}
+
+	FormWork : {
+		form_child_ranges : U64,
+		form_command_visits : U64,
+		form_visits : U64,
+		max_form_depth : U64,
+		nested_form_placements : U64,
+	}
+
+	## A Gate 4 scene plan validates the flat form-command arena with exactly
+	## the same command rules as page content: dense form identities, positive
+	## bounding boxes, once-each command ownership, balanced nesting inside the
+	## declared depth budget, and typed per-command validation over the shared
+	## path, dash, image, text, and form stores.
+	FormPlan :: { forms : Scene.FormStore, page : Plan, work : FormWork }.{
+		build : Scene.Store, Scene.FormStore, Resources, Limits, FormLimits -> Try(FormPlan, Error)
+		build = |scenes, form_store, resources, limits, form_limits| build_form_plan(scenes, form_store, resources, limits, form_limits)
+
+		forms : FormPlan -> Scene.FormStore
+		forms = |plan| plan.forms
+
+		page : FormPlan -> Plan
+		page = |plan| plan.page
+
+		work : FormPlan -> FormWork
+		work = |plan| plan.work
+	}
 }
 
 Frame := { depth : U64, range : Semantics.Range }
@@ -108,9 +152,13 @@ CommandWork := {
 	children : [Leaf, Nested(Semantics.Range)],
 	color_references : U64,
 	dash_values : U64,
+	form_placements : U64,
 	image_placements : U64,
 	text_placements : U64,
 }
+
+leaf_work : CommandWork
+leaf_work = { children: Leaf, color_references: 0, dash_values: 0, form_placements: 0, image_placements: 0, text_placements: 0 }
 
 scene_failure : KernelScene.Error -> Try(a, KernelScene.Error)
 scene_failure = |error| Err(error)
@@ -137,6 +185,7 @@ build_plan = |scenes, resources, limits| {
 				color_references: command_work.color_references,
 				command_visits: command_work.command_visits,
 				dash_values: command_work.dash_values,
+				form_placements: command_work.form_placements,
 				group_visits: scenes.groups.len(),
 				image_placements: command_work.image_placements,
 				max_graphics_depth: command_work.max_graphics_depth,
@@ -149,6 +198,114 @@ build_plan = |scenes, resources, limits| {
 			},
 		},
 	)
+}
+
+build_form_plan : Scene.Store, Scene.FormStore, KernelScene.Resources, KernelScene.Limits, KernelScene.FormLimits -> Try(KernelScene.FormPlan, KernelScene.Error)
+build_form_plan = |scenes, form_store, resources, limits, form_limits| {
+	check_limit(form_store.forms.len(), form_limits.max_forms, Forms)?
+	check_limit(form_store.commands.len(), form_limits.max_form_commands, FormCommands)?
+	if form_store.forms.len() != resources.forms {
+		return Err(IndexOutOfRange({ available: form_store.forms.len(), index: resources.forms, kind: FormIndex }))
+	}
+	page = build_plan(scenes, resources, limits)?
+	form_work = validate_forms(form_store, scenes, resources, limits.max_graphics_depth)?
+	Ok(KernelScene.FormPlan.{ forms: form_store, page, work: form_work })
+}
+
+## Walks the flat form-command arena with the same dense once-each ownership
+## cursor as page groups: every command belongs to exactly one form, child
+## ranges stay inside the arena, and each command passes the identical typed
+## validation as page content.
+validate_forms : Scene.FormStore, Scene.Store, KernelScene.Resources, U64 -> Try(KernelScene.FormWork, KernelScene.Error)
+validate_forms = |form_store, scenes, resources, max_depth| {
+	var $form_index = 0
+	var $expected_command = 0
+	var $child_ranges = 0
+	var $command_visits = 0
+	var $nested_placements = 0
+	var $maximum_depth = 0
+	var $error = NoError
+	while $form_index < form_store.forms.len() and $error == NoError {
+		form = list_at(form_store.forms, $form_index)
+		if form.id.index() != $form_index {
+			$error = Invalid(NonDenseIdentity({ actual: form.id.index(), expected: $form_index, kind: FormIndex }))
+		} else if !positive_rect(form.bbox) {
+			$error = Invalid(NonPositiveRect({ index: $form_index, kind: FormIndex }))
+		} else if form.commands.length() == 0 {
+			$error = Invalid(EmptyForm({ form: $form_index }))
+		} else {
+			var $frames = [Frame.{ depth: 1, range: form.commands }]
+			var $frame_index = 0
+			while $frame_index < $frames.len() and $error == NoError {
+				frame = list_at($frames, $frame_index)
+				if frame.depth > max_depth {
+					$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
+				} else {
+					$maximum_depth = U64.max($maximum_depth, frame.depth)
+					match validate_span(frame.range, form_store.commands.len(), FormCommandIndex, $form_index) {
+						Err(error) => {
+							$error = Invalid(error)
+						}
+						Ok(span) => {
+							var $command_index = span.start
+							while $command_index < span.end and $error == NoError {
+								if $command_index < $expected_command {
+									$error = Invalid(DuplicateOwnership({ index: $command_index, kind: FormCommandIndex }))
+								} else if $command_index > $expected_command {
+									$error = Invalid(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
+								} else {
+									$expected_command = $expected_command + 1
+									match validate_command(list_at(form_store.commands, $command_index), $command_index, scenes, resources) {
+										Err(error) => {
+											$error = Invalid(error)
+										}
+										Ok(work) => {
+											$nested_placements = $nested_placements + work.form_placements
+											match work.children {
+												Leaf => {}
+												Nested(children) => if children.length() == 0 {
+													$error = Invalid(EmptyForm({ form: $form_index }))
+												} else {
+													match U64.plus_try(frame.depth, 1) {
+														Err(Overflow) => {
+															$error = Invalid(ArithmeticOverflow)
+														}
+														Ok(depth) => {
+															$frames = $frames.append(Frame.{ depth, range: children })
+															$child_ranges = $child_ranges + 1
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+								$command_index = $command_index + 1
+								$command_visits = $command_visits + 1
+							}
+						}
+					}
+				}
+				$frame_index = $frame_index + 1
+			}
+		}
+		$form_index = $form_index + 1
+	}
+
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => if $expected_command < form_store.commands.len() {
+			Err(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
+		} else {
+			Ok({
+				form_child_ranges: $child_ranges,
+				form_command_visits: $command_visits,
+				form_visits: form_store.forms.len(),
+				max_form_depth: $maximum_depth,
+				nested_form_placements: $nested_placements,
+			})
+		}
+	}
 }
 
 validate_paths : Scene.Store -> Try({ path_segments : U64 }, KernelScene.Error)
@@ -297,7 +454,7 @@ validate_pages = |scenes| {
 	}
 }
 
-validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, image_placements : U64, max_graphics_depth : U64, text_placements : U64 }, KernelScene.Error)
+validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, text_placements : U64 }, KernelScene.Error)
 validate_groups = |scenes, resources, max_depth| {
 	var $group_index = 0
 	var $expected_command = 0
@@ -305,6 +462,7 @@ validate_groups = |scenes, resources, max_depth| {
 	var $color_references = 0
 	var $command_visits = 0
 	var $dash_values = 0
+	var $form_placements = 0
 	var $image_placements = 0
 	var $text_placements = 0
 	var $maximum_depth = 0
@@ -344,6 +502,7 @@ validate_groups = |scenes, resources, max_depth| {
 										Ok(work) => {
 											$color_references = $color_references + work.color_references
 											$dash_values = $dash_values + work.dash_values
+											$form_placements = $form_placements + work.form_placements
 											$image_placements = $image_placements + work.image_placements
 											$text_placements = $text_placements + work.text_placements
 											match work.children {
@@ -382,7 +541,7 @@ validate_groups = |scenes, resources, max_depth| {
 		NoError => if $expected_command < scenes.commands.len() {
 			Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
 		} else {
-			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, image_placements: $image_placements, max_graphics_depth: $maximum_depth, text_placements: $text_placements })
+			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, text_placements: $text_placements })
 		}
 	}
 }
@@ -391,7 +550,7 @@ validate_command : Scene.Command, U64, Scene.Store, KernelScene.Resources -> Try
 validate_command = |command, index, scenes, resources| match command {
 	Clip({ children, path }) => {
 		validate_path_id(path, scenes.paths.len())?
-		Ok({ children: Nested(children), color_references: 0, dash_values: 0, image_placements: 0, text_placements: 0 })
+		Ok({ ..leaf_work, children: Nested(children) })
 	}
 	DrawImage({ image, placement }) => {
 		if image.index() >= resources.images {
@@ -399,23 +558,45 @@ validate_command = |command, index, scenes, resources| match command {
 		} else if !positive_rect(placement) {
 			Err(NonPositiveRect({ index, kind: CommandIndex }))
 		} else {
-			Ok({ children: Leaf, color_references: 0, dash_values: 0, image_placements: 1, text_placements: 0 })
+			Ok({ ..leaf_work, image_placements: 1 })
 		}
 	}
 	DrawPath({ path, style }) => {
 		validate_path_id(path, scenes.paths.len())?
 		work = validate_style(style, index, scenes.dash_lengths, resources.color_spaces)?
-		Ok({ children: Leaf, color_references: work.color_references, dash_values: work.dash_values, image_placements: 0, text_placements: 0 })
+		Ok({ ..leaf_work, color_references: work.color_references, dash_values: work.dash_values })
 	}
 	DrawText({ paint, run }) => {
 		if run.index() >= resources.text_runs {
 			return Err(IndexOutOfRange({ available: resources.text_runs, index: run.index(), kind: TextRunIndex }))
 		}
 		colors = validate_text_paint(paint, index, resources.color_spaces)?
-		Ok({ children: Leaf, color_references: colors, dash_values: 0, image_placements: 0, text_placements: 1 })
+		Ok({ ..leaf_work, color_references: colors, text_placements: 1 })
 	}
 	Opacity(_) => Err(UnsupportedCommand({ command: index }))
-	Transform({ children, matrix: _ }) => Ok({ children: Nested(children), color_references: 0, dash_values: 0, image_placements: 0, text_placements: 0 })
+	PlaceForm({ form, transform }) => {
+		if form.index() >= resources.forms {
+			return Err(IndexOutOfRange({ available: resources.forms, index: form.index(), kind: FormIndex }))
+		}
+		validate_placement_transform(transform, index)?
+		Ok({ ..leaf_work, form_placements: 1 })
+	}
+	Transform({ children, matrix: _ }) => Ok({ ..leaf_work, children: Nested(children) })
+}
+
+## A placement transform must stay invertible: a zero determinant collapses
+## the placed form and an overflowing determinant cannot be reasoned about, so
+## both are rejected before any content lowering.
+validate_placement_transform : Scene.Matrix, U64 -> Try({}, KernelScene.Error)
+validate_placement_transform = |matrix, command| {
+	ad = I64.times_try(matrix.a.raw(), matrix.d.raw()) ? |_| ArithmeticOverflow
+	bc = I64.times_try(matrix.b.raw(), matrix.c.raw()) ? |_| ArithmeticOverflow
+	determinant = I64.minus_try(ad, bc) ? |_| ArithmeticOverflow
+	if determinant == 0 {
+		Err(FormTransformSingular({ command: command }))
+	} else {
+		Ok({})
+	}
 }
 
 validate_text_paint : Scene.TextPaint, U64, U64 -> Try(U64, KernelScene.Error)
@@ -925,4 +1106,83 @@ expect {
 		Err(DashAllZero({ command: 1 })) => True
 		_ => False
 	}
+}
+
+test_form_store : Scene.FormStore
+test_form_store = {
+	commands: [
+		Transform({
+			children: Semantics.Range.from_start_and_length(1, 1),
+			matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) },
+		}),
+		DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+	],
+	forms: [{ bbox: rect(0, 0, 1000, 1000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+}
+
+form_placing_store : Scene.Store
+form_placing_store = {
+	..test_store,
+	commands: [
+		Transform({
+			children: Semantics.Range.from_start_and_length(2, 1),
+			matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) },
+		}),
+		PlaceForm({ form: Scene.FormId.from_index(0), transform: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(2000), f: unit(3000) } }),
+		DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+	],
+	groups: [{ commands: Semantics.Range.from_start_and_length(0, 2), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+}
+
+form_test_resources : KernelScene.Resources
+form_test_resources = KernelScene.Resources.with_forms({ color_spaces: 1, forms: 1, images: 1, text_runs: 0 })
+
+## Form content is validated with the same command rules as page content, with
+## dense once-each arena ownership and the declared depth budget.
+expect {
+	plan = KernelScene.FormPlan.build(form_placing_store, test_form_store, form_test_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }))?
+	work = KernelScene.FormPlan.work(plan)
+	page_work = KernelScene.Plan.work(KernelScene.FormPlan.page(plan))
+	work.form_visits == 1 and work.form_command_visits == 2 and work.form_child_ranges == 1 and work.max_form_depth == 2 and work.nested_form_placements == 0 and page_work.form_placements == 1
+}
+
+## A Gate 2 or Gate 3 scene still rejects any form placement: the older
+## resource constructors declare zero forms.
+expect {
+	match KernelScene.Plan.build(form_placing_store, test_resources, test_limits) {
+		Err(IndexOutOfRange({ available: 0, index: 0, kind: FormIndex })) => True
+		_ => False
+	}
+}
+
+## A singular placement transform is rejected before any lowering.
+expect {
+	bad = {
+		..form_placing_store,
+		commands: list_set(
+			form_placing_store.commands,
+			1,
+			PlaceForm({ form: Scene.FormId.from_index(0), transform: { a: unit(0), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) } }),
+		),
+	}
+	match KernelScene.FormPlan.build(bad, test_form_store, form_test_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 })) {
+		Err(FormTransformSingular({ command: 1 })) => True
+		_ => False
+	}
+}
+
+## Form identities stay dense and bounding boxes stay positive.
+expect {
+	sparse = { ..test_form_store, forms: [{ ..list_at(test_form_store.forms, 0), id: Scene.FormId.from_index(1) }] }
+	flat = { ..test_form_store, forms: [{ ..list_at(test_form_store.forms, 0), bbox: rect(0, 0, 0, 1000) }] }
+	limits = KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 })
+	sparse_rejected = match KernelScene.FormPlan.build(form_placing_store, sparse, form_test_resources, test_limits, limits) {
+		Err(NonDenseIdentity({ actual: 1, expected: 0, kind: FormIndex })) => True
+		_ => False
+	}
+	flat_rejected = match KernelScene.FormPlan.build(form_placing_store, flat, form_test_resources, test_limits, limits) {
+		Err(NonPositiveRect({ index: 0, kind: FormIndex })) => True
+		_ => False
+	}
+	sparse_rejected and flat_rejected
 }

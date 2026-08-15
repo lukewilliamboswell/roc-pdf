@@ -13,6 +13,7 @@ KernelContent :: [].{
 	Error : [
 		ArithmeticOverflow,
 		ContentStreamCountMismatch({ pages : U64, streams : U64 }),
+		FormPlacementInvalid({ form : U64, prepared : U64 }),
 		FragmentStreamMismatch({ fragment : U64, page : U64, stream : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		MissingMarkedFragment({ fragment : U64 }),
@@ -26,9 +27,27 @@ KernelContent :: [].{
 	}
 
 	Stream : { bytes : List(U8), page : Semantics.PageId, stream : Semantics.ContentStreamId }
+
+	## One lowered physical Form XObject content stream, identified by its
+	## dense canonical form ordinal.
+	FormStream : { bytes : List(U8), form : U64 }
+
+	## The normalized form-lowering facts the serializer consumes: the flat
+	## form-command arena, each authored form's canonical name ordinal, and one
+	## representative command range per canonical (deduplicated) physical form
+	## in canonical order. Lowering never re-derives sharing or resource use.
+	FormContext : {
+		arena : List(Scene.Command),
+		form_names : List(U64),
+		streams : List(Semantics.Range),
+	}
+
 	Work : {
 		bytes_emitted : U64,
 		command_visits : U64,
+		form_placements : U64,
+		form_stream_bytes : U64,
+		form_streams : U64,
 		graphics_state_pairs : U64,
 		group_visits : U64,
 		image_placements : U64,
@@ -52,12 +71,24 @@ KernelContent :: [].{
 		run_count = |plan| plan.runs.len()
 	}
 
-	Plan :: { streams : List(Stream), work : Work }.{
+	Plan :: { form_streams : List(FormStream), streams : List(Stream), work : Work }.{
 		build : KernelTagged.Plan, Limits -> Try(Plan, Error)
-		build = |tagged, limits| build_plan(tagged, NoText, limits)
+		build = |tagged, limits| build_plan(tagged, NoText, NoForms, limits)
 
 		build_with_text : KernelTagged.Plan, TextPlan, Limits -> Try(Plan, Error)
-		build_with_text = |tagged, text, limits| build_plan(tagged, WithText(text), limits)
+		build_with_text = |tagged, text, limits| build_plan(tagged, WithText(text), NoForms, limits)
+
+		build_with_forms : KernelTagged.Plan, FormContext, Limits -> Try(Plan, Error)
+		build_with_forms = |tagged, forms, limits| build_plan(tagged, NoText, WithForms(forms), limits)
+
+		build_with_forms_and_text : KernelTagged.Plan, TextPlan, FormContext, Limits -> Try(Plan, Error)
+		build_with_forms_and_text = |tagged, text, forms, limits| build_plan(tagged, WithText(text), WithForms(forms), limits)
+
+		form_stream : Plan, U64 -> FormStream
+		form_stream = |plan, form| list_at(plan.form_streams, form)
+
+		form_stream_count : Plan -> U64
+		form_stream_count = |plan| plan.form_streams.len()
 
 		stream : Plan, Semantics.ContentStreamId -> Stream
 		stream = |plan, stream| list_at(plan.streams, stream.index())
@@ -74,12 +105,14 @@ MarkedSlot := [HasMarked(KernelTagged.MarkedContentReference), MissingMarked]
 
 TextLowering := [NoText, WithText(KernelContent.TextPlan)]
 
+FormEmission := [NoForms, WithForms(KernelContent.FormContext)]
+
 Frame := { close_graphics : Bool, end : U64, next : U64 }
 
-EmitWork := { bytes : List(U8), command_visits : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, path_segments : U64, text_placements : U64 }
+EmitWork := { bytes : List(U8), command_visits : U64, form_placements : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, path_segments : U64, text_placements : U64 }
 
-build_plan : KernelTagged.Plan, TextLowering, KernelContent.Limits -> Try(KernelContent.Plan, KernelContent.Error)
-build_plan = |tagged, text, limits| {
+build_plan : KernelTagged.Plan, TextLowering, FormEmission, KernelContent.Limits -> Try(KernelContent.Plan, KernelContent.Error)
+build_plan = |tagged, text, forms, limits| {
 	scenes = KernelTagged.Plan.scenes(tagged)
 	semantics = KernelTagged.Plan.semantics(tagged)
 	stream_count = KernelTagged.Plan.parent_rows(tagged).len()
@@ -93,6 +126,7 @@ build_plan = |tagged, text, limits| {
 		var $page_index = 0
 		var $total_bytes = 0
 		var $command_visits = 0
+		var $form_placements = 0
 		var $graphics_pairs = 0
 		var $group_visits = 0
 		var $image_placements = 0
@@ -118,7 +152,7 @@ build_plan = |tagged, text, limits| {
 						$bytes = opened.bytes
 						$artifact_groups = $artifact_groups + opened.artifacts
 						$fragment_groups = $fragment_groups + opened.fragments
-						match emit_commands($bytes, group.commands, scenes, text, page_limit) {
+						match emit_commands($bytes, group.commands, scenes.commands, scenes, text, forms, page_limit) {
 							Err(error) => {
 								$error = Invalid(error)
 							}
@@ -129,6 +163,7 @@ build_plan = |tagged, text, limits| {
 								Ok(closed) => {
 									$bytes = closed
 									$command_visits = $command_visits + emitted.command_visits
+									$form_placements = $form_placements + emitted.form_placements
 									$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
 									$image_placements = $image_placements + emitted.image_placements
 									$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
@@ -157,14 +192,64 @@ build_plan = |tagged, text, limits| {
 			}
 			$page_index = $page_index + 1
 		}
+
+		## Each canonical physical form lowers exactly once, in canonical
+		## order, from its representative's validated command range. Form
+		## content receives no ownership wrapper: marked-content wrappers are
+		## placement-site facts of the consuming page stream.
+		form_stream_ranges = match forms {
+			NoForms => []
+			WithForms(context) => context.streams
+		}
+		var $form_streams = List.with_capacity(form_stream_ranges.len())
+		var $form_bytes = 0
+		var $form_index = 0
+		while $form_index < form_stream_ranges.len() and $error == NoError {
+			range = list_at(form_stream_ranges, $form_index)
+			form_limit = limits.max_content_bytes - $total_bytes
+			arena = match forms {
+				NoForms => []
+				WithForms(context) => context.arena
+			}
+			match emit_commands(List.with_capacity(U64.min(form_limit, initial_content_capacity)), range, arena, scenes, text, forms, form_limit) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(emitted) => match checked_add($total_bytes, emitted.bytes.len()) {
+					Err(error) => {
+						$error = Invalid(error)
+					}
+					Ok(total) => if total > limits.max_content_bytes {
+						$error = Invalid(LimitExceeded({ attempted: total, dimension: ContentBytes, limit: limits.max_content_bytes }))
+					} else {
+						$total_bytes = total
+						$form_bytes = $form_bytes + emitted.bytes.len()
+						$form_streams = $form_streams.append({ bytes: emitted.bytes, form: $form_index })
+						$command_visits = $command_visits + emitted.command_visits
+						$form_placements = $form_placements + emitted.form_placements
+						$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
+						$image_placements = $image_placements + emitted.image_placements
+						$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
+						$path_segments = $path_segments + emitted.path_segments
+						$text_placements = $text_placements + emitted.text_placements
+					}
+				}
+			}
+			$form_index = $form_index + 1
+		}
+
 		match $error {
 			Invalid(error) => Err(error)
 			NoError => Ok(
 				KernelContent.Plan.{
+					form_streams: $form_streams,
 					streams: $streams,
 					work: {
 						bytes_emitted: $total_bytes,
 						command_visits: $command_visits,
+						form_placements: $form_placements,
+						form_stream_bytes: $form_bytes,
+						form_streams: $form_streams.len(),
 						graphics_state_pairs: $graphics_pairs,
 						group_visits: $group_visits,
 						image_placements: $image_placements,
@@ -221,14 +306,15 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 	}
 }
 
-emit_commands : List(U8), Semantics.Range, Scene.Store, TextLowering, U64 -> Try(EmitWork, KernelContent.Error)
-emit_commands = |initial, root, scenes, text, limit| {
+emit_commands : List(U8), Semantics.Range, List(Scene.Command), Scene.Store, TextLowering, FormEmission, U64 -> Try(EmitWork, KernelContent.Error)
+emit_commands = |initial, root, arena, scenes, text, forms, limit| {
 	var $bytes = initial
 	var $frames = []
 	var $current = Frame.{ close_graphics: False, end: root.start() + root.length(), next: root.start() }
 	var $active = 0
 	var $done = False
 	var $command_visits = 0
+	var $form_placements = 0
 	var $graphics_pairs = 0
 	var $image_placements = 0
 	var $max_frame_depth = 1
@@ -256,7 +342,7 @@ emit_commands = |initial, root, scenes, text, limit| {
 		} else {
 			command_index = $current.next
 			$current = { ..$current, next: $current.next + 1 }
-			command = list_at(scenes.commands, command_index)
+			command = list_at(arena, command_index)
 			match command {
 				Clip({ children, path }) => match emit_clip_open($bytes, path, scenes, limit) {
 					Err(error) => {
@@ -316,6 +402,25 @@ emit_commands = |initial, root, scenes, text, limit| {
 				Opacity(_) => {
 					$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
 				}
+				PlaceForm({ form, transform }) => match forms {
+					NoForms => {
+						$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+					}
+					WithForms(context) => if form.index() >= context.form_names.len() {
+						$error = Invalid(FormPlacementInvalid({ form: form.index(), prepared: context.form_names.len() }))
+					} else {
+						match emit_place_form($bytes, transform, list_at(context.form_names, form.index()), limit) {
+							Err(error) => {
+								$error = Invalid(error)
+							}
+							Ok(bytes) => {
+								$bytes = bytes
+								$graphics_pairs = $graphics_pairs + 1
+								$form_placements = $form_placements + 1
+							}
+						}
+					}
+				}
 				Transform({ children, matrix }) => match emit_transform_open($bytes, matrix, limit) {
 					Err(error) => {
 						$error = Invalid(error)
@@ -335,8 +440,30 @@ emit_commands = |initial, root, scenes, text, limit| {
 	}
 	match $error {
 		Invalid(error) => Err(error)
-		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, path_segments: $path_segments, text_placements: $text_placements })
+		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, path_segments: $path_segments, text_placements: $text_placements })
 	}
+}
+
+## A form invocation is always balanced: save, placement transform, `Do`,
+## restore. The name is the canonical form ordinal under the deterministic
+## `XO` prefix, resolved by the consuming stream's direct dictionary.
+emit_place_form : List(U8), Scene.Matrix, U64, U64 -> Try(List(U8), KernelContent.Error)
+emit_place_form = |bytes, transform, ordinal, limit| {
+	var $out = append_literal(bytes, "q\n", limit)?
+	$out = append_layout($out, transform.a, limit)?
+	$out = append_literal($out, " ", limit)?
+	$out = append_layout($out, transform.b, limit)?
+	$out = append_literal($out, " ", limit)?
+	$out = append_layout($out, transform.c, limit)?
+	$out = append_literal($out, " ", limit)?
+	$out = append_layout($out, transform.d, limit)?
+	$out = append_literal($out, " ", limit)?
+	$out = append_layout($out, transform.e, limit)?
+	$out = append_literal($out, " ", limit)?
+	$out = append_layout($out, transform.f, limit)?
+	$out = append_literal($out, " cm\n/XO", limit)?
+	$out = append_resource_index($out, ordinal, limit)?
+	append_literal($out, " Do\nQ\n", limit)
 }
 
 emit_text : List(U8), Scene.TextPaint, KernelContent.TextRun, U64 -> Try(List(U8), KernelContent.Error)
@@ -844,7 +971,7 @@ expect {
 		],
 		dash_lengths: [KernelGate2Fixture.unit(1000), KernelGate2Fixture.unit(500)],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes, NoText, 512)?
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, 512)?
 	expected =
 		\\q
 		\\0 0 1 1 re
@@ -876,7 +1003,7 @@ expect {
 		path_segments: segments,
 		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, segments.len()) }],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes, NoText, 512)?
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, 512)?
 	expected =
 		\\/CS1_0 cs
 		\\1 0.50000763 0 scn

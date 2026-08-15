@@ -30,7 +30,14 @@ KernelTextOwnership :: [].{
 
 	Plan :: { run_fragments : List(Semantics.FragmentId), tagged : KernelTagged.Plan, text : Text.Store, work : Work }.{
 		build : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store -> Try(Plan, Error)
-		build = |semantics, scene, text| build_plan(semantics, scene, text)
+		build = |semantics, scene, text| build_plan(semantics, scene, text, [])
+
+		## Gate 4 scenes additionally assign runs painted inside Form XObjects.
+		## Each such run arrives as an explicit resolved fact (the fragment
+		## owning the form's unique placement chain); ownership rules are
+		## unchanged: every run is owned exactly once, and only by a fragment.
+		build_with_forms : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store, List({ fragment : Semantics.FragmentId, run : U64 }) -> Try(Plan, Error)
+		build_with_forms = |semantics, scene, text, form_runs| build_plan(semantics, scene, text, form_runs)
 
 		run_fragments : Plan -> List(Semantics.FragmentId)
 		run_fragments = |plan| plan.run_fragments
@@ -52,13 +59,14 @@ Frame := { range : Semantics.Range }
 
 Collected := { command_visits : U64, group_visits : U64, owners : List(RunOwner) }
 
-build_plan : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store -> Try(KernelTextOwnership.Plan, KernelTextOwnership.Error)
-build_plan = |text_semantics, scene_plan, text| {
+build_plan : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store, List({ fragment : Semantics.FragmentId, run : U64 }) -> Try(KernelTextOwnership.Plan, KernelTextOwnership.Error)
+build_plan = |text_semantics, scene_plan, text, form_runs| {
 	tagged = KernelTagged.Plan.build(KernelTextSemantics.Plan.semantics(text_semantics), scene_plan) ? Tagged
 	semantics = KernelTagged.Plan.semantics(tagged)
 	scenes = KernelTagged.Plan.scenes(tagged)
 	collected = collect_owners(scenes, text)?
-	validated = validate_coverage(semantics, text, collected.owners)?
+	with_forms = apply_form_runs(collected.owners, form_runs, text)?
+	validated = validate_coverage(semantics, text, with_forms)?
 	Ok(
 		KernelTextOwnership.Plan.{
 			run_fragments: validated.run_fragments,
@@ -75,6 +83,38 @@ build_plan = |text_semantics, scene_plan, text| {
 			},
 		},
 	)
+}
+
+apply_form_runs : List(RunOwner), List({ fragment : Semantics.FragmentId, run : U64 }), Text.Store -> Try(List(RunOwner), KernelTextOwnership.Error)
+apply_form_runs = |owners, form_runs, text| {
+	var $owners = owners
+	var $index = 0
+	var $failure = NoFailure
+	while $index < form_runs.len() and $failure == NoFailure {
+		assignment = list_at(form_runs, $index)
+		if assignment.run >= text.runs.len() {
+			$failure = Failed(RunIndexOutOfRange({ available: text.runs.len(), run: assignment.run }))
+		} else {
+			record = list_at(text.runs, assignment.run)
+			if record.id.index() != assignment.run {
+				$failure = Failed(NonDenseRunIdentity({ actual: record.id.index(), expected: assignment.run }))
+			} else {
+				match list_at($owners, assignment.run) {
+					Owned(_) => {
+						$failure = Failed(DuplicateRunOwnership({ run: assignment.run }))
+					}
+					Unowned => {
+						$owners = list_set($owners, assignment.run, Owned(assignment.fragment))
+					}
+				}
+			}
+		}
+		$index = $index + 1
+	}
+	match $failure {
+		Failed(error) => Err(error)
+		NoFailure => Ok($owners)
+	}
 }
 
 collect_owners : Scene.Store, Text.Store -> Try(Collected, KernelTextOwnership.Error)
@@ -115,7 +155,7 @@ collect_owners = |scenes, text| {
 							}
 						}
 					}
-					DrawImage(_) | DrawPath(_) => {}
+					DrawImage(_) | DrawPath(_) | PlaceForm(_) => {}
 				}
 				$command_index = $command_index + 1
 				$command_visits = $command_visits + 1

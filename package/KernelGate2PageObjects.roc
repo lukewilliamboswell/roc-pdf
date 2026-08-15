@@ -34,6 +34,13 @@ KernelGate2PageObjects :: [].{
 		build_with_fonts : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan -> Try(Plan, Error)
 		build_with_fonts = |prefix, tagged, content, objects| build_font_plan(prefix, tagged, content, objects)
 
+		## The Gate 4 variant: the caller has already added one exact direct
+		## resource-dictionary value per page to the builder, so this lowering
+		## consumes those values instead of one shared dictionary. The caller
+		## reports how many direct references those dictionaries hold.
+		build_with_page_resources : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64 -> Try(Plan, Error)
+		build_with_page_resources = |builder, tagged, content, objects, resource_values, resource_references| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references)
+
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
 
@@ -41,6 +48,8 @@ KernelGate2PageObjects :: [].{
 		work = |plan| plan.work
 	}
 }
+
+ResourcesFor := [PerPage(List(KernelObject.ValueId)), SharedValue(KernelObject.ValueId)]
 
 Names := {
 	art_box : KernelObject.NameId,
@@ -71,7 +80,7 @@ build_plan = |prefix, tagged, content, objects| {
 	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix))?
 	resources = add_resources(added_names.builder, added_names.names, objects)?
 	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, resources.value, tagged, content, objects)?
+	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,
@@ -87,6 +96,26 @@ build_plan = |prefix, tagged, content, objects| {
 	)
 }
 
+build_page_resource_plan : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64 -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
+build_page_resource_plan = |builder, tagged, content, objects, resource_values, resource_references| {
+	added_names = add_names(builder)?
+	page_tree = add_page_tree(added_names.builder, added_names.names, objects)?
+	pages = add_pages(page_tree.builder, added_names.names, PerPage(resource_values), tagged, content, objects)?
+	Ok(
+		KernelGate2PageObjects.Plan.{
+			builder: pages,
+			work: {
+				box_values: KernelTagged.Plan.scenes(tagged).pages.len() * 5,
+				content_streams: KernelContent.Plan.stream_count(content),
+				page_tree_edges: page_tree.edges,
+				page_tree_nodes: KernelBalanced.Shape.node_count(KernelGate2Objects.Plan.page_tree_shape(objects)),
+				pages: KernelTagged.Plan.scenes(tagged).pages.len(),
+				resource_references,
+			},
+		},
+	)
+}
+
 build_font_plan : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
 build_font_plan = |prefix, tagged, content, font_objects| {
 	objects = KernelGate3FontObjects.Plan.base(font_objects)
@@ -94,7 +123,7 @@ build_font_plan = |prefix, tagged, content, font_objects| {
 	font_name = KernelObject.add_name(added_names.builder, Str.to_utf8("Font")) ? Object
 	resources = add_resources_with_fonts(font_name.builder, added_names.names, font_name.id, objects, KernelGate3FontObjects.Plan.fonts(font_objects))?
 	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, resources.value, tagged, content, objects)?
+	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,
@@ -354,7 +383,7 @@ add_references = |builder, objects| {
 	}
 }
 
-add_pages : KernelObject.Builder, Names, KernelObject.ValueId, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
+add_pages : KernelObject.Builder, Names, ResourcesFor, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
 add_pages = |builder, names, resources, tagged, content, objects| {
 	scenes = KernelTagged.Plan.scenes(tagged)
 	page_objects = KernelGate2Objects.Plan.pages(objects)
@@ -369,7 +398,11 @@ add_pages = |builder, names, resources, tagged, content, objects| {
 		page = list_at(scenes.pages, $index)
 		planned = list_at(page_objects, $index)
 		parent_index = leaf_offset + U64.div_by($index, KernelBalanced.Shape.fanout)
-		match add_page($builder, names, resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelGate2Objects.Plan.page_tree(objects), parent_index), planned) {
+		page_resources = match resources {
+			PerPage(values) => list_at(values, $index)
+			SharedValue(value) => value
+		}
+		match add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelGate2Objects.Plan.page_tree(objects), parent_index), planned) {
 			Err(error) => {
 				$error = Invalid(error)
 			}
