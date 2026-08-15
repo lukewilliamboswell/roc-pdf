@@ -30,7 +30,7 @@ Gate3FuzzTargets :: [].{
 
 	Edit : { byte : U64, table : U8, value : U8 }
 
-	subset_roundtrip : { font : U8, glyphs : List(U8), retained_limit : U8 } -> Bool
+	subset_roundtrip : { font : U8, glyphs : List(U64), retained_limit : U64 } -> Bool
 	subset_roundtrip = |input| {
 		font_bytes = fixture(input.font)
 		font = match KernelFont.inspect(font_bytes, inspection_limits) {
@@ -39,10 +39,10 @@ Gate3FuzzTargets :: [].{
 		}
 		usages = input.glyphs.map(
 			|choice| {
-				glyph: (choice.to_u64() % font.metrics.glyph_count).to_u32_wrap(),
+				glyph: (choice % font.metrics.glyph_count).to_u32_wrap(),
 			},
 		)
-		limits = KernelFontPlan.Limits.make({ max_retained_glyphs: input.retained_limit.to_u64() })
+		limits = KernelFontPlan.Limits.make({ max_retained_glyphs: input.retained_limit })
 		first_plan = KernelFontPlan.plan(font, usages, limits)
 		second_plan = KernelFontPlan.plan(font, usages, limits)
 		if first_plan != second_plan {

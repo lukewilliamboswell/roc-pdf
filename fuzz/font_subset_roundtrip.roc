@@ -6,13 +6,16 @@ app [target] {
 import fuzz.Fuzz
 import pdf_quality.Gate3FuzzTargets
 
-Input := { font : U8, glyphs : List(U8), retained_limit : U8 }.{
+## Glyph choices and the retained budget are sized against the widest fixture,
+## which has 1376 glyphs. A `U8` choice could select only its first 256 glyphs,
+## and a budget capped at 96 rejected every large subset before it was built.
+Input := { font : U8, glyphs : List(U64), retained_limit : U64 }.{
 	generator_for : Fuzz.FuzzEncoding -> Fuzz.Generator(Input)
 	generator_for = |_| {
 		{
 			font: Fuzz.u8_in(0, 4),
-			glyphs: Fuzz.list(Fuzz.u8, 32),
-			retained_limit: Fuzz.u8_in(0, 96),
+			glyphs: Fuzz.list(Fuzz.u64_in(0, 2047), 128),
+			retained_limit: Fuzz.u64_in(0, 1536),
 		}.Fuzz
 	}
 }
