@@ -1,1 +1,1 @@
-package [Gate3FuzzTargets] {}
+package [Gate2FuzzTargets, Gate3FuzzTargets] {}
