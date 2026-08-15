@@ -1427,11 +1427,16 @@ ARC operation per emitted byte, glyph, path command, or object in selected
 kernels. Direct loops and proposed `Iter` implementations are compared under
 the same pinned dev backend before an iterator becomes a hot-path choice.
 
-Ordinary CI uses PDFium and PDFBox as independent reader/render/extraction
-paths. PDF.js adds browser text-, annotation-, and structure-layer coverage.
-MuPDF or Poppler extends graphics diversity; Ghostscript is used for declared
-advanced color and print capabilities. These engines have distinct configured
-expectations and do not vote on correctness.
+The fast ordinary CI lane checks and tests the core `package/main.roc` public
+surface, compiles and tests every checked-in public example, and runs the
+bounded fuzz smoke tests. The complete local suite remains the authoritative
+feature-evidence path and is run through `./scripts/test.py`; release validation
+also runs that suite from scratch. That full evidence path uses PDFium and
+PDFBox as independent reader/render/extraction paths. PDF.js adds browser
+text-, annotation-, and structure-layer coverage. MuPDF or Poppler extends
+graphics diversity; Ghostscript is used for declared advanced color and print
+capabilities. These engines have distinct configured expectations and do not
+vote on correctness.
 
 veraPDF is invoked with the explicit `4`, `ua2`, and `wt1a` profiles as
 applicable rather than relying only on metadata autodetection. The validator
