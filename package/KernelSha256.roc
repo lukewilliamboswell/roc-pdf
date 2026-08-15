@@ -11,30 +11,44 @@ ShaState : {
 
 CompressResult : { schedule : List(U32), state : ShaState }
 
+## One logical message assembled from a prefix and an exact range of a second
+## already-owned list. Hashing reads both through index arithmetic, so a large
+## payload is never copied into a concatenated digest input.
+Parts : { input : List(U8), length : U64, prefix : List(U8), start : U64 }
+
 KernelSha256 :: [].{
 	Error : [InputTooLarge]
 
 	digest : List(U8) -> Try(List(U8), Error)
-	digest = |input| {
-		byte_length = input.len()
-		if byte_length > 2305843009213693951 {
-			Err(InputTooLarge)
-		} else {
-			bit_length = byte_length * 8
-			with_marker_and_length = byte_length + 9
-			blocks = ceil_div_64(with_marker_and_length)
-			constants = round_constants
-			var $state = initial_state
-			var $schedule = List.repeat(0, 64)
-			var $block = 0
-			while $block < blocks {
-				compressed = compress_block($state, input, $block, blocks, bit_length, constants, $schedule)
-				$state = compressed.state
-				$schedule = compressed.schedule
-				$block = $block + 1
-			}
-			Ok(state_bytes($state))
+	digest = |input| digest_message({ input, length: input.len(), prefix: [], start: 0 })
+
+	## Digests `prefix` followed by `input[start .. start + length]`. The range
+	## must already be validated by the caller; the payload allocation is read in
+	## place rather than concatenated.
+	digest_range : List(U8), List(U8), U64, U64 -> Try(List(U8), Error)
+	digest_range = |prefix, input, start, length| digest_message({ input, length, prefix, start })
+}
+
+digest_message : Parts -> Try(List(U8), KernelSha256.Error)
+digest_message = |parts| {
+	byte_length = parts.prefix.len() + parts.length
+	if byte_length > 2305843009213693951 {
+		Err(InputTooLarge)
+	} else {
+		bit_length = byte_length * 8
+		with_marker_and_length = byte_length + 9
+		blocks = ceil_div_64(with_marker_and_length)
+		constants = round_constants
+		var $state = initial_state
+		var $schedule = List.repeat(0, 64)
+		var $block = 0
+		while $block < blocks {
+			compressed = compress_block($state, parts, $block, blocks, bit_length, constants, $schedule)
+			$state = compressed.state
+			$schedule = compressed.schedule
+			$block = $block + 1
 		}
+		Ok(state_bytes($state))
 	}
 }
 
@@ -118,7 +132,7 @@ round_constants = [
 	0xc67178f2,
 ]
 
-compress_block : ShaState, List(U8), U64, U64, U64, List(U32), List(U32) -> CompressResult
+compress_block : ShaState, Parts, U64, U64, U64, List(U32), List(U32) -> CompressResult
 compress_block = |state, input, block, blocks, bit_length, constants, schedule| {
 	block_start = block * 64
 	var $schedule = schedule
@@ -179,12 +193,12 @@ compress_block = |state, input, block, blocks, bit_length, constants, schedule| 
 	}
 }
 
-padded_byte : List(U8), U64, U64, U64 -> U8
+padded_byte : Parts, U64, U64, U64 -> U8
 padded_byte = |input, index, blocks, bit_length| {
-	input_length = input.len()
+	input_length = input.prefix.len() + input.length
 	total_length = blocks * 64
 	if index < input_length {
-		byte_at(input, index)
+		message_byte(input, index)
 	} else if index == input_length {
 		128
 	} else if index >= total_length - 8 {
@@ -192,6 +206,16 @@ padded_byte = |input, index, blocks, bit_length| {
 		bit_length.shr_wrap(shift).to_u8_wrap()
 	} else {
 		0
+	}
+}
+
+message_byte : Parts, U64 -> U8
+message_byte = |parts, index| {
+	prefix_length = parts.prefix.len()
+	if index < prefix_length {
+		byte_at(parts.prefix, index)
+	} else {
+		byte_at(parts.input, parts.start + (index - prefix_length))
 	}
 }
 
@@ -322,3 +346,11 @@ expect KernelSha256.digest(Str.to_utf8("abcdbcdecdefdefgefghfghighijhijkijkljklm
 	0x06,
 	0xc1,
 ]
+
+## Hashing an exact range of an owned allocation with a prefix equals hashing
+## the concatenation, without materializing that concatenation.
+expect {
+	prefix = Str.to_utf8("abcdbcdecdefdefgefghfghighijhijk")
+	payload = Str.to_utf8("XXXXijkljklmklmnlmnomnopnopqYYYY")
+	KernelSha256.digest_range(prefix, payload, 4, 24)? == KernelSha256.digest(Str.to_utf8("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"))?
+}
