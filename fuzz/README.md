@@ -69,7 +69,7 @@ Minimized reproductions are retained as `fuzz_seed` assets under
 `tests/assets/` with provenance, and promoted to atomic regression tests beside
 the code they exercise.
 
-## Blocked: `facade_output_equivalence`
+## Blocked under the pinned compiler: `facade_output_equivalence`
 
 `fuzz/facade_output_equivalence.roc` drives the public facade over generated
 typed documents and checks the enduring output contracts: identical inputs
@@ -77,23 +77,41 @@ produce identical bytes, the buffered and chunked encoders agree byte for byte,
 the chunk retention policy changes allocation only, and a rejected document is
 rejected the same way every time.
 
-It passes `roc check` but cannot currently be built, because `roc build --fuzz`
-requires the LLVM backend and any LLVM build of the `Pdf` facade pipeline
-panics in the compiler:
+It passes `roc check` but cannot be built under the pinned compiler, because
+`roc build --fuzz` requires the LLVM backend and any LLVM build of the `Pdf`
+facade pipeline panics there:
 
 ```
 postcheck invariant violated: record update base type differed from its result
 type in SpecConstr
 ```
 
-This is not specific to the target. The existing
-`tests/gate3_pdf_facade_chunks/main.roc` reproduces it directly:
+This is not specific to the target. Under the pinned compiler the existing
+`tests/gate3_pdf_facade_chunks/main.roc` reproduces it directly, so
+`--opt=speed` release builds of the package are blocked as well:
 
 ```sh
 roc build --opt=speed tests/gate3_pdf_facade_chunks/main.roc   # panics
 roc build --opt=dev   tests/gate3_pdf_facade_chunks/main.roc   # succeeds
 ```
 
-TODO: revisit when `.roc-version` moves. The pinned compiler may already fix
-this; the whole-package consequence is that the facade is currently buildable
-only with the dev backend, so `--opt=speed` release builds are blocked too.
+### Already fixed upstream
+
+The cause is that `SpecConstr` substitutes a record update's base but leaves the
+update's own result type unsubstituted, so after specialising a `while` loop the
+two disagree and the invariant compares them by structural digest. It was
+observed in two forms: a type alias against its bare backing record
+(`KernelFacadeText`), and a nested update whose inner result materialised the
+nested field type differently from the outer result type (`KernelObject`).
+
+Upstream commit `47a14ba38c` "Isolate SpecConstr loop exit projection"
+(2026-08-13) fixes it. The pinned `nightly-2026-08-08-195c9e7` predates that
+commit, which is why the package still trips it.
+
+Verified against upstream `f70f90af36`: the facade test app builds with
+`--opt=speed`, this target builds with `--fuzz`, and a 90-second campaign ran
+222,994 executions taking coverage from 172 to 8,197 edges with no failures. No
+upstream issue was filed, because the defect is already fixed.
+
+TODO: drop this section and fold the target into the list above when
+`.roc-version` moves past `47a14ba38c`.
