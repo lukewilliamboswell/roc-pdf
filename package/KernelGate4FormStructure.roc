@@ -85,25 +85,24 @@ KernelGate4FormStructure :: [].{
 	}
 }
 
+StateNames := { blend_mode : KernelObject.NameId, ext_g_state : KernelObject.NameId, nonstroking_alpha : KernelObject.NameId, normal : KernelObject.NameId, stroking_alpha : KernelObject.NameId }
+
+GroupNames := { cs : KernelObject.NameId, group : KernelObject.NameId, isolated : KernelObject.NameId, s : KernelObject.NameId, transparency : KernelObject.NameId }
+
+## The graphics-state and transparency-group names join the table only when
+## the plan actually contains those facts, so a plan without transparency
+## keeps its exact name table and normalized plan identity.
 Names := {
 	b_box : KernelObject.NameId,
-	blend_mode : KernelObject.NameId,
 	color_space : KernelObject.NameId,
-	cs : KernelObject.NameId,
-	ext_g_state : KernelObject.NameId,
 	font : KernelObject.NameId,
 	form : KernelObject.NameId,
 	form_type : KernelObject.NameId,
-	group : KernelObject.NameId,
-	isolated : KernelObject.NameId,
+	group_names : [NoGroupNames, WithGroupNames(GroupNames)],
 	matrix : KernelObject.NameId,
-	normal : KernelObject.NameId,
 	resources : KernelObject.NameId,
-	s : KernelObject.NameId,
-	stroking_alpha : KernelObject.NameId,
-	nonstroking_alpha : KernelObject.NameId,
+	state_names : [NoStateNames, WithStateNames(StateNames)],
 	subtype : KernelObject.NameId,
-	transparency : KernelObject.NameId,
 	type_name : KernelObject.NameId,
 	x_object : KernelObject.NameId,
 }
@@ -146,7 +145,10 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 	## value per page.
 	leaf_counts = KernelForm.Plan.canonical_leaf_counts(forms)
 	canonical_states = KernelForm.Plan.canonical_state_count(forms)
-	named = add_names(KernelGate2TaggedObjects.Plan.builder(prefix))?
+	page_transparency = KernelForm.Plan.page_transparency(forms)
+	form_isolation = KernelForm.Plan.form_isolation(forms)
+	with_groups = any_flag(page_transparency) or any_flag(form_isolation)
+	named = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), canonical_states > 0, with_groups)?
 	resource_names = add_resource_names(named.builder, leaf_counts.color_spaces, leaf_counts.images, planned_fonts.len(), canonical_forms, canonical_states)?
 	var $builder = resource_names.builder
 	page_count = KernelTagged.Plan.scenes(tagged).pages.len()
@@ -174,33 +176,29 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 
 	## One shared transparency group value serves every transparency page: its
 	## `/CS` references the canonical blending-space object the normalized plan
-	## selected. A document without transparency pages plans no group value.
-	page_transparency = KernelForm.Plan.page_transparency(forms)
+	## selected. A document without transparency pages plans no group value and
+	## takes the unchanged page path, keeping its exact plan identity.
 	group_plan = add_page_group_value($builder, named.names, forms, base, page_transparency)?
 	$builder = group_plan.builder
-	var $page_groups = List.with_capacity(page_count)
-	var $group_page = 0
 	var $transparency_page_groups = 0
-	while $group_page < page_count {
-		entry = if list_at(page_transparency, $group_page) {
-			match group_plan.value {
-				NoGroupValue => NoGroup
-				GroupValue(value) => WithGroup(value)
+	pages = match group_plan.value {
+		NoGroupValue => KernelGate2PageObjects.Plan.build_with_page_resources($builder, tagged, content, base, $page_values, $references) ? Pages
+		GroupValue(group_value) => {
+			var $page_groups = List.with_capacity(page_count)
+			var $group_page = 0
+			while $group_page < page_count {
+				entry = if list_at(page_transparency, $group_page) {
+					$transparency_page_groups = $transparency_page_groups + 1
+					WithGroup(group_value)
+				} else {
+					NoGroup
+				}
+				$page_groups = $page_groups.append(entry)
+				$group_page = $group_page + 1
 			}
-		} else {
-			NoGroup
+			KernelGate2PageObjects.Plan.build_with_page_groups($builder, tagged, content, base, $page_values, $references, $page_groups) ? Pages
 		}
-		match entry {
-			NoGroup => {}
-			WithGroup(_) => {
-				$transparency_page_groups = $transparency_page_groups + 1
-			}
-		}
-		$page_groups = $page_groups.append(entry)
-		$group_page = $group_page + 1
 	}
-
-	pages = KernelGate2PageObjects.Plan.build_with_page_groups($builder, tagged, content, base, $page_values, $references, $page_groups) ? Pages
 	var $image_planes = List.with_capacity(leaf_counts.images)
 	var $plane_ordinal = 0
 	while $plane_ordinal < leaf_counts.images {
@@ -228,7 +226,6 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 	## `/Group` dictionary naming the canonical blending space. Deferred
 	## capabilities emit no keys at all. One shared isolated-group value
 	## serves every isolated form because they share one blending space.
-	form_isolation = KernelForm.Plan.form_isolation(forms)
 	var $form_builder = KernelGate2ResourceObjects.Plan.builder(resources)
 	isolated_group_plan = add_isolated_group_value($form_builder, named.names, forms, base, form_isolation)?
 	$form_builder = isolated_group_plan.builder
@@ -373,49 +370,60 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 	)
 }
 
-add_names : KernelObject.Builder -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate4FormStructure.Error)
-add_names = |builder| {
+add_names : KernelObject.Builder, Bool, Bool -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate4FormStructure.Error)
+add_names = |builder, with_states, with_groups| {
 	b_box = KernelObject.add_name(builder, Str.to_utf8("BBox")) ? Object
-	blend_mode = KernelObject.add_name(b_box.builder, Str.to_utf8("BM")) ? Object
-	stroking_alpha = KernelObject.add_name(blend_mode.builder, Str.to_utf8("CA")) ? Object
-	cs = KernelObject.add_name(stroking_alpha.builder, Str.to_utf8("CS")) ? Object
-	color_space = KernelObject.add_name(cs.builder, Str.to_utf8("ColorSpace")) ? Object
-	ext_g_state = KernelObject.add_name(color_space.builder, Str.to_utf8("ExtGState")) ? Object
-	font = KernelObject.add_name(ext_g_state.builder, Str.to_utf8("Font")) ? Object
+	color_space = KernelObject.add_name(b_box.builder, Str.to_utf8("ColorSpace")) ? Object
+	font = KernelObject.add_name(color_space.builder, Str.to_utf8("Font")) ? Object
 	form = KernelObject.add_name(font.builder, Str.to_utf8("Form")) ? Object
 	form_type = KernelObject.add_name(form.builder, Str.to_utf8("FormType")) ? Object
-	group = KernelObject.add_name(form_type.builder, Str.to_utf8("Group")) ? Object
-	isolated = KernelObject.add_name(group.builder, Str.to_utf8("I")) ? Object
-	matrix = KernelObject.add_name(isolated.builder, Str.to_utf8("Matrix")) ? Object
-	normal = KernelObject.add_name(matrix.builder, Str.to_utf8("Normal")) ? Object
-	resources = KernelObject.add_name(normal.builder, Str.to_utf8("Resources")) ? Object
-	s = KernelObject.add_name(resources.builder, Str.to_utf8("S")) ? Object
-	subtype = KernelObject.add_name(s.builder, Str.to_utf8("Subtype")) ? Object
-	transparency = KernelObject.add_name(subtype.builder, Str.to_utf8("Transparency")) ? Object
-	type_name = KernelObject.add_name(transparency.builder, Str.to_utf8("Type")) ? Object
+	matrix = KernelObject.add_name(form_type.builder, Str.to_utf8("Matrix")) ? Object
+	resources = KernelObject.add_name(matrix.builder, Str.to_utf8("Resources")) ? Object
+	subtype = KernelObject.add_name(resources.builder, Str.to_utf8("Subtype")) ? Object
+	type_name = KernelObject.add_name(subtype.builder, Str.to_utf8("Type")) ? Object
 	x_object = KernelObject.add_name(type_name.builder, Str.to_utf8("XObject")) ? Object
-	nonstroking_alpha = KernelObject.add_name(x_object.builder, Str.to_utf8("ca")) ? Object
+
+	states = if with_states {
+		blend_mode = KernelObject.add_name(x_object.builder, Str.to_utf8("BM")) ? Object
+		stroking_alpha = KernelObject.add_name(blend_mode.builder, Str.to_utf8("CA")) ? Object
+		ext_g_state = KernelObject.add_name(stroking_alpha.builder, Str.to_utf8("ExtGState")) ? Object
+		normal = KernelObject.add_name(ext_g_state.builder, Str.to_utf8("Normal")) ? Object
+		nonstroking_alpha = KernelObject.add_name(normal.builder, Str.to_utf8("ca")) ? Object
+		{
+			builder: nonstroking_alpha.builder,
+			names: WithStateNames({ blend_mode: blend_mode.id, ext_g_state: ext_g_state.id, nonstroking_alpha: nonstroking_alpha.id, normal: normal.id, stroking_alpha: stroking_alpha.id }),
+		}
+	} else {
+		{ builder: x_object.builder, names: NoStateNames }
+	}
+
+	groups = if with_groups {
+		cs = KernelObject.add_name(states.builder, Str.to_utf8("CS")) ? Object
+		group = KernelObject.add_name(cs.builder, Str.to_utf8("Group")) ? Object
+		isolated = KernelObject.add_name(group.builder, Str.to_utf8("I")) ? Object
+		s = KernelObject.add_name(isolated.builder, Str.to_utf8("S")) ? Object
+		transparency = KernelObject.add_name(s.builder, Str.to_utf8("Transparency")) ? Object
+		{
+			builder: transparency.builder,
+			names: WithGroupNames({ cs: cs.id, group: group.id, isolated: isolated.id, s: s.id, transparency: transparency.id }),
+		}
+	} else {
+		{ builder: states.builder, names: NoGroupNames }
+	}
+
 	Ok({
-		builder: nonstroking_alpha.builder,
+		builder: groups.builder,
 		names: {
 			b_box: b_box.id,
-			blend_mode: blend_mode.id,
 			color_space: color_space.id,
-			cs: cs.id,
-			ext_g_state: ext_g_state.id,
 			font: font.id,
 			form: form.id,
 			form_type: form_type.id,
-			group: group.id,
-			isolated: isolated.id,
+			group_names: groups.names,
 			matrix: matrix.id,
-			normal: normal.id,
 			resources: resources.id,
-			s: s.id,
-			stroking_alpha: stroking_alpha.id,
-			nonstroking_alpha: nonstroking_alpha.id,
+			state_names: states.names,
 			subtype: subtype.id,
-			transparency: transparency.id,
 			type_name: type_name.id,
 			x_object: x_object.id,
 		},
@@ -483,11 +491,17 @@ add_resource_dictionary = |builder, names, resource_names, dictionary, base, obj
 		$references = $references + collected.entries.len()
 	}
 	if dictionary.ext_g_states.len() > 0 {
+		state_names = match names.state_names {
+			WithStateNames(state) => state
+			NoStateNames => {
+				crash "graphics state emitted without its planned names"
+			}
+		}
 		collected = add_reference_entries($builder, resource_names.states, dictionary.ext_g_states, state_targets(objects, dictionary.ext_g_states))?
 		$builder = collected.builder
 		value = KernelObject.add_dictionary($builder, collected.entries) ? Object
 		$builder = value.builder
-		$entries = $entries.append({ key: names.ext_g_state, value: value.id })
+		$entries = $entries.append({ key: state_names.ext_g_state, value: value.id })
 		$references = $references + collected.entries.len()
 	}
 	if dictionary.fonts.len() > 0 {
@@ -618,7 +632,15 @@ add_form_object = |builder, names, resource_names, dictionary, bbox, bytes, base
 		GroupValue(group_value) => [
 			{ key: names.b_box, value: b_box.id },
 			{ key: names.form_type, value: form_type.id },
-			{ key: names.group, value: group_value },
+			{
+				key: match names.group_names {
+					WithGroupNames(bundle) => bundle.group
+					NoGroupNames => {
+						crash "isolated form emitted without its planned names"
+					}
+				},
+				value: group_value,
+			},
 			{ key: names.matrix, value: matrix.id },
 			{ key: names.resources, value: resources.id },
 			{ key: names.subtype, value: subtype.id },
@@ -657,13 +679,19 @@ add_page_group_value = |builder, names, forms, base, page_transparency| {
 	match KernelForm.Plan.blending(forms) {
 		NoBlending => Ok({ builder, value: NoGroupValue })
 		Blending(ordinal) => {
+			group_names = match names.group_names {
+				WithGroupNames(group) => group
+				NoGroupNames => {
+					crash "page transparency group emitted without its planned names"
+				}
+			}
 			space = KernelObject.add_reference(builder, list_at(KernelGate2Objects.Plan.color_spaces(base), ordinal)) ? Object
-			kind = KernelObject.add_name_value(space.builder, names.transparency) ? Object
+			kind = KernelObject.add_name_value(space.builder, group_names.transparency) ? Object
 			value = KernelObject.add_dictionary(
 				kind.builder,
 				[
-					{ key: names.cs, value: space.id },
-					{ key: names.s, value: kind.id },
+					{ key: group_names.cs, value: space.id },
+					{ key: group_names.s, value: kind.id },
 				],
 			) ? Object
 			Ok({ builder: value.builder, value: GroupValue(value.id) })
@@ -689,15 +717,21 @@ add_isolated_group_value = |builder, names, forms, base, form_isolation| {
 	match KernelForm.Plan.blending(forms) {
 		NoBlending => Ok({ builder, value: NoGroupValue })
 		Blending(blending_ordinal) => {
+			group_names = match names.group_names {
+				WithGroupNames(group) => group
+				NoGroupNames => {
+					crash "isolated transparency group emitted without its planned names"
+				}
+			}
 			space = KernelObject.add_reference(builder, list_at(KernelGate2Objects.Plan.color_spaces(base), blending_ordinal)) ? Object
 			isolated = KernelObject.add_boolean(space.builder, Bool.True) ? Object
-			kind = KernelObject.add_name_value(isolated.builder, names.transparency) ? Object
+			kind = KernelObject.add_name_value(isolated.builder, group_names.transparency) ? Object
 			value = KernelObject.add_dictionary(
 				kind.builder,
 				[
-					{ key: names.cs, value: space.id },
-					{ key: names.isolated, value: isolated.id },
-					{ key: names.s, value: kind.id },
+					{ key: group_names.cs, value: space.id },
+					{ key: group_names.isolated, value: isolated.id },
+					{ key: group_names.s, value: kind.id },
 				],
 			) ? Object
 			Ok({ builder: value.builder, value: GroupValue(value.id) })
@@ -710,17 +744,23 @@ add_isolated_group_value = |builder, names, forms, base, form_isolation| {
 ## canonical U16-to-decimal mapping content color channels use.
 add_state_object : KernelObject.Builder, Names, U64, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate4FormStructure.Error)
 add_state_object = |builder, names, value, planned| {
-	blend = KernelObject.add_name_value(builder, names.normal) ? Object
+	state_names = match names.state_names {
+		WithStateNames(state) => state
+		NoStateNames => {
+			crash "graphics state emitted without its planned names"
+		}
+	}
+	blend = KernelObject.add_name_value(builder, state_names.normal) ? Object
 	stroking = add_alpha_value(blend.builder, value)?
 	nonstroking = add_alpha_value(stroking.builder, value)?
-	kind = KernelObject.add_name_value(nonstroking.builder, names.ext_g_state) ? Object
+	kind = KernelObject.add_name_value(nonstroking.builder, state_names.ext_g_state) ? Object
 	dictionary = KernelObject.add_dictionary(
 		kind.builder,
 		[
-			{ key: names.blend_mode, value: blend.id },
-			{ key: names.stroking_alpha, value: stroking.id },
+			{ key: state_names.blend_mode, value: blend.id },
+			{ key: state_names.stroking_alpha, value: stroking.id },
 			{ key: names.type_name, value: kind.id },
-			{ key: names.nonstroking_alpha, value: nonstroking.id },
+			{ key: state_names.nonstroking_alpha, value: nonstroking.id },
 		],
 	) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
@@ -782,6 +822,19 @@ add_layout = |builder, value| {
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelGate4FormStructure.Error)
 ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+
+any_flag : List(Bool) -> Bool
+any_flag = |flags| {
+	var $index = 0
+	var $found = Bool.False
+	while $index < flags.len() and !$found {
+		if list_at(flags, $index) {
+			$found = Bool.True
+		}
+		$index = $index + 1
+	}
+	$found
+}
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

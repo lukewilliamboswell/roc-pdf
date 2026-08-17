@@ -160,6 +160,10 @@ KernelForm :: [].{
 		build : KernelScene.FormPlan, Stores, [NoTextStore, WithTextStore(Text.Store)], Limits -> Try(Facts, Error)
 		build = |form_plan, stores, text, limits| build_facts(form_plan, stores.colors, derive_counts(stores), text, limits)
 
+		## The authored color-space index of the transparency blending space.
+		blending : Facts -> Blending
+		blending = |facts| facts.blending
+
 		instances : Facts, U64 -> U64
 		instances = |facts, form| list_at(facts.form_instances, form)
 
@@ -552,11 +556,13 @@ walk_opacity = |arena_state, registry, root, arena, image_alpha, max_depth| {
 ## The opacity pre-pass: one walk per page group and per form over the two
 ## command arenas. It runs before use collection so the later passes can
 ## touch derived graphics-state nodes by dense index, and before the
-## structure run so ambient placement facts exist for the DAG sweeps.
-derive_opacity : Scene.Store, Scene.FormStore, List(Bool), U64 -> Try(OpacityDerivation, KernelForm.Error)
-derive_opacity = |scenes, form_store, image_alpha, max_depth| {
+## structure run so ambient placement facts exist for the DAG sweeps. The
+## 65536-entry value map is allocated only when the validated scene actually
+## contains opacity commands; a fully opaque document never pays for it.
+derive_opacity : Scene.Store, Scene.FormStore, List(Bool), Bool, U64 -> Try(OpacityDerivation, KernelForm.Error)
+derive_opacity = |scenes, form_store, image_alpha, has_opacity, max_depth| {
 	var $page_arena = OpacityArena.{ ambient: List.repeat(Bool.False, scenes.commands.len()), states: List.repeat(state_sentinel, scenes.commands.len()) }
-	var $registry = OpacityRegistry.{ value_index: List.repeat(0, 65536), values: [] }
+	var $registry = OpacityRegistry.{ value_index: if has_opacity List.repeat(0, 65536) else [], values: [] }
 	var $page_direct = List.with_capacity(scenes.pages.len())
 	var $commands = 0
 	var $groups = 0
@@ -769,7 +775,10 @@ build_facts = |form_plan, colors, counts, text, limits| {
 	## The opacity pre-pass derives the per-command effective-alpha states,
 	## the distinct state values (the derived graphics-state node space), the
 	## ambient placement facts, and the direct transparency facts.
-	derivation = derive_opacity(scenes, form_store, counts.image_alpha, limits.max_opacity_depth)?
+	scene_work = KernelScene.Plan.work(page_plan)
+	form_work = KernelScene.FormPlan.work(form_plan)
+	has_opacity = scene_work.opacity_commands + form_work.form_opacity_commands > 0
+	derivation = derive_opacity(scenes, form_store, counts.image_alpha, has_opacity, limits.max_opacity_depth)?
 	states_count = derivation.values.len()
 	state_base = form_base(counts) + form_count
 	nodes = node_count(counts, form_count, states_count)
