@@ -26,8 +26,10 @@ KernelResourceGraph :: [].{
 
 	## Resource kinds that may participate in the dependency graph. Later Gate 4
 	## kinds join by extending this union and the descriptor facts below; no PDF
-	## dictionary or object internal enters this boundary.
-	Kind : [ColorSpace, Font, IccProfile, Image, Pattern, Shading, XObject]
+	## dictionary or object internal enters this boundary. `ExtGState` joined
+	## with the transparency slice; its rank is appended after the existing
+	## kinds so no previously derived identity digest changes.
+	Kind : [ColorSpace, ExtGState, Font, IccProfile, Image, Pattern, Shading, XObject]
 
 	## Descriptor facts that must distinguish resources whose payload bytes alone
 	## are insufficient. Two resources with identical bytes but any differing
@@ -98,6 +100,8 @@ KernelResourceGraph :: [].{
 	## and the exact failed bound. No diagnostic retains a payload.
 	Error : [
 		ArithmeticOverflow,
+		ClosureResourceOutOfRange({ count : U64, resource : U64, use : U64 }),
+		ClosureRootOutOfRange({ count : U64, root : U64, use : U64 }),
 		CollisionEntryLimitExceeded({ attempted : U64, limit : U64 }),
 		DependencyCycle({ planned : U64, resource : U64 }),
 		DigestFailed({ resource : U64 }),
@@ -128,6 +132,7 @@ KernelResourceGraph :: [].{
 	Work : {
 		bytes_compared : U64,
 		bytes_hashed : U64,
+		closure_uses : U64,
 		collision_entries : U64,
 		copied_payload_bytes : U64,
 		deduplicated_payloads : U64,
@@ -195,7 +200,16 @@ KernelResourceGraph :: [].{
 		work : Work,
 	}.{
 		build : Input, Limits -> Try(Plan, Error)
-		build = |input, limits| build_plan(input, limits)
+		build = |input, limits| build_plan(input, [], limits)
+
+		## `build` plus closure-only uses: references that keep a resource
+		## reachable (a page transparency group naming its blending space)
+		## without entering any content stream's direct resource dictionary,
+		## the dependency store, or the planning order. They participate in
+		## closure proof only, so an otherwise-unused blending space is neither
+		## `UnreachableResource` nor a spurious dictionary entry.
+		build_with_closure_uses : Input, List(RootUse), Limits -> Try(Plan, Error)
+		build_with_closure_uses = |input, closure_uses, limits| build_plan(input, closure_uses, limits)
 
 		## The canonical identity of one authored source resource. Later stages
 		## consume this map instead of re-deriving identity.
@@ -276,8 +290,8 @@ Order : [Ascending, Equal, Descending]
 identity_domain : List(U8)
 identity_domain = Str.to_utf8("roc-pdf/resource-identity/v1\n")
 
-build_plan : KernelResourceGraph.Input, KernelResourceGraph.Limits -> Try(KernelResourceGraph.Plan, KernelResourceGraph.Error)
-build_plan = |input, limits| {
+build_plan : KernelResourceGraph.Input, List(KernelResourceGraph.RootUse), KernelResourceGraph.Limits -> Try(KernelResourceGraph.Plan, KernelResourceGraph.Error)
+build_plan = |input, closure_uses, limits| {
 	resource_count = input.resources.len()
 	edge_count = input.edges.len()
 	root_use_count = input.root_uses.len()
@@ -293,8 +307,9 @@ build_plan = |input, limits| {
 	if input.root_count > limits.max_roots {
 		return Err(RootLimitExceeded({ attempted: input.root_count, limit: limits.max_roots }))
 	}
-	if root_use_count > limits.max_root_uses {
-		return Err(RootUseLimitExceeded({ attempted: root_use_count, limit: limits.max_root_uses }))
+	total_uses = checked_add(root_use_count, closure_uses.len())?
+	if total_uses > limits.max_root_uses {
+		return Err(RootUseLimitExceeded({ attempted: total_uses, limit: limits.max_root_uses }))
 	}
 	if placement_count > limits.max_placements {
 		return Err(PlacementLimitExceeded({ attempted: placement_count, limit: limits.max_placements }))
@@ -313,7 +328,8 @@ build_plan = |input, limits| {
 
 	dependencies = build_dependencies(input.edges, classes.canonical_of, resource_count, canonical_count)?
 	roots = build_roots(input.root_uses, classes.canonical_of, resource_count, input.root_count)?
-	reachable = prove_closure(roots, dependencies, canonical_count, limits)?
+	closure_seeds = build_closure_seeds(closure_uses, classes.canonical_of, resource_count, input.root_count)?
+	reachable = prove_closure(roots, closure_seeds, dependencies, canonical_count, limits)?
 	planned = plan_order(dependencies, canonical_count, limits, reachable.work)?
 	placements = build_placements(input.placements, classes.canonical_of, resource_count)?
 
@@ -331,6 +347,7 @@ build_plan = |input, limits| {
 			work: {
 				bytes_compared: classes.bytes_compared,
 				bytes_hashed: identity.bytes_hashed,
+				closure_uses: closure_uses.len(),
 				collision_entries: classes.collision_entries,
 
 				## Deduplication shares exact ranges of the one owned payload
@@ -846,16 +863,42 @@ build_roots = |root_uses, canonical_of, resource_count, root_count| {
 	Ok({ comparisons: sorted.comparisons + canonical_sorted.comparisons, offsets: compressed.offsets, heads: compressed.heads })
 }
 
+## Closure-only uses are validated like root uses and mapped to canonical
+## identities, but they only seed the closure walk below; they never enter the
+## per-root dictionaries, the dependency store, or the planning order.
+build_closure_seeds : List(KernelResourceGraph.RootUse), List(U64), U64, U64 -> Try(List(U64), KernelResourceGraph.Error)
+build_closure_seeds = |closure_uses, canonical_of, resource_count, root_count| {
+	var $seeds = List.with_capacity(closure_uses.len())
+	var $index = 0
+	var $failure = NoFailure
+	while $index < closure_uses.len() and $failure == NoFailure {
+		use = list_at(closure_uses, $index)
+		if use.root >= root_count {
+			$failure = Failed(ClosureRootOutOfRange({ count: root_count, root: use.root, use: $index }))
+		} else if use.resource >= resource_count {
+			$failure = Failed(ClosureResourceOutOfRange({ count: resource_count, resource: use.resource, use: $index }))
+		} else {
+			$seeds = $seeds.append(list_at(canonical_of, use.resource))
+		}
+		$index = $index + 1
+	}
+	match $failure {
+		Failed(error) => Err(error)
+		NoFailure => Ok($seeds)
+	}
+}
+
 ## Iterative closure proof from every declared content-stream root. An explicit
 ## stack walks attacker-controlled depth; no per-node reachability set is built.
 prove_closure : { comparisons : U64, offsets : List(U64), heads : List(U64) },
+List(U64),
 { comparisons : U64, offsets : List(U64), reverse_offsets : List(U64), reverse_targets : List(U64), heads : List(U64) },
 U64,
 KernelResourceGraph.Limits -> Try(
 	{ edge_visits : U64, node_visits : U64, work : U64 },
 	KernelResourceGraph.Error,
 )
-prove_closure = |roots, dependencies, canonical_count, limits| {
+prove_closure = |roots, closure_seeds, dependencies, canonical_count, limits| {
 	var $seen = List.repeat(Bool.False, canonical_count)
 	var $stack = List.with_capacity(canonical_count)
 	var $node_visits = 0
@@ -864,6 +907,16 @@ prove_closure = |roots, dependencies, canonical_count, limits| {
 	var $index = 0
 	while $index < roots.heads.len() {
 		resource = list_at(roots.heads, $index)
+		if !list_at($seen, resource) {
+			$seen = list_set($seen, resource, Bool.True)
+			$stack = $stack.append(resource)
+		}
+		$index = $index + 1
+	}
+
+	$index = 0
+	while $index < closure_seeds.len() {
+		resource = list_at(closure_seeds, $index)
 		if !list_at($seen, resource) {
 			$seen = list_set($seen, resource, Bool.True)
 			$stack = $stack.append(resource)
@@ -1307,6 +1360,8 @@ span = |offsets, heads, slot| {
 	heads.sublist({ len: end - start, start })
 }
 
+## Ranks are append-only: `ExtGState` takes the next free rank rather than an
+## alphabetical slot, because the rank participates in every identity digest.
 kind_rank : KernelResourceGraph.Kind -> U64
 kind_rank = |kind| match kind {
 	ColorSpace => 0
@@ -1316,6 +1371,7 @@ kind_rank = |kind| match kind {
 	Pattern => 4
 	Shading => 5
 	XObject => 6
+	ExtGState => 7
 }
 
 append_u64 : List(U8), U64 -> List(U8)
@@ -1795,6 +1851,66 @@ expect match KernelResourceGraph.Plan.build(
 ) {
 	Err(UnreachableResource(_)) => Bool.True
 	_ => Bool.False
+}
+
+## A closure-only use keeps its resource reachable without adding it to any
+## root dictionary, and its dependencies stay reachable through ordinary
+## direct edges. The same input without the closure use fails closure.
+expect {
+	input = test_input(
+		[leaf(1), leaf(2), leaf(3)],
+		[{ source: 1, target: 2 }],
+		1,
+		[{ resource: 0, root: 0 }],
+		[],
+		DomainSeparatedSha256,
+	)
+	plan = KernelResourceGraph.Plan.build_with_closure_uses(input, [{ resource: 1, root: 0 }], open_limits)?
+	work = KernelResourceGraph.Plan.work(plan)
+	without = KernelResourceGraph.Plan.build(input, open_limits)
+	dictionary = normalized_root(plan, 0)
+	dictionary == [[1, 0x41, 0x42, 0x43]] and
+		work.closure_uses == 1 and
+			work.planned_resources == 3 and
+				match without {
+					Err(UnreachableResource(_)) => Bool.True
+					_ => Bool.False
+				}
+}
+
+## A closure use over an authored twin resolves through the same canonical
+## identity as the surviving twin, so deduplication still leaves one plan.
+expect {
+	input = test_input(
+		[leaf(1), leaf(1)],
+		[],
+		1,
+		[{ resource: 0, root: 0 }],
+		[],
+		DomainSeparatedSha256,
+	)
+	plan = KernelResourceGraph.Plan.build_with_closure_uses(input, [{ resource: 1, root: 0 }], open_limits)?
+	work = KernelResourceGraph.Plan.work(plan)
+	KernelResourceGraph.Plan.resource_count(plan) == 1 and work.deduplicated_payloads == 1 and work.closure_uses == 1
+}
+
+## Out-of-range closure uses are rejected with their own structured errors,
+## and closure uses consume the shared root-use budget.
+expect {
+	input = test_input([leaf(1)], [], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256)
+	bad_root = KernelResourceGraph.Plan.build_with_closure_uses(input, [{ resource: 0, root: 4 }], open_limits)
+	bad_resource = KernelResourceGraph.Plan.build_with_closure_uses(input, [{ resource: 9, root: 0 }], open_limits)
+	tight = KernelResourceGraph.Plan.build_with_closure_uses(input, [{ resource: 0, root: 0 }], { ..open_limits, max_root_uses: 1 })
+	match bad_root {
+		Err(ClosureRootOutOfRange({ count: 1, root: 4, use: 0 })) => match bad_resource {
+			Err(ClosureResourceOutOfRange({ count: 1, resource: 9, use: 0 })) => match tight {
+				Err(RootUseLimitExceeded({ attempted: 2, limit: 1 })) => Bool.True
+				_ => Bool.False
+			}
+			_ => Bool.False
+		}
+		_ => Bool.False
+	}
 }
 
 ## Out-of-range roots, root resources, and placements are rejected.
