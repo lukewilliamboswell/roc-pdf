@@ -5,6 +5,7 @@ import KernelContent
 import KernelImage
 import KernelResourceGraph
 import KernelScene
+import KernelSrgbProfile
 import KernelTagged
 import Layout
 import Scene
@@ -51,18 +52,31 @@ KernelForm :: [].{
 		ArithmeticOverflow,
 		ArtifactTextInForm({ form : U64 }),
 		DuplicateLeafPayload({ canonical : U64, first : U64, second : U64 }),
+
+		## A form without an isolated transparency group carries its own
+		## non-opaque opacity command while some placement chain executes it
+		## under an ambient constant alpha below one. One shared stream cannot
+		## encode a per-placement effective product, so the combination is
+		## rejected rather than silently changing the compositing semantics.
+		FormOpacityInAmbient({ form : U64 }),
 		Graph(KernelResourceGraph.Error),
 		LeafCountMismatch({ declared : U64, supplied : U64 }),
+
+		## The document contains transparency, so its pages need an explicit
+		## transparency blending space, but no authored color space declares
+		## the packaged ICCBased sRGB profile.
+		MissingBlendingSpace({ page : U64 }),
 		MissingTextPlan({ form : U64 }),
 		MissingTextStore({ command : U64 }),
+		OpacityDepthExceeded({ attempted : U64, limit : U64 }),
 		RecipeByteLimitExceeded({ attempted : U64, limit : U64 }),
 		StoreCountMismatch({ declared : U64, kind : [ColorSpaces, Images, Profiles], supplied : U64 }),
 		TextFormMultiplyPlaced({ form : U64, instances : U64 }),
 		TextRunRecipeInvalid({ prepared : U64, run : U64 }),
 	]
 
-	Limits :: { graph : KernelResourceGraph.Limits, max_recipe_bytes : U64 }.{
-		make : { graph : KernelResourceGraph.Limits, max_recipe_bytes : U64 } -> Limits
+	Limits :: { graph : KernelResourceGraph.Limits, max_opacity_depth : U64, max_recipe_bytes : U64 }.{
+		make : { graph : KernelResourceGraph.Limits, max_opacity_depth : U64, max_recipe_bytes : U64 } -> Limits
 		make = |limits| Limits.(limits)
 	}
 
@@ -71,10 +85,12 @@ KernelForm :: [].{
 
 	## Leaf resource counts and per-node dependency facts, derived once from
 	## the validated stores: each image's color space and each color space's
-	## profile become explicit direct edges.
+	## profile become explicit direct edges, and each image's alpha fact feeds
+	## the transparency analysis.
 	Counts : {
 		color_spaces : U64,
 		fonts : U64,
+		image_alpha : List(Bool),
 		image_color_spaces : List(U64),
 		profiles : U64,
 		space_profiles : List(ProfileRef),
@@ -90,35 +106,59 @@ KernelForm :: [].{
 	RunFragment : { fragment : Semantics.FragmentId, run : U64 }
 
 	FactsWork : {
+		blending_probe_bytes : U64,
+		closure_uses : U64,
 		direct_edges : U64,
+		distinct_opacity_values : U64,
+		max_opacity_depth : U64,
 		nested_form_placements : U64,
+		opacity_commands : U64,
+		opacity_groups : U64,
+		opaque_normalized : U64,
 		ownership_sweep_visits : U64,
 		page_form_placements : U64,
 		root_uses : U64,
 		text_forms : U64,
+		transparency_pages : U64,
+		transparency_sweep_visits : U64,
 		use_command_visits : U64,
 	}
 
+	## Which authored color space, if any, is the document's transparency
+	## blending space: the lowest authored space declaring the packaged
+	## ICCBased sRGB profile. `NoBlending` is valid exactly while no page
+	## contains transparency.
+	Blending : [Blending(U64), NoBlending]
+
 	## Stage 1: derived direct-use facts, the validated structure run, and the
 	## resolved form ownership facts. `run_fragments` feeds text ownership
-	## before any recipe or content bytes exist.
+	## before any recipe or content bytes exist. The opacity pre-pass adds the
+	## per-command effective-alpha states (dense per arena, indexing
+	## `opacity_values`, with `U64.highest` meaning no emitted state), the
+	## per-page transparency facts, and the blending-space selection.
 	Facts :: {
+		blending : Blending,
 		counts : Counts,
 		direct_text : List(Bool),
 		edges : List(KernelResourceGraph.Edge),
+		form_command_states : List(U64),
 		form_instances : List(U64),
+		form_isolated : List(Bool),
 		form_owners : List(FormOwner),
 		nested_offsets : List(U64),
 		nested_children : List(U64),
+		opacity_values : List(U64),
 		order : List(U64),
-		page_placements : List({ form : U64, owner : Scene.GroupOwner }),
+		page_command_states : List(U64),
+		page_placements : List({ ambient : Bool, form : U64, owner : Scene.GroupOwner, page : U64 }),
+		page_transparency : List(Bool),
 		root_uses : List(KernelResourceGraph.RootUse),
 		run_fragments : List(RunFragment),
 		transitive_text : List(Bool),
 		work : FactsWork,
 	}.{
 		build : KernelScene.FormPlan, Stores, [NoTextStore, WithTextStore(Text.Store)], Limits -> Try(Facts, Error)
-		build = |form_plan, stores, text, limits| build_facts(form_plan, derive_counts(stores), text, limits)
+		build = |form_plan, stores, text, limits| build_facts(form_plan, stores.colors, derive_counts(stores), text, limits)
 
 		instances : Facts, U64 -> U64
 		instances = |facts, form| list_at(facts.form_instances, form)
@@ -146,6 +186,7 @@ KernelForm :: [].{
 	## stays empty for every root and form stream.
 	DictionaryPlan : {
 		color_spaces : List(U64),
+		ext_g_states : List(U64),
 		fonts : List(U64),
 		forms : List(U64),
 		images : List(U64),
@@ -166,6 +207,7 @@ KernelForm :: [].{
 		authored_images : U64,
 		authored_profiles : U64,
 		canonical_color_spaces : U64,
+		canonical_ext_g_states : U64,
 		canonical_forms : U64,
 		canonical_images : U64,
 		canonical_profiles : U64,
@@ -173,9 +215,11 @@ KernelForm :: [].{
 		deduplicated_color_spaces : U64,
 		deduplicated_forms : U64,
 		deduplicated_images : U64,
+		deduplicated_opacity_groups : U64,
 		deduplicated_profiles : U64,
 		dictionary_entries : U64,
 		form_digests : U64,
+		isolated_canonical_forms : U64,
 		leaf_digests : U64,
 		leaf_recipe_bytes : U64,
 		nested_dictionary_entries : U64,
@@ -184,28 +228,39 @@ KernelForm :: [].{
 		semantic_placements : U64,
 		semantically_duplicated_forms : U64,
 		shared_artifact_forms : U64,
+		state_recipe_bytes : U64,
+		transparency_pages : U64,
 	}
 
-	## Stage 2: the canonical plan. Canonical leaves and forms are
-	## ordinal-indexed in canonical-ID order (the documented total order for
-	## physical objects); the `*_names` lists map every authored resource to
-	## its canonical ordinal; the dictionaries are exact direct uses per
-	## stream. Fonts stay 1:1, so their canonical ordinals are the authored
-	## ordinals.
+	## Stage 2: the canonical plan. Canonical leaves, graphics states, and
+	## forms are ordinal-indexed in canonical-ID order (the documented total
+	## order for physical objects); the `*_names` lists map every authored
+	## resource to its canonical ordinal; the dictionaries are exact direct
+	## uses per stream. Fonts stay 1:1, so their canonical ordinals are the
+	## authored ordinals. The transparency facts carry each arena command's
+	## canonical graphics-state ordinal (`U64.highest` meaning none), the
+	## per-page transparency-group requirement, each canonical form's
+	## isolation fact, and the canonical blending-space ordinal.
 	Plan :: {
+		blending : Blending,
 		canonical_colors : List(U64),
 		canonical_forms : List(CanonicalForm),
 		canonical_images : List(U64),
 		canonical_profiles : List(U64),
 		color_names : List(U64),
+		form_command_gs : List(U64),
 		form_dictionaries : List(DictionaryPlan),
+		form_isolation : List(Bool),
 		form_names : List(U64),
 		graph : KernelResourceGraph.Plan,
 		image_names : List(U64),
 		image_ranges : List(ImageRange),
+		page_command_gs : List(U64),
 		page_dictionaries : List(DictionaryPlan),
+		page_transparency : List(Bool),
 		placements : List(KernelResourceGraph.Placement),
 		profile_names : List(U64),
+		state_values : List(U64),
 		work : PlanWork,
 	}.{
 		build : KernelScene.FormPlan, Facts, Leaves, [NoText, WithText(KernelContent.TextPlan)], KernelTagged.Plan, Limits -> Try(Plan, Error)
@@ -259,6 +314,37 @@ KernelForm :: [].{
 		canonical_profile_representatives : Plan -> List(U64)
 		canonical_profile_representatives = |plan| plan.canonical_profiles
 
+		## The canonical color ordinal of the transparency blending space, or
+		## `NoBlending` when no page contains transparency.
+		blending : Plan -> Blending
+		blending = |plan| plan.blending
+
+		canonical_state_count : Plan -> U64
+		canonical_state_count = |plan| plan.state_values.len()
+
+		## The exact `U16`-range constant alpha of one canonical graphics
+		## state, applied to both `/ca` and `/CA` under `/BM /Normal`.
+		state_value : Plan, U64 -> U64
+		state_value = |plan, ordinal| list_at(plan.state_values, ordinal)
+
+		## Dense per-command canonical graphics-state ordinals for the page
+		## and form command arenas; `U64.highest` marks a command that emits
+		## no graphics state (every non-opacity command, and every opacity
+		## group whose own alpha is the fully opaque identity).
+		page_command_states : Plan -> List(U64)
+		page_command_states = |plan| plan.page_command_gs
+
+		form_command_states : Plan -> List(U64)
+		form_command_states = |plan| plan.form_command_gs
+
+		## Which pages require an explicit transparency group dictionary.
+		page_transparency : Plan -> List(Bool)
+		page_transparency = |plan| plan.page_transparency
+
+		## Whether each canonical form is an isolated transparency group.
+		form_isolation : Plan -> List(Bool)
+		form_isolation = |plan| plan.form_isolation
+
 		color_names : Plan -> List(U64)
 		color_names = |plan| plan.color_names
 
@@ -296,7 +382,7 @@ TextInput := [NoTextStore, WithTextStore(Text.Store)]
 UseState := {
 	command_visits : U64,
 	direct_text : Bool,
-	form_occurrences : List(U64),
+	form_occurrences : List({ command : U64, form : U64 }),
 	marks : List(U8),
 	text_runs : List(U64),
 	touched : List(U64),
@@ -304,9 +390,290 @@ UseState := {
 
 WalkFrame := { range : Semantics.Range }
 
+## The fully opaque `U16` alpha: the exact multiplicative identity of the
+## effective-product semantics, and therefore the value that normalizes away
+## without a resource or operator.
+opaque_alpha : U64
+opaque_alpha = 65535
+
+## Dense per-command state entries use this sentinel for every command that
+## emits no graphics state.
+state_sentinel : U64
+state_sentinel = U64.highest
+
+OpacityFrame := { alpha : U64, depth : U64, range : Semantics.Range }
+
+OpacityRegistry := { value_index : List(U64), values : List(U64) }
+
+OpacityArena := { ambient : List(Bool), states : List(U64) }
+
+OpacityWalkResult := {
+	arena : OpacityArena,
+	direct_alpha : Bool,
+	direct_opacity : Bool,
+	max_depth : U64,
+	opacity_commands : U64,
+	opacity_groups : U64,
+	opaque_normalized : U64,
+	registry : OpacityRegistry,
+	visits : U64,
+}
+
+OpacityDerivation := {
+	form_ambient : List(Bool),
+	form_direct_alpha : List(Bool),
+	form_direct_opacity : List(Bool),
+	form_states : List(U64),
+	page_ambient : List(Bool),
+	page_direct : List(Bool),
+	page_states : List(U64),
+	values : List(U64),
+	work : { max_depth : U64, opacity_commands : U64, opacity_groups : U64, opaque_normalized : U64, visits : U64 },
+}
+
+## Exact fixed-width effective alpha: the product of two `U16`-range alphas,
+## renormalized by 65535 with round-half-even. Multiplying by the fully
+## opaque identity is exact, and a non-identity factor always lands strictly
+## below the identity, so an emitted state value can never be 65535.
+effective_alpha : U64, U64 -> U64
+effective_alpha = |ambient, own| round_half_even_ratio(ambient * own, opaque_alpha)
+
+round_half_even_ratio : U64, U64 -> U64
+round_half_even_ratio = |numerator, denominator| {
+	quotient = U64.div_by(numerator, denominator)
+	remainder = U64.mod_by(numerator, denominator)
+	twice = remainder * 2
+	if twice > denominator or (twice == denominator and U64.mod_by(quotient, 2) == 1) quotient + 1 else quotient
+}
+
+## Distinct effective values receive dense indices in first-appearance order
+## over the deterministic page-then-form walk. The 65536-entry map is one
+## allocation for the whole derivation; entries store `index + 1` so zero
+## means unseen.
+register_value : OpacityRegistry, U64 -> { index : U64, registry : OpacityRegistry }
+register_value = |registry, value| {
+	slot = list_at(registry.value_index, value)
+	if slot != 0 {
+		{ index: slot - 1, registry }
+	} else {
+		index = registry.values.len()
+		{
+			index,
+			registry: {
+				value_index: list_set(registry.value_index, value, index + 1),
+				values: registry.values.append(value),
+			},
+		}
+	}
+}
+
+## One iterative walk of one validated root range computing, per command:
+## the effective alpha state an opacity group emits (opaque groups normalize
+## away), whether a form placement site sits under a non-identity ambient
+## alpha, and the root's direct transparency facts.
+walk_opacity : OpacityArena, OpacityRegistry, Semantics.Range, List(Scene.Command), List(Bool), U64 -> Try(OpacityWalkResult, KernelForm.Error)
+walk_opacity = |arena_state, registry, root, arena, image_alpha, max_depth| {
+	var $states = arena_state.states
+	var $ambient = arena_state.ambient
+	var $registry = registry
+	var $direct_alpha = Bool.False
+	var $direct_opacity = Bool.False
+	var $maximum_depth = 0
+	var $commands = 0
+	var $groups = 0
+	var $opaque = 0
+	var $visits = 0
+	var $frames = [OpacityFrame.{ alpha: opaque_alpha, depth: 0, range: root }]
+	var $frame_index = 0
+	var $failure = NoFailure
+	while $frame_index < $frames.len() and $failure == NoFailure {
+		frame = list_at($frames, $frame_index)
+		var $command_index = frame.range.start()
+		end = frame.range.start() + frame.range.length()
+		while $command_index < end and $failure == NoFailure {
+			match list_at(arena, $command_index) {
+				Clip({ children, path: _ }) | Transform({ children, matrix: _ }) => {
+					$frames = $frames.append(OpacityFrame.{ alpha: frame.alpha, depth: frame.depth, range: children })
+				}
+				Opacity({ children, opacity }) => {
+					$commands = $commands + 1
+					if opacity.to_u64() == opaque_alpha {
+						$opaque = $opaque + 1
+						$frames = $frames.append(OpacityFrame.{ alpha: frame.alpha, depth: frame.depth, range: children })
+					} else {
+						depth = frame.depth + 1
+						if depth > max_depth {
+							$failure = Failed(OpacityDepthExceeded({ attempted: depth, limit: max_depth }))
+						} else {
+							eff = effective_alpha(frame.alpha, opacity.to_u64())
+							registered = register_value($registry, eff)
+							$registry = registered.registry
+							$states = list_set($states, $command_index, registered.index)
+							$direct_opacity = Bool.True
+							$groups = $groups + 1
+							$maximum_depth = U64.max($maximum_depth, depth)
+							$frames = $frames.append(OpacityFrame.{ alpha: eff, depth, range: children })
+						}
+					}
+				}
+				DrawImage({ image, placement: _ }) => {
+					if list_at(image_alpha, image.index()) {
+						$direct_alpha = Bool.True
+					}
+				}
+				PlaceForm(_) => {
+					if frame.alpha != opaque_alpha {
+						$ambient = list_set($ambient, $command_index, Bool.True)
+					}
+				}
+				DrawPath(_) | DrawText(_) => {}
+			}
+			$command_index = $command_index + 1
+			$visits = $visits + 1
+		}
+		$frame_index = $frame_index + 1
+	}
+	match $failure {
+		Failed(error) => Err(error)
+		NoFailure => Ok({
+			arena: { ambient: $ambient, states: $states },
+			direct_alpha: $direct_alpha,
+			direct_opacity: $direct_opacity,
+			max_depth: $maximum_depth,
+			opacity_commands: $commands,
+			opacity_groups: $groups,
+			opaque_normalized: $opaque,
+			registry: $registry,
+			visits: $visits,
+		})
+	}
+}
+
+## The opacity pre-pass: one walk per page group and per form over the two
+## command arenas. It runs before use collection so the later passes can
+## touch derived graphics-state nodes by dense index, and before the
+## structure run so ambient placement facts exist for the DAG sweeps.
+derive_opacity : Scene.Store, Scene.FormStore, List(Bool), U64 -> Try(OpacityDerivation, KernelForm.Error)
+derive_opacity = |scenes, form_store, image_alpha, max_depth| {
+	var $page_arena = OpacityArena.{ ambient: List.repeat(Bool.False, scenes.commands.len()), states: List.repeat(state_sentinel, scenes.commands.len()) }
+	var $registry = OpacityRegistry.{ value_index: List.repeat(0, 65536), values: [] }
+	var $page_direct = List.with_capacity(scenes.pages.len())
+	var $commands = 0
+	var $groups = 0
+	var $opaque = 0
+	var $maximum_depth = 0
+	var $visits = 0
+	var $failure = NoFailure
+
+	var $page_index = 0
+	while $page_index < scenes.pages.len() and $failure == NoFailure {
+		page = list_at(scenes.pages, $page_index)
+		var $direct = Bool.False
+		var $edge = page.paint_order.start()
+		end = $edge + page.paint_order.length()
+		while $edge < end and $failure == NoFailure {
+			group = list_at(scenes.groups, list_at(scenes.page_groups, $edge).index())
+			match walk_opacity($page_arena, $registry, group.commands, scenes.commands, image_alpha, max_depth) {
+				Err(error) => {
+					$failure = Failed(error)
+				}
+				Ok(result) => {
+					$page_arena = result.arena
+					$registry = result.registry
+					$direct = $direct or result.direct_alpha or result.direct_opacity
+					$commands = $commands + result.opacity_commands
+					$groups = $groups + result.opacity_groups
+					$opaque = $opaque + result.opaque_normalized
+					$maximum_depth = U64.max($maximum_depth, result.max_depth)
+					$visits = $visits + result.visits
+				}
+			}
+			$edge = $edge + 1
+		}
+		$page_direct = $page_direct.append($direct)
+		$page_index = $page_index + 1
+	}
+
+	var $form_arena = OpacityArena.{ ambient: List.repeat(Bool.False, form_store.commands.len()), states: List.repeat(state_sentinel, form_store.commands.len()) }
+	var $form_direct_alpha = List.with_capacity(form_store.forms.len())
+	var $form_direct_opacity = List.with_capacity(form_store.forms.len())
+	var $form_index = 0
+	while $form_index < form_store.forms.len() and $failure == NoFailure {
+		form = list_at(form_store.forms, $form_index)
+		match walk_opacity($form_arena, $registry, form.commands, form_store.commands, image_alpha, max_depth) {
+			Err(error) => {
+				$failure = Failed(error)
+			}
+			Ok(result) => {
+				$form_arena = result.arena
+				$registry = result.registry
+				$form_direct_alpha = $form_direct_alpha.append(result.direct_alpha)
+				$form_direct_opacity = $form_direct_opacity.append(result.direct_opacity)
+				$commands = $commands + result.opacity_commands
+				$groups = $groups + result.opacity_groups
+				$opaque = $opaque + result.opaque_normalized
+				$maximum_depth = U64.max($maximum_depth, result.max_depth)
+				$visits = $visits + result.visits
+			}
+		}
+		$form_index = $form_index + 1
+	}
+	match $failure {
+		Failed(error) => Err(error)
+		NoFailure => Ok({
+			form_ambient: $form_arena.ambient,
+			form_direct_alpha: $form_direct_alpha,
+			form_direct_opacity: $form_direct_opacity,
+			form_states: $form_arena.states,
+			page_ambient: $page_arena.ambient,
+			page_direct: $page_direct,
+			page_states: $page_arena.states,
+			values: $registry.values,
+			work: { max_depth: $maximum_depth, opacity_commands: $commands, opacity_groups: $groups, opaque_normalized: $opaque, visits: $visits },
+		})
+	}
+}
+
+## The lowest authored color space declaring the packaged ICCBased sRGB
+## profile, probed by exact byte equality against the packaged asset (each
+## profile once). Only transparency-bearing documents pay the probe.
+select_blending : KernelColor.Plan -> { blending : KernelForm.Blending, probe_bytes : U64 }
+select_blending = |colors| {
+	store = KernelColor.Plan.store(colors)
+	var $packaged = List.with_capacity(store.profiles.len())
+	var $probe = 0
+	var $profile_index = 0
+	while $profile_index < store.profiles.len() {
+		profile = list_at(store.profiles, $profile_index)
+		$probe = $probe + profile.bytes.len()
+		$packaged = $packaged.append(profile.bytes == KernelSrgbProfile.bytes)
+		$profile_index = $profile_index + 1
+	}
+	var $space_index = 0
+	var $blending = NoBlending
+	while $space_index < store.spaces.len() and $blending == NoBlending {
+		record = list_at(store.spaces, $space_index)
+		reference = match record.space {
+			CalibratedGray(_) => NoProfile
+			IccBased({ components: _, profile }) => WithProfile(profile.index())
+			Srgb(profile) => WithProfile(profile.index())
+		}
+		match reference {
+			NoProfile => {}
+			WithProfile(profile) => {
+				if list_at($packaged, profile) {
+					$blending = Blending($space_index)
+				}
+			}
+		}
+		$space_index = $space_index + 1
+	}
+	{ blending: $blending, probe_bytes: $probe }
+}
+
 ## Dense node IDs over one fixed kind order: color spaces, images, fonts,
-## ICC profiles, and then forms. The mapping is arithmetic, so no per-node
-## table exists.
+## ICC profiles, forms, and then the derived graphics states. The mapping is
+## arithmetic, so no per-node table exists.
 color_node : U64 -> U64
 color_node = |color| color
 
@@ -325,8 +692,11 @@ form_node = |counts, form| form_base(counts) + form
 form_base : KernelForm.Counts -> U64
 form_base = |counts| counts.color_spaces + counts.image_color_spaces.len() + counts.fonts + counts.profiles
 
-node_count : KernelForm.Counts, U64 -> U64
-node_count = |counts, forms| form_base(counts) + forms
+state_node : KernelForm.Counts, U64, U64 -> U64
+state_node = |counts, form_count, state| form_base(counts) + form_count + state
+
+node_count : KernelForm.Counts, U64, U64 -> U64
+node_count = |counts, forms, states| form_base(counts) + forms + states
 
 ## Counts and per-node dependency facts come from the validated stores, so
 ## authored declarations can never disagree with the payloads that leaf
@@ -336,6 +706,7 @@ derive_counts = |stores| {
 	color_store = KernelColor.Plan.store(stores.colors)
 	image_store = KernelImage.Plan.store(stores.images)
 	var $image_spaces = List.with_capacity(image_store.resources.len())
+	var $image_alpha = List.with_capacity(image_store.resources.len())
 	var $image_index = 0
 	while $image_index < image_store.resources.len() {
 		resource = list_at(image_store.resources, $image_index)
@@ -343,7 +714,15 @@ derive_counts = |stores| {
 			Jpeg(jpeg) => jpeg.color_space.index()
 			Raster(raster) => raster.color_space.index()
 		}
+		alpha = match resource.payload {
+			Jpeg(_) => Bool.False
+			Raster(raster) => match raster.alpha {
+				NoAlpha => Bool.False
+				PackedAlpha(_) => Bool.True
+			}
+		}
 		$image_spaces = $image_spaces.append(space)
+		$image_alpha = $image_alpha.append(alpha)
 		$image_index = $image_index + 1
 	}
 	var $space_profiles = List.with_capacity(color_store.spaces.len())
@@ -361,23 +740,51 @@ derive_counts = |stores| {
 	{
 		color_spaces: color_store.spaces.len(),
 		fonts: stores.font_count,
+		image_alpha: $image_alpha,
 		image_color_spaces: $image_spaces,
 		profiles: color_store.profiles.len(),
 		space_profiles: $space_profiles,
 	}
 }
 
-build_facts : KernelScene.FormPlan, KernelForm.Counts, TextInput, KernelForm.Limits -> Try(KernelForm.Facts, KernelForm.Error)
-build_facts = |form_plan, counts, text, limits| {
+build_facts : KernelScene.FormPlan, KernelColor.Plan, KernelForm.Counts, TextInput, KernelForm.Limits -> Try(KernelForm.Facts, KernelForm.Error)
+build_facts = |form_plan, colors, counts, text, limits| {
 	page_plan = KernelScene.FormPlan.page(form_plan)
 	scenes = KernelScene.Plan.scenes(page_plan)
 	form_store = KernelScene.FormPlan.forms(form_plan)
 	form_count = form_store.forms.len()
-	nodes = node_count(counts, form_count)
+
+	var $isolated = List.with_capacity(form_count)
+	var $isolated_index = 0
+	while $isolated_index < form_count {
+		flag = match list_at(form_store.forms, $isolated_index).group {
+			IsolatedGroup => Bool.True
+			NoGroup => Bool.False
+		}
+		$isolated = $isolated.append(flag)
+		$isolated_index = $isolated_index + 1
+	}
+	isolated = $isolated
+
+	## The opacity pre-pass derives the per-command effective-alpha states,
+	## the distinct state values (the derived graphics-state node space), the
+	## ambient placement facts, and the direct transparency facts.
+	derivation = derive_opacity(scenes, form_store, counts.image_alpha, limits.max_opacity_depth)?
+	states_count = derivation.values.len()
+	state_base = form_base(counts) + form_count
+	nodes = node_count(counts, form_count, states_count)
+
+	## The blending space is probed only when some transparency fact exists
+	## anywhere; a fully opaque document never pays the probe and needs no
+	## blending declaration.
+	var $any_transparency = any_true(derivation.page_direct) or any_true(derivation.form_direct_alpha) or any_true(derivation.form_direct_opacity) or any_true(isolated)
+	blending_probe = if $any_transparency select_blending(colors) else { blending: NoBlending, probe_bytes: 0 }
+	blending = blending_probe.blending
 
 	## Pass A: one walk per page over its owned groups collects that page's
 	## deduplicated direct uses, its form placements with their inherited
-	## group ownership, and the raw placement multiset.
+	## group ownership and ambient-alpha site facts, and the raw placement
+	## multiset.
 	var $root_uses = []
 	var $page_placements = []
 	var $use_command_visits = 0
@@ -390,7 +797,7 @@ build_facts = |form_plan, counts, text, limits| {
 		end = $edge + page.paint_order.length()
 		while $edge < end and $failure == NoFailure {
 			group = list_at(scenes.groups, list_at(scenes.page_groups, $edge).index())
-			collected = collect_range_uses($state, group.commands, scenes.commands, counts, text)
+			collected = collect_range_uses($state, group.commands, scenes.commands, counts, text, derivation.page_states, state_base)
 			match collected {
 				Err(error) => {
 					$failure = Failed(error)
@@ -400,7 +807,13 @@ build_facts = |form_plan, counts, text, limits| {
 					$state = state
 					var $occurrence = placement_start
 					while $occurrence < $state.form_occurrences.len() {
-						$page_placements = $page_placements.append({ form: list_at($state.form_occurrences, $occurrence), owner: group.owner })
+						occurrence = list_at($state.form_occurrences, $occurrence)
+						$page_placements = $page_placements.append({
+							ambient: list_at(derivation.page_ambient, occurrence.command),
+							form: occurrence.form,
+							owner: group.owner,
+							page: $page_index,
+						})
 						$occurrence = $occurrence + 1
 					}
 				}
@@ -424,7 +837,8 @@ build_facts = |form_plan, counts, text, limits| {
 
 	## Pass B: one walk per form over the form arena collects each form's
 	## deduplicated direct uses (its direct edges), its nested placement
-	## multiset, its directly drawn runs, and its direct-text fact.
+	## multiset with ambient site facts, its directly drawn runs, and its
+	## direct-text fact.
 	var $edges = []
 	var $nested = []
 	var $form_runs = []
@@ -432,7 +846,7 @@ build_facts = |form_plan, counts, text, limits| {
 	var $form_index = 0
 	while $form_index < form_count and $failure == NoFailure {
 		form = list_at(form_store.forms, $form_index)
-		match collect_range_uses(fresh_use_state(nodes), form.commands, form_store.commands, counts, text) {
+		match collect_range_uses(fresh_use_state(nodes), form.commands, form_store.commands, counts, text, derivation.form_states, state_base) {
 			Err(error) => {
 				$failure = Failed(error)
 			}
@@ -445,7 +859,12 @@ build_facts = |form_plan, counts, text, limits| {
 				}
 				var $occurrence = 0
 				while $occurrence < state.form_occurrences.len() {
-					$nested = $nested.append({ child: list_at(state.form_occurrences, $occurrence), parent: $form_index })
+					occurrence = list_at(state.form_occurrences, $occurrence)
+					$nested = $nested.append({
+						ambient: list_at(derivation.form_ambient, occurrence.command),
+						child: occurrence.form,
+						parent: $form_index,
+					})
 					$occurrence = $occurrence + 1
 				}
 				var $run_index = 0
@@ -491,8 +910,19 @@ build_facts = |form_plan, counts, text, limits| {
 	## declarations) and yields the deterministic topological order that the
 	## ownership sweeps and recipe construction below rely on. The run's order
 	## names its own canonical IDs; unique payloads make that assignment a
-	## bijection, so it maps back to authored node IDs exactly.
-	structure = KernelResourceGraph.Plan.build(structure_input(counts, form_count, $edges, scenes.pages.len(), $root_uses), limits.graph) ? Graph
+	## bijection, so it maps back to authored node IDs exactly. When the
+	## document contains transparency, one conservative closure-only use keeps
+	## the blending space reachable before per-page transparency is known; the
+	## canonical run later re-proves closure with the exact per-page uses.
+	structure_closure = match blending {
+		NoBlending => []
+		Blending(space) => if scenes.pages.len() > 0 [{ resource: color_node(space), root: 0 }] else []
+	}
+	structure = KernelResourceGraph.Plan.build_with_closure_uses(
+		structure_input(counts, form_count, states_count, isolated, $edges, scenes.pages.len(), $root_uses),
+		structure_closure,
+		limits.graph,
+	) ? Graph
 	canonical_order = KernelResourceGraph.Plan.order(structure)
 	var $authored_of = List.repeat(0, nodes)
 	var $node = 0
@@ -510,6 +940,77 @@ build_facts = |form_plan, counts, text, limits| {
 
 	sweep = resolve_ownership(counts, form_count, order, $page_placements, $nested)?
 	transitive_text = resolve_transitive_text(counts, form_count, order, $direct_text, sweep.nested_offsets, sweep.nested_children)?
+
+	## The transparency sweeps mirror the text sweeps: one forward pass folds
+	## each form's transitive transparency (isolated child groups count as
+	## transparency), and one reversed pass resolves whether any placement
+	## chain executes a form under a non-identity ambient alpha, stopping at
+	## isolated-group boundaries because a group resets the ambient alpha.
+	transparency = resolve_transparency(
+		counts,
+		form_count,
+		order,
+		{
+			direct_alpha: derivation.form_direct_alpha,
+			direct_opacity: derivation.form_direct_opacity,
+			isolated,
+			nested_children: sweep.nested_children,
+			nested_edge_ambient: sweep.nested_edge_ambient,
+			nested_offsets: sweep.nested_offsets,
+			page_placements: $page_placements,
+		},
+	)?
+
+	## A shared non-group stream cannot encode a per-placement effective
+	## product, so its own opacity under ambient alpha is rejected.
+	$form_index = 0
+	while $form_index < form_count and $failure == NoFailure {
+		if list_at(derivation.form_direct_opacity, $form_index) and !list_at(isolated, $form_index) and list_at(transparency.in_ambient, $form_index) {
+			$failure = Failed(FormOpacityInAmbient({ form: $form_index }))
+		}
+		$form_index = $form_index + 1
+	}
+	match $failure {
+		Failed(error) => return Err(error)
+		NoFailure => {}
+	}
+
+	## Per-page transparency: direct facts plus every placed form that is an
+	## isolated group or transitively carries transparency. Pages that need a
+	## transparency group need the blending space.
+	var $page_transparency = derivation.page_direct
+	var $placement_scan = 0
+	while $placement_scan < $page_placements.len() {
+		placement = list_at($page_placements, $placement_scan)
+		if list_at(isolated, placement.form) or list_at(transparency.transitive, placement.form) {
+			$page_transparency = list_set($page_transparency, placement.page, Bool.True)
+		}
+		$placement_scan = $placement_scan + 1
+	}
+	var $transparency_pages = 0
+	var $closure_uses = 0
+	var $missing_blending = NoFailure
+	var $page_scan = 0
+	while $page_scan < $page_transparency.len() {
+		if list_at($page_transparency, $page_scan) {
+			$transparency_pages = $transparency_pages + 1
+			match blending {
+				NoBlending => if $missing_blending == NoFailure {
+					$missing_blending = Failed(MissingBlendingSpace({ page: $page_scan }))
+				} else {
+					{}
+				}
+				Blending(_) => {
+					$closure_uses = $closure_uses + 1
+				}
+			}
+		}
+		$page_scan = $page_scan + 1
+	}
+	match $missing_blending {
+		Failed(error) => return Err(error)
+		NoFailure => {}
+	}
 
 	var $text_forms = 0
 	$form_index = 0
@@ -553,25 +1054,40 @@ build_facts = |form_plan, counts, text, limits| {
 		Failed(error) => Err(error)
 		NoFailure => Ok(
 			KernelForm.Facts.{
+				blending,
 				counts,
 				direct_text: $direct_text,
 				edges: $edges,
+				form_command_states: derivation.form_states,
 				form_instances: sweep.instances,
+				form_isolated: isolated,
 				form_owners: sweep.owners,
 				nested_offsets: sweep.nested_offsets,
 				nested_children: sweep.nested_children,
+				opacity_values: derivation.values,
 				order,
+				page_command_states: derivation.page_states,
 				page_placements: $page_placements,
+				page_transparency: $page_transparency,
 				root_uses: $root_uses,
 				run_fragments: $run_fragments,
 				transitive_text,
 				work: {
+					blending_probe_bytes: blending_probe.probe_bytes,
+					closure_uses: $closure_uses,
 					direct_edges: $edges.len(),
+					distinct_opacity_values: states_count,
+					max_opacity_depth: derivation.work.max_depth,
 					nested_form_placements: $nested.len(),
+					opacity_commands: derivation.work.opacity_commands,
+					opacity_groups: derivation.work.opacity_groups,
+					opaque_normalized: derivation.work.opaque_normalized,
 					ownership_sweep_visits: sweep.visits,
 					page_form_placements: $page_placements.len(),
 					root_uses: $root_uses.len(),
 					text_forms: $text_forms,
+					transparency_pages: $transparency_pages,
+					transparency_sweep_visits: transparency.visits,
 					use_command_visits: $use_command_visits,
 				},
 			},
@@ -589,11 +1105,105 @@ fresh_use_state = |nodes| {
 	touched: [],
 }
 
+any_true : List(Bool) -> Bool
+any_true = |flags| {
+	var $index = 0
+	var $found = Bool.False
+	while $index < flags.len() and !$found {
+		if list_at(flags, $index) {
+			$found = Bool.True
+		}
+		$index = $index + 1
+	}
+	$found
+}
+
+## One forward-topological sweep folds transitive transparency (dependencies
+## first), and one reversed sweep resolves ambient-alpha execution contexts
+## (parents first). Ambient context propagates through non-group parents only:
+## entering an isolated group resets the ambient constant alpha to the
+## identity (ISO 32000-2, 11.6.6), so a group boundary stops the propagation.
+resolve_transparency : KernelForm.Counts,
+U64,
+List(U64),
+{
+	direct_alpha : List(Bool),
+	direct_opacity : List(Bool),
+	isolated : List(Bool),
+	nested_children : List(U64),
+	nested_edge_ambient : List(Bool),
+	nested_offsets : List(U64),
+	page_placements : List({ ambient : Bool, form : U64, owner : Scene.GroupOwner, page : U64 }),
+} -> Try({ in_ambient : List(Bool), transitive : List(Bool), visits : U64 }, KernelForm.Error)
+resolve_transparency = |counts, form_count, order, facts| {
+	base = form_base(counts)
+	var $visits = 0
+
+	var $transitive = List.repeat(Bool.False, form_count)
+	var $position = 0
+	while $position < order.len() {
+		node = list_at(order, $position)
+		if node >= base and node < base + form_count {
+			form = node - base
+			var $carries = list_at(facts.direct_alpha, form) or list_at(facts.direct_opacity, form)
+			var $edge = list_at(facts.nested_offsets, form)
+			edge_end = list_at(facts.nested_offsets, form + 1)
+			while $edge < edge_end {
+				child = list_at(facts.nested_children, $edge)
+				if list_at(facts.isolated, child) or list_at($transitive, child) {
+					$carries = Bool.True
+				}
+				$edge = $edge + 1
+				$visits = $visits + 1
+			}
+			$transitive = list_set($transitive, form, $carries)
+		}
+		$position = $position + 1
+	}
+
+	var $in_ambient = List.repeat(Bool.False, form_count)
+	var $placement_index = 0
+	while $placement_index < facts.page_placements.len() {
+		placement = list_at(facts.page_placements, $placement_index)
+		if placement.ambient {
+			$in_ambient = list_set($in_ambient, placement.form, Bool.True)
+		}
+		$visits = $visits + 1
+		$placement_index = $placement_index + 1
+	}
+
+	## Nested ambient facts propagate along the compressed per-edge flags in
+	## reversed topological order: parents resolve before the forms they
+	## place, one visit per direct edge.
+	var $reversed = order.len()
+	while $reversed > 0 {
+		$reversed = $reversed - 1
+		node = list_at(order, $reversed)
+		if node >= base and node < base + form_count {
+			parent = node - base
+			parent_context = !list_at(facts.isolated, parent) and list_at($in_ambient, parent)
+			var $edge = list_at(facts.nested_offsets, parent)
+			edge_end = list_at(facts.nested_offsets, parent + 1)
+			while $edge < edge_end {
+				if list_at(facts.nested_edge_ambient, $edge) or parent_context {
+					$in_ambient = list_set($in_ambient, list_at(facts.nested_children, $edge), Bool.True)
+				}
+				$edge = $edge + 1
+				$visits = $visits + 1
+			}
+		}
+	}
+
+	Ok({ in_ambient: $in_ambient, transitive: $transitive, visits: $visits })
+}
+
 ## Walks one validated command range iteratively and accumulates deduplicated
 ## node uses plus placement/run occurrence lists. The range was validated by
-## `KernelScene`, so index arithmetic cannot escape.
-collect_range_uses : UseState, Semantics.Range, List(Scene.Command), KernelForm.Counts, TextInput -> Try(UseState, KernelForm.Error)
-collect_range_uses = |initial, root, arena, counts, text| {
+## `KernelScene`, so index arithmetic cannot escape. Opacity groups touch the
+## derived graphics-state node the opacity pre-pass assigned to the command;
+## opaque groups carry no state and contribute only their children.
+collect_range_uses : UseState, Semantics.Range, List(Scene.Command), KernelForm.Counts, TextInput, List(U64), U64 -> Try(UseState, KernelForm.Error)
+collect_range_uses = |initial, root, arena, counts, text, command_states, state_base| {
 	var $state = initial
 	var $frames = [WalkFrame.{ range: root }]
 	var $frame_index = 0
@@ -604,7 +1214,14 @@ collect_range_uses = |initial, root, arena, counts, text| {
 		end = frame.range.start() + frame.range.length()
 		while $command_index < end and $failure == NoFailure {
 			match list_at(arena, $command_index) {
-				Clip({ children, path: _ }) | Opacity({ children, opacity: _ }) | Transform({ children, matrix: _ }) => {
+				Clip({ children, path: _ }) | Transform({ children, matrix: _ }) => {
+					$frames = $frames.append(WalkFrame.{ range: children })
+				}
+				Opacity({ children, opacity: _ }) => {
+					command_state = list_at(command_states, $command_index)
+					if command_state != state_sentinel {
+						$state = touch($state, state_base + command_state)
+					}
 					$frames = $frames.append(WalkFrame.{ range: children })
 				}
 				DrawImage({ image, placement: _ }) => {
@@ -630,7 +1247,7 @@ collect_range_uses = |initial, root, arena, counts, text| {
 				}
 				PlaceForm({ form, transform: _ }) => {
 					$state = touch($state, form_node(counts, form.index()))
-					$state = { ..$state, form_occurrences: $state.form_occurrences.append(form.index()) }
+					$state = { ..$state, form_occurrences: $state.form_occurrences.append({ command: $command_index, form: form.index() }) }
 				}
 			}
 			$command_index = $command_index + 1
@@ -669,16 +1286,16 @@ touch = |state, node| {
 	}
 }
 
-structure_input : KernelForm.Counts, U64, List(KernelResourceGraph.Edge), U64, List(KernelResourceGraph.RootUse) -> KernelResourceGraph.Input
-structure_input = |counts, form_count, edges, root_count, root_uses| {
-	nodes = node_count(counts, form_count)
+structure_input : KernelForm.Counts, U64, U64, List(Bool), List(KernelResourceGraph.Edge), U64, List(KernelResourceGraph.RootUse) -> KernelResourceGraph.Input
+structure_input = |counts, form_count, state_count, isolated, edges, root_count, root_uses| {
+	nodes = node_count(counts, form_count, state_count)
 	var $bytes = List.with_capacity(nodes * 8)
 	var $resources = List.with_capacity(nodes)
 	var $node = 0
 	while $node < nodes {
 		start = $bytes.len()
 		$bytes = append_u64_bytes($bytes, $node)
-		$resources = $resources.append({ descriptor: node_descriptor(counts, form_count, $node), length: 8, start })
+		$resources = $resources.append({ descriptor: node_descriptor(counts, form_count, isolated, $node), length: 8, start })
 		$node = $node + 1
 	}
 	{
@@ -692,23 +1309,31 @@ structure_input = |counts, form_count, edges, root_count, root_uses| {
 	}
 }
 
-node_descriptor : KernelForm.Counts, U64, U64 -> KernelResourceGraph.Descriptor
-node_descriptor = |counts, _form_count, node| {
+## An isolated transparency group is a visual fact of the form's identity, so
+## it lives in the descriptor flags: two forms with byte-identical recipes and
+## different isolation never merge, and existing group-less form identities
+## keep their exact digests.
+node_descriptor : KernelForm.Counts, U64, List(Bool), U64 -> KernelResourceGraph.Descriptor
+node_descriptor = |counts, form_count, isolated, node| {
+	base = form_base(counts)
 	kind = if node < counts.color_spaces {
 		ColorSpace
 	} else if node < counts.color_spaces + counts.image_color_spaces.len() {
 		Image
 	} else if node < counts.color_spaces + counts.image_color_spaces.len() + counts.fonts {
 		Font
-	} else if node < form_base(counts) {
+	} else if node < base {
 		IccProfile
-	} else {
+	} else if node < base + form_count {
 		XObject
+	} else {
+		ExtGState
 	}
+	flags = if kind == XObject and list_at(isolated, node - base) 1 else 0
 	{
 		bit_depth: 0,
 		components: 0,
-		flags: 0,
+		flags,
 		height: 0,
 		kind,
 		subtype: if kind == XObject 1 else 0,
@@ -718,15 +1343,18 @@ node_descriptor = |counts, _form_count, node| {
 
 ## One reversed-topological sweep resolves instantiation counts and owners:
 ## parents are processed before the forms they place, so each nested placement
-## contributes its parent's already-final count and owner exactly once.
+## contributes its parent's already-final count and owner exactly once. The
+## per-edge ambient flags are scattered into the same compressed child order
+## so the transparency sweep can consume them without a second grouping pass.
 resolve_ownership : KernelForm.Counts,
 U64,
 List(U64),
-List({ form : U64, owner : Scene.GroupOwner }),
-List({ child : U64, parent : U64 }) -> Try(
+List({ ambient : Bool, form : U64, owner : Scene.GroupOwner, page : U64 }),
+List({ ambient : Bool, child : U64, parent : U64 }) -> Try(
 	{
 		instances : List(U64),
 		nested_children : List(U64),
+		nested_edge_ambient : List(Bool),
 		nested_offsets : List(U64),
 		owners : List(KernelForm.FormOwner),
 		visits : U64,
@@ -773,11 +1401,13 @@ resolve_ownership = |counts, form_count, order, page_placements, nested| {
 	}
 	var $cursors = List.repeat(0, form_count)
 	var $children = List.repeat(0, nested.len())
+	var $edge_ambient = List.repeat(Bool.False, nested.len())
 	$nested_index = 0
 	while $nested_index < nested.len() {
 		entry = list_at(nested, $nested_index)
 		write = list_at($offsets, entry.parent) + list_at($cursors, entry.parent)
 		$children = list_set($children, write, entry.child)
+		$edge_ambient = list_set($edge_ambient, write, entry.ambient)
 		$cursors = list_set($cursors, entry.parent, list_at($cursors, entry.parent) + 1)
 		$nested_index = $nested_index + 1
 	}
@@ -787,7 +1417,7 @@ resolve_ownership = |counts, form_count, order, page_placements, nested| {
 	while $position > 0 and $failure == NoFailure {
 		$position = $position - 1
 		node = list_at(order, $position)
-		if node >= base {
+		if node >= base and node < base + form_count {
 			parent_form = node - base
 			parent_instances = list_at($instances, parent_form)
 			parent_owner = if parent_instances == 1 list_at($owners, parent_form) else MixedOwner
@@ -811,7 +1441,7 @@ resolve_ownership = |counts, form_count, order, page_placements, nested| {
 	}
 	match $failure {
 		Failed(error) => Err(error)
-		NoFailure => Ok({ instances: $instances, nested_children: $children, nested_offsets: $offsets, owners: $owners, visits: $visits })
+		NoFailure => Ok({ instances: $instances, nested_children: $children, nested_edge_ambient: $edge_ambient, nested_offsets: $offsets, owners: $owners, visits: $visits })
 	}
 }
 
@@ -840,7 +1470,7 @@ resolve_transitive_text = |counts, form_count, order, direct_text, nested_offset
 	var $position = 0
 	while $position < order.len() {
 		node = list_at(order, $position)
-		if node >= base {
+		if node >= base and node < base + form_count {
 			form = node - base
 			var $has_text = list_at(direct_text, form)
 			var $edge = list_at(nested_offsets, form)
@@ -868,6 +1498,14 @@ calibrated_gray_recipe_tag = 1
 
 icc_based_recipe_tag : U8
 icc_based_recipe_tag = 2
+
+## The graphics-state recipe: tag, `/ca`, `/CA`, blend mode. Only the Normal
+## blend mode is representable.
+ext_g_state_recipe_tag : U8
+ext_g_state_recipe_tag = 1
+
+blend_normal_tag : U8
+blend_normal_tag = 0
 
 build_canonical_plan : KernelScene.FormPlan, KernelForm.Facts, KernelForm.Leaves, TextRecipes, KernelTagged.Plan, KernelForm.Limits -> Try(KernelForm.Plan, KernelForm.Error)
 build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
@@ -898,16 +1536,19 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 	## Payloads and digests in dependency order over one canonical payload
 	## allocation: profiles before the color spaces that embed their digests,
 	## color spaces before the images that embed theirs, every leaf before
-	## the form recipes. `facts.order` is exactly that topological order.
-	nodes = node_count(counts, form_count)
+	## the form recipes. Graphics-state recipes are leaves with no
+	## dependencies, so any position in `facts.order` is dependency-safe.
+	states_count = facts.opacity_values.len()
+	nodes = node_count(counts, form_count, states_count)
 	var $payload = []
-	var $sources = List.repeat({ descriptor: node_descriptor(counts, form_count, 0), length: 0, start: 0 }, nodes)
+	var $sources = List.repeat({ descriptor: node_descriptor(counts, form_count, facts.form_isolated, 0), length: 0, start: 0 }, nodes)
 	var $digests = List.repeat([], nodes)
 	var $image_ranges = List.repeat({ alpha_length: 0, color_length: 0, start: 0 }, image_count)
 	var $copied_leaf_bytes = 0
 	var $leaf_recipe_bytes = 0
 	var $leaf_digests = 0
 	var $recipe_bytes = 0
+	var $state_recipe_bytes = 0
 	var $form_digests = 0
 	var $failure = NoFailure
 	var $position = 0
@@ -1019,9 +1660,9 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 			}
 			$sources = list_set($sources, node, { descriptor, length: profile.bytes.len(), start })
 			$leaf_digests = $leaf_digests + 1
-		} else {
+		} else if node < base + form_count {
 			form = list_at(form_store.forms, node - base)
-			match serialize_recipe(form, form_store.commands, scenes, $digests, counts, text) {
+			match serialize_recipe(form, form_store.commands, scenes, $digests, counts, text, facts.form_command_states, facts.opacity_values) {
 				Err(error) => {
 					$failure = Failed(error)
 				}
@@ -1032,11 +1673,24 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 					} else {
 						$recipe_bytes = attempted
 						$payload = $payload.concat(recipe)
-						$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, node), length: recipe.len(), start })
+						$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, node), length: recipe.len(), start })
 						$form_digests = $form_digests + 1
 					}
 				}
 			}
+		} else {
+
+			## A graphics-state recipe: every emitted fact of the canonical
+			## ExtGState, in fixed order — the non-stroking and stroking
+			## constant alphas (equal in this slice) and the Normal blend
+			## mode. Distinct effective values therefore never merge and equal
+			## values share one recipe by construction.
+			value = list_at(facts.opacity_values, node - base - form_count)
+			recipe = append_u16_bytes(append_u16_bytes([ext_g_state_recipe_tag], value.to_u16_wrap()), value.to_u16_wrap()).append(blend_normal_tag)
+			$payload = $payload.concat(recipe)
+			$state_recipe_bytes = $state_recipe_bytes + recipe.len()
+			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, node), length: recipe.len(), start })
+			$leaf_digests = $leaf_digests + 1
 		}
 		if $failure == NoFailure {
 			source = list_at($sources, node)
@@ -1083,7 +1737,23 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 		$placement_index = $placement_index + 1
 	}
 
-	graph = KernelResourceGraph.Plan.build(
+	## The exact per-page transparency-group blending uses: closure-only, so
+	## the blending space stays reachable without a dictionary entry.
+	var $closure_uses = []
+	match facts.blending {
+		NoBlending => {}
+		Blending(space) => {
+			var $closure_page = 0
+			while $closure_page < facts.page_transparency.len() {
+				if list_at(facts.page_transparency, $closure_page) {
+					$closure_uses = $closure_uses.append({ resource: color_node(space), root: $closure_page })
+				}
+				$closure_page = $closure_page + 1
+			}
+		}
+	}
+
+	graph = KernelResourceGraph.Plan.build_with_closure_uses(
 		{
 			digest_policy: DomainSeparatedSha256,
 			edges: facts.edges,
@@ -1093,10 +1763,11 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 			root_count: scenes.pages.len(),
 			root_uses: facts.root_uses,
 		},
+		$closure_uses,
 		limits.graph,
 	) ? Graph
 
-	nodes_of = node_count(counts, form_count)
+	nodes_of = node_count(counts, form_count, states_count)
 	var $canonical_of = List.with_capacity(nodes_of)
 	var $node = 0
 	while $node < nodes_of {
@@ -1127,12 +1798,13 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 	}
 
 	## Canonical per-kind ordinals in canonical-ID order — the documented
-	## total order for physical leaf and form objects. Fonts receive their
-	## authored ordinal below because they stay 1:1.
+	## total order for physical leaf, graphics-state, and form objects. Fonts
+	## receive their authored ordinal below because they stay 1:1.
 	var $kinds = List.repeat({ kind: 0, ordinal: 0 }, canonical_count)
 	var $color_reps = []
 	var $image_reps = []
 	var $profile_reps = []
+	var $state_count = 0
 	var $form_ordinals = List.repeat(U64.highest, canonical_count)
 	var $ordinal_canonicals = []
 	var $canonical_forms = []
@@ -1143,6 +1815,10 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 			ColorSpace => {
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_color, ordinal: $color_reps.len() })
 				$color_reps = $color_reps.append(U64.highest)
+			}
+			ExtGState => {
+				$kinds = list_set($kinds, $canonical_id, { kind: kind_state, ordinal: $state_count })
+				$state_count = $state_count + 1
 			}
 			Image => {
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_image, ordinal: $image_reps.len() })
@@ -1205,9 +1881,47 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 		$font = $font + 1
 	}
 
+	## Graphics states pre-deduplicate by exact value during derivation, so
+	## the value-index-to-canonical-ordinal map is a bijection; each canonical
+	## state ordinal records the exact alpha its object emits.
+	var $state_names = List.repeat(0, states_count)
+	var $state_values = List.repeat(0, $state_count)
+	var $state_index = 0
+	while $state_index < states_count {
+		ordinal = list_at($kinds, list_at(canonical_of, state_node(counts, form_count, $state_index))).ordinal
+		$state_names = list_set($state_names, $state_index, ordinal)
+		$state_values = list_set($state_values, ordinal, list_at(facts.opacity_values, $state_index))
+		$state_index = $state_index + 1
+	}
+
+	## Dense per-command canonical graphics-state ordinals for content
+	## lowering: the value index the opacity pre-pass assigned, mapped through
+	## the canonical ordinal.
+	var $page_command_gs = List.repeat(state_sentinel, facts.page_command_states.len())
+	var $page_command = 0
+	while $page_command < facts.page_command_states.len() {
+		command_state = list_at(facts.page_command_states, $page_command)
+		if command_state != state_sentinel {
+			$page_command_gs = list_set($page_command_gs, $page_command, list_at($state_names, command_state))
+		}
+		$page_command = $page_command + 1
+	}
+	var $form_command_gs = List.repeat(state_sentinel, facts.form_command_states.len())
+	var $form_command = 0
+	while $form_command < facts.form_command_states.len() {
+		command_state = list_at(facts.form_command_states, $form_command)
+		if command_state != state_sentinel {
+			$form_command_gs = list_set($form_command_gs, $form_command, list_at($state_names, command_state))
+		}
+		$form_command = $form_command + 1
+	}
+
 	## Canonical forms in canonical-ID order; each keeps its lowest authored
 	## form as the representative whose validated command range lowers once.
+	## Isolation is a descriptor fact, so every authored twin of one canonical
+	## form shares the representative's flag by construction.
 	var $form_names = List.repeat(0, form_count)
+	var $form_isolation = List.repeat(Bool.False, $canonical_forms.len())
 	var $form_index = 0
 	while $form_index < form_count {
 		canonical = list_at(canonical_of, form_node(counts, $form_index))
@@ -1217,6 +1931,7 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 		if existing.representative == U64.highest {
 			form = list_at(form_store.forms, $form_index)
 			$canonical_forms = list_set($canonical_forms, ordinal, { bbox: form.bbox, commands: form.commands, representative: $form_index })
+			$form_isolation = list_set($form_isolation, ordinal, list_at(facts.form_isolated, $form_index))
 		}
 		$form_index = $form_index + 1
 	}
@@ -1276,21 +1991,48 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 	nested_form_edges = count_nested_form_edges(facts.edges, base)
 	deduplicated_forms = form_count - $canonical_forms.len()
 
+	blending_ordinal = match facts.blending {
+		NoBlending => NoBlending
+		Blending(space) => Blending(list_at($color_names, space))
+	}
+	var $transparency_pages = 0
+	var $transparency_scan = 0
+	while $transparency_scan < facts.page_transparency.len() {
+		if list_at(facts.page_transparency, $transparency_scan) {
+			$transparency_pages = $transparency_pages + 1
+		}
+		$transparency_scan = $transparency_scan + 1
+	}
+	var $isolated_canonical = 0
+	var $isolation_scan = 0
+	while $isolation_scan < $form_isolation.len() {
+		if list_at($form_isolation, $isolation_scan) {
+			$isolated_canonical = $isolated_canonical + 1
+		}
+		$isolation_scan = $isolation_scan + 1
+	}
+
 	Ok(
 		KernelForm.Plan.{
+			blending: blending_ordinal,
 			canonical_colors: $color_reps,
 			canonical_forms: $canonical_forms,
 			canonical_images: $image_reps,
 			canonical_profiles: $profile_reps,
 			color_names: $color_names,
+			form_command_gs: $form_command_gs,
 			form_dictionaries: $form_dictionaries,
+			form_isolation: $form_isolation,
 			form_names: $form_names,
 			graph,
 			image_names: $image_names,
 			image_ranges: $canonical_image_ranges,
+			page_command_gs: $page_command_gs,
 			page_dictionaries: $page_dictionaries,
+			page_transparency: facts.page_transparency,
 			placements: graph_placements,
 			profile_names: $profile_names,
+			state_values: $state_values,
 			work: {
 				artifact_placements: $artifact_placements,
 				authored_color_spaces: counts.color_spaces,
@@ -1298,6 +2040,7 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 				authored_images: image_count,
 				authored_profiles: counts.profiles,
 				canonical_color_spaces: $color_reps.len(),
+				canonical_ext_g_states: $state_values.len(),
 				canonical_forms: $canonical_forms.len(),
 				canonical_images: $image_reps.len(),
 				canonical_profiles: $profile_reps.len(),
@@ -1305,9 +2048,14 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 				deduplicated_color_spaces: counts.color_spaces - $color_reps.len(),
 				deduplicated_forms,
 				deduplicated_images: image_count - $image_reps.len(),
+
+				## Every non-opaque opacity command beyond its value's first
+				## occurrence shares that value's one canonical state.
+				deduplicated_opacity_groups: facts.work.opacity_groups - $state_values.len(),
 				deduplicated_profiles: counts.profiles - $profile_reps.len(),
 				dictionary_entries: $dictionary_entries,
 				form_digests: $form_digests,
+				isolated_canonical_forms: $isolated_canonical,
 				leaf_digests: $leaf_digests,
 				leaf_recipe_bytes: $leaf_recipe_bytes,
 				nested_dictionary_entries: $nested_dictionary_entries,
@@ -1321,6 +2069,8 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 				## must surface its duplication explicitly.
 				semantically_duplicated_forms: 0,
 				shared_artifact_forms: $shared_artifact_forms,
+				state_recipe_bytes: $state_recipe_bytes,
+				transparency_pages: $transparency_pages,
 			},
 		},
 	)
@@ -1369,9 +2119,13 @@ kind_form = 3
 kind_profile : U64
 kind_profile = 4
 
+kind_state : U64
+kind_state = 5
+
 partition_dictionary : List(U64), List({ kind : U64, ordinal : U64 }) -> KernelForm.DictionaryPlan
 partition_dictionary = |canonical_ids, kinds| {
 	var $color_spaces = []
+	var $ext_g_states = []
 	var $fonts = []
 	var $forms = []
 	var $images = []
@@ -1387,12 +2141,14 @@ partition_dictionary = |canonical_ids, kinds| {
 			$fonts = insert_sorted($fonts, entry.ordinal)
 		} else if entry.kind == kind_profile {
 			$profiles = insert_sorted($profiles, entry.ordinal)
+		} else if entry.kind == kind_state {
+			$ext_g_states = insert_sorted($ext_g_states, entry.ordinal)
 		} else {
 			$forms = insert_sorted($forms, entry.ordinal)
 		}
 		$index = $index + 1
 	}
-	{ color_spaces: $color_spaces, fonts: $fonts, forms: $forms, images: $images, profiles: $profiles }
+	{ color_spaces: $color_spaces, ext_g_states: $ext_g_states, fonts: $fonts, forms: $forms, images: $images, profiles: $profiles }
 }
 
 ## Deterministic insertion into ascending order; dictionary fan-out is bounded
@@ -1419,7 +2175,7 @@ insert_sorted = |values, value| {
 }
 
 dictionary_size : KernelForm.DictionaryPlan -> U64
-dictionary_size = |dictionary| dictionary.color_spaces.len() + dictionary.fonts.len() + dictionary.forms.len() + dictionary.images.len() + dictionary.profiles.len()
+dictionary_size = |dictionary| dictionary.color_spaces.len() + dictionary.ext_g_states.len() + dictionary.fonts.len() + dictionary.forms.len() + dictionary.images.len() + dictionary.profiles.len()
 
 count_nested_form_edges : List(KernelResourceGraph.Edge), U64 -> U64
 count_nested_form_edges = |edges, base| {
@@ -1438,8 +2194,13 @@ count_nested_form_edges = |edges, base| {
 ## Canonical recipe serialization. Geometry, styles, and dash values are
 ## inlined from the shared stores; nested references become the referenced
 ## resource's identity digest; text commands embed the prepared run bytes.
-serialize_recipe : Scene.Form, List(Scene.Command), Scene.Store, List(List(U8)), KernelForm.Counts, TextRecipes -> Try(List(U8), KernelForm.Error)
-serialize_recipe = |form, arena, scenes, digests, counts, text| {
+## Opacity groups serialize in normalized lowered form: an opaque group is
+## transparent to the recipe (its children serialize inline, exactly as its
+## stream emits no operators), and a non-opaque group serializes its
+## effective alpha, so the recipe stays bijective with the emitted stream
+## structure and visually distinct nestings never merge.
+serialize_recipe : Scene.Form, List(Scene.Command), Scene.Store, List(List(U8)), KernelForm.Counts, TextRecipes, List(U64), List(U64) -> Try(List(U8), KernelForm.Error)
+serialize_recipe = |form, arena, scenes, digests, counts, text, command_states, opacity_values| {
 	var $out = List.with_capacity(64)
 	$out = append_rect($out, form.bbox)
 	var $frames = []
@@ -1492,8 +2253,18 @@ serialize_recipe = |form, arena, scenes, digests, counts, text| {
 						$out = $out.append(if prepared.close_actual_text 1 else 0)
 					}
 				}
-				Opacity(_) => {
-					crash "validated form recipe met a rejected opacity command"
+				Opacity({ children, opacity: _ }) => {
+					command_state = list_at(command_states, command_index)
+					if command_state == state_sentinel {
+						$frames = push_recipe_frame($frames, $active, $current)
+						$active = $active + 1
+						$current = RecipeFrame.{ close: Bool.False, end: children.start() + children.length(), next: children.start() }
+					} else {
+						$out = append_u16_bytes($out.append(8), list_at(opacity_values, command_state).to_u16_wrap())
+						$frames = push_recipe_frame($frames, $active, $current)
+						$active = $active + 1
+						$current = RecipeFrame.{ close: Bool.True, end: children.start() + children.length(), next: children.start() }
+					}
 				}
 				PlaceForm({ form: child, transform }) => {
 					$out = append_matrix($out.append(6), transform)
@@ -1673,4 +2444,32 @@ list_set = |items, index, value| match items.set(index, value) {
 	Err(OutOfBounds) => {
 		crash "validated form-plan update escaped"
 	}
+}
+
+## Fully opaque is an exact multiplicative identity at both positions, and
+## zero annihilates exactly: the endpoints of the documented `U16` semantics.
+expect {
+	identity = effective_alpha(opaque_alpha, 32768) == 32768 and effective_alpha(32768, opaque_alpha) == 32768 and effective_alpha(opaque_alpha, opaque_alpha) == opaque_alpha
+	zero = effective_alpha(0, 32768) == 0 and effective_alpha(32768, 0) == 0
+	identity and zero
+}
+
+## Representative interior products round deterministically, and a
+## non-identity factor always lands strictly below the identity, so an
+## emitted state value can never be 65535.
+expect {
+	half = effective_alpha(32768, 32768) == 16384
+	near = effective_alpha(65534, 65534) == 65533
+	quarter = effective_alpha(49151, 21845) == 16384
+	half and near and quarter
+}
+
+## Distinct effective values register dense first-appearance indices and
+## repeated values reuse their index.
+expect {
+	registry = OpacityRegistry.{ value_index: List.repeat(0, 65536), values: [] }
+	first = register_value(registry, 32768)
+	second = register_value(first.registry, 16384)
+	repeat = register_value(second.registry, 32768)
+	first.index == 0 and second.index == 1 and repeat.index == 0 and repeat.registry.values == [32768, 16384]
 }
