@@ -1941,6 +1941,126 @@
         "x64musl": { "allocations": 2173, "work": [22, 0, 2030] }
       },
       "retention": null
+    },
+    {
+      "name": "Gate 4 color-image showcase with adversarial authoring",
+      "scenario_revision": "gate4-color-image-leaves-v1",
+      "source": "tests/gate4_color_images/main.roc",
+      "snapshot": "tests/gate4_color_images/snapshot.pdf",
+      "args": ["showcase", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 3573, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] },
+        "x64musl": { "allocations": 3573, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 color-image unique-input ownership",
+      "scenario_revision": "gate4-color-image-leaves-v1",
+      "source": "tests/gate4_color_images/main.roc",
+      "snapshot": "tests/gate4_color_images/snapshot.pdf",
+      "args": ["unique", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1788, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] },
+        "x64musl": { "allocations": 1788, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 color-image retained-input ownership",
+      "scenario_revision": "gate4-color-image-leaves-v1",
+      "source": "tests/gate4_color_images/main.roc",
+      "snapshot": "tests/gate4_color_images/snapshot.pdf",
+      "args": ["shared", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 3559, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] },
+        "x64musl": { "allocations": 3559, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 duplicate image collapse x8",
+      "scenario_revision": "gate4-color-image-leaves-v1",
+      "source": "tests/gate4_color_images_dedup_8/main.roc",
+      "snapshot": "tests/gate4_color_images_dedup_8/snapshot.pdf",
+      "args": ["dedup", "8"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 8, "canonical_images": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1124, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] },
+        "x64musl": { "allocations": 1124, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 duplicate image collapse x64",
+      "scenario_revision": "gate4-color-image-leaves-v1",
+      "source": "tests/gate4_color_images_dedup_64/main.roc",
+      "snapshot": "tests/gate4_color_images_dedup_64/snapshot.pdf",
+      "args": ["dedup", "64"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 64, "canonical_images": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 2631, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] },
+        "x64musl": { "allocations": 2631, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 distinct image emission x8",
+      "scenario_revision": "gate4-color-image-leaves-v1",
+      "source": "tests/gate4_color_images_distinct_8/main.roc",
+      "snapshot": "tests/gate4_color_images_distinct_8/snapshot.pdf",
+      "args": ["distinct", "8"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_color_image_distinct": 1, "image_placements": 8, "canonical_images": 8 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1622, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] },
+        "x64musl": { "allocations": 1622, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 distinct image emission x64",
+      "scenario_revision": "gate4-color-image-leaves-v1",
+      "source": "tests/gate4_color_images_distinct_64/main.roc",
+      "snapshot": "tests/gate4_color_images_distinct_64/snapshot.pdf",
+      "args": ["distinct", "64"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_color_image_distinct": 1, "image_placements": 64, "canonical_images": 64 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 7119, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] },
+        "x64musl": { "allocations": 7119, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 color-image atomic negatives",
+      "scenario_revision": "gate4-color-image-leaves-v1",
+      "source": "tests/gate4_color_images_negative/main.roc",
+      "snapshot": "tests/gate4_color_images_negative/snapshot.pdf",
+      "args": ["1"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 1, "canonical_images": 1, "gate4_color_image_negative": 1, "rejections": 24 },
+      "work_counters": ["rejections", "escaped_plans", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1164, "work": [24, 0, 1956] },
+        "x64musl": { "allocations": 1164, "work": [24, 0, 1956] }
+      },
+      "retention": null
     }
   ]
 }

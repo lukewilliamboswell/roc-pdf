@@ -241,11 +241,11 @@
       "source_ids": ["icc-1-2001-04", "iso-19005-4-2020", "iso-32000-2-2020-ec3"],
       "references": ["architecture.md: Images and color"],
       "capabilities": ["Pdf20", "StaticPdfA4"],
-      "implementation": "defined_only",
-      "machine_verification": "schema_and_roc_contract",
+      "implementation": "partial",
+      "machine_verification": "schema_and_roc_contract; pinned_srgb2014_digest_license_and_icc_inspection_boundary; canonical_icc_and_color_space_dedup_with_exact_byte_equality; emitted_profile_stream_byte_identical_to_vendored_asset; output_intent_and_blend_space_pending_gate_4_xmp_slice",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_resource_contract.roc"],
-      "negative_scenarios": [],
+      "positive_scenarios": ["examples/advanced_resource_contract.roc", "package/KernelSrgbProfile.roc", "scripts/check_gate4_color_images.py", "tests/gate4_color_images/main.roc"],
+      "negative_scenarios": ["package/Gate4ColorImageEvidence.roc", "package/KernelColor.roc", "tests/gate4_color_images_negative/main.roc"],
       "external_rule_ids": []
     },
     {
@@ -254,11 +254,11 @@
       "source_ids": ["iso-32000-2-2020-ec3", "jpeg-10918-1-1994"],
       "references": ["architecture.md: Images and color"],
       "capabilities": ["Pdf20", "StaticPdfA4"],
-      "implementation": "defined_only",
-      "machine_verification": "schema_and_roc_contract",
+      "implementation": "implemented",
+      "machine_verification": "schema_and_roc_contract; roc_unit_raster_jpeg_alpha_and_orientation_positive_and_atomic_negative; canonical_image_dedup_with_exact_byte_equality_and_padded_twin_normalization; pdfium_chromium_7988_pdfbox_3_0_8_and_mupdf_1_28_2_exact_independent_raster",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_resource_contract.roc"],
-      "negative_scenarios": [],
+      "positive_scenarios": ["package/KernelImage.roc", "scripts/check_gate4_color_image_renderers.py", "scripts/check_gate4_color_images.py", "tests/gate4_color_images/main.roc", "tests/gate4_color_images_dedup_64/main.roc", "tests/gate4_color_images_distinct_64/main.roc"],
+      "negative_scenarios": ["package/Gate4ColorImageEvidence.roc", "package/KernelImage.roc", "tests/gate4_color_images_negative/main.roc"],
       "external_rule_ids": []
     },
     {
