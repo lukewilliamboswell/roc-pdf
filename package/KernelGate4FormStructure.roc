@@ -34,7 +34,7 @@ KernelGate4FormStructure :: [].{
 	Error : [
 		ArithmeticOverflow,
 		Font(KernelPdfFont.Error),
-		FontCountMismatch({ fonts : U64, mappings : U64, planned : U64 }),
+		FontCountMismatch({ authored : U64, fonts : U64, mappings : U64, planned : U64 }),
 		FormStreamCountMismatch({ planned : U64, streams : U64 }),
 		PatternStreamCountMismatch({ planned : U64, streams : U64 }),
 		ShadingStoreMismatch({ shadings : U64, supplied : U64 }),
@@ -179,16 +179,22 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 	if KernelForm.Plan.work(forms).authored_shadings != shading_store.shadings.len() {
 		return Err(ShadingStoreMismatch({ shadings: KernelForm.Plan.work(forms).authored_shadings, supplied: shading_store.shadings.len() }))
 	}
+
+	## One bundle per canonical font: the supplied authored bundles and their
+	## collected mappings must match the plan's authored count exactly, and
+	## the planned object identities must match the canonical count exactly.
+	authored_fonts = KernelForm.Plan.work(forms).authored_fonts
+	font_representatives = KernelForm.Plan.canonical_font_representatives(forms)
 	match text {
-		NoTextObjects => if planned_fonts.len() != 0 {
-			return Err(FontCountMismatch({ fonts: 0, mappings: 0, planned: planned_fonts.len() }))
+		NoTextObjects => if planned_fonts.len() != 0 or authored_fonts != 0 {
+			return Err(FontCountMismatch({ authored: authored_fonts, fonts: 0, mappings: 0, planned: planned_fonts.len() }))
 		} else {
 			{}
 		}
 		WithTextObjects(input) => {
 			mappings = KernelPdfText.ScenePlan.mappings(input.text)
-			if input.fonts.len() == 0 or input.fonts.len() != mappings.len() or input.fonts.len() != planned_fonts.len() {
-				return Err(FontCountMismatch({ fonts: input.fonts.len(), mappings: mappings.len(), planned: planned_fonts.len() }))
+			if input.fonts.len() == 0 or input.fonts.len() != mappings.len() or input.fonts.len() != authored_fonts or planned_fonts.len() != font_representatives.len() {
+				return Err(FontCountMismatch({ authored: authored_fonts, fonts: input.fonts.len(), mappings: mappings.len(), planned: planned_fonts.len() }))
 			}
 			{}
 		}
@@ -434,23 +440,28 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		NoFailure => {}
 	}
 
-	## Type 0 font objects land exactly at their planned identities.
+	## Type 0 font objects: exactly one physical bundle per canonical font,
+	## in canonical order, lowered from its lowest authored representative's
+	## validated facts and that representative's collected mappings, landing
+	## exactly at the planned identities. A duplicate bundle for one
+	## canonical identity is structurally unrepresentable here.
 	var $font_builder = $paint_builder
 	var $font_program_bytes = 0
 	match text {
 		NoTextObjects => {}
 		WithTextObjects(input) => {
 			mappings = KernelPdfText.ScenePlan.mappings(input.text)
-			var $font_index = 0
-			while $font_index < input.fonts.len() and $failure == NoFailure {
-				font_input = list_at(input.fonts, $font_index)
+			var $font_ordinal = 0
+			while $font_ordinal < font_representatives.len() and $failure == NoFailure {
+				representative = list_at(font_representatives, $font_ordinal)
+				font_input = list_at(input.fonts, representative)
 				match KernelPdfFont.Plan.build(
 					$font_builder,
 					font_input.font,
 					font_input.plan,
 					font_input.subset,
 					font_input.descriptor,
-					list_at(mappings, $font_index),
+					list_at(mappings, representative),
 					limits.font_limits,
 				) {
 					Err(error) => {
@@ -458,7 +469,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 					}
 					Ok(font) => {
 						emitted = KernelPdfFont.Plan.objects(font)
-						planned = list_at(planned_fonts, $font_index)
+						planned = list_at(planned_fonts, $font_ordinal)
 						if !KernelObject.ObjectId.is_eq(emitted.font_file, planned.first) {
 							$failure = Failed(ObjectOrder({ actual: emitted.font_file, expected: planned.first }))
 						} else if !KernelObject.ObjectId.is_eq(emitted.type0, planned.type0) {
@@ -469,7 +480,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 						}
 					}
 				}
-				$font_index = $font_index + 1
+				$font_ordinal = $font_ordinal + 1
 			}
 		}
 	}
