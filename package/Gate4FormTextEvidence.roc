@@ -288,7 +288,7 @@ graph_limits = {
 }
 
 form_limits : KernelForm.Limits
-form_limits = KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 64, max_recipe_bytes: 65536 })
+form_limits = KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 65536 })
 
 scene_limits : KernelScene.Limits
 scene_limits = KernelScene.Limits.make({

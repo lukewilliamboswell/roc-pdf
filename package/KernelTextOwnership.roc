@@ -133,7 +133,7 @@ collect_owners = |scenes, text| {
 			while $command_index < end {
 				command = list_at(scenes.commands, $command_index)
 				match command {
-					Clip({ children, path: _ }) | Opacity({ children, opacity: _ }) | Transform({ children, matrix: _ }) => {
+					Clip({ children, path: _ }) | Opacity({ children, opacity: _ }) | SoftMask({ children, mask: _ }) | Transform({ children, matrix: _ }) => {
 						$frames = $frames.append(Frame.{ range: children })
 					}
 					DrawText({ paint: _, run }) => {

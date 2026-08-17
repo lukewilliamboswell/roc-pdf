@@ -269,7 +269,7 @@ graph_limits = {
 }
 
 form_limits : KernelForm.Limits
-form_limits = KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 64, max_recipe_bytes: 4194304 })
+form_limits = KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 4194304 })
 
 scene_limits : KernelScene.Limits
 scene_limits = KernelScene.Limits.make({
@@ -1174,7 +1174,7 @@ check_negatives = |context| {
 	}
 
 	## 21: the recipe byte budget is enforced before the canonical run.
-	recipe_rejected = match build_form_plan_with_limits(base, KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 64, max_recipe_bytes: 8 })) {
+	recipe_rejected = match build_form_plan_with_limits(base, KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 8 })) {
 		Err(FormPlanFailure(RecipeByteLimitExceeded({ attempted: _, limit: 8 }))) => Bool.True
 		_ => Bool.False
 	}

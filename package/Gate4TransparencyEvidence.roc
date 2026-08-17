@@ -235,7 +235,7 @@ graph_limits = {
 }
 
 form_limits : KernelForm.Limits
-form_limits = KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 64, max_recipe_bytes: 4194304 })
+form_limits = KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 4194304 })
 
 scene_limits : KernelScene.Limits
 scene_limits = KernelScene.Limits.make({
@@ -1086,7 +1086,7 @@ check_negatives = |context| {
 	expect_facts_rejection(
 		8,
 		nest_chain(3),
-		KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 2, max_recipe_bytes: 4194304 }),
+		KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 2, max_recipe_bytes: 4194304 }),
 		|error| match error {
 			OpacityDepthExceeded({ attempted: 3, limit: 2 }) => Bool.True
 			_ => Bool.False
@@ -1097,7 +1097,7 @@ check_negatives = |context| {
 	expect_plan_rejection(
 		9,
 		form_grid(1),
-		KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 64, max_recipe_bytes: 8 }),
+		KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 8 }),
 		|error| match error {
 			FormPlanFailure(RecipeByteLimitExceeded({ attempted: _, limit: 8 })) => Bool.True
 			_ => Bool.False
@@ -1110,6 +1110,7 @@ check_negatives = |context| {
 		base,
 		KernelForm.Limits.make({
 			graph: { ..graph_limits, max_resources: 3 },
+			max_mask_depth: 4,
 			max_opacity_depth: 64,
 			max_recipe_bytes: 4194304,
 		}),
@@ -1144,6 +1145,7 @@ check_negatives = |context| {
 		base,
 		KernelForm.Limits.make({
 			graph: { ..graph_limits, max_root_uses: 2 },
+			max_mask_depth: 4,
 			max_opacity_depth: 64,
 			max_recipe_bytes: 4194304,
 		}),

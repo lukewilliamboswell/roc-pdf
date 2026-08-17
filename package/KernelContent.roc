@@ -62,6 +62,7 @@ KernelContent :: [].{
 		image_placements : U64,
 		marked_artifact_groups : U64,
 		marked_fragment_groups : U64,
+		mask_groups : U64,
 		max_frame_depth : U64,
 		opacity_groups : U64,
 		path_segments : U64,
@@ -136,7 +137,7 @@ image_ordinal = |naming, index| match naming {
 
 Frame := { close_graphics : Bool, end : U64, next : U64 }
 
-EmitWork := { bytes : List(U8), command_visits : U64, form_placements : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, opacity_groups : U64, path_segments : U64, text_placements : U64 }
+EmitWork := { bytes : List(U8), command_visits : U64, form_placements : U64, graphics_state_pairs : U64, image_placements : U64, mask_groups : U64, max_frame_depth : U64, opacity_groups : U64, path_segments : U64, text_placements : U64 }
 
 ## Dense per-command state entries use this sentinel for every command that
 ## emits no graphics state.
@@ -173,6 +174,7 @@ build_plan = |tagged, text, forms, limits| {
 		var $max_frame_depth = 0
 		var $artifact_groups = 0
 		var $fragment_groups = 0
+		var $mask_groups = 0
 		var $opacity_groups = 0
 		var $path_segments = 0
 		var $text_placements = 0
@@ -275,6 +277,7 @@ build_plan = |tagged, text, forms, limits| {
 						$form_placements = $form_placements + emitted.form_placements
 						$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
 						$image_placements = $image_placements + emitted.image_placements
+						$mask_groups = $mask_groups + emitted.mask_groups
 						$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
 						$opacity_groups = $opacity_groups + emitted.opacity_groups
 						$path_segments = $path_segments + emitted.path_segments
@@ -302,6 +305,7 @@ build_plan = |tagged, text, forms, limits| {
 						image_placements: $image_placements,
 						marked_artifact_groups: $artifact_groups,
 						marked_fragment_groups: $fragment_groups,
+						mask_groups: $mask_groups,
 						max_frame_depth: $max_frame_depth,
 						opacity_groups: $opacity_groups,
 						path_segments: $path_segments,
@@ -365,6 +369,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 	var $form_placements = 0
 	var $graphics_pairs = 0
 	var $image_placements = 0
+	var $mask_groups = 0
 	var $max_frame_depth = 1
 	var $opacity_groups = 0
 	var $path_segments = 0
@@ -481,6 +486,30 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 						}
 					}
 				}
+
+				## A soft-mask group opens `q`, selects its canonical mask
+				## graphics state, and closes with the frame's `Q`. Every
+				## soft-mask command carries a state: there is no identity
+				## mask, so a missing entry is the same structural rejection
+				## as an unplanned command.
+				SoftMask({ children, mask: _ }) => if command_index >= states.len() or list_at(states, command_index) == no_state {
+					$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+				} else {
+					match emit_opacity_open($bytes, list_at(states, command_index), limit) {
+						Err(error) => {
+							$error = Invalid(error)
+						}
+						Ok(bytes) => {
+							$bytes = bytes
+							$frames = push_frame($frames, $active, $current)
+							$active = $active + 1
+							$current = Frame.{ close_graphics: True, end: children.start() + children.length(), next: children.start() }
+							$max_frame_depth = U64.max($max_frame_depth, $active + 1)
+							$graphics_pairs = $graphics_pairs + 1
+							$mask_groups = $mask_groups + 1
+						}
+					}
+				}
 				PlaceForm({ form, transform }) => match forms {
 					NoForms => {
 						$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
@@ -519,7 +548,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 	}
 	match $error {
 		Invalid(error) => Err(error)
-		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, opacity_groups: $opacity_groups, path_segments: $path_segments, text_placements: $text_placements })
+		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, mask_groups: $mask_groups, max_frame_depth: $max_frame_depth, opacity_groups: $opacity_groups, path_segments: $path_segments, text_placements: $text_placements })
 	}
 }
 
@@ -1111,6 +1140,29 @@ expect {
 		_ => False
 	}
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.opacity_groups == 1 and emitted.graphics_state_pairs == 1 and emitted.command_visits == 4 and rejected
+}
+
+## A soft-mask group opens a balanced graphics pair and selects its
+## canonical mask state through the same state map as opacity groups.
+expect {
+	scenes = {
+		..KernelGate2Fixture.scene,
+		commands: [
+			SoftMask({ children: Semantics.Range.from_start_and_length(1, 1), mask: Scene.FormId.from_index(0) }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
+		],
+	}
+	states = [2, U64.highest]
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, states, 512)?
+	expected =
+		\\q
+		\\/GS1_2 gs
+		\\/CS1_0 cs
+		\\1 scn
+		\\0 0 1 1 re
+		\\f
+		\\Q
+	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.mask_groups == 1 and emitted.opacity_groups == 0 and emitted.graphics_state_pairs == 1
 }
 
 ## RGB channel order and every Gate 2 path segment have canonical operators.

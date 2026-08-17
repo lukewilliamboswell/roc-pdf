@@ -94,6 +94,7 @@ KernelScene :: [].{
 		max_graphics_depth : U64,
 		opacity_commands : U64,
 		page_box_checks : U64,
+		soft_mask_commands : U64,
 		page_group_edges : U64,
 		page_visits : U64,
 		path_segments : U64,
@@ -124,6 +125,7 @@ KernelScene :: [].{
 		form_child_ranges : U64,
 		form_command_visits : U64,
 		form_opacity_commands : U64,
+		form_soft_mask_commands : U64,
 		form_visits : U64,
 		max_form_depth : U64,
 		nested_form_placements : U64,
@@ -158,11 +160,12 @@ CommandWork := {
 	form_placements : U64,
 	image_placements : U64,
 	opacity_commands : U64,
+	soft_mask_commands : U64,
 	text_placements : U64,
 }
 
 leaf_work : CommandWork
-leaf_work = { children: Leaf, color_references: 0, dash_values: 0, form_placements: 0, image_placements: 0, opacity_commands: 0, text_placements: 0 }
+leaf_work = { children: Leaf, color_references: 0, dash_values: 0, form_placements: 0, image_placements: 0, opacity_commands: 0, soft_mask_commands: 0, text_placements: 0 }
 
 scene_failure : KernelScene.Error -> Try(a, KernelScene.Error)
 scene_failure = |error| Err(error)
@@ -195,6 +198,7 @@ build_plan = |scenes, resources, limits| {
 				max_graphics_depth: command_work.max_graphics_depth,
 				opacity_commands: command_work.opacity_commands,
 				page_box_checks: page_work.page_box_checks,
+				soft_mask_commands: command_work.soft_mask_commands,
 				page_group_edges: page_work.page_group_edges,
 				page_visits: scenes.pages.len(),
 				path_segments: path_work.path_segments,
@@ -229,6 +233,7 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 	var $command_visits = 0
 	var $nested_placements = 0
 	var $opacity_commands = 0
+	var $soft_mask_commands = 0
 	var $maximum_depth = 0
 	var $error = NoError
 	while $form_index < form_store.forms.len() and $error == NoError {
@@ -268,6 +273,7 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 										Ok(work) => {
 											$nested_placements = $nested_placements + work.form_placements
 											$opacity_commands = $opacity_commands + work.opacity_commands
+											$soft_mask_commands = $soft_mask_commands + work.soft_mask_commands
 											match work.children {
 												Leaf => {}
 												Nested(children) => if children.length() == 0 {
@@ -308,6 +314,7 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 				form_child_ranges: $child_ranges,
 				form_command_visits: $command_visits,
 				form_opacity_commands: $opacity_commands,
+				form_soft_mask_commands: $soft_mask_commands,
 				form_visits: form_store.forms.len(),
 				max_form_depth: $maximum_depth,
 				nested_form_placements: $nested_placements,
@@ -462,7 +469,7 @@ validate_pages = |scenes| {
 	}
 }
 
-validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, opacity_commands : U64, text_placements : U64 }, KernelScene.Error)
+validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, opacity_commands : U64, soft_mask_commands : U64, text_placements : U64 }, KernelScene.Error)
 validate_groups = |scenes, resources, max_depth| {
 	var $group_index = 0
 	var $expected_command = 0
@@ -473,6 +480,7 @@ validate_groups = |scenes, resources, max_depth| {
 	var $form_placements = 0
 	var $image_placements = 0
 	var $opacity_commands = 0
+	var $soft_mask_commands = 0
 	var $text_placements = 0
 	var $maximum_depth = 0
 	var $error = NoError
@@ -514,6 +522,7 @@ validate_groups = |scenes, resources, max_depth| {
 											$form_placements = $form_placements + work.form_placements
 											$image_placements = $image_placements + work.image_placements
 											$opacity_commands = $opacity_commands + work.opacity_commands
+											$soft_mask_commands = $soft_mask_commands + work.soft_mask_commands
 											$text_placements = $text_placements + work.text_placements
 											match work.children {
 												Leaf => {}
@@ -551,7 +560,7 @@ validate_groups = |scenes, resources, max_depth| {
 		NoError => if $expected_command < scenes.commands.len() {
 			Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
 		} else {
-			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, text_placements: $text_placements })
+			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, soft_mask_commands: $soft_mask_commands, text_placements: $text_placements })
 		}
 	}
 }
@@ -592,6 +601,18 @@ validate_command = |command, index, scenes, resources| match command {
 		Ok({ ..leaf_work, children: Nested(children), opacity_commands: 1 })
 	} else {
 		Err(UnsupportedCommand({ command: index }))
+	}
+
+	## Alpha soft masks share the Gate 4 gate: the mask must name a declared
+	## form (its isolated-group requirement is a normalization fact checked
+	## with the form store), and the group's children validate like any
+	## nested range.
+	SoftMask({ children, mask }) => if !resources.allow_opacity {
+		Err(UnsupportedCommand({ command: index }))
+	} else if mask.index() >= resources.forms {
+		Err(IndexOutOfRange({ available: resources.forms, index: mask.index(), kind: FormIndex }))
+	} else {
+		Ok({ ..leaf_work, children: Nested(children), soft_mask_commands: 1 })
 	}
 	PlaceForm({ form, transform }) => {
 		if form.index() >= resources.forms {
@@ -1257,6 +1278,44 @@ expect {
 		_ => False
 	}
 }
+
+## Soft-mask groups validate in form-aware scenes with nested children, a
+## bounded mask reference, and counted work — and stay rejected under the
+## Gate 2/3 resource constructors like every Gate 4 transparency command.
+expect {
+	masked = {
+		..opacity_store,
+		commands: [
+			SoftMask({ children: span_of(1, 2), mask: Scene.FormId.from_index(0) }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+			Opacity({ children: span_of(3, 1), opacity: 32768 }),
+			DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+		],
+	}
+	plan = KernelScene.Plan.build(masked, form_test_resources, test_limits)?
+	work = KernelScene.Plan.work(plan)
+	out_of_range = {
+		..masked,
+		commands: [
+			SoftMask({ children: span_of(1, 2), mask: Scene.FormId.from_index(7) }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+			Opacity({ children: span_of(3, 1), opacity: 32768 }),
+			DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+		],
+	}
+	bounds_rejected = match KernelScene.Plan.build(out_of_range, form_test_resources, test_limits) {
+		Err(IndexOutOfRange({ available: 1, index: 7, kind: FormIndex })) => True
+		_ => False
+	}
+	gate2_rejected = match KernelScene.Plan.build(masked, test_resources, test_limits) {
+		Err(UnsupportedCommand({ command: 0 })) => True
+		_ => False
+	}
+	work.soft_mask_commands == 1 and work.opacity_commands == 1 and work.command_visits == 4 and bounds_rejected and gate2_rejected
+}
+
+span_of : U64, U64 -> Semantics.Range
+span_of = |start, length| Semantics.Range.from_start_and_length(start, length)
 
 ## Opacity groups inside form content validate with the identical command
 ## rules and are counted as form validation work.

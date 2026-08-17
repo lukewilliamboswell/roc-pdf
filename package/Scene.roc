@@ -132,6 +132,15 @@ Scene :: [].{
 	## exact `U16` fixed point (65535 is fully opaque and an exact identity;
 	## the identity value normalizes away entirely). An isolated-group form
 	## resets that ambient product at its boundary; see `Form`.
+	## `SoftMask` applies a per-sample alpha soft mask to its children's
+	## painting operations. The mask is the alpha channel of the referenced
+	## mask form, which must be an `IsolatedGroup` form rendered against a
+	## fully transparent backdrop. Constant alpha and the mask multiply
+	## natively (they are independent graphics-state parameters). One stream
+	## context supports at most one active mask: nesting a `SoftMask` under
+	## another within a stream is rejected, and mask composition is expressed
+	## explicitly by masking an isolated-group form whose content applies the
+	## inner mask (the group boundary resets the ambient mask; see `Form`).
 	Command : [
 		Clip({ children : Semantics.Range, path : PathId }),
 		DrawImage({ image : Image.Id, placement : Layout.Rect }),
@@ -139,6 +148,7 @@ Scene :: [].{
 		DrawText({ paint : TextPaint, run : Text.RunId }),
 		Opacity({ children : Semantics.Range, opacity : U16 }),
 		PlaceForm({ form : FormId, transform : Matrix }),
+		SoftMask({ children : Semantics.Range, mask : FormId }),
 		Transform({ children : Semantics.Range, matrix : Matrix }),
 	]
 
@@ -171,10 +181,11 @@ Scene :: [].{
 	## Whether a form is an isolated PDF 2.0 transparency group. An isolated
 	## group composites as a unit: constant alpha applied at a placement site
 	## multiplies the group's rendered result exactly once, and the ambient
-	## alpha inside the group resets to fully opaque (ISO 32000-2, 11.6.6).
-	## `NoGroup` forms stay transparent to the graphics state, so their
-	## painted elements each multiply the ambient alpha individually.
-	## Knockout groups are not representable.
+	## constant alpha and soft mask inside the group reset to their identity
+	## values (ISO 32000-2, 11.6.6). `NoGroup` forms stay transparent to the
+	## graphics state, so their painted elements each compose with the ambient
+	## alpha and mask individually. A form referenced as a soft mask must be
+	## an isolated group. Knockout groups are not representable.
 	FormGroup : [IsolatedGroup, NoGroup]
 
 	## A Form XObject's content is a range into the flat form-command arena;

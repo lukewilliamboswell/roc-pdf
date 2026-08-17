@@ -87,6 +87,8 @@ KernelGate4FormStructure :: [].{
 
 StateNames := { blend_mode : KernelObject.NameId, ext_g_state : KernelObject.NameId, nonstroking_alpha : KernelObject.NameId, normal : KernelObject.NameId, stroking_alpha : KernelObject.NameId }
 
+MaskNames := { alpha : KernelObject.NameId, g : KernelObject.NameId, mask : KernelObject.NameId, s_mask : KernelObject.NameId }
+
 GroupNames := { cs : KernelObject.NameId, group : KernelObject.NameId, isolated : KernelObject.NameId, s : KernelObject.NameId, transparency : KernelObject.NameId }
 
 ## The graphics-state and transparency-group names join the table only when
@@ -99,6 +101,7 @@ Names := {
 	form : KernelObject.NameId,
 	form_type : KernelObject.NameId,
 	group_names : [NoGroupNames, WithGroupNames(GroupNames)],
+	mask_names : [NoMaskNames, WithMaskNames(MaskNames)],
 	matrix : KernelObject.NameId,
 	resources : KernelObject.NameId,
 	state_names : [NoStateNames, WithStateNames(StateNames)],
@@ -148,7 +151,8 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 	page_transparency = KernelForm.Plan.page_transparency(forms)
 	form_isolation = KernelForm.Plan.form_isolation(forms)
 	with_groups = any_flag(page_transparency) or any_flag(form_isolation)
-	named = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), canonical_states > 0, with_groups)?
+	with_masks = KernelForm.Plan.work(forms).canonical_mask_states > 0
+	named = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), canonical_states > 0, with_groups, with_masks)?
 	resource_names = add_resource_names(named.builder, leaf_counts.color_spaces, leaf_counts.images, planned_fonts.len(), canonical_forms, canonical_states)?
 	var $builder = resource_names.builder
 	page_count = KernelTagged.Plan.scenes(tagged).pages.len()
@@ -267,13 +271,19 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 		NoFailure => {}
 	}
 
-	## Canonical graphics-state objects in canonical order, each carrying the
-	## exact effective constant alphas and the Normal blend mode.
+	## Canonical graphics-state objects in canonical order: constant-alpha
+	## states carry the exact effective alphas under the Normal blend mode,
+	## and soft-mask states carry the Alpha mask dictionary referencing their
+	## canonical mask form's stream object directly.
 	var $state_builder = $form_builder
 	var $state_ordinal = 0
 	while $state_ordinal < canonical_states and $failure == NoFailure {
 		planned_state = list_at(KernelGate4FormObjects.Plan.states(objects), $state_ordinal)
-		match add_state_object($state_builder, named.names, KernelForm.Plan.state_value(forms, $state_ordinal), planned_state) {
+		state_result = match KernelForm.Plan.state_fact(forms, $state_ordinal) {
+			Alpha(value) => add_state_object($state_builder, named.names, value, planned_state)
+			Mask(mask_ordinal) => add_mask_state_object($state_builder, named.names, list_at(KernelGate4FormObjects.Plan.forms(objects), mask_ordinal).stream, planned_state)
+		}
+		match state_result {
 			Err(error) => {
 				$failure = Failed(error)
 			}
@@ -370,8 +380,8 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 	)
 }
 
-add_names : KernelObject.Builder, Bool, Bool -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate4FormStructure.Error)
-add_names = |builder, with_states, with_groups| {
+add_names : KernelObject.Builder, Bool, Bool, Bool -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate4FormStructure.Error)
+add_names = |builder, with_states, with_groups, with_masks| {
 	b_box = KernelObject.add_name(builder, Str.to_utf8("BBox")) ? Object
 	color_space = KernelObject.add_name(b_box.builder, Str.to_utf8("ColorSpace")) ? Object
 	font = KernelObject.add_name(color_space.builder, Str.to_utf8("Font")) ? Object
@@ -397,8 +407,21 @@ add_names = |builder, with_states, with_groups| {
 		{ builder: x_object.builder, names: NoStateNames }
 	}
 
+	masks = if with_masks {
+		alpha = KernelObject.add_name(states.builder, Str.to_utf8("Alpha")) ? Object
+		g = KernelObject.add_name(alpha.builder, Str.to_utf8("G")) ? Object
+		mask = KernelObject.add_name(g.builder, Str.to_utf8("Mask")) ? Object
+		s_mask = KernelObject.add_name(mask.builder, Str.to_utf8("SMask")) ? Object
+		{
+			builder: s_mask.builder,
+			names: WithMaskNames({ alpha: alpha.id, g: g.id, mask: mask.id, s_mask: s_mask.id }),
+		}
+	} else {
+		{ builder: states.builder, names: NoMaskNames }
+	}
+
 	groups = if with_groups {
-		cs = KernelObject.add_name(states.builder, Str.to_utf8("CS")) ? Object
+		cs = KernelObject.add_name(masks.builder, Str.to_utf8("CS")) ? Object
 		group = KernelObject.add_name(cs.builder, Str.to_utf8("Group")) ? Object
 		isolated = KernelObject.add_name(group.builder, Str.to_utf8("I")) ? Object
 		s = KernelObject.add_name(isolated.builder, Str.to_utf8("S")) ? Object
@@ -420,6 +443,7 @@ add_names = |builder, with_states, with_groups| {
 			form: form.id,
 			form_type: form_type.id,
 			group_names: groups.names,
+			mask_names: masks.names,
 			matrix: matrix.id,
 			resources: resources.id,
 			state_names: states.names,
@@ -761,6 +785,56 @@ add_state_object = |builder, names, value, planned| {
 			{ key: state_names.stroking_alpha, value: stroking.id },
 			{ key: names.type_name, value: kind.id },
 			{ key: state_names.nonstroking_alpha, value: nonstroking.id },
+		],
+	) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, planned)?
+	Ok(object.builder)
+}
+
+## One canonical soft-mask ExtGState object:
+## `<< /SMask << /G m 0 R /S /Alpha /Type /Mask >> /Type /ExtGState >>`.
+## The mask subtype is always Alpha (luminosity is unrepresentable), the
+## transfer function stays absent (the Identity default), and `/G`
+## references the canonical mask form's stream object directly — soft masks
+## never enter a resource dictionary.
+add_mask_state_object : KernelObject.Builder, Names, KernelObject.ObjectId, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate4FormStructure.Error)
+add_mask_state_object = |builder, names, mask_stream, planned| {
+	mask_names = match names.mask_names {
+		WithMaskNames(bundle) => bundle
+		NoMaskNames => {
+			crash "soft-mask state emitted without its planned names"
+		}
+	}
+	state_names = match names.state_names {
+		WithStateNames(bundle) => bundle
+		NoStateNames => {
+			crash "soft-mask state emitted without its planned names"
+		}
+	}
+	group = KernelObject.add_reference(builder, mask_stream) ? Object
+	subtype = KernelObject.add_name_value(group.builder, mask_names.alpha) ? Object
+	mask_kind = KernelObject.add_name_value(subtype.builder, mask_names.mask) ? Object
+	group_names = match names.group_names {
+		WithGroupNames(bundle) => bundle
+		NoGroupNames => {
+			crash "soft-mask state emitted without its planned names"
+		}
+	}
+	mask_dictionary = KernelObject.add_dictionary(
+		mask_kind.builder,
+		[
+			{ key: mask_names.g, value: group.id },
+			{ key: group_names.s, value: subtype.id },
+			{ key: names.type_name, value: mask_kind.id },
+		],
+	) ? Object
+	kind = KernelObject.add_name_value(mask_dictionary.builder, state_names.ext_g_state) ? Object
+	dictionary = KernelObject.add_dictionary(
+		kind.builder,
+		[
+			{ key: mask_names.s_mask, value: mask_dictionary.id },
+			{ key: names.type_name, value: kind.id },
 		],
 	) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
