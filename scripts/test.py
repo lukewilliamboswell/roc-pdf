@@ -38,6 +38,7 @@ from check_gate3_generated_labels import validate_generated_labels_pdf
 from check_gate3_text import EXPECTED_CONTENT as GATE3_TEXT_CONTENT
 from check_gate3_text import validate_gate3_text_pdf
 from check_gate4_color_images import validate_gate4_color_images_pdf
+from check_gate4_shadings import validate_gate4_shadings_pdf
 from check_gate4_soft_masks import validate_gate4_soft_masks_pdf
 from check_gate4_transparency import validate_gate4_transparency_pdf
 from check_gate4_forms import validate_gate4_forms_pdf
@@ -656,6 +657,9 @@ def run_case(
         elif any(key.startswith("gate4_soft_mask") for key in case.dimensions):
             validate_gate4_soft_masks_pdf(result.stdout, case.dimensions)
             print(f"PASS {case.name}: canonical Alpha mask states, direct /SMask /G wiring to isolated mask forms outside every resource dictionary, balanced mask groups, and placement-site ownership facts", flush=True)
+        elif any(key.startswith("gate4_shading") or key.startswith("gate4_pattern") for key in case.dimensions):
+            validate_gate4_shadings_pdf(result.stdout, case.dimensions)
+            print(f"PASS {case.name}: canonical shading/function/pattern objects, exact per-stream /Shading and /Pattern dictionaries, re-derived stop models, ownership-neutral pattern streams, and sh/scn operand resolution", flush=True)
         else:
             validate_pdf(
                 result.stdout,
@@ -786,6 +790,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate4_transparency_renderers.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_soft_masks.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_soft_mask_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_gate4_shadings.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
