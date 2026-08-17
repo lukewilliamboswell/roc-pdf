@@ -1117,18 +1117,6 @@ build_facts = |form_plan, colors, counts, text, limits| {
 	## semantic text may not appear there. One reversed-topological sweep
 	## marks the mask subtrees; the mask chain sweep then bounds how deep
 	## mask renderings may themselves apply further masks.
-	mask_facts = resolve_masks(
-		counts,
-		form_count,
-		order,
-		derivation.states,
-		{
-			nested_children: sweep.nested_children,
-			nested_offsets: sweep.nested_offsets,
-		},
-		$edges,
-		limits.max_mask_depth,
-	)?
 	var $mask_state_total = 0
 	var $state_scan = 0
 	while $state_scan < derivation.states.len() {
@@ -1141,8 +1129,27 @@ build_facts = |form_plan, colors, counts, text, limits| {
 		$state_scan = $state_scan + 1
 	}
 	mask_state_total = $mask_state_total
+
+	## The mask sweeps only run for documents that actually apply masks; a
+	## maskless document keeps an empty reachability fact and zero chain.
+	mask_facts = if mask_state_total > 0 {
+		resolve_masks(
+			counts,
+			form_count,
+			order,
+			derivation.states,
+			{
+				nested_children: sweep.nested_children,
+				nested_offsets: sweep.nested_offsets,
+			},
+			$edges,
+			limits.max_mask_depth,
+		)?
+	} else {
+		{ mask_reachable: [], max_chain: 0, visits: 0 }
+	}
 	$form_index = 0
-	while $form_index < form_count and $failure == NoFailure {
+	while $form_index < mask_facts.mask_reachable.len() and $failure == NoFailure {
 		if list_at(mask_facts.mask_reachable, $form_index) and list_at(transitive_text, $form_index) {
 			$failure = Failed(TextInMaskForm({ form: $form_index }))
 		}

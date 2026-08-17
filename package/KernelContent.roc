@@ -209,6 +209,7 @@ build_plan = |tagged, text, forms, limits| {
 									$form_placements = $form_placements + emitted.form_placements
 									$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
 									$image_placements = $image_placements + emitted.image_placements
+									$mask_groups = $mask_groups + emitted.mask_groups
 									$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
 									$opacity_groups = $opacity_groups + emitted.opacity_groups
 									$path_segments = $path_segments + emitted.path_segments
