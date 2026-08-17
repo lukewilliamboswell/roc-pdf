@@ -333,6 +333,6 @@ conformance claim; its evidence lane begins with the XMP and PDF/A slices.
 
 The compiler-defect workaround in `Gate4FormTextEvidence` (all const-evaluable
 analysis/inspection/shaping calls live in one `build_prelude` body) is
-documented in the module; it works around the pinned nightly's multi-body
-packed-constant restore defect (roc-lang/roc#10697 family) without changing
+documented in the module; it was introduced for the former pinned nightly's
+multi-body packed-constant restore defect (roc-lang/roc#10697 family) without changing
 any contract.

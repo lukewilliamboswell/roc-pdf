@@ -1,14 +1,3 @@
-## TODO(pin-bump): this target passes `roc check` but cannot be built under the
-## pinned compiler, because `roc build --fuzz` requires the LLVM backend and any
-## LLVM build of the `Pdf` facade pipeline panics there with "record update base
-## type differed from its result type in SpecConstr". The existing
-## `tests/gate3_pdf_facade_chunks/main.roc` reproduces it under `--opt=speed`
-## alone, so this is not specific to the fuzz target.
-##
-## Fixed upstream by `47a14ba38c` (2026-08-13), which the pinned
-## `nightly-2026-08-08-195c9e7` predates. Verified against upstream
-## `f70f90af36`: this target builds and runs clean. Remove this note when
-## `.roc-version` moves past that commit; see fuzz/README.md.
 app [target] {
 	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.2.1/9Qpttb6LTgcMaVsSBLsnaiS2mDUrf6Bxa6dX9Rqwviz4.tar.zst",
 	pdf_quality: "../package/fuzz_evidence.roc",

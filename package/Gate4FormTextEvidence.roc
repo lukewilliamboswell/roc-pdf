@@ -162,8 +162,8 @@ color_leaf = {
 }
 
 ## Exactly one function body restores the packed font-bytes literal; every
-## consumer goes through it. Two bodies restoring the same packed compile-time
-## list trip a pinned-compiler blob-restore defect (roc-lang/roc#10697 family).
+## consumer goes through it. This shape was introduced for the packed-constant
+## restore defect in the former pinned compiler (roc-lang/roc#10697 family).
 font_bytes : {} -> List(U8)
 font_bytes = |_| built_in_font_bytes
 
@@ -328,8 +328,8 @@ Prelude := { analysis : KernelUnicode.UnicodeAnalysis, font : KernelFont.Inspect
 
 ## Exactly one function body performs the const-evaluable Unicode analysis,
 ## font inspection, and shaping calls; every consumer receives the result.
-## (Duplicating those calls across bodies trips a pinned-compiler
-## packed-constant restore defect of the roc-lang/roc#10697 family.)
+## (This shape also avoids the packed-constant restore defect present in the
+## former pinned compiler, from the roc-lang/roc#10697 family.)
 build_prelude : {} -> Try(Prelude, BuildFailure)
 build_prelude = |_| {
 	analysis = KernelUnicode.analyze(
