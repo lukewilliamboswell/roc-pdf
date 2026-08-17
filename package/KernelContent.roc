@@ -34,15 +34,20 @@ KernelContent :: [].{
 
 	## The normalized form-lowering facts the serializer consumes: the flat
 	## form-command arena, each authored resource's canonical name ordinal per
-	## kind, and one representative command range per canonical (deduplicated)
-	## physical form in canonical order. Lowering never re-derives sharing or
-	## resource use; deduplicated color spaces and images are named by the
-	## same canonical ordinals their emitted objects receive.
+	## kind, one representative command range per canonical (deduplicated)
+	## physical form in canonical order, and the dense per-command canonical
+	## graphics-state ordinals for both arenas (`U64.highest` meaning the
+	## command emits no graphics state). Lowering never re-derives sharing,
+	## resource use, or effective opacity; deduplicated color spaces, images,
+	## and graphics states are named by the same canonical ordinals their
+	## emitted objects receive.
 	FormContext : {
 		arena : List(Scene.Command),
 		color_names : List(U64),
 		form_names : List(U64),
+		form_states : List(U64),
 		image_names : List(U64),
+		page_states : List(U64),
 		streams : List(Semantics.Range),
 	}
 
@@ -58,6 +63,7 @@ KernelContent :: [].{
 		marked_artifact_groups : U64,
 		marked_fragment_groups : U64,
 		max_frame_depth : U64,
+		opacity_groups : U64,
 		path_segments : U64,
 		text_placements : U64,
 	}
@@ -130,7 +136,12 @@ image_ordinal = |naming, index| match naming {
 
 Frame := { close_graphics : Bool, end : U64, next : U64 }
 
-EmitWork := { bytes : List(U8), command_visits : U64, form_placements : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, path_segments : U64, text_placements : U64 }
+EmitWork := { bytes : List(U8), command_visits : U64, form_placements : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, opacity_groups : U64, path_segments : U64, text_placements : U64 }
+
+## Dense per-command state entries use this sentinel for every command that
+## emits no graphics state.
+no_state : U64
+no_state = U64.highest
 
 build_plan : KernelTagged.Plan, TextLowering, FormEmission, KernelContent.Limits -> Try(KernelContent.Plan, KernelContent.Error)
 build_plan = |tagged, text, forms, limits| {
@@ -147,6 +158,10 @@ build_plan = |tagged, text, forms, limits| {
 			NoForms => AuthoredNames
 			WithForms(context) => CanonicalNames({ colors: context.color_names, images: context.image_names })
 		}
+		page_states = match forms {
+			NoForms => []
+			WithForms(context) => context.page_states
+		}
 		var $streams = List.with_capacity(stream_count)
 		var $page_index = 0
 		var $total_bytes = 0
@@ -158,6 +173,7 @@ build_plan = |tagged, text, forms, limits| {
 		var $max_frame_depth = 0
 		var $artifact_groups = 0
 		var $fragment_groups = 0
+		var $opacity_groups = 0
 		var $path_segments = 0
 		var $text_placements = 0
 		var $error = NoError
@@ -177,7 +193,7 @@ build_plan = |tagged, text, forms, limits| {
 						$bytes = opened.bytes
 						$artifact_groups = $artifact_groups + opened.artifacts
 						$fragment_groups = $fragment_groups + opened.fragments
-						match emit_commands($bytes, group.commands, scenes.commands, scenes, text, forms, naming, page_limit) {
+						match emit_commands($bytes, group.commands, scenes.commands, scenes, text, forms, naming, page_states, page_limit) {
 							Err(error) => {
 								$error = Invalid(error)
 							}
@@ -192,6 +208,7 @@ build_plan = |tagged, text, forms, limits| {
 									$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
 									$image_placements = $image_placements + emitted.image_placements
 									$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
+									$opacity_groups = $opacity_groups + emitted.opacity_groups
 									$path_segments = $path_segments + emitted.path_segments
 									$text_placements = $text_placements + emitted.text_placements
 								}
@@ -236,7 +253,11 @@ build_plan = |tagged, text, forms, limits| {
 				NoForms => []
 				WithForms(context) => context.arena
 			}
-			match emit_commands(List.with_capacity(U64.min(form_limit, initial_content_capacity)), range, arena, scenes, text, forms, naming, form_limit) {
+			form_states = match forms {
+				NoForms => []
+				WithForms(context) => context.form_states
+			}
+			match emit_commands(List.with_capacity(U64.min(form_limit, initial_content_capacity)), range, arena, scenes, text, forms, naming, form_states, form_limit) {
 				Err(error) => {
 					$error = Invalid(error)
 				}
@@ -255,6 +276,7 @@ build_plan = |tagged, text, forms, limits| {
 						$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
 						$image_placements = $image_placements + emitted.image_placements
 						$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
+						$opacity_groups = $opacity_groups + emitted.opacity_groups
 						$path_segments = $path_segments + emitted.path_segments
 						$text_placements = $text_placements + emitted.text_placements
 					}
@@ -281,6 +303,7 @@ build_plan = |tagged, text, forms, limits| {
 						marked_artifact_groups: $artifact_groups,
 						marked_fragment_groups: $fragment_groups,
 						max_frame_depth: $max_frame_depth,
+						opacity_groups: $opacity_groups,
 						path_segments: $path_segments,
 						text_placements: $text_placements,
 					},
@@ -331,8 +354,8 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 	}
 }
 
-emit_commands : List(U8), Semantics.Range, List(Scene.Command), Scene.Store, TextLowering, FormEmission, Naming, U64 -> Try(EmitWork, KernelContent.Error)
-emit_commands = |initial, root, arena, scenes, text, forms, naming, limit| {
+emit_commands : List(U8), Semantics.Range, List(Scene.Command), Scene.Store, TextLowering, FormEmission, Naming, List(U64), U64 -> Try(EmitWork, KernelContent.Error)
+emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limit| {
 	var $bytes = initial
 	var $frames = []
 	var $current = Frame.{ close_graphics: False, end: root.start() + root.length(), next: root.start() }
@@ -343,6 +366,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, limit| {
 	var $graphics_pairs = 0
 	var $image_placements = 0
 	var $max_frame_depth = 1
+	var $opacity_groups = 0
 	var $path_segments = 0
 	var $text_placements = 0
 	var $error = NoError
@@ -425,8 +449,37 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, limit| {
 						}
 					}
 				}
-				Opacity(_) => {
+
+				## A non-opaque group opens `q`, selects its canonical effective
+				## graphics state, and closes with the frame's `Q`; the opaque
+				## identity lowers its children with no operators at all. The
+				## normalized state maps come from the form plan, so lowering
+				## never recomputes effective opacity.
+				Opacity({ children, opacity: _ }) => if command_index >= states.len() {
 					$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+				} else {
+					command_state = list_at(states, command_index)
+					if command_state == no_state {
+						$frames = push_frame($frames, $active, $current)
+						$active = $active + 1
+						$current = Frame.{ close_graphics: False, end: children.start() + children.length(), next: children.start() }
+						$max_frame_depth = U64.max($max_frame_depth, $active + 1)
+					} else {
+						match emit_opacity_open($bytes, command_state, limit) {
+							Err(error) => {
+								$error = Invalid(error)
+							}
+							Ok(bytes) => {
+								$bytes = bytes
+								$frames = push_frame($frames, $active, $current)
+								$active = $active + 1
+								$current = Frame.{ close_graphics: True, end: children.start() + children.length(), next: children.start() }
+								$max_frame_depth = U64.max($max_frame_depth, $active + 1)
+								$graphics_pairs = $graphics_pairs + 1
+								$opacity_groups = $opacity_groups + 1
+							}
+						}
+					}
 				}
 				PlaceForm({ form, transform }) => match forms {
 					NoForms => {
@@ -466,8 +519,19 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, limit| {
 	}
 	match $error {
 		Invalid(error) => Err(error)
-		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, path_segments: $path_segments, text_placements: $text_placements })
+		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, opacity_groups: $opacity_groups, path_segments: $path_segments, text_placements: $text_placements })
 	}
+}
+
+## An opacity group is always balanced: save, then select the canonical
+## effective graphics state. The name is the canonical state ordinal under
+## the deterministic `GS` prefix, resolved by the consuming stream's direct
+## dictionary; the group's frame closes with `Q`.
+emit_opacity_open : List(U8), U64, U64 -> Try(List(U8), KernelContent.Error)
+emit_opacity_open = |bytes, ordinal, limit| {
+	var $out = append_literal(bytes, "q\n/GS", limit)?
+	$out = append_resource_index($out, ordinal, limit)?
+	append_literal($out, " gs\n", limit)
 }
 
 ## A form invocation is always balanced: save, placement transform, `Do`,
@@ -997,7 +1061,7 @@ expect {
 		],
 		dash_lengths: [KernelGate2Fixture.unit(1000), KernelGate2Fixture.unit(500)],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, 512)?
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512)?
 	expected =
 		\\q
 		\\0 0 1 1 re
@@ -1015,6 +1079,40 @@ expect {
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.command_visits == 2 and emitted.graphics_state_pairs == 1 and emitted.path_segments == 2
 }
 
+## A non-opaque opacity group opens a balanced graphics pair and selects its
+## canonical effective state; the opaque identity lowers its children with no
+## operators; a command outside the state map stays rejected.
+expect {
+	scenes = {
+		..KernelGate2Fixture.scene,
+		commands: [
+			Opacity({ children: Semantics.Range.from_start_and_length(1, 2), opacity: 32768 }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
+			Opacity({ children: Semantics.Range.from_start_and_length(3, 1), opacity: 65535 }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
+		],
+	}
+	states = [1, U64.highest, U64.highest, U64.highest]
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, states, 512)?
+	expected =
+		\\q
+		\\/GS1_1 gs
+		\\/CS1_0 cs
+		\\1 scn
+		\\0 0 1 1 re
+		\\f
+		\\/CS1_0 cs
+		\\0 scn
+		\\0 0 1 1 re
+		\\f
+		\\Q
+	rejected = match emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512) {
+		Err(UnsupportedValidatedCommand({ command: 0 })) => True
+		_ => False
+	}
+	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.opacity_groups == 1 and emitted.graphics_state_pairs == 1 and emitted.command_visits == 4 and rejected
+}
+
 ## RGB channel order and every Gate 2 path segment have canonical operators.
 expect {
 	segments = [
@@ -1029,7 +1127,7 @@ expect {
 		path_segments: segments,
 		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, segments.len()) }],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, 512)?
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512)?
 	expected =
 		\\/CS1_0 cs
 		\\1 0.50000763 0 scn

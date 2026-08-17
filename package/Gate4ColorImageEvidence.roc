@@ -513,7 +513,7 @@ run_pipeline = |input| {
 		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
 		KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 }),
 	) ? ObjectFailure
-	objects = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 0, 8192) ? FormObjectFailure
+	objects = KernelGate4FormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
 	structure = KernelGate4FormStructure.Plan.build(tagged, colors, images, content, form_plan, objects, NoTextObjects, structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelGate4FormStructure.Plan.structure(structure)) ? |_| EmitFailure
 	Ok({ bytes, colors, content, facts, form_plan, form_scene, images, structure, tagged })
@@ -532,7 +532,9 @@ form_context = |form_plan, form_store| {
 		arena: form_store.commands,
 		color_names: KernelForm.Plan.color_names(form_plan),
 		form_names: KernelForm.Plan.form_names(form_plan),
+		form_states: KernelForm.Plan.form_command_states(form_plan),
 		image_names: KernelForm.Plan.image_names(form_plan),
+		page_states: KernelForm.Plan.page_command_states(form_plan),
 		streams: $streams,
 	}
 }

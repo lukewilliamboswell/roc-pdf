@@ -409,7 +409,7 @@ build_sample = |prelude, scene_store| {
 		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
 		KernelGate2Objects.Limits.make({ max_objects: 32, max_pages: 1 }),
 	) ? |_| ObjectFailure
-	objects = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 1, 32) ? |_| FormObjectFailure
+	objects = KernelGate4FormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 1, 32) ? |_| FormObjectFailure
 	structure = KernelGate4FormStructure.Plan.build(
 		tagged,
 		stores.colors,
@@ -437,7 +437,9 @@ form_context = |form_plan| {
 		arena: text_form_store.commands,
 		color_names: KernelForm.Plan.color_names(form_plan),
 		form_names: KernelForm.Plan.form_names(form_plan),
+		form_states: KernelForm.Plan.form_command_states(form_plan),
 		image_names: KernelForm.Plan.image_names(form_plan),
+		page_states: KernelForm.Plan.page_command_states(form_plan),
 		streams: $streams,
 	}
 }

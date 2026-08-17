@@ -361,7 +361,7 @@ run_pipeline = |input| {
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, stores.colors, stores.images) ? ResourceUseFailure
 	base = KernelGate2Objects.Plan.build_canonical(tagged, stores.colors, stores.images, resource_use, content, leaf_objects(form_plan), KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
-	objects = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 0, 8192) ? FormObjectFailure
+	objects = KernelGate4FormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
 	structure = KernelGate4FormStructure.Plan.build(tagged, stores.colors, stores.images, content, form_plan, objects, NoTextObjects, structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelGate4FormStructure.Plan.structure(structure)) ? |_| EmitFailure
 	Ok({ bytes, content, facts, form_plan, form_scene, structure, tagged })
@@ -380,7 +380,9 @@ form_context = |form_plan, form_store| {
 		arena: form_store.commands,
 		color_names: KernelForm.Plan.color_names(form_plan),
 		form_names: KernelForm.Plan.form_names(form_plan),
+		form_states: KernelForm.Plan.form_command_states(form_plan),
 		image_names: KernelForm.Plan.image_names(form_plan),
+		page_states: KernelForm.Plan.page_command_states(form_plan),
 		streams: $streams,
 	}
 }
@@ -1307,7 +1309,7 @@ build_objects = |input, max_objects| {
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, stores.colors, stores.images) ? ResourceUseFailure
 	base = KernelGate2Objects.Plan.build_canonical(tagged, stores.colors, stores.images, resource_use, content, leaf_objects(form_plan), KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
-	plan = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 0, max_objects) ? FormObjectFailure
+	plan = KernelGate4FormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, max_objects) ? FormObjectFailure
 	Ok(plan)
 }
 
