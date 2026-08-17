@@ -791,6 +791,7 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate4_soft_masks.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_soft_mask_renderers.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_shadings.py", "--self-test")
+    command(sys.executable, "scripts/check_gate4_shading_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
