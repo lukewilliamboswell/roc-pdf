@@ -155,7 +155,7 @@ collect_owners = |scenes, text| {
 							}
 						}
 					}
-					DrawImage(_) | DrawPath(_) | PlaceForm(_) => {}
+					DrawImage(_) | DrawPath(_) | PaintShading(_) | PlaceForm(_) => {}
 				}
 				$command_index = $command_index + 1
 				$command_visits = $command_visits + 1

@@ -14,6 +14,10 @@ KernelResourceUse :: [].{
 		ColorComponentMismatch({ actual : Color.ComponentCount, command : U64, expected : Color.ComponentCount, space : U64 }),
 		CountMismatch({ actual : U64, declared : U64, kind : IndexKind }),
 		OrphanResource({ index : U64, kind : IndexKind }),
+
+		## A gradient stop's channel arity must match the shading's declared
+		## validated color space.
+		ShadingStopComponentMismatch({ actual : Color.ComponentCount, expected : Color.ComponentCount, shading : U64, stop : U64 }),
 	]
 
 	Work : {
@@ -63,7 +67,7 @@ KernelResourceUse :: [].{
 		work : TextWork,
 	}.{
 		build : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(TextPlan, Error)
-		build = |scenes, colors, images| build_text_plan(scenes, [], colors, images, NoBlending)
+		build = |scenes, colors, images| build_text_plan(scenes, [], [], NoShadings, colors, images, NoBlending)
 
 		## Gate 4 scenes count direct use across the page and form command
 		## arenas, so a resource used only inside form content is not an
@@ -72,6 +76,8 @@ KernelResourceUse :: [].{
 		build_with_forms = |form_plan, colors, images| build_text_plan(
 			KernelScene.FormPlan.page(form_plan),
 			KernelScene.FormPlan.forms(form_plan).commands,
+			[],
+			NoShadings,
 			colors,
 			images,
 			NoBlending,
@@ -84,6 +90,24 @@ KernelResourceUse :: [].{
 		build_with_forms_and_blending = |form_plan, colors, images, blending| build_text_plan(
 			KernelScene.FormPlan.page(form_plan),
 			KernelScene.FormPlan.forms(form_plan).commands,
+			[],
+			NoShadings,
+			colors,
+			images,
+			blending,
+		)
+
+		## The paint-aware variant: pattern-cell commands count direct use
+		## like page and form content, and every shading credits its color
+		## space once while its stop channels are validated against that
+		## space's arity — so a space referenced only through gradient stops
+		## is not an orphan.
+		build_with_paints : KernelScene.PaintPlan, KernelColor.Plan, KernelImage.Plan, [Blending(U64), NoBlending] -> Try(TextPlan, Error)
+		build_with_paints = |paint_plan, colors, images, blending| build_text_plan(
+			KernelScene.FormPlan.page(KernelScene.PaintPlan.forms(paint_plan)),
+			KernelScene.FormPlan.forms(KernelScene.PaintPlan.forms(paint_plan)).commands,
+			KernelScene.PaintPlan.patterns(paint_plan).commands,
+			WithShadings(KernelScene.PaintPlan.shadings(paint_plan)),
 			colors,
 			images,
 			blending,
@@ -143,8 +167,8 @@ build_plan = |scene_plan, color_plan, image_plan| {
 	}
 }
 
-build_text_plan : KernelScene.Plan, List(Scene.Command), KernelColor.Plan, KernelImage.Plan, [Blending(U64), NoBlending] -> Try(KernelResourceUse.TextPlan, KernelResourceUse.Error)
-build_text_plan = |scene_plan, form_commands, color_plan, image_plan, blending| {
+build_text_plan : KernelScene.Plan, List(Scene.Command), List(Scene.Command), [NoShadings, WithShadings(Scene.ShadingStore)], KernelColor.Plan, KernelImage.Plan, [Blending(U64), NoBlending] -> Try(KernelResourceUse.TextPlan, KernelResourceUse.Error)
+build_text_plan = |scene_plan, form_commands, pattern_commands, shadings, color_plan, image_plan, blending| {
 	declared = KernelScene.Plan.resources(scene_plan)
 	color_count = KernelColor.Plan.space_count(color_plan)
 	image_count = KernelImage.Plan.resource_count(image_plan)
@@ -155,24 +179,29 @@ build_text_plan = |scene_plan, form_commands, color_plan, image_plan, blending| 
 	} else {
 		scenes = KernelScene.Plan.scenes(scene_plan)
 		page_use = collect_text_command_use(scenes.commands, color_plan, List.repeat(0, color_count), List.repeat(0, image_count))?
-		command_use = collect_text_command_use(form_commands, color_plan, page_use.color_counts, page_use.image_counts)?
+		form_use = collect_text_command_use(form_commands, color_plan, page_use.color_counts, page_use.image_counts)?
+		command_use = collect_text_command_use(pattern_commands, color_plan, form_use.color_counts, form_use.image_counts)?
 		with_images = collect_image_colors(KernelImage.Plan.store(image_plan), command_use.color_counts)?
+		with_shadings = match shadings {
+			NoShadings => Ok({ color_counts: with_images.color_counts, shading_colors: 0 })
+			WithShadings(store) => collect_shading_colors(store, color_plan, with_images.color_counts)
+		}?
 		blended_counts = match blending {
-			NoBlending => with_images.color_counts
-			Blending(space) => if space < with_images.color_counts.len() {
-				match with_images.color_counts.set(space, list_at(with_images.color_counts, space) + 1) {
+			NoBlending => with_shadings.color_counts
+			Blending(space) => if space < with_shadings.color_counts.len() {
+				match with_shadings.color_counts.set(space, list_at(with_shadings.color_counts, space) + 1) {
 					Ok(next) => next
 					Err(OutOfBounds) => {
 						crash "checked blending index escaped"
 					}
 				}
 			} else {
-				with_images.color_counts
+				with_shadings.color_counts
 			}
 		}
 		ensure_used(command_use.image_counts, ImageIndex)?
 		ensure_used(blended_counts, ColorSpaceIndex)?
-		image_placements = checked_add(page_use.image_placements, command_use.image_placements)?
+		image_placements = checked_add(checked_add(page_use.image_placements, form_use.image_placements)?, command_use.image_placements)?
 		image_reuses = checked_sub(image_placements, image_count)?
 		Ok(
 			KernelResourceUse.TextPlan.{
@@ -180,16 +209,56 @@ build_text_plan = |scene_plan, form_commands, color_plan, image_plan, blending| 
 				image_use_counts: command_use.image_counts,
 				work: {
 					color_space_resources: color_count,
-					command_visits: scenes.commands.len() + form_commands.len(),
+					command_visits: scenes.commands.len() + form_commands.len() + pattern_commands.len(),
 					image_color_references: with_images.image_colors,
 					image_placements,
 					image_resources: image_count,
 					image_reuses,
-					path_color_references: checked_add(page_use.path_colors, command_use.path_colors)?,
-					text_color_references: checked_add(page_use.text_colors, command_use.text_colors)?,
+					path_color_references: checked_add(checked_add(page_use.path_colors, form_use.path_colors)?, command_use.path_colors)?,
+					text_color_references: checked_add(page_use.text_colors, form_use.text_colors)?,
 				},
 			},
 		)
+	}
+}
+
+## Each shading credits its declared color space once, and every stop's
+## channel arity is checked against that space exactly once per stop.
+collect_shading_colors : Scene.ShadingStore, KernelColor.Plan, List(U64) -> Try({ color_counts : List(U64), shading_colors : U64 }, KernelResourceUse.Error)
+collect_shading_colors = |store, colors, initial_counts| {
+	var $counts = initial_counts
+	var $shading_index = 0
+	var $error = NoError
+	while $shading_index < store.shadings.len() and $error == NoError {
+		shading = list_at(store.shadings, $shading_index)
+		expected = KernelColor.Plan.components(colors, shading.space)
+		var $stop_index = shading.stops.start()
+		stop_end = shading.stops.start() + shading.stops.length()
+		while $stop_index < stop_end and $error == NoError {
+			actual = match list_at(store.stops, $stop_index).channels {
+				Gray(_) => One
+				Rgb(_) => Three
+			}
+			if actual != expected {
+				$error = Invalid(ShadingStopComponentMismatch({ actual, expected, shading: $shading_index, stop: $stop_index }))
+			}
+			$stop_index = $stop_index + 1
+		}
+		if $error == NoError {
+			match increment($counts, shading.space.index()) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(counts) => {
+					$counts = counts
+				}
+			}
+		}
+		$shading_index = $shading_index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => Ok({ color_counts: $counts, shading_colors: store.shadings.len() })
 	}
 }
 
@@ -322,6 +391,10 @@ collect_style : Scene.PathStyle, U64, KernelColor.Plan, List(U64) -> Try({ count
 collect_style = |style, command, colors, counts| {
 	with_fill = match style.fill {
 		NoFill => Ok({ counts, references: 0 })
+
+		## A pattern fill selects a pattern resource, not a color-space
+		## channel value; the pattern's own dependencies are graph facts.
+		PatternFill(_) => Ok({ counts, references: 0 })
 		SolidFill({ color, rule: _ }) => collect_color(color, command, colors, counts)
 	}?
 	match style.stroke {
