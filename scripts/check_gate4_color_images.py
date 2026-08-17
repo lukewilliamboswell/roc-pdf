@@ -186,6 +186,12 @@ def validate_color_image_showcase(pdf: bytes, dimensions: dict[str, int]) -> Non
         "calibrated-gray object does not carry the exact declared white point",
     )
 
+    ## The alpha imagery makes this a transparency page, so it must carry the
+    ## transparency group naming the canonical ICCBased sRGB blending space.
+    group = re.search(rb"/Group << /CS ([1-9][0-9]*) 0 R /S /Transparency >>", facts.bodies[page])
+    require(group is not None, "transparency page lost its /Group dictionary")
+    require(int(group.group(1)) in leaves.icc_spaces, "page /Group /CS is not the canonical ICCBased space")
+
     ## Classify the three canonical images by their exact payloads.
     icc_space = next(iter(leaves.icc_spaces))
     rgb_image = gray_image = dct_image = None

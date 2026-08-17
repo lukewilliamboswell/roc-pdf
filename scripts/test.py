@@ -38,6 +38,7 @@ from check_gate3_generated_labels import validate_generated_labels_pdf
 from check_gate3_text import EXPECTED_CONTENT as GATE3_TEXT_CONTENT
 from check_gate3_text import validate_gate3_text_pdf
 from check_gate4_color_images import validate_gate4_color_images_pdf
+from check_gate4_transparency import validate_gate4_transparency_pdf
 from check_gate4_forms import validate_gate4_forms_pdf
 from check_pdf_structure import validate_pdf
 
@@ -648,6 +649,9 @@ def run_case(
         elif any(key.startswith("gate4_color_image") for key in case.dimensions):
             validate_gate4_color_images_pdf(result.stdout, case.dimensions)
             print(f"PASS {case.name}: canonical ICC/color-space/image objects, exact leaf payload equality, soft-mask wiring, and deduplicated direct dictionaries", flush=True)
+        elif any(key.startswith("gate4_transparency") for key in case.dimensions):
+            validate_gate4_transparency_pdf(result.stdout, case.dimensions)
+            print(f"PASS {case.name}: canonical ExtGState objects, exact per-stream /ExtGState dictionaries, balanced opacity groups, transparency-group and blending-space wiring, and placement-site ownership facts", flush=True)
         else:
             validate_pdf(
                 result.stdout,
@@ -774,6 +778,8 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate4_form_renderers.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_color_images.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_color_image_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_gate4_transparency.py", "--self-test")
+    command(sys.executable, "scripts/check_gate4_transparency_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)

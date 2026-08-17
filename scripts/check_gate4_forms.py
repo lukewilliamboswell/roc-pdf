@@ -44,7 +44,7 @@ DEEP_64_SNAPSHOT = ROOT / "tests" / "gate4_forms_deep_64" / "snapshot.pdf"
 NEGATIVE_SNAPSHOT = ROOT / "tests" / "gate4_forms_negative" / "snapshot.pdf"
 TEXT_SNAPSHOT = ROOT / "tests" / "gate4_form_text" / "snapshot.pdf"
 
-NAME_OPERAND = re.compile(rb"/([A-Za-z0-9_]+) (Do|cs|CS)(?:\s|$)")
+NAME_OPERAND = re.compile(rb"/([A-Za-z0-9_]+) (Do|cs|CS|gs)(?:\s|$)")
 FONT_OPERAND = re.compile(rb"/([A-Za-z0-9_]+) [0-9.]+ Tf(?:\s|$)")
 MCID_SEQUENCE = re.compile(rb"/P <</MCID ([0-9]+)>> BDC\n")
 
@@ -71,12 +71,12 @@ def parse_resources(dictionary: bytes, owner: str) -> dict[str, int]:
     require(match is not None, f"{owner}: missing /Resources dictionary")
     body = match.group(1)
     entries: dict[str, int] = {}
-    for sub in re.finditer(rb"/(ColorSpace|Font|XObject) << ([^>]*) >>", body):
+    for sub in re.finditer(rb"/(ColorSpace|ExtGState|Font|XObject) << ([^>]*) >>", body):
         for entry in re.finditer(rb"/([A-Za-z0-9_]+) ([1-9][0-9]*) 0 R", sub.group(2)):
             name = entry.group(1).decode("ascii")
             require(name not in entries, f"{owner}: duplicate resource name {name}")
             entries[name] = int(entry.group(2))
-    stripped = re.sub(rb"/(ColorSpace|Font|XObject) << [^>]* >>", b"", body).strip()
+    stripped = re.sub(rb"/(ColorSpace|ExtGState|Font|XObject) << [^>]* >>", b"", body).strip()
     require(stripped == b"", f"{owner}: unexpected resource dictionary content {stripped!r}")
     return entries
 
@@ -125,7 +125,14 @@ def check_form_dictionary(number: int, dictionary: bytes) -> None:
     require(float(bbox.group(3)) > float(bbox.group(1)), f"form {number}: empty /BBox width")
     require(float(bbox.group(4)) > float(bbox.group(2)), f"form {number}: empty /BBox height")
     require(b"/Resources <<" in dictionary, f"form {number}: missing direct /Resources")
-    for forbidden in (b"/Group", b"/StructParents", b"/StructParent", b"/OC", b"/Ref", b"/OPI"):
+    if b"/Group" in dictionary:
+        ## The transparency slice made isolated groups a supported key; when
+        ## present, the dictionary must be exactly the isolated Normal-blend
+        ## shape over an indirect blending space, and knockout stays absent.
+        group = re.search(rb"/Group << /CS ([1-9][0-9]*) 0 R /I true /S /Transparency >>", dictionary)
+        require(group is not None, f"form {number}: /Group is not the exact isolated transparency shape")
+        require(b"/K " not in dictionary, f"form {number}: knockout key emitted")
+    for forbidden in (b"/StructParents", b"/StructParent", b"/OC", b"/Ref", b"/OPI"):
         require(forbidden + b" " not in dictionary, f"form {number}: deferred key {forbidden!r} emitted")
 
 
