@@ -63,7 +63,7 @@ KernelResourceUse :: [].{
 		work : TextWork,
 	}.{
 		build : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(TextPlan, Error)
-		build = |scenes, colors, images| build_text_plan(scenes, [], colors, images)
+		build = |scenes, colors, images| build_text_plan(scenes, [], colors, images, NoBlending)
 
 		## Gate 4 scenes count direct use across the page and form command
 		## arenas, so a resource used only inside form content is not an
@@ -74,6 +74,19 @@ KernelResourceUse :: [].{
 			KernelScene.FormPlan.forms(form_plan).commands,
 			colors,
 			images,
+			NoBlending,
+		)
+
+		## The transparency-aware variant: the page transparency group's
+		## `/CS` reference is a genuine use of the blending space, so a space
+		## referenced only by transparency groups is not an orphan.
+		build_with_forms_and_blending : KernelScene.FormPlan, KernelColor.Plan, KernelImage.Plan, [Blending(U64), NoBlending] -> Try(TextPlan, Error)
+		build_with_forms_and_blending = |form_plan, colors, images, blending| build_text_plan(
+			KernelScene.FormPlan.page(form_plan),
+			KernelScene.FormPlan.forms(form_plan).commands,
+			colors,
+			images,
+			blending,
 		)
 
 		work : TextPlan -> TextWork
@@ -130,8 +143,8 @@ build_plan = |scene_plan, color_plan, image_plan| {
 	}
 }
 
-build_text_plan : KernelScene.Plan, List(Scene.Command), KernelColor.Plan, KernelImage.Plan -> Try(KernelResourceUse.TextPlan, KernelResourceUse.Error)
-build_text_plan = |scene_plan, form_commands, color_plan, image_plan| {
+build_text_plan : KernelScene.Plan, List(Scene.Command), KernelColor.Plan, KernelImage.Plan, [Blending(U64), NoBlending] -> Try(KernelResourceUse.TextPlan, KernelResourceUse.Error)
+build_text_plan = |scene_plan, form_commands, color_plan, image_plan, blending| {
 	declared = KernelScene.Plan.resources(scene_plan)
 	color_count = KernelColor.Plan.space_count(color_plan)
 	image_count = KernelImage.Plan.resource_count(image_plan)
@@ -144,13 +157,26 @@ build_text_plan = |scene_plan, form_commands, color_plan, image_plan| {
 		page_use = collect_text_command_use(scenes.commands, color_plan, List.repeat(0, color_count), List.repeat(0, image_count))?
 		command_use = collect_text_command_use(form_commands, color_plan, page_use.color_counts, page_use.image_counts)?
 		with_images = collect_image_colors(KernelImage.Plan.store(image_plan), command_use.color_counts)?
+		blended_counts = match blending {
+			NoBlending => with_images.color_counts
+			Blending(space) => if space < with_images.color_counts.len() {
+				match with_images.color_counts.set(space, list_at(with_images.color_counts, space) + 1) {
+					Ok(next) => next
+					Err(OutOfBounds) => {
+						crash "checked blending index escaped"
+					}
+				}
+			} else {
+				with_images.color_counts
+			}
+		}
 		ensure_used(command_use.image_counts, ImageIndex)?
-		ensure_used(with_images.color_counts, ColorSpaceIndex)?
+		ensure_used(blended_counts, ColorSpaceIndex)?
 		image_placements = checked_add(page_use.image_placements, command_use.image_placements)?
 		image_reuses = checked_sub(image_placements, image_count)?
 		Ok(
 			KernelResourceUse.TextPlan.{
-				color_use_counts: with_images.color_counts,
+				color_use_counts: blended_counts,
 				image_use_counts: command_use.image_counts,
 				work: {
 					color_space_resources: color_count,

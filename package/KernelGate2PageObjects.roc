@@ -39,7 +39,15 @@ KernelGate2PageObjects :: [].{
 		## consumes those values instead of one shared dictionary. The caller
 		## reports how many direct references those dictionaries hold.
 		build_with_page_resources : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64 -> Try(Plan, Error)
-		build_with_page_resources = |builder, tagged, content, objects, resource_values, resource_references| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references)
+		build_with_page_resources = |builder, tagged, content, objects, resource_values, resource_references| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, NoGroups)
+
+		## The transparency-aware Gate 4 variant: pages whose content
+		## (transitively) contains transparency additionally receive the
+		## caller-built transparency `/Group` dictionary value. The value is
+		## planned before the pages, so one shared group value serves every
+		## transparency page.
+		build_with_page_groups : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64, List(PageGroup) -> Try(Plan, Error)
+		build_with_page_groups = |builder, tagged, content, objects, resource_values, resource_references, groups| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, PerPageGroups(groups))
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
@@ -47,9 +55,14 @@ KernelGate2PageObjects :: [].{
 		work : Plan -> Work
 		work = |plan| plan.work
 	}
+
+	## Whether one page carries a transparency group dictionary value.
+	PageGroup : [NoGroup, WithGroup(KernelObject.ValueId)]
 }
 
 ResourcesFor := [PerPage(List(KernelObject.ValueId)), SharedValue(KernelObject.ValueId)]
+
+PageGroups := [NoGroups, PerPageGroups(List(KernelGate2PageObjects.PageGroup))]
 
 Names := {
 	art_box : KernelObject.NameId,
@@ -58,6 +71,7 @@ Names := {
 	contents : KernelObject.NameId,
 	count : KernelObject.NameId,
 	crop_box : KernelObject.NameId,
+	group : [NoGroupName, WithGroupName(KernelObject.NameId)],
 	kids : KernelObject.NameId,
 	media_box : KernelObject.NameId,
 	page : KernelObject.NameId,
@@ -77,10 +91,10 @@ Resources := { builder : KernelObject.Builder, references : U64, value : KernelO
 
 build_plan : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
 build_plan = |prefix, tagged, content, objects| {
-	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix))?
+	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), NoGroups)?
 	resources = add_resources(added_names.builder, added_names.names, objects)?
 	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects)?
+	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects, NoGroups)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,
@@ -96,11 +110,11 @@ build_plan = |prefix, tagged, content, objects| {
 	)
 }
 
-build_page_resource_plan : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64 -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
-build_page_resource_plan = |builder, tagged, content, objects, resource_values, resource_references| {
-	added_names = add_names(builder)?
+build_page_resource_plan : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64, PageGroups -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
+build_page_resource_plan = |builder, tagged, content, objects, resource_values, resource_references, groups| {
+	added_names = add_names(builder, groups)?
 	page_tree = add_page_tree(added_names.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, PerPage(resource_values), tagged, content, objects)?
+	pages = add_pages(page_tree.builder, added_names.names, PerPage(resource_values), tagged, content, objects, groups)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,
@@ -119,11 +133,11 @@ build_page_resource_plan = |builder, tagged, content, objects, resource_values, 
 build_font_plan : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
 build_font_plan = |prefix, tagged, content, font_objects| {
 	objects = KernelGate3FontObjects.Plan.base(font_objects)
-	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix))?
+	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), NoGroups)?
 	font_name = KernelObject.add_name(added_names.builder, Str.to_utf8("Font")) ? Object
 	resources = add_resources_with_fonts(font_name.builder, added_names.names, font_name.id, objects, KernelGate3FontObjects.Plan.fonts(font_objects))?
 	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects)?
+	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects, NoGroups)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,
@@ -139,15 +153,26 @@ build_font_plan = |prefix, tagged, content, font_objects| {
 	)
 }
 
-add_names : KernelObject.Builder -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate2PageObjects.Error)
-add_names = |builder| {
+add_names : KernelObject.Builder, PageGroups -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate2PageObjects.Error)
+add_names = |builder, groups| {
 	art_box = KernelObject.add_name(builder, Str.to_utf8("ArtBox")) ? Object
 	bleed_box = KernelObject.add_name(art_box.builder, Str.to_utf8("BleedBox")) ? Object
 	color_space = KernelObject.add_name(bleed_box.builder, Str.to_utf8("ColorSpace")) ? Object
 	contents = KernelObject.add_name(color_space.builder, Str.to_utf8("Contents")) ? Object
 	count = KernelObject.add_name(contents.builder, Str.to_utf8("Count")) ? Object
 	crop_box = KernelObject.add_name(count.builder, Str.to_utf8("CropBox")) ? Object
-	kids = KernelObject.add_name(crop_box.builder, Str.to_utf8("Kids")) ? Object
+
+	## The `Group` name joins the table only when some page carries a
+	## transparency group, so a plan without transparency keeps its exact
+	## name table and normalized plan identity.
+	grouped = match groups {
+		NoGroups => { builder: crop_box.builder, group: NoGroupName }
+		PerPageGroups(_) => {
+			added = KernelObject.add_name(crop_box.builder, Str.to_utf8("Group")) ? Object
+			{ builder: added.builder, group: WithGroupName(added.id) }
+		}
+	}
+	kids = KernelObject.add_name(grouped.builder, Str.to_utf8("Kids")) ? Object
 	media_box = KernelObject.add_name(kids.builder, Str.to_utf8("MediaBox")) ? Object
 	page = KernelObject.add_name(media_box.builder, Str.to_utf8("Page")) ? Object
 	pages = KernelObject.add_name(page.builder, Str.to_utf8("Pages")) ? Object
@@ -169,6 +194,7 @@ add_names = |builder| {
 			contents: contents.id,
 			count: count.id,
 			crop_box: crop_box.id,
+			group: grouped.group,
 			kids: kids.id,
 			media_box: media_box.id,
 			page: page.id,
@@ -383,8 +409,8 @@ add_references = |builder, objects| {
 	}
 }
 
-add_pages : KernelObject.Builder, Names, ResourcesFor, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
-add_pages = |builder, names, resources, tagged, content, objects| {
+add_pages : KernelObject.Builder, Names, ResourcesFor, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, PageGroups -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
+add_pages = |builder, names, resources, tagged, content, objects, groups| {
 	scenes = KernelTagged.Plan.scenes(tagged)
 	page_objects = KernelGate2Objects.Plan.pages(objects)
 	shape = KernelGate2Objects.Plan.page_tree_shape(objects)
@@ -402,7 +428,11 @@ add_pages = |builder, names, resources, tagged, content, objects| {
 			PerPage(values) => list_at(values, $index)
 			SharedValue(value) => value
 		}
-		match add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelGate2Objects.Plan.page_tree(objects), parent_index), planned) {
+		page_group = match groups {
+			NoGroups => NoGroup
+			PerPageGroups(values) => list_at(values, $index)
+		}
+		match add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelGate2Objects.Plan.page_tree(objects), parent_index), planned, page_group) {
 			Err(error) => {
 				$error = Invalid(error)
 			}
@@ -418,8 +448,8 @@ add_pages = |builder, names, resources, tagged, content, objects| {
 	}
 }
 
-add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.Stream, KernelObject.ObjectId, KernelGate2Objects.PageObjects -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
-add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_object, planned| {
+add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.Stream, KernelObject.ObjectId, KernelGate2Objects.PageObjects, KernelGate2PageObjects.PageGroup -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
+add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_object, planned, group| {
 	art = add_rect(builder, page.boxes.art)?
 	bleed = add_rect(art.builder, page.boxes.bleed)?
 	contents = KernelObject.add_reference(bleed.builder, planned.content.stream) ? Object
@@ -429,9 +459,8 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 	rotate = KernelObject.add_integer(parent.builder, rotation_degrees(page.rotation)) ? Object
 	struct_parents = KernelObject.add_integer(rotate.builder, content.stream.index().to_i64_wrap()) ? Object
 	trim = add_rect(struct_parents.builder, page.boxes.trim)?
-	dictionary = KernelObject.add_dictionary(
-		trim.builder,
-		[
+	entries = match group {
+		NoGroup => [
 			{ key: names.art_box, value: art.value },
 			{ key: names.bleed_box, value: bleed.value },
 			{ key: names.contents, value: contents.id },
@@ -444,7 +473,34 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 			{ key: names.tabs, value: tabs_s },
 			{ key: names.trim_box, value: trim.value },
 			{ key: names.type_name, value: page_type },
-		],
+		]
+		WithGroup(group_value) => [
+			{ key: names.art_box, value: art.value },
+			{ key: names.bleed_box, value: bleed.value },
+			{ key: names.contents, value: contents.id },
+			{ key: names.crop_box, value: crop.value },
+			{
+				key: match names.group {
+					WithGroupName(id) => id
+					NoGroupName => {
+						crash "page group emitted without its planned name"
+					}
+				},
+				value: group_value,
+			},
+			{ key: names.media_box, value: media.value },
+			{ key: names.parent, value: parent.id },
+			{ key: names.resources, value: resources },
+			{ key: names.rotate, value: rotate.id },
+			{ key: names.struct_parents, value: struct_parents.id },
+			{ key: names.tabs, value: tabs_s },
+			{ key: names.trim_box, value: trim.value },
+			{ key: names.type_name, value: page_type },
+		]
+	}
+	dictionary = KernelObject.add_dictionary(
+		trim.builder,
+		entries,
 	) ? Object
 	page_object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(page_object.id, planned.page)?

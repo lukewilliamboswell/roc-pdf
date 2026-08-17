@@ -1802,8 +1802,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4804, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
-        "x64musl": { "allocations": 4804, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
+        "arm64mac": { "allocations": 4868, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 4868, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1817,8 +1817,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2403, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
-        "x64musl": { "allocations": 2403, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
+        "arm64mac": { "allocations": 2435, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 2435, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1832,8 +1832,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4781, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
-        "x64musl": { "allocations": 4781, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
+        "arm64mac": { "allocations": 4845, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 4845, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1847,8 +1847,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 100 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4114, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] },
-        "x64musl": { "allocations": 4114, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] }
+        "arm64mac": { "allocations": 4131, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] },
+        "x64musl": { "allocations": 4131, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] }
       },
       "retention": null
     },
@@ -1862,8 +1862,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 1000 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 32545, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] },
-        "x64musl": { "allocations": 32545, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] }
+        "arm64mac": { "allocations": 32563, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] },
+        "x64musl": { "allocations": 32563, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] }
       },
       "retention": null
     },
@@ -1877,8 +1877,8 @@
       "dimensions": { "pages": 1, "gate4_forms_dag": 1, "dag_parents": 8 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4353, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] },
-        "x64musl": { "allocations": 4353, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] }
+        "arm64mac": { "allocations": 4383, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] },
+        "x64musl": { "allocations": 4383, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] }
       },
       "retention": null
     },
@@ -1892,8 +1892,8 @@
       "dimensions": { "pages": 1, "gate4_forms_dag": 1, "dag_parents": 32 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 12966, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] },
-        "x64musl": { "allocations": 12966, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] }
+        "arm64mac": { "allocations": 13020, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] },
+        "x64musl": { "allocations": 13020, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] }
       },
       "retention": null
     },
@@ -1907,8 +1907,8 @@
       "dimensions": { "pages": 1, "gate4_forms_deep": 1, "chain_depth": 64 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 13412, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] },
-        "x64musl": { "allocations": 13412, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] }
+        "arm64mac": { "allocations": 13493, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] },
+        "x64musl": { "allocations": 13493, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] }
       },
       "retention": null
     },
@@ -1922,8 +1922,8 @@
       "dimensions": { "pages": 1, "gate4_form_text": 1 },
       "work_counters": ["authored_forms", "canonical_forms", "semantic_placements", "artifact_placements", "text_forms", "page_form_placements", "direct_dictionary_entries", "nested_dictionary_entries", "recipe_bytes", "run_visits", "text_fragments", "glyph_visits", "unicode_mappings", "text_content_bytes", "do_operators", "form_stream_bytes", "text_placements", "font_program_bytes", "objects", "rejections", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1569, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] },
-        "x64musl": { "allocations": 1569, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] }
+        "arm64mac": { "allocations": 1609, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] },
+        "x64musl": { "allocations": 1609, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] }
       },
       "retention": null
     },
@@ -1937,8 +1937,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 1, "gate4_forms_negative": 1, "rejections": 22 },
       "work_counters": ["rejections", "escaped_plans", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2173, "work": [22, 0, 2030] },
-        "x64musl": { "allocations": 2173, "work": [22, 0, 2030] }
+        "arm64mac": { "allocations": 2282, "work": [22, 0, 2030] },
+        "x64musl": { "allocations": 2282, "work": [22, 0, 2030] }
       },
       "retention": null
     },
@@ -1952,8 +1952,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3573, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] },
-        "x64musl": { "allocations": 3573, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] }
+        "arm64mac": { "allocations": 3689, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
+        "x64musl": { "allocations": 3689, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
       },
       "retention": null
     },
@@ -1967,8 +1967,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1788, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] },
-        "x64musl": { "allocations": 1788, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] }
+        "arm64mac": { "allocations": 1846, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
+        "x64musl": { "allocations": 1846, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
       },
       "retention": null
     },
@@ -1982,8 +1982,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3559, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] },
-        "x64musl": { "allocations": 3559, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6743] }
+        "arm64mac": { "allocations": 3675, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
+        "x64musl": { "allocations": 3675, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
       },
       "retention": null
     },
@@ -1997,8 +1997,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 8, "canonical_images": 1 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1124, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] },
-        "x64musl": { "allocations": 1124, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] }
+        "arm64mac": { "allocations": 1131, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] },
+        "x64musl": { "allocations": 1131, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] }
       },
       "retention": null
     },
@@ -2012,8 +2012,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 64, "canonical_images": 1 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2631, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] },
-        "x64musl": { "allocations": 2631, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] }
+        "arm64mac": { "allocations": 2638, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] },
+        "x64musl": { "allocations": 2638, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] }
       },
       "retention": null
     },
@@ -2027,8 +2027,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_distinct": 1, "image_placements": 8, "canonical_images": 8 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1622, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] },
-        "x64musl": { "allocations": 1622, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] }
+        "arm64mac": { "allocations": 1629, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] },
+        "x64musl": { "allocations": 1629, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] }
       },
       "retention": null
     },
@@ -2042,8 +2042,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_distinct": 1, "image_placements": 64, "canonical_images": 64 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 7119, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] },
-        "x64musl": { "allocations": 7119, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] }
+        "arm64mac": { "allocations": 7126, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] },
+        "x64musl": { "allocations": 7126, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] }
       },
       "retention": null
     },
@@ -2057,8 +2057,188 @@
       "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 1, "canonical_images": 1, "gate4_color_image_negative": 1, "rejections": 24 },
       "work_counters": ["rejections", "escaped_plans", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1164, "work": [24, 0, 1956] },
-        "x64musl": { "allocations": 1164, "work": [24, 0, 1956] }
+        "arm64mac": { "allocations": 1183, "work": [24, 0, 1956] },
+        "x64musl": { "allocations": 1183, "work": [24, 0, 1956] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 transparency showcase with adversarial authoring",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency/main.roc",
+      "snapshot": "tests/gate4_transparency/snapshot.pdf",
+      "args": ["showcase", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_showcase": 1, "opacity_commands": 10, "opacity_groups": 9, "canonical_ext_g_states": 4, "canonical_forms": 3, "isolated_forms": 1 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 5031, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
+        "x64musl": { "allocations": 5031, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 transparency unique-input ownership",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_unique/main.roc",
+      "snapshot": "tests/gate4_transparency_unique/snapshot.pdf",
+      "args": ["unique", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_showcase": 1, "opacity_commands": 10, "opacity_groups": 9, "canonical_ext_g_states": 4, "canonical_forms": 3, "isolated_forms": 1 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 2516, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
+        "x64musl": { "allocations": 2516, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 transparency retained-input ownership",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_retained/main.roc",
+      "snapshot": "tests/gate4_transparency_retained/snapshot.pdf",
+      "args": ["shared", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_showcase": 1, "opacity_commands": 10, "opacity_groups": 9, "canonical_ext_g_states": 4, "canonical_forms": 3, "isolated_forms": 1 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 5001, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
+        "x64musl": { "allocations": 5001, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 shared-constant opacity x100",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_share_100/main.roc",
+      "snapshot": "tests/gate4_transparency_share_100/snapshot.pdf",
+      "args": ["share", "100"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_share": 1, "opacity_groups": 100, "canonical_ext_g_states": 1 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 4422, "work": [100, 100, 0, 1, 1, 99, 1, 1, 1, 0, 1, 6, 3024, 1, 100, 100, 2, 0, 1, 201, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5068] },
+        "x64musl": { "allocations": 4422, "work": [100, 100, 0, 1, 1, 99, 1, 1, 1, 0, 1, 6, 3024, 1, 100, 100, 2, 0, 1, 201, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5068] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 shared-constant opacity x1000",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_share_1000/main.roc",
+      "snapshot": "tests/gate4_transparency_share_1000/snapshot.pdf",
+      "args": ["share", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_share": 1, "opacity_groups": 1000, "canonical_ext_g_states": 1 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 35043, "work": [1000, 1000, 0, 1, 1, 999, 1, 1, 1, 0, 1, 6, 3024, 1, 1000, 1000, 2, 0, 1, 2001, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5462] },
+        "x64musl": { "allocations": 35043, "work": [1000, 1000, 0, 1, 1, 999, 1, 1, 1, 0, 1, 6, 3024, 1, 1000, 1000, 2, 0, 1, 2001, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5462] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 distinct opacity states x100",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_states_100/main.roc",
+      "snapshot": "tests/gate4_transparency_states_100/snapshot.pdf",
+      "args": ["states", "100"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_states": 1, "opacity_groups": 100, "canonical_ext_g_states": 100 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 9719, "work": [100, 100, 0, 100, 100, 0, 1, 1, 1, 0, 100, 600, 3024, 1, 100, 100, 101, 0, 1, 201, 0, 103, 3706, 3706, 1, 0, 0, 0, 0, 114, 16189] },
+        "x64musl": { "allocations": 9719, "work": [100, 100, 0, 100, 100, 0, 1, 1, 1, 0, 100, 600, 3024, 1, 100, 100, 101, 0, 1, 201, 0, 103, 3706, 3706, 1, 0, 0, 0, 0, 114, 16189] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 distinct opacity states x1000",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_states_1000/main.roc",
+      "snapshot": "tests/gate4_transparency_states_1000/snapshot.pdf",
+      "args": ["states", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_states": 1, "opacity_groups": 1000, "canonical_ext_g_states": 1000 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 88083, "work": [1000, 1000, 0, 1000, 1000, 0, 1, 1, 1, 0, 1000, 6000, 3024, 1, 1000, 1000, 1001, 0, 1, 2001, 0, 1003, 9106, 9106, 1, 0, 0, 0, 0, 1014, 120415] },
+        "x64musl": { "allocations": 88083, "work": [1000, 1000, 0, 1000, 1000, 0, 1, 1, 1, 0, 1000, 6000, 3024, 1, 1000, 1000, 1001, 0, 1, 2001, 0, 1003, 9106, 9106, 1, 0, 0, 0, 0, 1014, 120415] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 nested opacity chain x16",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_nest_16/main.roc",
+      "snapshot": "tests/gate4_transparency_nest_16/snapshot.pdf",
+      "args": ["nest", "16"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_nest": 1, "nest_depth": 16 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1977, "work": [16, 16, 0, 16, 16, 0, 16, 1, 1, 0, 16, 96, 3024, 1, 16, 16, 17, 0, 1, 18, 0, 19, 3202, 3202, 1, 0, 0, 0, 0, 30, 6702] },
+        "x64musl": { "allocations": 1977, "work": [16, 16, 0, 16, 16, 0, 16, 1, 1, 0, 16, 96, 3024, 1, 16, 16, 17, 0, 1, 18, 0, 19, 3202, 3202, 1, 0, 0, 0, 0, 30, 6702] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 nested opacity chain x64",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_nest_64/main.roc",
+      "snapshot": "tests/gate4_transparency_nest_64/snapshot.pdf",
+      "args": ["nest", "64"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_nest": 1, "nest_depth": 64 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 4885, "work": [64, 64, 0, 64, 64, 0, 64, 1, 1, 0, 64, 384, 3024, 1, 64, 64, 65, 0, 1, 66, 0, 67, 3490, 3490, 1, 0, 0, 0, 0, 78, 12073] },
+        "x64musl": { "allocations": 4885, "work": [64, 64, 0, 64, 64, 0, 64, 1, 1, 0, 64, 384, 3024, 1, 64, 64, 65, 0, 1, 66, 0, 67, 3490, 3490, 1, 0, 0, 0, 0, 78, 12073] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 per-form opacity x8",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_forms_8/main.roc",
+      "snapshot": "tests/gate4_transparency_forms_8/snapshot.pdf",
+      "args": ["forms", "8"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_forms": 1, "opacity_forms": 8 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 2803, "work": [8, 8, 0, 1, 1, 7, 1, 1, 1, 0, 1, 6, 3024, 1, 8, 16, 9, 16, 17, 25, 8, 12, 4040, 4040, 1, 8, 8, 0, 8, 31, 8125] },
+        "x64musl": { "allocations": 2803, "work": [8, 8, 0, 1, 1, 7, 1, 1, 1, 0, 1, 6, 3024, 1, 8, 16, 9, 16, 17, 25, 8, 12, 4040, 4040, 1, 8, 8, 0, 8, 31, 8125] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 per-form opacity x32",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_forms_32/main.roc",
+      "snapshot": "tests/gate4_transparency_forms_32/snapshot.pdf",
+      "args": ["forms", "32"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_forms": 1, "opacity_forms": 32 },
+      "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 8046, "work": [32, 32, 0, 1, 1, 31, 1, 1, 1, 0, 1, 6, 3024, 1, 32, 64, 33, 64, 65, 97, 32, 36, 6824, 6824, 1, 32, 32, 0, 32, 79, 17576] },
+        "x64musl": { "allocations": 8046, "work": [32, 32, 0, 1, 1, 31, 1, 1, 1, 0, 1, 6, 3024, 1, 32, 64, 33, 64, 65, 97, 32, 36, 6824, 6824, 1, 32, 32, 0, 32, 79, 17576] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 transparency atomic negatives",
+      "scenario_revision": "gate4-transparency-v1",
+      "source": "tests/gate4_transparency_negative/main.roc",
+      "snapshot": "tests/gate4_transparency_negative/snapshot.pdf",
+      "args": ["1"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_transparency_share": 1, "opacity_groups": 1, "canonical_ext_g_states": 1 },
+      "work_counters": ["rejections", "escaped_plans", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1989, "work": [12, 0, 5022] },
+        "x64musl": { "allocations": 1989, "work": [12, 0, 5022] }
       },
       "retention": null
     }

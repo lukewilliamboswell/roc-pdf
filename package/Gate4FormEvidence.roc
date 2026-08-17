@@ -269,7 +269,7 @@ graph_limits = {
 }
 
 form_limits : KernelForm.Limits
-form_limits = KernelForm.Limits.make({ graph: graph_limits, max_recipe_bytes: 4194304 })
+form_limits = KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 64, max_recipe_bytes: 4194304 })
 
 scene_limits : KernelScene.Limits
 scene_limits = KernelScene.Limits.make({
@@ -361,7 +361,7 @@ run_pipeline = |input| {
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, stores.colors, stores.images) ? ResourceUseFailure
 	base = KernelGate2Objects.Plan.build_canonical(tagged, stores.colors, stores.images, resource_use, content, leaf_objects(form_plan), KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
-	objects = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 0, 8192) ? FormObjectFailure
+	objects = KernelGate4FormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, 8192) ? FormObjectFailure
 	structure = KernelGate4FormStructure.Plan.build(tagged, stores.colors, stores.images, content, form_plan, objects, NoTextObjects, structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelGate4FormStructure.Plan.structure(structure)) ? |_| EmitFailure
 	Ok({ bytes, content, facts, form_plan, form_scene, structure, tagged })
@@ -380,7 +380,9 @@ form_context = |form_plan, form_store| {
 		arena: form_store.commands,
 		color_names: KernelForm.Plan.color_names(form_plan),
 		form_names: KernelForm.Plan.form_names(form_plan),
+		form_states: KernelForm.Plan.form_command_states(form_plan),
 		image_names: KernelForm.Plan.image_names(form_plan),
+		page_states: KernelForm.Plan.page_command_states(form_plan),
 		streams: $streams,
 	}
 }
@@ -591,6 +593,7 @@ showcase_scenario = |direction| {
 		$forms = $forms.append({
 			bbox: list_at(logical_boxes, logical),
 			commands: Semantics.Range.from_start_and_length(start, commands.len()),
+			group: NoGroup,
 			id: Scene.FormId.from_index($dense_index),
 		})
 		$dense_index = $dense_index + 1
@@ -704,7 +707,7 @@ repeat_scenario = |scale| {
 	{
 		form_store: {
 			commands: [DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(32896) })],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 		images: empty_image_sources,
 		scene,
@@ -725,7 +728,7 @@ dag_scenario = |scale| {
 	while $base < 4 {
 		start = $arena.len()
 		$arena = $arena.append(DrawPath({ path: Scene.PathId.from_index($base), style: fill_style((($base + 1) * 8224).to_u16_wrap()) }))
-		$forms = $forms.append({ bbox: rect(0, 0, 2000, 2000), commands: Semantics.Range.from_start_and_length(start, 1), id: Scene.FormId.from_index($base) })
+		$forms = $forms.append({ bbox: rect(0, 0, 2000, 2000), commands: Semantics.Range.from_start_and_length(start, 1), group: NoGroup, id: Scene.FormId.from_index($base) })
 		$base = $base + 1
 	}
 	var $parent = 0
@@ -743,7 +746,7 @@ dag_scenario = |scale| {
 		}
 		marker_level = ((U64.div_by($parent, 10) + 1) * 4112).to_u16_wrap()
 		$arena = $arena.append(DrawPath({ path: Scene.PathId.from_index(5 + $parent), style: fill_style(marker_level) }))
-		$forms = $forms.append({ bbox: rect(0, 0, 10000, 4000), commands: Semantics.Range.from_start_and_length(start, 5), id: Scene.FormId.from_index(4 + $parent) })
+		$forms = $forms.append({ bbox: rect(0, 0, 10000, 4000), commands: Semantics.Range.from_start_and_length(start, 5), group: NoGroup, id: Scene.FormId.from_index(4 + $parent) })
 		$parent = $parent + 1
 	}
 	var $page_commands = [DrawPath({ path: Scene.PathId.from_index(4), style: fill_style(8224) })]
@@ -827,6 +830,7 @@ deep_scenario = |scale| {
 		$forms = $forms.append({
 			bbox: rect(0, 0, (scale.to_i64_wrap() - $index.to_i64_wrap() + 1) * 1000, (scale.to_i64_wrap() - $index.to_i64_wrap() + 1) * 1000),
 			commands: Semantics.Range.from_start_and_length(start, commands),
+			group: NoGroup,
 			id: Scene.FormId.from_index($index),
 		})
 		$index = $index + 1
@@ -893,7 +897,7 @@ check_negatives = |context| {
 	)?
 
 	## 2: a non-dense form identity.
-	sparse = { ..base, form_store: { ..base.form_store, forms: [{ ..list_at(base.form_store.forms, 0), id: Scene.FormId.from_index(3) }] } }
+	sparse = { ..base, form_store: { ..base.form_store, forms: [{ ..list_at(base.form_store.forms, 0), group: NoGroup, id: Scene.FormId.from_index(3) }] } }
 	expect_scene_rejection(
 		2,
 		sparse,
@@ -974,7 +978,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			..base.form_store,
-			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(1) }),
+			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(1) }),
 		},
 	}
 	expect_scene_rejection(
@@ -986,13 +990,15 @@ check_negatives = |context| {
 		},
 	)?
 
-	## 10: unsupported transparency inside form content.
+	## 10: an empty opacity group inside form content. (The transparency slice
+	## made constant opacity executable in form-aware scenes, so the former
+	## unsupported-command rejection moved to the ownerless-children class.)
 	transparent = { ..base, form_store: { ..base.form_store, commands: [Opacity({ children: Semantics.Range.from_start_and_length(0, 0), opacity: 32768 })] } }
 	expect_scene_rejection(
 		10,
 		transparent,
 		|error| match error {
-			UnsupportedCommand({ command: 0 }) => Bool.True
+			EmptyForm({ form: 0 }) => Bool.True
 			_ => Bool.False
 		},
 	)?
@@ -1028,7 +1034,7 @@ check_negatives = |context| {
 				Transform({ children: Semantics.Range.from_start_and_length(2, 1), matrix: translate(0, 0) }),
 				DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(32896) }),
 			],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 	}
 	shallow = KernelScene.Limits.make({
@@ -1054,7 +1060,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			commands: [PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(0, 0) })],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 	}
 	expect_facts_rejection(
@@ -1075,8 +1081,8 @@ check_negatives = |context| {
 				PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(0, 0) }),
 			],
 			forms: [
-				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) },
-				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.FormId.from_index(1) },
+				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) },
+				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), group: NoGroup, id: Scene.FormId.from_index(1) },
 			],
 		},
 	}
@@ -1094,7 +1100,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			commands: base.form_store.commands.append(DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(16448) })),
-			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.FormId.from_index(1) }),
+			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), group: NoGroup, id: Scene.FormId.from_index(1) }),
 		},
 	}
 	expect_facts_rejection(
@@ -1168,7 +1174,7 @@ check_negatives = |context| {
 	}
 
 	## 21: the recipe byte budget is enforced before the canonical run.
-	recipe_rejected = match build_form_plan_with_limits(base, KernelForm.Limits.make({ graph: graph_limits, max_recipe_bytes: 8 })) {
+	recipe_rejected = match build_form_plan_with_limits(base, KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 64, max_recipe_bytes: 8 })) {
 		Err(FormPlanFailure(RecipeByteLimitExceeded({ attempted: _, limit: 8 }))) => Bool.True
 		_ => Bool.False
 	}
@@ -1303,7 +1309,7 @@ build_objects = |input, max_objects| {
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), content_limits) ? ContentFailure
 	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, stores.colors, stores.images) ? ResourceUseFailure
 	base = KernelGate2Objects.Plan.build_canonical(tagged, stores.colors, stores.images, resource_use, content, leaf_objects(form_plan), KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
-	plan = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 0, max_objects) ? FormObjectFailure
+	plan = KernelGate4FormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 0, max_objects) ? FormObjectFailure
 	Ok(plan)
 }
 
