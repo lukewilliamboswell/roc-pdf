@@ -233,7 +233,10 @@ canonical font identity.
 ## Explicitly deferred
 
 - Transparency `/Group`, soft masks, isolated/knockout groups, blend modes,
-  and non-opaque placements (`Opacity` remains a rejected scene command).
+  and non-opaque placements (`Opacity` was a rejected scene command in this
+  slice; the transparency slice
+  ([gate-4-transparency.md](gate-4-transparency.md)) later made constant
+  opacity, page transparency groups, and isolated form groups executable).
 - Reference and PostScript XObjects, external streams, optional content,
   caller-supplied raw operators, implicit resource discovery.
 - Form `/StructParents`, in-form MCIDs/MCR `/Stm`, OBJR content items, and the
