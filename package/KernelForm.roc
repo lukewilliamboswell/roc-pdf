@@ -1,6 +1,8 @@
 import Color
 import Font
+import KernelColor
 import KernelContent
+import KernelImage
 import KernelResourceGraph
 import KernelScene
 import KernelTagged
@@ -9,32 +11,41 @@ import Scene
 import Semantics
 import Text
 
-## Gate 4 Form XObject normalization.
+## Gate 4 Form XObject and leaf-resource normalization.
 ##
-## This stage turns a validated form-aware scene into the canonical facts that
-## content lowering, object planning, and serialization consume:
+## This stage turns a validated form-aware scene plus the validated color and
+## image stores into the canonical facts that content lowering, object
+## planning, and serialization consume:
 ##
 ## - direct-use facts for every content stream, derived once from validated
 ##   commands rather than by scanning emitted operators;
-## - the explicit direct-edge dependency graph over color spaces, images,
-##   fonts, and forms, validated twice by `KernelResourceGraph`: a structure
-##   run over unique ordinal payloads proves acyclicity/closure and yields the
-##   deterministic topological order, and a canonical run over real leaf
-##   payloads plus Merkle recipes performs deduplication and planning;
+## - the explicit direct-edge dependency graph over color spaces, ICC
+##   profiles, images, fonts, and forms, validated twice by
+##   `KernelResourceGraph`: a structure run over unique ordinal payloads
+##   proves acyclicity/closure and yields the deterministic topological order,
+##   and a canonical run over derived leaf payloads plus Merkle recipes
+##   performs deduplication and planning;
+## - canonical leaf identity derived from the validated stores, never from
+##   authored dense IDs: an ICC profile is its exact sanitized bytes, a color
+##   space is a typed recipe (calibrated parameters, or the referenced
+##   profile's identity digest, so `Srgb` and an equivalent `IccBased`
+##   declaration share one identity), and an image is its color-space digest
+##   plus its row-compacted canonical planes or sanitized JPEG bytes, so a
+##   padded raster and its compact twin deduplicate while equal pixels under
+##   different color spaces never merge;
 ## - canonical visual form identity: a recipe of the bounding box, the
 ##   canonical identity matrix, and the command tree with geometry inlined and
 ##   every nested reference replaced by the referenced resource's identity
-##   digest, so identity never depends on authored dense IDs, insertion order,
-##   or incidental resource-name allocation;
+##   digest;
 ## - placement ownership records (placement-site tagging): every page-level
 ##   placement inherits its owned scene group's fragment or page-artifact
 ##   ownership, form streams stay ownership-neutral, and text reachable inside
 ##   a form resolves to the owner of the form's unique placement chain.
 ##
-## All DAG work is iterative: instantiation counts, transitive text facts, and
-## owner resolution are single topological sweeps over forms plus nested
-## placements, never per-path traversals, and a form cycle is rejected by the
-## resource graph before any traversal could recurse.
+## All DAG work is iterative: instantiation counts, transitive text facts,
+## owner resolution, and leaf/recipe digests are single topological sweeps
+## over the node order, never per-path traversals, and a form cycle is
+## rejected by the resource graph before any traversal could recurse.
 KernelForm :: [].{
 	Error : [
 		ArithmeticOverflow,
@@ -45,6 +56,7 @@ KernelForm :: [].{
 		MissingTextPlan({ form : U64 }),
 		MissingTextStore({ command : U64 }),
 		RecipeByteLimitExceeded({ attempted : U64, limit : U64 }),
+		StoreCountMismatch({ declared : U64, kind : [ColorSpaces, Images, Profiles], supplied : U64 }),
 		TextFormMultiplyPlaced({ form : U64, instances : U64 }),
 		TextRunRecipeInvalid({ prepared : U64, run : U64 }),
 	]
@@ -54,10 +66,24 @@ KernelForm :: [].{
 		make = |limits| Limits.(limits)
 	}
 
-	## Leaf resource counts and the per-image color-space dependency facts.
-	## Leaves stay 1:1 with their authored stores in this slice; forms are the
-	## only kind this stage deduplicates.
-	Counts : { color_spaces : U64, fonts : U64, image_color_spaces : List(U64) }
+	## Which ICC profile, if any, one authored color space references.
+	ProfileRef : [NoProfile, WithProfile(U64)]
+
+	## Leaf resource counts and per-node dependency facts, derived once from
+	## the validated stores: each image's color space and each color space's
+	## profile become explicit direct edges.
+	Counts : {
+		color_spaces : U64,
+		fonts : U64,
+		image_color_spaces : List(U64),
+		profiles : U64,
+		space_profiles : List(ProfileRef),
+	}
+
+	## The validated stores whose leaf facts this stage consumes. Fonts keep a
+	## caller-supplied opaque count here and caller-supplied `Leaf` payloads in
+	## `Leaves`; their derived identity joins a later slice.
+	Stores : { colors : KernelColor.Plan, font_count : U64, images : KernelImage.Plan }
 
 	## A run painted inside a form, owned by the fragment resolved for that
 	## form's unique placement chain.
@@ -91,8 +117,8 @@ KernelForm :: [].{
 		transitive_text : List(Bool),
 		work : FactsWork,
 	}.{
-		build : KernelScene.FormPlan, Counts, [NoTextStore, WithTextStore(Text.Store)], Limits -> Try(Facts, Error)
-		build = |form_plan, counts, text, limits| build_facts(form_plan, counts, text, limits)
+		build : KernelScene.FormPlan, Stores, [NoTextStore, WithTextStore(Text.Store)], Limits -> Try(Facts, Error)
+		build = |form_plan, stores, text, limits| build_facts(form_plan, derive_counts(stores), text, limits)
 
 		instances : Facts, U64 -> U64
 		instances = |facts, form| list_at(facts.form_instances, form)
@@ -108,26 +134,50 @@ KernelForm :: [].{
 
 	Leaf : { descriptor : KernelResourceGraph.Descriptor, payload : List(U8) }
 
+	## The leaf inputs of the canonical run: the validated color and image
+	## plans whose payloads this stage derives itself, plus the caller-supplied
+	## font leaves that stay 1:1 in this slice.
+	Leaves : { colors : KernelColor.Plan, fonts : List(Leaf), images : KernelImage.Plan }
+
 	## Direct resource-dictionary contents for one content stream, as dense
-	## authored ordinals per kind (forms as canonical ordinals), each already
-	## in ascending — and therefore canonical dictionary-key — order.
+	## canonical ordinals per kind, each already in ascending — and therefore
+	## canonical dictionary-key — order. Profiles are reachable only through
+	## color-space arrays, never through a resource dictionary, so their bucket
+	## stays empty for every root and form stream.
 	DictionaryPlan : {
 		color_spaces : List(U64),
 		fonts : List(U64),
 		forms : List(U64),
 		images : List(U64),
+		profiles : List(U64),
 	}
 
 	CanonicalForm : { bbox : Layout.Rect, commands : Semantics.Range, representative : U64 }
 
+	## Arena facts for one canonical image: the compacted color plane and
+	## alpha plane live at `start ..` inside the canonical payload allocation,
+	## immediately after the embedded color-space digest.
+	ImageRange : { alpha_length : U64, color_length : U64, start : U64 }
+
 	PlanWork : {
 		artifact_placements : U64,
+		authored_color_spaces : U64,
 		authored_forms : U64,
+		authored_images : U64,
+		authored_profiles : U64,
+		canonical_color_spaces : U64,
 		canonical_forms : U64,
+		canonical_images : U64,
+		canonical_profiles : U64,
+		copied_leaf_bytes : U64,
+		deduplicated_color_spaces : U64,
 		deduplicated_forms : U64,
+		deduplicated_images : U64,
+		deduplicated_profiles : U64,
 		dictionary_entries : U64,
 		form_digests : U64,
 		leaf_digests : U64,
+		leaf_recipe_bytes : U64,
 		nested_dictionary_entries : U64,
 		nested_form_edges : U64,
 		recipe_bytes : U64,
@@ -136,20 +186,29 @@ KernelForm :: [].{
 		shared_artifact_forms : U64,
 	}
 
-	## Stage 2: the canonical plan. `canonical_forms` is ordinal-indexed in
-	## canonical-ID order (the documented total order for physical form
-	## objects); `form_names` maps every authored form to its canonical
-	## ordinal; the dictionaries are exact direct uses per stream.
+	## Stage 2: the canonical plan. Canonical leaves and forms are
+	## ordinal-indexed in canonical-ID order (the documented total order for
+	## physical objects); the `*_names` lists map every authored resource to
+	## its canonical ordinal; the dictionaries are exact direct uses per
+	## stream. Fonts stay 1:1, so their canonical ordinals are the authored
+	## ordinals.
 	Plan :: {
+		canonical_colors : List(U64),
 		canonical_forms : List(CanonicalForm),
+		canonical_images : List(U64),
+		canonical_profiles : List(U64),
+		color_names : List(U64),
 		form_dictionaries : List(DictionaryPlan),
 		form_names : List(U64),
 		graph : KernelResourceGraph.Plan,
+		image_names : List(U64),
+		image_ranges : List(ImageRange),
 		page_dictionaries : List(DictionaryPlan),
 		placements : List(KernelResourceGraph.Placement),
+		profile_names : List(U64),
 		work : PlanWork,
 	}.{
-		build : KernelScene.FormPlan, Facts, List(Leaf), [NoText, WithText(KernelContent.TextPlan)], KernelTagged.Plan, Limits -> Try(Plan, Error)
+		build : KernelScene.FormPlan, Facts, Leaves, [NoText, WithText(KernelContent.TextPlan)], KernelTagged.Plan, Limits -> Try(Plan, Error)
 		build = |form_plan, facts, leaves, text, tagged, limits| build_canonical_plan(form_plan, facts, leaves, text, tagged, limits)
 
 		canonical_form : Plan, U64 -> CanonicalForm
@@ -157,6 +216,51 @@ KernelForm :: [].{
 
 		canonical_form_count : Plan -> U64
 		canonical_form_count = |plan| plan.canonical_forms.len()
+
+		## Representative authored color space per canonical color ordinal.
+		canonical_color_representatives : Plan -> List(U64)
+		canonical_color_representatives = |plan| plan.canonical_colors
+
+		## Whether each canonical image carries an alpha soft-mask plane.
+		canonical_image_alpha : Plan -> List(Bool)
+		canonical_image_alpha = |plan| {
+			var $alpha = List.with_capacity(plan.image_ranges.len())
+			var $index = 0
+			while $index < plan.image_ranges.len() {
+				$alpha = $alpha.append(list_at(plan.image_ranges, $index).alpha_length > 0)
+				$index = $index + 1
+			}
+			$alpha
+		}
+
+		## The canonical row-compacted planes of one canonical raster image,
+		## as immutable ranges of the canonical payload allocation. A JPEG
+		## canonical image has no planes here; its sanitized bytes live in the
+		## validated image store.
+		canonical_image_planes : Plan, U64 -> { alpha : List(U8), color : List(U8) }
+		canonical_image_planes = |plan, ordinal| {
+			range = list_at(plan.image_ranges, ordinal)
+			{
+				alpha: KernelResourceGraph.Plan.payload_slice(plan.graph, range.start + range.color_length, range.alpha_length),
+				color: KernelResourceGraph.Plan.payload_slice(plan.graph, range.start, range.color_length),
+			}
+		}
+
+		canonical_image_representatives : Plan -> List(U64)
+		canonical_image_representatives = |plan| plan.canonical_images
+
+		canonical_leaf_counts : Plan -> { color_spaces : U64, images : U64, profiles : U64 }
+		canonical_leaf_counts = |plan| {
+			color_spaces: plan.canonical_colors.len(),
+			images: plan.canonical_images.len(),
+			profiles: plan.canonical_profiles.len(),
+		}
+
+		canonical_profile_representatives : Plan -> List(U64)
+		canonical_profile_representatives = |plan| plan.canonical_profiles
+
+		color_names : Plan -> List(U64)
+		color_names = |plan| plan.color_names
 
 		form_dictionary : Plan, U64 -> DictionaryPlan
 		form_dictionary = |plan, ordinal| list_at(plan.form_dictionaries, ordinal)
@@ -170,11 +274,17 @@ KernelForm :: [].{
 		graph_work : Plan -> KernelResourceGraph.Work
 		graph_work = |plan| KernelResourceGraph.Plan.work(plan.graph)
 
+		image_names : Plan -> List(U64)
+		image_names = |plan| plan.image_names
+
 		page_dictionary : Plan, U64 -> DictionaryPlan
 		page_dictionary = |plan, page| list_at(plan.page_dictionaries, page)
 
 		placements : Plan -> List(KernelResourceGraph.Placement)
 		placements = |plan| plan.placements
+
+		profile_names : Plan -> List(U64)
+		profile_names = |plan| plan.profile_names
 
 		work : Plan -> PlanWork
 		work = |plan| plan.work
@@ -194,8 +304,9 @@ UseState := {
 
 WalkFrame := { range : Semantics.Range }
 
-## Dense node IDs over one fixed kind order: color spaces, images, fonts, and
-## then forms. The mapping is arithmetic, so no per-node table exists.
+## Dense node IDs over one fixed kind order: color spaces, images, fonts,
+## ICC profiles, and then forms. The mapping is arithmetic, so no per-node
+## table exists.
 color_node : U64 -> U64
 color_node = |color| color
 
@@ -205,14 +316,56 @@ image_node = |counts, image| counts.color_spaces + image
 font_node : KernelForm.Counts, U64 -> U64
 font_node = |counts, font| counts.color_spaces + counts.image_color_spaces.len() + font
 
+profile_node : KernelForm.Counts, U64 -> U64
+profile_node = |counts, profile| counts.color_spaces + counts.image_color_spaces.len() + counts.fonts + profile
+
 form_node : KernelForm.Counts, U64 -> U64
-form_node = |counts, form| counts.color_spaces + counts.image_color_spaces.len() + counts.fonts + form
+form_node = |counts, form| form_base(counts) + form
 
 form_base : KernelForm.Counts -> U64
-form_base = |counts| counts.color_spaces + counts.image_color_spaces.len() + counts.fonts
+form_base = |counts| counts.color_spaces + counts.image_color_spaces.len() + counts.fonts + counts.profiles
 
 node_count : KernelForm.Counts, U64 -> U64
 node_count = |counts, forms| form_base(counts) + forms
+
+## Counts and per-node dependency facts come from the validated stores, so
+## authored declarations can never disagree with the payloads that leaf
+## identity is derived from.
+derive_counts : KernelForm.Stores -> KernelForm.Counts
+derive_counts = |stores| {
+	color_store = KernelColor.Plan.store(stores.colors)
+	image_store = KernelImage.Plan.store(stores.images)
+	var $image_spaces = List.with_capacity(image_store.resources.len())
+	var $image_index = 0
+	while $image_index < image_store.resources.len() {
+		resource = list_at(image_store.resources, $image_index)
+		space = match resource.payload {
+			Jpeg(jpeg) => jpeg.color_space.index()
+			Raster(raster) => raster.color_space.index()
+		}
+		$image_spaces = $image_spaces.append(space)
+		$image_index = $image_index + 1
+	}
+	var $space_profiles = List.with_capacity(color_store.spaces.len())
+	var $space_index = 0
+	while $space_index < color_store.spaces.len() {
+		record = list_at(color_store.spaces, $space_index)
+		reference = match record.space {
+			CalibratedGray(_) => NoProfile
+			IccBased({ components: _, profile }) => WithProfile(profile.index())
+			Srgb(profile) => WithProfile(profile.index())
+		}
+		$space_profiles = $space_profiles.append(reference)
+		$space_index = $space_index + 1
+	}
+	{
+		color_spaces: color_store.spaces.len(),
+		fonts: stores.font_count,
+		image_color_spaces: $image_spaces,
+		profiles: color_store.profiles.len(),
+		space_profiles: $space_profiles,
+	}
+}
 
 build_facts : KernelScene.FormPlan, KernelForm.Counts, TextInput, KernelForm.Limits -> Try(KernelForm.Facts, KernelForm.Error)
 build_facts = |form_plan, counts, text, limits| {
@@ -317,6 +470,20 @@ build_facts = |form_plan, counts, text, limits| {
 	while $image_index < counts.image_color_spaces.len() {
 		$edges = $edges.append({ source: image_node(counts, $image_index), target: color_node(list_at(counts.image_color_spaces, $image_index)) })
 		$image_index = $image_index + 1
+	}
+
+	## Every ICCBased color space names its profile as a direct dependency,
+	## so profiles are reachable exactly through the spaces that use them and
+	## an unused profile is rejected as unreachable.
+	var $space_index = 0
+	while $space_index < counts.space_profiles.len() {
+		match list_at(counts.space_profiles, $space_index) {
+			NoProfile => {}
+			WithProfile(profile) => {
+				$edges = $edges.append({ source: color_node($space_index), target: profile_node(counts, profile) })
+			}
+		}
+		$space_index = $space_index + 1
 	}
 
 	## The structure run: unique ordinal payloads, real edges and roots. It
@@ -531,8 +698,10 @@ node_descriptor = |counts, _form_count, node| {
 		ColorSpace
 	} else if node < counts.color_spaces + counts.image_color_spaces.len() {
 		Image
-	} else if node < form_base(counts) {
+	} else if node < counts.color_spaces + counts.image_color_spaces.len() + counts.fonts {
 		Font
+	} else if node < form_base(counts) {
+		IccProfile
 	} else {
 		XObject
 	}
@@ -691,54 +860,166 @@ resolve_transitive_text = |counts, form_count, order, direct_text, nested_offset
 
 TextRecipes := [NoText, WithText(KernelContent.TextPlan)]
 
-build_canonical_plan : KernelScene.FormPlan, KernelForm.Facts, List(KernelForm.Leaf), TextRecipes, KernelTagged.Plan, KernelForm.Limits -> Try(KernelForm.Plan, KernelForm.Error)
+## The leaf-recipe kind tags. Descriptor facts already separate resource
+## kinds; these bytes separate variants within one kind so, for example, a
+## calibrated-gray recipe can never alias an ICCBased recipe.
+calibrated_gray_recipe_tag : U8
+calibrated_gray_recipe_tag = 1
+
+icc_based_recipe_tag : U8
+icc_based_recipe_tag = 2
+
+build_canonical_plan : KernelScene.FormPlan, KernelForm.Facts, KernelForm.Leaves, TextRecipes, KernelTagged.Plan, KernelForm.Limits -> Try(KernelForm.Plan, KernelForm.Error)
 build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 	counts = facts.counts
 	form_store = KernelScene.FormPlan.forms(form_plan)
 	scenes = KernelScene.Plan.scenes(KernelScene.FormPlan.page(form_plan))
 	form_count = form_store.forms.len()
 	base = form_base(counts)
-	if leaves.len() != base {
-		return Err(LeafCountMismatch({ declared: base, supplied: leaves.len() }))
+	color_store = KernelColor.Plan.store(leaves.colors)
+	image_store = KernelImage.Plan.store(leaves.images)
+	image_count = counts.image_color_spaces.len()
+
+	## The stores supplied here must be the stores the facts were derived
+	## from; a disagreement is a caller defect surfaced before any identity.
+	if color_store.spaces.len() != counts.color_spaces {
+		return Err(StoreCountMismatch({ declared: counts.color_spaces, kind: ColorSpaces, supplied: color_store.spaces.len() }))
+	}
+	if color_store.profiles.len() != counts.profiles {
+		return Err(StoreCountMismatch({ declared: counts.profiles, kind: Profiles, supplied: color_store.profiles.len() }))
+	}
+	if image_store.resources.len() != image_count {
+		return Err(StoreCountMismatch({ declared: image_count, kind: Images, supplied: image_store.resources.len() }))
+	}
+	if leaves.fonts.len() != counts.fonts {
+		return Err(LeafCountMismatch({ declared: counts.fonts, supplied: leaves.fonts.len() }))
 	}
 
-	## Leaf payloads first: their identity digests seed the Merkle recipes.
+	## Payloads and digests in dependency order over one canonical payload
+	## allocation: profiles before the color spaces that embed their digests,
+	## color spaces before the images that embed theirs, every leaf before
+	## the form recipes. `facts.order` is exactly that topological order.
+	nodes = node_count(counts, form_count)
 	var $payload = []
-	var $sources = List.repeat({ descriptor: node_descriptor(counts, form_count, 0), length: 0, start: 0 }, node_count(counts, form_count))
-	var $digests = List.repeat([], node_count(counts, form_count))
-	var $leaf_index = 0
-	while $leaf_index < leaves.len() {
-		leaf = list_at(leaves, $leaf_index)
-		start = $payload.len()
-		$payload = $payload.concat(leaf.payload)
-		$sources = list_set($sources, $leaf_index, { descriptor: leaf.descriptor, length: leaf.payload.len(), start })
-		$leaf_index = $leaf_index + 1
-	}
-	$leaf_index = 0
-	var $failure = NoFailure
-	while $leaf_index < leaves.len() and $failure == NoFailure {
-		match KernelResourceGraph.identity_digest(list_at($sources, $leaf_index), $payload) {
-			Err(error) => {
-				$failure = Failed(Graph(error))
-			}
-			Ok(digest) => {
-				$digests = list_set($digests, $leaf_index, digest)
-			}
-		}
-		$leaf_index = $leaf_index + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
-
-	## Recipes in dependency order: every referenced digest is already final.
+	var $sources = List.repeat({ descriptor: node_descriptor(counts, form_count, 0), length: 0, start: 0 }, nodes)
+	var $digests = List.repeat([], nodes)
+	var $image_ranges = List.repeat({ alpha_length: 0, color_length: 0, start: 0 }, image_count)
+	var $copied_leaf_bytes = 0
+	var $leaf_recipe_bytes = 0
+	var $leaf_digests = 0
 	var $recipe_bytes = 0
 	var $form_digests = 0
+	var $failure = NoFailure
 	var $position = 0
 	while $position < facts.order.len() and $failure == NoFailure {
 		node = list_at(facts.order, $position)
-		if node >= base {
+		start = $payload.len()
+		if node < counts.color_spaces {
+			record = list_at(color_store.spaces, node)
+			recipe = match record.space {
+				CalibratedGray({ black_point, white_point }) => {
+					var $recipe = [calibrated_gray_recipe_tag]
+					$recipe = append_i64_bytes($recipe, white_point.x)
+					$recipe = append_i64_bytes($recipe, white_point.y)
+					$recipe = append_i64_bytes($recipe, white_point.z)
+					$recipe = append_i64_bytes($recipe, black_point.x)
+					$recipe = append_i64_bytes($recipe, black_point.y)
+					append_i64_bytes($recipe, black_point.z)
+				}
+				IccBased({ components: _, profile }) => [icc_based_recipe_tag].concat(list_at($digests, profile_node(counts, profile.index())))
+				Srgb(profile) => [icc_based_recipe_tag].concat(list_at($digests, profile_node(counts, profile.index())))
+			}
+			$payload = $payload.concat(recipe)
+			$leaf_recipe_bytes = $leaf_recipe_bytes + recipe.len()
+			descriptor = {
+				bit_depth: 0,
+				components: component_rank(KernelColor.Plan.components(leaves.colors, record.id)),
+				flags: 0,
+				height: 0,
+				kind: ColorSpace,
+				subtype: 0,
+				width: 0,
+			}
+			$sources = list_set($sources, node, { descriptor, length: $payload.len() - start, start })
+			$leaf_digests = $leaf_digests + 1
+		} else if node < counts.color_spaces + image_count {
+			image_ordinal = node - counts.color_spaces
+			resource = list_at(image_store.resources, image_ordinal)
+			space_digest = list_at($digests, color_node(list_at(counts.image_color_spaces, image_ordinal)))
+			$payload = $payload.concat(space_digest)
+			$leaf_recipe_bytes = $leaf_recipe_bytes + space_digest.len()
+			plane_start = $payload.len()
+			descriptor = match resource.payload {
+				Jpeg(jpeg) => {
+					$payload = $payload.concat(jpeg.bytes)
+					$copied_leaf_bytes = $copied_leaf_bytes + jpeg.bytes.len()
+					$image_ranges = list_set($image_ranges, image_ordinal, { alpha_length: 0, color_length: jpeg.bytes.len(), start: plane_start })
+					{
+						bit_depth: 8,
+						components: component_rank(jpeg.components),
+						flags: 0,
+						height: jpeg.dimensions.height.to_u64(),
+						kind: Image,
+						subtype: 1,
+						width: jpeg.dimensions.width.to_u64(),
+					}
+				}
+				Raster(raster) => {
+					components = match raster.format {
+						Gray8 => 1
+						Rgb8 => 3
+					}
+					row_bytes = raster.dimensions.width.to_u64() * components
+					height = raster.dimensions.height.to_u64()
+					$payload = append_compact_rows($payload, raster.pixels, raster.row_stride, row_bytes, height)
+					color_length = row_bytes * height
+					alpha_length = match raster.alpha {
+						NoAlpha => 0
+						PackedAlpha(alpha) => {
+							$payload = append_compact_rows($payload, alpha.bytes, alpha.row_stride, raster.dimensions.width.to_u64(), height)
+							raster.dimensions.width.to_u64() * height
+						}
+					}
+					$copied_leaf_bytes = $copied_leaf_bytes + color_length + alpha_length
+					$image_ranges = list_set($image_ranges, image_ordinal, { alpha_length, color_length, start: plane_start })
+					{
+						bit_depth: 8,
+						components,
+						flags: if alpha_length > 0 1 else 0,
+						height,
+						kind: Image,
+						subtype: 0,
+						width: raster.dimensions.width.to_u64(),
+					}
+				}
+			}
+			$sources = list_set($sources, node, { descriptor, length: $payload.len() - start, start })
+			$leaf_digests = $leaf_digests + 1
+		} else if node < counts.color_spaces + image_count + counts.fonts {
+			leaf = list_at(leaves.fonts, node - counts.color_spaces - image_count)
+			$payload = $payload.concat(leaf.payload)
+			$copied_leaf_bytes = $copied_leaf_bytes + leaf.payload.len()
+			$sources = list_set($sources, node, { descriptor: leaf.descriptor, length: leaf.payload.len(), start })
+			$leaf_digests = $leaf_digests + 1
+		} else if node < base {
+			profile = list_at(color_store.profiles, node - counts.color_spaces - image_count - counts.fonts)
+			$payload = $payload.concat(profile.bytes)
+			$copied_leaf_bytes = $copied_leaf_bytes + profile.bytes.len()
+			descriptor = {
+				bit_depth: 0,
+				components: component_rank(profile.components),
+				flags: 0,
+				height: 0,
+				kind: IccProfile,
+				subtype: match profile.version {
+					IccV2 => 2
+					IccV4 => 4
+				},
+				width: 0,
+			}
+			$sources = list_set($sources, node, { descriptor, length: profile.bytes.len(), start })
+			$leaf_digests = $leaf_digests + 1
+		} else {
 			form = list_at(form_store.forms, node - base)
 			match serialize_recipe(form, form_store.commands, scenes, $digests, counts, text) {
 				Err(error) => {
@@ -750,20 +1031,21 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 						$failure = Failed(RecipeByteLimitExceeded({ attempted, limit: limits.max_recipe_bytes }))
 					} else {
 						$recipe_bytes = attempted
-						start = $payload.len()
 						$payload = $payload.concat(recipe)
-						source = { descriptor: node_descriptor(counts, form_count, node), length: recipe.len(), start }
-						$sources = list_set($sources, node, source)
-						match KernelResourceGraph.identity_digest(source, $payload) {
-							Err(error) => {
-								$failure = Failed(Graph(error))
-							}
-							Ok(digest) => {
-								$digests = list_set($digests, node, digest)
-								$form_digests = $form_digests + 1
-							}
-						}
+						$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, node), length: recipe.len(), start })
+						$form_digests = $form_digests + 1
 					}
+				}
+			}
+		}
+		if $failure == NoFailure {
+			source = list_at($sources, node)
+			match KernelResourceGraph.identity_digest(source, $payload) {
+				Err(error) => {
+					$failure = Failed(Graph(error))
+				}
+				Ok(digest) => {
+					$digests = list_set($digests, node, digest)
 				}
 			}
 		}
@@ -814,27 +1096,28 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 		limits.graph,
 	) ? Graph
 
-	## Later stages consume the plan's source-to-canonical map; leaves stay
-	## 1:1 in this slice, so two byte-identical authored leaves (which would
-	## orphan an emitted object) are rejected explicitly.
-	nodes = node_count(counts, form_count)
-	var $canonical_of = List.with_capacity(nodes)
+	nodes_of = node_count(counts, form_count)
+	var $canonical_of = List.with_capacity(nodes_of)
 	var $node = 0
-	while $node < nodes {
+	while $node < nodes_of {
 		$canonical_of = $canonical_of.append(KernelResourceGraph.Plan.canonical_index(graph, $node))
 		$node = $node + 1
 	}
 	canonical_of = $canonical_of
 	canonical_count = KernelResourceGraph.Plan.resource_count(graph)
+
+	## Fonts stay 1:1 in this slice, so two byte-identical authored font
+	## leaves (which would orphan an emitted object) are rejected explicitly.
+	font_start = counts.color_spaces + image_count
 	var $leaf_seen = List.repeat(U64.highest, canonical_count)
-	var $leaf_check = 0
-	while $leaf_check < base and $failure == NoFailure {
+	var $leaf_check = font_start
+	while $leaf_check < font_start + counts.fonts and $failure == NoFailure {
 		canonical = list_at(canonical_of, $leaf_check)
 		first = list_at($leaf_seen, canonical)
 		if first != U64.highest {
-			$failure = Failed(DuplicateLeafPayload({ canonical, first, second: $leaf_check }))
+			$failure = Failed(DuplicateLeafPayload({ canonical, first, second: $leaf_check - font_start }))
 		} else {
-			$leaf_seen = list_set($leaf_seen, canonical, $leaf_check)
+			$leaf_seen = list_set($leaf_seen, canonical, $leaf_check - font_start)
 		}
 		$leaf_check = $leaf_check + 1
 	}
@@ -843,22 +1126,88 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 		NoFailure => {}
 	}
 
-	## Canonical forms in canonical-ID order; each keeps its lowest authored
-	## form as the representative whose validated command range lowers once.
+	## Canonical per-kind ordinals in canonical-ID order — the documented
+	## total order for physical leaf and form objects. Fonts receive their
+	## authored ordinal below because they stay 1:1.
+	var $kinds = List.repeat({ kind: 0, ordinal: 0 }, canonical_count)
+	var $color_reps = []
+	var $image_reps = []
+	var $profile_reps = []
 	var $form_ordinals = List.repeat(U64.highest, canonical_count)
 	var $ordinal_canonicals = []
 	var $canonical_forms = []
-	var $form_names = List.repeat(0, form_count)
 	var $canonical_id = 0
 	while $canonical_id < canonical_count {
 		descriptor = KernelResourceGraph.Plan.descriptor(graph, $canonical_id)
-		if descriptor.kind == XObject and descriptor.subtype == 1 {
-			$form_ordinals = list_set($form_ordinals, $canonical_id, $canonical_forms.len())
-			$ordinal_canonicals = $ordinal_canonicals.append($canonical_id)
-			$canonical_forms = $canonical_forms.append({ bbox: zero_rect, commands: Semantics.Range.from_start_and_length(0, 0), representative: U64.highest })
+		match descriptor.kind {
+			ColorSpace => {
+				$kinds = list_set($kinds, $canonical_id, { kind: kind_color, ordinal: $color_reps.len() })
+				$color_reps = $color_reps.append(U64.highest)
+			}
+			Image => {
+				$kinds = list_set($kinds, $canonical_id, { kind: kind_image, ordinal: $image_reps.len() })
+				$image_reps = $image_reps.append(U64.highest)
+			}
+			IccProfile => {
+				$kinds = list_set($kinds, $canonical_id, { kind: kind_profile, ordinal: $profile_reps.len() })
+				$profile_reps = $profile_reps.append(U64.highest)
+			}
+			XObject => {
+				$form_ordinals = list_set($form_ordinals, $canonical_id, $canonical_forms.len())
+				$kinds = list_set($kinds, $canonical_id, { kind: kind_form, ordinal: $canonical_forms.len() })
+				$ordinal_canonicals = $ordinal_canonicals.append($canonical_id)
+				$canonical_forms = $canonical_forms.append({ bbox: zero_rect, commands: Semantics.Range.from_start_and_length(0, 0), representative: U64.highest })
+			}
+			_ => {}
 		}
 		$canonical_id = $canonical_id + 1
 	}
+
+	## Authored-to-canonical name maps plus the lowest authored
+	## representative per canonical leaf, whose validated store record lowers
+	## once at emission.
+	var $color_names = List.repeat(0, counts.color_spaces)
+	var $space = 0
+	while $space < counts.color_spaces {
+		ordinal = list_at($kinds, list_at(canonical_of, color_node($space))).ordinal
+		$color_names = list_set($color_names, $space, ordinal)
+		if list_at($color_reps, ordinal) == U64.highest {
+			$color_reps = list_set($color_reps, ordinal, $space)
+		}
+		$space = $space + 1
+	}
+	var $image_names = List.repeat(0, image_count)
+	var $canonical_image_ranges = List.repeat({ alpha_length: 0, color_length: 0, start: 0 }, $image_reps.len())
+	var $image = 0
+	while $image < image_count {
+		ordinal = list_at($kinds, list_at(canonical_of, image_node(counts, $image))).ordinal
+		$image_names = list_set($image_names, $image, ordinal)
+		if list_at($image_reps, ordinal) == U64.highest {
+			$image_reps = list_set($image_reps, ordinal, $image)
+			$canonical_image_ranges = list_set($canonical_image_ranges, ordinal, list_at($image_ranges, $image))
+		}
+		$image = $image + 1
+	}
+	var $profile_names = List.repeat(0, counts.profiles)
+	var $profile = 0
+	while $profile < counts.profiles {
+		ordinal = list_at($kinds, list_at(canonical_of, profile_node(counts, $profile))).ordinal
+		$profile_names = list_set($profile_names, $profile, ordinal)
+		if list_at($profile_reps, ordinal) == U64.highest {
+			$profile_reps = list_set($profile_reps, ordinal, $profile)
+		}
+		$profile = $profile + 1
+	}
+	var $font = 0
+	while $font < counts.fonts {
+		canonical = list_at(canonical_of, font_node(counts, $font))
+		$kinds = list_set($kinds, canonical, { kind: kind_font, ordinal: $font })
+		$font = $font + 1
+	}
+
+	## Canonical forms in canonical-ID order; each keeps its lowest authored
+	## form as the representative whose validated command range lowers once.
+	var $form_names = List.repeat(0, form_count)
 	var $form_index = 0
 	while $form_index < form_count {
 		canonical = list_at(canonical_of, form_node(counts, $form_index))
@@ -873,13 +1222,12 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 	}
 
 	## Exact direct dictionaries per stream, partitioned by kind with keys in
-	## ascending ordinal (and therefore canonical byte) order.
-	kinds = canonical_kind_table(graph, canonical_of, counts, form_count, $form_ordinals)
+	## ascending canonical-ordinal (and therefore canonical byte) order.
 	var $page_dictionaries = List.with_capacity(scenes.pages.len())
 	var $dictionary_entries = 0
 	var $page = 0
 	while $page < scenes.pages.len() {
-		dictionary = partition_dictionary(KernelResourceGraph.Plan.root_dictionary(graph, $page), kinds)
+		dictionary = partition_dictionary(KernelResourceGraph.Plan.root_dictionary(graph, $page), $kinds)
 		$dictionary_entries = $dictionary_entries + dictionary_size(dictionary)
 		$page_dictionaries = $page_dictionaries.append(dictionary)
 		$page = $page + 1
@@ -888,7 +1236,7 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 	var $nested_dictionary_entries = 0
 	var $ordinal = 0
 	while $ordinal < $canonical_forms.len() {
-		dictionary = partition_dictionary(KernelResourceGraph.Plan.direct_dependencies(graph, list_at($ordinal_canonicals, $ordinal)), kinds)
+		dictionary = partition_dictionary(KernelResourceGraph.Plan.direct_dependencies(graph, list_at($ordinal_canonicals, $ordinal)), $kinds)
 		$nested_dictionary_entries = $nested_dictionary_entries + dictionary_size(dictionary)
 		$form_dictionaries = $form_dictionaries.append(dictionary)
 		$ordinal = $ordinal + 1
@@ -930,20 +1278,38 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 
 	Ok(
 		KernelForm.Plan.{
+			canonical_colors: $color_reps,
 			canonical_forms: $canonical_forms,
+			canonical_images: $image_reps,
+			canonical_profiles: $profile_reps,
+			color_names: $color_names,
 			form_dictionaries: $form_dictionaries,
 			form_names: $form_names,
 			graph,
+			image_names: $image_names,
+			image_ranges: $canonical_image_ranges,
 			page_dictionaries: $page_dictionaries,
 			placements: graph_placements,
+			profile_names: $profile_names,
 			work: {
 				artifact_placements: $artifact_placements,
+				authored_color_spaces: counts.color_spaces,
 				authored_forms: form_count,
+				authored_images: image_count,
+				authored_profiles: counts.profiles,
+				canonical_color_spaces: $color_reps.len(),
 				canonical_forms: $canonical_forms.len(),
+				canonical_images: $image_reps.len(),
+				canonical_profiles: $profile_reps.len(),
+				copied_leaf_bytes: $copied_leaf_bytes,
+				deduplicated_color_spaces: counts.color_spaces - $color_reps.len(),
 				deduplicated_forms,
+				deduplicated_images: image_count - $image_reps.len(),
+				deduplicated_profiles: counts.profiles - $profile_reps.len(),
 				dictionary_entries: $dictionary_entries,
 				form_digests: $form_digests,
-				leaf_digests: leaves.len(),
+				leaf_digests: $leaf_digests,
+				leaf_recipe_bytes: $leaf_recipe_bytes,
 				nested_dictionary_entries: $nested_dictionary_entries,
 				nested_form_edges,
 				recipe_bytes: $recipe_bytes,
@@ -960,30 +1326,33 @@ build_canonical_plan = |form_plan, facts, leaves, text, tagged, limits| {
 	)
 }
 
+component_rank : Color.ComponentCount -> U64
+component_rank = |components| match components {
+	One => 1
+	Three => 3
+}
+
+## Row-compacted canonical plane bytes: padding never reaches identity or
+## emission, so a padded raster and its compact twin share one canonical
+## payload.
+append_compact_rows : List(U8), List(U8), U64, U64, U64 -> List(U8)
+append_compact_rows = |output, source, stride, row_bytes, height| {
+	var $output = output.reserve(row_bytes * height)
+	var $row = 0
+	while $row < height {
+		start = $row * stride
+		var $column = 0
+		while $column < row_bytes {
+			$output = $output.append(list_at(source, start + $column))
+			$column = $column + 1
+		}
+		$row = $row + 1
+	}
+	$output
+}
+
 zero_rect : Layout.Rect
 zero_rect = { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(0) } }
-
-canonical_kind_table : KernelResourceGraph.Plan, List(U64), KernelForm.Counts, U64, List(U64) -> List({ kind : U64, ordinal : U64 })
-canonical_kind_table = |graph, canonical_of, counts, form_count, form_ordinals| {
-	count = KernelResourceGraph.Plan.resource_count(graph)
-	var $table = List.repeat({ kind: 0, ordinal: 0 }, count)
-	var $node = 0
-	while $node < node_count(counts, form_count) {
-		canonical = list_at(canonical_of, $node)
-		entry = if $node < counts.color_spaces {
-			{ kind: kind_color, ordinal: $node }
-		} else if $node < counts.color_spaces + counts.image_color_spaces.len() {
-			{ kind: kind_image, ordinal: $node - counts.color_spaces }
-		} else if $node < form_base(counts) {
-			{ kind: kind_font, ordinal: $node - counts.color_spaces - counts.image_color_spaces.len() }
-		} else {
-			{ kind: kind_form, ordinal: list_at(form_ordinals, canonical) }
-		}
-		$table = list_set($table, canonical, entry)
-		$node = $node + 1
-	}
-	$table
-}
 
 kind_color : U64
 kind_color = 0
@@ -997,12 +1366,16 @@ kind_font = 2
 kind_form : U64
 kind_form = 3
 
+kind_profile : U64
+kind_profile = 4
+
 partition_dictionary : List(U64), List({ kind : U64, ordinal : U64 }) -> KernelForm.DictionaryPlan
 partition_dictionary = |canonical_ids, kinds| {
 	var $color_spaces = []
 	var $fonts = []
 	var $forms = []
 	var $images = []
+	var $profiles = []
 	var $index = 0
 	while $index < canonical_ids.len() {
 		entry = list_at(kinds, list_at(canonical_ids, $index))
@@ -1012,12 +1385,14 @@ partition_dictionary = |canonical_ids, kinds| {
 			$images = insert_sorted($images, entry.ordinal)
 		} else if entry.kind == kind_font {
 			$fonts = insert_sorted($fonts, entry.ordinal)
+		} else if entry.kind == kind_profile {
+			$profiles = insert_sorted($profiles, entry.ordinal)
 		} else {
 			$forms = insert_sorted($forms, entry.ordinal)
 		}
 		$index = $index + 1
 	}
-	{ color_spaces: $color_spaces, fonts: $fonts, forms: $forms, images: $images }
+	{ color_spaces: $color_spaces, fonts: $fonts, forms: $forms, images: $images, profiles: $profiles }
 }
 
 ## Deterministic insertion into ascending order; dictionary fan-out is bounded
@@ -1044,7 +1419,7 @@ insert_sorted = |values, value| {
 }
 
 dictionary_size : KernelForm.DictionaryPlan -> U64
-dictionary_size = |dictionary| dictionary.color_spaces.len() + dictionary.fonts.len() + dictionary.forms.len() + dictionary.images.len()
+dictionary_size = |dictionary| dictionary.color_spaces.len() + dictionary.fonts.len() + dictionary.forms.len() + dictionary.images.len() + dictionary.profiles.len()
 
 count_nested_form_edges : List(KernelResourceGraph.Edge), U64 -> U64
 count_nested_form_edges = |edges, base| {

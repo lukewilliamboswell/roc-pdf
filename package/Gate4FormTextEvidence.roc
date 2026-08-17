@@ -155,10 +155,17 @@ text_colors = {
 empty_image_sources : Image.SourceStore
 empty_image_sources = { resources: [] }
 
-color_leaf : KernelForm.Leaf
-color_leaf = {
-	descriptor: { bit_depth: 0, components: 1, flags: 0, height: 0, kind: ColorSpace, subtype: 0, width: 0 },
-	payload: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 148, 112],
+## The validated color and image plans this scenario derives its leaf
+## identity from.
+build_text_stores : {} -> Try({ colors : KernelColor.Plan, images : KernelImage.Plan }, BuildFailure)
+build_text_stores = |_| {
+	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
+	images = KernelImage.Plan.build(
+		empty_image_sources,
+		colors,
+		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
+	) ? |_| ImageFailure
+	Ok({ colors, images })
 }
 
 ## Exactly one function body restores the packed font-bytes literal; every
@@ -371,17 +378,12 @@ build_sample = |prelude, scene_store| {
 	) ? |_| SemanticFailure
 	resources = KernelScene.Resources.with_forms({ color_spaces: 1, forms: 1, images: 0, text_runs: shape.store.runs.len() })
 	form_scene = KernelScene.FormPlan.build(scene_store, text_form_store, resources, scene_limits, form_scene_limits) ? FormSceneFailure
-	facts = KernelForm.Facts.build(form_scene, { color_spaces: 1, fonts: 1, image_color_spaces: [] }, WithTextStore(shape.store), form_limits) ? FactsFailure
+	stores = build_text_stores({})?
+	facts = KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 1, images: stores.images }, WithTextStore(shape.store), form_limits) ? FactsFailure
 	ownership = KernelTextOwnership.Plan.build_with_forms(semantic, KernelScene.FormPlan.page(form_scene), shape.store, KernelForm.Facts.run_fragments(facts)) ? OwnershipFailure
 	usages = glyph_usages(shape.store.glyphs)
 	font_plan = KernelFontPlan.plan(font, usages, KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| FontPlanFailure
 	subset = KernelFontSubset.build(font, font_plan) ? |_| SubsetFailure
-	colors = KernelColor.Plan.build(text_colors, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? |_| ColorFailure
-	images = KernelImage.Plan.build(
-		empty_image_sources,
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
-	) ? |_| ImageFailure
 	text = KernelPdfText.ScenePlan.build(
 		ownership,
 		[font_plan],
@@ -389,20 +391,29 @@ build_sample = |prelude, scene_store| {
 	) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	font_leaf = { descriptor: { bit_depth: 0, components: 0, flags: 0, height: 0, kind: Font, subtype: 0, width: 0 }, payload: font.bytes }
-	form_plan = KernelForm.Plan.build(form_scene, facts, [color_leaf, font_leaf], WithText(KernelPdfText.ScenePlan.content(text)), tagged, form_limits) ? FormPlanFailure
+	form_plan = KernelForm.Plan.build(form_scene, facts, { colors: stores.colors, fonts: [font_leaf], images: stores.images }, WithText(KernelPdfText.ScenePlan.content(text)), tagged, form_limits) ? FormPlanFailure
 	content = KernelContent.Plan.build_with_forms_and_text(
 		tagged,
 		KernelPdfText.ScenePlan.content(text),
 		form_context(form_plan),
 		KernelContent.Limits.make({ max_content_bytes: 8192, max_content_streams: 1 }),
 	) ? |_| ContentFailure
-	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, colors, images) ? |_| ResourceUseFailure
-	base = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelGate2Objects.Limits.make({ max_objects: 32, max_pages: 1 })) ? |_| ObjectFailure
+	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, stores.colors, stores.images) ? |_| ResourceUseFailure
+	leaf_counts = KernelForm.Plan.canonical_leaf_counts(form_plan)
+	base = KernelGate2Objects.Plan.build_canonical(
+		tagged,
+		stores.colors,
+		stores.images,
+		resource_use,
+		content,
+		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
+		KernelGate2Objects.Limits.make({ max_objects: 32, max_pages: 1 }),
+	) ? |_| ObjectFailure
 	objects = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 1, 32) ? |_| FormObjectFailure
 	structure = KernelGate4FormStructure.Plan.build(
 		tagged,
-		colors,
-		images,
+		stores.colors,
+		stores.images,
 		content,
 		form_plan,
 		objects,
@@ -422,7 +433,13 @@ form_context = |form_plan| {
 		$streams = $streams.append(KernelForm.Plan.canonical_form(form_plan, $ordinal).commands)
 		$ordinal = $ordinal + 1
 	}
-	{ arena: text_form_store.commands, form_names: KernelForm.Plan.form_names(form_plan), streams: $streams }
+	{
+		arena: text_form_store.commands,
+		color_names: KernelForm.Plan.color_names(form_plan),
+		form_names: KernelForm.Plan.form_names(form_plan),
+		image_names: KernelForm.Plan.image_names(form_plan),
+		streams: $streams,
+	}
 }
 
 glyph_usages : List(Text.Glyph) -> List(KernelFontPlan.Usage)
@@ -479,7 +496,8 @@ build_facts_for : Prelude, Scene.Store -> Try(KernelForm.Facts, KernelForm.Error
 build_facts_for = |prelude, scene_store| {
 	resources = KernelScene.Resources.with_forms({ color_spaces: 1, forms: 1, images: 0, text_runs: prelude.shape.store.runs.len() })
 	form_scene = KernelScene.FormPlan.build(scene_store, text_form_store, resources, scene_limits, form_scene_limits) ? |_| ArithmeticOverflow
-	KernelForm.Facts.build(form_scene, { color_spaces: 1, fonts: 1, image_color_spaces: [] }, WithTextStore(prelude.shape.store), form_limits)
+	stores = build_text_stores({}) ? |_| ArithmeticOverflow
+	KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 1, images: stores.images }, WithTextStore(prelude.shape.store), form_limits)
 }
 
 list_at : List(a), U64 -> a

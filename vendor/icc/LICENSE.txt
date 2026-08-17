@@ -1,0 +1,17 @@
+For the file sRGB2014.icc:
+
+Copyright International Color Consortium, 2015
+
+The International Color Consortium publishes the following license terms for
+profiles whose copyright owner is the ICC
+(https://registry.color.org/profile-library/, "Licensing"):
+
+"This profile is made available by the International Color Consortium, and may
+be copied, distributed, embedded, made, used, and sold without restriction.
+Altered versions of this profile shall have the original identification and
+copyright information removed and shall not be misrepresented as the original
+profile."
+
+The retained profile's embedded copyright tag reads "Copyright International
+Color Consortium, 2015", so these ICC license terms apply to it. The original
+source location is https://www.color.org/srgbprofiles.xalter.
