@@ -422,7 +422,8 @@ plans that contain transparency.
 - Form-backed alpha soft masks — landed as the next slice
   ([gate-4-soft-masks.md](gate-4-soft-masks.md)).
 - Linear/radial shadings and supported tiling patterns.
-- Canonical font leaf identity and deduplicated font-leaf emission.
+- Canonical font leaf identity and deduplicated font-leaf emission —
+  landed in [gate-4-font-leaves.md](gate-4-font-leaves.md).
 - XMP metadata, document language, output intents (which will also absorb
   the 6.7.2.1 finding above), URI links/destinations/outlines/labels, and
   annotation appearances.

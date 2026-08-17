@@ -417,7 +417,8 @@ and patterns introduce no new PDF/A findings.
 
 ## Exact remaining Gate 4 work
 
-- Canonical font leaf identity and deduplicated font-leaf emission.
+- Canonical font leaf identity and deduplicated font-leaf emission —
+  landed in [gate-4-font-leaves.md](gate-4-font-leaves.md).
 - XMP metadata, document language, output intents (which will absorb the
   6.7.2.1 finding above), URI links, typed internal destinations with
   paired `/SD`+`/D`, named destinations, outlines, page labels, and

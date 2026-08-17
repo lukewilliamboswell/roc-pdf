@@ -80,10 +80,11 @@ every leaf before form recipes):
   different color spaces never merge because the embedded space digest
   differs; a raster and a JPEG never merge because descriptor subtype
   partitioning separates them before any byte comparison.
-- **Font** — still the caller-supplied payload, 1:1 with the authored store;
-  byte-identical authored font leaves remain the explicit
-  `DuplicateLeafPayload` rejection until the font slice derives canonical
-  font identity.
+- **Font** — at this slice, still the caller-supplied payload, 1:1 with
+  the authored store, with byte-identical authored font leaves as the
+  explicit `DuplicateLeafPayload` rejection. The font-leaf slice
+  ([gate-4-font-leaves.md](gate-4-font-leaves.md)) later derived canonical
+  font identity from the validated bundle facts and removed this stopgap.
 
 The digest remains a candidate only: the canonical graph run's descriptor
 partitioning and exact byte equality confirm every merge, and the identity
@@ -163,7 +164,8 @@ cause the baseline protocol requires, not a mechanical acceptance.
   under veraPDF's 6.2.9 rule landed with the transparency slice,
   [gate-4-transparency.md](gate-4-transparency.md), which regenerated this
   slice's showcase snapshots with the required group dictionary.)
-- Canonical font leaf identity and font-leaf deduplication.
+- Canonical font leaf identity and font-leaf deduplication (landed in
+  [gate-4-font-leaves.md](gate-4-font-leaves.md)).
 - CMYK, Separation/DeviceN/spot color, overprint, luminosity masks,
   non-Normal blending, shadings, and patterns (later Gate 4 slices or
   explicitly separate capabilities).
