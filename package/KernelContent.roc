@@ -1374,6 +1374,20 @@ expect {
 	}
 }
 
+## The font selection is emitted by lowering, not baked into prepared run
+## bodies: the authored map is the identity on the Gate 2/3 paths and the
+## canonical map renames on the Gate 4 path, ahead of the same body bytes.
+expect {
+	run : KernelContent.TextRun
+	run = { actual_text_begin: [], body: Str.to_utf8("1 0 0 1 0 0 Tm\n<0001> Tj\n"), close_actual_text: False, font: 2, size: KernelGate2Fixture.unit(11000) }
+	paint : Scene.TextPaint
+	paint = { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }
+	authored = emit_text([], paint, run, AuthoredNames, 512)?
+	canonical = emit_text([], paint, run, CanonicalNames({ colors: [0], fonts: [9, 9, 7], images: [], patterns: [], shadings: [] }), 512)?
+	expected = |ordinal| Str.to_utf8("/CS1_0 cs\n0 scn\nBT\n0 Tr\n/F1_${ordinal} 11 Tf\n1 0 0 1 0 0 Tm\n<0001> Tj\nET\n")
+	authored == expected("2") and canonical == expected("7")
+}
+
 ## A shading paint lowers to its canonical `Sh` name with the bare `sh`
 ## operator, and a pattern fill to the exact `/Pattern cs` + canonical `Pt`
 ## `scn` selection ahead of the path and fill operator; both resolve
