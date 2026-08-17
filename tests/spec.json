@@ -1802,8 +1802,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4778, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1160, 1160, 0, 11, 5, 245, 14, 5, 13, 26, 4196] },
-        "x64musl": { "allocations": 4778, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1160, 1160, 0, 11, 5, 245, 14, 5, 13, 26, 4196] }
+        "arm64mac": { "allocations": 4804, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 4804, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1817,8 +1817,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2390, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1160, 1160, 0, 11, 5, 245, 14, 5, 13, 26, 4196] },
-        "x64musl": { "allocations": 2390, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1160, 1160, 0, 11, 5, 245, 14, 5, 13, 26, 4196] }
+        "arm64mac": { "allocations": 2403, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 2403, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1832,8 +1832,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4754, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1160, 1160, 0, 11, 5, 245, 14, 5, 13, 26, 4196] },
-        "x64musl": { "allocations": 4754, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1160, 1160, 0, 11, 5, 245, 14, 5, 13, 26, 4196] }
+        "arm64mac": { "allocations": 4781, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 4781, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1847,8 +1847,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 100 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4105, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 128, 128, 0, 100, 1, 39, 100, 1, 3, 13, 2412] },
-        "x64musl": { "allocations": 4105, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 128, 128, 0, 100, 1, 39, 100, 1, 3, 13, 2412] }
+        "arm64mac": { "allocations": 4114, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] },
+        "x64musl": { "allocations": 4114, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] }
       },
       "retention": null
     },
@@ -1862,8 +1862,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 1000 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 32536, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 128, 128, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] },
-        "x64musl": { "allocations": 32536, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 128, 128, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] }
+        "arm64mac": { "allocations": 32545, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] },
+        "x64musl": { "allocations": 32545, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] }
       },
       "retention": null
     },
@@ -1877,8 +1877,8 @@
       "dimensions": { "pages": 1, "gate4_forms_dag": 1, "dag_parents": 8 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4344, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3952, 3952, 0, 40, 12, 1396, 40, 1, 53, 35, 6671] },
-        "x64musl": { "allocations": 4344, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3952, 3952, 0, 40, 12, 1396, 40, 1, 53, 35, 6671] }
+        "arm64mac": { "allocations": 4353, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] },
+        "x64musl": { "allocations": 4353, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] }
       },
       "retention": null
     },
@@ -1892,8 +1892,8 @@
       "dimensions": { "pages": 1, "gate4_forms_dag": 1, "dag_parents": 32 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 12957, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14416, 14416, 0, 160, 36, 5212, 160, 1, 197, 83, 18029] },
-        "x64musl": { "allocations": 12957, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14416, 14416, 0, 160, 36, 5212, 160, 1, 197, 83, 18029] }
+        "arm64mac": { "allocations": 12966, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] },
+        "x64musl": { "allocations": 12966, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] }
       },
       "retention": null
     },
@@ -1907,8 +1907,8 @@
       "dimensions": { "pages": 1, "gate4_forms_deep": 1, "chain_depth": 64 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 13406, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12287, 12287, 0, 64, 64, 4624, 64, 1, 129, 139, 26250] },
-        "x64musl": { "allocations": 13406, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12287, 12287, 0, 64, 64, 4624, 64, 1, 129, 139, 26250] }
+        "arm64mac": { "allocations": 13412, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] },
+        "x64musl": { "allocations": 13412, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] }
       },
       "retention": null
     },
@@ -1922,8 +1922,8 @@
       "dimensions": { "pages": 1, "gate4_form_text": 1 },
       "work_counters": ["authored_forms", "canonical_forms", "semantic_placements", "artifact_placements", "text_forms", "page_form_placements", "direct_dictionary_entries", "nested_dictionary_entries", "recipe_bytes", "run_visits", "text_fragments", "glyph_visits", "unicode_mappings", "text_content_bytes", "do_operators", "form_stream_bytes", "text_placements", "font_program_bytes", "objects", "rejections", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1557, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] },
-        "x64musl": { "allocations": 1557, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] }
+        "arm64mac": { "allocations": 1569, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] },
+        "x64musl": { "allocations": 1569, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] }
       },
       "retention": null
     },
@@ -1937,8 +1937,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 1, "gate4_forms_negative": 1, "rejections": 22 },
       "work_counters": ["rejections", "escaped_plans", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2222, "work": [22, 0, 2030] },
-        "x64musl": { "allocations": 2222, "work": [22, 0, 2030] }
+        "arm64mac": { "allocations": 2173, "work": [22, 0, 2030] },
+        "x64musl": { "allocations": 2173, "work": [22, 0, 2030] }
       },
       "retention": null
     }

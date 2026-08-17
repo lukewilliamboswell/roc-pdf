@@ -218,6 +218,13 @@ KernelResourceGraph :: [].{
 			plan.payload_bytes.sublist({ len: entry.length, start: entry.start })
 		}
 
+		## An immutable absolute range of the single owned payload allocation.
+		## Canonical recipes record exact sub-ranges of their payloads (for
+		## example an image's row-compacted planes); later stages consume those
+		## ranges through this accessor without copying.
+		payload_slice : Plan, U64, U64 -> List(U8)
+		payload_slice = |plan, start, length| plan.payload_bytes.sublist({ len: length, start })
+
 		## Deterministic topological order: every resource appears after all of
 		## its direct dependencies.
 		order : Plan -> List(U64)

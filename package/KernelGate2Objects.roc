@@ -24,6 +24,11 @@ KernelGate2Objects :: [].{
 		make = |limits| Limits.(limits)
 	}
 
+	## Canonical leaf-object counts from the Gate 4 resource plan: one object
+	## family entry per canonical (deduplicated) leaf, with per-canonical-image
+	## alpha soft-mask flags.
+	LeafObjectCounts : { color_spaces : U64, image_alpha : List(Bool), profiles : U64 }
+
 	StreamObjects : { length : KernelObject.ObjectId, stream : KernelObject.ObjectId }
 	PageObjects : { content : StreamObjects, page : KernelObject.ObjectId }
 	ProfileObjects : { profile : KernelObject.ObjectId, stream : StreamObjects }
@@ -64,6 +69,13 @@ KernelGate2Objects :: [].{
 
 		build_with_text : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.TextPlan, KernelContent.Plan, Limits -> Try(Plan, Error)
 		build_with_text = |tagged, colors, images, resource_use, content, limits| build_text_plan(tagged, colors, images, resource_use, content, limits)
+
+		## The Gate 4 leaf-deduplicated variant: authored stores are still
+		## cross-checked against the derived use counts, but object identities
+		## are planned for the canonical leaf counts, so each deduplicated
+		## profile, color space, and image receives exactly one object.
+		build_canonical : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.TextPlan, KernelContent.Plan, LeafObjectCounts, Limits -> Try(Plan, Error)
+		build_canonical = |tagged, colors, images, resource_use, content, leaves, limits| build_canonical_plan(tagged, colors, images, resource_use, content, leaves, limits)
 
 		catalog : Plan -> KernelObject.ObjectId
 		catalog = |plan| plan.catalog
@@ -177,6 +189,36 @@ build_text_plan = |tagged, colors, images, resource_use, content, limits| {
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
 				profiles: color_store.profiles.len(),
+				structure_elements: semantic_store.nodes.len(),
+			},
+			limits,
+		)
+	}
+}
+
+build_canonical_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelResourceUse.TextPlan, KernelContent.Plan, KernelGate2Objects.LeafObjectCounts, KernelGate2Objects.Limits -> Try(KernelGate2Objects.Plan, KernelGate2Objects.Error)
+build_canonical_plan = |tagged, colors, images, resource_use, content, leaves, limits| {
+	semantic_store = KernelTagged.Plan.semantics(tagged)
+	color_store = KernelColor.Plan.store(colors)
+	image_store = KernelImage.Plan.store(images)
+	resource_work = KernelResourceUse.TextPlan.work(resource_use)
+	color_count = color_store.spaces.len()
+	image_count = image_store.resources.len()
+	if resource_work.color_space_resources != color_count {
+		Err(ResourceCountMismatch({ actual: resource_work.color_space_resources, expected: color_count, kind: ColorSpaces }))
+	} else if resource_work.image_resources != image_count {
+		Err(ResourceCountMismatch({ actual: resource_work.image_resources, expected: image_count, kind: Images }))
+	} else if KernelContent.Plan.stream_count(content) != KernelTagged.Plan.scenes(tagged).pages.len() {
+		Err(LimitExceeded({ attempted: KernelContent.Plan.stream_count(content), dimension: Pages, limit: KernelTagged.Plan.scenes(tagged).pages.len() }))
+	} else {
+		build_counts(
+			{
+				color_spaces: leaves.color_spaces,
+				contextual_artifacts: semantic_store.contextual_artifacts.len(),
+				image_alpha: leaves.image_alpha,
+				namespaces: semantic_store.namespaces.len(),
+				pages: KernelContent.Plan.stream_count(content),
+				profiles: leaves.profiles,
 				structure_elements: semantic_store.nodes.len(),
 			},
 			limits,

@@ -127,10 +127,12 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 
 	prefix = KernelGate2TaggedObjects.Plan.build(tagged, base, limits.object_limits) ? TaggedObjects
 
-	## Deterministic resource names, created once, then one exact direct
-	## dictionary value per page.
+	## Deterministic resource names, created once for the canonical
+	## (deduplicated) leaf and form counts, then one exact direct dictionary
+	## value per page.
+	leaf_counts = KernelForm.Plan.canonical_leaf_counts(forms)
 	named = add_names(KernelGate2TaggedObjects.Plan.builder(prefix))?
-	resource_names = add_resource_names(named.builder, colors, images, planned_fonts.len(), canonical_forms)?
+	resource_names = add_resource_names(named.builder, leaf_counts.color_spaces, leaf_counts.images, planned_fonts.len(), canonical_forms)?
 	var $builder = resource_names.builder
 	page_count = KernelTagged.Plan.scenes(tagged).pages.len()
 	var $page_values = List.with_capacity(page_count)
@@ -156,7 +158,26 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 	}
 
 	pages = KernelGate2PageObjects.Plan.build_with_page_resources($builder, tagged, content, base, $page_values, $references) ? Pages
-	resources = KernelGate2ResourceObjects.Plan.build(pages, colors, images, base) ? Resources
+	var $image_planes = List.with_capacity(leaf_counts.images)
+	var $plane_ordinal = 0
+	while $plane_ordinal < leaf_counts.images {
+		$image_planes = $image_planes.append(KernelForm.Plan.canonical_image_planes(forms, $plane_ordinal))
+		$plane_ordinal = $plane_ordinal + 1
+	}
+	resources = KernelGate2ResourceObjects.Plan.build_canonical(
+		pages,
+		colors,
+		images,
+		base,
+		{
+			color_names: KernelForm.Plan.color_names(forms),
+			color_representatives: KernelForm.Plan.canonical_color_representatives(forms),
+			image_planes: $image_planes,
+			image_representatives: KernelForm.Plan.canonical_image_representatives(forms),
+			profile_names: KernelForm.Plan.profile_names(forms),
+			profile_representatives: KernelForm.Plan.canonical_profile_representatives(forms),
+		},
+	) ? Resources
 
 	## Canonical Form XObject stream objects in canonical order, each with its
 	## complete direct dictionary, explicit bounding box, and the canonical
@@ -293,10 +314,10 @@ add_names = |builder| {
 	})
 }
 
-add_resource_names : KernelObject.Builder, KernelColor.Plan, KernelImage.Plan, U64, U64 -> Try({ builder : KernelObject.Builder, names : ResourceNames }, KernelGate4FormStructure.Error)
-add_resource_names = |builder, colors, images, font_count, form_count| {
-	color_names = add_indexed_names(builder, "CS", KernelColor.Plan.space_count(colors))?
-	image_names = add_indexed_names(color_names.builder, "Im", KernelImage.Plan.resource_count(images))?
+add_resource_names : KernelObject.Builder, U64, U64, U64, U64 -> Try({ builder : KernelObject.Builder, names : ResourceNames }, KernelGate4FormStructure.Error)
+add_resource_names = |builder, color_count, image_count, font_count, form_count| {
+	color_names = add_indexed_names(builder, "CS", color_count)?
+	image_names = add_indexed_names(color_names.builder, "Im", image_count)?
 	font_names = add_indexed_names(image_names.builder, "F", font_count)?
 	form_names = add_indexed_names(font_names.builder, "XO", form_count)?
 	Ok({

@@ -111,16 +111,37 @@ image_sources = {
 empty_image_sources : Image.SourceStore
 empty_image_sources = { resources: [] }
 
-color_leaf : KernelForm.Leaf
-color_leaf = {
-	descriptor: { bit_depth: 0, components: 1, flags: 0, height: 0, kind: ColorSpace, subtype: 0, width: 0 },
-	payload: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 148, 112],
+image_descriptor : KernelResourceGraph.Descriptor
+image_descriptor = { bit_depth: 8, components: 1, flags: 0, height: 2, kind: Image, subtype: 0, width: 2 }
+
+## A second calibrated store used only by the mismatched-store negative twin.
+two_space_color_store : Color.Store
+two_space_color_store = {
+	profiles: [],
+	spaces: [
+		{ id: Color.SpaceId.from_index(0), space: CalibratedGray({ black_point: { x: 0, y: 0, z: 0 }, white_point: { x: 950000, y: 1000000, z: 1089000 } }) },
+		{ id: Color.SpaceId.from_index(1), space: CalibratedGray({ black_point: { x: 0, y: 0, z: 0 }, white_point: { x: 964200, y: 1000000, z: 825100 } }) },
+	],
+	tags: [],
 }
 
-image_leaf : KernelForm.Leaf
-image_leaf = {
-	descriptor: { bit_depth: 8, components: 1, flags: 0, height: 2, kind: Image, subtype: 0, width: 2 },
-	payload: image_pixels,
+## The validated color and image plans every scenario derives its leaf
+## identity from.
+build_stores : Image.SourceStore -> Try({ colors : KernelColor.Plan, images : KernelImage.Plan }, BuildFailure)
+build_stores = |sources| {
+	colors = KernelColor.Plan.build(color_store, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? ColorFailure
+	images = KernelImage.Plan.build(
+		sources,
+		colors,
+		KernelImage.Limits.make({ max_decoded_bytes: 16, max_encoded_bytes: 0, max_height: 2, max_markers: 0, max_resources: 1, max_width: 2 }),
+	) ? ImageFailure
+	Ok({ colors, images })
+}
+
+leaf_objects : KernelForm.Plan -> KernelGate2Objects.LeafObjectCounts
+leaf_objects = |plan| {
+	counts = KernelForm.Plan.canonical_leaf_counts(plan)
+	{ color_spaces: counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(plan), profiles: counts.profiles }
 }
 
 ## The semantic store for `fragments` meaningful paragraphs in an explicit
@@ -216,7 +237,6 @@ build_semantics = |fragment_count, logical_order, split| {
 
 Scenario := {
 	form_store : Scene.FormStore,
-	image_leaves : List(KernelForm.Leaf),
 	images : Image.SourceStore,
 	scene : Scene.Store,
 	semantics : Semantics.Store,
@@ -334,40 +354,17 @@ run_pipeline = |input| {
 		text_runs: 0,
 	})
 	form_scene = KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) ? FormSceneFailure
-	image_color_spaces = image_space_list(input.images)
-	facts = KernelForm.Facts.build(form_scene, { color_spaces: 1, fonts: 0, image_color_spaces }, NoTextStore, form_limits) ? FactsFailure
+	stores = build_stores(input.images)?
+	facts = KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 0, images: stores.images }, NoTextStore, form_limits) ? FactsFailure
 	tagged = KernelTagged.Plan.build(semantic, KernelScene.FormPlan.page(form_scene)) ? TaggedFailure
-	leaves = [color_leaf].concat(input.image_leaves)
-	form_plan = KernelForm.Plan.build(form_scene, facts, leaves, NoText, tagged, form_limits) ? FormPlanFailure
+	form_plan = KernelForm.Plan.build(form_scene, facts, { colors: stores.colors, fonts: [], images: stores.images }, NoText, tagged, form_limits) ? FormPlanFailure
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), content_limits) ? ContentFailure
-	colors = KernelColor.Plan.build(color_store, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? ColorFailure
-	images = KernelImage.Plan.build(
-		input.images,
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 16, max_encoded_bytes: 0, max_height: 2, max_markers: 0, max_resources: 1, max_width: 2 }),
-	) ? ImageFailure
-	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, colors, images) ? ResourceUseFailure
-	base = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
+	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, stores.colors, stores.images) ? ResourceUseFailure
+	base = KernelGate2Objects.Plan.build_canonical(tagged, stores.colors, stores.images, resource_use, content, leaf_objects(form_plan), KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
 	objects = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 0, 8192) ? FormObjectFailure
-	structure = KernelGate4FormStructure.Plan.build(tagged, colors, images, content, form_plan, objects, NoTextObjects, structure_limits) ? StructureFailure
+	structure = KernelGate4FormStructure.Plan.build(tagged, stores.colors, stores.images, content, form_plan, objects, NoTextObjects, structure_limits) ? StructureFailure
 	bytes = KernelEmit.to_bytes(KernelGate4FormStructure.Plan.structure(structure)) ? |_| EmitFailure
 	Ok({ bytes, content, facts, form_plan, form_scene, structure, tagged })
-}
-
-image_space_list : Image.SourceStore -> List(U64)
-image_space_list = |sources| {
-	var $spaces = List.with_capacity(sources.resources.len())
-	var $index = 0
-	while $index < sources.resources.len() {
-		resource = list_at(sources.resources, $index)
-		space = match resource.payload {
-			PackedPixels(raster) => raster.color_space.index()
-			EncodedJpeg(jpeg) => jpeg.color_space.index()
-		}
-		$spaces = $spaces.append(space)
-		$index = $index + 1
-	}
-	$spaces
 }
 
 form_context : KernelForm.Plan, Scene.FormStore -> KernelContent.FormContext
@@ -379,7 +376,13 @@ form_context = |form_plan, form_store| {
 		$streams = $streams.append(KernelForm.Plan.canonical_form(form_plan, $ordinal).commands)
 		$ordinal = $ordinal + 1
 	}
-	{ arena: form_store.commands, form_names: KernelForm.Plan.form_names(form_plan), streams: $streams }
+	{
+		arena: form_store.commands,
+		color_names: KernelForm.Plan.color_names(form_plan),
+		form_names: KernelForm.Plan.form_names(form_plan),
+		image_names: KernelForm.Plan.image_names(form_plan),
+		streams: $streams,
+	}
 }
 
 work_vector : Built -> List(U64)
@@ -655,7 +658,6 @@ showcase_scenario = |direction| {
 	## painted paragraph reads first.
 	{
 		form_store: { commands: $arena, forms: $forms },
-		image_leaves: [image_leaf],
 		images: image_sources,
 		scene,
 		semantics: build_semantics(5, [1, 0, 2, 3], Bool.True),
@@ -704,7 +706,6 @@ repeat_scenario = |scale| {
 			commands: [DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(32896) })],
 			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
 		},
-		image_leaves: [],
 		images: empty_image_sources,
 		scene,
 		semantics: build_semantics(1, [0], Bool.False),
@@ -800,7 +801,6 @@ dag_scenario = |scale| {
 	}
 	{
 		form_store: { commands: $arena, forms: $forms },
-		image_leaves: [],
 		images: empty_image_sources,
 		scene,
 		semantics: build_semantics(1, [0], Bool.False),
@@ -858,7 +858,6 @@ deep_scenario = |scale| {
 	}
 	{
 		form_store: { commands: $arena, forms: $forms },
-		image_leaves: [],
 		images: empty_image_sources,
 		scene,
 		semantics: build_semantics(1, [0], Bool.False),
@@ -1116,7 +1115,7 @@ check_negatives = |context| {
 			edges: [],
 			payload_bytes: [context.to_u8_wrap(), 2, 3, 4, 5, 6, 7, 8],
 			placements: [{ ownership: Semantic({ fragment: Semantics.FragmentId.from_index(0), mcid: 0 }), resource: 0, reuse: Reusable }],
-			resources: [{ descriptor: image_leaf.descriptor, length: 8, start: 0 }],
+			resources: [{ descriptor: image_descriptor, length: 8, start: 0 }],
 			root_count: 1,
 			root_uses: [{ resource: 0, root: 0 }],
 		},
@@ -1177,21 +1176,14 @@ check_negatives = |context| {
 		return Err(MissingRejection(21))
 	}
 
-	## 22: byte-identical authored leaves cannot silently merge in this slice.
-	## Both authored color spaces are painted, so both reach the canonical run
-	## and their exact-byte merge is the rejected fact.
-	second_space = {
-		..base,
-		form_store: {
-			..base.form_store,
-			commands: [DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(32896), space: Color.SpaceId.from_index(1) }, rule: Nonzero }), stroke: NoStroke } })],
-		},
-	}
-	duplicate_leaves = match build_form_plan_with_leaves(second_space, [color_leaf, color_leaf]) {
-		Err(FormPlanFailure(DuplicateLeafPayload({ canonical: _, first: 0, second: 1 }))) => Bool.True
+	## 22: the canonical run's stores must be the stores its facts were
+	## derived from; a color store with a different space count is rejected
+	## before any leaf identity exists.
+	mismatched_stores = match build_form_plan_with_mismatched_stores(base) {
+		Err(FormPlanFailure(StoreCountMismatch({ declared: 1, kind: ColorSpaces, supplied: 2 }))) => Bool.True
 		_ => Bool.False
 	}
-	if !duplicate_leaves {
+	if !mismatched_stores {
 		return Err(MissingRejection(22))
 	}
 
@@ -1238,7 +1230,8 @@ expect_facts_rejection = |ordinal, input, matches| {
 		text_runs: 0,
 	})
 	form_scene = KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) ? |_| MissingRejection(ordinal)
-	match KernelForm.Facts.build(form_scene, { color_spaces: 1, fonts: 0, image_color_spaces: image_space_list(input.images) }, NoTextStore, form_limits) {
+	stores = build_stores(input.images) ? |_| MissingRejection(ordinal)
+	match KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 0, images: stores.images }, NoTextStore, form_limits) {
 		Err(error) => if matches(error) Ok({}) else Err(MissingRejection(ordinal))
 		Ok(_) => Err(MissingRejection(ordinal))
 	}
@@ -1280,10 +1273,10 @@ build_content = |input, limits| {
 		text_runs: 0,
 	})
 	form_scene = KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) ? FormSceneFailure
-	facts = KernelForm.Facts.build(form_scene, { color_spaces: 1, fonts: 0, image_color_spaces: image_space_list(input.images) }, NoTextStore, form_limits) ? FactsFailure
+	stores = build_stores(input.images)?
+	facts = KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 0, images: stores.images }, NoTextStore, form_limits) ? FactsFailure
 	tagged = KernelTagged.Plan.build(semantic, KernelScene.FormPlan.page(form_scene)) ? TaggedFailure
-	leaves = [color_leaf].concat(input.image_leaves)
-	form_plan = KernelForm.Plan.build(form_scene, facts, leaves, NoText, tagged, form_limits) ? FormPlanFailure
+	form_plan = KernelForm.Plan.build(form_scene, facts, { colors: stores.colors, fonts: [], images: stores.images }, NoText, tagged, form_limits) ? FormPlanFailure
 	plan = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), limits) ? ContentFailure
 	Ok(plan)
 }
@@ -1303,19 +1296,13 @@ build_objects = |input, max_objects| {
 		text_runs: 0,
 	})
 	form_scene = KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) ? FormSceneFailure
-	facts = KernelForm.Facts.build(form_scene, { color_spaces: 1, fonts: 0, image_color_spaces: image_space_list(input.images) }, NoTextStore, form_limits) ? FactsFailure
+	stores = build_stores(input.images)?
+	facts = KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 0, images: stores.images }, NoTextStore, form_limits) ? FactsFailure
 	tagged = KernelTagged.Plan.build(semantic, KernelScene.FormPlan.page(form_scene)) ? TaggedFailure
-	leaves = [color_leaf].concat(input.image_leaves)
-	form_plan = KernelForm.Plan.build(form_scene, facts, leaves, NoText, tagged, form_limits) ? FormPlanFailure
+	form_plan = KernelForm.Plan.build(form_scene, facts, { colors: stores.colors, fonts: [], images: stores.images }, NoText, tagged, form_limits) ? FormPlanFailure
 	content = KernelContent.Plan.build_with_forms(tagged, form_context(form_plan, input.form_store), content_limits) ? ContentFailure
-	colors = KernelColor.Plan.build(color_store, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? ColorFailure
-	images = KernelImage.Plan.build(
-		input.images,
-		colors,
-		KernelImage.Limits.make({ max_decoded_bytes: 16, max_encoded_bytes: 0, max_height: 2, max_markers: 0, max_resources: 1, max_width: 2 }),
-	) ? ImageFailure
-	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, colors, images) ? ResourceUseFailure
-	base = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
+	resource_use = KernelResourceUse.TextPlan.build_with_forms(form_scene, stores.colors, stores.images) ? ResourceUseFailure
+	base = KernelGate2Objects.Plan.build_canonical(tagged, stores.colors, stores.images, resource_use, content, leaf_objects(form_plan), KernelGate2Objects.Limits.make({ max_objects: 8192, max_pages: 1 })) ? ObjectFailure
 	plan = KernelGate4FormObjects.Plan.build(base, KernelForm.Plan.canonical_form_count(form_plan), 0, max_objects) ? FormObjectFailure
 	Ok(plan)
 }
@@ -1335,15 +1322,15 @@ build_form_plan_with_limits = |input, limits| {
 		text_runs: 0,
 	})
 	form_scene = KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) ? FormSceneFailure
-	facts = KernelForm.Facts.build(form_scene, { color_spaces: 1, fonts: 0, image_color_spaces: image_space_list(input.images) }, NoTextStore, form_limits) ? FactsFailure
+	stores = build_stores(input.images)?
+	facts = KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 0, images: stores.images }, NoTextStore, form_limits) ? FactsFailure
 	tagged = KernelTagged.Plan.build(semantic, KernelScene.FormPlan.page(form_scene)) ? TaggedFailure
-	leaves = [color_leaf].concat(input.image_leaves)
-	plan = KernelForm.Plan.build(form_scene, facts, leaves, NoText, tagged, limits) ? FormPlanFailure
+	plan = KernelForm.Plan.build(form_scene, facts, { colors: stores.colors, fonts: [], images: stores.images }, NoText, tagged, limits) ? FormPlanFailure
 	Ok(plan)
 }
 
-build_form_plan_with_leaves : Scenario, List(KernelForm.Leaf) -> Try(KernelForm.Plan, BuildFailure)
-build_form_plan_with_leaves = |input, leaves| {
+build_form_plan_with_mismatched_stores : Scenario -> Try(KernelForm.Plan, BuildFailure)
+build_form_plan_with_mismatched_stores = |input| {
 	semantic = KernelSemantics.Plan.build(
 		input.semantics,
 		1,
@@ -1351,15 +1338,17 @@ build_form_plan_with_leaves = |input, leaves| {
 		semantic_limits(input.semantics.nodes.len(), input.semantics.content_spine.len(), input.semantics.fragments.len()),
 	) ? SemanticFailure
 	resources = KernelScene.Resources.with_forms({
-		color_spaces: 2,
+		color_spaces: 1,
 		forms: input.form_store.forms.len(),
 		images: input.images.resources.len(),
 		text_runs: 0,
 	})
 	form_scene = KernelScene.FormPlan.build(input.scene, input.form_store, resources, scene_limits, form_scene_limits) ? FormSceneFailure
-	facts = KernelForm.Facts.build(form_scene, { color_spaces: 2, fonts: 0, image_color_spaces: image_space_list(input.images) }, NoTextStore, form_limits) ? FactsFailure
+	stores = build_stores(input.images)?
+	facts = KernelForm.Facts.build(form_scene, { colors: stores.colors, font_count: 0, images: stores.images }, NoTextStore, form_limits) ? FactsFailure
 	tagged = KernelTagged.Plan.build(semantic, KernelScene.FormPlan.page(form_scene)) ? TaggedFailure
-	plan = KernelForm.Plan.build(form_scene, facts, leaves, NoText, tagged, form_limits) ? FormPlanFailure
+	two_spaces = KernelColor.Plan.build(two_space_color_store, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 2, max_tags: 0 })) ? ColorFailure
+	plan = KernelForm.Plan.build(form_scene, facts, { colors: two_spaces, fonts: [], images: stores.images }, NoText, tagged, form_limits) ? FormPlanFailure
 	Ok(plan)
 }
 

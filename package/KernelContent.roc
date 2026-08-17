@@ -33,12 +33,16 @@ KernelContent :: [].{
 	FormStream : { bytes : List(U8), form : U64 }
 
 	## The normalized form-lowering facts the serializer consumes: the flat
-	## form-command arena, each authored form's canonical name ordinal, and one
-	## representative command range per canonical (deduplicated) physical form
-	## in canonical order. Lowering never re-derives sharing or resource use.
+	## form-command arena, each authored resource's canonical name ordinal per
+	## kind, and one representative command range per canonical (deduplicated)
+	## physical form in canonical order. Lowering never re-derives sharing or
+	## resource use; deduplicated color spaces and images are named by the
+	## same canonical ordinals their emitted objects receive.
 	FormContext : {
 		arena : List(Scene.Command),
+		color_names : List(U64),
 		form_names : List(U64),
+		image_names : List(U64),
 		streams : List(Semantics.Range),
 	}
 
@@ -107,6 +111,23 @@ TextLowering := [NoText, WithText(KernelContent.TextPlan)]
 
 FormEmission := [NoForms, WithForms(KernelContent.FormContext)]
 
+## How content operators name color-space and image resources. The Gate 2/3
+## paths name authored dense ordinals directly; the Gate 4 form path names the
+## canonical ordinal each authored resource deduplicated to.
+Naming := [AuthoredNames, CanonicalNames({ colors : List(U64), images : List(U64) })]
+
+color_ordinal : Naming, U64 -> U64
+color_ordinal = |naming, index| match naming {
+	AuthoredNames => index
+	CanonicalNames(maps) => list_at(maps.colors, index)
+}
+
+image_ordinal : Naming, U64 -> U64
+image_ordinal = |naming, index| match naming {
+	AuthoredNames => index
+	CanonicalNames(maps) => list_at(maps.images, index)
+}
+
 Frame := { close_graphics : Bool, end : U64, next : U64 }
 
 EmitWork := { bytes : List(U8), command_visits : U64, form_placements : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, path_segments : U64, text_placements : U64 }
@@ -122,6 +143,10 @@ build_plan = |tagged, text, forms, limits| {
 		Err(ContentStreamCountMismatch({ pages: scenes.pages.len(), streams: stream_count }))
 	} else {
 		marked = index_marked(KernelTagged.Plan.marked_fragments(tagged), semantics.fragments.len())?
+		naming = match forms {
+			NoForms => AuthoredNames
+			WithForms(context) => CanonicalNames({ colors: context.color_names, images: context.image_names })
+		}
 		var $streams = List.with_capacity(stream_count)
 		var $page_index = 0
 		var $total_bytes = 0
@@ -152,7 +177,7 @@ build_plan = |tagged, text, forms, limits| {
 						$bytes = opened.bytes
 						$artifact_groups = $artifact_groups + opened.artifacts
 						$fragment_groups = $fragment_groups + opened.fragments
-						match emit_commands($bytes, group.commands, scenes.commands, scenes, text, forms, page_limit) {
+						match emit_commands($bytes, group.commands, scenes.commands, scenes, text, forms, naming, page_limit) {
 							Err(error) => {
 								$error = Invalid(error)
 							}
@@ -211,7 +236,7 @@ build_plan = |tagged, text, forms, limits| {
 				NoForms => []
 				WithForms(context) => context.arena
 			}
-			match emit_commands(List.with_capacity(U64.min(form_limit, initial_content_capacity)), range, arena, scenes, text, forms, form_limit) {
+			match emit_commands(List.with_capacity(U64.min(form_limit, initial_content_capacity)), range, arena, scenes, text, forms, naming, form_limit) {
 				Err(error) => {
 					$error = Invalid(error)
 				}
@@ -306,8 +331,8 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 	}
 }
 
-emit_commands : List(U8), Semantics.Range, List(Scene.Command), Scene.Store, TextLowering, FormEmission, U64 -> Try(EmitWork, KernelContent.Error)
-emit_commands = |initial, root, arena, scenes, text, forms, limit| {
+emit_commands : List(U8), Semantics.Range, List(Scene.Command), Scene.Store, TextLowering, FormEmission, Naming, U64 -> Try(EmitWork, KernelContent.Error)
+emit_commands = |initial, root, arena, scenes, text, forms, naming, limit| {
 	var $bytes = initial
 	var $frames = []
 	var $current = Frame.{ close_graphics: False, end: root.start() + root.length(), next: root.start() }
@@ -359,7 +384,8 @@ emit_commands = |initial, root, arena, scenes, text, forms, limit| {
 					}
 				}
 				DrawImage({ image, placement }) => {
-					required = image_length(image, placement)
+					ordinal = image_ordinal(naming, image.index())
+					required = image_length(ordinal, placement)
 					if $bytes.len() > limit or required > limit - $bytes.len() {
 						attempted = match U64.plus_try($bytes.len(), required) {
 							Err(Overflow) => U64.highest
@@ -367,12 +393,12 @@ emit_commands = |initial, root, arena, scenes, text, forms, limit| {
 						}
 						$error = Invalid(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
 					} else {
-						$bytes = emit_image_unchecked($bytes, image, placement)
+						$bytes = emit_image_unchecked($bytes, ordinal, placement)
 						$graphics_pairs = $graphics_pairs + 1
 						$image_placements = $image_placements + 1
 					}
 				}
-				DrawPath({ path, style }) => match emit_draw_path($bytes, path, style, scenes, limit) {
+				DrawPath({ path, style }) => match emit_draw_path($bytes, path, style, scenes, naming, limit) {
 					Err(error) => {
 						$error = Invalid(error)
 					}
@@ -388,7 +414,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, limit| {
 					WithText(plan) => if run.index() >= KernelContent.TextPlan.run_count(plan) {
 						$error = Invalid(TextRunInvalid({ prepared: KernelContent.TextPlan.run_count(plan), run: run.index() }))
 					} else {
-						match emit_text($bytes, paint, KernelContent.TextPlan.run(plan, run.index()), limit) {
+						match emit_text($bytes, paint, KernelContent.TextPlan.run(plan, run.index()), naming, limit) {
 							Err(error) => {
 								$error = Invalid(error)
 							}
@@ -466,10 +492,10 @@ emit_place_form = |bytes, transform, ordinal, limit| {
 	append_literal($out, " Do\nQ\n", limit)
 }
 
-emit_text : List(U8), Scene.TextPaint, KernelContent.TextRun, U64 -> Try(List(U8), KernelContent.Error)
-emit_text = |bytes, paint, run, limit| {
+emit_text : List(U8), Scene.TextPaint, KernelContent.TextRun, Naming, U64 -> Try(List(U8), KernelContent.Error)
+emit_text = |bytes, paint, run, naming, limit| {
 	var $out = append_bytes(bytes, run.actual_text_begin, limit)?
-	$out = emit_color($out, paint.fill, False, limit)?
+	$out = emit_color($out, paint.fill, False, naming, limit)?
 	$out = match paint.mode {
 		Fill => append_literal($out, "BT\n0 Tr\n", limit)?
 		FillAndStroke => match paint.stroke {
@@ -477,7 +503,7 @@ emit_text = |bytes, paint, run, limit| {
 				crash "validated fill-and-stroke text lost its stroke"
 			}
 			Stroke({ color, width }) => {
-				var $stroked = emit_color($out, color, True, limit)?
+				var $stroked = emit_color($out, color, True, naming, limit)?
 				$stroked = append_layout($stroked, width, limit)?
 				$stroked = append_literal($stroked, " w\nBT\n2 Tr\n", limit)?
 				$stroked
@@ -516,8 +542,8 @@ emit_clip_open = |bytes, path, scenes, limit| {
 	Ok({ bytes: append_literal(emitted.bytes, "W n\n", limit)?, path_segments: emitted.path_segments })
 }
 
-emit_image_unchecked : List(U8), Image.Id, Layout.Rect -> List(U8)
-emit_image_unchecked = |bytes, image, placement| {
+emit_image_unchecked : List(U8), U64, Layout.Rect -> List(U8)
+emit_image_unchecked = |bytes, ordinal, placement| {
 	var $out = append_all_unchecked(bytes, image_open_bytes)
 	$out = append_thousandths_unchecked($out, placement.size.width.raw())
 	$out = append_all_unchecked($out, image_matrix_middle_bytes)
@@ -527,12 +553,12 @@ emit_image_unchecked = |bytes, image, placement| {
 	$out = append_all_unchecked($out, space_bytes)
 	$out = append_thousandths_unchecked($out, placement.origin.y.raw())
 	$out = append_all_unchecked($out, image_name_prefix_bytes)
-	$out = KernelGate2ResourceName.append($out, image.index())
+	$out = KernelGate2ResourceName.append($out, ordinal)
 	append_all_unchecked($out, image_close_bytes)
 }
 
-image_length : Image.Id, Layout.Rect -> U64
-image_length = |image, placement| {
+image_length : U64, Layout.Rect -> U64
+image_length = |ordinal, placement| {
 	image_open_bytes.len() +
 		decimal_length(placement.size.width.raw(), 3) +
 		image_matrix_middle_bytes.len() +
@@ -542,7 +568,7 @@ image_length = |image, placement| {
 		space_bytes.len() +
 		decimal_length(placement.origin.y.raw(), 3) +
 		image_name_prefix_bytes.len() +
-		KernelGate2ResourceName.suffix_length(image.index()) +
+		KernelGate2ResourceName.suffix_length(ordinal) +
 		image_close_bytes.len()
 }
 
@@ -642,9 +668,9 @@ expect {
 	$same
 }
 
-emit_draw_path : List(U8), Scene.PathId, Scene.PathStyle, Scene.Store, U64 -> Try({ bytes : List(U8), path_segments : U64 }, KernelContent.Error)
-emit_draw_path = |bytes, path, style, scenes, limit| {
-	styled = emit_style(bytes, style, scenes.dash_lengths, limit)?
+emit_draw_path : List(U8), Scene.PathId, Scene.PathStyle, Scene.Store, Naming, U64 -> Try({ bytes : List(U8), path_segments : U64 }, KernelContent.Error)
+emit_draw_path = |bytes, path, style, scenes, naming, limit| {
+	styled = emit_style(bytes, style, scenes.dash_lengths, naming, limit)?
 	emitted = emit_path(styled, path, scenes, limit)?
 	operator = match style.fill {
 		NoFill => "S\n"
@@ -662,21 +688,21 @@ emit_draw_path = |bytes, path, style, scenes, limit| {
 	Ok({ bytes: append_literal(emitted.bytes, operator, limit)?, path_segments: emitted.path_segments })
 }
 
-emit_style : List(U8), Scene.PathStyle, List(Layout.Unit), U64 -> Try(List(U8), KernelContent.Error)
-emit_style = |bytes, style, dash_lengths, limit| {
+emit_style : List(U8), Scene.PathStyle, List(Layout.Unit), Naming, U64 -> Try(List(U8), KernelContent.Error)
+emit_style = |bytes, style, dash_lengths, naming, limit| {
 	with_fill = match style.fill {
 		NoFill => Ok(bytes)
-		SolidFill({ color, rule: _ }) => emit_color(bytes, color, False, limit)
+		SolidFill({ color, rule: _ }) => emit_color(bytes, color, False, naming, limit)
 	}?
 	match style.stroke {
 		NoStroke => Ok(with_fill)
-		SolidStroke(stroke) => emit_stroke(with_fill, stroke, dash_lengths, limit)
+		SolidStroke(stroke) => emit_stroke(with_fill, stroke, dash_lengths, naming, limit)
 	}
 }
 
-emit_stroke : List(U8), Scene.StrokeStyle, List(Layout.Unit), U64 -> Try(List(U8), KernelContent.Error)
-emit_stroke = |bytes, stroke, dash_lengths, limit| {
-	var $out = emit_color(bytes, stroke.color, True, limit)?
+emit_stroke : List(U8), Scene.StrokeStyle, List(Layout.Unit), Naming, U64 -> Try(List(U8), KernelContent.Error)
+emit_stroke = |bytes, stroke, dash_lengths, naming, limit| {
+	var $out = emit_color(bytes, stroke.color, True, naming, limit)?
 	$out = append_layout($out, stroke.width, limit)?
 	$out = append_literal($out, " w\n", limit)?
 	cap = match stroke.cap {
@@ -715,10 +741,10 @@ emit_stroke = |bytes, stroke, dash_lengths, limit| {
 	}
 }
 
-emit_color : List(U8), Color.Value, Bool, U64 -> Try(List(U8), KernelContent.Error)
-emit_color = |bytes, color, stroking, limit| {
+emit_color : List(U8), Color.Value, Bool, Naming, U64 -> Try(List(U8), KernelContent.Error)
+emit_color = |bytes, color, stroking, naming, limit| {
 	var $out = append_literal(bytes, "/CS", limit)?
-	$out = append_resource_index($out, color.space.index(), limit)?
+	$out = append_resource_index($out, color_ordinal(naming, color.space.index()), limit)?
 	$out = append_literal($out, if stroking " CS\n" else " cs\n", limit)?
 	match color.channels {
 		Gray(gray) => {
@@ -971,7 +997,7 @@ expect {
 		],
 		dash_lengths: [KernelGate2Fixture.unit(1000), KernelGate2Fixture.unit(500)],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, 512)?
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, 512)?
 	expected =
 		\\q
 		\\0 0 1 1 re
@@ -1003,7 +1029,7 @@ expect {
 		path_segments: segments,
 		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, segments.len()) }],
 	}
-	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, 512)?
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, 512)?
 	expected =
 		\\/CS1_0 cs
 		\\1 0.50000763 0 scn

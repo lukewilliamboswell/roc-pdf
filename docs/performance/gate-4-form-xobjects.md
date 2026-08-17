@@ -170,10 +170,13 @@ Two graph runs implement this without duplicating any graph logic:
    assigns content-derived canonical IDs, proves closure again, and produces
    the per-root and per-resource direct dictionaries that lowering consumes.
 
-Leaf resources (color spaces, images, fonts) remain 1:1 with their authored
-stores in this slice; the plan rejects byte-identical authored leaves
-(`DuplicateLeafPayload`) rather than silently emitting an orphan object. Leaf
-deduplication joins the image/ICC slices that own leaf object emission.
+Leaf resources (color spaces, ICC profiles, images) initially stayed 1:1
+with their authored stores under caller-supplied stopgap payloads; the
+color-image slice ([gate-4-color-image-leaves.md](gate-4-color-image-leaves.md))
+now derives their identity from the validated stores and deduplicates them
+canonically. Fonts remain 1:1, and byte-identical authored font leaves stay
+the explicit `DuplicateLeafPayload` rejection until the font slice derives
+canonical font identity.
 
 ## Dictionaries, names, and object planning
 
@@ -181,8 +184,9 @@ deduplication joins the image/ICC slices that own leaf object emission.
   from the canonical run: pages consume `root_dictionary(page)`; each form
   stream consumes `direct_dependencies(form)`. Transitive dependencies never
   appear in a parent dictionary, and the serializer never scans operators.
-- Names are deterministic and content-derived: `CS`/`Im`/`F` keep their
-  existing dense authored identities (1:1 with canonical in this slice), and
+- Names are deterministic and content-derived: `CS`/`Im` name canonical
+  per-kind ordinals in canonical-ID order (the color-image slice's
+  authored-to-canonical maps; `F` stays 1:1 with the authored fonts), and
   forms use `XO<width>_<ordinal>` where the ordinal is the form's position in
   canonical-ID order. Each consuming stream's dictionary binds exactly the
   names its operators use.
@@ -234,8 +238,9 @@ deduplication joins the image/ICC slices that own leaf object emission.
   caller-supplied raw operators, implicit resource discovery.
 - Form `/StructParents`, in-form MCIDs/MCR `/Stm`, OBJR content items, and the
   per-semantic-placement physical duplication they will require.
-- Leaf (image/ICC/font) deduplicated object emission and annotation
-  appearances, which will consume this slice's form machinery.
+- Font leaf deduplicated object emission and annotation appearances, which
+  will consume this slice's form machinery (image/ICC leaf emission landed in
+  the color-image slice).
 - Recursive forms are permanently rejected (the direct-edge DAG has no legal
   cycle).
 
@@ -268,16 +273,21 @@ values, matching the suite convention):
 
 | Case | Allocations | Selected counters |
 | --- | ---: | --- |
-| showcase (adversarial fwd+rev) | 4778 | authored 9 → canonical 5, semantic placements 5, artifact 4, MCIDs 5 |
-| unique input | 2390 | one pipeline run, identical counters and bytes |
-| retained input | 4754 | two pipeline runs over one retained input, identical bytes |
-| repeat x100 | 4105 | placements 100, one physical form, form bytes 39 |
-| repeat x1000 | 32536 | placements 1000, one physical form, form bytes 39 |
-| dag x8 | 4344 | 12 canonical forms, 32 nested edges, 44 nested dict entries |
-| dag x32 | 12957 | 36 canonical forms, 128 nested edges, 164 nested dict entries |
-| deep x64 | 13406 | 64-deep legal chain, iterative planning and recipes |
-| text in form | 1557 | 8 glyphs/mappings, form dict carries the font, 2 rejections |
-| atomic negatives | 2222 | 22 distinct rejections, 0 escaped plans |
+| showcase (adversarial fwd+rev) | 4804 | authored 9 → canonical 5, semantic placements 5, artifact 4, MCIDs 5 |
+| unique input | 2403 | one pipeline run, identical counters and bytes |
+| retained input | 4781 | two pipeline runs over one retained input, identical bytes |
+| repeat x100 | 4114 | placements 100, one physical form, form bytes 39 |
+| repeat x1000 | 32545 | placements 1000, one physical form, form bytes 39 |
+| dag x8 | 4353 | 12 canonical forms, 32 nested edges, 44 nested dict entries |
+| dag x32 | 12966 | 36 canonical forms, 128 nested edges, 164 nested dict entries |
+| deep x64 | 13412 | 64-deep legal chain, iterative planning and recipes |
+| text in form | 1569 | 8 glyphs/mappings, form dict carries the font, 2 rejections |
+| atomic negatives | 2173 | 22 distinct rejections, 0 escaped plans |
+
+These baselines were regenerated when the color-image slice moved leaf
+identity derivation into normalization; the reviewed cause and the byte-level
+effect on this slice's snapshots are recorded in
+[gate-4-color-image-leaves.md](gate-4-color-image-leaves.md).
 
 What the scaling shows: repeat isolates per-placement cost (do_operators,
 graphics pairs, ownership sweep, and content bytes scale 100 → 1000 while
