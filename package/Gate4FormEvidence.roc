@@ -591,6 +591,7 @@ showcase_scenario = |direction| {
 		$forms = $forms.append({
 			bbox: list_at(logical_boxes, logical),
 			commands: Semantics.Range.from_start_and_length(start, commands.len()),
+			group: NoGroup,
 			id: Scene.FormId.from_index($dense_index),
 		})
 		$dense_index = $dense_index + 1
@@ -704,7 +705,7 @@ repeat_scenario = |scale| {
 	{
 		form_store: {
 			commands: [DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(32896) })],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 		images: empty_image_sources,
 		scene,
@@ -725,7 +726,7 @@ dag_scenario = |scale| {
 	while $base < 4 {
 		start = $arena.len()
 		$arena = $arena.append(DrawPath({ path: Scene.PathId.from_index($base), style: fill_style((($base + 1) * 8224).to_u16_wrap()) }))
-		$forms = $forms.append({ bbox: rect(0, 0, 2000, 2000), commands: Semantics.Range.from_start_and_length(start, 1), id: Scene.FormId.from_index($base) })
+		$forms = $forms.append({ bbox: rect(0, 0, 2000, 2000), commands: Semantics.Range.from_start_and_length(start, 1), group: NoGroup, id: Scene.FormId.from_index($base) })
 		$base = $base + 1
 	}
 	var $parent = 0
@@ -743,7 +744,7 @@ dag_scenario = |scale| {
 		}
 		marker_level = ((U64.div_by($parent, 10) + 1) * 4112).to_u16_wrap()
 		$arena = $arena.append(DrawPath({ path: Scene.PathId.from_index(5 + $parent), style: fill_style(marker_level) }))
-		$forms = $forms.append({ bbox: rect(0, 0, 10000, 4000), commands: Semantics.Range.from_start_and_length(start, 5), id: Scene.FormId.from_index(4 + $parent) })
+		$forms = $forms.append({ bbox: rect(0, 0, 10000, 4000), commands: Semantics.Range.from_start_and_length(start, 5), group: NoGroup, id: Scene.FormId.from_index(4 + $parent) })
 		$parent = $parent + 1
 	}
 	var $page_commands = [DrawPath({ path: Scene.PathId.from_index(4), style: fill_style(8224) })]
@@ -827,6 +828,7 @@ deep_scenario = |scale| {
 		$forms = $forms.append({
 			bbox: rect(0, 0, (scale.to_i64_wrap() - $index.to_i64_wrap() + 1) * 1000, (scale.to_i64_wrap() - $index.to_i64_wrap() + 1) * 1000),
 			commands: Semantics.Range.from_start_and_length(start, commands),
+			group: NoGroup,
 			id: Scene.FormId.from_index($index),
 		})
 		$index = $index + 1
@@ -893,7 +895,7 @@ check_negatives = |context| {
 	)?
 
 	## 2: a non-dense form identity.
-	sparse = { ..base, form_store: { ..base.form_store, forms: [{ ..list_at(base.form_store.forms, 0), id: Scene.FormId.from_index(3) }] } }
+	sparse = { ..base, form_store: { ..base.form_store, forms: [{ ..list_at(base.form_store.forms, 0), group: NoGroup, id: Scene.FormId.from_index(3) }] } }
 	expect_scene_rejection(
 		2,
 		sparse,
@@ -974,7 +976,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			..base.form_store,
-			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(1) }),
+			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(1) }),
 		},
 	}
 	expect_scene_rejection(
@@ -986,13 +988,15 @@ check_negatives = |context| {
 		},
 	)?
 
-	## 10: unsupported transparency inside form content.
+	## 10: an empty opacity group inside form content. (The transparency slice
+	## made constant opacity executable in form-aware scenes, so the former
+	## unsupported-command rejection moved to the ownerless-children class.)
 	transparent = { ..base, form_store: { ..base.form_store, commands: [Opacity({ children: Semantics.Range.from_start_and_length(0, 0), opacity: 32768 })] } }
 	expect_scene_rejection(
 		10,
 		transparent,
 		|error| match error {
-			UnsupportedCommand({ command: 0 }) => Bool.True
+			EmptyForm({ form: 0 }) => Bool.True
 			_ => Bool.False
 		},
 	)?
@@ -1028,7 +1032,7 @@ check_negatives = |context| {
 				Transform({ children: Semantics.Range.from_start_and_length(2, 1), matrix: translate(0, 0) }),
 				DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(32896) }),
 			],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 	}
 	shallow = KernelScene.Limits.make({
@@ -1054,7 +1058,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			commands: [PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(0, 0) })],
-			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 	}
 	expect_facts_rejection(
@@ -1075,8 +1079,8 @@ check_negatives = |context| {
 				PlaceForm({ form: Scene.FormId.from_index(0), transform: translate(0, 0) }),
 			],
 			forms: [
-				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) },
-				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.FormId.from_index(1) },
+				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) },
+				{ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), group: NoGroup, id: Scene.FormId.from_index(1) },
 			],
 		},
 	}
@@ -1094,7 +1098,7 @@ check_negatives = |context| {
 		..base,
 		form_store: {
 			commands: base.form_store.commands.append(DrawPath({ path: Scene.PathId.from_index(0), style: fill_style(16448) })),
-			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), id: Scene.FormId.from_index(1) }),
+			forms: base.form_store.forms.append({ bbox: rect(0, 0, 4000, 4000), commands: Semantics.Range.from_start_and_length(1, 1), group: NoGroup, id: Scene.FormId.from_index(1) }),
 		},
 	}
 	expect_facts_rejection(

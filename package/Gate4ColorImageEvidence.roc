@@ -721,7 +721,7 @@ showcase_scenario = |direction| {
 		colors: stores.colors,
 		form_store: {
 			commands: form_commands,
-			forms: [{ bbox: rect(0, 0, 30000, 10000), commands: Semantics.Range.from_start_and_length(0, 2), id: Scene.FormId.from_index(0) }],
+			forms: [{ bbox: rect(0, 0, 30000, 10000), commands: Semantics.Range.from_start_and_length(0, 2), group: NoGroup, id: Scene.FormId.from_index(0) }],
 		},
 		image_limits: showcase_image_limits,
 		images: stores.images,

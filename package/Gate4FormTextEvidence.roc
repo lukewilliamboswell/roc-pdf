@@ -250,7 +250,7 @@ text_paint = {
 text_form_store : Scene.FormStore
 text_form_store = {
 	commands: [DrawText({ paint: text_paint, run: Text.RunId.from_index(0) })],
-	forms: [{ bbox: rect(0, -3000, 60000, 17000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+	forms: [{ bbox: rect(0, -3000, 60000, 17000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 }
 
 single_placement_scene : {} -> Scene.Store

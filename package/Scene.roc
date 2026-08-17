@@ -126,6 +126,12 @@ Scene :: [].{
 	## its ownership is inherited from the containing owned scene group, and a
 	## placement inside form content inherits transitively through the
 	## outermost page-level placement.
+	## `Opacity` applies a constant fill-and-stroke alpha to its children with
+	## Normal blending. The effective alpha of a painted element is the product
+	## of every enclosing opacity group within its content stream, computed in
+	## exact `U16` fixed point (65535 is fully opaque and an exact identity;
+	## the identity value normalizes away entirely). An isolated-group form
+	## resets that ambient product at its boundary; see `Form`.
 	Command : [
 		Clip({ children : Semantics.Range, path : PathId }),
 		DrawImage({ image : Image.Id, placement : Layout.Rect }),
@@ -162,6 +168,15 @@ Scene :: [].{
 		paths : List(Path),
 	}
 
+	## Whether a form is an isolated PDF 2.0 transparency group. An isolated
+	## group composites as a unit: constant alpha applied at a placement site
+	## multiplies the group's rendered result exactly once, and the ambient
+	## alpha inside the group resets to fully opaque (ISO 32000-2, 11.6.6).
+	## `NoGroup` forms stay transparent to the graphics state, so their
+	## painted elements each multiply the ambient alpha individually.
+	## Knockout groups are not representable.
+	FormGroup : [IsolatedGroup, NoGroup]
+
 	## A Form XObject's content is a range into the flat form-command arena;
 	## its `/Matrix` is the documented canonical identity because placement
 	## transforms are entirely placement-side facts. Paths, dash values, and
@@ -170,6 +185,7 @@ Scene :: [].{
 	Form : {
 		bbox : Layout.Rect,
 		commands : Semantics.Range,
+		group : FormGroup,
 		id : FormId,
 	}
 

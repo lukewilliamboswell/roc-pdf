@@ -56,18 +56,19 @@ KernelScene :: [].{
 		make = |limits| Limits.(limits)
 	}
 
-	Resources :: { color_spaces : U64, forms : U64, images : U64, text_runs : U64 }.{
+	Resources :: { allow_opacity : Bool, color_spaces : U64, forms : U64, images : U64, text_runs : U64 }.{
 		make : { color_spaces : U64, images : U64 } -> Resources
-		make = |resources| Resources.({ color_spaces: resources.color_spaces, forms: 0, images: resources.images, text_runs: 0 })
+		make = |resources| Resources.({ allow_opacity: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, text_runs: 0 })
 
 		with_text : { color_spaces : U64, images : U64, text_runs : U64 } -> Resources
-		with_text = |resources| Resources.({ color_spaces: resources.color_spaces, forms: 0, images: resources.images, text_runs: resources.text_runs })
+		with_text = |resources| Resources.({ allow_opacity: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, text_runs: resources.text_runs })
 
-		## Gate 4 scenes additionally declare their dense form count; the older
-		## constructors keep declaring zero, so a Gate 2 or Gate 3 scene still
-		## rejects any form placement.
+		## Gate 4 scenes additionally declare their dense form count and gain
+		## the constant-opacity capability; the older constructors keep
+		## declaring zero forms and rejecting opacity, so a Gate 2 or Gate 3
+		## scene still rejects any form placement or opacity group.
 		with_forms : { color_spaces : U64, forms : U64, images : U64, text_runs : U64 } -> Resources
-		with_forms = |resources| Resources.(resources)
+		with_forms = |resources| Resources.({ allow_opacity: Bool.True, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, text_runs: resources.text_runs })
 
 		color_space_count : Resources -> U64
 		color_space_count = |resources| resources.color_spaces
@@ -91,6 +92,7 @@ KernelScene :: [].{
 		group_visits : U64,
 		image_placements : U64,
 		max_graphics_depth : U64,
+		opacity_commands : U64,
 		page_box_checks : U64,
 		page_group_edges : U64,
 		page_visits : U64,
@@ -121,6 +123,7 @@ KernelScene :: [].{
 	FormWork : {
 		form_child_ranges : U64,
 		form_command_visits : U64,
+		form_opacity_commands : U64,
 		form_visits : U64,
 		max_form_depth : U64,
 		nested_form_placements : U64,
@@ -154,11 +157,12 @@ CommandWork := {
 	dash_values : U64,
 	form_placements : U64,
 	image_placements : U64,
+	opacity_commands : U64,
 	text_placements : U64,
 }
 
 leaf_work : CommandWork
-leaf_work = { children: Leaf, color_references: 0, dash_values: 0, form_placements: 0, image_placements: 0, text_placements: 0 }
+leaf_work = { children: Leaf, color_references: 0, dash_values: 0, form_placements: 0, image_placements: 0, opacity_commands: 0, text_placements: 0 }
 
 scene_failure : KernelScene.Error -> Try(a, KernelScene.Error)
 scene_failure = |error| Err(error)
@@ -189,6 +193,7 @@ build_plan = |scenes, resources, limits| {
 				group_visits: scenes.groups.len(),
 				image_placements: command_work.image_placements,
 				max_graphics_depth: command_work.max_graphics_depth,
+				opacity_commands: command_work.opacity_commands,
 				page_box_checks: page_work.page_box_checks,
 				page_group_edges: page_work.page_group_edges,
 				page_visits: scenes.pages.len(),
@@ -223,6 +228,7 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 	var $child_ranges = 0
 	var $command_visits = 0
 	var $nested_placements = 0
+	var $opacity_commands = 0
 	var $maximum_depth = 0
 	var $error = NoError
 	while $form_index < form_store.forms.len() and $error == NoError {
@@ -261,6 +267,7 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 										}
 										Ok(work) => {
 											$nested_placements = $nested_placements + work.form_placements
+											$opacity_commands = $opacity_commands + work.opacity_commands
 											match work.children {
 												Leaf => {}
 												Nested(children) => if children.length() == 0 {
@@ -300,6 +307,7 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 			Ok({
 				form_child_ranges: $child_ranges,
 				form_command_visits: $command_visits,
+				form_opacity_commands: $opacity_commands,
 				form_visits: form_store.forms.len(),
 				max_form_depth: $maximum_depth,
 				nested_form_placements: $nested_placements,
@@ -454,7 +462,7 @@ validate_pages = |scenes| {
 	}
 }
 
-validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, text_placements : U64 }, KernelScene.Error)
+validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, opacity_commands : U64, text_placements : U64 }, KernelScene.Error)
 validate_groups = |scenes, resources, max_depth| {
 	var $group_index = 0
 	var $expected_command = 0
@@ -464,6 +472,7 @@ validate_groups = |scenes, resources, max_depth| {
 	var $dash_values = 0
 	var $form_placements = 0
 	var $image_placements = 0
+	var $opacity_commands = 0
 	var $text_placements = 0
 	var $maximum_depth = 0
 	var $error = NoError
@@ -504,6 +513,7 @@ validate_groups = |scenes, resources, max_depth| {
 											$dash_values = $dash_values + work.dash_values
 											$form_placements = $form_placements + work.form_placements
 											$image_placements = $image_placements + work.image_placements
+											$opacity_commands = $opacity_commands + work.opacity_commands
 											$text_placements = $text_placements + work.text_placements
 											match work.children {
 												Leaf => {}
@@ -541,7 +551,7 @@ validate_groups = |scenes, resources, max_depth| {
 		NoError => if $expected_command < scenes.commands.len() {
 			Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
 		} else {
-			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, text_placements: $text_placements })
+			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, text_placements: $text_placements })
 		}
 	}
 }
@@ -573,7 +583,16 @@ validate_command = |command, index, scenes, resources| match command {
 		colors = validate_text_paint(paint, index, resources.color_spaces)?
 		Ok({ ..leaf_work, color_references: colors, text_placements: 1 })
 	}
-	Opacity(_) => Err(UnsupportedCommand({ command: index }))
+
+	## Constant opacity is a Gate 4 capability: form-aware scenes validate the
+	## group's children like any nested range, while Gate 2/3 scenes keep the
+	## explicit rejection. The `U16` value itself has no invalid state — zero
+	## and fully opaque are both meaningful.
+	Opacity({ children, opacity: _ }) => if resources.allow_opacity {
+		Ok({ ..leaf_work, children: Nested(children), opacity_commands: 1 })
+	} else {
+		Err(UnsupportedCommand({ command: index }))
+	}
 	PlaceForm({ form, transform }) => {
 		if form.index() >= resources.forms {
 			return Err(IndexOutOfRange({ available: resources.forms, index: form.index(), kind: FormIndex }))
@@ -1117,7 +1136,7 @@ test_form_store = {
 		}),
 		DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
 	],
-	forms: [{ bbox: rect(0, 0, 1000, 1000), commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.FormId.from_index(0) }],
+	forms: [{ bbox: rect(0, 0, 1000, 1000), commands: Semantics.Range.from_start_and_length(0, 1), group: NoGroup, id: Scene.FormId.from_index(0) }],
 }
 
 form_placing_store : Scene.Store
@@ -1185,4 +1204,69 @@ expect {
 		_ => False
 	}
 	sparse_rejected and flat_rejected
+}
+
+opacity_store : Scene.Store
+opacity_store = {
+	..test_store,
+	commands: [
+		Opacity({ children: Semantics.Range.from_start_and_length(1, 2), opacity: 32768 }),
+		DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+		Opacity({ children: Semantics.Range.from_start_and_length(3, 1), opacity: 65535 }),
+		DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+	],
+	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+}
+
+## A form-aware scene validates constant-opacity groups like any nested range:
+## the children stay once-each owned, depth is bounded, and every opacity
+## command (opaque or not) is counted as validation work.
+expect {
+	plan = KernelScene.Plan.build(opacity_store, form_test_resources, test_limits)?
+	work = KernelScene.Plan.work(plan)
+	work.opacity_commands == 2 and work.command_visits == 4 and work.child_ranges == 2 and work.max_graphics_depth == 3 and work.image_placements == 1
+}
+
+## The same opacity scene stays rejected under the Gate 2 and Gate 3 resource
+## constructors: constant opacity is a Gate 4 capability.
+expect {
+	made = match KernelScene.Plan.build(opacity_store, test_resources, test_limits) {
+		Err(UnsupportedCommand({ command: 0 })) => True
+		_ => False
+	}
+	with_text = match KernelScene.Plan.build(opacity_store, KernelScene.Resources.with_text({ color_spaces: 1, images: 1, text_runs: 0 }), test_limits) {
+		Err(UnsupportedCommand({ command: 0 })) => True
+		_ => False
+	}
+	made and with_text
+}
+
+## An empty opacity group cannot own zero commands.
+expect {
+	bad = {
+		..opacity_store,
+		commands: [
+			Opacity({ children: Semantics.Range.from_start_and_length(1, 2), opacity: 32768 }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+			Opacity({ children: Semantics.Range.from_start_and_length(0, 0), opacity: 32768 }),
+			DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+		],
+	}
+	match KernelScene.Plan.build(bad, form_test_resources, test_limits) {
+		Err(EmptyCommandRange({ group: 0 })) => True
+		_ => False
+	}
+}
+
+## Opacity groups inside form content validate with the identical command
+## rules and are counted as form validation work.
+expect {
+	form_commands = [
+		Opacity({ children: Semantics.Range.from_start_and_length(1, 1), opacity: 16384 }),
+		DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+	]
+	forms = { commands: form_commands, forms: [{ bbox: rect(0, 0, 1000, 1000), commands: Semantics.Range.from_start_and_length(0, 1), group: IsolatedGroup, id: Scene.FormId.from_index(0) }] }
+	plan = KernelScene.FormPlan.build(form_placing_store, forms, form_test_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }))?
+	work = KernelScene.FormPlan.work(plan)
+	work.form_opacity_commands == 1 and work.form_command_visits == 2 and work.max_form_depth == 2
 }
