@@ -27,9 +27,10 @@ KernelResourceGraph :: [].{
 	## Resource kinds that may participate in the dependency graph. Later Gate 4
 	## kinds join by extending this union and the descriptor facts below; no PDF
 	## dictionary or object internal enters this boundary. `ExtGState` joined
-	## with the transparency slice; its rank is appended after the existing
-	## kinds so no previously derived identity digest changes.
-	Kind : [ColorSpace, ExtGState, Font, IccProfile, Image, Pattern, Shading, XObject]
+	## with the transparency slice and `Function` (a shading's derived PDF
+	## function) with the shading slice; each rank is appended after the
+	## existing kinds so no previously derived identity digest changes.
+	Kind : [ColorSpace, ExtGState, Font, Function, IccProfile, Image, Pattern, Shading, XObject]
 
 	## Descriptor facts that must distinguish resources whose payload bytes alone
 	## are insufficient. Two resources with identical bytes but any differing
@@ -1372,6 +1373,7 @@ kind_rank = |kind| match kind {
 	Shading => 5
 	XObject => 6
 	ExtGState => 7
+	Function => 8
 }
 
 append_u64 : List(U8), U64 -> List(U8)
