@@ -170,10 +170,20 @@ class FormFacts:
             self.form_resources[number] = resources
 
         ## Every form referenced by some stream's XObject entry exists, every
-        ## form object is reachable from a page, and the reference graph is a
-        ## DAG (walked iteratively).
+        ## form object is reachable from a page placement or as a soft-mask
+        ## group (an ``/SMask << /G n 0 R`` reference in a graphics-state
+        ## object), and the reference graph is a DAG (walked iteratively).
         reachable: set[int] = set()
         stack: list[int] = []
+        for number, body in bodies.items():
+            if b"/Type /ExtGState" not in body:
+                continue
+            for mask in re.finditer(rb"/SMask << /G ([1-9][0-9]*) 0 R", body):
+                target = int(mask.group(1))
+                require(target in self.forms, f"state {number}: /SMask /G does not name a Form XObject")
+                if target not in reachable:
+                    reachable.add(target)
+                    stack.append(target)
         for page in self.pages:
             for name, target in self.page_resources[page].items():
                 if name.startswith("XO"):
