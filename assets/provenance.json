@@ -1053,6 +1053,22 @@
       }
     },
     {
+      "id": "icc-srgb2014-profile",
+      "path": "vendor/icc/sRGB2014.icc",
+      "kind": "icc_profile",
+      "bytes": 3024,
+      "sha256": "384b832de3412066743b52a75ee906b6fb9fb8d9e09e936fc2c43223815c6e0a",
+      "license": "ICC profile license (copy, distribute, embed, use, and sell without restriction; altered versions must remove the original identification)",
+      "attribution": "vendor/icc/NOTICE.md",
+      "modification_permitted": false,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "external",
+        "source_url": "https://www.color.org/profiles/sRGB2014.icc",
+        "upstream_revision": "sRGB2014"
+      }
+    },
+    {
       "id": "inter-4-1-regular-font",
       "path": "vendor/fonts/Inter-4.1-Regular.ttf",
       "kind": "font",

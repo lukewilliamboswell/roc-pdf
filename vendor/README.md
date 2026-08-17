@@ -30,6 +30,16 @@ Current retained production font inputs are:
   the private `package/KernelBuiltInFont.roc` byte module from the exact asset,
   so `roc bundle` retains the built-in face for package consumers.
 
+Current retained production color inputs are:
+
+- `sRGB2014.icc`, the International Color Consortium's official sRGB v2
+  profile, retained byte-for-byte under the ICC's unrestricted
+  copy/distribute/embed license. `scripts/build_srgb_profile.py` emits the
+  private `package/KernelSrgbProfile.roc` byte module from the exact asset, so
+  the packaged sRGB profile is compiled package data rather than a runtime
+  file dependency. Its retrieval and verification chain is recorded in
+  `vendor/icc/NOTICE.md`.
+
 Keep upstream tool archives and source font files byte-for-byte intact. To update one, review its license
 and bundled notices, download the exact immutable release, verify the upstream
 digest, replace the artifact and attribution together, update the provenance
