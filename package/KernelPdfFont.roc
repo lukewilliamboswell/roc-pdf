@@ -33,6 +33,22 @@ KernelPdfFont :: [].{
 		make = |limits| Limits.(limits)
 	}
 
+	## The exact font-unit-to-text-space scaling the emitted descriptor and
+	## width integers use (1000 per em, rounding half away from zero). Shared
+	## so canonical font-leaf recipes serialize the same integers this
+	## lowering emits.
+	scaled_signed_metric : I64, U16 -> Try(I64, Error)
+	scaled_signed_metric = |value, units_per_em| scale_signed(value, units_per_em)
+
+	scaled_unsigned_metric : U16, U16 -> Try(U64, Error)
+	scaled_unsigned_metric = |value, units_per_em| scale_unsigned(value, units_per_em)
+
+	## Whether bytes are valid as the PostScript-name segment of an emitted
+	## BaseFont name. Shared with the canonical font-leaf identity boundary
+	## so one charset rule guards both.
+	valid_font_name_bytes : List(U8) -> Bool
+	valid_font_name_bytes = |bytes| valid_postscript_name(bytes)
+
 	Objects : {
 		cid_font : KernelObject.ObjectId,
 		cid_to_gid : KernelObject.ObjectId,
