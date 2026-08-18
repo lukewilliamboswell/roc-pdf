@@ -274,8 +274,12 @@ def validate_pdf(
 
 
 def self_test() -> None:
+    # The facade blank fixture now carries document facts, so its identifier
+    # is the sealed-plan digest rather than the recomputed blank identity;
+    # the blank identity derivation stays covered by the kernel-path
+    # gate1_pages stress case in the ordinary suite run.
     pdf = BLANK_SNAPSHOT.read_bytes()
-    validate_pdf(pdf, 1)
+    validate_pdf(pdf, 1, normalized_plan_identity=True)
 
     deflate_pdf = DEFLATE_SNAPSHOT.read_bytes()
     generated_content = b"q Q\n" * 65536
@@ -313,7 +317,7 @@ def self_test() -> None:
     ]
     for index, mutation in enumerate(mutations):
         try:
-            validate_pdf(mutation, 1)
+            validate_pdf(mutation, 1, normalized_plan_identity=True)
         except ValidationError:
             continue
         raise SystemExit(f"structural checker accepted mutation {index}")
