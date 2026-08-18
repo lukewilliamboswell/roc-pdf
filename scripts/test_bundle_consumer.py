@@ -151,9 +151,9 @@ def main() -> int:
                 env = isolated_environment(temporary_path / "roc-cache")
                 executable = temporary_path / "pdf-facade-consumer"
                 command(args.roc, "fmt", "--check", relative(source), env=env)
-                command(args.roc, "check", relative(source), "--no-cache", env=env)
+                command(args.roc, "check", relative(source), env=env)
                 command(ZIG, "build", "-Doptimize=ReleaseFast", cwd=ROOT / "tests" / "platform", env=env)
-                command(args.roc, "build", relative(source), "--opt=dev", f"--output={relative(executable)}", "--no-cache", env=env)
+                command(args.roc, "build", relative(source), "--opt=dev", f"--output={relative(executable)}", env=env)
                 result = subprocess.run([executable, "0"], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
                 if result.returncode != 0:
                     raise TestFailure(f"bundled consumer exited {result.returncode}: {result.stderr.decode(errors='replace')}")

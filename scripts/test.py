@@ -497,7 +497,6 @@ def run_case(
     check_allocations: bool,
     compare_baselines: bool,
     linux_x64_container: str | None,
-    reuse_build_cache: bool,
 ) -> BaselineDelta | None:
     # Half the registered cases differ from another case only in the runtime
     # arguments they pass to the same fixture, and every case in one run
@@ -508,13 +507,6 @@ def run_case(
     # flags before any case that uses it runs.
     executable = build_dir / f"source-{source_key(case.source)}"
     if not executable.exists():
-        # Every fixture is a thin wrapper over the same package modules, so a
-        # cold compiler cache recompiles that package once per source. Reuse
-        # is opt-in because a stale local cache would silently detach a
-        # snapshot or allocation baseline from the sources it claims to
-        # measure; it is safe exactly where the cache starts empty and is
-        # populated only from the checkout under test, which is what a fresh
-        # CI runner provides.
         build_flags = [
             "build",
             relative(case.source),
@@ -522,8 +514,6 @@ def run_case(
             f"--target={target}",
             f"--output={executable}",
         ]
-        if not reuse_build_cache:
-            build_flags.append("--no-cache")
         roc(*build_flags)
 
     if linux_x64_container is None:
@@ -745,15 +735,6 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "--reuse-build-cache",
-        action="store_true",
-        help=(
-            "Reuse the Roc compiler cache across fixture builds instead of forcing a full "
-            "rebuild per case. Intended for a fresh CI runner, whose cache starts empty and "
-            "is populated only from the checkout under test"
-        ),
-    )
-    parser.add_argument(
         "--case",
         action="append",
         dest="case_names",
@@ -865,7 +846,6 @@ def main() -> None:
                 check_allocations,
                 args.compare_baselines,
                 args.linux_x64_container,
-                args.reuse_build_cache,
             )
             if delta is not None:
                 baseline_deltas.append(delta)
