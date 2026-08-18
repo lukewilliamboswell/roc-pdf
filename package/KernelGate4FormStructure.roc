@@ -309,6 +309,39 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			})
 		}
 	}
+
+	## Normal appearances integrate through the shared form pipeline: every
+	## referenced appearance is a canonical Form XObject whose bounding box
+	## must be exactly `[0 0 w h]` with the annotation rectangle's extents,
+	## so the identity `/Matrix` maps appearance space onto `/Rect` one to
+	## one. Sharing one canonical form across annotations never merges their
+	## occurrences; a geometric disagreement is a per-annotation rejection.
+	match navigation_plan {
+		NoNavigationPlan => {}
+		WithNavigationPlan(plan_input) => {
+			appearance_names = KernelForm.Plan.form_names(forms)
+			var $appearance_check = 0
+			while $appearance_check < plan_input.store.annotations.len() {
+				annotation = list_at(plan_input.store.annotations, $appearance_check)
+				match annotation.appearance {
+					NoAppearance => {}
+					NormalAppearance(form) => {
+						if form.index() >= appearance_names.len() {
+							return Err(Navigation(AppearanceFormOutOfRange({ annotation: $appearance_check, attempted: form.index(), forms: appearance_names.len() })))
+						}
+						canonical = KernelForm.Plan.canonical_form(forms, list_at(appearance_names, form.index()))
+						if canonical.bbox.origin.x.raw() != 0 or
+							canonical.bbox.origin.y.raw() != 0 or
+								canonical.bbox.size.width.raw() != annotation.rect.size.width.raw() or
+									canonical.bbox.size.height.raw() != annotation.rect.size.height.raw() {
+							return Err(Navigation(AppearanceGeometryMismatch({ annotation: $appearance_check, form: form.index() })))
+						}
+					}
+				}
+				$appearance_check = $appearance_check + 1
+			}
+		}
+	}
 	navigation_facts = match navigation_plan {
 		NoNavigationPlan => NoNavigationObjects
 		WithNavigationPlan(plan_input) => WithNavigationObjects({
