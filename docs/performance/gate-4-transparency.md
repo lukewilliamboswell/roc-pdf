@@ -424,9 +424,10 @@ plans that contain transparency.
 - Linear/radial shadings and supported tiling patterns.
 - Canonical font leaf identity and deduplicated font-leaf emission —
   landed in [gate-4-font-leaves.md](gate-4-font-leaves.md).
-- XMP metadata, document language, output intents (which will also absorb
-  the 6.7.2.1 finding above), URI links/destinations/outlines/labels, and
-  annotation appearances.
+- XMP metadata, document language, and output intents — landed in
+  [gate-4-metadata-output-intent.md](gate-4-metadata-output-intent.md),
+  which absorbed the 6.7.2.1 finding above.
+- URI links/destinations/outlines/labels and annotation appearances.
 
 This slice deliberately claims `Pdf20`/`Standard` output only: PDF/A-4
 requires the XMP and output-intent capabilities above, and PDF/UA-2 requires

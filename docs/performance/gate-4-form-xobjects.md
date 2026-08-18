@@ -345,7 +345,9 @@ check, veraPDF 1.30.2 parsed the showcase and text fixtures completely under
 an explicit `--flavour 4` run and reported exactly one failed PDF/A-4 rule —
 6.7.2.1-1, the missing XMP metadata stream that is precisely the deferred
 Gate 4/5 capability. That run is recorded as tool validation, not as any
-conformance claim; its evidence lane begins with the XMP and PDF/A slices.
+conformance claim; the XMP/output-intent capability has since landed in
+[gate-4-metadata-output-intent.md](gate-4-metadata-output-intent.md), which
+absorbed the 6.7.2.1 finding for metadata-bearing documents.
 
 The compiler-defect workaround in `Gate4FormTextEvidence` (all const-evaluable
 analysis/inspection/shaping calls live in one `build_prelude` body) is

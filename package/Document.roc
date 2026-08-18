@@ -169,7 +169,7 @@ DocumentBuilder :: {
 	}
 
 	finish : DocumentBuilder -> Document
-	finish = |state| Document.{ authoring: Compact(state) }
+	finish = |state| Document.{ authoring: Compact(state), created: Omitted, modified: Omitted }
 }
 
 DocumentAuthoring := [
@@ -177,7 +177,7 @@ DocumentAuthoring := [
 	Simple({ contents : List(DocumentBlock), language : Str, metadata_title : Str }),
 ]
 
-Document :: { authoring : DocumentAuthoring }.{
+Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput }.{
 	Block : DocumentBlock
 	Builder : DocumentBuilder
 	NormalizedBlock : NormalizedBlock
@@ -273,7 +273,32 @@ Document :: { authoring : DocumentAuthoring }.{
 	from_blocks = |{ contents, language, title: document_title }|
 		Document.{
 			authoring: Simple({ contents, language, metadata_title: document_title }),
+			created: Omitted,
+			modified: Omitted,
 		}
+
+	## Optional explicit metadata timestamps. The package never reads a clock;
+	## an author who wants `xmp:CreateDate` or `xmp:ModifyDate` supplies the
+	## exact canonical UTC instant, which is validated before generation.
+	with_created : Document, Str -> Document
+	with_created = |document, timestamp| Document.{
+		authoring: document.authoring,
+		created: Explicit(timestamp),
+		modified: document.modified,
+	}
+
+	with_modified : Document, Str -> Document
+	with_modified = |document, timestamp| Document.{
+		authoring: document.authoring,
+		created: document.created,
+		modified: Explicit(timestamp),
+	}
+
+	created : Document -> Metadata.TimestampInput
+	created = |document| document.created
+
+	modified : Document -> Metadata.TimestampInput
+	modified = |document| document.modified
 
 	title : Str -> DocumentBlock
 	title = |text| DocumentBlock.Title(text)
@@ -528,3 +553,11 @@ expect {
 
 ## Prepared documents cannot retain authoring blocks or layout handlers.
 expect Document.lifetimes.custom_handlers == ReleaseAfter(LayoutStabilization)
+
+## Metadata timestamps are explicit author inputs and default to omission.
+expect {
+	document = Document.from_blocks({ contents: [], language: "en-AU", title: "Report" })
+	stamped = document.with_created("2026-01-02T03:04:05Z").with_modified("2026-01-02T03:04:06Z")
+
+	document.created() == Omitted and document.modified() == Omitted and stamped.created() == Explicit("2026-01-02T03:04:05Z") and stamped.modified() == Explicit("2026-01-02T03:04:06Z")
+}

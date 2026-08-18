@@ -4,6 +4,7 @@ import KernelFacadeFragments
 import KernelFacadeShape
 import KernelFacadeText
 import KernelScene
+import KernelSrgbProfile
 import KernelTextOwnership
 import KernelTextSemantics
 import Layout
@@ -13,6 +14,12 @@ import Text
 
 KernelFacadeScenes :: [].{
 	Dimension : [Commands, Groups, PageGroupEdges, Pages]
+
+	## Whether the validated color store carries the packaged sRGB profile for
+	## the document's output intent. Painting is unaffected: the profile joins
+	## the store (and its validation and object plan) without adding a color
+	## space, so plans without an intent stay byte-identical.
+	IntentProfile : [NoIntentProfile, PackagedSrgbIntent]
 	Error : [
 		ArithmeticOverflow,
 		Color(KernelColor.Error),
@@ -80,10 +87,13 @@ KernelFacadeScenes :: [].{
 	}
 	Plan :: { colors : KernelColor.Plan, ownership : KernelTextOwnership.Plan, scene : KernelScene.Plan, work : Work }.{
 		build : KernelFacadeFragments.Plan, Layout.Size, Limits -> Try(Plan, Error)
-		build = |fragments, page_size, limits| build_plan(fragments, page_size, limits)
+		build = |fragments, page_size, limits| build_plan(fragments, page_size, NoIntentProfile, limits)
+
+		build_with_intent : KernelFacadeFragments.Plan, Layout.Size, IntentProfile, Limits -> Try(Plan, Error)
+		build_with_intent = |fragments, page_size, intent, limits| build_plan(fragments, page_size, intent, limits)
 
 		build_prepared : KernelTextSemantics.Plan, Prepared, Limits -> Try(Plan, Error)
-		build_prepared = |semantics, prepared, limits| build_validated(semantics, prepared, limits)
+		build_prepared = |semantics, prepared, limits| build_validated(semantics, prepared, NoIntentProfile, limits)
 
 		colors : Plan -> KernelColor.Plan
 		colors = |plan| plan.colors
@@ -101,8 +111,8 @@ KernelFacadeScenes :: [].{
 	}
 }
 
-build_plan : KernelFacadeFragments.Plan, Layout.Size, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
-build_plan = |fragment_plan, page_size, limits| {
+build_plan : KernelFacadeFragments.Plan, Layout.Size, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
+build_plan = |fragment_plan, page_size, intent, limits| {
 	text_plan = KernelFacadeFragments.Plan.text(fragment_plan)
 	text = KernelFacadeText.Plan.text(text_plan)
 	prepared = {
@@ -112,13 +122,13 @@ build_plan = |fragment_plan, page_size, limits| {
 		styles: KernelFacadeText.Plan.styles(text_plan),
 		text,
 	}
-	build_validated(KernelFacadeFragments.Plan.semantics(fragment_plan), prepared, limits)
+	build_validated(KernelFacadeFragments.Plan.semantics(fragment_plan), prepared, intent, limits)
 }
 
-build_validated : KernelTextSemantics.Plan, KernelFacadeScenes.Prepared, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
-build_validated = |semantics, prepared, limits| {
+build_validated : KernelTextSemantics.Plan, KernelFacadeScenes.Prepared, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
+build_validated = |semantics, prepared, intent, limits| {
 	text = prepared.text
-	arena = build_arena(prepare_arena(prepared), limits)?
+	arena = build_arena_with_intent(prepare_arena(prepared), intent, limits)?
 	colors = KernelColor.Plan.build(arena.colors, limits.color) ? Color
 	scene = KernelScene.Plan.build(
 		arena.scenes,
@@ -139,7 +149,10 @@ prepare_arena = |prepared| {
 }
 
 build_arena : KernelFacadeScenes.ArenaPrepared, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Arena, KernelFacadeScenes.Error)
-build_arena = |prepared, limits| {
+build_arena = |prepared, limits| build_arena_with_intent(prepared, NoIntentProfile, limits)
+
+build_arena_with_intent : KernelFacadeScenes.ArenaPrepared, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Arena, KernelFacadeScenes.Error)
+build_arena_with_intent = |prepared, intent, limits| {
 	if prepared.page_size.width.raw() <= 0 or prepared.page_size.height.raw() <= 0 {
 		return Err(InvalidPageSize)
 	}
@@ -224,18 +237,26 @@ build_arena = |prepared, limits| {
 	if $placement_cursor != run_count {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
-	colors = {
-		profiles: [],
-		spaces: [
-			{
-				id: Color.SpaceId.from_index(0),
-				space: CalibratedGray({
-					black_point: { x: 0, y: 0, z: 0 },
-					white_point: { x: 950000, y: 1000000, z: 1089000 },
-				}),
-			},
-		],
-		tags: [],
+	painting_spaces = [
+		{
+			id: Color.SpaceId.from_index(0),
+			space: CalibratedGray({
+				black_point: { x: 0, y: 0, z: 0 },
+				white_point: { x: 950000, y: 1000000, z: 1089000 },
+			}),
+		},
+	]
+	colors = match intent {
+		NoIntentProfile => {
+			profiles: [],
+			spaces: painting_spaces,
+			tags: [],
+		}
+		PackagedSrgbIntent => {
+			profiles: [KernelSrgbProfile.profile(0, 0)],
+			spaces: painting_spaces,
+			tags: KernelSrgbProfile.tags,
+		}
 	}
 	Ok(
 		KernelFacadeScenes.Arena.{

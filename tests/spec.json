@@ -29,11 +29,11 @@
       "snapshot": "tests/gate1_blank/snapshot.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
-      "dimensions": { "pages": 1 },
+      "dimensions": { "pages": 1, "normalized_plan_identity": 1 },
       "work_counters": ["passes", "byte_visits"],
       "expectations": {
-        "arm64mac": { "allocations": 0, "work": [1, 667] },
-        "x64musl": { "allocations": 0, "work": [1, 667] }
+        "arm64mac": { "allocations": 0, "work": [1, 4717] },
+        "x64musl": { "allocations": 0, "work": [1, 4717] }
       },
       "retention": null
     },
@@ -752,8 +752,8 @@
       "dimensions": { "pages": 1, "caller_font_bytes": 7816, "caller_font_resources": 1, "caller_font_faces": 1, "caller_font_instances": 1, "caller_font_policies": 1, "authored_placements": 3, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "authored_placements", "selected_source_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1612, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] },
-        "x64musl": { "allocations": 1612, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] }
+        "arm64mac": { "allocations": 1763, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] },
+        "x64musl": { "allocations": 1763, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] }
       },
       "retention": null
     },
@@ -782,8 +782,8 @@
       "dimensions": { "pages": 1, "caller_font_bytes": 7816, "caller_font_registrations": 1, "caller_font_shared_registry": 1, "facade_outputs": 2, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "registry_copied_input_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "facade_outputs", "first_output_bytes", "second_output_bytes", "selected_source_bytes_after_outputs"],
       "expectations": {
-        "arm64mac": { "allocations": 3183, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 10348, 10348, 7816] },
-        "x64musl": { "allocations": 3183, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 10348, 10348, 7816] }
+        "arm64mac": { "allocations": 3485, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 14410, 14410, 7816] },
+        "x64musl": { "allocations": 3485, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 14410, 14410, 7816] }
       },
       "retention": null
     },
@@ -797,8 +797,8 @@
       "dimensions": { "pages": 1, "caller_font_bytes": 15632, "caller_font_input_allocations": 2, "caller_font_registrations": 2, "caller_font_unique_registry_control": 1, "facade_outputs": 2, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_allocations", "input_bytes", "retained_input_bytes", "registry_copied_input_bytes", "caller_copy_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "facade_outputs", "first_output_bytes", "second_output_bytes", "selected_source_bytes_after_outputs"],
       "expectations": {
-        "arm64mac": { "allocations": 3223, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 10348, 10348, 15632] },
-        "x64musl": { "allocations": 3223, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 10348, 10348, 15632] }
+        "arm64mac": { "allocations": 3525, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 14410, 14410, 15632] },
+        "x64musl": { "allocations": 3525, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 14410, 14410, 15632] }
       },
       "retention": null
     },
@@ -812,8 +812,8 @@
       "dimensions": { "pages": 1, "authored_blocks": 1, "public_pdf_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
       "work_counters": ["output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1436, "work": [12397] },
-        "x64musl": { "allocations": 1436, "work": [12397] }
+        "arm64mac": { "allocations": 1585, "work": [16472] },
+        "x64musl": { "allocations": 1585, "work": [16472] }
       },
       "retention": null
     },
@@ -827,8 +827,8 @@
       "dimensions": { "pages": 1, "authored_blocks": 1, "chunked_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
       "work_counters": ["chunks", "max_chunk_bytes", "chunk_offset_weight", "byte_identical", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2871, "work": [32, 8692, 208253, 1, 12397] },
-        "x64musl": { "allocations": 2871, "work": [32, 8692, 208253, 1, 12397] }
+        "arm64mac": { "allocations": 3168, "work": [40, 8692, 324743, 1, 16472] },
+        "x64musl": { "allocations": 3168, "work": [40, 8692, 324743, 1, 16472] }
       },
       "retention": null
     },
@@ -842,8 +842,8 @@
       "dimensions": { "pages": 1, "authored_blocks": 1, "chunked_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
       "work_counters": ["chunks", "max_chunk_bytes", "chunk_offset_weight", "byte_identical", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2871, "work": [32, 8692, 208253, 1, 12397] },
-        "x64musl": { "allocations": 2871, "work": [32, 8692, 208253, 1, 12397] }
+        "arm64mac": { "allocations": 3169, "work": [40, 8692, 324743, 1, 16472] },
+        "x64musl": { "allocations": 3169, "work": [40, 8692, 324743, 1, 16472] }
       },
       "retention": null
     },
@@ -857,8 +857,8 @@
       "dimensions": { "pages": 1, "chunk_authoring_rejected": 1, "normalized_plan_identity": 1 },
       "work_counters": ["chunk_authoring_rejected", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4, "work": [1, 667] },
-        "x64musl": { "allocations": 4, "work": [1, 667] }
+        "arm64mac": { "allocations": 19, "work": [1, 4717] },
+        "x64musl": { "allocations": 19, "work": [1, 4717] }
       },
       "retention": null
     },
@@ -872,8 +872,8 @@
       "dimensions": { "pages": 1, "list_items": 2, "generated_labels": 2, "gate3_generated_label": 1, "normalized_plan_identity": 1 },
       "work_counters": ["output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1732, "work": [11468] },
-        "x64musl": { "allocations": 1732, "work": [11468] }
+        "arm64mac": { "allocations": 1882, "work": [15539] },
+        "x64musl": { "allocations": 1882, "work": [15539] }
       },
       "retention": null
     },
@@ -1427,8 +1427,8 @@
       "dimensions": { "pages": 1, "caller_font_faces": 2, "policy_faces": 2, "authored_blocks": 1, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["latin_input_bytes", "cjk_input_bytes", "latin_retained_bytes", "cjk_retained_bytes", "copied_input_bytes", "resources", "faces", "instances", "policies", "policy_faces", "authored_blocks", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1719, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 11416] },
-        "x64musl": { "allocations": 1719, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 11416] }
+        "arm64mac": { "allocations": 1869, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 15480] },
+        "x64musl": { "allocations": 1869, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 15480] }
       },
       "retention": null
     },
@@ -1442,8 +1442,8 @@
       "dimensions": { "pages": 1, "caller_font_faces": 2, "documents": 2, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "resources", "faces", "instances", "policies", "documents", "first_output_bytes", "second_output_bytes", "selected_source_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3366, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 11416, 11416, 9920] },
-        "x64musl": { "allocations": 3366, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 11416, 11416, 9920] }
+        "arm64mac": { "allocations": 3666, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 15480, 15480, 9920] },
+        "x64musl": { "allocations": 3666, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 15480, 15480, 9920] }
       },
       "retention": null
     },
@@ -1457,8 +1457,8 @@
       "dimensions": { "pages": 1, "caller_font_faces": 4, "documents": 2, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["registries", "input_bytes", "retained_input_bytes", "copied_input_bytes", "duplicated_caller_bytes", "resources", "faces", "instances", "policies", "documents", "first_output_bytes", "second_output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3435, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 11416, 11416] },
-        "x64musl": { "allocations": 3435, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 11416, 11416] }
+        "arm64mac": { "allocations": 3735, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 15480, 15480] },
+        "x64musl": { "allocations": 3735, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 15480, 15480] }
       },
       "retention": null
     },
@@ -1472,8 +1472,8 @@
       "dimensions": { "missing_coverage_rejected": 1 },
       "work_counters": ["missing_coverage_rejected", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 114, "work": [1, 0] },
-        "x64musl": { "allocations": 114, "work": [1, 0] }
+        "arm64mac": { "allocations": 129, "work": [1, 0] },
+        "x64musl": { "allocations": 129, "work": [1, 0] }
       },
       "retention": null
     },
@@ -1487,8 +1487,8 @@
       "dimensions": { "undeclared_script_rejected": 1 },
       "work_counters": ["undeclared_script_rejected", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 114, "work": [1, 0] },
-        "x64musl": { "allocations": 114, "work": [1, 0] }
+        "arm64mac": { "allocations": 129, "work": [1, 0] },
+        "x64musl": { "allocations": 129, "work": [1, 0] }
       },
       "retention": null
     },
@@ -1502,8 +1502,8 @@
       "dimensions": { "unknown_policy_rejected": 1 },
       "work_counters": ["unknown_policy_rejected", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 70, "work": [1, 0] },
-        "x64musl": { "allocations": 70, "work": [1, 0] }
+        "arm64mac": { "allocations": 85, "work": [1, 0] },
+        "x64musl": { "allocations": 85, "work": [1, 0] }
       },
       "retention": null
     },
@@ -1517,8 +1517,8 @@
       "dimensions": { "builtin_policy_rejected": 1 },
       "work_counters": ["builtin_policy_rejected", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1, "work": [1, 0] },
-        "x64musl": { "allocations": 1, "work": [1, 0] }
+        "arm64mac": { "allocations": 16, "work": [1, 0] },
+        "x64musl": { "allocations": 16, "work": [1, 0] }
       },
       "retention": null
     },
@@ -2824,6 +2824,186 @@
       "expectations": {
         "arm64mac": { "allocations": 19319, "work": [11, 0, 8562] },
         "x64musl": { "allocations": 19319, "work": [11, 0, 8562] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 metadata showcase with adversarial authoring",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata/main.roc",
+      "snapshot": "tests/gate4_metadata/snapshot.pdf",
+      "args": ["showcase", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "metadata_objects": 2, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "language_bytes", "title_bytes", "timestamp_bytes", "intent_bytes_compared", "xmp_packet_bytes", "xmp_properties", "title_escapes", "metadata_stream_bytes", "metadata_objects", "emitted_profile_bytes", "graph_bytes_hashed", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 2395, "work": [2, 1, 1, 3, 2, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 6163, 17, 6129] },
+        "x64musl": { "allocations": 2395, "work": [2, 1, 1, 3, 2, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 6163, 17, 6129] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 metadata omitted-timestamp packet",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_minimal/main.roc",
+      "snapshot": "tests/gate4_metadata_minimal/snapshot.pdf",
+      "args": ["minimal", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_minimal": 1, "xmp_properties": 2, "canonical_profiles": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "language_bytes", "title_bytes", "timestamp_bytes", "intent_bytes_compared", "xmp_packet_bytes", "xmp_properties", "title_escapes", "metadata_stream_bytes", "metadata_objects", "emitted_profile_bytes", "graph_bytes_hashed", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1182, "work": [2, 1, 1, 3, 2, 5, 36, 0, 3024, 540, 2, 3, 540, 2, 3024, 6163, 17, 5974] },
+        "x64musl": { "allocations": 1182, "work": [2, 1, 1, 3, 2, 5, 36, 0, 3024, 540, 2, 3, 540, 2, 3024, 6163, 17, 5974] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 metadata unique-input ownership",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_unique/main.roc",
+      "snapshot": "tests/gate4_metadata_unique/snapshot.pdf",
+      "args": ["unique", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_unique": 1, "canonical_profiles": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "language_bytes", "title_bytes", "timestamp_bytes", "intent_bytes_compared", "xmp_packet_bytes", "xmp_properties", "title_escapes", "metadata_stream_bytes", "metadata_objects", "emitted_profile_bytes", "graph_bytes_hashed", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1198, "work": [2, 1, 1, 3, 2, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 6163, 17, 6129] },
+        "x64musl": { "allocations": 1198, "work": [2, 1, 1, 3, 2, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 6163, 17, 6129] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 metadata retained-input ownership",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_retained/main.roc",
+      "snapshot": "tests/gate4_metadata_retained/snapshot.pdf",
+      "args": ["shared", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_retained": 1, "canonical_profiles": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "language_bytes", "title_bytes", "timestamp_bytes", "intent_bytes_compared", "xmp_packet_bytes", "xmp_properties", "title_escapes", "metadata_stream_bytes", "metadata_objects", "emitted_profile_bytes", "graph_bytes_hashed", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 2394, "work": [2, 1, 1, 3, 2, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 6163, 17, 6129] },
+        "x64musl": { "allocations": 2394, "work": [2, 1, 1, 3, 2, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 6163, 17, 6129] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 shared intent profile x16",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_share_16/main.roc",
+      "snapshot": "tests/gate4_metadata_share_16/snapshot.pdf",
+      "args": ["share", "16"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_share": 1, "authored_profiles": 16, "canonical_profiles": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "language_bytes", "title_bytes", "timestamp_bytes", "intent_bytes_compared", "xmp_packet_bytes", "xmp_properties", "title_escapes", "metadata_stream_bytes", "metadata_objects", "emitted_profile_bytes", "graph_bytes_hashed", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 3020, "work": [16, 1, 15, 16, 1, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 48912, 30, 7909] },
+        "x64musl": { "allocations": 3020, "work": [16, 1, 15, 16, 1, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 48912, 30, 7909] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 shared intent profile x64",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_share_64/main.roc",
+      "snapshot": "tests/gate4_metadata_share_64/snapshot.pdf",
+      "args": ["share", "64"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_share": 1, "authored_profiles": 64, "canonical_profiles": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "language_bytes", "title_bytes", "timestamp_bytes", "intent_bytes_compared", "xmp_packet_bytes", "xmp_properties", "title_escapes", "metadata_stream_bytes", "metadata_objects", "emitted_profile_bytes", "graph_bytes_hashed", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 9528, "work": [64, 1, 63, 64, 1, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 195648, 78, 14579] },
+        "x64musl": { "allocations": 9528, "work": [64, 1, 63, 64, 1, 5, 36, 40, 3024, 695, 4, 3, 695, 2, 3024, 195648, 78, 14579] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 metadata title scaling x64",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_title_64/main.roc",
+      "snapshot": "tests/gate4_metadata_title_64/snapshot.pdf",
+      "args": ["title", "64"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_title": 1, "title_segments": 64, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "language_bytes", "title_bytes", "timestamp_bytes", "intent_bytes_compared", "xmp_packet_bytes", "xmp_properties", "title_escapes", "metadata_stream_bytes", "metadata_objects", "emitted_profile_bytes", "graph_bytes_hashed", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1199, "work": [2, 1, 1, 3, 2, 5, 128, 40, 3024, 1033, 4, 64, 1033, 2, 3024, 6163, 17, 6468] },
+        "x64musl": { "allocations": 1199, "work": [2, 1, 1, 3, 2, 5, 128, 40, 3024, 1033, 4, 64, 1033, 2, 3024, 6163, 17, 6468] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 metadata title scaling x256",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_title_256/main.roc",
+      "snapshot": "tests/gate4_metadata_title_256/snapshot.pdf",
+      "args": ["title", "256"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_title": 1, "title_segments": 256, "normalized_plan_identity": 1 },
+      "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "language_bytes", "title_bytes", "timestamp_bytes", "intent_bytes_compared", "xmp_packet_bytes", "xmp_properties", "title_escapes", "metadata_stream_bytes", "metadata_objects", "emitted_profile_bytes", "graph_bytes_hashed", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1201, "work": [2, 1, 1, 3, 2, 5, 512, 40, 3024, 2185, 4, 256, 2185, 2, 3024, 6163, 17, 7620] },
+        "x64musl": { "allocations": 1201, "work": [2, 1, 1, 3, 2, 5, 512, 40, 3024, 2185, 4, 256, 2185, 2, 3024, 6163, 17, 7620] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 metadata atomic negatives",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_negative/main.roc",
+      "snapshot": "tests/gate4_metadata_negative/snapshot.pdf",
+      "args": ["1"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_negative": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["rejections", "escaped_plans", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1212, "work": [18, 0, 6129] },
+        "x64musl": { "allocations": 1212, "work": [18, 0, 6129] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 public facade metadata output",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_facade/main.roc",
+      "snapshot": "tests/gate4_metadata_facade/snapshot.pdf",
+      "args": ["0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 3, "gate4_metadata_facade": 1, "authored_blocks": 41, "normalized_plan_identity": 1 },
+      "work_counters": ["output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 40292, "work": [46423] },
+        "x64musl": { "allocations": 40292, "work": [46423] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 public facade metadata determinism",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_facade/main.roc",
+      "snapshot": "tests/gate4_metadata_facade/snapshot.pdf",
+      "args": ["twice"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 3, "gate4_metadata_facade": 1, "authored_blocks": 41, "normalized_plan_identity": 1 },
+      "work_counters": ["byte_identical", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 80583, "work": [1, 46423] },
+        "x64musl": { "allocations": 80583, "work": [1, 46423] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 facade metadata atomic negatives",
+      "scenario_revision": "gate4-metadata-output-intent-v1",
+      "source": "tests/gate4_metadata_facade_negative/main.roc",
+      "snapshot": "tests/gate4_metadata_facade_negative/snapshot.pdf",
+      "args": ["1"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_metadata_facade_negative": 1, "normalized_plan_identity": 1 },
+      "work_counters": ["metadata_rejections", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 1306, "work": [9, 13350] },
+        "x64musl": { "allocations": 1306, "work": [9, 13350] }
       },
       "retention": null
     }

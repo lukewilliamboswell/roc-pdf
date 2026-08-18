@@ -1,5 +1,6 @@
 import KernelGate2Objects
 import KernelGate2PipelineFixture
+import KernelMetadata
 import KernelObject
 import KernelTagged
 import Semantics
@@ -21,7 +22,14 @@ KernelGate2TaggedObjects :: [].{
 
 	Plan :: { builder : KernelObject.Builder, work : Work }.{
 		build : KernelTagged.Plan, KernelGate2Objects.Plan, KernelObject.Limits -> Try(Plan, Error)
-		build = |tagged, objects, limits| build_plan(tagged, objects, limits)
+		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, limits)
+
+		## Document facts extend the catalog with its validated language, the
+		## planned metadata stream, and the packaged sRGB output intent whose
+		## profile stream the planner has already assigned. `NoCatalogFacts`
+		## keeps the plan byte-identical to `build`.
+		build_with_facts : KernelTagged.Plan, KernelGate2Objects.Plan, KernelMetadata.CatalogFacts, KernelObject.Limits -> Try(Plan, Error)
+		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, limits)
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
@@ -57,11 +65,18 @@ Names := {
 	type_name : KernelObject.NameId,
 }
 
-build_plan : KernelTagged.Plan, KernelGate2Objects.Plan, KernelObject.Limits -> Try(KernelGate2TaggedObjects.Plan, KernelGate2TaggedObjects.Error)
-build_plan = |tagged, objects, limits| {
+build_plan : KernelTagged.Plan, KernelGate2Objects.Plan, KernelMetadata.CatalogFacts, KernelObject.Limits -> Try(KernelGate2TaggedObjects.Plan, KernelGate2TaggedObjects.Error)
+build_plan = |tagged, objects, facts, limits| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	added_names = add_names(KernelObject.init(limits))?
-	with_catalog = add_catalog(added_names.builder, added_names.names, objects)?
+	prepared = match facts {
+		NoCatalogFacts => { builder: added_names.builder, input: NoCatalogInput }
+		WithCatalogFacts(input) => {
+			fact_names = add_fact_names(added_names.builder)?
+			{ builder: fact_names.builder, input: CatalogInput({ facts: input, names: fact_names.names }) }
+		}
+	}
+	with_catalog = add_catalog(prepared.builder, added_names.names, prepared.input, objects)?
 	with_root = add_structure_root(with_catalog, added_names.names, tagged, objects)?
 	with_parent_tree = add_parent_tree(with_root, added_names.names, tagged, objects)?
 	with_namespaces = add_namespaces(with_parent_tree, added_names.names, semantics, objects)?
@@ -137,25 +152,112 @@ add_names = |builder| {
 	})
 }
 
-add_catalog : KernelObject.Builder, Names, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
-add_catalog = |builder, names, objects| {
+## Names required only by document facts are added conditionally so plans
+## without facts keep their exact name table and identity digest.
+FactNames := {
+	dest_output_profile : KernelObject.NameId,
+	gts_pdfa1 : KernelObject.NameId,
+	lang : KernelObject.NameId,
+	metadata : KernelObject.NameId,
+	output_condition_identifier : KernelObject.NameId,
+	output_intent : KernelObject.NameId,
+	output_intents : KernelObject.NameId,
+	registry_name : KernelObject.NameId,
+}
+
+CatalogInputFacts : [CatalogInput({ facts : KernelMetadata.CatalogInput, names : FactNames }), NoCatalogInput]
+
+add_fact_names : KernelObject.Builder -> Try({ builder : KernelObject.Builder, names : FactNames }, KernelGate2TaggedObjects.Error)
+add_fact_names = |builder| {
+	dest_output_profile = KernelObject.add_name(builder, Str.to_utf8("DestOutputProfile")) ? Object
+	gts_pdfa1 = KernelObject.add_name(dest_output_profile.builder, Str.to_utf8("GTS_PDFA1")) ? Object
+	lang = KernelObject.add_name(gts_pdfa1.builder, Str.to_utf8("Lang")) ? Object
+	metadata = KernelObject.add_name(lang.builder, Str.to_utf8("Metadata")) ? Object
+	output_condition_identifier = KernelObject.add_name(metadata.builder, Str.to_utf8("OutputConditionIdentifier")) ? Object
+	output_intent = KernelObject.add_name(output_condition_identifier.builder, Str.to_utf8("OutputIntent")) ? Object
+	output_intents = KernelObject.add_name(output_intent.builder, Str.to_utf8("OutputIntents")) ? Object
+	registry_name = KernelObject.add_name(output_intents.builder, Str.to_utf8("RegistryName")) ? Object
+	Ok({
+		builder: registry_name.builder,
+		names: {
+			dest_output_profile: dest_output_profile.id,
+			gts_pdfa1: gts_pdfa1.id,
+			lang: lang.id,
+			metadata: metadata.id,
+			output_condition_identifier: output_condition_identifier.id,
+			output_intent: output_intent.id,
+			output_intents: output_intents.id,
+			registry_name: registry_name.id,
+		},
+	})
+}
+
+add_catalog : KernelObject.Builder, Names, CatalogInputFacts, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_catalog = |builder, names, catalog_input, objects| {
 	marked = KernelObject.add_boolean(builder, True) ? Object
 	mark_info = KernelObject.add_dictionary(marked.builder, [{ key: names.marked, value: marked.id }]) ? Object
 	pages = KernelObject.add_reference(mark_info.builder, list_at(KernelGate2Objects.Plan.page_tree(objects), 0)) ? Object
 	structure = KernelObject.add_reference(pages.builder, KernelGate2Objects.Plan.struct_tree_root(objects)) ? Object
 	type_value = add_name_value(structure.builder, names.catalog)?
-	dictionary = KernelObject.add_dictionary(
-		type_value.builder,
-		[
-			{ key: names.mark_info, value: mark_info.id },
-			{ key: names.pages, value: pages.id },
-			{ key: names.struct_tree_root, value: structure.id },
-			{ key: names.type_name, value: type_value.id },
-		],
-	) ? Object
+	dictionary = match catalog_input {
+		NoCatalogInput => KernelObject.add_dictionary(
+			type_value.builder,
+			[
+				{ key: names.mark_info, value: mark_info.id },
+				{ key: names.pages, value: pages.id },
+				{ key: names.struct_tree_root, value: structure.id },
+				{ key: names.type_name, value: type_value.id },
+			],
+		) ? Object
+		CatalogInput({ facts, names: fact_names }) => {
+			lang_text = KernelObject.add_text_string(type_value.builder, facts.language) ? Object
+			lang_value = KernelObject.add_text_string_value(lang_text.builder, lang_text.id) ? Object
+			metadata_reference = KernelObject.add_reference(lang_value.builder, facts.metadata_stream) ? Object
+			intent = add_output_intent(metadata_reference.builder, names, fact_names, facts)?
+			intents = KernelObject.add_array(intent.builder, [intent.id]) ? Object
+			KernelObject.add_dictionary(
+				intents.builder,
+				[
+					{ key: fact_names.lang, value: lang_value.id },
+					{ key: names.mark_info, value: mark_info.id },
+					{ key: fact_names.metadata, value: metadata_reference.id },
+					{ key: fact_names.output_intents, value: intents.id },
+					{ key: names.pages, value: pages.id },
+					{ key: names.struct_tree_root, value: structure.id },
+					{ key: names.type_name, value: type_value.id },
+				],
+			) ? Object
+		}
+	}
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, KernelGate2Objects.Plan.catalog(objects))?
 	Ok(object.builder)
+}
+
+## The output intent is one direct dictionary inside the catalog's
+## `/OutputIntents` array: the PDF/A subtype, the packaged profile's condition
+## identifier and registry, and an indirect reference to the planned ICC
+## profile stream that color spaces may also share.
+add_output_intent : KernelObject.Builder, Names, FactNames, KernelMetadata.CatalogInput -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelGate2TaggedObjects.Error)
+add_output_intent = |builder, names, fact_names, facts| {
+	destination = KernelObject.add_reference(builder, facts.profile_stream) ? Object
+	identifier_text = KernelObject.add_text_string(destination.builder, facts.condition_identifier) ? Object
+	identifier_value = KernelObject.add_text_string_value(identifier_text.builder, identifier_text.id) ? Object
+	registry_text = KernelObject.add_text_string(identifier_value.builder, facts.registry_name) ? Object
+	registry_value = KernelObject.add_text_string_value(registry_text.builder, registry_text.id) ? Object
+	subtype_value = add_name_value(registry_value.builder, fact_names.gts_pdfa1)?
+	intent_type_value = add_name_value(subtype_value.builder, fact_names.output_intent)?
+	added = KernelObject.add_dictionary(
+		intent_type_value.builder,
+		[
+			{ key: fact_names.dest_output_profile, value: destination.id },
+			{ key: fact_names.output_condition_identifier, value: identifier_value.id },
+			{ key: fact_names.registry_name, value: registry_value.id },
+			{ key: names.s, value: subtype_value.id },
+			{ key: names.type_name, value: intent_type_value.id },
+		],
+	) ? Object
+	Ok(added)
 }
 
 add_structure_root : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)

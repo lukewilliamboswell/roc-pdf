@@ -1,3 +1,4 @@
+import Color
 import Conformance
 import Document
 import Font
@@ -7,6 +8,10 @@ import KernelBuiltInFont
 import KernelFacadePipeline
 import KernelFont
 import KernelFontPlan
+import KernelMetadata
+import KernelSrgbProfile
+import KernelXmp
+import Metadata
 import KernelFacadeFragments
 import KernelFacadeLines
 import KernelFacadeOutput
@@ -55,6 +60,7 @@ Pdf :: [].{
 		InvalidDocument(List(Conformance.Diagnostic)),
 		InvalidFontResource(Font.ResourceError),
 		InvalidFontSelection(List(Font.PlanError)),
+		InvalidMetadata(Metadata.Error),
 		UnsupportedAuthoringContent({ blocks : U64 }),
 	]
 
@@ -124,6 +130,15 @@ Pdf :: [].{
 	page_footer : Str -> Document.Block
 	page_footer = |text| Document.page_footer(text)
 
+	## Optional explicit metadata timestamps in the canonical UTC form
+	## `YYYY-MM-DDThh:mm:ssZ`. The package never invents a timestamp: omitted
+	## values deterministically omit their XMP properties.
+	with_created : Document, Str -> Document
+	with_created = |doc, timestamp| Document.with_created(doc, timestamp)
+
+	with_modified : Document, Str -> Document
+	with_modified = |doc, timestamp| Document.with_modified(doc, timestamp)
+
 	## Standard authored content follows the completed typed facade pipeline.
 	## Archive claims remain unavailable until their independent gates close.
 	to_bytes : Document -> Try(List(U8), Error)
@@ -165,25 +180,58 @@ Pdf :: [].{
 build_standard_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_standard_plan = |doc, options| {
 	validate_standard_request(options)?
+
+	## The authored metadata facts validate once and the canonical XMP packet
+	## serializes once; every later stage consumes the same validated values.
+	validated = KernelMetadata.validate(
+		{
+			created: Document.created(doc),
+			language: Document.language(doc),
+			modified: Document.modified(doc),
+			title: Document.metadata_title(doc),
+		},
+		standard_metadata_limits,
+	) ? InvalidMetadata
+	xmp = KernelXmp.Packet.build(validated.facts, standard_xmp_bytes) ? |_| InternalGenerationFailure
 	if Document.block_count(doc) == 0 {
-		plan = KernelStructure.build_blank(1, structure_page_size(options.page_size)) ? |_| InternalGenerationFailure
+		plan = KernelStructure.build_blank_with_facts(
+			1,
+			structure_page_size(options.page_size),
+			{
+				condition_identifier: KernelMetadata.srgb_condition_identifier,
+				language: validated.facts.language,
+				profile_bytes: KernelSrgbProfile.bytes,
+				profile_components: 3,
+				registry_name: KernelMetadata.icc_registry_name,
+				xmp: KernelXmp.Packet.bytes(xmp),
+			},
+		) ? |_| InternalGenerationFailure
 		return Ok(plan)
 	}
+	facts = WithDocumentFacts({
+		condition_identifier: KernelMetadata.srgb_condition_identifier,
+		profile: Color.ProfileId.from_index(0),
+		registry_name: KernelMetadata.icc_registry_name,
+		language: validated.facts.language,
+		xmp: KernelXmp.Packet.bytes(xmp),
+	})
 	pipeline = match selected_fonts(options)? {
-		Single(font) => KernelFacadePipeline.Plan.build(
+		Single(font) => KernelFacadePipeline.Plan.build_with_facts(
 			Document.normalize(doc),
 			font,
 			options.theme,
 			layout_page_size(options.page_size),
 			standard_font_descriptor,
+			facts,
 			standard_pipeline_limits,
 		) ? |_| UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
-		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered(
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(
 			Document.normalize(doc),
 			ordered,
 			options.theme,
 			layout_page_size(options.page_size),
 			standard_font_descriptor,
+			facts,
 			standard_pipeline_limits,
 		) ? |error| ordered_pipeline_error(error, ordered.policy, Document.block_count(doc))
 	}
@@ -266,6 +314,15 @@ layout_page_size = |page_size| match page_size {
 	Letter => { height: Layout.Unit.from_raw(792000), width: Layout.Unit.from_raw(612000) }
 }
 
+standard_metadata_limits : KernelMetadata.Limits
+standard_metadata_limits = KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })
+
+## The canonical packet for a maximal facade title (2048 bytes escaped up to
+## five-fold), language, and both timestamps stays far below this budget, so
+## the facade cannot reach the kernel packet bound.
+standard_xmp_bytes : U64
+standard_xmp_bytes = 16384
+
 standard_font_limits : KernelFont.Limits
 standard_font_limits = KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })
 
@@ -306,7 +363,7 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		page: KernelPageLayout.Limits.make({ max_blocks: 2048, max_fragments: 1000000, max_lines: 1000000, max_pages: 1024, max_placements: 1000000 }),
 	}),
 	scenes: KernelFacadeScenes.Limits.make({
-		color: KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 }),
+		color: KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 1, max_tags: KernelSrgbProfile.tag_count }),
 		max_commands: 2000000,
 		max_groups: 1000000,
 		max_page_group_edges: 1000000,

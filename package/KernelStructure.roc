@@ -1,16 +1,33 @@
 import KernelBalanced
 import KernelDeflate
+import KernelGate2Identity
 import KernelObject
 import KernelSeal
 import KernelSha256
 
 ContentPlan : [Deflated(List(U8)), EmptyGenerated, Unchanged(List(U8))]
 
+## Document facts for the blank structural path: the validated catalog
+## language, the canonical XMP packet bytes, and the packaged output-intent
+## profile with its identifier facts. The caller has already validated all of
+## them; this builder only lowers.
+BlankFacts : {
+	condition_identifier : Str,
+	language : Str,
+	profile_bytes : List(U8),
+	profile_components : I64,
+	registry_name : Str,
+	xmp : List(U8),
+}
+
+DocumentFacts : [NoBlankFacts, WithBlankFacts(BlankFacts)]
+
 KernelStructure :: [].{
 	PageSize := [A4, Letter]
 	PageGeometry := [Fixed(PageSize), Variable]
 	Error : [
 		Deflate(KernelDeflate.Error),
+		Identity(KernelGate2Identity.Error),
 		IdentityInputTooLarge,
 		Object(KernelObject.Error),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : U64 }),
@@ -98,12 +115,29 @@ KernelStructure :: [].{
 		} else if page_count > max_pages {
 			Err(PageLimitExceeded({ attempted: page_count, limit: max_pages }))
 		} else {
-			build_nonempty(page_count, page_size, EmptyGenerated)
+			build_nonempty(page_count, page_size, EmptyGenerated, NoBlankFacts)
+		}
+	}
+
+	## The blank structural plan extended with validated document facts: the
+	## catalog gains `/Lang`, `/Metadata`, and `/OutputIntents`, and the plan
+	## appends the uncompressed XMP metadata stream and the packaged ICC
+	## profile stream after the page objects. The plan identity becomes the
+	## sealed-store digest so distinct facts produce distinct file
+	## identifiers.
+	build_blank_with_facts : U64, PageSize, BlankFacts -> Try(Plan, Error)
+	build_blank_with_facts = |page_count, page_size, facts| {
+		if page_count == 0 {
+			Err(PageCountZero)
+		} else if page_count > max_pages {
+			Err(PageLimitExceeded({ attempted: page_count, limit: max_pages }))
+		} else {
+			build_nonempty(page_count, page_size, EmptyGenerated, WithBlankFacts(facts))
 		}
 	}
 
 	build_unchanged_stream_probe : List(U8) -> Try(Plan, Error)
-	build_unchanged_stream_probe = |bytes| build_nonempty(1, A4, Unchanged(bytes))
+	build_unchanged_stream_probe = |bytes| build_nonempty(1, A4, Unchanged(bytes), NoBlankFacts)
 
 	build_deflate_stream_probe : List(U8), U64 -> Try(Plan, Error)
 	build_deflate_stream_probe = |bytes, max_input_bytes| {
@@ -112,33 +146,30 @@ KernelStructure :: [].{
 			bytes,
 			KernelDeflate.Limits.make({ max_input_bytes, max_output_bytes: bound }),
 		) ? Deflate
-		build_nonempty(1, A4, Deflated(bytes))
+		build_nonempty(1, A4, Deflated(bytes), NoBlankFacts)
 	}
 }
 
 max_pages : U64
 max_pages = 1048576
 
-build_nonempty : U64, KernelStructure.PageSize, ContentPlan -> Try(KernelStructure.Plan, KernelStructure.Error)
-build_nonempty = |page_count, page_size, content_plan| {
+build_nonempty : U64, KernelStructure.PageSize, ContentPlan, DocumentFacts -> Try(KernelStructure.Plan, KernelStructure.Error)
+build_nonempty = |page_count, page_size, content_plan, facts| {
 	payload_bytes = content_plan_bytes(content_plan).len()
 	payload_total = checked_times(page_count, payload_bytes)?
 	payload_output = content_plan_output_bound(content_plan)?
 	payload_output_total = checked_times(page_count, payload_output)?
-	output_bound = checked_add(blank_output_bound(page_count)?, payload_output_total)?
-	identity = match content_plan {
-		Deflated(bytes) => GeneratedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
-		EmptyGenerated => Blank
-		Unchanged(bytes) => UnchangedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
-	}
+	facts_bound = facts_output_bound(facts)?
+	output_bound = checked_add(checked_add(blank_output_bound(page_count)?, payload_output_total)?, facts_bound)?
 	shape = KernelBalanced.Shape.build(page_count, max_pages) ? Shape
 	leaf_level = KernelBalanced.Shape.leaf_level(shape)
 	leaf_count = KernelBalanced.Shape.level_node_count(shape, leaf_level)
 	node_count = KernelBalanced.Shape.node_count(shape)
-	object_limit = checked_add(checked_linear(page_count, 3, 1)?, node_count)?
-	value_limit = checked_add(checked_add(checked_linear(page_count, 4, 9)?, checked_linear(node_count, 5, 0)?)?, leaf_count)?
-	dictionary_limit = checked_add(checked_linear(page_count, 5, 1)?, checked_linear(node_count, 4, 0)?)?
-	array_limit = checked_add(checked_add(page_count, node_count)?, 3)?
+	fact_budget = facts_limit_budget(facts)?
+	object_limit = checked_add(checked_add(checked_linear(page_count, 3, 1)?, node_count)?, fact_budget.objects)?
+	value_limit = checked_add(checked_add(checked_add(checked_linear(page_count, 4, 9)?, checked_linear(node_count, 5, 0)?)?, leaf_count)?, fact_budget.values)?
+	dictionary_limit = checked_add(checked_add(checked_linear(page_count, 5, 1)?, checked_linear(node_count, 4, 0)?)?, fact_budget.dictionary_entries)?
+	array_limit = checked_add(checked_add(checked_add(page_count, node_count)?, 3)?, fact_budget.array_items)?
 
 	limits : KernelObject.Limits
 	limits = {
@@ -147,14 +178,14 @@ build_nonempty = |page_count, page_size, content_plan| {
 		max_byte_strings: 0,
 		max_dictionary_entries: dictionary_limit,
 		max_direct_depth: 8,
-		max_name_bytes: 128,
-		max_names: 10,
+		max_name_bytes: checked_add(128, fact_budget.name_bytes)?,
+		max_names: checked_add(10, fact_budget.names)?,
 		max_objects: object_limit,
-		max_payload_bytes: payload_total,
-		max_payloads: page_count,
-		max_streams: page_count,
-		max_text_string_bytes: 0,
-		max_text_strings: 0,
+		max_payload_bytes: checked_add(payload_total, fact_budget.payload_bytes)?,
+		max_payloads: checked_add(page_count, fact_budget.payloads)?,
+		max_streams: checked_add(page_count, fact_budget.payloads)?,
+		max_text_string_bytes: fact_budget.text_string_bytes,
+		max_text_strings: fact_budget.text_strings,
 		max_values: value_limit,
 	}
 
@@ -175,13 +206,65 @@ build_nonempty = |page_count, page_size, content_plan| {
 
 	pages_id = KernelObject.ObjectId.from_number(2) ? Object
 	pages_reference = KernelObject.add_reference(page_type.builder, pages_id) ? Object
-	catalog = KernelObject.add_dictionary(
-		pages_reference.builder,
-		[
-			{ key: pages_name.id, value: pages_reference.id },
-			{ key: type_name.id, value: catalog_type.id },
-		],
-	) ? Object
+
+	## Blank object numbering is catalog, page tree, then three objects per
+	## page; document facts append the metadata stream and the ICC profile
+	## stream (each with its length object) immediately after the pages.
+	pages_end = checked_add(checked_add(1, KernelBalanced.Shape.node_count(shape))?, checked_times(page_count, 3)?)?
+	prepared_facts = match facts {
+		NoBlankFacts => { builder: pages_reference.builder, context: NoFactContext }
+		WithBlankFacts(fact_data) => {
+			fact_names = add_fact_names(pages_reference.builder)?
+			metadata_id = KernelObject.ObjectId.from_number(checked_add(pages_end, 1)?) ? Object
+			profile_id = KernelObject.ObjectId.from_number(checked_add(pages_end, 3)?) ? Object
+			{
+				builder: fact_names.builder,
+				context: FactContext({ data: fact_data, metadata_id, names: fact_names.names, profile_id }),
+			}
+		}
+	}
+	catalog = match prepared_facts.context {
+		NoFactContext => KernelObject.add_dictionary(
+			prepared_facts.builder,
+			[
+				{ key: pages_name.id, value: pages_reference.id },
+				{ key: type_name.id, value: catalog_type.id },
+			],
+		) ? Object
+		FactContext({ data: fact_data, metadata_id, names: fact_names, profile_id }) => {
+			lang_text = KernelObject.add_text_string(prepared_facts.builder, fact_data.language) ? Object
+			lang_value = KernelObject.add_text_string_value(lang_text.builder, lang_text.id) ? Object
+			metadata_reference = KernelObject.add_reference(lang_value.builder, metadata_id) ? Object
+			destination = KernelObject.add_reference(metadata_reference.builder, profile_id) ? Object
+			identifier_text = KernelObject.add_text_string(destination.builder, fact_data.condition_identifier) ? Object
+			identifier_value = KernelObject.add_text_string_value(identifier_text.builder, identifier_text.id) ? Object
+			registry_text = KernelObject.add_text_string(identifier_value.builder, fact_data.registry_name) ? Object
+			registry_value = KernelObject.add_text_string_value(registry_text.builder, registry_text.id) ? Object
+			subtype_value = KernelObject.add_name_value(registry_value.builder, fact_names.gts_pdfa1) ? Object
+			intent_type_value = KernelObject.add_name_value(subtype_value.builder, fact_names.output_intent) ? Object
+			intent = KernelObject.add_dictionary(
+				intent_type_value.builder,
+				[
+					{ key: fact_names.dest_output_profile, value: destination.id },
+					{ key: fact_names.output_condition_identifier, value: identifier_value.id },
+					{ key: fact_names.registry_name, value: registry_value.id },
+					{ key: fact_names.s, value: subtype_value.id },
+					{ key: type_name.id, value: intent_type_value.id },
+				],
+			) ? Object
+			intents = KernelObject.add_array(intent.builder, [intent.id]) ? Object
+			KernelObject.add_dictionary(
+				intents.builder,
+				[
+					{ key: fact_names.lang, value: lang_value.id },
+					{ key: fact_names.metadata, value: metadata_reference.id },
+					{ key: fact_names.output_intents, value: intents.id },
+					{ key: pages_name.id, value: pages_reference.id },
+					{ key: type_name.id, value: catalog_type.id },
+				],
+			) ? Object
+		}
+	}
 	catalog_object = KernelObject.add_object(catalog.builder, catalog.id) ? Object
 	ensure_object_number(catalog_object.id, 1)?
 
@@ -227,7 +310,26 @@ build_nonempty = |page_count, page_size, content_plan| {
 		},
 	)?
 
-	sealed = KernelSeal.seal(finished) ? Seal
+	with_facts = match prepared_facts.context {
+		NoFactContext => finished
+		FactContext(context) => add_fact_streams(finished, type_name.id, context)?
+	}
+	sealed = KernelSeal.seal(with_facts) ? Seal
+	identity = match prepared_facts.context {
+		NoFactContext => match content_plan {
+			Deflated(bytes) => GeneratedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
+			EmptyGenerated => Blank
+			Unchanged(bytes) => UnchangedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
+		}
+		FactContext(_) => {
+
+			## With document facts the plan identity is the sealed-store
+			## digest, so language, metadata, and intent facts change the file
+			## identifier deterministically.
+			plan_identity = KernelGate2Identity.digest(sealed) ? Identity
+			NormalizedPlanDigest(plan_identity.digest)
+		}
+	}
 	xref_number = checked_add(KernelSeal.Plan.counts(sealed).objects, 1)?
 	xref_object = KernelObject.ObjectId.from_number(xref_number) ? Object
 
@@ -243,6 +345,154 @@ build_nonempty = |page_count, page_size, content_plan| {
 			xref_object,
 		},
 	)
+}
+
+BlankFactNames : {
+	dest_output_profile : KernelObject.NameId,
+	gts_pdfa1 : KernelObject.NameId,
+	lang : KernelObject.NameId,
+	metadata : KernelObject.NameId,
+	n : KernelObject.NameId,
+	output_condition_identifier : KernelObject.NameId,
+	output_intent : KernelObject.NameId,
+	output_intents : KernelObject.NameId,
+	registry_name : KernelObject.NameId,
+	s : KernelObject.NameId,
+	subtype : KernelObject.NameId,
+	xml : KernelObject.NameId,
+}
+
+FactContext : [
+	FactContext({ data : BlankFacts, metadata_id : KernelObject.ObjectId, names : BlankFactNames, profile_id : KernelObject.ObjectId }),
+	NoFactContext,
+]
+
+FactBudget : {
+	array_items : U64,
+	dictionary_entries : U64,
+	name_bytes : U64,
+	names : U64,
+	objects : U64,
+	payload_bytes : U64,
+	payloads : U64,
+	text_string_bytes : U64,
+	text_strings : U64,
+	values : U64,
+}
+
+facts_limit_budget : DocumentFacts -> Try(FactBudget, KernelStructure.Error)
+facts_limit_budget = |facts| match facts {
+	NoBlankFacts => Ok({
+		array_items: 0,
+		dictionary_entries: 0,
+		name_bytes: 0,
+		names: 0,
+		objects: 0,
+		payload_bytes: 0,
+		payloads: 0,
+		text_string_bytes: 0,
+		text_strings: 0,
+		values: 0,
+	})
+	WithBlankFacts(data) => {
+		text_bytes = checked_add(
+			checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?,
+			Str.to_utf8(data.registry_name).len(),
+		)?
+		payload_bytes = checked_add(data.xmp.len(), data.profile_bytes.len())?
+		Ok({
+			array_items: 2,
+			dictionary_entries: 16,
+			name_bytes: 128,
+			names: 12,
+			objects: 4,
+			payload_bytes,
+			payloads: 2,
+			text_string_bytes: text_bytes,
+			text_strings: 3,
+			values: 24,
+		})
+	}
+}
+
+## The facts output bound covers the two appended stream payloads, the worst
+## UTF-16 hex expansion of the three text strings, and a fixed allowance for
+## the added dictionary syntax.
+facts_output_bound : DocumentFacts -> Try(U64, KernelStructure.Error)
+facts_output_bound = |facts| match facts {
+	NoBlankFacts => Ok(0)
+	WithBlankFacts(data) => {
+		text_bytes = checked_add(
+			checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?,
+			Str.to_utf8(data.registry_name).len(),
+		)?
+		payload_bytes = checked_add(data.xmp.len(), data.profile_bytes.len())?
+		checked_add(checked_add(payload_bytes, checked_times(text_bytes, 4)?)?, 1024)
+	}
+}
+
+add_fact_names : KernelObject.Builder -> Try({ builder : KernelObject.Builder, names : BlankFactNames }, KernelStructure.Error)
+add_fact_names = |builder| {
+	dest_output_profile = KernelObject.add_name(builder, Str.to_utf8("DestOutputProfile")) ? Object
+	gts_pdfa1 = KernelObject.add_name(dest_output_profile.builder, Str.to_utf8("GTS_PDFA1")) ? Object
+	lang = KernelObject.add_name(gts_pdfa1.builder, Str.to_utf8("Lang")) ? Object
+	metadata = KernelObject.add_name(lang.builder, Str.to_utf8("Metadata")) ? Object
+	n = KernelObject.add_name(metadata.builder, Str.to_utf8("N")) ? Object
+	output_condition_identifier = KernelObject.add_name(n.builder, Str.to_utf8("OutputConditionIdentifier")) ? Object
+	output_intent = KernelObject.add_name(output_condition_identifier.builder, Str.to_utf8("OutputIntent")) ? Object
+	output_intents = KernelObject.add_name(output_intent.builder, Str.to_utf8("OutputIntents")) ? Object
+	registry_name = KernelObject.add_name(output_intents.builder, Str.to_utf8("RegistryName")) ? Object
+	s = KernelObject.add_name(registry_name.builder, Str.to_utf8("S")) ? Object
+	subtype = KernelObject.add_name(s.builder, Str.to_utf8("Subtype")) ? Object
+	xml = KernelObject.add_name(subtype.builder, Str.to_utf8("XML")) ? Object
+	Ok({
+		builder: xml.builder,
+		names: {
+			dest_output_profile: dest_output_profile.id,
+			gts_pdfa1: gts_pdfa1.id,
+			lang: lang.id,
+			metadata: metadata.id,
+			n: n.id,
+			output_condition_identifier: output_condition_identifier.id,
+			output_intent: output_intent.id,
+			output_intents: output_intents.id,
+			registry_name: registry_name.id,
+			s: s.id,
+			subtype: subtype.id,
+			xml: xml.id,
+		},
+	})
+}
+
+## The metadata stream is the uncompressed canonical XMP packet; the profile
+## stream is the packaged ICC payload shared as an unchanged resource.
+add_fact_streams : KernelObject.Builder, KernelObject.NameId, { data : BlankFacts, metadata_id : KernelObject.ObjectId, names : BlankFactNames, profile_id : KernelObject.ObjectId } -> Try(KernelObject.Builder, KernelStructure.Error)
+add_fact_streams = |builder, type_name, context| {
+	subtype_value = KernelObject.add_name_value(builder, context.names.xml) ? Object
+	metadata_type_value = KernelObject.add_name_value(subtype_value.builder, context.names.metadata) ? Object
+	payload = KernelObject.add_payload(metadata_type_value.builder, context.data.xmp, Generated) ? Object
+	stream = KernelObject.add_stream_object(
+		payload.builder,
+		[
+			{ key: context.names.subtype, value: subtype_value.id },
+			{ key: type_name, value: metadata_type_value.id },
+		],
+		Unfiltered,
+		payload.id,
+	) ? Object
+	ensure_object_number(stream.id, KernelObject.ObjectId.number(context.metadata_id))?
+	ensure_object_number(stream.length_object, KernelObject.ObjectId.number(context.metadata_id) + 1)?
+	n_value = KernelObject.add_integer(stream.builder, context.data.profile_components) ? Object
+	icc_payload = KernelObject.add_payload(n_value.builder, context.data.profile_bytes, UnchangedResource) ? Object
+	icc_stream = KernelObject.add_stream_object(
+		icc_payload.builder,
+		[{ key: context.names.n, value: n_value.id }],
+		Unfiltered,
+		icc_payload.id,
+	) ? Object
+	ensure_object_number(icc_stream.id, KernelObject.ObjectId.number(context.profile_id))?
+	ensure_object_number(icc_stream.length_object, KernelObject.ObjectId.number(context.profile_id) + 1)?
+	Ok(icc_stream.builder)
 }
 
 PageFacts : {
@@ -651,6 +901,40 @@ expect {
 		\\objects: 12422
 
 	actual == expected
+}
+
+## Document facts extend one blank page with the metadata and profile
+## streams, a distinct sealed-plan identity, and the same page structure.
+expect {
+	facts : BlankFacts
+	facts = {
+		condition_identifier: "sRGB2014",
+		language: "en-AU",
+		profile_bytes: [0, 0, 0, 4],
+		profile_components: 3,
+		registry_name: "http://www.color.org",
+		xmp: Str.to_utf8("<?xpacket?>"),
+	}
+	plan = KernelStructure.build_blank_with_facts(1, A4, facts)?
+	other = KernelStructure.build_blank_with_facts(1, A4, { ..facts, language: "de-DE" })?
+	store = KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan))
+	metadata_payload = list_at(store.payloads, 1)
+	profile_payload = list_at(store.payloads, 2)
+	identity_ok = match KernelStructure.Plan.identity(plan) {
+		NormalizedPlanDigest(digest) => match KernelStructure.Plan.identity(other) {
+			NormalizedPlanDigest(other_digest) => digest.len() == 32 and digest != other_digest
+			_ => False
+		}
+		_ => False
+	}
+
+	KernelStructure.Plan.object_count(plan) == 9 and
+		KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(plan)) == 10 and
+			metadata_payload.kind == Generated and
+				metadata_payload.bytes == Str.to_utf8("<?xpacket?>") and
+					profile_payload.kind == UnchangedResource and
+						profile_payload.bytes == [0, 0, 0, 4] and
+							identity_ok
 }
 
 ## Zero pages is a named structural failure and creates no partial plan.

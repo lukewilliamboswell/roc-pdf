@@ -1,6 +1,25 @@
 Metadata :: [].{
 	TimestampInput : [Explicit(Str), Omitted]
 
+	## Stable typed rejections for authored metadata facts. Language values
+	## are validated as canonical-case RFC 5646 `language[-script][-region]`
+	## tags: malformed shapes, well-formed-but-unsupported forms, and
+	## non-canonical letter case are distinct rejections, and nothing is
+	## silently normalized. Timestamps accept exactly the canonical UTC form
+	## `YYYY-MM-DDThh:mm:ssZ`. Titles must be non-empty, bounded, and free of
+	## scalars that XML 1.0 cannot represent.
+	Error : [
+		EmptyLanguage,
+		EmptyTitle,
+		InvalidTimestamp({ field : [Created, Modified], offset : U64 }),
+		InvalidTitleScalar({ offset : U64 }),
+		LanguageNotCanonicalCase({ offset : U64 }),
+		LanguageTooLong({ attempted : U64, limit : U64 }),
+		MalformedLanguageTag({ offset : U64 }),
+		TitleTooLong({ attempted : U64, limit : U64 }),
+		UnsupportedLanguageForm({ offset : U64 }),
+	]
+
 	IdentifierInput : [
 		Derived,
 		Explicit({ changing : List(U8), permanent : List(U8) }),

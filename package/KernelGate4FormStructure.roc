@@ -15,6 +15,7 @@ import KernelGate2TaggedObjects
 import KernelGate4FormObjects
 import KernelImage
 import KernelLex
+import KernelMetadata
 import KernelObject
 import KernelPdfFont
 import KernelPdfText
@@ -36,6 +37,7 @@ KernelGate4FormStructure :: [].{
 		Font(KernelPdfFont.Error),
 		FontCountMismatch({ authored : U64, fonts : U64, mappings : U64, planned : U64 }),
 		FormStreamCountMismatch({ planned : U64, streams : U64 }),
+		IntentProfileUnplanned({ attempted : U64, profiles : U64 }),
 		PatternStreamCountMismatch({ planned : U64, streams : U64 }),
 		ShadingStoreMismatch({ shadings : U64, supplied : U64 }),
 		Identity(KernelGate2Identity.Error),
@@ -70,6 +72,8 @@ KernelGate4FormStructure :: [].{
 		form_stream_bytes : U64,
 		function_objects : U64,
 		isolated_form_groups : U64,
+		metadata_bytes : U64,
+		metadata_objects : U64,
 		objects : U64,
 		pages : KernelGate2PageObjects.Work,
 		pattern_objects : U64,
@@ -83,14 +87,22 @@ KernelGate4FormStructure :: [].{
 
 	Plan :: { structure : KernelStructure.Plan, work : Work }.{
 		build : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Limits -> Try(Plan, Error)
-		build = |tagged, colors, images, content, forms, objects, text, limits| build_plan(tagged, colors, images, content, forms, objects, text, Scene.no_shadings, limits)
+		build = |tagged, colors, images, content, forms, objects, text, limits| build_plan(tagged, colors, images, content, forms, objects, text, Scene.no_shadings, NoDocumentFacts, limits)
 
 		## The paint-aware variant: shading, function, and tiling-pattern
 		## objects lower between the graphics states and the font objects,
 		## with stop offsets and channel values read from the validated
 		## shading store the plan was normalized from.
 		build_with_paints : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, Limits -> Try(Plan, Error)
-		build_with_paints = |tagged, colors, images, content, forms, objects, text, shading_store, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, limits)
+		build_with_paints = |tagged, colors, images, content, forms, objects, text, shading_store, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, NoDocumentFacts, limits)
+
+		## The document-fact variant: the catalog gains its validated language,
+		## metadata, and packaged-sRGB output-intent entries, the canonical XMP
+		## stream lowers after the font objects, and the intent references the
+		## canonical (deduplicated) profile stream that ICCBased color spaces
+		## share. `NoDocumentFacts` is byte-identical to the entries above.
+		build_with_facts : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
+		build_with_facts = |tagged, colors, images, content, forms, objects, text, shading_store, facts, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, facts, limits)
 
 		structure : Plan -> KernelStructure.Plan
 		structure = |plan| plan.structure
@@ -162,8 +174,8 @@ ResourceNames := {
 	states : List(KernelObject.NameId),
 }
 
-build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(KernelGate4FormStructure.FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelGate4FormStructure.Limits -> Try(KernelGate4FormStructure.Plan, KernelGate4FormStructure.Error)
-build_plan = |tagged, colors, images, content, forms, objects, text, shading_store, limits| {
+build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(KernelGate4FormStructure.FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelMetadata.PlanFacts, KernelGate4FormStructure.Limits -> Try(KernelGate4FormStructure.Plan, KernelGate4FormStructure.Error)
+build_plan = |tagged, colors, images, content, forms, objects, text, shading_store, facts, limits| {
 	base = KernelGate4FormObjects.Plan.base(objects)
 	planned_fonts = KernelGate4FormObjects.Plan.fonts(objects)
 	canonical_forms = KernelForm.Plan.canonical_form_count(forms)
@@ -200,7 +212,30 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		}
 	}
 
-	prefix = KernelGate2TaggedObjects.Plan.build(tagged, base, limits.object_limits) ? TaggedObjects
+	base_object_count = KernelGate4FormObjects.Plan.object_count(objects)
+	catalog_facts = match facts {
+		NoDocumentFacts => NoCatalogFacts
+		WithDocumentFacts(data) => {
+			ids = KernelMetadata.plan_objects(base_object_count) ? |_| ArithmeticOverflow
+			profile_ordinals = KernelForm.Plan.profile_names(forms)
+			if data.profile.index() >= profile_ordinals.len() {
+				return Err(IntentProfileUnplanned({ attempted: data.profile.index(), profiles: profile_ordinals.len() }))
+			}
+			ordinal = list_at(profile_ordinals, data.profile.index())
+			profile_objects = KernelGate2Objects.Plan.profiles(base)
+			if ordinal >= profile_objects.len() {
+				return Err(IntentProfileUnplanned({ attempted: ordinal, profiles: profile_objects.len() }))
+			}
+			WithCatalogFacts({
+				condition_identifier: data.condition_identifier,
+				language: data.language,
+				metadata_stream: ids.stream,
+				profile_stream: list_at(profile_objects, ordinal).profile,
+				registry_name: data.registry_name,
+			})
+		}
+	}
+	prefix = KernelGate2TaggedObjects.Plan.build_with_facts(tagged, base, catalog_facts, limits.object_limits) ? TaggedObjects
 
 	## Deterministic resource names, created once for the canonical
 	## (deduplicated) leaf and form counts, then one exact direct dictionary
@@ -489,13 +524,33 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		NoFailure => {}
 	}
 
-	expected = KernelGate4FormObjects.Plan.object_count(objects)
-	if $font_builder.store.objects.len() != expected {
-		return Err(ObjectCountMismatch({ actual: $font_builder.store.objects.len(), expected }))
+	if $font_builder.store.objects.len() != base_object_count {
+		return Err(ObjectCountMismatch({ actual: $font_builder.store.objects.len(), expected: base_object_count }))
 	}
-	sealed = KernelSeal.seal($font_builder) ? Seal
+	finished = match facts {
+		NoDocumentFacts => {
+			builder: $font_builder,
+			metadata_bytes: 0,
+			metadata_objects: 0,
+			objects: base_object_count,
+			xref: KernelGate4FormObjects.Plan.xref(objects),
+		}
+		WithDocumentFacts(data) => {
+			ids = KernelMetadata.plan_objects(base_object_count) ? |_| ArithmeticOverflow
+			with_stream = add_metadata_stream($font_builder, data.xmp, ids)?
+			{
+				builder: with_stream,
+				metadata_bytes: data.xmp.len(),
+				metadata_objects: 2,
+				objects: base_object_count + 2,
+				xref: ids.xref,
+			}
+		}
+	}
+	expected = finished.objects
+	sealed = KernelSeal.seal(finished.builder) ? Seal
 	identity = KernelGate2Identity.digest(sealed) ? Identity
-	bound = KernelGate2OutputBound.calculate(sealed, KernelGate4FormObjects.Plan.xref(objects)) ? OutputBound
+	bound = KernelGate2OutputBound.calculate(sealed, finished.xref) ? OutputBound
 	structure = KernelStructure.Plan.from_sealed({
 		identity: NormalizedPlanDigest(identity.digest),
 		output_bound: KernelGate2OutputBound.Bound.bytes(bound),
@@ -503,7 +558,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		root: KernelGate2Objects.Plan.catalog(base),
 		sealed,
 		tree_nodes: KernelGate2Objects.Plan.page_tree(base).len(),
-		xref_object: KernelGate4FormObjects.Plan.xref(objects),
+		xref_object: finished.xref,
 	})
 	Ok(
 		KernelGate4FormStructure.Plan.{
@@ -517,6 +572,8 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 				form_stream_bytes: $form_bytes,
 				function_objects: canonical_functions,
 				isolated_form_groups: $isolated_form_groups,
+				metadata_bytes: finished.metadata_bytes,
+				metadata_objects: finished.metadata_objects,
 				objects: expected,
 				pages: KernelGate2PageObjects.Plan.work(pages),
 				pattern_objects: canonical_patterns,
@@ -529,6 +586,35 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			},
 		},
 	)
+}
+
+## The metadata stream is the canonical XMP packet as an uncompressed
+## `/Type /Metadata /Subtype /XML` stream appended after the font objects.
+add_metadata_stream : KernelObject.Builder, List(U8), KernelMetadata.Objects -> Try(KernelObject.Builder, KernelGate4FormStructure.Error)
+add_metadata_stream = |builder, xmp, ids| {
+	metadata_name = KernelObject.add_name(builder, Str.to_utf8("Metadata")) ? Object
+	subtype_name = KernelObject.add_name(metadata_name.builder, Str.to_utf8("Subtype")) ? Object
+	type_name = KernelObject.add_name(subtype_name.builder, Str.to_utf8("Type")) ? Object
+	xml_name = KernelObject.add_name(type_name.builder, Str.to_utf8("XML")) ? Object
+	subtype_value = KernelObject.add_name_value(xml_name.builder, xml_name.id) ? Object
+	type_value = KernelObject.add_name_value(subtype_value.builder, metadata_name.id) ? Object
+	payload = KernelObject.add_payload(type_value.builder, xmp, Generated) ? Object
+	stream = KernelObject.add_stream_object(
+		payload.builder,
+		[
+			{ key: subtype_name.id, value: subtype_value.id },
+			{ key: type_name.id, value: type_value.id },
+		],
+		Unfiltered,
+		payload.id,
+	) ? Object
+	if !KernelObject.ObjectId.is_eq(stream.id, ids.stream) {
+		return Err(ObjectOrder({ actual: stream.id, expected: ids.stream }))
+	}
+	if !KernelObject.ObjectId.is_eq(stream.length_object, ids.length) {
+		return Err(ObjectOrder({ actual: stream.length_object, expected: ids.length }))
+	}
+	Ok(stream.builder)
 }
 
 add_names : KernelObject.Builder, Bool, Bool, Bool, Bool, Bool, Bool -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate4FormStructure.Error)
