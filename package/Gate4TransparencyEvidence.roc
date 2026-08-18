@@ -355,6 +355,7 @@ form_context = |form_plan, form_store| {
 	{
 		arena: form_store.commands,
 		color_names: KernelForm.Plan.color_names(form_plan),
+		font_names: KernelForm.Plan.font_names(form_plan),
 		form_names: KernelForm.Plan.form_names(form_plan),
 		form_states: KernelForm.Plan.form_command_states(form_plan),
 		image_names: KernelForm.Plan.image_names(form_plan),

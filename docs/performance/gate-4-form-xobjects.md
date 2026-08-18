@@ -148,8 +148,9 @@ bytes, its authored dense IDs, or its emitted name-bearing stream bytes:
 - text commands serialized as the run's prepared `ActualText`/body bytes from
   `KernelPdfText.ScenePlan` (deterministic; font references inside those bytes
   use the planned dense font identity, which is pinned across this slice's
-  adversarial permutations — full canonical font facts join the later font
-  allowlist-closure slice).
+  adversarial permutations — the font-leaf slice
+  ([gate-4-font-leaves.md](gate-4-font-leaves.md)) later replaced this with
+  the canonical font identity digest plus the exact size).
 
 Because nested references are encoded by content-derived digests (Merkle over
 the DAG) rather than authored IDs or emitted names, two forms with identical
@@ -174,9 +175,10 @@ Leaf resources (color spaces, ICC profiles, images) initially stayed 1:1
 with their authored stores under caller-supplied stopgap payloads; the
 color-image slice ([gate-4-color-image-leaves.md](gate-4-color-image-leaves.md))
 now derives their identity from the validated stores and deduplicates them
-canonically. Fonts remain 1:1, and byte-identical authored font leaves stay
-the explicit `DuplicateLeafPayload` rejection until the font slice derives
-canonical font identity.
+canonically. Fonts stayed 1:1 (with byte-identical authored font leaves as
+the explicit `DuplicateLeafPayload` rejection) until the font-leaf slice
+([gate-4-font-leaves.md](gate-4-font-leaves.md)) derived canonical font
+identity and removed that stopgap.
 
 ## Dictionaries, names, and object planning
 
@@ -241,9 +243,10 @@ canonical font identity.
   caller-supplied raw operators, implicit resource discovery.
 - Form `/StructParents`, in-form MCIDs/MCR `/Stm`, OBJR content items, and the
   per-semantic-placement physical duplication they will require.
-- Font leaf deduplicated object emission and annotation appearances, which
-  will consume this slice's form machinery (image/ICC leaf emission landed in
-  the color-image slice).
+- Font leaf deduplicated object emission (landed in
+  [gate-4-font-leaves.md](gate-4-font-leaves.md)) and annotation
+  appearances, which consume this slice's form machinery (image/ICC leaf
+  emission landed in the color-image slice).
 - Recursive forms are permanently rejected (the direct-edge DAG has no legal
   cycle).
 

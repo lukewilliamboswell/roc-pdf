@@ -208,11 +208,16 @@ build_scene_plan = |ownership, fonts, limits| {
 			UseActualText(values) => append_actual_text_begin([], values, run.id.index(), remaining)?
 		}
 		remaining_body = remaining - actual_text_begin.len()
-		emitted = emit_run_body([], text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, remaining_body)?
+
+		## The prepared body carries only the glyph operators: the font
+		## selection is resource naming, so content lowering emits the `Tf`
+		## operator through its authored-to-canonical name map, and the run
+		## records the authored font ordinal and exact size that map needs.
+		emitted = emit_run_glyphs([], text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, remaining_body)?
 		run_bytes = checked_add(actual_text_begin.len(), emitted.bytes.len())?
 		$content_bytes = checked_add($content_bytes, run_bytes)?
 		check_limit($content_bytes, limits.max_content_bytes, ContentBytes)?
-		$runs = $runs.append({ actual_text_begin, body: emitted.bytes, close_actual_text: actual_length > 0 })
+		$runs = $runs.append({ actual_text_begin, body: emitted.bytes, close_actual_text: actual_length > 0, font: font_index, size: run.size })
 		$glyph_visits = checked_add($glyph_visits, emitted.glyphs)?
 		$run_index = $run_index + 1
 	}
@@ -536,6 +541,12 @@ emit_run_body = |bytes, text, run, origin, font, limit| {
 	$out = append_literal($out, " ", limit)?
 	$out = append_layout($out, run.size, limit)?
 	$out = append_literal($out, " Tf\n", limit)?
+	emit_run_glyphs($out, text, run, origin, font, limit)
+}
+
+emit_run_glyphs : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
+emit_run_glyphs = |bytes, text, run, origin, font, limit| {
+	var $out = bytes
 	var $cursor_x = 0
 	var $cursor_y = 0
 	var $glyph_index = run.glyphs.start()

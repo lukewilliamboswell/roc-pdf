@@ -5,6 +5,7 @@ import KernelColor
 import KernelContent
 import KernelEmit
 import KernelFont
+import KernelFontLeaf
 import KernelFontPlan
 import KernelFontSubset
 import KernelForm
@@ -105,6 +106,7 @@ BuildFailure := [
 	ContentFailure,
 	FactsFailure(KernelForm.Error),
 	FontFailure,
+	FontLeafFailure(KernelFontLeaf.Error),
 	FontPlanFailure,
 	FormObjectFailure,
 	FormPlanFailure(KernelForm.Error),
@@ -390,7 +392,18 @@ build_sample = |prelude, scene_store| {
 		KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 0, max_source_scalars: 64 }),
 	) ? |_| TextFailure
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
-	font_leaf = { descriptor: { bit_depth: 0, components: 0, flags: 0, height: 0, kind: Font, subtype: 0, width: 0 }, payload: font.bytes }
+
+	## The canonical font-leaf recipe derives once from the validated bundle
+	## facts; the identity arena retains the recipe, not the caller's whole
+	## font program.
+	leaf = KernelFontLeaf.Leaf.build({
+		descriptor: font_descriptor,
+		font,
+		mappings: list_at(KernelPdfText.ScenePlan.mappings(text), 0),
+		plan: font_plan,
+		subset,
+	}) ? FontLeafFailure
+	font_leaf = { descriptor: KernelFontLeaf.Leaf.descriptor(leaf), payload: KernelFontLeaf.Leaf.recipe(leaf) }
 	form_plan = KernelForm.Plan.build(form_scene, facts, { colors: stores.colors, fonts: [font_leaf], images: stores.images }, WithText(KernelPdfText.ScenePlan.content(text)), tagged, form_limits) ? FormPlanFailure
 	content = KernelContent.Plan.build_with_forms_and_text(
 		tagged,
@@ -409,7 +422,7 @@ build_sample = |prelude, scene_store| {
 		{ color_spaces: leaf_counts.color_spaces, image_alpha: KernelForm.Plan.canonical_image_alpha(form_plan), profiles: leaf_counts.profiles },
 		KernelGate2Objects.Limits.make({ max_objects: 32, max_pages: 1 }),
 	) ? |_| ObjectFailure
-	objects = KernelGate4FormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), 1, 32) ? |_| FormObjectFailure
+	objects = KernelGate4FormObjects.Plan.build_with_states(base, KernelForm.Plan.canonical_form_count(form_plan), KernelForm.Plan.canonical_state_count(form_plan), KernelForm.Plan.canonical_font_count(form_plan), 32) ? |_| FormObjectFailure
 	structure = KernelGate4FormStructure.Plan.build(
 		tagged,
 		stores.colors,
@@ -436,6 +449,7 @@ form_context = |form_plan| {
 	{
 		arena: text_form_store.commands,
 		color_names: KernelForm.Plan.color_names(form_plan),
+		font_names: KernelForm.Plan.font_names(form_plan),
 		form_names: KernelForm.Plan.form_names(form_plan),
 		form_states: KernelForm.Plan.form_command_states(form_plan),
 		image_names: KernelForm.Plan.image_names(form_plan),

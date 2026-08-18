@@ -53,6 +53,7 @@ KernelContent :: [].{
 	FormContext : {
 		arena : List(Scene.Command),
 		color_names : List(U64),
+		font_names : List(U64),
 		form_names : List(U64),
 		form_states : List(U64),
 		image_names : List(U64),
@@ -86,7 +87,11 @@ KernelContent :: [].{
 		text_placements : U64,
 	}
 
-	TextRun : { actual_text_begin : List(U8), body : List(U8), close_actual_text : Bool }
+	## One prepared local-coordinate run: the glyph operators plus the
+	## authored font ordinal and exact size its `Tf` selection needs. The
+	## selection itself is emitted here through the naming map, so prepared
+	## bodies stay independent of resource naming.
+	TextRun : { actual_text_begin : List(U8), body : List(U8), close_actual_text : Bool, font : U64, size : Layout.Unit }
 
 	TextPlan :: { runs : List(TextRun) }.{
 		make : List(TextRun) -> TextPlan
@@ -146,12 +151,18 @@ FormEmission := [NoForms, WithForms(KernelContent.FormContext)]
 ## canonical ordinal each authored resource deduplicated to. Shading and
 ## pattern operators exist only on the canonical path, so their maps carry no
 ## authored fallback.
-Naming := [AuthoredNames, CanonicalNames({ colors : List(U64), images : List(U64), patterns : List(U64), shadings : List(U64) })]
+Naming := [AuthoredNames, CanonicalNames({ colors : List(U64), fonts : List(U64), images : List(U64), patterns : List(U64), shadings : List(U64) })]
 
 color_ordinal : Naming, U64 -> U64
 color_ordinal = |naming, index| match naming {
 	AuthoredNames => index
 	CanonicalNames(maps) => list_at(maps.colors, index)
+}
+
+font_ordinal : Naming, U64 -> U64
+font_ordinal = |naming, index| match naming {
+	AuthoredNames => index
+	CanonicalNames(maps) => list_at(maps.fonts, index)
 }
 
 image_ordinal : Naming, U64 -> U64
@@ -194,7 +205,7 @@ build_plan = |tagged, text, forms, limits| {
 		marked = index_marked(KernelTagged.Plan.marked_fragments(tagged), semantics.fragments.len())?
 		naming = match forms {
 			NoForms => AuthoredNames
-			WithForms(context) => CanonicalNames({ colors: context.color_names, images: context.image_names, patterns: context.pattern_names, shadings: context.shading_names })
+			WithForms(context) => CanonicalNames({ colors: context.color_names, fonts: context.font_names, images: context.image_names, patterns: context.pattern_names, shadings: context.shading_names })
 		}
 		page_states = match forms {
 			NoForms => []
@@ -720,6 +731,15 @@ emit_text = |bytes, paint, run, naming, limit| {
 			}
 		}
 	}
+
+	## The font selection: the canonical `F` ordinal the run's authored font
+	## resolved to, under the deterministic resource-name policy, ahead of
+	## the prepared glyph operators.
+	$out = append_literal($out, "/F", limit)?
+	$out = append_resource_index($out, font_ordinal(naming, run.font), limit)?
+	$out = append_literal($out, " ", limit)?
+	$out = append_layout($out, run.size, limit)?
+	$out = append_literal($out, " Tf\n", limit)?
 	$out = append_bytes($out, run.body, limit)?
 	$out = append_literal($out, "ET\n", limit)?
 	if run.close_actual_text append_literal($out, "EMC\n", limit) else Ok($out)
@@ -1354,6 +1374,20 @@ expect {
 	}
 }
 
+## The font selection is emitted by lowering, not baked into prepared run
+## bodies: the authored map is the identity on the Gate 2/3 paths and the
+## canonical map renames on the Gate 4 path, ahead of the same body bytes.
+expect {
+	run : KernelContent.TextRun
+	run = { actual_text_begin: [], body: Str.to_utf8("1 0 0 1 0 0 Tm\n<0001> Tj\n"), close_actual_text: False, font: 2, size: KernelGate2Fixture.unit(11000) }
+	paint : Scene.TextPaint
+	paint = { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }
+	authored = emit_text([], paint, run, AuthoredNames, 512)?
+	canonical = emit_text([], paint, run, CanonicalNames({ colors: [0], fonts: [9, 9, 7], images: [], patterns: [], shadings: [] }), 512)?
+	expected = |ordinal| Str.to_utf8("/CS1_0 cs\n0 scn\nBT\n0 Tr\n/F1_${ordinal} 11 Tf\n1 0 0 1 0 0 Tm\n<0001> Tj\nET\n")
+	authored == expected("2") and canonical == expected("7")
+}
+
 ## A shading paint lowers to its canonical `Sh` name with the bare `sh`
 ## operator, and a pattern fill to the exact `/Pattern cs` + canonical `Pt`
 ## `scn` selection ahead of the path and fill operator; both resolve
@@ -1367,7 +1401,7 @@ expect {
 			PaintShading({ shading: Scene.ShadingId.from_index(0) }),
 		],
 	}
-	naming = CanonicalNames({ colors: [0], images: [], patterns: [7, 3], shadings: [5] })
+	naming = CanonicalNames({ colors: [0], fonts: [], images: [], patterns: [7, 3], shadings: [5] })
 	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 2), scenes.commands, scenes, NoText, NoForms, naming, [], 512)?
 	expected =
 		\\q

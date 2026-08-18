@@ -17,8 +17,8 @@
       "dimensions": { "pages": 1, "font_bytes": 166300, "external_opportunities": 1, "selected_external_hyphens": 1, "source_scalars": 2, "unicode_mappings": 3, "objects": 20, "gate3_external_discretionary_hyphen": 1, "normalized_plan_identity": 1 },
       "work_counters": ["font_bytes", "opportunities", "selected_opportunities", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1040, "work": [166300, 1, 1, 1, 2, 3, 205, 20, 9125] },
-        "x64musl": { "allocations": 1040, "work": [166300, 1, 1, 1, 2, 3, 205, 20, 9125] }
+        "arm64mac": { "allocations": 1046, "work": [166300, 1, 1, 1, 2, 3, 205, 20, 9125] },
+        "x64musl": { "allocations": 1046, "work": [166300, 1, 1, 1, 2, 3, 205, 20, 9125] }
       },
       "retention": null
     },
@@ -707,8 +707,8 @@
       "dimensions": { "pages": 1, "font_bytes": 166300, "glyphs": 8, "scene_commands": 2, "scene_text_placements": 1, "semantic_nodes": 2, "semantic_occurrences": 1, "semantic_fragments": 1, "text_sources": 1, "unicode_mappings": 8, "objects": 20, "gate3_visible_text": 1, "normalized_plan_identity": 1 },
       "work_counters": ["font_bytes", "runs", "glyphs", "scene_command_visits", "scene_color_references", "scene_text_placements", "scene_max_graphics_depth", "semantic_attribute_visits", "semantic_content_visits", "semantic_fragment_count_visits", "semantic_fragment_validation_visits", "semantic_max_depth", "semantic_namespace_visits", "semantic_node_visits", "semantic_occurrence_visits", "semantic_prefix_steps", "semantic_reverse_writes", "semantic_text_property_bytes", "semantic_text_property_visits", "semantic_text_source_bytes", "semantic_text_source_scalars", "semantic_text_source_visits", "tagged_artifact_groups", "tagged_fragment_groups", "tagged_k_items", "tagged_node_k_ranges", "tagged_occurrence_owner_edges", "tagged_paint_edges", "tagged_parent_prefix_steps", "tagged_parent_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "resource_command_visits", "resource_color_spaces", "resource_text_color_references", "content_command_visits", "content_text_placements", "content_stream_bytes", "font_plan_entries", "subset_bytes", "source_scalars", "text_runs", "placements", "text_glyphs", "unicode_mappings", "prepared_text_bytes", "fonts", "font_objects", "objects", "payload_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 144, "work": [166300, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6776, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7093, 10000] },
-        "x64musl": { "allocations": 144, "work": [166300, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6776, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7093, 10000] }
+        "arm64mac": { "allocations": 144, "work": [166300, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6776, 8, 1, 0, 8, 8, 233, 1, 9, 20, 7093, 10000] },
+        "x64musl": { "allocations": 144, "work": [166300, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6776, 8, 1, 0, 8, 8, 233, 1, 9, 20, 7093, 10000] }
       },
       "retention": null
     },
@@ -722,8 +722,8 @@
       "dimensions": { "pages": 1, "authored_blocks": 1, "semantic_occurrences": 1, "line_runs": 1, "scene_commands": 2, "source_bytes": 32, "glyph_usages": 32, "objects": 20, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
       "work_counters": ["authored_blocks", "semantic_occurrences", "shaped_runs", "lines", "pages", "final_runs", "fragments", "scene_commands", "glyph_usages", "font_entries", "subset_bytes", "text_glyph_visits", "content_command_visits", "content_bytes", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1422, "work": [1, 1, 1, 1, 1, 1, 1, 2, 32, 24, 8692, 32, 2, 1048, 20, 12397] },
-        "x64musl": { "allocations": 1422, "work": [1, 1, 1, 1, 1, 1, 1, 2, 32, 24, 8692, 32, 2, 1048, 20, 12397] }
+        "arm64mac": { "allocations": 1435, "work": [1, 1, 1, 1, 1, 1, 1, 2, 32, 24, 8692, 32, 2, 1048, 20, 12397] },
+        "x64musl": { "allocations": 1435, "work": [1, 1, 1, 1, 1, 1, 1, 2, 32, 24, 8692, 32, 2, 1048, 20, 12397] }
       },
       "retention": null
     },
@@ -752,8 +752,8 @@
       "dimensions": { "pages": 1, "caller_font_bytes": 7816, "caller_font_resources": 1, "caller_font_faces": 1, "caller_font_instances": 1, "caller_font_policies": 1, "authored_placements": 3, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "authored_placements", "selected_source_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1576, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] },
-        "x64musl": { "allocations": 1576, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] }
+        "arm64mac": { "allocations": 1612, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] },
+        "x64musl": { "allocations": 1612, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 3, 7816] }
       },
       "retention": null
     },
@@ -782,8 +782,8 @@
       "dimensions": { "pages": 1, "caller_font_bytes": 7816, "caller_font_registrations": 1, "caller_font_shared_registry": 1, "facade_outputs": 2, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "registry_copied_input_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "facade_outputs", "first_output_bytes", "second_output_bytes", "selected_source_bytes_after_outputs"],
       "expectations": {
-        "arm64mac": { "allocations": 3111, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 10348, 10348, 7816] },
-        "x64musl": { "allocations": 3111, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 10348, 10348, 7816] }
+        "arm64mac": { "allocations": 3183, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 10348, 10348, 7816] },
+        "x64musl": { "allocations": 3183, "work": [7816, 7816, 0, 17, 15, 9, 4, 1, 1, 1, 1, 2, 10348, 10348, 7816] }
       },
       "retention": null
     },
@@ -797,8 +797,8 @@
       "dimensions": { "pages": 1, "caller_font_bytes": 15632, "caller_font_input_allocations": 2, "caller_font_registrations": 2, "caller_font_unique_registry_control": 1, "facade_outputs": 2, "gate3_caller_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_allocations", "input_bytes", "retained_input_bytes", "registry_copied_input_bytes", "caller_copy_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "resources", "faces", "instances", "policies", "facade_outputs", "first_output_bytes", "second_output_bytes", "selected_source_bytes_after_outputs"],
       "expectations": {
-        "arm64mac": { "allocations": 3151, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 10348, 10348, 15632] },
-        "x64musl": { "allocations": 3151, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 10348, 10348, 15632] }
+        "arm64mac": { "allocations": 3223, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 10348, 10348, 15632] },
+        "x64musl": { "allocations": 3223, "work": [2, 15632, 15632, 0, 7816, 34, 30, 18, 8, 2, 2, 2, 2, 2, 10348, 10348, 15632] }
       },
       "retention": null
     },
@@ -812,8 +812,8 @@
       "dimensions": { "pages": 1, "authored_blocks": 1, "public_pdf_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
       "work_counters": ["output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1423, "work": [12397] },
-        "x64musl": { "allocations": 1423, "work": [12397] }
+        "arm64mac": { "allocations": 1436, "work": [12397] },
+        "x64musl": { "allocations": 1436, "work": [12397] }
       },
       "retention": null
     },
@@ -827,8 +827,8 @@
       "dimensions": { "pages": 1, "authored_blocks": 1, "chunked_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
       "work_counters": ["chunks", "max_chunk_bytes", "chunk_offset_weight", "byte_identical", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2845, "work": [32, 8692, 208253, 1, 12397] },
-        "x64musl": { "allocations": 2845, "work": [32, 8692, 208253, 1, 12397] }
+        "arm64mac": { "allocations": 2871, "work": [32, 8692, 208253, 1, 12397] },
+        "x64musl": { "allocations": 2871, "work": [32, 8692, 208253, 1, 12397] }
       },
       "retention": null
     },
@@ -842,8 +842,8 @@
       "dimensions": { "pages": 1, "authored_blocks": 1, "chunked_facade": 1, "gate3_facade_output": 1, "normalized_plan_identity": 1 },
       "work_counters": ["chunks", "max_chunk_bytes", "chunk_offset_weight", "byte_identical", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2845, "work": [32, 8692, 208253, 1, 12397] },
-        "x64musl": { "allocations": 2845, "work": [32, 8692, 208253, 1, 12397] }
+        "arm64mac": { "allocations": 2871, "work": [32, 8692, 208253, 1, 12397] },
+        "x64musl": { "allocations": 2871, "work": [32, 8692, 208253, 1, 12397] }
       },
       "retention": null
     },
@@ -872,8 +872,8 @@
       "dimensions": { "pages": 1, "list_items": 2, "generated_labels": 2, "gate3_generated_label": 1, "normalized_plan_identity": 1 },
       "work_counters": ["output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1703, "work": [11468] },
-        "x64musl": { "allocations": 1703, "work": [11468] }
+        "arm64mac": { "allocations": 1732, "work": [11468] },
+        "x64musl": { "allocations": 1732, "work": [11468] }
       },
       "retention": null
     },
@@ -902,8 +902,8 @@
       "dimensions": { "pages": 1, "font_bytes": 7816, "glyphs": 8, "scene_commands": 2, "scene_text_placements": 1, "semantic_nodes": 2, "semantic_occurrences": 1, "semantic_fragments": 1, "text_sources": 1, "unicode_mappings": 8, "objects": 20, "gate3_caller_text": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "tables", "parsed_glyphs", "cmap_mappings", "component_edges", "selected_face", "runs", "shaped_glyphs", "scene_command_visits", "scene_color_references", "scene_text_placements", "scene_max_graphics_depth", "semantic_attribute_visits", "semantic_content_visits", "semantic_fragment_count_visits", "semantic_fragment_validation_visits", "semantic_max_depth", "semantic_namespace_visits", "semantic_node_visits", "semantic_occurrence_visits", "semantic_prefix_steps", "semantic_reverse_writes", "semantic_text_property_bytes", "semantic_text_property_visits", "semantic_text_source_bytes", "semantic_text_source_scalars", "semantic_text_source_visits", "tagged_artifact_groups", "tagged_fragment_groups", "tagged_k_items", "tagged_node_k_ranges", "tagged_occurrence_owner_edges", "tagged_paint_edges", "tagged_parent_prefix_steps", "tagged_parent_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "resource_command_visits", "resource_color_spaces", "resource_text_color_references", "content_command_visits", "content_text_placements", "content_stream_bytes", "font_plan_entries", "subset_bytes", "source_scalars", "text_runs", "placements", "text_glyphs", "unicode_mappings", "prepared_text_bytes", "fonts", "font_objects", "objects", "payload_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 144, "work": [7816, 7816, 0, 17, 15, 9, 4, 0, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6820, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7137, 10061] },
-        "x64musl": { "allocations": 144, "work": [7816, 7816, 0, 17, 15, 9, 4, 0, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6820, 8, 1, 0, 8, 8, 245, 1, 9, 20, 7137, 10061] }
+        "arm64mac": { "allocations": 144, "work": [7816, 7816, 0, 17, 15, 9, 4, 0, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6820, 8, 1, 0, 8, 8, 233, 1, 9, 20, 7137, 10061] },
+        "x64musl": { "allocations": 144, "work": [7816, 7816, 0, 17, 15, 9, 4, 0, 1, 8, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 9, 8, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 317, 11, 6820, 8, 1, 0, 8, 8, 233, 1, 9, 20, 7137, 10061] }
       },
       "retention": null
     },
@@ -917,8 +917,8 @@
       "dimensions": { "pages": 1, "font_bytes": 7816, "glyphs": 2, "scene_commands": 2, "scene_text_placements": 1, "semantic_nodes": 2, "semantic_occurrences": 1, "semantic_fragments": 1, "text_sources": 1, "unicode_mappings": 2, "objects": 20, "gate3_actual_text": 1, "normalized_plan_identity": 1 },
       "work_counters": ["font_bytes", "runs", "clusters", "glyphs", "glyph_indices", "scene_command_visits", "scene_color_references", "scene_text_placements", "scene_max_graphics_depth", "semantic_attribute_visits", "semantic_content_visits", "semantic_fragment_count_visits", "semantic_fragment_validation_visits", "semantic_max_depth", "semantic_namespace_visits", "semantic_node_visits", "semantic_occurrence_visits", "semantic_prefix_steps", "semantic_reverse_writes", "semantic_text_property_bytes", "semantic_text_property_visits", "semantic_text_source_bytes", "semantic_text_source_scalars", "semantic_text_source_visits", "tagged_artifact_groups", "tagged_fragment_groups", "tagged_k_items", "tagged_node_k_ranges", "tagged_occurrence_owner_edges", "tagged_paint_edges", "tagged_parent_prefix_steps", "tagged_parent_writes", "ownership_command_visits", "ownership_group_visits", "ownership_run_visits", "ownership_fragment_prefix_steps", "ownership_fragment_writes", "ownership_range_checks", "ownership_text_fragments", "resource_command_visits", "resource_color_spaces", "resource_text_color_references", "content_command_visits", "content_text_placements", "content_stream_bytes", "font_plan_entries", "subset_bytes", "source_scalars", "text_runs", "placements", "text_glyphs", "actual_text_runs", "actual_text_scalars", "mapping_conflicts_resolved", "unicode_mappings", "prepared_text_bytes", "fonts", "font_objects", "objects", "payload_bytes", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 144, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 103, 1, 9, 20, 6135, 9035] },
-        "x64musl": { "allocations": 144, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 103, 1, 9, 20, 6135, 9035] }
+        "arm64mac": { "allocations": 144, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 91, 1, 9, 20, 6135, 9035] },
+        "x64musl": { "allocations": 144, "work": [7816, 1, 2, 2, 2, 2, 1, 1, 2, 0, 2, 1, 1, 2, 1, 2, 1, 1, 1, 0, 0, 2, 2, 1, 0, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 179, 3, 5956, 2, 1, 0, 2, 1, 2, 0, 2, 91, 1, 9, 20, 6135, 9035] }
       },
       "retention": null
     },
@@ -932,8 +932,8 @@
       "dimensions": { "pages": 1, "font_bytes": 166300, "source_scalars": 10, "selected_soft_hyphens": 1, "unicode_mappings": 8, "objects": 20, "gate3_soft_hyphen": 1, "normalized_plan_identity": 1 },
       "work_counters": ["font_bytes", "opportunities", "selected_opportunities", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1122, "work": [166300, 1, 1, 1, 10, 8, 419, 20, 10115] },
-        "x64musl": { "allocations": 1122, "work": [166300, 1, 1, 1, 10, 8, 419, 20, 10115] }
+        "arm64mac": { "allocations": 1128, "work": [166300, 1, 1, 1, 10, 8, 419, 20, 10115] },
+        "x64musl": { "allocations": 1128, "work": [166300, 1, 1, 1, 10, 8, 419, 20, 10115] }
       },
       "retention": null
     },
@@ -1397,8 +1397,8 @@
       "dimensions": { "pages": 1, "font_bytes": 5084, "glyphs": 14, "mirrored_brackets": 4, "actual_text_runs": 1, "unicode_mappings": 14, "objects": 20, "gate3_rtl_text": 1, "normalized_plan_identity": 1 },
       "work_counters": ["font_bytes", "paragraph_level", "bidi_cluster_visits", "visual_writes", "visual_runs", "mirrored_brackets", "runs", "clusters", "glyphs", "source_scalars", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1181, "work": [5084, 1, 14, 14, 4, 4, 1, 14, 14, 14, 1, 14, 14, 590, 20, 7891] },
-        "x64musl": { "allocations": 1181, "work": [5084, 1, 14, 14, 4, 4, 1, 14, 14, 14, 1, 14, 14, 590, 20, 7891] }
+        "arm64mac": { "allocations": 1190, "work": [5084, 1, 14, 14, 4, 4, 1, 14, 14, 14, 1, 14, 14, 590, 20, 7891] },
+        "x64musl": { "allocations": 1190, "work": [5084, 1, 14, 14, 4, 4, 1, 14, 14, 14, 1, 14, 14, 590, 20, 7891] }
       },
       "retention": null
     },
@@ -1427,8 +1427,8 @@
       "dimensions": { "pages": 1, "caller_font_faces": 2, "policy_faces": 2, "authored_blocks": 1, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["latin_input_bytes", "cjk_input_bytes", "latin_retained_bytes", "cjk_retained_bytes", "copied_input_bytes", "resources", "faces", "instances", "policies", "policy_faces", "authored_blocks", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1701, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 11416] },
-        "x64musl": { "allocations": 1701, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 11416] }
+        "arm64mac": { "allocations": 1719, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 11416] },
+        "x64musl": { "allocations": 1719, "work": [7816, 2104, 7816, 2104, 0, 2, 2, 2, 3, 2, 1, 11416] }
       },
       "retention": null
     },
@@ -1442,8 +1442,8 @@
       "dimensions": { "pages": 1, "caller_font_faces": 2, "documents": 2, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["input_bytes", "retained_input_bytes", "copied_input_bytes", "resources", "faces", "instances", "policies", "documents", "first_output_bytes", "second_output_bytes", "selected_source_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3330, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 11416, 11416, 9920] },
-        "x64musl": { "allocations": 3330, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 11416, 11416, 9920] }
+        "arm64mac": { "allocations": 3366, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 11416, 11416, 9920] },
+        "x64musl": { "allocations": 3366, "work": [9920, 9920, 0, 2, 2, 2, 3, 2, 11416, 11416, 9920] }
       },
       "retention": null
     },
@@ -1457,8 +1457,8 @@
       "dimensions": { "pages": 1, "caller_font_faces": 4, "documents": 2, "gate3_multiface_facade": 1, "normalized_plan_identity": 1 },
       "work_counters": ["registries", "input_bytes", "retained_input_bytes", "copied_input_bytes", "duplicated_caller_bytes", "resources", "faces", "instances", "policies", "documents", "first_output_bytes", "second_output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3399, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 11416, 11416] },
-        "x64musl": { "allocations": 3399, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 11416, 11416] }
+        "arm64mac": { "allocations": 3435, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 11416, 11416] },
+        "x64musl": { "allocations": 3435, "work": [2, 19840, 19840, 0, 9920, 4, 4, 4, 6, 2, 11416, 11416] }
       },
       "retention": null
     },
@@ -1592,8 +1592,8 @@
       "dimensions": { "pages": 1, "font_bytes": 166300, "glyphs": 3, "expanded_mappings": 1, "actual_text_runs": 1, "unicode_mappings": 2, "objects": 20, "gate3_case_text": 1, "normalized_plan_identity": 1 },
       "work_counters": ["font_bytes", "mapping_facts", "input_scalars", "output_scalars", "expanded_mappings", "runs", "clusters", "glyphs", "transformation_visits", "source_scalars", "actual_text_runs", "actual_text_scalars", "unicode_mappings", "content_stream_bytes", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1036, "work": [166300, 2, 2, 3, 1, 1, 2, 3, 2, 2, 1, 2, 2, 213, 20, 8875] },
-        "x64musl": { "allocations": 1036, "work": [166300, 2, 2, 3, 1, 1, 2, 3, 2, 2, 1, 2, 2, 213, 20, 8875] }
+        "arm64mac": { "allocations": 1043, "work": [166300, 2, 2, 3, 1, 1, 2, 3, 2, 2, 1, 2, 2, 213, 20, 8875] },
+        "x64musl": { "allocations": 1043, "work": [166300, 2, 2, 3, 1, 1, 2, 3, 2, 2, 1, 2, 2, 213, 20, 8875] }
       },
       "retention": null
     },
@@ -1802,8 +1802,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4874, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
-        "x64musl": { "allocations": 4874, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
+        "arm64mac": { "allocations": 4872, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 4872, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1817,8 +1817,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2438, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
-        "x64musl": { "allocations": 2438, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
+        "arm64mac": { "allocations": 2437, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 2437, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1832,8 +1832,8 @@
       "dimensions": { "pages": 1, "gate4_forms_showcase": 1, "authored_forms": 9, "canonical_forms": 5 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4851, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
-        "x64musl": { "allocations": 4851, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
+        "arm64mac": { "allocations": 4849, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] },
+        "x64musl": { "allocations": 4849, "work": [9, 5, 4, 0, 1, 5, 4, 9, 2, 2, 10, 12, 22, 11, 11, 1140, 2, 9, 6, 7, 11, 14, 16, 11, 1225, 1225, 0, 11, 5, 245, 14, 5, 13, 26, 4192] }
       },
       "retention": null
     },
@@ -1847,8 +1847,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 100 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4134, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] },
-        "x64musl": { "allocations": 4134, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] }
+        "arm64mac": { "allocations": 4133, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] },
+        "x64musl": { "allocations": 4133, "work": [1, 1, 0, 0, 1, 0, 100, 100, 0, 0, 2, 1, 102, 100, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 100, 1, 39, 100, 1, 3, 13, 2412] }
       },
       "retention": null
     },
@@ -1862,8 +1862,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 1000 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 32566, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] },
-        "x64musl": { "allocations": 32566, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] }
+        "arm64mac": { "allocations": 32565, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] },
+        "x64musl": { "allocations": 32565, "work": [1, 1, 0, 0, 1, 0, 1000, 1000, 0, 0, 2, 1, 1002, 1000, 1, 112, 1, 1, 2, 1, 2, 4, 2, 2, 161, 161, 0, 1000, 1, 39, 1000, 1, 3, 13, 2748] }
       },
       "retention": null
     },
@@ -1877,8 +1877,8 @@
       "dimensions": { "pages": 1, "gate4_forms_dag": 1, "dag_parents": 8 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4386, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] },
-        "x64musl": { "allocations": 4386, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] }
+        "arm64mac": { "allocations": 4385, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] },
+        "x64musl": { "allocations": 4385, "work": [12, 12, 0, 0, 0, 0, 8, 8, 32, 32, 9, 44, 53, 40, 44, 3936, 1, 12, 9, 44, 13, 26, 88, 13, 3985, 3985, 0, 40, 12, 1396, 40, 1, 53, 35, 6679] }
       },
       "retention": null
     },
@@ -1892,8 +1892,8 @@
       "dimensions": { "pages": 1, "gate4_forms_dag": 1, "dag_parents": 32 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 13023, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] },
-        "x64musl": { "allocations": 13023, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] }
+        "arm64mac": { "allocations": 13022, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] },
+        "x64musl": { "allocations": 13022, "work": [36, 36, 0, 0, 0, 0, 32, 32, 128, 128, 33, 164, 197, 160, 164, 14400, 1, 36, 33, 164, 37, 74, 328, 37, 14449, 14449, 0, 160, 36, 5180, 160, 1, 197, 83, 17971] }
       },
       "retention": null
     },
@@ -1907,8 +1907,8 @@
       "dimensions": { "pages": 1, "gate4_forms_deep": 1, "chain_depth": 64 },
       "work_counters": ["authored_forms", "canonical_forms", "deduplicated_forms", "semantically_duplicated_forms", "shared_artifact_forms", "semantic_placements", "artifact_placements", "page_form_placements", "nested_form_placements", "nested_form_edges", "root_uses", "direct_edges", "use_command_visits", "ownership_sweep_visits", "form_command_visits", "recipe_bytes", "leaf_digests", "form_digests", "direct_dictionary_entries", "nested_dictionary_entries", "graph_resources", "graph_node_visits", "graph_edge_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "copied_form_bytes", "do_operators", "physical_form_streams", "form_stream_bytes", "graphics_state_pairs", "mcids", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 13496, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] },
-        "x64musl": { "allocations": 13496, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] }
+        "arm64mac": { "allocations": 13495, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] },
+        "x64musl": { "allocations": 13495, "work": [64, 64, 0, 0, 0, 0, 1, 1, 63, 63, 2, 127, 129, 64, 127, 12271, 1, 64, 2, 127, 65, 130, 254, 65, 12320, 12320, 0, 64, 64, 4624, 64, 1, 129, 139, 26249] }
       },
       "retention": null
     },
@@ -1922,8 +1922,8 @@
       "dimensions": { "pages": 1, "gate4_form_text": 1 },
       "work_counters": ["authored_forms", "canonical_forms", "semantic_placements", "artifact_placements", "text_forms", "page_form_placements", "direct_dictionary_entries", "nested_dictionary_entries", "recipe_bytes", "run_visits", "text_fragments", "glyph_visits", "unicode_mappings", "text_content_bytes", "do_operators", "form_stream_bytes", "text_placements", "font_program_bytes", "objects", "rejections", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1618, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] },
-        "x64musl": { "allocations": 1618, "work": [1, 1, 1, 0, 1, 1, 1, 2, 334, 1, 1, 8, 8, 245, 1, 272, 1, 6776, 22, 2, 10290] }
+        "arm64mac": { "allocations": 1633, "work": [1, 1, 1, 0, 1, 1, 1, 2, 362, 1, 1, 8, 8, 233, 1, 272, 1, 6776, 22, 2, 10290] },
+        "x64musl": { "allocations": 1633, "work": [1, 1, 1, 0, 1, 1, 1, 2, 362, 1, 1, 8, 8, 233, 1, 272, 1, 6776, 22, 2, 10290] }
       },
       "retention": null
     },
@@ -1937,8 +1937,8 @@
       "dimensions": { "pages": 1, "gate4_forms_repeat": 1, "form_placements": 1, "gate4_forms_negative": 1, "rejections": 22 },
       "work_counters": ["rejections", "escaped_plans", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2303, "work": [22, 0, 2030] },
-        "x64musl": { "allocations": 2303, "work": [22, 0, 2030] }
+        "arm64mac": { "allocations": 2300, "work": [22, 0, 2030] },
+        "x64musl": { "allocations": 2300, "work": [22, 0, 2030] }
       },
       "retention": null
     },
@@ -1952,8 +1952,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3695, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
-        "x64musl": { "allocations": 3695, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
+        "arm64mac": { "allocations": 3693, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
+        "x64musl": { "allocations": 3693, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
       },
       "retention": null
     },
@@ -1967,8 +1967,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1849, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
-        "x64musl": { "allocations": 1849, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
+        "arm64mac": { "allocations": 1848, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
+        "x64musl": { "allocations": 1848, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
       },
       "retention": null
     },
@@ -1982,8 +1982,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_showcase": 1, "authored_profiles": 2, "canonical_profiles": 1, "authored_color_spaces": 4, "canonical_color_spaces": 2, "authored_images": 5, "canonical_images": 3 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3681, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
-        "x64musl": { "allocations": 3681, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
+        "arm64mac": { "allocations": 3679, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] },
+        "x64musl": { "allocations": 3679, "work": [2, 1, 1, 4, 2, 2, 5, 3, 2, 11, 6235, 324, 6048, 32, 191, 6, 13, 12, 6740, 10, 5, 3190, 7, 5, 6740, 0, 1, 2, 3, 3024, 167, 5, 2, 5, 2, 5, 7, 26, 6784] }
       },
       "retention": null
     },
@@ -1997,8 +1997,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 8, "canonical_images": 1 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1132, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] },
-        "x64musl": { "allocations": 1132, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] }
+        "arm64mac": { "allocations": 1131, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] },
+        "x64musl": { "allocations": 1131, "work": [0, 0, 0, 1, 1, 0, 8, 1, 7, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 8, 7, 252, 2, 7, 337, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 8, 2, 13, 1980] }
       },
       "retention": null
     },
@@ -2012,8 +2012,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 64, "canonical_images": 1 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2639, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] },
-        "x64musl": { "allocations": 2639, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] }
+        "arm64mac": { "allocations": 2638, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] },
+        "x64musl": { "allocations": 2638, "work": [0, 0, 0, 1, 1, 0, 64, 1, 63, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 64, 63, 2268, 2, 63, 2353, 0, 0, 1, 1, 0, 4, 2, 0, 2, 0, 64, 2, 13, 2221] }
       },
       "retention": null
     },
@@ -2027,8 +2027,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_distinct": 1, "image_placements": 8, "canonical_images": 8 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1630, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] },
-        "x64musl": { "allocations": 1630, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] }
+        "arm64mac": { "allocations": 1629, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] },
+        "x64musl": { "allocations": 1629, "work": [0, 0, 0, 1, 1, 0, 8, 8, 0, 9, 32, 305, 0, 0, 32, 0, 16, 9, 337, 0, 0, 0, 9, 0, 337, 0, 0, 1, 8, 0, 32, 16, 0, 9, 0, 8, 9, 27, 3871] }
       },
       "retention": null
     },
@@ -2042,8 +2042,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_distinct": 1, "image_placements": 64, "canonical_images": 64 },
       "work_counters": ["authored_profiles", "canonical_profiles", "deduplicated_profiles", "authored_color_spaces", "canonical_color_spaces", "deduplicated_color_spaces", "authored_images", "canonical_images", "deduplicated_images", "leaf_digests", "copied_leaf_bytes", "leaf_recipe_bytes", "icc_bytes_checked", "icc_tags_checked", "image_bytes_checked", "image_markers_checked", "image_rows_checked", "graph_hashes", "graph_bytes_hashed", "collision_entries", "equality_comparisons", "bytes_compared", "unique_payloads", "deduplicated_payloads", "retained_identity_bytes", "copied_payload_bytes", "emitted_profiles", "emitted_color_spaces", "emitted_images", "profile_bytes", "raster_bytes", "image_rows", "soft_mask_rows", "direct_dictionary_entries", "nested_dictionary_entries", "image_placements", "dictionary_references", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 7127, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] },
-        "x64musl": { "allocations": 7127, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] }
+        "arm64mac": { "allocations": 7126, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] },
+        "x64musl": { "allocations": 7126, "work": [0, 0, 0, 1, 1, 0, 64, 64, 0, 65, 256, 2097, 0, 0, 256, 0, 128, 65, 2353, 0, 0, 0, 65, 0, 2353, 0, 0, 1, 64, 0, 256, 128, 0, 65, 0, 64, 65, 139, 19356] }
       },
       "retention": null
     },
@@ -2057,8 +2057,8 @@
       "dimensions": { "pages": 1, "gate4_color_image_dedup": 1, "image_placements": 1, "canonical_images": 1, "gate4_color_image_negative": 1, "rejections": 24 },
       "work_counters": ["rejections", "escaped_plans", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1186, "work": [24, 0, 1956] },
-        "x64musl": { "allocations": 1186, "work": [24, 0, 1956] }
+        "arm64mac": { "allocations": 1185, "work": [24, 0, 1956] },
+        "x64musl": { "allocations": 1185, "work": [24, 0, 1956] }
       },
       "retention": null
     },
@@ -2072,8 +2072,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_showcase": 1, "opacity_commands": 10, "opacity_groups": 9, "canonical_ext_g_states": 4, "canonical_forms": 3, "isolated_forms": 1 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 5039, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
-        "x64musl": { "allocations": 5039, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
+        "arm64mac": { "allocations": 5037, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
+        "x64musl": { "allocations": 5037, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
       },
       "retention": null
     },
@@ -2087,8 +2087,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_showcase": 1, "opacity_commands": 10, "opacity_groups": 9, "canonical_ext_g_states": 4, "canonical_forms": 3, "isolated_forms": 1 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2520, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
-        "x64musl": { "allocations": 2520, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
+        "arm64mac": { "allocations": 2519, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
+        "x64musl": { "allocations": 2519, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
       },
       "retention": null
     },
@@ -2102,8 +2102,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_showcase": 1, "opacity_commands": 10, "opacity_groups": 9, "canonical_ext_g_states": 4, "canonical_forms": 3, "isolated_forms": 1 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 5009, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
-        "x64musl": { "allocations": 5009, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
+        "arm64mac": { "allocations": 5007, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] },
+        "x64musl": { "allocations": 5007, "work": [10, 9, 1, 4, 4, 5, 2, 1, 1, 1, 4, 24, 3024, 1, 9, 13, 10, 5, 7, 22, 3, 11, 3606, 3606, 1, 3, 3, 2, 1, 31, 7628] }
       },
       "retention": null
     },
@@ -2117,8 +2117,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_share": 1, "opacity_groups": 100, "canonical_ext_g_states": 1 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4424, "work": [100, 100, 0, 1, 1, 99, 1, 1, 1, 0, 1, 6, 3024, 1, 100, 100, 2, 0, 1, 201, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5068] },
-        "x64musl": { "allocations": 4424, "work": [100, 100, 0, 1, 1, 99, 1, 1, 1, 0, 1, 6, 3024, 1, 100, 100, 2, 0, 1, 201, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5068] }
+        "arm64mac": { "allocations": 4423, "work": [100, 100, 0, 1, 1, 99, 1, 1, 1, 0, 1, 6, 3024, 1, 100, 100, 2, 0, 1, 201, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5068] },
+        "x64musl": { "allocations": 4423, "work": [100, 100, 0, 1, 1, 99, 1, 1, 1, 0, 1, 6, 3024, 1, 100, 100, 2, 0, 1, 201, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5068] }
       },
       "retention": null
     },
@@ -2132,8 +2132,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_share": 1, "opacity_groups": 1000, "canonical_ext_g_states": 1 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 35045, "work": [1000, 1000, 0, 1, 1, 999, 1, 1, 1, 0, 1, 6, 3024, 1, 1000, 1000, 2, 0, 1, 2001, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5462] },
-        "x64musl": { "allocations": 35045, "work": [1000, 1000, 0, 1, 1, 999, 1, 1, 1, 0, 1, 6, 3024, 1, 1000, 1000, 2, 0, 1, 2001, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5462] }
+        "arm64mac": { "allocations": 35044, "work": [1000, 1000, 0, 1, 1, 999, 1, 1, 1, 0, 1, 6, 3024, 1, 1000, 1000, 2, 0, 1, 2001, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5462] },
+        "x64musl": { "allocations": 35044, "work": [1000, 1000, 0, 1, 1, 999, 1, 1, 1, 0, 1, 6, 3024, 1, 1000, 1000, 2, 0, 1, 2001, 0, 4, 3112, 3112, 1, 0, 0, 0, 0, 15, 5462] }
       },
       "retention": null
     },
@@ -2147,8 +2147,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_states": 1, "opacity_groups": 100, "canonical_ext_g_states": 100 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 9717, "work": [100, 100, 0, 100, 100, 0, 1, 1, 1, 0, 100, 600, 3024, 1, 100, 100, 101, 0, 1, 201, 0, 103, 3706, 3706, 1, 0, 0, 0, 0, 114, 16189] },
-        "x64musl": { "allocations": 9717, "work": [100, 100, 0, 100, 100, 0, 1, 1, 1, 0, 100, 600, 3024, 1, 100, 100, 101, 0, 1, 201, 0, 103, 3706, 3706, 1, 0, 0, 0, 0, 114, 16189] }
+        "arm64mac": { "allocations": 9716, "work": [100, 100, 0, 100, 100, 0, 1, 1, 1, 0, 100, 600, 3024, 1, 100, 100, 101, 0, 1, 201, 0, 103, 3706, 3706, 1, 0, 0, 0, 0, 114, 16189] },
+        "x64musl": { "allocations": 9716, "work": [100, 100, 0, 100, 100, 0, 1, 1, 1, 0, 100, 600, 3024, 1, 100, 100, 101, 0, 1, 201, 0, 103, 3706, 3706, 1, 0, 0, 0, 0, 114, 16189] }
       },
       "retention": null
     },
@@ -2162,8 +2162,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_states": 1, "opacity_groups": 1000, "canonical_ext_g_states": 1000 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 88077, "work": [1000, 1000, 0, 1000, 1000, 0, 1, 1, 1, 0, 1000, 6000, 3024, 1, 1000, 1000, 1001, 0, 1, 2001, 0, 1003, 9106, 9106, 1, 0, 0, 0, 0, 1014, 120415] },
-        "x64musl": { "allocations": 88077, "work": [1000, 1000, 0, 1000, 1000, 0, 1, 1, 1, 0, 1000, 6000, 3024, 1, 1000, 1000, 1001, 0, 1, 2001, 0, 1003, 9106, 9106, 1, 0, 0, 0, 0, 1014, 120415] }
+        "arm64mac": { "allocations": 88076, "work": [1000, 1000, 0, 1000, 1000, 0, 1, 1, 1, 0, 1000, 6000, 3024, 1, 1000, 1000, 1001, 0, 1, 2001, 0, 1003, 9106, 9106, 1, 0, 0, 0, 0, 1014, 120415] },
+        "x64musl": { "allocations": 88076, "work": [1000, 1000, 0, 1000, 1000, 0, 1, 1, 1, 0, 1000, 6000, 3024, 1, 1000, 1000, 1001, 0, 1, 2001, 0, 1003, 9106, 9106, 1, 0, 0, 0, 0, 1014, 120415] }
       },
       "retention": null
     },
@@ -2177,8 +2177,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_nest": 1, "nest_depth": 16 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1978, "work": [16, 16, 0, 16, 16, 0, 16, 1, 1, 0, 16, 96, 3024, 1, 16, 16, 17, 0, 1, 18, 0, 19, 3202, 3202, 1, 0, 0, 0, 0, 30, 6702] },
-        "x64musl": { "allocations": 1978, "work": [16, 16, 0, 16, 16, 0, 16, 1, 1, 0, 16, 96, 3024, 1, 16, 16, 17, 0, 1, 18, 0, 19, 3202, 3202, 1, 0, 0, 0, 0, 30, 6702] }
+        "arm64mac": { "allocations": 1977, "work": [16, 16, 0, 16, 16, 0, 16, 1, 1, 0, 16, 96, 3024, 1, 16, 16, 17, 0, 1, 18, 0, 19, 3202, 3202, 1, 0, 0, 0, 0, 30, 6702] },
+        "x64musl": { "allocations": 1977, "work": [16, 16, 0, 16, 16, 0, 16, 1, 1, 0, 16, 96, 3024, 1, 16, 16, 17, 0, 1, 18, 0, 19, 3202, 3202, 1, 0, 0, 0, 0, 30, 6702] }
       },
       "retention": null
     },
@@ -2192,8 +2192,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_nest": 1, "nest_depth": 64 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4884, "work": [64, 64, 0, 64, 64, 0, 64, 1, 1, 0, 64, 384, 3024, 1, 64, 64, 65, 0, 1, 66, 0, 67, 3490, 3490, 1, 0, 0, 0, 0, 78, 12073] },
-        "x64musl": { "allocations": 4884, "work": [64, 64, 0, 64, 64, 0, 64, 1, 1, 0, 64, 384, 3024, 1, 64, 64, 65, 0, 1, 66, 0, 67, 3490, 3490, 1, 0, 0, 0, 0, 78, 12073] }
+        "arm64mac": { "allocations": 4883, "work": [64, 64, 0, 64, 64, 0, 64, 1, 1, 0, 64, 384, 3024, 1, 64, 64, 65, 0, 1, 66, 0, 67, 3490, 3490, 1, 0, 0, 0, 0, 78, 12073] },
+        "x64musl": { "allocations": 4883, "work": [64, 64, 0, 64, 64, 0, 64, 1, 1, 0, 64, 384, 3024, 1, 64, 64, 65, 0, 1, 66, 0, 67, 3490, 3490, 1, 0, 0, 0, 0, 78, 12073] }
       },
       "retention": null
     },
@@ -2207,8 +2207,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_forms": 1, "opacity_forms": 8 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2807, "work": [8, 8, 0, 1, 1, 7, 1, 1, 1, 0, 1, 6, 3024, 1, 8, 16, 9, 16, 17, 25, 8, 12, 4040, 4040, 1, 8, 8, 0, 8, 31, 8125] },
-        "x64musl": { "allocations": 2807, "work": [8, 8, 0, 1, 1, 7, 1, 1, 1, 0, 1, 6, 3024, 1, 8, 16, 9, 16, 17, 25, 8, 12, 4040, 4040, 1, 8, 8, 0, 8, 31, 8125] }
+        "arm64mac": { "allocations": 2806, "work": [8, 8, 0, 1, 1, 7, 1, 1, 1, 0, 1, 6, 3024, 1, 8, 16, 9, 16, 17, 25, 8, 12, 4040, 4040, 1, 8, 8, 0, 8, 31, 8125] },
+        "x64musl": { "allocations": 2806, "work": [8, 8, 0, 1, 1, 7, 1, 1, 1, 0, 1, 6, 3024, 1, 8, 16, 9, 16, 17, 25, 8, 12, 4040, 4040, 1, 8, 8, 0, 8, 31, 8125] }
       },
       "retention": null
     },
@@ -2222,8 +2222,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_forms": 1, "opacity_forms": 32 },
       "work_counters": ["opacity_commands", "opacity_groups", "opaque_normalized", "distinct_opacity_values", "canonical_ext_g_states", "deduplicated_opacity_groups", "max_opacity_depth", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "blending_probe_bytes", "closure_uses", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 8050, "work": [32, 32, 0, 1, 1, 31, 1, 1, 1, 0, 1, 6, 3024, 1, 32, 64, 33, 64, 65, 97, 32, 36, 6824, 6824, 1, 32, 32, 0, 32, 79, 17576] },
-        "x64musl": { "allocations": 8050, "work": [32, 32, 0, 1, 1, 31, 1, 1, 1, 0, 1, 6, 3024, 1, 32, 64, 33, 64, 65, 97, 32, 36, 6824, 6824, 1, 32, 32, 0, 32, 79, 17576] }
+        "arm64mac": { "allocations": 8049, "work": [32, 32, 0, 1, 1, 31, 1, 1, 1, 0, 1, 6, 3024, 1, 32, 64, 33, 64, 65, 97, 32, 36, 6824, 6824, 1, 32, 32, 0, 32, 79, 17576] },
+        "x64musl": { "allocations": 8049, "work": [32, 32, 0, 1, 1, 31, 1, 1, 1, 0, 1, 6, 3024, 1, 32, 64, 33, 64, 65, 97, 32, 36, 6824, 6824, 1, 32, 32, 0, 32, 79, 17576] }
       },
       "retention": null
     },
@@ -2237,8 +2237,8 @@
       "dimensions": { "pages": 1, "gate4_transparency_share": 1, "opacity_groups": 1, "canonical_ext_g_states": 1 },
       "work_counters": ["rejections", "escaped_plans", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2009, "work": [12, 0, 5022] },
-        "x64musl": { "allocations": 2009, "work": [12, 0, 5022] }
+        "arm64mac": { "allocations": 2008, "work": [12, 0, 5022] },
+        "x64musl": { "allocations": 2008, "work": [12, 0, 5022] }
       },
       "retention": null
     },
@@ -2252,8 +2252,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_showcase": 1, "soft_mask_commands": 6, "mask_states": 2, "canonical_mask_states": 1, "canonical_ext_g_states": 2, "canonical_forms": 3, "isolated_forms": 2 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4579, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] },
-        "x64musl": { "allocations": 4579, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] }
+        "arm64mac": { "allocations": 4577, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] },
+        "x64musl": { "allocations": 4577, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] }
       },
       "retention": null
     },
@@ -2267,8 +2267,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_showcase": 1, "soft_mask_commands": 6, "mask_states": 2, "canonical_mask_states": 1, "canonical_ext_g_states": 2, "canonical_forms": 3, "isolated_forms": 2 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2288, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] },
-        "x64musl": { "allocations": 2288, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] }
+        "arm64mac": { "allocations": 2287, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] },
+        "x64musl": { "allocations": 2287, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] }
       },
       "retention": null
     },
@@ -2282,8 +2282,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_showcase": 1, "soft_mask_commands": 6, "mask_states": 2, "canonical_mask_states": 1, "canonical_ext_g_states": 2, "canonical_forms": 3, "isolated_forms": 2 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4550, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] },
-        "x64musl": { "allocations": 4550, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] }
+        "arm64mac": { "allocations": 4548, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] },
+        "x64musl": { "allocations": 4548, "work": [6, 2, 1, 1, 1, 18, 3, 3, 2, 1, 1, 2, 2, 74, 1, 6, 2, 10, 6, 5, 10, 21, 2, 10, 3838, 3838, 1, 3, 4, 1, 1, 1, 25, 6847] }
       },
       "retention": null
     },
@@ -2297,8 +2297,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_reuse": 1, "mask_groups": 100, "canonical_mask_states": 1 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4744, "work": [100, 1, 1, 0, 1, 9, 1, 1, 2, 1, 1, 1, 2, 40, 1, 100, 1, 101, 2, 2, 4, 203, 0, 6, 3262, 3262, 1, 1, 1, 0, 0, 0, 18, 5571] },
-        "x64musl": { "allocations": 4744, "work": [100, 1, 1, 0, 1, 9, 1, 1, 2, 1, 1, 1, 2, 40, 1, 100, 1, 101, 2, 2, 4, 203, 0, 6, 3262, 3262, 1, 1, 1, 0, 0, 0, 18, 5571] }
+        "arm64mac": { "allocations": 4743, "work": [100, 1, 1, 0, 1, 9, 1, 1, 2, 1, 1, 1, 2, 40, 1, 100, 1, 101, 2, 2, 4, 203, 0, 6, 3262, 3262, 1, 1, 1, 0, 0, 0, 18, 5571] },
+        "x64musl": { "allocations": 4743, "work": [100, 1, 1, 0, 1, 9, 1, 1, 2, 1, 1, 1, 2, 40, 1, 100, 1, 101, 2, 2, 4, 203, 0, 6, 3262, 3262, 1, 1, 1, 0, 0, 0, 18, 5571] }
       },
       "retention": null
     },
@@ -2312,8 +2312,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_reuse": 1, "mask_groups": 1000, "canonical_mask_states": 1 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 35365, "work": [1000, 1, 1, 0, 1, 9, 1, 1, 2, 1, 1, 1, 2, 40, 1, 1000, 1, 1001, 2, 2, 4, 2003, 0, 6, 3262, 3262, 1, 1, 1, 0, 0, 0, 18, 5965] },
-        "x64musl": { "allocations": 35365, "work": [1000, 1, 1, 0, 1, 9, 1, 1, 2, 1, 1, 1, 2, 40, 1, 1000, 1, 1001, 2, 2, 4, 2003, 0, 6, 3262, 3262, 1, 1, 1, 0, 0, 0, 18, 5965] }
+        "arm64mac": { "allocations": 35364, "work": [1000, 1, 1, 0, 1, 9, 1, 1, 2, 1, 1, 1, 2, 40, 1, 1000, 1, 1001, 2, 2, 4, 2003, 0, 6, 3262, 3262, 1, 1, 1, 0, 0, 0, 18, 5965] },
+        "x64musl": { "allocations": 35364, "work": [1000, 1, 1, 0, 1, 9, 1, 1, 2, 1, 1, 1, 2, 40, 1, 1000, 1, 1001, 2, 2, 4, 2003, 0, 6, 3262, 3262, 1, 1, 1, 0, 0, 0, 18, 5965] }
       },
       "retention": null
     },
@@ -2327,8 +2327,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_distinct": 1, "mask_groups": 8, "canonical_mask_states": 8 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3391, "work": [8, 8, 8, 0, 1, 37, 8, 8, 9, 1, 1, 8, 9, 278, 1, 8, 8, 16, 9, 16, 25, 33, 0, 20, 4312, 4312, 1, 8, 8, 0, 0, 0, 39, 9200] },
-        "x64musl": { "allocations": 3391, "work": [8, 8, 8, 0, 1, 37, 8, 8, 9, 1, 1, 8, 9, 278, 1, 8, 8, 16, 9, 16, 25, 33, 0, 20, 4312, 4312, 1, 8, 8, 0, 0, 0, 39, 9200] }
+        "arm64mac": { "allocations": 3390, "work": [8, 8, 8, 0, 1, 37, 8, 8, 9, 1, 1, 8, 9, 278, 1, 8, 8, 16, 9, 16, 25, 33, 0, 20, 4312, 4312, 1, 8, 8, 0, 0, 0, 39, 9200] },
+        "x64musl": { "allocations": 3390, "work": [8, 8, 8, 0, 1, 37, 8, 8, 9, 1, 1, 8, 9, 278, 1, 8, 8, 16, 9, 16, 25, 33, 0, 20, 4312, 4312, 1, 8, 8, 0, 0, 0, 39, 9200] }
       },
       "retention": null
     },
@@ -2342,8 +2342,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_distinct": 1, "mask_groups": 64, "canonical_mask_states": 64 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 19314, "work": [64, 64, 64, 0, 1, 261, 64, 64, 65, 1, 1, 64, 65, 2182, 1, 64, 64, 128, 65, 128, 193, 257, 0, 132, 12712, 12712, 1, 64, 64, 0, 0, 0, 207, 39107] },
-        "x64musl": { "allocations": 19314, "work": [64, 64, 64, 0, 1, 261, 64, 64, 65, 1, 1, 64, 65, 2182, 1, 64, 64, 128, 65, 128, 193, 257, 0, 132, 12712, 12712, 1, 64, 64, 0, 0, 0, 207, 39107] }
+        "arm64mac": { "allocations": 19313, "work": [64, 64, 64, 0, 1, 261, 64, 64, 65, 1, 1, 64, 65, 2182, 1, 64, 64, 128, 65, 128, 193, 257, 0, 132, 12712, 12712, 1, 64, 64, 0, 0, 0, 207, 39107] },
+        "x64musl": { "allocations": 19313, "work": [64, 64, 64, 0, 1, 261, 64, 64, 65, 1, 1, 64, 65, 2182, 1, 64, 64, 128, 65, 128, 193, 257, 0, 132, 12712, 12712, 1, 64, 64, 0, 0, 0, 207, 39107] }
       },
       "retention": null
     },
@@ -2357,8 +2357,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_chain": 1, "mask_chain": 2 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1601, "work": [2, 2, 2, 0, 2, 13, 1, 1, 3, 1, 1, 2, 3, 74, 1, 2, 1, 3, 2, 4, 7, 7, 0, 8, 3442, 3442, 1, 2, 2, 0, 0, 0, 21, 6028] },
-        "x64musl": { "allocations": 1601, "work": [2, 2, 2, 0, 2, 13, 1, 1, 3, 1, 1, 2, 3, 74, 1, 2, 1, 3, 2, 4, 7, 7, 0, 8, 3442, 3442, 1, 2, 2, 0, 0, 0, 21, 6028] }
+        "arm64mac": { "allocations": 1600, "work": [2, 2, 2, 0, 2, 13, 1, 1, 3, 1, 1, 2, 3, 74, 1, 2, 1, 3, 2, 4, 7, 7, 0, 8, 3442, 3442, 1, 2, 2, 0, 0, 0, 21, 6028] },
+        "x64musl": { "allocations": 1600, "work": [2, 2, 2, 0, 2, 13, 1, 1, 3, 1, 1, 2, 3, 74, 1, 2, 1, 3, 2, 4, 7, 7, 0, 8, 3442, 3442, 1, 2, 2, 0, 0, 0, 21, 6028] }
       },
       "retention": null
     },
@@ -2372,8 +2372,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_chain": 1, "mask_chain": 4 },
       "work_counters": ["soft_mask_commands", "mask_states", "canonical_mask_states", "deduplicated_mask_states", "max_mask_chain", "mask_chain_sweep_visits", "opacity_commands", "opacity_groups", "canonical_ext_g_states", "transparency_pages", "transparency_page_groups", "isolated_canonical_forms", "state_objects", "state_recipe_bytes", "closure_uses", "content_mask_groups", "content_opacity_groups", "graphics_state_pairs", "direct_dictionary_entries", "nested_dictionary_entries", "direct_edges", "use_command_visits", "transparency_sweep_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "graph_closure_uses", "canonical_forms", "authored_forms", "deduplicated_forms", "semantic_placements", "artifact_placements", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2095, "work": [4, 4, 4, 0, 4, 21, 1, 1, 5, 1, 1, 4, 5, 142, 1, 4, 1, 5, 2, 8, 13, 11, 0, 12, 3802, 3802, 1, 4, 4, 0, 0, 0, 27, 7034] },
-        "x64musl": { "allocations": 2095, "work": [4, 4, 4, 0, 4, 21, 1, 1, 5, 1, 1, 4, 5, 142, 1, 4, 1, 5, 2, 8, 13, 11, 0, 12, 3802, 3802, 1, 4, 4, 0, 0, 0, 27, 7034] }
+        "arm64mac": { "allocations": 2094, "work": [4, 4, 4, 0, 4, 21, 1, 1, 5, 1, 1, 4, 5, 142, 1, 4, 1, 5, 2, 8, 13, 11, 0, 12, 3802, 3802, 1, 4, 4, 0, 0, 0, 27, 7034] },
+        "x64musl": { "allocations": 2094, "work": [4, 4, 4, 0, 4, 21, 1, 1, 5, 1, 1, 4, 5, 142, 1, 4, 1, 5, 2, 8, 13, 11, 0, 12, 3802, 3802, 1, 4, 4, 0, 0, 0, 27, 7034] }
       },
       "retention": null
     },
@@ -2387,8 +2387,8 @@
       "dimensions": { "pages": 1, "gate4_soft_mask_reuse": 1, "mask_groups": 1, "canonical_mask_states": 1 },
       "work_counters": ["rejections", "escaped_plans", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2399, "work": [9, 0, 5525] },
-        "x64musl": { "allocations": 2399, "work": [9, 0, 5525] }
+        "arm64mac": { "allocations": 2398, "work": [9, 0, 5525] },
+        "x64musl": { "allocations": 2398, "work": [9, 0, 5525] }
       },
       "retention": null
     },
@@ -2402,8 +2402,8 @@
       "dimensions": { "pages": 1, "gate4_shading_showcase": 1, "authored_shadings": 7, "canonical_shadings": 6, "canonical_functions": 8, "authored_patterns": 3, "canonical_patterns": 2, "shading_objects": 6, "function_objects": 8, "pattern_objects": 2 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 7642, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] },
-        "x64musl": { "allocations": 7642, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] }
+        "arm64mac": { "allocations": 7640, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] },
+        "x64musl": { "allocations": 7640, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] }
       },
       "retention": null
     },
@@ -2417,8 +2417,8 @@
       "dimensions": { "pages": 1, "gate4_shading_showcase": 1, "authored_shadings": 7, "canonical_shadings": 6, "canonical_functions": 8, "authored_patterns": 3, "canonical_patterns": 2, "shading_objects": 6, "function_objects": 8, "pattern_objects": 2 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3821, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] },
-        "x64musl": { "allocations": 3821, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] }
+        "arm64mac": { "allocations": 3820, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] },
+        "x64musl": { "allocations": 3820, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] }
       },
       "retention": null
     },
@@ -2432,8 +2432,8 @@
       "dimensions": { "pages": 1, "gate4_shading_showcase": 1, "authored_shadings": 7, "canonical_shadings": 6, "canonical_functions": 8, "authored_patterns": 3, "canonical_patterns": 2, "shading_objects": 6, "function_objects": 8, "pattern_objects": 2 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 7597, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] },
-        "x64musl": { "allocations": 7597, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] }
+        "arm64mac": { "allocations": 7595, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] },
+        "x64musl": { "allocations": 7595, "work": [7, 16, 10, 3, 3, 9, 10, 9, 31, 7, 6, 1, 10, 8, 2, 3, 2, 1, 709, 236, 768, 9, 4, 26, 19, 25, 5010, 5010, 9, 3, 2, 184, 6, 8, 2, 40, 8786] }
       },
       "retention": null
     },
@@ -2447,8 +2447,8 @@
       "dimensions": { "pages": 1, "gate4_shading_share": 1, "shading_paints": 100, "canonical_shadings": 1 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 4241, "work": [1, 2, 100, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 99, 15, 0, 2, 0, 3, 201, 5, 3220, 3220, 100, 0, 0, 0, 1, 1, 0, 16, 5151] },
-        "x64musl": { "allocations": 4241, "work": [1, 2, 100, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 99, 15, 0, 2, 0, 3, 201, 5, 3220, 3220, 100, 0, 0, 0, 1, 1, 0, 16, 5151] }
+        "arm64mac": { "allocations": 4240, "work": [1, 2, 100, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 99, 15, 0, 2, 0, 3, 201, 5, 3220, 3220, 100, 0, 0, 0, 1, 1, 0, 16, 5151] },
+        "x64musl": { "allocations": 4240, "work": [1, 2, 100, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 99, 15, 0, 2, 0, 3, 201, 5, 3220, 3220, 100, 0, 0, 0, 1, 1, 0, 16, 5151] }
       },
       "retention": null
     },
@@ -2462,8 +2462,8 @@
       "dimensions": { "pages": 1, "gate4_shading_share": 1, "shading_paints": 1000, "canonical_shadings": 1 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 32162, "work": [1, 2, 1000, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 99, 15, 0, 2, 0, 3, 2001, 5, 3220, 3220, 1000, 0, 0, 0, 1, 1, 0, 16, 5397] },
-        "x64musl": { "allocations": 32162, "work": [1, 2, 1000, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 99, 15, 0, 2, 0, 3, 2001, 5, 3220, 3220, 1000, 0, 0, 0, 1, 1, 0, 16, 5397] }
+        "arm64mac": { "allocations": 32161, "work": [1, 2, 1000, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 99, 15, 0, 2, 0, 3, 2001, 5, 3220, 3220, 1000, 0, 0, 0, 1, 1, 0, 16, 5397] },
+        "x64musl": { "allocations": 32161, "work": [1, 2, 1000, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 99, 15, 0, 2, 0, 3, 2001, 5, 3220, 3220, 1000, 0, 0, 0, 1, 1, 0, 16, 5397] }
       },
       "retention": null
     },
@@ -2477,8 +2477,8 @@
       "dimensions": { "pages": 1, "gate4_shading_distinct": 1, "canonical_shadings": 8 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2573, "work": [8, 16, 8, 0, 0, 0, 8, 0, 0, 8, 8, 0, 8, 8, 0, 0, 0, 0, 792, 120, 0, 9, 0, 17, 17, 19, 4018, 4018, 8, 0, 0, 0, 8, 8, 0, 30, 6942] },
-        "x64musl": { "allocations": 2573, "work": [8, 16, 8, 0, 0, 0, 8, 0, 0, 8, 8, 0, 8, 8, 0, 0, 0, 0, 792, 120, 0, 9, 0, 17, 17, 19, 4018, 4018, 8, 0, 0, 0, 8, 8, 0, 30, 6942] }
+        "arm64mac": { "allocations": 2572, "work": [8, 16, 8, 0, 0, 0, 8, 0, 0, 8, 8, 0, 8, 8, 0, 0, 0, 0, 792, 120, 0, 9, 0, 17, 17, 19, 4018, 4018, 8, 0, 0, 0, 8, 8, 0, 30, 6942] },
+        "x64musl": { "allocations": 2572, "work": [8, 16, 8, 0, 0, 0, 8, 0, 0, 8, 8, 0, 8, 8, 0, 0, 0, 0, 792, 120, 0, 9, 0, 17, 17, 19, 4018, 4018, 8, 0, 0, 0, 8, 8, 0, 30, 6942] }
       },
       "retention": null
     },
@@ -2492,8 +2492,8 @@
       "dimensions": { "pages": 1, "gate4_shading_distinct": 1, "canonical_shadings": 64 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 13584, "work": [64, 128, 64, 0, 0, 0, 64, 0, 0, 64, 64, 0, 64, 64, 0, 0, 0, 0, 6336, 960, 0, 65, 0, 129, 129, 131, 10402, 10402, 64, 0, 0, 0, 64, 64, 0, 142, 21610] },
-        "x64musl": { "allocations": 13584, "work": [64, 128, 64, 0, 0, 0, 64, 0, 0, 64, 64, 0, 64, 64, 0, 0, 0, 0, 6336, 960, 0, 65, 0, 129, 129, 131, 10402, 10402, 64, 0, 0, 0, 64, 64, 0, 142, 21610] }
+        "arm64mac": { "allocations": 13583, "work": [64, 128, 64, 0, 0, 0, 64, 0, 0, 64, 64, 0, 64, 64, 0, 0, 0, 0, 6336, 960, 0, 65, 0, 129, 129, 131, 10402, 10402, 64, 0, 0, 0, 64, 64, 0, 142, 21610] },
+        "x64musl": { "allocations": 13583, "work": [64, 128, 64, 0, 0, 0, 64, 0, 0, 64, 64, 0, 64, 64, 0, 0, 0, 0, 6336, 960, 0, 65, 0, 129, 129, 131, 10402, 10402, 64, 0, 0, 0, 64, 64, 0, 142, 21610] }
       },
       "retention": null
     },
@@ -2507,8 +2507,8 @@
       "dimensions": { "pages": 1, "gate4_shading_stops": 1, "stops": 16, "canonical_functions": 16 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2304, "work": [1, 16, 1, 0, 0, 0, 16, 0, 0, 1, 1, 0, 16, 16, 0, 0, 0, 0, 99, 742, 0, 2, 0, 18, 3, 20, 3947, 3947, 1, 0, 0, 0, 1, 16, 0, 31, 7647] },
-        "x64musl": { "allocations": 2304, "work": [1, 16, 1, 0, 0, 0, 16, 0, 0, 1, 1, 0, 16, 16, 0, 0, 0, 0, 99, 742, 0, 2, 0, 18, 3, 20, 3947, 3947, 1, 0, 0, 0, 1, 16, 0, 31, 7647] }
+        "arm64mac": { "allocations": 2303, "work": [1, 16, 1, 0, 0, 0, 16, 0, 0, 1, 1, 0, 16, 16, 0, 0, 0, 0, 99, 742, 0, 2, 0, 18, 3, 20, 3947, 3947, 1, 0, 0, 0, 1, 16, 0, 31, 7647] },
+        "x64musl": { "allocations": 2303, "work": [1, 16, 1, 0, 0, 0, 16, 0, 0, 1, 1, 0, 16, 16, 0, 0, 0, 0, 99, 742, 0, 2, 0, 18, 3, 20, 3947, 3947, 1, 0, 0, 0, 1, 16, 0, 31, 7647] }
       },
       "retention": null
     },
@@ -2522,8 +2522,8 @@
       "dimensions": { "pages": 1, "gate4_shading_stops": 1, "stops": 64, "canonical_functions": 64 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 5931, "work": [1, 64, 1, 0, 0, 0, 64, 0, 0, 1, 1, 0, 64, 64, 0, 0, 0, 0, 99, 3094, 0, 2, 0, 66, 3, 68, 6299, 6299, 1, 0, 0, 0, 1, 64, 0, 79, 15972] },
-        "x64musl": { "allocations": 5931, "work": [1, 64, 1, 0, 0, 0, 64, 0, 0, 1, 1, 0, 64, 64, 0, 0, 0, 0, 99, 3094, 0, 2, 0, 66, 3, 68, 6299, 6299, 1, 0, 0, 0, 1, 64, 0, 79, 15972] }
+        "arm64mac": { "allocations": 5930, "work": [1, 64, 1, 0, 0, 0, 64, 0, 0, 1, 1, 0, 64, 64, 0, 0, 0, 0, 99, 3094, 0, 2, 0, 66, 3, 68, 6299, 6299, 1, 0, 0, 0, 1, 64, 0, 79, 15972] },
+        "x64musl": { "allocations": 5930, "work": [1, 64, 1, 0, 0, 0, 64, 0, 0, 1, 1, 0, 64, 64, 0, 0, 0, 0, 99, 3094, 0, 2, 0, 66, 3, 68, 6299, 6299, 1, 0, 0, 0, 1, 64, 0, 79, 15972] }
       },
       "retention": null
     },
@@ -2537,8 +2537,8 @@
       "dimensions": { "pages": 1, "gate4_pattern_share": 1, "pattern_fills": 100, "canonical_patterns": 1 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 3715, "work": [0, 0, 0, 100, 1, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 176, 2, 1, 1, 101, 2, 225, 225, 0, 100, 1, 39, 0, 0, 1, 13, 2106] },
-        "x64musl": { "allocations": 3715, "work": [0, 0, 0, 100, 1, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 176, 2, 1, 1, 101, 2, 225, 225, 0, 100, 1, 39, 0, 0, 1, 13, 2106] }
+        "arm64mac": { "allocations": 3714, "work": [0, 0, 0, 100, 1, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 176, 2, 1, 1, 101, 2, 225, 225, 0, 100, 1, 39, 0, 0, 1, 13, 2106] },
+        "x64musl": { "allocations": 3714, "work": [0, 0, 0, 100, 1, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 176, 2, 1, 1, 101, 2, 225, 225, 0, 100, 1, 39, 0, 0, 1, 13, 2106] }
       },
       "retention": null
     },
@@ -2552,8 +2552,8 @@
       "dimensions": { "pages": 1, "gate4_pattern_share": 1, "pattern_fills": 1000, "canonical_patterns": 1 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 28021, "work": [0, 0, 0, 1000, 1, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 176, 2, 1, 1, 1001, 2, 225, 225, 0, 1000, 1, 39, 0, 0, 1, 13, 2403] },
-        "x64musl": { "allocations": 28021, "work": [0, 0, 0, 1000, 1, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 176, 2, 1, 1, 1001, 2, 225, 225, 0, 1000, 1, 39, 0, 0, 1, 13, 2403] }
+        "arm64mac": { "allocations": 28020, "work": [0, 0, 0, 1000, 1, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 176, 2, 1, 1, 1001, 2, 225, 225, 0, 1000, 1, 39, 0, 0, 1, 13, 2403] },
+        "x64musl": { "allocations": 28020, "work": [0, 0, 0, 1000, 1, 1, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 176, 2, 1, 1, 1001, 2, 225, 225, 0, 1000, 1, 39, 0, 0, 1, 13, 2403] }
       },
       "retention": null
     },
@@ -2567,8 +2567,8 @@
       "dimensions": { "pages": 1, "gate4_pattern_distinct": 1, "canonical_patterns": 8 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2589, "work": [0, 0, 0, 8, 8, 8, 0, 8, 17, 0, 0, 0, 0, 0, 0, 8, 8, 0, 0, 0, 1408, 9, 8, 8, 9, 9, 1457, 1457, 0, 8, 8, 312, 0, 0, 8, 27, 4745] },
-        "x64musl": { "allocations": 2589, "work": [0, 0, 0, 8, 8, 8, 0, 8, 17, 0, 0, 0, 0, 0, 0, 8, 8, 0, 0, 0, 1408, 9, 8, 8, 9, 9, 1457, 1457, 0, 8, 8, 312, 0, 0, 8, 27, 4745] }
+        "arm64mac": { "allocations": 2588, "work": [0, 0, 0, 8, 8, 8, 0, 8, 17, 0, 0, 0, 0, 0, 0, 8, 8, 0, 0, 0, 1408, 9, 8, 8, 9, 9, 1457, 1457, 0, 8, 8, 312, 0, 0, 8, 27, 4745] },
+        "x64musl": { "allocations": 2588, "work": [0, 0, 0, 8, 8, 8, 0, 8, 17, 0, 0, 0, 0, 0, 0, 8, 8, 0, 0, 0, 1408, 9, 8, 8, 9, 9, 1457, 1457, 0, 8, 8, 312, 0, 0, 8, 27, 4745] }
       },
       "retention": null
     },
@@ -2582,8 +2582,8 @@
       "dimensions": { "pages": 1, "gate4_pattern_distinct": 1, "canonical_patterns": 64 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 14696, "work": [0, 0, 0, 64, 64, 64, 0, 64, 129, 0, 0, 0, 0, 0, 0, 64, 64, 0, 0, 0, 11264, 65, 64, 64, 65, 65, 11313, 11313, 0, 64, 64, 2491, 0, 0, 64, 139, 26252] },
-        "x64musl": { "allocations": 14696, "work": [0, 0, 0, 64, 64, 64, 0, 64, 129, 0, 0, 0, 0, 0, 0, 64, 64, 0, 0, 0, 11264, 65, 64, 64, 65, 65, 11313, 11313, 0, 64, 64, 2491, 0, 0, 64, 139, 26252] }
+        "arm64mac": { "allocations": 14695, "work": [0, 0, 0, 64, 64, 64, 0, 64, 129, 0, 0, 0, 0, 0, 0, 64, 64, 0, 0, 0, 11264, 65, 64, 64, 65, 65, 11313, 11313, 0, 64, 64, 2491, 0, 0, 64, 139, 26252] },
+        "x64musl": { "allocations": 14695, "work": [0, 0, 0, 64, 64, 64, 0, 64, 129, 0, 0, 0, 0, 0, 0, 64, 64, 0, 0, 0, 11264, 65, 64, 64, 65, 65, 11313, 11313, 0, 64, 64, 2491, 0, 0, 64, 139, 26252] }
       },
       "retention": null
     },
@@ -2597,8 +2597,8 @@
       "dimensions": { "pages": 1, "gate4_pattern_cells": 1, "cell_commands": 16, "canonical_patterns": 1 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 1439, "work": [0, 0, 0, 1, 1, 16, 0, 16, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1376, 2, 1, 1, 2, 2, 1425, 1425, 0, 1, 1, 613, 0, 0, 1, 13, 2202] },
-        "x64musl": { "allocations": 1439, "work": [0, 0, 0, 1, 1, 16, 0, 16, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1376, 2, 1, 1, 2, 2, 1425, 1425, 0, 1, 1, 613, 0, 0, 1, 13, 2202] }
+        "arm64mac": { "allocations": 1438, "work": [0, 0, 0, 1, 1, 16, 0, 16, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1376, 2, 1, 1, 2, 2, 1425, 1425, 0, 1, 1, 613, 0, 0, 1, 13, 2202] },
+        "x64musl": { "allocations": 1438, "work": [0, 0, 0, 1, 1, 16, 0, 16, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1376, 2, 1, 1, 2, 2, 1425, 1425, 0, 1, 1, 613, 0, 0, 1, 13, 2202] }
       },
       "retention": null
     },
@@ -2612,8 +2612,8 @@
       "dimensions": { "pages": 1, "gate4_pattern_cells": 1, "cell_commands": 64, "canonical_patterns": 1 },
       "work_counters": ["shading_visits", "shading_stop_visits", "shading_paint_commands", "pattern_fill_commands", "pattern_cells", "cell_command_visits", "derived_functions", "pattern_cell_use_visits", "pattern_sweep_visits", "authored_shadings", "canonical_shadings", "deduplicated_shadings", "authored_functions", "canonical_functions", "deduplicated_functions", "authored_patterns", "canonical_patterns", "deduplicated_patterns", "shading_recipe_bytes", "function_recipe_bytes", "pattern_recipe_bytes", "direct_dictionary_entries", "pattern_dictionary_entries", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "content_shading_paints", "content_pattern_fills", "pattern_streams", "pattern_stream_bytes", "shading_objects", "function_objects", "pattern_objects", "objects", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2735, "work": [0, 0, 0, 1, 1, 64, 0, 64, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 5216, 2, 1, 1, 2, 2, 5265, 5265, 0, 1, 1, 2481, 0, 0, 1, 13, 2622] },
-        "x64musl": { "allocations": 2735, "work": [0, 0, 0, 1, 1, 64, 0, 64, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 5216, 2, 1, 1, 2, 2, 5265, 5265, 0, 1, 1, 2481, 0, 0, 1, 13, 2622] }
+        "arm64mac": { "allocations": 2734, "work": [0, 0, 0, 1, 1, 64, 0, 64, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 5216, 2, 1, 1, 2, 2, 5265, 5265, 0, 1, 1, 2481, 0, 0, 1, 13, 2622] },
+        "x64musl": { "allocations": 2734, "work": [0, 0, 0, 1, 1, 64, 0, 64, 3, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 5216, 2, 1, 1, 2, 2, 5265, 5265, 0, 1, 1, 2481, 0, 0, 1, 13, 2622] }
       },
       "retention": null
     },
@@ -2627,8 +2627,203 @@
       "dimensions": { "pages": 1, "gate4_shading_share": 1, "shading_paints": 1, "canonical_shadings": 1 },
       "work_counters": ["rejections", "escaped_plans", "output_bytes"],
       "expectations": {
-        "arm64mac": { "allocations": 2035, "work": [27, 0, 5122] },
-        "x64musl": { "allocations": 2035, "work": [27, 0, 5122] }
+        "arm64mac": { "allocations": 2034, "work": [27, 0, 5122] },
+        "x64musl": { "allocations": 2034, "work": [27, 0, 5122] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 font-leaf showcase with adversarial authoring",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves/main.roc",
+      "snapshot": "tests/gate4_font_leaves/snapshot.pdf",
+      "args": ["showcase", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 2, "gate4_font_showcase": 1, "authored_fonts": 4, "canonical_fonts": 3, "font_objects": 27 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 14564, "work": [4, 3, 1, 23561, 5, 7, 2, 154, 1, 2, 10, 6, 23764, 23764, 2, 1, 5956, 5, 6, 6, 150, 5, 575, 3, 17060, 47, 24310] },
+        "x64musl": { "allocations": 14564, "work": [4, 3, 1, 23561, 5, 7, 2, 154, 1, 2, 10, 6, 23764, 23764, 2, 1, 5956, 5, 6, 6, 150, 5, 575, 3, 17060, 47, 24310] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 font-leaf distinctness matrix",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaf_facts/main.roc",
+      "snapshot": "tests/gate4_font_leaf_facts/snapshot.pdf",
+      "args": ["facts", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_facts": 1, "authored_fonts": 5, "canonical_fonts": 5, "font_objects": 45 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 7548, "work": [5, 5, 0, 29047, 6, 6, 0, 0, 0, 0, 10, 6, 29096, 29096, 0, 0, 0, 5, 6, 6, 150, 5, 559, 5, 28160, 60, 37103] },
+        "x64musl": { "allocations": 7548, "work": [5, 5, 0, 29047, 6, 6, 0, 0, 0, 0, 10, 6, 29096, 29096, 0, 0, 0, 5, 6, 6, 150, 5, 559, 5, 28160, 60, 37103] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 font-leaf unique-input ownership",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_unique/main.roc",
+      "snapshot": "tests/gate4_font_leaves_unique/snapshot.pdf",
+      "args": ["unique", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 2, "gate4_font_unique": 1, "canonical_fonts": 3 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 7282, "work": [4, 3, 1, 23561, 5, 7, 2, 154, 1, 2, 10, 6, 23764, 23764, 2, 1, 5956, 5, 6, 6, 150, 5, 575, 3, 17060, 47, 24310] },
+        "x64musl": { "allocations": 7282, "work": [4, 3, 1, 23561, 5, 7, 2, 154, 1, 2, 10, 6, 23764, 23764, 2, 1, 5956, 5, 6, 6, 150, 5, 575, 3, 17060, 47, 24310] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 font-leaf retained-input ownership",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_retained/main.roc",
+      "snapshot": "tests/gate4_font_leaves_retained/snapshot.pdf",
+      "args": ["shared", "0"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 2, "gate4_font_retained": 1, "canonical_fonts": 3 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 14561, "work": [4, 3, 1, 23561, 5, 7, 2, 154, 1, 2, 10, 6, 23764, 23764, 2, 1, 5956, 5, 6, 6, 150, 5, 575, 3, 17060, 47, 24310] },
+        "x64musl": { "allocations": 14561, "work": [4, 3, 1, 23561, 5, 7, 2, 154, 1, 2, 10, 6, 23764, 23764, 2, 1, 5956, 5, 6, 6, 150, 5, 575, 3, 17060, 47, 24310] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 shared font subset x100",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_share_100/main.roc",
+      "snapshot": "tests/gate4_font_leaves_share_100/snapshot.pdf",
+      "args": ["share", "100"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_share": 100, "canonical_fonts": 1 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 17938, "work": [1, 1, 0, 5747, 2, 2, 0, 0, 0, 0, 200, 2, 5796, 5796, 0, 0, 0, 100, 100, 1, 2500, 100, 10881, 1, 5576, 119, 22486] },
+        "x64musl": { "allocations": 17938, "work": [1, 1, 0, 5747, 2, 2, 0, 0, 0, 0, 200, 2, 5796, 5796, 0, 0, 0, 100, 100, 1, 2500, 100, 10881, 1, 5576, 119, 22486] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 shared font subset x1000",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_share_1000/main.roc",
+      "snapshot": "tests/gate4_font_leaves_share_1000/snapshot.pdf",
+      "args": ["share", "1000"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_share": 1000, "canonical_fonts": 1 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 129486, "work": [1, 1, 0, 5747, 2, 2, 0, 0, 0, 0, 2000, 2, 5796, 5796, 0, 0, 0, 1000, 1000, 1, 25000, 1000, 109754, 1, 5576, 1019, 152827] },
+        "x64musl": { "allocations": 129486, "work": [1, 1, 0, 5747, 2, 2, 0, 0, 0, 0, 2000, 2, 5796, 5796, 0, 0, 0, 1000, 1000, 1, 25000, 1000, 109754, 1, 5576, 1019, 152827] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 equivalent authored fonts collapse x8",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_dedupe_8/main.roc",
+      "snapshot": "tests/gate4_font_leaves_dedupe_8/snapshot.pdf",
+      "args": ["dedupe", "8"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_dedupe": 8, "canonical_fonts": 1 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 6892, "work": [8, 1, 7, 45976, 9, 2, 0, 0, 0, 0, 16, 9, 46025, 46025, 8, 7, 40229, 8, 8, 8, 200, 8, 863, 1, 5576, 27, 9532] },
+        "x64musl": { "allocations": 6892, "work": [8, 1, 7, 45976, 9, 2, 0, 0, 0, 0, 16, 9, 46025, 46025, 8, 7, 40229, 8, 8, 8, 200, 8, 863, 1, 5576, 27, 9532] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 equivalent authored fonts collapse x64",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_dedupe_64/main.roc",
+      "snapshot": "tests/gate4_font_leaves_dedupe_64/snapshot.pdf",
+      "args": ["dedupe", "64"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_dedupe": 64, "canonical_fonts": 1 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 16973, "work": [64, 1, 63, 367808, 65, 2, 0, 0, 0, 0, 128, 65, 367857, 367857, 64, 63, 362061, 64, 64, 64, 1600, 64, 6960, 1, 5576, 83, 17371] },
+        "x64musl": { "allocations": 16973, "work": [64, 1, 63, 367808, 65, 2, 0, 0, 0, 0, 128, 65, 367857, 367857, 64, 63, 362061, 64, 64, 64, 1600, 64, 6960, 1, 5576, 83, 17371] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 distinct font subsets x8",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_distinct_8/main.roc",
+      "snapshot": "tests/gate4_font_leaves_distinct_8/snapshot.pdf",
+      "args": ["distinct", "8"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_distinct": 8, "canonical_fonts": 8 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 17925, "work": [8, 8, 0, 46080, 9, 9, 0, 0, 0, 0, 16, 9, 46129, 46129, 0, 0, 0, 8, 8, 8, 200, 8, 863, 8, 44712, 90, 58049] },
+        "x64musl": { "allocations": 17925, "work": [8, 8, 0, 46080, 9, 9, 0, 0, 0, 0, 16, 9, 46129, 46129, 0, 0, 0, 8, 8, 8, 200, 8, 863, 8, 44712, 90, 58049] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 distinct font subsets x64",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_distinct_64/main.roc",
+      "snapshot": "tests/gate4_font_leaves_distinct_64/snapshot.pdf",
+      "args": ["distinct", "64"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_distinct": 64, "canonical_fonts": 64 },
+      "work_counters": ["authored_fonts", "canonical_fonts", "deduplicated_fonts", "font_recipe_bytes", "leaf_digests", "direct_dictionary_entries", "nested_dictionary_entries", "form_recipe_bytes", "text_forms", "direct_edges", "use_command_visits", "graph_hashes", "graph_bytes_hashed", "retained_identity_bytes", "collision_entries", "equality_comparisons", "bytes_compared", "run_visits", "glyph_visits", "unicode_mappings", "prepared_text_bytes", "text_placements", "content_bytes_emitted", "font_bundles", "font_program_bytes", "objects", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 71387, "work": [64, 64, 0, 369812, 65, 65, 0, 0, 0, 0, 128, 65, 369861, 369861, 0, 0, 0, 64, 64, 64, 1600, 64, 7014, 64, 358832, 650, 456227] },
+        "x64musl": { "allocations": 71387, "work": [64, 64, 0, 369812, 65, 65, 0, 0, 0, 0, 128, 65, 369861, 369861, 0, 0, 0, 64, 64, 64, 1600, 64, 7014, 64, 358832, 650, 456227] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 font-leaf forced digest collisions x8",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_collide_8/main.roc",
+      "snapshot": "tests/gate4_font_leaves_collide_8/snapshot.pdf",
+      "args": ["collide", "8"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_collide": 8 },
+      "work_counters": ["entries", "canonical_resources", "unique_payloads", "deduplicated_payloads", "collision_entries", "equality_comparisons", "bytes_compared", "ordering_byte_visits", "graph_hashes", "graph_bytes_hashed", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 10364, "work": [8, 5, 5, 3, 8, 3, 17241, 22988, 8, 46076, 8562] },
+        "x64musl": { "allocations": 10364, "work": [8, 5, 5, 3, 8, 3, 17241, 22988, 8, 46076, 8562] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 font-leaf forced digest collisions x64",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_collide_64/main.roc",
+      "snapshot": "tests/gate4_font_leaves_collide_64/snapshot.pdf",
+      "args": ["collide", "64"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_collide": 64 },
+      "work_counters": ["entries", "canonical_resources", "unique_payloads", "deduplicated_payloads", "collision_entries", "equality_comparisons", "bytes_compared", "ordering_byte_visits", "graph_hashes", "graph_bytes_hashed", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 12828, "work": [64, 33, 33, 31, 64, 39, 178173, 184024, 64, 368704, 8562] },
+        "x64musl": { "allocations": 12828, "work": [64, 33, 33, 31, 64, 39, 178173, 184024, 64, 368704, 8562] }
+      },
+      "retention": null
+    },
+    {
+      "name": "Gate 4 font-leaf atomic negatives",
+      "scenario_revision": "gate4-font-leaves-v1",
+      "source": "tests/gate4_font_leaves_negative/main.roc",
+      "snapshot": "tests/gate4_font_leaves_negative/snapshot.pdf",
+      "args": ["negative", "1"],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": { "pages": 1, "gate4_font_negative": 1 },
+      "work_counters": ["rejections", "escaped_plans", "output_bytes"],
+      "expectations": {
+        "arm64mac": { "allocations": 19319, "work": [11, 0, 8562] },
+        "x64musl": { "allocations": 19319, "work": [11, 0, 8562] }
       },
       "retention": null
     }

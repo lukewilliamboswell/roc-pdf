@@ -41,6 +41,7 @@ from check_gate4_color_images import validate_gate4_color_images_pdf
 from check_gate4_shadings import validate_gate4_shadings_pdf
 from check_gate4_soft_masks import validate_gate4_soft_masks_pdf
 from check_gate4_transparency import validate_gate4_transparency_pdf
+from check_gate4_fonts import validate_gate4_fonts_pdf
 from check_gate4_forms import validate_gate4_forms_pdf
 from check_pdf_structure import validate_pdf
 
@@ -645,6 +646,9 @@ def run_case(
         elif case.dimensions.get("gate3_caller_facade", 0) == 1:
             validate_gate3_caller_facade_pdf(result.stdout)
             print(f"PASS {case.name}: independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts", flush=True)
+        elif any(key.startswith("gate4_font") for key in case.dimensions):
+            validate_gate4_fonts_pdf(result.stdout, case.dimensions)
+            print(f"PASS {case.name}: canonical Type 0 bundles, verified embedded subsets, identity CID maps, ToUnicode facts, exact per-stream /Font dictionaries, and placement-site ownership", flush=True)
         elif any(key.startswith("gate4_form") for key in case.dimensions):
             validate_gate4_forms_pdf(result.stdout, case.dimensions)
             print(f"PASS {case.name}: exact Form XObject dictionaries, per-stream direct resources, Do resolution, sharing, and placement-site MCID/ParentTree ownership facts", flush=True)
@@ -792,6 +796,8 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate4_soft_mask_renderers.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_shadings.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_shading_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_gate4_fonts.py", "--self-test")
+    command(sys.executable, "scripts/check_gate4_font_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)

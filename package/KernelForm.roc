@@ -30,10 +30,13 @@ import Text
 ##   authored dense IDs: an ICC profile is its exact sanitized bytes, a color
 ##   space is a typed recipe (calibrated parameters, or the referenced
 ##   profile's identity digest, so `Srgb` and an equivalent `IccBased`
-##   declaration share one identity), and an image is its color-space digest
+##   declaration share one identity), an image is its color-space digest
 ##   plus its row-compacted canonical planes or sanitized JPEG bytes, so a
 ##   padded raster and its compact twin deduplicate while equal pixels under
-##   different color spaces never merge;
+##   different color spaces never merge, and a font is its derived
+##   `KernelFontLeaf` bundle recipe — the emitted facts plus the exact
+##   sanitized subset bytes — so exact twins share one emitted bundle while
+##   closure, mapping, metric, or face differences never merge;
 ## - canonical visual form identity: a recipe of the bounding box, the
 ##   canonical identity matrix, and the command tree with geometry inlined and
 ##   every nested reference replaced by the referenced resource's identity
@@ -56,7 +59,6 @@ KernelForm :: [].{
 		## image with an alpha soft mask drawn directly inside a pattern
 		## cell is rejected.
 		AlphaImageInPattern({ image : U64, pattern : U64 }),
-		DuplicateLeafPayload({ canonical : U64, first : U64, second : U64 }),
 
 		## A form without an isolated transparency group carries its own
 		## non-opaque opacity command while some placement chain executes it
@@ -156,9 +158,9 @@ KernelForm :: [].{
 		space_profiles : List(ProfileRef),
 	}
 
-	## The validated stores whose leaf facts this stage consumes. Fonts keep a
-	## caller-supplied opaque count here and caller-supplied `Leaf` payloads in
-	## `Leaves`; their derived identity joins a later slice.
+	## The validated stores whose leaf facts this stage consumes. Fonts carry
+	## their validated count here and their derived canonical recipes (built
+	## once by `KernelFontLeaf` from the validated bundle facts) in `Leaves`.
 	Stores : { colors : KernelColor.Plan, font_count : U64, images : KernelImage.Plan }
 
 	## A run painted inside a form, owned by the fragment resolved for that
@@ -271,8 +273,9 @@ KernelForm :: [].{
 	Leaf : { descriptor : KernelResourceGraph.Descriptor, payload : List(U8) }
 
 	## The leaf inputs of the canonical run: the validated color and image
-	## plans whose payloads this stage derives itself, plus the caller-supplied
-	## font leaves that stay 1:1 in this slice.
+	## plans whose payloads this stage derives itself, plus one derived
+	## font-leaf recipe per authored font (`KernelFontLeaf` output), so fonts
+	## deduplicate by exact canonical identity like every other leaf.
 	Leaves : { colors : KernelColor.Plan, fonts : List(Leaf), images : KernelImage.Plan }
 
 	## Direct resource-dictionary contents for one content stream, as dense
@@ -319,23 +322,27 @@ KernelForm :: [].{
 	PlanWork : {
 		artifact_placements : U64,
 		authored_color_spaces : U64,
+		authored_fonts : U64,
 		authored_forms : U64,
 		authored_images : U64,
 		authored_profiles : U64,
 		canonical_color_spaces : U64,
 		canonical_ext_g_states : U64,
+		canonical_fonts : U64,
 		canonical_forms : U64,
 		canonical_mask_states : U64,
 		canonical_images : U64,
 		canonical_profiles : U64,
 		copied_leaf_bytes : U64,
 		deduplicated_color_spaces : U64,
+		deduplicated_fonts : U64,
 		deduplicated_forms : U64,
 		deduplicated_images : U64,
 		deduplicated_mask_states : U64,
 		deduplicated_opacity_groups : U64,
 		deduplicated_profiles : U64,
 		dictionary_entries : U64,
+		font_recipe_bytes : U64,
 		form_digests : U64,
 		isolated_canonical_forms : U64,
 		leaf_digests : U64,
@@ -368,14 +375,14 @@ KernelForm :: [].{
 	## forms are ordinal-indexed in canonical-ID order (the documented total
 	## order for physical objects); the `*_names` lists map every authored
 	## resource to its canonical ordinal; the dictionaries are exact direct
-	## uses per stream. Fonts stay 1:1, so their canonical ordinals are the
-	## authored ordinals. The transparency facts carry each arena command's
+	## uses per stream. The transparency facts carry each arena command's
 	## canonical graphics-state ordinal (`U64.highest` meaning none), the
 	## per-page transparency-group requirement, each canonical form's
 	## isolation fact, and the canonical blending-space ordinal.
 	Plan :: {
 		blending : Blending,
 		canonical_colors : List(U64),
+		canonical_fonts : List(U64),
 		canonical_forms : List(CanonicalForm),
 		canonical_function_facts : List(FunctionFact),
 		canonical_images : List(U64),
@@ -385,6 +392,7 @@ KernelForm :: [].{
 		color_names : List(U64),
 		form_command_gs : List(U64),
 		form_dictionaries : List(DictionaryPlan),
+		font_names : List(U64),
 		form_isolation : List(Bool),
 		form_names : List(U64),
 		graph : KernelResourceGraph.Plan,
@@ -455,6 +463,18 @@ KernelForm :: [].{
 		## Representative authored color space per canonical color ordinal.
 		canonical_color_representatives : Plan -> List(U64)
 		canonical_color_representatives = |plan| plan.canonical_colors
+
+		## Representative authored font per canonical font ordinal; each
+		## canonical bundle lowers once from its lowest authored
+		## representative's validated facts.
+		canonical_font_representatives : Plan -> List(U64)
+		canonical_font_representatives = |plan| plan.canonical_fonts
+
+		canonical_font_count : Plan -> U64
+		canonical_font_count = |plan| plan.canonical_fonts.len()
+
+		font_names : Plan -> List(U64)
+		font_names = |plan| plan.font_names
 
 		## Whether each canonical image carries an alpha soft-mask plane.
 		canonical_image_alpha : Plan -> List(Bool)
@@ -2319,6 +2339,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 	var $image_ranges = List.repeat({ alpha_length: 0, color_length: 0, start: 0 }, image_count)
 	var $copied_leaf_bytes = 0
 	var $leaf_recipe_bytes = 0
+	var $font_recipe_bytes = 0
 	var $leaf_digests = 0
 	var $recipe_bytes = 0
 	var $state_recipe_bytes = 0
@@ -2413,9 +2434,14 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			$sources = list_set($sources, node, { descriptor, length: $payload.len() - start, start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < counts.color_spaces + image_count + counts.fonts {
+
+			## A font leaf: the derived canonical bundle recipe from
+			## `KernelFontLeaf` — typed emitted facts plus the exact sanitized
+			## subset bytes — never the caller's whole font program, which
+			## therefore no longer enters the identity arena.
 			leaf = list_at(leaves.fonts, node - counts.color_spaces - image_count)
 			$payload = $payload.concat(leaf.payload)
-			$copied_leaf_bytes = $copied_leaf_bytes + leaf.payload.len()
+			$font_recipe_bytes = $font_recipe_bytes + leaf.payload.len()
 			$sources = list_set($sources, node, { descriptor: leaf.descriptor, length: leaf.payload.len(), start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < base {
@@ -2652,31 +2678,11 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 	canonical_of = $canonical_of
 	canonical_count = KernelResourceGraph.Plan.resource_count(graph)
 
-	## Fonts stay 1:1 in this slice, so two byte-identical authored font
-	## leaves (which would orphan an emitted object) are rejected explicitly.
-	font_start = counts.color_spaces + image_count
-	var $leaf_seen = List.repeat(U64.highest, canonical_count)
-	var $leaf_check = font_start
-	while $leaf_check < font_start + counts.fonts and $failure == NoFailure {
-		canonical = list_at(canonical_of, $leaf_check)
-		first = list_at($leaf_seen, canonical)
-		if first != U64.highest {
-			$failure = Failed(DuplicateLeafPayload({ canonical, first, second: $leaf_check - font_start }))
-		} else {
-			$leaf_seen = list_set($leaf_seen, canonical, $leaf_check - font_start)
-		}
-		$leaf_check = $leaf_check + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
-
 	## Canonical per-kind ordinals in canonical-ID order — the documented
-	## total order for physical leaf, graphics-state, and form objects. Fonts
-	## receive their authored ordinal below because they stay 1:1.
+	## total order for physical leaf, graphics-state, and form objects.
 	var $kinds = List.repeat({ kind: 0, ordinal: 0 }, canonical_count)
 	var $color_reps = []
+	var $font_reps = []
 	var $image_reps = []
 	var $profile_reps = []
 	var $state_count = 0
@@ -2698,6 +2704,10 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			ExtGState => {
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_state, ordinal: $state_count })
 				$state_count = $state_count + 1
+			}
+			Font => {
+				$kinds = list_set($kinds, $canonical_id, { kind: kind_font, ordinal: $font_reps.len() })
+				$font_reps = $font_reps.append(U64.highest)
 			}
 			Function => {
 				$kinds = list_set($kinds, $canonical_id, { kind: kind_function, ordinal: $function_reps.len() })
@@ -2726,7 +2736,6 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 				$ordinal_canonicals = $ordinal_canonicals.append($canonical_id)
 				$canonical_forms = $canonical_forms.append({ bbox: zero_rect, commands: Semantics.Range.from_start_and_length(0, 0), representative: U64.highest })
 			}
-			_ => {}
 		}
 		$canonical_id = $canonical_id + 1
 	}
@@ -2766,10 +2775,14 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 		}
 		$profile = $profile + 1
 	}
+	var $font_names = List.repeat(0, counts.fonts)
 	var $font = 0
 	while $font < counts.fonts {
-		canonical = list_at(canonical_of, font_node(counts, $font))
-		$kinds = list_set($kinds, canonical, { kind: kind_font, ordinal: $font })
+		ordinal = list_at($kinds, list_at(canonical_of, font_node(counts, $font))).ordinal
+		$font_names = list_set($font_names, $font, ordinal)
+		if list_at($font_reps, ordinal) == U64.highest {
+			$font_reps = list_set($font_reps, ordinal, $font)
+		}
 		$font = $font + 1
 	}
 
@@ -3028,6 +3041,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 		KernelForm.Plan.{
 			blending: blending_ordinal,
 			canonical_colors: $color_reps,
+			canonical_fonts: $font_reps,
 			canonical_forms: $canonical_forms,
 			canonical_function_facts: $function_facts,
 			canonical_images: $image_reps,
@@ -3035,6 +3049,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			canonical_profiles: $profile_reps,
 			canonical_shading_facts: $shading_facts,
 			color_names: $color_names,
+			font_names: $font_names,
 			form_command_gs: $form_command_gs,
 			form_dictionaries: $form_dictionaries,
 			form_isolation: $form_isolation,
@@ -3054,17 +3069,20 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			work: {
 				artifact_placements: $artifact_placements,
 				authored_color_spaces: counts.color_spaces,
+				authored_fonts: counts.fonts,
 				authored_forms: form_count,
 				authored_images: image_count,
 				authored_profiles: counts.profiles,
 				canonical_color_spaces: $color_reps.len(),
 				canonical_ext_g_states: $state_facts.len(),
+				canonical_fonts: $font_reps.len(),
 				canonical_mask_states: canonical_mask_state_count,
 				canonical_forms: $canonical_forms.len(),
 				canonical_images: $image_reps.len(),
 				canonical_profiles: $profile_reps.len(),
 				copied_leaf_bytes: $copied_leaf_bytes,
 				deduplicated_color_spaces: counts.color_spaces - $color_reps.len(),
+				deduplicated_fonts: counts.fonts - $font_reps.len(),
 				deduplicated_forms,
 				deduplicated_images: image_count - $image_reps.len(),
 
@@ -3075,6 +3093,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 				deduplicated_opacity_groups: facts.work.opacity_groups - ($state_facts.len() - canonical_mask_state_count),
 				deduplicated_profiles: counts.profiles - $profile_reps.len(),
 				dictionary_entries: $dictionary_entries,
+				font_recipe_bytes: $font_recipe_bytes,
 				form_digests: $form_digests,
 				isolated_canonical_forms: $isolated_canonical,
 				leaf_digests: $leaf_digests,
@@ -3249,7 +3268,8 @@ count_nested_form_edges = |edges, base| {
 
 ## Canonical recipe serialization. Geometry, styles, and dash values are
 ## inlined from the shared stores; nested references become the referenced
-## resource's identity digest; text commands embed the prepared run bytes.
+## resource's identity digest; text commands embed the referenced font
+## leaf's identity digest, the exact size, and the prepared run bytes.
 ## Opacity groups serialize in normalized lowered form: an opaque group is
 ## transparent to the recipe (its children serialize inline, exactly as its
 ## stream emits no operators), and a non-opaque group serializes its
@@ -3318,8 +3338,15 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 					WithText(plan) => if run.index() >= KernelContent.TextPlan.run_count(plan) {
 						$failure = Failed(TextRunRecipeInvalid({ prepared: KernelContent.TextPlan.run_count(plan), run: run.index() }))
 					} else {
+
+						## The font selection serializes as the referenced font
+						## leaf's identity digest plus the exact size, mirroring
+						## the emitted `Tf` operator, so recipes never depend on
+						## authored font numbering.
 						$out = append_text_paint($out.append(5), paint, digests)
 						prepared = KernelContent.TextPlan.run(plan, run.index())
+						$out = $out.concat(list_at(digests, font_node(counts, prepared.font)))
+						$out = append_i64_bytes($out, prepared.size.raw())
 						$out = append_u64_bytes($out, prepared.actual_text_begin.len())
 						$out = $out.concat(prepared.actual_text_begin)
 						$out = append_u64_bytes($out, prepared.body.len())
