@@ -175,6 +175,80 @@ KernelNavigation :: [].{
 		uri_bytes_checked : U64,
 	}
 
+	## Post-layout anchor facts: one optional anchor rectangle per layout
+	## fragment, dense by fragment identity, produced from the prepared
+	## fragment/page geometry after pagination. Destination resolution is the
+	## only consumer; nothing re-derives geometry from scenes or content.
+	AnchorRect : [AnchorAt(Layout.Rect), NoAnchor]
+
+	## One destination resolved to both of its paired targets: the semantic
+	## structure element for `/SD` and the exact page-space point for `/D`.
+	## Both derive from one authored destination record, so a mismatched pair
+	## is unrepresentable downstream of a successful resolution.
+	ResolvedDestination : {
+		left : Layout.Unit,
+		page : Semantics.PageId,
+		structure_element : Semantics.StructureElementId,
+		top : Layout.Unit,
+	}
+
+	ResolveWork : { anchor_lookups : U64, destinations_resolved : U64 }
+
+	## Resolve every destination after layout: the anchor occurrence's first
+	## layout fragment supplies the page and geometry, and the occurrence's
+	## owning node must be exactly the destination's semantic target. A
+	## destination whose anchor has no resolvable fragment geometry is
+	## rejected; an `/SD`-only link cannot be emitted.
+	resolve : Store, Semantics.Store, List(Semantics.NodeId), List(AnchorRect) -> Try({ destinations : List(ResolvedDestination), work : ResolveWork }, Document.NavigationError)
+	resolve = |store, semantics, occurrence_owners, anchor_rects| {
+		count = store.destinations.len()
+		var $resolved = List.with_capacity(count)
+		var $lookups = 0
+		var $index = 0
+		while $index < count {
+			destination = list_at(store.destinations, $index)
+			anchor_index = destination.anchor.index()
+			if anchor_index >= semantics.occurrences.len() or anchor_index >= occurrence_owners.len() {
+				return Err(DestinationAnchorOutOfRange({ attempted: anchor_index, destination: $index, occurrences: semantics.occurrences.len() }))
+			}
+			if destination.target.index() >= semantics.nodes.len() {
+				return Err(DestinationTargetOutOfRange({ attempted: destination.target.index(), destination: $index, nodes: semantics.nodes.len() }))
+			}
+			owner = list_at(occurrence_owners, anchor_index)
+			if owner.index() != destination.target.index() {
+				return Err(DestinationTargetMismatch({ anchor_owner: owner.index(), destination: $index, target: destination.target.index() }))
+			}
+			occurrence = list_at(semantics.occurrences, anchor_index)
+			if occurrence.fragments.length() == 0 {
+				return Err(UnresolvedDestinationAnchor({ destination: $index }))
+			}
+			fragment_id = list_at(semantics.occurrence_fragments, occurrence.fragments.start())
+			fragment_index = fragment_id.index()
+			$lookups = $lookups + 1
+			if fragment_index >= anchor_rects.len() {
+				return Err(UnresolvedDestinationAnchor({ destination: $index }))
+			}
+			rect = match list_at(anchor_rects, fragment_index) {
+				NoAnchor => return Err(UnresolvedDestinationAnchor({ destination: $index }))
+				AnchorAt(anchor_rect) => anchor_rect
+			}
+			if rect.size.height.raw() < 0 {
+				return Err(InvalidAnchorGeometry({ destination: $index }))
+			}
+			top_raw = I64.plus_try(rect.origin.y.raw(), rect.size.height.raw()) ? |_| InvalidAnchorGeometry({ destination: $index })
+			node = list_at(semantics.nodes, destination.target.index())
+			fragment = list_at(semantics.fragments, fragment_index)
+			$resolved = $resolved.append({
+				left: rect.origin.x,
+				page: fragment.page,
+				structure_element: node.structure_element,
+				top: Layout.Unit.from_raw(top_raw),
+			})
+			$index = $index + 1
+		}
+		Ok({ destinations: $resolved, work: { anchor_lookups: $lookups, destinations_resolved: count } })
+	}
+
 	validate : Input, Context, Limits -> Try({ store : Store, work : Work }, Document.NavigationError)
 	validate = |input, context, Limits.(limits)| {
 		destinations = validate_destinations(input.destinations, context, limits)?
@@ -1271,4 +1345,142 @@ expect {
 	second = KernelNavigation.validate(test_input, test_context, test_limits)?
 
 	first.store == second.store and first.work == second.work
+}
+
+empty_semantic_range : Semantics.Range
+empty_semantic_range = Semantics.Range.from_start_and_length(0, 0)
+
+resolve_node : U64, Str -> Semantics.Node
+resolve_node = |index, role| {
+	attributes: empty_semantic_range,
+	content: empty_semantic_range,
+	element_identifier: NoElementIdentifier,
+	id: Semantics.NodeId.from_index(index),
+	language: Inherited,
+	parent: if index == 0 DocumentRoot else ParentNode(Semantics.NodeId.from_index(0)),
+	role: { local_name: role, namespace: Semantics.NamespaceId.from_index(0) },
+	structure_element: Semantics.StructureElementId.from_index(index),
+	text_properties: empty_semantic_range,
+}
+
+resolve_fragment : U64, U64, U64 -> Semantics.LayoutFragment
+resolve_fragment = |index, occurrence, page| {
+	content_stream: Semantics.ContentStreamId.from_index(page),
+	continuation_index: 0,
+	id: Semantics.FragmentId.from_index(index),
+	occurrence: Semantics.OccurrenceId.from_index(occurrence),
+	page: Semantics.PageId.from_index(page),
+	source_range: ByteRange(empty_semantic_range),
+}
+
+resolve_occurrence : U64, U64 -> Semantics.ContentOccurrence
+resolve_occurrence = |index, fragment_start| {
+	fragments: Semantics.Range.from_start_and_length(fragment_start, 1),
+	id: Semantics.OccurrenceId.from_index(index),
+	language: Inherited,
+	source: NonText(Semantics.NonTextSourceId.from_index(index), ByteRange(empty_semantic_range)),
+	text_properties: empty_semantic_range,
+}
+
+resolve_semantics : Semantics.Store
+resolve_semantics = {
+	annotations: [],
+	assertions: [],
+	attribute_roles: [],
+	attributes: [],
+	content_spine: [],
+	contextual_artifacts: [],
+	document_root: Semantics.NodeId.from_index(0),
+	fragments: [resolve_fragment(0, 0, 0), resolve_fragment(1, 1, 1)],
+	element_identifiers: [],
+	mathml_subtrees: [],
+	namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
+	nodes: [resolve_node(0, "Document"), resolve_node(1, "P"), resolve_node(2, "Link")],
+	non_text_sources: [[], []],
+	occurrence_fragments: [Semantics.FragmentId.from_index(0), Semantics.FragmentId.from_index(1)],
+	occurrences: [resolve_occurrence(0, 0), resolve_occurrence(1, 1)],
+	relationships: [],
+	role_mappings: [],
+	text_properties: [],
+	text_sources: [],
+}
+
+resolve_owners : List(Semantics.NodeId)
+resolve_owners = [Semantics.NodeId.from_index(1), Semantics.NodeId.from_index(2)]
+
+resolve_anchor_rects : List(KernelNavigation.AnchorRect)
+resolve_anchor_rects = [
+	AnchorAt({ origin: { x: unit(72000), y: unit(700000) }, size: { height: unit(12000), width: unit(120000) } }),
+	AnchorAt({ origin: { x: unit(72000), y: unit(300000) }, size: { height: unit(24000), width: unit(120000) } }),
+]
+
+## Destination resolution pairs the semantic structure element with the
+## anchor fragment's exact page and top-left geometry from one authored
+## record.
+expect {
+	validated = KernelNavigation.validate(test_input, test_context, test_limits)?
+	resolved = KernelNavigation.resolve(validated.store, resolve_semantics, resolve_owners, resolve_anchor_rects)?
+	section = list_at(resolved.destinations, 0)
+	intro = list_at(resolved.destinations, 1)
+
+	section.page.index() == 1 and
+		section.structure_element.index() == 2 and
+			section.left.raw() == 72000 and
+				section.top.raw() == 324000 and
+					intro.page.index() == 0 and
+						intro.structure_element.index() == 1 and
+							intro.top.raw() == 712000 and
+								resolved.work == { anchor_lookups: 2, destinations_resolved: 2 }
+}
+
+## A destination whose anchor occurrence is owned by a different node than
+## its semantic target is a paired-target mismatch.
+expect {
+	validated = KernelNavigation.validate(test_input, test_context, test_limits)?
+	owners = [Semantics.NodeId.from_index(1), Semantics.NodeId.from_index(1)]
+
+	match KernelNavigation.resolve(validated.store, resolve_semantics, owners, resolve_anchor_rects) {
+		Err(DestinationTargetMismatch({ anchor_owner: 1, destination: 0, target: 2 })) => True
+		_ => False
+	}
+}
+
+## A destination without resolvable anchor geometry is rejected rather than
+## emitted as an /SD-only target: a missing anchor rect, a fragmentless
+## occurrence, and an out-of-range anchor list are each unresolvable.
+expect {
+	validated = KernelNavigation.validate(test_input, test_context, test_limits)?
+	no_rect = [AnchorAt({ origin: { x: unit(0), y: unit(0) }, size: { height: unit(1), width: unit(1) } }), NoAnchor]
+	fragmentless = {
+		..resolve_semantics,
+		occurrences: [resolve_occurrence(0, 0), { ..resolve_occurrence(1, 1), fragments: empty_semantic_range }],
+	}
+
+	missing = match KernelNavigation.resolve(validated.store, resolve_semantics, resolve_owners, no_rect) {
+		Err(UnresolvedDestinationAnchor({ destination: 0 })) => True
+		_ => False
+	}
+	unpainted = match KernelNavigation.resolve(validated.store, fragmentless, resolve_owners, resolve_anchor_rects) {
+		Err(UnresolvedDestinationAnchor({ destination: 0 })) => True
+		_ => False
+	}
+	short_list = match KernelNavigation.resolve(validated.store, resolve_semantics, resolve_owners, [list_at(resolve_anchor_rects, 0)]) {
+		Err(UnresolvedDestinationAnchor({ destination: 0 })) => True
+		_ => False
+	}
+	missing and unpainted and short_list
+}
+
+## Anchor geometry that cannot produce a finite top coordinate is rejected.
+expect {
+	validated = KernelNavigation.validate(test_input, test_context, test_limits)?
+	overflowing = [
+		list_at(resolve_anchor_rects, 0),
+		AnchorAt({ origin: { x: unit(0), y: unit(9223372036854775800) }, size: { height: unit(9223372036854775800), width: unit(1) } }),
+	]
+
+	match KernelNavigation.resolve(validated.store, resolve_semantics, resolve_owners, overflowing) {
+		Err(InvalidAnchorGeometry({ destination: 0 })) => True
+		_ => False
+	}
 }

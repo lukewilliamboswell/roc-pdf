@@ -74,6 +74,7 @@ NavigationError : [
 	DestinationTargetOutOfRange({ attempted : U64, destination : U64, nodes : U64 }),
 	DuplicateDestinationName({ first : U64, second : U64 }),
 	DuplicateKeyboardOrder({ first : U64, second : U64 }),
+	InvalidAnchorGeometry({ destination : U64 }),
 	InvalidAnnotationRect({ annotation : U64 }),
 	InvalidQuad({ annotation : U64, quad : U64 }),
 	KeyboardOrderOutOfRange({ annotation : U64, attempted : U64, page_annotations : U64 }),
