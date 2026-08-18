@@ -32,6 +32,10 @@ KernelContent :: [].{
 	## dense canonical form ordinal.
 	FormStream : { bytes : List(U8), form : U64 }
 
+	## One lowered physical tiling-pattern cell content stream, identified by
+	## its dense canonical pattern ordinal.
+	PatternStream : { bytes : List(U8), pattern : U64 }
+
 	## The normalized form-lowering facts the serializer consumes: the flat
 	## form-command arena, each authored resource's canonical name ordinal per
 	## kind, one representative command range per canonical (deduplicated)
@@ -41,6 +45,11 @@ KernelContent :: [].{
 	## resource use, or effective opacity; deduplicated color spaces, images,
 	## and graphics states are named by the same canonical ordinals their
 	## emitted objects receive.
+	## The paint stores extend the context: pattern cells lower from the flat
+	## pattern-command arena (one stream per canonical pattern, no graphics
+	## states — pattern content is fully opaque by validation), and shading
+	## paints and pattern fills name canonical `Sh`/`Pt` ordinals through the
+	## same authored-to-canonical maps colors and images use.
 	FormContext : {
 		arena : List(Scene.Command),
 		color_names : List(U64),
@@ -48,6 +57,10 @@ KernelContent :: [].{
 		form_states : List(U64),
 		image_names : List(U64),
 		page_states : List(U64),
+		pattern_arena : List(Scene.Command),
+		pattern_names : List(U64),
+		pattern_streams : List(Semantics.Range),
+		shading_names : List(U64),
 		streams : List(Semantics.Range),
 	}
 
@@ -62,9 +75,14 @@ KernelContent :: [].{
 		image_placements : U64,
 		marked_artifact_groups : U64,
 		marked_fragment_groups : U64,
+		mask_groups : U64,
 		max_frame_depth : U64,
 		opacity_groups : U64,
 		path_segments : U64,
+		pattern_fills : U64,
+		pattern_stream_bytes : U64,
+		pattern_streams : U64,
+		shading_paints : U64,
 		text_placements : U64,
 	}
 
@@ -81,7 +99,7 @@ KernelContent :: [].{
 		run_count = |plan| plan.runs.len()
 	}
 
-	Plan :: { form_streams : List(FormStream), streams : List(Stream), work : Work }.{
+	Plan :: { form_streams : List(FormStream), pattern_streams : List(PatternStream), streams : List(Stream), work : Work }.{
 		build : KernelTagged.Plan, Limits -> Try(Plan, Error)
 		build = |tagged, limits| build_plan(tagged, NoText, NoForms, limits)
 
@@ -99,6 +117,12 @@ KernelContent :: [].{
 
 		form_stream_count : Plan -> U64
 		form_stream_count = |plan| plan.form_streams.len()
+
+		pattern_stream : Plan, U64 -> PatternStream
+		pattern_stream = |plan, pattern| list_at(plan.pattern_streams, pattern)
+
+		pattern_stream_count : Plan -> U64
+		pattern_stream_count = |plan| plan.pattern_streams.len()
 
 		stream : Plan, Semantics.ContentStreamId -> Stream
 		stream = |plan, stream| list_at(plan.streams, stream.index())
@@ -119,8 +143,10 @@ FormEmission := [NoForms, WithForms(KernelContent.FormContext)]
 
 ## How content operators name color-space and image resources. The Gate 2/3
 ## paths name authored dense ordinals directly; the Gate 4 form path names the
-## canonical ordinal each authored resource deduplicated to.
-Naming := [AuthoredNames, CanonicalNames({ colors : List(U64), images : List(U64) })]
+## canonical ordinal each authored resource deduplicated to. Shading and
+## pattern operators exist only on the canonical path, so their maps carry no
+## authored fallback.
+Naming := [AuthoredNames, CanonicalNames({ colors : List(U64), images : List(U64), patterns : List(U64), shadings : List(U64) })]
 
 color_ordinal : Naming, U64 -> U64
 color_ordinal = |naming, index| match naming {
@@ -134,9 +160,21 @@ image_ordinal = |naming, index| match naming {
 	CanonicalNames(maps) => list_at(maps.images, index)
 }
 
+pattern_ordinal : Naming, U64 -> [NoPaints, PaintOrdinal(U64)]
+pattern_ordinal = |naming, index| match naming {
+	AuthoredNames => NoPaints
+	CanonicalNames(maps) => if index < maps.patterns.len() PaintOrdinal(list_at(maps.patterns, index)) else NoPaints
+}
+
+shading_ordinal : Naming, U64 -> [NoPaints, PaintOrdinal(U64)]
+shading_ordinal = |naming, index| match naming {
+	AuthoredNames => NoPaints
+	CanonicalNames(maps) => if index < maps.shadings.len() PaintOrdinal(list_at(maps.shadings, index)) else NoPaints
+}
+
 Frame := { close_graphics : Bool, end : U64, next : U64 }
 
-EmitWork := { bytes : List(U8), command_visits : U64, form_placements : U64, graphics_state_pairs : U64, image_placements : U64, max_frame_depth : U64, opacity_groups : U64, path_segments : U64, text_placements : U64 }
+EmitWork := { bytes : List(U8), command_visits : U64, form_placements : U64, graphics_state_pairs : U64, image_placements : U64, mask_groups : U64, max_frame_depth : U64, opacity_groups : U64, path_segments : U64, pattern_fills : U64, shading_paints : U64, text_placements : U64 }
 
 ## Dense per-command state entries use this sentinel for every command that
 ## emits no graphics state.
@@ -156,7 +194,7 @@ build_plan = |tagged, text, forms, limits| {
 		marked = index_marked(KernelTagged.Plan.marked_fragments(tagged), semantics.fragments.len())?
 		naming = match forms {
 			NoForms => AuthoredNames
-			WithForms(context) => CanonicalNames({ colors: context.color_names, images: context.image_names })
+			WithForms(context) => CanonicalNames({ colors: context.color_names, images: context.image_names, patterns: context.pattern_names, shadings: context.shading_names })
 		}
 		page_states = match forms {
 			NoForms => []
@@ -173,8 +211,11 @@ build_plan = |tagged, text, forms, limits| {
 		var $max_frame_depth = 0
 		var $artifact_groups = 0
 		var $fragment_groups = 0
+		var $mask_groups = 0
 		var $opacity_groups = 0
 		var $path_segments = 0
+		var $pattern_fills = 0
+		var $shading_paints = 0
 		var $text_placements = 0
 		var $error = NoError
 		while $page_index < scenes.pages.len() and $error == NoError {
@@ -207,9 +248,12 @@ build_plan = |tagged, text, forms, limits| {
 									$form_placements = $form_placements + emitted.form_placements
 									$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
 									$image_placements = $image_placements + emitted.image_placements
+									$mask_groups = $mask_groups + emitted.mask_groups
 									$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
 									$opacity_groups = $opacity_groups + emitted.opacity_groups
 									$path_segments = $path_segments + emitted.path_segments
+									$pattern_fills = $pattern_fills + emitted.pattern_fills
+									$shading_paints = $shading_paints + emitted.shading_paints
 									$text_placements = $text_placements + emitted.text_placements
 								}
 							}
@@ -275,9 +319,12 @@ build_plan = |tagged, text, forms, limits| {
 						$form_placements = $form_placements + emitted.form_placements
 						$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
 						$image_placements = $image_placements + emitted.image_placements
+						$mask_groups = $mask_groups + emitted.mask_groups
 						$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
 						$opacity_groups = $opacity_groups + emitted.opacity_groups
 						$path_segments = $path_segments + emitted.path_segments
+						$pattern_fills = $pattern_fills + emitted.pattern_fills
+						$shading_paints = $shading_paints + emitted.shading_paints
 						$text_placements = $text_placements + emitted.text_placements
 					}
 				}
@@ -285,11 +332,58 @@ build_plan = |tagged, text, forms, limits| {
 			$form_index = $form_index + 1
 		}
 
+		## Each canonical pattern cell lowers exactly once, in canonical
+		## order, from its representative's validated command range over the
+		## pattern arena. Cell content is fully opaque by validation, so no
+		## graphics-state map exists for the arena, and cells receive no
+		## ownership wrapper: pattern streams stay ownership-neutral.
+		pattern_stream_ranges = match forms {
+			NoForms => []
+			WithForms(context) => context.pattern_streams
+		}
+		var $pattern_streams = List.with_capacity(pattern_stream_ranges.len())
+		var $pattern_bytes = 0
+		var $pattern_index = 0
+		while $pattern_index < pattern_stream_ranges.len() and $error == NoError {
+			range = list_at(pattern_stream_ranges, $pattern_index)
+			pattern_limit = limits.max_content_bytes - $total_bytes
+			pattern_arena = match forms {
+				NoForms => []
+				WithForms(context) => context.pattern_arena
+			}
+			match emit_commands(List.with_capacity(U64.min(pattern_limit, initial_content_capacity)), range, pattern_arena, scenes, text, forms, naming, [], pattern_limit) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(emitted) => match checked_add($total_bytes, emitted.bytes.len()) {
+					Err(error) => {
+						$error = Invalid(error)
+					}
+					Ok(total) => if total > limits.max_content_bytes {
+						$error = Invalid(LimitExceeded({ attempted: total, dimension: ContentBytes, limit: limits.max_content_bytes }))
+					} else {
+						$total_bytes = total
+						$pattern_bytes = $pattern_bytes + emitted.bytes.len()
+						$pattern_streams = $pattern_streams.append({ bytes: emitted.bytes, pattern: $pattern_index })
+						$command_visits = $command_visits + emitted.command_visits
+						$form_placements = $form_placements + emitted.form_placements
+						$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
+						$image_placements = $image_placements + emitted.image_placements
+						$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
+						$path_segments = $path_segments + emitted.path_segments
+						$shading_paints = $shading_paints + emitted.shading_paints
+					}
+				}
+			}
+			$pattern_index = $pattern_index + 1
+		}
+
 		match $error {
 			Invalid(error) => Err(error)
 			NoError => Ok(
 				KernelContent.Plan.{
 					form_streams: $form_streams,
+					pattern_streams: $pattern_streams,
 					streams: $streams,
 					work: {
 						bytes_emitted: $total_bytes,
@@ -302,9 +396,14 @@ build_plan = |tagged, text, forms, limits| {
 						image_placements: $image_placements,
 						marked_artifact_groups: $artifact_groups,
 						marked_fragment_groups: $fragment_groups,
+						mask_groups: $mask_groups,
 						max_frame_depth: $max_frame_depth,
 						opacity_groups: $opacity_groups,
 						path_segments: $path_segments,
+						pattern_fills: $pattern_fills,
+						pattern_stream_bytes: $pattern_bytes,
+						pattern_streams: $pattern_streams.len(),
+						shading_paints: $shading_paints,
 						text_placements: $text_placements,
 					},
 				},
@@ -365,9 +464,12 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 	var $form_placements = 0
 	var $graphics_pairs = 0
 	var $image_placements = 0
+	var $mask_groups = 0
 	var $max_frame_depth = 1
 	var $opacity_groups = 0
 	var $path_segments = 0
+	var $pattern_fills = 0
+	var $shading_paints = 0
 	var $text_placements = 0
 	var $error = NoError
 	while $done == False and $error == NoError {
@@ -422,13 +524,14 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 						$image_placements = $image_placements + 1
 					}
 				}
-				DrawPath({ path, style }) => match emit_draw_path($bytes, path, style, scenes, naming, limit) {
+				DrawPath({ path, style }) => match emit_draw_path($bytes, path, style, scenes, naming, command_index, limit) {
 					Err(error) => {
 						$error = Invalid(error)
 					}
 					Ok(emitted) => {
 						$bytes = emitted.bytes
 						$path_segments = $path_segments + emitted.path_segments
+						$pattern_fills = $pattern_fills + emitted.pattern_fills
 					}
 				}
 				DrawText({ paint, run }) => match text {
@@ -481,6 +584,49 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 						}
 					}
 				}
+
+				## A soft-mask group opens `q`, selects its canonical mask
+				## graphics state, and closes with the frame's `Q`. Every
+				## soft-mask command carries a state: there is no identity
+				## mask, so a missing entry is the same structural rejection
+				## as an unplanned command.
+				SoftMask({ children, mask: _ }) => if command_index >= states.len() or list_at(states, command_index) == no_state {
+					$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+				} else {
+					match emit_opacity_open($bytes, list_at(states, command_index), limit) {
+						Err(error) => {
+							$error = Invalid(error)
+						}
+						Ok(bytes) => {
+							$bytes = bytes
+							$frames = push_frame($frames, $active, $current)
+							$active = $active + 1
+							$current = Frame.{ close_graphics: True, end: children.start() + children.length(), next: children.start() }
+							$max_frame_depth = U64.max($max_frame_depth, $active + 1)
+							$graphics_pairs = $graphics_pairs + 1
+							$mask_groups = $mask_groups + 1
+						}
+					}
+				}
+
+				## A shading paint is one operator: the canonical `Sh` ordinal
+				## resolved by the consuming stream's direct /Shading
+				## dictionary. The paint covers the current clip region, so no
+				## graphics pair is opened here; authors clip explicitly.
+				PaintShading({ shading }) => match shading_ordinal(naming, shading.index()) {
+					NoPaints => {
+						$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+					}
+					PaintOrdinal(ordinal) => match emit_paint_shading($bytes, ordinal, limit) {
+						Err(error) => {
+							$error = Invalid(error)
+						}
+						Ok(bytes) => {
+							$bytes = bytes
+							$shading_paints = $shading_paints + 1
+						}
+					}
+				}
 				PlaceForm({ form, transform }) => match forms {
 					NoForms => {
 						$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
@@ -519,7 +665,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 	}
 	match $error {
 		Invalid(error) => Err(error)
-		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, max_frame_depth: $max_frame_depth, opacity_groups: $opacity_groups, path_segments: $path_segments, text_placements: $text_placements })
+		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, mask_groups: $mask_groups, max_frame_depth: $max_frame_depth, opacity_groups: $opacity_groups, path_segments: $path_segments, pattern_fills: $pattern_fills, shading_paints: $shading_paints, text_placements: $text_placements })
 	}
 }
 
@@ -732,13 +878,13 @@ expect {
 	$same
 }
 
-emit_draw_path : List(U8), Scene.PathId, Scene.PathStyle, Scene.Store, Naming, U64 -> Try({ bytes : List(U8), path_segments : U64 }, KernelContent.Error)
-emit_draw_path = |bytes, path, style, scenes, naming, limit| {
-	styled = emit_style(bytes, style, scenes.dash_lengths, naming, limit)?
-	emitted = emit_path(styled, path, scenes, limit)?
+emit_draw_path : List(U8), Scene.PathId, Scene.PathStyle, Scene.Store, Naming, U64, U64 -> Try({ bytes : List(U8), path_segments : U64, pattern_fills : U64 }, KernelContent.Error)
+emit_draw_path = |bytes, path, style, scenes, naming, command_index, limit| {
+	styled = emit_style(bytes, style, scenes.dash_lengths, naming, command_index, limit)?
+	emitted = emit_path(styled.bytes, path, scenes, limit)?
 	operator = match style.fill {
 		NoFill => "S\n"
-		SolidFill({ color: _, rule }) => match style.stroke {
+		PatternFill({ pattern: _, rule }) | SolidFill({ color: _, rule }) => match style.stroke {
 			NoStroke => match rule {
 				EvenOdd => "f*\n"
 				Nonzero => "f\n"
@@ -749,19 +895,47 @@ emit_draw_path = |bytes, path, style, scenes, naming, limit| {
 			}
 		}
 	}
-	Ok({ bytes: append_literal(emitted.bytes, operator, limit)?, path_segments: emitted.path_segments })
+	Ok({ bytes: append_literal(emitted.bytes, operator, limit)?, path_segments: emitted.path_segments, pattern_fills: styled.pattern_fills })
 }
 
-emit_style : List(U8), Scene.PathStyle, List(Layout.Unit), Naming, U64 -> Try(List(U8), KernelContent.Error)
-emit_style = |bytes, style, dash_lengths, naming, limit| {
+emit_style : List(U8), Scene.PathStyle, List(Layout.Unit), Naming, U64, U64 -> Try({ bytes : List(U8), pattern_fills : U64 }, KernelContent.Error)
+emit_style = |bytes, style, dash_lengths, naming, command_index, limit| {
 	with_fill = match style.fill {
-		NoFill => Ok(bytes)
-		SolidFill({ color, rule: _ }) => emit_color(bytes, color, False, naming, limit)
+		NoFill => Ok({ bytes, pattern_fills: 0 })
+
+		## A pattern fill selects the Pattern color space and names the
+		## canonical `Pt` ordinal as the nonstroking paint, resolved by the
+		## consuming stream's direct /Pattern dictionary.
+		PatternFill({ pattern, rule: _ }) => match pattern_ordinal(naming, pattern.index()) {
+			NoPaints => Err(UnsupportedValidatedCommand({ command: command_index }))
+			PaintOrdinal(ordinal) => {
+				var $out = append_literal(bytes, "/Pattern cs\n/Pt", limit)?
+				$out = append_resource_index($out, ordinal, limit)?
+				$out = append_literal($out, " scn\n", limit)?
+				Ok({ bytes: $out, pattern_fills: 1 })
+			}
+		}
+		SolidFill({ color, rule: _ }) => {
+			colored = emit_color(bytes, color, False, naming, limit)?
+			Ok({ bytes: colored, pattern_fills: 0 })
+		}
 	}?
 	match style.stroke {
 		NoStroke => Ok(with_fill)
-		SolidStroke(stroke) => emit_stroke(with_fill, stroke, dash_lengths, naming, limit)
+		SolidStroke(stroke) => {
+			stroked = emit_stroke(with_fill.bytes, stroke, dash_lengths, naming, limit)?
+			Ok({ bytes: stroked, pattern_fills: with_fill.pattern_fills })
+		}
 	}
+}
+
+## The `sh` paint: the canonical shading ordinal under the deterministic `Sh`
+## prefix, resolved by the consuming stream's direct /Shading dictionary.
+emit_paint_shading : List(U8), U64, U64 -> Try(List(U8), KernelContent.Error)
+emit_paint_shading = |bytes, ordinal, limit| {
+	var $out = append_literal(bytes, "/Sh", limit)?
+	$out = append_resource_index($out, ordinal, limit)?
+	append_literal($out, " sh\n", limit)
 }
 
 emit_stroke : List(U8), Scene.StrokeStyle, List(Layout.Unit), Naming, U64 -> Try(List(U8), KernelContent.Error)
@@ -1113,6 +1287,29 @@ expect {
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.opacity_groups == 1 and emitted.graphics_state_pairs == 1 and emitted.command_visits == 4 and rejected
 }
 
+## A soft-mask group opens a balanced graphics pair and selects its
+## canonical mask state through the same state map as opacity groups.
+expect {
+	scenes = {
+		..KernelGate2Fixture.scene,
+		commands: [
+			SoftMask({ children: Semantics.Range.from_start_and_length(1, 1), mask: Scene.FormId.from_index(0) }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
+		],
+	}
+	states = [2, U64.highest]
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, states, 512)?
+	expected =
+		\\q
+		\\/GS1_2 gs
+		\\/CS1_0 cs
+		\\1 scn
+		\\0 0 1 1 re
+		\\f
+		\\Q
+	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.mask_groups == 1 and emitted.opacity_groups == 0 and emitted.graphics_state_pairs == 1
+}
+
 ## RGB channel order and every Gate 2 path segment have canonical operators.
 expect {
 	segments = [
@@ -1155,4 +1352,36 @@ expect {
 		Err(LimitExceeded({ attempted: _, dimension: ContentBytes, limit: 32 })) => True
 		_ => False
 	}
+}
+
+## A shading paint lowers to its canonical `Sh` name with the bare `sh`
+## operator, and a pattern fill to the exact `/Pattern cs` + canonical `Pt`
+## `scn` selection ahead of the path and fill operator; both resolve
+## through the canonical name maps.
+expect {
+	scenes = {
+		..KernelGate2Fixture.scene,
+		commands: [
+			Clip({ children: Semantics.Range.from_start_and_length(2, 1), path: Scene.PathId.from_index(0) }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: PatternFill({ pattern: Scene.PatternId.from_index(1), rule: EvenOdd }), stroke: NoStroke } }),
+			PaintShading({ shading: Scene.ShadingId.from_index(0) }),
+		],
+	}
+	naming = CanonicalNames({ colors: [0], images: [], patterns: [7, 3], shadings: [5] })
+	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 2), scenes.commands, scenes, NoText, NoForms, naming, [], 512)?
+	expected =
+		\\q
+		\\0 0 1 1 re
+		\\W n
+		\\/Sh1_5 sh
+		\\Q
+		\\/Pattern cs
+		\\/Pt1_3 scn
+		\\0 0 1 1 re
+		\\f*
+	rejected = match emit_commands([], Semantics.Range.from_start_and_length(0, 2), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512) {
+		Err(UnsupportedValidatedCommand({ command: 2 })) => True
+		_ => False
+	}
+	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.shading_paints == 1 and emitted.pattern_fills == 1 and rejected
 }

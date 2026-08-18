@@ -7,8 +7,8 @@ import Semantics
 import Text
 
 KernelScene :: [].{
-	Dimension : [Commands, DashLengths, FormCommands, Forms, GraphicsDepth, Groups, Pages, PathSegments, Paths]
-	IndexKind : [ColorSpaceIndex, CommandIndex, DashIndex, FormCommandIndex, FormIndex, GroupIndex, ImageIndex, PageGroupEdgeIndex, PageIndex, PathIndex, SegmentIndex, TextRunIndex]
+	Dimension : [Commands, DashLengths, FormCommands, Forms, GraphicsDepth, Groups, Pages, PathSegments, Paths, PatternCommands, Patterns, ShadingStops, Shadings]
+	IndexKind : [ColorSpaceIndex, CommandIndex, DashIndex, FormCommandIndex, FormIndex, GroupIndex, ImageIndex, PageGroupEdgeIndex, PageIndex, PathIndex, PatternCommandIndex, PatternIndex, SegmentIndex, ShadingIndex, ShadingStopIndex, TextRunIndex]
 	TextPaintReason : [FillAndStrokeMissingStroke, FillHasStroke, OpacityNotOpaque, StrokeWidthNonPositive]
 	Error : [
 		ArithmeticOverflow,
@@ -33,6 +33,33 @@ KernelScene :: [].{
 		TextPaintInvalid({ command : U64, reason : TextPaintReason }),
 		UnsupportedCommand({ command : U64 }),
 		UnpaintedPath({ command : U64 }),
+
+		## Linear geometry whose start equals its end, or radial geometry
+		## whose circles coincide or whose radii are both zero, has no
+		## deterministic paint direction and is rejected.
+		DegenerateShadingGeometry({ shading : U64 }),
+		EmptyPatternCell({ pattern : U64 }),
+		NegativeShadingRadius({ shading : U64 }),
+
+		## Nested pattern invocation is outside the supported subset: a
+		## pattern cell may not fill with another pattern.
+		PatternInPatternCell({ command : U64 }),
+		PatternMatrixSingular({ pattern : U64 }),
+		PatternStepInvalid({ pattern : U64 }),
+
+		## The supported stop model requires the first stop exactly at the
+		## domain start and the last exactly at the domain end.
+		ShadingStopEndpointInvalid({ shading : U64 }),
+		ShadingStopsNotIncreasing({ shading : U64, stop : U64 }),
+
+		## Semantic text inside a reusable, ownership-neutral pattern cell
+		## would lose or duplicate its semantics, so it is rejected.
+		TextInPatternCell({ command : U64 }),
+		TooFewShadingStops({ shading : U64, stops : U64 }),
+
+		## Pattern content is fully opaque in the initial subset: opacity
+		## groups and soft masks inside a cell are rejected.
+		TransparencyInPatternCell({ command : U64 }),
 	]
 
 	Limits :: {
@@ -56,19 +83,26 @@ KernelScene :: [].{
 		make = |limits| Limits.(limits)
 	}
 
-	Resources :: { allow_opacity : Bool, color_spaces : U64, forms : U64, images : U64, text_runs : U64 }.{
+	Resources :: { allow_opacity : Bool, allow_paints : Bool, color_spaces : U64, forms : U64, images : U64, patterns : U64, shadings : U64, text_runs : U64 }.{
 		make : { color_spaces : U64, images : U64 } -> Resources
-		make = |resources| Resources.({ allow_opacity: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, text_runs: 0 })
+		make = |resources| Resources.({ allow_opacity: Bool.False, allow_paints: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, patterns: 0, shadings: 0, text_runs: 0 })
 
 		with_text : { color_spaces : U64, images : U64, text_runs : U64 } -> Resources
-		with_text = |resources| Resources.({ allow_opacity: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, text_runs: resources.text_runs })
+		with_text = |resources| Resources.({ allow_opacity: Bool.False, allow_paints: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, patterns: 0, shadings: 0, text_runs: resources.text_runs })
 
 		## Gate 4 scenes additionally declare their dense form count and gain
 		## the constant-opacity capability; the older constructors keep
 		## declaring zero forms and rejecting opacity, so a Gate 2 or Gate 3
 		## scene still rejects any form placement or opacity group.
 		with_forms : { color_spaces : U64, forms : U64, images : U64, text_runs : U64 } -> Resources
-		with_forms = |resources| Resources.({ allow_opacity: Bool.True, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, text_runs: resources.text_runs })
+		with_forms = |resources| Resources.({ allow_opacity: Bool.True, allow_paints: Bool.False, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, patterns: 0, shadings: 0, text_runs: resources.text_runs })
+
+		## Paint-aware scenes additionally declare their dense shading and
+		## pattern counts and gain the shading-paint and pattern-fill
+		## capabilities; every earlier constructor keeps declaring zero and
+		## rejecting the paint commands.
+		with_paints : { color_spaces : U64, forms : U64, images : U64, patterns : U64, shadings : U64, text_runs : U64 } -> Resources
+		with_paints = |resources| Resources.({ allow_opacity: Bool.True, allow_paints: Bool.True, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, patterns: resources.patterns, shadings: resources.shadings, text_runs: resources.text_runs })
 
 		color_space_count : Resources -> U64
 		color_space_count = |resources| resources.color_spaces
@@ -78,6 +112,12 @@ KernelScene :: [].{
 
 		image_count : Resources -> U64
 		image_count = |resources| resources.images
+
+		pattern_count : Resources -> U64
+		pattern_count = |resources| resources.patterns
+
+		shading_count : Resources -> U64
+		shading_count = |resources| resources.shadings
 
 		text_run_count : Resources -> U64
 		text_run_count = |resources| resources.text_runs
@@ -94,6 +134,9 @@ KernelScene :: [].{
 		max_graphics_depth : U64,
 		opacity_commands : U64,
 		page_box_checks : U64,
+		pattern_fills : U64,
+		shading_paints : U64,
+		soft_mask_commands : U64,
 		page_group_edges : U64,
 		page_visits : U64,
 		path_segments : U64,
@@ -124,6 +167,9 @@ KernelScene :: [].{
 		form_child_ranges : U64,
 		form_command_visits : U64,
 		form_opacity_commands : U64,
+		form_pattern_fills : U64,
+		form_shading_paints : U64,
+		form_soft_mask_commands : U64,
 		form_visits : U64,
 		max_form_depth : U64,
 		nested_form_placements : U64,
@@ -147,6 +193,48 @@ KernelScene :: [].{
 		work : FormPlan -> FormWork
 		work = |plan| plan.work
 	}
+
+	PaintLimits :: { max_pattern_commands : U64, max_patterns : U64, max_shading_stops : U64, max_shadings : U64 }.{
+		make : { max_pattern_commands : U64, max_patterns : U64, max_shading_stops : U64, max_shadings : U64 } -> PaintLimits
+		make = |limits| PaintLimits.(limits)
+	}
+
+	PaintWork : {
+		cell_child_ranges : U64,
+		cell_command_visits : U64,
+		cell_form_placements : U64,
+		cell_image_placements : U64,
+		cell_shading_paints : U64,
+		cell_visits : U64,
+		max_cell_depth : U64,
+		shading_stop_visits : U64,
+		shading_visits : U64,
+	}
+
+	## A paint-aware scene plan validates the shading store, the pattern
+	## store, and the flat pattern-command arena on top of the form-aware
+	## plan. Shadings are validated structurally (dense identities, exact
+	## once-each stop ownership, strictly increasing offsets with exact
+	## domain endpoints, non-degenerate geometry); pattern cells are
+	## validated with the same command rules as page and form content under
+	## an explicit cell whitelist, so text, transparency, and nested pattern
+	## invocation are rejected at this boundary.
+	PaintPlan :: { forms : FormPlan, patterns : Scene.PatternStore, shadings : Scene.ShadingStore, work : PaintWork }.{
+		build : Scene.Store, Scene.FormStore, Scene.ShadingStore, Scene.PatternStore, Resources, Limits, FormLimits, PaintLimits -> Try(PaintPlan, Error)
+		build = |scenes, form_store, shading_store, pattern_store, resources, limits, form_limits, paint_limits| build_paint_plan(scenes, form_store, shading_store, pattern_store, resources, limits, form_limits, paint_limits)
+
+		forms : PaintPlan -> FormPlan
+		forms = |plan| plan.forms
+
+		patterns : PaintPlan -> Scene.PatternStore
+		patterns = |plan| plan.patterns
+
+		shadings : PaintPlan -> Scene.ShadingStore
+		shadings = |plan| plan.shadings
+
+		work : PaintPlan -> PaintWork
+		work = |plan| plan.work
+	}
 }
 
 Frame := { depth : U64, range : Semantics.Range }
@@ -158,11 +246,14 @@ CommandWork := {
 	form_placements : U64,
 	image_placements : U64,
 	opacity_commands : U64,
+	pattern_fills : U64,
+	shading_paints : U64,
+	soft_mask_commands : U64,
 	text_placements : U64,
 }
 
 leaf_work : CommandWork
-leaf_work = { children: Leaf, color_references: 0, dash_values: 0, form_placements: 0, image_placements: 0, opacity_commands: 0, text_placements: 0 }
+leaf_work = { children: Leaf, color_references: 0, dash_values: 0, form_placements: 0, image_placements: 0, opacity_commands: 0, pattern_fills: 0, shading_paints: 0, soft_mask_commands: 0, text_placements: 0 }
 
 scene_failure : KernelScene.Error -> Try(a, KernelScene.Error)
 scene_failure = |error| Err(error)
@@ -195,6 +286,9 @@ build_plan = |scenes, resources, limits| {
 				max_graphics_depth: command_work.max_graphics_depth,
 				opacity_commands: command_work.opacity_commands,
 				page_box_checks: page_work.page_box_checks,
+				pattern_fills: command_work.pattern_fills,
+				shading_paints: command_work.shading_paints,
+				soft_mask_commands: command_work.soft_mask_commands,
 				page_group_edges: page_work.page_group_edges,
 				page_visits: scenes.pages.len(),
 				path_segments: path_work.path_segments,
@@ -217,6 +311,274 @@ build_form_plan = |scenes, form_store, resources, limits, form_limits| {
 	Ok(KernelScene.FormPlan.{ forms: form_store, page, work: form_work })
 }
 
+build_paint_plan : Scene.Store, Scene.FormStore, Scene.ShadingStore, Scene.PatternStore, KernelScene.Resources, KernelScene.Limits, KernelScene.FormLimits, KernelScene.PaintLimits -> Try(KernelScene.PaintPlan, KernelScene.Error)
+build_paint_plan = |scenes, form_store, shading_store, pattern_store, resources, limits, form_limits, paint_limits| {
+	check_limit(shading_store.shadings.len(), paint_limits.max_shadings, Shadings)?
+	check_limit(pattern_store.cells.len(), paint_limits.max_patterns, Patterns)?
+	check_limit(pattern_store.commands.len(), paint_limits.max_pattern_commands, PatternCommands)?
+	if shading_store.shadings.len() != resources.shadings {
+		return Err(IndexOutOfRange({ available: shading_store.shadings.len(), index: resources.shadings, kind: ShadingIndex }))
+	}
+	if pattern_store.cells.len() != resources.patterns {
+		return Err(IndexOutOfRange({ available: pattern_store.cells.len(), index: resources.patterns, kind: PatternIndex }))
+	}
+	shading_work = validate_shadings(shading_store, resources, paint_limits.max_shading_stops)?
+	forms = build_form_plan(scenes, form_store, resources, limits, form_limits)?
+	cell_work = validate_cells(pattern_store, scenes, resources, limits.max_graphics_depth)?
+	Ok(
+		KernelScene.PaintPlan.{
+			forms,
+			patterns: pattern_store,
+			shadings: shading_store,
+			work: {
+				cell_child_ranges: cell_work.cell_child_ranges,
+				cell_command_visits: cell_work.cell_command_visits,
+				cell_form_placements: cell_work.cell_form_placements,
+				cell_image_placements: cell_work.cell_image_placements,
+				cell_shading_paints: cell_work.cell_shading_paints,
+				cell_visits: pattern_store.cells.len(),
+				max_cell_depth: cell_work.max_cell_depth,
+				shading_stop_visits: shading_work.stop_visits,
+				shading_visits: shading_store.shadings.len(),
+			},
+		},
+	)
+}
+
+## The shading store is validated structurally: dense identities, exact
+## once-each stop ownership, at least two strictly increasing stops with
+## exact `0`/`65535` domain endpoints, a declared color space in range, and
+## non-degenerate geometry with non-negative radii.
+validate_shadings : Scene.ShadingStore, KernelScene.Resources, U64 -> Try({ stop_visits : U64 }, KernelScene.Error)
+validate_shadings = |store, resources, max_stops| {
+	var $owners = List.repeat(0, store.stops.len())
+	var $shading_index = 0
+	var $visits = 0
+	var $error = NoError
+	while $shading_index < store.shadings.len() and $error == NoError {
+		shading = list_at(store.shadings, $shading_index)
+		if shading.id.index() != $shading_index {
+			$error = Invalid(NonDenseIdentity({ actual: shading.id.index(), expected: $shading_index, kind: ShadingIndex }))
+		} else if shading.space.index() >= resources.color_spaces {
+			$error = Invalid(IndexOutOfRange({ available: resources.color_spaces, index: shading.space.index(), kind: ColorSpaceIndex }))
+		} else if shading.stops.length() < 2 {
+			$error = Invalid(TooFewShadingStops({ shading: $shading_index, stops: shading.stops.length() }))
+		} else if shading.stops.length() > max_stops {
+			$error = Invalid(LimitExceeded({ attempted: shading.stops.length(), dimension: ShadingStops, limit: max_stops }))
+		} else {
+			match validate_span(shading.stops, store.stops.len(), ShadingStopIndex, $shading_index) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok(span) => {
+					var $stop_index = span.start
+					var $previous = 0
+					while $stop_index < span.end and $error == NoError {
+						match mark_once($owners, $stop_index, ShadingStopIndex) {
+							Err(error) => {
+								$error = Invalid(error)
+							}
+							Ok(next_owners) => {
+								$owners = next_owners
+								offset = list_at(store.stops, $stop_index).offset.to_u64()
+								if $stop_index == span.start {
+									if offset != 0 {
+										$error = Invalid(ShadingStopEndpointInvalid({ shading: $shading_index }))
+									}
+								} else if offset <= $previous {
+									$error = Invalid(ShadingStopsNotIncreasing({ shading: $shading_index, stop: $stop_index }))
+								} else if $stop_index == span.end - 1 and offset != 65535 {
+									$error = Invalid(ShadingStopEndpointInvalid({ shading: $shading_index }))
+								} else {
+									{}
+								}
+								$previous = offset
+							}
+						}
+						$stop_index = $stop_index + 1
+						$visits = $visits + 1
+					}
+					if $error == NoError {
+						match validate_shading_geometry(shading.geometry, $shading_index) {
+							Err(error) => {
+								$error = Invalid(error)
+							}
+							Ok({}) => {}
+						}
+					}
+				}
+			}
+		}
+		$shading_index = $shading_index + 1
+	}
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => {
+			ensure_all_owned($owners, ShadingStopIndex)?
+			Ok({ stop_visits: $visits })
+		}
+	}
+}
+
+validate_shading_geometry : Scene.ShadingGeometry, U64 -> Try({}, KernelScene.Error)
+validate_shading_geometry = |geometry, shading| match geometry {
+	Axial({ end, start }) => {
+		if start.x.raw() == end.x.raw() and start.y.raw() == end.y.raw() {
+			Err(DegenerateShadingGeometry({ shading: shading }))
+		} else {
+			Ok({})
+		}
+	}
+	Radial({ end_center, end_radius, start_center, start_radius }) => {
+		if start_radius.raw() < 0 or end_radius.raw() < 0 {
+			Err(NegativeShadingRadius({ shading: shading }))
+		} else if start_radius.raw() == 0 and end_radius.raw() == 0 {
+			Err(DegenerateShadingGeometry({ shading: shading }))
+		} else if start_center.x.raw() == end_center.x.raw() and start_center.y.raw() == end_center.y.raw() and start_radius.raw() == end_radius.raw() {
+			Err(DegenerateShadingGeometry({ shading: shading }))
+		} else {
+			Ok({})
+		}
+	}
+}
+
+## Walks the flat pattern-command arena with the same dense once-each
+## ownership cursor as form content, under the explicit cell whitelist:
+## text (`TextInPatternCell`), opacity and soft masks
+## (`TransparencyInPatternCell`), and nested pattern fills
+## (`PatternInPatternCell`) are rejected before any commonly shared
+## validation runs.
+validate_cells : Scene.PatternStore, Scene.Store, KernelScene.Resources, U64 -> Try({ cell_child_ranges : U64, cell_command_visits : U64, cell_form_placements : U64, cell_image_placements : U64, cell_shading_paints : U64, max_cell_depth : U64 }, KernelScene.Error)
+validate_cells = |store, scenes, resources, max_depth| {
+	var $cell_index = 0
+	var $expected_command = 0
+	var $child_ranges = 0
+	var $command_visits = 0
+	var $form_placements = 0
+	var $image_placements = 0
+	var $shading_paints = 0
+	var $maximum_depth = 0
+	var $error = NoError
+	while $cell_index < store.cells.len() and $error == NoError {
+		cell = list_at(store.cells, $cell_index)
+		if cell.id.index() != $cell_index {
+			$error = Invalid(NonDenseIdentity({ actual: cell.id.index(), expected: $cell_index, kind: PatternIndex }))
+		} else if !positive_rect(cell.bbox) {
+			$error = Invalid(NonPositiveRect({ index: $cell_index, kind: PatternIndex }))
+		} else if cell.x_step.raw() <= 0 or cell.y_step.raw() <= 0 {
+			$error = Invalid(PatternStepInvalid({ pattern: $cell_index }))
+		} else if cell.commands.length() == 0 {
+			$error = Invalid(EmptyPatternCell({ pattern: $cell_index }))
+		} else {
+			match validate_pattern_matrix(cell.matrix, $cell_index) {
+				Err(error) => {
+					$error = Invalid(error)
+				}
+				Ok({}) => {
+					var $frames = [Frame.{ depth: 1, range: cell.commands }]
+					var $frame_index = 0
+					while $frame_index < $frames.len() and $error == NoError {
+						frame = list_at($frames, $frame_index)
+						if frame.depth > max_depth {
+							$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
+						} else {
+							$maximum_depth = U64.max($maximum_depth, frame.depth)
+							match validate_span(frame.range, store.commands.len(), PatternCommandIndex, $cell_index) {
+								Err(error) => {
+									$error = Invalid(error)
+								}
+								Ok(span) => {
+									var $command_index = span.start
+									while $command_index < span.end and $error == NoError {
+										if $command_index < $expected_command {
+											$error = Invalid(DuplicateOwnership({ index: $command_index, kind: PatternCommandIndex }))
+										} else if $command_index > $expected_command {
+											$error = Invalid(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
+										} else {
+											$expected_command = $expected_command + 1
+											match validate_cell_command(list_at(store.commands, $command_index), $command_index, scenes, resources) {
+												Err(error) => {
+													$error = Invalid(error)
+												}
+												Ok(work) => {
+													$form_placements = $form_placements + work.form_placements
+													$image_placements = $image_placements + work.image_placements
+													$shading_paints = $shading_paints + work.shading_paints
+													match work.children {
+														Leaf => {}
+														Nested(children) => if children.length() == 0 {
+															$error = Invalid(EmptyPatternCell({ pattern: $cell_index }))
+														} else {
+															match U64.plus_try(frame.depth, 1) {
+																Err(Overflow) => {
+																	$error = Invalid(ArithmeticOverflow)
+																}
+																Ok(depth) => {
+																	$frames = $frames.append(Frame.{ depth, range: children })
+																	$child_ranges = $child_ranges + 1
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+										$command_index = $command_index + 1
+										$command_visits = $command_visits + 1
+									}
+								}
+							}
+						}
+						$frame_index = $frame_index + 1
+					}
+				}
+			}
+		}
+		$cell_index = $cell_index + 1
+	}
+
+	match $error {
+		Invalid(error) => Err(error)
+		NoError => if $expected_command < store.commands.len() {
+			Err(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
+		} else {
+			Ok({
+				cell_child_ranges: $child_ranges,
+				cell_command_visits: $command_visits,
+				cell_form_placements: $form_placements,
+				cell_image_placements: $image_placements,
+				cell_shading_paints: $shading_paints,
+				max_cell_depth: $maximum_depth,
+			})
+		}
+	}
+}
+
+validate_cell_command : Scene.Command, U64, Scene.Store, KernelScene.Resources -> Try(CommandWork, KernelScene.Error)
+validate_cell_command = |command, index, scenes, resources| match command {
+	DrawText(_) => Err(TextInPatternCell({ command: index }))
+	Opacity(_) | SoftMask(_) => Err(TransparencyInPatternCell({ command: index }))
+	DrawPath({ path: _, style }) => match style.fill {
+		PatternFill(_) => Err(PatternInPatternCell({ command: index }))
+		NoFill | SolidFill(_) => validate_command(command, index, scenes, resources)
+	}
+	_ => validate_command(command, index, scenes, resources)
+}
+
+## A pattern matrix must stay invertible; a zero or overflowing determinant
+## has no deterministic tiling geometry.
+validate_pattern_matrix : Scene.Matrix, U64 -> Try({}, KernelScene.Error)
+validate_pattern_matrix = |matrix, pattern| {
+	ad = I64.times_try(matrix.a.raw(), matrix.d.raw()) ? |_| ArithmeticOverflow
+	bc = I64.times_try(matrix.b.raw(), matrix.c.raw()) ? |_| ArithmeticOverflow
+	determinant = I64.minus_try(ad, bc) ? |_| ArithmeticOverflow
+	if determinant == 0 {
+		Err(PatternMatrixSingular({ pattern: pattern }))
+	} else {
+		Ok({})
+	}
+}
+
 ## Walks the flat form-command arena with the same dense once-each ownership
 ## cursor as page groups: every command belongs to exactly one form, child
 ## ranges stay inside the arena, and each command passes the identical typed
@@ -229,6 +591,9 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 	var $command_visits = 0
 	var $nested_placements = 0
 	var $opacity_commands = 0
+	var $pattern_fills = 0
+	var $shading_paints = 0
+	var $soft_mask_commands = 0
 	var $maximum_depth = 0
 	var $error = NoError
 	while $form_index < form_store.forms.len() and $error == NoError {
@@ -268,6 +633,9 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 										Ok(work) => {
 											$nested_placements = $nested_placements + work.form_placements
 											$opacity_commands = $opacity_commands + work.opacity_commands
+											$pattern_fills = $pattern_fills + work.pattern_fills
+											$shading_paints = $shading_paints + work.shading_paints
+											$soft_mask_commands = $soft_mask_commands + work.soft_mask_commands
 											match work.children {
 												Leaf => {}
 												Nested(children) => if children.length() == 0 {
@@ -308,6 +676,9 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 				form_child_ranges: $child_ranges,
 				form_command_visits: $command_visits,
 				form_opacity_commands: $opacity_commands,
+				form_pattern_fills: $pattern_fills,
+				form_shading_paints: $shading_paints,
+				form_soft_mask_commands: $soft_mask_commands,
 				form_visits: form_store.forms.len(),
 				max_form_depth: $maximum_depth,
 				nested_form_placements: $nested_placements,
@@ -462,7 +833,7 @@ validate_pages = |scenes| {
 	}
 }
 
-validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, opacity_commands : U64, text_placements : U64 }, KernelScene.Error)
+validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, opacity_commands : U64, pattern_fills : U64, shading_paints : U64, soft_mask_commands : U64, text_placements : U64 }, KernelScene.Error)
 validate_groups = |scenes, resources, max_depth| {
 	var $group_index = 0
 	var $expected_command = 0
@@ -473,6 +844,9 @@ validate_groups = |scenes, resources, max_depth| {
 	var $form_placements = 0
 	var $image_placements = 0
 	var $opacity_commands = 0
+	var $pattern_fills = 0
+	var $shading_paints = 0
+	var $soft_mask_commands = 0
 	var $text_placements = 0
 	var $maximum_depth = 0
 	var $error = NoError
@@ -514,6 +888,9 @@ validate_groups = |scenes, resources, max_depth| {
 											$form_placements = $form_placements + work.form_placements
 											$image_placements = $image_placements + work.image_placements
 											$opacity_commands = $opacity_commands + work.opacity_commands
+											$pattern_fills = $pattern_fills + work.pattern_fills
+											$shading_paints = $shading_paints + work.shading_paints
+											$soft_mask_commands = $soft_mask_commands + work.soft_mask_commands
 											$text_placements = $text_placements + work.text_placements
 											match work.children {
 												Leaf => {}
@@ -551,7 +928,7 @@ validate_groups = |scenes, resources, max_depth| {
 		NoError => if $expected_command < scenes.commands.len() {
 			Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
 		} else {
-			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, text_placements: $text_placements })
+			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, pattern_fills: $pattern_fills, shading_paints: $shading_paints, soft_mask_commands: $soft_mask_commands, text_placements: $text_placements })
 		}
 	}
 }
@@ -573,8 +950,8 @@ validate_command = |command, index, scenes, resources| match command {
 	}
 	DrawPath({ path, style }) => {
 		validate_path_id(path, scenes.paths.len())?
-		work = validate_style(style, index, scenes.dash_lengths, resources.color_spaces)?
-		Ok({ ..leaf_work, color_references: work.color_references, dash_values: work.dash_values })
+		work = validate_style(style, index, scenes.dash_lengths, resources)?
+		Ok({ ..leaf_work, color_references: work.color_references, dash_values: work.dash_values, pattern_fills: work.pattern_fills })
 	}
 	DrawText({ paint, run }) => {
 		if run.index() >= resources.text_runs {
@@ -592,6 +969,29 @@ validate_command = |command, index, scenes, resources| match command {
 		Ok({ ..leaf_work, children: Nested(children), opacity_commands: 1 })
 	} else {
 		Err(UnsupportedCommand({ command: index }))
+	}
+
+	## Shading paints share the paint gate: the shading must name a declared
+	## entry of the validated shading store; every earlier resource
+	## constructor declares zero shadings and rejects the command outright.
+	PaintShading({ shading }) => if !resources.allow_paints {
+		Err(UnsupportedCommand({ command: index }))
+	} else if shading.index() >= resources.shadings {
+		Err(IndexOutOfRange({ available: resources.shadings, index: shading.index(), kind: ShadingIndex }))
+	} else {
+		Ok({ ..leaf_work, shading_paints: 1 })
+	}
+
+	## Alpha soft masks share the Gate 4 gate: the mask must name a declared
+	## form (its isolated-group requirement is a normalization fact checked
+	## with the form store), and the group's children validate like any
+	## nested range.
+	SoftMask({ children, mask }) => if !resources.allow_opacity {
+		Err(UnsupportedCommand({ command: index }))
+	} else if mask.index() >= resources.forms {
+		Err(IndexOutOfRange({ available: resources.forms, index: mask.index(), kind: FormIndex }))
+	} else {
+		Ok({ ..leaf_work, children: Nested(children), soft_mask_commands: 1 })
 	}
 	PlaceForm({ form, transform }) => {
 		if form.index() >= resources.forms {
@@ -643,27 +1043,34 @@ validate_text_paint = |paint, command, color_space_count| {
 	}
 }
 
-validate_style : Scene.PathStyle, U64, List(Layout.Unit), U64 -> Try({ color_references : U64, dash_values : U64 }, KernelScene.Error)
-validate_style = |style, command, dash_lengths, color_space_count| {
-	fill_colors = match style.fill {
-		NoFill => 0
-		SolidFill({ color, rule: _ }) => {
-			validate_color(color, color_space_count)?
-			1
+validate_style : Scene.PathStyle, U64, List(Layout.Unit), KernelScene.Resources -> Try({ color_references : U64, dash_values : U64, pattern_fills : U64 }, KernelScene.Error)
+validate_style = |style, command, dash_lengths, resources| {
+	fill = match style.fill {
+		NoFill => Ok({ colors: 0, patterns: 0 })
+		PatternFill({ pattern, rule: _ }) => if !resources.allow_paints {
+			Err(UnsupportedCommand({ command: command }))
+		} else if pattern.index() >= resources.patterns {
+			Err(IndexOutOfRange({ available: resources.patterns, index: pattern.index(), kind: PatternIndex }))
+		} else {
+			Ok({ colors: 0, patterns: 1 })
 		}
-	}
+		SolidFill({ color, rule: _ }) => {
+			validate_color(color, resources.color_spaces)?
+			Ok({ colors: 1, patterns: 0 })
+		}
+	}?
 	stroke_work = match style.stroke {
 		NoStroke => Ok({ colors: 0, dash_values: 0 })
-		SolidStroke(stroke) => validate_stroke(stroke, command, dash_lengths, color_space_count)
+		SolidStroke(stroke) => validate_stroke(stroke, command, dash_lengths, resources.color_spaces)
 	}?
-	if fill_colors == 0 and stroke_work.colors == 0 {
+	if fill.colors == 0 and fill.patterns == 0 and stroke_work.colors == 0 {
 		scene_failure(
 			UnpaintedPath({
 				command: command,
 			}),
 		)
 	} else {
-		Ok({ color_references: fill_colors + stroke_work.colors, dash_values: stroke_work.dash_values })
+		Ok({ color_references: fill.colors + stroke_work.colors, dash_values: stroke_work.dash_values, pattern_fills: fill.patterns })
 	}
 }
 
@@ -1258,6 +1665,44 @@ expect {
 	}
 }
 
+## Soft-mask groups validate in form-aware scenes with nested children, a
+## bounded mask reference, and counted work — and stay rejected under the
+## Gate 2/3 resource constructors like every Gate 4 transparency command.
+expect {
+	masked = {
+		..opacity_store,
+		commands: [
+			SoftMask({ children: span_of(1, 2), mask: Scene.FormId.from_index(0) }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+			Opacity({ children: span_of(3, 1), opacity: 32768 }),
+			DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+		],
+	}
+	plan = KernelScene.Plan.build(masked, form_test_resources, test_limits)?
+	work = KernelScene.Plan.work(plan)
+	out_of_range = {
+		..masked,
+		commands: [
+			SoftMask({ children: span_of(1, 2), mask: Scene.FormId.from_index(7) }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+			Opacity({ children: span_of(3, 1), opacity: 32768 }),
+			DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+		],
+	}
+	bounds_rejected = match KernelScene.Plan.build(out_of_range, form_test_resources, test_limits) {
+		Err(IndexOutOfRange({ available: 1, index: 7, kind: FormIndex })) => True
+		_ => False
+	}
+	gate2_rejected = match KernelScene.Plan.build(masked, test_resources, test_limits) {
+		Err(UnsupportedCommand({ command: 0 })) => True
+		_ => False
+	}
+	work.soft_mask_commands == 1 and work.opacity_commands == 1 and work.command_visits == 4 and bounds_rejected and gate2_rejected
+}
+
+span_of : U64, U64 -> Semantics.Range
+span_of = |start, length| Semantics.Range.from_start_and_length(start, length)
+
 ## Opacity groups inside form content validate with the identical command
 ## rules and are counted as form validation work.
 expect {
@@ -1269,4 +1714,172 @@ expect {
 	plan = KernelScene.FormPlan.build(form_placing_store, forms, form_test_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }))?
 	work = KernelScene.FormPlan.work(plan)
 	work.form_opacity_commands == 1 and work.form_command_visits == 2 and work.max_form_depth == 2
+}
+
+paint_resources : KernelScene.Resources
+paint_resources = KernelScene.Resources.with_paints({ color_spaces: 1, forms: 1, images: 1, patterns: 1, shadings: 1, text_runs: 0 })
+
+paint_limits : KernelScene.PaintLimits
+paint_limits = KernelScene.PaintLimits.make({ max_pattern_commands: 8, max_patterns: 2, max_shading_stops: 4, max_shadings: 2 })
+
+test_shading : Scene.Shading
+test_shading = {
+	extend_end: Bool.False,
+	extend_start: Bool.False,
+	geometry: Axial({ end: { x: unit(9000), y: unit(0) }, start: { x: unit(1000), y: unit(0) } }),
+	id: Scene.ShadingId.from_index(0),
+	space: Color.SpaceId.from_index(0),
+	stops: Semantics.Range.from_start_and_length(0, 2),
+}
+
+test_shading_store : Scene.ShadingStore
+test_shading_store = {
+	shadings: [test_shading],
+	stops: [
+		{ channels: Rgb({ blue: 0, green: 0, red: 65535 }), offset: 0 },
+		{ channels: Rgb({ blue: 65535, green: 0, red: 0 }), offset: 65535 },
+	],
+}
+
+test_pattern_store : Scene.PatternStore
+test_pattern_store = {
+	cells: [
+		{
+			bbox: rect(0, 0, 1000, 1000),
+			commands: Semantics.Range.from_start_and_length(0, 1),
+			id: Scene.PatternId.from_index(0),
+			matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(1000), e: unit(0), f: unit(0) },
+			x_step: unit(1000),
+			y_step: unit(1000),
+		},
+	],
+	commands: [DrawPath({ path: Scene.PathId.from_index(0), style: test_style })],
+}
+
+paint_scene : Scene.Store
+paint_scene = {
+	..test_store,
+	commands: [
+		Clip({ children: span_of(3, 1), path: Scene.PathId.from_index(0) }),
+		DrawPath({ path: Scene.PathId.from_index(0), style: { fill: PatternFill({ pattern: Scene.PatternId.from_index(0), rule: Nonzero }), stroke: NoStroke } }),
+		DrawImage({ image: Image.Id.from_index(0), placement: rect(0, 0, 1000, 1000) }),
+		PaintShading({ shading: Scene.ShadingId.from_index(0) }),
+	],
+	groups: [{ commands: span_of(0, 3), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
+}
+
+## A paint-aware plan validates shading stops, cell content, and paint
+## commands with exact per-relationship work, counting shading paints and
+## pattern fills across the page arena.
+expect {
+	plan = KernelScene.PaintPlan.build(paint_scene, test_form_store, test_shading_store, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits)?
+	work = KernelScene.PaintPlan.work(plan)
+	page_work = KernelScene.Plan.work(KernelScene.FormPlan.page(KernelScene.PaintPlan.forms(plan)))
+	work.shading_visits == 1 and work.shading_stop_visits == 2 and work.cell_visits == 1 and work.cell_command_visits == 1 and page_work.shading_paints == 1 and page_work.pattern_fills == 1
+}
+
+## Paint commands stay rejected under every earlier resource constructor.
+expect {
+	gate2 = match KernelScene.Plan.build(paint_scene, test_resources, test_limits) {
+		Err(UnsupportedCommand({ command })) => command == 1
+		_ => False
+	}
+	forms_only = match KernelScene.Plan.build(paint_scene, form_test_resources, test_limits) {
+		Err(UnsupportedCommand({ command })) => command == 1
+		_ => False
+	}
+	gate2 and forms_only
+}
+
+## The stop model rejects too-few, misplaced-endpoint, and non-increasing
+## stops with distinct structured diagnostics.
+expect {
+	single = { ..test_shading_store, shadings: [{ ..test_shading, stops: span_of(0, 1) }] }
+	too_few = match KernelScene.PaintPlan.build(paint_scene, test_form_store, single, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(TooFewShadingStops({ shading: 0, stops: 1 })) => True
+		_ => False
+	}
+	late_start = {
+		..test_shading_store,
+		stops: [
+			{ channels: Rgb({ blue: 0, green: 0, red: 65535 }), offset: 1 },
+			{ channels: Rgb({ blue: 65535, green: 0, red: 0 }), offset: 65535 },
+		],
+	}
+	endpoint = match KernelScene.PaintPlan.build(paint_scene, test_form_store, late_start, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(ShadingStopEndpointInvalid({ shading: 0 })) => True
+		_ => False
+	}
+	flat = {
+		shadings: [{ ..test_shading, stops: span_of(0, 3) }],
+		stops: [
+			{ channels: Rgb({ blue: 0, green: 0, red: 65535 }), offset: 0 },
+			{ channels: Rgb({ blue: 0, green: 65535, red: 0 }), offset: 0 },
+			{ channels: Rgb({ blue: 65535, green: 0, red: 0 }), offset: 65535 },
+		],
+	}
+	not_increasing = match KernelScene.PaintPlan.build(paint_scene, test_form_store, flat, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(ShadingStopsNotIncreasing({ shading: 0, stop: 1 })) => True
+		_ => False
+	}
+	too_few and endpoint and not_increasing
+}
+
+## Degenerate axial and radial geometry and negative radii are rejected; a
+## single zero radius is a supported cone endpoint.
+expect {
+	flat_axis = { ..test_shading_store, shadings: [{ ..test_shading, geometry: Axial({ end: { x: unit(1000), y: unit(0) }, start: { x: unit(1000), y: unit(0) } }) }] }
+	axial_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, flat_axis, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(DegenerateShadingGeometry({ shading: 0 })) => True
+		_ => False
+	}
+	negative = { ..test_shading_store, shadings: [{ ..test_shading, geometry: Radial({ end_center: { x: unit(5000), y: unit(0) }, end_radius: unit(1000), start_center: { x: unit(1000), y: unit(0) }, start_radius: unit(-1) }) }] }
+	negative_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, negative, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(NegativeShadingRadius({ shading: 0 })) => True
+		_ => False
+	}
+	cone = { ..test_shading_store, shadings: [{ ..test_shading, geometry: Radial({ end_center: { x: unit(5000), y: unit(0) }, end_radius: unit(1000), start_center: { x: unit(1000), y: unit(0) }, start_radius: unit(0) }) }] }
+	cone_accepted = match KernelScene.PaintPlan.build(paint_scene, test_form_store, cone, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Ok(_) => True
+		_ => False
+	}
+	axial_rejected and negative_rejected and cone_accepted
+}
+
+## Pattern cells reject text, transparency, and nested pattern fills, and
+## keep positive steps and an invertible matrix.
+expect {
+	text_cell = { ..test_pattern_store, commands: [DrawText({ paint: test_text_paint, run: Text.RunId.from_index(0) })] }
+	text_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, test_shading_store, text_cell, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(TextInPatternCell({ command: 0 })) => True
+		_ => False
+	}
+	opacity_cell = {
+		..test_pattern_store,
+		cells: [{ ..list_at(test_pattern_store.cells, 0), commands: span_of(0, 1) }],
+		commands: [
+			Opacity({ children: span_of(1, 1), opacity: 32768 }),
+			DrawPath({ path: Scene.PathId.from_index(0), style: test_style }),
+		],
+	}
+	opacity_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, test_shading_store, opacity_cell, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(TransparencyInPatternCell({ command: 0 })) => True
+		_ => False
+	}
+	nested_cell = { ..test_pattern_store, commands: [DrawPath({ path: Scene.PathId.from_index(0), style: { fill: PatternFill({ pattern: Scene.PatternId.from_index(0), rule: Nonzero }), stroke: NoStroke } })] }
+	nested_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, test_shading_store, nested_cell, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(PatternInPatternCell({ command: 0 })) => True
+		_ => False
+	}
+	flat_step = { ..test_pattern_store, cells: [{ ..list_at(test_pattern_store.cells, 0), x_step: unit(0) }] }
+	step_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, test_shading_store, flat_step, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(PatternStepInvalid({ pattern: 0 })) => True
+		_ => False
+	}
+	singular = { ..test_pattern_store, cells: [{ ..list_at(test_pattern_store.cells, 0), matrix: { a: unit(1000), b: unit(0), c: unit(0), d: unit(0), e: unit(0), f: unit(0) } }] }
+	matrix_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, test_shading_store, singular, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
+		Err(PatternMatrixSingular({ pattern: 0 })) => True
+		_ => False
+	}
+	text_rejected and opacity_rejected and nested_rejected and step_rejected and matrix_rejected
 }

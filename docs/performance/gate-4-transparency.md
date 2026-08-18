@@ -45,8 +45,9 @@ Still rejected, transactionally and with structured diagnostics:
   through the same `gs` mechanism as every other painting operator.
 
 **Deferred: Form-backed alpha soft masks.** ExtGState `/SMask` masks (an
-alpha mask rendered from a Form XObject with its own isolated group) are the
-recorded next dependency slice. Including them here would have forced the
+alpha mask rendered from a Form XObject with its own isolated group) were the
+recorded next dependency slice and have since landed
+([gate-4-soft-masks.md](gate-4-soft-masks.md)). Including them here would have forced the
 mask-Form ownership, nesting-whitelist, and mask-reuse representation into an
 already wide slice. Raster image `/SMask` alpha (per-sample) already shipped
 in the color-image slice and composes with constant alpha natively — the
@@ -418,10 +419,8 @@ plans that contain transparency.
 
 ## Exact remaining Gate 4 work
 
-- Form-backed alpha soft masks (ExtGState `/SMask` with mask Forms as
-  explicit DAG resources, bounded nesting, and a supported-combination
-  whitelist) — the recommended next slice, now that isolated groups and the
-  blending space exist for mask Forms to build on.
+- Form-backed alpha soft masks — landed as the next slice
+  ([gate-4-soft-masks.md](gate-4-soft-masks.md)).
 - Linear/radial shadings and supported tiling patterns.
 - Canonical font leaf identity and deduplicated font-leaf emission.
 - XMP metadata, document language, output intents (which will also absorb

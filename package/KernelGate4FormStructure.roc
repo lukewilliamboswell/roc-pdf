@@ -1,3 +1,4 @@
+import Color
 import KernelColor
 import KernelContent
 import KernelFont
@@ -21,6 +22,7 @@ import KernelSeal
 import KernelStructure
 import KernelTagged
 import Layout
+import Scene
 
 ## Gate 4 object assembly: the Gate 2 tagged prefix, per-page exact direct
 ## resource dictionaries, the Gate 2 page tree and resource objects, canonical
@@ -34,6 +36,8 @@ KernelGate4FormStructure :: [].{
 		Font(KernelPdfFont.Error),
 		FontCountMismatch({ fonts : U64, mappings : U64, planned : U64 }),
 		FormStreamCountMismatch({ planned : U64, streams : U64 }),
+		PatternStreamCountMismatch({ planned : U64, streams : U64 }),
+		ShadingStoreMismatch({ shadings : U64, supplied : U64 }),
 		Identity(KernelGate2Identity.Error),
 		Object(KernelObject.Error),
 		ObjectCountMismatch({ actual : U64, expected : U64 }),
@@ -64,10 +68,14 @@ KernelGate4FormStructure :: [].{
 		fonts : U64,
 		form_objects : U64,
 		form_stream_bytes : U64,
+		function_objects : U64,
 		isolated_form_groups : U64,
 		objects : U64,
 		pages : KernelGate2PageObjects.Work,
+		pattern_objects : U64,
+		pattern_stream_bytes : U64,
 		resources : KernelGate2ResourceObjects.Work,
+		shading_objects : U64,
 		state_objects : U64,
 		tagged_objects : KernelGate2TaggedObjects.Work,
 		transparency_page_groups : U64,
@@ -75,7 +83,14 @@ KernelGate4FormStructure :: [].{
 
 	Plan :: { structure : KernelStructure.Plan, work : Work }.{
 		build : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Limits -> Try(Plan, Error)
-		build = |tagged, colors, images, content, forms, objects, text, limits| build_plan(tagged, colors, images, content, forms, objects, text, limits)
+		build = |tagged, colors, images, content, forms, objects, text, limits| build_plan(tagged, colors, images, content, forms, objects, text, Scene.no_shadings, limits)
+
+		## The paint-aware variant: shading, function, and tiling-pattern
+		## objects lower between the graphics states and the font objects,
+		## with stop offsets and channel values read from the validated
+		## shading store the plan was normalized from.
+		build_with_paints : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, Limits -> Try(Plan, Error)
+		build_with_paints = |tagged, colors, images, content, forms, objects, text, shading_store, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, limits)
 
 		structure : Plan -> KernelStructure.Plan
 		structure = |plan| plan.structure
@@ -87,7 +102,33 @@ KernelGate4FormStructure :: [].{
 
 StateNames := { blend_mode : KernelObject.NameId, ext_g_state : KernelObject.NameId, nonstroking_alpha : KernelObject.NameId, normal : KernelObject.NameId, stroking_alpha : KernelObject.NameId }
 
+MaskNames := { alpha : KernelObject.NameId, g : KernelObject.NameId, mask : KernelObject.NameId, s_mask : KernelObject.NameId }
+
 GroupNames := { cs : KernelObject.NameId, group : KernelObject.NameId, isolated : KernelObject.NameId, s : KernelObject.NameId, transparency : KernelObject.NameId }
+
+PaintNames := {
+	c0 : KernelObject.NameId,
+	c1 : KernelObject.NameId,
+	coords : KernelObject.NameId,
+	domain : KernelObject.NameId,
+	extend : KernelObject.NameId,
+	function : KernelObject.NameId,
+	function_type : KernelObject.NameId,
+	n : KernelObject.NameId,
+	shading : KernelObject.NameId,
+	shading_type : KernelObject.NameId,
+}
+
+StitchNames := { bounds : KernelObject.NameId, encode : KernelObject.NameId, functions : KernelObject.NameId }
+
+PatternKeyNames := {
+	paint_type : KernelObject.NameId,
+	pattern : KernelObject.NameId,
+	pattern_type : KernelObject.NameId,
+	tiling_type : KernelObject.NameId,
+	x_step : KernelObject.NameId,
+	y_step : KernelObject.NameId,
+}
 
 ## The graphics-state and transparency-group names join the table only when
 ## the plan actually contains those facts, so a plan without transparency
@@ -99,9 +140,13 @@ Names := {
 	form : KernelObject.NameId,
 	form_type : KernelObject.NameId,
 	group_names : [NoGroupNames, WithGroupNames(GroupNames)],
+	mask_names : [NoMaskNames, WithMaskNames(MaskNames)],
 	matrix : KernelObject.NameId,
+	paint_names : [NoPaintNames, WithPaintNames(PaintNames)],
+	pattern_key_names : [NoPatternKeyNames, WithPatternKeyNames(PatternKeyNames)],
 	resources : KernelObject.NameId,
 	state_names : [NoStateNames, WithStateNames(StateNames)],
+	stitch_names : [NoStitchNames, WithStitchNames(StitchNames)],
 	subtype : KernelObject.NameId,
 	type_name : KernelObject.NameId,
 	x_object : KernelObject.NameId,
@@ -112,16 +157,27 @@ ResourceNames := {
 	fonts : List(KernelObject.NameId),
 	forms : List(KernelObject.NameId),
 	images : List(KernelObject.NameId),
+	patterns : List(KernelObject.NameId),
+	shadings : List(KernelObject.NameId),
 	states : List(KernelObject.NameId),
 }
 
-build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(KernelGate4FormStructure.FontInput), text : KernelPdfText.ScenePlan })], KernelGate4FormStructure.Limits -> Try(KernelGate4FormStructure.Plan, KernelGate4FormStructure.Error)
-build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
+build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(KernelGate4FormStructure.FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelGate4FormStructure.Limits -> Try(KernelGate4FormStructure.Plan, KernelGate4FormStructure.Error)
+build_plan = |tagged, colors, images, content, forms, objects, text, shading_store, limits| {
 	base = KernelGate4FormObjects.Plan.base(objects)
 	planned_fonts = KernelGate4FormObjects.Plan.fonts(objects)
 	canonical_forms = KernelForm.Plan.canonical_form_count(forms)
+	canonical_shadings = KernelForm.Plan.canonical_shading_count(forms)
+	canonical_functions = KernelForm.Plan.canonical_function_count(forms)
+	canonical_patterns = KernelForm.Plan.canonical_pattern_count(forms)
 	if KernelContent.Plan.form_stream_count(content) != canonical_forms {
 		return Err(FormStreamCountMismatch({ planned: canonical_forms, streams: KernelContent.Plan.form_stream_count(content) }))
+	}
+	if KernelContent.Plan.pattern_stream_count(content) != canonical_patterns {
+		return Err(PatternStreamCountMismatch({ planned: canonical_patterns, streams: KernelContent.Plan.pattern_stream_count(content) }))
+	}
+	if KernelForm.Plan.work(forms).authored_shadings != shading_store.shadings.len() {
+		return Err(ShadingStoreMismatch({ shadings: KernelForm.Plan.work(forms).authored_shadings, supplied: shading_store.shadings.len() }))
 	}
 	match text {
 		NoTextObjects => if planned_fonts.len() != 0 {
@@ -148,8 +204,20 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 	page_transparency = KernelForm.Plan.page_transparency(forms)
 	form_isolation = KernelForm.Plan.form_isolation(forms)
 	with_groups = any_flag(page_transparency) or any_flag(form_isolation)
-	named = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), canonical_states > 0, with_groups)?
-	resource_names = add_resource_names(named.builder, leaf_counts.color_spaces, leaf_counts.images, planned_fonts.len(), canonical_forms, canonical_states)?
+	with_masks = KernelForm.Plan.work(forms).canonical_mask_states > 0
+	var $with_stitch = Bool.False
+	var $stitch_scan = 0
+	while $stitch_scan < canonical_functions {
+		match KernelForm.Plan.canonical_function_fact(forms, $stitch_scan) {
+			SegmentFact(_) => {}
+			StitchFact(_) => {
+				$with_stitch = Bool.True
+			}
+		}
+		$stitch_scan = $stitch_scan + 1
+	}
+	named = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), canonical_states > 0, with_groups, with_masks, canonical_shadings > 0, $with_stitch, canonical_patterns > 0)?
+	resource_names = add_resource_names(named.builder, leaf_counts.color_spaces, leaf_counts.images, planned_fonts.len(), canonical_forms, canonical_states, canonical_shadings, canonical_patterns)?
 	var $builder = resource_names.builder
 	page_count = KernelTagged.Plan.scenes(tagged).pages.len()
 	var $page_values = List.with_capacity(page_count)
@@ -267,13 +335,19 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 		NoFailure => {}
 	}
 
-	## Canonical graphics-state objects in canonical order, each carrying the
-	## exact effective constant alphas and the Normal blend mode.
+	## Canonical graphics-state objects in canonical order: constant-alpha
+	## states carry the exact effective alphas under the Normal blend mode,
+	## and soft-mask states carry the Alpha mask dictionary referencing their
+	## canonical mask form's stream object directly.
 	var $state_builder = $form_builder
 	var $state_ordinal = 0
 	while $state_ordinal < canonical_states and $failure == NoFailure {
 		planned_state = list_at(KernelGate4FormObjects.Plan.states(objects), $state_ordinal)
-		match add_state_object($state_builder, named.names, KernelForm.Plan.state_value(forms, $state_ordinal), planned_state) {
+		state_result = match KernelForm.Plan.state_fact(forms, $state_ordinal) {
+			Alpha(value) => add_state_object($state_builder, named.names, value, planned_state)
+			Mask(mask_ordinal) => add_mask_state_object($state_builder, named.names, list_at(KernelGate4FormObjects.Plan.forms(objects), mask_ordinal).stream, planned_state)
+		}
+		match state_result {
 			Err(error) => {
 				$failure = Failed(error)
 			}
@@ -288,8 +362,80 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 		NoFailure => {}
 	}
 
+	## Canonical shading dictionaries in canonical order: each names its
+	## canonical color-space object, its exact coordinates, the explicit
+	## domain, its extend flags, and its canonical root function object.
+	var $paint_builder = $state_builder
+	var $shading_ordinal = 0
+	while $shading_ordinal < canonical_shadings and $failure == NoFailure {
+		fact = KernelForm.Plan.canonical_shading_fact(forms, $shading_ordinal)
+		planned_shading = list_at(KernelGate4FormObjects.Plan.shadings(objects), $shading_ordinal)
+		match add_shading_object($paint_builder, named.names, fact, base, objects, planned_shading) {
+			Err(error) => {
+				$failure = Failed(error)
+			}
+			Ok(next) => {
+				$paint_builder = next
+			}
+		}
+		$shading_ordinal = $shading_ordinal + 1
+	}
+	match $failure {
+		Failed(error) => return Err(error)
+		NoFailure => {}
+	}
+
+	## Canonical function dictionaries: exponential segment functions carry
+	## the exact stop colors of their representative shading, and stitching
+	## functions carry the exact interior stop offsets as bounds with the
+	## canonical segment references, all read from the validated store.
+	var $function_ordinal = 0
+	while $function_ordinal < canonical_functions and $failure == NoFailure {
+		fact = KernelForm.Plan.canonical_function_fact(forms, $function_ordinal)
+		planned_function = list_at(KernelGate4FormObjects.Plan.functions(objects), $function_ordinal)
+		match add_function_object($paint_builder, named.names, shading_store, fact, objects, planned_function) {
+			Err(error) => {
+				$failure = Failed(error)
+			}
+			Ok(next) => {
+				$paint_builder = next
+			}
+		}
+		$function_ordinal = $function_ordinal + 1
+	}
+	match $failure {
+		Failed(error) => return Err(error)
+		NoFailure => {}
+	}
+
+	## Canonical tiling-pattern stream objects, each with its complete
+	## direct dictionary, explicit bounds, steps, matrix, and the colored
+	## constant-spacing tiling policy.
+	var $pattern_bytes = 0
+	var $pattern_ordinal = 0
+	while $pattern_ordinal < canonical_patterns and $failure == NoFailure {
+		canonical_cell = KernelForm.Plan.canonical_pattern(forms, $pattern_ordinal)
+		pattern_stream = KernelContent.Plan.pattern_stream(content, $pattern_ordinal)
+		planned_pattern = list_at(KernelGate4FormObjects.Plan.patterns(objects), $pattern_ordinal)
+		match add_pattern_object($paint_builder, named.names, resource_names.names, KernelForm.Plan.pattern_dictionary(forms, $pattern_ordinal), canonical_cell, pattern_stream.bytes, base, objects, planned_pattern) {
+			Err(error) => {
+				$failure = Failed(error)
+			}
+			Ok(added) => {
+				$paint_builder = added.builder
+				$references = $references + added.references
+				$pattern_bytes = $pattern_bytes + pattern_stream.bytes.len()
+			}
+		}
+		$pattern_ordinal = $pattern_ordinal + 1
+	}
+	match $failure {
+		Failed(error) => return Err(error)
+		NoFailure => {}
+	}
+
 	## Type 0 font objects land exactly at their planned identities.
-	var $font_builder = $state_builder
+	var $font_builder = $paint_builder
 	var $font_program_bytes = 0
 	match text {
 		NoTextObjects => {}
@@ -358,10 +504,14 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 				fonts: planned_fonts.len(),
 				form_objects: KernelGate4FormObjects.Plan.work(objects).form_objects,
 				form_stream_bytes: $form_bytes,
+				function_objects: canonical_functions,
 				isolated_form_groups: $isolated_form_groups,
 				objects: expected,
 				pages: KernelGate2PageObjects.Plan.work(pages),
+				pattern_objects: canonical_patterns,
+				pattern_stream_bytes: $pattern_bytes,
 				resources: KernelGate2ResourceObjects.Plan.work(resources),
+				shading_objects: canonical_shadings,
 				state_objects: canonical_states,
 				tagged_objects: KernelGate2TaggedObjects.Plan.work(prefix),
 				transparency_page_groups: $transparency_page_groups,
@@ -370,8 +520,8 @@ build_plan = |tagged, colors, images, content, forms, objects, text, limits| {
 	)
 }
 
-add_names : KernelObject.Builder, Bool, Bool -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate4FormStructure.Error)
-add_names = |builder, with_states, with_groups| {
+add_names : KernelObject.Builder, Bool, Bool, Bool, Bool, Bool, Bool -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate4FormStructure.Error)
+add_names = |builder, with_states, with_groups, with_masks, with_shadings, with_stitch, with_patterns| {
 	b_box = KernelObject.add_name(builder, Str.to_utf8("BBox")) ? Object
 	color_space = KernelObject.add_name(b_box.builder, Str.to_utf8("ColorSpace")) ? Object
 	font = KernelObject.add_name(color_space.builder, Str.to_utf8("Font")) ? Object
@@ -397,8 +547,21 @@ add_names = |builder, with_states, with_groups| {
 		{ builder: x_object.builder, names: NoStateNames }
 	}
 
+	masks = if with_masks {
+		alpha = KernelObject.add_name(states.builder, Str.to_utf8("Alpha")) ? Object
+		g = KernelObject.add_name(alpha.builder, Str.to_utf8("G")) ? Object
+		mask = KernelObject.add_name(g.builder, Str.to_utf8("Mask")) ? Object
+		s_mask = KernelObject.add_name(mask.builder, Str.to_utf8("SMask")) ? Object
+		{
+			builder: s_mask.builder,
+			names: WithMaskNames({ alpha: alpha.id, g: g.id, mask: mask.id, s_mask: s_mask.id }),
+		}
+	} else {
+		{ builder: states.builder, names: NoMaskNames }
+	}
+
 	groups = if with_groups {
-		cs = KernelObject.add_name(states.builder, Str.to_utf8("CS")) ? Object
+		cs = KernelObject.add_name(masks.builder, Str.to_utf8("CS")) ? Object
 		group = KernelObject.add_name(cs.builder, Str.to_utf8("Group")) ? Object
 		isolated = KernelObject.add_name(group.builder, Str.to_utf8("I")) ? Object
 		s = KernelObject.add_name(isolated.builder, Str.to_utf8("S")) ? Object
@@ -408,11 +571,60 @@ add_names = |builder, with_states, with_groups| {
 			names: WithGroupNames({ cs: cs.id, group: group.id, isolated: isolated.id, s: s.id, transparency: transparency.id }),
 		}
 	} else {
-		{ builder: states.builder, names: NoGroupNames }
+		{ builder: masks.builder, names: NoGroupNames }
+	}
+
+	## The shading, stitching-function, and tiling-pattern names join the
+	## table only when the plan contains the corresponding canonical
+	## resources, so paint-free plans keep their exact name tables.
+	paints = if with_shadings {
+		c0 = KernelObject.add_name(groups.builder, Str.to_utf8("C0")) ? Object
+		c1 = KernelObject.add_name(c0.builder, Str.to_utf8("C1")) ? Object
+		coords = KernelObject.add_name(c1.builder, Str.to_utf8("Coords")) ? Object
+		domain = KernelObject.add_name(coords.builder, Str.to_utf8("Domain")) ? Object
+		extend = KernelObject.add_name(domain.builder, Str.to_utf8("Extend")) ? Object
+		function = KernelObject.add_name(extend.builder, Str.to_utf8("Function")) ? Object
+		function_type = KernelObject.add_name(function.builder, Str.to_utf8("FunctionType")) ? Object
+		n = KernelObject.add_name(function_type.builder, Str.to_utf8("N")) ? Object
+		shading = KernelObject.add_name(n.builder, Str.to_utf8("Shading")) ? Object
+		shading_type = KernelObject.add_name(shading.builder, Str.to_utf8("ShadingType")) ? Object
+		{
+			builder: shading_type.builder,
+			names: WithPaintNames({ c0: c0.id, c1: c1.id, coords: coords.id, domain: domain.id, extend: extend.id, function: function.id, function_type: function_type.id, n: n.id, shading: shading.id, shading_type: shading_type.id }),
+		}
+	} else {
+		{ builder: groups.builder, names: NoPaintNames }
+	}
+
+	stitches = if with_stitch {
+		bounds = KernelObject.add_name(paints.builder, Str.to_utf8("Bounds")) ? Object
+		encode = KernelObject.add_name(bounds.builder, Str.to_utf8("Encode")) ? Object
+		functions = KernelObject.add_name(encode.builder, Str.to_utf8("Functions")) ? Object
+		{
+			builder: functions.builder,
+			names: WithStitchNames({ bounds: bounds.id, encode: encode.id, functions: functions.id }),
+		}
+	} else {
+		{ builder: paints.builder, names: NoStitchNames }
+	}
+
+	patterns = if with_patterns {
+		paint_type = KernelObject.add_name(stitches.builder, Str.to_utf8("PaintType")) ? Object
+		pattern = KernelObject.add_name(paint_type.builder, Str.to_utf8("Pattern")) ? Object
+		pattern_type = KernelObject.add_name(pattern.builder, Str.to_utf8("PatternType")) ? Object
+		tiling_type = KernelObject.add_name(pattern_type.builder, Str.to_utf8("TilingType")) ? Object
+		x_step = KernelObject.add_name(tiling_type.builder, Str.to_utf8("XStep")) ? Object
+		y_step = KernelObject.add_name(x_step.builder, Str.to_utf8("YStep")) ? Object
+		{
+			builder: y_step.builder,
+			names: WithPatternKeyNames({ paint_type: paint_type.id, pattern: pattern.id, pattern_type: pattern_type.id, tiling_type: tiling_type.id, x_step: x_step.id, y_step: y_step.id }),
+		}
+	} else {
+		{ builder: stitches.builder, names: NoPatternKeyNames }
 	}
 
 	Ok({
-		builder: groups.builder,
+		builder: patterns.builder,
 		names: {
 			b_box: b_box.id,
 			color_space: color_space.id,
@@ -420,9 +632,13 @@ add_names = |builder, with_states, with_groups| {
 			form: form.id,
 			form_type: form_type.id,
 			group_names: groups.names,
+			mask_names: masks.names,
 			matrix: matrix.id,
+			paint_names: paints.names,
+			pattern_key_names: patterns.names,
 			resources: resources.id,
 			state_names: states.names,
+			stitch_names: stitches.names,
 			subtype: subtype.id,
 			type_name: type_name.id,
 			x_object: x_object.id,
@@ -430,20 +646,24 @@ add_names = |builder, with_states, with_groups| {
 	})
 }
 
-add_resource_names : KernelObject.Builder, U64, U64, U64, U64, U64 -> Try({ builder : KernelObject.Builder, names : ResourceNames }, KernelGate4FormStructure.Error)
-add_resource_names = |builder, color_count, image_count, font_count, form_count, state_count| {
+add_resource_names : KernelObject.Builder, U64, U64, U64, U64, U64, U64, U64 -> Try({ builder : KernelObject.Builder, names : ResourceNames }, KernelGate4FormStructure.Error)
+add_resource_names = |builder, color_count, image_count, font_count, form_count, state_count, shading_count, pattern_count| {
 	color_names = add_indexed_names(builder, "CS", color_count)?
 	image_names = add_indexed_names(color_names.builder, "Im", image_count)?
 	font_names = add_indexed_names(image_names.builder, "F", font_count)?
 	form_names = add_indexed_names(font_names.builder, "XO", form_count)?
 	state_names = add_indexed_names(form_names.builder, "GS", state_count)?
+	shading_names = add_indexed_names(state_names.builder, "Sh", shading_count)?
+	pattern_names = add_indexed_names(shading_names.builder, "Pt", pattern_count)?
 	Ok({
-		builder: state_names.builder,
+		builder: pattern_names.builder,
 		names: {
 			color_spaces: color_names.ids,
 			fonts: font_names.ids,
 			forms: form_names.ids,
 			images: image_names.ids,
+			patterns: pattern_names.ids,
+			shadings: shading_names.ids,
 			states: state_names.ids,
 		},
 	})
@@ -512,6 +732,34 @@ add_resource_dictionary = |builder, names, resource_names, dictionary, base, obj
 		$entries = $entries.append({ key: names.font, value: value.id })
 		$references = $references + collected.entries.len()
 	}
+	if dictionary.patterns.len() > 0 {
+		pattern_key_names = match names.pattern_key_names {
+			WithPatternKeyNames(bundle) => bundle
+			NoPatternKeyNames => {
+				crash "pattern dictionary emitted without its planned names"
+			}
+		}
+		collected = add_reference_entries($builder, resource_names.patterns, dictionary.patterns, pattern_targets(objects, dictionary.patterns))?
+		$builder = collected.builder
+		value = KernelObject.add_dictionary($builder, collected.entries) ? Object
+		$builder = value.builder
+		$entries = $entries.append({ key: pattern_key_names.pattern, value: value.id })
+		$references = $references + collected.entries.len()
+	}
+	if dictionary.shadings.len() > 0 {
+		paint_names = match names.paint_names {
+			WithPaintNames(bundle) => bundle
+			NoPaintNames => {
+				crash "shading dictionary emitted without its planned names"
+			}
+		}
+		collected = add_reference_entries($builder, resource_names.shadings, dictionary.shadings, shading_targets(objects, dictionary.shadings))?
+		$builder = collected.builder
+		value = KernelObject.add_dictionary($builder, collected.entries) ? Object
+		$builder = value.builder
+		$entries = $entries.append({ key: paint_names.shading, value: value.id })
+		$references = $references + collected.entries.len()
+	}
 	if dictionary.images.len() > 0 or dictionary.forms.len() > 0 {
 		image_entries = add_reference_entries($builder, resource_names.images, dictionary.images, image_targets(base, dictionary.images))?
 		$builder = image_entries.builder
@@ -566,6 +814,30 @@ font_targets = |objects, ordinals| {
 state_targets : KernelGate4FormObjects.Plan, List(U64) -> List(KernelObject.ObjectId)
 state_targets = |objects, ordinals| {
 	planned = KernelGate4FormObjects.Plan.states(objects)
+	var $object_ids = List.with_capacity(ordinals.len())
+	var $index = 0
+	while $index < ordinals.len() {
+		$object_ids = $object_ids.append(list_at(planned, list_at(ordinals, $index)))
+		$index = $index + 1
+	}
+	$object_ids
+}
+
+pattern_targets : KernelGate4FormObjects.Plan, List(U64) -> List(KernelObject.ObjectId)
+pattern_targets = |objects, ordinals| {
+	planned = KernelGate4FormObjects.Plan.patterns(objects)
+	var $object_ids = List.with_capacity(ordinals.len())
+	var $index = 0
+	while $index < ordinals.len() {
+		$object_ids = $object_ids.append(list_at(planned, list_at(ordinals, $index)).stream)
+		$index = $index + 1
+	}
+	$object_ids
+}
+
+shading_targets : KernelGate4FormObjects.Plan, List(U64) -> List(KernelObject.ObjectId)
+shading_targets = |objects, ordinals| {
+	planned = KernelGate4FormObjects.Plan.shadings(objects)
 	var $object_ids = List.with_capacity(ordinals.len())
 	var $index = 0
 	while $index < ordinals.len() {
@@ -766,6 +1038,312 @@ add_state_object = |builder, names, value, planned| {
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, planned)?
 	Ok(object.builder)
+}
+
+## One canonical soft-mask ExtGState object:
+## `<< /SMask << /G m 0 R /S /Alpha /Type /Mask >> /Type /ExtGState >>`.
+## The mask subtype is always Alpha (luminosity is unrepresentable), the
+## transfer function stays absent (the Identity default), and `/G`
+## references the canonical mask form's stream object directly — soft masks
+## never enter a resource dictionary.
+add_mask_state_object : KernelObject.Builder, Names, KernelObject.ObjectId, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate4FormStructure.Error)
+add_mask_state_object = |builder, names, mask_stream, planned| {
+	mask_names = match names.mask_names {
+		WithMaskNames(bundle) => bundle
+		NoMaskNames => {
+			crash "soft-mask state emitted without its planned names"
+		}
+	}
+	state_names = match names.state_names {
+		WithStateNames(bundle) => bundle
+		NoStateNames => {
+			crash "soft-mask state emitted without its planned names"
+		}
+	}
+	group = KernelObject.add_reference(builder, mask_stream) ? Object
+	subtype = KernelObject.add_name_value(group.builder, mask_names.alpha) ? Object
+	mask_kind = KernelObject.add_name_value(subtype.builder, mask_names.mask) ? Object
+	group_names = match names.group_names {
+		WithGroupNames(bundle) => bundle
+		NoGroupNames => {
+			crash "soft-mask state emitted without its planned names"
+		}
+	}
+	mask_dictionary = KernelObject.add_dictionary(
+		mask_kind.builder,
+		[
+			{ key: mask_names.g, value: group.id },
+			{ key: group_names.s, value: subtype.id },
+			{ key: names.type_name, value: mask_kind.id },
+		],
+	) ? Object
+	kind = KernelObject.add_name_value(mask_dictionary.builder, state_names.ext_g_state) ? Object
+	dictionary = KernelObject.add_dictionary(
+		kind.builder,
+		[
+			{ key: mask_names.s_mask, value: mask_dictionary.id },
+			{ key: names.type_name, value: kind.id },
+		],
+	) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, planned)?
+	Ok(object.builder)
+}
+
+## One canonical shading dictionary object:
+## `<< /ColorSpace c 0 R /Coords [...] /Domain [0 1] /Extend [a b]
+## /Function f 0 R /ShadingType 2|3 >>`. The domain is emitted explicitly,
+## coordinates use the exact scale-3 layout mapping content geometry uses,
+## and the extend flags are always present.
+add_shading_object : KernelObject.Builder, Names, KernelForm.ShadingFact, KernelGate2Objects.Plan, KernelGate4FormObjects.Plan, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate4FormStructure.Error)
+add_shading_object = |builder, names, fact, base, objects, planned| {
+	paint_names = match names.paint_names {
+		WithPaintNames(bundle) => bundle
+		NoPaintNames => {
+			crash "shading emitted without its planned names"
+		}
+	}
+	space = KernelObject.add_reference(builder, list_at(KernelGate2Objects.Plan.color_spaces(base), fact.space)) ? Object
+	coords = match fact.geometry {
+		Axial({ end, start }) => {
+			x0 = add_layout(space.builder, start.x)?
+			y0 = add_layout(x0.builder, start.y)?
+			x1 = add_layout(y0.builder, end.x)?
+			y1 = add_layout(x1.builder, end.y)?
+			array = KernelObject.add_array(y1.builder, [x0.id, y0.id, x1.id, y1.id]) ? Object
+			{ builder: array.builder, id: array.id, shading_type: 2 }
+		}
+		Radial({ end_center, end_radius, start_center, start_radius }) => {
+			x0 = add_layout(space.builder, start_center.x)?
+			y0 = add_layout(x0.builder, start_center.y)?
+			r0 = add_layout(y0.builder, start_radius)?
+			x1 = add_layout(r0.builder, end_center.x)?
+			y1 = add_layout(x1.builder, end_center.y)?
+			r1 = add_layout(y1.builder, end_radius)?
+			array = KernelObject.add_array(r1.builder, [x0.id, y0.id, r0.id, x1.id, y1.id, r1.id]) ? Object
+			{ builder: array.builder, id: array.id, shading_type: 3 }
+		}
+	}
+	domain = add_domain_array(coords.builder)?
+	extend_start = KernelObject.add_boolean(domain.builder, fact.extend_start) ? Object
+	extend_end = KernelObject.add_boolean(extend_start.builder, fact.extend_end) ? Object
+	extend = KernelObject.add_array(extend_end.builder, [extend_start.id, extend_end.id]) ? Object
+	function = KernelObject.add_reference(extend.builder, list_at(KernelGate4FormObjects.Plan.functions(objects), fact.function)) ? Object
+	shading_type = KernelObject.add_integer(function.builder, coords.shading_type) ? Object
+	dictionary = KernelObject.add_dictionary(
+		shading_type.builder,
+		[
+			{ key: names.color_space, value: space.id },
+			{ key: paint_names.coords, value: coords.id },
+			{ key: paint_names.domain, value: domain.id },
+			{ key: paint_names.extend, value: extend.id },
+			{ key: paint_names.function, value: function.id },
+			{ key: paint_names.shading_type, value: shading_type.id },
+		],
+	) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, planned)?
+	Ok(object.builder)
+}
+
+## One canonical function dictionary object. A segment function is
+## `<< /C0 [...] /C1 [...] /Domain [0 1] /FunctionType 2 /N 1 >>` over the
+## exact stop colors; a stitching function is `<< /Bounds [...] /Domain
+## [0 1] /Encode [0 1 ...] /FunctionType 3 /Functions [...] >>` whose
+## bounds are the exact interior stop offsets under the identical
+## `U16`-to-decimal mapping color channels use.
+add_function_object : KernelObject.Builder, Names, Scene.ShadingStore, KernelForm.FunctionFact, KernelGate4FormObjects.Plan, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate4FormStructure.Error)
+add_function_object = |builder, names, shading_store, fact, objects, planned| {
+	paint_names = match names.paint_names {
+		WithPaintNames(bundle) => bundle
+		NoPaintNames => {
+			crash "shading function emitted without its planned names"
+		}
+	}
+	match fact {
+		SegmentFact({ segment, shading }) => {
+			record = list_at(shading_store.shadings, shading)
+			first = list_at(shading_store.stops, record.stops.start() + segment)
+			second = list_at(shading_store.stops, record.stops.start() + segment + 1)
+			c0 = add_channel_array(builder, first.channels)?
+			c1 = add_channel_array(c0.builder, second.channels)?
+			domain = add_domain_array(c1.builder)?
+			function_type = KernelObject.add_integer(domain.builder, 2) ? Object
+			exponent = KernelObject.add_integer(function_type.builder, 1) ? Object
+			dictionary = KernelObject.add_dictionary(
+				exponent.builder,
+				[
+					{ key: paint_names.c0, value: c0.id },
+					{ key: paint_names.c1, value: c1.id },
+					{ key: paint_names.domain, value: domain.id },
+					{ key: paint_names.function_type, value: function_type.id },
+					{ key: paint_names.n, value: exponent.id },
+				],
+			) ? Object
+			object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+			ensure_object(object.id, planned)?
+			Ok(object.builder)
+		}
+		StitchFact({ children, shading }) => {
+			stitch_names = match names.stitch_names {
+				WithStitchNames(bundle) => bundle
+				NoStitchNames => {
+					crash "stitching function emitted without its planned names"
+				}
+			}
+			record = list_at(shading_store.shadings, shading)
+			var $builder = builder
+			var $bound_ids = List.with_capacity(record.stops.length() - 2)
+			var $bound = 1
+			var $bound_failure = NoFailure
+			while $bound < record.stops.length() - 1 and $bound_failure == NoFailure {
+				offset = list_at(shading_store.stops, record.stops.start() + $bound).offset
+				match add_alpha_value($builder, offset.to_u64()) {
+					Err(error) => {
+						$bound_failure = Failed(error)
+					}
+					Ok(added) => {
+						$builder = added.builder
+						$bound_ids = $bound_ids.append(added.id)
+					}
+				}
+				$bound = $bound + 1
+			}
+			match $bound_failure {
+				Failed(error) => return Err(error)
+				NoFailure => {}
+			}
+			bounds = KernelObject.add_array($builder, $bound_ids) ? Object
+			domain = add_domain_array(bounds.builder)?
+			zero = KernelObject.add_integer(domain.builder, 0) ? Object
+			one = KernelObject.add_integer(zero.builder, 1) ? Object
+			var $encode_ids = List.with_capacity(children.len() * 2)
+			var $segment_scan = 0
+			while $segment_scan < children.len() {
+				$encode_ids = $encode_ids.append(zero.id)
+				$encode_ids = $encode_ids.append(one.id)
+				$segment_scan = $segment_scan + 1
+			}
+			encode = KernelObject.add_array(one.builder, $encode_ids) ? Object
+			function_type = KernelObject.add_integer(encode.builder, 3) ? Object
+			var $reference_builder = function_type.builder
+			var $child_ids = List.with_capacity(children.len())
+			var $child = 0
+			var $child_failure = NoFailure
+			while $child < children.len() and $child_failure == NoFailure {
+				match KernelObject.add_reference($reference_builder, list_at(KernelGate4FormObjects.Plan.functions(objects), list_at(children, $child))) {
+					Err(error) => {
+						$child_failure = Failed(Object(error))
+					}
+					Ok(reference) => {
+						$reference_builder = reference.builder
+						$child_ids = $child_ids.append(reference.id)
+					}
+				}
+				$child = $child + 1
+			}
+			match $child_failure {
+				Failed(error) => return Err(error)
+				NoFailure => {}
+			}
+			functions = KernelObject.add_array($reference_builder, $child_ids) ? Object
+			dictionary = KernelObject.add_dictionary(
+				functions.builder,
+				[
+					{ key: stitch_names.bounds, value: bounds.id },
+					{ key: paint_names.domain, value: domain.id },
+					{ key: stitch_names.encode, value: encode.id },
+					{ key: paint_names.function_type, value: function_type.id },
+					{ key: stitch_names.functions, value: functions.id },
+				],
+			) ? Object
+			object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+			ensure_object(object.id, planned)?
+			Ok(object.builder)
+		}
+	}
+}
+
+## One canonical tiling-pattern stream object: the colored constant-spacing
+## policy (`/PaintType 1 /TilingType 1`), explicit bounds, steps, and
+## matrix, and exactly its direct nested resource dictionary.
+add_pattern_object : KernelObject.Builder, Names, ResourceNames, KernelForm.DictionaryPlan, KernelForm.CanonicalPattern, List(U8), KernelGate2Objects.Plan, KernelGate4FormObjects.Plan, KernelGate4FormObjects.StreamObjects -> Try({ builder : KernelObject.Builder, references : U64 }, KernelGate4FormStructure.Error)
+add_pattern_object = |builder, names, resource_names, dictionary, cell, bytes, base, objects, planned| {
+	pattern_key_names = match names.pattern_key_names {
+		WithPatternKeyNames(bundle) => bundle
+		NoPatternKeyNames => {
+			crash "tiling pattern emitted without its planned names"
+		}
+	}
+	resources = add_resource_dictionary(builder, names, resource_names, dictionary, base, objects)?
+	b_box = add_rect_value(resources.builder, cell.bbox)?
+	matrix = add_matrix_value(b_box.builder, cell.matrix)?
+	paint_type = KernelObject.add_integer(matrix.builder, 1) ? Object
+	pattern_type = KernelObject.add_integer(paint_type.builder, 1) ? Object
+	tiling_type = KernelObject.add_integer(pattern_type.builder, 1) ? Object
+	type_value = KernelObject.add_name_value(tiling_type.builder, pattern_key_names.pattern) ? Object
+	x_step = add_layout(type_value.builder, cell.x_step)?
+	y_step = add_layout(x_step.builder, cell.y_step)?
+	payload = KernelObject.add_payload(y_step.builder, bytes, Generated) ? Object
+	stream = KernelObject.add_stream_object(
+		payload.builder,
+		[
+			{ key: names.b_box, value: b_box.id },
+			{ key: names.matrix, value: matrix.id },
+			{ key: pattern_key_names.paint_type, value: paint_type.id },
+			{ key: pattern_key_names.pattern_type, value: pattern_type.id },
+			{ key: names.resources, value: resources.id },
+			{ key: pattern_key_names.tiling_type, value: tiling_type.id },
+			{ key: names.type_name, value: type_value.id },
+			{ key: pattern_key_names.x_step, value: x_step.id },
+			{ key: pattern_key_names.y_step, value: y_step.id },
+		],
+		Deflate,
+		payload.id,
+	) ? Object
+	ensure_object(stream.id, planned.stream)?
+	ensure_object(stream.length_object, planned.length)?
+	Ok({ builder: stream.builder, references: resources.references })
+}
+
+## Channel values use the identical `U16`-to-scale-9-decimal mapping the
+## content serializer and constant alphas use.
+add_channel_array : KernelObject.Builder, Color.Channels -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelGate4FormStructure.Error)
+add_channel_array = |builder, channels| match channels {
+	Gray(gray) => {
+		value = add_alpha_value(builder, gray.to_u64())?
+		array = KernelObject.add_array(value.builder, [value.id]) ? Object
+		Ok({ builder: array.builder, id: array.id })
+	}
+	Rgb({ blue, green, red }) => {
+		red_value = add_alpha_value(builder, red.to_u64())?
+		green_value = add_alpha_value(red_value.builder, green.to_u64())?
+		blue_value = add_alpha_value(green_value.builder, blue.to_u64())?
+		array = KernelObject.add_array(blue_value.builder, [red_value.id, green_value.id, blue_value.id]) ? Object
+		Ok({ builder: array.builder, id: array.id })
+	}
+}
+
+## The explicit `[0 1]` domain every shading and function declares.
+add_domain_array : KernelObject.Builder -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelGate4FormStructure.Error)
+add_domain_array = |builder| {
+	zero = KernelObject.add_integer(builder, 0) ? Object
+	one = KernelObject.add_integer(zero.builder, 1) ? Object
+	array = KernelObject.add_array(one.builder, [zero.id, one.id]) ? Object
+	Ok({ builder: array.builder, id: array.id })
+}
+
+## A pattern matrix at the exact scale-3 layout mapping `cm` operands use.
+add_matrix_value : KernelObject.Builder, Scene.Matrix -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelGate4FormStructure.Error)
+add_matrix_value = |builder, matrix| {
+	a = add_layout(builder, matrix.a)?
+	b = add_layout(a.builder, matrix.b)?
+	c = add_layout(b.builder, matrix.c)?
+	d = add_layout(c.builder, matrix.d)?
+	e = add_layout(d.builder, matrix.e)?
+	f = add_layout(e.builder, matrix.f)?
+	array = KernelObject.add_array(f.builder, [a.id, b.id, c.id, d.id, e.id, f.id]) ? Object
+	Ok({ builder: array.builder, id: array.id })
 }
 
 ## `U16` alpha to canonical PDF number: value * 10^9 / 65535 rounded half to

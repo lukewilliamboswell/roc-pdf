@@ -54,6 +54,9 @@ SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
 STATE_OBJECT = re.compile(
     rb"^<< /BM /Normal /CA ([0-9.]+) /Type /ExtGState /ca ([0-9.]+) >>\s*endobj$"
 )
+MASK_STATE_OBJECT = re.compile(
+    rb"^<< /SMask << /G ([1-9][0-9]*) 0 R /S /Alpha /Type /Mask >> /Type /ExtGState >>\s*endobj$"
+)
 GS_OPEN = re.compile(rb"q\n/([A-Za-z0-9_]+) gs\n")
 PAGE_GROUP = re.compile(rb"/Group << /CS ([1-9][0-9]*) 0 R /S /Transparency >>")
 FORM_GROUP = re.compile(rb"/Group << /CS ([1-9][0-9]*) 0 R /I true /S /Transparency >>")
@@ -80,14 +83,19 @@ class TransparencyFacts:
         self.pages = self.form_facts.pages
 
         self.states: dict[int, bytes] = {}
+        self.mask_states: dict[int, int] = {}
         for number, body in self.bodies.items():
             stripped = body.strip()
             if b"/ExtGState" not in stripped or stripped.startswith(b"<< /") is False:
                 continue
             if b"/Type /ExtGState" not in stripped:
                 continue
+            mask_match = MASK_STATE_OBJECT.match(stripped)
+            if mask_match is not None:
+                self.mask_states[number] = int(mask_match.group(1))
+                continue
             match = STATE_OBJECT.match(stripped)
-            require(match is not None, f"state {number}: not the canonical Normal-blend constant-alpha shape")
+            require(match is not None, f"state {number}: not a canonical constant-alpha or Alpha-mask shape")
             require(
                 match.group(1) == match.group(2),
                 f"state {number}: /CA {match.group(1)!r} disagrees with /ca {match.group(2)!r}",
@@ -99,15 +107,34 @@ class TransparencyFacts:
             len(set(values)) == len(values),
             "two canonical ExtGState objects share one alpha; deduplication failed",
         )
+        mask_targets = list(self.mask_states.values())
+        require(
+            len(set(mask_targets)) == len(mask_targets),
+            "two canonical mask states share one mask form; deduplication failed",
+        )
 
-        ## No luminosity/alpha soft masks, knockout state, or non-Normal
-        ## blend mode may appear in any graphics-state object, and the only
-        ## /BM values anywhere are the state objects' /BM /Normal.
+        ## Every mask state's /G resolves to an isolated-group form that
+        ## never appears in any resource dictionary under a name (soft masks
+        ## are referenced directly, never through /Resources).
+        for number, target in self.mask_states.items():
+            require(target in self.form_facts.forms, f"mask state {number}: /G does not reference a Form XObject")
+            require(
+                FORM_GROUP.search(self.form_facts.forms[target]) is not None,
+                f"mask state {number}: mask form {target} is not an isolated transparency group",
+            )
+
+        ## Only the canonical Alpha mask shape may carry /SMask; luminosity
+        ## masks, backdrop colors, knockout state, transfer functions, and
+        ## non-Normal blend modes may appear nowhere.
         for number in self.states:
-            require(b"/SMask" not in self.bodies[number], f"state {number}: soft mask emitted")
+            require(b"/SMask" not in self.bodies[number], f"state {number}: soft mask emitted on an alpha state")
         for number, body in self.bodies.items():
+            if b"/Type /ExtGState" in body and b"/SMask" in body:
+                require(number in self.mask_states, f"object {number}: unclassified soft-mask state")
             for blend in re.finditer(rb"/BM /([A-Za-z]+)", body):
                 require(blend.group(1) == b"Normal", f"object {number}: forbidden blend mode {blend.group(1)!r}")
+            require(b"/Luminosity" not in body, f"object {number}: luminosity mask emitted")
+            require(b"/BC " not in body, f"object {number}: mask backdrop color emitted")
             require(b"/TR " not in body and b"/TR2 " not in body, f"object {number}: transfer function emitted")
 
         ## Every gs operand resolves through its stream's direct dictionary
@@ -124,7 +151,10 @@ class TransparencyFacts:
             name = match.group(1).decode("ascii")
             require(name in resources, f"{owner}: gs operand /{name} does not resolve in the direct dictionary")
             target = resources[name]
-            require(target in self.states, f"{owner}: /{name} does not reference a canonical ExtGState object")
+            require(
+                target in self.states or target in self.mask_states,
+                f"{owner}: /{name} does not reference a canonical ExtGState object",
+            )
             targets.append(target)
         opened = [m.group(1).decode("ascii") for m in GS_OPEN.finditer(content)]
         require(

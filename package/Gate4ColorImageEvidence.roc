@@ -411,7 +411,7 @@ graph_limits = {
 }
 
 form_limits : KernelForm.Limits
-form_limits = KernelForm.Limits.make({ graph: graph_limits, max_opacity_depth: 64, max_recipe_bytes: 4194304 })
+form_limits = KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 4194304 })
 
 scene_limits : KernelScene.Limits
 scene_limits = KernelScene.Limits.make({
@@ -535,6 +535,10 @@ form_context = |form_plan, form_store| {
 		form_states: KernelForm.Plan.form_command_states(form_plan),
 		image_names: KernelForm.Plan.image_names(form_plan),
 		page_states: KernelForm.Plan.page_command_states(form_plan),
+		pattern_arena: [],
+		pattern_names: [],
+		pattern_streams: [],
+		shading_names: [],
 		streams: $streams,
 	}
 }
@@ -1198,6 +1202,7 @@ check_negatives = |context| {
 	## 24: the canonical payload budget is enforced during the identity run.
 	tight = KernelForm.Limits.make({
 		graph: { ..graph_limits, max_payload_bytes: 8 },
+		max_mask_depth: 4,
 		max_opacity_depth: 64,
 		max_recipe_bytes: 4194304,
 	})
