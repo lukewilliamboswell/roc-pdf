@@ -2,8 +2,10 @@ import Semantics
 
 KernelSemantics :: [].{
 	Dimension : [Attributes, ContentSpine, Fragments, Namespaces, Nodes, Occurrences, SemanticDepth]
-	IndexKind : [AttributeIndex, ContentIndex, ContextualArtifactIndex, FragmentIndex, NamespaceIndex, NodeIndex, NonTextSourceIndex, OccurrenceIndex, StructureElementIndex, TextSourceIndex]
+	IndexKind : [AnnotationIndex, AttributeIndex, ContentIndex, ContextualArtifactIndex, FragmentIndex, NamespaceIndex, NodeIndex, NonTextSourceIndex, OccurrenceIndex, StructureElementIndex, TextSourceIndex]
 	Error : [
+		AnnotationLogicalOrderInvalid({ actual : U64, annotation : U64, expected : U64 }),
+		AnnotationOwnerMismatch({ annotation : U64, occurrence_owner : U64, owner : U64 }),
 		ArithmeticOverflow,
 		DuplicateOwnership({ index : U64, kind : IndexKind }),
 		FragmentRangeOutsideOccurrence({ fragment : U64 }),
@@ -50,6 +52,7 @@ KernelSemantics :: [].{
 	}
 
 	Work : {
+		annotation_visits : U64,
 		attribute_visits : U64,
 		content_visits : U64,
 		fragment_count_visits : U64,
@@ -64,10 +67,22 @@ KernelSemantics :: [].{
 
 	Plan :: { content_stream_count : U64, page_count : U64, store : Semantics.Store, work : Work }.{
 		build : Semantics.Store, U64, U64, Limits -> Try(Plan, Error)
-		build = |store, page_count, content_stream_count, limits| build_plan(store, page_count, content_stream_count, limits)
+		build = |store, page_count, content_stream_count, limits| build_plan(store, page_count, content_stream_count, limits, False)
 
 		build_text_validated : Semantics.Store, List(TextSourceFact), U64, U64, Limits -> Try(Plan, Error)
-		build_text_validated = |store, text_source_facts, page_count, content_stream_count, limits| build_text_plan(store, text_source_facts, page_count, content_stream_count, limits)
+		build_text_validated = |store, text_source_facts, page_count, content_stream_count, limits| build_text_plan(store, text_source_facts, page_count, content_stream_count, limits, False)
+
+		## The navigation-enabled variants additionally accept the annotation
+		## store and `AnnotationOccurrence` spine items: every annotation must
+		## occur exactly once in its owner's content spine, its owner must be a
+		## valid node, and its logical order must equal its rank among the
+		## spine's annotation occurrences. A path that cannot lower annotation
+		## objects keeps the plain variants and their rejections.
+		build_navigation : Semantics.Store, U64, U64, Limits -> Try(Plan, Error)
+		build_navigation = |store, page_count, content_stream_count, limits| build_plan(store, page_count, content_stream_count, limits, True)
+
+		build_text_navigation : Semantics.Store, List(TextSourceFact), U64, U64, Limits -> Try(Plan, Error)
+		build_text_navigation = |store, text_source_facts, page_count, content_stream_count, limits| build_text_plan(store, text_source_facts, page_count, content_stream_count, limits, True)
 
 		content_stream_count : Plan -> U64
 		content_stream_count = |plan| plan.content_stream_count
@@ -86,9 +101,9 @@ KernelSemantics :: [].{
 
 NodeFrame := { depth : U64, node : Semantics.NodeId }
 
-build_plan : Semantics.Store, U64, U64, KernelSemantics.Limits -> Try(KernelSemantics.Plan, KernelSemantics.Error)
-build_plan = |store, page_count, content_stream_count, limits| {
-	validate_gate_2_subset(store)?
+build_plan : Semantics.Store, U64, U64, KernelSemantics.Limits, Bool -> Try(KernelSemantics.Plan, KernelSemantics.Error)
+build_plan = |store, page_count, content_stream_count, limits, navigation| {
+	validate_gate_2_subset(store, navigation)?
 	check_limit(store.attributes.len(), limits.max_attributes, Attributes)?
 	check_limit(store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(store.fragments.len(), limits.max_fragments, Fragments)?
@@ -97,11 +112,12 @@ build_plan = |store, page_count, content_stream_count, limits| {
 	check_limit(store.occurrences.len(), limits.max_occurrences, Occurrences)?
 
 	namespace_work = validate_namespaces(store.namespaces)?
+	annotation_work = validate_annotations(store, navigation)?
 	occurrence_work = validate_occurrences(store, [], False)?
 	fragment_work = validate_fragments(store, [], page_count, content_stream_count)?
 	reverse = build_reverse_index(store.occurrences, store.fragments)?
 	normalized = { ..store, occurrence_fragments: reverse.fragment_ids, occurrences: reverse.occurrences }
-	graph_work = validate_graph(normalized, limits.max_semantic_depth, False)?
+	graph_work = validate_graph(normalized, limits.max_semantic_depth, False, navigation)?
 
 	Ok(
 		KernelSemantics.Plan.{
@@ -109,6 +125,7 @@ build_plan = |store, page_count, content_stream_count, limits| {
 			page_count,
 			store: normalized,
 			work: {
+				annotation_visits: annotation_work,
 				attribute_visits: graph_work.attribute_visits,
 				content_visits: graph_work.content_visits,
 				fragment_count_visits: reverse.count_visits,
@@ -124,9 +141,9 @@ build_plan = |store, page_count, content_stream_count, limits| {
 	)
 }
 
-build_text_plan : Semantics.Store, List(KernelSemantics.TextSourceFact), U64, U64, KernelSemantics.Limits -> Try(KernelSemantics.Plan, KernelSemantics.Error)
-build_text_plan = |store, text_source_facts, page_count, content_stream_count, limits| {
-	validate_text_subset(store)?
+build_text_plan : Semantics.Store, List(KernelSemantics.TextSourceFact), U64, U64, KernelSemantics.Limits, Bool -> Try(KernelSemantics.Plan, KernelSemantics.Error)
+build_text_plan = |store, text_source_facts, page_count, content_stream_count, limits, navigation| {
+	validate_text_subset(store, navigation)?
 	check_limit(store.attributes.len(), limits.max_attributes, Attributes)?
 	check_limit(store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(store.fragments.len(), limits.max_fragments, Fragments)?
@@ -135,17 +152,19 @@ build_text_plan = |store, text_source_facts, page_count, content_stream_count, l
 	check_limit(store.occurrences.len(), limits.max_occurrences, Occurrences)?
 
 	namespace_work = validate_namespaces(store.namespaces)?
+	annotation_work = validate_annotations(store, navigation)?
 	occurrence_work = validate_occurrences(store, text_source_facts, True)?
 	fragment_work = validate_fragments(store, text_source_facts, page_count, content_stream_count)?
 	reverse = build_reverse_index(store.occurrences, store.fragments)?
 	normalized = { ..store, occurrence_fragments: reverse.fragment_ids, occurrences: reverse.occurrences }
-	graph_work = validate_graph(normalized, limits.max_semantic_depth, True)?
+	graph_work = validate_graph(normalized, limits.max_semantic_depth, True, navigation)?
 	Ok(
 		KernelSemantics.Plan.{
 			content_stream_count,
 			page_count,
 			store: normalized,
 			work: {
+				annotation_visits: annotation_work,
 				attribute_visits: graph_work.attribute_visits,
 				content_visits: graph_work.content_visits,
 				fragment_count_visits: reverse.count_visits,
@@ -177,9 +196,9 @@ validate_namespaces = |namespaces| {
 	}
 }
 
-validate_gate_2_subset : Semantics.Store -> Try({}, KernelSemantics.Error)
-validate_gate_2_subset = |store| {
-	validate_text_subset(store)?
+validate_gate_2_subset : Semantics.Store, Bool -> Try({}, KernelSemantics.Error)
+validate_gate_2_subset = |store, navigation| {
+	validate_text_subset(store, navigation)?
 	if !store.text_properties.is_empty() or !store.text_sources.is_empty() {
 		Err(UnsupportedStoreContent)
 	} else {
@@ -187,9 +206,9 @@ validate_gate_2_subset = |store| {
 	}
 }
 
-validate_text_subset : Semantics.Store -> Try({}, KernelSemantics.Error)
-validate_text_subset = |store| {
-	if !store.annotations.is_empty() or
+validate_text_subset : Semantics.Store, Bool -> Try({}, KernelSemantics.Error)
+validate_text_subset = |store, navigation| {
+	if (!store.annotations.is_empty() and !navigation) or
 		!store.assertions.is_empty() or
 			!store.attribute_roles.is_empty() or
 				!store.element_identifiers.is_empty() or
@@ -199,6 +218,52 @@ validate_text_subset = |store| {
 		Err(UnsupportedStoreContent)
 	} else {
 		Ok({})
+	}
+}
+
+## Annotation records validate once: dense identities, owner nodes in range,
+## and a logical order equal to each annotation's rank among the spine's
+## annotation occurrences. Spine ownership itself is proven by the graph walk.
+validate_annotations : Semantics.Store, Bool -> Try(U64, KernelSemantics.Error)
+validate_annotations = |store, navigation| {
+	if !navigation {
+		Ok(0)
+	} else {
+		var $index = 0
+		var $error = NoError
+		while $index < store.annotations.len() and $error == NoError {
+			annotation = list_at(store.annotations, $index)
+			if annotation.id.index() != $index {
+				$error = Invalid(NonDenseIdentity({ actual: annotation.id.index(), expected: $index, kind: AnnotationIndex }))
+			} else if annotation.owner.index() >= store.nodes.len() {
+				$error = Invalid(IndexOutOfRange({ available: store.nodes.len(), index: annotation.owner.index(), kind: NodeIndex }))
+			}
+			$index = $index + 1
+		}
+		var $spine_index = 0
+		var $rank = 0
+		while $spine_index < store.content_spine.len() and $error == NoError {
+			match list_at(store.content_spine, $spine_index) {
+				AnnotationOccurrence(annotation_id) => {
+					annotation_index = annotation_id.index()
+					if annotation_index >= store.annotations.len() {
+						$error = Invalid(IndexOutOfRange({ available: store.annotations.len(), index: annotation_index, kind: AnnotationIndex }))
+					} else {
+						annotation = list_at(store.annotations, annotation_index)
+						if annotation.logical_order != $rank {
+							$error = Invalid(AnnotationLogicalOrderInvalid({ actual: annotation.logical_order, annotation: annotation_index, expected: $rank }))
+						}
+					}
+					$rank = $rank + 1
+				}
+				_ => {}
+			}
+			$spine_index = $spine_index + 1
+		}
+		match $error {
+			Invalid(error) => Err(error)
+			NoError => Ok(store.annotations.len() + $rank)
+		}
 	}
 }
 
@@ -372,8 +437,8 @@ build_reverse_index = |occurrences, fragments| {
 	Ok({ count_visits: fragments.len(), fragment_ids: $fragment_ids, occurrences: $normalized_occurrences, prefix_steps: occurrences.len(), reverse_writes: fragments.len() })
 }
 
-validate_graph : Semantics.Store, U64, Bool -> Try({ attribute_visits : U64, content_visits : U64, max_depth : U64, node_visits : U64 }, KernelSemantics.Error)
-validate_graph = |store, max_depth, text_allowed| {
+validate_graph : Semantics.Store, U64, Bool, Bool -> Try({ attribute_visits : U64, content_visits : U64, max_depth : U64, node_visits : U64 }, KernelSemantics.Error)
+validate_graph = |store, max_depth, text_allowed, navigation| {
 	if store.nodes.len() == 0 or store.document_root.index() >= store.nodes.len() {
 		Err(InvalidDocumentRoot({ node: store.document_root.index() }))
 	} else {
@@ -382,6 +447,7 @@ validate_graph = |store, max_depth, text_allowed| {
 		var $node_owners = List.repeat(0, store.nodes.len())
 		var $content_owners = List.repeat(0, store.content_spine.len())
 		var $occurrence_owners = List.repeat(0, store.occurrences.len())
+		var $annotation_owners = List.repeat(0, store.annotations.len())
 		var $artifact_owners = List.repeat(0, store.contextual_artifacts.len())
 		var $attribute_owners = List.repeat(0, store.attributes.len())
 		var $frames = [NodeFrame.{ depth: 1, node: store.document_root }]
@@ -402,7 +468,7 @@ validate_graph = |store, max_depth, text_allowed| {
 				} else {
 					$node_owners = list_set($node_owners, node_index, 1)
 					node = list_at(store.nodes, node_index)
-					if !valid_role(node, node_index == store.document_root.index(), text_allowed) {
+					if !valid_role(node, node_index == store.document_root.index(), text_allowed, navigation) {
 						$error = Invalid(UnsupportedRole({ node: node_index }))
 					} else if (node.text_properties.length() != 0 and !text_allowed) or node.element_identifier != NoElementIdentifier {
 						$error = Invalid(UnsupportedStoreContent)
@@ -430,8 +496,21 @@ validate_graph = |store, max_depth, text_allowed| {
 												$content_owners = list_set($content_owners, $content_index, 1)
 												item = list_at(store.content_spine, $content_index)
 												match item {
-													AnnotationOccurrence(_) => {
+													AnnotationOccurrence(annotation_id) => if !navigation {
 														$error = Invalid(UnsupportedAnnotation({ content: $content_index }))
+													} else {
+														annotation_index = annotation_id.index()
+														if annotation_index >= $annotation_owners.len() {
+															$error = Invalid(IndexOutOfRange({ available: $annotation_owners.len(), index: annotation_index, kind: AnnotationIndex }))
+														} else if list_at($annotation_owners, annotation_index) != 0 {
+															$error = Invalid(DuplicateOwnership({ index: annotation_index, kind: AnnotationIndex }))
+														} else {
+															$annotation_owners = list_set($annotation_owners, annotation_index, 1)
+															annotation = list_at(store.annotations, annotation_index)
+															if annotation.owner.index() != node_index {
+																$error = Invalid(AnnotationOwnerMismatch({ annotation: annotation_index, occurrence_owner: node_index, owner: annotation.owner.index() }))
+															}
+														}
 													}
 													ChildNode(child) => {
 														child_index = child.index()
@@ -509,6 +588,7 @@ validate_graph = |store, max_depth, text_allowed| {
 				ensure_all_owned($node_owners, NodeIndex)?
 				ensure_all_owned($content_owners, ContentIndex)?
 				ensure_all_owned($occurrence_owners, OccurrenceIndex)?
+				ensure_all_owned($annotation_owners, AnnotationIndex)?
 				ensure_all_owned($artifact_owners, ContextualArtifactIndex)?
 				ensure_all_owned($attribute_owners, AttributeIndex)?
 				Ok({ attribute_visits: $attribute_visits, content_visits: $content_visits, max_depth: $maximum_depth, node_visits: $node_visits })
@@ -552,12 +632,14 @@ validate_dense_graph_identities = |store| {
 	}
 }
 
-valid_role : Semantics.Node, Bool, Bool -> Bool
-valid_role = |node, is_root, gate_3_text| {
+valid_role : Semantics.Node, Bool, Bool, Bool -> Bool
+valid_role = |node, is_root, gate_3_text, navigation| {
 	if node.role.namespace.index() != 0 {
 		False
 	} else if is_root {
 		node.role.local_name == "Document"
+	} else if navigation and node.role.local_name == "Link" {
+		True
 	} else if gate_3_text {
 		name = node.role.local_name
 		name == "Title" or
@@ -762,13 +844,13 @@ expect {
 	list_body = { ..paragraph, role: { ..paragraph.role, local_name: "LBody" } }
 	span = { ..paragraph, role: { ..paragraph.role, local_name: "Span" } }
 
-	valid_role(paragraph, False, False) and
-		!valid_role(title, False, False) and
-			!valid_role(heading, False, False) and
-				valid_role(title, False, True) and
-					valid_role(heading, False, True) and
-						valid_role(list_body, False, True) and
-							!valid_role(span, False, True)
+	valid_role(paragraph, False, False, False) and
+		!valid_role(title, False, False, False) and
+			!valid_role(heading, False, False, False) and
+				valid_role(title, False, True, False) and
+					valid_role(heading, False, True, False) and
+						valid_role(list_body, False, True, False) and
+							!valid_role(span, False, True, False)
 }
 
 ## Fragment occurrence identities are checked before prefix-sum indexing.
@@ -816,4 +898,102 @@ expect {
 		Err(InvalidContextualArtifactAttribute({ artifact: 0, attribute: 0 })) => True
 		_ => False
 	}
+}
+
+navigation_annotation : Semantics.Annotation
+navigation_annotation = { id: Semantics.AnnotationId.from_index(0), logical_order: 0, owner: Semantics.NodeId.from_index(1) }
+
+navigation_store : Semantics.Store
+navigation_store = {
+	..test_store,
+	annotations: [navigation_annotation],
+	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0))],
+	nodes: [
+		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(2, 3), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "Link", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+	],
+}
+
+navigation_limits : KernelSemantics.Limits
+navigation_limits = KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: 5, max_fragments: 3, max_namespaces: 1, max_nodes: 2, max_occurrences: 2, max_semantic_depth: 2 })
+
+## Navigation-enabled validation accepts annotation spine occurrences with
+## exact annotation work, while the plain subset keeps rejecting them.
+expect {
+	plan = KernelSemantics.Plan.build_navigation(navigation_store, 1, 1, navigation_limits)?
+	rejected = match KernelSemantics.Plan.build(navigation_store, 1, 1, navigation_limits) {
+		Err(UnsupportedStoreContent) => True
+		_ => False
+	}
+
+	KernelSemantics.Plan.work(plan).annotation_visits == 2 and rejected
+}
+
+## The Link role is accepted only when navigation is enabled.
+expect {
+	link_node = list_at(navigation_store.nodes, 1)
+
+	valid_role(link_node, False, False, True) and !valid_role(link_node, False, False, False)
+}
+
+## An annotation occurrence inside a node other than the annotation's owner
+## is a stable ownership rejection.
+expect {
+	annotations = [{ ..navigation_annotation, owner: Semantics.NodeId.from_index(0) }]
+	bad = { ..navigation_store, annotations }
+
+	match KernelSemantics.Plan.build_navigation(bad, 1, 1, navigation_limits) {
+		Err(AnnotationOwnerMismatch({ annotation: 0, occurrence_owner: 1, owner: 0 })) => True
+		_ => False
+	}
+}
+
+## Logical order must equal the annotation's rank among spine occurrences.
+expect {
+	annotations = [{ ..navigation_annotation, logical_order: 3 }]
+	bad = { ..navigation_store, annotations }
+
+	match KernelSemantics.Plan.build_navigation(bad, 1, 1, navigation_limits) {
+		Err(AnnotationLogicalOrderInvalid({ actual: 3, annotation: 0, expected: 0 })) => True
+		_ => False
+	}
+}
+
+## An annotation without a spine occurrence is orphaned, and one occurring
+## twice fails the rank check on its second occurrence (the graph's
+## duplicate-ownership check remains as defense in depth behind it).
+expect {
+	orphan_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1))]
+	orphan_nodes = list_set(navigation_store.nodes, 1, { ..list_at(navigation_store.nodes, 1), content: Semantics.Range.from_start_and_length(2, 2) })
+	orphan = { ..navigation_store, content_spine: orphan_spine, nodes: orphan_nodes }
+
+	duplicate_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0))]
+	duplicate = { ..navigation_store, content_spine: duplicate_spine, occurrences: [test_occurrence(0)], fragments: [test_fragment(0, 0), test_fragment(1, 0), test_fragment(2, 0)] }
+	duplicate_limits = KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: 5, max_fragments: 3, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })
+
+	orphaned = match KernelSemantics.Plan.build_navigation(orphan, 1, 1, navigation_limits) {
+		Err(Orphaned({ index: 0, kind: AnnotationIndex })) => True
+		_ => False
+	}
+	duplicated = match KernelSemantics.Plan.build_navigation(duplicate, 1, 1, duplicate_limits) {
+		Err(AnnotationLogicalOrderInvalid({ actual: 0, annotation: 0, expected: 1 })) => True
+		_ => False
+	}
+	orphaned and duplicated
+}
+
+## Annotation identities stay dense and owners stay in range.
+expect {
+	non_dense = { ..navigation_store, annotations: [{ ..navigation_annotation, id: Semantics.AnnotationId.from_index(4) }] }
+	bad_owner = { ..navigation_store, annotations: [{ ..navigation_annotation, owner: Semantics.NodeId.from_index(7) }] }
+
+	dense = match KernelSemantics.Plan.build_navigation(non_dense, 1, 1, navigation_limits) {
+		Err(NonDenseIdentity({ actual: 4, expected: 0, kind: AnnotationIndex })) => True
+		_ => False
+	}
+	owner = match KernelSemantics.Plan.build_navigation(bad_owner, 1, 1, navigation_limits) {
+		Err(IndexOutOfRange({ available: 2, index: 7, kind: NodeIndex })) => True
+		_ => False
+	}
+	dense and owner
 }

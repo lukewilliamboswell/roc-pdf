@@ -25,7 +25,11 @@ KernelTagged :: [].{
 		structure_element : Semantics.StructureElementId,
 	}
 
+	## `AnnotationChild` is an annotation occurrence in its owner's spine; it
+	## lowers to an OBJR object reference rather than a marked-content item and
+	## never consumes an MCID.
 	KItem : [
+		AnnotationChild(Semantics.AnnotationId),
 		ChildStructure(Semantics.StructureElementId),
 		ContextualArtifactChild(Semantics.ContextualArtifactId),
 		MarkedContent(MarkedContentReference),
@@ -35,6 +39,7 @@ KernelTagged :: [].{
 	ParentTreeRow : { content_stream : Semantics.ContentStreamId, entries : Semantics.Range }
 
 	Work : {
+		annotation_items : U64,
 		artifact_groups : U64,
 		fragment_groups : U64,
 		k_items : U64,
@@ -46,6 +51,8 @@ KernelTagged :: [].{
 	}
 
 	Plan :: {
+		annotation_owners : List(Semantics.StructureElementId),
+		occurrence_owners : List(Semantics.NodeId),
 		k_items : List(KItem),
 		marked_fragments : List(MarkedContentReference),
 		node_k : List(NodeK),
@@ -57,6 +64,18 @@ KernelTagged :: [].{
 	}.{
 		build : KernelSemantics.Plan, KernelScene.Plan -> Try(Plan, Error)
 		build = |semantics, scenes| build_plan(semantics, scenes)
+
+		## Each annotation's owning structure element, dense by annotation
+		## identity. ParentTree lowering reads `/StructParent` values through
+		## this list without re-deriving ownership.
+		annotation_owners : Plan -> List(Semantics.StructureElementId)
+		annotation_owners = |plan| plan.annotation_owners
+
+		## Each content occurrence's owning semantic node, dense by occurrence
+		## identity. Destination resolution validates its paired semantic and
+		## geometric targets through this map without re-walking the spine.
+		occurrence_owners : Plan -> List(Semantics.NodeId)
+		occurrence_owners = |plan| plan.occurrence_owners
 
 		k_items : Plan -> List(KItem)
 		k_items = |plan| plan.k_items
@@ -94,7 +113,7 @@ ParentWork := {
 	writes : U64,
 }
 
-KWork := { items : List(KernelTagged.KItem), node_k : List(KernelTagged.NodeK) }
+KWork := { annotation_items : U64, items : List(KernelTagged.KItem), node_k : List(KernelTagged.NodeK) }
 
 TaggedProbeError := [SemanticFailure(KernelSemantics.Error), SceneFailure(KernelScene.Error), TaggedFailure(KernelTagged.Error)]
 
@@ -111,9 +130,12 @@ build_plan = |semantic_plan, scene_plan| {
 		ensure_occurrences_painted(semantics.occurrences)?
 		parents = build_parent_tree(semantics, paint.fragment_order, occurrence_nodes, KernelSemantics.Plan.content_stream_count(semantic_plan))?
 		k = build_k_order(semantics, parents.marked)?
+		annotation_owners = build_annotation_owners(semantics)
 
 		Ok(
 			KernelTagged.Plan.{
+				annotation_owners,
+				occurrence_owners: occurrence_nodes,
 				k_items: k.items,
 				marked_fragments: parents.marked,
 				node_k: k.node_k,
@@ -122,6 +144,7 @@ build_plan = |semantic_plan, scene_plan| {
 				scenes,
 				semantics,
 				work: {
+					annotation_items: k.annotation_items,
 					artifact_groups: paint.artifact_groups,
 					fragment_groups: paint.fragment_groups,
 					k_items: k.items.len(),
@@ -314,6 +337,7 @@ build_k_order : Semantics.Store, List(KernelTagged.MarkedContentReference) -> Tr
 build_k_order = |store, marked| {
 	var $items = []
 	var $ranges = []
+	var $annotation_items = 0
 	var $node_index = 0
 	while $node_index < store.nodes.len() {
 		node = list_at(store.nodes, $node_index)
@@ -323,7 +347,10 @@ build_k_order = |store, marked| {
 		var $content_index = content_start
 		while $content_index < content_end {
 			match list_at(store.content_spine, $content_index) {
-				AnnotationOccurrence(_) => {}
+				AnnotationOccurrence(annotation) => {
+					$items = $items.append(AnnotationChild(annotation))
+					$annotation_items = $annotation_items + 1
+				}
 				ChildNode(child) => {
 					child_node = list_at(store.nodes, child.index())
 					$items = $items.append(ChildStructure(child_node.structure_element))
@@ -348,7 +375,22 @@ build_k_order = |store, marked| {
 		$ranges = $ranges.append({ items: Semantics.Range.from_start_and_length(start, $items.len() - start), node: node.id })
 		$node_index = $node_index + 1
 	}
-	Ok({ items: $items, node_k: $ranges })
+	Ok({ annotation_items: $annotation_items, items: $items, node_k: $ranges })
+}
+
+## Each annotation's owner node was validated by the semantic stage; this maps
+## it to the owner's emitted structure element once, dense by annotation id.
+build_annotation_owners : Semantics.Store -> List(Semantics.StructureElementId)
+build_annotation_owners = |store| {
+	var $owners = List.with_capacity(store.annotations.len())
+	var $index = 0
+	while $index < store.annotations.len() {
+		annotation = list_at(store.annotations, $index)
+		node = list_at(store.nodes, annotation.owner.index())
+		$owners = $owners.append(node.structure_element)
+		$index = $index + 1
+	}
+	$owners
 }
 
 first_unowned : List(U8) -> [AllOwned, Unowned(U64)]
@@ -525,4 +567,38 @@ expect {
 		Err(OccurrenceHasNoFragments({ occurrence: 0 })) => True
 		_ => False
 	}
+}
+
+navigation_tagged_semantics : Semantics.Store
+navigation_tagged_semantics = {
+	..tagged_semantics,
+	annotations: [{ id: Semantics.AnnotationId.from_index(0), logical_order: 0, owner: Semantics.NodeId.from_index(1) }],
+	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), AnnotationOccurrence(Semantics.AnnotationId.from_index(0))],
+	nodes: [
+		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(2, 2), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "Link", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+	],
+}
+
+## Annotation spine occurrences become AnnotationChild K items in spine order
+## with dense owner structure elements; they never consume an MCID.
+expect {
+	limits = KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: 4, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })
+	semantics = KernelSemantics.Plan.build_navigation(navigation_tagged_semantics, 1, 1, limits) ? |_| TestFailure
+	scene = KernelScene.Plan.build(tagged_scene, KernelScene.Resources.make({ color_spaces: 0, images: 1 }), scene_limits) ? |_| TestFailure
+	plan = KernelTagged.Plan.build(semantics, scene) ? |_| TestFailure
+	items = KernelTagged.Plan.k_items(plan)
+	owners = KernelTagged.Plan.annotation_owners(plan)
+	work = KernelTagged.Plan.work(plan)
+	marked = list_at(KernelTagged.Plan.marked_fragments(plan), 0)
+
+	items.len() == 4 and
+		match list_at(items, 3) {
+			AnnotationChild(annotation) => annotation.index() == 0
+			_ => False
+		} and owners.len() == 1 and
+			list_at(owners, 0).index() == 1 and
+				work.annotation_items == 1 and
+					work.k_items == 4 and
+						marked.mcid == 0
 }

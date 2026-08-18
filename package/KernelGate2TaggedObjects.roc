@@ -6,7 +6,12 @@ import KernelTagged
 import Semantics
 
 KernelGate2TaggedObjects :: [].{
+
+	## `AnnotationObjectUnplanned` protects paths that cannot lower annotation
+	## objects: an annotation spine item on a plan without planned annotation
+	## object identities is a structured rejection, never a silent drop.
 	Error : [
+		AnnotationObjectUnplanned({ annotation : U64 }),
 		Object(KernelObject.Error),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : KernelObject.ObjectId }),
 	]
@@ -445,6 +450,7 @@ add_k_items = |builder, names, items, range, objects| {
 	while $index < end and $error == NoError {
 		item = list_at(items, $index)
 		added = match item {
+			AnnotationChild(annotation) => return Err(AnnotationObjectUnplanned({ annotation: annotation.index() }))
 			ChildStructure(child) => KernelObject.add_reference($builder, list_at(KernelGate2Objects.Plan.structure_elements(objects), child.index()))
 			ContextualArtifactChild(artifact) => KernelObject.add_reference($builder, list_at(KernelGate2Objects.Plan.contextual_artifacts(objects), artifact.index()))
 			MarkedContent(reference) => add_mcr($builder, names, reference, objects)
