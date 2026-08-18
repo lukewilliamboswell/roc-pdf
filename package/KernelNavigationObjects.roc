@@ -161,13 +161,14 @@ KernelNavigationObjects :: [].{
 plan_objects : U64, KernelNavigation.Store -> Try(KernelNavigationObjects.Objects, KernelNavigationObjects.Error)
 plan_objects = |base_count, store| {
 	annotation_count = store.annotations.len()
+	placeholder = object_id(1)?
 	var $ordered = List.with_capacity(annotation_count)
 	var $ordinal = 0
 	while $ordinal < annotation_count {
 		$ordered = $ordered.append(object_id(checked_add(base_count, $ordinal + 1)?)?)
 		$ordinal = $ordinal + 1
 	}
-	var $by_id = List.repeat(object_id_one, annotation_count)
+	var $by_id = List.repeat(placeholder, annotation_count)
 	$ordinal = 0
 	while $ordinal < annotation_count {
 		annotation = list_at(store.page_annotations, $ordinal)
@@ -958,14 +959,6 @@ object_id : U64 -> Try(KernelObject.ObjectId, KernelNavigationObjects.Error)
 object_id = |number| match KernelObject.ObjectId.from_number(number) {
 	Err(_) => Err(ArithmeticOverflow)
 	Ok(id) => Ok(id)
-}
-
-object_id_one : KernelObject.ObjectId
-object_id_one = match KernelObject.ObjectId.from_number(1) {
-	Err(_) => {
-		crash "constant object number escaped"
-	}
-	Ok(id) => id
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelNavigationObjects.Error)

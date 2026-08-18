@@ -701,8 +701,8 @@ ranges_equal = |left, right| {
 style_for : Document.NormalizedBlockKind, Theme -> Theme.TextStyle
 style_for = |kind, theme| match kind {
 	Title => Theme.title_style(theme)
-	Heading(_) => Theme.heading_style(theme)
-	Bullet(_) | Paragraph => Theme.body_style(theme)
+	Heading(_) | DestinationHeading(_) => Theme.heading_style(theme)
+	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) => Theme.body_style(theme)
 	PageArtifact(_) => Theme.body_style(theme)
 }
 

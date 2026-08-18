@@ -9,6 +9,7 @@ import KernelFacadePipeline
 import KernelFont
 import KernelFontPlan
 import KernelMetadata
+import KernelNavigation
 import KernelSrgbProfile
 import KernelXmp
 import Metadata
@@ -61,6 +62,7 @@ Pdf :: [].{
 		InvalidFontResource(Font.ResourceError),
 		InvalidFontSelection(List(Font.PlanError)),
 		InvalidMetadata(Metadata.Error),
+		InvalidNavigation(Document.NavigationError),
 		UnsupportedAuthoringContent({ blocks : U64 }),
 	]
 
@@ -129,6 +131,30 @@ Pdf :: [].{
 
 	page_footer : Str -> Document.Block
 	page_footer = |text| Document.page_footer(text)
+
+	## A URI link block; the whole text is the link.
+	link : Str, Str -> Document.Block
+	link = |text, uri| Document.link(text, uri)
+
+	## An internal link block referencing an authored destination name.
+	internal_link : Str, Str -> Document.Block
+	internal_link = |text, destination| Document.internal_link(text, destination)
+
+	## A heading that also declares a named destination.
+	destination_heading : Str, U8, Str -> Document.Block
+	destination_heading = |name, level, text| Document.destination_heading(name, level, text)
+
+	destination_paragraph : Str, Str -> Document.Block
+	destination_paragraph = |name, text| Document.destination_paragraph(name, text)
+
+	## The authored document outline in dense preorder over authored
+	## destination names.
+	with_outline : Document, List(Document.OutlineEntry) -> Document
+	with_outline = |doc, entries| Document.with_outline(doc, entries)
+
+	## Authored page-label ranges keyed by physical page index.
+	with_page_labels : Document, List(Document.PageLabelRange) -> Document
+	with_page_labels = |doc, ranges| Document.with_page_labels(doc, ranges)
 
 	## Optional explicit metadata timestamps in the canonical UTC form
 	## `YYYY-MM-DDThh:mm:ssZ`. The package never invents a timestamp: omitted
@@ -224,7 +250,7 @@ build_standard_plan = |doc, options| {
 			standard_font_descriptor,
 			facts,
 			standard_pipeline_limits,
-		) ? |_| UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+		) ? |error| pipeline_error(error, Document.block_count(doc))
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(
 			Document.normalize(doc),
 			ordered,
@@ -262,6 +288,15 @@ ordered_pipeline_error = |error, policy, blocks| match error {
 	Shape(FontSelectionRejected(errors)) => InvalidFontSelection(errors)
 	Shape(PolicyInvalid(_)) => InvalidFontSelection([InvalidPolicy(policy)])
 	Shape(UndeclaredScript({ script, source })) => InvalidFontSelection([UnsupportedBuiltInShaping({ cluster: source, script: Font.Script.from_iso15924(script) })])
+	_ => pipeline_error(error, blocks)
+}
+
+## Author-facing navigation rejections surface with their exact typed cause;
+## every other pipeline failure keeps the authored-content error.
+pipeline_error : KernelFacadePipeline.Error, U64 -> Pdf.Error
+pipeline_error = |error, blocks| match error {
+	Fragments(Navigation(navigation)) => InvalidNavigation(navigation)
+	Output(Structure(Navigation(navigation))) => InvalidNavigation(navigation)
 	_ => UnsupportedAuthoringContent({ blocks: blocks })
 }
 
@@ -333,6 +368,19 @@ standard_pipeline_limits : KernelFacadePipeline.Limits
 standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 4 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 100000, max_occurrences: 2048, max_pages: 1024 }),
+	navigation: KernelNavigation.Limits.make({
+		max_annotations: 4096,
+		max_description_bytes: 1024,
+		max_destinations: 2048,
+		max_label_prefix_bytes: 64,
+		max_label_ranges: 1024,
+		max_name_bytes: 128,
+		max_outline_depth: 32,
+		max_outline_entries: 4096,
+		max_outline_title_bytes: 1024,
+		max_quads: 100000,
+		max_uri_bytes: 2048,
+	}),
 	lines: KernelFacadeLines.Limits.make({
 		line: KernelLineLayout.BatchLimits.make({
 			line: KernelLineLayout.Limits.make({ max_boundaries: 1000001, max_candidates: 2000000, max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_lines: 1000000 }),
@@ -396,8 +444,8 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 standard_object_limits : KernelObject.Limits
 standard_object_limits = {
 	max_array_items: 1000000,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 1048576,
+	max_byte_strings: 65536,
 	max_dictionary_entries: 1000000,
 	max_direct_depth: 8,
 	max_name_bytes: 8192,
@@ -407,7 +455,7 @@ standard_object_limits = {
 	max_payloads: 100000,
 	max_streams: 100000,
 	max_text_string_bytes: 1000000,
-	max_text_strings: 2048,
+	max_text_strings: 16384,
 	max_values: 1000000,
 }
 
@@ -653,4 +701,62 @@ append_pdf_bytes = |target, source| {
 		$index = $index + 1
 	}
 	$out
+}
+
+## Facade navigation: URI and internal links, an authored named destination,
+## an outline, and page labels lower end to end through the standard
+## pipeline, and the navigation rejections surface as typed errors.
+expect {
+	document = Pdf.document({
+		contents: [
+			Pdf.title("Navigation"),
+			Pdf.destination_heading("intro", 1, "Introduction"),
+			Pdf.paragraph("Opening body text."),
+			Pdf.link("Visit the project site", "https://example.org/project"),
+			Pdf.internal_link("Back to the introduction", "intro"),
+		],
+		language: "en-AU",
+		title: "Navigation",
+	})
+	navigated = document
+		.with_outline([{ depth: 0, destination: "intro", open: True, title: "Introduction" }])
+		.with_page_labels([{ prefix: "", start_number: 1, start_page: 0, style: DecimalArabic }])
+	bytes = Pdf.to_bytes(navigated)?
+
+	bytes.len() > 4717
+}
+
+## A navigation document's chunked output is byte-identical to its buffered
+## output under both retention policies.
+expect {
+	document = Pdf.document({
+		contents: [
+			Pdf.destination_heading("start", 1, "Start"),
+			Pdf.internal_link("Back to the start", "start"),
+			Pdf.link("Reference", "https://example.org/ref"),
+		],
+		language: "en-AU",
+		title: "Chunked navigation",
+	}).with_outline([{ depth: 0, destination: "start", open: True, title: "Start" }])
+	expected = Pdf.to_bytes(document)?
+	shared = collect_chunks(Pdf.to_chunks(document)?)
+	owned_options = Pdf.Options.with_chunk_retention(Pdf.Options.default, OwnChunks)
+	owned = collect_chunks(Pdf.to_chunks_with(document, owned_options)?)
+
+	shared.bytes == expected and owned.bytes == expected
+}
+
+## An unknown destination name on an internal link is a typed navigation
+## rejection through the facade, and no bytes escape.
+expect {
+	document = Pdf.document({
+		contents: [Pdf.internal_link("Broken", "missing")],
+		language: "en-AU",
+		title: "Broken",
+	})
+
+	match Pdf.to_bytes(document) {
+		Err(InvalidNavigation(UnknownDestinationName({ annotation: 0 }))) => True
+		_ => False
+	}
 }

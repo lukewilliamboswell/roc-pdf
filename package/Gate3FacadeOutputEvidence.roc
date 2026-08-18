@@ -7,6 +7,7 @@ import KernelFacadeLines
 import KernelFacadeOutput
 import KernelFacadePages
 import KernelFacadePipeline
+import KernelNavigation
 import KernelFacadeScenes
 import KernelFacadeSemantics
 import KernelFacadeShape
@@ -149,6 +150,19 @@ pipeline_limits_for : U64 -> KernelFacadePipeline.Limits
 pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 128, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 128, max_occurrences: 1, max_pages: 128 }),
+	navigation: KernelNavigation.Limits.make({
+		max_annotations: 0,
+		max_description_bytes: 0,
+		max_destinations: 0,
+		max_label_prefix_bytes: 0,
+		max_label_ranges: 0,
+		max_name_bytes: 0,
+		max_outline_depth: 0,
+		max_outline_entries: 0,
+		max_outline_title_bytes: 0,
+		max_quads: 0,
+		max_uri_bytes: 0,
+	}),
 	lines: KernelFacadeLines.Limits.make({
 		line: KernelLineLayout.BatchLimits.make({
 			line: KernelLineLayout.Limits.make({ max_boundaries: 129, max_candidates: 256, max_clusters: 128, max_glyph_indices: 128, max_glyphs: 128, max_lines: 128 }),

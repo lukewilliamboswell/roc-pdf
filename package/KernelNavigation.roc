@@ -108,6 +108,9 @@ KernelNavigation :: [].{
 			max_uri_bytes : U64,
 		} -> Limits
 		make = |limits| Limits.(limits)
+
+		max_outline_depth : Limits -> U64
+		max_outline_depth = |Limits.(limits)| limits.max_outline_depth
 	}
 
 	## Normalized actions reference the dense destination identity resolved

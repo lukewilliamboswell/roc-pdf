@@ -68,21 +68,29 @@ KernelFacadeOutput :: [].{
 
 	Plan :: { structure : KernelStructure.Plan, work : Work }.{
 		build : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
-		build = |scenes, font, descriptor, limits| build_plan(scenes, font, descriptor, NoDocumentFacts, limits)
+		build = |scenes, font, descriptor, limits| build_plan(scenes, font, descriptor, NoDocumentFacts, NoNavigation, limits)
 
 		## Document facts flow through unchanged to structure planning, which
 		## appends the canonical XMP stream and catalog entries.
 		build_with_facts : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_with_facts = |scenes, font, descriptor, facts, limits| build_plan(scenes, font, descriptor, facts, limits)
+		build_with_facts = |scenes, font, descriptor, facts, limits| build_plan(scenes, font, descriptor, facts, NoNavigation, limits)
+
+		## Navigation input flows through unchanged to structure planning,
+		## which resolves destinations and lowers the navigation objects.
+		build_with_navigation : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelGate3TaggedTextStructure.NavigationInput, Limits -> Try(Plan, Error)
+		build_with_navigation = |scenes, font, descriptor, facts, navigation, limits| build_plan(scenes, font, descriptor, facts, navigation, limits)
 
 		## Ordered multi-face output. Dense font index k owns one plan, one
 		## sanitized subset, and the `F1_k` resource; a one-font list delegates
 		## to the exact single-face path above.
 		build_multi : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
-		build_multi = |scenes, fonts, descriptor, limits| build_multi_plan(scenes, fonts, descriptor, NoDocumentFacts, limits)
+		build_multi = |scenes, fonts, descriptor, limits| build_multi_plan(scenes, fonts, descriptor, NoDocumentFacts, NoNavigation, limits)
 
 		build_multi_with_facts : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_multi_with_facts = |scenes, fonts, descriptor, facts, limits| build_multi_plan(scenes, fonts, descriptor, facts, limits)
+		build_multi_with_facts = |scenes, fonts, descriptor, facts, limits| build_multi_plan(scenes, fonts, descriptor, facts, NoNavigation, limits)
+
+		build_multi_with_navigation : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelGate3TaggedTextStructure.NavigationInput, Limits -> Try(Plan, Error)
+		build_multi_with_navigation = |scenes, fonts, descriptor, facts, navigation, limits| build_multi_plan(scenes, fonts, descriptor, facts, navigation, limits)
 
 		structure : Plan -> KernelStructure.Plan
 		structure = |plan| plan.structure
@@ -92,8 +100,8 @@ KernelFacadeOutput :: [].{
 	}
 }
 
-build_plan : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
-build_plan = |scenes, font, descriptor, facts, limits| {
+build_plan : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelGate3TaggedTextStructure.NavigationInput, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
+build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	ownership = KernelFacadeScenes.Plan.ownership(scenes)
 	scene = KernelFacadeScenes.Plan.scene(scenes)
 	colors = KernelFacadeScenes.Plan.colors(scenes)
@@ -108,7 +116,7 @@ build_plan = |scenes, font, descriptor, facts, limits| {
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
 	font_objects = KernelGate3FontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
-	structure = KernelGate3TaggedTextStructure.Plan.build_with_facts(
+	structure = KernelGate3TaggedTextStructure.Plan.build_with_navigation(
 		tagged,
 		colors,
 		images,
@@ -117,6 +125,7 @@ build_plan = |scenes, font, descriptor, facts, limits| {
 		text,
 		[{ descriptor, font, plan: font_plan, subset }],
 		facts,
+		navigation,
 		limits.structure,
 	) ? Structure
 	content_work = KernelContent.Plan.work(content)
@@ -144,10 +153,10 @@ build_plan = |scenes, font, descriptor, facts, limits| {
 	)
 }
 
-build_multi_plan : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
-build_multi_plan = |scenes, fonts, descriptor, facts, limits| {
+build_multi_plan : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelGate3TaggedTextStructure.NavigationInput, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
+build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 	if fonts.len() == 1 {
-		return build_plan(scenes, list_at(fonts, 0), descriptor, facts, limits)
+		return build_plan(scenes, list_at(fonts, 0), descriptor, facts, navigation, limits)
 	}
 	ownership = KernelFacadeScenes.Plan.ownership(scenes)
 	scene = KernelFacadeScenes.Plan.scene(scenes)
@@ -203,7 +212,7 @@ build_multi_plan = |scenes, fonts, descriptor, facts, limits| {
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
 	font_objects = KernelGate3FontObjects.Plan.build(objects, fonts.len(), limits.max_objects) ? FontObjects
-	structure = KernelGate3TaggedTextStructure.Plan.build_with_facts(
+	structure = KernelGate3TaggedTextStructure.Plan.build_with_navigation(
 		tagged,
 		colors,
 		images,
@@ -212,6 +221,7 @@ build_multi_plan = |scenes, fonts, descriptor, facts, limits| {
 		text,
 		$embedded,
 		facts,
+		navigation,
 		limits.structure,
 	) ? Structure
 	content_work = KernelContent.Plan.work(content)

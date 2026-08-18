@@ -32,7 +32,13 @@ KernelGate2PageObjects :: [].{
 		build = |prefix, tagged, content, objects| build_plan(prefix, tagged, content, objects)
 
 		build_with_fonts : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan -> Try(Plan, Error)
-		build_with_fonts = |prefix, tagged, content, objects| build_font_plan(prefix, tagged, content, objects)
+		build_with_fonts = |prefix, tagged, content, objects| build_font_plan(prefix, tagged, content, objects, NoAnnotationObjects)
+
+		## The navigation-aware Gate 3 variant: per-page planned annotation
+		## object identities lower as `/Annots` reference arrays in keyboard
+		## order. An empty outer list is identical to `build_with_fonts`.
+		build_with_fonts_navigation : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan, List(List(KernelObject.ObjectId)) -> Try(Plan, Error)
+		build_with_fonts_navigation = |prefix, tagged, content, objects, annotation_objects| build_font_plan(prefix, tagged, content, objects, PerPageAnnotationObjects(annotation_objects))
 
 		## The Gate 4 variant: the caller has already added one exact direct
 		## resource-dictionary value per page to the builder, so this lowering
@@ -72,6 +78,8 @@ KernelGate2PageObjects :: [].{
 }
 
 PageAnnotations := [NoAnnotations, PerPageAnnotations(List(KernelGate2PageObjects.PageAnnots))]
+
+AnnotationObjects := [NoAnnotationObjects, PerPageAnnotationObjects(List(List(KernelObject.ObjectId)))]
 
 ResourcesFor := [PerPage(List(KernelObject.ValueId)), SharedValue(KernelObject.ValueId)]
 
@@ -144,14 +152,54 @@ build_page_resource_plan = |builder, tagged, content, objects, resource_values, 
 	)
 }
 
-build_font_plan : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
-build_font_plan = |prefix, tagged, content, font_objects| {
+build_font_plan : KernelGate2TaggedObjects.Plan, KernelTagged.Plan, KernelContent.Plan, KernelGate3FontObjects.Plan, AnnotationObjects -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
+build_font_plan = |prefix, tagged, content, font_objects, annotation_objects| {
 	objects = KernelGate3FontObjects.Plan.base(font_objects)
-	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), NoGroups)?
+	annotation_state = match annotation_objects {
+		NoAnnotationObjects => NoAnnotations
+		PerPageAnnotationObjects(_) => PerPageAnnotations([])
+	}
+	added_names = add_names_with_annotations(KernelGate2TaggedObjects.Plan.builder(prefix), NoGroups, annotation_state)?
 	font_name = KernelObject.add_name(added_names.builder, Str.to_utf8("Font")) ? Object
 	resources = add_resources_with_fonts(font_name.builder, added_names.names, font_name.id, objects, KernelGate3FontObjects.Plan.fonts(font_objects))?
-	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects, NoGroups, NoAnnotations)?
+	annots = match annotation_objects {
+		NoAnnotationObjects => { builder: resources.builder, value: NoAnnotations }
+		PerPageAnnotationObjects(per_page) => {
+			var $annots = List.with_capacity(per_page.len())
+			var $builder = resources.builder
+			var $page = 0
+			var $error = NoError
+			while $page < per_page.len() and $error == NoError {
+				page_objects = list_at(per_page, $page)
+				if page_objects.is_empty() {
+					$annots = $annots.append(NoAnnots)
+				} else {
+					match add_references($builder, page_objects) {
+						Err(error) => {
+							$error = Invalid(error)
+						}
+						Ok(references) => match KernelObject.add_array(references.builder, references.values) {
+							Err(error) => {
+								$error = Invalid(Object(error))
+							}
+							Ok(array) => {
+								$builder = array.builder
+								$annots = $annots.append(WithAnnots(array.id))
+							}
+						}
+					}
+				}
+				$page = $page + 1
+			}
+			match $error {
+				Invalid(error) => return Err(error)
+				NoError => {}
+			}
+			{ builder: $builder, value: PerPageAnnotations($annots) }
+		}
+	}
+	page_tree = add_page_tree(annots.builder, added_names.names, objects)?
+	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects, NoGroups, annots.value)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,

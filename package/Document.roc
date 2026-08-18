@@ -10,7 +10,11 @@ import Text
 
 DocumentBlock :: [
 	Bullets(List(Str)),
+	DestinationHeading({ level : U8, name : Str, text : Str }),
+	DestinationParagraph({ name : Str, text : Str }),
 	Heading({ level : U8, text : Str }),
+	InternalLink({ destination : Str, text : Str }),
+	Link({ text : Str, uri : Str }),
 	PageArtifact({ kind : PageArtifactKind, text : Str }),
 	Paragraph(Str),
 	Title(Str),
@@ -20,7 +24,11 @@ PageArtifactKind := [Footer, Header, PageNumber, Watermark]
 
 NormalizedBlockKind := [
 	Bullet({ item : U64, list : U64 }),
+	DestinationHeading({ level : U8, name : Str }),
+	DestinationParagraph({ name : Str }),
 	Heading(U8),
+	InternalLink({ destination : Str }),
+	Link({ uri : Str }),
 	PageArtifact(PageArtifactKind),
 	Paragraph,
 	Title,
@@ -32,6 +40,8 @@ NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	language : Str,
 	metadata_title : Str,
+	outline : List(OutlineEntry),
+	page_labels : List(PageLabelRange),
 }
 
 ## One authored outline entry in dense preorder: the depth below the outline
@@ -232,6 +242,20 @@ DocumentBuilder :: {
 	add_page_footer : DocumentBuilder, Str -> DocumentBuilder
 	add_page_footer = |state, text| append_artifact(state, Footer, text)
 
+	## A URI link block: the whole text is the link. The secondary string is
+	## interned beside the text; the aux slot records its index.
+	add_link : DocumentBuilder, Str, Str -> DocumentBuilder
+	add_link = |state, text, uri| append_with_secondary(state, link_tag, text, uri, 1)
+
+	add_internal_link : DocumentBuilder, Str, Str -> DocumentBuilder
+	add_internal_link = |state, text, destination| append_with_secondary(state, internal_link_tag, text, destination, 1)
+
+	add_destination_heading : DocumentBuilder, Str, U8, Str -> DocumentBuilder
+	add_destination_heading = |state, name, level, text| append_with_secondary(state, destination_heading_tag, text, name, 8 * 1 + level.to_u64())
+
+	add_destination_paragraph : DocumentBuilder, Str, Str -> DocumentBuilder
+	add_destination_paragraph = |state, name, text| append_with_secondary(state, destination_paragraph_tag, text, name, 1)
+
 	stats : DocumentBuilder -> Stats
 	stats = |state| {
 		blocks: state.block_tags.len(),
@@ -421,6 +445,24 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	bullets : List(Str) -> DocumentBlock
 	bullets = |items| DocumentBlock.Bullets(items)
 
+	## A URI link block: the whole block text is the link text and the URI is
+	## recorded for the reader; nothing dereferences it.
+	link : Str, Str -> DocumentBlock
+	link = |text, uri| DocumentBlock.Link({ text, uri })
+
+	## An internal link block referencing an authored destination name.
+	internal_link : Str, Str -> DocumentBlock
+	internal_link = |text, destination| DocumentBlock.InternalLink({ destination, text })
+
+	## A heading that also declares a named destination: the heading's
+	## semantic node is the structure target and its content is the layout
+	## anchor.
+	destination_heading : Str, U8, Str -> DocumentBlock
+	destination_heading = |name, level, text| DocumentBlock.DestinationHeading({ level, name, text })
+
+	destination_paragraph : Str, Str -> DocumentBlock
+	destination_paragraph = |name, text| DocumentBlock.DestinationParagraph({ name, text })
+
 	page_header : Str -> DocumentBlock
 	page_header = |text| DocumentBlock.PageArtifact({ kind: Header, text })
 
@@ -451,7 +493,10 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## Both authoring front ends lower once to the same flat text/block store.
 	## String payloads remain shared values; block and list identity are scalar facts.
 	normalize : Document -> NormalizedAuthoring
-	normalize = |document| normalize_authoring(document.authoring)
+	normalize = |document| {
+		normalized = normalize_authoring(document.authoring)
+		{ ..normalized, outline: document.outline, page_labels: document.page_labels }
+	}
 }
 
 normalize_authoring : DocumentAuthoring -> NormalizedAuthoring
@@ -485,6 +530,14 @@ normalize_compact = |compact| {
 			$blocks = $blocks.append({ kind: Paragraph, text: list_at(compact.text_sources, text) })
 		} else if tag == title_tag {
 			$blocks = $blocks.append({ kind: Title, text: list_at(compact.text_sources, text) })
+		} else if tag == link_tag {
+			$blocks = $blocks.append({ kind: Link({ uri: list_at(compact.text_sources, aux) }), text: list_at(compact.text_sources, text) })
+		} else if tag == internal_link_tag {
+			$blocks = $blocks.append({ kind: InternalLink({ destination: list_at(compact.text_sources, aux) }), text: list_at(compact.text_sources, text) })
+		} else if tag == destination_heading_tag {
+			$blocks = $blocks.append({ kind: DestinationHeading({ level: (aux % 8).to_u8_wrap(), name: list_at(compact.text_sources, aux // 8) }), text: list_at(compact.text_sources, text) })
+		} else if tag == destination_paragraph_tag {
+			$blocks = $blocks.append({ kind: DestinationParagraph({ name: list_at(compact.text_sources, aux) }), text: list_at(compact.text_sources, text) })
 		} else {
 			crash "compact authoring block tag escaped"
 		}
@@ -494,6 +547,8 @@ normalize_compact = |compact| {
 		blocks: $blocks,
 		language: compact.language,
 		metadata_title: compact.metadata_title,
+		outline: [],
+		page_labels: [],
 	}
 }
 
@@ -512,8 +567,20 @@ normalize_simple = |simple| {
 				}
 				$list_index = $list_index + 1
 			}
+			DestinationHeading({ level, name, text }) => {
+				$blocks = $blocks.append({ kind: DestinationHeading({ level, name }), text })
+			}
+			DestinationParagraph({ name, text }) => {
+				$blocks = $blocks.append({ kind: DestinationParagraph({ name: name }), text })
+			}
 			Heading({ level, text }) => {
 				$blocks = $blocks.append({ kind: Heading(level), text })
+			}
+			InternalLink({ destination, text }) => {
+				$blocks = $blocks.append({ kind: InternalLink({ destination: destination }), text })
+			}
+			Link({ text, uri }) => {
+				$blocks = $blocks.append({ kind: Link({ uri: uri }), text })
 			}
 			PageArtifact({ kind, text }) => {
 				$blocks = $blocks.append({ kind: PageArtifact(kind), text })
@@ -531,6 +598,32 @@ normalize_simple = |simple| {
 		blocks: $blocks,
 		language: simple.language,
 		metadata_title: simple.metadata_title,
+		outline: [],
+		page_labels: [],
+	}
+}
+
+## Blocks with a secondary string (a URI or a destination name) intern it as
+## the entry after the block text; the aux slot carries the secondary
+## offset relative to the text index — for destination headings multiplied
+## by eight with the heading level packed into the low three bits.
+append_with_secondary : DocumentBuilder, U8, Str, Str, U64 -> DocumentBuilder
+append_with_secondary = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, tag, text, secondary, aux_pattern| {
+	text_id = text_sources.len()
+	secondary_id = text_id + 1
+	aux = if tag == destination_heading_tag {
+		secondary_id * 8 + aux_pattern % 8
+	} else {
+		secondary_id
+	}
+
+	DocumentBuilder.{
+		block_aux: block_aux.append(aux),
+		block_tags: block_tags.append(tag),
+		block_texts: block_texts.append(text_id),
+		language,
+		metadata_title,
+		text_sources: text_sources.append(text).append(secondary),
 	}
 }
 
@@ -581,6 +674,18 @@ paragraph_tag = 3
 
 title_tag : U8
 title_tag = 4
+
+link_tag : U8
+link_tag = 5
+
+internal_link_tag : U8
+internal_link_tag = 6
+
+destination_heading_tag : U8
+destination_heading_tag = 7
+
+destination_paragraph_tag : U8
+destination_paragraph_tag = 8
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

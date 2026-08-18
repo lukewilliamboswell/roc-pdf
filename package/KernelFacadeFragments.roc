@@ -1,6 +1,9 @@
+import Document
 import KernelFacadeText
+import KernelNavigation
 import KernelSemantics
 import KernelTextSemantics
+import Layout
 import Semantics
 import Text
 
@@ -8,6 +11,7 @@ KernelFacadeFragments :: [].{
 	Dimension : [Fragments, Occurrences, Pages]
 	Error : [
 		ArithmeticOverflow,
+		Navigation(Document.NavigationError),
 		InvalidOccurrence({ available : U64, run : U64 }),
 		InvalidPage({ page : U64 }),
 		InvalidPlacement({ placement : U64 }),
@@ -37,6 +41,21 @@ KernelFacadeFragments :: [].{
 		placements : List(KernelFacadeText.Placement),
 		text : Text.Store,
 	}
+
+	## The authored navigation facts the post-layout stage consumes: link and
+	## destination records from the semantic stage plus the document outline
+	## and page-label ranges.
+	NavigationAuthoring : [
+		NoNavigationAuthoring,
+		WithNavigationAuthoring(
+			{
+				destinations : List({ anchor : Semantics.OccurrenceId, name : Str, target : Semantics.NodeId }),
+				links : List({ node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }),
+				outline : List(Document.OutlineEntry),
+				page_labels : List(Document.PageLabelRange),
+			},
+		),
+	]
 	Arena :: { fragments : List(Semantics.LayoutFragment), work : Work }.{
 
 		## Focused phase evidence stops at the flat fragment arena. The production
@@ -53,12 +72,29 @@ KernelFacadeFragments :: [].{
 		work : Arena -> Work
 		work = |arena| arena.work
 	}
-	Plan :: { arena : Arena, semantics : KernelTextSemantics.Plan, text : KernelFacadeText.Plan }.{
+	Plan :: { anchor_rects : List(KernelNavigation.AnchorRect), arena : Arena, navigation : [NoNavigationStore, WithNavigationStore(KernelNavigation.Store)], semantics : KernelTextSemantics.Plan, text : KernelFacadeText.Plan }.{
 		build : KernelTextSemantics.Plan, KernelFacadeText.Plan, Limits, KernelSemantics.Limits -> Try(Plan, Error)
-		build = |preliminary, text, limits, semantic_limits| build_plan(preliminary, text, limits, semantic_limits)
+		build = |preliminary, text, limits, semantic_limits| build_plan(preliminary, text, NoNavigationAuthoring, limits, semantic_limits, no_navigation_limits)
+
+		## The navigation-aware build: after pagination, every link lowers to
+		## one annotation per page its line runs land on — each page's
+		## quadrilaterals are the exact painted line boxes and the annotation
+		## rectangle is their union — the content spine gains the per-page
+		## annotation occurrences inside each Link node, per-fragment anchor
+		## rectangles are derived for destination resolution, and the whole
+		## navigation store validates once. `NoNavigationAuthoring` is
+		## identical to `build`.
+		build_with_navigation : KernelTextSemantics.Plan, KernelFacadeText.Plan, NavigationAuthoring, Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(Plan, Error)
+		build_with_navigation = |preliminary, text, navigation, limits, semantic_limits, navigation_limits| build_plan(preliminary, text, navigation, limits, semantic_limits, navigation_limits)
+
+		anchor_rects : Plan -> List(KernelNavigation.AnchorRect)
+		anchor_rects = |plan| plan.anchor_rects
 
 		fragments : Plan -> List(Semantics.LayoutFragment)
 		fragments = |plan| plan.arena.fragments
+
+		navigation : Plan -> [NoNavigationStore, WithNavigationStore(KernelNavigation.Store)]
+		navigation = |plan| plan.navigation
 
 		semantics : Plan -> KernelTextSemantics.Plan
 		semantics = |plan| plan.semantics
@@ -71,12 +107,281 @@ KernelFacadeFragments :: [].{
 	}
 }
 
-build_plan : KernelTextSemantics.Plan, KernelFacadeText.Plan, KernelFacadeFragments.Limits, KernelSemantics.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
-build_plan = |preliminary, text, limits, semantic_limits| {
+no_navigation_limits : KernelNavigation.Limits
+no_navigation_limits = KernelNavigation.Limits.make({
+	max_annotations: 0,
+	max_description_bytes: 0,
+	max_destinations: 0,
+	max_label_prefix_bytes: 0,
+	max_label_ranges: 0,
+	max_name_bytes: 0,
+	max_outline_depth: 0,
+	max_outline_entries: 0,
+	max_outline_title_bytes: 0,
+	max_quads: 0,
+	max_uri_bytes: 0,
+})
+
+build_plan : KernelTextSemantics.Plan, KernelFacadeText.Plan, KernelFacadeFragments.NavigationAuthoring, KernelFacadeFragments.Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
+build_plan = |preliminary, text, navigation, limits, semantic_limits, navigation_limits| {
 	arena = build_arena(preliminary, prepare_text(text), limits)?
 	page_count = KernelFacadeText.Plan.pages(text).len()
-	semantics = KernelTextSemantics.Plan.attach_fragments(preliminary, arena.fragments, page_count, page_count, semantic_limits) ? TextSemantics
-	Ok(KernelFacadeFragments.Plan.{ arena, semantics, text })
+	match navigation {
+		NoNavigationAuthoring => {
+			semantics = KernelTextSemantics.Plan.attach_fragments(preliminary, arena.fragments, page_count, page_count, semantic_limits) ? TextSemantics
+			Ok(KernelFacadeFragments.Plan.{ anchor_rects: [], arena, navigation: NoNavigationStore, semantics, text })
+		}
+		WithNavigationAuthoring(authored) => {
+			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
+			geometry = derive_run_geometry(text)?
+			grouped = group_link_annotations(store, text, geometry.rects, authored.links, page_count)?
+			patch = patch_spine(store, authored.links, grouped.per_link)?
+			navigation_input = {
+				annotations: grouped.annotations,
+				destinations: authored.destinations,
+				outline: authored.outline,
+				page_labels: authored.page_labels,
+			}
+			context = {
+				forms: 0,
+				nodes: patch.nodes.len(),
+				occurrences: store.occurrences.len(),
+				pages: page_count,
+				semantic_annotations: patch.annotations.len(),
+			}
+			validated = KernelNavigation.validate(navigation_input, context, navigation_limits) ? Navigation
+			semantics = KernelTextSemantics.Plan.attach_fragments_navigation(
+				preliminary,
+				{ annotations: patch.annotations, content_spine: patch.content_spine, nodes: patch.nodes },
+				arena.fragments,
+				page_count,
+				page_count,
+				semantic_limits,
+			) ? TextSemantics
+			Ok(KernelFacadeFragments.Plan.{ anchor_rects: geometry.rects, arena, navigation: WithNavigationStore(validated.store), semantics, text })
+		}
+	}
+}
+
+## One deterministic layout box per placed line run: the placement origin is
+## the baseline start, the width is the run's exact glyph advance sum, the
+## box rises one font size above the baseline, and the box height is the
+## style leading (never less than the size).
+derive_run_geometry : KernelFacadeText.Plan -> Try({ rects : List(KernelNavigation.AnchorRect) }, KernelFacadeFragments.Error)
+derive_run_geometry = |text_plan| {
+	text = KernelFacadeText.Plan.text(text_plan)
+	placements = KernelFacadeText.Plan.placements(text_plan)
+	styles = KernelFacadeText.Plan.styles(text_plan)
+	var $rects = List.with_capacity(text.runs.len())
+	var $run_index = 0
+	while $run_index < text.runs.len() {
+		run = list_at(text.runs, $run_index)
+		placement = list_at(placements, $run_index)
+		var $width = 0
+		var $glyph = run.glyphs.start()
+		glyph_end = run.glyphs.start() + run.glyphs.length()
+		while $glyph < glyph_end {
+			$width = checked_i64(list_at(text.glyphs, $glyph).advance_x.raw(), $width)?
+			$glyph = $glyph + 1
+		}
+		size = run.size.raw()
+		leading = list_at(styles, run.occurrence.index()).leading.raw()
+		height = if leading > size leading else size
+		top = checked_i64(placement.origin.y.raw(), size)?
+		bottom = top - height
+		$rects = $rects.append(
+			AnchorAt({
+				origin: { x: placement.origin.x, y: Layout.Unit.from_raw(bottom) },
+				size: { height: Layout.Unit.from_raw(height), width: Layout.Unit.from_raw($width) },
+			}),
+		)
+		$run_index = $run_index + 1
+	}
+	Ok({ rects: $rects })
+}
+
+## Group each link's line runs by page, in run order: one annotation input
+## per (link, page) with the page's line boxes as quadrilaterals and their
+## union as the rectangle. Keyboard order is the per-page annotation
+## creation order, which follows the links' spine order.
+group_link_annotations : Semantics.Store, KernelFacadeText.Plan, List(KernelNavigation.AnchorRect), List({ node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }), U64 -> Try({ annotations : List(KernelNavigation.AnnotationInput), per_link : List(U64) }, KernelFacadeFragments.Error)
+group_link_annotations = |store, text_plan, rects, links, page_count| {
+	text = KernelFacadeText.Plan.text(text_plan)
+	placements = KernelFacadeText.Plan.placements(text_plan)
+	sentinel = links.len()
+	var $link_of_occurrence = List.repeat(sentinel, store.occurrences.len())
+	var $link_index = 0
+	while $link_index < links.len() {
+		link = list_at(links, $link_index)
+		if link.occurrence.index() >= store.occurrences.len() {
+			return Err(InvalidOccurrence({ available: store.occurrences.len(), run: link.occurrence.index() }))
+		}
+		$link_of_occurrence = list_set($link_of_occurrence, link.occurrence.index(), $link_index)
+		$link_index = $link_index + 1
+	}
+
+	## Per link: the list of page groups in ascending page order.
+	var $groups = List.repeat([], links.len())
+	var $run_index = 0
+	while $run_index < text.runs.len() {
+		run = list_at(text.runs, $run_index)
+		owner = list_at($link_of_occurrence, run.occurrence.index())
+		if owner != sentinel {
+			placement = list_at(placements, $run_index)
+			quad = match list_at(rects, $run_index) {
+				AnchorAt(rect) => {
+					x_left: rect.origin.x,
+					x_right: Layout.Unit.from_raw(checked_i64(rect.origin.x.raw(), rect.size.width.raw())?),
+					y_bottom: rect.origin.y,
+					y_top: Layout.Unit.from_raw(checked_i64(rect.origin.y.raw(), rect.size.height.raw())?),
+				}
+				NoAnchor => {
+					crash "facade run geometry escaped"
+				}
+			}
+			var $link_groups = list_at($groups, owner)
+			appended = match $link_groups.last() {
+				Ok(group) => if group.page == placement.page.index() {
+					updated = { ..group, quads: group.quads.append(quad) }
+					{ groups: list_set($link_groups, $link_groups.len() - 1, updated), new_group: Bool.False }
+				} else {
+					{ groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: Bool.True }
+				}
+				Err(_) => { groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: Bool.True }
+			}
+			$groups = list_set($groups, owner, appended.groups)
+		}
+		$run_index = $run_index + 1
+	}
+
+	var $annotations = []
+	var $per_link = List.with_capacity(links.len())
+	var $page_counters = List.repeat(0, page_count)
+	$link_index = 0
+	while $link_index < links.len() {
+		link = list_at(links, $link_index)
+		link_groups = list_at($groups, $link_index)
+		$per_link = $per_link.append(link_groups.len())
+		var $group_index = 0
+		while $group_index < link_groups.len() {
+			group = list_at(link_groups, $group_index)
+			rect = union_quads(group.quads)?
+			keyboard_order = list_at($page_counters, group.page)
+			$page_counters = list_set($page_counters, group.page, keyboard_order + 1)
+			action = match link.target {
+				Uri(uri) => Uri(uri)
+				InternalDestination(name) => GoToName(name)
+			}
+			$annotations = $annotations.append({
+				action,
+				appearance: NoAppearance,
+				description: NoDescription,
+				keyboard_order,
+				page: Semantics.PageId.from_index(group.page),
+				print: Bool.True,
+				quads: group.quads,
+				rect,
+			})
+			$group_index = $group_index + 1
+		}
+		$link_index = $link_index + 1
+	}
+	Ok({ annotations: $annotations, per_link: $per_link })
+}
+
+union_quads : List(KernelNavigation.Quad) -> Try(Layout.Rect, KernelFacadeFragments.Error)
+union_quads = |quads| {
+	first = match quads.first() {
+		Ok(quad) => quad
+		Err(_) => {
+			crash "facade link annotation without quads escaped"
+		}
+	}
+	var $x_left = first.x_left.raw()
+	var $x_right = first.x_right.raw()
+	var $y_bottom = first.y_bottom.raw()
+	var $y_top = first.y_top.raw()
+	var $index = 1
+	while $index < quads.len() {
+		quad = list_at(quads, $index)
+		$x_left = I64.min($x_left, quad.x_left.raw())
+		$x_right = I64.max($x_right, quad.x_right.raw())
+		$y_bottom = I64.min($y_bottom, quad.y_bottom.raw())
+		$y_top = I64.max($y_top, quad.y_top.raw())
+		$index = $index + 1
+	}
+	Ok({
+		origin: { x: Layout.Unit.from_raw($x_left), y: Layout.Unit.from_raw($y_bottom) },
+		size: { height: Layout.Unit.from_raw($y_top - $y_bottom), width: Layout.Unit.from_raw($x_right - $x_left) },
+	})
+}
+
+## Rebuild the content spine with each Link node's per-page annotation
+## occurrences appended to its span, in node order, assigning dense
+## annotation identities and logical ranks in the same pass.
+patch_spine : Semantics.Store, List({ node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }), List(U64) -> Try({ annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, KernelFacadeFragments.Error)
+patch_spine = |store, links, per_link| {
+	sentinel = links.len()
+	var $link_of_node = List.repeat(sentinel, store.nodes.len())
+	var $link_index = 0
+	while $link_index < links.len() {
+		link = list_at(links, $link_index)
+		if link.node.index() >= store.nodes.len() {
+			return Err(InvalidOccurrence({ available: store.nodes.len(), run: link.node.index() }))
+		}
+		$link_of_node = list_set($link_of_node, link.node.index(), $link_index)
+		$link_index = $link_index + 1
+	}
+	var $annotation_starts = List.with_capacity(links.len())
+	var $running = 0
+	$link_index = 0
+	while $link_index < links.len() {
+		$annotation_starts = $annotation_starts.append($running)
+		$running = checked_add($running, list_at(per_link, $link_index))?
+		$link_index = $link_index + 1
+	}
+	total = $running
+	var $spine = List.with_capacity(checked_add(store.content_spine.len(), total)?)
+	var $nodes = store.nodes
+	var $annotations = List.with_capacity(total)
+	var $logical = 0
+	var $node_index = 0
+	while $node_index < store.nodes.len() {
+		node = list_at(store.nodes, $node_index)
+		new_start = $spine.len()
+		var $item = node.content.start()
+		item_end = node.content.start() + node.content.length()
+		while $item < item_end {
+			$spine = $spine.append(list_at(store.content_spine, $item))
+			$item = $item + 1
+		}
+		owner_link = list_at($link_of_node, $node_index)
+		if owner_link != sentinel {
+			count = list_at(per_link, owner_link)
+			start = list_at($annotation_starts, owner_link)
+			var $slot = 0
+			while $slot < count {
+				annotation_id = start + $slot
+				$spine = $spine.append(AnnotationOccurrence(Semantics.AnnotationId.from_index(annotation_id)))
+				$annotations = $annotations.append({
+					id: Semantics.AnnotationId.from_index(annotation_id),
+					logical_order: $logical,
+					owner: node.id,
+				})
+				$logical = $logical + 1
+				$slot = $slot + 1
+			}
+		}
+		$nodes = list_set($nodes, $node_index, { ..node, content: Semantics.Range.from_start_and_length(new_start, $spine.len() - new_start) })
+		$node_index = $node_index + 1
+	}
+	Ok({ annotations: $annotations, content_spine: $spine, nodes: $nodes })
+}
+
+checked_i64 : I64, I64 -> Try(I64, KernelFacadeFragments.Error)
+checked_i64 = |left, right| match I64.plus_try(left, right) {
+	Ok(value) => Ok(value)
+	Err(_) => Err(ArithmeticOverflow)
 }
 
 prepare_text : KernelFacadeText.Plan -> KernelFacadeFragments.Prepared

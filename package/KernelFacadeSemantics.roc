@@ -42,6 +42,15 @@ KernelFacadeSemantics :: [].{
 	}
 	Artifact : { block : U64, kind : Document.PageArtifactKind, text : Str }
 	BlockOwnership : [ArtifactBlock(U64), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel] })]
+
+	## One authored destination declaration: the block's semantic node is the
+	## structure target and its content occurrence is the explicit layout
+	## anchor.
+	DestinationRecord : { anchor : Semantics.OccurrenceId, name : Str, target : Semantics.NodeId }
+
+	## One authored link block: its Link structure node, the text occurrence
+	## the annotations will attach beside, and the closed authored target.
+	LinkRecord : { node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }
 	Work : {
 		artifacts : U64,
 		content_writes : U64,
@@ -56,6 +65,8 @@ KernelFacadeSemantics :: [].{
 		artifacts : List(Artifact),
 		authoring : Document.NormalizedAuthoring,
 		block_ownership : List(BlockOwnership),
+		destinations : List(DestinationRecord),
+		links : List(LinkRecord),
 		preliminary : KernelTextSemantics.Plan,
 		sources : KernelFacadeSources.Plan,
 		work : Work,
@@ -65,6 +76,12 @@ KernelFacadeSemantics :: [].{
 
 		artifacts : Plan -> List(Artifact)
 		artifacts = |plan| plan.artifacts
+
+		destinations : Plan -> List(DestinationRecord)
+		destinations = |plan| plan.destinations
+
+		links : Plan -> List(LinkRecord)
+		links = |plan| plan.links
 
 		authoring : Plan -> Document.NormalizedAuthoring
 		authoring = |plan| plan.authoring
@@ -88,6 +105,8 @@ ListState : [ActiveList({ expected_item : U64, list : U64, node : U64 }), NoActi
 Planning : {
 	artifacts : List(KernelFacadeSemantics.Artifact),
 	content_count : U64,
+	destinations : List(KernelFacadeSemantics.DestinationRecord),
+	links : List(KernelFacadeSemantics.LinkRecord),
 	list_count : U64,
 	list_item_count : U64,
 	node_count : U64,
@@ -110,12 +129,21 @@ build_plan = |authoring, limits| {
 	built = build_store(authoring.language, authoring.blocks, planning, sources)?
 	check_limit(built.store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(built.store.text_properties.len(), limits.max_properties, Properties)?
-	preliminary = KernelTextSemantics.Plan.build(built.store, 0, 0, limits.semantics, limits.text_semantics) ? TextSemantics
+	navigated = !planning.links.is_empty() or !planning.destinations.is_empty()
+	preliminary = (
+		if navigated {
+			KernelTextSemantics.Plan.build_navigation(built.store, 0, 0, limits.semantics, limits.text_semantics)
+		} else {
+			KernelTextSemantics.Plan.build(built.store, 0, 0, limits.semantics, limits.text_semantics)
+		}
+	) ? TextSemantics
 	Ok(
 		KernelFacadeSemantics.Plan.{
 			artifacts: planning.artifacts,
 			authoring,
 			block_ownership: built.block_ownership,
+			destinations: planning.destinations,
+			links: planning.links,
 			preliminary,
 			sources,
 			work: {
@@ -136,6 +164,8 @@ plan_blocks : List(Document.NormalizedBlock), KernelFacadeSemantics.Limits -> Tr
 plan_blocks = |blocks, limits| {
 	source_bound = if blocks.len() > U64.highest / 2 U64.highest else blocks.len() * 2
 	var $artifacts = List.with_capacity(U64.min(blocks.len(), limits.max_artifacts))
+	var $destinations = []
+	var $links = []
 	var $sources = List.with_capacity(U64.min(source_bound, limits.max_source_inputs))
 	var $top_nodes = List.with_capacity(U64.min(blocks.len(), limits.max_nodes))
 	var $content_count = 0
@@ -234,10 +264,79 @@ plan_blocks = |blocks, limits| {
 				$content_count = attempted_content
 				$list_state = NoActiveList
 			}
+			DestinationHeading({ level, name }) => {
+				_role = heading_role(level, $block_index)?
+				attempted_nodes = checked_add($next_node, 1)?
+				attempted_occurrences = checked_add($next_occurrence, 1)?
+				attempted_content = checked_add($content_count, 2)?
+				attempted_sources = checked_add($sources.len(), 1)?
+				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+				$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
+				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
+				$sources = $sources.append(block.text)
+				$next_node = checked_add($next_node, 1)?
+				$next_occurrence = checked_add($next_occurrence, 1)?
+				$content_count = attempted_content
+				$list_state = NoActiveList
+			}
+			DestinationParagraph({ name }) => {
+				attempted_nodes = checked_add($next_node, 1)?
+				attempted_occurrences = checked_add($next_occurrence, 1)?
+				attempted_content = checked_add($content_count, 2)?
+				attempted_sources = checked_add($sources.len(), 1)?
+				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+				$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
+				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
+				$sources = $sources.append(block.text)
+				$next_node = checked_add($next_node, 1)?
+				$next_occurrence = checked_add($next_occurrence, 1)?
+				$content_count = attempted_content
+				$list_state = NoActiveList
+			}
+			Link({ uri }) => {
+				attempted_nodes = checked_add($next_node, 2)?
+				attempted_occurrences = checked_add($next_occurrence, 1)?
+				attempted_content = checked_add($content_count, 3)?
+				attempted_sources = checked_add($sources.len(), 1)?
+				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+				$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrence: Semantics.OccurrenceId.from_index($next_occurrence), target: Uri(uri) })
+				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
+				$sources = $sources.append(block.text)
+				$next_node = attempted_nodes
+				$next_occurrence = checked_add($next_occurrence, 1)?
+				$content_count = attempted_content
+				$list_state = NoActiveList
+			}
+			InternalLink({ destination }) => {
+				attempted_nodes = checked_add($next_node, 2)?
+				attempted_occurrences = checked_add($next_occurrence, 1)?
+				attempted_content = checked_add($content_count, 3)?
+				attempted_sources = checked_add($sources.len(), 1)?
+				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+				$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrence: Semantics.OccurrenceId.from_index($next_occurrence), target: InternalDestination(destination) })
+				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
+				$sources = $sources.append(block.text)
+				$next_node = attempted_nodes
+				$next_occurrence = checked_add($next_occurrence, 1)?
+				$content_count = attempted_content
+				$list_state = NoActiveList
+			}
 		}
 		$block_index = $block_index + 1
 	}
-	Ok({ artifacts: $artifacts, content_count: $content_count, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
+	Ok({ artifacts: $artifacts, content_count: $content_count, destinations: $destinations, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
 }
 
 heading_role : U8, U64 -> Try(Str, KernelFacadeSemantics.Error)
@@ -289,9 +388,9 @@ build_store = |language, blocks, planning, source_plan| {
 				$source_input = checked_add($source_input, 1)?
 				$index = $index + 1
 			}
-			Paragraph | Title => {
+			Paragraph | Title | DestinationParagraph(_) => {
 				role = match block.kind {
-					Paragraph => "P"
+					Paragraph | DestinationParagraph(_) => "P"
 					Title => "Title"
 					_ => ""
 				}
@@ -301,6 +400,39 @@ build_store = |language, blocks, planning, source_plan| {
 				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
 				$next_node = checked_add($next_node, 1)?
+				$next_occurrence = checked_add($next_occurrence, 1)?
+				$source_input = checked_add($source_input, 1)?
+				$index = $index + 1
+			}
+			DestinationHeading({ level, name: _ }) => {
+				role = heading_role(level, $index)?
+				start = $content.len()
+				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(Semantics.NodeId.from_index(0)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
+				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
+				$next_node = checked_add($next_node, 1)?
+				$next_occurrence = checked_add($next_occurrence, 1)?
+				$source_input = checked_add($source_input, 1)?
+				$index = $index + 1
+			}
+			Link(_) | InternalLink(_) => {
+
+				## A link block is a paragraph-shaped wrapper: a P node under
+				## the root containing one Link node that owns the link text.
+				## Per-page annotation occurrences join the Link node's spine
+				## after pagination.
+				wrapper_node = $next_node
+				link_node = checked_add(wrapper_node, 1)?
+				wrapper_start = $content.len()
+				$content = $content.append(ChildNode(Semantics.NodeId.from_index(link_node)))
+				link_start = $content.len()
+				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+				$nodes = list_set($nodes, wrapper_node, make_node(wrapper_node, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.Range.from_start_and_length(wrapper_start, 1), Inherited))
+				$nodes = list_set($nodes, link_node, make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper_node)), "Link", Semantics.Range.from_start_and_length(link_start, 1), Inherited))
+				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
+				$next_node = checked_add(link_node, 1)?
 				$next_occurrence = checked_add($next_occurrence, 1)?
 				$source_input = checked_add($source_input, 1)?
 				$index = $index + 1
@@ -484,6 +616,8 @@ test_authoring = {
 	],
 	language: "en-AU",
 	metadata_title: "Report",
+	outline: [],
+	page_labels: [],
 }
 
 ## Facade semantics are planned before layout, with a PDF 2.0 Title and a
