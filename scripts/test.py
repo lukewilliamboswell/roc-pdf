@@ -43,6 +43,7 @@ from check_gate4_soft_masks import validate_gate4_soft_masks_pdf
 from check_gate4_transparency import validate_gate4_transparency_pdf
 from check_gate4_fonts import validate_gate4_fonts_pdf
 from check_gate4_forms import validate_gate4_forms_pdf
+from check_gate4_metadata import validate_gate4_metadata_pdf
 from check_pdf_structure import validate_pdf
 
 
@@ -664,6 +665,9 @@ def run_case(
         elif any(key.startswith("gate4_shading") or key.startswith("gate4_pattern") for key in case.dimensions):
             validate_gate4_shadings_pdf(result.stdout, case.dimensions)
             print(f"PASS {case.name}: canonical shading/function/pattern objects, exact per-stream /Shading and /Pattern dictionaries, re-derived stop models, ownership-neutral pattern streams, and sh/scn operand resolution", flush=True)
+        elif any(key.startswith("gate4_metadata") for key in case.dimensions):
+            validate_gate4_metadata_pdf(result.stdout, case.dimensions)
+            print(f"PASS {case.name}: catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally", flush=True)
         else:
             validate_pdf(
                 result.stdout,
@@ -798,6 +802,8 @@ def main() -> None:
     command(sys.executable, "scripts/check_gate4_shading_renderers.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_fonts.py", "--self-test")
     command(sys.executable, "scripts/check_gate4_font_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_gate4_metadata.py", "--self-test")
+    command(sys.executable, "scripts/check_gate4_metadata_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
