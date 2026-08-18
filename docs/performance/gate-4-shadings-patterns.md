@@ -419,9 +419,11 @@ and patterns introduce no new PDF/A findings.
 
 - Canonical font leaf identity and deduplicated font-leaf emission —
   landed in [gate-4-font-leaves.md](gate-4-font-leaves.md).
-- XMP metadata, document language, output intents (which will absorb the
-  6.7.2.1 finding above), URI links, typed internal destinations with
-  paired `/SD`+`/D`, named destinations, outlines, page labels, and
-  annotation appearances through this same scene/resource pipeline.
+- XMP metadata, document language, and output intents — landed in
+  [gate-4-metadata-output-intent.md](gate-4-metadata-output-intent.md),
+  which absorbed the 6.7.2.1 finding above.
+- URI links, typed internal destinations with paired `/SD`+`/D`, named
+  destinations, outlines, page labels, and annotation appearances through
+  this same scene/resource pipeline.
 
 This slice deliberately claims `Pdf20`/`Standard` output only.

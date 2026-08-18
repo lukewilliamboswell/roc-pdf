@@ -159,9 +159,12 @@ cause the baseline protocol requires, not a mechanical acceptance.
 
 ## Explicitly deferred
 
-- Output intents, which join the XMP/PDF-A slices along with 6.7.2.1
-  metadata. (The transparency page `/Group` this slice originally deferred
-  under veraPDF's 6.2.9 rule landed with the transparency slice,
+- Output intents and 6.7.2.1 metadata — landed in
+  [gate-4-metadata-output-intent.md](gate-4-metadata-output-intent.md):
+  canonical XMP, the catalog language, and the packaged sRGB output intent
+  over this slice's canonical profile machinery. (The transparency page
+  `/Group` this slice originally deferred under veraPDF's 6.2.9 rule landed
+  with the transparency slice,
   [gate-4-transparency.md](gate-4-transparency.md), which regenerated this
   slice's showcase snapshots with the required group dictionary.)
 - Canonical font leaf identity and font-leaf deduplication (landed in

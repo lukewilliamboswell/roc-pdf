@@ -43,14 +43,14 @@
     {
       "id": "ROC-PDF-METADATA-EXPLICIT-INPUTS",
       "summary": "Logical metadata requires authored title and language while timestamps and identifiers are explicit or deterministically derived.",
-      "source_ids": ["iso-16684-1-2019", "iso-19005-4-2020", "xml-1-0-fifth-edition"],
+      "source_ids": ["bcp47-rfc5646", "iso-16684-1-2019", "iso-19005-4-2020", "xml-1-0-fifth-edition"],
       "references": ["architecture.md: Defaults contract"],
       "capabilities": ["Pdf20", "StaticPdfA4"],
-      "implementation": "defined_only",
-      "machine_verification": "schema_and_roc_contract",
+      "implementation": "partial",
+      "machine_verification": "schema_and_roc_contract; canonical_case_rfc5646_subset_validation_with_typed_rejections; canonical_xmp_packet_with_pinned_golden_bytes_and_catalog_lang_agreement; explicit_utc_timestamps_or_deterministic_omission; xmp_identifiers_and_pdfa_identification_pending_gate_5",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_encode_contract.roc"],
-      "negative_scenarios": [],
+      "positive_scenarios": ["examples/advanced_encode_contract.roc", "package/KernelXmp.roc", "scripts/check_gate4_metadata.py", "tests/gate4_metadata/main.roc", "tests/gate4_metadata_facade/main.roc"],
+      "negative_scenarios": ["package/KernelMetadata.roc", "tests/gate4_metadata_facade_negative/main.roc", "tests/gate4_metadata_negative/main.roc"],
       "external_rule_ids": []
     },
     {
@@ -241,11 +241,11 @@
       "source_ids": ["icc-1-2001-04", "iso-19005-4-2020", "iso-32000-2-2020-ec3"],
       "references": ["architecture.md: Images and color"],
       "capabilities": ["Pdf20", "StaticPdfA4"],
-      "implementation": "partial",
-      "machine_verification": "schema_and_roc_contract; pinned_srgb2014_digest_license_and_icc_inspection_boundary; canonical_icc_and_color_space_dedup_with_exact_byte_equality; emitted_profile_stream_byte_identical_to_vendored_asset; output_intent_and_blend_space_pending_gate_4_xmp_slice",
+      "implementation": "implemented",
+      "machine_verification": "schema_and_roc_contract; pinned_srgb2014_digest_license_and_icc_inspection_boundary; canonical_icc_and_color_space_dedup_with_exact_byte_equality; emitted_profile_stream_byte_identical_to_vendored_asset; gts_pdfa1_output_intent_sharing_the_canonical_profile_stream; transparency_blend_space_probe_against_the_packaged_bytes",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_resource_contract.roc", "package/KernelSrgbProfile.roc", "scripts/check_gate4_color_images.py", "tests/gate4_color_images/main.roc"],
-      "negative_scenarios": ["package/Gate4ColorImageEvidence.roc", "package/KernelColor.roc", "tests/gate4_color_images_negative/main.roc"],
+      "positive_scenarios": ["examples/advanced_resource_contract.roc", "package/KernelSrgbProfile.roc", "scripts/check_gate4_color_images.py", "scripts/check_gate4_metadata.py", "tests/gate4_color_images/main.roc", "tests/gate4_metadata/main.roc"],
+      "negative_scenarios": ["package/Gate4ColorImageEvidence.roc", "package/KernelColor.roc", "tests/gate4_color_images_negative/main.roc", "tests/gate4_metadata_negative/main.roc"],
       "external_rule_ids": []
     },
     {

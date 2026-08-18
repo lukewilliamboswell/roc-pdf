@@ -421,8 +421,9 @@ Gate 1/2 fixtures and every fontless byte snapshot are untouched.
 
 ## Exact remaining Gate 4 work
 
-- XMP metadata, document language, and output intents (which will absorb
-  the 6.7.2.1 finding above).
+- XMP metadata, document language, and output intents — landed in
+  [gate-4-metadata-output-intent.md](gate-4-metadata-output-intent.md),
+  which absorbed the 6.7.2.1 finding above.
 - URI links, typed internal destinations with paired `/SD` + `/D`, named
   destinations, outlines, and page labels.
 - Annotation appearances through this same scene/resource pipeline.
