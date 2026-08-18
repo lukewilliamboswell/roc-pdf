@@ -8,6 +8,7 @@ import KernelGate2Objects
 import KernelGate3FontObjects
 import KernelGate3TaggedTextStructure
 import KernelImage
+import KernelMetadata
 import KernelObject
 import KernelPdfFont
 import KernelPdfText
@@ -56,6 +57,7 @@ KernelFacadeOutput :: [].{
 		font_entries : U64,
 		font_objects : U64,
 		glyph_usages : U64,
+		metadata_bytes : U64,
 		objects : U64,
 		resource_command_visits : U64,
 		subset_bytes : U64,
@@ -66,13 +68,21 @@ KernelFacadeOutput :: [].{
 
 	Plan :: { structure : KernelStructure.Plan, work : Work }.{
 		build : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
-		build = |scenes, font, descriptor, limits| build_plan(scenes, font, descriptor, limits)
+		build = |scenes, font, descriptor, limits| build_plan(scenes, font, descriptor, NoDocumentFacts, limits)
+
+		## Document facts flow through unchanged to structure planning, which
+		## appends the canonical XMP stream and catalog entries.
+		build_with_facts : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
+		build_with_facts = |scenes, font, descriptor, facts, limits| build_plan(scenes, font, descriptor, facts, limits)
 
 		## Ordered multi-face output. Dense font index k owns one plan, one
 		## sanitized subset, and the `F1_k` resource; a one-font list delegates
 		## to the exact single-face path above.
 		build_multi : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
-		build_multi = |scenes, fonts, descriptor, limits| build_multi_plan(scenes, fonts, descriptor, limits)
+		build_multi = |scenes, fonts, descriptor, limits| build_multi_plan(scenes, fonts, descriptor, NoDocumentFacts, limits)
+
+		build_multi_with_facts : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
+		build_multi_with_facts = |scenes, fonts, descriptor, facts, limits| build_multi_plan(scenes, fonts, descriptor, facts, limits)
 
 		structure : Plan -> KernelStructure.Plan
 		structure = |plan| plan.structure
@@ -82,8 +92,8 @@ KernelFacadeOutput :: [].{
 	}
 }
 
-build_plan : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
-build_plan = |scenes, font, descriptor, limits| {
+build_plan : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
+build_plan = |scenes, font, descriptor, facts, limits| {
 	ownership = KernelFacadeScenes.Plan.ownership(scenes)
 	scene = KernelFacadeScenes.Plan.scene(scenes)
 	colors = KernelFacadeScenes.Plan.colors(scenes)
@@ -98,7 +108,7 @@ build_plan = |scenes, font, descriptor, limits| {
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
 	font_objects = KernelGate3FontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
-	structure = KernelGate3TaggedTextStructure.Plan.build(
+	structure = KernelGate3TaggedTextStructure.Plan.build_with_facts(
 		tagged,
 		colors,
 		images,
@@ -106,6 +116,7 @@ build_plan = |scenes, font, descriptor, limits| {
 		font_objects,
 		text,
 		[{ descriptor, font, plan: font_plan, subset }],
+		facts,
 		limits.structure,
 	) ? Structure
 	content_work = KernelContent.Plan.work(content)
@@ -121,6 +132,7 @@ build_plan = |scenes, font, descriptor, limits| {
 				font_entries: font_plan.entries.len(),
 				font_objects: structure_work.font_objects,
 				glyph_usages: usages.len(),
+				metadata_bytes: structure_work.metadata_bytes,
 				objects: structure_work.objects,
 				resource_command_visits: resource_work.command_visits,
 				subset_bytes: subset.work.output_bytes,
@@ -132,10 +144,10 @@ build_plan = |scenes, font, descriptor, limits| {
 	)
 }
 
-build_multi_plan : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
-build_multi_plan = |scenes, fonts, descriptor, limits| {
+build_multi_plan : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
+build_multi_plan = |scenes, fonts, descriptor, facts, limits| {
 	if fonts.len() == 1 {
-		return build_plan(scenes, list_at(fonts, 0), descriptor, limits)
+		return build_plan(scenes, list_at(fonts, 0), descriptor, facts, limits)
 	}
 	ownership = KernelFacadeScenes.Plan.ownership(scenes)
 	scene = KernelFacadeScenes.Plan.scene(scenes)
@@ -191,7 +203,7 @@ build_multi_plan = |scenes, fonts, descriptor, limits| {
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
 	font_objects = KernelGate3FontObjects.Plan.build(objects, fonts.len(), limits.max_objects) ? FontObjects
-	structure = KernelGate3TaggedTextStructure.Plan.build(
+	structure = KernelGate3TaggedTextStructure.Plan.build_with_facts(
 		tagged,
 		colors,
 		images,
@@ -199,6 +211,7 @@ build_multi_plan = |scenes, fonts, descriptor, limits| {
 		font_objects,
 		text,
 		$embedded,
+		facts,
 		limits.structure,
 	) ? Structure
 	content_work = KernelContent.Plan.work(content)
@@ -214,6 +227,7 @@ build_multi_plan = |scenes, fonts, descriptor, limits| {
 				font_entries: $font_entries,
 				font_objects: structure_work.font_objects,
 				glyph_usages: $total_usages,
+				metadata_bytes: structure_work.metadata_bytes,
 				objects: structure_work.objects,
 				resource_command_visits: resource_work.command_visits,
 				subset_bytes: $subset_bytes,

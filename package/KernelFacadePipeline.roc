@@ -11,6 +11,7 @@ import KernelFacadeSources
 import KernelFacadeText
 import KernelFont
 import KernelLineLayout
+import KernelMetadata
 import KernelPageLayout
 import KernelPdfFont
 import KernelSemantics
@@ -74,14 +75,23 @@ KernelFacadePipeline :: [].{
 
 	Plan :: { output : KernelFacadeOutput.Plan, work : Work }.{
 		build : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
-		build = |authoring, font, theme, page_size, descriptor, limits| build_plan(authoring, font, theme, page_size, descriptor, limits)
+		build = |authoring, font, theme, page_size, descriptor, limits| build_plan(authoring, font, theme, page_size, descriptor, NoDocumentFacts, limits)
+
+		## Document facts add the packaged intent profile to the scene color
+		## store and flow to structure planning; `NoDocumentFacts` keeps the
+		## plan byte-identical to `build`.
+		build_with_facts : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
+		build_with_facts = |authoring, font, theme, page_size, descriptor, facts, limits| build_plan(authoring, font, theme, page_size, descriptor, facts, limits)
 
 		## The ordered multi-face pipeline. Selection, shaping, logical line
 		## layout, boundary-splitting text materialization, and per-font
 		## planning/subsetting compose the same downstream stages; the
 		## single-face `build` path above is untouched.
 		build_ordered : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
-		build_ordered = |authoring, ordered, theme, page_size, descriptor, limits| build_ordered_pipeline(authoring, ordered, theme, page_size, descriptor, limits)
+		build_ordered = |authoring, ordered, theme, page_size, descriptor, limits| build_ordered_pipeline(authoring, ordered, theme, page_size, descriptor, NoDocumentFacts, limits)
+
+		build_ordered_with_facts : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
+		build_ordered_with_facts = |authoring, ordered, theme, page_size, descriptor, facts, limits| build_ordered_pipeline(authoring, ordered, theme, page_size, descriptor, facts, limits)
 
 		output : Plan -> KernelFacadeOutput.Plan
 		output = |plan| plan.output
@@ -104,12 +114,12 @@ Upstream := {
 	work : KernelFacadePipeline.Work,
 }
 
-build_plan : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
-build_plan = |authoring, font, theme, page_size, descriptor, limits| {
+build_plan : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
+build_plan = |authoring, font, theme, page_size, descriptor, facts, limits| {
 	upstream = build_upstream(authoring, font, theme, page_size, descriptor, limits)?
 	fragments = KernelFacadeFragments.Plan.build(upstream.preliminary, upstream.text, limits.fragments, limits.fragment_semantics) ? Fragments
-	scenes = KernelFacadeScenes.Plan.build(fragments, page_size, limits.scenes) ? Scenes
-	output = KernelFacadeOutput.Plan.build(scenes, font, descriptor, limits.output) ? Output
+	scenes = KernelFacadeScenes.Plan.build_with_intent(fragments, page_size, intent_profile(facts), limits.scenes) ? Scenes
+	output = KernelFacadeOutput.Plan.build_with_facts(scenes, font, descriptor, facts, limits.output) ? Output
 	Ok(
 		KernelFacadePipeline.Plan.{
 			output,
@@ -123,8 +133,8 @@ build_plan = |authoring, font, theme, page_size, descriptor, limits| {
 	)
 }
 
-build_ordered_pipeline : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
-build_ordered_pipeline = |authoring, ordered, theme, page_size, descriptor, limits| {
+build_ordered_pipeline : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
+build_ordered_pipeline = |authoring, ordered, theme, page_size, descriptor, facts, limits| {
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
@@ -142,8 +152,8 @@ build_ordered_pipeline = |authoring, ordered, theme, page_size, descriptor, limi
 	pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
 	text = KernelFacadeText.Plan.build(shape, lines, pages, limits.text) ? Text
 	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? Fragments
-	scenes = KernelFacadeScenes.Plan.build(fragments, page_size, limits.scenes) ? Scenes
-	output = KernelFacadeOutput.Plan.build_multi(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, limits.output) ? Output
+	scenes = KernelFacadeScenes.Plan.build_with_intent(fragments, page_size, intent_profile(facts), limits.scenes) ? Scenes
+	output = KernelFacadeOutput.Plan.build_multi_with_facts(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, limits.output) ? Output
 	shape_store = KernelFacadeShape.Plan.shape(shape).store
 	line_store = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines))
 	page_store = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages))
@@ -164,6 +174,12 @@ build_ordered_pipeline = |authoring, ordered, theme, page_size, descriptor, limi
 			},
 		},
 	)
+}
+
+intent_profile : KernelMetadata.PlanFacts -> KernelFacadeScenes.IntentProfile
+intent_profile = |facts| match facts {
+	NoDocumentFacts => NoIntentProfile
+	WithDocumentFacts(_) => PackagedSrgbIntent
 }
 
 probe_plan : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelFacadePipeline.Limits, KernelFacadePipeline.Stage -> Try(KernelFacadePipeline.Work, KernelFacadePipeline.Error)

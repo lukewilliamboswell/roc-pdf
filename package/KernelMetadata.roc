@@ -79,18 +79,15 @@ KernelMetadata :: [].{
 
 	## Catalog-writer input resolved from `PlanFacts`: the planner has already
 	## assigned the metadata-stream and ICC profile-stream object identities.
-	CatalogFacts : [
-		NoCatalogFacts,
-		WithCatalogFacts(
-			{
-				condition_identifier : Str,
-				language : Str,
-				metadata_stream : KernelObject.ObjectId,
-				profile_stream : KernelObject.ObjectId,
-				registry_name : Str,
-			},
-		),
-	]
+	CatalogInput : {
+		condition_identifier : Str,
+		language : Str,
+		metadata_stream : KernelObject.ObjectId,
+		profile_stream : KernelObject.ObjectId,
+		registry_name : Str,
+	}
+
+	CatalogFacts : [NoCatalogFacts, WithCatalogFacts(CatalogInput)]
 
 	## Object identities appended by the metadata phase after an existing
 	## planned object count: the metadata stream, its indirect length, and the
