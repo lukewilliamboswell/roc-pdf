@@ -124,6 +124,15 @@ Pdf :: [].{
 	page_footer : Str -> Document.Block
 	page_footer = |text| Document.page_footer(text)
 
+	## Optional explicit metadata timestamps in the canonical UTC form
+	## `YYYY-MM-DDThh:mm:ssZ`. The package never invents a timestamp: omitted
+	## values deterministically omit their XMP properties.
+	with_created : Document, Str -> Document
+	with_created = |doc, timestamp| Document.with_created(doc, timestamp)
+
+	with_modified : Document, Str -> Document
+	with_modified = |doc, timestamp| Document.with_modified(doc, timestamp)
+
 	## Standard authored content follows the completed typed facade pipeline.
 	## Archive claims remain unavailable until their independent gates close.
 	to_bytes : Document -> Try(List(U8), Error)
