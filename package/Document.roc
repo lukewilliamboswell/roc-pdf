@@ -34,6 +34,75 @@ NormalizedAuthoring := {
 	metadata_title : Str,
 }
 
+## One authored outline entry in dense preorder: the depth below the outline
+## root, an explicit open state, and the authored destination name the entry
+## navigates to. Outline entries never balance or reorder; the authored
+## preorder is the emitted sibling order.
+OutlineEntry : { depth : U64, destination : Str, open : Bool, title : Str }
+
+## The closed page-label numbering vocabulary: decimal Arabic, upper and
+## lower Roman, upper and lower letters, or a prefix-only range with no
+## numeric portion.
+PageLabelStyle : [DecimalArabic, LettersLower, LettersUpper, NoNumber, RomanLower, RomanUpper]
+
+## One authored page-label range starting at a physical page index. The
+## first range must start at page zero and range starts ascend strictly.
+PageLabelRange : { prefix : Str, start_number : U64, start_page : U64, style : PageLabelStyle }
+
+## Stable author-facing navigation rejections: destinations, link
+## annotations, outlines, and page labels. Each variant is one distinct
+## author-facing failure class with compact scalar locations; validation is
+## transactional and no partial navigation data survives a rejection.
+## Remote-file destinations, arbitrary actions, rollover/down appearances,
+## and non-link annotation types have no representation and therefore no
+## runtime rejection here.
+NavigationError : [
+	AnnotationCountMismatch({ navigation : U64, semantics : U64 }),
+	AnnotationLimitExceeded({ attempted : U64, limit : U64 }),
+	AnnotationPageOutOfRange({ annotation : U64, attempted : U64, pages : U64 }),
+	AppearanceFormOutOfRange({ annotation : U64, attempted : U64, forms : U64 }),
+	AppearanceGeometryMismatch({ annotation : U64, form : U64 }),
+	AppearanceTextUnsupported({ form : U64 }),
+	DescriptionEmpty({ annotation : U64 }),
+	DescriptionTooLong({ annotation : U64, attempted : U64, limit : U64 }),
+	DestinationAnchorOutOfRange({ attempted : U64, destination : U64, occurrences : U64 }),
+	DestinationLimitExceeded({ attempted : U64, limit : U64 }),
+	DestinationNameEmpty({ destination : U64 }),
+	DestinationNameInvalidByte({ destination : U64, offset : U64 }),
+	DestinationNameTooLong({ attempted : U64, destination : U64, limit : U64 }),
+	DestinationTargetMismatch({ anchor_owner : U64, destination : U64, target : U64 }),
+	DestinationTargetOutOfRange({ attempted : U64, destination : U64, nodes : U64 }),
+	DuplicateDestinationName({ first : U64, second : U64 }),
+	DuplicateKeyboardOrder({ first : U64, second : U64 }),
+	InvalidAnnotationRect({ annotation : U64 }),
+	InvalidQuad({ annotation : U64, quad : U64 }),
+	KeyboardOrderOutOfRange({ annotation : U64, attempted : U64, page_annotations : U64 }),
+	LabelLimitExceeded({ attempted : U64, limit : U64 }),
+	LabelNumberWithoutStyle({ range : U64 }),
+	LabelPrefixTooLong({ attempted : U64, limit : U64, range : U64 }),
+	LabelRangeNotAscending({ range : U64 }),
+	LabelStartNumberZero({ range : U64 }),
+	LabelStartPageNotZero({ start : U64 }),
+	LabelStartPageOutOfRange({ attempted : U64, pages : U64, range : U64 }),
+	OutlineDepthJump({ actual : U64, entry : U64, previous : U64 }),
+	OutlineDepthLimitExceeded({ attempted : U64, entry : U64, limit : U64 }),
+	OutlineDestinationUnknown({ entry : U64 }),
+	OutlineEntryLimitExceeded({ attempted : U64, limit : U64 }),
+	OutlineFirstDepthNonzero({ depth : U64 }),
+	OutlineTitleEmpty({ entry : U64 }),
+	OutlineTitleTooLong({ attempted : U64, entry : U64, limit : U64 }),
+	QuadLimitExceeded({ attempted : U64, limit : U64 }),
+	QuadOutsideRect({ annotation : U64, quad : U64 }),
+	QuadsEmpty({ annotation : U64 }),
+	UnknownDestinationName({ annotation : U64 }),
+	UnresolvedDestinationAnchor({ destination : U64 }),
+	UriEmpty({ annotation : U64 }),
+	UriInvalidByte({ annotation : U64, offset : U64 }),
+	UriInvalidPercentEncoding({ annotation : U64, offset : U64 }),
+	UriMissingScheme({ annotation : U64 }),
+	UriTooLong({ annotation : U64, attempted : U64, limit : U64 }),
+]
+
 DocumentBuilder :: {
 	block_aux : List(U64),
 	block_tags : List(U8),
@@ -169,7 +238,7 @@ DocumentBuilder :: {
 	}
 
 	finish : DocumentBuilder -> Document
-	finish = |state| Document.{ authoring: Compact(state), created: Omitted, modified: Omitted }
+	finish = |state| Document.{ authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [] }
 }
 
 DocumentAuthoring := [
@@ -177,13 +246,17 @@ DocumentAuthoring := [
 	Simple({ contents : List(DocumentBlock), language : Str, metadata_title : Str }),
 ]
 
-Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput }.{
+Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange) }.{
 	Block : DocumentBlock
 	Builder : DocumentBuilder
+	NavigationError : NavigationError
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
 	NormalizedAuthoring : NormalizedAuthoring
+	OutlineEntry : OutlineEntry
 	PageArtifactKind : PageArtifactKind
+	PageLabelRange : PageLabelRange
+	PageLabelStyle : PageLabelStyle
 
 	## Reusable resource identity is independent of the scene group that uses
 	## it. Placements carry only this scalar edge, never another payload copy.
@@ -275,6 +348,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			authoring: Simple({ contents, language, metadata_title: document_title }),
 			created: Omitted,
 			modified: Omitted,
+			outline: [],
+			page_labels: [],
 		}
 
 	## Optional explicit metadata timestamps. The package never reads a clock;
@@ -285,6 +360,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		authoring: document.authoring,
 		created: Explicit(timestamp),
 		modified: document.modified,
+		outline: document.outline,
+		page_labels: document.page_labels,
 	}
 
 	with_modified : Document, Str -> Document
@@ -292,6 +369,31 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		authoring: document.authoring,
 		created: document.created,
 		modified: Explicit(timestamp),
+		outline: document.outline,
+		page_labels: document.page_labels,
+	}
+
+	## The authored document outline in dense preorder. Entries reference
+	## authored destination names; the authored order and open states are
+	## preserved exactly through lowering.
+	with_outline : Document, List(OutlineEntry) -> Document
+	with_outline = |document, entries| Document.{
+		authoring: document.authoring,
+		created: document.created,
+		modified: document.modified,
+		outline: entries,
+		page_labels: document.page_labels,
+	}
+
+	## Authored page-label ranges keyed by physical page index. Ranges are
+	## validated against the final page count after pagination.
+	with_page_labels : Document, List(PageLabelRange) -> Document
+	with_page_labels = |document, ranges| Document.{
+		authoring: document.authoring,
+		created: document.created,
+		modified: document.modified,
+		outline: document.outline,
+		page_labels: ranges,
 	}
 
 	created : Document -> Metadata.TimestampInput
@@ -299,6 +401,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	modified : Document -> Metadata.TimestampInput
 	modified = |document| document.modified
+
+	outline : Document -> List(OutlineEntry)
+	outline = |document| document.outline
+
+	page_labels : Document -> List(PageLabelRange)
+	page_labels = |document| document.page_labels
 
 	title : Str -> DocumentBlock
 	title = |text| DocumentBlock.Title(text)
@@ -560,4 +668,18 @@ expect {
 	stamped = document.with_created("2026-01-02T03:04:05Z").with_modified("2026-01-02T03:04:06Z")
 
 	document.created() == Omitted and document.modified() == Omitted and stamped.created() == Explicit("2026-01-02T03:04:05Z") and stamped.modified() == Explicit("2026-01-02T03:04:06Z")
+}
+
+## Outline entries and page-label ranges are explicit author inputs and
+## default to absence.
+expect {
+	document = Document.from_blocks({ contents: [], language: "en-AU", title: "Report" })
+	entries = [{ depth: 0, destination: "intro", open: True, title: "Introduction" }]
+	ranges = [{ prefix: "", start_number: 1, start_page: 0, style: DecimalArabic }]
+	navigated = document.with_outline(entries).with_page_labels(ranges)
+
+	document.outline() == [] and
+		document.page_labels() == [] and
+			navigated.outline() == entries and
+				navigated.page_labels() == ranges
 }
