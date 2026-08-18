@@ -1,4 +1,5 @@
 import Color
+import Document
 import KernelColor
 import KernelContent
 import KernelFont
@@ -16,6 +17,8 @@ import KernelGate4FormObjects
 import KernelImage
 import KernelLex
 import KernelMetadata
+import KernelNavigation
+import KernelNavigationObjects
 import KernelObject
 import KernelPdfFont
 import KernelPdfText
@@ -24,6 +27,7 @@ import KernelStructure
 import KernelTagged
 import Layout
 import Scene
+import Semantics
 
 ## Gate 4 object assembly: the Gate 2 tagged prefix, per-page exact direct
 ## resource dictionaries, the Gate 2 page tree and resource objects, canonical
@@ -41,6 +45,8 @@ KernelGate4FormStructure :: [].{
 		PatternStreamCountMismatch({ planned : U64, streams : U64 }),
 		ShadingStoreMismatch({ shadings : U64, supplied : U64 }),
 		Identity(KernelGate2Identity.Error),
+		Navigation(Document.NavigationError),
+		NavigationObjects(KernelNavigationObjects.Error),
 		Object(KernelObject.Error),
 		ObjectCountMismatch({ actual : U64, expected : U64 }),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : KernelObject.ObjectId }),
@@ -63,8 +69,24 @@ KernelGate4FormStructure :: [].{
 		make = |limits| Limits.(limits)
 	}
 
+	## Post-layout navigation input: the validated navigation store plus the
+	## prepared per-fragment anchor rectangles destination resolution consumes,
+	## and the authored outline-depth limit the sealed outline plan re-checks.
+	NavigationInput : [
+		NoNavigation,
+		WithNavigation(
+			{
+				anchor_rects : List(KernelNavigation.AnchorRect),
+				max_outline_depth : U64,
+				store : KernelNavigation.Store,
+			},
+		),
+	]
+
 	Work : {
+		annotation_objects : U64,
 		content_bytes : U64,
+		destinations_resolved : U64,
 		dictionary_references : U64,
 		font_program_bytes : U64,
 		fonts : U64,
@@ -72,9 +94,13 @@ KernelGate4FormStructure :: [].{
 		form_stream_bytes : U64,
 		function_objects : U64,
 		isolated_form_groups : U64,
+		label_node_objects : U64,
 		metadata_bytes : U64,
 		metadata_objects : U64,
+		name_node_objects : U64,
 		objects : U64,
+		outline_objects : U64,
+		quad_numbers : U64,
 		pages : KernelGate2PageObjects.Work,
 		pattern_objects : U64,
 		pattern_stream_bytes : U64,
@@ -87,14 +113,14 @@ KernelGate4FormStructure :: [].{
 
 	Plan :: { structure : KernelStructure.Plan, work : Work }.{
 		build : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Limits -> Try(Plan, Error)
-		build = |tagged, colors, images, content, forms, objects, text, limits| build_plan(tagged, colors, images, content, forms, objects, text, Scene.no_shadings, NoDocumentFacts, limits)
+		build = |tagged, colors, images, content, forms, objects, text, limits| build_plan(tagged, colors, images, content, forms, objects, text, Scene.no_shadings, NoDocumentFacts, NoNavigation, limits)
 
 		## The paint-aware variant: shading, function, and tiling-pattern
 		## objects lower between the graphics states and the font objects,
 		## with stop offsets and channel values read from the validated
 		## shading store the plan was normalized from.
 		build_with_paints : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, Limits -> Try(Plan, Error)
-		build_with_paints = |tagged, colors, images, content, forms, objects, text, shading_store, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, NoDocumentFacts, limits)
+		build_with_paints = |tagged, colors, images, content, forms, objects, text, shading_store, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, NoDocumentFacts, NoNavigation, limits)
 
 		## The document-fact variant: the catalog gains its validated language,
 		## metadata, and packaged-sRGB output-intent entries, the canonical XMP
@@ -102,7 +128,18 @@ KernelGate4FormStructure :: [].{
 		## canonical (deduplicated) profile stream that ICCBased color spaces
 		## share. `NoDocumentFacts` is byte-identical to the entries above.
 		build_with_facts : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_with_facts = |tagged, colors, images, content, forms, objects, text, shading_store, facts, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, facts, limits)
+		build_with_facts = |tagged, colors, images, content, forms, objects, text, shading_store, facts, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, facts, NoNavigation, limits)
+
+		## The navigation variant: destinations resolve to their paired
+		## structure and geometric targets, link annotation dictionaries with
+		## both `/SD` and `/D` lower after the metadata stream, pages gain
+		## their `/Annots` arrays in keyboard order, the catalog gains its
+		## `/Names`, `/Outlines`, and `/PageLabels` roots, annotation spine
+		## items lower as OBJR kids, and the ParentTree gains one scalar row
+		## per annotation. `NoNavigation` is byte-identical to
+		## `build_with_facts`.
+		build_with_navigation : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelMetadata.PlanFacts, NavigationInput, Limits -> Try(Plan, Error)
+		build_with_navigation = |tagged, colors, images, content, forms, objects, text, shading_store, facts, navigation, limits| build_plan(tagged, colors, images, content, forms, objects, text, shading_store, facts, navigation, limits)
 
 		structure : Plan -> KernelStructure.Plan
 		structure = |plan| plan.structure
@@ -174,8 +211,8 @@ ResourceNames := {
 	states : List(KernelObject.NameId),
 }
 
-build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(KernelGate4FormStructure.FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelMetadata.PlanFacts, KernelGate4FormStructure.Limits -> Try(KernelGate4FormStructure.Plan, KernelGate4FormStructure.Error)
-build_plan = |tagged, colors, images, content, forms, objects, text, shading_store, facts, limits| {
+build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelContent.Plan, KernelForm.Plan, KernelGate4FormObjects.Plan, [NoTextObjects, WithTextObjects({ fonts : List(KernelGate4FormStructure.FontInput), text : KernelPdfText.ScenePlan })], Scene.ShadingStore, KernelMetadata.PlanFacts, KernelGate4FormStructure.NavigationInput, KernelGate4FormStructure.Limits -> Try(KernelGate4FormStructure.Plan, KernelGate4FormStructure.Error)
+build_plan = |tagged, colors, images, content, forms, objects, text, shading_store, facts, navigation, limits| {
 	base = KernelGate4FormObjects.Plan.base(objects)
 	planned_fonts = KernelGate4FormObjects.Plan.fonts(objects)
 	canonical_forms = KernelForm.Plan.canonical_form_count(forms)
@@ -235,7 +272,55 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			})
 		}
 	}
-	prefix = KernelGate2TaggedObjects.Plan.build_with_facts(tagged, base, catalog_facts, limits.object_limits) ? TaggedObjects
+	metadata_object_count = match facts {
+		NoDocumentFacts => 0
+		WithDocumentFacts(_) => 2
+	}
+
+	## Navigation planning and resolution: destinations resolve through the
+	## tagging stage's occurrence-owner map and the prepared anchor geometry,
+	## and every navigation object identity is planned after the metadata
+	## objects so the tagged prefix can reference annotation objects, the
+	## page lowering can reference /Annots entries, and the catalog can
+	## reference the name-tree, outline, and page-label roots.
+	navigation_plan = match navigation {
+		NoNavigation => NoNavigationPlan
+		WithNavigation(input) => {
+			resolved = KernelNavigation.resolve(
+				input.store,
+				KernelTagged.Plan.semantics(tagged),
+				KernelTagged.Plan.occurrence_owners(tagged),
+				input.anchor_rects,
+			) ? Navigation
+			planned = KernelNavigationObjects.plan(checked_add(base_object_count, metadata_object_count)?, input.store) ? NavigationObjects
+			var $annotation_pages = List.with_capacity(input.store.annotations.len())
+			var $annotation_scan = 0
+			while $annotation_scan < input.store.annotations.len() {
+				$annotation_pages = $annotation_pages.append(list_at(input.store.annotations, $annotation_scan).page)
+				$annotation_scan = $annotation_scan + 1
+			}
+			WithNavigationPlan({
+				annotation_pages: $annotation_pages,
+				max_outline_depth: input.max_outline_depth,
+				planned,
+				resolved: resolved.destinations,
+				resolve_work: resolved.work,
+				store: input.store,
+			})
+		}
+	}
+	navigation_facts = match navigation_plan {
+		NoNavigationPlan => NoNavigationObjects
+		WithNavigationPlan(plan_input) => WithNavigationObjects({
+			annotation_objects: plan_input.planned.by_id,
+			annotation_pages: plan_input.annotation_pages,
+			dests_root: if plan_input.planned.name_nodes.is_empty() NoDestsRoot else DestsRootAt(list_at(plan_input.planned.name_nodes, 0)),
+			ordered_annotations: plan_input.store.page_annotations,
+			outline_root: plan_input.planned.outline_root,
+			page_labels_root: if plan_input.planned.label_nodes.is_empty() NoPageLabelsRoot else PageLabelsRootAt(list_at(plan_input.planned.label_nodes, 0)),
+		})
+	}
+	prefix = KernelGate2TaggedObjects.Plan.build_with_navigation(tagged, base, catalog_facts, navigation_facts, limits.object_limits) ? TaggedObjects
 
 	## Deterministic resource names, created once for the canonical
 	## (deduplicated) leaf and form counts, then one exact direct dictionary
@@ -290,22 +375,75 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 	group_plan = add_page_group_value($builder, named.names, forms, base, page_transparency)?
 	$builder = group_plan.builder
 	var $transparency_page_groups = 0
-	pages = match group_plan.value {
-		NoGroupValue => KernelGate2PageObjects.Plan.build_with_page_resources($builder, tagged, content, base, $page_values, $references) ? Pages
-		GroupValue(group_value) => {
-			var $page_groups = List.with_capacity(page_count)
-			var $group_page = 0
-			while $group_page < page_count {
-				entry = if list_at(page_transparency, $group_page) {
-					$transparency_page_groups = $transparency_page_groups + 1
-					WithGroup(group_value)
-				} else {
-					NoGroup
-				}
-				$page_groups = $page_groups.append(entry)
-				$group_page = $group_page + 1
+	var $page_groups = List.with_capacity(page_count)
+	var $group_page = 0
+	while $group_page < page_count {
+		entry = match group_plan.value {
+			NoGroupValue => NoGroup
+			GroupValue(group_value) => if list_at(page_transparency, $group_page) {
+				$transparency_page_groups = $transparency_page_groups + 1
+				WithGroup(group_value)
+			} else {
+				NoGroup
 			}
-			KernelGate2PageObjects.Plan.build_with_page_groups($builder, tagged, content, base, $page_values, $references, $page_groups) ? Pages
+		}
+		$page_groups = $page_groups.append(entry)
+		$group_page = $group_page + 1
+	}
+	pages = match navigation_plan {
+		NoNavigationPlan => match group_plan.value {
+			NoGroupValue => KernelGate2PageObjects.Plan.build_with_page_resources($builder, tagged, content, base, $page_values, $references) ? Pages
+			GroupValue(_) => KernelGate2PageObjects.Plan.build_with_page_groups($builder, tagged, content, base, $page_values, $references, $page_groups) ? Pages
+		}
+		WithNavigationPlan(plan_input) => {
+
+			## Per-page /Annots reference arrays in keyboard order, built
+			## from the planned annotation identities before the pages
+			## reference them.
+			var $annots = List.with_capacity(page_count)
+			var $annots_builder = $builder
+			var $annots_page = 0
+			var $annots_failure = NoFailure
+			while $annots_page < page_count and $annots_failure == NoFailure {
+				start = list_at(plan_input.store.page_annotation_offsets, $annots_page)
+				end = list_at(plan_input.store.page_annotation_offsets, $annots_page + 1)
+				if end == start {
+					$annots = $annots.append(NoAnnots)
+				} else {
+					var $refs = List.with_capacity(end - start)
+					var $slot = start
+					while $slot < end and $annots_failure == NoFailure {
+						match KernelObject.add_reference($annots_builder, list_at(plan_input.planned.ordered, $slot)) {
+							Err(error) => {
+								$annots_failure = Failed(Object(error))
+							}
+							Ok(added) => {
+								$annots_builder = added.builder
+								$refs = $refs.append(added.id)
+							}
+						}
+						$slot = $slot + 1
+					}
+					match $annots_failure {
+						Failed(_) => {}
+						NoFailure => match KernelObject.add_array($annots_builder, $refs) {
+							Err(error) => {
+								$annots_failure = Failed(Object(error))
+							}
+							Ok(array) => {
+								$annots_builder = array.builder
+								$annots = $annots.append(WithAnnots(array.id))
+							}
+						}
+					}
+				}
+				$annots_page = $annots_page + 1
+			}
+			match $annots_failure {
+				Failed(error) => return Err(error)
+				NoFailure => {}
+			}
+			KernelGate2PageObjects.Plan.build_with_page_navigation($annots_builder, tagged, content, base, $page_values, $references, $page_groups, $annots) ? Pages
 		}
 	}
 	var $image_planes = List.with_capacity(leaf_counts.images)
@@ -547,10 +685,64 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			}
 		}
 	}
-	expected = finished.objects
-	sealed = KernelSeal.seal(finished.builder) ? Seal
+
+	## Navigation objects lower last, after the metadata stream, landing
+	## exactly on their planned identities; the xref shifts past them.
+	navigated = match navigation_plan {
+		NoNavigationPlan => {
+			builder: finished.builder,
+			objects: finished.objects,
+			work: { annotation_objects: 0, label_node_objects: 0, name_node_objects: 0, outline_objects: 0, quad_numbers: 0 },
+			resolved: 0,
+			xref: finished.xref,
+		}
+		WithNavigationPlan(plan_input) => {
+			navigation_names = match KernelGate2TaggedObjects.Plan.navigation_names(prefix) {
+				WithNavigationNames(names) => names
+				NoNavigationNames => {
+					crash "navigation lowering lost its planned name table"
+				}
+			}
+			var $appearance_streams = List.with_capacity(KernelForm.Plan.form_names(forms).len())
+			var $appearance_scan = 0
+			while $appearance_scan < KernelForm.Plan.form_names(forms).len() {
+				ordinal = list_at(KernelForm.Plan.form_names(forms), $appearance_scan)
+				$appearance_streams = $appearance_streams.append(list_at(KernelGate4FormObjects.Plan.forms(objects), ordinal).stream)
+				$appearance_scan = $appearance_scan + 1
+			}
+			var $page_objects = List.with_capacity(page_count)
+			var $page_scan = 0
+			while $page_scan < page_count {
+				$page_objects = $page_objects.append(list_at(KernelGate2Objects.Plan.pages(base), $page_scan).page)
+				$page_scan = $page_scan + 1
+			}
+			lowered = KernelNavigationObjects.add_objects(
+				finished.builder,
+				navigation_names,
+				plan_input.store,
+				plan_input.resolved,
+				plan_input.planned,
+				{
+					appearance_streams: $appearance_streams,
+					page_objects: $page_objects,
+					stream_count: KernelContent.Plan.stream_count(content),
+					structure_elements: KernelGate2Objects.Plan.structure_elements(base),
+				},
+				{ max_outline_depth: plan_input.max_outline_depth },
+			) ? NavigationObjects
+			{
+				builder: lowered.builder,
+				objects: checked_add(finished.objects, plan_input.planned.total)?,
+				work: lowered.work,
+				resolved: plan_input.resolve_work.destinations_resolved,
+				xref: plan_input.planned.xref,
+			}
+		}
+	}
+	expected = navigated.objects
+	sealed = KernelSeal.seal(navigated.builder) ? Seal
 	identity = KernelGate2Identity.digest(sealed) ? Identity
-	bound = KernelGate2OutputBound.calculate(sealed, finished.xref) ? OutputBound
+	bound = KernelGate2OutputBound.calculate(sealed, navigated.xref) ? OutputBound
 	structure = KernelStructure.Plan.from_sealed({
 		identity: NormalizedPlanDigest(identity.digest),
 		output_bound: KernelGate2OutputBound.Bound.bytes(bound),
@@ -558,13 +750,15 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		root: KernelGate2Objects.Plan.catalog(base),
 		sealed,
 		tree_nodes: KernelGate2Objects.Plan.page_tree(base).len(),
-		xref_object: finished.xref,
+		xref_object: navigated.xref,
 	})
 	Ok(
 		KernelGate4FormStructure.Plan.{
 			structure,
 			work: {
+				annotation_objects: navigated.work.annotation_objects,
 				content_bytes: KernelContent.Plan.work(content).bytes_emitted,
+				destinations_resolved: navigated.resolved,
 				dictionary_references: $references,
 				font_program_bytes: $font_program_bytes,
 				fonts: planned_fonts.len(),
@@ -572,12 +766,16 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 				form_stream_bytes: $form_bytes,
 				function_objects: canonical_functions,
 				isolated_form_groups: $isolated_form_groups,
+				label_node_objects: navigated.work.label_node_objects,
 				metadata_bytes: finished.metadata_bytes,
 				metadata_objects: finished.metadata_objects,
+				name_node_objects: navigated.work.name_node_objects,
 				objects: expected,
+				outline_objects: navigated.work.outline_objects,
 				pages: KernelGate2PageObjects.Plan.work(pages),
 				pattern_objects: canonical_patterns,
 				pattern_stream_bytes: $pattern_bytes,
+				quad_numbers: navigated.work.quad_numbers,
 				resources: KernelGate2ResourceObjects.Plan.work(resources),
 				shading_objects: canonical_shadings,
 				state_objects: canonical_states,
@@ -586,6 +784,26 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			},
 		},
 	)
+}
+
+NavigationPlanState := [
+	NoNavigationPlan,
+	WithNavigationPlan(
+		{
+			annotation_pages : List(Semantics.PageId),
+			max_outline_depth : U64,
+			planned : KernelNavigationObjects.Objects,
+			resolve_work : KernelNavigation.ResolveWork,
+			resolved : List(KernelNavigation.ResolvedDestination),
+			store : KernelNavigation.Store,
+		},
+	),
+]
+
+checked_add : U64, U64 -> Try(U64, KernelGate4FormStructure.Error)
+checked_add = |left, right| match U64.plus_try(left, right) {
+	Err(Overflow) => Err(ArithmeticOverflow)
+	Ok(value) => Ok(value)
 }
 
 ## The metadata stream is the canonical XMP packet as an uncompressed

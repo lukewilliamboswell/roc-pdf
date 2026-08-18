@@ -1,6 +1,7 @@
 import KernelGate2Objects
 import KernelGate2PipelineFixture
 import KernelMetadata
+import KernelNavigationObjects
 import KernelObject
 import KernelTagged
 import Semantics
@@ -17,6 +18,7 @@ KernelGate2TaggedObjects :: [].{
 	]
 
 	Work : {
+		annotation_entries : U64,
 		contextual_artifacts : U64,
 		k_items : U64,
 		namespaces : U64,
@@ -25,24 +27,52 @@ KernelGate2TaggedObjects :: [].{
 		structure_elements : U64,
 	}
 
-	Plan :: { builder : KernelObject.Builder, work : Work }.{
+	Plan :: { builder : KernelObject.Builder, navigation_names : [NoNavigationNames, WithNavigationNames(KernelNavigationObjects.Names)], work : Work }.{
 		build : KernelTagged.Plan, KernelGate2Objects.Plan, KernelObject.Limits -> Try(Plan, Error)
-		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, limits)
+		build = |tagged, objects, limits| build_plan(tagged, objects, NoCatalogFacts, NoNavigationObjects, limits)
 
 		## Document facts extend the catalog with its validated language, the
 		## planned metadata stream, and the packaged sRGB output intent whose
 		## profile stream the planner has already assigned. `NoCatalogFacts`
 		## keeps the plan byte-identical to `build`.
 		build_with_facts : KernelTagged.Plan, KernelGate2Objects.Plan, KernelMetadata.CatalogFacts, KernelObject.Limits -> Try(Plan, Error)
-		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, limits)
+		build_with_facts = |tagged, objects, facts, limits| build_plan(tagged, objects, facts, NoNavigationObjects, limits)
+
+		## Navigation facts extend the prefix with the planned annotation,
+		## named-destination, outline, and page-label identities: the catalog
+		## gains its `/Names`, `/Outlines`, and `/PageLabels` entries, every
+		## annotation spine item lowers as an OBJR object reference, and the
+		## ParentTree gains one scalar row per annotation after the
+		## content-stream rows. `NoNavigationObjects` keeps the plan
+		## byte-identical to `build_with_facts`.
+		build_with_navigation : KernelTagged.Plan, KernelGate2Objects.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelObject.Limits -> Try(Plan, Error)
+		build_with_navigation = |tagged, objects, facts, navigation, limits| build_plan(tagged, objects, facts, navigation, limits)
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
+
+		navigation_names : Plan -> [NoNavigationNames, WithNavigationNames(KernelNavigationObjects.Names)]
+		navigation_names = |plan| plan.navigation_names
 
 		work : Plan -> Work
 		work = |plan| plan.work
 	}
 }
+
+NavigationLowering := [
+	NoNavigationLowering,
+	WithNavigationLowering(
+		{
+			annotation_objects : List(KernelObject.ObjectId),
+			annotation_pages : List(Semantics.PageId),
+			dests_root : [DestsRootAt(KernelObject.ObjectId), NoDestsRoot],
+			names : KernelNavigationObjects.Names,
+			ordered_annotations : List(U64),
+			outline_root : [NoOutlineRoot, OutlineRootAt(KernelObject.ObjectId)],
+			page_labels_root : [NoPageLabelsRoot, PageLabelsRootAt(KernelObject.ObjectId)],
+		},
+	),
+]
 
 Names := {
 	a : KernelObject.NameId,
@@ -70,8 +100,8 @@ Names := {
 	type_name : KernelObject.NameId,
 }
 
-build_plan : KernelTagged.Plan, KernelGate2Objects.Plan, KernelMetadata.CatalogFacts, KernelObject.Limits -> Try(KernelGate2TaggedObjects.Plan, KernelGate2TaggedObjects.Error)
-build_plan = |tagged, objects, facts, limits| {
+build_plan : KernelTagged.Plan, KernelGate2Objects.Plan, KernelMetadata.CatalogFacts, KernelNavigationObjects.TaggedFacts, KernelObject.Limits -> Try(KernelGate2TaggedObjects.Plan, KernelGate2TaggedObjects.Error)
+build_plan = |tagged, objects, facts, navigation, limits| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	added_names = add_names(KernelObject.init(limits))?
 	prepared = match facts {
@@ -81,16 +111,43 @@ build_plan = |tagged, objects, facts, limits| {
 			{ builder: fact_names.builder, input: CatalogInput({ facts: input, names: fact_names.names }) }
 		}
 	}
-	with_catalog = add_catalog(prepared.builder, added_names.names, prepared.input, objects)?
-	with_root = add_structure_root(with_catalog, added_names.names, tagged, objects)?
-	with_parent_tree = add_parent_tree(with_root, added_names.names, tagged, objects)?
+	lowering = match navigation {
+		NoNavigationObjects => { builder: prepared.builder, value: NoNavigationLowering }
+		WithNavigationObjects(input) => {
+			navigation_names = KernelNavigationObjects.add_names(prepared.builder) ? Object
+			{
+				builder: navigation_names.builder,
+				value: WithNavigationLowering({
+					annotation_objects: input.annotation_objects,
+					annotation_pages: input.annotation_pages,
+					dests_root: input.dests_root,
+					names: navigation_names.names,
+					ordered_annotations: input.ordered_annotations,
+					outline_root: input.outline_root,
+					page_labels_root: input.page_labels_root,
+				}),
+			}
+		}
+	}
+	with_catalog = add_catalog(lowering.builder, added_names.names, prepared.input, lowering.value, objects)?
+	with_root = add_structure_root(with_catalog, added_names.names, tagged, lowering.value, objects)?
+	with_parent_tree = add_parent_tree(with_root, added_names.names, tagged, lowering.value, objects)?
 	with_namespaces = add_namespaces(with_parent_tree, added_names.names, semantics, objects)?
-	with_structure = add_structure_elements(with_namespaces, added_names.names, tagged, objects)?
+	with_structure = add_structure_elements(with_namespaces, added_names.names, tagged, lowering.value, objects)?
 	with_artifacts = add_contextual_artifacts(with_structure, added_names.names, semantics, objects)?
+	annotation_entries = match lowering.value {
+		NoNavigationLowering => 0
+		WithNavigationLowering(input) => input.ordered_annotations.len()
+	}
 	Ok(
 		KernelGate2TaggedObjects.Plan.{
 			builder: with_artifacts,
+			navigation_names: match lowering.value {
+				NoNavigationLowering => NoNavigationNames
+				WithNavigationLowering(input) => WithNavigationNames(input.names)
+			},
 			work: {
+				annotation_entries,
 				contextual_artifacts: semantics.contextual_artifacts.len(),
 				k_items: KernelTagged.Plan.k_items(tagged).len(),
 				namespaces: semantics.namespaces.len(),
@@ -197,43 +254,102 @@ add_fact_names = |builder| {
 	})
 }
 
-add_catalog : KernelObject.Builder, Names, CatalogInputFacts, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
-add_catalog = |builder, names, catalog_input, objects| {
+add_catalog : KernelObject.Builder, Names, CatalogInputFacts, NavigationLowering, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_catalog = |builder, names, catalog_input, navigation, objects| {
 	marked = KernelObject.add_boolean(builder, True) ? Object
 	mark_info = KernelObject.add_dictionary(marked.builder, [{ key: names.marked, value: marked.id }]) ? Object
 	pages = KernelObject.add_reference(mark_info.builder, list_at(KernelGate2Objects.Plan.page_tree(objects), 0)) ? Object
 	structure = KernelObject.add_reference(pages.builder, KernelGate2Objects.Plan.struct_tree_root(objects)) ? Object
 	type_value = add_name_value(structure.builder, names.catalog)?
-	dictionary = match catalog_input {
-		NoCatalogInput => KernelObject.add_dictionary(
-			type_value.builder,
-			[
-				{ key: names.mark_info, value: mark_info.id },
-				{ key: names.pages, value: pages.id },
-				{ key: names.struct_tree_root, value: structure.id },
-				{ key: names.type_name, value: type_value.id },
-			],
-		) ? Object
+	metadata_values = match catalog_input {
+		NoCatalogInput => { builder: type_value.builder, values: NoMetadataValues }
 		CatalogInput({ facts, names: fact_names }) => {
 			lang_text = KernelObject.add_text_string(type_value.builder, facts.language) ? Object
 			lang_value = KernelObject.add_text_string_value(lang_text.builder, lang_text.id) ? Object
 			metadata_reference = KernelObject.add_reference(lang_value.builder, facts.metadata_stream) ? Object
 			intent = add_output_intent(metadata_reference.builder, names, fact_names, facts)?
 			intents = KernelObject.add_array(intent.builder, [intent.id]) ? Object
-			KernelObject.add_dictionary(
-				intents.builder,
-				[
-					{ key: fact_names.lang, value: lang_value.id },
-					{ key: names.mark_info, value: mark_info.id },
-					{ key: fact_names.metadata, value: metadata_reference.id },
-					{ key: fact_names.output_intents, value: intents.id },
-					{ key: names.pages, value: pages.id },
-					{ key: names.struct_tree_root, value: structure.id },
-					{ key: names.type_name, value: type_value.id },
-				],
-			) ? Object
+			{ builder: intents.builder, values: WithMetadataValues({ fact_names, intents: intents.id, lang: lang_value.id, metadata: metadata_reference.id }) }
 		}
 	}
+	navigation_values = match navigation {
+		NoNavigationLowering => { builder: metadata_values.builder, values: NoNavigationValues }
+		WithNavigationLowering(input) => {
+			dests = match input.dests_root {
+				NoDestsRoot => { builder: metadata_values.builder, value: NoValue }
+				DestsRootAt(root) => {
+					root_reference = KernelObject.add_reference(metadata_values.builder, root) ? Object
+					dictionary = KernelObject.add_dictionary(root_reference.builder, [{ key: input.names.dests, value: root_reference.id }]) ? Object
+					{ builder: dictionary.builder, value: WithValue(dictionary.id) }
+				}
+			}
+			outline = match input.outline_root {
+				NoOutlineRoot => { builder: dests.builder, value: NoValue }
+				OutlineRootAt(root) => {
+					root_reference = KernelObject.add_reference(dests.builder, root) ? Object
+					{ builder: root_reference.builder, value: WithValue(root_reference.id) }
+				}
+			}
+			labels = match input.page_labels_root {
+				NoPageLabelsRoot => { builder: outline.builder, value: NoValue }
+				PageLabelsRootAt(root) => {
+					root_reference = KernelObject.add_reference(outline.builder, root) ? Object
+					{ builder: root_reference.builder, value: WithValue(root_reference.id) }
+				}
+			}
+			{ builder: labels.builder, values: WithNavigationValues({ dests: dests.value, labels: labels.value, names: input.names, outline: outline.value }) }
+		}
+	}
+	var $entries = []
+	match metadata_values.values {
+		NoMetadataValues => {}
+		WithMetadataValues(values) => {
+			$entries = $entries.append({ key: values.fact_names.lang, value: values.lang })
+		}
+	}
+	$entries = $entries.append({ key: names.mark_info, value: mark_info.id })
+	match metadata_values.values {
+		NoMetadataValues => {}
+		WithMetadataValues(values) => {
+			$entries = $entries.append({ key: values.fact_names.metadata, value: values.metadata })
+		}
+	}
+	match navigation_values.values {
+		NoNavigationValues => {}
+		WithNavigationValues(values) => {
+			match values.dests {
+				NoValue => {}
+				WithValue(value) => {
+					$entries = $entries.append({ key: values.names.names, value })
+				}
+			}
+			match values.outline {
+				NoValue => {}
+				WithValue(value) => {
+					$entries = $entries.append({ key: values.names.outlines, value })
+				}
+			}
+		}
+	}
+	match metadata_values.values {
+		NoMetadataValues => {}
+		WithMetadataValues(values) => {
+			$entries = $entries.append({ key: values.fact_names.output_intents, value: values.intents })
+		}
+	}
+	match navigation_values.values {
+		NoNavigationValues => {}
+		WithNavigationValues(values) => match values.labels {
+			NoValue => {}
+			WithValue(value) => {
+				$entries = $entries.append({ key: values.names.page_labels, value })
+			}
+		}
+	}
+	$entries = $entries.append({ key: names.pages, value: pages.id })
+	$entries = $entries.append({ key: names.struct_tree_root, value: structure.id })
+	$entries = $entries.append({ key: names.type_name, value: type_value.id })
+	dictionary = KernelObject.add_dictionary(navigation_values.builder, $entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, KernelGate2Objects.Plan.catalog(objects))?
 	Ok(object.builder)
@@ -265,15 +381,19 @@ add_output_intent = |builder, names, fact_names, facts| {
 	Ok(added)
 }
 
-add_structure_root : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
-add_structure_root = |builder, names, tagged, objects| {
+add_structure_root : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_structure_root = |builder, names, tagged, navigation, objects| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	document = list_at(semantics.nodes, semantics.document_root.index())
 	k = KernelObject.add_reference(builder, list_at(KernelGate2Objects.Plan.structure_elements(objects), document.structure_element.index())) ? Object
 	namespace_refs = add_references(k.builder, KernelGate2Objects.Plan.namespaces(objects))?
 	namespaces = KernelObject.add_array(namespace_refs.builder, namespace_refs.values) ? Object
 	parent_tree = KernelObject.add_reference(namespaces.builder, KernelGate2Objects.Plan.parent_tree(objects)) ? Object
-	next_key = KernelObject.add_integer(parent_tree.builder, KernelTagged.Plan.parent_rows(tagged).len().to_i64_wrap()) ? Object
+	annotation_keys = match navigation {
+		NoNavigationLowering => 0
+		WithNavigationLowering(input) => input.ordered_annotations.len()
+	}
+	next_key = KernelObject.add_integer(parent_tree.builder, (KernelTagged.Plan.parent_rows(tagged).len() + annotation_keys).to_i64_wrap()) ? Object
 	type_value = add_name_value(next_key.builder, names.struct_tree_root)?
 	dictionary = KernelObject.add_dictionary(
 		type_value.builder,
@@ -290,8 +410,8 @@ add_structure_root = |builder, names, tagged, objects| {
 	Ok(object.builder)
 }
 
-add_parent_tree : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
-add_parent_tree = |builder, names, tagged, objects| {
+add_parent_tree : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_parent_tree = |builder, names, tagged, navigation, objects| {
 	rows = KernelTagged.Plan.parent_rows(tagged)
 	entries = KernelTagged.Plan.parent_entries(tagged)
 	structure = KernelGate2Objects.Plan.structure_elements(objects)
@@ -325,6 +445,27 @@ add_parent_tree = |builder, names, tagged, objects| {
 	match $error {
 		Invalid(error) => Err(Object(error))
 		NoError => {
+			match navigation {
+				NoNavigationLowering => {}
+				WithNavigationLowering(input) => {
+
+					## One scalar ParentTree row per annotation after the
+					## content-stream rows: the key is the annotation's
+					## `/StructParent` value and the value is one direct
+					## reference to its owning structure element.
+					annotation_owners = KernelTagged.Plan.annotation_owners(tagged)
+					var $ordinal = 0
+					while $ordinal < input.ordered_annotations.len() {
+						annotation = list_at(input.ordered_annotations, $ordinal)
+						owner = list_at(annotation_owners, annotation)
+						key = KernelObject.add_integer($builder, (rows.len() + $ordinal).to_i64_wrap()) ? Object
+						value = KernelObject.add_reference(key.builder, list_at(structure, owner.index())) ? Object
+						$builder = value.builder
+						$numbers = $numbers.append(key.id).append(value.id)
+						$ordinal = $ordinal + 1
+					}
+				}
+			}
 			nums = KernelObject.add_array($builder, $numbers) ? Object
 			dictionary = KernelObject.add_dictionary(nums.builder, [{ key: names.nums, value: nums.id }]) ? Object
 			object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
@@ -375,8 +516,8 @@ add_namespace = |builder, names, namespace, expected| {
 	Ok(object.builder)
 }
 
-add_structure_elements : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
-add_structure_elements = |builder, names, tagged, objects| {
+add_structure_elements : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelGate2Objects.Plan -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_structure_elements = |builder, names, tagged, navigation, objects| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	nodes_by_structure = index_nodes_by_structure(semantics.nodes)
 	ids = KernelGate2Objects.Plan.structure_elements(objects)
@@ -385,7 +526,7 @@ add_structure_elements = |builder, names, tagged, objects| {
 	var $error = NoError
 	while $structure_index < ids.len() and $error == NoError {
 		node = list_at(semantics.nodes, list_at(nodes_by_structure, $structure_index).index())
-		match add_structure_element($builder, names, tagged, objects, node, list_at(ids, $structure_index)) {
+		match add_structure_element($builder, names, tagged, navigation, objects, node, list_at(ids, $structure_index)) {
 			Err(error) => {
 				$error = Invalid(error)
 			}
@@ -401,10 +542,10 @@ add_structure_elements = |builder, names, tagged, objects| {
 	}
 }
 
-add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, KernelGate2Objects.Plan, Semantics.Node, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
-add_structure_element = |builder, names, tagged, objects, node, expected| {
+add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelGate2Objects.Plan, Semantics.Node, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelGate2TaggedObjects.Error)
+add_structure_element = |builder, names, tagged, navigation, objects, node, expected| {
 	node_k = list_at(KernelTagged.Plan.node_k(tagged), node.id.index())
-	k_values = add_k_items(builder, names, KernelTagged.Plan.k_items(tagged), node_k.items, objects)?
+	k_values = add_k_items(builder, names, KernelTagged.Plan.k_items(tagged), node_k.items, navigation, objects)?
 	k = KernelObject.add_array(k_values.builder, k_values.values) ? Object
 	ns = KernelObject.add_reference(k.builder, list_at(KernelGate2Objects.Plan.namespaces(objects), node.role.namespace.index())) ? Object
 	parent_object = match node.parent {
@@ -440,8 +581,8 @@ add_structure_element = |builder, names, tagged, objects, node, expected| {
 	Ok(object.builder)
 }
 
-add_k_items : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, KernelGate2Objects.Plan -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelGate2TaggedObjects.Error)
-add_k_items = |builder, names, items, range, objects| {
+add_k_items : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelGate2Objects.Plan -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelGate2TaggedObjects.Error)
+add_k_items = |builder, names, items, range, navigation, objects| {
 	var $builder = builder
 	var $values = List.with_capacity(range.length())
 	var $index = range.start()
@@ -450,7 +591,10 @@ add_k_items = |builder, names, items, range, objects| {
 	while $index < end and $error == NoError {
 		item = list_at(items, $index)
 		added = match item {
-			AnnotationChild(annotation) => return Err(AnnotationObjectUnplanned({ annotation: annotation.index() }))
+			AnnotationChild(annotation) => match navigation {
+				NoNavigationLowering => return Err(AnnotationObjectUnplanned({ annotation: annotation.index() }))
+				WithNavigationLowering(input) => add_objr($builder, names, input, annotation, objects)
+			}
 			ChildStructure(child) => KernelObject.add_reference($builder, list_at(KernelGate2Objects.Plan.structure_elements(objects), child.index()))
 			ContextualArtifactChild(artifact) => KernelObject.add_reference($builder, list_at(KernelGate2Objects.Plan.contextual_artifacts(objects), artifact.index()))
 			MarkedContent(reference) => add_mcr($builder, names, reference, objects)
@@ -482,6 +626,25 @@ add_mcr = |builder, names, reference, objects| {
 		type_value.builder,
 		[
 			{ key: names.mcid, value: mcid.id },
+			{ key: names.pg, value: pg.id },
+			{ key: names.type_name, value: type_value.id },
+		],
+	)
+}
+
+## An annotation spine item lowers as an OBJR: the object reference to the
+## planned annotation dictionary plus the page it appears on.
+add_objr : KernelObject.Builder, Names, { annotation_objects : List(KernelObject.ObjectId), annotation_pages : List(Semantics.PageId), dests_root : [DestsRootAt(KernelObject.ObjectId), NoDestsRoot], names : KernelNavigationObjects.Names, ordered_annotations : List(U64), outline_root : [NoOutlineRoot, OutlineRootAt(KernelObject.ObjectId)], page_labels_root : [NoPageLabelsRoot, PageLabelsRootAt(KernelObject.ObjectId)] }, Semantics.AnnotationId, KernelGate2Objects.Plan -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
+add_objr = |builder, names, input, annotation, objects| {
+	annotation_index = annotation.index()
+	target = KernelObject.add_reference(builder, list_at(input.annotation_objects, annotation_index))?
+	page = list_at(KernelGate2Objects.Plan.pages(objects), list_at(input.annotation_pages, annotation_index).index())
+	pg = KernelObject.add_reference(target.builder, page.page)?
+	type_value = KernelObject.add_name_value(pg.builder, input.names.objr)?
+	KernelObject.add_dictionary(
+		type_value.builder,
+		[
+			{ key: input.names.obj, value: target.id },
 			{ key: names.pg, value: pg.id },
 			{ key: names.type_name, value: type_value.id },
 		],
@@ -653,7 +816,7 @@ expect {
 	plan = KernelGate2TaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
 	counts = KernelObject.counts(KernelGate2TaggedObjects.Plan.builder(plan))
 	first_page_tree = list_at(KernelGate2Objects.Plan.page_tree(pipeline.objects), 0)
-	counts.objects + 1 == KernelObject.ObjectId.number(first_page_tree) and KernelGate2TaggedObjects.Plan.work(plan) == { contextual_artifacts: 0, k_items: 2, namespaces: 1, parent_entries: 1, parent_rows: 1, structure_elements: 2 }
+	counts.objects + 1 == KernelObject.ObjectId.number(first_page_tree) and KernelGate2TaggedObjects.Plan.work(plan) == { annotation_entries: 0, contextual_artifacts: 0, k_items: 2, namespaces: 1, parent_entries: 1, parent_rows: 1, structure_elements: 2 }
 }
 
 ## Contextual Artifact structure elements remain distinct planned objects.

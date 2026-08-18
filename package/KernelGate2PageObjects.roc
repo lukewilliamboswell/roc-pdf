@@ -39,7 +39,7 @@ KernelGate2PageObjects :: [].{
 		## consumes those values instead of one shared dictionary. The caller
 		## reports how many direct references those dictionaries hold.
 		build_with_page_resources : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64 -> Try(Plan, Error)
-		build_with_page_resources = |builder, tagged, content, objects, resource_values, resource_references| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, NoGroups)
+		build_with_page_resources = |builder, tagged, content, objects, resource_values, resource_references| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, NoGroups, NoAnnotations)
 
 		## The transparency-aware Gate 4 variant: pages whose content
 		## (transitively) contains transparency additionally receive the
@@ -47,7 +47,15 @@ KernelGate2PageObjects :: [].{
 		## planned before the pages, so one shared group value serves every
 		## transparency page.
 		build_with_page_groups : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64, List(PageGroup) -> Try(Plan, Error)
-		build_with_page_groups = |builder, tagged, content, objects, resource_values, resource_references, groups| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, PerPageGroups(groups))
+		build_with_page_groups = |builder, tagged, content, objects, resource_values, resource_references, groups| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, PerPageGroups(groups), NoAnnotations)
+
+		## The navigation-aware Gate 4 variant: pages carrying link
+		## annotations additionally receive their caller-built `/Annots`
+		## reference array value in keyboard order. Pages without annotations
+		## and plans without navigation emit no key and keep their exact name
+		## table and identity.
+		build_with_page_navigation : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64, List(PageGroup), List(PageAnnots) -> Try(Plan, Error)
+		build_with_page_navigation = |builder, tagged, content, objects, resource_values, resource_references, groups, annots| build_page_resource_plan(builder, tagged, content, objects, resource_values, resource_references, PerPageGroups(groups), PerPageAnnotations(annots))
 
 		builder : Plan -> KernelObject.Builder
 		builder = |plan| plan.builder
@@ -58,13 +66,19 @@ KernelGate2PageObjects :: [].{
 
 	## Whether one page carries a transparency group dictionary value.
 	PageGroup : [NoGroup, WithGroup(KernelObject.ValueId)]
+
+	## Whether one page carries a link-annotation array value.
+	PageAnnots : [NoAnnots, WithAnnots(KernelObject.ValueId)]
 }
+
+PageAnnotations := [NoAnnotations, PerPageAnnotations(List(KernelGate2PageObjects.PageAnnots))]
 
 ResourcesFor := [PerPage(List(KernelObject.ValueId)), SharedValue(KernelObject.ValueId)]
 
 PageGroups := [NoGroups, PerPageGroups(List(KernelGate2PageObjects.PageGroup))]
 
 Names := {
+	annots : [NoAnnotsName, WithAnnotsName(KernelObject.NameId)],
 	art_box : KernelObject.NameId,
 	bleed_box : KernelObject.NameId,
 	color_space : KernelObject.NameId,
@@ -94,7 +108,7 @@ build_plan = |prefix, tagged, content, objects| {
 	added_names = add_names(KernelGate2TaggedObjects.Plan.builder(prefix), NoGroups)?
 	resources = add_resources(added_names.builder, added_names.names, objects)?
 	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects, NoGroups)?
+	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects, NoGroups, NoAnnotations)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,
@@ -110,11 +124,11 @@ build_plan = |prefix, tagged, content, objects| {
 	)
 }
 
-build_page_resource_plan : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64, PageGroups -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
-build_page_resource_plan = |builder, tagged, content, objects, resource_values, resource_references, groups| {
-	added_names = add_names(builder, groups)?
+build_page_resource_plan : KernelObject.Builder, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, List(KernelObject.ValueId), U64, PageGroups, PageAnnotations -> Try(KernelGate2PageObjects.Plan, KernelGate2PageObjects.Error)
+build_page_resource_plan = |builder, tagged, content, objects, resource_values, resource_references, groups, annotations| {
+	added_names = add_names_with_annotations(builder, groups, annotations)?
 	page_tree = add_page_tree(added_names.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, PerPage(resource_values), tagged, content, objects, groups)?
+	pages = add_pages(page_tree.builder, added_names.names, PerPage(resource_values), tagged, content, objects, groups, annotations)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,
@@ -137,7 +151,7 @@ build_font_plan = |prefix, tagged, content, font_objects| {
 	font_name = KernelObject.add_name(added_names.builder, Str.to_utf8("Font")) ? Object
 	resources = add_resources_with_fonts(font_name.builder, added_names.names, font_name.id, objects, KernelGate3FontObjects.Plan.fonts(font_objects))?
 	page_tree = add_page_tree(resources.builder, added_names.names, objects)?
-	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects, NoGroups)?
+	pages = add_pages(page_tree.builder, added_names.names, SharedValue(resources.value), tagged, content, objects, NoGroups, NoAnnotations)?
 	Ok(
 		KernelGate2PageObjects.Plan.{
 			builder: pages,
@@ -154,8 +168,20 @@ build_font_plan = |prefix, tagged, content, font_objects| {
 }
 
 add_names : KernelObject.Builder, PageGroups -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate2PageObjects.Error)
-add_names = |builder, groups| {
-	art_box = KernelObject.add_name(builder, Str.to_utf8("ArtBox")) ? Object
+add_names = |builder, groups| add_names_with_annotations(builder, groups, NoAnnotations)
+
+## The `Annots` name joins the table only when the plan carries navigation,
+## so a plan without annotations keeps its exact name table and identity.
+add_names_with_annotations : KernelObject.Builder, PageGroups, PageAnnotations -> Try({ builder : KernelObject.Builder, names : Names }, KernelGate2PageObjects.Error)
+add_names_with_annotations = |builder, groups, annotations| {
+	annots = match annotations {
+		NoAnnotations => { builder, id: NoAnnotsName }
+		PerPageAnnotations(_) => {
+			added = KernelObject.add_name(builder, Str.to_utf8("Annots")) ? Object
+			{ builder: added.builder, id: WithAnnotsName(added.id) }
+		}
+	}
+	art_box = KernelObject.add_name(annots.builder, Str.to_utf8("ArtBox")) ? Object
 	bleed_box = KernelObject.add_name(art_box.builder, Str.to_utf8("BleedBox")) ? Object
 	color_space = KernelObject.add_name(bleed_box.builder, Str.to_utf8("ColorSpace")) ? Object
 	contents = KernelObject.add_name(color_space.builder, Str.to_utf8("Contents")) ? Object
@@ -188,6 +214,7 @@ add_names = |builder, groups| {
 	Ok({
 		builder: x_object.builder,
 		names: {
+			annots: annots.id,
 			art_box: art_box.id,
 			bleed_box: bleed_box.id,
 			color_space: color_space.id,
@@ -409,8 +436,8 @@ add_references = |builder, objects| {
 	}
 }
 
-add_pages : KernelObject.Builder, Names, ResourcesFor, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, PageGroups -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
-add_pages = |builder, names, resources, tagged, content, objects, groups| {
+add_pages : KernelObject.Builder, Names, ResourcesFor, KernelTagged.Plan, KernelContent.Plan, KernelGate2Objects.Plan, PageGroups, PageAnnotations -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
+add_pages = |builder, names, resources, tagged, content, objects, groups, annotations| {
 	scenes = KernelTagged.Plan.scenes(tagged)
 	page_objects = KernelGate2Objects.Plan.pages(objects)
 	shape = KernelGate2Objects.Plan.page_tree_shape(objects)
@@ -432,7 +459,11 @@ add_pages = |builder, names, resources, tagged, content, objects, groups| {
 			NoGroups => NoGroup
 			PerPageGroups(values) => list_at(values, $index)
 		}
-		match add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelGate2Objects.Plan.page_tree(objects), parent_index), planned, page_group) {
+		page_annots = match annotations {
+			NoAnnotations => NoAnnots
+			PerPageAnnotations(values) => list_at(values, $index)
+		}
+		match add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelGate2Objects.Plan.page_tree(objects), parent_index), planned, page_group, page_annots) {
 			Err(error) => {
 				$error = Invalid(error)
 			}
@@ -448,8 +479,8 @@ add_pages = |builder, names, resources, tagged, content, objects, groups| {
 	}
 }
 
-add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.Stream, KernelObject.ObjectId, KernelGate2Objects.PageObjects, KernelGate2PageObjects.PageGroup -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
-add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_object, planned, group| {
+add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.Stream, KernelObject.ObjectId, KernelGate2Objects.PageObjects, KernelGate2PageObjects.PageGroup, KernelGate2PageObjects.PageAnnots -> Try(KernelObject.Builder, KernelGate2PageObjects.Error)
+add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_object, planned, group, annots| {
 	art = add_rect(builder, page.boxes.art)?
 	bleed = add_rect(art.builder, page.boxes.bleed)?
 	contents = KernelObject.add_reference(bleed.builder, planned.content.stream) ? Object
@@ -459,27 +490,29 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 	rotate = KernelObject.add_integer(parent.builder, rotation_degrees(page.rotation)) ? Object
 	struct_parents = KernelObject.add_integer(rotate.builder, content.stream.index().to_i64_wrap()) ? Object
 	trim = add_rect(struct_parents.builder, page.boxes.trim)?
-	entries = match group {
-		NoGroup => [
-			{ key: names.art_box, value: art.value },
-			{ key: names.bleed_box, value: bleed.value },
-			{ key: names.contents, value: contents.id },
-			{ key: names.crop_box, value: crop.value },
-			{ key: names.media_box, value: media.value },
-			{ key: names.parent, value: parent.id },
-			{ key: names.resources, value: resources },
-			{ key: names.rotate, value: rotate.id },
-			{ key: names.struct_parents, value: struct_parents.id },
-			{ key: names.tabs, value: tabs_s },
-			{ key: names.trim_box, value: trim.value },
-			{ key: names.type_name, value: page_type },
-		]
-		WithGroup(group_value) => [
-			{ key: names.art_box, value: art.value },
-			{ key: names.bleed_box, value: bleed.value },
-			{ key: names.contents, value: contents.id },
-			{ key: names.crop_box, value: crop.value },
-			{
+	var $entries = []
+	match annots {
+		NoAnnots => {}
+		WithAnnots(annots_value) => {
+			$entries = $entries.append({
+				key: match names.annots {
+					WithAnnotsName(id) => id
+					NoAnnotsName => {
+						crash "page annotations emitted without their planned name"
+					}
+				},
+				value: annots_value,
+			})
+		}
+	}
+	$entries = $entries.append({ key: names.art_box, value: art.value })
+	$entries = $entries.append({ key: names.bleed_box, value: bleed.value })
+	$entries = $entries.append({ key: names.contents, value: contents.id })
+	$entries = $entries.append({ key: names.crop_box, value: crop.value })
+	match group {
+		NoGroup => {}
+		WithGroup(group_value) => {
+			$entries = $entries.append({
 				key: match names.group {
 					WithGroupName(id) => id
 					NoGroupName => {
@@ -487,20 +520,20 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 					}
 				},
 				value: group_value,
-			},
-			{ key: names.media_box, value: media.value },
-			{ key: names.parent, value: parent.id },
-			{ key: names.resources, value: resources },
-			{ key: names.rotate, value: rotate.id },
-			{ key: names.struct_parents, value: struct_parents.id },
-			{ key: names.tabs, value: tabs_s },
-			{ key: names.trim_box, value: trim.value },
-			{ key: names.type_name, value: page_type },
-		]
+			})
+		}
 	}
+	$entries = $entries.append({ key: names.media_box, value: media.value })
+	$entries = $entries.append({ key: names.parent, value: parent.id })
+	$entries = $entries.append({ key: names.resources, value: resources })
+	$entries = $entries.append({ key: names.rotate, value: rotate.id })
+	$entries = $entries.append({ key: names.struct_parents, value: struct_parents.id })
+	$entries = $entries.append({ key: names.tabs, value: tabs_s })
+	$entries = $entries.append({ key: names.trim_box, value: trim.value })
+	$entries = $entries.append({ key: names.type_name, value: page_type })
 	dictionary = KernelObject.add_dictionary(
 		trim.builder,
-		entries,
+		$entries,
 	) ? Object
 	page_object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(page_object.id, planned.page)?
