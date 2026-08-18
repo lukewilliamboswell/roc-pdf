@@ -425,7 +425,9 @@ Gate 1/2 fixtures and every fontless byte snapshot are untouched.
   [gate-4-metadata-output-intent.md](gate-4-metadata-output-intent.md),
   which absorbed the 6.7.2.1 finding above.
 - URI links, typed internal destinations with paired `/SD` + `/D`, named
-  destinations, outlines, and page labels.
-- Annotation appearances through this same scene/resource pipeline.
+  destinations, outlines, and page labels — landed in
+  [gate-4-navigation-annotations.md](gate-4-navigation-annotations.md).
+- Annotation appearances through this same scene/resource pipeline — landed in
+  [gate-4-navigation-annotations.md](gate-4-navigation-annotations.md).
 
 This slice deliberately claims `Pdf20`/`Standard` output only.

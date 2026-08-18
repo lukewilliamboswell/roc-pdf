@@ -416,8 +416,10 @@ snapshot regenerated 22 bytes larger (two 11-byte xref entries).
 ## Exact remaining Gate 4 work
 
 - URI links, typed internal destinations with paired `/SD` + `/D`, named
-  destinations, outlines, and page labels.
-- Annotation appearances through this same scene/resource pipeline.
+  destinations, outlines, and page labels — landed in
+  [gate-4-navigation-annotations.md](gate-4-navigation-annotations.md).
+- Annotation appearances through this same scene/resource pipeline — landed in
+  [gate-4-navigation-annotations.md](gate-4-navigation-annotations.md).
 
 This slice deliberately claims `Pdf20`/`Standard` output only. The PDF/A
 Identification schema (veraPDF 6.7.3-1) and the `Archive` profile's
