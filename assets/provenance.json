@@ -1064,6 +1064,261 @@
       }
     },
     {
+      "id": "jpeg-fuzz-corpus-gray-16x16",
+      "path": "tests/assets/jpeg-fuzz-corpus/gray-16x16.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 334,
+      "sha256": "cf017ff588708817db507a7a8751d56f7afa6002041e26fc1e333aedf281918e",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-64x32",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-64x32.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 660,
+      "sha256": "d7c4c53aa9778ced17e603eb16939c441470ee097f10dca404b705bde3f4e49c",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-8x8",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-8x8.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 634,
+      "sha256": "06bec7b79831c7dad6b35ca19bc71cd9210ba9eb3792730f98f073f23e7930f5",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-comment",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-comment.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 662,
+      "sha256": "b1b03520de13e098ee659310ddac57245023f084a7b34bae53de432c21b8cb4d",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-exif-orientation-1",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-1.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 673,
+      "sha256": "e8f90d2b3868c35f9c6d8d188192d9c06f2543deaf5a4ec7504c827ab3103fdb",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-exif-orientation-2",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-2.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 673,
+      "sha256": "47ade9538bf960da3f5a12997b396e3beea5499ca526f2f0320a6ee0904edb7c",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-exif-orientation-3",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-3.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 673,
+      "sha256": "fad4f1cb7fb6ea1291dca870d2d32eda2ea0f09f145bcf9a40f642cb67345122",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-exif-orientation-4",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-4.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 673,
+      "sha256": "64a2309dc8ca7299fbd4427135b59de5b0698e4d29493a92a6b1ccc8f9fca80a",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-exif-orientation-5",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-5.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 673,
+      "sha256": "307fb29659a3fe9915c69c7a16648c45d8e4b6702cbf83f501c43e573383e4f0",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-exif-orientation-6",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-6.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 673,
+      "sha256": "6d36bd807333578b80d6f4025dcbf21d405f22bd5b2c4445df6f326727c9917e",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-exif-orientation-7",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-7.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 673,
+      "sha256": "7d309766e81ee568abbcd56659951e82dd5e9d8e442b2dc85cd77a7072d442b7",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-exif-orientation-8",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-exif-orientation-8.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 673,
+      "sha256": "40643e8c8a984346ecf49bc0041b9880bd43af132f647354e63a8698ece8264b",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-progressive-32x32",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-progressive-32x32.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 526,
+      "sha256": "b91d2de99c9db7305cf27654ff010aeed0f81c7942f175185fdab9a5fbdb933e",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-subsampling-0",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-subsampling-0.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 646,
+      "sha256": "be1cd343fa263059e1eb2af289120b1d57f6b843374b00540d01a744ba6e26e5",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-rgb-subsampling-2",
+      "path": "tests/assets/jpeg-fuzz-corpus/rgb-subsampling-2.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 646,
+      "sha256": "a87b304b6438f6165fb90b52120925d6e99a15a55d47df6b6bbd28de2526ba24",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-tall-1x256",
+      "path": "tests/assets/jpeg-fuzz-corpus/tall-1x256.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 692,
+      "sha256": "dd3efe686c8533c0f784d35b9459ad94f8e05a44173481dd6a1907397928a2a5",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
+      "id": "jpeg-fuzz-corpus-wide-256x1",
+      "path": "tests/assets/jpeg-fuzz-corpus/wide-256x1.jpg",
+      "kind": "fuzz_seed",
+      "bytes": 692,
+      "sha256": "204f3c0a75d68048cbc5ce401ecece268cbc4b0ecfcd9d7e10d6ccbdaca90982",
+      "license": "CC0-1.0",
+      "attribution": "roc-pdf contributors",
+      "modification_permitted": true,
+      "redistribution_permitted": true,
+      "origin": {
+        "kind": "generated",
+        "generator": "scripts/build_jpeg_fuzz_corpus.py"
+      }
+    },
+    {
       "id": "metadata-facade-negative-pdf-snapshot",
       "path": "tests/metadata/metadata_facade_negative.pdf",
       "kind": "expected_pdf",

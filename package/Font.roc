@@ -241,7 +241,15 @@ register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimi
 	face_index = state.store.faces.len()
 	instance_index = state.store.instances.len()
 	policy_index = state.store.policies.len()
-	if resource_index != face_index or face_index != instance_index or instance_index != policy_index or state.inspections.len() != face_index {
+
+	## Resources, faces, instances, and retained inspections advance together,
+	## one per registration, so a disagreement between them means the registry
+	## is not the value this boundary produced. Policies deliberately do not
+	## join that invariant: `with_policy` appends an explicit policy without a
+	## resource, face, or instance, so requiring the policy count to match would
+	## seal the registry against every later registration and report a
+	## registry-state precondition as a fault in the caller's font bytes.
+	if resource_index != face_index or face_index != instance_index or state.inspections.len() != face_index {
 		return Err(InvalidFont)
 	}
 	resource = Font.ResourceId.from_index(resource_index)

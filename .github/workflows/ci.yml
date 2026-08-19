@@ -58,6 +58,14 @@ jobs:
             ./scripts/test.py
           fi
 
+      # A bounded campaign per property fuzz target. The suite above only
+      # formats, checks, and runs the `expect`s in these sources; this is what
+      # executes their properties against generated input. Linux only, matching
+      # the pull-request matrix.
+      - name: Run bounded property fuzz lane
+        if: runner.os == 'Linux'
+        run: python3 scripts/fuzz.py
+
       - name: Verify release bundle consumer boundary
         run: python3 scripts/test_bundle_consumer.py
 

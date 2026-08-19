@@ -113,6 +113,44 @@ KernelNavigation :: [].{
 		max_outline_depth = |Limits.(limits)| limits.max_outline_depth
 	}
 
+	## The bounds the standard facade profile applies to authored navigation.
+	## These live here rather than inline in the facade so the one declaration
+	## serves both the pipeline that enforces them and the evidence that probes
+	## their boundaries; a property cannot drift from the enforced value.
+	##
+	## `KernelNavigation` is absent from the public `package/main.roc` module
+	## list, so this stays invisible to bundle consumers while remaining
+	## reachable through the repository-only `package/all.roc` root.
+	standard_limit_values : {
+		max_annotations : U64,
+		max_description_bytes : U64,
+		max_destinations : U64,
+		max_label_prefix_bytes : U64,
+		max_label_ranges : U64,
+		max_name_bytes : U64,
+		max_outline_depth : U64,
+		max_outline_entries : U64,
+		max_outline_title_bytes : U64,
+		max_quads : U64,
+		max_uri_bytes : U64,
+	}
+	standard_limit_values = {
+		max_annotations: 4096,
+		max_description_bytes: 1024,
+		max_destinations: 2048,
+		max_label_prefix_bytes: 64,
+		max_label_ranges: 1024,
+		max_name_bytes: 128,
+		max_outline_depth: 32,
+		max_outline_entries: 4096,
+		max_outline_title_bytes: 1024,
+		max_quads: 100000,
+		max_uri_bytes: 2048,
+	}
+
+	standard_limits : Limits
+	standard_limits = Limits.make(standard_limit_values)
+
 	## Normalized actions reference the dense destination identity resolved
 	## through the deterministic name registry.
 	Action : [GoToDestination(Semantics.DestinationId), UriAction(Semantics.Range)]

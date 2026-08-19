@@ -876,7 +876,10 @@ bytes.
 ### Per change
 
 - Fast ordinary CI checks and tests `package/main.roc`, compiles and tests every
-  checked-in public example, and runs the bounded fuzz smoke tests.
+  checked-in public example, and runs a bounded campaign for every property fuzz
+  target through `./scripts/fuzz.py`. Compiling a target is not evidence about
+  its property, so the lane executes each one against its seed corpus rather
+  than only type-checking it.
 - Before a change is treated as feature evidence, its author runs the complete
   local `./scripts/test.py` suite. This retains Roc unit and typed property
   tests, deterministic fixture and structural checks, independent validators
