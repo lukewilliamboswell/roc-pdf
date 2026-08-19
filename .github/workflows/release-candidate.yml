@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "The only supported release candidate tag: 0.1.0-rc1"
+        description: "The only supported release candidate tag: 0.1.0-rc2"
         required: true
         type: string
 
@@ -57,15 +57,27 @@ jobs:
       - name: Bundle package
         run: ROC=roc ./scripts/bundle.sh --output-dir dist
 
+      - name: Build public API docs
+        if: runner.os == 'Linux'
+        run: |
+          ./scripts/docs.sh generated-docs
+          tar -czf dist/roc-pdf-0.1.0-rc2-docs.tar.gz generated-docs
+
       - name: Validate a consumer against the served bundle
         run: ROC=roc python3 ./scripts/test_bundle_consumer.py --bundle-path "$(find dist -maxdepth 1 -name '*.tar.zst' -type f -print -quit)"
+
+      - name: Verify public example gallery
+        if: runner.os == 'Linux'
+        run: ROC=roc python3 scripts/check_gallery.py
 
       - name: Upload bundle
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: roc-pdf-0.1.0-rc1-bundle
-          path: dist/*.tar.zst
+          name: roc-pdf-0.1.0-rc2-release
+          path: |
+            dist/*.tar.zst
+            dist/*-docs.tar.gz
           if-no-files-found: error
           retention-days: 30
 
@@ -83,12 +95,12 @@ jobs:
       - name: Check release tag
         env:
           RELEASE_TAG: ${{ github.event.inputs.release_tag }}
-        run: test "$RELEASE_TAG" = "0.1.0-rc1"
+        run: test "$RELEASE_TAG" = "0.1.0-rc2"
 
       - name: Download validated bundle
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: roc-pdf-0.1.0-rc1-bundle
+          name: roc-pdf-0.1.0-rc2-release
           path: dist
 
       - name: Create prerelease
@@ -96,8 +108,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.inputs.release_tag }}
         run: |
-          gh release create "$RELEASE_TAG" dist/*.tar.zst \
+          gh release create "$RELEASE_TAG" dist/*.tar.zst dist/*-docs.tar.gz \
             --title "$RELEASE_TAG" \
             --prerelease \
             --target "$GITHUB_SHA" \
-            --notes-file docs/releases/0.1.0-rc1.md
+            --notes-file docs/releases/0.1.0-rc2.md

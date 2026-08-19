@@ -555,6 +555,31 @@ The initial profile does not include CMYK, Separation/DeviceN/spot color,
 overprint, luminosity masks, non-Normal blending, rollover/down annotation
 appearances, or annotation types other than links.
 
+### Closure status
+
+Gate 4 is closed for the `Pdf20`/`Standard` production-visual compiler. The
+slice-by-slice evidence and final boundary audit are aggregated in
+`docs/performance/production-visual-closure.md`. This closes forms, resource
+identity and closure, raster/JPEG and color leaves, transparency and masks,
+shadings and patterns, font leaves, metadata/output intent, and navigation.
+
+Closure exposes ownership-safe authoring values for typed image sources,
+opaque drawings, meaningful figures with required alternative text, and
+content-first fixed pages. A post-closure authoring slice now executes the
+narrowest complete meaningful figure under `Standard`: exactly one validated
+packed-raster or JPEG image command, a positive placement, non-empty
+alternative text serialized as `/Alt`, and an optional caption owned by the
+same semantic occurrence and layout fragment. Positive packed-raster evidence,
+atomic invalid-resource/drawing evidence, deterministic bytes, structural
+image/Figure inspection, and exact allocation/work evidence are required for
+this slice. It makes no PDF/UA-2 claim; Gate 6 retains the broader semantic and
+human accessibility audit.
+
+Vector, grouped, and multi-command drawings still reject atomically with
+`document.figure`; fixed pages reject with `layout.custom` until Gate 8. Raw
+stores and PDF object identities remain outside the common path. `Archive` and
+`AccessibleArchive` remain unavailable until their own gates close.
+
 ## Gate 5: static PDF/A-4
 
 ### Capabilities
@@ -868,7 +893,7 @@ bytes.
 - Arlington validation.
 - Upstream corpora used to verify the validators themselves.
 - Random small typed scenarios with minimized retained seeds.
-- Deterministic corpus-mutation fuzzing of font, JPEG, PNG, and ICC inspectors,
+- Deterministic corpus-mutation fuzzing of font, JPEG, and ICC inspectors,
   or coverage-guided fuzzing when reliable Roc coverage is available, under
   input/work/memory/time bounds with minimized failures retained as ordinary
   regression tests.

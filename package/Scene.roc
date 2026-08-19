@@ -5,6 +5,98 @@ import Semantics
 import Text
 
 Scene :: [].{
+
+	## The stable authoring boundary is ownership-neutral. A drawing becomes
+	## meaningful only when wrapped in a document Figure, or decorative only
+	## when attached through an explicit page-artifact API.
+	## Ownership-neutral commands retained by an authoring drawing.
+	AuthorCommand : [
+		AuthorImage({ image : Image.Source, placement : Layout.Rect }),
+		AuthorPath({ path : AuthorPath, style : AuthorPathStyle }),
+		AuthorGroup({ kind : AuthorGroupKind, value : U16 }),
+	]
+
+	## Stable group vocabulary reserved for validated drawing composition.
+	AuthorGroupKind : [ClipGroup, OpacityGroup, SoftMaskGroup, TransformGroup]
+
+	## Explicit fill and stroke paint for an authored path.
+	AuthorPathStyle : {
+		fill : [AuthorNoFill, AuthorSolidFill(Color.SourceValue)],
+		stroke : [AuthorNoStroke, AuthorSolidStroke({ color : Color.SourceValue, width : Layout.Unit })],
+	}
+
+	## Ordered path segments produced by `PathBuilder.finish`.
+	AuthorPath : List(PathSegment)
+
+	## An opaque persistent drawing. It acquires semantic or artifact ownership
+	## only when attached to a document.
+	Drawing :: { commands : List(AuthorCommand) }.{
+		empty : Drawing
+		empty = Drawing.({ commands: [] })
+
+		path : Drawing, AuthorPath, AuthorPathStyle -> Drawing
+		path = |Drawing.(state), path_value, style| Drawing.({ commands: state.commands.append(AuthorPath({ path: path_value, style })) })
+
+		## Place a replayable image source in drawing-local fixed-point geometry.
+		## Pixel dimensions remain independent of this authored display rectangle.
+		image : Drawing, Image.Source, Layout.Rect -> Drawing
+		image = |Drawing.(state), image_value, placement| Drawing.({ commands: state.commands.append(AuthorImage({ image: image_value, placement })) })
+
+		command_count : Drawing -> U64
+		command_count = |Drawing.(state)| state.commands.len()
+
+		## Inspect retained commands during validated preparation.
+		commands : Drawing -> List(AuthorCommand)
+		commands = |Drawing.(state)| state.commands
+	}
+
+	## Persistent builder for an ordered path in PDF user-space coordinates.
+	PathBuilder :: { segments : List(PathSegment) }.{
+		start : PathBuilder
+		start = PathBuilder.({ segments: [] })
+
+		move_to : PathBuilder, Layout.Point -> PathBuilder
+		move_to = |PathBuilder.(state), point| PathBuilder.({ segments: state.segments.append(MoveTo(point)) })
+
+		line_to : PathBuilder, Layout.Point -> PathBuilder
+		line_to = |PathBuilder.(state), point| PathBuilder.({ segments: state.segments.append(LineTo(point)) })
+
+		cubic_to : PathBuilder, { control_1 : Layout.Point, control_2 : Layout.Point, end : Layout.Point } -> PathBuilder
+		cubic_to = |PathBuilder.(state), curve| PathBuilder.({ segments: state.segments.append(CubicTo(curve)) })
+
+		rectangle : PathBuilder, Layout.Rect -> PathBuilder
+		rectangle = |PathBuilder.(state), bounds| PathBuilder.({ segments: state.segments.append(Rectangle(bounds)) })
+
+		close : PathBuilder -> PathBuilder
+		close = |PathBuilder.(state)| PathBuilder.({ segments: state.segments.append(Close) })
+
+		finish : PathBuilder -> AuthorPath
+		finish = |PathBuilder.(state)| state.segments
+	}
+
+	## Start an empty authoring drawing.
+	drawing : {} -> Drawing
+	drawing = |_| Drawing.empty
+
+	## Paint a path fill with an explicit source color and no stroke.
+	solid_fill : Color.SourceValue -> AuthorPathStyle
+	solid_fill = |color| { fill: AuthorSolidFill(color), stroke: AuthorNoStroke }
+
+	## Paint a path stroke with an explicit width and no fill.
+	solid_stroke : Color.SourceValue, Layout.Unit -> AuthorPathStyle
+	solid_stroke = |color, width| { fill: AuthorNoFill, stroke: AuthorSolidStroke({ color, width }) }
+
+	## Append a solid filled rectangle to a drawing.
+	rectangle : Drawing, Layout.Rect, Color.SourceValue -> Drawing
+	rectangle = |drawing_value, bounds, color| {
+		path_value = PathBuilder.start.rectangle(bounds).finish()
+		drawing_value.path(path_value, solid_fill(color))
+	}
+
+	## Start an empty path builder.
+	path : {} -> PathBuilder
+	path = |_| PathBuilder.start
+
 	GroupId :: U64.{
 		from_index : U64 -> GroupId
 		from_index = |index| GroupId.(index)

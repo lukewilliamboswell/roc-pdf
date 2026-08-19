@@ -19,39 +19,12 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
-from check_tagged_visual import validate_tagged_visual_pdf
-from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
-from check_actual_text import validate_actual_text_pdf
-from check_caller_text import validate_caller_text_pdf
-from check_caller_facade import validate_caller_facade_pdf
-from check_facade_output import fixture_oracle, validate_facade_output_pdf
-from check_supplementary_text import EXPECTED_CONTENT as SUPPLEMENTARY_TEXT_CONTENT
-from check_supplementary_text import validate_supplementary_text_pdf
-from check_cjk_text import EXPECTED_CONTENT as CJK_TEXT_CONTENT
-from check_cjk_text import validate_cjk_text_pdf
-from check_combining import validate_combining_pdf
-from check_ligature import EXPECTED_CONTENT as LIGATURE_CONTENT
-from check_ligature import validate_ligature_pdf
-from check_multiface_facade import validate_multiface_facade_pdf
-from check_multiface_text import validate_multiface_text_pdf
-from check_case_text import validate_case_pdf
-from check_rtl import validate_rtl_pdf
-from check_soft_hyphen import EXPECTED_CONTENT as SOFT_HYPHEN_CONTENT
-from check_soft_hyphen import validate_soft_hyphen_pdf
-from check_external_discretionary_hyphen import EXPECTED_CONTENT as EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
-from check_external_discretionary_hyphen import validate_external_discretionary_hyphen_pdf
-from check_generated_labels import validate_generated_labels_pdf
-from check_text import EXPECTED_CONTENT as TEXT_CONTENT
-from check_text import validate_text_pdf
-from check_color_images import validate_color_images_pdf
-from check_shadings import validate_shadings_pdf
-from check_soft_masks import validate_soft_masks_pdf
-from check_transparency import validate_transparency_pdf
-from check_fonts import validate_fonts_pdf
-from check_forms import validate_forms_pdf
-from check_metadata import validate_metadata_pdf
-from check_navigation import validate_navigation_pdf
-from check_pdf_structure import validate_pdf
+from harness_validators import (
+    PREFLIGHT_CHECKS,
+    run_validators,
+    validate_preflight_ids,
+    validate_registry_ids,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,6 +72,7 @@ class Toolchain:
     roc_optimization: str
     zig_version: str
     zig_optimization: str
+    max_build_workers: int
 
 
 @dataclass(frozen=True)
@@ -110,14 +84,19 @@ class TestCase:
     args: tuple[str, ...]
     measurement_boundary: str
     dimensions: dict[str, int]
+    validators: tuple[str, ...]
     work_counters: tuple[str, ...]
     expectations: dict[str, Metrics]
     retention: Retention | None
+    family_cases: Path | None
+    family_row: int | None
 
 
 @dataclass(frozen=True)
 class TestSuite:
     protocol_version: int
+    preflight_checks: tuple[str, ...]
+    post_update_checks: tuple[str, ...]
     toolchain: Toolchain
     validation_sources: tuple[Path, ...]
     validation_skips: tuple["ValidationSkip", ...]
@@ -305,10 +284,59 @@ def load_suite() -> TestSuite:
     data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise SystemExit(f"{SPEC_PATH}: top level must be an object")
-    if set(data) != {"schema_version", "protocol_version", "validation", "toolchain", "cases"}:
+    if set(data) != {
+        "schema_version",
+        "protocol_version",
+        "preflight_checks",
+        "post_update_checks",
+        "validation",
+        "toolchain",
+        "families",
+        "cases",
+    }:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 4 or data["protocol_version"] != 1:
-        raise SystemExit(f"{SPEC_PATH}: schema_version must be 4 and protocol_version must be 1")
+    if data["schema_version"] != 5 or data["protocol_version"] != 1:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 5 and protocol_version must be 1")
+
+    preflight_checks = string_list(data["preflight_checks"], "preflight_checks")
+    validate_preflight_ids(preflight_checks, f"{SPEC_PATH}: preflight_checks")
+    post_update_checks = string_list(data["post_update_checks"], "post_update_checks")
+    validate_preflight_ids(post_update_checks, f"{SPEC_PATH}: post_update_checks")
+
+    raw_families = data["families"]
+    if not isinstance(raw_families, list):
+        raise SystemExit(f"{SPEC_PATH}: families must be a list")
+    family_cases_by_name: dict[str, tuple[Path, Path, int, dict[str, object]]] = {}
+    for family_index, raw_family in enumerate(raw_families):
+        field = f"families[{family_index}]"
+        if not isinstance(raw_family, dict) or set(raw_family) != {
+            "source",
+            "cases_jsonl",
+        }:
+            raise SystemExit(
+                f"{SPEC_PATH}: {field} must contain source and cases_jsonl"
+            )
+        family_source = repository_path(raw_family["source"], f"{field}.source")
+        cases_jsonl = repository_path(raw_family["cases_jsonl"], f"{field}.cases_jsonl")
+        if not family_source.is_file() or not cases_jsonl.is_file():
+            raise SystemExit(f"{SPEC_PATH}: {field} source or JSONL file does not exist")
+        for row_index, line in enumerate(
+            cases_jsonl.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise SystemExit(f"{cases_jsonl}:{row_index}: invalid JSON: {error}") from error
+            if not isinstance(row, dict) or set(row) != {"name", "schema_version", "case"}:
+                raise SystemExit(
+                    f"{cases_jsonl}:{row_index}: row must contain name, schema_version, and case"
+                )
+            row_name = non_empty_string(row["name"], f"{cases_jsonl}:{row_index}.name")
+            if row["schema_version"] != 1:
+                raise SystemExit(f"{cases_jsonl}:{row_index}: unsupported schema_version")
+            if row_name in family_cases_by_name:
+                raise SystemExit(f"{cases_jsonl}:{row_index}: duplicate family case name {row_name}")
+            family_cases_by_name[row_name] = (family_source, cases_jsonl, row_index, row)
 
     raw_validation = data["validation"]
     if not isinstance(raw_validation, dict) or set(raw_validation) != {"sources", "skips"}:
@@ -352,6 +380,7 @@ def load_suite() -> TestSuite:
         "roc_optimization",
         "zig_version",
         "zig_optimization",
+        "max_build_workers",
     }
     if not isinstance(raw_toolchain, dict) or set(raw_toolchain) != toolchain_fields:
         raise SystemExit(f"{SPEC_PATH}: toolchain must contain exactly {sorted(toolchain_fields)}")
@@ -363,11 +392,14 @@ def load_suite() -> TestSuite:
         zig_optimization=non_empty_string(
             raw_toolchain["zig_optimization"], "toolchain.zig_optimization"
         ),
+        max_build_workers=raw_toolchain["max_build_workers"],
     )
     if toolchain.roc_optimization != "dev":
         raise SystemExit(f"{SPEC_PATH}: Roc allocation baselines require the dev backend")
     if toolchain.zig_optimization not in {"ReleaseFast", "ReleaseSafe", "ReleaseSmall"}:
         raise SystemExit(f"{SPEC_PATH}: Zig host baselines require an optimized build")
+    if type(toolchain.max_build_workers) is not int or toolchain.max_build_workers < 1:
+        raise SystemExit(f"{SPEC_PATH}: toolchain.max_build_workers must be a positive integer")
 
     raw_cases = data.get("cases")
     if not isinstance(raw_cases, list) or not raw_cases:
@@ -386,6 +418,7 @@ def load_suite() -> TestSuite:
             "args",
             "measurement_boundary",
             "dimensions",
+            "validators",
             "work_counters",
             "expectations",
             "retention",
@@ -409,6 +442,14 @@ def load_suite() -> TestSuite:
             or any(type(value) is not int or value < 0 for value in dimensions.values())
         ):
             raise SystemExit(f"{SPEC_PATH}: {name}: dimensions must be non-negative integer fields")
+
+        validators = string_list(raw["validators"], f"{name}.validators")
+        validate_registry_ids(validators, f"{SPEC_PATH}: {name}.validators")
+        if ("pages" in dimensions) != bool(validators):
+            raise SystemExit(
+                f"{SPEC_PATH}: {name}: cases with pages require validators and "
+                "cases without pages must not declare them"
+            )
 
         work_counters = string_list(raw["work_counters"], f"{name}.work_counters")
         if not work_counters or len(work_counters) != len(set(work_counters)):
@@ -459,7 +500,23 @@ def load_suite() -> TestSuite:
                 owned_capacity=raw_retention["owned_capacity"],
             )
 
-        source = repository_path(raw.get("source"), f"{name}.source")
+        declared_source = repository_path(raw.get("source"), f"{name}.source")
+        family_entry = family_cases_by_name.pop(name, None)
+        if family_entry is None:
+            source = declared_source
+            family_cases = None
+            family_row = None
+        else:
+            source, family_cases, family_row, family_case = family_entry
+            if declared_source != source:
+                raise SystemExit(
+                    f"{family_cases}:{family_row}: {name}: spec source must be the family source"
+                )
+            args = (json.dumps(
+                {"case": family_case["case"], "schema_version": family_case["schema_version"]},
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ),)
         snapshot = repository_path(raw.get("snapshot"), f"{name}.snapshot")
         if not source.is_file():
             raise SystemExit(f"{SPEC_PATH}: {name}: source does not exist: {source}")
@@ -474,11 +531,18 @@ def load_suite() -> TestSuite:
                 args,
                 measurement_boundary,
                 dimensions,
+                validators,
                 work_counters,
                 expectations,
                 retention,
+                family_cases,
+                family_row,
             )
         )
+
+    if family_cases_by_name:
+        unused = ", ".join(sorted(family_cases_by_name))
+        raise SystemExit(f"Family JSONL rows have no matching spec cases: {unused}")
 
     names = [case.name for case in cases]
     if len(names) != len(set(names)):
@@ -496,6 +560,8 @@ def load_suite() -> TestSuite:
             raise SystemExit(f"{SPEC_PATH}: {case.name}: source and snapshot must be adjacent")
     return TestSuite(
         data["protocol_version"],
+        preflight_checks,
+        post_update_checks,
         toolchain,
         tuple(sorted(validation_sources)),
         tuple(validation_skips),
@@ -607,15 +673,15 @@ def roc_version_matches_pin(pinned_roc: str, actual_roc: str) -> bool:
 
 
 def self_test_roc_version_pin() -> None:
-    for pin in ("nightly-2026-08-16-23452ea", "nightly-2026-August-05-24f0b47"):
+    for pin in ("nightly-2026-08-18-e9be50a", "nightly-2026-August-05-24f0b47"):
         if not roc_version_matches_pin(pin, f"Roc compiler version {pin}"):
             raise SystemExit("Roc version verifier rejected the nightly tag identity")
     if not roc_version_matches_pin(
-        "nightly-2026-08-16-23452ea", "Roc compiler version release-fast-23452eaf"
+        "nightly-2026-08-18-e9be50a", "Roc compiler version release-fast-e9be50af"
     ):
         raise SystemExit("Roc version verifier rejected the identical release-fast commit")
     if roc_version_matches_pin(
-        "nightly-2026-08-16-23452ea", "Roc compiler version release-fast-deadbeef"
+        "nightly-2026-08-18-e9be50a", "Roc compiler version release-fast-deadbeef"
     ):
         raise SystemExit("Roc version verifier accepted a different compiler commit")
     if roc_version_matches_pin("nightly-invalid", "Roc compiler version release-fast-24f0b476"):
@@ -639,49 +705,6 @@ def verify_toolchain(toolchain: Toolchain) -> None:
         raise SystemExit(
             f"{SPEC_PATH}: expected Zig {toolchain.zig_version}, got {actual_zig}"
         )
-
-
-def expected_content(dimensions: dict[str, int]) -> bytes:
-    if dimensions.get("external_discretionary_hyphen", 0) == 1:
-        return EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
-    if dimensions.get("soft_hyphen", 0) == 1:
-        return SOFT_HYPHEN_CONTENT
-    if dimensions.get("supplementary_text", 0) == 1:
-        return SUPPLEMENTARY_TEXT_CONTENT
-    if dimensions.get("cjk_text", 0) == 1:
-        return CJK_TEXT_CONTENT
-    if dimensions.get("ligature_text", 0) == 1:
-        return LIGATURE_CONTENT
-    if dimensions.get("actual_text", 0) == 1:
-        return ACTUAL_TEXT_CONTENT
-    if dimensions.get("visible_text", 0) == 1 or dimensions.get("caller_text", 0) == 1:
-        return TEXT_CONTENT
-    if dimensions.get("minimal_content", 0) == 1:
-        return (
-            b"/P <</MCID 0>> BDC\n"
-            b"/CS1_0 cs\n"
-            b"0.50000763 scn\n"
-            b"0 0 1 1 re\n"
-            b"f\n"
-            b"EMC\n"
-            b"/Artifact <</Type /Background>> BDC\n"
-            b"q\n"
-            b"1 0 0 1 2 3 cm\n"
-            b"q\n"
-            b"2 0 0 1 4 5 cm\n"
-            b"/Im1_0 Do\n"
-            b"Q\n"
-            b"Q\n"
-            b"EMC\n"
-        )
-    length = dimensions.get("content_stream_bytes", 0)
-    period = dimensions.get("content_pattern_period")
-    if length == 0 and period is None:
-        return b""
-    if period != 4:
-        raise SystemExit("content_stream_bytes requires the versioned four-byte q/Q pattern")
-    pattern = b"q Q\n"
-    return (pattern * ((length + len(pattern) - 1) // len(pattern)))[:length]
 
 
 def build_case_sources(
@@ -786,8 +809,13 @@ def run_case(
     result = managed_run(invocation, cwd=ROOT)
     log(result.stderr.decode("utf-8", errors="replace"))
     if result.returncode != 0:
+        location = (
+            f"{relative(case.family_cases)}:{case.family_row}: "
+            if case.family_cases is not None
+            else ""
+        )
         raise SystemExit(
-            f"{case.name}: executable exited with {result.returncode}\n"
+            f"{location}{case.name}: executable exited with {result.returncode}\n"
             f"stderr: {result.stderr.decode('utf-8', errors='replace')}"
         )
 
@@ -867,92 +895,12 @@ def run_case(
         )
     )
 
-    expected_pages = case.dimensions.get("pages")
-    if expected_pages is not None:
-        if case.dimensions.get("facade_output", 0) == 1:
-            expected_text, _ = fixture_oracle()
-            validate_facade_output_pdf(result.stdout, expected_text)
-            detail(f"PASS {case.name}: independent offsets, lengths, xref, page, authored facade paragraph, Type 0 font, CID, and Unicode mapping facts")
-        elif case.dimensions.get("multiface_text", 0) == 1:
-            validate_multiface_text_pdf(result.stdout)
-            detail(f"PASS {case.name}: exact selected Latin/CJK Type 0 resources, CID maps, and Unicode mappings")
-        elif case.dimensions.get("generated_label", 0) == 1:
-            validate_generated_labels_pdf(result.stdout)
-            detail(f"PASS {case.name}: independent offsets, lengths, xref, typed list ownership, labels, Type 0 font, CID, and Unicode mapping facts")
-        elif case.dimensions.get("combining_text", 0) == 1:
-            validate_combining_pdf(result.stdout)
-            detail(f"PASS {case.name}: exact decomposed combining CID and two-scalar ToUnicode facts")
-        elif case.dimensions.get("case_text", 0) == 1:
-            validate_case_pdf(result.stdout)
-            detail(f"PASS {case.name}: resolved case presentation, logical ActualText, CID, and Unicode mapping facts")
-        elif case.dimensions.get("rtl_text", 0) == 1:
-            validate_rtl_pdf(result.stdout)
-            detail(f"PASS {case.name}: resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts")
-        elif case.dimensions.get("multiface_facade", 0) == 1:
-            validate_multiface_facade_pdf(result.stdout)
-            detail(f"PASS {case.name}: independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts")
-        elif case.dimensions.get("caller_facade", 0) == 1:
-            validate_caller_facade_pdf(result.stdout)
-            detail(f"PASS {case.name}: independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts")
-        elif case.source.parent.name == "font_leaves":
-            validate_fonts_pdf(result.stdout, case.dimensions)
-            detail(f"PASS {case.name}: canonical Type 0 bundles, verified embedded subsets, identity CID maps, ToUnicode facts, exact per-stream /Font dictionaries, and placement-site ownership")
-        elif case.source.parent.name in {"forms", "form_text"}:
-            validate_forms_pdf(result.stdout, case.dimensions)
-            detail(f"PASS {case.name}: exact Form XObject dictionaries, per-stream direct resources, Do resolution, sharing, and placement-site MCID/ParentTree ownership facts")
-        elif case.source.parent.name == "color_images":
-            validate_color_images_pdf(result.stdout, case.dimensions)
-            detail(f"PASS {case.name}: canonical ICC/color-space/image objects, exact leaf payload equality, soft-mask wiring, and deduplicated direct dictionaries")
-        elif case.source.parent.name == "transparency":
-            validate_transparency_pdf(result.stdout, case.dimensions)
-            detail(f"PASS {case.name}: canonical ExtGState objects, exact per-stream /ExtGState dictionaries, balanced opacity groups, transparency-group and blending-space wiring, and placement-site ownership facts")
-        elif case.source.parent.name == "soft_masks":
-            validate_soft_masks_pdf(result.stdout, case.dimensions)
-            detail(f"PASS {case.name}: canonical Alpha mask states, direct /SMask /G wiring to isolated mask forms outside every resource dictionary, balanced mask groups, and placement-site ownership facts")
-        elif case.source.parent.name == "shading_patterns":
-            validate_shadings_pdf(result.stdout, case.dimensions)
-            detail(f"PASS {case.name}: canonical shading/function/pattern objects, exact per-stream /Shading and /Pattern dictionaries, re-derived stop models, ownership-neutral pattern streams, and sh/scn operand resolution")
-        elif case.source.parent.name == "navigation":
-            validate_navigation_pdf(result.stdout, case.dimensions)
-            detail(f"PASS {case.name}: paired /SD + /D actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, named destinations, outline preorder, page labels, and appearance geometry verified structurally")
-        elif case.source.parent.name == "metadata":
-            validate_metadata_pdf(result.stdout, case.dimensions)
-            detail(f"PASS {case.name}: catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally")
-        else:
-            validate_pdf(
-                result.stdout,
-                expected_pages,
-                expected_content(case.dimensions),
-                case.dimensions.get("normalized_plan_identity", 0) == 1,
-            )
-            detail(f"PASS {case.name}: independent offsets, lengths, xref, and page facts")
-            if case.dimensions.get("minimal_content", 0) == 1:
-                validate_tagged_visual_pdf(result.stdout)
-                detail(f"PASS {case.name}: exact normalized tagged structure and resources")
-            if case.dimensions.get("visible_text", 0) == 1:
-                validate_text_pdf(result.stdout)
-                detail(f"PASS {case.name}: exact font, CID, Unicode mapping, and visible text facts")
-            if case.dimensions.get("caller_text", 0) == 1:
-                validate_caller_text_pdf(result.stdout)
-                detail(f"PASS {case.name}: exact caller font identity, CID, Unicode mapping, and visible text facts")
-            if case.dimensions.get("actual_text", 0) == 1:
-                validate_actual_text_pdf(result.stdout)
-                detail(f"PASS {case.name}: exact visual reordering and logical ActualText facts")
-            if case.dimensions.get("supplementary_text", 0) == 1:
-                validate_supplementary_text_pdf(result.stdout)
-                detail(f"PASS {case.name}: exact supplementary-plane UTF-16BE, CID, Unicode mapping, and sanitized subset facts")
-            if case.dimensions.get("cjk_text", 0) == 1:
-                validate_cjk_text_pdf(result.stdout)
-                detail(f"PASS {case.name}: exact CJK CID widths, Unicode mapping, and sanitized subset facts")
-            if case.dimensions.get("ligature_text", 0) == 1:
-                validate_ligature_pdf(result.stdout)
-                detail(f"PASS {case.name}: parsed GSUB fact, ligature CID, ActualText, Unicode mapping, and sanitized subset facts")
-            if case.dimensions.get("soft_hyphen", 0) == 1:
-                validate_soft_hyphen_pdf(result.stdout)
-                detail(f"PASS {case.name}: explicit U+00AD source, selected presentation, ActualText, CID, and subset facts")
-            if case.dimensions.get("external_discretionary_hyphen", 0) == 1:
-                validate_external_discretionary_hyphen_pdf(result.stdout)
-                detail(f"PASS {case.name}: external zero-width source boundary, selected visible hyphen, ActualText, CID, and subset facts")
+    run_validators(
+        case.validators,
+        result.stdout,
+        case.dimensions,
+        lambda message: detail(f"PASS {case.name}: {message}"),
+    )
 
     delta = None if mismatch is None else BaselineDelta(case.name, expected_metrics, actual_metrics)
     return CaseRunResult(delta, actual_metrics, len(result.stdout))
@@ -1085,6 +1033,8 @@ def main() -> None:
             raise SystemExit(f"unknown test case(s): {', '.join(sorted(missing))}")
         suite = TestSuite(
             suite.protocol_version,
+            suite.preflight_checks,
+            suite.post_update_checks,
             suite.toolchain,
             suite.validation_sources,
             suite.validation_skips,
@@ -1093,47 +1043,10 @@ def main() -> None:
     target = "x64musl" if args.linux_x64_container is not None else native_roc_target()
 
     phase("Preflight contract and checker self-tests")
-    if not args.update_snapshots:
-        command(sys.executable, "scripts/check_contracts.py", "--self-test")
-    command(sys.executable, "scripts/check_arlington.py", "--self-test")
-    command(sys.executable, "scripts/check_pdfbox.py", "--self-test")
-    command(sys.executable, "scripts/check_tagged_visual.py", "--self-test")
-    command(sys.executable, "scripts/check_visual_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_text.py", "--self-test")
-    command(sys.executable, "scripts/check_caller_text.py", "--self-test")
-    command(sys.executable, "scripts/check_caller_facade.py", "--self-test")
-    command(sys.executable, "scripts/check_facade_output.py", "--self-test")
-    command(sys.executable, "scripts/check_generated_labels.py", "--self-test")
-    command(sys.executable, "scripts/check_actual_text.py", "--self-test")
-    command(sys.executable, "scripts/check_supplementary_text.py", "--self-test")
-    command(sys.executable, "scripts/check_cjk_text.py", "--self-test")
-    command(sys.executable, "scripts/check_ligature.py", "--self-test")
-    command(sys.executable, "scripts/check_multiface_facade.py", "--self-test")
-    command(sys.executable, "scripts/check_case_text.py", "--self-test")
-    command(sys.executable, "scripts/check_combining.py", "--self-test")
-    command(sys.executable, "scripts/check_rtl.py", "--self-test")
-    command(sys.executable, "scripts/check_multiface_text.py", "--self-test")
-    command(sys.executable, "scripts/check_soft_hyphen.py", "--self-test")
-    command(sys.executable, "scripts/check_external_discretionary_hyphen.py", "--self-test")
-    command(sys.executable, "scripts/check_text_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_forms.py", "--self-test")
-    command(sys.executable, "scripts/check_form_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_color_images.py", "--self-test")
-    command(sys.executable, "scripts/check_color_image_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_transparency.py", "--self-test")
-    command(sys.executable, "scripts/check_transparency_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_soft_masks.py", "--self-test")
-    command(sys.executable, "scripts/check_soft_mask_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_shadings.py", "--self-test")
-    command(sys.executable, "scripts/check_shading_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_fonts.py", "--self-test")
-    command(sys.executable, "scripts/check_font_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_metadata.py", "--self-test")
-    command(sys.executable, "scripts/check_metadata_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_navigation.py", "--self-test")
-    command(sys.executable, "scripts/check_navigation_renderers.py", "--self-test")
-    if not args.update_snapshots:
-        command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
+    for check_id in suite.preflight_checks:
+        check = PREFLIGHT_CHECKS[check_id]
+        if not (args.update_snapshots and check.skip_on_snapshot_update):
+            command(sys.executable, f"scripts/{check.script}", "--self-test")
     self_test_metrics(suite)
     self_test_roc_version_pin()
     verify_toolchain(suite.toolchain)
@@ -1167,11 +1080,22 @@ def main() -> None:
         + len(suite.cases)
     )
 
+    non_test_tasks = [task for task in validation_tasks if task[0] != "test"]
+    test_tasks = [task for task in validation_tasks if task[0] == "test"]
+    seed_paths = {
+        (ROOT / "package" / "main.roc").resolve(),
+        (ROOT / "package" / "all.roc").resolve(),
+    }
+    seed_test_tasks = [task for task in test_tasks if task[1] in seed_paths]
+    dependent_test_tasks = [task for task in test_tasks if task[1] not in seed_paths]
     phase(
-        f"Running {len(validation_tasks)} spec-defined Roc validation tasks with "
-        f"{args.jobs} workers ({skipped_tasks} documented skips)"
+        f"Running {len(validation_tasks)} spec-defined Roc validation tasks "
+        f"({skipped_tasks} documented skips); seeding {len(seed_test_tasks)} shared "
+        "test roots before parallel dependent tests"
     )
-    run_parallel_roc_tasks(validation_tasks, args.jobs)
+    run_parallel_roc_tasks(non_test_tasks, args.jobs)
+    run_parallel_roc_tasks(seed_test_tasks, 1)
+    run_parallel_roc_tasks(dependent_test_tasks, args.jobs)
     command(
         ZIG,
         "fmt",
@@ -1189,9 +1113,11 @@ def main() -> None:
         cwd=TEST_PLATFORM,
     )
 
+    build_jobs = min(args.jobs, suite.toolchain.max_build_workers)
     phase(
         f"Building {len({case.source for case in suite.cases})} distinct fixture apps "
-        f"with {args.jobs} job{'s' if args.jobs != 1 else ''}"
+        f"with {build_jobs} job{'s' if build_jobs != 1 else ''} "
+        f"(toolchain cap {suite.toolchain.max_build_workers})"
     )
     baseline_deltas: list[BaselineDelta] = []
     with tempfile.TemporaryDirectory(prefix="test-", dir=TEMP_ROOT) as temporary:
@@ -1201,7 +1127,7 @@ def main() -> None:
             build_dir,
             target,
             suite.toolchain.roc_optimization if check_allocations else "dev",
-            args.jobs,
+            build_jobs,
         )
         phase(f"Executing {len(suite.cases)} evidence cases with {args.jobs} workers")
         source_use_counts = {
@@ -1254,8 +1180,12 @@ def main() -> None:
 
     if args.update_snapshots:
         phase("Post-update contract validation")
-        command(sys.executable, "scripts/check_contracts.py", "--self-test")
-        command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
+        for check_id in suite.post_update_checks:
+            command(
+                sys.executable,
+                f"scripts/{PREFLIGHT_CHECKS[check_id].script}",
+                "--self-test",
+            )
 
     if baseline_deltas:
         announce("FAIL", "Allocation baseline comparison:")

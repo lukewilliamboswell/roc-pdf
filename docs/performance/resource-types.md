@@ -48,7 +48,7 @@ metadata passthrough, rasterization recovery, or conversion fallback.
 
 ## Evidence
 
-`examples/advanced_resource_contract.roc` compiles one retained ICC profile,
+`tests/contracts/advanced_resource_contract.roc` compiles one retained ICC profile,
 a packed RGB raster, and explicit JPEG orientation evidence. Runtime positive,
 atomic negative, fuzz, allocation, copied-byte, and retention evidence belongs
 to the capabilities implementing these inspectors.

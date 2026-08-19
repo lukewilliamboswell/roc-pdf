@@ -1,0 +1,10 @@
+{"name":"production-visual soft-mask showcase with adversarial authoring","schema_version":1,"case":"Showcase"}
+{"name":"production-visual soft-mask unique-input ownership","schema_version":1,"case":"Unique"}
+{"name":"production-visual soft-mask retained-input ownership","schema_version":1,"case":"Shared"}
+{"name":"production-visual shared mask reuse x100","schema_version":1,"case":{"Reuse":{"scale":100}}}
+{"name":"production-visual shared mask reuse x1000","schema_version":1,"case":{"Reuse":{"scale":1000}}}
+{"name":"production-visual distinct mask forms x8","schema_version":1,"case":{"Masks":{"scale":8}}}
+{"name":"production-visual distinct mask forms x64","schema_version":1,"case":{"Masks":{"scale":64}}}
+{"name":"production-visual mask chain x2","schema_version":1,"case":{"Chain":{"scale":2}}}
+{"name":"production-visual mask chain x4","schema_version":1,"case":{"Chain":{"scale":4}}}
+{"name":"production-visual soft-mask atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}

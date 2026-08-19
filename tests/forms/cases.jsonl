@@ -1,0 +1,9 @@
+{"name":"production-visual form showcase with adversarial authoring","schema_version":1,"case":"Showcase"}
+{"name":"production-visual form unique-input ownership","schema_version":1,"case":"Unique"}
+{"name":"production-visual form retained-input ownership","schema_version":1,"case":"Shared"}
+{"name":"production-visual artifact form repeated x100","schema_version":1,"case":{"Repeat":{"scale":100}}}
+{"name":"production-visual artifact form repeated x1000","schema_version":1,"case":{"Repeat":{"scale":1000}}}
+{"name":"production-visual nested form DAG x8","schema_version":1,"case":{"Dag":{"scale":8}}}
+{"name":"production-visual nested form DAG x32","schema_version":1,"case":{"Dag":{"scale":32}}}
+{"name":"production-visual deep nested form chain x64","schema_version":1,"case":{"Deep":{"scale":64}}}
+{"name":"production-visual form atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}

@@ -126,7 +126,7 @@ build_plan = |authoring, limits| {
 	}
 	planning = plan_blocks(authoring.blocks, limits)?
 	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
-	built = build_store(authoring.language, authoring.blocks, planning, sources)?
+	built = build_store(authoring.language, authoring.blocks, authoring.figures, planning, sources)?
 	check_limit(built.store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(built.store.text_properties.len(), limits.max_properties, Properties)?
 	navigated = !planning.links.is_empty() or !planning.destinations.is_empty()
@@ -264,6 +264,25 @@ plan_blocks = |blocks, limits| {
 				$content_count = attempted_content
 				$list_state = NoActiveList
 			}
+			Figure(_) => {
+				attempted_nodes = checked_add($next_node, 1)?
+				attempted_occurrences = checked_add($next_occurrence, 1)?
+				attempted_content = checked_add($content_count, 2)?
+				attempted_sources = checked_add($sources.len(), 1)?
+				attempted_properties = checked_add($property_count, 1)?
+				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+				check_limit(attempted_properties, limits.max_properties, Properties)?
+				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
+				$sources = $sources.append(block.text)
+				$next_node = attempted_nodes
+				$next_occurrence = attempted_occurrences
+				$content_count = attempted_content
+				$property_count = attempted_properties
+				$list_state = NoActiveList
+			}
 			DestinationHeading({ level, name }) => {
 				_role = heading_role(level, $block_index)?
 				attempted_nodes = checked_add($next_node, 1)?
@@ -350,8 +369,8 @@ heading_role = |level, block| match level {
 	_ => Err(UnsupportedHeadingLevel({ block, level }))
 }
 
-build_store : Str, List(Document.NormalizedBlock), Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), store : Semantics.Store }, KernelFacadeSemantics.Error)
-build_store = |language, blocks, planning, source_plan| {
+build_store : Str, List(Document.NormalizedBlock), List(Document.NormalizedFigure), Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), store : Semantics.Store }, KernelFacadeSemantics.Error)
+build_store = |language, blocks, figures, planning, source_plan| {
 	var $content = List.with_capacity(planning.content_count)
 	for node in planning.top_nodes {
 		$content = $content.append(ChildNode(node))
@@ -397,6 +416,21 @@ build_store = |language, blocks, planning, source_plan| {
 				start = $content.len()
 				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
 				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(Semantics.NodeId.from_index(0)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
+				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
+				$next_node = checked_add($next_node, 1)?
+				$next_occurrence = checked_add($next_occurrence, 1)?
+				$source_input = checked_add($source_input, 1)?
+				$index = $index + 1
+			}
+			Figure(figure_index) => {
+				figure = list_at(figures, figure_index)
+				start = $content.len()
+				property_start = $properties.len()
+				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+				$properties = $properties.append(AlternativeText(figure.alternative))
+				node = make_node($next_node, ParentNode(Semantics.NodeId.from_index(0)), "Figure", Semantics.Range.from_start_and_length(start, 1), Inherited)
+				$nodes = list_set($nodes, $next_node, { ..node, text_properties: Semantics.Range.from_start_and_length(property_start, 1) })
 				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
 				$next_node = checked_add($next_node, 1)?
@@ -614,6 +648,7 @@ test_authoring = {
 		{ kind: Bullet({ item: 1, list: 0 }), text: "Two" },
 		{ kind: PageArtifact(Header), text: "Header" },
 	],
+	figures: [],
 	language: "en-AU",
 	metadata_title: "Report",
 	outline: [],

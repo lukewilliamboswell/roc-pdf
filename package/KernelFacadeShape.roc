@@ -24,6 +24,7 @@ KernelFacadeShape :: [].{
 		OccurrenceCoverage({ actual : U64, expected : U64 }),
 		PolicyInvalid(Font.PolicyError),
 		ShapeFailure,
+		StyleArithmeticOverflow(U64),
 		UndeclaredScript({ script : Str, source : U64 }),
 		UnsupportedThemeFace({ block : U64, face : U64 }),
 	]
@@ -212,7 +213,10 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 				}
 			}
 			TextBlock({ body, label }) => {
-				body_style = style_for(block.kind, theme)
+				body_style = match block.kind {
+					Figure(index) => figure_style(list_at(authoring.figures, index), theme, $block_index)?
+					_ => style_for(block.kind, theme)
+				}
 				if face_check == RequireBuiltInFace and body_style.font.index() != 0 {
 					return Err(UnsupportedThemeFace({ block: $block_index, face: body_style.font.index() }))
 				}
@@ -702,8 +706,14 @@ style_for : Document.NormalizedBlockKind, Theme -> Theme.TextStyle
 style_for = |kind, theme| match kind {
 	Title => Theme.title_style(theme)
 	Heading(_) | DestinationHeading(_) => Theme.heading_style(theme)
-	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) => Theme.body_style(theme)
-	PageArtifact(_) => Theme.body_style(theme)
+	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | PageArtifact(_) => Theme.body_style(theme)
+}
+
+figure_style : Document.NormalizedFigure, Theme, U64 -> Try(Theme.TextStyle, KernelFacadeShape.Error)
+figure_style = |figure, theme, block| {
+	body = Theme.body_style(theme)
+	leading = I64.plus_try(body.leading.raw(), figure.placement.size.height.raw()) ? |_| StyleArithmeticOverflow(block)
+	Ok({ ..body, leading: Layout.Unit.from_raw(leading) })
 }
 
 list_at : List(a), U64 -> a

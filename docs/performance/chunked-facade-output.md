@@ -28,14 +28,18 @@ in its `byte_identical` counter.
 share the source and snapshot and select the retention mode by argument:
 
 - Both `share` (ShareUnchangedResources) and `own` (OwnChunks) report
-  work `[32, 8692, 208253, 1, 12397]`: 32 chunks, an 8,692-byte largest
-  chunk, order-sensitive chunk-offset weight 208,253 (the sum of each
+  work `[40, 8692, 324918, 1, 16477]`: 40 chunks, an 8,692-byte largest
+  chunk, order-sensitive chunk-offset weight 324,918 (the sum of each
   chunk's one-based index times its length, which changes if equal-length
   chunks reorder), the byte-identity bit, and the 12,397 concatenated bytes.
-- Both modes measure 2,845 dev allocations. The modes are identical here
-  because every authored segment is `Generated`: retention modes only
-  diverge for the caller-resource chunk sharing of production-visual resource
-  documents, which authored text-layout output does not carry.
+- The shared mode measures 1,588 dev allocations and the owned mode 1,589.
+  The shared encoder can return the already sealed generated chunks directly;
+  `OwnChunks` performs the one required ownership copy. Under the pinned dev
+  lowering, the pure buffered/chunked identity comparison reuses the sealed
+  generation value instead of charging a second full facade allocation path;
+  that reviewed ownership effect accounts for the 1,586-allocation reduction
+  while bytes and deterministic work remain pinned. Retention modes also
+  diverge for caller-resource chunks in the production-visual evidence.
 
 The inline package expects additionally pin authored byte identity with at
 least two chunks, the `OwnChunks` concatenation twin, and the atomic

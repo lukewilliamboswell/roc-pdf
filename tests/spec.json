@@ -1,6 +1,51 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "protocol_version": 1,
+  "preflight_checks": [
+    "contracts",
+    "arlington",
+    "pdfbox",
+    "tagged_visual",
+    "visual_renderers",
+    "text",
+    "caller_text",
+    "caller_facade",
+    "facade_output",
+    "generated_labels",
+    "actual_text",
+    "supplementary_text",
+    "cjk_text",
+    "ligature",
+    "multiface_facade",
+    "case_text",
+    "combining",
+    "rtl",
+    "multiface_text",
+    "soft_hyphen",
+    "external_discretionary_hyphen",
+    "text_renderers",
+    "forms",
+    "form_renderers",
+    "color_images",
+    "color_image_renderers",
+    "transparency",
+    "transparency_renderers",
+    "soft_masks",
+    "soft_mask_renderers",
+    "shadings",
+    "shading_renderers",
+    "fonts",
+    "font_renderers",
+    "metadata",
+    "metadata_renderers",
+    "navigation",
+    "navigation_renderers",
+    "pdf_structure"
+  ],
+  "post_update_checks": [
+    "contracts",
+    "pdf_structure"
+  ],
   "validation": {
     "sources": [
       "examples/*.roc",
@@ -31,20 +76,71 @@
           "check",
           "test"
         ],
-        "reason": "Shared evidence modules are compiled through adjacent app roots that provide package aliases and a platform."
+        "reason": "Shared evidence modules are compiled through adjacent application roots that provide package aliases and a platform."
       }
     ]
   },
   "toolchain": {
     "roc_optimization": "dev",
     "zig_version": "0.16.0",
-    "zig_optimization": "ReleaseFast"
+    "zig_optimization": "ReleaseFast",
+    "max_build_workers": 4
   },
+  "families": [
+    {
+      "source": "tests/forms/main.roc",
+      "cases_jsonl": "tests/forms/cases.jsonl"
+    },
+    {
+      "source": "tests/soft_masks/main.roc",
+      "cases_jsonl": "tests/soft_masks/cases.jsonl"
+    },
+    {
+      "source": "tests/color_images/main.roc",
+      "cases_jsonl": "tests/color_images/cases.jsonl"
+    },
+    {
+      "source": "tests/resource_graph/main.roc",
+      "cases_jsonl": "tests/resource_graph/cases.jsonl"
+    },
+    {
+      "source": "tests/shading_patterns/main.roc",
+      "cases_jsonl": "tests/shading_patterns/cases.jsonl"
+    },
+    {
+      "source": "tests/transparency/main.roc",
+      "cases_jsonl": "tests/transparency/cases.jsonl"
+    },
+    {
+      "source": "tests/metadata/main.roc",
+      "cases_jsonl": "tests/metadata/cases.jsonl"
+    },
+    {
+      "source": "tests/navigation/main.roc",
+      "cases_jsonl": "tests/navigation/cases.jsonl"
+    },
+    {
+      "source": "tests/actual_text/main.roc",
+      "cases_jsonl": "tests/actual_text/cases.jsonl"
+    },
+    {
+      "source": "tests/facade_output/main.roc",
+      "cases_jsonl": "tests/facade_output/cases.jsonl"
+    },
+    {
+      "source": "tests/unicode_vectors/main.roc",
+      "cases_jsonl": "tests/unicode_vectors/cases.jsonl"
+    },
+    {
+      "source": "tests/structural_kernel/main.roc",
+      "cases_jsonl": "tests/structural_kernel/cases.jsonl"
+    }
+  ],
   "cases": [
     {
       "name": "text-layout selected external discretionary-hyphen extraction",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/external_discretionary_hyphen.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/external_discretionary_hyphen.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -100,7 +196,11 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_external_discretionary_hyphen",
+        "external_discretionary_hyphen"
+      ]
     },
     {
       "name": "structural-kernel blank PDF",
@@ -133,12 +233,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel balanced 4096-page PDF",
       "scenario_revision": "pages-v2",
-      "source": "tests/structural_kernel/pages.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "stress"
@@ -188,12 +291,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel balanced index plans",
       "scenario_revision": "indexes-v1",
-      "source": "tests/structural_kernel/pages.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "indexes",
@@ -246,12 +352,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel linked outline plan",
       "scenario_revision": "outline-v1",
-      "source": "tests/structural_kernel/pages.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "outlines",
@@ -319,12 +428,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel stable resource names",
       "scenario_revision": "resource-names-v1",
-      "source": "tests/structural_kernel/pages.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "resources",
@@ -376,12 +488,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel bulk lexical values x2048",
       "scenario_revision": "lexical-v1",
-      "source": "tests/structural_kernel/pages.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "lexical",
@@ -427,12 +542,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel bulk lexical values x4096",
       "scenario_revision": "lexical-v1",
-      "source": "tests/structural_kernel/pages.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "lexical",
@@ -478,12 +596,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel one-block dynamic DEFLATE",
       "scenario_revision": "deflate-one-block-v1",
-      "source": "tests/structural_kernel/deflate.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/deflate_one_block.pdf",
       "args": [
         "65535"
@@ -540,12 +661,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel stateful dynamic DEFLATE",
       "scenario_revision": "deflate-v1",
-      "source": "tests/structural_kernel/deflate.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/deflate.pdf",
       "args": [
         "262144"
@@ -602,7 +726,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "placeholder PDF x1",
@@ -634,7 +761,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "placeholder PDF x4",
@@ -668,7 +796,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "tagged-visual minimal tagged visual PDF",
@@ -706,7 +835,11 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_minimal_content",
+        "tagged_visual"
+      ]
     },
     {
       "name": "tagged-visual million-command image reuse",
@@ -779,7 +912,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout simple-list authoring normalization x1000",
@@ -810,7 +946,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 67,
+          "allocations": 68,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -824,7 +960,7 @@
           }
         },
         "x64musl": {
-          "allocations": 67,
+          "allocations": 68,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -838,7 +974,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout compact-builder authoring normalization x1000",
@@ -897,7 +1036,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout simple-list authoring normalization x10000",
@@ -956,7 +1098,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout compact-builder authoring normalization x10000",
@@ -1015,7 +1160,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout shaped-cluster line selection x1000",
@@ -1077,7 +1225,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout shaped-cluster line selection x10000",
@@ -1139,7 +1290,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout single-column pagination x1000",
@@ -1200,7 +1354,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout single-column pagination x10000",
@@ -1261,7 +1416,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout shared facade source cache x1000",
@@ -1326,7 +1482,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout shared facade source cache x10000",
@@ -1391,7 +1548,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout unique facade source cache x1000",
@@ -1456,7 +1614,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout unique facade source cache x10000",
@@ -1521,7 +1680,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout facade semantic planning x1000",
@@ -1607,7 +1767,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade semantic planning x10000",
@@ -1693,7 +1856,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade batch shaping x1000",
@@ -1771,7 +1937,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade batch shaping x10000",
@@ -1849,7 +2018,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade cached line layout x1000",
@@ -1933,7 +2105,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade cached line layout x10000",
@@ -2017,7 +2192,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade row pagination x1000",
@@ -2087,7 +2265,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade row pagination x10000",
@@ -2157,7 +2338,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout built-in TrueType inspection",
@@ -2224,7 +2408,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout caller-font registration",
@@ -2303,7 +2488,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout Unicode analysis x1000",
@@ -2351,12 +2537,13 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout UAX boundary seam vectors",
       "scenario_revision": "uax14-r55-uax29-r47-seam-v1",
-      "source": "tests/unicode_vectors/unicode_vectors.roc",
+      "source": "tests/unicode_vectors/main.roc",
       "snapshot": "tests/unicode_vectors/unicode_vectors.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -2433,12 +2620,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout UAX boundary atomic limits",
       "scenario_revision": "uax14-r55-uax29-r47-atomic-limits-v1",
-      "source": "tests/unicode_vectors/unicode_vectors_negative.roc",
+      "source": "tests/unicode_vectors/main.roc",
       "snapshot": "tests/unicode_vectors/unicode_vectors_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -2466,7 +2656,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout UAX 9 conformance vectors",
@@ -2521,7 +2714,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout deterministic font plan",
@@ -2588,7 +2784,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout ordered multi-face cluster selection",
@@ -2661,7 +2858,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout Unicode analysis x10000",
@@ -2709,7 +2907,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout sanitized TrueType subset",
@@ -2778,7 +2977,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout simple and advanced shaping",
@@ -2875,7 +3075,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout Type 0 PDF font objects",
@@ -2972,7 +3173,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout visible searchable text",
@@ -3180,12 +3382,16 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_text",
+        "visible_text"
+      ]
     },
     {
       "name": "text-layout authored facade output",
       "scenario_revision": "facade-output-v2-real-authoring",
-      "source": "tests/facade_output/facade_output.roc",
+      "source": "tests/facade_output/main.roc",
       "snapshot": "tests/facade_output/facade_output.pdf",
       "args": [
         "visible",
@@ -3224,7 +3430,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1437,
+          "allocations": 1438,
           "work": {
             "authored_blocks": 1,
             "semantic_occurrences": 1,
@@ -3245,7 +3451,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1437,
+          "allocations": 1438,
           "work": {
             "authored_blocks": 1,
             "semantic_occurrences": 1,
@@ -3266,12 +3472,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "facade_output"
+      ]
     },
     {
       "name": "text-layout authored facade output atomic negative",
       "scenario_revision": "facade-output-v2-real-authoring",
-      "source": "tests/facade_output/facade_output_negative.roc",
+      "source": "tests/facade_output/main.roc",
       "snapshot": "tests/facade_output/facade_output_negative.pdf",
       "args": [
         "0"
@@ -3303,7 +3512,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout caller-font facade output",
@@ -3342,7 +3554,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1766,
+          "allocations": 1767,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -3360,7 +3572,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1766,
+          "allocations": 1767,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -3378,7 +3590,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "caller_facade"
+      ]
     },
     {
       "name": "text-layout caller-font facade restricted-rights atomic negative",
@@ -3412,7 +3627,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout caller-font shared registry retention",
@@ -3451,7 +3667,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3491,
+          "allocations": 3493,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -3471,7 +3687,7 @@
           }
         },
         "x64musl": {
-          "allocations": 3491,
+          "allocations": 3493,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -3491,7 +3707,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "caller_facade"
+      ]
     },
     {
       "name": "text-layout caller-font unique registry retention control",
@@ -3533,7 +3752,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3531,
+          "allocations": 3533,
           "work": {
             "input_allocations": 2,
             "input_bytes": 15632,
@@ -3555,7 +3774,7 @@
           }
         },
         "x64musl": {
-          "allocations": 3531,
+          "allocations": 3533,
           "work": {
             "input_allocations": 2,
             "input_bytes": 15632,
@@ -3577,7 +3796,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "caller_facade"
+      ]
     },
     {
       "name": "text-layout public built-in Pdf facade output",
@@ -3600,19 +3822,65 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1588,
+          "allocations": 1589,
           "work": {
             "output_bytes": 16477
           }
         },
         "x64musl": {
-          "allocations": 1588,
+          "allocations": 1589,
           "work": {
             "output_bytes": 16477
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "facade_output"
+      ]
+    },
+    {
+      "name": "text-layout public image-figure facade output",
+      "scenario_revision": "public-image-figure-v1",
+      "source": "tests/pdf_facade/image_figure.roc",
+      "snapshot": "tests/pdf_facade/image_figure.pdf",
+      "args": [
+        "image"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "authored_blocks": 3,
+        "image_resources": 1,
+        "figure_nodes": 1,
+        "alternative_text_properties": 1,
+        "packed_pixel_bytes": 96,
+        "normalized_plan_identity": 1
+      },
+      "work_counters": [
+        "packed_pixel_bytes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2597,
+          "work": {
+            "packed_pixel_bytes": 96,
+            "output_bytes": 18772
+          }
+        },
+        "x64musl": {
+          "allocations": 2597,
+          "work": {
+            "packed_pixel_bytes": 96,
+            "output_bytes": 18772
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "facade_image"
+      ]
     },
     {
       "name": "text-layout chunked facade output shared resources",
@@ -3639,7 +3907,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3174,
+          "allocations": 1588,
           "work": {
             "chunks": 40,
             "max_chunk_bytes": 8692,
@@ -3649,7 +3917,7 @@
           }
         },
         "x64musl": {
-          "allocations": 3174,
+          "allocations": 1588,
           "work": {
             "chunks": 40,
             "max_chunk_bytes": 8692,
@@ -3659,7 +3927,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "facade_output"
+      ]
     },
     {
       "name": "text-layout chunked facade output owned chunks",
@@ -3686,7 +3957,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3175,
+          "allocations": 1589,
           "work": {
             "chunks": 40,
             "max_chunk_bytes": 8692,
@@ -3696,7 +3967,7 @@
           }
         },
         "x64musl": {
-          "allocations": 3175,
+          "allocations": 1589,
           "work": {
             "chunks": 40,
             "max_chunk_bytes": 8692,
@@ -3706,7 +3977,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "facade_output"
+      ]
     },
     {
       "name": "text-layout chunked facade atomic negative",
@@ -3740,7 +4014,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout generated list-label text",
@@ -3763,19 +4040,22 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1883,
+          "allocations": 1884,
           "work": {
             "output_bytes": 15544
           }
         },
         "x64musl": {
-          "allocations": 1883,
+          "allocations": 1884,
           "work": {
             "output_bytes": 15544
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "generated_label"
+      ]
     },
     {
       "name": "text-layout generated list-label atomic negative",
@@ -3810,7 +4090,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout caller-font visible searchable text",
@@ -4037,12 +4318,16 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_text",
+        "caller_text"
+      ]
     },
     {
       "name": "text-layout reordered ActualText",
       "scenario_revision": "reordered-actual-text-v2-tagged-scene-content",
-      "source": "tests/actual_text/actual_text.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/actual_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4258,12 +4543,16 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_actual_text",
+        "actual_text"
+      ]
     },
     {
       "name": "text-layout selected soft-hyphen extraction",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/soft_hyphen.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/soft_hyphen.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4318,12 +4607,16 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_soft_hyphen",
+        "soft_hyphen"
+      ]
     },
     {
       "name": "text-layout malformed soft-hyphen opportunity atomic negative",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/soft_hyphen_malformed_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/soft_hyphen_malformed_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4353,12 +4646,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout unselected soft-hyphen atomic negative",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/soft_hyphen_unselected_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/soft_hyphen_unselected_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4388,12 +4684,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout malformed external discretionary-hyphen opportunity atomic negative",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/external_discretionary_hyphen_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/external_discretionary_hyphen_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4423,12 +4722,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout unselected external discretionary-hyphen opportunity atomic negative",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/external_discretionary_hyphen_unselected_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/external_discretionary_hyphen_unselected_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4458,12 +4760,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout supplementary-plane searchable text",
       "scenario_revision": "supplementary-plane-v1-advanced-inter",
-      "source": "tests/actual_text/supplementary_text.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/supplementary_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4526,12 +4831,16 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_supplementary_text",
+        "supplementary_text"
+      ]
     },
     {
       "name": "text-layout supplementary-plane text atomic negative",
       "scenario_revision": "supplementary-plane-v1-advanced-inter",
-      "source": "tests/actual_text/supplementary_text_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/supplementary_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4560,12 +4869,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout CJK searchable text",
       "scenario_revision": "cjk-v1-noto-sc-static-fixture",
-      "source": "tests/actual_text/cjk_text.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/cjk_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4628,12 +4940,16 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_cjk_text",
+        "cjk_text"
+      ]
     },
     {
       "name": "text-layout ordered multi-face advanced output",
       "scenario_revision": "multiface-v1-selected-ranges-output",
-      "source": "tests/actual_text/multiface_text.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/multiface_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4712,12 +5028,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "multiface_text"
+      ]
     },
     {
       "name": "text-layout ordered multi-face script mismatch atomic negative",
       "scenario_revision": "multiface-v1-selected-ranges-output",
-      "source": "tests/actual_text/multiface_text_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/multiface_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4749,12 +5068,13 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout CJK text atomic negative",
       "scenario_revision": "cjk-v1-noto-sc-static-fixture",
-      "source": "tests/actual_text/cjk_text_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/cjk_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4783,12 +5103,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout combining-mark searchable text",
       "scenario_revision": "combining-v1-decomposed-built-in",
-      "source": "tests/actual_text/combining_text.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/combining_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4852,12 +5175,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "combining_text"
+      ]
     },
     {
       "name": "text-layout combining-mark text atomic negative",
       "scenario_revision": "combining-v1-decomposed-built-in",
-      "source": "tests/actual_text/combining_text_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/combining_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4886,7 +5212,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade text prepared-input control x1000",
@@ -4953,7 +5282,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade text materialization x1000",
@@ -5032,7 +5364,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade text prepared-input control x10000",
@@ -5099,7 +5434,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade text materialization x10000",
@@ -5178,7 +5516,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade fragment prepared-input control x1000",
@@ -5236,7 +5577,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade fragment arena x1000",
@@ -5300,7 +5644,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade fragment prepared-input control x10000",
@@ -5358,7 +5705,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade fragment arena x10000",
@@ -5422,7 +5772,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade fragment semantic attachment",
@@ -5480,7 +5833,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade fragment atomic negatives",
@@ -5529,7 +5885,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade owned scene composition",
@@ -5569,7 +5928,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 146,
+          "allocations": 147,
           "work": {
             "occurrences": 3,
             "runs": 6,
@@ -5588,7 +5947,7 @@
           }
         },
         "x64musl": {
-          "allocations": 146,
+          "allocations": 147,
           "work": {
             "occurrences": 3,
             "runs": 6,
@@ -5607,7 +5966,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade scene prepared-input control x1000",
@@ -5658,7 +6020,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade scene arena x1000",
@@ -5696,7 +6061,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 52,
+          "allocations": 53,
           "work": {
             "occurrences": 1000,
             "page_writes": 32,
@@ -5714,7 +6079,7 @@
           }
         },
         "x64musl": {
-          "allocations": 52,
+          "allocations": 53,
           "work": {
             "occurrences": 1000,
             "page_writes": 32,
@@ -5732,7 +6097,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade scene prepared-input control x10000",
@@ -5783,7 +6151,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade scene arena x10000",
@@ -5821,7 +6192,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 56,
+          "allocations": 57,
           "work": {
             "occurrences": 10000,
             "page_writes": 313,
@@ -5839,7 +6210,7 @@
           }
         },
         "x64musl": {
-          "allocations": 56,
+          "allocations": 57,
           "work": {
             "occurrences": 10000,
             "page_writes": 313,
@@ -5857,7 +6228,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout facade scene atomic negatives",
@@ -5886,7 +6260,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 53,
+          "allocations": 57,
           "work": {
             "unsupported_color_rejected": 1,
             "invalid_page_size_rejected": 1,
@@ -5896,7 +6270,7 @@
           }
         },
         "x64musl": {
-          "allocations": 53,
+          "allocations": 57,
           "work": {
             "unsupported_color_rejected": 1,
             "invalid_page_size_rejected": 1,
@@ -5906,12 +6280,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout GSUB fi ligature searchable text",
       "scenario_revision": "fi-ligature-v1-ibm-plex-serif-liga",
-      "source": "tests/actual_text/ligature_text.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/ligature_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -5976,12 +6353,16 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure_ligature_text",
+        "ligature_text"
+      ]
     },
     {
       "name": "text-layout GSUB fi ligature atomic negative",
       "scenario_revision": "fi-ligature-v1-ibm-plex-serif-liga",
-      "source": "tests/actual_text/ligature_text_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/ligature_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6010,12 +6391,13 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout resolved right-to-left text",
       "scenario_revision": "rtl-uax9-r51-bracket-pair-v1",
-      "source": "tests/actual_text/rtl_text.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/rtl_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6092,12 +6474,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "rtl_text"
+      ]
     },
     {
       "name": "text-layout right-to-left mismatched bidi fact atomic negative",
       "scenario_revision": "rtl-uax9-r51-bracket-pair-v1",
-      "source": "tests/actual_text/rtl_text_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/rtl_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6126,7 +6511,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout public ordered multi-face facade output",
@@ -6161,7 +6549,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1872,
+          "allocations": 1873,
           "work": {
             "latin_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -6178,7 +6566,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1872,
+          "allocations": 1873,
           "work": {
             "latin_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -6195,7 +6583,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "multiface_facade"
+      ]
     },
     {
       "name": "text-layout multi-face facade shared registry retention",
@@ -6228,7 +6619,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3672,
+          "allocations": 3674,
           "work": {
             "input_bytes": 9920,
             "retained_input_bytes": 9920,
@@ -6244,7 +6635,7 @@
           }
         },
         "x64musl": {
-          "allocations": 3672,
+          "allocations": 3674,
           "work": {
             "input_bytes": 9920,
             "retained_input_bytes": 9920,
@@ -6260,7 +6651,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "multiface_facade"
+      ]
     },
     {
       "name": "text-layout multi-face facade unique registries retention control",
@@ -6294,7 +6688,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3741,
+          "allocations": 3743,
           "work": {
             "registries": 2,
             "input_bytes": 19840,
@@ -6311,7 +6705,7 @@
           }
         },
         "x64musl": {
-          "allocations": 3741,
+          "allocations": 3743,
           "work": {
             "registries": 2,
             "input_bytes": 19840,
@@ -6328,7 +6722,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "multiface_facade"
+      ]
     },
     {
       "name": "text-layout multi-face facade missing coverage atomic negative",
@@ -6362,7 +6759,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout multi-face facade undeclared script atomic negative",
@@ -6396,7 +6794,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout multi-face facade unknown policy atomic negative",
@@ -6430,7 +6829,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout multi-face facade builtin policy atomic negative",
@@ -6464,7 +6864,8 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": []
     },
     {
       "name": "text-layout adversarial ordered font selection x1000",
@@ -6513,7 +6914,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout adversarial ordered font selection x10000",
@@ -6562,7 +6966,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout ordered multi-face facade scale x1000",
@@ -6638,7 +7045,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout ordered multi-face facade scale x10000",
@@ -6714,12 +7124,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "text-layout case transformation text",
       "scenario_revision": "case-transform-v1-unicode-default-upper",
-      "source": "tests/actual_text/case_text.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/case_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6796,12 +7209,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "case_text"
+      ]
     },
     {
       "name": "text-layout case transformation atomic negative",
       "scenario_revision": "case-transform-v1-unicode-default-upper",
-      "source": "tests/actual_text/case_text_negative.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/case_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6830,7 +7246,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "structural-kernel unchanged-resource retention",
@@ -6888,12 +7307,15 @@
         "backing_refs": 3,
         "source_offset": 4096,
         "owned_capacity": 64
-      }
+      },
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual resource dependency chain x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "chain",
@@ -6995,12 +7417,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual resource dependency chain x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "chain",
@@ -7102,12 +7527,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual resource dependency fan x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "fan",
@@ -7209,12 +7637,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual resource dependency fan x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "fan",
@@ -7316,12 +7747,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual dense resource dependency graph x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "dense",
@@ -7423,12 +7857,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual dense resource dependency graph x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "dense",
@@ -7530,12 +7967,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual forced digest-collision bucket x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "collide",
@@ -7637,12 +8077,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual forced digest-collision bucket x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "collide",
@@ -7744,12 +8187,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual unique resource-input ownership x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "unique",
@@ -7851,12 +8297,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual retained resource-input ownership x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "shared",
@@ -7958,12 +8407,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual resource-graph atomic negatives",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/resource_graph_negative.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -7995,12 +8447,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
     },
     {
       "name": "production-visual form showcase with adversarial authoring",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms.pdf",
       "args": [
         "showcase",
@@ -8132,12 +8587,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual form unique-input ownership",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms.pdf",
       "args": [
         "unique",
@@ -8269,12 +8727,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual form retained-input ownership",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms.pdf",
       "args": [
         "shared",
@@ -8406,12 +8867,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual artifact form repeated x100",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_repeat_100.pdf",
       "args": [
         "repeat",
@@ -8542,12 +9006,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual artifact form repeated x1000",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_repeat_1000.pdf",
       "args": [
         "repeat",
@@ -8678,12 +9145,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual nested form DAG x8",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_dag_8.pdf",
       "args": [
         "dag",
@@ -8814,12 +9284,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual nested form DAG x32",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_dag_32.pdf",
       "args": [
         "dag",
@@ -8950,12 +9423,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual deep nested form chain x64",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_deep_64.pdf",
       "args": [
         "deep",
@@ -9086,7 +9562,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual text inside a meaningful form",
@@ -9178,12 +9657,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual form atomic negatives",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/forms_negative.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_negative.pdf",
       "args": [
         "1"
@@ -9219,12 +9701,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "forms"
+      ]
     },
     {
       "name": "production-visual color-image showcase with adversarial authoring",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/color_images.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images.pdf",
       "args": [
         "showcase",
@@ -9372,12 +9857,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "color_images"
+      ]
     },
     {
       "name": "production-visual color-image unique-input ownership",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/color_images.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images.pdf",
       "args": [
         "unique",
@@ -9525,12 +10013,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "color_images"
+      ]
     },
     {
       "name": "production-visual color-image retained-input ownership",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/color_images.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images.pdf",
       "args": [
         "shared",
@@ -9678,12 +10169,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "color_images"
+      ]
     },
     {
       "name": "production-visual duplicate image collapse x8",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/color_images.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_dedup_8.pdf",
       "args": [
         "dedup",
@@ -9827,12 +10321,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "color_images"
+      ]
     },
     {
       "name": "production-visual duplicate image collapse x64",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/color_images.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_dedup_64.pdf",
       "args": [
         "dedup",
@@ -9976,12 +10473,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "color_images"
+      ]
     },
     {
       "name": "production-visual distinct image emission x8",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/color_images.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_distinct_8.pdf",
       "args": [
         "distinct",
@@ -10125,12 +10625,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "color_images"
+      ]
     },
     {
       "name": "production-visual distinct image emission x64",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/color_images.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_distinct_64.pdf",
       "args": [
         "distinct",
@@ -10274,12 +10777,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "color_images"
+      ]
     },
     {
       "name": "production-visual color-image atomic negatives",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/color_images_negative.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_negative.pdf",
       "args": [
         "1"
@@ -10316,12 +10822,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "color_images"
+      ]
     },
     {
       "name": "production-visual transparency showcase with adversarial authoring",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency.pdf",
       "args": [
         "showcase",
@@ -10444,12 +10953,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual transparency unique-input ownership",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_unique.pdf",
       "args": [
         "unique",
@@ -10572,12 +11084,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual transparency retained-input ownership",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_retained.pdf",
       "args": [
         "shared",
@@ -10700,12 +11215,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual shared-constant opacity x100",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_share_100.pdf",
       "args": [
         "share",
@@ -10825,12 +11343,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual shared-constant opacity x1000",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_share_1000.pdf",
       "args": [
         "share",
@@ -10950,12 +11471,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual distinct opacity states x100",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_states_100.pdf",
       "args": [
         "states",
@@ -11075,12 +11599,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual distinct opacity states x1000",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_states_1000.pdf",
       "args": [
         "states",
@@ -11200,12 +11727,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual nested opacity chain x16",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_nest_16.pdf",
       "args": [
         "nest",
@@ -11324,12 +11854,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual nested opacity chain x64",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_nest_64.pdf",
       "args": [
         "nest",
@@ -11448,12 +11981,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual per-form opacity x8",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_forms_8.pdf",
       "args": [
         "forms",
@@ -11572,12 +12108,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual per-form opacity x32",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_forms_32.pdf",
       "args": [
         "forms",
@@ -11696,12 +12235,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual transparency atomic negatives",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/transparency_negative.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_negative.pdf",
       "args": [
         "1"
@@ -11736,12 +12278,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "transparency"
+      ]
     },
     {
       "name": "production-visual soft-mask showcase with adversarial authoring",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks.pdf",
       "args": [
         "showcase",
@@ -11874,12 +12419,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual soft-mask unique-input ownership",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_unique.pdf",
       "args": [
         "unique",
@@ -12012,12 +12560,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual soft-mask retained-input ownership",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_retained.pdf",
       "args": [
         "shared",
@@ -12150,12 +12701,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual shared mask reuse x100",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_reuse_100.pdf",
       "args": [
         "reuse",
@@ -12284,12 +12838,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual shared mask reuse x1000",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_reuse_1000.pdf",
       "args": [
         "reuse",
@@ -12418,12 +12975,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual distinct mask forms x8",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_masks_8.pdf",
       "args": [
         "masks",
@@ -12552,12 +13112,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual distinct mask forms x64",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_masks_64.pdf",
       "args": [
         "masks",
@@ -12686,12 +13249,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual mask chain x2",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_chain_2.pdf",
       "args": [
         "chain",
@@ -12819,12 +13385,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual mask chain x4",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_chain_4.pdf",
       "args": [
         "chain",
@@ -12952,12 +13521,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual soft-mask atomic negatives",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/soft_masks_negative.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_negative.pdf",
       "args": [
         "1"
@@ -12992,12 +13564,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "soft_masks"
+      ]
     },
     {
       "name": "production-visual shading-pattern showcase with adversarial authoring",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings.pdf",
       "args": [
         "showcase",
@@ -13141,12 +13716,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shading-pattern unique-input ownership",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_unique.pdf",
       "args": [
         "unique",
@@ -13290,12 +13868,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shading-pattern retained-input ownership",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_retained.pdf",
       "args": [
         "shared",
@@ -13439,12 +14020,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shared shading x100",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_share_100.pdf",
       "args": [
         "share",
@@ -13582,12 +14166,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shared shading x1000",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_share_1000.pdf",
       "args": [
         "share",
@@ -13725,12 +14312,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual distinct shadings x8",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_distinct_8.pdf",
       "args": [
         "distinct",
@@ -13867,12 +14457,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual distinct shadings x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_distinct_64.pdf",
       "args": [
         "distinct",
@@ -14009,12 +14602,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shading stops x16",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_stops_16.pdf",
       "args": [
         "stops",
@@ -14152,12 +14748,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shading stops x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_stops_64.pdf",
       "args": [
         "stops",
@@ -14295,12 +14894,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shared pattern x100",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_share_100.pdf",
       "args": [
         "pshare",
@@ -14438,12 +15040,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shared pattern x1000",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_share_1000.pdf",
       "args": [
         "pshare",
@@ -14581,12 +15186,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual distinct patterns x8",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_distinct_8.pdf",
       "args": [
         "pdistinct",
@@ -14723,12 +15331,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual distinct patterns x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_distinct_64.pdf",
       "args": [
         "pdistinct",
@@ -14865,12 +15476,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual pattern cell commands x16",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_cells_16.pdf",
       "args": [
         "pcells",
@@ -15008,12 +15622,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual pattern cell commands x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/patterns_cells_16.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_cells_64.pdf",
       "args": [
         "pcells",
@@ -15151,12 +15768,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual shading-pattern atomic negatives",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/shadings_negative.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_negative.pdf",
       "args": [
         "1"
@@ -15191,7 +15811,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "shadings"
+      ]
     },
     {
       "name": "production-visual font-leaf showcase with adversarial authoring",
@@ -15305,7 +15928,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual font-leaf distinctness matrix",
@@ -15419,7 +16045,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual font-leaf unique-input ownership",
@@ -15531,7 +16160,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual font-leaf retained-input ownership",
@@ -15643,7 +16275,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual shared font subset x100",
@@ -15755,7 +16390,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual shared font subset x1000",
@@ -15867,7 +16505,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual equivalent authored fonts collapse x8",
@@ -15979,7 +16620,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual equivalent authored fonts collapse x64",
@@ -16091,7 +16735,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual distinct font subsets x8",
@@ -16203,7 +16850,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual distinct font subsets x64",
@@ -16315,7 +16965,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual font-leaf forced digest collisions x8",
@@ -16378,7 +17031,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual font-leaf forced digest collisions x64",
@@ -16441,7 +17097,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual font-leaf atomic negatives",
@@ -16480,12 +17139,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "fonts"
+      ]
     },
     {
       "name": "production-visual metadata showcase with adversarial authoring",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata.pdf",
       "args": [
         "showcase",
@@ -16568,12 +17230,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual metadata omitted-timestamp packet",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_minimal.pdf",
       "args": [
         "minimal",
@@ -16655,12 +17320,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual metadata unique-input ownership",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_unique.pdf",
       "args": [
         "unique",
@@ -16741,12 +17409,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual metadata retained-input ownership",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_retained.pdf",
       "args": [
         "shared",
@@ -16827,12 +17498,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual shared intent profile x16",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_share_16.pdf",
       "args": [
         "share",
@@ -16914,12 +17588,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual shared intent profile x64",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_share_64.pdf",
       "args": [
         "share",
@@ -17001,12 +17678,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual metadata title scaling x64",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_title_64.pdf",
       "args": [
         "title",
@@ -17087,12 +17767,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual metadata title scaling x256",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_title_256.pdf",
       "args": [
         "title",
@@ -17173,12 +17856,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual metadata atomic negatives",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/metadata_negative.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_negative.pdf",
       "args": [
         "1"
@@ -17212,7 +17898,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual public facade metadata output",
@@ -17234,19 +17923,22 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 40299,
+          "allocations": 40300,
           "work": {
             "output_bytes": 46423
           }
         },
         "x64musl": {
-          "allocations": 40299,
+          "allocations": 40300,
           "work": {
             "output_bytes": 46423
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual public facade metadata determinism",
@@ -17269,21 +17961,24 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 80597,
+          "allocations": 80599,
           "work": {
             "byte_identical": 1,
             "output_bytes": 46423
           }
         },
         "x64musl": {
-          "allocations": 80597,
+          "allocations": 80599,
           "work": {
             "byte_identical": 1,
             "output_bytes": 46423
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual facade metadata atomic negatives",
@@ -17305,26 +18000,29 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1309,
+          "allocations": 1310,
           "work": {
             "metadata_rejections": 9,
             "output_bytes": 13350
           }
         },
         "x64musl": {
-          "allocations": 1309,
+          "allocations": 1310,
           "work": {
             "metadata_rejections": 9,
             "output_bytes": 13350
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "metadata"
+      ]
     },
     {
       "name": "production-visual navigation showcase with adversarial authoring",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation.pdf",
       "args": [
         "showcase",
@@ -17402,12 +18100,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation annotations x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_annots_8.pdf",
       "args": [
         "annots",
@@ -17482,12 +18183,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation annotations x64",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_annots_64.pdf",
       "args": [
         "annots",
@@ -17562,12 +18266,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation fragmented link x32 quads",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_quads_32.pdf",
       "args": [
         "quads",
@@ -17642,12 +18349,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation shared destination x32 links",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_share_32.pdf",
       "args": [
         "share",
@@ -17723,12 +18433,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation shared appearance x16 links",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_appearance_16.pdf",
       "args": [
         "appearance",
@@ -17803,12 +18516,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation outline depth x16",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_outline_deep_16.pdf",
       "args": [
         "outline_deep",
@@ -17884,12 +18600,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation outline width x64",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_outline_wide_64.pdf",
       "args": [
         "outline_wide",
@@ -17965,12 +18684,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation destination names x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_names_8.pdf",
       "args": [
         "names",
@@ -18045,12 +18767,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation destination names x40",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_names_40.pdf",
       "args": [
         "names",
@@ -18125,12 +18850,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation page labels x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_labels_8.pdf",
       "args": [
         "labels",
@@ -18205,12 +18933,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation unique-input ownership",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_unique.pdf",
       "args": [
         "unique",
@@ -18286,12 +19017,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation retained-input ownership",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_retained.pdf",
       "args": [
         "retained",
@@ -18367,12 +19101,15 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation atomic negatives",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/navigation_negative.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_negative.pdf",
       "args": [
         "1"
@@ -18406,7 +19143,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation authored facade output",
@@ -18431,19 +19171,22 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 44507,
+          "allocations": 44508,
           "work": {
             "output_bytes": 38986
           }
         },
         "x64musl": {
-          "allocations": 44507,
+          "allocations": 44508,
           "work": {
             "output_bytes": 38986
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation facade determinism",
@@ -18469,21 +19212,24 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 89013,
+          "allocations": 89015,
           "work": {
             "byte_identical": 1,
             "output_bytes": 38986
           }
         },
         "x64musl": {
-          "allocations": 89013,
+          "allocations": 89015,
           "work": {
             "byte_identical": 1,
             "output_bytes": 38986
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     },
     {
       "name": "production-visual navigation facade atomic negatives",
@@ -18506,7 +19252,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3439,
+          "allocations": 3440,
           "work": {
             "rejections": 9,
             "escaped_plans": 0,
@@ -18514,7 +19260,7 @@
           }
         },
         "x64musl": {
-          "allocations": 3439,
+          "allocations": 3440,
           "work": {
             "rejections": 9,
             "escaped_plans": 0,
@@ -18522,7 +19268,10 @@
           }
         }
       },
-      "retention": null
+      "retention": null,
+      "validators": [
+        "navigation"
+      ]
     }
   ]
 }

@@ -216,7 +216,7 @@ rejection family with exact offsets, ordering, resolution, and pairing
 checks), `KernelSemantics`/`KernelTagged` (annotation ownership, rank, and
 K-item lowering), `KernelNavigationObjects` (planned-identity arithmetic),
 and the end-to-end facade expects in `Pdf.roc` and
-`examples/pdf_facade.roc`. `NavigationEvidence` runs the whole
+`tests/contracts/pdf_facade.roc`. `NavigationEvidence` runs the whole
 canonical pipeline under `./scripts/test.py capability fixture tests`, including the
 adversarial showcase byte-compare and the 32-step negative sweep.
 
@@ -236,9 +236,9 @@ pinned dev backend; arm64mac carries the same accepted values):
 | labels x8 | 8 ranges over 8 pages | 2,747 | 1 label node, 40 objects |
 | unique / retained | one-shot vs retained input | 2,491 / 4,979 | identical counters and bytes |
 | atomic negatives | 32 rejections | 4,577 | 0 escaped plans, carrier bytes only |
-| facade output | 3 pages, 1 split link, 4 annots | 44,507 | one authored link → two page annotations |
-| facade determinism | built twice | 89,013 | byte_identical 1 |
-| facade atomic negatives | 9 rejections | 3,439 | carrier 16,873 |
+| facade output | 3 pages, 1 split link, 4 annots | 44,508 | one authored link → two page annotations |
+| facade determinism | built twice | 89,015 | byte_identical 1 |
+| facade atomic negatives | 9 rejections | 3,440 | carrier 16,873 |
 
 What the scaling shows: `annots` isolates per-annotation work (annotation
 objects, ParentTree rows, quad numbers, and `/Annots` entries scale exactly

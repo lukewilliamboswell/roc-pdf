@@ -13,19 +13,80 @@ DocumentBlock :: [
 	DestinationHeading({ level : U8, name : Str, text : Str }),
 	DestinationParagraph({ name : Str, text : Str }),
 	Heading({ level : U8, text : Str }),
+	Figure({ alternative : Str, caption : Caption, drawing : Scene.Drawing }),
 	InternalLink({ destination : Str, text : Str }),
 	Link({ text : Str, uri : Str }),
 	PageArtifact({ kind : PageArtifactKind, text : Str }),
 	Paragraph(Str),
 	Title(Str),
+	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
 
-PageArtifactKind := [Footer, Header, PageNumber, Watermark]
+## A figure may have visible caption text independently of required alternative text.
+Caption := [Caption(Str), NoCaption]
+
+## Stable feature identities used by transactional preparation diagnostics.
+AuthoringFeature := [
+	AccessibleArchiveProfile,
+	ArchiveProfile,
+	ComplexTables,
+	ContextualArtifacts,
+	CustomLayout,
+	Figures,
+	Floats,
+	Footnotes,
+	GeneratedReferences,
+	MultiColumnLayout,
+	NestedLanguage,
+	PageTemplates,
+	RichInline,
+	SemanticContainers,
+	SemanticTextProperties,
+	SideContent,
+	SimpleTables,
+	VerticalWriting,
+]
+
+PageArtifactKind := [Background, Decoration, Footer, Header, PageNumber, Watermark]
+
+## A semantic block placed into an explicit page frame.
+FixedPlacement := { block : DocumentBlock, frame : Layout.Rect }
+
+## A drawing whose non-content purpose and paint layer are explicit.
+FixedArtifact := { drawing : Scene.Drawing, kind : PageArtifactKind }
+
+## Immutable result of finishing a fixed-page builder.
+FixedPage := {
+	artifacts_after : List(FixedArtifact),
+	artifacts_before : List(FixedArtifact),
+	placements : List(FixedPlacement),
+	size : Layout.Size,
+}
+
+## Content-first fixed-page authoring. Semantic blocks occupy explicit frames;
+## drawings must be classified as before- or after-content artifacts.
+FixedPageBuilder :: FixedPage.{
+	start : Layout.Size -> FixedPageBuilder
+	start = |size| FixedPageBuilder.{ artifacts_after: [], artifacts_before: [], placements: [], size }
+
+	background : FixedPageBuilder, Scene.Drawing -> FixedPageBuilder
+	background = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, drawing| FixedPageBuilder.{ artifacts_after, artifacts_before: artifacts_before.append({ drawing, kind: Background }), placements, size }
+
+	place : FixedPageBuilder, DocumentBlock, Layout.Rect -> FixedPageBuilder
+	place = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, block, frame| FixedPageBuilder.{ artifacts_after, artifacts_before, placements: placements.append({ block, frame }), size }
+
+	overlay : FixedPageBuilder, PageArtifactKind, Scene.Drawing -> FixedPageBuilder
+	overlay = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }, kind, drawing| FixedPageBuilder.{ artifacts_after: artifacts_after.append({ drawing, kind }), artifacts_before, placements, size }
+
+	finish : FixedPageBuilder -> FixedPage
+	finish = |FixedPageBuilder.{ artifacts_after, artifacts_before, placements, size }| { artifacts_after, artifacts_before, placements, size }
+}
 
 NormalizedBlockKind := [
 	Bullet({ item : U64, list : U64 }),
 	DestinationHeading({ level : U8, name : Str }),
 	DestinationParagraph({ name : Str }),
+	Figure(U64),
 	Heading(U8),
 	InternalLink({ destination : Str }),
 	Link({ uri : Str }),
@@ -36,8 +97,13 @@ NormalizedBlockKind := [
 
 NormalizedBlock := { kind : NormalizedBlockKind, text : Str }
 
+## Dense normalized meaningful-image facts retained between semantic planning,
+## layout, resource inspection, and scene lowering.
+NormalizedFigure := { alternative : Str, caption : Caption, image : Image.Source, placement : Layout.Rect }
+
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
+	figures : List(NormalizedFigure),
 	language : Str,
 	metadata_title : Str,
 	outline : List(OutlineEntry),
@@ -268,15 +334,23 @@ DocumentBuilder :: {
 
 DocumentAuthoring := [
 	Compact(DocumentBuilder),
+	Fixed({ language : Str, metadata_title : Str, pages : List(FixedPage) }),
 	Simple({ contents : List(DocumentBlock), language : Str, metadata_title : Str }),
 ]
 
 Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange) }.{
 	Block : DocumentBlock
 	Builder : DocumentBuilder
+	Caption : Caption
+	Feature : AuthoringFeature
+	FixedArtifact : FixedArtifact
+	FixedPage : FixedPage
+	FixedPageBuilder : FixedPageBuilder
+	FixedPlacement : FixedPlacement
 	NavigationError : NavigationError
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
+	NormalizedFigure : NormalizedFigure
 	NormalizedAuthoring : NormalizedAuthoring
 	OutlineEntry : OutlineEntry
 	PageArtifactKind : PageArtifactKind
@@ -377,6 +451,18 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			page_labels: [],
 		}
 
+	## Construct an explicitly framed document. Preparation rejects it with the
+	## `layout.custom` feature until fixed-layout lowering is executable.
+	from_fixed_pages : { language : Str, pages : List(FixedPage), title : Str } -> Document
+	from_fixed_pages = |{ language, pages, title: document_title }|
+		Document.{
+			authoring: Fixed({ language, metadata_title: document_title, pages }),
+			created: Omitted,
+			modified: Omitted,
+			outline: [],
+			page_labels: [],
+		}
+
 	## Optional explicit metadata timestamps. The package never reads a clock;
 	## an author who wants `xmp:CreateDate` or `xmp:ModifyDate` supplies the
 	## exact canonical UTC instant, which is validated before generation.
@@ -445,6 +531,22 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	bullets : List(Str) -> DocumentBlock
 	bullets = |items| DocumentBlock.Bullets(items)
 
+	## Attach meaningful drawing content with required alternative text.
+	figure : Scene.Drawing, Str, Caption -> DocumentBlock
+	figure = |drawing_value, alternative, caption_value| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value })
+
+	## Construct an optional visible figure caption.
+	caption : Str -> Caption
+	caption = |text| Caption(text)
+
+	## Retain future authoring intent for a feature-specific preparation error.
+	unavailable : AuthoringFeature, Str -> DocumentBlock
+	unavailable = |feature, summary| DocumentBlock.Unavailable({ feature, summary })
+
+	## Start a content-first fixed page at an explicit size.
+	fixed_page : Layout.Size -> FixedPageBuilder
+	fixed_page = |size| FixedPageBuilder.start(size)
+
 	## A URI link block: the whole block text is the link text and the URI is
 	## recorded for the reader; nothing dereferences it.
 	link : Str, Str -> DocumentBlock
@@ -475,19 +577,30 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	metadata_title : Document -> Str
 	metadata_title = |document| match document.authoring {
 		Compact(compact) => compact.metadata_title
+		Fixed(fixed) => fixed.metadata_title
 		Simple(simple) => simple.metadata_title
 	}
 
 	language : Document -> Str
 	language = |document| match document.authoring {
 		Compact(compact) => compact.language
+		Fixed(fixed) => fixed.language
 		Simple(simple) => simple.language
 	}
 
 	block_count : Document -> U64
 	block_count = |document| match document.authoring {
 		Compact(compact) => compact.block_tags.len()
+		Fixed(fixed) => fixed_block_count(fixed.pages)
 		Simple(simple) => simple.contents.len()
+	}
+
+	## Return the first unsupported authored capability in deterministic order.
+	first_unavailable : Document -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
+	first_unavailable = |document| match document.authoring {
+		Fixed(_) => UnavailableFeature({ feature: CustomLayout, summary: "Fixed-page layout is represented by this API but is not executable in this release." })
+		Compact(_) => Available
+		Simple(simple) => first_unavailable_block(simple.contents)
 	}
 
 	## Both authoring front ends lower once to the same flat text/block store.
@@ -502,7 +615,33 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 normalize_authoring : DocumentAuthoring -> NormalizedAuthoring
 normalize_authoring = |authoring| match authoring {
 	Compact(compact) => normalize_compact(compact)
+	Fixed(fixed) => { blocks: [], figures: [], language: fixed.language, metadata_title: fixed.metadata_title, outline: [], page_labels: [] }
 	Simple(simple) => normalize_simple(simple)
+}
+
+first_unavailable_block : List(DocumentBlock) -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
+first_unavailable_block = |blocks| {
+	var $index = 0
+	while $index < blocks.len() {
+		match list_at(blocks, $index) {
+			Figure({ alternative, caption: _, drawing }) => {
+				commands = drawing.commands()
+				if alternative.is_empty() or commands.len() != 1 {
+					return UnavailableFeature({ feature: Figures, summary: "The executable figure slice requires non-empty alternative text and exactly one image command." })
+				}
+				match list_at(commands, 0) {
+					AuthorImage({ image: _, placement }) => if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 {
+						return UnavailableFeature({ feature: Figures, summary: "Figure image placement must have positive width and height." })
+					}
+					_ => return UnavailableFeature({ feature: Figures, summary: "Vector and grouped drawings remain on the roadmap; the executable slice accepts one image command." })
+				}
+			}
+			Unavailable({ feature, summary }) => return UnavailableFeature({ feature, summary })
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	Available
 }
 
 normalize_compact : DocumentBuilder -> NormalizedAuthoring
@@ -545,6 +684,7 @@ normalize_compact = |compact| {
 	}
 	{
 		blocks: $blocks,
+		figures: [],
 		language: compact.language,
 		metadata_title: compact.metadata_title,
 		outline: [],
@@ -555,6 +695,7 @@ normalize_compact = |compact| {
 normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str } -> NormalizedAuthoring
 normalize_simple = |simple| {
 	var $blocks = []
+	var $figures = []
 	var $block_index = 0
 	var $list_index = 0
 	while $block_index < simple.contents.len() {
@@ -576,6 +717,20 @@ normalize_simple = |simple| {
 			Heading({ level, text }) => {
 				$blocks = $blocks.append({ kind: Heading(level), text })
 			}
+			Figure({ alternative, caption, drawing }) => {
+				match list_at(drawing.commands(), 0) {
+					AuthorImage({ image, placement }) => {
+						figure_index = $figures.len()
+						text = match caption {
+							Caption(value) => value
+							NoCaption => " "
+						}
+						$figures = $figures.append({ alternative, caption, image, placement })
+						$blocks = $blocks.append({ kind: Figure(figure_index), text })
+					}
+					_ => crash "validated figure drawing escaped"
+				}
+			}
 			InternalLink({ destination, text }) => {
 				$blocks = $blocks.append({ kind: InternalLink({ destination: destination }), text })
 			}
@@ -591,11 +746,17 @@ normalize_simple = |simple| {
 			Title(text) => {
 				$blocks = $blocks.append({ kind: Title, text })
 			}
+			Unavailable({ feature: _, summary: _ }) => {
+
+				## Preparation rejects this branch before normalization.
+				$blocks = $blocks.append({ kind: Paragraph, text: "" })
+			}
 		}
 		$block_index = $block_index + 1
 	}
 	{
 		blocks: $blocks,
+		figures: $figures,
 		language: simple.language,
 		metadata_title: simple.metadata_title,
 		outline: [],
@@ -643,21 +804,36 @@ append_artifact = |DocumentBuilder.{ block_aux, block_tags, block_texts, languag
 
 encode_artifact : PageArtifactKind -> U64
 encode_artifact = |kind| match kind {
-	Footer => 0
-	Header => 1
-	PageNumber => 2
-	Watermark => 3
+	Background => 0
+	Decoration => 1
+	Footer => 2
+	Header => 3
+	PageNumber => 4
+	Watermark => 5
 }
 
 decode_artifact : U64 -> PageArtifactKind
 decode_artifact = |value| match value {
-	0 => Footer
-	1 => Header
-	2 => PageNumber
-	3 => Watermark
+	0 => Background
+	1 => Decoration
+	2 => Footer
+	3 => Header
+	4 => PageNumber
+	5 => Watermark
 	_ => {
 		crash "compact page artifact kind escaped"
 	}
+}
+
+fixed_block_count : List(FixedPage) -> U64
+fixed_block_count = |pages| {
+	var $count = 0
+	var $index = 0
+	while $index < pages.len() {
+		$count = $count + list_at(pages, $index).placements.len()
+		$index = $index + 1
+	}
+	$count
 }
 
 bullets_tag : U8

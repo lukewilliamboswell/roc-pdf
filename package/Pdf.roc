@@ -40,6 +40,7 @@ import KernelSemantics
 import KernelShape
 import KernelTextSemantics
 import Layout
+import Scene
 import Theme
 
 Pdf :: [].{
@@ -54,11 +55,14 @@ Pdf :: [].{
 	PageSize := [A4, Letter]
 	ChunkRetention := [OwnChunks, ShareUnchangedResources]
 
-	Feature := [AuthoringContent, Pdf20Generation, PdfA4Generation, PdfUa2Generation]
+	## Stable roadmap feature identity carried by `FeatureUnavailable` diagnostics.
+	Feature : Document.Feature
+
+	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
+	## batch and preparation emits no partial bytes on any error.
 	Error := [
-		CapabilityUnavailable(Feature),
 		InternalGenerationFailure,
-		InvalidDocument(List(Conformance.Diagnostic)),
+		InvalidDocument(Conformance.DiagnosticBatch),
 		InvalidFontResource(Font.ResourceError),
 		InvalidFontSelection(List(Font.PlanError)),
 		InvalidMetadata(Metadata.Error),
@@ -101,6 +105,12 @@ Pdf :: [].{
 		with_chunk_retention = |options, chunk_retention| { ..options, chunk_retention }
 	}
 
+	## An opaque, fully validated document plan. Preparation performs all
+	## authoring, layout, resource, navigation, conformance, and object-planning
+	## work once; emission cannot reinterpret author intent or fail with a
+	## document diagnostic after this boundary.
+	Prepared :: KernelStructure.Plan.{}
+
 	Encode :: KernelEmit.Encoder.{}
 	ChunkStep : [Done, Emit(List(U8), Encode)]
 
@@ -111,20 +121,87 @@ Pdf :: [].{
 		AccessibleArchive => Conformance.claims_for_profile(AccessibleArchive)
 	}
 
+	## Build an automatically paginated document from semantic blocks.
 	document : { contents : List(Document.Block), language : Str, title : Str } -> Document
 	document = |input| Document.from_blocks(input)
 
+	## Build an explicitly framed document. The stable shape is available now;
+	## preparation reports `layout.custom` until its lowering closes.
+	fixed_document : { language : Str, pages : List(Document.FixedPage), title : Str } -> Document
+	fixed_document = |input| Document.from_fixed_pages(input)
+
+	## Add the document's visible title block.
 	title : Str -> Document.Block
 	title = |text| Document.title(text)
 
+	## Add a semantic heading at the requested level.
 	heading : U8, Str -> Document.Block
 	heading = |level, text| Document.heading(level, text)
 
+	## Add a plain paragraph.
 	paragraph : Str -> Document.Block
 	paragraph = |text| Document.paragraph(text)
 
+	## Add an unordered list whose items are plain text.
 	bullets : List(Str) -> Document.Block
 	bullets = |items| Document.bullets(items)
+
+	## Own a drawing as meaningful figure content with required alternative text.
+	## The executable slice accepts exactly one typed image command; unsupported
+	## vector, grouped, or multi-command drawings report `document.figure`.
+	figure : Scene.Drawing, Str, Document.Caption -> Document.Block
+	figure = |drawing, alternative, caption_value| Document.figure(drawing, alternative, caption_value)
+
+	## Add an optional visible caption to a figure.
+	caption : Str -> Document.Caption
+	caption = |text| Document.caption(text)
+
+	## Explicitly omit a visible figure caption; alternative text is still required.
+	no_caption : Document.Caption
+	no_caption = NoCaption
+
+	## Start a fixed page with explicit semantic frames and classified artifacts.
+	fixed_page : Layout.Size -> Document.FixedPageBuilder
+	fixed_page = |size| Document.fixed_page(size)
+
+	## Gate 6-8 authoring shapes are stable before their lowering is enabled.
+	## These constructors retain the authored intent and reject transactionally
+	## at preparation with a feature-specific explanation.
+	## Reserve authored rich-inline intent; currently reports `semantics.rich_inline`.
+	rich_paragraph : Str -> Document.Block
+	rich_paragraph = |text| Document.unavailable(RichInline, text)
+
+	## Reserve a semantic container; currently reports `semantics.containers`.
+	section : Str -> Document.Block
+	section = |summary| Document.unavailable(SemanticContainers, summary)
+
+	## Reserve a simple logical table; currently reports `table.simple`.
+	simple_table : Str -> Document.Block
+	simple_table = |summary| Document.unavailable(SimpleTables, summary)
+
+	## Reserve a spanning/header-associated table; currently reports `table.complex`.
+	complex_table : Str -> Document.Block
+	complex_table = |summary| Document.unavailable(ComplexTables, summary)
+
+	## Reserve footnote content; currently reports `document.footnote`.
+	footnote : Str -> Document.Block
+	footnote = |text| Document.unavailable(Footnotes, text)
+
+	## Reserve sidebar content; currently reports `document.side_content`.
+	side_content : Str -> Document.Block
+	side_content = |text| Document.unavailable(SideContent, text)
+
+	## Reserve a generated cross-reference; currently reports `document.generated_reference`.
+	generated_reference : Str -> Document.Block
+	generated_reference = |name| Document.unavailable(GeneratedReferences, name)
+
+	## Reserve a multi-column region; currently reports `layout.multi_column`.
+	multi_column : Str -> Document.Block
+	multi_column = |summary| Document.unavailable(MultiColumnLayout, summary)
+
+	## Reserve custom layout intent; currently reports `layout.custom`.
+	custom_layout : Str -> Document.Block
+	custom_layout = |summary| Document.unavailable(CustomLayout, summary)
 
 	page_header : Str -> Document.Block
 	page_header = |text| Document.page_header(text)
@@ -172,7 +249,25 @@ Pdf :: [].{
 
 	to_bytes_with : Document, Options -> Try(List(U8), Error)
 	to_bytes_with = |doc, options| {
+		prepared = prepare(doc, options)?
+		to_bytes_prepared(prepared)
+	}
+
+	## Validate and lower an authored document once for repeated or deferred
+	## emission. The returned value contains no authoring callbacks or mutable
+	## caches and exposes no PDF object internals.
+	prepare : Document, Options -> Try(Prepared, Error)
+	prepare = |doc, options| {
+		match Document.first_unavailable(doc) {
+			Available => {}
+			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
+		}
 		plan = build_standard_plan(doc, options)?
+		Ok(Prepared.(plan))
+	}
+
+	to_bytes_prepared : Prepared -> Try(List(U8), Error)
+	to_bytes_prepared = |Prepared.(plan)| {
 		bytes = KernelEmit.to_bytes(plan) ? |_| InternalGenerationFailure
 		Ok(bytes)
 	}
@@ -187,8 +282,15 @@ Pdf :: [].{
 	## typed error and no partial chunk sequence.
 	to_chunks_with : Document, Options -> Try(Encode, Error)
 	to_chunks_with = |doc, options| {
-		plan = build_standard_plan(doc, options)?
-		retention = match options.chunk_retention {
+		prepared = prepare(doc, options)?
+		to_chunks_prepared(prepared, options.chunk_retention)
+	}
+
+	## Start chunked emission from an already prepared document. Retention is
+	## selected at emission time and cannot alter the sealed document bytes.
+	to_chunks_prepared : Prepared, ChunkRetention -> Try(Encode, Error)
+	to_chunks_prepared = |Prepared.(plan), chunk_retention| {
+		retention = match chunk_retention {
 			OwnChunks => OwnResourceChunks
 			ShareUnchangedResources => ShareResourceChunks
 		}
@@ -331,9 +433,64 @@ selected_registered_font = |registry, face| {
 validate_standard_request : Pdf.Options -> Try({}, Pdf.Error)
 validate_standard_request = |options| {
 	match options.profile {
-		Archive => Err(Pdf.Error.CapabilityUnavailable(Pdf.Feature.PdfA4Generation))
-		AccessibleArchive => Err(Pdf.Error.CapabilityUnavailable(Pdf.Feature.PdfUa2Generation))
+		Archive => Err(Pdf.Error.InvalidDocument(unavailable_batch(ArchiveProfile, "The Archive profile requires the unfinished PDF/A-4 capability.")))
+		AccessibleArchive => Err(Pdf.Error.InvalidDocument(unavailable_batch(AccessibleArchiveProfile, "The AccessibleArchive profile requires the unfinished combined PDF/A-4 and PDF/UA-2 capability.")))
 		Standard => Ok({})
+	}
+}
+
+unavailable_message : Document.Feature, Str -> Str
+unavailable_message = |feature, summary| {
+	roadmap = match feature {
+		ArchiveProfile => "Gate 5"
+		AccessibleArchiveProfile => "Gate 7"
+		Figures => "the current figure authoring slice"
+		RichInline | SemanticContainers | ContextualArtifacts | NestedLanguage | SemanticTextProperties | SimpleTables => "Gate 6"
+		ComplexTables | CustomLayout | Floats | Footnotes | GeneratedReferences | MultiColumnLayout | PageTemplates | SideContent | VerticalWriting => "Gate 8"
+	}
+	"${summary} No PDF bytes were emitted. This capability remains scheduled for ${roadmap}."
+}
+
+feature_code : Document.Feature -> Str
+feature_code = |feature| match feature {
+	ArchiveProfile => "profile.archive"
+	AccessibleArchiveProfile => "profile.accessible_archive"
+	Figures => "document.figure"
+	RichInline => "semantics.rich_inline"
+	SemanticContainers => "semantics.containers"
+	ContextualArtifacts => "semantics.contextual_artifact"
+	NestedLanguage => "semantics.nested_language"
+	SemanticTextProperties => "semantics.text_properties"
+	SimpleTables => "table.simple"
+	ComplexTables => "table.complex"
+	CustomLayout => "layout.custom"
+	Floats => "layout.float"
+	Footnotes => "document.footnote"
+	GeneratedReferences => "document.generated_reference"
+	MultiColumnLayout => "layout.multi_column"
+	PageTemplates => "layout.page_template"
+	SideContent => "document.side_content"
+	VerticalWriting => "text.vertical_writing"
+}
+
+unavailable_batch : Document.Feature, Str -> Conformance.DiagnosticBatch
+unavailable_batch = |feature, summary| {
+	message = unavailable_message(feature, summary)
+	{
+		detail_bytes: Str.to_utf8(message).len(),
+		diagnostics: [
+			{
+				clause_references: [],
+				code: FeatureUnavailable,
+				details: [],
+				feature: Feature(feature_code(feature)),
+				location: Document,
+				message,
+				requirement_ids: [],
+				stage: AuthoringValidation,
+			},
+		],
+		truncation: Complete,
 	}
 }
 
@@ -396,7 +553,7 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 	output: KernelFacadeOutput.Limits.make({
 		content: KernelContent.Limits.make({ max_content_bytes: 16000000, max_content_streams: 1024 }),
 		font_plan: KernelFontPlan.Limits.make({ max_retained_glyphs: 10000 }),
-		images: KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
+		images: KernelImage.Limits.make({ max_decoded_bytes: 67108864, max_encoded_bytes: 67108864, max_height: 16384, max_markers: 4096, max_resources: 2048, max_width: 16384 }),
 		max_objects: 65536,
 		objects: KernelObjectPlan.Limits.make({ max_objects: 65527, max_pages: 1024 }),
 		structure: KernelTaggedTextStructure.Limits.make({
@@ -411,7 +568,7 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		page: KernelPageLayout.Limits.make({ max_blocks: 2048, max_fragments: 1000000, max_lines: 1000000, max_pages: 1024, max_placements: 1000000 }),
 	}),
 	scenes: KernelFacadeScenes.Limits.make({
-		color: KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 1, max_tags: KernelSrgbProfile.tag_count }),
+		color: KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 2, max_tags: KernelSrgbProfile.tag_count }),
 		max_commands: 2000000,
 		max_groups: 1000000,
 		max_page_group_edges: 1000000,
@@ -541,6 +698,30 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
+## Preparation is a one-way public boundary and both emission paths consume
+## the same sealed plan.
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Prepared once")], language: "en-AU", title: "Prepared" })
+	prepared = Pdf.prepare(document, Pdf.Options.default)?
+	buffered = Pdf.to_bytes_prepared(prepared)?
+	chunked = collect_chunks(Pdf.to_chunks_prepared(prepared, ShareUnchangedResources)?)
+
+	buffered == chunked.bytes
+}
+
+## Every sRGB theme color is resolved through the packaged profile rather
+## than being silently reduced to black.
+expect {
+	blue : Color.SourceValue
+	blue = Srgb(Rgb({ blue: 65535, green: 16000, red: 4000 }))
+	theme = Theme.with_body_color(Theme.default, blue)
+	options = Pdf.Options.with_theme(Pdf.Options.default, theme)
+	document = Pdf.document({ contents: [Pdf.paragraph("Blue body text")], language: "en-AU", title: "Color" })
+	bytes = Pdf.to_bytes_with(document, options)?
+
+	bytes.len() > 667
+}
+
 ## Unsupported page artifacts reject atomically through the facade; no blank
 ## document or partial bytes can escape a Try error.
 expect {
@@ -583,7 +764,7 @@ expect {
 	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
 
 	match Pdf.to_bytes_with(document, options) {
-		Err(CapabilityUnavailable(PdfA4Generation)) => True
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), message, .. }], .. })) => code == "profile.archive" and message.contains("Gate 5")
 		_ => False
 	}
 }
@@ -594,7 +775,7 @@ expect {
 	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)
 
 	match Pdf.to_bytes_with(document, options) {
-		Err(CapabilityUnavailable(PdfUa2Generation)) => True
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), message, .. }], .. })) => code == "profile.accessible_archive" and message.contains("Gate 7")
 		_ => False
 	}
 }

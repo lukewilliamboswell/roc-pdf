@@ -20,6 +20,7 @@ Conformance :: [].{
 	DiagnosticCode : [
 		BudgetExceeded,
 		DuplicateIdentity,
+		FeatureUnavailable,
 		FontCoverageMissing,
 		FragmentCoverageInvalid,
 		IdentityOutOfRange,
@@ -42,11 +43,18 @@ Conformance :: [].{
 	]
 	ValidationStage : [AuthoringValidation, LoweredPlanValidation, ProfileValidation]
 
+	## Optional stable dotted authoring-feature code attached to a diagnostic.
+	FeatureReference : [Feature(Str), NoFeature]
+
+	## One actionable validation finding. `message` is for people; callers branch
+	## on `code`, `feature`, `location`, and `stage`.
 	Diagnostic : {
 		clause_references : List(Str),
 		code : DiagnosticCode,
 		details : List(Str),
+		feature : FeatureReference,
 		location : DiagnosticLocation,
+		message : Str,
 		requirement_ids : List(Str),
 		stage : ValidationStage,
 	}

@@ -1,0 +1,14 @@
+{"name":"production-visual navigation showcase with adversarial authoring","schema_version":1,"case":"Showcase"}
+{"name":"production-visual navigation annotations x8","schema_version":1,"case":{"Annotations":{"scale":8}}}
+{"name":"production-visual navigation annotations x64","schema_version":1,"case":{"Annotations":{"scale":64}}}
+{"name":"production-visual navigation fragmented link x32 quads","schema_version":1,"case":{"Quads":{"scale":32}}}
+{"name":"production-visual navigation shared destination x32 links","schema_version":1,"case":{"Share":{"scale":32}}}
+{"name":"production-visual navigation shared appearance x16 links","schema_version":1,"case":{"Appearance":{"scale":16}}}
+{"name":"production-visual navigation outline depth x16","schema_version":1,"case":{"OutlineDeep":{"scale":16}}}
+{"name":"production-visual navigation outline width x64","schema_version":1,"case":{"OutlineWide":{"scale":64}}}
+{"name":"production-visual navigation destination names x8","schema_version":1,"case":{"Names":{"scale":8}}}
+{"name":"production-visual navigation destination names x40","schema_version":1,"case":{"Names":{"scale":40}}}
+{"name":"production-visual navigation page labels x8","schema_version":1,"case":{"Labels":{"scale":8}}}
+{"name":"production-visual navigation unique-input ownership","schema_version":1,"case":"Unique"}
+{"name":"production-visual navigation retained-input ownership","schema_version":1,"case":"Retained"}
+{"name":"production-visual navigation atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}

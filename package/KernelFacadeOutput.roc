@@ -109,7 +109,7 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	usages = glyph_usages(text_store.glyphs)
 	font_plan = KernelFontPlan.plan(font, usages, limits.font_plan) ? FontPlan
 	subset = KernelFontSubset.build(font, font_plan) ? Subset
-	images = KernelImage.Plan.build({ resources: [] }, colors, limits.images) ? Images
+	images = KernelImage.Plan.build(KernelFacadeScenes.Plan.images(scenes), colors, limits.images) ? Images
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? Resources
 	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], limits.text) ? Text
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
@@ -205,7 +205,7 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 		$font_index = $font_index + 1
 	}
 
-	images = KernelImage.Plan.build({ resources: [] }, colors, limits.images) ? Images
+	images = KernelImage.Plan.build(KernelFacadeScenes.Plan.images(scenes), colors, limits.images) ? Images
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? Resources
 	text = KernelPdfText.ScenePlan.build(ownership, $font_plans, limits.text) ? Text
 	tagged = KernelTextOwnership.Plan.tagged(ownership)

@@ -60,6 +60,22 @@ Color :: [].{
 	## Authoring colors name their source space without inventing a resource ID.
 	## Preparation resolves that space to an exact validated store entry.
 	SourceValue : [Srgb(Channels)]
+
+	## Construct an sRGB authoring color from exact 16-bit channels.
+	srgb16 : { blue : U16, green : U16, red : U16 } -> SourceValue
+	srgb16 = |channels| Srgb(Rgb(channels))
+
+	## Construct an sRGB authoring color from familiar 8-bit channels.
+	srgb8 : { blue : U8, green : U8, red : U8 } -> SourceValue
+	srgb8 = |channels| Srgb(Rgb({ blue: channels.blue.to_u16() * 257, green: channels.green.to_u16() * 257, red: channels.red.to_u16() * 257 }))
+
+	## Construct a neutral sRGB gray from an exact 16-bit level.
+	gray16 : U16 -> SourceValue
+	gray16 = |level| Srgb(Gray(level))
+
+	## Construct a neutral sRGB gray from an 8-bit level.
+	gray8 : U8 -> SourceValue
+	gray8 = |level| Srgb(Gray(level.to_u16() * 257))
 	Value : { channels : Channels, space : SpaceId }
 	BlendMode : [Normal]
 	BlendSpace : { space : SpaceId }

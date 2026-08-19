@@ -219,7 +219,7 @@ styles_equal = |left, right| {
 
 keeps_together : Document.NormalizedBlockKind -> Bool
 keeps_together = |kind| match kind {
-	Heading(_) | Title => True
+	Figure(_) | Heading(_) | Title => True
 	_ => False
 }
 

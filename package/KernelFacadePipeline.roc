@@ -151,7 +151,7 @@ build_plan : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.
 build_plan = |authoring, font, theme, page_size, descriptor, facts, limits| {
 	upstream = build_upstream(authoring, font, theme, page_size, descriptor, limits)?
 	fragments = KernelFacadeFragments.Plan.build_with_navigation(upstream.preliminary, upstream.text, upstream.navigation, limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
-	scenes = KernelFacadeScenes.Plan.build_with_intent(fragments, page_size, intent_profile(facts), limits.scenes) ? Scenes
+	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
 	output = KernelFacadeOutput.Plan.build_with_navigation(scenes, font, descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
 	Ok(
 		KernelFacadePipeline.Plan.{
@@ -185,7 +185,7 @@ build_ordered_pipeline = |authoring, ordered, theme, page_size, descriptor, fact
 	pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
 	text = KernelFacadeText.Plan.build(shape, lines, pages, limits.text) ? Text
 	fragments = KernelFacadeFragments.Plan.build_with_navigation(preliminary, text, navigation_authoring(semantics, authoring), limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
-	scenes = KernelFacadeScenes.Plan.build_with_intent(fragments, page_size, intent_profile(facts), limits.scenes) ? Scenes
+	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
 	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
 	shape_store = KernelFacadeShape.Plan.shape(shape).store
 	line_store = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines))
@@ -229,7 +229,8 @@ probe_plan = |authoring, font, theme, page_size, descriptor, limits, stage| {
 	if stage == FragmentsReady {
 		return Ok(fragment_work)
 	}
-	scenes = KernelFacadeScenes.Plan.build(fragments, page_size, limits.scenes) ? Scenes
+	probe_intent = if authoring.figures.is_empty() NoIntentProfile else PackagedSrgbIntent
+	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, probe_intent, limits.scenes) ? Scenes
 	scene_work = { ..fragment_work, scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes }
 	if stage == ScenesReady {
 		return Ok(scene_work)

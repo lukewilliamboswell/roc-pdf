@@ -11,6 +11,14 @@ Layout :: [].{
 		from_raw : I64 -> Unit
 		from_raw = |raw| Unit.(raw)
 
+		## Convert whole PDF points to the package's fixed-point unit.
+		points : I64 -> Unit
+		points = |value| Unit.(value * 1000)
+
+		## Construct a unit from the native 1/1000-point scale.
+		millipoints : I64 -> Unit
+		millipoints = |value| Unit.(value)
+
 		raw : Unit -> I64
 		raw = |Unit.(raw)| raw
 	}
@@ -74,6 +82,17 @@ Layout :: [].{
 	Point : { x : Unit, y : Unit }
 	Size : { height : Unit, width : Unit }
 	Rect : { origin : Point, size : Size }
+
+	## Construct a point from whole PDF points.
+	point : I64, I64 -> Point
+	point = |x_points, y_points| { x: Unit.points(x_points), y: Unit.points(y_points) }
+
+	## Construct a rectangle from whole-point x, y, width, and height values.
+	rect : I64, I64, I64, I64 -> Rect
+	rect = |x_points, y_points, width_points, height_points| {
+		origin: point(x_points, y_points),
+		size: { height: Unit.points(height_points), width: Unit.points(width_points) },
+	}
 
 	Constraints : {
 		available : Size,

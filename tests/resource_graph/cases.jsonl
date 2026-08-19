@@ -1,0 +1,11 @@
+{"name":"production-visual resource dependency chain x100","schema_version":1,"case":{"Chain":{"scale":100}}}
+{"name":"production-visual resource dependency chain x1000","schema_version":1,"case":{"Chain":{"scale":1000}}}
+{"name":"production-visual resource dependency fan x100","schema_version":1,"case":{"Fan":{"scale":100}}}
+{"name":"production-visual resource dependency fan x1000","schema_version":1,"case":{"Fan":{"scale":1000}}}
+{"name":"production-visual dense resource dependency graph x100","schema_version":1,"case":{"Dense":{"scale":100}}}
+{"name":"production-visual dense resource dependency graph x1000","schema_version":1,"case":{"Dense":{"scale":1000}}}
+{"name":"production-visual forced digest-collision bucket x100","schema_version":1,"case":{"Collide":{"scale":100}}}
+{"name":"production-visual forced digest-collision bucket x1000","schema_version":1,"case":{"Collide":{"scale":1000}}}
+{"name":"production-visual unique resource-input ownership x100","schema_version":1,"case":{"Unique":{"scale":100}}}
+{"name":"production-visual retained resource-input ownership x100","schema_version":1,"case":{"Shared":{"scale":100}}}
+{"name":"production-visual resource-graph atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}
