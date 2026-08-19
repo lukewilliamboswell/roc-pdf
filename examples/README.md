@@ -24,17 +24,18 @@ Run one from the repository root with `roc examples/<name>.roc`.
 
 | Application | What it demonstrates |
 | --- | --- |
-| [Quarterly report](quarterly_report.roc) | titles, sections, lists, and A4 output |
-| [Brand brief](brand_brief.roc) | role-specific sRGB theme colors |
-| [Field guide](field_guide.roc) | destinations, outline, links, and page labels |
-| [Operations handbook](operations_handbook.roc) | deterministic multi-page pagination |
-| [Letter](letter.roc) | Letter page size and explicit metadata dates |
-| [Release notes](release_notes.roc) | compact `Document.Builder` authoring |
-| [Prepared invoice](prepared_invoice.roc) | prepare-once buffered emission |
-| [Chunked export](chunked_export.roc) | incremental output without byte changes |
-| [Product brief](product_brief.roc) | a polished composition of the stable facade |
+| [Quarterly report](quarterly_report.roc) | a generated KPI chart, compact typography, tight margins, sections, and lists |
+| [Brand brief](brand_brief.roc) | display-scale type, asymmetric margins, and role-specific sRGB colors |
+| [Field guide](field_guide.roc) | a generated coastal illustration, navigation, page labels, and compact page rhythm |
+| [Operations handbook](operations_handbook.roc) | dense typography and deterministic multi-page pagination |
+| [Letter](letter.roc) | Letter paper, correspondence margins, loose leading, and metadata dates |
+| [Release notes](release_notes.roc) | compact builder authoring with a narrow editorial measure |
+| [Prepared invoice](prepared_invoice.roc) | prepare-once emission and a right-column invoice composition |
+| [Chunked export](chunked_export.roc) | incremental output, wide measure, and explicit list indentation |
+| [Product brief](product_brief.roc) | a generated product illustration, oversized display type, whitespace, links, and lists |
 
-The gallery intentionally does not show semantic figures or custom vector
-layouts. Gate 4 closes the underlying visual compiler, but figure semantics
-and alternative-text obligations belong to Gate 6 and stable custom layout
-authoring belongs to Gate 8.
+The applications vary information architecture, lifecycle, navigation, page
+format, and visual theme. Three applications create packed raster artwork in
+pure Roc and place it as an accessible figure with authored alternative text
+and a caption. Broader vector/grouped drawings and fixed layouts remain
+forward API and return feature-specific diagnostics instead of degrading.

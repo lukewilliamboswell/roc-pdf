@@ -13,6 +13,7 @@ KernelTaggedObjects :: [].{
 	## object identities is a structured rejection, never a silent drop.
 	Error : [
 		AnnotationObjectUnplanned({ annotation : U64 }),
+		InvalidFigureAlternative({ node : U64 }),
 		Object(KernelObject.Error),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : KernelObject.ObjectId }),
 	]
@@ -544,6 +545,7 @@ add_structure_elements = |builder, names, tagged, navigation, objects| {
 
 add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan, Semantics.Node, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
 add_structure_element = |builder, names, tagged, navigation, objects, node, expected| {
+	semantics = KernelTagged.Plan.semantics(tagged)
 	node_k = list_at(KernelTagged.Plan.node_k(tagged), node.id.index())
 	k_values = add_k_items(builder, names, KernelTagged.Plan.k_items(tagged), node_k.items, navigation, objects)?
 	k = KernelObject.add_array(k_values.builder, k_values.values) ? Object
@@ -551,7 +553,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, node, expe
 	parent_object = match node.parent {
 		DocumentRoot => KernelObjectPlan.Plan.struct_tree_root(objects)
 		ParentNode(parent) => {
-			parent_node = list_at(KernelTagged.Plan.semantics(tagged).nodes, parent.index())
+			parent_node = list_at(semantics.nodes, parent.index())
 			list_at(KernelObjectPlan.Plan.structure_elements(objects), parent_node.structure_element.index())
 		}
 	}
@@ -559,7 +561,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, node, expe
 	role_name = KernelObject.add_name(p.builder, Str.to_utf8(node.role.local_name)) ? Object
 	s = KernelObject.add_name_value(role_name.builder, role_name.id) ? Object
 	type_value = add_name_value(s.builder, names.struct_elem)?
-	entries = if node_k.items.length() == 0 {
+	base_entries = if node_k.items.length() == 0 {
 		[
 			{ key: names.ns, value: ns.id },
 			{ key: names.p, value: p.id },
@@ -575,7 +577,22 @@ add_structure_element = |builder, names, tagged, navigation, objects, node, expe
 			{ key: names.type_name, value: type_value.id },
 		]
 	}
-	dictionary = KernelObject.add_dictionary(type_value.builder, entries) ? Object
+	with_alternative = if node.role.local_name == "Figure" {
+		if node.text_properties.length() != 1 or node.text_properties.start() >= semantics.text_properties.len() {
+			return Err(InvalidFigureAlternative({ node: node.id.index() }))
+		}
+		alternative = match list_at(semantics.text_properties, node.text_properties.start()) {
+			AlternativeText(value) => value
+			_ => return Err(InvalidFigureAlternative({ node: node.id.index() }))
+		}
+		alt_name = KernelObject.add_name(type_value.builder, Str.to_utf8("Alt")) ? Object
+		alt_text = KernelObject.add_text_string(alt_name.builder, alternative) ? Object
+		alt_value = KernelObject.add_text_string_value(alt_text.builder, alt_text.id) ? Object
+		{ builder: alt_value.builder, entries: [{ key: alt_name.id, value: alt_value.id }].concat(base_entries) }
+	} else {
+		{ builder: type_value.builder, entries: base_entries }
+	}
+	dictionary = KernelObject.add_dictionary(with_alternative.builder, with_alternative.entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, expected)?
 	Ok(object.builder)

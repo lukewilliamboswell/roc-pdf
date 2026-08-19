@@ -510,12 +510,19 @@ its metrics, fonts, or spacing can change pagination and bytes.
 The Gate 4 facade accepts the complete typed sRGB text-color range through
 opaque `Theme` setters. The packaged sRGB profile is both the painting-space
 definition and output intent; no device-color guess or fallback is permitted.
-Raster/JPEG resources are executable inside the production-visual compiler,
-but the facade does not expose a meaningful-image constructor at Gate 4.
-`figure` requires the alternative-text and semantic ownership contract closed
-by Gate 6, while stable custom scene/layout authoring remains Gate 8. PNG is
-not an accepted source format; future facade image inputs are inspected JPEG
-or typed packed raster planes only.
+Raster/JPEG resources are executable inside the production-visual compiler.
+The public authoring boundary represents them as typed JPEG or packed raster
+`Image.Source` values inside opaque `Scene.Drawing` values. A drawing becomes
+meaningful only through `Pdf.figure`, which requires alternative text, or
+decorative only through an explicitly classified fixed-page artifact. Until
+the full Gate 6 semantic vocabulary and Gate 8 fixed-layout path close, the
+`Standard` facade nevertheless executes a deliberately narrow meaningful
+figure: exactly one image command, non-empty alternative text, and an optional
+caption. It creates the semantic `Figure` before layout, owns image and caption
+through one occurrence/fragment, and serializes `/Alt`; it does not make a
+PDF/UA-2 claim. Vector, grouped, multi-command, and decorative fixed-page
+forms reject with stable feature diagnostics and emit no bytes. PNG is not an
+accepted source format.
 
 Packaging and PDF embedding are separate boundaries. The core package ships
 only the small, audited deterministic assets required by its default facade,
@@ -596,9 +603,11 @@ constructors create their semantic structure automatically:
 - Paragraph and inline constructors retain canonical Unicode.
 - Lists create labels, bodies, and list-item relationships.
 - Tables require declared headers and retain a logical grid.
-- Once Gate 6 closes, a meaningful image is constructed as a figure with
-  author-supplied alternative text; a decorative image uses a separate
-  decoration constructor and becomes an artifact.
+- A meaningful image is constructed as a figure with author-supplied
+  alternative text. The initial `Standard` slice accepts one image command;
+  Gate 6 adds its broader vocabulary and conformance evidence. A decorative
+  image uses a separate decoration constructor and becomes an artifact once
+  the fixed-page ownership path is executable.
 - Future common image constructors accept inspected JPEG or typed packed
   raster planes and make color assumptions explicit in their names or inputs.
 - Links retain their text, URI or internal destination, annotation ownership,

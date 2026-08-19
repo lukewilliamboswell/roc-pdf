@@ -13,6 +13,13 @@ those groups in the already accepted placement order. Page boxes use the exact
 requested size, the package's bottom-left/upward coordinate model, and zero
 rotation.
 
+For the executable figure slice, the same group may begin with one `DrawImage`
+before its caption text. Dense occurrence-to-figure facts come from the
+validated semantic store, and a figure-wide painted bitset guarantees that a
+wrapped caption never duplicates the image. Text-only callers carry an empty
+image source store; this adds one fixed allocation to the arena cases and four
+across the multi-branch atomic-negative fixture, with unchanged work counters.
+
 The stage validates its generated calibrated-gray store through `KernelColor`,
 the command/group/page arena through `KernelScene`, semantic paint ownership
 through `KernelTagged`, and exact run/fragment occurrence and source coverage

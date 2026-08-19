@@ -8,9 +8,10 @@ evidence, deterministic serialization, structural inspection, applicable
 renderer coverage, and focused allocation/work records under the pinned dev
 backend.
 
-This decision does not claim PDF/A-4 or PDF/UA-2. It also does not promote
-semantic figure authoring (Gate 6) or custom layout builders (Gate 8). Those
-boundaries depend on facts Gate 4 must not infer from painted pixels.
+This decision does not claim PDF/A-4 or PDF/UA-2. A later, separately evidenced
+public slice now promotes the narrow one-image semantic figure described in
+`image-figure-facade.md`; broader Gate 6 vocabulary and Gate 8 custom layout
+remain outside this closure.
 
 ## Aggregated evidence
 
@@ -24,6 +25,7 @@ boundaries depend on facts Gate 4 must not infer from painted pixels.
 | canonical sanitized font leaves | `font-leaves.md` |
 | XMP, language, packaged output intent | `metadata-output-intent.md` |
 | URI/internal links, paired destinations, outlines, labels, appearances | `navigation-annotations.md` |
+| public one-image figure authoring follow-on | `image-figure-facade.md` |
 
 The last slice reports that all 200 earlier snapshots stayed byte-identical
 while its reviewed allocation changes came from dense ownership maps,
@@ -45,9 +47,11 @@ numbers.
   per-run allocation for `r` final runs. Default black documents retain their
   prior calibrated-gray bytes.
 - PDF object modules and `Kernel*` types are absent from generated public docs.
-- Image resources are implemented compiler inputs, but a painted image is not
-  mislabeled as a semantic figure. JPEG/packed-raster facade constructors wait
-  for the Gate 6 semantic contract; PNG is outside the accepted source policy.
+- The public facade accepts one-image figures only when semantics supplies a
+  `Figure`, non-empty alternative text, caption occurrence, and fragment
+  ownership before scene lowering. It never labels an ownership-neutral painted
+  image after the fact. Broader drawing composition remains rejected; PNG is
+  outside the accepted source policy.
 - Unicode analysis uses `roc-lang/unicode` package release 4.0.0, which supplies
   the pinned Unicode 17 data/API boundary.
 

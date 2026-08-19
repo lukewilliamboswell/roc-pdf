@@ -655,6 +655,7 @@ valid_role = |node, is_root, text_enabled, navigation| {
 												name == "LI" or
 													name == "Lbl" or
 														name == "LBody"
+															or name == "Figure"
 	} else {
 		node.role.local_name == "P"
 	}

@@ -21,6 +21,12 @@ keep earlier builder/normalization versions. The work vector records authoring
 descriptors, normalized blocks, referenced UTF-8 bytes, title/heading/paragraph/
 bullet counts, list count, and the structural evidence-carrier bytes.
 
+The executable image-figure slice adds a dense normalized figure store. Its
+empty-store representation adds one allocation to the 1,000-paragraph simple
+list case under the pinned dev compiler (67 to 68). The 10,000-paragraph simple
+case and both compact-builder scales retain their prior counts, so the change
+is a reviewed fixed representation effect rather than per-block growth.
+
 ## Historical optimized-backend evidence (superseded)
 
 This earlier table documents the authoring-store representation decision only.

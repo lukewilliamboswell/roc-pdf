@@ -4,15 +4,21 @@ app [main!] {
 }
 import pf.Path
 import pdf.Color
+import pdf.Layout
 import pdf.Pdf
 import pdf.Theme
 
 main! = |_args| {
-	ink : Color.SourceValue
-	ink = Srgb(Rgb({ red: 7000, green: 18000, blue: 39000 }))
-	accent : Color.SourceValue
-	accent = Srgb(Rgb({ red: 52000, green: 9000, blue: 18000 }))
-	theme = Theme.default.with_text_color(ink).with_title_color(accent).with_heading_color(accent)
+	ink = Color.srgb8({ red: 27, green: 70, blue: 152 })
+	accent = Color.srgb8({ red: 202, green: 35, blue: 70 })
+	base_title = Theme.title_style(Theme.default)
+	base_heading = Theme.heading_style(Theme.default)
+	theme = Theme.default
+		.with_text_color(ink)
+		.with_title_style({ ..base_title, color: accent, size: Layout.Unit.points(38), leading: Layout.Unit.points(44) })
+		.with_heading_style({ ..base_heading, color: accent, size: Layout.Unit.points(13), leading: Layout.Unit.points(18) })
+		.with_page_margin({ top: Layout.Unit.points(96), right: Layout.Unit.points(54), bottom: Layout.Unit.points(72), left: Layout.Unit.points(108) })
+		.with_paragraph_spacing(Layout.Unit.points(14))
 	document = Pdf.document({
 		title: "Lumen brand brief",
 		language: "en",

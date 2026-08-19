@@ -4,6 +4,10 @@ app [main!] {
 }
 
 import pdf.Pdf
+import pdf.Color
+import pdf.Layout
+import pdf.Image
+import pdf.Scene
 
 make_report : Str -> Try(List(U8), Pdf.Error)
 make_report = |summary| {
@@ -26,6 +30,62 @@ make_report = |summary| {
 expect {
 	bytes = make_report("Typed facade output")?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
+}
+
+## Forward figure authoring keeps drawing ownership and alternative text in the
+## public shape, then rejects atomically until its semantic lowering closes.
+expect {
+	drawing = Scene.drawing({}).rectangle(
+		Layout.rect(0, 0, 120, 48),
+		Color.srgb8({ red: 20, green: 90, blue: 140 }),
+	)
+	document = Pdf.document({
+		contents: [Pdf.figure(drawing, "Blue panel", Pdf.no_caption)],
+		language: "en",
+		title: "Forward figure",
+	})
+
+	match Pdf.prepare(document, Pdf.Options.default) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), stage: AuthoringValidation, .. }], truncation: Complete, .. })) => code == "document.figure"
+		_ => False
+	}
+}
+
+## A single packed raster lowers as one tagged Figure with authored alternative
+## text, while its placement remains independent of its pixel dimensions.
+expect {
+	image = Image.Source.rgb8({
+		alpha: NoAlpha,
+		dimensions: { height: 2, width: 2 },
+		pixels: [20, 90, 140, 240, 180, 40, 40, 160, 90, 245, 245, 240],
+		row_stride: 6,
+	})
+	drawing = Scene.drawing({}).image(image, Layout.rect(0, 0, 160, 90))
+	document = Pdf.document({
+		contents: [Pdf.figure(drawing, "Four-color editorial illustration", Pdf.caption("Figure 1 — Palette study"))],
+		language: "en",
+		title: "Raster figure",
+	})
+	bytes = Pdf.to_bytes(document)?
+	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 1000
+}
+
+## Malformed packed data and missing alternative text are rejected before a
+## byte value exists; the facade never repairs, pads, or drops the image.
+expect {
+	bad_image = Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 2, width: 2 }, pixels: [255, 0, 0], row_stride: 6 })
+	bad_drawing = Scene.drawing({}).image(bad_image, Layout.rect(0, 0, 120, 60))
+	bad_document = Pdf.document({ contents: [Pdf.figure(bad_drawing, "Malformed raster", Pdf.no_caption)], language: "en", title: "Bad raster" })
+	empty_alt_document = Pdf.document({ contents: [Pdf.figure(bad_drawing, "", Pdf.no_caption)], language: "en", title: "Missing alternative" })
+	bad_rejected = match Pdf.to_bytes(bad_document) {
+		Err(UnsupportedAuthoringContent({ blocks: 1 })) => True
+		_ => False
+	}
+	empty_rejected = match Pdf.prepare(empty_alt_document, Pdf.Options.default) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("document.figure"), .. }], .. })) => True
+		_ => False
+	}
+	bad_rejected and empty_rejected
 }
 
 ## Navigation authoring is typed: links, named destinations, an outline, and
@@ -56,7 +116,7 @@ expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
 
 	match Pdf.to_bytes_with(document, options) {
-		Err(CapabilityUnavailable(PdfA4Generation)) => True
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), .. }], .. })) => code == "profile.archive"
 		_ => False
 	}
 }

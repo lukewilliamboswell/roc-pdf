@@ -113,6 +113,30 @@ Theme :: {
 		title: { ..theme.title, color },
 	}
 
+	## Replace the complete body style while preserving every other theme role.
+	with_body_style : Theme, TextStyle -> Theme
+	with_body_style = |theme, style| { ..theme, body: style }
+
+	## Replace the complete heading style while preserving every other theme role.
+	with_heading_style : Theme, TextStyle -> Theme
+	with_heading_style = |theme, style| { ..theme, heading: style }
+
+	## Replace the complete title style while preserving every other theme role.
+	with_title_style : Theme, TextStyle -> Theme
+	with_title_style = |theme, style| { ..theme, title: style }
+
+	## Replace all four page margins using exact layout units.
+	with_page_margin : Theme, PageMargin -> Theme
+	with_page_margin = |theme, page_margin| { ..theme, page_margin }
+
+	## Replace the vertical spacing following each paragraph-like block.
+	with_paragraph_spacing : Theme, Layout.Unit -> Theme
+	with_paragraph_spacing = |theme, paragraph_spacing| { ..theme, paragraph_spacing }
+
+	## Replace the list-body indentation from the containing text edge.
+	with_bullet_indent : Theme, Layout.Unit -> Theme
+	with_bullet_indent = |theme, bullet_indent| { ..theme, bullet_indent }
+
 	font_selection : Theme -> FontSelection
 	font_selection = |theme| theme.font_selection
 

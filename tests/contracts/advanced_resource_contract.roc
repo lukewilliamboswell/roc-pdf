@@ -9,7 +9,7 @@ import pdf.Image
 import pdf.Pdf
 import pdf.Semantics
 import pdf.Theme
-import "../tests/assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
+import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 
 ## Prepared color values identify the exact validated color-space resource.
 expect {

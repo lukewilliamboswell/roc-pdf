@@ -60,7 +60,9 @@ expect {
 		clause_references: ["ISO 32000-2:2020, 14.8"],
 		code: InvalidOwnership,
 		details: ["scene group 7 has no fragment owner"],
+		feature: NoFeature,
 		location: Resource(9),
+		message: "Scene group 7 has no fragment owner.",
 		requirement_ids: ["ROC-PDF-PREPARED-STAGE-CONTRACT"],
 		stage: AuthoringValidation,
 	}

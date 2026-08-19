@@ -563,10 +563,21 @@ slice-by-slice evidence and final boundary audit are aggregated in
 identity and closure, raster/JPEG and color leaves, transparency and masks,
 shadings and patterns, font leaves, metadata/output intent, and navigation.
 
-Closure does not expose semantic figure authoring early: alternative text and
-figure ownership remain Gate 6 work. It also does not move the validated custom
-scene/layout authoring boundary out of Gate 8. The public rc2 expansion is the
-opaque prepare/emit lifecycle and complete sRGB theme-color path. `Archive` and
+Closure exposes ownership-safe authoring values for typed image sources,
+opaque drawings, meaningful figures with required alternative text, and
+content-first fixed pages. A post-closure authoring slice now executes the
+narrowest complete meaningful figure under `Standard`: exactly one validated
+packed-raster or JPEG image command, a positive placement, non-empty
+alternative text serialized as `/Alt`, and an optional caption owned by the
+same semantic occurrence and layout fragment. Positive packed-raster evidence,
+atomic invalid-resource/drawing evidence, deterministic bytes, structural
+image/Figure inspection, and exact allocation/work evidence are required for
+this slice. It makes no PDF/UA-2 claim; Gate 6 retains the broader semantic and
+human accessibility audit.
+
+Vector, grouped, and multi-command drawings still reject atomically with
+`document.figure`; fixed pages reject with `layout.custom` until Gate 8. Raw
+stores and PDF object identities remain outside the common path. `Archive` and
 `AccessibleArchive` remain unavailable until their own gates close.
 
 ## Gate 5: static PDF/A-4

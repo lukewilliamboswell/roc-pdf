@@ -26,7 +26,7 @@ from check_metadata import validate_metadata_pdf
 from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
-from check_pdf_structure import validate_pdf
+from check_pdf_structure import dictionary_ref, object_slices, require, validate_pdf
 from check_rtl import validate_rtl_pdf
 from check_shadings import validate_shadings_pdf
 from check_soft_hyphen import EXPECTED_CONTENT as SOFT_HYPHEN_CONTENT
@@ -36,7 +36,7 @@ from check_supplementary_text import EXPECTED_CONTENT as SUPPLEMENTARY_TEXT_CONT
 from check_supplementary_text import validate_supplementary_text_pdf
 from check_tagged_visual import validate_tagged_visual_pdf
 from check_text import EXPECTED_CONTENT as TEXT_CONTENT
-from check_text import validate_text_pdf
+from check_text import decoded_stream, only_object, validate_text_pdf
 from check_transparency import validate_transparency_pdf
 
 
@@ -101,6 +101,32 @@ def _facade_output(data: bytes, _dimensions: dict[str, int], report: Reporter) -
     report("independent offsets, lengths, xref, page, authored facade paragraph, Type 0 font, CID, and Unicode mapping facts")
 
 
+def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> None:
+    _, bodies = object_slices(data)
+    page = only_object(bodies, b"/Type /Page ", "page")
+    _, content = decoded_stream(bodies, dictionary_ref(bodies[page], b"Contents"))
+    validate_pdf(data, dimensions["pages"], content, normalized_plan_identity=True)
+
+    image = only_object(bodies, b"/Subtype /Image ", "image")
+    image_dictionary, pixels = decoded_stream(bodies, image)
+    require(b"/BitsPerComponent 8" in image_dictionary, "facade image is not eight-bit")
+    require(b"/Width 8" in image_dictionary and b"/Height 4" in image_dictionary, "facade image dimensions changed")
+    expected_pixels = bytes([
+        20, 90, 140, 20, 90, 140, 240, 180, 40, 240, 180, 40, 40, 160, 90, 40, 160, 90, 245, 245, 240, 245, 245, 240,
+        20, 90, 140, 20, 90, 140, 240, 180, 40, 240, 180, 40, 40, 160, 90, 40, 160, 90, 245, 245, 240, 245, 245, 240,
+        245, 245, 240, 245, 245, 240, 40, 160, 90, 40, 160, 90, 240, 180, 40, 240, 180, 40, 20, 90, 140, 20, 90, 140,
+        245, 245, 240, 245, 245, 240, 40, 160, 90, 40, 160, 90, 240, 180, 40, 240, 180, 40, 20, 90, 140, 20, 90, 140,
+    ])
+    require(pixels == expected_pixels, "facade image pixels do not equal the authored packed plane")
+    require(content.count(b" Do\n") == 1, "facade image must be painted exactly once")
+
+    figure = only_object(bodies, b"/S /Figure ", "Figure structure element")
+    expected_alt = "A four-color field palette arranged in mirrored bands".encode("utf-16-be").hex().upper().encode()
+    require(b"/Alt <FEFF" + expected_alt + b">" in bodies[figure], "Figure alternative text is missing or changed")
+    require(b"/Type /StructElem" in bodies[figure] and b"/Type /MCR" in bodies[figure], "Figure does not own its marked-content reference")
+    report("exact packed image payload, one image placement, semantic Figure ownership, and authored /Alt")
+
+
 VALIDATORS: dict[str, Validator] = {
     "pdf_structure": _pdf_structure_with(None),
     "pdf_structure_text": _pdf_structure_with(TEXT_CONTENT),
@@ -112,6 +138,7 @@ VALIDATORS: dict[str, Validator] = {
     "pdf_structure_external_discretionary_hyphen": _pdf_structure_with(EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT),
     "pdf_structure_minimal_content": _pdf_structure_with(MINIMAL_CONTENT),
     "facade_output": _facade_output,
+    "facade_image": _facade_image,
     "multiface_text": _simple(validate_multiface_text_pdf, "exact selected Latin/CJK Type 0 resources, CID maps, and Unicode mappings"),
     "generated_label": _simple(validate_generated_labels_pdf, "independent offsets, lengths, xref, typed list ownership, labels, Type 0 font, CID, and Unicode mapping facts"),
     "combining_text": _simple(validate_combining_pdf, "exact decomposed combining CID and two-scalar ToUnicode facts"),
