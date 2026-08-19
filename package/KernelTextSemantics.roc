@@ -301,7 +301,7 @@ semantic_limits = KernelSemantics.Limits.make({ max_attributes: 0, max_content_s
 text_limits : KernelTextSemantics.Limits
 text_limits = KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 2, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 })
 
-## Gate 3 text semantics retain exact scalar-to-byte boundaries and bounded work.
+## text-layout text semantics retain exact scalar-to-byte boundaries and bounded work.
 expect {
 	plan = KernelTextSemantics.Plan.build(test_store, 1, 1, semantic_limits, text_limits)?
 	fact = list_at(KernelTextSemantics.Plan.source_facts(plan), 0)
@@ -309,7 +309,7 @@ expect {
 	fact.byte_count == 3 and fact.scalar_count == 2 and fact.scalar_byte_offsets == [0, 2, 3] and work.source_bytes == 3 and work.source_scalars == 2 and work.property_visits == 1 and work.property_bytes == 2
 }
 
-## Gate 2 cannot silently accept a text semantic store.
+## tagged-visual cannot silently accept a text semantic store.
 expect match KernelSemantics.Plan.build(test_store, 1, 1, semantic_limits) {
 	Err(UnsupportedStoreContent) => True
 	_ => False

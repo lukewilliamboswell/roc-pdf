@@ -1,10 +1,10 @@
 app [target] {
 	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.2.1/9Qpttb6LTgcMaVsSBLsnaiS2mDUrf6Bxa6dX9Rqwviz4.tar.zst",
-	pdf_quality: "../package/fuzz_evidence.roc",
+	pdf: "../package/all.roc",
 }
 
 import fuzz.Fuzz
-import pdf_quality.Gate3FacadeFuzzTargets
+import FacadeTargets
 
 Input := {
 	blocks : List({ items : List(Str), kind : U8, level : U8, text : Str }),
@@ -31,7 +31,7 @@ Input := {
 
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
-	if Gate3FacadeFuzzTargets.facade_output(input) Fuzz.keep else crash "facade output contracts disagreed"
+	if FacadeTargets.facade_output(input) Fuzz.keep else crash "facade output contracts disagreed"
 }
 
 target = Fuzz.target({

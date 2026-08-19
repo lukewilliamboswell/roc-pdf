@@ -6,8 +6,8 @@ The proposed move to `nightly-2026-08-08-195c9e7` was blocked by a compiler
 bug introduced between
 the two nightlies: `roc build` crashes deterministically (SIGSEGV, or
 `BITCODE PARSE ERROR` + `LLVMCompilationFailed`, depending on code layout) on
-`tests/gate3_authoring/main.roc` and other Gate 3 apps, while `roc check`
-reports zero errors. Local Gate 3 work now temporarily selects the patched
+`tests/authoring/authoring.roc` and other text-layout apps, while `roc check`
+reports zero errors. Local text-layout work now temporarily selects the patched
 `release-fast-64c9d73d` compiler while an official fixed nightly is pending.
 
 ## Root cause (upstream)

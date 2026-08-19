@@ -24,8 +24,8 @@ import KernelFacadeSources
 import KernelFacadeText
 import KernelColor
 import KernelContent
-import KernelGate2Objects
-import KernelGate3TaggedTextStructure
+import KernelObjectPlan
+import KernelTaggedTextStructure
 import KernelImage
 import KernelLineLayout
 import KernelPageLayout
@@ -166,7 +166,7 @@ Pdf :: [].{
 	with_modified = |doc, timestamp| Document.with_modified(doc, timestamp)
 
 	## Standard authored content follows the completed typed facade pipeline.
-	## Archive claims remain unavailable until their independent gates close.
+	## Archive claims remain unavailable until their independent capabilities close.
 	to_bytes : Document -> Try(List(U8), Error)
 	to_bytes = |doc| to_bytes_with(doc, Options.default)
 
@@ -398,8 +398,8 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		font_plan: KernelFontPlan.Limits.make({ max_retained_glyphs: 10000 }),
 		images: KernelImage.Limits.make({ max_decoded_bytes: 0, max_encoded_bytes: 0, max_height: 0, max_markers: 0, max_resources: 0, max_width: 0 }),
 		max_objects: 65536,
-		objects: KernelGate2Objects.Limits.make({ max_objects: 65527, max_pages: 1024 }),
-		structure: KernelGate3TaggedTextStructure.Limits.make({
+		objects: KernelObjectPlan.Limits.make({ max_objects: 65527, max_pages: 1024 }),
+		structure: KernelTaggedTextStructure.Limits.make({
 			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 1000000, max_unicode_mappings: 10000, max_unicode_scalars: 1000000 }),
 			object_limits: standard_object_limits,
 		}),
@@ -469,7 +469,7 @@ expect {
 ## The lexical implementation remains a private package module.
 expect KernelLex.boolean(True) == Str.to_utf8("true")
 
-## Gate 3 Unicode analysis is pinned to the reviewed Unicode 17 package release.
+## text-layout Unicode analysis is pinned to the reviewed Unicode 17 package release.
 expect KernelUnicode.version == "17.0.0"
 
 ## Object/value/edge storage is likewise package-private.

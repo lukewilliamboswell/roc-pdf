@@ -1,4 +1,4 @@
-## Validated navigation facts for the Gate 4 navigation/annotation slice:
+## Validated navigation facts for the production-visual navigation/annotation slice:
 ## named internal destinations, URI and internal GoTo link annotations,
 ## document outline entries, and page-label ranges. Authoring supplies these
 ## as typed values; this boundary validates them once against the closed

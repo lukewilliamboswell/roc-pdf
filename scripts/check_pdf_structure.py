@@ -9,8 +9,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BLANK_SNAPSHOT = ROOT / "tests" / "gate1_blank" / "snapshot.pdf"
-DEFLATE_SNAPSHOT = ROOT / "tests" / "gate1_deflate" / "snapshot.pdf"
+BLANK_SNAPSHOT = ROOT / "tests" / "structural_kernel" / "blank.pdf"
+DEFLATE_SNAPSHOT = ROOT / "tests" / "structural_kernel" / "deflate.pdf"
 OBJECT_HEADER = re.compile(rb"(?m)^([1-9][0-9]*) 0 obj\n")
 
 
@@ -277,7 +277,7 @@ def self_test() -> None:
     # The facade blank fixture now carries document facts, so its identifier
     # is the sealed-plan digest rather than the recomputed blank identity;
     # the blank identity derivation stays covered by the kernel-path
-    # gate1_pages stress case in the ordinary suite run.
+    # pages stress case in the ordinary suite run.
     pdf = BLANK_SNAPSHOT.read_bytes()
     validate_pdf(pdf, 1, normalized_plan_identity=True)
 

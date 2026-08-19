@@ -58,7 +58,7 @@ KernelUnicode :: [].{
 	]
 
 	## The released package tag resolves to this reviewed source identity. Its
-	## immutable archive URL and digest are recorded with the Gate 3 evidence.
+	## immutable archive URL and digest are recorded with the text-layout evidence.
 	source_revision : Str
 	source_revision = "b689986172679aa9fbdcd7890e3031a48b1c582f"
 

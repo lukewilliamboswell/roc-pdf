@@ -1,0 +1,57 @@
+# text-layout facade-output oracle boundary
+
+This document records the evidence boundary for the first real high-level
+`Pdf` facade output. It does not close any text-layout capability.
+
+The input case is one authored paragraph with the built-in theme and a
+`Standard` profile. The core slice must provide a deterministic nonblank PDF,
+an exact snapshot, and a checked-in scenario record before it can join the
+ordinary test suite. Its positive evidence must establish all of these facts
+from the original emitted bytes:
+
+- exactly one tagged A4 page with an owned text content stream, balanced
+  fragment marked content and text objects, `/StructParents`, and `/Tabs /S`;
+- exactly one page Type 0 `/Identity-H` resource with one CIDFontType2
+  descendant, an unfiltered identity `CIDToGIDMap`, and a complete `ToUnicode`
+  mapping for every painted CID;
+- direct reconstruction of the semantic source string from content CIDs and
+  `ToUnicode`, plus independent PDFBox 3.0.8 extraction of the exact UTF-8
+  string;
+- an embedded TrueType-flavoured `FontFile2` whose declared `/Length1` equals
+  the decoded stream, with one deterministic subset identity shared by all
+  three PDF font dictionaries; and
+- independent PDFBox and PDFium 72-dpi rendering within newly measured,
+  explicitly checked per-renderer ink bounds and tolerances, with their
+  geometry checked against each other separately. Glyph-edge antialiasing
+  coverage is renderer-specific evidence, not a reason to widen a shared
+  pixel-count tolerance.
+
+`scripts/check_facade_output.py` carries these assertions without
+hard-coding object IDs, subset digest, width sequence, content layout, or
+allocation totals. The core fixture supplies those facts through the emitted
+PDF and the authored expected text. Its checker self-test uses the existing
+visible-text fixture and rejects independent same-length changes to a
+`ToUnicode` row, `/Identity-H`, and embedded-font length.
+
+The facade-output fixture is registered in `tests/spec.json` with reviewed
+exact dev-backend allocation and deterministic-work records. The test harness
+invokes this checker after snapshot comparison. Its local
+`tests/facade_output/oracles.json` records the authored text and separate
+exact 72-dpi PDFBox 3.0.8 and PDFium Chromium 7988 metrics from the original
+bytes. These are renderer-specific observations, not a widened shared
+tolerance inherited from the synthetic visible-text case.
+
+The implementation-owned line-run-limit atomic negative now verifies the
+stable typed failure before output planning. Mutating output bytes remains only
+the independent checker self-test and is not a substitute for that failure
+evidence.
+
+The separate public one-import fixture exercises the same authored paragraph
+through `Pdf.to_bytes`. It is registered with its own byte-identical public
+snapshot, 1,423-allocation construction-inclusive dev-backend baseline, and
+deterministic output-byte work counter. The harness applies this structural
+oracle to the public fixture after comparing the original snapshot. The
+fixture uses the same authored string and measured renderer observations, so
+the explicit PDFBox extraction and independent PDFBox/PDFium 72-dpi checks can
+be run directly against its original bytes without treating an internal
+pipeline result as a substitute for the public boundary.

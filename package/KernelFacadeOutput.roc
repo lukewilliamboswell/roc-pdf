@@ -4,9 +4,9 @@ import KernelFacadeScenes
 import KernelFont
 import KernelFontPlan
 import KernelFontSubset
-import KernelGate2Objects
-import KernelGate3FontObjects
-import KernelGate3TaggedTextStructure
+import KernelObjectPlan
+import KernelFontObjects
+import KernelTaggedTextStructure
 import KernelImage
 import KernelMetadata
 import KernelObject
@@ -20,12 +20,12 @@ import Text
 KernelFacadeOutput :: [].{
 	Error : [
 		Content(KernelContent.Error),
-		FontObjects(KernelGate3FontObjects.Error),
+		FontObjects(KernelFontObjects.Error),
 		FontPlan(KernelFontPlan.Error),
 		Images(KernelImage.Error),
-		Objects(KernelGate2Objects.Error),
+		Objects(KernelObjectPlan.Error),
 		Resources(KernelResourceUse.Error),
-		Structure(KernelGate3TaggedTextStructure.Error),
+		Structure(KernelTaggedTextStructure.Error),
 		Subset(KernelFontSubset.Error),
 		Text(KernelPdfText.Error),
 	]
@@ -35,8 +35,8 @@ KernelFacadeOutput :: [].{
 		font_plan : KernelFontPlan.Limits,
 		images : KernelImage.Limits,
 		max_objects : U64,
-		objects : KernelGate2Objects.Limits,
-		structure : KernelGate3TaggedTextStructure.Limits,
+		objects : KernelObjectPlan.Limits,
+		structure : KernelTaggedTextStructure.Limits,
 		text : KernelPdfText.Limits,
 	}.{
 		make : {
@@ -44,8 +44,8 @@ KernelFacadeOutput :: [].{
 			font_plan : KernelFontPlan.Limits,
 			images : KernelImage.Limits,
 			max_objects : U64,
-			objects : KernelGate2Objects.Limits,
-			structure : KernelGate3TaggedTextStructure.Limits,
+			objects : KernelObjectPlan.Limits,
+			structure : KernelTaggedTextStructure.Limits,
 			text : KernelPdfText.Limits,
 		} -> Limits
 		make = |limits| Limits.(limits)
@@ -77,7 +77,7 @@ KernelFacadeOutput :: [].{
 
 		## Navigation input flows through unchanged to structure planning,
 		## which resolves destinations and lowers the navigation objects.
-		build_with_navigation : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelGate3TaggedTextStructure.NavigationInput, Limits -> Try(Plan, Error)
+		build_with_navigation : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelTaggedTextStructure.NavigationInput, Limits -> Try(Plan, Error)
 		build_with_navigation = |scenes, font, descriptor, facts, navigation, limits| build_plan(scenes, font, descriptor, facts, navigation, limits)
 
 		## Ordered multi-face output. Dense font index k owns one plan, one
@@ -89,7 +89,7 @@ KernelFacadeOutput :: [].{
 		build_multi_with_facts : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
 		build_multi_with_facts = |scenes, fonts, descriptor, facts, limits| build_multi_plan(scenes, fonts, descriptor, facts, NoNavigation, limits)
 
-		build_multi_with_navigation : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelGate3TaggedTextStructure.NavigationInput, Limits -> Try(Plan, Error)
+		build_multi_with_navigation : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelTaggedTextStructure.NavigationInput, Limits -> Try(Plan, Error)
 		build_multi_with_navigation = |scenes, fonts, descriptor, facts, navigation, limits| build_multi_plan(scenes, fonts, descriptor, facts, navigation, limits)
 
 		structure : Plan -> KernelStructure.Plan
@@ -100,7 +100,7 @@ KernelFacadeOutput :: [].{
 	}
 }
 
-build_plan : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelGate3TaggedTextStructure.NavigationInput, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
+build_plan : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelTaggedTextStructure.NavigationInput, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
 build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	ownership = KernelFacadeScenes.Plan.ownership(scenes)
 	scene = KernelFacadeScenes.Plan.scene(scenes)
@@ -114,9 +114,9 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], limits.text) ? Text
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
-	objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
-	font_objects = KernelGate3FontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
-	structure = KernelGate3TaggedTextStructure.Plan.build_with_navigation(
+	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
+	font_objects = KernelFontObjects.Plan.build(objects, 1, limits.max_objects) ? FontObjects
+	structure = KernelTaggedTextStructure.Plan.build_with_navigation(
 		tagged,
 		colors,
 		images,
@@ -131,10 +131,10 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	content_work = KernelContent.Plan.work(content)
 	resource_work = KernelResourceUse.TextPlan.work(resource_use)
 	text_work = KernelPdfText.ScenePlan.work(text)
-	structure_work = KernelGate3TaggedTextStructure.Plan.work(structure)
+	structure_work = KernelTaggedTextStructure.Plan.work(structure)
 	Ok(
 		KernelFacadeOutput.Plan.{
-			structure: KernelGate3TaggedTextStructure.Plan.structure(structure),
+			structure: KernelTaggedTextStructure.Plan.structure(structure),
 			work: {
 				content_bytes: content_work.bytes_emitted,
 				content_command_visits: content_work.command_visits,
@@ -153,7 +153,7 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	)
 }
 
-build_multi_plan : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelGate3TaggedTextStructure.NavigationInput, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
+build_multi_plan : KernelFacadeScenes.Plan, List(KernelFont.Inspection), KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelTaggedTextStructure.NavigationInput, KernelFacadeOutput.Limits -> Try(KernelFacadeOutput.Plan, KernelFacadeOutput.Error)
 build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 	if fonts.len() == 1 {
 		return build_plan(scenes, list_at(fonts, 0), descriptor, facts, navigation, limits)
@@ -210,9 +210,9 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 	text = KernelPdfText.ScenePlan.build(ownership, $font_plans, limits.text) ? Text
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
-	objects = KernelGate2Objects.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
-	font_objects = KernelGate3FontObjects.Plan.build(objects, fonts.len(), limits.max_objects) ? FontObjects
-	structure = KernelGate3TaggedTextStructure.Plan.build_with_navigation(
+	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
+	font_objects = KernelFontObjects.Plan.build(objects, fonts.len(), limits.max_objects) ? FontObjects
+	structure = KernelTaggedTextStructure.Plan.build_with_navigation(
 		tagged,
 		colors,
 		images,
@@ -227,10 +227,10 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 	content_work = KernelContent.Plan.work(content)
 	resource_work = KernelResourceUse.TextPlan.work(resource_use)
 	text_work = KernelPdfText.ScenePlan.work(text)
-	structure_work = KernelGate3TaggedTextStructure.Plan.work(structure)
+	structure_work = KernelTaggedTextStructure.Plan.work(structure)
 	Ok(
 		KernelFacadeOutput.Plan.{
-			structure: KernelGate3TaggedTextStructure.Plan.structure(structure),
+			structure: KernelTaggedTextStructure.Plan.structure(structure),
 			work: {
 				content_bytes: content_work.bytes_emitted,
 				content_command_visits: content_work.command_visits,

@@ -74,7 +74,7 @@ Font :: [].{
 		scripts : Semantics.Range,
 	}
 
-	## Gate 0 accepts only static instances. A future variable-font capability
+	## contract-definition accepts only static instances. A future variable-font capability
 	## can extend InstanceKind without changing face or plan identity.
 	InstanceKind : [Static]
 	Instance : {

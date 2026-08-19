@@ -12,7 +12,7 @@ import Scene
 import Semantics
 import Text
 
-## Gate 4 Form XObject and leaf-resource normalization.
+## production-visual Form XObject and leaf-resource normalization.
 ##
 ## This stage turns a validated form-aware scene plus the validated color and
 ## image stores into the canonical facts that content lowering, object

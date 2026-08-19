@@ -103,7 +103,7 @@ NodeFrame := { depth : U64, node : Semantics.NodeId }
 
 build_plan : Semantics.Store, U64, U64, KernelSemantics.Limits, Bool -> Try(KernelSemantics.Plan, KernelSemantics.Error)
 build_plan = |store, page_count, content_stream_count, limits, navigation| {
-	validate_gate_2_subset(store, navigation)?
+	validate_tagged_visual_subset(store, navigation)?
 	check_limit(store.attributes.len(), limits.max_attributes, Attributes)?
 	check_limit(store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(store.fragments.len(), limits.max_fragments, Fragments)?
@@ -196,8 +196,8 @@ validate_namespaces = |namespaces| {
 	}
 }
 
-validate_gate_2_subset : Semantics.Store, Bool -> Try({}, KernelSemantics.Error)
-validate_gate_2_subset = |store, navigation| {
+validate_tagged_visual_subset : Semantics.Store, Bool -> Try({}, KernelSemantics.Error)
+validate_tagged_visual_subset = |store, navigation| {
 	validate_text_subset(store, navigation)?
 	if !store.text_properties.is_empty() or !store.text_sources.is_empty() {
 		Err(UnsupportedStoreContent)
@@ -633,14 +633,14 @@ validate_dense_graph_identities = |store| {
 }
 
 valid_role : Semantics.Node, Bool, Bool, Bool -> Bool
-valid_role = |node, is_root, gate_3_text, navigation| {
+valid_role = |node, is_root, text_enabled, navigation| {
 	if node.role.namespace.index() != 0 {
 		False
 	} else if is_root {
 		node.role.local_name == "Document"
 	} else if navigation and node.role.local_name == "Link" {
 		True
-	} else if gate_3_text {
+	} else if text_enabled {
 		name = node.role.local_name
 		name == "Title" or
 			name == "P" or
@@ -836,7 +836,7 @@ expect {
 	}
 }
 
-## Gate 3 text authoring adds block roles without widening the Gate 2 subset.
+## text-layout text authoring adds block roles without widening the tagged-visual subset.
 expect {
 	paragraph = list_at(test_store.nodes, 1)
 	title = { ..paragraph, role: { ..paragraph.role, local_name: "Title" } }

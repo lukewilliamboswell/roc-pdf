@@ -4,7 +4,7 @@ Layout :: [].{
 	Unit :: I64.{
 
 		## One point is exactly 1,000 layout units. The full I64 raw range is valid;
-		## arithmetic introduced by later gates must report overflow explicitly.
+		## arithmetic introduced by later capabilities must report overflow explicitly.
 		units_per_point : U64
 		units_per_point = 1000
 

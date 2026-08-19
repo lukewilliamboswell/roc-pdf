@@ -54,8 +54,7 @@
         "package/KernelDeflate.roc",
         "package/KernelSha256.roc",
         "scripts/check_pdf_structure.py",
-        "tests/gate1_deflate/main.roc",
-        "tests/gate1_deflate_one_block/main.roc"
+        "tests/structural_kernel/deflate.roc"
       ],
       "negative_scenarios": [
         "scripts/check_pdf_structure.py"
@@ -102,19 +101,19 @@
         "StaticPdfA4"
       ],
       "implementation": "partial",
-      "machine_verification": "schema_and_roc_contract; canonical_case_rfc5646_subset_validation_with_typed_rejections; canonical_xmp_packet_with_pinned_golden_bytes_and_catalog_lang_agreement; explicit_utc_timestamps_or_deterministic_omission; xmp_identifiers_and_pdfa_identification_pending_gate_5",
+      "machine_verification": "schema_and_roc_contract; canonical_case_rfc5646_subset_validation_with_typed_rejections; canonical_xmp_packet_with_pinned_golden_bytes_and_catalog_lang_agreement; explicit_utc_timestamps_or_deterministic_omission; xmp_identifiers_and_pdfa_identification_pending_pdfa4",
       "human_verification": "not_required",
       "positive_scenarios": [
         "examples/advanced_encode_contract.roc",
         "package/KernelXmp.roc",
-        "scripts/check_gate4_metadata.py",
-        "tests/gate4_metadata/main.roc",
-        "tests/gate4_metadata_facade/main.roc"
+        "scripts/check_metadata.py",
+        "tests/metadata/metadata.roc",
+        "tests/metadata/metadata_facade.roc"
       ],
       "negative_scenarios": [
         "package/KernelMetadata.roc",
-        "tests/gate4_metadata_facade_negative/main.roc",
-        "tests/gate4_metadata_negative/main.roc"
+        "tests/metadata/metadata_facade_negative.roc",
+        "tests/metadata/metadata_negative.roc"
       ],
       "external_rule_ids": []
     },
@@ -140,9 +139,8 @@
         "scripts/check_arlington.py",
         "scripts/check_pdf_structure.py",
         "scripts/check_pdfbox.py",
-        "tests/gate1_blank/main.roc",
-        "tests/gate1_deflate/main.roc",
-        "tests/gate1_deflate_one_block/main.roc"
+        "tests/structural_kernel/blank.roc",
+        "tests/structural_kernel/deflate.roc"
       ],
       "negative_scenarios": [
         "scripts/check_arlington.py",
@@ -171,13 +169,13 @@
       "machine_verification": "roc_unit_paired_sd_d_actions_and_atomic_negative; independent_structural_paired_action_inspection_and_mutation_twins; pdfbox_3_0_8_geometric_d_fallback_navigation_report",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "package/Gate4NavigationEvidence.roc",
-        "tests/gate4_navigation/main.roc",
-        "tests/gate4_navigation_facade/main.roc"
+        "tests/navigation/Fixture.roc",
+        "tests/navigation/navigation.roc",
+        "tests/navigation/navigation_facade.roc"
       ],
       "negative_scenarios": [
-        "package/Gate4NavigationEvidence.roc",
-        "tests/gate4_navigation_negative/main.roc"
+        "tests/navigation/Fixture.roc",
+        "tests/navigation/navigation_negative.roc"
       ],
       "external_rule_ids": []
     },
@@ -197,12 +195,12 @@
         "Pdf20"
       ],
       "implementation": "implemented",
-      "machine_verification": "roc_unit_ordering_limits_value_bounds_and_atomic_negative; optimized_four_tree_4096_entry_exact_allocations_and_work; fixed_fanout_shape_shared_with_independently_parsed_4096_page_lowering; gate4_name_and_number_tree_object_lowering_with_independent_limits_inspection",
+      "machine_verification": "roc_unit_ordering_limits_value_bounds_and_atomic_negative; optimized_four_tree_4096_entry_exact_allocations_and_work; fixed_fanout_shape_shared_with_independently_parsed_4096_page_lowering; name_and_number_tree_object_lowering_with_independent_limits_inspection",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelIndex.roc",
-        "tests/gate1_pages/main.roc",
-        "tests/gate4_navigation_names_40/main.roc"
+        "tests/navigation/navigation.roc",
+        "tests/structural_kernel/pages.roc"
       ],
       "negative_scenarios": [
         "package/KernelIndex.roc"
@@ -228,7 +226,7 @@
       "positive_scenarios": [
         "package/KernelEmit.roc",
         "package/KernelLex.roc",
-        "tests/gate1_pages/main.roc"
+        "tests/structural_kernel/pages.roc"
       ],
       "negative_scenarios": [
         "package/KernelLex.roc"
@@ -253,13 +251,13 @@
       "machine_verification": "roc_unit_named_destination_paired_facts; independent_structural_name_tree_paired_value_inspection_and_mutation_twins; pdfbox_3_0_8_named_destination_outline_resolution",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "package/Gate4NavigationEvidence.roc",
-        "tests/gate4_navigation_facade/main.roc",
-        "tests/gate4_navigation_names_40/main.roc"
+        "tests/navigation/Fixture.roc",
+        "tests/navigation/navigation.roc",
+        "tests/navigation/navigation_facade.roc"
       ],
       "negative_scenarios": [
-        "package/Gate4NavigationEvidence.roc",
-        "tests/gate4_navigation_negative/main.roc"
+        "tests/navigation/Fixture.roc",
+        "tests/navigation/navigation_negative.roc"
       ],
       "external_rule_ids": []
     },
@@ -284,7 +282,7 @@
         "package/KernelObject.roc",
         "package/KernelSeal.roc",
         "scripts/StrictPdfCheck.java",
-        "tests/gate1_pages/main.roc"
+        "tests/structural_kernel/pages.roc"
       ],
       "negative_scenarios": [
         "package/KernelObject.roc",
@@ -307,12 +305,12 @@
         "Pdf20"
       ],
       "implementation": "implemented",
-      "machine_verification": "roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work; gate4_outline_object_lowering_with_independent_count_recomputation",
+      "machine_verification": "roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work; outline_object_lowering_with_independent_count_recomputation",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelOutline.roc",
-        "tests/gate1_pages/main.roc",
-        "tests/gate4_navigation/main.roc"
+        "tests/navigation/navigation.roc",
+        "tests/structural_kernel/pages.roc"
       ],
       "negative_scenarios": [
         "package/KernelOutline.roc"
@@ -337,7 +335,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelResource.roc",
-        "tests/gate1_pages/main.roc"
+        "tests/structural_kernel/pages.roc"
       ],
       "negative_scenarios": [
         "package/KernelResource.roc"
@@ -363,7 +361,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelStructure.roc",
-        "tests/gate1_pages/main.roc"
+        "tests/structural_kernel/pages.roc"
       ],
       "negative_scenarios": [
         "package/KernelStructure.roc"
@@ -378,8 +376,8 @@
         "jpeg-10918-1-1994"
       ],
       "references": [
-        "docs/performance/gate-2-closure.md",
-        "feature-roadmap.md: Gate 2"
+        "docs/performance/tagged-visual-closure.md",
+        "feature-roadmap.md: tagged-visual"
       ],
       "capabilities": [
         "Pdf20"
@@ -388,11 +386,11 @@
       "machine_verification": "roc_unit_checked_geometry_scene_semantics_tagged_color_image_resource_content_and_object_plans; exact_contextual_artifact_mixed_k_parenttree_mcid_boxes_resources_and_pixels; atomic_internal_and_emitted_negative_matrix; pdfium_chromium_7988_and_pdfbox_3_0_8_exact_independent_raster; optimized_contextual_minimal_exact_allocations_bytes_and_work; optimized_million_command_constant_allocations_linear_visits_bounded_stack_and_single_payload_reuse",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "package/KernelGate2Structure.roc",
-        "scripts/check_gate2.py",
-        "scripts/check_gate2_renderers.py",
-        "tests/gate2_minimal/main.roc",
-        "tests/gate2_stress/main.roc"
+        "package/KernelStructure.roc",
+        "scripts/check_tagged_visual.py",
+        "scripts/check_visual_renderers.py",
+        "tests/tagged_visual/minimal.roc",
+        "tests/tagged_visual/stress.roc"
       ],
       "negative_scenarios": [
         "package/KernelGeometry.roc",
@@ -400,7 +398,7 @@
         "package/KernelScene.roc",
         "package/KernelSemantics.roc",
         "package/KernelTagged.roc",
-        "scripts/check_gate2.py"
+        "scripts/check_tagged_visual.py"
       ],
       "external_rule_ids": []
     },
@@ -438,7 +436,7 @@
         "iso-32000-2-2020-ec3"
       ],
       "references": [
-        "feature-roadmap.md: Gate 0"
+        "feature-roadmap.md: contract-definition"
       ],
       "capabilities": [
         "Pdf20",
@@ -449,7 +447,7 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/gate0_contract.roc"
+        "examples/package_contract.roc"
       ],
       "negative_scenarios": [],
       "external_rule_ids": []
@@ -462,7 +460,7 @@
         "iso-32000-2-2020-ec3"
       ],
       "references": [
-        "feature-roadmap.md: Gate 0"
+        "feature-roadmap.md: contract-definition"
       ],
       "capabilities": [
         "Pdf20",
@@ -472,7 +470,7 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/gate0_contract.roc"
+        "examples/package_contract.roc"
       ],
       "negative_scenarios": [],
       "external_rule_ids": []
@@ -484,7 +482,7 @@
         "iso-32000-2-2020-ec3"
       ],
       "references": [
-        "feature-roadmap.md: Gate 0"
+        "feature-roadmap.md: contract-definition"
       ],
       "capabilities": [
         "Pdf20"
@@ -493,7 +491,7 @@
       "machine_verification": "schema_and_roc_contract; roc_unit_blank_standard_emission_and_exact_claim_set",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/gate0_contract.roc",
+        "examples/package_contract.roc",
         "package/Pdf.roc"
       ],
       "negative_scenarios": [
@@ -522,16 +520,16 @@
       "positive_scenarios": [
         "examples/advanced_resource_contract.roc",
         "package/KernelSrgbProfile.roc",
-        "scripts/check_gate4_color_images.py",
-        "scripts/check_gate4_metadata.py",
-        "tests/gate4_color_images/main.roc",
-        "tests/gate4_metadata/main.roc"
+        "scripts/check_color_images.py",
+        "scripts/check_metadata.py",
+        "tests/color_images/color_images.roc",
+        "tests/metadata/metadata.roc"
       ],
       "negative_scenarios": [
-        "package/Gate4ColorImageEvidence.roc",
         "package/KernelColor.roc",
-        "tests/gate4_color_images_negative/main.roc",
-        "tests/gate4_metadata_negative/main.roc"
+        "tests/color_images/Fixture.roc",
+        "tests/color_images/color_images_negative.roc",
+        "tests/metadata/metadata_negative.roc"
       ],
       "external_rule_ids": []
     },
@@ -554,16 +552,14 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelImage.roc",
-        "scripts/check_gate4_color_image_renderers.py",
-        "scripts/check_gate4_color_images.py",
-        "tests/gate4_color_images/main.roc",
-        "tests/gate4_color_images_dedup_64/main.roc",
-        "tests/gate4_color_images_distinct_64/main.roc"
+        "scripts/check_color_image_renderers.py",
+        "scripts/check_color_images.py",
+        "tests/color_images/color_images.roc"
       ],
       "negative_scenarios": [
-        "package/Gate4ColorImageEvidence.roc",
         "package/KernelImage.roc",
-        "tests/gate4_color_images_negative/main.roc"
+        "tests/color_images/Fixture.roc",
+        "tests/color_images/color_images_negative.roc"
       ],
       "external_rule_ids": []
     },

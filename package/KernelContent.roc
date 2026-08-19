@@ -1,7 +1,7 @@
 import Color
 import Image
-import KernelGate2Fixture
-import KernelGate2ResourceName
+import KernelFixture
+import KernelResourceName
 import KernelLex
 import KernelTagged
 import Layout
@@ -146,8 +146,8 @@ TextLowering := [NoText, WithText(KernelContent.TextPlan)]
 
 FormEmission := [NoForms, WithForms(KernelContent.FormContext)]
 
-## How content operators name color-space and image resources. The Gate 2/3
-## paths name authored dense ordinals directly; the Gate 4 form path names the
+## How content operators name color-space and image resources. The tagged-visual/3
+## paths name authored dense ordinals directly; the production-visual form path names the
 ## canonical ordinal each authored resource deduplicated to. Shading and
 ## pattern operators exist only on the canonical path, so their maps carry no
 ## authored fallback.
@@ -783,7 +783,7 @@ emit_image_unchecked = |bytes, ordinal, placement| {
 	$out = append_all_unchecked($out, space_bytes)
 	$out = append_thousandths_unchecked($out, placement.origin.y.raw())
 	$out = append_all_unchecked($out, image_name_prefix_bytes)
-	$out = KernelGate2ResourceName.append($out, ordinal)
+	$out = KernelResourceName.append($out, ordinal)
 	append_all_unchecked($out, image_close_bytes)
 }
 
@@ -798,7 +798,7 @@ image_length = |ordinal, placement| {
 		space_bytes.len() +
 		decimal_length(placement.origin.y.raw(), 3) +
 		image_name_prefix_bytes.len() +
-		KernelGate2ResourceName.suffix_length(ordinal) +
+		KernelResourceName.suffix_length(ordinal) +
 		image_close_bytes.len()
 }
 
@@ -1100,8 +1100,8 @@ append_unsigned = |bytes, value, limit| {
 
 append_resource_index : List(U8), U64, U64 -> Try(List(U8), KernelContent.Error)
 append_resource_index = |bytes, value, limit| {
-	reserved = reserve_exact(bytes, KernelGate2ResourceName.suffix_length(value), limit)?
-	Ok(KernelGate2ResourceName.append(reserved, value))
+	reserved = reserve_exact(bytes, KernelResourceName.suffix_length(value), limit)?
+	Ok(KernelResourceName.append(reserved, value))
 }
 
 append_literal : List(U8), Str, U64 -> Try(List(U8), KernelContent.Error)
@@ -1206,7 +1206,7 @@ list_set = |items, index, value| match items.set(index, value) {
 
 ## Content lowering preserves paint order, nesting, marked ownership, and exact fixed-point numbers.
 expect {
-	tagged = KernelGate2Fixture.tagged_plan(1)?
+	tagged = KernelFixture.tagged_plan(1)?
 	plan = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 1 }))?
 	stream = KernelContent.Plan.stream(plan, Semantics.ContentStreamId.from_index(0))
 	expected =
@@ -1230,7 +1230,7 @@ expect {
 
 ## Content work counts each arena command and balanced graphics pair once.
 expect {
-	tagged = KernelGate2Fixture.tagged_plan(1)?
+	tagged = KernelFixture.tagged_plan(1)?
 	plan = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 1 }))?
 	work = KernelContent.Plan.work(plan)
 	work.command_visits == 3 and work.group_visits == 2 and work.graphics_state_pairs == 2 and work.image_placements == 1 and work.max_frame_depth == 2 and work.path_segments == 1 and work.marked_fragment_groups == 1 and work.marked_artifact_groups == 1 and work.bytes_emitted == KernelContent.Plan.stream(plan, Semantics.ContentStreamId.from_index(0)).bytes.len()
@@ -1242,18 +1242,18 @@ expect {
 	stroke = {
 		cap: ProjectingSquareCap,
 		color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) },
-		dash: Dashed({ lengths: Semantics.Range.from_start_and_length(0, 2), phase: KernelGate2Fixture.unit(250) }),
+		dash: Dashed({ lengths: Semantics.Range.from_start_and_length(0, 2), phase: KernelFixture.unit(250) }),
 		join: BevelJoin,
-		miter_limit: KernelGate2Fixture.unit(10000),
-		width: KernelGate2Fixture.unit(500),
+		miter_limit: KernelFixture.unit(10000),
+		width: KernelFixture.unit(500),
 	}
 	scenes = {
-		..KernelGate2Fixture.scene,
+		..KernelFixture.scene,
 		commands: [
 			Clip({ children: Semantics.Range.from_start_and_length(1, 1), path: Scene.PathId.from_index(0) }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: NoFill, stroke: SolidStroke(stroke) } }),
 		],
-		dash_lengths: [KernelGate2Fixture.unit(1000), KernelGate2Fixture.unit(500)],
+		dash_lengths: [KernelFixture.unit(1000), KernelFixture.unit(500)],
 	}
 	emitted = emit_commands([], Semantics.Range.from_start_and_length(0, 1), scenes.commands, scenes, NoText, NoForms, AuthoredNames, [], 512)?
 	expected =
@@ -1278,7 +1278,7 @@ expect {
 ## operators; a command outside the state map stays rejected.
 expect {
 	scenes = {
-		..KernelGate2Fixture.scene,
+		..KernelFixture.scene,
 		commands: [
 			Opacity({ children: Semantics.Range.from_start_and_length(1, 2), opacity: 32768 }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
@@ -1311,7 +1311,7 @@ expect {
 ## canonical mask state through the same state map as opacity groups.
 expect {
 	scenes = {
-		..KernelGate2Fixture.scene,
+		..KernelFixture.scene,
 		commands: [
 			SoftMask({ children: Semantics.Range.from_start_and_length(1, 1), mask: Scene.FormId.from_index(0) }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Gray(65535), space: Color.SpaceId.from_index(0) }, rule: Nonzero }), stroke: NoStroke } }),
@@ -1330,16 +1330,16 @@ expect {
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.mask_groups == 1 and emitted.opacity_groups == 0 and emitted.graphics_state_pairs == 1
 }
 
-## RGB channel order and every Gate 2 path segment have canonical operators.
+## RGB channel order and every tagged-visual path segment have canonical operators.
 expect {
 	segments = [
-		MoveTo({ x: KernelGate2Fixture.unit(0), y: KernelGate2Fixture.unit(0) }),
-		LineTo({ x: KernelGate2Fixture.unit(1000), y: KernelGate2Fixture.unit(0) }),
-		CubicTo({ control_1: { x: KernelGate2Fixture.unit(1000), y: KernelGate2Fixture.unit(500) }, control_2: { x: KernelGate2Fixture.unit(500), y: KernelGate2Fixture.unit(1000) }, end: { x: KernelGate2Fixture.unit(0), y: KernelGate2Fixture.unit(1000) } }),
+		MoveTo({ x: KernelFixture.unit(0), y: KernelFixture.unit(0) }),
+		LineTo({ x: KernelFixture.unit(1000), y: KernelFixture.unit(0) }),
+		CubicTo({ control_1: { x: KernelFixture.unit(1000), y: KernelFixture.unit(500) }, control_2: { x: KernelFixture.unit(500), y: KernelFixture.unit(1000) }, end: { x: KernelFixture.unit(0), y: KernelFixture.unit(1000) } }),
 		Close,
 	]
 	scenes = {
-		..KernelGate2Fixture.scene,
+		..KernelFixture.scene,
 		commands: [DrawPath({ path: Scene.PathId.from_index(0), style: { fill: SolidFill({ color: { channels: Rgb({ blue: 0, green: 32768, red: 65535 }), space: Color.SpaceId.from_index(0) }, rule: EvenOdd }), stroke: NoStroke } })],
 		path_segments: segments,
 		paths: [{ id: Scene.PathId.from_index(0), segments: Semantics.Range.from_start_and_length(0, segments.len()) }],
@@ -1356,9 +1356,9 @@ expect {
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.command_visits == 1 and emitted.path_segments == 4
 }
 
-## Gate 2 currently requires one deterministic content stream per page.
+## tagged-visual currently requires one deterministic content stream per page.
 expect {
-	tagged = KernelGate2Fixture.tagged_plan(2)?
+	tagged = KernelFixture.tagged_plan(2)?
 	match KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 2 })) {
 		Err(ContentStreamCountMismatch({ pages: 1, streams: 2 })) => True
 		_ => False
@@ -1367,7 +1367,7 @@ expect {
 
 ## A content limit rejects the plan instead of returning a partial stream.
 expect {
-	tagged = KernelGate2Fixture.tagged_plan(1)?
+	tagged = KernelFixture.tagged_plan(1)?
 	match KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 32, max_content_streams: 1 })) {
 		Err(LimitExceeded({ attempted: _, dimension: ContentBytes, limit: 32 })) => True
 		_ => False
@@ -1375,11 +1375,11 @@ expect {
 }
 
 ## The font selection is emitted by lowering, not baked into prepared run
-## bodies: the authored map is the identity on the Gate 2/3 paths and the
-## canonical map renames on the Gate 4 path, ahead of the same body bytes.
+## bodies: the authored map is the identity on the tagged-visual/3 paths and the
+## canonical map renames on the production-visual path, ahead of the same body bytes.
 expect {
 	run : KernelContent.TextRun
-	run = { actual_text_begin: [], body: Str.to_utf8("1 0 0 1 0 0 Tm\n<0001> Tj\n"), close_actual_text: False, font: 2, size: KernelGate2Fixture.unit(11000) }
+	run = { actual_text_begin: [], body: Str.to_utf8("1 0 0 1 0 0 Tm\n<0001> Tj\n"), close_actual_text: False, font: 2, size: KernelFixture.unit(11000) }
 	paint : Scene.TextPaint
 	paint = { fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) }, mode: Fill, opacity: 65535, stroke: NoStroke }
 	authored = emit_text([], paint, run, AuthoredNames, 512)?
@@ -1394,7 +1394,7 @@ expect {
 ## through the canonical name maps.
 expect {
 	scenes = {
-		..KernelGate2Fixture.scene,
+		..KernelFixture.scene,
 		commands: [
 			Clip({ children: Semantics.Range.from_start_and_length(2, 1), path: Scene.PathId.from_index(0) }),
 			DrawPath({ path: Scene.PathId.from_index(0), style: { fill: PatternFill({ pattern: Scene.PatternId.from_index(1), rule: EvenOdd }), stroke: NoStroke } }),

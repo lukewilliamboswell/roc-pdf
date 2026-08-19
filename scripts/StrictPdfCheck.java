@@ -334,7 +334,7 @@ public final class StrictPdfCheck
                             && ((COSObject) length).getKey().getGeneration() == 0,
                     "content /Length must be an indirect generation-zero reference");
             require(page.getResources() != null && page.getResources().getCOSObject().size() == 0,
-                    "Gate 1 structural page resources must be present and empty");
+                    "structural-kernel structural page resources must be present and empty");
             PDRectangle mediaBox = page.getMediaBox();
             require(mediaBox.getLowerLeftX() == 0 && mediaBox.getLowerLeftY() == 0
                             && mediaBox.getWidth() == 595 && mediaBox.getHeight() == 842,
@@ -389,7 +389,7 @@ public final class StrictPdfCheck
                     throw new StrictParseFailure(exception);
                 }
                 require(document.getVersion() == 2.0f, "PDF version is not 2.0");
-                require(!document.isEncrypted(), "Gate 1 structural PDF must not be encrypted");
+                require(!document.isEncrypted(), "structural-kernel structural PDF must not be encrypted");
                 COSDocument cosDocument = document.getDocument();
                 require(cosDocument.isXRefStream(), "document does not use an xref stream");
                 require(!cosDocument.hasHybridXRef(), "document uses a hybrid xref representation");

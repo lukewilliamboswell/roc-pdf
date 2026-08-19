@@ -17,11 +17,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from check_gate3_facade_output import validate_facade_output_pdf
+from check_facade_output import validate_facade_output_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE = ROOT / "tests" / "gate3_pdf_facade" / "main.roc"
+EXAMPLE = ROOT / "tests" / "pdf_facade" / "pdf_facade.roc"
 TEMP_ROOT = ROOT / ".roc-pdf-tmp"
 ZIG = os.environ.get("ZIG", "zig")
 PACKAGE_DEPENDENCY = 'pdf: "../../package/main.roc",'
@@ -40,6 +40,12 @@ def command(*args: str, cwd: Path = ROOT, env: dict[str, str] | None = None) -> 
     completed = subprocess.run(args, cwd=cwd, env=env, check=False)
     if completed.returncode != 0:
         raise TestFailure(f"command exited {completed.returncode}: {' '.join(args)}")
+
+
+def command_must_fail(*args: str, cwd: Path = ROOT, env: dict[str, str] | None = None) -> None:
+    completed = subprocess.run(args, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if completed.returncode == 0:
+        raise TestFailure(f"command unexpectedly succeeded: {' '.join(args)}")
 
 
 def verify_pinned_roc(roc: str) -> None:
@@ -64,6 +70,23 @@ def build_bundle(roc: str, output_dir: Path) -> Path:
     if len(bundles) != 1:
         raise TestFailure(f"expected one .tar.zst bundle in {output_dir}, found {len(bundles)}")
     return bundles[0]
+
+
+def verify_bundle_members(bundle: Path) -> None:
+    result = subprocess.run(
+        ["tar", "--zstd", "-tf", str(bundle)],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise TestFailure(f"could not inspect bundle members: {result.stderr.strip()}")
+    members = {line.removeprefix("./") for line in result.stdout.splitlines() if line}
+    if any(Path(member).name == "all.roc" for member in members):
+        raise TestFailure("release bundle contains repository-only package/all.roc")
+    if not any(Path(member).name == "main.roc" for member in members):
+        raise TestFailure("release bundle does not contain package/main.roc")
 
 
 class BundleRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -146,12 +169,22 @@ def main() -> int:
             bundle = args.bundle_path.resolve() if args.bundle_path is not None else build_bundle(args.roc, temporary_path / "dist")
             if not bundle.is_file():
                 raise TestFailure(f"bundle does not exist: {bundle}")
+            verify_bundle_members(bundle)
             with BundleServer(bundle) as server:
                 source = consumer_source(temporary_path / "pdf_facade.roc", server.url)
                 env = isolated_environment(temporary_path / "roc-cache")
                 executable = temporary_path / "pdf-facade-consumer"
                 command(args.roc, "fmt", "--check", relative(source), env=env)
                 command(args.roc, "check", relative(source), env=env)
+                private_source = temporary_path / "private_import.roc"
+                private_source.write_text(
+                    source.read_text(encoding="utf-8").replace(
+                        "import pdf.Pdf", "import pdf.Pdf\nimport pdf.KernelObject", 1
+                    ),
+                    encoding="utf-8",
+                    newline="\n",
+                )
+                command_must_fail(args.roc, "check", relative(private_source), env=env)
                 command(ZIG, "build", "-Doptimize=ReleaseFast", cwd=ROOT / "tests" / "platform", env=env)
                 command(args.roc, "build", relative(source), "--opt=dev", f"--output={relative(executable)}", env=env)
                 result = subprocess.run([executable, "0"], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)

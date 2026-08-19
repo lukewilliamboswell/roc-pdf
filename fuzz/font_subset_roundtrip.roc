@@ -1,10 +1,10 @@
 app [target] {
 	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.2.1/9Qpttb6LTgcMaVsSBLsnaiS2mDUrf6Bxa6dX9Rqwviz4.tar.zst",
-	pdf_quality: "../package/fuzz_evidence.roc",
+	pdf: "../package/all.roc",
 }
 
 import fuzz.Fuzz
-import pdf_quality.Gate3FuzzTargets
+import FontTargets
 
 ## Glyph choices and the retained budget are sized against the widest fixture,
 ## which has 1376 glyphs. A `U8` choice could select only its first 256 glyphs,
@@ -22,7 +22,7 @@ Input := { font : U8, glyphs : List(U64), retained_limit : U64 }.{
 
 test : Input -> Fuzz.Outcome
 test = |input| {
-	if Gate3FuzzTargets.subset_roundtrip(input) Fuzz.keep else crash "font subset round trip violated its plan"
+	if FontTargets.subset_roundtrip(input) Fuzz.keep else crash "font subset round trip violated its plan"
 }
 
 target = Fuzz.target({

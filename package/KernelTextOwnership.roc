@@ -32,7 +32,7 @@ KernelTextOwnership :: [].{
 		build : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store -> Try(Plan, Error)
 		build = |semantics, scene, text| build_plan(semantics, scene, text, [])
 
-		## Gate 4 scenes additionally assign runs painted inside Form XObjects.
+		## production-visual scenes additionally assign runs painted inside Form XObjects.
 		## Each such run arrives as an explicit resolved fact (the fragment
 		## owning the form's unique placement chain); ownership rules are
 		## unchanged: every run is owned exactly once, and only by a fragment.

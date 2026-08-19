@@ -1,14 +1,14 @@
 app [target] {
 	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.2.1/9Qpttb6LTgcMaVsSBLsnaiS2mDUrf6Bxa6dX9Rqwviz4.tar.zst",
-	pdf_quality: "../package/fuzz_evidence.roc",
+	pdf: "../package/all.roc",
 }
 
 import fuzz.Fuzz
-import pdf_quality.Gate2FuzzTargets
+import JpegTargets
 
 test : List(U8) -> Fuzz.Outcome
 test = |bytes| {
-	if Gate2FuzzTargets.jpeg_mutation(bytes) Fuzz.keep else crash "accepted JPEG violated its sanitized-stream facts"
+	if JpegTargets.jpeg_mutation(bytes) Fuzz.keep else crash "accepted JPEG violated its sanitized-stream facts"
 }
 
 target = Fuzz.target_with({

@@ -2,15 +2,15 @@ import KernelSha256
 import Scene
 import Semantics
 
-## Gate 4 resource-planning foundation.
+## production-visual resource-planning foundation.
 ##
 ## This module owns reusable resource identity, deterministic deduplication, and
 ## the explicit direct-edge resource dependency graph. It is deliberately
-## independent of PDF object numbers, of the Gate 1/2 `KernelResource` name
+## independent of PDF object numbers, of the structural-kernel/2 `KernelResource` name
 ## planner (which assigns dictionary names to an already-planned dense store),
-## and of `KernelResourceUse` (which counts Gate 2 colour/image use inside one
+## and of `KernelResourceUse` (which counts tagged-visual colour/image use inside one
 ## scene). Neither of those types carries dependency edges or payload identity,
-## so Gate 4 introduces its own representation rather than widening theirs.
+## so production-visual introduces its own representation rather than widening theirs.
 ##
 ## Storage rules:
 ##
@@ -24,7 +24,7 @@ import Semantics
 ##   is walked with an explicit stack, never with recursion.
 KernelResourceGraph :: [].{
 
-	## Resource kinds that may participate in the dependency graph. Later Gate 4
+	## Resource kinds that may participate in the dependency graph. Later production-visual
 	## kinds join by extending this union and the descriptor facts below; no PDF
 	## dictionary or object internal enters this boundary. `ExtGState` joined
 	## with the transparency slice and `Function` (a shading's derived PDF
@@ -160,7 +160,7 @@ KernelResourceGraph :: [].{
 	Canonical : { descriptor : Descriptor, length : U64, start : U64 }
 
 	## The versioned, domain-separated identity digest of one source range.
-	## This is exactly the procedure `Plan.build` hashes with, exposed so Gate 4
+	## This is exactly the procedure `Plan.build` hashes with, exposed so production-visual
 	## canonical recipes can embed dependency identities without a second
 	## digest implementation. Descriptor facts and byte length precede the
 	## payload, so equal bytes under different descriptors never share a digest.

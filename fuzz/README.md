@@ -43,7 +43,7 @@ checksum arithmetic is reimplemented in the property rather than reused from
 `KernelFont`, so the two implementations act as independent oracles.
 
 `font_subset_roundtrip` generates bounded glyph choices and a retained-glyph
-budget against five already-inspected Gate 3 fixtures. Typed planning failures
+budget against five already-inspected text-layout fixtures. Typed planning failures
 are ordinary outcomes. Successful plans must be deterministic, produce
 byte-identical subsets on repetition, re-inspect successfully, preserve metrics
 and cmap intent, and rewrite composite dependencies to subset glyphs. Glyph

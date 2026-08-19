@@ -63,7 +63,7 @@ Scene :: [].{
 		y_direction : CoordinateDirection,
 	}
 
-	## Gate 2 geometry uses PDF user space: a bottom-left origin, an upward Y
+	## tagged-visual geometry uses PDF user space: a bottom-left origin, an upward Y
 	## axis, 1,000 layout units per point, and matrix coefficients scaled by
 	## 1,000. Translation entries use ordinary layout units.
 	coordinate_model : CoordinateModel
