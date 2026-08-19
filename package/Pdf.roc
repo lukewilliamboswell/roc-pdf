@@ -101,6 +101,12 @@ Pdf :: [].{
 		with_chunk_retention = |options, chunk_retention| { ..options, chunk_retention }
 	}
 
+	## An opaque, fully validated document plan. Preparation performs all
+	## authoring, layout, resource, navigation, conformance, and object-planning
+	## work once; emission cannot reinterpret author intent or fail with a
+	## document diagnostic after this boundary.
+	Prepared :: KernelStructure.Plan.{}
+
 	Encode :: KernelEmit.Encoder.{}
 	ChunkStep : [Done, Emit(List(U8), Encode)]
 
@@ -172,7 +178,21 @@ Pdf :: [].{
 
 	to_bytes_with : Document, Options -> Try(List(U8), Error)
 	to_bytes_with = |doc, options| {
+		prepared = prepare(doc, options)?
+		to_bytes_prepared(prepared)
+	}
+
+	## Validate and lower an authored document once for repeated or deferred
+	## emission. The returned value contains no authoring callbacks or mutable
+	## caches and exposes no PDF object internals.
+	prepare : Document, Options -> Try(Prepared, Error)
+	prepare = |doc, options| {
 		plan = build_standard_plan(doc, options)?
+		Ok(Prepared.(plan))
+	}
+
+	to_bytes_prepared : Prepared -> Try(List(U8), Error)
+	to_bytes_prepared = |Prepared.(plan)| {
 		bytes = KernelEmit.to_bytes(plan) ? |_| InternalGenerationFailure
 		Ok(bytes)
 	}
@@ -187,8 +207,15 @@ Pdf :: [].{
 	## typed error and no partial chunk sequence.
 	to_chunks_with : Document, Options -> Try(Encode, Error)
 	to_chunks_with = |doc, options| {
-		plan = build_standard_plan(doc, options)?
-		retention = match options.chunk_retention {
+		prepared = prepare(doc, options)?
+		to_chunks_prepared(prepared, options.chunk_retention)
+	}
+
+	## Start chunked emission from an already prepared document. Retention is
+	## selected at emission time and cannot alter the sealed document bytes.
+	to_chunks_prepared : Prepared, ChunkRetention -> Try(Encode, Error)
+	to_chunks_prepared = |Prepared.(plan), chunk_retention| {
+		retention = match chunk_retention {
 			OwnChunks => OwnResourceChunks
 			ShareUnchangedResources => ShareResourceChunks
 		}
@@ -539,6 +566,30 @@ expect {
 
 	bytes = Pdf.to_bytes(document)?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
+}
+
+## Preparation is a one-way public boundary and both emission paths consume
+## the same sealed plan.
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Prepared once")], language: "en-AU", title: "Prepared" })
+	prepared = Pdf.prepare(document, Pdf.Options.default)?
+	buffered = Pdf.to_bytes_prepared(prepared)?
+	chunked = collect_chunks(Pdf.to_chunks_prepared(prepared, ShareUnchangedResources)?)
+
+	buffered == chunked.bytes
+}
+
+## Every sRGB theme color is resolved through the packaged profile rather
+## than being silently reduced to black.
+expect {
+	blue : Color.SourceValue
+	blue = Srgb(Rgb({ blue: 65535, green: 16000, red: 4000 }))
+	theme = Theme.with_body_color(Theme.default, blue)
+	options = Pdf.Options.with_theme(Pdf.Options.default, theme)
+	document = Pdf.document({ contents: [Pdf.paragraph("Blue body text")], language: "en-AU", title: "Color" })
+	bytes = Pdf.to_bytes_with(document, options)?
+
+	bytes.len() > 667
 }
 
 ## Unsupported page artifacts reject atomically through the facade; no blank

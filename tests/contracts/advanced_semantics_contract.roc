@@ -1,6 +1,6 @@
 app [main!] {
-	pf: platform "../tests/platform/main.roc",
-	pdf: "../package/main.roc",
+	pf: platform "../platform/main.roc",
+	pdf: "../../package/main.roc",
 }
 
 import pdf.Semantics

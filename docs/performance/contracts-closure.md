@@ -14,9 +14,9 @@ Those claims remain gated by the later roadmap evidence.
 | Standards, claims, ledger, and assets | `conformance/`, `assets/provenance.json`, `scripts/check_contracts.py` | `conformance-ledger.md`, `asset-provenance.md` |
 | Facade, author facts, theme, and compact builder | `package/Pdf.roc`, `package/Document.roc`, `package/Theme.roc`, public examples | `facade-builder-types.md` |
 | Semantics, layout, ownership, and scenes | `package/Semantics.roc`, `package/Layout.roc`, `package/Scene.roc`, contract examples | `semantic-layout-types.md`, `semantic-identity.md` |
-| Text and exact font planning | `package/Text.roc`, `package/Font.roc`, `examples/advanced_text_contract.roc` | `text-font-types.md` |
-| Color, ICC, raster, and JPEG resources | `package/Color.roc`, `package/Image.roc`, `examples/advanced_resource_contract.roc` | `resource-types.md` |
-| Metadata and deterministic emission policy | `package/Metadata.roc`, `package/Encode.roc`, `examples/advanced_encode_contract.roc` | `canonical-policy.md` |
+| Text and exact font planning | `package/Text.roc`, `package/Font.roc`, `tests/contracts/advanced_text_contract.roc` | `text-font-types.md` |
+| Color, ICC, raster, and JPEG resources | `package/Color.roc`, `package/Image.roc`, `tests/contracts/advanced_resource_contract.roc` | `resource-types.md` |
+| Metadata and deterministic emission policy | `package/Metadata.roc`, `package/Encode.roc`, `tests/contracts/advanced_encode_contract.roc` | `canonical-policy.md` |
 | Stable prepared integration boundary | `Document.Prepared`, exact cache keys, bounded diagnostics, resource-use edges, and the prepared example | `prepared-document.md` |
 | Optimized scenario protocol | `tests/spec.json`, `scripts/test.py`, versioned host ABI, snapshot and allocation self-tests | `scenario-protocol.md` |
 

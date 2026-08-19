@@ -44,7 +44,7 @@ by `ResourcePolicy.max_diagnostics` and never carry a partially trusted graph.
 
 ## Evidence
 
-`examples/advanced_semantics_contract.roc` compiles namespace-scoped role
+`tests/contracts/advanced_semantics_contract.roc` compiles namespace-scoped role
 mapping, exact attribute applicability, ID-based table headers, and a bounded
 validated MathML parse boundary. Runtime validity and atomic negative behavior
 belong to the capabilities implementing semantic normalization and MathML parsing.

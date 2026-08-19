@@ -47,7 +47,7 @@ keys and are introduced with their executable evidence.
 
 ## Evidence
 
-`examples/advanced_text_contract.roc` compiles a whole-cluster face assignment,
+`tests/contracts/advanced_text_contract.roc` compiles a whole-cluster face assignment,
 a many-to-one cluster, an occurrence-owned shaped run, and visible text paint.
 The package tests prove opaque identities preserve their scalar backing. Exact
 optimized allocation and scaled-work evidence belongs to the capability implementing

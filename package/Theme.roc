@@ -91,6 +91,28 @@ Theme :: {
 	with_font_policy : Theme, Font.PolicyId -> Theme
 	with_font_policy = |theme, policy| { ..theme, font_selection: Policy(policy) }
 
+	## Change the body color without exposing the theme representation.
+	with_body_color : Theme, Color.SourceValue -> Theme
+	with_body_color = |theme, color| { ..theme, body: { ..theme.body, color } }
+
+	## Change heading color while retaining its metrics and selected face.
+	with_heading_color : Theme, Color.SourceValue -> Theme
+	with_heading_color = |theme, color| { ..theme, heading: { ..theme.heading, color } }
+
+	## Change title color while retaining its metrics and selected face.
+	with_title_color : Theme, Color.SourceValue -> Theme
+	with_title_color = |theme, color| { ..theme, title: { ..theme.title, color } }
+
+	## Apply one color to every built-in text role.
+	with_text_color : Theme, Color.SourceValue -> Theme
+	with_text_color = |theme, color| {
+		..theme,
+		body: { ..theme.body, color },
+		code: { ..theme.code, color },
+		heading: { ..theme.heading, color },
+		title: { ..theme.title, color },
+	}
+
 	font_selection : Theme -> FontSelection
 	font_selection = |theme| theme.font_selection
 

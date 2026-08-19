@@ -48,7 +48,7 @@ performance evidence.
 
 ## Evidence
 
-`examples/advanced_encode_contract.roc` compiles explicit metadata inputs and
+`tests/contracts/advanced_encode_contract.roc` compiles explicit metadata inputs and
 the fixed canonical policy. Package expects pin number, compression, xref, and
 identifier choices. structural-kernel now supplies runtime lexical, digest, compression,
 and byte-equality evidence; XML evidence belongs to the capability implementing XML.

@@ -52,7 +52,7 @@ does not continue scanning merely to count discarded findings.
 
 ## Evidence
 
-`examples/advanced_prepared_contract.roc` compiles the stable boundary access,
+`tests/contracts/advanced_prepared_contract.roc` compiles the stable boundary access,
 exact measurement identity, resource-use edge, atomic error batch, clause and
 stage facts, and lifetime policy. Runtime preparation, negative detection,
 allocation, ARC, copied-byte, retained-byte, cache, and scaling evidence belongs

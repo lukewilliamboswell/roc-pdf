@@ -3,14 +3,16 @@
 An early-development pure [Roc](https://www.roc-lang.org/) package for
 deterministic PDF 2.0 generation.
 
-The package offers a usable public authoring path under the `Standard`
+The package offers a stable public authoring path under the `Standard`
 profile: `Pdf.to_bytes`, `Pdf.to_bytes_with`, and `Pdf.to_chunks_with` all
 produce deterministic tagged PDF 2.0 output, and the buffered and chunked
 forms are byte-identical. The built-in theme supports title, heading,
 paragraph, and bulleted-list constructors, with either the packaged face or
 caller-registered faces selected through `Theme` — including a finite ordered
-multi-face policy with per-cluster coverage selection. It does not read, edit,
-or repair PDFs, and unsupported requests return typed errors rather than
+multi-face policy with per-cluster coverage selection. Theme text colors use
+the packaged sRGB profile. Documents can be prepared once into an opaque,
+validated plan and then emitted as buffered bytes or chunks. It does not read,
+edit, or repair PDFs, and unsupported requests return typed errors rather than
 producing blank output, substituting fonts, outlining text, or rasterizing
 content.
 
@@ -26,10 +28,17 @@ The package exposes the high-level `Pdf` facade plus the advanced conceptual
 `Metadata`, `Encode`, `Conformance`, and `Theme` boundaries. PDF object,
 lowering, and serialization internals are not public.
 
-The current candidate scope is recorded in [the 0.1.0-rc1 release
-notes](docs/releases/0.1.0-rc1.md). text-layout is closed; its aggregated evidence
-is recorded in the [text-layout closure
-review](docs/performance/text-layout-closure.md).
+The current candidate scope is recorded in [the 0.1.0-rc2 release
+notes](docs/releases/0.1.0-rc2.md). Gate 4 is closed; its aggregated evidence is
+recorded in the [production-visual closure
+review](docs/performance/production-visual-closure.md).
+
+## Start here
+
+- [Authoring guide](docs/authoring.md)
+- [Example gallery](examples/README.md)
+- [Generated API documentation](https://lukewilliamboswell.github.io/roc-pdf/)
+- [Migrating to rc2](docs/migrating-to-rc2.md)
 
 ## Design
 

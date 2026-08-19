@@ -60,3 +60,7 @@ jobs:
 
       - name: Verify release bundle consumer boundary
         run: python3 scripts/test_bundle_consumer.py
+
+      - name: Verify public example gallery
+        if: runner.os == 'Linux'
+        run: python3 scripts/check_gallery.py

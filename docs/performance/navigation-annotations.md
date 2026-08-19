@@ -216,7 +216,7 @@ rejection family with exact offsets, ordering, resolution, and pairing
 checks), `KernelSemantics`/`KernelTagged` (annotation ownership, rank, and
 K-item lowering), `KernelNavigationObjects` (planned-identity arithmetic),
 and the end-to-end facade expects in `Pdf.roc` and
-`examples/pdf_facade.roc`. `NavigationEvidence` runs the whole
+`tests/contracts/pdf_facade.roc`. `NavigationEvidence` runs the whole
 canonical pipeline under `./scripts/test.py capability fixture tests`, including the
 adversarial showcase byte-compare and the 32-step negative sweep.
 

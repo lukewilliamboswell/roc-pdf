@@ -25,8 +25,8 @@
       "machine_verification": "schema_and_roc_contract; standard_profile_runtime_and_transactional_unavailable_profile_errors",
       "human_verification": "architecture_review",
       "positive_scenarios": [
-        "examples/pdf_facade.roc",
-        "package/Pdf.roc"
+        "package/Pdf.roc",
+        "tests/contracts/pdf_facade.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc"
@@ -50,10 +50,10 @@
       "machine_verification": "schema_and_roc_contract; sha256_nist_vectors_and_reused_schedule; independent_blank_and_generated_content_identifier_recalculation; roc_unit_owned_dynamic_multiblock_limits_exact_adler_and_max_distance; optimized_one_and_five_block_exact_allocations_and_work; independent_zlib_payload_reconstruction_and_negative_twins; package_owned_stateful_encoder_transition_with_bounded_chunks_and_final_source_release",
       "human_verification": "architecture_review",
       "positive_scenarios": [
-        "examples/advanced_encode_contract.roc",
         "package/KernelDeflate.roc",
         "package/KernelSha256.roc",
         "scripts/check_pdf_structure.py",
+        "tests/contracts/advanced_encode_contract.roc",
         "tests/structural_kernel/main.roc"
       ],
       "negative_scenarios": [
@@ -75,13 +75,18 @@
       "capabilities": [
         "Pdf20"
       ],
-      "implementation": "defined_only",
-      "machine_verification": "schema_and_roc_contract",
+      "implementation": "implemented",
+      "machine_verification": "schema_and_roc_contract; whole_grapheme_ordered_face_selection; coverage_and_embedding_negative_twins; exact_planning_work_and_allocations",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/advanced_text_contract.roc"
+        "tests/contracts/advanced_text_contract.roc",
+        "tests/font/font.roc",
+        "tests/multiface_facade/multiface_facade.roc"
       ],
-      "negative_scenarios": [],
+      "negative_scenarios": [
+        "tests/font/font.roc",
+        "tests/multiface_facade/multiface_facade.roc"
+      ],
       "external_rule_ids": []
     },
     {
@@ -104,9 +109,9 @@
       "machine_verification": "schema_and_roc_contract; canonical_case_rfc5646_subset_validation_with_typed_rejections; canonical_xmp_packet_with_pinned_golden_bytes_and_catalog_lang_agreement; explicit_utc_timestamps_or_deterministic_omission; xmp_identifiers_and_pdfa_identification_pending_pdfa4",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/advanced_encode_contract.roc",
         "package/KernelXmp.roc",
         "scripts/check_metadata.py",
+        "tests/contracts/advanced_encode_contract.roc",
         "tests/metadata/main.roc",
         "tests/metadata/metadata_facade.roc"
       ],
@@ -422,7 +427,7 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "architecture_review",
       "positive_scenarios": [
-        "examples/advanced_prepared_contract.roc"
+        "tests/contracts/advanced_prepared_contract.roc"
       ],
       "negative_scenarios": [],
       "external_rule_ids": []
@@ -447,7 +452,7 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/package_contract.roc"
+        "tests/contracts/package_contract.roc"
       ],
       "negative_scenarios": [],
       "external_rule_ids": []
@@ -470,7 +475,7 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/package_contract.roc"
+        "tests/contracts/package_contract.roc"
       ],
       "negative_scenarios": [],
       "external_rule_ids": []
@@ -491,8 +496,8 @@
       "machine_verification": "schema_and_roc_contract; roc_unit_blank_standard_emission_and_exact_claim_set",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/package_contract.roc",
-        "package/Pdf.roc"
+        "package/Pdf.roc",
+        "tests/contracts/package_contract.roc"
       ],
       "negative_scenarios": [
         "package/Pdf.roc"
@@ -518,11 +523,11 @@
       "machine_verification": "schema_and_roc_contract; pinned_srgb2014_digest_license_and_icc_inspection_boundary; canonical_icc_and_color_space_dedup_with_exact_byte_equality; emitted_profile_stream_byte_identical_to_vendored_asset; gts_pdfa1_output_intent_sharing_the_canonical_profile_stream; transparency_blend_space_probe_against_the_packaged_bytes",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/advanced_resource_contract.roc",
         "package/KernelSrgbProfile.roc",
         "scripts/check_color_images.py",
         "scripts/check_metadata.py",
         "tests/color_images/main.roc",
+        "tests/contracts/advanced_resource_contract.roc",
         "tests/metadata/main.roc"
       ],
       "negative_scenarios": [
@@ -583,7 +588,7 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/advanced_semantics_contract.roc"
+        "tests/contracts/advanced_semantics_contract.roc"
       ],
       "negative_scenarios": [],
       "external_rule_ids": []
@@ -608,7 +613,7 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "author_assertion_required",
       "positive_scenarios": [
-        "examples/advanced_semantics_contract.roc"
+        "tests/contracts/advanced_semantics_contract.roc"
       ],
       "negative_scenarios": [],
       "external_rule_ids": []
@@ -633,7 +638,7 @@
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/advanced_semantics_contract.roc"
+        "tests/contracts/advanced_semantics_contract.roc"
       ],
       "negative_scenarios": [],
       "external_rule_ids": []
@@ -655,13 +660,20 @@
         "Pdf20",
         "PdfUa2"
       ],
-      "implementation": "defined_only",
-      "machine_verification": "schema_and_roc_contract",
+      "implementation": "partial",
+      "machine_verification": "schema_and_roc_contract; pdf20_shaping_bidi_actualtext_and_multiface_positive_and_negative_fixtures; pdfua2_claim_deferred",
       "human_verification": "not_required",
       "positive_scenarios": [
-        "examples/advanced_text_contract.roc"
+        "tests/actual_text/main.roc",
+        "tests/bidi/bidi.roc",
+        "tests/contracts/advanced_text_contract.roc",
+        "tests/shaping/shape.roc"
       ],
-      "negative_scenarios": [],
+      "negative_scenarios": [
+        "tests/actual_text/main.roc",
+        "tests/bidi/bidi.roc",
+        "tests/shaping/shape.roc"
+      ],
       "external_rule_ids": []
     }
   ]

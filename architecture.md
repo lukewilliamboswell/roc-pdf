@@ -470,9 +470,10 @@ Pdf :: [].{
     heading : U8, Str -> Document.Block
     paragraph : Str -> Document.Block
     bullets : List(Str) -> Document.Block
-    png_srgb : List(U8) -> Try(Image, Error)
-    figure : Image, Str -> Document.Block
-    decorative_image : Image -> Document.Block
+
+    prepare : Document, Options -> Try(Prepared, Error)
+    to_bytes_prepared : Prepared -> Try(List(U8), Error)
+    to_chunks_prepared : Prepared, ChunkRetention -> Try(Encode, Error)
 
     to_bytes : Document -> Try(List(U8), Error)
     to_bytes_with : Document, Options -> Try(List(U8), Error)
@@ -505,6 +506,16 @@ intent, serializer options, or system-font names. A theme references only
 validated packaged or caller-provided resources, and a theme override cannot
 weaken the selected profile. The built-in theme is versioned because changing
 its metrics, fonts, or spacing can change pagination and bytes.
+
+The Gate 4 facade accepts the complete typed sRGB text-color range through
+opaque `Theme` setters. The packaged sRGB profile is both the painting-space
+definition and output intent; no device-color guess or fallback is permitted.
+Raster/JPEG resources are executable inside the production-visual compiler,
+but the facade does not expose a meaningful-image constructor at Gate 4.
+`figure` requires the alternative-text and semantic ownership contract closed
+by Gate 6, while stable custom scene/layout authoring remains Gate 8. PNG is
+not an accepted source format; future facade image inputs are inspected JPEG
+or typed packed raster planes only.
 
 Packaging and PDF embedding are separate boundaries. The core package ships
 only the small, audited deterministic assets required by its default facade,
@@ -585,12 +596,11 @@ constructors create their semantic structure automatically:
 - Paragraph and inline constructors retain canonical Unicode.
 - Lists create labels, bodies, and list-item relationships.
 - Tables require declared headers and retain a logical grid.
-- A meaningful image is constructed as a figure with author-supplied
-  alternative text; a decorative image uses a separate decoration constructor
-  and becomes an artifact.
-- Common image constructors perform validation and make color assumptions
-  explicit in their names or inputs; `Pdf.png_srgb` never guesses an unknown
-  source profile.
+- Once Gate 6 closes, a meaningful image is constructed as a figure with
+  author-supplied alternative text; a decorative image uses a separate
+  decoration constructor and becomes an artifact.
+- Future common image constructors accept inspected JPEG or typed packed
+  raster planes and make color assumptions explicit in their names or inputs.
 - Links retain their text, URI or internal destination, annotation ownership,
   and keyboard order.
 - Page headers, footers, numbers, backgrounds, and watermarks enter through
@@ -663,7 +673,13 @@ assertion, and the human-verifiable requirements described later still apply.
 
 ### Advanced integration boundary
 
-The stable integration boundary is `PreparedDocument`, conceptually containing:
+The common stable integration boundary is opaque `Pdf.Prepared`. It is produced
+by `Pdf.prepare` after authoring, layout, resource, navigation, conformance, and
+object planning and is accepted directly by buffered or chunked emission. This
+executable boundary does not expose PDF object identity.
+
+The stable custom-layout integration boundary remains the conceptual
+`PreparedDocument`, containing:
 
 ```text
 PreparedDocument
@@ -1005,18 +1021,18 @@ Images enter the PDF core only as validated forms:
 - Additional encoded formats only when their parser and selected profile make
   their properties explicit.
 
-PNG is an input transport format, not a PDF image representation. A pure Roc
-image package decodes it to validated channels. Alpha becomes an explicit soft
-mask. Alternative text belongs to the owning semantic figure, not to a reused
-image resource.
+PNG is not a package input format. Applications may use a separate pure Roc
+image package to decode it, but roc-pdf accepts only the resulting typed packed
+raster planes or an inspected JPEG. Alpha becomes an explicit soft mask.
+Alternative text belongs to the owning semantic figure, not to a reused image
+resource.
 
 Raster planes are packed byte buffers rather than lists of pixel records.
 Decode, alpha separation, predictor filtering, supported color conversion,
 hashing, and compression accept rows or coarse chunks so the pipeline does not
 require simultaneous whole-image copies of every intermediate plane. Repeated
-placements carry one image resource ID. A future encoded PNG fast path requires
-a separately specified fully validated subset; it is never unchecked
-passthrough.
+placements carry one image resource ID. Encoded PNG passthrough has no public
+or internal representation.
 
 JPEG orientation policy is explicit. A constructor either applies a validated
 EXIF orientation before creating the image placement, or states that the input
@@ -1264,8 +1280,8 @@ states intentionally retain additional data.
 
 All byte counts, offsets, object counts, image dimensions, allocation sizes,
 font table arithmetic, decompressed sizes, recursion depths, and compression
-inputs use checked arithmetic and explicit resource limits. Font, JPEG, PNG,
-ICC, and other externally supplied bytes are untrusted even though the package
+inputs use checked arithmetic and explicit resource limits. Font, JPEG, ICC,
+and other externally supplied bytes are untrusted even though the package
 does not read PDFs.
 
 ## Module boundaries
@@ -1399,7 +1415,7 @@ subsets, MCIDs, streams, resource dependency graphs, and deep legal
 structures.
 
 Attacker-controlled binary inspectors have a separate fuzzing lane. It mutates
-small valid and invalid font, JPEG, PNG, and ICC corpus seeds and invokes the
+small valid and invalid font, JPEG, and ICC corpus seeds and invokes the
 pure Roc inspection boundary under deterministic input-size, work, memory, and
 diagnostic limits. Coverage-guided generation is used when Roc tooling exposes
 reliable coverage; otherwise deterministic corpus mutation is required. A

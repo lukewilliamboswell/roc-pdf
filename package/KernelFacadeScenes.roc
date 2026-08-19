@@ -172,11 +172,13 @@ build_arena_with_intent = |prepared, intent, limits| {
 		origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) },
 		size: prepared.page_size,
 	}
-	paint = {
-		fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
-		mode: Fill,
-		opacity: 65535,
-		stroke: NoStroke,
+	use_srgb = match intent {
+		NoIntentProfile => False
+		PackagedSrgbIntent => has_nonblack_srgb(prepared.styles)
+	}
+	color_checks = match intent {
+		NoIntentProfile => run_count
+		PackagedSrgbIntent => checked_add(run_count, run_count)?
 	}
 	var $commands = List.with_capacity(command_count)
 	var $groups = List.with_capacity(run_count)
@@ -197,9 +199,33 @@ build_arena_with_intent = |prepared, intent, limits| {
 				return Err(InvalidPlacement({ placement: $placement_cursor }))
 			}
 			style = list_at(prepared.styles, $placement_cursor)
-			match style.color {
-				Srgb(Rgb({ blue, green, red })) => if blue != 0 or green != 0 or red != 0 {
-					return Err(UnsupportedColor({ run: $placement_cursor }))
+			paint = match style.color {
+				Srgb(Rgb(channels)) => match intent {
+					NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 {
+						{
+							fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
+							mode: Fill,
+							opacity: 65535,
+							stroke: NoStroke,
+						}
+					} else {
+						return Err(UnsupportedColor({ run: $placement_cursor }))
+					}
+					PackagedSrgbIntent => if use_srgb {
+						{
+							fill: { channels: Rgb(channels), space: Color.SpaceId.from_index(0) },
+							mode: Fill,
+							opacity: 65535,
+							stroke: NoStroke,
+						}
+					} else {
+						{
+							fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
+							mode: Fill,
+							opacity: 65535,
+							stroke: NoStroke,
+						}
+					}
 				}
 				_ => return Err(UnsupportedColor({ run: $placement_cursor }))
 			}
@@ -254,7 +280,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 		}
 		PackagedSrgbIntent => {
 			profiles: [KernelSrgbProfile.profile(0, 0)],
-			spaces: painting_spaces,
+			spaces: if use_srgb [{ id: Color.SpaceId.from_index(0), space: Srgb(Color.ProfileId.from_index(0)) }] else painting_spaces,
 			tags: KernelSrgbProfile.tags,
 		}
 	}
@@ -271,7 +297,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				paths: [],
 			},
 			work: {
-				color_checks: run_count,
+				color_checks,
 				command_writes: command_count,
 				group_writes: run_count,
 				page_group_writes: run_count,
@@ -280,6 +306,20 @@ build_arena_with_intent = |prepared, intent, limits| {
 			},
 		},
 	)
+}
+
+has_nonblack_srgb : List(KernelFacadeShape.RunStyle) -> Bool
+has_nonblack_srgb = |styles| {
+	var $found = False
+	var $index = 0
+	while $index < styles.len() and $found == False {
+		$found = match list_at(styles, $index).color {
+			Srgb(Rgb({ blue, green, red })) => blue != 0 or green != 0 or red != 0
+			_ => False
+		}
+		$index = $index + 1
+	}
+	$found
 }
 
 range_fits : Semantics.Range, U64 -> Bool

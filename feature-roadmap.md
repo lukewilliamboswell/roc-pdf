@@ -555,6 +555,20 @@ The initial profile does not include CMYK, Separation/DeviceN/spot color,
 overprint, luminosity masks, non-Normal blending, rollover/down annotation
 appearances, or annotation types other than links.
 
+### Closure status
+
+Gate 4 is closed for the `Pdf20`/`Standard` production-visual compiler. The
+slice-by-slice evidence and final boundary audit are aggregated in
+`docs/performance/production-visual-closure.md`. This closes forms, resource
+identity and closure, raster/JPEG and color leaves, transparency and masks,
+shadings and patterns, font leaves, metadata/output intent, and navigation.
+
+Closure does not expose semantic figure authoring early: alternative text and
+figure ownership remain Gate 6 work. It also does not move the validated custom
+scene/layout authoring boundary out of Gate 8. The public rc2 expansion is the
+opaque prepare/emit lifecycle and complete sRGB theme-color path. `Archive` and
+`AccessibleArchive` remain unavailable until their own gates close.
+
 ## Gate 5: static PDF/A-4
 
 ### Capabilities
@@ -868,7 +882,7 @@ bytes.
 - Arlington validation.
 - Upstream corpora used to verify the validators themselves.
 - Random small typed scenarios with minimized retained seeds.
-- Deterministic corpus-mutation fuzzing of font, JPEG, PNG, and ICC inspectors,
+- Deterministic corpus-mutation fuzzing of font, JPEG, and ICC inspectors,
   or coverage-guided fuzzing when reliable Roc coverage is available, under
   input/work/memory/time bounds with minimized failures retained as ordinary
   regression tests.
