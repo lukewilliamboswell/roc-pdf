@@ -1,12 +1,12 @@
 app [target] {
 	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.2.1/9Qpttb6LTgcMaVsSBLsnaiS2mDUrf6Bxa6dX9Rqwviz4.tar.zst",
-	pdf_quality: "../package/fuzz_evidence.roc",
+	pdf: "../package/all.roc",
 }
 
 import fuzz.Fuzz
-import pdf_quality.Gate3FuzzTargets
+import FontTargets
 
-Input := { edits : List(Gate3FuzzTargets.Edit), font : U8 }.{
+Input := { edits : List(FontTargets.Edit), font : U8 }.{
 	generator_for : Fuzz.FuzzEncoding -> Fuzz.Generator(Input)
 	generator_for = |_| {
 		{
@@ -18,7 +18,7 @@ Input := { edits : List(Gate3FuzzTargets.Edit), font : U8 }.{
 
 test : Input -> Fuzz.Outcome
 test = |Input.(input)| {
-	if Gate3FuzzTargets.inspect_repaired(input) Fuzz.keep else crash "repaired font inspection violated retained facts"
+	if FontTargets.inspect_repaired(input) Fuzz.keep else crash "repaired font inspection violated retained facts"
 }
 
 target = Fuzz.target({

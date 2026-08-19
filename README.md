@@ -27,9 +27,9 @@ The package exposes the high-level `Pdf` facade plus the advanced conceptual
 lowering, and serialization internals are not public.
 
 The current candidate scope is recorded in [the 0.1.0-rc1 release
-notes](docs/releases/0.1.0-rc1.md). Gate 3 is closed; its aggregated evidence
-is recorded in the [Gate 3 closure
-review](docs/performance/gate-3-closure.md).
+notes](docs/releases/0.1.0-rc1.md). text-layout is closed; its aggregated evidence
+is recorded in the [text-layout closure
+review](docs/performance/text-layout-closure.md).
 
 ## Design
 
@@ -56,6 +56,17 @@ Set `ROC` to use a specific compiler executable:
 ROC=/path/to/roc ./scripts/test.py
 ```
 
+The driver prints timestamped, color-coded status and one global step counter
+across validation, fixture builds, and evidence cases. Complete command output
+is retained in a plain-text `.roc-pdf-tmp/logs/` file with a timestamp on every
+line. The validation inventory in
+`tests/spec.json` applies `roc fmt --check`, `roc check`, and `roc test` to every
+declared Roc source by default; exceptions require an explicit action-specific
+skip and reason. Validation, distinct fixture builds, and independent case
+processes use a hardware-aware worker count based on CPU affinity and memory,
+up to sixteen workers; use `--jobs N` to override it or `--verbose` to mirror
+the detailed log to the console.
+
 The spec-driven integration cases in [`tests/spec.json`](tests/spec.json) build
 real Roc applications with `--opt=dev` by default. This fast path requires
 exact PDF snapshots, structural checks, and deterministic work counters. The
@@ -75,12 +86,14 @@ PDF; the host writes those bytes to stdout and reports Roc allocation events
 separately.
 
 Public contract examples under `examples/` are formatting- and compile-checked
-by the same driver. Runtime Gate 1 behavior is exercised by package tests and
+by the same driver. Runtime structural-kernel behavior is exercised by package tests and
 the dev-backend structural fixtures.
 
-Each integration case lives in its own directory under `tests/`, with its `main.roc` application
-and `snapshot.pdf` adjacent to one another. The case and expected allocation count are registered
-in [`tests/spec.json`](tests/spec.json).
+Integration cases are grouped by capability under `tests/`. A directory may
+contain several named app roots and snapshots plus a shared fixture module.
+Public-surface apps import `package/main.roc`; internal evidence apps import the
+repository-only `package/all.roc`. Every case, source, snapshot, and expected
+allocation count is registered in [`tests/spec.json`](tests/spec.json).
 
 An allocation event is a call to either `roc_alloc` or `roc_realloc`; host setup and teardown are
 not counted. To accept intentional PDF output changes after reviewing them, run:
@@ -88,6 +101,10 @@ not counted. To accept intentional PDF output changes after reviewing them, run:
 ```sh
 ./scripts/test.py --update-snapshots
 ```
+
+Snapshot update mode also requires the exact allocation and named work-counter
+baselines in that same run. It compiles each distinct fixture app once, so a
+separate allocation-baseline invocation is not needed after snapshot updates.
 
 The test platform is derived from
 [`roc-platform-template-zig`](https://github.com/lukewilliamboswell/roc-platform-template-zig)

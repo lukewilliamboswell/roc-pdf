@@ -1,7 +1,7 @@
 import Font
 import KernelContent
 import KernelFontPlan
-import KernelGate2ResourceName
+import KernelResourceName
 import KernelLex
 import KernelPdfFont
 import KernelTagged
@@ -537,7 +537,7 @@ emit_run_body : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Pla
 emit_run_body = |bytes, text, run, origin, font, limit| {
 	font_index = run.instance.index()
 	var $out = append_literal(bytes, "/", limit)?
-	$out = append_bytes($out, KernelGate2ResourceName.bytes("F", font_index), limit)?
+	$out = append_bytes($out, KernelResourceName.bytes("F", font_index), limit)?
 	$out = append_literal($out, " ", limit)?
 	$out = append_layout($out, run.size, limit)?
 	$out = append_literal($out, " Tf\n", limit)?

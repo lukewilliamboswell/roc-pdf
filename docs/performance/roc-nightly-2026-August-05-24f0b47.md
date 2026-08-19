@@ -47,20 +47,20 @@ The old and new counts below were identical on `arm64mac` and `x64musl`.
 
 | Scenario | Old | New | Delta | Deterministic work |
 | --- | ---: | ---: | ---: | --- |
-| Gate 1 blank PDF | 0 | 0 | 0 | unchanged |
-| Gate 1 balanced 4,096-page PDF | 113,793 | 134,274 | +20,481 | unchanged |
-| Gate 1 balanced index plans | 117,904 | 138,385 | +20,481 | unchanged |
-| Gate 1 linked outline plan | 113,797 | 134,278 | +20,481 | unchanged |
-| Gate 1 stable resource names | 113,797 | 134,278 | +20,481 | unchanged |
-| Gate 1 bulk lexical values x2,048 | 113,797 | 134,278 | +20,481 | unchanged |
-| Gate 1 bulk lexical values x4,096 | 113,797 | 134,278 | +20,481 | unchanged |
-| Gate 1 one-block dynamic DEFLATE | 114 | 120 | +6 | unchanged |
-| Gate 1 stateful dynamic DEFLATE | 126 | 132 | +6 | unchanged |
+| structural-kernel blank PDF | 0 | 0 | 0 | unchanged |
+| structural-kernel balanced 4,096-page PDF | 113,793 | 134,274 | +20,481 | unchanged |
+| structural-kernel balanced index plans | 117,904 | 138,385 | +20,481 | unchanged |
+| structural-kernel linked outline plan | 113,797 | 134,278 | +20,481 | unchanged |
+| structural-kernel stable resource names | 113,797 | 134,278 | +20,481 | unchanged |
+| structural-kernel bulk lexical values x2,048 | 113,797 | 134,278 | +20,481 | unchanged |
+| structural-kernel bulk lexical values x4,096 | 113,797 | 134,278 | +20,481 | unchanged |
+| structural-kernel one-block dynamic DEFLATE | 114 | 120 | +6 | unchanged |
+| structural-kernel stateful dynamic DEFLATE | 126 | 132 | +6 | unchanged |
 | Placeholder PDF x1 | 1 | 1 | 0 | unchanged |
 | Placeholder PDF x4 | 1 | 1 | 0 | unchanged |
-| Gate 2 minimal tagged visual PDF | 662 | 662 | 0 | unchanged |
-| Gate 2 million-command image reuse | 129 | 136 | +7 | unchanged |
-| Gate 1 unchanged-resource retention | 194 | 200 | +6 | unchanged |
+| tagged-visual minimal tagged visual PDF | 662 | 662 | 0 | unchanged |
+| tagged-visual million-command image reuse | 129 | 136 | +7 | unchanged |
+| structural-kernel unchanged-resource retention | 194 | 200 | +6 | unchanged |
 
 All PDF snapshots remained byte-identical. Their independent xref, length,
 page, tagged-structure, and resource checks passed. The retention fixture also
@@ -87,12 +87,12 @@ bytes rule out extra pages, objects, edges, references, or emission work.
 
 The immediate-parent compiler reproduced 113,793 allocations at 4,096 pages
 and 56,935 at 2,048 pages. It also reproduced 126 allocations for stateful
-DEFLATE and 129 for the million-command Gate 2 case. The proposed compiler
+DEFLATE and 129 for the million-command tagged-visual case. The proposed compiler
 changed those representatives to 134,274, 67,176, 132, and 136 respectively.
 This directly isolates all three observed delta shapes to merge `24f0b476`,
 rather than merely correlating them with the wider nightly interval.
 
-The `+6` cases and the Gate 2 `+7` case are fixed shifts rather than input-
+The `+6` cases and the tagged-visual `+7` case are fixed shifts rather than input-
 proportional changes. The million-command case still records only 136 total
 allocations for one million commands, and the two lexical scales remain equal.
 They therefore do not hide a new per-byte, per-token, or per-command package
@@ -105,14 +105,14 @@ feature-caused delta in this upgrade.
 ## Timing, memory, and ownership evidence
 
 Native optimized executables were benchmarked on the controlled host after
-three warmups. Page and Gate 2 results use ten samples; DEFLATE uses one hundred
+three warmups. Page and tagged-visual results use ten samples; DEFLATE uses one hundred
 because the case is short.
 
 | Representative scenario | Old mean | New mean | Old peak RSS | New peak RSS |
 | --- | ---: | ---: | ---: | ---: |
 | 4,096-page PDF | 1.589 s | 1.908 s | 6,750,208 B | 8,224,768 B |
 | Stateful DEFLATE | 9.2 ms | 9.0 ms | not sampled | not sampled |
-| Million-command Gate 2 | 175.0 ms | 172.3 ms | 187,809,792 B | 187,793,408 B |
+| Million-command tagged-visual | 175.0 ms | 172.3 ms | 187,809,792 B | 187,793,408 B |
 
 The page-time and peak-RSS increase aligns with the linear allocation
 regression and is not attributed to package work. The other representative

@@ -2,48 +2,55 @@
 from __future__ import annotations
 
 import argparse
+import atexit
+import concurrent.futures
 import hashlib
 import json
 import os
 import platform
 import re
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
+import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
-from check_gate2 import validate_gate2_pdf
-from check_gate3_actual_text import EXPECTED_CONTENT as GATE3_ACTUAL_TEXT_CONTENT
-from check_gate3_actual_text import validate_gate3_actual_text_pdf
-from check_gate3_caller_text import validate_gate3_caller_text_pdf
-from check_gate3_caller_facade import validate_gate3_caller_facade_pdf
-from check_gate3_facade_output import fixture_oracle, validate_facade_output_pdf
-from check_gate3_supplementary_text import EXPECTED_CONTENT as GATE3_SUPPLEMENTARY_TEXT_CONTENT
-from check_gate3_supplementary_text import validate_gate3_supplementary_text_pdf
-from check_gate3_cjk_text import EXPECTED_CONTENT as GATE3_CJK_TEXT_CONTENT
-from check_gate3_cjk_text import validate_gate3_cjk_text_pdf
-from check_gate3_combining import validate_combining_pdf
-from check_gate3_ligature import EXPECTED_CONTENT as GATE3_LIGATURE_CONTENT
-from check_gate3_ligature import validate_ligature_pdf
-from check_gate3_multiface_facade import validate_gate3_multiface_facade_pdf
-from check_gate3_multiface_text import validate_gate3_multiface_text_pdf
-from check_gate3_case_text import validate_gate3_case_pdf
-from check_gate3_rtl import validate_gate3_rtl_pdf
-from check_gate3_soft_hyphen import EXPECTED_CONTENT as GATE3_SOFT_HYPHEN_CONTENT
-from check_gate3_soft_hyphen import validate_soft_hyphen_pdf
-from check_gate3_external_discretionary_hyphen import EXPECTED_CONTENT as GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
-from check_gate3_external_discretionary_hyphen import validate_external_discretionary_hyphen_pdf
-from check_gate3_generated_labels import validate_generated_labels_pdf
-from check_gate3_text import EXPECTED_CONTENT as GATE3_TEXT_CONTENT
-from check_gate3_text import validate_gate3_text_pdf
-from check_gate4_color_images import validate_gate4_color_images_pdf
-from check_gate4_shadings import validate_gate4_shadings_pdf
-from check_gate4_soft_masks import validate_gate4_soft_masks_pdf
-from check_gate4_transparency import validate_gate4_transparency_pdf
-from check_gate4_fonts import validate_gate4_fonts_pdf
-from check_gate4_forms import validate_gate4_forms_pdf
-from check_gate4_metadata import validate_gate4_metadata_pdf
+from check_tagged_visual import validate_tagged_visual_pdf
+from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
+from check_actual_text import validate_actual_text_pdf
+from check_caller_text import validate_caller_text_pdf
+from check_caller_facade import validate_caller_facade_pdf
+from check_facade_output import fixture_oracle, validate_facade_output_pdf
+from check_supplementary_text import EXPECTED_CONTENT as SUPPLEMENTARY_TEXT_CONTENT
+from check_supplementary_text import validate_supplementary_text_pdf
+from check_cjk_text import EXPECTED_CONTENT as CJK_TEXT_CONTENT
+from check_cjk_text import validate_cjk_text_pdf
+from check_combining import validate_combining_pdf
+from check_ligature import EXPECTED_CONTENT as LIGATURE_CONTENT
+from check_ligature import validate_ligature_pdf
+from check_multiface_facade import validate_multiface_facade_pdf
+from check_multiface_text import validate_multiface_text_pdf
+from check_case_text import validate_case_pdf
+from check_rtl import validate_rtl_pdf
+from check_soft_hyphen import EXPECTED_CONTENT as SOFT_HYPHEN_CONTENT
+from check_soft_hyphen import validate_soft_hyphen_pdf
+from check_external_discretionary_hyphen import EXPECTED_CONTENT as EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
+from check_external_discretionary_hyphen import validate_external_discretionary_hyphen_pdf
+from check_generated_labels import validate_generated_labels_pdf
+from check_text import EXPECTED_CONTENT as TEXT_CONTENT
+from check_text import validate_text_pdf
+from check_color_images import validate_color_images_pdf
+from check_shadings import validate_shadings_pdf
+from check_soft_masks import validate_soft_masks_pdf
+from check_transparency import validate_transparency_pdf
+from check_fonts import validate_fonts_pdf
+from check_forms import validate_forms_pdf
+from check_metadata import validate_metadata_pdf
+from check_navigation import validate_navigation_pdf
 from check_pdf_structure import validate_pdf
 
 
@@ -51,9 +58,20 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = ROOT / "tests" / "spec.json"
 TEST_PLATFORM = ROOT / "tests" / "platform"
 TEMP_ROOT = ROOT / ".roc-pdf-tmp"
+LOG_ROOT = TEMP_ROOT / "logs"
 
 ROC = os.environ.get("ROC", "roc")
 ZIG = os.environ.get("ZIG", "zig")
+RUN_LOG: Path | None = None
+VERBOSE = False
+LOG_LOCK = threading.Lock()
+PROGRESS_LOCK = threading.Lock()
+PROGRESS_STEP = 0
+PROGRESS_TOTAL = 0
+PROCESS_LOCK = threading.Lock()
+ACTIVE_PROCESSES: set[subprocess.Popen[object]] = set()
+SNAPSHOT_LOCKS: dict[Path, threading.Lock] = {}
+UPDATED_SNAPSHOT_BYTES: dict[Path, bytes] = {}
 METRICS_REPORT = re.compile(
     rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
 )
@@ -101,7 +119,16 @@ class TestCase:
 class TestSuite:
     protocol_version: int
     toolchain: Toolchain
+    validation_sources: tuple[Path, ...]
+    validation_skips: tuple["ValidationSkip", ...]
     cases: tuple[TestCase, ...]
+
+
+@dataclass(frozen=True)
+class ValidationSkip:
+    pattern: str
+    actions: frozenset[str]
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -111,23 +138,140 @@ class BaselineDelta:
     actual: Metrics
 
 
+@dataclass(frozen=True)
+class CaseRunResult:
+    delta: BaselineDelta | None
+    metrics: Metrics
+    output_bytes: int
+
+
+def timestamp() -> str:
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def log(message: str) -> None:
+    if RUN_LOG is not None and message:
+        with LOG_LOCK:
+            with RUN_LOG.open("a", encoding="utf-8") as stream:
+                lines = message.splitlines() or [""]
+                for line in lines:
+                    stream.write(f"[{timestamp()}] {line}\n")
+
+
+def detail(message: str) -> None:
+    log(message)
+    if VERBOSE:
+        print(f"[{timestamp()}] {message}", flush=True)
+
+
+def colored(label: str) -> str:
+    if not sys.stdout.isatty() or os.environ.get("NO_COLOR") is not None:
+        return label
+    colors = {
+        "PASS": "\033[32m",
+        "FAIL": "\033[31m",
+        "SKIP": "\033[33m",
+        "RUN": "\033[36m",
+    }
+    color = colors.get(label)
+    return label if color is None else f"{color}{label}\033[0m"
+
+
+def progress(label: str, message: str) -> None:
+    global PROGRESS_STEP
+    with PROGRESS_LOCK:
+        PROGRESS_STEP += 1
+        step = PROGRESS_STEP
+        total = PROGRESS_TOTAL
+    rendered = f"[{timestamp()}] [{step:04d}/{total:04d}] {colored(label):4s} {message}"
+    print(rendered, flush=True)
+    log(f"[{step:04d}/{total:04d}] {label:4s} {message}")
+
+
+def announce(label: str, message: str, *, stderr: bool = False) -> None:
+    stream = sys.stderr if stderr else sys.stdout
+    for line in message.splitlines() or [""]:
+        print(f"[{timestamp()}] {colored(label)} {line}", file=stream, flush=True)
+    log(f"{label} {message}")
+
+
+def phase(message: str) -> None:
+    announce("RUN", message)
+
+
+def snapshot_lock(path: Path) -> threading.Lock:
+    with LOG_LOCK:
+        return SNAPSHOT_LOCKS.setdefault(path, threading.Lock())
+
+
+def managed_run(
+    values: list[str | Path],
+    *,
+    cwd: Path,
+    text: bool = False,
+    stderr: int | None = subprocess.PIPE,
+) -> subprocess.CompletedProcess:
+    process = subprocess.Popen(
+        values,
+        cwd=cwd,
+        text=text,
+        stdout=subprocess.PIPE,
+        stderr=stderr,
+        start_new_session=True,
+    )
+    with PROCESS_LOCK:
+        ACTIVE_PROCESSES.add(process)
+    try:
+        stdout, stderr_output = process.communicate()
+        return subprocess.CompletedProcess(values, process.returncode, stdout, stderr_output)
+    finally:
+        with PROCESS_LOCK:
+            ACTIVE_PROCESSES.discard(process)
+
+
+def terminate_active_processes() -> None:
+    with PROCESS_LOCK:
+        processes = tuple(ACTIVE_PROCESSES)
+    for process in processes:
+        if process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+
+
+def cancel_parallel(
+    executor: concurrent.futures.ThreadPoolExecutor,
+    futures: list[concurrent.futures.Future],
+) -> None:
+    terminate_active_processes()
+    for future in futures:
+        future.cancel()
+    executor.shutdown(wait=False, cancel_futures=True)
+
+
 def command(executable: str, *args: str, cwd: Path = ROOT) -> None:
-    command = [executable, *args]
-    print("+", " ".join(command), flush=True)
-    subprocess.run(command, cwd=cwd, check=True)
+    values = [executable, *args]
+    rendered = "+ " + " ".join(values)
+    log(rendered)
+    started = time.monotonic()
+    result = managed_run(values, cwd=cwd, text=True, stderr=subprocess.STDOUT)
+    log(result.stdout)
+    if result.returncode != 0:
+        tail = "\n".join(result.stdout.splitlines()[-30:])
+        raise SystemExit(f"command failed ({result.returncode}): {rendered}\n{tail}\nFull log: {RUN_LOG}")
+    detail(f"PASS command ({time.monotonic() - started:.1f}s): {' '.join(values)}")
 
 
 def command_output(executable: str, *args: str, cwd: Path = ROOT) -> str:
     command = [executable, *args]
-    print("+", " ".join(command), flush=True)
-    result = subprocess.run(
-        command,
-        cwd=cwd,
-        check=True,
-        stdout=subprocess.PIPE,
-        text=True,
-    )
-    print(result.stdout, end="", flush=True)
+    log("+ " + " ".join(command))
+    result = managed_run(command, cwd=cwd, text=True)
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, command, result.stdout, result.stderr)
+    log(result.stdout)
+    if VERBOSE:
+        print(result.stdout, end="", flush=True)
     return result.stdout.strip()
 
 
@@ -161,10 +305,47 @@ def load_suite() -> TestSuite:
     data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise SystemExit(f"{SPEC_PATH}: top level must be an object")
-    if set(data) != {"schema_version", "protocol_version", "toolchain", "cases"}:
+    if set(data) != {"schema_version", "protocol_version", "validation", "toolchain", "cases"}:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 3 or data["protocol_version"] != 1:
-        raise SystemExit(f"{SPEC_PATH}: schema_version must be 3 and protocol_version must be 1")
+    if data["schema_version"] != 4 or data["protocol_version"] != 1:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 4 and protocol_version must be 1")
+
+    raw_validation = data["validation"]
+    if not isinstance(raw_validation, dict) or set(raw_validation) != {"sources", "skips"}:
+        raise SystemExit(f"{SPEC_PATH}: validation must contain exactly sources and skips")
+    source_patterns = string_list(raw_validation["sources"], "validation.sources")
+    if not source_patterns or tuple(sorted(set(source_patterns))) != source_patterns:
+        raise SystemExit(f"{SPEC_PATH}: validation.sources must be sorted and unique")
+    validation_sources: set[Path] = set()
+    for pattern in source_patterns:
+        matches = {source.resolve() for source in ROOT.glob(pattern) if source.is_file()}
+        if not matches:
+            raise SystemExit(f"{SPEC_PATH}: validation source pattern matches nothing: {pattern}")
+        validation_sources.update(matches)
+
+    raw_skips = raw_validation["skips"]
+    if not isinstance(raw_skips, list):
+        raise SystemExit(f"{SPEC_PATH}: validation.skips must be a list")
+    validation_skips: list[ValidationSkip] = []
+    skip_keys: set[tuple[str, str]] = set()
+    for index, raw_skip in enumerate(raw_skips):
+        field = f"validation.skips[{index}]"
+        if not isinstance(raw_skip, dict) or set(raw_skip) != {"pattern", "actions", "reason"}:
+            raise SystemExit(f"{SPEC_PATH}: {field} must contain pattern, actions, and reason")
+        pattern = non_empty_string(raw_skip["pattern"], f"{field}.pattern")
+        actions = frozenset(string_list(raw_skip["actions"], f"{field}.actions"))
+        reason = non_empty_string(raw_skip["reason"], f"{field}.reason")
+        if not actions or not actions <= {"check", "fmt", "test"}:
+            raise SystemExit(f"{SPEC_PATH}: {field}.actions contains an unknown action")
+        matched = [source for source in validation_sources if Path(relative(source)).match(pattern)]
+        if not matched:
+            raise SystemExit(f"{SPEC_PATH}: stale validation skip matches nothing: {pattern}")
+        for action in actions:
+            key = (pattern, action)
+            if key in skip_keys:
+                raise SystemExit(f"{SPEC_PATH}: duplicate validation skip: {pattern} {action}")
+            skip_keys.add(key)
+        validation_skips.append(ValidationSkip(pattern, actions, reason))
 
     raw_toolchain = data["toolchain"]
     toolchain_fields = {
@@ -245,14 +426,18 @@ def load_suite() -> TestSuite:
             if type(allocations) is not int or allocations < 0:
                 raise SystemExit(f"{SPEC_PATH}: {name}.{target}: allocations must be non-negative")
             if (
-                not isinstance(work, list)
-                or len(work) != len(work_counters)
-                or any(type(value) is not int or value < 0 for value in work)
+                not isinstance(work, dict)
+                or set(work) != set(work_counters)
+                or any(type(value) is not int or value < 0 for value in work.values())
             ):
                 raise SystemExit(
-                    f"{SPEC_PATH}: {name}.{target}: work must match the non-negative counter schema"
+                    f"{SPEC_PATH}: {name}.{target}: work must contain exactly the "
+                    "non-negative named counters declared by work_counters"
                 )
-            expectations[target] = Metrics(allocations, tuple(work))
+            expectations[target] = Metrics(
+                allocations,
+                tuple(work[counter] for counter in work_counters),
+            )
 
         raw_retention = raw["retention"]
         if raw_retention is None:
@@ -302,21 +487,35 @@ def load_suite() -> TestSuite:
     if len(retention_cases) != 1:
         raise SystemExit(f"{SPEC_PATH}: exactly one backing-allocation retention case is required")
 
-    discovered_snapshots = set((ROOT / "tests").glob("*/snapshot.pdf"))
-    discovered_sources = {snapshot.parent / "main.roc" for snapshot in discovered_snapshots}
-    missing_sources = sorted(source for source in discovered_sources if not source.is_file())
-    if missing_sources:
-        missing = ", ".join(relative(source) for source in missing_sources)
-        raise SystemExit(f"Every snapshot needs an adjacent main.roc; missing: {missing}")
-    if discovered_sources != {case.source for case in cases}:
-        raise SystemExit("Test spec must cover every snapshotted test application")
+    discovered_snapshots = set((ROOT / "tests").glob("*/*.pdf"))
     if discovered_snapshots != {case.snapshot for case in cases}:
-        raise SystemExit("Test spec must cover every tests/*/snapshot.pdf")
+        raise SystemExit("Test spec must cover every capability snapshot under tests/*")
 
     for case in cases:
         if case.source.parent != case.snapshot.parent:
             raise SystemExit(f"{SPEC_PATH}: {case.name}: source and snapshot must be adjacent")
-    return TestSuite(data["protocol_version"], toolchain, tuple(cases))
+    return TestSuite(
+        data["protocol_version"],
+        toolchain,
+        tuple(sorted(validation_sources)),
+        tuple(validation_skips),
+        tuple(cases),
+    )
+
+
+def verify_all_package_root() -> None:
+    package_dir = ROOT / "package"
+    expected = {
+        source.stem
+        for source in package_dir.glob("*.roc")
+        if source.name not in {"all.roc", "main.roc"}
+    }
+    root_source = (package_dir / "all.roc").read_text(encoding="utf-8")
+    exposed = set(re.findall(r"^\s*([A-Z][A-Za-z0-9_]*),$", root_source, re.MULTILINE))
+    if exposed != expected:
+        missing = ", ".join(sorted(expected - exposed)) or "none"
+        extra = ", ".join(sorted(exposed - expected)) or "none"
+        raise SystemExit(f"package/all.roc export mismatch; missing: {missing}; extra: {extra}")
 
 
 def native_roc_target() -> str:
@@ -386,7 +585,7 @@ def self_test_metrics(suite: TestSuite) -> None:
     work_regression = Metrics(expected.allocations, tuple(changed_work))
     if metrics_mismatch(expected, work_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted a work regression")
-    print("PASS performance baseline self-test", flush=True)
+    detail("PASS performance baseline self-test")
 
 
 def roc_version_matches_pin(pinned_roc: str, actual_roc: str) -> bool:
@@ -421,7 +620,7 @@ def self_test_roc_version_pin() -> None:
         raise SystemExit("Roc version verifier accepted a different compiler commit")
     if roc_version_matches_pin("nightly-invalid", "Roc compiler version release-fast-24f0b476"):
         raise SystemExit("Roc version verifier accepted a malformed nightly pin")
-    print("PASS Roc compiler pin self-test", flush=True)
+    detail("PASS Roc compiler pin self-test")
 
 
 def verify_toolchain(toolchain: Toolchain) -> None:
@@ -443,21 +642,21 @@ def verify_toolchain(toolchain: Toolchain) -> None:
 
 
 def expected_content(dimensions: dict[str, int]) -> bytes:
-    if dimensions.get("gate3_external_discretionary_hyphen", 0) == 1:
-        return GATE3_EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
-    if dimensions.get("gate3_soft_hyphen", 0) == 1:
-        return GATE3_SOFT_HYPHEN_CONTENT
-    if dimensions.get("gate3_supplementary_text", 0) == 1:
-        return GATE3_SUPPLEMENTARY_TEXT_CONTENT
-    if dimensions.get("gate3_cjk_text", 0) == 1:
-        return GATE3_CJK_TEXT_CONTENT
-    if dimensions.get("gate3_ligature_text", 0) == 1:
-        return GATE3_LIGATURE_CONTENT
-    if dimensions.get("gate3_actual_text", 0) == 1:
-        return GATE3_ACTUAL_TEXT_CONTENT
-    if dimensions.get("gate3_visible_text", 0) == 1 or dimensions.get("gate3_caller_text", 0) == 1:
-        return GATE3_TEXT_CONTENT
-    if dimensions.get("gate2_minimal_content", 0) == 1:
+    if dimensions.get("external_discretionary_hyphen", 0) == 1:
+        return EXTERNAL_DISCRETIONARY_HYPHEN_CONTENT
+    if dimensions.get("soft_hyphen", 0) == 1:
+        return SOFT_HYPHEN_CONTENT
+    if dimensions.get("supplementary_text", 0) == 1:
+        return SUPPLEMENTARY_TEXT_CONTENT
+    if dimensions.get("cjk_text", 0) == 1:
+        return CJK_TEXT_CONTENT
+    if dimensions.get("ligature_text", 0) == 1:
+        return LIGATURE_CONTENT
+    if dimensions.get("actual_text", 0) == 1:
+        return ACTUAL_TEXT_CONTENT
+    if dimensions.get("visible_text", 0) == 1 or dimensions.get("caller_text", 0) == 1:
+        return TEXT_CONTENT
+    if dimensions.get("minimal_content", 0) == 1:
         return (
             b"/P <</MCID 0>> BDC\n"
             b"/CS1_0 cs\n"
@@ -485,19 +684,76 @@ def expected_content(dimensions: dict[str, int]) -> bytes:
     return (pattern * ((length + len(pattern) - 1) // len(pattern)))[:length]
 
 
+def build_case_sources(
+    cases: tuple[TestCase, ...],
+    build_dir: Path,
+    target: str,
+    roc_optimization: str,
+    jobs: int,
+) -> None:
+    sources = sorted({case.source for case in cases})
+
+    def build_source(source: Path) -> tuple[Path, float]:
+        executable = build_dir / f"source-{source_key(source)}"
+        started = time.monotonic()
+        detail(f"START BUILD {relative(source)}")
+        roc(
+            "build",
+            relative(source),
+            f"--opt={roc_optimization}",
+            f"--target={target}",
+            f"--output={executable}",
+        )
+        return source, time.monotonic() - started
+
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=jobs)
+    futures = [executor.submit(build_source, source) for source in sources]
+    try:
+        for future in concurrent.futures.as_completed(futures):
+            source, elapsed = future.result()
+            progress("PASS", f"BUILD {relative(source)} ({elapsed:.1f}s)")
+    except KeyboardInterrupt:
+        cancel_parallel(executor, futures)
+        raise
+    else:
+        executor.shutdown()
+
+
+def run_parallel_roc_tasks(tasks: list[tuple[str, Path]], jobs: int) -> None:
+    def run_task(item: tuple[str, Path]) -> tuple[str, Path, float]:
+        action, source = item
+        started = time.monotonic()
+        detail(f"START {action.upper():5s} {relative(source)}")
+        if action == "fmt":
+            roc("fmt", "--check", relative(source))
+        else:
+            roc(action, relative(source))
+        return action, source, time.monotonic() - started
+
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=jobs)
+    futures = [executor.submit(run_task, item) for item in tasks]
+    try:
+        for future in concurrent.futures.as_completed(futures):
+            action, source, elapsed = future.result()
+            progress("PASS", f"{action.upper():5s} {relative(source)} ({elapsed:.1f}s)")
+    except KeyboardInterrupt:
+        cancel_parallel(executor, futures)
+        raise
+    else:
+        executor.shutdown()
+
+
 def run_case(
     case: TestCase,
     index: int,
     build_dir: Path,
     target: str,
     protocol_version: int,
-    roc_optimization: str,
     update_snapshots: bool,
     check_allocations: bool,
     compare_baselines: bool,
     linux_x64_container: str | None,
-    reuse_build_cache: bool,
-) -> BaselineDelta | None:
+) -> CaseRunResult:
     # Half the registered cases differ from another case only in the runtime
     # arguments they pass to the same fixture, and every case in one run
     # compiles with the same optimization and target. Keying the executable
@@ -507,23 +763,7 @@ def run_case(
     # flags before any case that uses it runs.
     executable = build_dir / f"source-{source_key(case.source)}"
     if not executable.exists():
-        # Every fixture is a thin wrapper over the same package modules, so a
-        # cold compiler cache recompiles that package once per source. Reuse
-        # is opt-in because a stale local cache would silently detach a
-        # snapshot or allocation baseline from the sources it claims to
-        # measure; it is safe exactly where the cache starts empty and is
-        # populated only from the checkout under test, which is what a fresh
-        # CI runner provides.
-        build_flags = [
-            "build",
-            relative(case.source),
-            f"--opt={roc_optimization}",
-            f"--target={target}",
-            f"--output={executable}",
-        ]
-        if not reuse_build_cache:
-            build_flags.append("--no-cache")
-        roc(*build_flags)
+        raise SystemExit(f"missing prebuilt fixture executable for {relative(case.source)}")
 
     if linux_x64_container is None:
         invocation = [executable, *case.args]
@@ -542,8 +782,9 @@ def run_case(
             executable,
             *case.args,
         ]
-    print("+", " ".join(str(value) for value in invocation), flush=True)
-    result = subprocess.run(invocation, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    log("+ " + " ".join(str(value) for value in invocation))
+    result = managed_run(invocation, cwd=ROOT)
+    log(result.stderr.decode("utf-8", errors="replace"))
     if result.returncode != 0:
         raise SystemExit(
             f"{case.name}: executable exited with {result.returncode}\n"
@@ -594,80 +835,89 @@ def run_case(
         check_allocations,
     )
     if mismatch is not None:
-        if not compare_baselines:
+        if not compare_baselines and not update_snapshots:
             raise SystemExit(f"{case.name}: performance baseline mismatch: {mismatch}")
-        print(f"DELTA {case.name}: {mismatch}", flush=True)
+        detail(f"DELTA {case.name}: {mismatch}")
 
-    expected = case.snapshot.read_bytes()
-    if update_snapshots:
-        if expected != result.stdout:
-            case.snapshot.write_bytes(result.stdout)
-            print(f"Updated {relative(case.snapshot)}")
-    elif expected != result.stdout:
-        raise SystemExit(
-            f"{case.name}: PDF snapshot mismatch\n"
-            f"expected {describe_bytes(expected)}\n"
-            f"actual   {describe_bytes(result.stdout)}\n"
-            f"{first_difference(expected, result.stdout)}"
-        )
+    with snapshot_lock(case.snapshot):
+        expected = case.snapshot.read_bytes()
+        if update_snapshots:
+            prior_output = UPDATED_SNAPSHOT_BYTES.get(case.snapshot)
+            if prior_output is not None and prior_output != result.stdout:
+                raise SystemExit(
+                    f"{case.name}: cases sharing {relative(case.snapshot)} produced different bytes"
+                )
+            UPDATED_SNAPSHOT_BYTES[case.snapshot] = result.stdout
+            if expected != result.stdout:
+                case.snapshot.write_bytes(result.stdout)
+                detail(f"Updated {relative(case.snapshot)}")
+        elif expected != result.stdout:
+            raise SystemExit(
+                f"{case.name}: PDF snapshot mismatch\n"
+                f"expected {describe_bytes(expected)}\n"
+                f"actual   {describe_bytes(result.stdout)}\n"
+                f"{first_difference(expected, result.stdout)}"
+            )
 
-    print(
+    detail(
         f"PASS {case.name}: {describe_bytes(result.stdout)}, "
         f"{actual_metrics.allocations} allocations, "
         + ", ".join(
             f"{name}={value}" for name, value in zip(case.work_counters, actual_metrics.work)
-        ),
-        flush=True,
+        )
     )
 
     expected_pages = case.dimensions.get("pages")
     if expected_pages is not None:
-        if case.dimensions.get("gate3_facade_output", 0) == 1:
+        if case.dimensions.get("facade_output", 0) == 1:
             expected_text, _ = fixture_oracle()
             validate_facade_output_pdf(result.stdout, expected_text)
-            print(f"PASS {case.name}: independent offsets, lengths, xref, page, authored facade paragraph, Type 0 font, CID, and Unicode mapping facts", flush=True)
-        elif case.dimensions.get("gate3_multiface_text", 0) == 1:
-            validate_gate3_multiface_text_pdf(result.stdout)
-            print(f"PASS {case.name}: exact selected Latin/CJK Type 0 resources, CID maps, and Unicode mappings", flush=True)
-        elif case.dimensions.get("gate3_generated_label", 0) == 1:
+            detail(f"PASS {case.name}: independent offsets, lengths, xref, page, authored facade paragraph, Type 0 font, CID, and Unicode mapping facts")
+        elif case.dimensions.get("multiface_text", 0) == 1:
+            validate_multiface_text_pdf(result.stdout)
+            detail(f"PASS {case.name}: exact selected Latin/CJK Type 0 resources, CID maps, and Unicode mappings")
+        elif case.dimensions.get("generated_label", 0) == 1:
             validate_generated_labels_pdf(result.stdout)
-            print(f"PASS {case.name}: independent offsets, lengths, xref, typed list ownership, labels, Type 0 font, CID, and Unicode mapping facts", flush=True)
-        elif case.dimensions.get("gate3_combining_text", 0) == 1:
+            detail(f"PASS {case.name}: independent offsets, lengths, xref, typed list ownership, labels, Type 0 font, CID, and Unicode mapping facts")
+        elif case.dimensions.get("combining_text", 0) == 1:
             validate_combining_pdf(result.stdout)
-            print(f"PASS {case.name}: exact decomposed combining CID and two-scalar ToUnicode facts", flush=True)
-        elif case.dimensions.get("gate3_case_text", 0) == 1:
-            validate_gate3_case_pdf(result.stdout)
-            print(f"PASS {case.name}: resolved case presentation, logical ActualText, CID, and Unicode mapping facts", flush=True)
-        elif case.dimensions.get("gate3_rtl_text", 0) == 1:
-            validate_gate3_rtl_pdf(result.stdout)
-            print(f"PASS {case.name}: resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts", flush=True)
-        elif case.dimensions.get("gate3_multiface_facade", 0) == 1:
-            validate_gate3_multiface_facade_pdf(result.stdout)
-            print(f"PASS {case.name}: independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts", flush=True)
-        elif case.dimensions.get("gate3_caller_facade", 0) == 1:
-            validate_gate3_caller_facade_pdf(result.stdout)
-            print(f"PASS {case.name}: independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts", flush=True)
-        elif any(key.startswith("gate4_font") for key in case.dimensions):
-            validate_gate4_fonts_pdf(result.stdout, case.dimensions)
-            print(f"PASS {case.name}: canonical Type 0 bundles, verified embedded subsets, identity CID maps, ToUnicode facts, exact per-stream /Font dictionaries, and placement-site ownership", flush=True)
-        elif any(key.startswith("gate4_form") for key in case.dimensions):
-            validate_gate4_forms_pdf(result.stdout, case.dimensions)
-            print(f"PASS {case.name}: exact Form XObject dictionaries, per-stream direct resources, Do resolution, sharing, and placement-site MCID/ParentTree ownership facts", flush=True)
-        elif any(key.startswith("gate4_color_image") for key in case.dimensions):
-            validate_gate4_color_images_pdf(result.stdout, case.dimensions)
-            print(f"PASS {case.name}: canonical ICC/color-space/image objects, exact leaf payload equality, soft-mask wiring, and deduplicated direct dictionaries", flush=True)
-        elif any(key.startswith("gate4_transparency") for key in case.dimensions):
-            validate_gate4_transparency_pdf(result.stdout, case.dimensions)
-            print(f"PASS {case.name}: canonical ExtGState objects, exact per-stream /ExtGState dictionaries, balanced opacity groups, transparency-group and blending-space wiring, and placement-site ownership facts", flush=True)
-        elif any(key.startswith("gate4_soft_mask") for key in case.dimensions):
-            validate_gate4_soft_masks_pdf(result.stdout, case.dimensions)
-            print(f"PASS {case.name}: canonical Alpha mask states, direct /SMask /G wiring to isolated mask forms outside every resource dictionary, balanced mask groups, and placement-site ownership facts", flush=True)
-        elif any(key.startswith("gate4_shading") or key.startswith("gate4_pattern") for key in case.dimensions):
-            validate_gate4_shadings_pdf(result.stdout, case.dimensions)
-            print(f"PASS {case.name}: canonical shading/function/pattern objects, exact per-stream /Shading and /Pattern dictionaries, re-derived stop models, ownership-neutral pattern streams, and sh/scn operand resolution", flush=True)
-        elif any(key.startswith("gate4_metadata") for key in case.dimensions):
-            validate_gate4_metadata_pdf(result.stdout, case.dimensions)
-            print(f"PASS {case.name}: catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally", flush=True)
+            detail(f"PASS {case.name}: exact decomposed combining CID and two-scalar ToUnicode facts")
+        elif case.dimensions.get("case_text", 0) == 1:
+            validate_case_pdf(result.stdout)
+            detail(f"PASS {case.name}: resolved case presentation, logical ActualText, CID, and Unicode mapping facts")
+        elif case.dimensions.get("rtl_text", 0) == 1:
+            validate_rtl_pdf(result.stdout)
+            detail(f"PASS {case.name}: resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts")
+        elif case.dimensions.get("multiface_facade", 0) == 1:
+            validate_multiface_facade_pdf(result.stdout)
+            detail(f"PASS {case.name}: independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts")
+        elif case.dimensions.get("caller_facade", 0) == 1:
+            validate_caller_facade_pdf(result.stdout)
+            detail(f"PASS {case.name}: independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts")
+        elif case.source.parent.name == "font_leaves":
+            validate_fonts_pdf(result.stdout, case.dimensions)
+            detail(f"PASS {case.name}: canonical Type 0 bundles, verified embedded subsets, identity CID maps, ToUnicode facts, exact per-stream /Font dictionaries, and placement-site ownership")
+        elif case.source.parent.name in {"forms", "form_text"}:
+            validate_forms_pdf(result.stdout, case.dimensions)
+            detail(f"PASS {case.name}: exact Form XObject dictionaries, per-stream direct resources, Do resolution, sharing, and placement-site MCID/ParentTree ownership facts")
+        elif case.source.parent.name == "color_images":
+            validate_color_images_pdf(result.stdout, case.dimensions)
+            detail(f"PASS {case.name}: canonical ICC/color-space/image objects, exact leaf payload equality, soft-mask wiring, and deduplicated direct dictionaries")
+        elif case.source.parent.name == "transparency":
+            validate_transparency_pdf(result.stdout, case.dimensions)
+            detail(f"PASS {case.name}: canonical ExtGState objects, exact per-stream /ExtGState dictionaries, balanced opacity groups, transparency-group and blending-space wiring, and placement-site ownership facts")
+        elif case.source.parent.name == "soft_masks":
+            validate_soft_masks_pdf(result.stdout, case.dimensions)
+            detail(f"PASS {case.name}: canonical Alpha mask states, direct /SMask /G wiring to isolated mask forms outside every resource dictionary, balanced mask groups, and placement-site ownership facts")
+        elif case.source.parent.name == "shading_patterns":
+            validate_shadings_pdf(result.stdout, case.dimensions)
+            detail(f"PASS {case.name}: canonical shading/function/pattern objects, exact per-stream /Shading and /Pattern dictionaries, re-derived stop models, ownership-neutral pattern streams, and sh/scn operand resolution")
+        elif case.source.parent.name == "navigation":
+            validate_navigation_pdf(result.stdout, case.dimensions)
+            detail(f"PASS {case.name}: paired /SD + /D actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, named destinations, outline preorder, page labels, and appearance geometry verified structurally")
+        elif case.source.parent.name == "metadata":
+            validate_metadata_pdf(result.stdout, case.dimensions)
+            detail(f"PASS {case.name}: catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally")
         else:
             validate_pdf(
                 result.stdout,
@@ -675,46 +925,85 @@ def run_case(
                 expected_content(case.dimensions),
                 case.dimensions.get("normalized_plan_identity", 0) == 1,
             )
-            print(f"PASS {case.name}: independent offsets, lengths, xref, and page facts", flush=True)
-            if case.dimensions.get("gate2_minimal_content", 0) == 1:
-                validate_gate2_pdf(result.stdout)
-                print(f"PASS {case.name}: exact normalized tagged structure and resources", flush=True)
-            if case.dimensions.get("gate3_visible_text", 0) == 1:
-                validate_gate3_text_pdf(result.stdout)
-                print(f"PASS {case.name}: exact font, CID, Unicode mapping, and visible text facts", flush=True)
-            if case.dimensions.get("gate3_caller_text", 0) == 1:
-                validate_gate3_caller_text_pdf(result.stdout)
-                print(f"PASS {case.name}: exact caller font identity, CID, Unicode mapping, and visible text facts", flush=True)
-            if case.dimensions.get("gate3_actual_text", 0) == 1:
-                validate_gate3_actual_text_pdf(result.stdout)
-                print(f"PASS {case.name}: exact visual reordering and logical ActualText facts", flush=True)
-            if case.dimensions.get("gate3_supplementary_text", 0) == 1:
-                validate_gate3_supplementary_text_pdf(result.stdout)
-                print(f"PASS {case.name}: exact supplementary-plane UTF-16BE, CID, Unicode mapping, and sanitized subset facts", flush=True)
-            if case.dimensions.get("gate3_cjk_text", 0) == 1:
-                validate_gate3_cjk_text_pdf(result.stdout)
-                print(f"PASS {case.name}: exact CJK CID widths, Unicode mapping, and sanitized subset facts", flush=True)
-            if case.dimensions.get("gate3_ligature_text", 0) == 1:
+            detail(f"PASS {case.name}: independent offsets, lengths, xref, and page facts")
+            if case.dimensions.get("minimal_content", 0) == 1:
+                validate_tagged_visual_pdf(result.stdout)
+                detail(f"PASS {case.name}: exact normalized tagged structure and resources")
+            if case.dimensions.get("visible_text", 0) == 1:
+                validate_text_pdf(result.stdout)
+                detail(f"PASS {case.name}: exact font, CID, Unicode mapping, and visible text facts")
+            if case.dimensions.get("caller_text", 0) == 1:
+                validate_caller_text_pdf(result.stdout)
+                detail(f"PASS {case.name}: exact caller font identity, CID, Unicode mapping, and visible text facts")
+            if case.dimensions.get("actual_text", 0) == 1:
+                validate_actual_text_pdf(result.stdout)
+                detail(f"PASS {case.name}: exact visual reordering and logical ActualText facts")
+            if case.dimensions.get("supplementary_text", 0) == 1:
+                validate_supplementary_text_pdf(result.stdout)
+                detail(f"PASS {case.name}: exact supplementary-plane UTF-16BE, CID, Unicode mapping, and sanitized subset facts")
+            if case.dimensions.get("cjk_text", 0) == 1:
+                validate_cjk_text_pdf(result.stdout)
+                detail(f"PASS {case.name}: exact CJK CID widths, Unicode mapping, and sanitized subset facts")
+            if case.dimensions.get("ligature_text", 0) == 1:
                 validate_ligature_pdf(result.stdout)
-                print(f"PASS {case.name}: parsed GSUB fact, ligature CID, ActualText, Unicode mapping, and sanitized subset facts", flush=True)
-            if case.dimensions.get("gate3_soft_hyphen", 0) == 1:
+                detail(f"PASS {case.name}: parsed GSUB fact, ligature CID, ActualText, Unicode mapping, and sanitized subset facts")
+            if case.dimensions.get("soft_hyphen", 0) == 1:
                 validate_soft_hyphen_pdf(result.stdout)
-                print(f"PASS {case.name}: explicit U+00AD source, selected presentation, ActualText, CID, and subset facts", flush=True)
-            if case.dimensions.get("gate3_external_discretionary_hyphen", 0) == 1:
+                detail(f"PASS {case.name}: explicit U+00AD source, selected presentation, ActualText, CID, and subset facts")
+            if case.dimensions.get("external_discretionary_hyphen", 0) == 1:
                 validate_external_discretionary_hyphen_pdf(result.stdout)
-                print(f"PASS {case.name}: external zero-width source boundary, selected visible hyphen, ActualText, CID, and subset facts", flush=True)
+                detail(f"PASS {case.name}: external zero-width source boundary, selected visible hyphen, ActualText, CID, and subset facts")
 
-    if mismatch is None:
-        return None
-    return BaselineDelta(case.name, expected_metrics, actual_metrics)
+    delta = None if mismatch is None else BaselineDelta(case.name, expected_metrics, actual_metrics)
+    return CaseRunResult(delta, actual_metrics, len(result.stdout))
+
+
+def available_cpu_count() -> int:
+    if hasattr(os, "sched_getaffinity"):
+        return max(1, len(os.sched_getaffinity(0)))
+    return max(1, os.cpu_count() or 1)
+
+
+def available_memory_bytes() -> int | None:
+    limits: list[int] = []
+    try:
+        limits.append(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES"))
+    except (OSError, ValueError):
+        pass
+    cgroup_limit = Path("/sys/fs/cgroup/memory.max")
+    try:
+        value = cgroup_limit.read_text(encoding="ascii").strip()
+        if value != "max":
+            limits.append(int(value))
+    except (OSError, ValueError):
+        pass
+    return min(limits) if limits else None
+
+
+def default_jobs() -> int:
+    cpu_jobs = available_cpu_count()
+    memory = available_memory_bytes()
+    if memory is None:
+        memory_jobs = cpu_jobs
+    else:
+        reserve = 2 * 1024**3
+        per_job = 2 * 1024**3
+        memory_jobs = max(1, (max(0, memory - reserve)) // per_job)
+    # Beyond sixteen simultaneous compiler/linker processes, filesystem and
+    # cache contention tends to dominate even on large build machines.
+    return max(1, min(cpu_jobs, memory_jobs, 16))
 
 
 def main() -> None:
+    global PROGRESS_TOTAL, RUN_LOG, VERBOSE
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--update-snapshots",
         action="store_true",
-        help="Replace PDF snapshots with the generated output after all other assertions pass",
+        help=(
+            "Replace PDF snapshots with generated output while requiring the exact allocation "
+            "and work baselines in the same build"
+        ),
     )
     parser.add_argument(
         "--compare-baselines",
@@ -738,25 +1027,55 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "--reuse-build-cache",
-        action="store_true",
-        help=(
-            "Reuse the Roc compiler cache across fixture builds instead of forcing a full "
-            "rebuild per case. Intended for a fresh CI runner, whose cache starts empty and "
-            "is populated only from the checkout under test"
-        ),
-    )
-    parser.add_argument(
         "--case",
         action="append",
         dest="case_names",
         metavar="NAME",
         help="Run only the exact named case; repeat to select multiple cases",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=default_jobs(),
+        help=(
+            "Maximum parallel validation, build, and case workers "
+            "(default: hardware-aware, up to 16)"
+        ),
+    )
+    parser.add_argument(
+        "--log",
+        type=Path,
+        help="Detailed run log path (default: .roc-pdf-tmp/logs/test-<timestamp>.log)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Mirror detailed commands and evidence output to the console",
+    )
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error("--jobs must be at least 1")
     if args.update_snapshots and args.compare_baselines:
         parser.error("--update-snapshots and --compare-baselines cannot be combined")
-    check_allocations = args.allocation_baselines or args.compare_baselines
+    TEMP_ROOT.mkdir(exist_ok=True)
+    LOG_ROOT.mkdir(exist_ok=True)
+    RUN_LOG = (args.log or LOG_ROOT / f"test-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{os.getpid()}.log").resolve()
+    RUN_LOG.parent.mkdir(parents=True, exist_ok=True)
+    RUN_LOG.write_text("", encoding="utf-8")
+    VERBOSE = args.verbose
+    print(f"[{timestamp()}] Detailed log: {RUN_LOG}", flush=True)
+    atexit.register(lambda: print(f"[{timestamp()}] Detailed log: {RUN_LOG}", flush=True))
+    log(
+        f"roc-pdf test run\nstarted_utc={datetime.now(timezone.utc).isoformat()}\n"
+        f"pid={os.getpid()}\ncommand={' '.join(sys.argv)}\nROC={ROC}\nZIG={ZIG}\njobs={args.jobs}\n"
+    )
+    announce("RUN", f"Using {args.jobs} parallel workers")
+    # Snapshot acceptance is a complete evidence run, not the first half of a
+    # two-invocation workflow. Checking metrics here lets one compiled fixture
+    # set both update bytes and prove the registered performance contract.
+    check_allocations = (
+        args.allocation_baselines or args.compare_baselines or args.update_snapshots
+    )
     suite = load_suite()
     if args.case_names:
         requested = set(args.case_names)
@@ -764,59 +1083,95 @@ def main() -> None:
         missing = requested - {case.name for case in selected}
         if missing:
             raise SystemExit(f"unknown test case(s): {', '.join(sorted(missing))}")
-        suite = TestSuite(suite.protocol_version, suite.toolchain, selected)
+        suite = TestSuite(
+            suite.protocol_version,
+            suite.toolchain,
+            suite.validation_sources,
+            suite.validation_skips,
+            selected,
+        )
     target = "x64musl" if args.linux_x64_container is not None else native_roc_target()
 
+    phase("Preflight contract and checker self-tests")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_contracts.py", "--self-test")
     command(sys.executable, "scripts/check_arlington.py", "--self-test")
     command(sys.executable, "scripts/check_pdfbox.py", "--self-test")
-    command(sys.executable, "scripts/check_gate2.py", "--self-test")
-    command(sys.executable, "scripts/check_gate2_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_text.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_caller_text.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_caller_facade.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_facade_output.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_generated_labels.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_actual_text.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_supplementary_text.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_cjk_text.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_ligature.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_multiface_facade.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_case_text.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_combining.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_rtl.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_multiface_text.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_soft_hyphen.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_external_discretionary_hyphen.py", "--self-test")
-    command(sys.executable, "scripts/check_gate3_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_forms.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_form_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_color_images.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_color_image_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_transparency.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_transparency_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_soft_masks.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_soft_mask_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_shadings.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_shading_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_fonts.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_font_renderers.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_metadata.py", "--self-test")
-    command(sys.executable, "scripts/check_gate4_metadata_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_tagged_visual.py", "--self-test")
+    command(sys.executable, "scripts/check_visual_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_text.py", "--self-test")
+    command(sys.executable, "scripts/check_caller_text.py", "--self-test")
+    command(sys.executable, "scripts/check_caller_facade.py", "--self-test")
+    command(sys.executable, "scripts/check_facade_output.py", "--self-test")
+    command(sys.executable, "scripts/check_generated_labels.py", "--self-test")
+    command(sys.executable, "scripts/check_actual_text.py", "--self-test")
+    command(sys.executable, "scripts/check_supplementary_text.py", "--self-test")
+    command(sys.executable, "scripts/check_cjk_text.py", "--self-test")
+    command(sys.executable, "scripts/check_ligature.py", "--self-test")
+    command(sys.executable, "scripts/check_multiface_facade.py", "--self-test")
+    command(sys.executable, "scripts/check_case_text.py", "--self-test")
+    command(sys.executable, "scripts/check_combining.py", "--self-test")
+    command(sys.executable, "scripts/check_rtl.py", "--self-test")
+    command(sys.executable, "scripts/check_multiface_text.py", "--self-test")
+    command(sys.executable, "scripts/check_soft_hyphen.py", "--self-test")
+    command(sys.executable, "scripts/check_external_discretionary_hyphen.py", "--self-test")
+    command(sys.executable, "scripts/check_text_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_forms.py", "--self-test")
+    command(sys.executable, "scripts/check_form_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_color_images.py", "--self-test")
+    command(sys.executable, "scripts/check_color_image_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_transparency.py", "--self-test")
+    command(sys.executable, "scripts/check_transparency_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_soft_masks.py", "--self-test")
+    command(sys.executable, "scripts/check_soft_mask_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_shadings.py", "--self-test")
+    command(sys.executable, "scripts/check_shading_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_fonts.py", "--self-test")
+    command(sys.executable, "scripts/check_font_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_metadata.py", "--self-test")
+    command(sys.executable, "scripts/check_metadata_renderers.py", "--self-test")
+    command(sys.executable, "scripts/check_navigation.py", "--self-test")
+    command(sys.executable, "scripts/check_navigation_renderers.py", "--self-test")
     if not args.update_snapshots:
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
     self_test_metrics(suite)
     self_test_roc_version_pin()
     verify_toolchain(suite.toolchain)
+    verify_all_package_root()
 
-    roc_sources = sorted((ROOT / "package").glob("*.roc"))
-    compile_fixtures = sorted((ROOT / "examples").glob("*.roc"))
-    roc_sources += compile_fixtures
-    roc_sources += sorted((ROOT / "tests").rglob("*.roc"))
-    for source in roc_sources:
-        roc("fmt", "--check", relative(source))
+    validation_tasks: list[tuple[str, Path]] = []
+    skipped_tasks = 0
+    for source in suite.validation_sources:
+        source_name = Path(relative(source))
+        for action in ("fmt", "check", "test"):
+            matching_skips = [
+                skip
+                for skip in suite.validation_skips
+                if action in skip.actions and source_name.match(skip.pattern)
+            ]
+            if len(matching_skips) > 1:
+                raise SystemExit(
+                    f"{SPEC_PATH}: overlapping {action} skips for {relative(source)}"
+                )
+            if matching_skips:
+                skipped_tasks += 1
+                log(
+                    f"SKIP {action} {relative(source)}: {matching_skips[0].reason}"
+                )
+            else:
+                validation_tasks.append((action, source))
 
+    PROGRESS_TOTAL = (
+        len(validation_tasks)
+        + len({case.source for case in suite.cases})
+        + len(suite.cases)
+    )
+
+    phase(
+        f"Running {len(validation_tasks)} spec-defined Roc validation tasks with "
+        f"{args.jobs} workers ({skipped_tasks} documented skips)"
+    )
+    run_parallel_roc_tasks(validation_tasks, args.jobs)
     command(
         ZIG,
         "fmt",
@@ -827,12 +1182,6 @@ def main() -> None:
         "roc_platform_abi.zig",
         cwd=TEST_PLATFORM,
     )
-    roc("check", "package/main.roc")
-    roc("test", "package/main.roc")
-    roc("test", "package/evidence.roc")
-    roc("test", "package/fuzz_evidence.roc")
-    for fixture in compile_fixtures:
-        roc("test", relative(fixture))
     command(
         ZIG,
         "build",
@@ -840,47 +1189,102 @@ def main() -> None:
         cwd=TEST_PLATFORM,
     )
 
-    TEMP_ROOT.mkdir(exist_ok=True)
+    phase(
+        f"Building {len({case.source for case in suite.cases})} distinct fixture apps "
+        f"with {args.jobs} job{'s' if args.jobs != 1 else ''}"
+    )
     baseline_deltas: list[BaselineDelta] = []
     with tempfile.TemporaryDirectory(prefix="test-", dir=TEMP_ROOT) as temporary:
         build_dir = Path(temporary)
-        for index, case in enumerate(suite.cases):
-            delta = run_case(
+        build_case_sources(
+            suite.cases,
+            build_dir,
+            target,
+            suite.toolchain.roc_optimization if check_allocations else "dev",
+            args.jobs,
+        )
+        phase(f"Executing {len(suite.cases)} evidence cases with {args.jobs} workers")
+        source_use_counts = {
+            source: sum(1 for candidate in suite.cases if candidate.source == source)
+            for source in {candidate.source for candidate in suite.cases}
+        }
+
+        def execute_case(item: tuple[int, TestCase]) -> tuple[int, TestCase, CaseRunResult, float]:
+            index, case = item
+            started = time.monotonic()
+            detail(
+                f"START CASE {case.name} "
+                f"({relative(case.source)}, {source_use_counts[case.source]} "
+                f"case{'s' if source_use_counts[case.source] != 1 else ''}/build)"
+            )
+            result = run_case(
                 case,
                 index,
                 build_dir,
                 target,
                 suite.protocol_version,
-                suite.toolchain.roc_optimization if check_allocations else "dev",
                 args.update_snapshots,
                 check_allocations,
                 args.compare_baselines,
                 args.linux_x64_container,
-                args.reuse_build_cache,
             )
-            if delta is not None:
-                baseline_deltas.append(delta)
+            return index, case, result, time.monotonic() - started
+
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs)
+        futures = [
+            executor.submit(execute_case, item)
+            for item in enumerate(suite.cases)
+        ]
+        try:
+            for future in concurrent.futures.as_completed(futures):
+                index, case, result, elapsed = future.result()
+                progress(
+                    "PASS",
+                    f"CASE {case.name} "
+                    f"({elapsed:.2f}s, {result.output_bytes} bytes, "
+                    f"{result.metrics.allocations} allocations)",
+                )
+                if result.delta is not None:
+                    baseline_deltas.append(result.delta)
+        except KeyboardInterrupt:
+            cancel_parallel(executor, futures)
+            raise
+        else:
+            executor.shutdown()
 
     if args.update_snapshots:
+        phase("Post-update contract validation")
         command(sys.executable, "scripts/check_contracts.py", "--self-test")
         command(sys.executable, "scripts/check_pdf_structure.py", "--self-test")
 
     if baseline_deltas:
-        print("\nAllocation baseline comparison:", flush=True)
-        print("| Case | Expected | Actual | Delta | Work counters |", flush=True)
-        print("| --- | ---: | ---: | ---: | --- |", flush=True)
+        announce("FAIL", "Allocation baseline comparison:")
+        announce("FAIL", "| Case | Expected | Actual | Delta | Work counters |")
+        announce("FAIL", "| --- | ---: | ---: | ---: | --- |")
         for delta in baseline_deltas:
             work_status = "unchanged" if delta.expected.work == delta.actual.work else "CHANGED"
             allocation_delta = delta.actual.allocations - delta.expected.allocations
-            print(
+            announce(
+                "FAIL",
                 f"| {delta.case_name} | {delta.expected.allocations} | "
                 f"{delta.actual.allocations} | {allocation_delta:+d} | {work_status} |",
-                flush=True,
             )
         raise SystemExit(
             "Performance baselines differ; review and update tests/spec.json deliberately"
         )
 
+    announce("PASS", f"Complete: {len(suite.cases)} cases")
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        terminate_active_processes()
+        announce("FAIL", "Interrupted", stderr=True)
+        raise SystemExit(130) from None
+    except SystemExit as error:
+        if error.code not in (None, 0):
+            message = str(error)
+            announce("FAIL", message, stderr=True)
+        raise

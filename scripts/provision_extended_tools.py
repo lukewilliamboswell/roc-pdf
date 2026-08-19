@@ -15,7 +15,7 @@ Every artifact's SHA-256 is verified against ``assets/provenance.json``
 before it is used, matching the vendored-tool contract. The default target
 directory is ``.roc-pdf-tmp/extended-tools`` (ignored by git); pass
 ``--target`` to choose another location. The resulting binaries are the ones
-to hand to ``check_gate4_form_renderers.py --mutool`` and to future veraPDF
+to hand to ``check_form_renderers.py --mutool`` and to future veraPDF
 evidence lanes.
 """
 from __future__ import annotations

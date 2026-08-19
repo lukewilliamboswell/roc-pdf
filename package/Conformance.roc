@@ -15,8 +15,8 @@ Conformance :: [].{
 		wtpdf_reuse : Bool,
 	}
 
-	## Stable diagnostic families reserved by the Gate 0 contract. Runtime
-	## validation for each code is introduced with the gate that implements it.
+	## Stable diagnostic families reserved by the contract-definition contract. Runtime
+	## validation for each code is introduced with the capability that implements it.
 	DiagnosticCode : [
 		BudgetExceeded,
 		DuplicateIdentity,

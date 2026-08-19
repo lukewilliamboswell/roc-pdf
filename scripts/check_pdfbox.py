@@ -33,7 +33,7 @@ class Fixture:
 
     @property
     def path(self) -> Path:
-        return ROOT / "tests" / self.name / "snapshot.pdf"
+        return ROOT / "tests" / "structural_kernel" / f"{self.name}.pdf"
 
     def arguments(self) -> list[str]:
         return [
@@ -47,11 +47,11 @@ class Fixture:
 
 
 FIXTURES = (
-    Fixture("gate1_blank", 1, 6, 1, 0, 0),
-    Fixture("gate1_deflate_one_block", 1, 6, 1, 65_535, 32_768),
-    Fixture("gate1_deflate", 1, 6, 1, 262_144, 131_072),
-    Fixture("gate1_pages", 4_096, 12_423, 133, 0, 0),
-    Fixture("gate1_retention", 1, 6, 1, 64, 0),
+    Fixture("blank", 1, 6, 1, 0, 0),
+    Fixture("deflate_one_block", 1, 6, 1, 65_535, 32_768),
+    Fixture("deflate", 1, 6, 1, 262_144, 131_072),
+    Fixture("pages", 4_096, 12_423, 133, 0, 0),
+    Fixture("retention", 1, 6, 1, 64, 0),
 )
 
 
@@ -143,9 +143,9 @@ def run_recovery_negative(jar: Path, classes: Path, temporary: Path) -> None:
 
 def self_test() -> None:
     verify_jar(VENDORED_JAR)
-    discovered = {path.parent.name for path in (ROOT / "tests").glob("gate1_*/snapshot.pdf")}
+    discovered = {path.stem for path in (ROOT / "tests" / "structural_kernel").glob("*.pdf")}
     declared = {fixture.name for fixture in FIXTURES}
-    require(discovered == declared, "PDFBox fixture table must cover every Gate 1 snapshot")
+    require(discovered == declared, "PDFBox fixture table must cover every structural-kernel snapshot")
     original = FIXTURES[0].path.read_bytes()
     mutation = corrupt_startxref(original)
     require(len(mutation) == len(original), "PDFBox negative twin must preserve file length")

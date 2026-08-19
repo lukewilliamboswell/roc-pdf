@@ -12,6 +12,7 @@ import KernelFacadeText
 import KernelFont
 import KernelLineLayout
 import KernelMetadata
+import KernelNavigation
 import KernelPageLayout
 import KernelPdfFont
 import KernelSemantics
@@ -37,6 +38,7 @@ KernelFacadePipeline :: [].{
 		fragment_semantics : KernelSemantics.Limits,
 		fragments : KernelFacadeFragments.Limits,
 		lines : KernelFacadeLines.Limits,
+		navigation : KernelNavigation.Limits,
 		output : KernelFacadeOutput.Limits,
 		pages : KernelFacadePages.Limits,
 		scenes : KernelFacadeScenes.Limits,
@@ -48,6 +50,7 @@ KernelFacadePipeline :: [].{
 			fragment_semantics : KernelSemantics.Limits,
 			fragments : KernelFacadeFragments.Limits,
 			lines : KernelFacadeLines.Limits,
+			navigation : KernelNavigation.Limits,
 			output : KernelFacadeOutput.Limits,
 			pages : KernelFacadePages.Limits,
 			scenes : KernelFacadeScenes.Limits,
@@ -108,18 +111,48 @@ Upstream := {
 	descriptor : KernelPdfFont.Descriptor,
 	font : KernelFont.Inspection,
 	limits : KernelFacadePipeline.Limits,
+	navigation : KernelFacadeFragments.NavigationAuthoring,
 	page_size : Layout.Size,
 	preliminary : KernelTextSemantics.Plan,
 	text : KernelFacadeText.Plan,
 	work : KernelFacadePipeline.Work,
 }
 
+## The authored navigation facts for the post-layout stage: link and
+## destination records from the semantic stage, and the document outline and
+## page-label ranges from normalized authoring.
+navigation_authoring : KernelFacadeSemantics.Plan, Document.NormalizedAuthoring -> KernelFacadeFragments.NavigationAuthoring
+navigation_authoring = |semantics, authoring| {
+	links = KernelFacadeSemantics.Plan.links(semantics)
+	destinations = KernelFacadeSemantics.Plan.destinations(semantics)
+	if links.is_empty() and destinations.is_empty() and authoring.outline.is_empty() and authoring.page_labels.is_empty() {
+		NoNavigationAuthoring
+	} else {
+		WithNavigationAuthoring({
+			destinations,
+			links,
+			outline: authoring.outline,
+			page_labels: authoring.page_labels,
+		})
+	}
+}
+
+navigation_input : KernelFacadeFragments.Plan, KernelNavigation.Limits -> [NoNavigation, WithNavigation({ anchor_rects : List(KernelNavigation.AnchorRect), max_outline_depth : U64, store : KernelNavigation.Store })]
+navigation_input = |fragments, limits| match KernelFacadeFragments.Plan.navigation(fragments) {
+	NoNavigationStore => NoNavigation
+	WithNavigationStore(store) => WithNavigation({
+		anchor_rects: KernelFacadeFragments.Plan.anchor_rects(fragments),
+		max_outline_depth: KernelNavigation.Limits.max_outline_depth(limits),
+		store,
+	})
+}
+
 build_plan : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
 build_plan = |authoring, font, theme, page_size, descriptor, facts, limits| {
 	upstream = build_upstream(authoring, font, theme, page_size, descriptor, limits)?
-	fragments = KernelFacadeFragments.Plan.build(upstream.preliminary, upstream.text, limits.fragments, limits.fragment_semantics) ? Fragments
+	fragments = KernelFacadeFragments.Plan.build_with_navigation(upstream.preliminary, upstream.text, upstream.navigation, limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
 	scenes = KernelFacadeScenes.Plan.build_with_intent(fragments, page_size, intent_profile(facts), limits.scenes) ? Scenes
-	output = KernelFacadeOutput.Plan.build_with_facts(scenes, font, descriptor, facts, limits.output) ? Output
+	output = KernelFacadeOutput.Plan.build_with_navigation(scenes, font, descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
 	Ok(
 		KernelFacadePipeline.Plan.{
 			output,
@@ -151,9 +184,9 @@ build_ordered_pipeline = |authoring, ordered, theme, page_size, descriptor, fact
 	lines = KernelFacadeLines.Plan.build_ordered(shape, source_store, page_size, theme, limits.lines) ? Lines
 	pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
 	text = KernelFacadeText.Plan.build(shape, lines, pages, limits.text) ? Text
-	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? Fragments
+	fragments = KernelFacadeFragments.Plan.build_with_navigation(preliminary, text, navigation_authoring(semantics, authoring), limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
 	scenes = KernelFacadeScenes.Plan.build_with_intent(fragments, page_size, intent_profile(facts), limits.scenes) ? Scenes
-	output = KernelFacadeOutput.Plan.build_multi_with_facts(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, limits.output) ? Output
+	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
 	shape_store = KernelFacadeShape.Plan.shape(shape).store
 	line_store = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines))
 	page_store = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages))
@@ -273,6 +306,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, limits| {
 		descriptor,
 		font,
 		limits,
+		navigation: navigation_authoring(semantics, authoring),
 		page_size,
 		preliminary,
 		text,

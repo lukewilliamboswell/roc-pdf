@@ -1,0 +1,16 @@
+app [main!] {
+	pf: platform "../platform/main.roc",
+	pdf: "../../package/all.roc",
+	unicode: "https://github.com/roc-lang/unicode/releases/download/4.0.0/3DGC3M4b2pxaRLg4i8cmxWkm2E2WbCPCLntQzf2mkbUV.tar.zst",
+}
+
+import Fixture
+
+main! : List(Str) => { bytes : List(U8), work : List(U64) }
+main! = |args| {
+	guard = if args.len() == 1 0 else 1
+	match Fixture.supplementary_negative(guard) {
+		Err(_) => crash "text-layout supplementary text negative evidence failed"
+		Ok(output) => output
+	}
+}

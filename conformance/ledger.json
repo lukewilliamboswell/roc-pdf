@@ -4,312 +4,663 @@
     {
       "id": "ROC-PDF-CONFORMANCE-EXACT-CLAIMS",
       "summary": "Requested claims are exact and never silently downgraded.",
-      "source_ids": ["iso-14289-2-2024", "iso-19005-4-2020", "iso-32000-2-2020-ec3", "wtpdf-1-0-0"],
-      "references": ["architecture.md: Scope and claims"],
-      "capabilities": ["Pdf20", "PdfA4f", "PdfUa2", "StaticPdfA4", "WtpdfAccessibility", "WtpdfReuse"],
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-19005-4-2020",
+        "iso-32000-2-2020-ec3",
+        "wtpdf-1-0-0"
+      ],
+      "references": [
+        "architecture.md: Scope and claims"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfA4f",
+        "PdfUa2",
+        "StaticPdfA4",
+        "WtpdfAccessibility",
+        "WtpdfReuse"
+      ],
       "implementation": "partial",
       "machine_verification": "schema_and_roc_contract; standard_profile_runtime_and_transactional_unavailable_profile_errors",
       "human_verification": "architecture_review",
-      "positive_scenarios": ["examples/pdf_facade.roc", "package/Pdf.roc"],
-      "negative_scenarios": ["package/Pdf.roc"],
+      "positive_scenarios": [
+        "examples/pdf_facade.roc",
+        "package/Pdf.roc"
+      ],
+      "negative_scenarios": [
+        "package/Pdf.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-EMISSION-CANONICAL-POLICY",
       "summary": "Number, ordering, identifier, escaping, newline, xref, and package-owned DEFLATE choices are fixed package-versioned byte policies.",
-      "source_ids": ["deflate-rfc1951", "iso-32000-2-2020-ec3"],
-      "references": ["architecture.md: Deterministic serialization"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "deflate-rfc1951",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "architecture.md: Deterministic serialization"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
       "machine_verification": "schema_and_roc_contract; sha256_nist_vectors_and_reused_schedule; independent_blank_and_generated_content_identifier_recalculation; roc_unit_owned_dynamic_multiblock_limits_exact_adler_and_max_distance; optimized_one_and_five_block_exact_allocations_and_work; independent_zlib_payload_reconstruction_and_negative_twins; package_owned_stateful_encoder_transition_with_bounded_chunks_and_final_source_release",
       "human_verification": "architecture_review",
-      "positive_scenarios": ["examples/advanced_encode_contract.roc", "package/KernelDeflate.roc", "package/KernelSha256.roc", "scripts/check_pdf_structure.py", "tests/gate1_deflate/main.roc", "tests/gate1_deflate_one_block/main.roc"],
-      "negative_scenarios": ["scripts/check_pdf_structure.py"],
+      "positive_scenarios": [
+        "examples/advanced_encode_contract.roc",
+        "package/KernelDeflate.roc",
+        "package/KernelSha256.roc",
+        "scripts/check_pdf_structure.py",
+        "tests/structural_kernel/deflate.roc"
+      ],
+      "negative_scenarios": [
+        "scripts/check_pdf_structure.py"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-FONT-PLAN-BEFORE-SHAPING",
       "summary": "Font selection assigns whole source grapheme clusters to exact validated static instances before shaping.",
-      "source_ids": ["opentype-1-9-1", "uax29-r47", "unicode-17-0-0"],
-      "references": ["architecture.md: Layout, shaping, and stabilization"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "opentype-1-9-1",
+        "uax29-r47",
+        "unicode-17-0-0"
+      ],
+      "references": [
+        "architecture.md: Layout, shaping, and stabilization"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "defined_only",
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_text_contract.roc"],
+      "positive_scenarios": [
+        "examples/advanced_text_contract.roc"
+      ],
       "negative_scenarios": [],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-METADATA-EXPLICIT-INPUTS",
       "summary": "Logical metadata requires authored title and language while timestamps and identifiers are explicit or deterministically derived.",
-      "source_ids": ["bcp47-rfc5646", "iso-16684-1-2019", "iso-19005-4-2020", "xml-1-0-fifth-edition"],
-      "references": ["architecture.md: Defaults contract"],
-      "capabilities": ["Pdf20", "StaticPdfA4"],
+      "source_ids": [
+        "bcp47-rfc5646",
+        "iso-16684-1-2019",
+        "iso-19005-4-2020",
+        "xml-1-0-fifth-edition"
+      ],
+      "references": [
+        "architecture.md: Defaults contract"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "StaticPdfA4"
+      ],
       "implementation": "partial",
-      "machine_verification": "schema_and_roc_contract; canonical_case_rfc5646_subset_validation_with_typed_rejections; canonical_xmp_packet_with_pinned_golden_bytes_and_catalog_lang_agreement; explicit_utc_timestamps_or_deterministic_omission; xmp_identifiers_and_pdfa_identification_pending_gate_5",
+      "machine_verification": "schema_and_roc_contract; canonical_case_rfc5646_subset_validation_with_typed_rejections; canonical_xmp_packet_with_pinned_golden_bytes_and_catalog_lang_agreement; explicit_utc_timestamps_or_deterministic_omission; xmp_identifiers_and_pdfa_identification_pending_pdfa4",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_encode_contract.roc", "package/KernelXmp.roc", "scripts/check_gate4_metadata.py", "tests/gate4_metadata/main.roc", "tests/gate4_metadata_facade/main.roc"],
-      "negative_scenarios": ["package/KernelMetadata.roc", "tests/gate4_metadata_facade_negative/main.roc", "tests/gate4_metadata_negative/main.roc"],
+      "positive_scenarios": [
+        "examples/advanced_encode_contract.roc",
+        "package/KernelXmp.roc",
+        "scripts/check_metadata.py",
+        "tests/metadata/metadata.roc",
+        "tests/metadata/metadata_facade.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelMetadata.roc",
+        "tests/metadata/metadata_facade_negative.roc",
+        "tests/metadata/metadata_negative.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-EMISSION-XREF",
       "summary": "The private structural emitter writes deterministic PDF 2.0 objects, indirect stream lengths, a fixed-width unfiltered xref stream, startxref, and EOF through one buffered/chunk transition.",
-      "source_ids": ["iso-32000-2-2020-ec3"],
-      "references": ["ISO 32000-2:2020 7.5", "architecture.md: Deterministic serialization"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 7.5",
+        "architecture.md: Deterministic serialization"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
       "machine_verification": "roc_unit_buffered_chunk_identity_canonical_stream_dictionary_merge_and_bounded_deflate_transition; independent_offsets_lengths_xref_page_and_generated_content_facts; optimized_multiblock_deflate_exact_allocations_and_work; qpdf_12_3_2_linux_ci; verapdf_arlington_1_30_2_digest_pinned_zero_failures_all_structural_snapshots; pdfbox_3_0_8_parse_false_warning_free_exact_page_object_and_content_facts_with_recovery_negative; atomic_internal_and_external_negative_matrix; byte_identical_shared_snapshots_on_arm64mac_and_x64musl",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelEmit.roc", "scripts/StrictPdfCheck.java", "scripts/check_arlington.py", "scripts/check_pdf_structure.py", "scripts/check_pdfbox.py", "tests/gate1_blank/main.roc", "tests/gate1_deflate/main.roc", "tests/gate1_deflate_one_block/main.roc"],
-      "negative_scenarios": ["scripts/check_arlington.py", "scripts/check_pdf_structure.py", "scripts/check_pdfbox.py"],
-      "external_rule_ids": ["arlington2.0"]
+      "positive_scenarios": [
+        "package/KernelEmit.roc",
+        "scripts/StrictPdfCheck.java",
+        "scripts/check_arlington.py",
+        "scripts/check_pdf_structure.py",
+        "scripts/check_pdfbox.py",
+        "tests/structural_kernel/blank.roc",
+        "tests/structural_kernel/deflate.roc"
+      ],
+      "negative_scenarios": [
+        "scripts/check_arlington.py",
+        "scripts/check_pdf_structure.py",
+        "scripts/check_pdfbox.py"
+      ],
+      "external_rule_ids": [
+        "arlington2.0"
+      ]
     },
     {
       "id": "ROC-PDF-PDF20-GOTO-D-DESTINATION",
       "summary": "A GoTo action D entry accepts only an explicit or named destination.",
-      "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],
-      "references": ["ISO 32000-2:2020 12.6.4.2 Table 202", "pdf-issues#140"],
-      "capabilities": ["Pdf20"],
-      "implementation": "planned",
-      "machine_verification": "pending_gate_8",
+      "source_ids": [
+        "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 12.6.4.2 Table 202",
+        "pdf-issues#140"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
+      "implementation": "implemented",
+      "machine_verification": "roc_unit_paired_sd_d_actions_and_atomic_negative; independent_structural_paired_action_inspection_and_mutation_twins; pdfbox_3_0_8_geometric_d_fallback_navigation_report",
       "human_verification": "not_required",
-      "positive_scenarios": [],
-      "negative_scenarios": [],
+      "positive_scenarios": [
+        "tests/navigation/Fixture.roc",
+        "tests/navigation/navigation.roc",
+        "tests/navigation/navigation_facade.roc"
+      ],
+      "negative_scenarios": [
+        "tests/navigation/Fixture.roc",
+        "tests/navigation/navigation_negative.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-INDEX-PLAN",
       "summary": "Name, ID, number, and ParentTree entries seal into deterministic fixed-fanout plans with exact root, child, ordering, Limits, and earlier-store value rules.",
-      "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],
-      "references": ["ISO 32000-2:2020 7.9.6 Table 36", "ISO 32000-2:2020 7.9.7 Table 37", "architecture.md: Internal PDF object plan"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 7.9.6 Table 36",
+        "ISO 32000-2:2020 7.9.7 Table 37",
+        "architecture.md: Internal PDF object plan"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
-      "machine_verification": "roc_unit_ordering_limits_value_bounds_and_atomic_negative; optimized_four_tree_4096_entry_exact_allocations_and_work; fixed_fanout_shape_shared_with_independently_parsed_4096_page_lowering",
+      "machine_verification": "roc_unit_ordering_limits_value_bounds_and_atomic_negative; optimized_four_tree_4096_entry_exact_allocations_and_work; fixed_fanout_shape_shared_with_independently_parsed_4096_page_lowering; name_and_number_tree_object_lowering_with_independent_limits_inspection",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelIndex.roc", "tests/gate1_pages/main.roc"],
-      "negative_scenarios": ["package/KernelIndex.roc"],
+      "positive_scenarios": [
+        "package/KernelIndex.roc",
+        "tests/navigation/navigation.roc",
+        "tests/structural_kernel/pages.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelIndex.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-LEXICAL-CANONICAL",
       "summary": "Private PDF lexical emission uses exact canonical booleans, integers, finite fixed-decimal reals, names, byte strings, and Unicode text strings.",
-      "source_ids": ["iso-32000-2-2020-ec3"],
-      "references": ["ISO 32000-2:2020 7.3", "architecture.md: Deterministic serialization"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 7.3",
+        "architecture.md: Deterministic serialization"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
       "machine_verification": "roc_unit_exact_positive_and_atomic_negative; roc_unit_all_direct_values_through_flat_store_seal_and_shared_emitter; optimized_2048_and_4096_bundle_exact_constant_allocations_and_linear_work; byte_identical_supported_system_baselines",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelEmit.roc", "package/KernelLex.roc", "tests/gate1_pages/main.roc"],
-      "negative_scenarios": ["package/KernelLex.roc"],
+      "positive_scenarios": [
+        "package/KernelEmit.roc",
+        "package/KernelLex.roc",
+        "tests/structural_kernel/pages.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelLex.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-NAMED-DESTINATION-SD",
       "summary": "A named-destination dictionary uses SD as defined by GoTo action Table 202.",
-      "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],
-      "references": ["ISO 32000-2:2020 12.3.2.4", "pdf-issues#162"],
-      "capabilities": ["Pdf20"],
-      "implementation": "planned",
-      "machine_verification": "pending_gate_8",
+      "source_ids": [
+        "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 12.3.2.4",
+        "pdf-issues#162"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
+      "implementation": "implemented",
+      "machine_verification": "roc_unit_named_destination_paired_facts; independent_structural_name_tree_paired_value_inspection_and_mutation_twins; pdfbox_3_0_8_named_destination_outline_resolution",
       "human_verification": "not_required",
-      "positive_scenarios": [],
-      "negative_scenarios": [],
+      "positive_scenarios": [
+        "tests/navigation/Fixture.roc",
+        "tests/navigation/navigation.roc",
+        "tests/navigation/navigation_facade.roc"
+      ],
+      "negative_scenarios": [
+        "tests/navigation/Fixture.roc",
+        "tests/navigation/navigation_negative.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-OBJECT-PLAN-FLAT",
       "summary": "Private PDF object construction uses dense typed IDs, flat edge stores, checked dimensions, canonical dictionary ordering, and explicit stream payload and length-object references.",
-      "source_ids": ["iso-32000-2-2020-ec3"],
-      "references": ["ISO 32000-2:2020 7.3", "architecture.md: Internal PDF object plan"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 7.3",
+        "architecture.md: Internal PDF object plan"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
       "machine_verification": "roc_unit_positive_atomic_negative_exact_work_and_linear_sealing; roc_unit_all_direct_values_through_flat_store_seal_and_shared_emitter; optimized_4096_page_flat_plan_exact_allocations_and_work; pdfbox_strict_exact_object_reference_and_stream_facts",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelEmit.roc", "package/KernelObject.roc", "package/KernelSeal.roc", "scripts/StrictPdfCheck.java", "tests/gate1_pages/main.roc"],
-      "negative_scenarios": ["package/KernelObject.roc", "package/KernelSeal.roc"],
+      "positive_scenarios": [
+        "package/KernelEmit.roc",
+        "package/KernelObject.roc",
+        "package/KernelSeal.roc",
+        "scripts/StrictPdfCheck.java",
+        "tests/structural_kernel/pages.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelObject.roc",
+        "package/KernelSeal.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-OUTLINE-PLAN",
       "summary": "Outline preorder seals into deterministic parent, sibling, child, root, and visible-descendant Count facts without synthetic balancing items.",
-      "source_ids": ["iso-32000-2-2020-ec3", "pdf-issues-ec3"],
-      "references": ["ISO 32000-2:2020 12.3.3 Tables 150 and 151", "architecture.md: Internal PDF object plan"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3",
+        "pdf-issues-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 12.3.3 Tables 150 and 151",
+        "architecture.md: Internal PDF object plan"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
-      "machine_verification": "roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work",
+      "machine_verification": "roc_unit_mixed_visibility_exact_links_and_atomic_negative; optimized_4096_entry_exact_allocations_and_work; outline_object_lowering_with_independent_count_recomputation",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelOutline.roc", "tests/gate1_pages/main.roc"],
-      "negative_scenarios": ["package/KernelOutline.roc"],
+      "positive_scenarios": [
+        "package/KernelOutline.roc",
+        "tests/navigation/navigation.roc",
+        "tests/structural_kernel/pages.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelOutline.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-RESOURCE-NAME-PLAN",
       "summary": "Resource kinds and dense identities seal into stable canonical names in explicit kind order without map iteration.",
-      "source_ids": ["iso-32000-2-2020-ec3"],
-      "references": ["ISO 32000-2:2020 7.8.3", "architecture.md: Deterministic serialization"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 7.8.3",
+        "architecture.md: Deterministic serialization"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
       "machine_verification": "roc_unit_prefix_decimal_width_kind_order_dense_identity_limits_and_atomic_negative; optimized_4096_resource_exact_allocations_and_work; byte_identical_shared_snapshot_and_exact_performance_vector_on_arm64mac_and_x64musl",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelResource.roc", "tests/gate1_pages/main.roc"],
-      "negative_scenarios": ["package/KernelResource.roc"],
+      "positive_scenarios": [
+        "package/KernelResource.roc",
+        "tests/structural_kernel/pages.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelResource.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-STRUCTURE-LOWERING",
       "summary": "Blank pages lower deterministically to a fixed-fanout left-packed balanced page tree, page dictionaries, resources, and consecutive content-stream length pairs.",
-      "source_ids": ["iso-32000-2-2020-ec3"],
-      "references": ["ISO 32000-2:2020 7.7.2", "ISO 32000-2:2020 7.7.3", "architecture.md: Internal PDF object plan"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 7.7.2",
+        "ISO 32000-2:2020 7.7.3",
+        "architecture.md: Internal PDF object plan"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
       "machine_verification": "roc_unit_blank_single_depth_transition_and_4096_page_shape; optimized_4096_page_exact_allocations_and_work; independent_recursive_page_tree_and_xref_parser; byte_identical_shared_snapshot_and_exact_performance_vector_on_arm64mac_and_x64musl",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelStructure.roc", "tests/gate1_pages/main.roc"],
-      "negative_scenarios": ["package/KernelStructure.roc"],
+      "positive_scenarios": [
+        "package/KernelStructure.roc",
+        "tests/structural_kernel/pages.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelStructure.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PDF20-TAGGED-VISUAL-KERNEL",
       "summary": "The private minimal visual kernel emits checked geometry, typed color and images, exact meaningful-paint ownership, page and contextual Artifacts, MCIDs, ParentTree rows, and mixed structure order.",
-      "source_ids": ["iso-32000-2-2020-ec3", "jpeg-10918-1-1994"],
-      "references": ["docs/performance/gate-2-closure.md", "feature-roadmap.md: Gate 2"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3",
+        "jpeg-10918-1-1994"
+      ],
+      "references": [
+        "docs/performance/tagged-visual-closure.md",
+        "feature-roadmap.md: tagged-visual"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
       "machine_verification": "roc_unit_checked_geometry_scene_semantics_tagged_color_image_resource_content_and_object_plans; exact_contextual_artifact_mixed_k_parenttree_mcid_boxes_resources_and_pixels; atomic_internal_and_emitted_negative_matrix; pdfium_chromium_7988_and_pdfbox_3_0_8_exact_independent_raster; optimized_contextual_minimal_exact_allocations_bytes_and_work; optimized_million_command_constant_allocations_linear_visits_bounded_stack_and_single_payload_reuse",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelGate2Structure.roc", "scripts/check_gate2.py", "scripts/check_gate2_renderers.py", "tests/gate2_minimal/main.roc", "tests/gate2_stress/main.roc"],
-      "negative_scenarios": ["package/KernelGeometry.roc", "package/KernelImage.roc", "package/KernelScene.roc", "package/KernelSemantics.roc", "package/KernelTagged.roc", "scripts/check_gate2.py"],
+      "positive_scenarios": [
+        "package/KernelStructure.roc",
+        "scripts/check_tagged_visual.py",
+        "scripts/check_visual_renderers.py",
+        "tests/tagged_visual/minimal.roc",
+        "tests/tagged_visual/stress.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelGeometry.roc",
+        "package/KernelImage.roc",
+        "package/KernelScene.roc",
+        "package/KernelSemantics.roc",
+        "package/KernelTagged.roc",
+        "scripts/check_tagged_visual.py"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PREPARED-STAGE-CONTRACT",
       "summary": "Prepared documents contain exact resolved layout, semantic ownership, scenes, validated resources, bounded work, and no speculative handlers or unresolved references.",
-      "source_ids": ["icc-1-2001-04", "iso-32000-2-2020-ec3", "jpeg-10918-1-1994", "opentype-1-9-1"],
-      "references": ["architecture.md: ARC and phase ownership", "architecture.md: Advanced integration boundary"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "icc-1-2001-04",
+        "iso-32000-2-2020-ec3",
+        "jpeg-10918-1-1994",
+        "opentype-1-9-1"
+      ],
+      "references": [
+        "architecture.md: ARC and phase ownership",
+        "architecture.md: Advanced integration boundary"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "defined_only",
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "architecture_review",
-      "positive_scenarios": ["examples/advanced_prepared_contract.roc"],
+      "positive_scenarios": [
+        "examples/advanced_prepared_contract.roc"
+      ],
       "negative_scenarios": [],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PROFILE-ACCESSIBLE-ARCHIVE",
       "summary": "AccessibleArchive maps exactly to Pdf20, StaticPdfA4, and PdfUa2.",
-      "source_ids": ["iso-14289-2-2024", "iso-19005-4-2020", "iso-32000-2-2020-ec3"],
-      "references": ["feature-roadmap.md: Gate 0"],
-      "capabilities": ["Pdf20", "PdfUa2", "StaticPdfA4"],
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-19005-4-2020",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "feature-roadmap.md: contract-definition"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2",
+        "StaticPdfA4"
+      ],
       "implementation": "defined_only",
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/gate0_contract.roc"],
+      "positive_scenarios": [
+        "examples/package_contract.roc"
+      ],
       "negative_scenarios": [],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PROFILE-ARCHIVE",
       "summary": "Archive maps exactly to Pdf20 and StaticPdfA4.",
-      "source_ids": ["iso-19005-4-2020", "iso-32000-2-2020-ec3"],
-      "references": ["feature-roadmap.md: Gate 0"],
-      "capabilities": ["Pdf20", "StaticPdfA4"],
+      "source_ids": [
+        "iso-19005-4-2020",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "feature-roadmap.md: contract-definition"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "StaticPdfA4"
+      ],
       "implementation": "defined_only",
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/gate0_contract.roc"],
+      "positive_scenarios": [
+        "examples/package_contract.roc"
+      ],
       "negative_scenarios": [],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-PROFILE-STANDARD",
       "summary": "Standard maps exactly to Pdf20.",
-      "source_ids": ["iso-32000-2-2020-ec3"],
-      "references": ["feature-roadmap.md: Gate 0"],
-      "capabilities": ["Pdf20"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "feature-roadmap.md: contract-definition"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
       "implementation": "implemented",
       "machine_verification": "schema_and_roc_contract; roc_unit_blank_standard_emission_and_exact_claim_set",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/gate0_contract.roc", "package/Pdf.roc"],
-      "negative_scenarios": ["package/Pdf.roc"],
+      "positive_scenarios": [
+        "examples/package_contract.roc",
+        "package/Pdf.roc"
+      ],
+      "negative_scenarios": [
+        "package/Pdf.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-RESOURCE-COLOR-ICC",
       "summary": "ICC profiles, typed component counts, color spaces, output intent, and blend space cross the trusted boundary as validated explicit facts.",
-      "source_ids": ["icc-1-2001-04", "iso-19005-4-2020", "iso-32000-2-2020-ec3"],
-      "references": ["architecture.md: Images and color"],
-      "capabilities": ["Pdf20", "StaticPdfA4"],
+      "source_ids": [
+        "icc-1-2001-04",
+        "iso-19005-4-2020",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "architecture.md: Images and color"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "StaticPdfA4"
+      ],
       "implementation": "implemented",
       "machine_verification": "schema_and_roc_contract; pinned_srgb2014_digest_license_and_icc_inspection_boundary; canonical_icc_and_color_space_dedup_with_exact_byte_equality; emitted_profile_stream_byte_identical_to_vendored_asset; gts_pdfa1_output_intent_sharing_the_canonical_profile_stream; transparency_blend_space_probe_against_the_packaged_bytes",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_resource_contract.roc", "package/KernelSrgbProfile.roc", "scripts/check_gate4_color_images.py", "scripts/check_gate4_metadata.py", "tests/gate4_color_images/main.roc", "tests/gate4_metadata/main.roc"],
-      "negative_scenarios": ["package/Gate4ColorImageEvidence.roc", "package/KernelColor.roc", "tests/gate4_color_images_negative/main.roc", "tests/gate4_metadata_negative/main.roc"],
+      "positive_scenarios": [
+        "examples/advanced_resource_contract.roc",
+        "package/KernelSrgbProfile.roc",
+        "scripts/check_color_images.py",
+        "scripts/check_metadata.py",
+        "tests/color_images/color_images.roc",
+        "tests/metadata/metadata.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelColor.roc",
+        "tests/color_images/Fixture.roc",
+        "tests/color_images/color_images_negative.roc",
+        "tests/metadata/metadata_negative.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-RESOURCE-IMAGE-VALIDATION",
       "summary": "Raster and JPEG resources retain checked packed planes or encoded bytes with dimensions, color, alpha, and orientation evidence.",
-      "source_ids": ["iso-32000-2-2020-ec3", "jpeg-10918-1-1994"],
-      "references": ["architecture.md: Images and color"],
-      "capabilities": ["Pdf20", "StaticPdfA4"],
+      "source_ids": [
+        "iso-32000-2-2020-ec3",
+        "jpeg-10918-1-1994"
+      ],
+      "references": [
+        "architecture.md: Images and color"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "StaticPdfA4"
+      ],
       "implementation": "implemented",
       "machine_verification": "schema_and_roc_contract; roc_unit_raster_jpeg_alpha_and_orientation_positive_and_atomic_negative; canonical_image_dedup_with_exact_byte_equality_and_padded_twin_normalization; pdfium_chromium_7988_pdfbox_3_0_8_and_mupdf_1_28_2_exact_independent_raster",
       "human_verification": "not_required",
-      "positive_scenarios": ["package/KernelImage.roc", "scripts/check_gate4_color_image_renderers.py", "scripts/check_gate4_color_images.py", "tests/gate4_color_images/main.roc", "tests/gate4_color_images_dedup_64/main.roc", "tests/gate4_color_images_distinct_64/main.roc"],
-      "negative_scenarios": ["package/Gate4ColorImageEvidence.roc", "package/KernelImage.roc", "tests/gate4_color_images_negative/main.roc"],
+      "positive_scenarios": [
+        "package/KernelImage.roc",
+        "scripts/check_color_image_renderers.py",
+        "scripts/check_color_images.py",
+        "tests/color_images/color_images.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelImage.roc",
+        "tests/color_images/Fixture.roc",
+        "tests/color_images/color_images_negative.roc"
+      ],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-SEMANTICS-ID-RELATIONSHIPS",
       "summary": "Emitted structure identity, IDTree membership, destinations, annotations, and non-parental cross-relations use independent typed identities.",
-      "source_ids": ["iso-14289-2-2024", "iso-32000-2-2020-ec3", "iso-ts-32005-2023", "wtpdf-1-0-0"],
-      "references": ["architecture.md: Semantic document graph"],
-      "capabilities": ["Pdf20", "PdfUa2"],
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3",
+        "iso-ts-32005-2023",
+        "wtpdf-1-0-0"
+      ],
+      "references": [
+        "architecture.md: Semantic document graph"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
       "implementation": "defined_only",
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_semantics_contract.roc"],
+      "positive_scenarios": [
+        "examples/advanced_semantics_contract.roc"
+      ],
       "negative_scenarios": [],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-SEMANTICS-MATHML-BOUNDARY",
       "summary": "MathML enters as a typed subtree or bounded validated parse result without unchecked markup or implicit associated files.",
-      "source_ids": ["iso-14289-2-2024", "iso-32000-2-2020-ec3", "mathml-core-2025-06-24", "wtpdf-1-0-0"],
-      "references": ["architecture.md: Semantic document graph"],
-      "capabilities": ["Pdf20", "PdfUa2"],
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3",
+        "mathml-core-2025-06-24",
+        "wtpdf-1-0-0"
+      ],
+      "references": [
+        "architecture.md: Semantic document graph"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
       "implementation": "defined_only",
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "author_assertion_required",
-      "positive_scenarios": ["examples/advanced_semantics_contract.roc"],
+      "positive_scenarios": [
+        "examples/advanced_semantics_contract.roc"
+      ],
       "negative_scenarios": [],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-SEMANTICS-NAMESPACE-ATTRIBUTES",
       "summary": "Roles and role mappings retain namespace identity while structure attributes retain owner, typed value, and explicit applicability.",
-      "source_ids": ["iso-14289-2-2024", "iso-32000-2-2020-ec3", "iso-ts-32005-2023", "wtpdf-1-0-0"],
-      "references": ["architecture.md: Semantic document graph"],
-      "capabilities": ["Pdf20", "PdfUa2"],
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3",
+        "iso-ts-32005-2023",
+        "wtpdf-1-0-0"
+      ],
+      "references": [
+        "architecture.md: Semantic document graph"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
       "implementation": "defined_only",
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_semantics_contract.roc"],
+      "positive_scenarios": [
+        "examples/advanced_semantics_contract.roc"
+      ],
       "negative_scenarios": [],
       "external_rule_ids": []
     },
     {
       "id": "ROC-PDF-TEXT-SHAPED-RUN-EVIDENCE",
       "summary": "Every positioned glyph run retains exact occurrence, Unicode range, cluster, script, language, direction, substitution, and presentation evidence.",
-      "source_ids": ["opentype-1-9-1", "uax14-r55", "uax29-r47", "uax9-r51", "unicode-17-0-0"],
-      "references": ["architecture.md: Text and font boundary"],
-      "capabilities": ["Pdf20", "PdfUa2"],
+      "source_ids": [
+        "opentype-1-9-1",
+        "uax14-r55",
+        "uax29-r47",
+        "uax9-r51",
+        "unicode-17-0-0"
+      ],
+      "references": [
+        "architecture.md: Text and font boundary"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
       "implementation": "defined_only",
       "machine_verification": "schema_and_roc_contract",
       "human_verification": "not_required",
-      "positive_scenarios": ["examples/advanced_text_contract.roc"],
+      "positive_scenarios": [
+        "examples/advanced_text_contract.roc"
+      ],
       "negative_scenarios": [],
       "external_rule_ids": []
     }

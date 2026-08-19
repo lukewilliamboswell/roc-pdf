@@ -41,12 +41,25 @@ KernelTextSemantics :: [].{
 
 	Plan :: { semantics : KernelSemantics.Plan, source_facts : List(KernelSemantics.TextSourceFact), work : Work }.{
 		build : Semantics.Store, U64, U64, KernelSemantics.Limits, Limits -> Try(Plan, Error)
-		build = |store, page_count, content_stream_count, semantic_limits, limits| build_plan(store, page_count, content_stream_count, semantic_limits, limits)
+		build = |store, page_count, content_stream_count, semantic_limits, limits| build_plan(store, page_count, content_stream_count, semantic_limits, limits, False)
+
+		## The navigation-enabled variant accepts Link roles and, after
+		## layout, annotation spine occurrences; source-fact preparation is
+		## identical.
+		build_navigation : Semantics.Store, U64, U64, KernelSemantics.Limits, Limits -> Try(Plan, Error)
+		build_navigation = |store, page_count, content_stream_count, semantic_limits, limits| build_plan(store, page_count, content_stream_count, semantic_limits, limits, True)
 
 		## Layout attaches final fragments after source validation. Reuse the
 		## exact scalar/byte facts produced by `build`; do not rescan source text.
 		attach_fragments : Plan, List(Semantics.LayoutFragment), U64, U64, KernelSemantics.Limits -> Try(Plan, Error)
 		attach_fragments = |plan, fragments, page_count, content_stream_count, semantic_limits| attach_fragment_plan(plan, fragments, page_count, content_stream_count, semantic_limits)
+
+		## The post-layout navigation attach: fragments join together with the
+		## patched content spine, nodes, and annotation records the navigation
+		## stage derived from pagination, and the store revalidates on the
+		## navigation path. Source facts are reused exactly.
+		attach_fragments_navigation : Plan, { annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, List(Semantics.LayoutFragment), U64, U64, KernelSemantics.Limits -> Try(Plan, Error)
+		attach_fragments_navigation = |plan, patch, fragments, page_count, content_stream_count, semantic_limits| attach_fragment_navigation_plan(plan, patch, fragments, page_count, content_stream_count, semantic_limits)
 
 		semantics : Plan -> KernelSemantics.Plan
 		semantics = |plan| plan.semantics
@@ -68,10 +81,16 @@ Prepared := {
 	source_visits : U64,
 }
 
-build_plan : Semantics.Store, U64, U64, KernelSemantics.Limits, KernelTextSemantics.Limits -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
-build_plan = |store, page_count, content_stream_count, semantic_limits, limits| {
+build_plan : Semantics.Store, U64, U64, KernelSemantics.Limits, KernelTextSemantics.Limits, Bool -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+build_plan = |store, page_count, content_stream_count, semantic_limits, limits, navigation| {
 	prepared = prepare(store, limits)?
-	semantics = KernelSemantics.Plan.build_text_validated(store, prepared.source_facts, page_count, content_stream_count, semantic_limits) ? Semantic
+	semantics = (
+		if navigation {
+			KernelSemantics.Plan.build_text_navigation(store, prepared.source_facts, page_count, content_stream_count, semantic_limits)
+		} else {
+			KernelSemantics.Plan.build_text_validated(store, prepared.source_facts, page_count, content_stream_count, semantic_limits)
+		}
+	) ? Semantic
 	Ok(
 		KernelTextSemantics.Plan.{
 			semantics,
@@ -92,6 +111,14 @@ attach_fragment_plan = |plan, fragments, page_count, content_stream_count, seman
 	preliminary = KernelSemantics.Plan.store(plan.semantics)
 	store = { ..preliminary, fragments, occurrence_fragments: [] }
 	semantics = KernelSemantics.Plan.build_text_validated(store, plan.source_facts, page_count, content_stream_count, semantic_limits) ? Semantic
+	Ok(KernelTextSemantics.Plan.{ semantics, source_facts: plan.source_facts, work: plan.work })
+}
+
+attach_fragment_navigation_plan : KernelTextSemantics.Plan, { annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, List(Semantics.LayoutFragment), U64, U64, KernelSemantics.Limits -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+attach_fragment_navigation_plan = |plan, patch, fragments, page_count, content_stream_count, semantic_limits| {
+	preliminary = KernelSemantics.Plan.store(plan.semantics)
+	store = { ..preliminary, annotations: patch.annotations, content_spine: patch.content_spine, fragments, nodes: patch.nodes, occurrence_fragments: [] }
+	semantics = KernelSemantics.Plan.build_text_navigation(store, plan.source_facts, page_count, content_stream_count, semantic_limits) ? Semantic
 	Ok(KernelTextSemantics.Plan.{ semantics, source_facts: plan.source_facts, work: plan.work })
 }
 
@@ -274,7 +301,7 @@ semantic_limits = KernelSemantics.Limits.make({ max_attributes: 0, max_content_s
 text_limits : KernelTextSemantics.Limits
 text_limits = KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 2, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 })
 
-## Gate 3 text semantics retain exact scalar-to-byte boundaries and bounded work.
+## text-layout text semantics retain exact scalar-to-byte boundaries and bounded work.
 expect {
 	plan = KernelTextSemantics.Plan.build(test_store, 1, 1, semantic_limits, text_limits)?
 	fact = list_at(KernelTextSemantics.Plan.source_facts(plan), 0)
@@ -282,7 +309,7 @@ expect {
 	fact.byte_count == 3 and fact.scalar_count == 2 and fact.scalar_byte_offsets == [0, 2, 3] and work.source_bytes == 3 and work.source_scalars == 2 and work.property_visits == 1 and work.property_bytes == 2
 }
 
-## Gate 2 cannot silently accept a text semantic store.
+## tagged-visual cannot silently accept a text semantic store.
 expect match KernelSemantics.Plan.build(test_store, 1, 1, semantic_limits) {
 	Err(UnsupportedStoreContent) => True
 	_ => False

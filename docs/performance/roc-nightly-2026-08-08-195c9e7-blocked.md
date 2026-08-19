@@ -6,8 +6,8 @@ The proposed move to `nightly-2026-08-08-195c9e7` was blocked by a compiler
 bug introduced between
 the two nightlies: `roc build` crashes deterministically (SIGSEGV, or
 `BITCODE PARSE ERROR` + `LLVMCompilationFailed`, depending on code layout) on
-`tests/gate3_authoring/main.roc` and other Gate 3 apps, while `roc check`
-reports zero errors. Local Gate 3 work now temporarily selects the patched
+`tests/authoring/authoring.roc` and other text-layout apps, while `roc check`
+reports zero errors. Local text-layout work now temporarily selects the patched
 `release-fast-64c9d73d` compiler while an official fixed nightly is pending.
 
 ## Root cause (upstream)
@@ -40,7 +40,7 @@ compiler at or after `195c9e77` requires a compiler built from source with the
 #10700 patch applied. Verified locally on 2026-08-09: a `ReleaseFast` compiler
 built from the PR branch (`issue-10697-static-refcounted-bytes-gep`,
 `release-fast-64c9d73d`) builds all 20 `tests/*/main.roc` apps with the suite
-flags (`--opt=dev --target=x64musl --no-cache`) and every app runs its first
+flags (`--opt=dev --target=x64musl`) and every app runs its first
 spec scenario successfully.
 
 The temporary `.roc-version` pin is not an official downloadable nightly.

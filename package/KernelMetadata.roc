@@ -1,4 +1,4 @@
-## Validated document-metadata facts for the Gate 4 metadata/output-intent
+## Validated document-metadata facts for the production-visual metadata/output-intent
 ## slice. Authoring supplies a metadata title, a document language, and
 ## explicit-or-omitted timestamps; this boundary validates them once against
 ## the pinned RFC 5646 and XML 1.0 policies and returns typed facts that later

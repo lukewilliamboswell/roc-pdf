@@ -3,7 +3,7 @@
 Date: 2026-08-09
 
 This reviewed, atomic baseline update moves the scenario suite to the pinned
-Roc dev backend selected by `tests/spec.json`. It is not a Gate 3 closure
+Roc dev backend selected by `tests/spec.json`. It is not a text-layout closure
 record.
 
 ## Scope and method
@@ -16,7 +16,7 @@ The two new authored-facade scenarios measured 1,422 allocations for the
 positive path and 98 for its line-run-limit atomic negative.
 
 The expectation schema keeps the paired native-target records together. This
-local Gate 3 work does not claim a new cross-platform performance result; its
+local text-layout work does not claim a new cross-platform performance result; its
 accepted values retain the suite's existing target-parity contract and need
 the normal supported-host CI confirmation before release evidence is claimed.
 
@@ -32,9 +32,9 @@ the rebaseline slice.
   object planning, compression traversal, and retained ranges did not change.
 - Unicode analysis increased by one allocation at both scale points, while its
   input, scalar, grapheme, line-boundary, and script-run work remained exact.
-- Gate 2 scene and image-reuse scenarios decreased by 20 allocations with the
+- tagged-visual scene and image-reuse scenarios decreased by 20 allocations with the
   million-command direct-loop work vector unchanged.
-- The Gate 3 authoring/facade families show consistent fixed-cost reductions
+- The text-layout authoring/facade families show consistent fixed-cost reductions
   (for example -18 for normalization/layout, -25 for font/shaping, and -14
   for fragment arenas). The unique-source cache reductions scale with the
   input count (-1,018 at 1,000 and -10,018 at 10,000), while its hash/probe/
@@ -53,5 +53,5 @@ used to accept them.
 ## Remaining boundary
 
 This update enables exact dev-backend allocation checking for the current
-suite. It does not complete Gate 3, establish cross-platform allocation
+suite. It does not complete text-layout, establish cross-platform allocation
 evidence, or discharge the remaining roadmap capabilities.

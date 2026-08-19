@@ -32,7 +32,7 @@ Theme :: {
 		top : Layout.Unit,
 	}
 
-	## The built-in face ID is a versioned package resource identity. Gate 3
+	## The built-in face ID is a versioned package resource identity. text-layout
 	## supplies and validates the corresponding font resource.
 	default : Theme
 	default = {

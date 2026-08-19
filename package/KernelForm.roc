@@ -12,7 +12,7 @@ import Scene
 import Semantics
 import Text
 
-## Gate 4 Form XObject and leaf-resource normalization.
+## production-visual Form XObject and leaf-resource normalization.
 ##
 ## This stage turns a validated form-aware scene plus the validated color and
 ## image stores into the canonical facts that content lowering, object
@@ -52,6 +52,7 @@ import Text
 ## rejected by the resource graph before any traversal could recurse.
 KernelForm :: [].{
 	Error : [
+		AppearanceTextUnsupported({ form : U64 }),
 		ArithmeticOverflow,
 		ArtifactTextInForm({ form : U64 }),
 
@@ -232,13 +233,14 @@ KernelForm :: [].{
 		page_command_states : List(U64),
 		page_placements : List({ ambient : Bool, ambient_mask : Bool, form : U64, owner : Scene.GroupOwner, page : U64 }),
 		page_transparency : List(Bool),
+		appearance_uses : List(AppearanceUse),
 		root_uses : List(KernelResourceGraph.RootUse),
 		run_fragments : List(RunFragment),
 		transitive_text : List(Bool),
 		work : FactsWork,
 	}.{
 		build : KernelScene.FormPlan, Stores, [NoTextStore, WithTextStore(Text.Store)], Limits -> Try(Facts, Error)
-		build = |form_plan, stores, text, limits| build_facts(form_plan, stores.colors, derive_counts(stores, Scene.no_shadings, Scene.no_patterns), text, limits, Scene.no_patterns)
+		build = |form_plan, stores, text, limits| build_facts(form_plan, stores.colors, derive_counts(stores, Scene.no_shadings, Scene.no_patterns), text, limits, Scene.no_patterns, [])
 
 		## The paint-aware variant: shadings and pattern cells join the node
 		## space, cell content contributes each pattern's direct edges, and
@@ -252,6 +254,24 @@ KernelForm :: [].{
 			text,
 			limits,
 			KernelScene.PaintPlan.patterns(paint_plan),
+			[],
+		)
+
+		## The navigation-aware variant: annotation appearance references join
+		## both graph runs as closure-only uses so appearance forms prove
+		## reachable and close their dependencies without resource-dictionary
+		## entries, and a form reachable as an appearance rejects transitive
+		## semantic text. An empty appearance list is identical to
+		## `build_with_paints`.
+		build_with_navigation : KernelScene.PaintPlan, Stores, [NoTextStore, WithTextStore(Text.Store)], List(AppearanceUse), Limits -> Try(Facts, Error)
+		build_with_navigation = |paint_plan, stores, text, appearances, limits| build_facts(
+			KernelScene.PaintPlan.forms(paint_plan),
+			stores.colors,
+			derive_counts(stores, KernelScene.PaintPlan.shadings(paint_plan), KernelScene.PaintPlan.patterns(paint_plan)),
+			text,
+			limits,
+			KernelScene.PaintPlan.patterns(paint_plan),
+			appearances,
 		)
 
 		## The authored color-space index of the transparency blending space.
@@ -269,6 +289,14 @@ KernelForm :: [].{
 	}
 
 	FormOwner : [ArtifactOwner, FragmentOwner(Semantics.FragmentId), MixedOwner, UnplacedOwner]
+
+	## One annotation normal-appearance reference: the authored form it names
+	## and the page whose annotation carries it. Appearance references are
+	## closure-only graph uses — the form stays reachable through the
+	## annotation's `/AP` reference without entering any content stream's
+	## resource dictionary — and an appearance form may not contain semantic
+	## text, because an appearance stream has no fragment ownership.
+	AppearanceUse : { form : U64, page : U64 }
 
 	Leaf : { descriptor : KernelResourceGraph.Descriptor, payload : List(U8) }
 
@@ -1088,8 +1116,8 @@ derive_counts = |stores, shading_store, pattern_store| {
 	}
 }
 
-build_facts : KernelScene.FormPlan, KernelColor.Plan, KernelForm.Counts, TextInput, KernelForm.Limits, Scene.PatternStore -> Try(KernelForm.Facts, KernelForm.Error)
-build_facts = |form_plan, colors, counts, text, limits, pattern_store| {
+build_facts : KernelScene.FormPlan, KernelColor.Plan, KernelForm.Counts, TextInput, KernelForm.Limits, Scene.PatternStore, List(KernelForm.AppearanceUse) -> Try(KernelForm.Facts, KernelForm.Error)
+build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearances| {
 	page_plan = KernelScene.FormPlan.page(form_plan)
 	scenes = KernelScene.Plan.scenes(page_plan)
 	form_store = KernelScene.FormPlan.forms(form_plan)
@@ -1342,10 +1370,17 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store| {
 	## document contains transparency, one conservative closure-only use keeps
 	## the blending space reachable before per-page transparency is known; the
 	## canonical run later re-proves closure with the exact per-page uses.
-	structure_closure = match blending {
+	var $structure_closure = match blending {
 		NoBlending => []
 		Blending(space) => if scenes.pages.len() > 0 [{ resource: color_node(space), root: 0 }] else []
 	}
+	var $appearance_scan = 0
+	while $appearance_scan < appearances.len() {
+		use = list_at(appearances, $appearance_scan)
+		$structure_closure = $structure_closure.append({ resource: form_node(counts, use.form), root: use.page })
+		$appearance_scan = $appearance_scan + 1
+	}
+	structure_closure = $structure_closure
 	structure = KernelResourceGraph.Plan.build_with_closure_uses(
 		structure_input(counts, form_count, derivation.states, isolated, $edges, scenes.pages.len(), $root_uses),
 		structure_closure,
@@ -1522,6 +1557,19 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store| {
 		NoFailure => {}
 	}
 
+	$appearance_scan = 0
+	while $appearance_scan < appearances.len() and $failure == NoFailure {
+		appearance_form = list_at(appearances, $appearance_scan).form
+		if appearance_form < form_count and list_at(transitive_text, appearance_form) {
+			$failure = Failed(AppearanceTextUnsupported({ form: appearance_form }))
+		}
+		$appearance_scan = $appearance_scan + 1
+	}
+	match $failure {
+		Failed(error) => return Err(error)
+		NoFailure => {}
+	}
+
 	var $text_forms = 0
 	$form_index = 0
 	while $form_index < form_count and $failure == NoFailure {
@@ -1579,6 +1627,7 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store| {
 				page_command_states: derivation.page_states,
 				page_placements: $page_placements,
 				page_transparency: $page_transparency,
+				appearance_uses: appearances,
 				root_uses: $root_uses,
 				run_fragments: $run_fragments,
 				transitive_text,
@@ -2641,6 +2690,12 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 	## The exact per-page transparency-group blending uses: closure-only, so
 	## the blending space stays reachable without a dictionary entry.
 	var $closure_uses = []
+	var $appearance_closure = 0
+	while $appearance_closure < facts.appearance_uses.len() {
+		use = list_at(facts.appearance_uses, $appearance_closure)
+		$closure_uses = $closure_uses.append({ resource: form_node(counts, use.form), root: use.page })
+		$appearance_closure = $appearance_closure + 1
+	}
 	match facts.blending {
 		NoBlending => {}
 		Blending(space) => {

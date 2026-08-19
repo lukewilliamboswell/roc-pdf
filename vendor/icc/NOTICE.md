@@ -7,7 +7,7 @@ https://www.color.org/profiles/sRGB2014.icc
 
 (linked from the ICC's sRGB profile page,
 https://www.color.org/srgbprofiles.xalter). It is a reviewed production data
-asset: the Gate 4 color pipeline embeds these exact bytes as the ICCBased sRGB
+asset: the production-visual color pipeline embeds these exact bytes as the ICCBased sRGB
 profile stream, and the later static-archive slices reuse the same bytes for
 the sRGB output intent. `scripts/build_srgb_profile.py` emits the private
 `package/KernelSrgbProfile.roc` byte module from this exact asset, so the pure

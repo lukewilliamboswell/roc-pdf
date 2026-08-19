@@ -50,16 +50,13 @@ jobs:
           version: nightly-new-compiler
           nightly-tag: ${{ env.ROC_NIGHTLY_TAG }}
 
-      # Pull-request CI is intentionally a fast public-surface smoke test.
-      # The complete fixture, snapshot, allocation, renderer, and validator
-      # suite remains available locally through ./scripts/test.py.
-      - name: Check core package and public examples
+      - name: Run spec-defined e2e evidence
         run: |
-          roc check package/main.roc
-          roc test package/main.roc
-          for example in examples/*.roc; do
-            roc test "$example"
-          done
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            ./scripts/test.py --allocation-baselines
+          else
+            ./scripts/test.py
+          fi
 
-      - name: Run fuzz smoke tests
-        run: roc test package/fuzz_evidence.roc
+      - name: Verify release bundle consumer boundary
+        run: python3 scripts/test_bundle_consumer.py

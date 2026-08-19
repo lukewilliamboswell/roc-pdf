@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Subset the test-only IBM Plex Sans Hebrew source for the Gate 3 RTL slice."""
+"""Subset the test-only IBM Plex Sans Hebrew source for the text-layout RTL slice."""
 from __future__ import annotations
 
 import argparse

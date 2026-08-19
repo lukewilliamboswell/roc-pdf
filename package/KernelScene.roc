@@ -90,9 +90,9 @@ KernelScene :: [].{
 		with_text : { color_spaces : U64, images : U64, text_runs : U64 } -> Resources
 		with_text = |resources| Resources.({ allow_opacity: Bool.False, allow_paints: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, patterns: 0, shadings: 0, text_runs: resources.text_runs })
 
-		## Gate 4 scenes additionally declare their dense form count and gain
+		## production-visual scenes additionally declare their dense form count and gain
 		## the constant-opacity capability; the older constructors keep
-		## declaring zero forms and rejecting opacity, so a Gate 2 or Gate 3
+		## declaring zero forms and rejecting opacity, so a tagged-visual or text-layout
 		## scene still rejects any form placement or opacity group.
 		with_forms : { color_spaces : U64, forms : U64, images : U64, text_runs : U64 } -> Resources
 		with_forms = |resources| Resources.({ allow_opacity: Bool.True, allow_paints: Bool.False, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, patterns: 0, shadings: 0, text_runs: resources.text_runs })
@@ -175,7 +175,7 @@ KernelScene :: [].{
 		nested_form_placements : U64,
 	}
 
-	## A Gate 4 scene plan validates the flat form-command arena with exactly
+	## A production-visual scene plan validates the flat form-command arena with exactly
 	## the same command rules as page content: dense form identities, positive
 	## bounding boxes, once-each command ownership, balanced nesting inside the
 	## declared depth budget, and typed per-command validation over the shared
@@ -961,8 +961,8 @@ validate_command = |command, index, scenes, resources| match command {
 		Ok({ ..leaf_work, color_references: colors, text_placements: 1 })
 	}
 
-	## Constant opacity is a Gate 4 capability: form-aware scenes validate the
-	## group's children like any nested range, while Gate 2/3 scenes keep the
+	## Constant opacity is a production-visual capability: form-aware scenes validate the
+	## group's children like any nested range, while tagged-visual/3 scenes keep the
 	## explicit rejection. The `U16` value itself has no invalid state — zero
 	## and fully opaque are both meaningful.
 	Opacity({ children, opacity: _ }) => if resources.allow_opacity {
@@ -971,7 +971,7 @@ validate_command = |command, index, scenes, resources| match command {
 		Err(UnsupportedCommand({ command: index }))
 	}
 
-	## Shading paints share the paint gate: the shading must name a declared
+	## Shading paints share the paint validation: the shading must name a declared
 	## entry of the validated shading store; every earlier resource
 	## constructor declares zero shadings and rejects the command outright.
 	PaintShading({ shading }) => if !resources.allow_paints {
@@ -982,7 +982,7 @@ validate_command = |command, index, scenes, resources| match command {
 		Ok({ ..leaf_work, shading_paints: 1 })
 	}
 
-	## Alpha soft masks share the Gate 4 gate: the mask must name a declared
+	## Alpha soft masks share the production-visual validation: the mask must name a declared
 	## form (its isolated-group requirement is a normalization fact checked
 	## with the form store), and the group's children validate like any
 	## nested range.
@@ -1335,7 +1335,7 @@ expect {
 	}
 }
 
-## Gate 3 text paint is opaque until an ExtGState capability is implemented.
+## text-layout text paint is opaque until an ExtGState capability is implemented.
 expect {
 	bad = { ..text_store, commands: [DrawText({ paint: { ..test_text_paint, opacity: 65534 }, run: Text.RunId.from_index(0) })] }
 	match KernelScene.Plan.build(bad, text_resources, text_limits) {
@@ -1437,7 +1437,7 @@ expect {
 	}
 }
 
-## Gate 4 opacity remains explicitly unavailable in a Gate 2 scene.
+## production-visual opacity remains explicitly unavailable in a tagged-visual scene.
 expect {
 	commands = list_set(test_store.commands, 3, Opacity({ children: Semantics.Range.from_start_and_length(0, 1), opacity: 32768 }))
 	bad = { ..test_store, commands }
@@ -1572,7 +1572,7 @@ expect {
 	work.form_visits == 1 and work.form_command_visits == 2 and work.form_child_ranges == 1 and work.max_form_depth == 2 and work.nested_form_placements == 0 and page_work.form_placements == 1
 }
 
-## A Gate 2 or Gate 3 scene still rejects any form placement: the older
+## A tagged-visual or text-layout scene still rejects any form placement: the older
 ## resource constructors declare zero forms.
 expect {
 	match KernelScene.Plan.build(form_placing_store, test_resources, test_limits) {
@@ -1634,8 +1634,8 @@ expect {
 	work.opacity_commands == 2 and work.command_visits == 4 and work.child_ranges == 2 and work.max_graphics_depth == 3 and work.image_placements == 1
 }
 
-## The same opacity scene stays rejected under the Gate 2 and Gate 3 resource
-## constructors: constant opacity is a Gate 4 capability.
+## The same opacity scene stays rejected under the tagged-visual and text-layout resource
+## constructors: constant opacity is a production-visual capability.
 expect {
 	made = match KernelScene.Plan.build(opacity_store, test_resources, test_limits) {
 		Err(UnsupportedCommand({ command: 0 })) => True
@@ -1667,7 +1667,7 @@ expect {
 
 ## Soft-mask groups validate in form-aware scenes with nested children, a
 ## bounded mask reference, and counted work — and stay rejected under the
-## Gate 2/3 resource constructors like every Gate 4 transparency command.
+## tagged-visual/3 resource constructors like every production-visual transparency command.
 expect {
 	masked = {
 		..opacity_store,
@@ -1693,11 +1693,11 @@ expect {
 		Err(IndexOutOfRange({ available: 1, index: 7, kind: FormIndex })) => True
 		_ => False
 	}
-	gate2_rejected = match KernelScene.Plan.build(masked, test_resources, test_limits) {
+	rejected = match KernelScene.Plan.build(masked, test_resources, test_limits) {
 		Err(UnsupportedCommand({ command: 0 })) => True
 		_ => False
 	}
-	work.soft_mask_commands == 1 and work.opacity_commands == 1 and work.command_visits == 4 and bounds_rejected and gate2_rejected
+	work.soft_mask_commands == 1 and work.opacity_commands == 1 and work.command_visits == 4 and bounds_rejected and rejected
 }
 
 span_of : U64, U64 -> Semantics.Range
@@ -1780,7 +1780,7 @@ expect {
 
 ## Paint commands stay rejected under every earlier resource constructor.
 expect {
-	gate2 = match KernelScene.Plan.build(paint_scene, test_resources, test_limits) {
+	tagged_visual = match KernelScene.Plan.build(paint_scene, test_resources, test_limits) {
 		Err(UnsupportedCommand({ command })) => command == 1
 		_ => False
 	}
@@ -1788,7 +1788,7 @@ expect {
 		Err(UnsupportedCommand({ command })) => command == 1
 		_ => False
 	}
-	gate2 and forms_only
+	tagged_visual and forms_only
 }
 
 ## The stop model rejects too-few, misplaced-endpoint, and non-increasing

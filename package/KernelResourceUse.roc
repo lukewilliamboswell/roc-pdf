@@ -69,7 +69,7 @@ KernelResourceUse :: [].{
 		build : KernelScene.Plan, KernelColor.Plan, KernelImage.Plan -> Try(TextPlan, Error)
 		build = |scenes, colors, images| build_text_plan(scenes, [], [], NoShadings, colors, images, NoBlending)
 
-		## Gate 4 scenes count direct use across the page and form command
+		## production-visual scenes count direct use across the page and form command
 		## arenas, so a resource used only inside form content is not an
 		## orphan.
 		build_with_forms : KernelScene.FormPlan, KernelColor.Plan, KernelImage.Plan -> Try(TextPlan, Error)

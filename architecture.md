@@ -518,12 +518,12 @@ Test corpora and fixture assets are not production package dependencies.
 The package performs no resource acquisition effects. An application or its
 platform may read a file, fetch a response, query a store, or obtain bytes from
 another package, but it passes the complete replayable `List(U8)` value into
-the pure PDF API before validation and generation. Before Gate 3 is complete,
+the pure PDF API before validation and generation. Before text-layout is complete,
 the public facade or `Font` boundary provides a typed constructor and registry
 path that validates those bytes and returns an opaque font face or policy handle
 that a `Theme` can select. Callers never invent dense resource IDs or provide a
 system-font name. The same pattern applies to other large caller-provided
-resources as their gates make them public.
+resources as their capabilities become public.
 
 `Font.Registry.register` is that font boundary. Registration is transactional:
 it validates the complete byte allocation and declared script provision before
@@ -603,7 +603,7 @@ visible and carry the fields required by that choice.
 ### Defaults contract
 
 `Pdf.to_bytes` is equivalent to `Pdf.to_bytes_with(document,
-Pdf.Options.default)`. This section states the enduring post-Gate-7 default
+Pdf.Options.default)`. This section states the enduring default after production-graphics completion
 contract. During delivery, the roadmap advances the default only to a public
 profile whose complete claim set has been implemented and validated; an
 unfinished claim is never selected implicitly. The enduring defaults are:
@@ -1298,6 +1298,20 @@ mapping, tagged-PDF lowering, profile rule validation, object planning, the PDF
 object representation, content serialization, xref generation, and lexical
 byte emission.
 
+`package/main.roc` is the sole release package root and exposes only the
+supported public modules above. The repository also contains
+`package/all.roc`, a local test-integration root that exposes every production
+module so evidence applications can exercise exact stage contracts without
+creating alternate packages. Release bundling always starts from `main.roc`;
+`all.roc` is never included in a release artifact and does not expand the
+consumer-visible surface.
+
+Evidence applications are ordinary apps under capability-named directories in
+`tests/`. Internal evidence imports the local `all.roc` root, while public API
+fixtures import `main.roc`. Test-only fixture modules live beside the apps that
+share them rather than in `package/`, and multiple named app roots and snapshots
+may occupy one capability directory.
+
 Separate pure Roc packages may own shaping, OpenType parsing, image decoding,
 XML/XMP construction, hashing, ICC inspection, and DEFLATE. Integration occurs
 through validated data types, not private representation coupling.
@@ -1428,8 +1442,8 @@ kernels. Direct loops and proposed `Iter` implementations are compared under
 the same pinned dev backend before an iterator becomes a hot-path choice.
 
 The fast ordinary CI lane checks and tests the core `package/main.roc` public
-surface, compiles and tests every checked-in public example, and runs the
-bounded fuzz smoke tests. The complete local suite remains the authoritative
+surface, checks the repository-only `package/all.roc` root, compiles and tests
+every checked-in public example, and checks the bounded fuzz targets. The complete local suite remains the authoritative
 feature-evidence path and is run through `./scripts/test.py`; release validation
 also runs that suite from scratch. That full evidence path uses PDFium and
 PDFBox as independent reader/render/extraction paths. PDF.js adds browser

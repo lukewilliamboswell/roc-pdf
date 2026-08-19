@@ -1,6 +1,6 @@
 import KernelBalanced
 import KernelDeflate
-import KernelGate2Identity
+import KernelIdentity
 import KernelObject
 import KernelSeal
 import KernelSha256
@@ -27,7 +27,7 @@ KernelStructure :: [].{
 	PageGeometry := [Fixed(PageSize), Variable]
 	Error : [
 		Deflate(KernelDeflate.Error),
-		Identity(KernelGate2Identity.Error),
+		Identity(KernelIdentity.Error),
 		IdentityInputTooLarge,
 		Object(KernelObject.Error),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : U64 }),
@@ -326,7 +326,7 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 			## With document facts the plan identity is the sealed-store
 			## digest, so language, metadata, and intent facts change the file
 			## identifier deterministically.
-			plan_identity = KernelGate2Identity.digest(sealed) ? Identity
+			plan_identity = KernelIdentity.digest(sealed) ? Identity
 			NormalizedPlanDigest(plan_identity.digest)
 		}
 	}

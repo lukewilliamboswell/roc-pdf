@@ -163,7 +163,7 @@ def validate_baseline(value: object) -> set[str]:
     if ids != sorted(set(ids)):
         fail("normative-baseline.sources", "source ids must be sorted and unique")
     if set(ids) != REQUIRED_SOURCES:
-        fail("normative-baseline.sources", "must contain the complete Gate 0 source set")
+        fail("normative-baseline.sources", "must contain the complete contract-definition source set")
 
     by_id = {source["id"]: source for source in sources}
     errata = by_id["pdf-issues-ec3"]
@@ -196,7 +196,7 @@ def validate_matrix(value: object) -> None:
         if capability["availability"] != expected_availability:
             fail(
                 f"{path}.availability",
-                f"must be {expected_availability!r} at the current capability gate",
+                f"must be {expected_availability!r} at the current capability boundary",
             )
 
     if capability_ids != sorted(CAPABILITIES):
@@ -299,7 +299,7 @@ def validate_ledger(value: object, source_ids: set[str]) -> None:
 
 def repository_binary_assets() -> set[str]:
     result = subprocess.run(
-        ["git", "ls-files", "-z"],
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
         cwd=ROOT,
         check=True,
         stdout=subprocess.PIPE,
@@ -309,7 +309,7 @@ def repository_binary_assets() -> set[str]:
         for raw_path in result.stdout.split(b"\0")
         if raw_path
         for path in [raw_path.decode("utf-8")]
-        if Path(path).suffix.lower() in BINARY_ASSET_SUFFIXES
+        if Path(path).suffix.lower() in BINARY_ASSET_SUFFIXES and (ROOT / path).is_file()
     }
 
 
