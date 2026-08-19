@@ -44,96 +44,16 @@ review](docs/performance/text-layout-closure.md).
 
 ## Development
 
-Run all checks through the Python test driver:
+Run the complete test suite with the pinned Roc compiler:
 
 ```sh
 ./scripts/test.py
 ```
 
-Set `ROC` to use a specific compiler executable:
+See [Testing and fixture development](docs/testing.md) for focused runs,
+compiler selection, allocation and snapshot workflows, and the family-fixture
+schema.
 
-```sh
-ROC=/path/to/roc ./scripts/test.py
-```
+## License
 
-The driver prints timestamped, color-coded status and one global step counter
-across validation, fixture builds, and evidence cases. Complete command output
-is retained in a plain-text `.roc-pdf-tmp/logs/` file with a timestamp on every
-line. The validation inventory in
-`tests/spec.json` applies `roc fmt --check`, `roc check`, and `roc test` to every
-declared Roc source by default; exceptions require an explicit action-specific
-skip and reason. Validation, distinct fixture builds, and independent case
-processes use a hardware-aware worker count based on CPU affinity and memory,
-up to sixteen workers; use `--jobs N` to override it or `--verbose` to mirror
-the detailed log to the console.
-
-Fixture builds additionally obey `toolchain.max_build_workers` from
-`tests/spec.json`. This independently reviewed cap prevents several cold,
-memory-heavy codegen processes from exhausting the host while validation and
-runtime cases retain their requested parallelism.
-
-The spec-driven integration cases in [`tests/spec.json`](tests/spec.json) build
-real Roc applications with `--opt=dev` by default. This fast path requires
-exact PDF snapshots, structural checks, and deterministic work counters. The
-test-only Zig platform supports macOS AArch64 and Linux x86-64.
-
-Exact Roc allocation baselines remain an explicit check, but use the same dev
-backend so contributors are never required to wait for `--opt=speed` builds:
-
-```sh
-./scripts/test.py --allocation-baselines
-```
-
-Use `--compare-baselines` to review dev-backend allocation deltas before
-deliberately updating the specification. Each test application's `main!`
-receives `List(Str)` process arguments and returns the generated `List(U8)`
-PDF; the host writes those bytes to stdout and reports Roc allocation events
-separately.
-
-Public contract examples under `examples/` are formatting- and compile-checked
-by the same driver. Runtime structural-kernel behavior is exercised by package tests and
-the dev-backend structural fixtures.
-
-Integration cases are grouped by capability under `tests/`. Related runtime
-cases should use one family `main.roc`, one shared `Fixture.roc`, and an ordered
-`cases.jsonl`. Each schema-version-1 JSONL row has exactly `name`,
-`schema_version`, and `case`; `case` is the JSON representation of the closed,
-family-specific Roc tag union decoded by `Json.parse`. Add the row's snapshot,
-dimensions, work counters, allocation baseline, retention contract, and
-an explicit ordered `validators` list to `tests/spec.json`, then register the family
-app and JSONL file in its top-level `families` list. The harness checks that
-every JSONL name has exactly one matching spec case, passes only
-`schema_version` and `case` to Roc, builds the app once, and runs its rows in
-parallel against that executable.
-
-Validator IDs are resolved through the allowlisted registry in
-`scripts/harness_validators.py`; the harness never selects validators from a
-source filename, directory, or dimension flag. The top-level
-`preflight_checks` and `post_update_checks` lists use the same pattern for
-checker self-tests. Unknown or duplicate IDs are schema errors, and spec data
-cannot import or execute an arbitrary Python module.
-
-A directory may still contain several genuinely distinct app roots and
-snapshots plus a shared fixture module.
-Public-surface apps import `package/main.roc`; internal evidence apps import the
-repository-only `package/all.roc`. Every case, source, snapshot, and expected
-allocation count is registered in [`tests/spec.json`](tests/spec.json).
-
-An allocation event is a call to either `roc_alloc` or `roc_realloc`; host setup and teardown are
-not counted. To accept intentional PDF output changes after reviewing them, run:
-
-```sh
-./scripts/test.py --update-snapshots
-```
-
-Snapshot update mode also requires the exact allocation and named work-counter
-baselines in that same run. Family JSON decoding occurs before the test-only
-platform resets the allocation counter, so existing `before_fixture_main`
-baselines continue to measure the fixture pipeline rather than transport. It
-compiles each distinct fixture app once, so a
-separate allocation-baseline invocation is not needed after snapshot updates.
-
-The test platform is derived from
-[`roc-platform-template-zig`](https://github.com/lukewilliamboswell/roc-platform-template-zig)
-and retains its original notice in [`tests/platform/NOTICE`](tests/platform/NOTICE). It is licensed
-under the project’s [UPL license](LICENSE).
+This project is licensed under the [Universal Permissive License](LICENSE).
