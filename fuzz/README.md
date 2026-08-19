@@ -6,24 +6,25 @@ not expose its private stage facts through the public facade. They are
 software-quality tests for correctness, determinism, bounded error handling, and
 invariant preservation; they do not make or test a security claim.
 
-Build and smoke-test them from the repository root:
+Build and run every target through the harness:
 
 ```sh
-roc build --fuzz fuzz/font_inspector_mutation.roc
-roc build --fuzz fuzz/font_inspector_repair.roc
-roc build --fuzz fuzz/font_subset_roundtrip.roc
-roc build --fuzz fuzz/jpeg_inspector_mutation.roc
-roc build --fuzz fuzz/facade_output_equivalence.roc
-
-./font_inspector_mutation run .roc-fuzz/font-inspector-seeds \
-  --runs=1000 --max-input-size=524288 --timeout=5 --memory-limit=2048
-./font_inspector_repair run .roc-fuzz/font-repair-corpus \
-  --runs=1000 --max-input-size=512 --timeout=5 --memory-limit=2048
-./font_subset_roundtrip run .roc-fuzz/corpus \
-  --runs=1000 --max-input-size=512 --timeout=5 --memory-limit=2048
-./jpeg_inspector_mutation run .roc-fuzz/jpeg-corpus \
-  --runs=1000 --max-input-size=65536 --timeout=5 --memory-limit=2048
+./scripts/fuzz.py
 ```
+
+That builds each target with `roc build --fuzz` and runs a bounded campaign
+against its seed corpus, failing on a crash, a timeout, or a memory-limit
+breach. `--targets NAME` (repeatable) selects one and `--runs N` lengthens the
+campaign:
+
+```sh
+./scripts/fuzz.py --targets jpeg_inspector_mutation --runs 200000
+```
+
+`./scripts/test.py` separately applies `roc fmt --check`, `roc check`, and
+`roc test` to every source here, which runs the `expect`s each target retains.
+Those expects are the regression floor: they pin concrete inputs and hold even
+when no campaign runs.
 
 ## Targets
 
@@ -53,26 +54,82 @@ capped at 96 rejected every large subset before it was built.
 
 `jpeg_inspector_mutation` passes every fuzzer byte to the bounded JPEG
 inspector. Accepted images must yield a sanitized stream: framed by SOI/EOI,
-never longer than its source, carrying no application or comment segment, with
-a resolved orientation and dimensions and work counters inside the declared
-limits. This inspector has no checksum gate, so raw mutation reaches its
-parsers directly.
+never longer than its source, carrying a resolved orientation and dimensions and
+work counters inside the declared limits, and retaining an application segment
+only when it is the JFIF `APP0` or Adobe `APP14` that `KernelImage` deliberately
+copies through for pixel density and colour transform. Every other application
+segment, an Exif `APP1` above all, and every comment segment must be stripped.
+Each input is inspected under both a calibrated-grey and an sRGB space, because
+the inspector matches a frame's component count against its declared space and a
+single-space store would send every three-component image down the reject path.
 
 `facade_output_equivalence` drives the public facade over generated typed
 documents and checks the enduring output contracts: identical inputs produce
 identical bytes, the buffered and chunked encoders agree byte for byte, the
 chunk retention policy changes allocation only, and a rejected document is
-rejected the same way every time. The LLVM compiler defect that previously
-blocked this target was fixed upstream by Roc commit `47a14ba38c` and is
-included in the pinned nightly.
+rejected the same way every time.
+
+`facade_structure` checks that emitted bytes are a structurally valid PDF, which
+the equivalence target cannot: comparing output to itself passes even if the
+output is not a PDF at all. Its oracle re-derives structure from the bytes,
+driving `startxref` to the cross-reference stream to the object offsets, and
+verifies framing, `/Size == xref + 1`, `/Length == Size * 11`, the free-object
+head, offsets landing on their own object headers, contiguous object tiling,
+stream `/Length` adjacency, reference resolution, delimiter balance, and
+canonical sorted dictionary keys. It imports no package module at all, so a
+disagreement between the emitter and the oracle surfaces instead of cancelling
+out.
+
+`navigation_property` drives the authored navigation surface. The five
+validation stages run in a fixed order and mask each other, so the free-form
+property asserts only what survives that: a document seals to the same bytes or
+the same typed error every time, and a rejection is transactional through both
+entrypoints. A separate single-fault table injects exactly one navigation fault
+into a valid base authoring and asserts the exact variant and location. Limits
+come from `KernelNavigation.standard_limit_values` rather than being restated,
+so the property cannot drift from the value the pipeline enforces.
+
+`registry_property` drives the public `Font.Registry` boundary over repeated
+registrations and explicit policies, which the font targets skip by calling
+`KernelFont` directly. It checks dense identity across the parallel stores, the
+implicit single-face policy each registration creates, exact tiling of the
+coverage and script buffers, pure-append growth, round-trips through
+`policy_faces`, the `index == len` boundaries, the unconditional zero-copy claim,
+and face-range tiling with coalesced adjacent instances. Its plan oracle
+reimplements selection rather than reusing the planner.
+
+`theme_options` drives the theme and options surface, whose layout units are
+unvalidated raw `I64` values feeding pagination directly. It maps each knob onto
+a ladder of magnitudes — zero, negative, degenerate, ordinary, page-sized, and
+±2^62 — across both page sizes and all three profiles, and requires determinism,
+buffered and chunked agreement, and termination.
 
 ## Corpora
 
-Keep long-lived corpora under the ignored `.roc-fuzz/` directory. The raw-input
-inspector corpus can be seeded directly with the valid font files in
-`vendor/fonts/` and `tests/assets/`. The structured targets are
-generator-encoded, so inspect hand-authored seeds with their `show` command
-before retaining them.
+The JPEG corpus is tracked under `tests/assets/jpeg-fuzz-corpus/` with asset
+provenance and is regenerated by `scripts/build_jpeg_fuzz_corpus.py`. The
+font targets are seeded from the faces in `vendor/fonts/` and `tests/assets/`.
+`scripts/fuzz.py` copies a seed corpus into the ignored
+`.roc-pdf-tmp/fuzz-corpus/` before every run, because libFuzzer writes newly
+interesting inputs back into the directory it is given and must never own
+tracked files. Longer-lived accumulated corpora belong under the ignored
+`.roc-fuzz/`.
+
+A corpus is what decides whether a property is exercised at all. The JPEG
+accept-path invariants were unevaluated for as long as no valid JPEG was
+checked in: raw mutation never synthesised one, so every execution took the
+reject path while the target reported success. A target whose success arm is a
+typed rejection cannot tell you that its interesting half ever ran, so pair a
+replayed seed with positive evidence that the accept path was reached.
+
+The structured targets are generator-encoded, so inspect hand-authored seeds
+with their `show` command before retaining them. That command is also how to
+check a generator is not starving itself: fields are decoded in declaration
+order out of an input whose length libFuzzer raises only slowly, so a field
+placed behind a string- or list-carrying one receives no entropy and decodes to
+one repeated exhausted byte. Declare the cheap selectors first and the content
+last, and confirm with `show` that a retained corpus really varies the fields
+the target exists to vary.
 
 Minimized reproductions are retained as `fuzz_seed` assets under
 `tests/assets/` with provenance, and promoted to atomic regression tests beside

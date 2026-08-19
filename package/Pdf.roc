@@ -525,19 +525,7 @@ standard_pipeline_limits : KernelFacadePipeline.Limits
 standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 4 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 100000, max_occurrences: 2048, max_pages: 1024 }),
-	navigation: KernelNavigation.Limits.make({
-		max_annotations: 4096,
-		max_description_bytes: 1024,
-		max_destinations: 2048,
-		max_label_prefix_bytes: 64,
-		max_label_ranges: 1024,
-		max_name_bytes: 128,
-		max_outline_depth: 32,
-		max_outline_entries: 4096,
-		max_outline_title_bytes: 1024,
-		max_quads: 100000,
-		max_uri_bytes: 2048,
-	}),
+	navigation: KernelNavigation.standard_limits,
 	lines: KernelFacadeLines.Limits.make({
 		line: KernelLineLayout.BatchLimits.make({
 			line: KernelLineLayout.Limits.make({ max_boundaries: 1000001, max_candidates: 2000000, max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_lines: 1000000 }),
