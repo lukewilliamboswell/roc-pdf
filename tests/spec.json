@@ -76,7 +76,7 @@
           "check",
           "test"
         ],
-        "reason": "Shared evidence modules are compiled through adjacent app roots that provide package aliases and a platform."
+        "reason": "Shared evidence modules are compiled through adjacent application roots that provide package aliases and a platform."
       }
     ]
   },
@@ -88,51 +88,51 @@
   },
   "families": [
     {
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "cases_jsonl": "tests/forms/cases.jsonl"
     },
     {
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "cases_jsonl": "tests/soft_masks/cases.jsonl"
     },
     {
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "cases_jsonl": "tests/color_images/cases.jsonl"
     },
     {
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "cases_jsonl": "tests/resource_graph/cases.jsonl"
     },
     {
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "cases_jsonl": "tests/shading_patterns/cases.jsonl"
     },
     {
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "cases_jsonl": "tests/transparency/cases.jsonl"
     },
     {
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "cases_jsonl": "tests/metadata/cases.jsonl"
     },
     {
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "cases_jsonl": "tests/navigation/cases.jsonl"
     },
     {
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "cases_jsonl": "tests/actual_text/cases.jsonl"
     },
     {
-      "source": "tests/facade_output/app.roc",
+      "source": "tests/facade_output/main.roc",
       "cases_jsonl": "tests/facade_output/cases.jsonl"
     },
     {
-      "source": "tests/unicode_vectors/app.roc",
+      "source": "tests/unicode_vectors/main.roc",
       "cases_jsonl": "tests/unicode_vectors/cases.jsonl"
     },
     {
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "cases_jsonl": "tests/structural_kernel/cases.jsonl"
     }
   ],
@@ -140,7 +140,7 @@
     {
       "name": "text-layout selected external discretionary-hyphen extraction",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/external_discretionary_hyphen.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -241,7 +241,7 @@
     {
       "name": "structural-kernel balanced 4096-page PDF",
       "scenario_revision": "pages-v2",
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "stress"
@@ -299,7 +299,7 @@
     {
       "name": "structural-kernel balanced index plans",
       "scenario_revision": "indexes-v1",
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "indexes",
@@ -360,7 +360,7 @@
     {
       "name": "structural-kernel linked outline plan",
       "scenario_revision": "outline-v1",
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "outlines",
@@ -436,7 +436,7 @@
     {
       "name": "structural-kernel stable resource names",
       "scenario_revision": "resource-names-v1",
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "resources",
@@ -496,7 +496,7 @@
     {
       "name": "structural-kernel bulk lexical values x2048",
       "scenario_revision": "lexical-v1",
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "lexical",
@@ -550,7 +550,7 @@
     {
       "name": "structural-kernel bulk lexical values x4096",
       "scenario_revision": "lexical-v1",
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/pages.pdf",
       "args": [
         "lexical",
@@ -604,7 +604,7 @@
     {
       "name": "structural-kernel one-block dynamic DEFLATE",
       "scenario_revision": "deflate-one-block-v1",
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/deflate_one_block.pdf",
       "args": [
         "65535"
@@ -669,7 +669,7 @@
     {
       "name": "structural-kernel stateful dynamic DEFLATE",
       "scenario_revision": "deflate-v1",
-      "source": "tests/structural_kernel/app.roc",
+      "source": "tests/structural_kernel/main.roc",
       "snapshot": "tests/structural_kernel/deflate.pdf",
       "args": [
         "262144"
@@ -2543,7 +2543,7 @@
     {
       "name": "text-layout UAX boundary seam vectors",
       "scenario_revision": "uax14-r55-uax29-r47-seam-v1",
-      "source": "tests/unicode_vectors/app.roc",
+      "source": "tests/unicode_vectors/main.roc",
       "snapshot": "tests/unicode_vectors/unicode_vectors.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -2628,7 +2628,7 @@
     {
       "name": "text-layout UAX boundary atomic limits",
       "scenario_revision": "uax14-r55-uax29-r47-atomic-limits-v1",
-      "source": "tests/unicode_vectors/app.roc",
+      "source": "tests/unicode_vectors/main.roc",
       "snapshot": "tests/unicode_vectors/unicode_vectors_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -3391,7 +3391,7 @@
     {
       "name": "text-layout authored facade output",
       "scenario_revision": "facade-output-v2-real-authoring",
-      "source": "tests/facade_output/app.roc",
+      "source": "tests/facade_output/main.roc",
       "snapshot": "tests/facade_output/facade_output.pdf",
       "args": [
         "visible",
@@ -3480,7 +3480,7 @@
     {
       "name": "text-layout authored facade output atomic negative",
       "scenario_revision": "facade-output-v2-real-authoring",
-      "source": "tests/facade_output/app.roc",
+      "source": "tests/facade_output/main.roc",
       "snapshot": "tests/facade_output/facade_output_negative.pdf",
       "args": [
         "0"
@@ -4284,7 +4284,7 @@
     {
       "name": "text-layout reordered ActualText",
       "scenario_revision": "reordered-actual-text-v2-tagged-scene-content",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/actual_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4509,7 +4509,7 @@
     {
       "name": "text-layout selected soft-hyphen extraction",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/soft_hyphen.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4573,7 +4573,7 @@
     {
       "name": "text-layout malformed soft-hyphen opportunity atomic negative",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/soft_hyphen_malformed_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4611,7 +4611,7 @@
     {
       "name": "text-layout unselected soft-hyphen atomic negative",
       "scenario_revision": "soft-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/soft_hyphen_unselected_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4649,7 +4649,7 @@
     {
       "name": "text-layout malformed external discretionary-hyphen opportunity atomic negative",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/external_discretionary_hyphen_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4687,7 +4687,7 @@
     {
       "name": "text-layout unselected external discretionary-hyphen opportunity atomic negative",
       "scenario_revision": "external-discretionary-hyphen-v1-explicit-selection",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/external_discretionary_hyphen_unselected_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4725,7 +4725,7 @@
     {
       "name": "text-layout supplementary-plane searchable text",
       "scenario_revision": "supplementary-plane-v1-advanced-inter",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/supplementary_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4797,7 +4797,7 @@
     {
       "name": "text-layout supplementary-plane text atomic negative",
       "scenario_revision": "supplementary-plane-v1-advanced-inter",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/supplementary_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4834,7 +4834,7 @@
     {
       "name": "text-layout CJK searchable text",
       "scenario_revision": "cjk-v1-noto-sc-static-fixture",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/cjk_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4906,7 +4906,7 @@
     {
       "name": "text-layout ordered multi-face advanced output",
       "scenario_revision": "multiface-v1-selected-ranges-output",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/multiface_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -4993,7 +4993,7 @@
     {
       "name": "text-layout ordered multi-face script mismatch atomic negative",
       "scenario_revision": "multiface-v1-selected-ranges-output",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/multiface_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -5031,7 +5031,7 @@
     {
       "name": "text-layout CJK text atomic negative",
       "scenario_revision": "cjk-v1-noto-sc-static-fixture",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/cjk_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -5068,7 +5068,7 @@
     {
       "name": "text-layout combining-mark searchable text",
       "scenario_revision": "combining-v1-decomposed-built-in",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/combining_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -5140,7 +5140,7 @@
     {
       "name": "text-layout combining-mark text atomic negative",
       "scenario_revision": "combining-v1-decomposed-built-in",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/combining_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6245,7 +6245,7 @@
     {
       "name": "text-layout GSUB fi ligature searchable text",
       "scenario_revision": "fi-ligature-v1-ibm-plex-serif-liga",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/ligature_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6319,7 +6319,7 @@
     {
       "name": "text-layout GSUB fi ligature atomic negative",
       "scenario_revision": "fi-ligature-v1-ibm-plex-serif-liga",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/ligature_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6354,7 +6354,7 @@
     {
       "name": "text-layout resolved right-to-left text",
       "scenario_revision": "rtl-uax9-r51-bracket-pair-v1",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/rtl_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -6439,7 +6439,7 @@
     {
       "name": "text-layout right-to-left mismatched bidi fact atomic negative",
       "scenario_revision": "rtl-uax9-r51-bracket-pair-v1",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/rtl_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -7089,7 +7089,7 @@
     {
       "name": "text-layout case transformation text",
       "scenario_revision": "case-transform-v1-unicode-default-upper",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/case_text.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -7174,7 +7174,7 @@
     {
       "name": "text-layout case transformation atomic negative",
       "scenario_revision": "case-transform-v1-unicode-default-upper",
-      "source": "tests/actual_text/app.roc",
+      "source": "tests/actual_text/main.roc",
       "snapshot": "tests/actual_text/case_text_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -7272,7 +7272,7 @@
     {
       "name": "production-visual resource dependency chain x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "chain",
@@ -7382,7 +7382,7 @@
     {
       "name": "production-visual resource dependency chain x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "chain",
@@ -7492,7 +7492,7 @@
     {
       "name": "production-visual resource dependency fan x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "fan",
@@ -7602,7 +7602,7 @@
     {
       "name": "production-visual resource dependency fan x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "fan",
@@ -7712,7 +7712,7 @@
     {
       "name": "production-visual dense resource dependency graph x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "dense",
@@ -7822,7 +7822,7 @@
     {
       "name": "production-visual dense resource dependency graph x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "dense",
@@ -7932,7 +7932,7 @@
     {
       "name": "production-visual forced digest-collision bucket x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "collide",
@@ -8042,7 +8042,7 @@
     {
       "name": "production-visual forced digest-collision bucket x1000",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "collide",
@@ -8152,7 +8152,7 @@
     {
       "name": "production-visual unique resource-input ownership x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "unique",
@@ -8262,7 +8262,7 @@
     {
       "name": "production-visual retained resource-input ownership x100",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph.pdf",
       "args": [
         "shared",
@@ -8372,7 +8372,7 @@
     {
       "name": "production-visual resource-graph atomic negatives",
       "scenario_revision": "resource-graph-v1",
-      "source": "tests/resource_graph/app.roc",
+      "source": "tests/resource_graph/main.roc",
       "snapshot": "tests/resource_graph/resource_graph_negative.pdf",
       "args": [],
       "measurement_boundary": "before_fixture_main",
@@ -8412,7 +8412,7 @@
     {
       "name": "production-visual form showcase with adversarial authoring",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms.pdf",
       "args": [
         "showcase",
@@ -8552,7 +8552,7 @@
     {
       "name": "production-visual form unique-input ownership",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms.pdf",
       "args": [
         "unique",
@@ -8692,7 +8692,7 @@
     {
       "name": "production-visual form retained-input ownership",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms.pdf",
       "args": [
         "shared",
@@ -8832,7 +8832,7 @@
     {
       "name": "production-visual artifact form repeated x100",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_repeat_100.pdf",
       "args": [
         "repeat",
@@ -8971,7 +8971,7 @@
     {
       "name": "production-visual artifact form repeated x1000",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_repeat_1000.pdf",
       "args": [
         "repeat",
@@ -9110,7 +9110,7 @@
     {
       "name": "production-visual nested form DAG x8",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_dag_8.pdf",
       "args": [
         "dag",
@@ -9249,7 +9249,7 @@
     {
       "name": "production-visual nested form DAG x32",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_dag_32.pdf",
       "args": [
         "dag",
@@ -9388,7 +9388,7 @@
     {
       "name": "production-visual deep nested form chain x64",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_deep_64.pdf",
       "args": [
         "deep",
@@ -9622,7 +9622,7 @@
     {
       "name": "production-visual form atomic negatives",
       "scenario_revision": "form-xobjects-v1",
-      "source": "tests/forms/app.roc",
+      "source": "tests/forms/main.roc",
       "snapshot": "tests/forms/forms_negative.pdf",
       "args": [
         "1"
@@ -9666,7 +9666,7 @@
     {
       "name": "production-visual color-image showcase with adversarial authoring",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images.pdf",
       "args": [
         "showcase",
@@ -9822,7 +9822,7 @@
     {
       "name": "production-visual color-image unique-input ownership",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images.pdf",
       "args": [
         "unique",
@@ -9978,7 +9978,7 @@
     {
       "name": "production-visual color-image retained-input ownership",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images.pdf",
       "args": [
         "shared",
@@ -10134,7 +10134,7 @@
     {
       "name": "production-visual duplicate image collapse x8",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_dedup_8.pdf",
       "args": [
         "dedup",
@@ -10286,7 +10286,7 @@
     {
       "name": "production-visual duplicate image collapse x64",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_dedup_64.pdf",
       "args": [
         "dedup",
@@ -10438,7 +10438,7 @@
     {
       "name": "production-visual distinct image emission x8",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_distinct_8.pdf",
       "args": [
         "distinct",
@@ -10590,7 +10590,7 @@
     {
       "name": "production-visual distinct image emission x64",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_distinct_64.pdf",
       "args": [
         "distinct",
@@ -10742,7 +10742,7 @@
     {
       "name": "production-visual color-image atomic negatives",
       "scenario_revision": "color-image-leaves-v1",
-      "source": "tests/color_images/app.roc",
+      "source": "tests/color_images/main.roc",
       "snapshot": "tests/color_images/color_images_negative.pdf",
       "args": [
         "1"
@@ -10787,7 +10787,7 @@
     {
       "name": "production-visual transparency showcase with adversarial authoring",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency.pdf",
       "args": [
         "showcase",
@@ -10918,7 +10918,7 @@
     {
       "name": "production-visual transparency unique-input ownership",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_unique.pdf",
       "args": [
         "unique",
@@ -11049,7 +11049,7 @@
     {
       "name": "production-visual transparency retained-input ownership",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_retained.pdf",
       "args": [
         "shared",
@@ -11180,7 +11180,7 @@
     {
       "name": "production-visual shared-constant opacity x100",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_share_100.pdf",
       "args": [
         "share",
@@ -11308,7 +11308,7 @@
     {
       "name": "production-visual shared-constant opacity x1000",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_share_1000.pdf",
       "args": [
         "share",
@@ -11436,7 +11436,7 @@
     {
       "name": "production-visual distinct opacity states x100",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_states_100.pdf",
       "args": [
         "states",
@@ -11564,7 +11564,7 @@
     {
       "name": "production-visual distinct opacity states x1000",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_states_1000.pdf",
       "args": [
         "states",
@@ -11692,7 +11692,7 @@
     {
       "name": "production-visual nested opacity chain x16",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_nest_16.pdf",
       "args": [
         "nest",
@@ -11819,7 +11819,7 @@
     {
       "name": "production-visual nested opacity chain x64",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_nest_64.pdf",
       "args": [
         "nest",
@@ -11946,7 +11946,7 @@
     {
       "name": "production-visual per-form opacity x8",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_forms_8.pdf",
       "args": [
         "forms",
@@ -12073,7 +12073,7 @@
     {
       "name": "production-visual per-form opacity x32",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_forms_32.pdf",
       "args": [
         "forms",
@@ -12200,7 +12200,7 @@
     {
       "name": "production-visual transparency atomic negatives",
       "scenario_revision": "transparency-v1",
-      "source": "tests/transparency/app.roc",
+      "source": "tests/transparency/main.roc",
       "snapshot": "tests/transparency/transparency_negative.pdf",
       "args": [
         "1"
@@ -12243,7 +12243,7 @@
     {
       "name": "production-visual soft-mask showcase with adversarial authoring",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks.pdf",
       "args": [
         "showcase",
@@ -12384,7 +12384,7 @@
     {
       "name": "production-visual soft-mask unique-input ownership",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_unique.pdf",
       "args": [
         "unique",
@@ -12525,7 +12525,7 @@
     {
       "name": "production-visual soft-mask retained-input ownership",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_retained.pdf",
       "args": [
         "shared",
@@ -12666,7 +12666,7 @@
     {
       "name": "production-visual shared mask reuse x100",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_reuse_100.pdf",
       "args": [
         "reuse",
@@ -12803,7 +12803,7 @@
     {
       "name": "production-visual shared mask reuse x1000",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_reuse_1000.pdf",
       "args": [
         "reuse",
@@ -12940,7 +12940,7 @@
     {
       "name": "production-visual distinct mask forms x8",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_masks_8.pdf",
       "args": [
         "masks",
@@ -13077,7 +13077,7 @@
     {
       "name": "production-visual distinct mask forms x64",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_masks_64.pdf",
       "args": [
         "masks",
@@ -13214,7 +13214,7 @@
     {
       "name": "production-visual mask chain x2",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_chain_2.pdf",
       "args": [
         "chain",
@@ -13350,7 +13350,7 @@
     {
       "name": "production-visual mask chain x4",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_chain_4.pdf",
       "args": [
         "chain",
@@ -13486,7 +13486,7 @@
     {
       "name": "production-visual soft-mask atomic negatives",
       "scenario_revision": "soft-masks-v1",
-      "source": "tests/soft_masks/app.roc",
+      "source": "tests/soft_masks/main.roc",
       "snapshot": "tests/soft_masks/soft_masks_negative.pdf",
       "args": [
         "1"
@@ -13529,7 +13529,7 @@
     {
       "name": "production-visual shading-pattern showcase with adversarial authoring",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings.pdf",
       "args": [
         "showcase",
@@ -13681,7 +13681,7 @@
     {
       "name": "production-visual shading-pattern unique-input ownership",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_unique.pdf",
       "args": [
         "unique",
@@ -13833,7 +13833,7 @@
     {
       "name": "production-visual shading-pattern retained-input ownership",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_retained.pdf",
       "args": [
         "shared",
@@ -13985,7 +13985,7 @@
     {
       "name": "production-visual shared shading x100",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_share_100.pdf",
       "args": [
         "share",
@@ -14131,7 +14131,7 @@
     {
       "name": "production-visual shared shading x1000",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_share_1000.pdf",
       "args": [
         "share",
@@ -14277,7 +14277,7 @@
     {
       "name": "production-visual distinct shadings x8",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_distinct_8.pdf",
       "args": [
         "distinct",
@@ -14422,7 +14422,7 @@
     {
       "name": "production-visual distinct shadings x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_distinct_64.pdf",
       "args": [
         "distinct",
@@ -14567,7 +14567,7 @@
     {
       "name": "production-visual shading stops x16",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_stops_16.pdf",
       "args": [
         "stops",
@@ -14713,7 +14713,7 @@
     {
       "name": "production-visual shading stops x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_stops_64.pdf",
       "args": [
         "stops",
@@ -14859,7 +14859,7 @@
     {
       "name": "production-visual shared pattern x100",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_share_100.pdf",
       "args": [
         "pshare",
@@ -15005,7 +15005,7 @@
     {
       "name": "production-visual shared pattern x1000",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_share_1000.pdf",
       "args": [
         "pshare",
@@ -15151,7 +15151,7 @@
     {
       "name": "production-visual distinct patterns x8",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_distinct_8.pdf",
       "args": [
         "pdistinct",
@@ -15296,7 +15296,7 @@
     {
       "name": "production-visual distinct patterns x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_distinct_64.pdf",
       "args": [
         "pdistinct",
@@ -15441,7 +15441,7 @@
     {
       "name": "production-visual pattern cell commands x16",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_cells_16.pdf",
       "args": [
         "pcells",
@@ -15587,7 +15587,7 @@
     {
       "name": "production-visual pattern cell commands x64",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/patterns_cells_64.pdf",
       "args": [
         "pcells",
@@ -15733,7 +15733,7 @@
     {
       "name": "production-visual shading-pattern atomic negatives",
       "scenario_revision": "shadings-patterns-v1",
-      "source": "tests/shading_patterns/app.roc",
+      "source": "tests/shading_patterns/main.roc",
       "snapshot": "tests/shading_patterns/shadings_negative.pdf",
       "args": [
         "1"
@@ -17104,7 +17104,7 @@
     {
       "name": "production-visual metadata showcase with adversarial authoring",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata.pdf",
       "args": [
         "showcase",
@@ -17195,7 +17195,7 @@
     {
       "name": "production-visual metadata omitted-timestamp packet",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_minimal.pdf",
       "args": [
         "minimal",
@@ -17285,7 +17285,7 @@
     {
       "name": "production-visual metadata unique-input ownership",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_unique.pdf",
       "args": [
         "unique",
@@ -17374,7 +17374,7 @@
     {
       "name": "production-visual metadata retained-input ownership",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_retained.pdf",
       "args": [
         "shared",
@@ -17463,7 +17463,7 @@
     {
       "name": "production-visual shared intent profile x16",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_share_16.pdf",
       "args": [
         "share",
@@ -17553,7 +17553,7 @@
     {
       "name": "production-visual shared intent profile x64",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_share_64.pdf",
       "args": [
         "share",
@@ -17643,7 +17643,7 @@
     {
       "name": "production-visual metadata title scaling x64",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_title_64.pdf",
       "args": [
         "title",
@@ -17732,7 +17732,7 @@
     {
       "name": "production-visual metadata title scaling x256",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_title_256.pdf",
       "args": [
         "title",
@@ -17821,7 +17821,7 @@
     {
       "name": "production-visual metadata atomic negatives",
       "scenario_revision": "metadata-output-intent-v1",
-      "source": "tests/metadata/app.roc",
+      "source": "tests/metadata/main.roc",
       "snapshot": "tests/metadata/metadata_negative.pdf",
       "args": [
         "1"
@@ -17979,7 +17979,7 @@
     {
       "name": "production-visual navigation showcase with adversarial authoring",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation.pdf",
       "args": [
         "showcase",
@@ -18065,7 +18065,7 @@
     {
       "name": "production-visual navigation annotations x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_annots_8.pdf",
       "args": [
         "annots",
@@ -18148,7 +18148,7 @@
     {
       "name": "production-visual navigation annotations x64",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_annots_64.pdf",
       "args": [
         "annots",
@@ -18231,7 +18231,7 @@
     {
       "name": "production-visual navigation fragmented link x32 quads",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_quads_32.pdf",
       "args": [
         "quads",
@@ -18314,7 +18314,7 @@
     {
       "name": "production-visual navigation shared destination x32 links",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_share_32.pdf",
       "args": [
         "share",
@@ -18398,7 +18398,7 @@
     {
       "name": "production-visual navigation shared appearance x16 links",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_appearance_16.pdf",
       "args": [
         "appearance",
@@ -18481,7 +18481,7 @@
     {
       "name": "production-visual navigation outline depth x16",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_outline_deep_16.pdf",
       "args": [
         "outline_deep",
@@ -18565,7 +18565,7 @@
     {
       "name": "production-visual navigation outline width x64",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_outline_wide_64.pdf",
       "args": [
         "outline_wide",
@@ -18649,7 +18649,7 @@
     {
       "name": "production-visual navigation destination names x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_names_8.pdf",
       "args": [
         "names",
@@ -18732,7 +18732,7 @@
     {
       "name": "production-visual navigation destination names x40",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_names_40.pdf",
       "args": [
         "names",
@@ -18815,7 +18815,7 @@
     {
       "name": "production-visual navigation page labels x8",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_labels_8.pdf",
       "args": [
         "labels",
@@ -18898,7 +18898,7 @@
     {
       "name": "production-visual navigation unique-input ownership",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_unique.pdf",
       "args": [
         "unique",
@@ -18982,7 +18982,7 @@
     {
       "name": "production-visual navigation retained-input ownership",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_retained.pdf",
       "args": [
         "retained",
@@ -19066,7 +19066,7 @@
     {
       "name": "production-visual navigation atomic negatives",
       "scenario_revision": "navigation-annotations-v1",
-      "source": "tests/navigation/app.roc",
+      "source": "tests/navigation/main.roc",
       "snapshot": "tests/navigation/navigation_negative.pdf",
       "args": [
         "1"

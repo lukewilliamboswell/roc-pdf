@@ -673,15 +673,15 @@ def roc_version_matches_pin(pinned_roc: str, actual_roc: str) -> bool:
 
 
 def self_test_roc_version_pin() -> None:
-    for pin in ("nightly-2026-08-16-23452ea", "nightly-2026-August-05-24f0b47"):
+    for pin in ("nightly-2026-08-18-e9be50a", "nightly-2026-August-05-24f0b47"):
         if not roc_version_matches_pin(pin, f"Roc compiler version {pin}"):
             raise SystemExit("Roc version verifier rejected the nightly tag identity")
     if not roc_version_matches_pin(
-        "nightly-2026-08-16-23452ea", "Roc compiler version release-fast-23452eaf"
+        "nightly-2026-08-18-e9be50a", "Roc compiler version release-fast-e9be50af"
     ):
         raise SystemExit("Roc version verifier rejected the identical release-fast commit")
     if roc_version_matches_pin(
-        "nightly-2026-08-16-23452ea", "Roc compiler version release-fast-deadbeef"
+        "nightly-2026-08-18-e9be50a", "Roc compiler version release-fast-deadbeef"
     ):
         raise SystemExit("Roc version verifier accepted a different compiler commit")
     if roc_version_matches_pin("nightly-invalid", "Roc compiler version release-fast-24f0b476"):

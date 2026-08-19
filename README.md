@@ -95,7 +95,7 @@ by the same driver. Runtime structural-kernel behavior is exercised by package t
 the dev-backend structural fixtures.
 
 Integration cases are grouped by capability under `tests/`. Related runtime
-cases should use one family `app.roc`, one shared `Fixture.roc`, and an ordered
+cases should use one family `main.roc`, one shared `Fixture.roc`, and an ordered
 `cases.jsonl`. Each schema-version-1 JSONL row has exactly `name`,
 `schema_version`, and `case`; `case` is the JSON representation of the closed,
 family-specific Roc tag union decoded by `Json.parse`. Add the row's snapshot,

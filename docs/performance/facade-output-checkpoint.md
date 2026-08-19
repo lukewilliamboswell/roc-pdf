@@ -61,7 +61,7 @@ measurement artifact.
 Build the focused executable:
 
 ```sh
-roc build tests/facade_output/app.roc --opt=dev --output=facade-output-probe
+roc build tests/facade_output/main.roc --opt=dev --output=facade-output-probe
 ```
 
 Then run the staged probes:
