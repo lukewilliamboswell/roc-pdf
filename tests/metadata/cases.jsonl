@@ -1,0 +1,9 @@
+{"name":"production-visual metadata showcase with adversarial authoring","schema_version":1,"case":"Showcase"}
+{"name":"production-visual metadata omitted-timestamp packet","schema_version":1,"case":"Minimal"}
+{"name":"production-visual metadata unique-input ownership","schema_version":1,"case":"Unique"}
+{"name":"production-visual metadata retained-input ownership","schema_version":1,"case":"Shared"}
+{"name":"production-visual shared intent profile x16","schema_version":1,"case":{"Share":{"scale":16}}}
+{"name":"production-visual shared intent profile x64","schema_version":1,"case":{"Share":{"scale":64}}}
+{"name":"production-visual metadata title scaling x64","schema_version":1,"case":{"Title":{"scale":64}}}
+{"name":"production-visual metadata title scaling x256","schema_version":1,"case":{"Title":{"scale":256}}}
+{"name":"production-visual metadata atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}

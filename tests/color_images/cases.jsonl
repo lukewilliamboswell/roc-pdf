@@ -1,0 +1,8 @@
+{"name":"production-visual color-image showcase with adversarial authoring","schema_version":1,"case":"Showcase"}
+{"name":"production-visual color-image unique-input ownership","schema_version":1,"case":"Unique"}
+{"name":"production-visual color-image retained-input ownership","schema_version":1,"case":"Shared"}
+{"name":"production-visual duplicate image collapse x8","schema_version":1,"case":{"Dedup":{"scale":8}}}
+{"name":"production-visual duplicate image collapse x64","schema_version":1,"case":{"Dedup":{"scale":64}}}
+{"name":"production-visual distinct image emission x8","schema_version":1,"case":{"Distinct":{"scale":8}}}
+{"name":"production-visual distinct image emission x64","schema_version":1,"case":{"Distinct":{"scale":64}}}
+{"name":"production-visual color-image atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}

@@ -54,7 +54,7 @@
         "package/KernelDeflate.roc",
         "package/KernelSha256.roc",
         "scripts/check_pdf_structure.py",
-        "tests/structural_kernel/deflate.roc"
+        "tests/structural_kernel/app.roc"
       ],
       "negative_scenarios": [
         "scripts/check_pdf_structure.py"
@@ -107,13 +107,13 @@
         "examples/advanced_encode_contract.roc",
         "package/KernelXmp.roc",
         "scripts/check_metadata.py",
-        "tests/metadata/metadata.roc",
+        "tests/metadata/app.roc",
         "tests/metadata/metadata_facade.roc"
       ],
       "negative_scenarios": [
         "package/KernelMetadata.roc",
-        "tests/metadata/metadata_facade_negative.roc",
-        "tests/metadata/metadata_negative.roc"
+        "tests/metadata/app.roc",
+        "tests/metadata/metadata_facade_negative.roc"
       ],
       "external_rule_ids": []
     },
@@ -139,8 +139,8 @@
         "scripts/check_arlington.py",
         "scripts/check_pdf_structure.py",
         "scripts/check_pdfbox.py",
-        "tests/structural_kernel/blank.roc",
-        "tests/structural_kernel/deflate.roc"
+        "tests/structural_kernel/app.roc",
+        "tests/structural_kernel/blank.roc"
       ],
       "negative_scenarios": [
         "scripts/check_arlington.py",
@@ -170,12 +170,12 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "tests/navigation/Fixture.roc",
-        "tests/navigation/navigation.roc",
+        "tests/navigation/app.roc",
         "tests/navigation/navigation_facade.roc"
       ],
       "negative_scenarios": [
         "tests/navigation/Fixture.roc",
-        "tests/navigation/navigation_negative.roc"
+        "tests/navigation/app.roc"
       ],
       "external_rule_ids": []
     },
@@ -199,8 +199,8 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelIndex.roc",
-        "tests/navigation/navigation.roc",
-        "tests/structural_kernel/pages.roc"
+        "tests/navigation/app.roc",
+        "tests/structural_kernel/app.roc"
       ],
       "negative_scenarios": [
         "package/KernelIndex.roc"
@@ -226,7 +226,7 @@
       "positive_scenarios": [
         "package/KernelEmit.roc",
         "package/KernelLex.roc",
-        "tests/structural_kernel/pages.roc"
+        "tests/structural_kernel/app.roc"
       ],
       "negative_scenarios": [
         "package/KernelLex.roc"
@@ -252,12 +252,12 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "tests/navigation/Fixture.roc",
-        "tests/navigation/navigation.roc",
+        "tests/navigation/app.roc",
         "tests/navigation/navigation_facade.roc"
       ],
       "negative_scenarios": [
         "tests/navigation/Fixture.roc",
-        "tests/navigation/navigation_negative.roc"
+        "tests/navigation/app.roc"
       ],
       "external_rule_ids": []
     },
@@ -282,7 +282,7 @@
         "package/KernelObject.roc",
         "package/KernelSeal.roc",
         "scripts/StrictPdfCheck.java",
-        "tests/structural_kernel/pages.roc"
+        "tests/structural_kernel/app.roc"
       ],
       "negative_scenarios": [
         "package/KernelObject.roc",
@@ -309,8 +309,8 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelOutline.roc",
-        "tests/navigation/navigation.roc",
-        "tests/structural_kernel/pages.roc"
+        "tests/navigation/app.roc",
+        "tests/structural_kernel/app.roc"
       ],
       "negative_scenarios": [
         "package/KernelOutline.roc"
@@ -335,7 +335,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelResource.roc",
-        "tests/structural_kernel/pages.roc"
+        "tests/structural_kernel/app.roc"
       ],
       "negative_scenarios": [
         "package/KernelResource.roc"
@@ -361,7 +361,7 @@
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelStructure.roc",
-        "tests/structural_kernel/pages.roc"
+        "tests/structural_kernel/app.roc"
       ],
       "negative_scenarios": [
         "package/KernelStructure.roc"
@@ -522,14 +522,14 @@
         "package/KernelSrgbProfile.roc",
         "scripts/check_color_images.py",
         "scripts/check_metadata.py",
-        "tests/color_images/color_images.roc",
-        "tests/metadata/metadata.roc"
+        "tests/color_images/app.roc",
+        "tests/metadata/app.roc"
       ],
       "negative_scenarios": [
         "package/KernelColor.roc",
         "tests/color_images/Fixture.roc",
-        "tests/color_images/color_images_negative.roc",
-        "tests/metadata/metadata_negative.roc"
+        "tests/color_images/app.roc",
+        "tests/metadata/app.roc"
       ],
       "external_rule_ids": []
     },
@@ -554,12 +554,12 @@
         "package/KernelImage.roc",
         "scripts/check_color_image_renderers.py",
         "scripts/check_color_images.py",
-        "tests/color_images/color_images.roc"
+        "tests/color_images/app.roc"
       ],
       "negative_scenarios": [
         "package/KernelImage.roc",
         "tests/color_images/Fixture.roc",
-        "tests/color_images/color_images_negative.roc"
+        "tests/color_images/app.roc"
       ],
       "external_rule_ids": []
     },

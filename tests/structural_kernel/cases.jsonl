@@ -1,0 +1,8 @@
+{"name":"structural-kernel balanced 4096-page PDF","schema_version":1,"case":{"Pages":{"count":4096}}}
+{"name":"structural-kernel balanced index plans","schema_version":1,"case":{"Indexes":{"count":4096}}}
+{"name":"structural-kernel linked outline plan","schema_version":1,"case":{"Outlines":{"count":4096}}}
+{"name":"structural-kernel stable resource names","schema_version":1,"case":{"Resources":{"count":4096}}}
+{"name":"structural-kernel bulk lexical values x2048","schema_version":1,"case":{"Lexical":{"count":2048}}}
+{"name":"structural-kernel bulk lexical values x4096","schema_version":1,"case":{"Lexical":{"count":4096}}}
+{"name":"structural-kernel one-block dynamic DEFLATE","schema_version":1,"case":{"Deflate":{"input_bytes":65535}}}
+{"name":"structural-kernel stateful dynamic DEFLATE","schema_version":1,"case":{"Deflate":{"input_bytes":262144}}}

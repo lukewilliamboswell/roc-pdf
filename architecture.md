@@ -1309,8 +1309,20 @@ consumer-visible surface.
 Evidence applications are ordinary apps under capability-named directories in
 `tests/`. Internal evidence imports the local `all.roc` root, while public API
 fixtures import `main.roc`. Test-only fixture modules live beside the apps that
-share them rather than in `package/`, and multiple named app roots and snapshots
-may occupy one capability directory.
+share them rather than in `package/`. Related cases with one fixture pipeline
+use one family app root and a deterministically ordered, versioned JSONL case
+file. The app decodes exactly one JSON argument into a closed typed case union;
+unknown tags, malformed fields, and unsupported schema versions are explicit
+failures. The harness builds each family root once, then may execute its rows in
+parallel. Genuinely different application/package boundaries may still use
+multiple named roots in one capability directory.
+
+Case manifests declare their ordered structural validators explicitly by
+stable allowlisted ID. Numeric dimensions are evidence inputs, not implicit
+validator selectors, and source paths or directory names never choose semantic
+checks. Preflight checker self-tests are likewise an ordered manifest list.
+Python registries bind those IDs to project-owned callables and scripts without
+allowing manifest data to import or execute arbitrary code.
 
 Separate pure Roc packages may own shaping, OpenType parsing, image decoding,
 XML/XMP construction, hashing, ICC inspection, and DEFLATE. Integration occurs

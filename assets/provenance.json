@@ -13,7 +13,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/actual_text.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -59,7 +59,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/structural_kernel/pages.roc"
+        "generator": "tests/structural_kernel/app.roc"
       }
     },
     {
@@ -179,7 +179,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/case_text_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -194,7 +194,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/case_text.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -224,7 +224,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/cjk_text_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -239,7 +239,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/cjk_text.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -254,7 +254,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/color_images/color_images.roc"
+        "generator": "tests/color_images/app.roc"
       }
     },
     {
@@ -269,7 +269,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/color_images/color_images.roc"
+        "generator": "tests/color_images/app.roc"
       }
     },
     {
@@ -284,7 +284,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/color_images/color_images.roc"
+        "generator": "tests/color_images/app.roc"
       }
     },
     {
@@ -299,7 +299,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/color_images/color_images.roc"
+        "generator": "tests/color_images/app.roc"
       }
     },
     {
@@ -314,7 +314,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/color_images/color_images_negative.roc"
+        "generator": "tests/color_images/app.roc"
       }
     },
     {
@@ -329,7 +329,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/color_images/color_images.roc"
+        "generator": "tests/color_images/app.roc"
       }
     },
     {
@@ -344,7 +344,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/combining_text_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -359,7 +359,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/combining_text.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -389,7 +389,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/structural_kernel/deflate.roc"
+        "generator": "tests/structural_kernel/app.roc"
       }
     },
     {
@@ -404,7 +404,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/structural_kernel/deflate.roc"
+        "generator": "tests/structural_kernel/app.roc"
       }
     },
     {
@@ -419,7 +419,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/external_discretionary_hyphen_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -434,7 +434,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/external_discretionary_hyphen.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -449,7 +449,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/external_discretionary_hyphen_unselected_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -479,7 +479,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/facade_output/facade_output_negative.roc"
+        "generator": "tests/facade_output/app.roc"
       }
     },
     {
@@ -494,7 +494,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/facade_output/facade_output.roc"
+        "generator": "tests/facade_output/app.roc"
       }
     },
     {
@@ -539,7 +539,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/ligature_text_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -554,7 +554,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/ligature_text.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -824,7 +824,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/forms/forms.roc"
+        "generator": "tests/forms/app.roc"
       }
     },
     {
@@ -839,7 +839,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/forms/forms.roc"
+        "generator": "tests/forms/app.roc"
       }
     },
     {
@@ -854,7 +854,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/forms/forms.roc"
+        "generator": "tests/forms/app.roc"
       }
     },
     {
@@ -869,7 +869,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/forms/forms_negative.roc"
+        "generator": "tests/forms/app.roc"
       }
     },
     {
@@ -884,7 +884,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/forms/forms.roc"
+        "generator": "tests/forms/app.roc"
       }
     },
     {
@@ -899,7 +899,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/forms/forms.roc"
+        "generator": "tests/forms/app.roc"
       }
     },
     {
@@ -914,7 +914,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/forms/forms.roc"
+        "generator": "tests/forms/app.roc"
       }
     },
     {
@@ -1051,7 +1051,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1066,7 +1066,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata_negative.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1081,7 +1081,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1096,7 +1096,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1111,7 +1111,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1126,7 +1126,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1141,7 +1141,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1156,7 +1156,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1171,7 +1171,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/metadata/metadata.roc"
+        "generator": "tests/metadata/app.roc"
       }
     },
     {
@@ -1231,7 +1231,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/multiface_text_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -1246,7 +1246,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/multiface_text.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -1277,7 +1277,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1292,7 +1292,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1307,7 +1307,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1352,7 +1352,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1367,7 +1367,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1382,7 +1382,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1397,7 +1397,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation_negative.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1412,7 +1412,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1427,7 +1427,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1442,7 +1442,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1457,7 +1457,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1472,7 +1472,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1487,7 +1487,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1502,7 +1502,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/navigation/navigation.roc"
+        "generator": "tests/navigation/app.roc"
       }
     },
     {
@@ -1517,7 +1517,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1532,7 +1532,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1547,7 +1547,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1562,7 +1562,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1577,7 +1577,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1592,7 +1592,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1714,7 +1714,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/resource_graph/resource_graph_negative.roc"
+        "generator": "tests/resource_graph/app.roc"
       }
     },
     {
@@ -1729,7 +1729,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/resource_graph/resource_graph.roc"
+        "generator": "tests/resource_graph/app.roc"
       }
     },
     {
@@ -1774,7 +1774,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/rtl_text_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -1789,7 +1789,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/rtl_text.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -1804,7 +1804,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1819,7 +1819,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1834,7 +1834,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/shadings_negative.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1849,7 +1849,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1864,7 +1864,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1879,7 +1879,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1894,7 +1894,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1909,7 +1909,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1924,7 +1924,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1939,7 +1939,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/shading_patterns/patterns_cells_16.roc"
+        "generator": "tests/shading_patterns/app.roc"
       }
     },
     {
@@ -1969,7 +1969,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/soft_hyphen_malformed_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -1984,7 +1984,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/soft_hyphen.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -1999,7 +1999,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/soft_hyphen_unselected_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -2014,7 +2014,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2029,7 +2029,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2044,7 +2044,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2059,7 +2059,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2074,7 +2074,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks_negative.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2089,7 +2089,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2104,7 +2104,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2119,7 +2119,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2134,7 +2134,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2149,7 +2149,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/soft_masks/soft_masks.roc"
+        "generator": "tests/soft_masks/app.roc"
       }
     },
     {
@@ -2164,7 +2164,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/supplementary_text_negative.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -2179,7 +2179,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/actual_text/supplementary_text.roc"
+        "generator": "tests/actual_text/app.roc"
       }
     },
     {
@@ -2209,7 +2209,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2224,7 +2224,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2239,7 +2239,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency_negative.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2254,7 +2254,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2269,7 +2269,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2284,7 +2284,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2299,7 +2299,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2314,7 +2314,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2329,7 +2329,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2344,7 +2344,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2359,7 +2359,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2374,7 +2374,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/transparency/transparency.roc"
+        "generator": "tests/transparency/app.roc"
       }
     },
     {
@@ -2404,7 +2404,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/unicode_vectors/unicode_vectors.roc"
+        "generator": "tests/unicode_vectors/app.roc"
       }
     },
     {
@@ -2419,7 +2419,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/unicode_vectors/unicode_vectors_negative.roc"
+        "generator": "tests/unicode_vectors/app.roc"
       }
     },
     {

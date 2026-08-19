@@ -1,0 +1,12 @@
+{"name":"production-visual transparency showcase with adversarial authoring","schema_version":1,"case":"Showcase"}
+{"name":"production-visual transparency unique-input ownership","schema_version":1,"case":"Unique"}
+{"name":"production-visual transparency retained-input ownership","schema_version":1,"case":"Shared"}
+{"name":"production-visual shared-constant opacity x100","schema_version":1,"case":{"Share":{"scale":100}}}
+{"name":"production-visual shared-constant opacity x1000","schema_version":1,"case":{"Share":{"scale":1000}}}
+{"name":"production-visual distinct opacity states x100","schema_version":1,"case":{"States":{"scale":100}}}
+{"name":"production-visual distinct opacity states x1000","schema_version":1,"case":{"States":{"scale":1000}}}
+{"name":"production-visual nested opacity chain x16","schema_version":1,"case":{"Nest":{"scale":16}}}
+{"name":"production-visual nested opacity chain x64","schema_version":1,"case":{"Nest":{"scale":64}}}
+{"name":"production-visual per-form opacity x8","schema_version":1,"case":{"Forms":{"scale":8}}}
+{"name":"production-visual per-form opacity x32","schema_version":1,"case":{"Forms":{"scale":32}}}
+{"name":"production-visual transparency atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}

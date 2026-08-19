@@ -1,0 +1,16 @@
+{"name":"production-visual shading-pattern showcase with adversarial authoring","schema_version":1,"case":"Showcase"}
+{"name":"production-visual shading-pattern unique-input ownership","schema_version":1,"case":"Unique"}
+{"name":"production-visual shading-pattern retained-input ownership","schema_version":1,"case":"Shared"}
+{"name":"production-visual shared shading x100","schema_version":1,"case":{"Share":{"scale":100}}}
+{"name":"production-visual shared shading x1000","schema_version":1,"case":{"Share":{"scale":1000}}}
+{"name":"production-visual distinct shadings x8","schema_version":1,"case":{"Distinct":{"scale":8}}}
+{"name":"production-visual distinct shadings x64","schema_version":1,"case":{"Distinct":{"scale":64}}}
+{"name":"production-visual shading stops x16","schema_version":1,"case":{"Stops":{"scale":16}}}
+{"name":"production-visual shading stops x64","schema_version":1,"case":{"Stops":{"scale":64}}}
+{"name":"production-visual shared pattern x100","schema_version":1,"case":{"PatternShare":{"scale":100}}}
+{"name":"production-visual shared pattern x1000","schema_version":1,"case":{"PatternShare":{"scale":1000}}}
+{"name":"production-visual distinct patterns x8","schema_version":1,"case":{"PatternDistinct":{"scale":8}}}
+{"name":"production-visual distinct patterns x64","schema_version":1,"case":{"PatternDistinct":{"scale":64}}}
+{"name":"production-visual pattern cell commands x16","schema_version":1,"case":{"PatternCells":{"scale":16}}}
+{"name":"production-visual pattern cell commands x64","schema_version":1,"case":{"PatternCells":{"scale":64}}}
+{"name":"production-visual shading-pattern atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":1}}}

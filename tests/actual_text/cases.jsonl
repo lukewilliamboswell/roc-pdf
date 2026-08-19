@@ -1,0 +1,21 @@
+{"name":"text-layout selected external discretionary-hyphen extraction","schema_version":1,"case":"ExternalDiscretionaryHyphen"}
+{"name":"text-layout reordered ActualText","schema_version":1,"case":"Reordered"}
+{"name":"text-layout selected soft-hyphen extraction","schema_version":1,"case":"SoftHyphen"}
+{"name":"text-layout malformed soft-hyphen opportunity atomic negative","schema_version":1,"case":"SoftHyphenMalformedNegative"}
+{"name":"text-layout unselected soft-hyphen atomic negative","schema_version":1,"case":"SoftHyphenUnselectedNegative"}
+{"name":"text-layout malformed external discretionary-hyphen opportunity atomic negative","schema_version":1,"case":"ExternalDiscretionaryHyphenMalformedNegative"}
+{"name":"text-layout unselected external discretionary-hyphen opportunity atomic negative","schema_version":1,"case":"ExternalDiscretionaryHyphenUnselectedNegative"}
+{"name":"text-layout supplementary-plane searchable text","schema_version":1,"case":"Supplementary"}
+{"name":"text-layout supplementary-plane text atomic negative","schema_version":1,"case":"SupplementaryNegative"}
+{"name":"text-layout CJK searchable text","schema_version":1,"case":"Cjk"}
+{"name":"text-layout ordered multi-face advanced output","schema_version":1,"case":"MultiFace"}
+{"name":"text-layout ordered multi-face script mismatch atomic negative","schema_version":1,"case":"MultiFaceNegative"}
+{"name":"text-layout CJK text atomic negative","schema_version":1,"case":"CjkNegative"}
+{"name":"text-layout combining-mark searchable text","schema_version":1,"case":"Combining"}
+{"name":"text-layout combining-mark text atomic negative","schema_version":1,"case":"CombiningNegative"}
+{"name":"text-layout GSUB fi ligature searchable text","schema_version":1,"case":"Ligature"}
+{"name":"text-layout GSUB fi ligature atomic negative","schema_version":1,"case":"LigatureNegative"}
+{"name":"text-layout resolved right-to-left text","schema_version":1,"case":"Rtl"}
+{"name":"text-layout right-to-left mismatched bidi fact atomic negative","schema_version":1,"case":"RtlNegative"}
+{"name":"text-layout case transformation text","schema_version":1,"case":"CaseTransform"}
+{"name":"text-layout case transformation atomic negative","schema_version":1,"case":"CaseTransformNegative"}

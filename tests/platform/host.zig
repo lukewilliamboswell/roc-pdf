@@ -23,6 +23,10 @@ extern fn roc_main(args: abi.RocList(abi.RocStr)) callconv(.c) ScenarioResult;
 var roc_host: ?*abi.RocHost = null;
 var allocation_events: usize = 0;
 
+export fn roc_host_reset_allocations() callconv(.c) void {
+    allocation_events = 0;
+}
+
 comptime {
     if (!builtin.is_test) {
         @export(&main, .{ .name = "main" });
