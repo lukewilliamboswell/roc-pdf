@@ -844,7 +844,7 @@
     {
       "name": "tagged-visual million-command image reuse",
       "scenario_revision": "million-command-v1",
-      "source": "tests/tagged_visual/stress.roc",
+      "source": "tests/tagged_visual/command_stress.roc",
       "snapshot": "tests/tagged_visual/stress.pdf",
       "args": [
         "1000000"

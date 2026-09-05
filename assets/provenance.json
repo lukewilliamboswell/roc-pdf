@@ -374,7 +374,7 @@
       "redistribution_permitted": true,
       "origin": {
         "kind": "generated",
-        "generator": "tests/tagged_visual/stress.roc"
+        "generator": "tests/tagged_visual/command_stress.roc"
       }
     },
     {

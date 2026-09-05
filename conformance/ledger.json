@@ -394,8 +394,8 @@
         "package/KernelStructure.roc",
         "scripts/check_tagged_visual.py",
         "scripts/check_visual_renderers.py",
-        "tests/tagged_visual/minimal.roc",
-        "tests/tagged_visual/stress.roc"
+        "tests/tagged_visual/command_stress.roc",
+        "tests/tagged_visual/minimal.roc"
       ],
       "negative_scenarios": [
         "package/KernelGeometry.roc",

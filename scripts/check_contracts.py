@@ -297,18 +297,34 @@ def validate_ledger(value: object, source_ids: set[str]) -> None:
             fail(rule_id, f"must independently pin {issue_reference} to the EC3 source")
 
 
-def repository_binary_assets() -> set[str]:
+def repository_paths() -> list[str]:
     result = subprocess.run(
         ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
         cwd=ROOT,
         check=True,
         stdout=subprocess.PIPE,
     )
+    return sorted({path.decode("utf-8") for path in result.stdout.split(b"\0") if path})
+
+
+def validate_portable_paths(paths: list[str]) -> None:
+    # Check the Git inventory, not directory entries: a case-insensitive
+    # checkout can already have overwritten one of the conflicting files.
+    spellings: dict[str, str] = {}
+    for path in sorted(set(paths)):
+        parts = path.split("/")
+        for end in range(1, len(parts) + 1):
+            prefix = "/".join(parts[:end])
+            folded = prefix.casefold()
+            previous = spellings.get(folded)
+            if previous is not None and previous != prefix:
+                fail("repository paths", f"case-insensitive collision: {previous!r} and {prefix!r}")
+            spellings[folded] = prefix
+
+
+def repository_binary_assets() -> set[str]:
     return {
-        path
-        for raw_path in result.stdout.split(b"\0")
-        if raw_path
-        for path in [raw_path.decode("utf-8")]
+        path for path in repository_paths()
         if Path(path).suffix.lower() in BINARY_ASSET_SUFFIXES and (ROOT / path).is_file()
     }
 
@@ -414,6 +430,7 @@ def validate_documents(baseline: object, matrix: object, ledger: object) -> None
 
 
 def validate_repository() -> None:
+    validate_portable_paths(repository_paths())
     validate_documents(load(BASELINE_PATH), load(MATRIX_PATH), load(LEDGER_PATH))
     validate_assets(load(ASSET_MANIFEST_PATH))
 
@@ -452,6 +469,22 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
 
 
 def self_test() -> None:
+    validate_portable_paths(repository_paths())
+    validate_portable_paths([
+        "tests/tagged_visual/Stress.roc",
+        "tests/tagged_visual/command_stress.roc",
+        "tests/another/Stress.roc",
+    ])
+    for paths in (
+        ["tests/tagged_visual/Stress.roc", "tests/tagged_visual/stress.roc"],
+        ["tests/TaggedVisual/Fixture.roc", "tests/taggedvisual/main.roc"],
+    ):
+        try:
+            validate_portable_paths(paths)
+        except ContractError:
+            pass
+        else:
+            raise ContractError(f"self-test path collision was accepted: {paths}")
     baseline = load(BASELINE_PATH)
     matrix = load(MATRIX_PATH)
     ledger = load(LEDGER_PATH)

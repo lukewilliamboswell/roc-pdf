@@ -78,6 +78,12 @@ cannot be replayed or fully validated are not accepted as resources.
 
 ## Repository fixture protocol
 
+Repository file and directory names must not collide under case-insensitive
+comparison. The contract preflight checks Git's path inventory on every host,
+including Linux, so a macOS checkout cannot silently replace a fixture module
+with a differently cased app root. App and module names must be distinct beyond
+capitalization.
+
 Evidence applications are ordinary apps under capability-named directories in
 `tests/`. Internal evidence imports the local `all.roc` root, while public API
 fixtures import `main.roc`. Test-only fixture modules live beside the apps that
@@ -95,4 +101,3 @@ validator selectors, and source paths or directory names never choose semantic
 checks. Preflight checker self-tests are likewise an ordered manifest list.
 Python registries bind those IDs to project-owned callables and scripts without
 allowing manifest data to import or execute arbitrary code.
-
