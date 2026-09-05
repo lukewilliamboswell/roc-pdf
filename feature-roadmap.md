@@ -2,11 +2,13 @@
 
 ## Purpose
 
-This roadmap expands the architecture in [architecture.md](architecture.md)
-from a PDF 2.0 structural kernel to combined PDF/A-4 and PDF/UA-2 output. It is
-capability-gated rather than schedule-based. Gates state observable completion
-criteria and dependency order; they do not prescribe task ownership or a
-calendar.
+This roadmap delivers the business-document product defined in
+[architecture.md](architecture.md): reports, invoices, and business letters
+authored through public APIs and emitted as combined PDF/A-4 and PDF/UA-2.
+It is capability-gated rather than schedule-based. Gates state observable
+completion criteria and dependency order; they do not prescribe task ownership
+or a calendar. Gate 7 is the first production-release destination for the
+bounded document set below. Gates 8 and 9 are independently justified expansions.
 
 Once a capability has executable behavior, it is complete only when it:
 
@@ -36,6 +38,97 @@ not accepted as substitutes for that later evidence.
 No gate permits fallback output, profile downgrade, font substitution, feature
 removal, outlining, or rasterization after an error.
 
+## First production release: complete business documents
+
+Before fixing the remaining business-authoring representations, record three
+versioned reference documents and their ordinary/adverse content variants.
+They are authored entirely through the release package's public surfaces;
+private fixture constructors cannot satisfy product acceptance.
+
+| Reference document | Required authoring and behavior | Representative adverse variations |
+| --- | --- | --- |
+| Multi-page invoice | Caller-supplied values; address blocks; aligned amount columns; wrapped descriptions; repeated table headers; explicit row-break policy; totals kept together; logo; payment link; page numbers | Long names, identifiers and descriptions; many rows; a row taller than a page; totals near a break; unsupported text and incompatible mandatory keeps |
+| Business report | Headings; rich inline text; ordinary tables; bounded vector/image figures and captions; running page furniture; page and total-page numbers; outlines and internal links | A heading or caption near a break; a table continued across pages; a reference value that outgrows its field; supported mixed-language text; oversized figures |
+| Business letter | Letterhead and address blocks; paragraphs; controlled spacing and explicit breaks; first-page and continuation-page templates; metadata title without a required visible heading | Long recipient details; multiple pages; template content leaving insufficient body space; omission of visible title while retaining the combined profile |
+
+Each reference declares its exact supported text and layout policies, expected
+appearance and reading order, reader/assistive-technology tasks, author
+obligations, and performance workload. Adverse variants define either an
+acceptable layout under an explicitly selected policy or a specific structured
+error with no bytes. A valid-looking reference with short placeholder content
+alone is insufficient.
+
+Gate 6 delivers this bounded business-authoring scope, including ordinary table
+continuation and page templates brought forward from the former broad Gate 8
+scope. It does not require general floats, footnotes, indexes, arbitrary fixed
+pages, or advanced writing modes. A separately authored bounded chart or
+callout exercises the custom-block seam before that subset becomes stable.
+General custom pagination remains Gate 8.
+
+Gate 7 closes combined-profile, public-use, human-review, and performance
+evidence for these references. It is not complete merely because the private
+compiler can produce conforming examples. Every additional accepted feature
+must also have its own applicable-requirement closure; the three references
+are not a substitute for the full conformance ledger.
+
+### Product performance targets
+
+The release workload record includes a small invoice, a representative report,
+and a large statement/invoice batch. Each names page and content dimensions,
+resource sizes and reuse, text coverage, output mode, unique/shared input
+policy, compiler/target configuration, and representative deployment hardware.
+Measure preparation latency, total generation time, peak memory, output size,
+and repeated-generation throughput, with repetitions and acceptance statistics
+specified. Cold resource validation and explicitly reused validated resources
+are distinct workloads rather than an undocumented cache advantage.
+
+Set numeric acceptance thresholds from deployment needs and controlled
+baselines before the affected business slices are closed. Missing targets or
+unexplained failures block production readiness. Threshold changes require a
+recorded product/performance decision; they are not mechanically fitted to a
+regression. These controlled benchmarks supplement the mandatory exact Roc
+allocation counts and deterministic work bounds, which remain unchanged.
+
+## Capability readiness and historical closure
+
+Every implemented slice records the following dimensions independently, with
+evidence links. Each dimension is unavailable, representable-only, executable
+with evidence pending, or closed for an explicitly named subset. Inapplicability
+requires a recorded reason. Public document features require a closed facade
+path; a private compiler primitive may instead justify having no direct facade.
+
+| Dimension | Evidence required for closure |
+| --- | --- |
+| Backend | Validation, exact lowering, emission, and ownership/performance evidence |
+| Facade | Useful end-to-end public authoring, layout, and diagnostics for the declared subset |
+| Advanced integration | A supported public boundary exercised by a separately authored consumer, where applicable |
+| Conformance | Every requested claim and combination closed for that subset |
+| Reader and AT behavior | Declared observable tasks on pinned readers and assistive technology, with human review where applicable |
+
+The existing Gate 2, 3, and 4 closure records remain historical evidence for
+their stated subsets. This roadmap revision does not reopen those records,
+make pending APIs executable, or establish new conformance claims. Gate 3
+closed its declared text/facade subset; Gate 4 closed the `Standard` visual
+compiler with narrower public authoring. `Standard` remains the only currently
+available facade profile. The new business-release requirements are pending
+work in Gates 5-7, and each future slice records the readiness dimensions above.
+
+## Work following the Gate 4 milestone
+
+1. Record the reference documents, text-support matrix, layout policies, product
+   benchmark targets, and early reader/AT observations before fixing remaining
+   business-authoring representations. This is release planning and exploratory
+   evidence, not a new conformance claim.
+2. Continue Gate 5 archival closure and Gate 6 business-authoring/semantic
+   slices from their shared Gate 4 foundation. Deliver each public feature
+   through authoring, layout, diagnostics, and applicable evidence; neither
+   branch must wait for unrelated capabilities in the other.
+3. Close Gate 7 only when both branches and the business-document release
+   evidence are complete. New claims and defaults follow their original
+   explicit gate requirements.
+4. Select Gate 8 and 9 expansions from demonstrated application needs, retaining
+   complete conformance and performance evidence for each accepted subset.
+
 ## Capability map
 
 ```text
@@ -56,16 +149,18 @@ semantic/content/fragment contract (Gate 0)
               +--------+--------+
               |                 |
               v                 v
-      static PDF/A-4       core UA vocabulary
+      static PDF/A-4     business authoring +
+                         core UA vocabulary
          (Gate 5)             (Gate 6)
               |                 |
               +--------+--------+
                        |
                        v
+       business-document production release
         PDF/A-4 + PDF/UA-2 closure (Gate 7)
                        |
                        v
-       broad production documents (Gate 8)
+       advanced document composition (Gate 8)
                        |
                        v
         extended modern vocabulary (Gate 9)
@@ -171,9 +266,11 @@ within an early correctness gate.
   current Roc type-module, associated-item, `Try`, `List(a)`, and package-
   import syntax.
 - Define the required high-level author facts—metadata title and language—and
-  the stricter default-facade policy that `AccessibleArchive` additionally
-  requires a visible semantic document title. Define typed constructors that
-  distinguish meaningful content from artifacts without boolean flags.
+  distinguish them from optional visible title content. A report template may
+  include a visible title by convention; conformance profile eligibility does
+  not require one. Define typed constructors that distinguish meaningful
+  content from artifacts without boolean flags. This revises the former
+  planned visible-title policy without claiming a new executable profile.
 - Define `Theme` as typed convenience-layout typography, spacing, page-margin,
   and visual policy that cannot carry semantics or weaken conformance.
 - Define opaque semantic, content-occurrence, layout-fragment, namespace,
@@ -435,6 +532,43 @@ dependency. OpenType parsing, GSUB/GPOS processing, glyph selection, and shaping
 remain separate pure Roc components; the upstream Unicode issues provide facts
 and analysis boundaries rather than those font-specific behaviors.
 
+### Text capability planning for the production release
+
+Gate 3's existing closure remains limited to its declared supported subset.
+Before expanding business authoring, publish a versioned matrix with explicit
+rows for:
+
+- Scripts and language-sensitive shaping behavior.
+- Font formats, exact font instances, and supported OpenType features.
+- Direction, bidirectional mixtures, and writing modes.
+- Grapheme selection, legal breaks, selected line-breaking policies,
+  presentation transformations, and any supported hyphenation languages.
+
+For each row distinguish advanced positioned-run input, built-in facade
+shaping/layout, and packaged/caller-font coverage. Record its availability,
+pure Roc dependency or owning component, pinned data, positive/negative
+evidence, rendering/extraction expectations, and performance limits. A font
+containing a character cannot close the facade shaping/layout column.
+
+Choose the initial release rows from actual names, addresses, prose, formatted
+amounts, and mixed-language content in the reference documents. State supported
+and unsupported cases explicitly; neither the label "international text" nor
+upstream Unicode coordination promises unimplemented typography. Existing
+coverage may satisfy a row only with its recorded evidence. Required additions
+are Gate 6 business-release dependencies; further typography stays in Gates 8
+and 9.
+
+Shaping/layout integration tests exercise safe splits, context-sensitive
+reshaping after a selected break, changed advances and fit rechecking, per-line
+bidirectional placement, and budget exhaustion. Unsupported cases remain
+explicit errors. Use independently pinned shaping expectations, including a
+test-only HarfBuzz comparison corpus where appropriate; native tooling is never
+a production dependency or a majority-vote oracle. UAX #14 supplies break
+opportunities, not the line-fitting algorithm, and shaping boundaries may
+require reshaping after a break. See the
+[Unicode line-breaking contract](https://www.unicode.org/reports/tr14/tr14-55.html)
+and [HarfBuzz boundary facts](https://harfbuzz.github.io/harfbuzz-hb-buffer.html#hb-glyph-flags-t).
+
 ### Gate evidence
 
 - Each independent extractor matches an explicit normalized expectation for
@@ -576,9 +710,12 @@ this slice. It makes no PDF/UA-2 claim; Gate 6 retains the broader semantic and
 human accessibility audit.
 
 Vector, grouped, and multi-command drawings still reject atomically with
-`document.figure`; fixed pages reject with `layout.custom` until Gate 8. Raw
-stores and PDF object identities remain outside the common path. `Archive` and
-`AccessibleArchive` remain unavailable until their own gates close.
+`document.figure`; fixed pages reject with `layout.custom`. The revised Gate 6
+scope delivers bounded flow figures and page-template decoration for business
+documents; arbitrary fixed-page composition remains Gate 8. Those plans do not
+change the present rejection behavior. Raw stores and PDF object identities
+remain outside the common path. `Archive` and `AccessibleArchive` remain
+unavailable until their own gates close.
 
 ## Gate 5: static PDF/A-4
 
@@ -593,8 +730,8 @@ stores and PDF object identities remain outside the common path. `Archive` and
 - Apply static-profile rules to page content, forms, transparency, images, and
   annotation appearances uniformly.
 - Reject encryption, external visual/file references, incremental history,
-  deprecated features, forms, JavaScript, optional content, multimedia, 3D,
-  and attachments under package policy. Supported URI link actions remain
+  deprecated features, interactive forms, JavaScript, optional content,
+  multimedia, 3D, and attachments under package policy. Supported URI link actions remain
   annotation data rather than rendering dependencies.
 - Keep PDF/A-4f and PDF/A-4e outside this capability.
 - Advance `Pdf.Options.default` to public profile `Archive`, whose claim set is
@@ -615,10 +752,47 @@ stores and PDF object identities remain outside the common path. `Archive` and
   declared error policy and meets fixture-specific page-size, geometry, pixel,
   and color tolerances.
 
-## Gate 6: core PDF/UA-2 vocabulary
+## Gate 6: business authoring and core PDF/UA-2 vocabulary
+
+This gate closes the public authoring needed by the reference invoice, report,
+and letter, together with its semantic vocabulary. It uses Gate 4's visual
+compiler and does not depend on Gate 8's general composition features. Gate 5
+independently closes archival requirements; Gate 7 closes the combined product.
+Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
 
 ### Capabilities
 
+- Public facade constructors and layout for every reference-document feature,
+  including rich inline content, links, ordinary tables, figures, captions,
+  address/letterhead composition, page templates, and navigation.
+- Ordinary tables that continue across pages with explicit column sizing and
+  alignment, wrapped cells, row-splitting policy, repeated headers, and keeps
+  for groups such as invoice totals. The supported span/fragmentation subset
+  is declared precisely; general row-group and complex-span behavior remains
+  Gate 8. Repeated visual content preserves the declared semantic/artifact
+  policy rather than inventing new logical table relationships.
+- Bounded first-page and continuation-page templates with single-column body
+  flow, explicit headers/footers/decorations, and resolved page/total-page
+  numbers. Template regions have reserved geometry; decorative/repeated page
+  furniture has explicit artifact ownership, and meaningful authored content
+  retains semantic ownership. General fixed pages, columns, and float/footnote
+  interaction remain Gate 8.
+- Bounded image/vector flow figures and captions through validated drawings,
+  plus one separately authored chart or callout exercising the custom-block
+  seam. Its supported measurement and fragmentation contract is explicit;
+  neither PDF operators nor arbitrary custom pagination become public.
+- Typed mandatory layout constraints and ranked preferences, including
+  oversize-content and unbreakable-token behavior, supported wrapping and
+  splitting, required/preferred keeps, deterministic tie breaks, and bounded
+  conflict diagnostics. Final reference fields may have explicit fixed widths
+  only when their resolved values are shaped and checked to fit.
+- The declared production text-support matrix and any additions needed by the
+  reference documents, including bounded boundary reshaping and final fit
+  verification where applicable.
+- A bounded read-only preparation report exposing authoring locations, final
+  layout summaries, reading order, authored alternatives/assertions, policy
+  outcomes, and applicable human-review obligations without PDF object IDs or
+  retention of discarded compiler stages.
 - PDF 2.0 document title, document, document fragment, part, division, section,
   numbered heading, paragraph, and inline semantics.
 - Emphasis, strong, quotation, and code.
@@ -643,6 +817,33 @@ stores and PDF object identities remain outside the common path. `Archive` and
 
 ### Gate evidence
 
+- All three reference documents and their content variants execute through the
+  supported release API. Expected page composition, typography, wrapping,
+  alignment, image placement, and navigation are reviewed as complete documents
+  as well as through atomic fixtures. Every variant has either an acceptable
+  policy-defined layout or a stable error with no PDF bytes.
+- Tests cover repeated table headers, row continuation, totals near page
+  breaks, oversized rows/figures, incompatible mandatory keeps, and permitted
+  preference relaxation. Each result preserves source and semantic ownership;
+  no hidden clipping, shrinking, omission, or weaker conformance is accepted.
+- First/continuation-page templates preserve body bounds and declared semantic
+  or artifact ownership. Page/total-page fields contain exact resolved values;
+  insufficient field widths, cycles where stabilization is used, and work
+  exhaustion reject deterministically.
+- A separately authored extension consumer uses the supported public contract
+  without private stores or PDF objects. Its supported continuation or explicit
+  unsplittable behavior, semantic ownership, and bounded allocation/work are
+  exercised before that subset is declared stable.
+- Preparation-report fixtures map observations back to author input and
+  distinguish mechanical facts from human obligations. Inspection is bounded,
+  does not alter bytes, and does not keep discarded stages or resource payloads
+  alive through diagnostics. Report-budget failures are explicit rather than
+  silently omitting obligations.
+- The production text matrix has evidence for every required row, distinct
+  facade and advanced-input claims, and atomic unsupported-case diagnostics.
+  Required shaping/layout interactions meet their declared work bounds.
+- The readiness dimensions, exact allocation/work records, and controlled
+  product benchmark targets are satisfied for each required business slice.
 - A project-owned normalized structure representation is compared independently
   of PDF object numbers.
 - Every MCID and object reference is reachable bidirectionally through the
@@ -664,6 +865,13 @@ stores and PDF object identities remain outside the common path. `Archive` and
   same authored destination.
 - Human-reviewed scenarios cover reading order, heading navigation, lists,
   links, figures, simple tables, nested language, and artifact behavior.
+- Exploratory reader/AT work starts with the available Gate 4-era public
+  subset, before remaining authoring contracts are fixed, and expands as these
+  slices become executable. Tasks include locating invoice amounts through
+  table navigation, following payment links, navigating report headings, and
+  understanding figures through their alternatives. Missing capabilities and
+  reader limitations are recorded explicitly; exploratory observations do not
+  replace full gate or release evidence.
 - Human protocols pin AT/reader versions, tasks, expected observable navigation
   outcomes, and assessor sign-off. They do not require identical synthesized
   speech or UI output.
@@ -677,7 +885,7 @@ stores and PDF object identities remain outside the common path. `Archive` and
 Unsupported semantic constructs are rejected; they are never flattened into
 paragraphs or figures.
 
-## Gate 7: PDF/UA-2 closure and combined accessible archive
+## Gate 7: business-document production release and combined closure
 
 ### Capabilities
 
@@ -697,6 +905,11 @@ paragraphs or figures.
 - Support the WTPDF accessibility declaration where its requirements and
   declaration rules are met; keep WTPDF reuse separate.
 - Make `AccessibleArchive` the enduring default used by `Pdf.to_bytes`.
+- Close public usability, supported typography/layout, reader/AT behavior,
+  authoring feedback, and product performance for the reference invoice,
+  report, and letter. Preserve their combined claims without requiring a
+  visible title on the letter. No required business-authoring item remains
+  deferred to Gate 8 or available only through private fixture construction.
 
 ### Gate evidence
 
@@ -711,27 +924,45 @@ paragraphs or figures.
 - The conformance ledger contains no unexplained applicable or untested clause.
 - The published claim distinguishes package guarantees, author assertions, and
   human judgment.
+- The reference documents and their declared variants pass the combined
+  profile, complete-document visual/navigation review, public-API readiness,
+  and task-based accessibility protocol. Human-review obligations are available
+  through the supported preparation report; a successful API result alone is
+  never described as certification of semantic quality.
+- Controlled invoice/report/batch benchmarks meet the reviewed numeric product
+  targets, and every affected slice retains exact allocation, deterministic
+  work, copying, and retention evidence. Missing targets or unexplained
+  performance regressions block the production release.
 
 At this gate the package may produce conforming PDF/UA-2 for its supported
 feature subset. It does not need to accept every PDF feature, annotation type,
 or structure role; unsupported inputs remain errors.
 
-## Gate 8: broad production documents
+## Gate 8: advanced document composition
+
+These features extend an already usable business-document release. Ordinary
+table continuation, repeated headers, single-column page templates, bounded
+flow figures, and page/total-page numbers are Gate 6 requirements; they do not
+wait for the broader algorithms below.
 
 ### Capabilities
 
-- Complex tables with row groups, spans, repeated headers, and continued
-  structures.
-- Page templates, multi-column layout, floats, footnotes, side content, and
-  explicit logical order.
-- Cross-references, generated tables of contents, indexes, page labels, and
-  deterministic layout stabilization.
-- Notes, references, bibliographies, captions, and richer inline semantics.
-- Accessible custom layout blocks and validated vector-scene integration.
+- Complex tables with richer row groups, span combinations, and fragmentation
+  beyond the declared Gate 6 subset, preserving repeated-header semantics.
+- General fixed-page composition, richer page templates, multi-column layout,
+  floats, footnotes, side content, and explicit logical order.
+- General cross-references, generated tables of contents, indexes, richer page
+  labeling, and deterministic layout stabilization beyond Gate 6's bounded
+  page/total-page fields and Gate 4's navigation primitives.
+- Notes, references, bibliographies, and caption/inline semantics beyond the
+  core business vocabulary.
+- General accessible custom-block fragmentation and vector-scene integration
+  beyond Gate 6's bounded figure/callout contract.
 - Broader explicitly declared script/font coverage and vertical writing where
   the shaping and layout boundary supports them.
-- Reusable forms, transparency, gradients, and patterns only within their
-  independently closed capability subsets.
+- Broader public composition with reusable Form XObjects, transparency,
+  gradients, and patterns, building on their independently closed Gate 4
+  compiler subsets and Gate 6's bounded flow-figure use.
 
 ### Gate evidence
 
@@ -906,6 +1137,9 @@ bytes.
 
 ### Release
 
+- Public reference invoice/report/letter acceptance, including adverse content,
+  supported typography/layout, authoring feedback, and controlled product
+  performance targets, as required by Gate 7.
 - Cross-platform byte-for-byte reproducibility.
 - Published performance evidence from the pinned dev backend, including
   unique and deliberately shared pipeline inputs.
@@ -930,8 +1164,8 @@ capabilities if ever justified:
   design.
 - CFF, CFF2, variable-font instancing, or additional image codecs after the
   initial validated font/image set.
-- Forms, signatures, encryption, optional content, JavaScript, multimedia,
-  RichMedia, and 3D.
+- Interactive forms, signatures, encryption, optional content, JavaScript,
+  multimedia, RichMedia, and 3D.
 - Linearization, incremental updates, reading, editing, repair, or conversion.
 
 Some of these conflict with the static package policy and may remain

@@ -8,13 +8,43 @@ invariants, conformance policy, and test architecture. Feature delivery order
 belongs in [feature-roadmap.md](feature-roadmap.md).
 
 The package is generation-only. It does not read, edit, repair, incrementally
-update, or convert existing PDFs. Its primary production profile is a closed,
-static subset of PDF/A-4. Its semantic model is capable of additionally
-producing PDF/UA-2. Legacy PDF output is outside the design.
+update, or convert existing PDFs. Its production destination is accessible,
+self-contained business documents combining a closed static subset of PDF/A-4
+with PDF/UA-2. Legacy PDF output is outside the design. This is the intended
+end state; the roadmap records which capabilities and claims are executable.
 
 The production implementation and all of its runtime dependencies are pure
 Roc. Python and native PDF tools are independent test oracles; they are not
 linked into or invoked by the package.
+
+## Product destination
+
+The primary users generate reports, invoices, and business letters from
+application-owned content. The high-level `Pdf` facade is the primary product;
+independent layout systems are a supported integration use case. The package
+owns document presentation and PDF generation, while applications supply
+business facts, calculated amounts, formatted values, and semantic intent.
+
+The first production release must support complete representative business
+documents through public authoring APIs. Its bounded scope includes rich inline
+text, dependable single-column flow, ordinary tables that continue across
+pages, repeated table headers, page templates and page furniture, figures and
+captions, and navigation. The roadmap defines the reference documents, exact
+text coverage, layout policies, and release evidence. General publishing
+features such as floats, footnotes, indexes, and advanced writing modes are
+separate expansions rather than prerequisites for this release.
+
+Product readiness requires usable authoring, predictable layout, actionable
+diagnostics, conformance evidence, demonstrated reader and assistive-technology
+behavior, and measured performance on those documents. Internal compiler
+support alone does not establish public availability or release readiness.
+Exact allocation and work evidence remains required alongside these outcomes.
+
+This document owns enduring contracts. Versioned representation and repository
+harness details live in [implementation contracts](docs/implementation-contracts.md),
+and executable evidence lives in the roadmap's linked records. Those contracts
+remain binding until explicitly revised; moving them out of this document does
+not permit unreviewed byte, allocation, or capability changes.
 
 ## Standards basis
 
@@ -85,7 +115,7 @@ between PDF/UA-2 and WTPDF is summarized in the PDF Association's
 [Tagged PDF Q&A](https://pdfa.org/resource/tagged-pdf-q-a/).
 
 The package's `StaticPdfA4` profile is intentionally narrower than everything
-ISO 19005-4 may permit. It rejects forms, JavaScript, optional content,
+ISO 19005-4 may permit. It rejects interactive forms, JavaScript, optional content,
 attachments, multimedia, 3D, encryption, external visual/file dependencies,
 and incremental updates. Supported URI link actions remain ordinary annotation
 data. These are package policy exclusions, not claims that every such construct
@@ -97,6 +127,20 @@ alternative text is truthful, whether reading order is meaningful, or whether
 the content meets every WCAG requirement. The package may establish mechanical
 conformance and make author obligations explicit; it must not claim to certify
 semantic quality.
+
+Four policy categories remain distinct:
+
+- Standards requirements determine whether a requested conformance claim holds.
+- Package exclusions bound supported generation, regardless of whether a
+  standard would permit a feature.
+- Authoring policies express explicit document constraints and preferences,
+  including layout behavior and optional template conventions.
+- Theme defaults select presentation within those constraints.
+
+A presentation preference cannot require the author to abandon an otherwise
+valid conformance claim. Metadata title and language remain required author
+facts. A visible title is authored content and a default report-template
+convention, not an additional eligibility rule for `AccessibleArchive`.
 
 ## Core invariants
 
@@ -301,66 +345,18 @@ operations remain streaming. `Iter` values are not stored in `Document`,
 
 ### Emission representation
 
-`SealedPdfPlan` is an exact compact replayable plan, not a fully materialized
-recursive PDF tree or a collection of precompressed byte blobs. Every object
-and indirect stream-length object is assigned before emission. Object IDs
-follow emission order so offsets append to a dense list rather than update a
-map. Ordinary stream lengths use indirect objects emitted immediately after
-their streams, allowing the encoder to run validated content recipes through
-lexical emission and stateful deterministic DEFLATE without buffering the
-entire uncompressed or compressed stream.
+The sealed plan is compact, exact, and replayable. Planning assigns objects and
+stream-length strategies before emission; lexical emission and deterministic
+compression run incrementally over validated recipes. The encoder consumes one
+explicit state and returns its successor with a coarse segment. Generated
+segments have bounded owned buffers; unchanged final-form resources may use
+exact shared ranges under the selected retention policy. Buffered output uses
+the same transition directly into its final accumulator.
 
-The baseline DEFLATE transition is a private, package-owned pure Roc
-implementation. Its internal seam accepts preflighted input and checked
-limits, exposes a conservative output bound, and yields deterministic bounded
-chunks plus explicit work and source-release facts. The independent Python
-checker uses zlib only as a test-time decompression oracle over the emitted PDF
-bytes. No compression package is part of the package dependency graph, and a
-future replacement cannot weaken these contracts or silently change emitted
-bytes.
-
-The initial xref stream is unfiltered, covers the complete contiguous object
-range, and uses `/W [1 8 2]`; its direct length is therefore 11 bytes per entry
-with checked multiplication. The encoder retains `U64` offsets proportional to
-object count. Any alternative compressed or replay/counting strategy is a
-separately specified capability. Sealing proves exact counts where possible
-and safe upper bounds for lexical output, compression, offsets, and configured
-output budgets so the infallible encoder cannot discover overflow or limit
-failures.
-
-The encoder is an explicit state machine, not a stored iterator closure. It
-consumes one state and returns its successor plus a coarse output segment. A
-segment is either a generated, independently owned bounded-capacity buffer or
-an exact range of validated resource bytes that are already in their final PDF
-representation. The public `List(U8)` for the latter may be a Roc seamless
-slice, avoiding a payload copy. Generated PDF syntax, transformed image data,
-font subsets, and DEFLATE output are never presented as slices of mutable
-accumulators or oversized internal arenas. Retaining an old encoder state is
-valid but forfeits the unique-state fast path.
-
-The package never coalesces shareable resources into one whole-document byte
-arena, and package-created shareable resources use separate reference-counted
-allocations. A caller-supplied resource may itself already be a seamless slice
-of a larger caller allocation; sharing it can retain that actual backing
-allocation, not merely the visible resource range. The encoder releases its
-own resource reference immediately after its final emitted range; any remaining
-lifetime is then caused by caller-retained chunks. Chunked output has an
-explicit retention policy: the default shares unchanged resources for the
-ordinary consume-and-release streaming path, while an owned-chunk mode copies
-such ranges into bounded buffers when predictable retained memory is more
-important than avoiding the copy. Both policies emit identical bytes.
-
-Buffered output drives the same lower-level emission transition into one unique
-byte accumulator, reserving only an exact known size. When the final size is
-not exact, the accumulator follows one deterministic bounded-growth policy; a
-loose validated worst-case bound is never used as a requested allocation size.
-It does not first build a `List(List(U8))` and concatenate it. Resource ranges
-are copied directly into this final contiguous result, because `to_bytes`
-cannot both return one allocation and preserve zero-copy resource sharing. The
-public chunk wrapper either returns a permitted seamless resource slice or
-supplies a fresh bounded buffer to the transition. A high-level chunk
-entrypoint may expose the validated encoder, while one-shot byte sources that
-cannot be replayed or fully validated are not accepted as resources.
+The binding [emission representation contract](docs/implementation-contracts.md#emission-representation)
+specifies the current compressor seam, stream-length and xref representation,
+output-bound proofs, chunk ownership, and accumulator growth. Changing those
+choices requires reviewed determinism, allocation, and retention evidence.
 
 The bounded-memory target is proportional to the compact input/sealed stores,
 validated resource bytes still referenced by the encoder or caller-retained
@@ -409,7 +405,7 @@ package [
     Conformance,
     Encode,
     Theme,
-] { deflate: "..." }
+] {}
 ```
 
 ```roc
@@ -507,22 +503,20 @@ validated packaged or caller-provided resources, and a theme override cannot
 weaken the selected profile. The built-in theme is versioned because changing
 its metrics, fonts, or spacing can change pagination and bytes.
 
-The Gate 4 facade accepts the complete typed sRGB text-color range through
-opaque `Theme` setters. The packaged sRGB profile is both the painting-space
-definition and output intent; no device-color guess or fallback is permitted.
-Raster/JPEG resources are executable inside the production-visual compiler.
-The public authoring boundary represents them as typed JPEG or packed raster
-`Image.Source` values inside opaque `Scene.Drawing` values. A drawing becomes
-meaningful only through `Pdf.figure`, which requires alternative text, or
-decorative only through an explicitly classified fixed-page artifact. Until
-the full Gate 6 semantic vocabulary and Gate 8 fixed-layout path close, the
-`Standard` facade nevertheless executes a deliberately narrow meaningful
-figure: exactly one image command, non-empty alternative text, and an optional
-caption. It creates the semantic `Figure` before layout, owns image and caption
-through one occurrence/fragment, and serializes `/Alt`; it does not make a
-PDF/UA-2 claim. Vector, grouped, multi-command, and decorative fixed-page
-forms reject with stable feature diagnostics and emit no bytes. PNG is not an
-accepted source format.
+The facade accepts typed sRGB text colors through opaque `Theme` setters. The
+packaged sRGB profile is both the painting-space definition and output intent;
+no device-color guess or fallback is permitted. The public image boundary uses
+typed JPEG or packed raster `Image.Source` values inside opaque `Scene.Drawing`
+values. A meaningful drawing enters through `Pdf.figure` with alternative text
+and an optional caption; a decoration enters through an explicitly classified
+page artifact. Semantic or artifact classification exists before layout in
+either authoring path. PNG is not an accepted source format.
+
+The [roadmap](feature-roadmap.md) and [authoring guide](docs/authoring.md) record
+the executable drawing and layout subsets. A representable drawing or a closed
+private graphics primitive does not establish that its public authoring path
+is executable. Unsupported compositions return stable feature diagnostics and
+emit no bytes.
 
 Packaging and PDF embedding are separate boundaries. The core package ships
 only the small, audited deterministic assets required by its default facade,
@@ -604,10 +598,9 @@ constructors create their semantic structure automatically:
 - Lists create labels, bodies, and list-item relationships.
 - Tables require declared headers and retain a logical grid.
 - A meaningful image is constructed as a figure with author-supplied
-  alternative text. The initial `Standard` slice accepts one image command;
-  Gate 6 adds its broader vocabulary and conformance evidence. A decorative
-  image uses a separate decoration constructor and becomes an artifact once
-  the fixed-page ownership path is executable.
+  alternative text. A decorative image uses a separate decoration constructor
+  and becomes an artifact through the supported page-template or fixed-page
+  ownership path.
 - Future common image constructors accept inspected JPEG or typed packed
   raster planes and make color assumptions explicit in their names or inputs.
 - Links retain their text, URI or internal destination, annotation ownership,
@@ -622,8 +615,8 @@ visible and carry the fields required by that choice.
 ### Defaults contract
 
 `Pdf.to_bytes` is equivalent to `Pdf.to_bytes_with(document,
-Pdf.Options.default)`. This section states the enduring default after production-graphics completion
-contract. During delivery, the roadmap advances the default only to a public
+Pdf.Options.default)`. This section states the enduring production defaults.
+During delivery, the roadmap advances the default only to a public
 profile whose complete claim set has been implemented and validated; an
 unfinished claim is never selected implicitly. The enduring defaults are:
 
@@ -649,22 +642,20 @@ unfinished claim is never selected implicitly. The enduring defaults are:
 - A readable built-in theme, A4 pages, and conservative margins, all
   explicitly overridable through typed options or a `Theme`.
 - No current timestamp unless the author supplies one.
-- No encryption, scripts, forms, external rendering dependencies, or other
-  features outside the static package policy.
+- No encryption, scripts, interactive forms, external rendering dependencies,
+  or other features outside the static package policy.
 
 Changing a default in a way that changes document semantics, conformance, or
 bytes is a reviewed package-version change.
 
 The facade never silently weakens these defaults. If accessible archival output
 cannot be produced, `Pdf.to_bytes` returns a structured error explaining the
-missing author fact or unsupported feature. As an intentional facade policy,
-`AccessibleArchive` additionally requires a visible semantic `Title` block
-that is distinct from the metadata title. PDF/UA-2 itself requires the metadata
-title and title-display preference, not a visible `Title` structure element;
-this stricter requirement is a package usability policy intended to keep the
-default document's visible and reader-displayed identity explicit. `Archive`
-and `Standard` do not impose that extra visible-title policy. Authors who
-intentionally need a less constrained PDF select `Archive` or `Standard` with
+missing author fact or unsupported feature. PDF/UA-2 requires the metadata
+title and title-display preference, not a visible `Title` structure element.
+An authored visible title remains semantically distinct from that metadata.
+Report templates normally include one; a business letter may omit it while
+retaining `AccessibleArchive`. Authors who intentionally need a different
+conformance claim set select `Archive` or `Standard` with
 `Pdf.Options.with_profile`; this is an opt-out, not an automatic downgrade.
 
 ```roc
@@ -680,6 +671,33 @@ Defaulting to PDF/UA-2 does not certify the quality of prose, alternative text,
 reading order, or table design. Supplying those semantic values is an author
 assertion, and the human-verifiable requirements described later still apply.
 
+### Authoring feedback
+
+Preparation provides a bounded, read-only report alongside the opaque prepared
+result through a supported inspection surface. This is a production contract
+to be delivered with business authoring, not a claim that the current
+`Pdf.Prepared` API already exposes inspection methods. The report contains
+authoring locations, page and fragment summaries, logical reading order,
+authored alternatives and assertions, layout-policy outcomes, selected text
+coverage, and applicable human-review obligations. It exposes no PDF object
+identity or mutable compiler stores. Its facts are produced during preparation;
+inspection does not recover semantics by rescanning emitted PDF bytes.
+
+Errors retain stable codes and identify the authored block, text range,
+resource, or conflicting constraint. Successful layout may report explicitly
+relaxed preferences; advice cannot change output or mask a failed mandatory
+constraint. A caller can map compact locations to application data without
+diagnostics retaining the whole document or resource payloads.
+
+The report supports application tooling and review of templates and generated
+documents. It does not require interactive approval on every generation, and a
+successful preparation or assertion record does not certify human judgment.
+Report storage, materialization, and retention have explicit budgets and
+ownership; inspection must not silently retain discarded compiler stages or
+omit obligations when a report budget is exceeded. Required report facts are
+validated before sealing; later inspection introduces no document-error path
+into the encoder.
+
 ### Advanced integration boundary
 
 The common stable integration boundary is opaque `Pdf.Prepared`. It is produced
@@ -687,7 +705,7 @@ by `Pdf.prepare` after authoring, layout, resource, navigation, conformance, and
 object planning and is accepted directly by buffered or chunked emission. This
 executable boundary does not expose PDF object identity.
 
-The stable custom-layout integration boundary remains the conceptual
+The intended custom-layout integration boundary is the conceptual
 `PreparedDocument`, containing:
 
 ```text
@@ -711,6 +729,11 @@ counter, guessed reference width, or incomplete continuation.
 This boundary allows a simple layout system supplied with the package and
 independent pure Roc layout systems to target the same PDF generator. PDF
 lowering does not depend on a particular layout engine.
+
+The roadmap declares executable and stable subsets separately. A bounded
+business block must be exercised by a separately authored public consumer
+before that subset is called stable; the conceptual shape alone does not close
+the general custom-layout capability.
 
 The advanced conceptual lifecycle uses `Try`, current Roc's fallible-result
 type:
@@ -845,6 +868,24 @@ footnote, float, or side-content participation where the selected capability
 supports them. A continuation contains only explicit state needed to resume the
 same component. A consumer does not remeasure previous fragments to recover it.
 
+Mandatory constraints and preferences are separate typed policy. Mandatory
+constraints include containment, supported geometry, explicit unsplittable
+content, and author-selected required keeps. Preferences may govern otherwise
+legal break choices, spacing, and preferred keeps. Each layout algorithm
+declares its priority order, deterministic tie breaks, and work budget. A
+preference may be relaxed only as its policy explicitly permits; conflicting
+mandatory constraints return a diagnostic naming the affected source and
+constraints. Exhausting work never authorizes a weaker policy.
+
+The business authoring contract defines column sizing and alignment; text
+wrapping and unbreakable-token behavior; table row and cell fragmentation;
+repeated headers; keep groups such as invoice totals; first-page and
+continuation-page furniture; and oversize block behavior. Each supported policy
+has a defined outcome or error. Long text, a row taller than the available
+page, and incompatible keeps must not trigger implicit shrinking, clipping,
+content removal, or font substitution. Applications select supported layout
+policies before preparation rather than discover an undocumented recovery mode.
+
 This is also the safe extension boundary for charts, callouts, invoice widgets,
 and other domain-specific blocks. Each extension supplies its semantic
 occurrences or explicit page artifacts and lowers visual content to validated
@@ -863,7 +904,23 @@ Layout-dependent references are symbolic before layout and fully resolved in a
    state is accepted as an approximation.
 
 This covers counters, tables of contents, indexes, page references, footnotes,
-and total-page labels without guessed widths or reserved placeholder digits.
+and total-page labels without accepting guessed final values or unchecked
+placeholder widths. An explicit fixed-width reference field is a valid layout
+choice when the final value is resolved, shaped, and proven to fit. The
+architecture permits such exact strategies without requiring every reference
+to change surrounding flow or participate in general iterative stabilization.
+
+Paragraph analysis, measurement shaping, break selection, final boundary
+shaping, and per-line bidirectional placement are explicit operations inside
+the shaping/layout stage. A measured run carries sufficient boundary/context
+facts to identify where it can be split without changing its shaping. A break,
+hyphenation, or presentation change that affects shaping triggers bounded
+reshaping and fit verification before the line is committed. Changed advances
+return to the declared break-selection algorithm; stale measurements never
+escape as final layout. Cache identities include these contexts and policies,
+and reshaping/reselection work consumes the declared layout budget. Only final
+accepted lines materialize scene commands. This internal interaction does not
+permit later PDF stages to repair text or recover missing semantics.
 
 Before shaping, a deterministic `FontPlan` maps source scalar ranges to exact
 validated font instances:
@@ -1002,6 +1059,16 @@ embedding-rights inspection, exact font-instance identity, composite-glyph
 closure, deterministic subsetting, CID assignment, widths, CMaps, and font
 descriptor generation. Initial support may be limited to TrueType-flavoured
 OpenType, with other formats rejected explicitly.
+
+Text capability is declared independently for advanced positioned-run input,
+built-in shaping/layout, and packaged or caller-provided font coverage. A
+versioned support matrix names scripts, language-sensitive behavior, font
+formats and OpenType features, direction and writing modes, line-breaking and
+hyphenation policies, and their evidence. A font's character coverage alone is
+not proof that the facade can shape or lay out a language. The roadmap selects
+the initial supported set from the reference business documents and gates
+each expansion separately; broad international typography is not an implicit
+promise of accepting Unicode strings or externally positioned glyphs.
 
 Font tables remain offset/length ranges into one validated font byte resource.
 Coverage, `cmap`, GSUB, and GPOS data are compiled once per exact face. Shaping
@@ -1331,23 +1398,12 @@ creating alternate packages. Release bundling always starts from `main.roc`;
 `all.roc` is never included in a release artifact and does not expand the
 consumer-visible surface.
 
-Evidence applications are ordinary apps under capability-named directories in
-`tests/`. Internal evidence imports the local `all.roc` root, while public API
-fixtures import `main.roc`. Test-only fixture modules live beside the apps that
-share them rather than in `package/`. Related cases with one fixture pipeline
-use one family app root and a deterministically ordered, versioned JSONL case
-file. The app decodes exactly one JSON argument into a closed typed case union;
-unknown tags, malformed fields, and unsupported schema versions are explicit
-failures. The harness builds each family root once, then may execute its rows in
-parallel. Genuinely different application/package boundaries may still use
-multiple named roots in one capability directory.
-
-Case manifests declare their ordered structural validators explicitly by
-stable allowlisted ID. Numeric dimensions are evidence inputs, not implicit
-validator selectors, and source paths or directory names never choose semantic
-checks. Preflight checker self-tests are likewise an ordered manifest list.
-Python registries bind those IDs to project-owned callables and scripts without
-allowing manifest data to import or execute arbitrary code.
+Evidence applications exercise private stage contracts through the repository
+integration root and public behavior through the release root. The binding
+[fixture protocol](docs/implementation-contracts.md#repository-fixture-protocol)
+defines app families, versioned scenarios, manifest dispatch, and checker
+selection. Neither test integration nor fixture conventions expand the public
+package boundary.
 
 Separate pure Roc packages may own shaping, OpenType parsing, image decoding,
 XML/XMP construction, hashing, ICC inspection, and DEFLATE. Integration occurs
@@ -1415,6 +1471,16 @@ validator expectations, human checks where applicable, asset provenance, and
 an atomic negative twin. Validation failure is transactional and produces no
 partial PDF.
 
+Reference business documents additionally exercise only supported public
+authoring surfaces and are reviewed as complete documents. Their acceptance
+includes ordinary and adverse content variation, typography and pagination,
+diagnostic usefulness, reader interaction, assistive-technology tasks, and
+product performance targets. They complement atomic feature evidence rather
+than replace it. Early exploratory reader/AT findings inform contracts before
+closure; release review still requires the full pinned protocol. A separately
+authored extension fixture must exercise the bounded custom-block contract
+before that integration surface is declared stable.
+
 Determinism tests compare byte hashes across supported operating systems and
 architectures. Property tests randomly compose small typed semantic and visual
 constructs, including explicitly valid and invalid trees, tables, glyph runs,
@@ -1466,6 +1532,16 @@ assert declared linear, `O(n log n)`, or pass-multiplied-linear bounds through
 operation counts rather than fragile wall-clock thresholds. Slice-output tests
 separately cover immediate consumption and retained small slices of large
 resources so a lower copy count cannot hide excessive source retention.
+
+Product performance targets additionally specify acceptable preparation
+latency, total generation time, peak memory, output size, and batch throughput
+for representative business workloads on a controlled deployment configuration.
+Targets record document/resource dimensions, compiler and host configuration,
+measurement boundaries, repetitions, and the chosen acceptance statistic.
+Thresholds are reviewed from deployment needs and measured baselines before
+production closure; linear complexity alone is not an acceptable substitute.
+These controlled targets supplement exact-allocation and deterministic-work
+checks and do not introduce wall-clock thresholds into ordinary unit tests.
 
 The benchmark corpus scales homogeneous documents through 1, 10, 100, 1,000,
 and 10,000 pages and includes million-node/object/tree cases; one source range
