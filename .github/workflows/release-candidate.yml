@@ -4,9 +4,14 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      nightly_validation:
+        description: "Validate a nightly candidate without publishing or deploying"
+        type: boolean
+        required: false
+        default: false
       release_tag:
         description: "The only supported release candidate tag: 0.1.0-rc2"
-        required: true
+        required: false
         type: string
 
 concurrency:
@@ -21,6 +26,13 @@ jobs:
     name: Bundle and smoke-test gallery
     runs-on: ubuntu-latest
     steps:
+      - name: Require a version for publication
+        if: github.event_name == 'workflow_dispatch' && !inputs.nightly_validation
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.release_tag }}
+        run: test -n "$RELEASE_VERSION" || { echo "A release version is required for publication" >&2; exit 1; }
+
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -52,7 +64,7 @@ jobs:
   publish:
     name: Publish release candidate
     needs: bundle-and-validate
-    if: github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'workflow_dispatch' && !inputs.nightly_validation)
     runs-on: ubuntu-22.04
     permissions:
       contents: write
