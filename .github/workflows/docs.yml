@@ -5,11 +5,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      nightly_validation:
+        description: Validate a nightly candidate without deploying
+        type: boolean
+        default: false
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages-${{ github.ref }}
@@ -33,7 +36,11 @@ jobs:
           path: generated-docs
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.nightly_validation
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     needs: build
     environment:
       name: github-pages

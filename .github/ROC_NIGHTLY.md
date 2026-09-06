@@ -9,6 +9,7 @@ validation workflows:
 
 - `ci.yml`
 - `release-candidate.yml`
+- `docs.yml`
 
 Each is dispatched on the exact candidate commit with `nightly_validation: true`.
 This uses GitHub API version `2026-03-10`, which returns the created workflow run ID.

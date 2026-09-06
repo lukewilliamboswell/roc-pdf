@@ -1,6 +1,7 @@
 {
   "workflows": [
     "ci.yml",
-    "release-candidate.yml"
+    "release-candidate.yml",
+    "docs.yml"
   ]
 }
