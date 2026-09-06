@@ -1,0 +1,6 @@
+{
+  "workflows": [
+    "ci.yml",
+    "release-candidate.yml"
+  ]
+}
