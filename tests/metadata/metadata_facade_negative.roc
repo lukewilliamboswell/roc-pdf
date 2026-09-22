@@ -42,19 +42,61 @@ main! = |args| {
 	valid_title = if guard == 0 "Valid" else "guarded"
 
 	var $rejections = 0
-	$rejections = $rejections + rejected(make("en_AU", valid_title), |error| error == InvalidMetadata(MalformedLanguageTag({ offset: 2 })))
-	$rejections = $rejections + rejected(make("en-au", valid_title), |error| error == InvalidMetadata(LanguageNotCanonicalCase({ offset: 3 })))
-	$rejections = $rejections + rejected(make("en-x-priv", valid_title), |error| error == InvalidMetadata(UnsupportedLanguageForm({ offset: 3 })))
-	$rejections = $rejections + rejected(make("", valid_title), |error| error == InvalidMetadata(EmptyLanguage))
-	$rejections = $rejections + rejected(make("en-AU", ""), |error| error == InvalidMetadata(EmptyTitle))
-	$rejections = $rejections + rejected(make("en-AU", "Bad\u(0007)title"), |error| error == InvalidMetadata(InvalidTitleScalar({ offset: 3 })))
+	$rejections = $rejections + rejected(
+		make("en_AU", valid_title),
+		|error| match error {
+			InvalidMetadata(MalformedLanguageTag({ offset: 2 })) => True
+			_ => False
+		},
+	)
+	$rejections = $rejections + rejected(
+		make("en-au", valid_title),
+		|error| match error {
+			InvalidMetadata(LanguageNotCanonicalCase({ offset: 3 })) => True
+			_ => False
+		},
+	)
+	$rejections = $rejections + rejected(
+		make("en-x-priv", valid_title),
+		|error| match error {
+			InvalidMetadata(UnsupportedLanguageForm({ offset: 3 })) => True
+			_ => False
+		},
+	)
+	$rejections = $rejections + rejected(
+		make("", valid_title),
+		|error| match error {
+			InvalidMetadata(EmptyLanguage) => True
+			_ => False
+		},
+	)
+	$rejections = $rejections + rejected(
+		make("en-AU", ""),
+		|error| match error {
+			InvalidMetadata(EmptyTitle) => True
+			_ => False
+		},
+	)
+	$rejections = $rejections + rejected(
+		make("en-AU", "Bad\u(0007)title"),
+		|error| match error {
+			InvalidMetadata(InvalidTitleScalar({ offset: 3 })) => True
+			_ => False
+		},
+	)
 	$rejections = $rejections + rejected(
 		make("en-AU", valid_title).with_created("2026-02-30T00:00:00Z"),
-		|error| error == InvalidMetadata(InvalidTimestamp({ field: Created, offset: 8 })),
+		|error| match error {
+			InvalidMetadata(InvalidTimestamp({ field: Created, offset: 8 })) => True
+			_ => False
+		},
 	)
 	$rejections = $rejections + rejected(
 		make("en-AU", valid_title).with_modified("2026-08-18 09:30:00Z"),
-		|error| error == InvalidMetadata(InvalidTimestamp({ field: Modified, offset: 10 })),
+		|error| match error {
+			InvalidMetadata(InvalidTimestamp({ field: Modified, offset: 10 })) => True
+			_ => False
+		},
 	)
 
 	## The chunked path rejects identically before any chunk exists.
