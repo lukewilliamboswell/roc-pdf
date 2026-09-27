@@ -1,5 +1,5 @@
 app [target] {
-	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.2.1/9Qpttb6LTgcMaVsSBLsnaiS2mDUrf6Bxa6dX9Rqwviz4.tar.zst",
+	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.4.1/FfSwkD2HdA63fcar5Z4EQpTBSGy4LcvEGenqzgiy9Mix.tar.zst",
 	pdf: "../package/all.roc",
 }
 

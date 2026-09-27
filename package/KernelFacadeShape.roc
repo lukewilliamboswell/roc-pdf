@@ -194,9 +194,8 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 	if occurrence_count > max_requests {
 		return Err(LimitExceeded({ attempted: occurrence_count, dimension: Requests, limit: max_requests }))
 	}
-	default_style = Theme.body_style(theme)
-	var $requests = List.repeat({ occurrence: Semantics.OccurrenceId.from_index(0), size: default_style.size, source: Semantics.TextSourceId.from_index(0) }, occurrence_count)
-	var $styles = List.repeat({ color: default_style.color, leading: default_style.leading }, occurrence_count)
+	var $requests = List.with_capacity(occurrence_count)
+	var $styles = List.with_capacity(occurrence_count)
 	var $block_runs = List.repeat(ArtifactBlock(0), authoring.blocks.len())
 	var $request_index = 0
 	var $block_index = 0
@@ -249,21 +248,8 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 							return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrence_index }))
 						}
 						run = logical_run_single(Text.RunId.from_index($request_index))
-						$requests = match $requests.set(
-							$request_index,
-							{
-								occurrence: occurrence_id,
-								size: label_style.size,
-								source: source_id,
-							},
-						) {
-							Err(OutOfBounds) => return Err(OccurrenceCoverage({ actual: $request_index + 1, expected: occurrence_count }))
-							Ok(updated) => updated
-						}
-						$styles = match $styles.set($request_index, { color: label_style.color, leading: label_style.leading }) {
-							Err(OutOfBounds) => return Err(OccurrenceCoverage({ actual: $request_index + 1, expected: occurrence_count }))
-							Ok(updated) => updated
-						}
+						$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: source_id })
+						$styles = $styles.append({ color: label_style.color, leading: label_style.leading })
 						$request_index = $request_index + 1
 						Label(run)
 					}
@@ -287,21 +273,8 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 					return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrence_index }))
 				}
 				body_run = logical_run_single(Text.RunId.from_index($request_index))
-				$requests = match $requests.set(
-					$request_index,
-					{
-						occurrence: body,
-						size: body_style.size,
-						source: source_id,
-					},
-				) {
-					Err(OutOfBounds) => return Err(OccurrenceCoverage({ actual: $request_index + 1, expected: occurrence_count }))
-					Ok(updated) => updated
-				}
-				$styles = match $styles.set($request_index, { color: body_style.color, leading: body_style.leading }) {
-					Err(OutOfBounds) => return Err(OccurrenceCoverage({ actual: $request_index + 1, expected: occurrence_count }))
-					Ok(updated) => updated
-				}
+				$requests = $requests.append({ occurrence: body, size: body_style.size, source: source_id })
+				$styles = $styles.append({ color: body_style.color, leading: body_style.leading })
 				$request_index = $request_index + 1
 				$block_runs = match $block_runs.set($block_index, TextBlock({ body: body_run, label: label_run })) {
 					Err(OutOfBounds) => {

@@ -29,15 +29,14 @@ expect {
 		work: { coverage_span_visits: 2, face_visits: 1, grapheme_visits: 1 },
 	})
 
-	plan == Complete({
-		face_ranges: [
-			{
-				clusters: Semantics.Range.from_start_and_length(0, 1),
-				instance: Font.InstanceId.from_index(2),
-			},
-		],
-		work: { coverage_span_visits: 2, face_visits: 1, grapheme_visits: 1 },
-	})
+	match plan {
+		Complete({ face_ranges, work }) => match face_ranges {
+			[face] =>
+				face.clusters.start() == 0 and face.clusters.length() == 1 and face.instance.index() == 2 and work == { coverage_span_visits: 2, face_visits: 1, grapheme_visits: 1 }
+			_ => False
+		}
+		_ => False
+	}
 }
 
 ## Cluster evidence can explicitly represent many source scalars forming one glyph.

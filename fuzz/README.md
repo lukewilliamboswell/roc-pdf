@@ -1,6 +1,6 @@
 # Property fuzz targets
 
-These targets use the content-addressed `roc-fuzz` 0.2.1 release platform. They
+These targets use the content-addressed `roc-fuzz` 0.4.1 release platform. They
 are evidence-only applications: the production package remains pure Roc and does
 not expose its private stage facts through the public facade. They are
 software-quality tests for correctness, determinism, bounded error handling, and
