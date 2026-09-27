@@ -173,17 +173,17 @@ build_ordered_plan = |shape, sources, page, theme, limits| {
 		match list_at(block_runs, $block_index) {
 			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
 			TextBlock({ body, label }) => {
-				match label {
-					NoLabel => {}
+				label_request = match label {
+					NoLabel => NoLabel
 					Label(label_run) => {
 						start = logical_run_bounds(label_run, $block_index, $next_physical, run_count)?
 						$logical_index_of_label = list_set($logical_index_of_label, $block_index, $line_requests.len())
-						$line_requests = $line_requests.append({
+						$next_physical = checked_add(start, label_run.physical.length())?
+						Label({
 							runs: label_run.physical,
 							source: list_at(shape_requests, start).source,
 							width: Layout.Unit.from_raw(indent.to_i64_wrap()),
 						})
-						$next_physical = checked_add(start, label_run.physical.length())?
 					}
 				}
 				body_start = logical_run_bounds(body, $block_index, $next_physical, run_count)?
@@ -191,13 +191,24 @@ build_ordered_plan = |shape, sources, page, theme, limits| {
 					NoLabel => content_width
 					Label(_) => body_width
 				}
-				$logical_index_of_body = list_set($logical_index_of_body, $block_index, $line_requests.len())
-				$line_requests = $line_requests.append({
-					runs: body.physical,
-					source: list_at(shape_requests, body_start).source,
-					width: Layout.Unit.from_raw(width.to_i64_wrap()),
-				})
+				$logical_index_of_body = list_set(
+					$logical_index_of_body,
+					$block_index,
+					$line_requests.len() + (match label_request {
+						NoLabel => 0
+						Label(_) => 1
+					}),
+				)
 				$next_physical = checked_add(body_start, body.physical.length())?
+				$line_requests = append_logical_requests(
+					$line_requests,
+					label_request,
+					{
+						runs: body.physical,
+						source: list_at(shape_requests, body_start).source,
+						width: Layout.Unit.from_raw(width.to_i64_wrap()),
+					},
+				)
 			}
 		}
 		$block_index = $block_index + 1
@@ -336,4 +347,12 @@ expect match calculate_content_width(
 ) {
 	Err(InvalidGeometry) => True
 	_ => False
+}
+
+# Consume the growing store once per block, after fallible validation. The
+# optional label precedes its body without retaining an earlier list version.
+append_logical_requests : List(KernelLineLayout.LogicalRunRequest), [NoLabel, Label(KernelLineLayout.LogicalRunRequest)], KernelLineLayout.LogicalRunRequest -> List(KernelLineLayout.LogicalRunRequest)
+append_logical_requests = |requests, label, body| match label {
+	NoLabel => requests.append(body)
+	Label(request) => requests.append(request).append(body)
 }

@@ -38,6 +38,13 @@ and one block-to-label/body mapping per normalized block. The shaped store,
 Unicode sources, and font inspection stay shared. No per-occurrence
 `Text.Store`, Unicode analysis, glyph list, or copied source suffix is retained.
 
+Ordered multi-face preparation validates each block's optional label and body
+before consuming its growing logical-request list once. A helper appends the
+label before the body, preserving semantic order while avoiding an earlier
+list version remaining live across fallible branches. The
+[September 26 compiler review](roc-nightly-2026-09-26-d6267b4.md) records the
+allocation-traffic evidence for this ownership choice.
+
 ## Historical optimized-backend evidence (superseded)
 
 The table is retained only as historical representation evidence. Current

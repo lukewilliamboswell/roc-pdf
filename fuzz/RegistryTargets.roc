@@ -1082,11 +1082,15 @@ facade_wiring = |configured, choice| {
 			_ => False
 		}
 
-		## The built-in source defines no policies at all, so even policy zero,
-		## which every non-empty registry owns, is a typed rejection there.
-		_ => match Pdf.to_bytes_with(document, built_in(Theme.with_font_policy(Theme.default, Font.PolicyId.from_index(0)))) {
-			Err(InvalidFontSelection([InvalidPolicy(policy)])) => policy.index() == 0
-			_ => False
+		## The built-in source defines no policies at all. Vary the requested
+		## policy with the input, including zero, and require its exact identity
+		## in the rejection rather than repeatedly checking one constant call.
+		_ => {
+			policy_index = U8.to_u64(choice // 4)
+			match Pdf.to_bytes_with(document, built_in(Theme.with_font_policy(Theme.default, Font.PolicyId.from_index(policy_index)))) {
+				Err(InvalidFontSelection([InvalidPolicy(policy)])) => policy.index() == policy_index
+				_ => False
+			}
 		}
 	}
 }

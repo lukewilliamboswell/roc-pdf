@@ -29,7 +29,7 @@ ranges or infer semantic ownership.
 
 ## Ownership and allocation review
 
-Three drafts were rejected before pinning evidence:
+Three drafts were rejected under the original compiler before pinning evidence:
 
 - Reopening `Scalar.iter` and validating source facts for every request measured
   4,298 allocations at 1,000 paragraphs and 40,335 at 10,000.
@@ -40,11 +40,18 @@ Three drafts were rejected before pinning evidence:
   the two final append-built request/style buffers still lost uniqueness across
   the fallible traversal.
 
-The accepted design derives the exact request cardinality from the validated
-semantic occurrence store, checks the bound before allocation, initializes
-both dense buffers to that exact length, and writes each index once. The
-preparation-only audit measures 259 allocations at 1,000 paragraphs and 296 at
-10,000. Full shaping adds 24 allocations at either scale.
+The current design derives exact request cardinality from the validated semantic
+occurrence store, checks the bound before allocation, reserves that exact
+capacity, and appends requests and styles in occurrence order. The final lengths
+must equal the validated cardinality. Block-to-run storage retains indexed
+writes because block positions are its explicit key.
+
+The original compiler favored initialized buffers and indexed writes. The
+September 26 compiler copied those whole buffers across the fallible writes,
+so this upgrade restores consuming appends with exact capacity. The old
+compiler still produces its original counts with this source. See the
+[compiler allocation review](roc-nightly-2026-09-26-d6267b4.md) for the copy-site
+measurements and the accepted linear scaling evidence.
 
 ## Historical optimized-backend evidence (superseded)
 
