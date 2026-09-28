@@ -1,0 +1,5 @@
+{"name":"semantic foundation nested public containers","schema_version":1,"case":"Nested"}
+{"name":"semantic foundation sections x10","schema_version":1,"case":{"Sections":{"count":10}}}
+{"name":"semantic foundation sections x100","schema_version":1,"case":{"Sections":{"count":100}}}
+{"name":"semantic foundation container atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
+{"name":"semantic foundation kernel attribute, identifier, and language lowering","schema_version":1,"case":"Lowering"}

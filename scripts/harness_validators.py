@@ -33,6 +33,7 @@ from check_shadings import validate_shadings_pdf
 from check_soft_hyphen import EXPECTED_CONTENT as SOFT_HYPHEN_CONTENT
 from check_soft_hyphen import validate_soft_hyphen_pdf
 from check_soft_masks import validate_soft_masks_pdf
+from check_structure_semantics import validate_structure_semantics_pdf
 from check_supplementary_text import EXPECTED_CONTENT as SUPPLEMENTARY_TEXT_CONTENT
 from check_supplementary_text import validate_supplementary_text_pdf
 from check_tagged_visual import validate_tagged_visual_pdf
@@ -157,6 +158,7 @@ VALIDATORS: dict[str, Validator] = {
     "pdfa4": _dimensioned(validate_pdfa4_pdf, "PDF/A-4 identification packet, single GTS_PDFA1 sRGB2014 intent, printable links, FontFile2 Type 0 fonts, permitted filters and images, no /Info or excluded keys, verified structurally"),
     "pdfa4_standard_twin": _dimensioned(validate_standard_twin_pdf, "PDF 2.0 file skeleton of a Standard twin with no PDF/A identification"),
     "metadata": _dimensioned(validate_metadata_pdf, "catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally"),
+    "structure_semantics": _dimensioned(validate_structure_semantics_pdf, "object-number-independent structure tree, Table 5 containment, ParentTree/MCID/OBJR exactly-once, IDTree/ID, language inheritance, typed attributes, DisplayDocTitle, MarkInfo, and Tabs verified independently"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),
     "caller_text": _simple(validate_caller_text_pdf, "exact caller font identity, CID, Unicode mapping, and visible text facts"),
@@ -201,6 +203,9 @@ PREFLIGHT_CHECKS["pdf_structure"] = PreflightCheck("check_pdf_structure.py", Tru
 # The font self-test validates the committed font-leaf snapshots' exact
 # descendant dictionaries, which are also in flux during --update-snapshots.
 PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
+# The structure-semantics self-test reads committed facade and container
+# snapshots, which are in flux during --update-snapshots.
+PREFLIGHT_CHECKS["structure_semantics"] = PreflightCheck("check_structure_semantics.py", True)
 
 
 def validate_registry_ids(validators: tuple[str, ...], field: str) -> None:
