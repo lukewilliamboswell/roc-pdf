@@ -8,6 +8,8 @@ KernelFacadeSemantics :: [].{
 	Dimension : [Artifacts, ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
 	Error : [
 		ArithmeticOverflow,
+		ContainerDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
+		EmptyContainer({ group : U64 }),
 		EmptyLanguage,
 		EmptyMetadataTitle,
 		InvalidList({ block : U64 }),
@@ -18,6 +20,7 @@ KernelFacadeSemantics :: [].{
 	]
 	Limits :: {
 		max_artifacts : U64,
+		max_container_depth : U64,
 		max_content_spine : U64,
 		max_nodes : U64,
 		max_occurrences : U64,
@@ -29,6 +32,7 @@ KernelFacadeSemantics :: [].{
 	}.{
 		make : {
 			max_artifacts : U64,
+			max_container_depth : U64,
 			max_content_spine : U64,
 			max_nodes : U64,
 			max_occurrences : U64,
@@ -53,6 +57,7 @@ KernelFacadeSemantics :: [].{
 	LinkRecord : { node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }
 	Work : {
 		artifacts : U64,
+		container_nodes : U64,
 		content_writes : U64,
 		list_items : U64,
 		lists : U64,
@@ -102,10 +107,15 @@ KernelFacadeSemantics :: [].{
 
 ListState : [ActiveList({ expected_item : U64, list : U64, node : U64 }), NoActiveList]
 
+## A semantic child of the Document root (`parent` 0) or of normalized
+## group `parent - 1`, in preorder.
+ChildEntry : { node : Semantics.NodeId, parent : U64 }
+
 Planning : {
 	artifacts : List(KernelFacadeSemantics.Artifact),
 	content_count : U64,
 	destinations : List(KernelFacadeSemantics.DestinationRecord),
+	group_nodes : List(U64),
 	links : List(KernelFacadeSemantics.LinkRecord),
 	list_count : U64,
 	list_item_count : U64,
@@ -113,7 +123,7 @@ Planning : {
 	occurrence_count : U64,
 	property_count : U64,
 	source_inputs : List(Str),
-	top_nodes : List(Semantics.NodeId),
+	top_nodes : List(ChildEntry),
 }
 
 build_plan : Document.NormalizedAuthoring, KernelFacadeSemantics.Limits -> Try(KernelFacadeSemantics.Plan, KernelFacadeSemantics.Error)
@@ -124,9 +134,9 @@ build_plan = |authoring, limits| {
 	if authoring.metadata_title.is_empty() {
 		return Err(EmptyMetadataTitle)
 	}
-	planning = plan_blocks(authoring.blocks, limits)?
+	planning = plan_blocks(authoring.blocks, authoring.groups, limits)?
 	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
-	built = build_store(authoring.language, authoring.blocks, authoring.figures, planning, sources)?
+	built = build_store(authoring.language, authoring.blocks, authoring.groups, authoring.figures, planning, sources)?
 	check_limit(built.store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(built.store.text_properties.len(), limits.max_properties, Properties)?
 	navigated = !planning.links.is_empty() or !planning.destinations.is_empty()
@@ -148,6 +158,7 @@ build_plan = |authoring, limits| {
 			sources,
 			work: {
 				artifacts: planning.artifacts.len(),
+				container_nodes: planning.group_nodes.len(),
 				content_writes: built.store.content_spine.len(),
 				list_items: planning.list_item_count,
 				lists: planning.list_count,
@@ -160,14 +171,19 @@ build_plan = |authoring, limits| {
 	)
 }
 
-plan_blocks : List(Document.NormalizedBlock), KernelFacadeSemantics.Limits -> Try(Planning, KernelFacadeSemantics.Error)
-plan_blocks = |blocks, limits| {
+## Node identities follow authored preorder: a container's node is allocated
+## immediately before its first descendant, so documents without containers
+## keep their exact node, content, and structure-element numbering.
+plan_blocks : List(Document.NormalizedBlock), List(Document.NormalizedGroup), KernelFacadeSemantics.Limits -> Try(Planning, KernelFacadeSemantics.Error)
+plan_blocks = |blocks, groups, limits| {
 	source_bound = if blocks.len() > U64.highest / 2 U64.highest else blocks.len() * 2
 	var $artifacts = List.with_capacity(U64.min(blocks.len(), limits.max_artifacts))
 	var $destinations = []
 	var $links = []
 	var $sources = List.with_capacity(U64.min(source_bound, limits.max_source_inputs))
-	var $top_nodes = List.with_capacity(U64.min(blocks.len(), limits.max_nodes))
+	var $top_nodes = List.with_capacity(U64.min(checked_add(blocks.len(), groups.len())?, limits.max_nodes))
+	var $group_nodes = if groups.is_empty() [] else List.with_capacity(groups.len())
+	var $next_group = 0
 	var $content_count = 0
 	var $list_count = 0
 	var $list_item_count = 0
@@ -178,184 +194,205 @@ plan_blocks = |blocks, limits| {
 	var $list_state = NoActiveList
 	var $block_index = 0
 	check_limit($next_node, limits.max_nodes, Nodes)?
-	while $block_index < blocks.len() {
-		block = list_at(blocks, $block_index)
-		match block.kind {
-			PageArtifact(kind) => {
-				artifact_count = checked_add($artifacts.len(), 1)?
-				check_limit(artifact_count, limits.max_artifacts, Artifacts)?
-				$artifacts = $artifacts.append({ block: $block_index, kind, text: block.text })
-				$list_state = NoActiveList
+
+	## One flat loop merges container openings into the block walk: a
+	## container opens immediately before its first descendant block, or at
+	## the end for containers that close the document.
+	while $block_index < blocks.len() or $next_group < groups.len() {
+		if $next_group < groups.len() and ($block_index >= blocks.len() or list_at(groups, $next_group).first_block <= $block_index) {
+			group = list_at(groups, $next_group)
+			if group.depth > limits.max_container_depth {
+				return Err(ContainerDepthExceeded({ attempted: group.depth, group: $next_group, limit: limits.max_container_depth }))
 			}
-			Bullet({ item, list }) => {
-				node_increment = if item == 0 4 else 3
-				content_increment = if item == 0 6 else 5
-				attempted_nodes = checked_add($next_node, node_increment)?
-				attempted_occurrences = checked_add($next_occurrence, 2)?
-				attempted_content = checked_add($content_count, content_increment)?
-				attempted_properties = checked_add($property_count, 1)?
-				attempted_sources = checked_add($sources.len(), 2)?
-				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-				check_limit(attempted_properties, limits.max_properties, Properties)?
-				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-				_list_node = if item == 0 {
-					if list != $next_list {
-						return Err(InvalidList({ block: $block_index }))
-					}
-					node = $next_node
-					$next_node = checked_add($next_node, 1)?
-					$next_list = checked_add($next_list, 1)?
-					$list_count = checked_add($list_count, 1)?
-					$top_nodes = $top_nodes.append(Semantics.NodeId.from_index(node))
-					$list_state = ActiveList({ expected_item: 1, list, node })
-					node
-				} else {
-					match $list_state {
-						ActiveList(state) => if state.list == list and state.expected_item == item {
-							$list_state = ActiveList({ ..state, expected_item: checked_add(item, 1)? })
-							state.node
-						} else {
+			attempted_nodes = checked_add($next_node, 1)?
+			attempted_content = checked_add($content_count, 1)?
+			check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+			check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+			$group_nodes = $group_nodes.append($next_node)
+			$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: group.parent })
+			$next_node = attempted_nodes
+			$content_count = attempted_content
+			$list_state = NoActiveList
+			$next_group = $next_group + 1
+		} else {
+			block = list_at(blocks, $block_index)
+			match block.kind {
+				PageArtifact(kind) => {
+					artifact_count = checked_add($artifacts.len(), 1)?
+					check_limit(artifact_count, limits.max_artifacts, Artifacts)?
+					$artifacts = $artifacts.append({ block: $block_index, kind, text: block.text })
+					$list_state = NoActiveList
+				}
+				Bullet({ item, list }) => {
+					node_increment = if item == 0 4 else 3
+					content_increment = if item == 0 6 else 5
+					attempted_nodes = checked_add($next_node, node_increment)?
+					attempted_occurrences = checked_add($next_occurrence, 2)?
+					attempted_content = checked_add($content_count, content_increment)?
+					attempted_properties = checked_add($property_count, 1)?
+					attempted_sources = checked_add($sources.len(), 2)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_properties, limits.max_properties, Properties)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					_list_node = if item == 0 {
+						if list != $next_list {
 							return Err(InvalidList({ block: $block_index }))
 						}
-						NoActiveList => return Err(InvalidList({ block: $block_index }))
+						node = $next_node
+						$next_node = checked_add($next_node, 1)?
+						$next_list = checked_add($next_list, 1)?
+						$list_count = checked_add($list_count, 1)?
+						$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index(node), parent: block.parent })
+						$list_state = ActiveList({ expected_item: 1, list, node })
+						node
+					} else {
+						match $list_state {
+							ActiveList(state) => if state.list == list and state.expected_item == item {
+								$list_state = ActiveList({ ..state, expected_item: checked_add(item, 1)? })
+								state.node
+							} else {
+								return Err(InvalidList({ block: $block_index }))
+							}
+							NoActiveList => return Err(InvalidList({ block: $block_index }))
+						}
 					}
+					item_node = $next_node
+					$next_node = checked_add(item_node, 3)?
+					label_occurrence = $next_occurrence
+					$next_occurrence = checked_add(label_occurrence, 2)?
+					$content_count = attempted_content
+					$property_count = attempted_properties
+					$list_item_count = checked_add($list_item_count, 1)?
+					$sources = $sources.append("•").append(block.text)
 				}
-				item_node = $next_node
-				$next_node = checked_add(item_node, 3)?
-				label_occurrence = $next_occurrence
-				$next_occurrence = checked_add(label_occurrence, 2)?
-				$content_count = attempted_content
-				$property_count = attempted_properties
-				$list_item_count = checked_add($list_item_count, 1)?
-				$sources = $sources.append("•").append(block.text)
+				Heading(level) => {
+					_role = heading_role(level, $block_index)?
+					attempted_nodes = checked_add($next_node, 1)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 2)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$sources = $sources.append(block.text)
+					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$content_count = attempted_content
+					$list_state = NoActiveList
+				}
+				Paragraph | Title => {
+					attempted_nodes = checked_add($next_node, 1)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 2)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$sources = $sources.append(block.text)
+					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$content_count = attempted_content
+					$list_state = NoActiveList
+				}
+				Figure(_) => {
+					attempted_nodes = checked_add($next_node, 1)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 2)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					attempted_properties = checked_add($property_count, 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_limit(attempted_properties, limits.max_properties, Properties)?
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$sources = $sources.append(block.text)
+					$next_node = attempted_nodes
+					$next_occurrence = attempted_occurrences
+					$content_count = attempted_content
+					$property_count = attempted_properties
+					$list_state = NoActiveList
+				}
+				DestinationHeading({ level, name }) => {
+					_role = heading_role(level, $block_index)?
+					attempted_nodes = checked_add($next_node, 1)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 2)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$sources = $sources.append(block.text)
+					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$content_count = attempted_content
+					$list_state = NoActiveList
+				}
+				DestinationParagraph({ name }) => {
+					attempted_nodes = checked_add($next_node, 1)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 2)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$sources = $sources.append(block.text)
+					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$content_count = attempted_content
+					$list_state = NoActiveList
+				}
+				Link({ uri }) => {
+					attempted_nodes = checked_add($next_node, 2)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 3)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrence: Semantics.OccurrenceId.from_index($next_occurrence), target: Uri(uri) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$sources = $sources.append(block.text)
+					$next_node = attempted_nodes
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$content_count = attempted_content
+					$list_state = NoActiveList
+				}
+				InternalLink({ destination }) => {
+					attempted_nodes = checked_add($next_node, 2)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 3)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrence: Semantics.OccurrenceId.from_index($next_occurrence), target: InternalDestination(destination) })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$sources = $sources.append(block.text)
+					$next_node = attempted_nodes
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$content_count = attempted_content
+					$list_state = NoActiveList
+				}
 			}
-			Heading(level) => {
-				_role = heading_role(level, $block_index)?
-				attempted_nodes = checked_add($next_node, 1)?
-				attempted_occurrences = checked_add($next_occurrence, 1)?
-				attempted_content = checked_add($content_count, 2)?
-				attempted_sources = checked_add($sources.len(), 1)?
-				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
-				$sources = $sources.append(block.text)
-				$next_node = checked_add($next_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$content_count = attempted_content
-				$list_state = NoActiveList
-			}
-			Paragraph | Title => {
-				attempted_nodes = checked_add($next_node, 1)?
-				attempted_occurrences = checked_add($next_occurrence, 1)?
-				attempted_content = checked_add($content_count, 2)?
-				attempted_sources = checked_add($sources.len(), 1)?
-				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
-				$sources = $sources.append(block.text)
-				$next_node = checked_add($next_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$content_count = attempted_content
-				$list_state = NoActiveList
-			}
-			Figure(_) => {
-				attempted_nodes = checked_add($next_node, 1)?
-				attempted_occurrences = checked_add($next_occurrence, 1)?
-				attempted_content = checked_add($content_count, 2)?
-				attempted_sources = checked_add($sources.len(), 1)?
-				attempted_properties = checked_add($property_count, 1)?
-				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-				check_limit(attempted_properties, limits.max_properties, Properties)?
-				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
-				$sources = $sources.append(block.text)
-				$next_node = attempted_nodes
-				$next_occurrence = attempted_occurrences
-				$content_count = attempted_content
-				$property_count = attempted_properties
-				$list_state = NoActiveList
-			}
-			DestinationHeading({ level, name }) => {
-				_role = heading_role(level, $block_index)?
-				attempted_nodes = checked_add($next_node, 1)?
-				attempted_occurrences = checked_add($next_occurrence, 1)?
-				attempted_content = checked_add($content_count, 2)?
-				attempted_sources = checked_add($sources.len(), 1)?
-				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-				$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
-				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
-				$sources = $sources.append(block.text)
-				$next_node = checked_add($next_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$content_count = attempted_content
-				$list_state = NoActiveList
-			}
-			DestinationParagraph({ name }) => {
-				attempted_nodes = checked_add($next_node, 1)?
-				attempted_occurrences = checked_add($next_occurrence, 1)?
-				attempted_content = checked_add($content_count, 2)?
-				attempted_sources = checked_add($sources.len(), 1)?
-				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-				$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
-				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
-				$sources = $sources.append(block.text)
-				$next_node = checked_add($next_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$content_count = attempted_content
-				$list_state = NoActiveList
-			}
-			Link({ uri }) => {
-				attempted_nodes = checked_add($next_node, 2)?
-				attempted_occurrences = checked_add($next_occurrence, 1)?
-				attempted_content = checked_add($content_count, 3)?
-				attempted_sources = checked_add($sources.len(), 1)?
-				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-				$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrence: Semantics.OccurrenceId.from_index($next_occurrence), target: Uri(uri) })
-				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
-				$sources = $sources.append(block.text)
-				$next_node = attempted_nodes
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$content_count = attempted_content
-				$list_state = NoActiveList
-			}
-			InternalLink({ destination }) => {
-				attempted_nodes = checked_add($next_node, 2)?
-				attempted_occurrences = checked_add($next_occurrence, 1)?
-				attempted_content = checked_add($content_count, 3)?
-				attempted_sources = checked_add($sources.len(), 1)?
-				check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-				check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-				check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-				check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-				$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrence: Semantics.OccurrenceId.from_index($next_occurrence), target: InternalDestination(destination) })
-				$top_nodes = $top_nodes.append(Semantics.NodeId.from_index($next_node))
-				$sources = $sources.append(block.text)
-				$next_node = attempted_nodes
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$content_count = attempted_content
-				$list_state = NoActiveList
-			}
+			$block_index = $block_index + 1
 		}
-		$block_index = $block_index + 1
 	}
-	Ok({ artifacts: $artifacts, content_count: $content_count, destinations: $destinations, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
+	Ok({ artifacts: $artifacts, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
 }
 
 heading_role : U8, U64 -> Try(Str, KernelFacadeSemantics.Error)
@@ -369,16 +406,43 @@ heading_role = |level, block| match level {
 	_ => Err(UnsupportedHeadingLevel({ block, level }))
 }
 
-build_store : Str, List(Document.NormalizedBlock), List(Document.NormalizedFigure), Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), store : Semantics.Store }, KernelFacadeSemantics.Error)
-build_store = |language, blocks, figures, planning, source_plan| {
-	var $content = List.with_capacity(planning.content_count)
-	for node in planning.top_nodes {
-		$content = $content.append(ChildNode(node))
-	}
+## The content spine starts with the Document's child list followed by each
+## container's child list in group order; a stable counting sort by parent
+## builds those contiguous spans in O(children + groups). Leaf content
+## follows in block order exactly as before, so a document without
+## containers keeps its exact spine.
+build_store : Str, List(Document.NormalizedBlock), List(Document.NormalizedGroup), List(Document.NormalizedFigure), Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), store : Semantics.Store }, KernelFacadeSemantics.Error)
+build_store = |language, blocks, groups, figures, planning, source_plan| {
 	empty = Semantics.Range.from_start_and_length(0, 0)
 	dummy = make_node(0, DocumentRoot, "Document", empty, Language(language))
 	var $nodes = List.repeat(dummy, planning.node_count)
-	$nodes = list_set($nodes, 0, make_node(0, DocumentRoot, "Document", Semantics.Range.from_start_and_length(0, planning.top_nodes.len()), Language(language)))
+	var $content = List.with_capacity(planning.content_count)
+	if groups.is_empty() {
+		for entry in planning.top_nodes {
+			$content = $content.append(ChildNode(entry.node))
+		}
+		$nodes = list_set($nodes, 0, make_node(0, DocumentRoot, "Document", Semantics.Range.from_start_and_length(0, planning.top_nodes.len()), Language(language)))
+	} else {
+		spans = child_spans(planning.top_nodes, groups.len())
+		for node in spans.ordered {
+			$content = $content.append(ChildNode(node))
+		}
+		root_children = list_at(spans.counts, 0)
+		$nodes = list_set($nodes, 0, make_node(0, DocumentRoot, "Document", Semantics.Range.from_start_and_length(0, root_children), Language(language)))
+		var $span_start = root_children
+		var $group = 0
+		while $group < groups.len() {
+			group = list_at(groups, $group)
+			children = list_at(spans.counts, $group + 1)
+			if children == 0 {
+				return Err(EmptyContainer({ group: $group }))
+			}
+			node_index = list_at(planning.group_nodes, $group)
+			$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(group.kind), Semantics.Range.from_start_and_length($span_start, children), Inherited))
+			$span_start = $span_start + children
+			$group = $group + 1
+		}
+	}
 	var $occurrences = List.with_capacity(planning.occurrence_count)
 	var $properties = List.with_capacity(planning.property_count)
 	var $ownership = List.repeat(ArtifactBlock(0), blocks.len())
@@ -387,7 +451,12 @@ build_store = |language, blocks, figures, planning, source_plan| {
 	var $next_node = 1
 	var $next_occurrence = 0
 	var $source_input = 0
+	var $next_group = 0
 	while $index < blocks.len() {
+		while $next_group < groups.len() and list_at(groups, $next_group).first_block <= $index {
+			$next_node = checked_add($next_node, 1)?
+			$next_group = $next_group + 1
+		}
 		block = list_at(blocks, $index)
 		match block.kind {
 			PageArtifact(_) => {
@@ -399,7 +468,7 @@ build_store = |language, blocks, figures, planning, source_plan| {
 				role = heading_role(level, $index)?
 				start = $content.len()
 				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(Semantics.NodeId.from_index(0)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
+				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
 				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
 				$next_node = checked_add($next_node, 1)?
@@ -415,7 +484,7 @@ build_store = |language, blocks, figures, planning, source_plan| {
 				}
 				start = $content.len()
 				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(Semantics.NodeId.from_index(0)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
+				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
 				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
 				$next_node = checked_add($next_node, 1)?
@@ -429,7 +498,7 @@ build_store = |language, blocks, figures, planning, source_plan| {
 				property_start = $properties.len()
 				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
 				$properties = $properties.append(AlternativeText(figure.alternative))
-				node = make_node($next_node, ParentNode(Semantics.NodeId.from_index(0)), "Figure", Semantics.Range.from_start_and_length(start, 1), Inherited)
+				node = make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Figure", Semantics.Range.from_start_and_length(start, 1), Inherited)
 				$nodes = list_set($nodes, $next_node, { ..node, text_properties: Semantics.Range.from_start_and_length(property_start, 1) })
 				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
@@ -442,7 +511,7 @@ build_store = |language, blocks, figures, planning, source_plan| {
 				role = heading_role(level, $index)?
 				start = $content.len()
 				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(Semantics.NodeId.from_index(0)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
+				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
 				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
 				$next_node = checked_add($next_node, 1)?
@@ -462,7 +531,7 @@ build_store = |language, blocks, figures, planning, source_plan| {
 				$content = $content.append(ChildNode(Semantics.NodeId.from_index(link_node)))
 				link_start = $content.len()
 				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$nodes = list_set($nodes, wrapper_node, make_node(wrapper_node, ParentNode(Semantics.NodeId.from_index(0)), "P", Semantics.Range.from_start_and_length(wrapper_start, 1), Inherited))
+				$nodes = list_set($nodes, wrapper_node, make_node(wrapper_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "P", Semantics.Range.from_start_and_length(wrapper_start, 1), Inherited))
 				$nodes = list_set($nodes, link_node, make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper_node)), "Link", Semantics.Range.from_start_and_length(link_start, 1), Inherited))
 				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
@@ -490,7 +559,7 @@ build_store = |language, blocks, figures, planning, source_plan| {
 					$item_node = checked_add($item_node, 3)?
 					$item_index = $item_index + 1
 				}
-				$nodes = list_set($nodes, list_node, make_node(list_node, ParentNode(Semantics.NodeId.from_index(0)), "L", Semantics.Range.from_start_and_length(list_content, $group_end - group_start), Inherited))
+				$nodes = list_set($nodes, list_node, make_node(list_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "L", Semantics.Range.from_start_and_length(list_content, $group_end - group_start), Inherited))
 				$item_index = group_start
 				while $item_index < $group_end {
 					item_node = $next_node
@@ -523,6 +592,7 @@ build_store = |language, blocks, figures, planning, source_plan| {
 			}
 		}
 	}
+	$next_node = checked_add($next_node, groups.len() - $next_group)?
 	unique_sources = KernelFacadeSources.Plan.sources(source_plan).map(|source| { unicode: source.unicode })
 	if $artifact != planning.artifacts.len() or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
 		crash "facade semantic planning count escaped"
@@ -549,6 +619,39 @@ build_store = |language, blocks, figures, planning, source_plan| {
 		text_sources: unique_sources,
 	}
 	Ok({ block_ownership: $ownership, store })
+}
+
+container_role : Document.ContainerKind -> Str
+container_role = |kind| match kind {
+	Division => "Div"
+	Part => "Part"
+	Section => "Sect"
+}
+
+parent_node : U64, List(U64) -> Semantics.NodeId
+parent_node = |parent, group_nodes| if parent == 0 Semantics.NodeId.from_index(0) else Semantics.NodeId.from_index(list_at(group_nodes, parent - 1))
+
+child_spans : List(ChildEntry), U64 -> { counts : List(U64), ordered : List(Semantics.NodeId) }
+child_spans = |entries, group_count| {
+	var $counts = List.repeat(0, group_count + 1)
+	for entry in entries {
+		$counts = list_set($counts, entry.parent, list_at($counts, entry.parent) + 1)
+	}
+	var $cursors = List.repeat(0, group_count + 1)
+	var $total = 0
+	var $index = 0
+	while $index <= group_count {
+		$cursors = list_set($cursors, $index, $total)
+		$total = $total + list_at($counts, $index)
+		$index = $index + 1
+	}
+	var $ordered = List.repeat(Semantics.NodeId.from_index(0), entries.len())
+	for entry in entries {
+		at = list_at($cursors, entry.parent)
+		$ordered = list_set($ordered, at, entry.node)
+		$cursors = list_set($cursors, entry.parent, at + 1)
+	}
+	{ counts: $counts, ordered: $ordered }
 }
 
 make_node : U64, Semantics.NodeParent, Str, Semantics.Range, Semantics.Language -> Semantics.Node
@@ -620,12 +723,13 @@ list_set = |items, index, value| match items.set(index, value) {
 test_limits : KernelFacadeSemantics.Limits
 test_limits = KernelFacadeSemantics.Limits.make({
 	max_artifacts: 2,
+	max_container_depth: 2,
 	max_content_spine: 32,
 	max_nodes: 16,
 	max_occurrences: 12,
 	max_properties: 4,
 	max_source_inputs: 12,
-	semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 32, max_fragments: 0, max_namespaces: 1, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 4 }),
+	semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 32, max_fragments: 0, max_namespaces: 1, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }),
 	sources: KernelFacadeSources.Limits.make({
 		max_hash_probes: 64,
 		max_inputs: 12,
@@ -641,14 +745,15 @@ test_limits = KernelFacadeSemantics.Limits.make({
 test_authoring : Document.NormalizedAuthoring
 test_authoring = {
 	blocks: [
-		{ kind: Title, text: "Report" },
-		{ kind: Heading(1), text: "Summary" },
-		{ kind: Paragraph, text: "Body" },
-		{ kind: Bullet({ item: 0, list: 0 }), text: "One" },
-		{ kind: Bullet({ item: 1, list: 0 }), text: "Two" },
-		{ kind: PageArtifact(Header), text: "Header" },
+		{ kind: Title, parent: 0, text: "Report" },
+		{ kind: Heading(1), parent: 0, text: "Summary" },
+		{ kind: Paragraph, parent: 0, text: "Body" },
+		{ kind: Bullet({ item: 0, list: 0 }), parent: 0, text: "One" },
+		{ kind: Bullet({ item: 1, list: 0 }), parent: 0, text: "Two" },
+		{ kind: PageArtifact(Header), parent: 0, text: "Header" },
 	],
 	figures: [],
+	groups: [],
 	language: "en-AU",
 	metadata_title: "Report",
 	outline: [],
@@ -722,7 +827,7 @@ expect match KernelFacadeSemantics.Plan.build({ ..test_authoring, metadata_title
 }
 
 expect {
-	bad_blocks = [{ kind: Bullet({ item: 1, list: 0 }), text: "Orphan" }]
+	bad_blocks = [{ kind: Bullet({ item: 1, list: 0 }), parent: 0, text: "Orphan" }]
 	match KernelFacadeSemantics.Plan.build({ ..test_authoring, blocks: bad_blocks }, test_limits) {
 		Err(InvalidList({ block: 0 })) => True
 		_ => False
@@ -730,7 +835,7 @@ expect {
 }
 
 expect {
-	bad_blocks = [{ kind: Heading(7), text: "Too deep" }]
+	bad_blocks = [{ kind: Heading(7), parent: 0, text: "Too deep" }]
 	match KernelFacadeSemantics.Plan.build({ ..test_authoring, blocks: bad_blocks }, test_limits) {
 		Err(UnsupportedHeadingLevel({ block: 0, level: 7 })) => True
 		_ => False
@@ -742,6 +847,7 @@ expect {
 expect {
 	limits = KernelFacadeSemantics.Limits.make({
 		max_artifacts: 2,
+		max_container_depth: 4,
 		max_content_spine: 32,
 		max_nodes: 1,
 		max_occurrences: 12,
@@ -751,9 +857,79 @@ expect {
 		sources: test_limits.sources,
 		text_semantics: test_limits.text_semantics,
 	})
-	blocks = [{ kind: Paragraph, text: "Bounded" }]
+	blocks = [{ kind: Paragraph, parent: 0, text: "Bounded" }]
 	match KernelFacadeSemantics.Plan.build({ ..test_authoring, blocks }, limits) {
 		Err(LimitExceeded({ attempted: 2, dimension: Nodes, limit: 1 })) => True
 		_ => False
 	}
+}
+
+nested_authoring : Document.NormalizedAuthoring
+nested_authoring = {
+	..test_authoring,
+	blocks: [
+		{ kind: Title, parent: 0, text: "Report" },
+		{ kind: Heading(1), parent: 1, text: "Summary" },
+		{ kind: Paragraph, parent: 1, text: "Body" },
+		{ kind: Bullet({ item: 0, list: 0 }), parent: 2, text: "One" },
+		{ kind: Bullet({ item: 1, list: 0 }), parent: 2, text: "Two" },
+	],
+	groups: [
+		{ block_end: 5, depth: 1, first_block: 1, group_end: 2, kind: Section, parent: 0, position: 1 },
+		{ block_end: 5, depth: 2, first_block: 3, group_end: 2, kind: Division, parent: 1, position: 2 },
+	],
+}
+
+## Containers allocate their nodes in authored preorder and own contiguous
+## child spans: Document -> [Title, Sect], Sect -> [H1, P, Div], Div -> [L].
+expect {
+	plan = KernelFacadeSemantics.Plan.build(nested_authoring, test_limits)?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	roles = store.nodes.map(|node| node.role.local_name)
+	root = list_at(store.nodes, 0)
+	section = list_at(store.nodes, 2)
+	division = list_at(store.nodes, 5)
+	heading = list_at(store.nodes, 3)
+	list_node = list_at(store.nodes, 6)
+	children = |node| store.content_spine.sublist({ start: node.content.start(), len: node.content.length() }).map(
+		|item| match item {
+			ChildNode(child) => child.index()
+			_ => 99
+		},
+	)
+	parent_of = |node| match node.parent {
+		ParentNode(parent) => parent.index()
+		DocumentRoot => 99
+	}
+	work = KernelFacadeSemantics.Plan.work(plan)
+
+	roles == ["Document", "Title", "Sect", "H1", "P", "Div", "L", "LI", "Lbl", "LBody", "LI", "Lbl", "LBody"] and
+		children(root) == [1, 2] and
+			children(section) == [3, 4, 5] and
+				children(division) == [6] and
+					parent_of(section) == 0 and parent_of(heading) == 2 and parent_of(division) == 2 and parent_of(list_node) == 5 and
+						work.container_nodes == 2 and work.node_writes == 13
+}
+
+## Nesting beyond the container depth bound and empty containers are stable
+## rejections before any store is built.
+expect {
+	deep = { ..nested_authoring, groups: nested_authoring.groups.map(|group| { ..group, depth: group.depth + 1 }) }
+	empty = {
+		..nested_authoring,
+		blocks: nested_authoring.blocks.map(|block| if block.parent == 2 { ..block, parent: 1 } else block),
+		groups: [
+			{ block_end: 5, depth: 1, first_block: 1, group_end: 2, kind: Section, parent: 0, position: 1 },
+			{ block_end: 5, depth: 2, first_block: 5, group_end: 2, kind: Part, parent: 1, position: 4 },
+		],
+	}
+	depth_rejected = match KernelFacadeSemantics.Plan.build(deep, test_limits) {
+		Err(ContainerDepthExceeded({ attempted: 3, group: 1, limit: 2 })) => True
+		_ => False
+	}
+	empty_rejected = match KernelFacadeSemantics.Plan.build(empty, test_limits) {
+		Err(EmptyContainer({ group: 1 })) => True
+		_ => False
+	}
+	depth_rejected and empty_rejected
 }

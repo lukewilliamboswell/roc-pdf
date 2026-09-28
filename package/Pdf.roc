@@ -153,6 +153,22 @@ Pdf :: [].{
 	bullets : List(Str) -> Document.Block
 	bullets = |items| Document.bullets(items)
 
+	## Group blocks as a PDF 2.0 `Part`: a large division of the document,
+	## such as a chapter group. Children keep their order and their own roles;
+	## grouping changes no layout.
+	part : List(Document.Block) -> Document.Block
+	part = |contents| Document.part(contents)
+
+	## Group blocks as a PDF 2.0 `Sect`, typically a heading and the content
+	## it introduces. Headings inside keep their explicit `H1`..`H6` levels.
+	section : List(Document.Block) -> Document.Block
+	section = |contents| Document.section(contents)
+
+	## Group blocks as a generic PDF 2.0 `Div` without a more specific
+	## meaning, such as a letterhead or a callout.
+	division : List(Document.Block) -> Document.Block
+	division = |contents| Document.division(contents)
+
 	## Own a drawing as meaningful figure content with required alternative text.
 	## The executable slice accepts exactly one typed image command; unsupported
 	## vector, grouped, or multi-command drawings report `document.figure`.
@@ -177,10 +193,6 @@ Pdf :: [].{
 	## Reserve authored rich-inline intent; currently reports `semantics.rich_inline`.
 	rich_paragraph : Str -> Document.Block
 	rich_paragraph = |text| Document.unavailable(RichInline, text)
-
-	## Reserve a semantic container; currently reports `semantics.containers`.
-	section : Str -> Document.Block
-	section = |summary| Document.unavailable(SemanticContainers, summary)
 
 	## Reserve a simple logical table; currently reports `table.simple`.
 	simple_table : Str -> Document.Block
@@ -364,7 +376,7 @@ build_plan = |doc, options| {
 			standard_font_descriptor,
 			facts,
 			standard_pipeline_limits,
-		) ? |error| pipeline_error(error, Document.block_count(doc))
+		) ? |error| pipeline_error(error, doc)
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(
 			Document.normalize(doc),
 			ordered,
@@ -373,7 +385,7 @@ build_plan = |doc, options| {
 			standard_font_descriptor,
 			facts,
 			standard_pipeline_limits,
-		) ? |error| ordered_pipeline_error(error, ordered.policy, Document.block_count(doc))
+		) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
 	}
 	output = KernelFacadePipeline.Plan.output(pipeline)
 	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
@@ -435,21 +447,89 @@ selected_fonts = |options| match Theme.font_selection(options.theme) {
 ## Ordered-selection failures surface the exact planner rejections; script
 ## boundaries of the convenience path map to the planner's typed
 ## unsupported-shaping fact. Everything else keeps the authored-content error.
-ordered_pipeline_error : KernelFacadePipeline.Error, Font.PolicyId, U64 -> Pdf.Error
-ordered_pipeline_error = |error, policy, blocks| match error {
+ordered_pipeline_error : KernelFacadePipeline.Error, Font.PolicyId, Document -> Pdf.Error
+ordered_pipeline_error = |error, policy, doc| match error {
 	Shape(FontSelectionRejected(errors)) => InvalidFontSelection(errors)
 	Shape(PolicyInvalid(_)) => InvalidFontSelection([InvalidPolicy(policy)])
 	Shape(UndeclaredScript({ script, source })) => InvalidFontSelection([UnsupportedBuiltInShaping({ cluster: source, script: Font.Script.from_iso15924(script) })])
-	_ => pipeline_error(error, blocks)
+	_ => pipeline_error(error, doc)
 }
 
 ## Author-facing navigation rejections surface with their exact typed cause;
 ## every other pipeline failure keeps the authored-content error.
-pipeline_error : KernelFacadePipeline.Error, U64 -> Pdf.Error
-pipeline_error = |error, blocks| match error {
+## Container rejections name the container's authored block path. The
+## normalized arena is rebuilt only on that rejection path, so the success
+## path still hands its single normalized value to the pipeline uniquely.
+pipeline_error : KernelFacadePipeline.Error, Document -> Pdf.Error
+pipeline_error = |error, doc| match error {
 	Fragments(Navigation(navigation)) => InvalidNavigation(navigation)
 	Output(Structure(Navigation(navigation))) => InvalidNavigation(navigation)
-	_ => UnsupportedAuthoringContent({ blocks: blocks })
+	Semantics(ContainerDepthExceeded({ attempted, group, limit })) => InvalidDocument(
+		container_batch(
+			BudgetExceeded,
+			"semantics.container_depth",
+			"A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.",
+			container_path(Document.normalize(doc).groups, group),
+		),
+	)
+	Semantics(EmptyContainer({ group })) => InvalidDocument(
+		container_batch(
+			InvalidRelationship,
+			"semantics.empty_container",
+			"A part, section, or division contains no semantic block; it would become an empty grouping element.",
+			container_path(Document.normalize(doc).groups, group),
+		),
+	)
+	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+}
+
+## The compact authored location of container `group`, such as
+## `contents[3].contents[0]`: each segment is the container's index in its
+## parent's authored contents.
+container_path : List(Document.NormalizedGroup), U64 -> Str
+container_path = |groups, group| {
+	var $positions = []
+	var $code = group + 1
+	while $code != 0 {
+		record = match groups.get($code - 1) {
+			Ok(value) => value
+			Err(OutOfBounds) => crash "normalized container path escaped"
+		}
+		$positions = $positions.append(record.position)
+		$code = record.parent
+	}
+	var $path = ""
+	var $index = $positions.len()
+	while $index > 0 {
+		position = match $positions.get($index - 1) {
+			Ok(value) => value
+			Err(OutOfBounds) => crash "normalized container path escaped"
+		}
+		$path = if $path.is_empty() "contents[${position.to_str()}]" else "${$path}.contents[${position.to_str()}]"
+		$index = $index - 1
+	}
+	$path
+}
+
+container_batch : Conformance.DiagnosticCode, Str, Str, Str -> Conformance.DiagnosticBatch
+container_batch = |code, feature, message, path| {
+	full = "${message} No PDF bytes were emitted."
+	{
+		detail_bytes: full.count_utf8_bytes() + path.count_utf8_bytes(),
+		diagnostics: [
+			{
+				clause_references: [],
+				code,
+				details: [path],
+				feature: Feature(feature),
+				location: Document,
+				message: full,
+				requirement_ids: [],
+				stage: AuthoringValidation,
+			},
+		],
+		truncation: Complete,
+	}
 }
 
 selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)
@@ -497,7 +577,7 @@ unavailable_message = |feature, summary| {
 		ArchiveProfile => "Gate 5"
 		AccessibleArchiveProfile => "Gate 7"
 		Figures => "the current figure authoring slice"
-		RichInline | SemanticContainers | ContextualArtifacts | NestedLanguage | SemanticTextProperties | SimpleTables => "Gate 6"
+		RichInline | ContextualArtifacts | NestedLanguage | SemanticTextProperties | SimpleTables => "Gate 6"
 		ComplexTables | CustomLayout | Floats | Footnotes | GeneratedReferences | MultiColumnLayout | PageTemplates | SideContent | VerticalWriting => "Gate 8"
 	}
 	"${summary} No PDF bytes were emitted. This capability remains scheduled for ${roadmap}."
@@ -509,7 +589,6 @@ feature_code = |feature| match feature {
 	AccessibleArchiveProfile => "profile.accessible_archive"
 	Figures => "document.figure"
 	RichInline => "semantics.rich_inline"
-	SemanticContainers => "semantics.containers"
 	ContextualArtifacts => "semantics.contextual_artifact"
 	NestedLanguage => "semantics.nested_language"
 	SemanticTextProperties => "semantics.text_properties"
@@ -575,7 +654,7 @@ standard_font_descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 standard_pipeline_limits : KernelFacadePipeline.Limits
 standard_pipeline_limits = KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 4 }),
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 32 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 100000, max_occurrences: 2048, max_pages: 1024 }),
 	navigation: KernelNavigation.standard_limits,
 	lines: KernelFacadeLines.Limits.make({
@@ -617,12 +696,13 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
 		max_artifacts: 0,
+		max_container_depth: 16,
 		max_content_spine: 8192,
 		max_nodes: 4096,
 		max_occurrences: 2048,
 		max_properties: 2048,
 		max_source_inputs: 2048,
-		semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 8192, max_fragments: 0, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 4 }),
+		semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 32 }),
 		sources: KernelFacadeSources.Limits.make({
 			max_hash_probes: 1000000,
 			max_inputs: 2048,
@@ -1211,4 +1291,44 @@ twin_at = |items, index| match items.get(index) {
 	Err(OutOfBounds) => {
 		crash "archive twin index escaped"
 	}
+}
+
+## Public containers lower to nested PDF 2.0 grouping elements in authored
+## order, and every tagged facade document asks readers to display its
+## metadata title.
+expect {
+	document = Pdf.document({
+		contents: [
+			Pdf.title("Grouped"),
+			Pdf.part([Pdf.section([Pdf.heading(1, "One"), Pdf.division([Pdf.paragraph("Inside")])])]),
+		],
+		language: "en-AU",
+		title: "Grouped",
+	})
+	bytes = Pdf.to_bytes(document)?
+	text = Str.from_utf8_lossy(bytes)
+
+	text.contains("/S /Part ") and text.contains("/S /Sect ") and text.contains("/S /Div ") and text.contains("/S /H1 ") and text.contains("/ViewerPreferences << /DisplayDocTitle true >>")
+}
+
+## Container depth and emptiness reject with stable feature codes and the
+## compact authored path of the offending container; no bytes are emitted.
+expect {
+	var $block = Pdf.paragraph("Leaf")
+	var $depth = 0
+	while $depth < 17 {
+		$block = Pdf.section([$block])
+		$depth = $depth + 1
+	}
+	deep = Pdf.document({ contents: [Pdf.title("Deep"), $block], language: "en-AU", title: "Deep" })
+	empty = Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.section([Pdf.paragraph("Kept"), Pdf.division([])])], language: "en-AU", title: "Empty" })
+	deep_rejected = match Pdf.to_bytes(deep) {
+		Err(InvalidDocument({ diagnostics: [{ code: BudgetExceeded, details: [path], feature: Feature(code), stage: AuthoringValidation, .. }], .. })) => code == "semantics.container_depth" and path == "contents[1]${Str.repeat(".contents[0]", 16)}"
+		_ => False
+	}
+	empty_rejected = match Pdf.to_bytes(empty) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [path], feature: Feature(code), .. }], .. })) => code == "semantics.empty_container" and path == "contents[1].contents[1]"
+		_ => False
+	}
+	deep_rejected and empty_rejected
 }

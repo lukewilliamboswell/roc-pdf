@@ -75,6 +75,7 @@ evidence_semantic_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -138,6 +139,7 @@ evidence_shape_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -221,6 +223,7 @@ evidence_line_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -317,6 +320,7 @@ evidence_page_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -738,6 +742,7 @@ evidence_ordered_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,

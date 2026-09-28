@@ -264,16 +264,16 @@ expect keeps_together(Title) and keeps_with_next(Heading(2)) and !keeps_together
 
 expect continues_list(
 	[
-		{ kind: Bullet({ item: 0, list: 0 }), text: "One" },
-		{ kind: Bullet({ item: 1, list: 0 }), text: "Two" },
+		{ kind: Bullet({ item: 0, list: 0 }), parent: 0, text: "One" },
+		{ kind: Bullet({ item: 1, list: 0 }), parent: 0, text: "Two" },
 	],
 	0,
 )
 
 expect !continues_list(
 	[
-		{ kind: Bullet({ item: 0, list: 0 }), text: "One" },
-		{ kind: Paragraph, text: "Two" },
+		{ kind: Bullet({ item: 0, list: 0 }), parent: 0, text: "One" },
+		{ kind: Paragraph, parent: 0, text: "Two" },
 	],
 	0,
 )

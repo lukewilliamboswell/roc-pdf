@@ -202,6 +202,7 @@ pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
 		max_artifacts: 0,
+		max_container_depth: 16,
 		max_content_spine: 2,
 		max_nodes: 2,
 		max_occurrences: 1,

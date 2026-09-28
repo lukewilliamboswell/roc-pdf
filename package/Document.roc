@@ -10,6 +10,7 @@ import Text
 
 DocumentBlock :: [
 	Bullets(List(Str)),
+	Container({ contents : List(DocumentBlock), kind : ContainerKind }),
 	DestinationHeading({ level : U8, name : Str, text : Str }),
 	DestinationParagraph({ name : Str, text : Str }),
 	Heading({ level : U8, text : Str }),
@@ -24,6 +25,11 @@ DocumentBlock :: [
 
 ## A figure may have visible caption text independently of required alternative text.
 Caption := [Caption(Str), NoCaption]
+
+## The PDF 2.0 grouping element a container block becomes: `Part`, `Sect`,
+## or `Div`. Grouping has no visual effect; children keep their own roles,
+## so headings inside a section remain explicit `H1`..`H6`.
+ContainerKind : [Division, Part, Section]
 
 ## Stable feature identities used by transactional preparation diagnostics.
 AuthoringFeature := [
@@ -40,7 +46,6 @@ AuthoringFeature := [
 	NestedLanguage,
 	PageTemplates,
 	RichInline,
-	SemanticContainers,
 	SemanticTextProperties,
 	SideContent,
 	SimpleTables,
@@ -95,7 +100,17 @@ NormalizedBlockKind := [
 	Title,
 ]
 
-NormalizedBlock := { kind : NormalizedBlockKind, text : Str }
+## One normalized leaf block. `parent` is `0` for a child of the Document
+## root and `g + 1` for a child of normalized group `g`.
+NormalizedBlock := { kind : NormalizedBlockKind, parent : U64, text : Str }
+
+## One authored container in a dense preorder arena. `parent` uses the same
+## encoding as leaf blocks; `first_block..block_end` is the contiguous span of
+## leaf blocks inside the container's subtree, and `index + 1..group_end` the
+## contiguous span of its descendant groups. `depth` is one for a top-level
+## container and `position` is its index in its parent's authored contents.
+## No recursive per-node value survives normalization.
+NormalizedGroup : { block_end : U64, depth : U64, first_block : U64, group_end : U64, kind : ContainerKind, parent : U64, position : U64 }
 
 ## Dense normalized meaningful-image facts retained between semantic planning,
 ## layout, resource inspection, and scene lowering.
@@ -104,6 +119,7 @@ NormalizedFigure := { alternative : Str, caption : Caption, image : Image.Source
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	figures : List(NormalizedFigure),
+	groups : List(NormalizedGroup),
 	language : Str,
 	metadata_title : Str,
 	outline : List(OutlineEntry),
@@ -342,6 +358,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	Block : DocumentBlock
 	Builder : DocumentBuilder
 	Caption : Caption
+	ContainerKind : ContainerKind
 	Feature : AuthoringFeature
 	FixedArtifact : FixedArtifact
 	FixedPage : FixedPage
@@ -351,6 +368,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
 	NormalizedFigure : NormalizedFigure
+	NormalizedGroup : NormalizedGroup
 	NormalizedAuthoring : NormalizedAuthoring
 	OutlineEntry : OutlineEntry
 	PageArtifactKind : PageArtifactKind
@@ -531,6 +549,18 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	bullets : List(Str) -> DocumentBlock
 	bullets = |items| DocumentBlock.Bullets(items)
 
+	## A `Part` grouping element around the given blocks, in logical order.
+	part : List(DocumentBlock) -> DocumentBlock
+	part = |contents| DocumentBlock.Container({ contents, kind: Part })
+
+	## A `Sect` grouping element around the given blocks, in logical order.
+	section : List(DocumentBlock) -> DocumentBlock
+	section = |contents| DocumentBlock.Container({ contents, kind: Section })
+
+	## A `Div` grouping element around the given blocks, in logical order.
+	division : List(DocumentBlock) -> DocumentBlock
+	division = |contents| DocumentBlock.Container({ contents, kind: Division })
+
 	## Attach meaningful drawing content with required alternative text.
 	figure : Scene.Drawing, Str, Caption -> DocumentBlock
 	figure = |drawing_value, alternative, caption_value| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value })
@@ -615,7 +645,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 normalize_authoring : DocumentAuthoring -> NormalizedAuthoring
 normalize_authoring = |authoring| match authoring {
 	Compact(compact) => normalize_compact(compact)
-	Fixed(fixed) => { blocks: [], figures: [], language: fixed.language, metadata_title: fixed.metadata_title, outline: [], page_labels: [] }
+	Fixed(fixed) => { blocks: [], figures: [], groups: [], language: fixed.language, metadata_title: fixed.metadata_title, outline: [], page_labels: [] }
 	Simple(simple) => normalize_simple(simple)
 }
 
@@ -624,24 +654,65 @@ first_unavailable_block = |blocks| {
 	var $index = 0
 	while $index < blocks.len() {
 		match list_at(blocks, $index) {
-			Figure({ alternative, caption: _, drawing }) => {
-				commands = drawing.commands()
-				if alternative.is_empty() or commands.len() != 1 {
-					return UnavailableFeature({ feature: Figures, summary: "The executable figure slice requires non-empty alternative text and exactly one image command." })
-				}
-				match list_at(commands, 0) {
-					AuthorImage({ image: _, placement }) => if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 {
-						return UnavailableFeature({ feature: Figures, summary: "Figure image placement must have positive width and height." })
-					}
-					_ => return UnavailableFeature({ feature: Figures, summary: "Vector and grouped drawings remain on the roadmap; the executable slice accepts one image command." })
-				}
+			Container({ contents, kind: _ }) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
-			Unavailable({ feature, summary }) => return UnavailableFeature({ feature, summary })
-			_ => {}
+			block => match unavailable_leaf(block) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
 		}
 		$index = $index + 1
 	}
 	Available
+}
+
+## Containers are walked with an explicit frame stack, allocated only when a
+## document has containers, so authored nesting depth never becomes Roc call
+## depth. The depth bound itself is a semantic-planning limit.
+first_unavailable_nested : List(DocumentBlock) -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
+first_unavailable_nested = |contents| {
+	var $frames = [{ blocks: contents, next: 0 }]
+	while !$frames.is_empty() {
+		top = list_at($frames, $frames.len() - 1)
+		if top.next >= top.blocks.len() {
+			$frames = $frames.drop_last(1)
+		} else {
+			$frames = list_set($frames, $frames.len() - 1, { ..top, next: top.next + 1 })
+			match list_at(top.blocks, top.next) {
+				Container({ contents: nested, kind: _ }) => {
+					$frames = $frames.append({ blocks: nested, next: 0 })
+				}
+				block => match unavailable_leaf(block) {
+					Available => {}
+					UnavailableFeature(found) => return UnavailableFeature(found)
+				}
+			}
+		}
+	}
+	Available
+}
+
+unavailable_leaf : DocumentBlock -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
+unavailable_leaf = |block| match block {
+	Figure({ alternative, caption: _, drawing }) => {
+		commands = drawing.commands()
+		if alternative.is_empty() or commands.len() != 1 {
+			UnavailableFeature({ feature: Figures, summary: "The executable figure slice requires non-empty alternative text and exactly one image command." })
+		} else {
+			match list_at(commands, 0) {
+				AuthorImage({ image: _, placement }) => if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 {
+					UnavailableFeature({ feature: Figures, summary: "Figure image placement must have positive width and height." })
+				} else {
+					Available
+				}
+				_ => UnavailableFeature({ feature: Figures, summary: "Vector and grouped drawings remain on the roadmap; the executable slice accepts one image command." })
+			}
+		}
+	}
+	Unavailable({ feature, summary }) => UnavailableFeature({ feature, summary })
+	_ => Available
 }
 
 normalize_compact : DocumentBuilder -> NormalizedAuthoring
@@ -657,26 +728,26 @@ normalize_compact = |compact| {
 			var $item = 0
 			while $item < aux {
 				text_index = text + $item
-				$blocks = $blocks.append({ kind: Bullet({ item: $item, list: $list_index }), text: list_at(compact.text_sources, text_index) })
+				$blocks = $blocks.append({ kind: Bullet({ item: $item, list: $list_index }), parent: 0, text: list_at(compact.text_sources, text_index) })
 				$item = $item + 1
 			}
 			$list_index = $list_index + 1
 		} else if tag == heading_tag {
-			$blocks = $blocks.append({ kind: Heading(aux.to_u8_wrap()), text: list_at(compact.text_sources, text) })
+			$blocks = $blocks.append({ kind: Heading(aux.to_u8_wrap()), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == artifact_tag {
-			$blocks = $blocks.append({ kind: PageArtifact(decode_artifact(aux)), text: list_at(compact.text_sources, text) })
+			$blocks = $blocks.append({ kind: PageArtifact(decode_artifact(aux)), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == paragraph_tag {
-			$blocks = $blocks.append({ kind: Paragraph, text: list_at(compact.text_sources, text) })
+			$blocks = $blocks.append({ kind: Paragraph, parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == title_tag {
-			$blocks = $blocks.append({ kind: Title, text: list_at(compact.text_sources, text) })
+			$blocks = $blocks.append({ kind: Title, parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == link_tag {
-			$blocks = $blocks.append({ kind: Link({ uri: list_at(compact.text_sources, aux) }), text: list_at(compact.text_sources, text) })
+			$blocks = $blocks.append({ kind: Link({ uri: list_at(compact.text_sources, aux) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == internal_link_tag {
-			$blocks = $blocks.append({ kind: InternalLink({ destination: list_at(compact.text_sources, aux) }), text: list_at(compact.text_sources, text) })
+			$blocks = $blocks.append({ kind: InternalLink({ destination: list_at(compact.text_sources, aux) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == destination_heading_tag {
-			$blocks = $blocks.append({ kind: DestinationHeading({ level: (aux % 8).to_u8_wrap(), name: list_at(compact.text_sources, aux // 8) }), text: list_at(compact.text_sources, text) })
+			$blocks = $blocks.append({ kind: DestinationHeading({ level: (aux % 8).to_u8_wrap(), name: list_at(compact.text_sources, aux // 8) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == destination_paragraph_tag {
-			$blocks = $blocks.append({ kind: DestinationParagraph({ name: list_at(compact.text_sources, aux) }), text: list_at(compact.text_sources, text) })
+			$blocks = $blocks.append({ kind: DestinationParagraph({ name: list_at(compact.text_sources, aux) }), parent: 0, text: list_at(compact.text_sources, text) })
 		} else {
 			crash "compact authoring block tag escaped"
 		}
@@ -685,6 +756,7 @@ normalize_compact = |compact| {
 	{
 		blocks: $blocks,
 		figures: [],
+		groups: [],
 		language: compact.language,
 		metadata_title: compact.metadata_title,
 		outline: [],
@@ -692,76 +764,106 @@ normalize_compact = |compact| {
 	}
 }
 
+SimpleState : { blocks : List(NormalizedBlock), figures : List(NormalizedFigure), groups : List(NormalizedGroup), list_index : U64 }
+
 normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str } -> NormalizedAuthoring
 normalize_simple = |simple| {
-	var $blocks = []
-	var $figures = []
+	var $state = { blocks: [], figures: [], groups: [], list_index: 0 }
 	var $block_index = 0
-	var $list_index = 0
 	while $block_index < simple.contents.len() {
-		match list_at(simple.contents, $block_index) {
-			Bullets(items) => {
-				var $item = 0
-				while $item < items.len() {
-					$blocks = $blocks.append({ kind: Bullet({ item: $item, list: $list_index }), text: list_at(items, $item) })
-					$item = $item + 1
-				}
-				$list_index = $list_index + 1
-			}
-			DestinationHeading({ level, name, text }) => {
-				$blocks = $blocks.append({ kind: DestinationHeading({ level, name }), text })
-			}
-			DestinationParagraph({ name, text }) => {
-				$blocks = $blocks.append({ kind: DestinationParagraph({ name: name }), text })
-			}
-			Heading({ level, text }) => {
-				$blocks = $blocks.append({ kind: Heading(level), text })
-			}
-			Figure({ alternative, caption, drawing }) => {
-				match list_at(drawing.commands(), 0) {
-					AuthorImage({ image, placement }) => {
-						figure_index = $figures.len()
-						text = match caption {
-							Caption(value) => value
-							NoCaption => " "
-						}
-						$figures = $figures.append({ alternative, caption, image, placement })
-						$blocks = $blocks.append({ kind: Figure(figure_index), text })
-					}
-					_ => crash "validated figure drawing escaped"
-				}
-			}
-			InternalLink({ destination, text }) => {
-				$blocks = $blocks.append({ kind: InternalLink({ destination: destination }), text })
-			}
-			Link({ text, uri }) => {
-				$blocks = $blocks.append({ kind: Link({ uri: uri }), text })
-			}
-			PageArtifact({ kind, text }) => {
-				$blocks = $blocks.append({ kind: PageArtifact(kind), text })
-			}
-			Paragraph(text) => {
-				$blocks = $blocks.append({ kind: Paragraph, text })
-			}
-			Title(text) => {
-				$blocks = $blocks.append({ kind: Title, text })
-			}
-			Unavailable({ feature: _, summary: _ }) => {
-
-				## Preparation rejects this branch before normalization.
-				$blocks = $blocks.append({ kind: Paragraph, text: "" })
-			}
+		$state = match list_at(simple.contents, $block_index) {
+			Container({ contents, kind }) => append_container($state, contents, kind, $block_index)
+			block => append_leaf($state, block, 0)
 		}
 		$block_index = $block_index + 1
 	}
 	{
-		blocks: $blocks,
-		figures: $figures,
+		blocks: $state.blocks,
+		figures: $state.figures,
+		groups: $state.groups,
 		language: simple.language,
 		metadata_title: simple.metadata_title,
 		outline: [],
 		page_labels: [],
 	}
+}
+
+## Lower one top-level container and its descendants into the preorder
+## arenas with an explicit frame stack: entering a container appends its
+## group record, leaving it closes the group's leaf and descendant spans.
+append_container : SimpleState, List(DocumentBlock), ContainerKind, U64 -> SimpleState
+append_container = |state, contents, kind, position| {
+	var $state = open_group(state, kind, 0, 1, position)
+	var $frames = [{ blocks: contents, depth: 1, group: $state.groups.len(), next: 0 }]
+	while !$frames.is_empty() {
+		top = list_at($frames, $frames.len() - 1)
+		if top.next >= top.blocks.len() {
+			$frames = $frames.drop_last(1)
+			$state = close_group($state, top.group - 1)
+		} else {
+			$frames = list_set($frames, $frames.len() - 1, { ..top, next: top.next + 1 })
+			match list_at(top.blocks, top.next) {
+				Container({ contents: nested, kind: nested_kind }) => {
+					$state = open_group($state, nested_kind, top.group, top.depth + 1, top.next)
+					$frames = $frames.append({ blocks: nested, depth: top.depth + 1, group: $state.groups.len(), next: 0 })
+				}
+				block => {
+					$state = append_leaf($state, block, top.group)
+				}
+			}
+		}
+	}
+	$state
+}
+
+open_group : SimpleState, ContainerKind, U64, U64, U64 -> SimpleState
+open_group = |state, kind, parent, depth, position| {
+	..state,
+	groups: state.groups.append({ block_end: state.blocks.len(), depth, first_block: state.blocks.len(), group_end: state.groups.len() + 1, kind, parent, position }),
+}
+
+close_group : SimpleState, U64 -> SimpleState
+close_group = |state, group| {
+	record = list_at(state.groups, group)
+	{ ..state, groups: list_set(state.groups, group, { ..record, block_end: state.blocks.len(), group_end: state.groups.len() }) }
+}
+
+append_leaf : SimpleState, DocumentBlock, U64 -> SimpleState
+append_leaf = |state, block, parent| match block {
+	Bullets(items) => {
+		var $blocks = state.blocks
+		var $item = 0
+		while $item < items.len() {
+			$blocks = $blocks.append({ kind: Bullet({ item: $item, list: state.list_index }), parent, text: list_at(items, $item) })
+			$item = $item + 1
+		}
+		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
+	}
+	Container(_) => {
+		crash "normalized container escaped the frame walk"
+	}
+	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
+	DestinationParagraph({ name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationParagraph({ name: name }), parent, text }) }
+	Heading({ level, text }) => { ..state, blocks: state.blocks.append({ kind: Heading(level), parent, text }) }
+	Figure({ alternative, caption, drawing }) => match list_at(drawing.commands(), 0) {
+		AuthorImage({ image, placement }) => {
+			figure_index = state.figures.len()
+			text = match caption {
+				Caption(value) => value
+				NoCaption => " "
+			}
+			{ ..state, blocks: state.blocks.append({ kind: Figure(figure_index), parent, text }), figures: state.figures.append({ alternative, caption, image, placement }) }
+		}
+		_ => crash "validated figure drawing escaped"
+	}
+	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
+	Link({ text, uri }) => { ..state, blocks: state.blocks.append({ kind: Link({ uri: uri }), parent, text }) }
+	PageArtifact({ kind, text }) => { ..state, blocks: state.blocks.append({ kind: PageArtifact(kind), parent, text }) }
+	Paragraph(text) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text }) }
+	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
+
+	## Preparation rejects this branch before normalization.
+	Unavailable({ feature: _, summary: _ }) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
 }
 
 ## Blocks with a secondary string (a URI or a destination name) intern it as
@@ -869,6 +971,14 @@ list_at = |items, index| match items.get(index) {
 		crash "normalized authoring index escaped"
 	}
 	Ok(value) => value
+}
+
+list_set : List(a), U64, a -> List(a)
+list_set = |items, index, value| match items.set(index, value) {
+	Err(OutOfBounds) => {
+		crash "normalized authoring write escaped"
+	}
+	Ok(updated) => updated
 }
 
 ## The compact builder stores block descriptors and text payloads in separate flat buffers.
