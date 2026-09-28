@@ -2,6 +2,7 @@ import Color
 import Conformance
 import Document
 import Font
+import Image
 import KernelLex
 import KernelEmit
 import KernelBuiltInFont
@@ -10,6 +11,7 @@ import KernelFont
 import KernelFontPlan
 import KernelMetadata
 import KernelNavigation
+import KernelPdfA4
 import KernelSrgbProfile
 import KernelXmp
 import Metadata
@@ -77,12 +79,17 @@ Pdf :: [].{
 		profile : Profile,
 		theme : Theme,
 	}.{
+
+		## The production default selects the most complete public profile whose
+		## claim set is implemented and validated: `Archive` (PDF 2.0 plus static
+		## PDF/A-4). `AccessibleArchive` becomes the default only when its combined
+		## claim closes; `Standard` is an explicit opt-out, never a fallback.
 		default : Options
 		default = Options.{
 			chunk_retention: ShareUnchangedResources,
 			font_source: BuiltIn,
 			page_size: A4,
-			profile: Standard,
+			profile: Archive,
 			theme: Theme.default,
 		}
 
@@ -242,8 +249,11 @@ Pdf :: [].{
 	with_modified : Document, Str -> Document
 	with_modified = |doc, timestamp| Document.with_modified(doc, timestamp)
 
-	## Standard authored content follows the completed typed facade pipeline.
-	## Archive claims remain unavailable until their independent capabilities close.
+	## The default profile is `Archive`: content follows the completed typed
+	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
+	## validation before any byte exists. `Standard` is an explicit opt-out.
+	## AccessibleArchive remains unavailable until its combined capability
+	## closes; a document that cannot meet the requested claim is an error.
 	to_bytes : Document -> Try(List(U8), Error)
 	to_bytes = |doc| to_bytes_with(doc, Options.default)
 
@@ -262,7 +272,7 @@ Pdf :: [].{
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
-		plan = build_standard_plan(doc, options)?
+		plan = build_plan(doc, options)?
 		Ok(Prepared.(plan))
 	}
 
@@ -305,12 +315,13 @@ Pdf :: [].{
 	}
 }
 
-build_standard_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
-build_standard_plan = |doc, options| {
-	validate_standard_request(options)?
+build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
+build_plan = |doc, options| {
+	claim = validate_profile_request(options)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
-	## serializes once; every later stage consumes the same validated values.
+	## serializes once, identified exactly when the requested profile claims
+	## static PDF/A-4; every later stage consumes the same validated values.
 	validated = KernelMetadata.validate(
 		{
 			created: Document.created(doc),
@@ -320,7 +331,7 @@ build_standard_plan = |doc, options| {
 		},
 		standard_metadata_limits,
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build(validated.facts, standard_xmp_bytes) ? |_| InternalGenerationFailure
+	xmp = KernelXmp.Packet.build_identified(validated.facts, KernelPdfA4.identification(claim), standard_xmp_bytes) ? |_| InternalGenerationFailure
 	if Document.block_count(doc) == 0 {
 		plan = KernelStructure.build_blank_with_facts(
 			1,
@@ -334,6 +345,7 @@ build_standard_plan = |doc, options| {
 				xmp: KernelXmp.Packet.bytes(xmp),
 			},
 		) ? |_| InternalGenerationFailure
+		validate_lowered_plan(claim, xmp, plan)?
 		return Ok(plan)
 	}
 	facts = WithDocumentFacts({
@@ -363,7 +375,45 @@ build_standard_plan = |doc, options| {
 			standard_pipeline_limits,
 		) ? |error| ordered_pipeline_error(error, ordered.policy, Document.block_count(doc))
 	}
-	Ok(KernelFacadePipeline.Plan.structure(pipeline))
+	output = KernelFacadePipeline.Plan.output(pipeline)
+	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	plan = KernelFacadeOutput.Plan.structure(output)
+	validate_lowered_plan(claim, xmp, plan)?
+	Ok(plan)
+}
+
+## Lowered-plan validation runs on every prepared plan before it is wrapped:
+## an unclaimed plan checks only that its packet declares no identification,
+## and a claimed plan is checked against the full static whitelist.
+validate_lowered_plan : KernelPdfA4.Claim, KernelXmp.Packet, KernelStructure.Plan -> Try({}, Pdf.Error)
+validate_lowered_plan = |claim, packet, plan| {
+	_work = KernelPdfA4.validate_lowered(
+		claim,
+		{ packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) },
+	) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	Ok({})
+}
+
+profile_batch : KernelPdfA4.Violation, Conformance.ValidationStage -> Conformance.DiagnosticBatch
+profile_batch = |violation, stage| {
+	requirement = violation.requirement
+	message = "The Archive profile requires that ${KernelPdfA4.summary(requirement)} (${KernelPdfA4.clause(requirement)}). No PDF bytes were emitted; this is not a downgrade to Standard."
+	{
+		detail_bytes: Str.to_utf8(message).len(),
+		diagnostics: [
+			{
+				clause_references: [KernelPdfA4.clause(requirement)],
+				code: ProfileRequirementViolated,
+				details: [],
+				feature: Feature(feature_code(ArchiveProfile)),
+				location: Document,
+				message,
+				requirement_ids: [KernelPdfA4.requirement_code(requirement)],
+				stage,
+			},
+		],
+		truncation: Complete,
+	}
 }
 
 ## The Theme decides between exact style faces and an ordered policy. Policy
@@ -430,12 +480,14 @@ selected_registered_font = |registry, face| {
 	Ok(font)
 }
 
-validate_standard_request : Pdf.Options -> Try({}, Pdf.Error)
-validate_standard_request = |options| {
+## The requested claim is derived from the public profile's exact claim set.
+## A profile whose claim set includes an unfinished capability is rejected
+## before any work; it never falls back to a narrower claim set.
+validate_profile_request : Pdf.Options -> Try(KernelPdfA4.Claim, Pdf.Error)
+validate_profile_request = |options| {
 	match options.profile {
-		Archive => Err(Pdf.Error.InvalidDocument(unavailable_batch(ArchiveProfile, "The Archive profile requires the unfinished PDF/A-4 capability.")))
 		AccessibleArchive => Err(Pdf.Error.InvalidDocument(unavailable_batch(AccessibleArchiveProfile, "The AccessibleArchive profile requires the unfinished combined PDF/A-4 and PDF/UA-2 capability.")))
-		Standard => Ok({})
+		Archive | Standard => Ok(if Pdf.claims_for_profile(options.profile).static_pdf_a4 StaticPdfA4Claim else NoArchiveClaim)
 	}
 }
 
@@ -674,7 +726,7 @@ expect {
 	bytes.len() > 0
 }
 
-## Standard authored content crosses the public facade without exposing PDF internals.
+## Default authored content crosses the public facade without exposing PDF internals.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -725,7 +777,7 @@ expect {
 	}
 }
 
-## Empty Standard documents emit one structural PDF 2.0 page.
+## Empty default documents emit one structural PDF 2.0 page.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
 	bytes = Pdf.to_bytes(document)?
@@ -746,15 +798,34 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## Archive remains unavailable rather than silently emitting Standard output.
+## The default is exactly `to_bytes_with(document, Options.default)`, and
+## that default claims static PDF/A-4.
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Default")], language: "en-AU", title: "Default" })
+	implicit = Pdf.to_bytes(document)?
+	explicit = Pdf.to_bytes_with(document, Pdf.Options.default)?
+	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
+
+	implicit == explicit and implicit == archive and contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>"))
+}
+
+## Archive emits the same document with exactly the PDF/A identification
+## added to its canonical metadata; Standard never declares it.
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Archive")], language: "en-AU", title: "Archive" })
+	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
+	standard = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard))?
+	marker = Str.to_utf8("<pdfaid:part>4</pdfaid:part>")
+
+	archive.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(archive, marker) and !contains_bytes(standard, marker)
+}
+
+## A blank Archive document is validated on the same lowered-plan path.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
-	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
 
-	match Pdf.to_bytes_with(document, options) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), message, .. }], .. })) => code == "profile.archive" and message.contains("Gate 5")
-		_ => False
-	}
+	contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
 }
 
 ## AccessibleArchive remains unavailable rather than dropping its UA claim.
@@ -853,6 +924,17 @@ collect_chunks = |encoder| {
 	{ bytes: $bytes, chunks: $chunks }
 }
 
+contains_bytes : List(U8), List(U8) -> Bool
+contains_bytes = |haystack, needle| {
+	var $start = 0
+	var $found = False
+	while !$found and $start + needle.len() <= haystack.len() {
+		$found = haystack.sublist({ start: $start, len: needle.len() }) == needle
+		$start = $start + 1
+	}
+	$found
+}
+
 append_pdf_bytes : List(U8), List(U8) -> List(U8)
 append_pdf_bytes = |target, source| {
 	length = source.len()
@@ -927,5 +1009,206 @@ expect {
 	match Pdf.to_bytes(document) {
 		Err(InvalidNavigation(UnknownDestinationName({ annotation: 0 }))) => True
 		_ => False
+	}
+}
+
+## White-box twins over a realistic claimed plan: text, an alpha raster
+## figure, URI and internal links, an outline, and page labels. Each twin
+## differs from the prepared plan in exactly one lowered fact or one prepared
+## text fact and must be rejected with its own ledger requirement.
+archive_twin_document : Document
+archive_twin_document = {
+	image = Image.Source.rgb8({
+		alpha: PackedAlpha({ bytes: [0, 64, 128, 255], row_stride: 2 }),
+		dimensions: { height: 2, width: 2 },
+		pixels: [20, 90, 140, 240, 180, 40, 40, 160, 90, 245, 245, 240],
+		row_stride: 6,
+	})
+	Pdf.document({
+		contents: [
+			Pdf.destination_heading("start", 1, "Archive twins"),
+			Pdf.figure(Scene.drawing({}).image(image, Layout.rect(0, 0, 120, 120)), "A two by two translucent raster", Pdf.no_caption),
+			Pdf.link("Specification", "https://example.com/pdfa"),
+			Pdf.internal_link("Back to start", "start"),
+		],
+		language: "en-AU",
+		title: "Archive twins",
+	})
+		.with_outline([{ depth: 0, destination: "start", open: True, title: "Start" }])
+		.with_page_labels([{ prefix: "T-", start_number: 1, start_page: 0, style: DecimalArabic }])
+}
+
+archive_twin_options : Pdf.Options
+archive_twin_options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+
+archive_twin_packet : Str -> KernelXmp.Packet
+archive_twin_packet = |title| match KernelMetadata.validate({ created: Omitted, language: "en-AU", modified: Omitted, title }, standard_metadata_limits) {
+	Ok(validated) => match KernelXmp.Packet.build_identified(validated.facts, PdfA4Identification, standard_xmp_bytes) {
+		Ok(packet) => packet
+		Err(_) => {
+			crash "archive twin packet failed"
+		}
+	}
+	Err(_) => {
+		crash "archive twin metadata failed"
+	}
+}
+
+archive_twin_pipeline : Pdf.Options -> KernelFacadeOutput.Plan
+archive_twin_pipeline = |options| {
+	font = match selected_font(options) {
+		Ok(value) => value
+		Err(_) => {
+			crash "archive twin font failed"
+		}
+	}
+	facts = WithDocumentFacts({
+		condition_identifier: KernelMetadata.srgb_condition_identifier,
+		profile: Color.ProfileId.from_index(0),
+		registry_name: KernelMetadata.icc_registry_name,
+		language: "en-AU",
+		xmp: KernelXmp.Packet.bytes(archive_twin_packet("Archive twins")),
+	})
+	match KernelFacadePipeline.Plan.build_with_facts(Document.normalize(archive_twin_document), font, options.theme, layout_page_size(A4), standard_font_descriptor, facts, standard_pipeline_limits) {
+		Ok(pipeline) => KernelFacadePipeline.Plan.output(pipeline)
+		Err(_) => {
+			crash "archive twin pipeline failed"
+		}
+	}
+}
+
+ArchiveTwinOutcome : [Accepted, Rejected(KernelPdfA4.Requirement)]
+
+## Validate one white-box store mutation of the claimed twin plan.
+archive_twin_lowered : (KernelObject.Store -> KernelObject.Store) -> ArchiveTwinOutcome
+archive_twin_lowered = |mutate| {
+	plan = KernelFacadeOutput.Plan.structure(archive_twin_pipeline(archive_twin_options))
+	store = mutate(KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan)))
+	builder = KernelObject.init(archive_twin_store_limits)
+	sealed = match KernelSeal.seal({ ..builder, store }) {
+		Ok(value) => value
+		Err(_) => {
+			crash "archive twin mutation broke the sealed store shape"
+		}
+	}
+	match KernelPdfA4.validate_lowered(StaticPdfA4Claim, { packet: archive_twin_packet("Archive twins"), root: KernelStructure.Plan.root(plan), sealed }) {
+		Ok(_) => Accepted
+		Err(found) => Rejected(found.requirement)
+	}
+}
+
+archive_twin_store_limits : KernelObject.Limits
+archive_twin_store_limits = {
+	max_array_items: 10000000,
+	max_byte_string_bytes: 100000000,
+	max_byte_strings: 10000000,
+	max_dictionary_entries: 10000000,
+	max_direct_depth: 64,
+	max_name_bytes: 10000000,
+	max_names: 10000000,
+	max_objects: 10000000,
+	max_payload_bytes: 1000000000,
+	max_payloads: 10000000,
+	max_streams: 10000000,
+	max_text_string_bytes: 100000000,
+	max_text_strings: 10000000,
+	max_values: 10000000,
+}
+
+## Replace the spelling of the first interned name equal to `from`.
+archive_twin_rename : Str, Str -> (KernelObject.Store -> KernelObject.Store)
+archive_twin_rename = |from, to| |store| {
+	var $names = store.names
+	var $index = 0
+	var $done = False
+	while !$done and $index < $names.len() {
+		if KernelLex.Name.bytes(twin_at($names, $index)) == Str.to_utf8(from) {
+			replacement = match KernelLex.Name.from_bytes(Str.to_utf8(to)) {
+				Ok(name) => name
+				Err(_) => {
+					crash "archive twin replacement name is invalid"
+				}
+			}
+			$names = match $names.set($index, replacement) {
+				Ok(updated) => updated
+				Err(_) => $names
+			}
+			$done = True
+		}
+		$index = $index + 1
+	}
+	{ ..store, names: $names }
+}
+
+## Rewrite the value of every dictionary entry keyed `key`.
+archive_twin_rewrite : Str, KernelObject.Value -> (KernelObject.Store -> KernelObject.Store)
+archive_twin_rewrite = |key, value| |store| {
+	var $values = store.values
+	var $entry = 0
+	while $entry < store.dictionary_entries.len() {
+		entry = twin_at(store.dictionary_entries, $entry)
+		if KernelLex.Name.bytes(twin_at(store.names, KernelObject.NameId.index(entry.key))) == Str.to_utf8(key) {
+			$values = match $values.set(KernelObject.ValueId.index(entry.value), value) {
+				Ok(updated) => updated
+				Err(_) => $values
+			}
+		}
+		$entry = $entry + 1
+	}
+	{ ..store, values: $values }
+}
+
+## The unmutated claimed plan is eligible.
+expect archive_twin_lowered(|store| store) == Accepted
+
+## Annotation flags: a hidden or unprintable link is rejected.
+expect archive_twin_lowered(archive_twin_rewrite("F", Integer(0))) == Rejected(AnnotationFlags)
+	and archive_twin_lowered(archive_twin_rewrite("F", Integer(6))) == Rejected(AnnotationFlags)
+		and archive_twin_lowered(archive_twin_rewrite("F", Integer(4 + 32))) == Rejected(AnnotationFlags)
+
+## Actions: a non-whitelisted action type, and a URI action retyped as a
+## non-link annotation.
+expect archive_twin_lowered(archive_twin_rename("URI", "Launch")) == Rejected(Actions)
+	and archive_twin_lowered(archive_twin_rename("Link", "Widget")) == Rejected(AnnotationTypes)
+
+## Images: interpolation, an unsupported bit depth, and OPI data.
+expect archive_twin_lowered(archive_twin_rewrite("BitsPerComponent", Integer(3))) == Rejected(ImageDictionary)
+	and archive_twin_lowered(archive_twin_rename("BitsPerComponent", "Interpolate")) == Rejected(ImageDictionary)
+		and archive_twin_lowered(archive_twin_rename("Width", "OPI")) == Rejected(ImageDictionary)
+
+## Fonts: a simple font subtype, a non-FontFile2 program, and a CIDFont
+## without CIDToGIDMap.
+expect archive_twin_lowered(archive_twin_rename("Type0", "TrueType")) == Rejected(FontDictionary)
+	and archive_twin_lowered(archive_twin_rename("FontFile2", "FontFile3")) == Rejected(FontEmbedding)
+		and archive_twin_lowered(archive_twin_rename("CIDToGIDMap", "CIDToGIDMapz")) == Rejected(CompositeFont)
+
+## Package exclusions reachable as keys anywhere in the plan.
+expect archive_twin_lowered(archive_twin_rename("Lang", "JS")) == Rejected(Actions)
+	and archive_twin_lowered(archive_twin_rename("Lang", "OC")) == Rejected(OptionalContent)
+		and archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(EmbeddedFiles)
+			and archive_twin_lowered(archive_twin_rename("Lang", "PresSteps")) == Rejected(Presentations)
+				and archive_twin_lowered(archive_twin_rename("Lang", "Ref")) == Rejected(ReferenceXObject)
+					and archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
+						and archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
+
+## Stream dictionaries must not reference external file data.
+expect archive_twin_lowered(archive_twin_rename("Length1", "FFilter")) == Rejected(StreamExternal)
+
+## Profile-stage twins over the prepared text facts of the same plan.
+expect {
+	facts = KernelFacadeOutput.Plan.text_facts(archive_twin_pipeline(archive_twin_options))
+	clean = KernelPdfA4.validate_text(StaticPdfA4Claim, facts)
+	bom = KernelPdfA4.validate_text(StaticPdfA4Claim, { ..facts, mappings: facts.mappings.append([{ cid: 1, scalars: [0xFEFF] }]) })
+	private = KernelPdfA4.validate_text(StaticPdfA4Claim, { ..facts, actual_text: PrivateUseInRun(0) })
+	clean.is_ok()
+		and bom == Err({ position: facts.mappings.map(|font| font.len()).sum(), requirement: ToUnicodeValues })
+			and private == Err({ position: 0, requirement: ActualTextPrivateUse })
+}
+
+twin_at : List(a), U64 -> a
+twin_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "archive twin index escaped"
 	}
 }

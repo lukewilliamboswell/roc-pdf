@@ -38,6 +38,44 @@ in the same run. An allocation event is a call to `roc_alloc` or `roc_realloc`;
 host setup, teardown, and family-case JSON decoding are outside the
 `before_fixture_main` measurement boundary.
 
+Measure allocation baselines from a cold Roc cache, as CI does. A warm
+`~/.cache/roc` can compile identical source into binaries with different
+allocation counts (bytes and work counters stay identical), which looks like a
+feature regression but is not one. For any delta you intend to review, run the
+full suite against an empty cache directory:
+
+```sh
+XDG_CACHE_HOME="$PWD/.roc-pdf-tmp/cold-cache" ./scripts/test.py \
+    --compare-baselines --baseline-report .roc-pdf-tmp/baselines.json
+```
+
+`--baseline-report` (with `--compare-baselines` or `--update-snapshots`) writes
+each differing case's expected and observed metrics as JSON for review. It
+never edits `tests/spec.json`: accepting a delta remains a deliberate, recorded
+change with an identified cause.
+
+## Static PDF/A-4 lanes
+
+Every `Archive` snapshot declares the `pdfa4` validator
+(`scripts/check_pdfa4_structure.py`), which re-derives the static profile
+facts from the bytes. The external lanes run on demand, after
+`scripts/provision_extended_tools.py` has laid down veraPDF, MuPDF, and the
+vendored upstream corpus:
+
+```sh
+python3 scripts/check_pdfa4.py --cases           # Archive snapshots: zero failed checks
+python3 scripts/check_pdfa4.py --standard-cases  # Standard snapshots: only deliberate omissions
+python3 scripts/check_pdfa4.py --corpus          # upstream veraPDF PDF/A-4 corpus verdicts
+python3 scripts/check_archive_renderers.py --pdfium-renderer PATH --mutool PATH
+```
+
+The veraPDF lane always passes the explicit `--flavour 4`. Parser warnings or
+task exceptions in package output are failures. Corpus validator defects may
+only be recorded in `conformance/verapdf-exceptions.json`, with an upstream
+reference. The ledger must map every rule of the pinned profile
+(`conformance/verapdf-pdfa4-rules.json`, extracted from the vendored
+installer) exactly once; `scripts/check_contracts.py` enforces this.
+
 ## Property fuzz targets
 
 The bounded property targets in `fuzz/` are evidence-only applications on the

@@ -1,0 +1,9 @@
+{
+  "exceptions": [],
+  "schema_version": 1,
+  "validator": {
+    "name": "veraPDF",
+    "profile_sha256": "7c1d9450d6f39c957586463354bccbf57a12713caad9a85db83dc6bd4851a07b",
+    "version": "1.30.2"
+  }
+}

@@ -109,9 +109,11 @@ The existing Gate 2, 3, and 4 closure records remain historical evidence for
 their stated subsets. This roadmap revision does not reopen those records,
 make pending APIs executable, or establish new conformance claims. Gate 3
 closed its declared text/facade subset; Gate 4 closed the `Standard` visual
-compiler with narrower public authoring. `Standard` remains the only currently
-available facade profile. The new business-release requirements are pending
-work in Gates 5-7, and each future slice records the readiness dimensions above.
+compiler with narrower public authoring. Gate 5 closed static PDF/A-4 and made
+`Archive` the default facade profile, with `Standard` as an explicit opt-out;
+its ISO-text confirmation remains pending as recorded below. The remaining
+business-release requirements are pending work in Gates 6-7, and each future
+slice records the readiness dimensions above.
 
 ## Work following the Gate 4 milestone
 
@@ -119,10 +121,10 @@ work in Gates 5-7, and each future slice records the readiness dimensions above.
    benchmark targets, and early reader/AT observations before fixing remaining
    business-authoring representations. This is release planning and exploratory
    evidence, not a new conformance claim.
-2. Continue Gate 5 archival closure and Gate 6 business-authoring/semantic
-   slices from their shared Gate 4 foundation. Deliver each public feature
-   through authoring, layout, diagnostics, and applicable evidence; neither
-   branch must wait for unrelated capabilities in the other.
+2. Continue Gate 6 business-authoring/semantic slices from the shared Gate 4
+   foundation; Gate 5 archival closure is recorded below. Deliver each public
+   feature through authoring, layout, diagnostics, and applicable evidence, and
+   declare its static PDF/A-4 eligibility as it joins the `Archive` whitelist.
 3. Close Gate 7 only when both branches and the business-document release
    evidence are complete. New claims and defaults follow their original
    explicit gate requirements.
@@ -751,6 +753,35 @@ unavailable until their own gates close.
 - A pinned renderer/version matrix processes the original bytes with the
   declared error policy and meets fixture-specific page-size, geometry, pixel,
   and color tolerances.
+
+### Closure status
+
+Gate 5 is closed for static PDF/A-4 on the basis of the pinned veraPDF 1.30.2
+PDF/A-4 validation profile, and `Pdf.Options.default` now selects `Archive`
+(`Pdf20 + StaticPdfA4`). The slice record and evidence are in
+`docs/performance/static-pdfa4.md`:
+
+- a typed claim with PDF/A identification emitted only for a validated claim;
+- a closed whitelist enforced by profile validation over prepared text facts
+  and lowered-plan validation over every sealed plan;
+- 46 ledger entries covering each of the profile's 109 rules exactly once;
+- zero failed checks on every Archive snapshot and gallery document;
+- matching verdicts on all 487 upstream corpus files;
+- a Standard-snapshot lane showing every Gate 4 kernel construct is otherwise
+  eligible;
+- Archive/Standard twins that rasterize identically in three renderers;
+- a reviewed default-profile rebaseline.
+
+Requirements of ISO 19005-4:2020 that the pinned validator profile does not
+encode were derived from public information and are covered mechanically by
+construction and the whitelist. They remain recorded as
+`ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION`, pending confirmation against the
+licensed standard text before Gate 7's combined claim.
+
+Arlington object-model validation of font-bearing output also records a
+pre-existing `Pdf20` defect: `CIDSystemInfo` `/Registry` and `/Ordering` are
+text strings rather than ASCII strings. It must be resolved as Gate 7
+evidence. The advanced `Encode` boundary remains `Standard`-only.
 
 ## Gate 6: business authoring and core PDF/UA-2 vocabulary
 

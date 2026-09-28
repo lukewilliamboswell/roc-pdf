@@ -30,6 +30,7 @@ Conformance :: [].{
 		InvalidRelationship,
 		InvalidStructureAttribute,
 		LayoutCycle,
+		ProfileRequirementViolated,
 	]
 
 	DiagnosticLocation : [

@@ -1,6 +1,6 @@
 # Example gallery
 
-Each example is a complete [basic-cli 0.22.0](https://github.com/roc-lang/basic-cli/releases/tag/0.22.0)
+Each example is a complete [basic-cli 0.23.0](https://github.com/roc-lang/basic-cli/releases/tag/0.23.0)
 application that imports the local package and writes a PDF beside the source.
 Run one from the repository root with `roc examples/<name>.roc`.
 

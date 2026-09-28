@@ -954,6 +954,14 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--baseline-report",
+        type=Path,
+        help=(
+            "With --compare-baselines or --update-snapshots, also write every differing case's "
+            "expected and observed metrics to this JSON file for review; it never edits the spec"
+        ),
+    )
+    parser.add_argument(
         "--compare-baselines",
         action="store_true",
         help=(
@@ -1005,6 +1013,8 @@ def main() -> None:
         parser.error("--jobs must be at least 1")
     if args.update_snapshots and args.compare_baselines:
         parser.error("--update-snapshots and --compare-baselines cannot be combined")
+    if args.baseline_report is not None and not (args.update_snapshots or args.compare_baselines):
+        parser.error("--baseline-report requires --compare-baselines or --update-snapshots")
     TEMP_ROOT.mkdir(exist_ok=True)
     LOG_ROOT.mkdir(exist_ok=True)
     RUN_LOG = (args.log or LOG_ROOT / f"test-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{os.getpid()}.log").resolve()
@@ -1177,6 +1187,19 @@ def main() -> None:
             raise
         else:
             executor.shutdown()
+
+    if args.baseline_report is not None:
+        work_names = {case.name: case.work_counters for case in suite.cases}
+        report = [
+            {
+                "case": delta.case_name,
+                "expected": {"allocations": delta.expected.allocations, "work": dict(zip(work_names[delta.case_name], delta.expected.work))},
+                "actual": {"allocations": delta.actual.allocations, "work": dict(zip(work_names[delta.case_name], delta.actual.work))},
+            }
+            for delta in sorted(baseline_deltas, key=lambda item: item.case_name)
+        ]
+        args.baseline_report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        announce("RUN", f"Wrote {len(report)} baseline differences to {args.baseline_report}")
 
     if args.update_snapshots:
         phase("Post-update contract validation")

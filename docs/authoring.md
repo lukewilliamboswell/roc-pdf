@@ -33,9 +33,24 @@ Theme colors can use familiar 8-bit channels with
 spacing, and bullet indentation can be changed through `Theme`; every color is
 resolved through the packaged sRGB profile and output intent.
 
-The `Standard` profile is the only executable profile in rc2. `Archive` and
-`AccessibleArchive` reject with an `InvalidDocument` diagnostic batch. The
-package does not read, repair, sign, encrypt, outline, or rasterize PDFs.
+`Pdf.Options.default` selects the `Archive` profile, which claims PDF 2.0 plus
+static PDF/A-4. The canonical XMP declares `pdfaid:part` 4 and `pdfaid:rev`
+2020, the packaged sRGB output intent characterizes every color, and every
+font is embedded. Profile and lowered-plan validation run before any byte is
+emitted. A document that cannot meet the claim fails with an `InvalidDocument`
+batch whose `ProfileRequirementViolated` diagnostic names the ledger
+requirement and the ISO 19005-4 clause. It is never silently emitted as
+`Standard`.
+
+To produce plain PDF 2.0 deliberately, opt out explicitly:
+
+```roc
+options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard)
+```
+
+`AccessibleArchive` still rejects with an `InvalidDocument` diagnostic batch
+until PDF/UA-2 closes. The package does not read, repair, sign, encrypt,
+outline, or rasterize PDFs.
 
 ## Images, figures, and forward authoring
 
@@ -72,7 +87,8 @@ multi-command figures, and fixed pages remain forward API: they report
 | vector/grouped/multi-command drawings | representable; `document.figure` diagnostic |
 | semantic containers, rich inline content, simple tables | representable; Gate 6 diagnostic |
 | fixed pages, columns, floats, footnotes, complex tables | representable; Gate 8 diagnostic |
-| `Archive` and `AccessibleArchive` profiles | representable; profile diagnostic |
+| `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
+| `AccessibleArchive` profile | representable; profile diagnostic |
 
 Capability diagnostics carry a stable dotted feature code, a human-facing
 roadmap explanation, validation stage, and deterministic location. Branch on

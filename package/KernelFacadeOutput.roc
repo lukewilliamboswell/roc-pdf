@@ -10,6 +10,7 @@ import KernelTaggedTextStructure
 import KernelImage
 import KernelMetadata
 import KernelObject
+import KernelPdfA4
 import KernelPdfFont
 import KernelPdfText
 import KernelResourceUse
@@ -66,7 +67,11 @@ KernelFacadeOutput :: [].{
 		text_runs : U64,
 	}
 
-	Plan :: { structure : KernelStructure.Plan, work : Work }.{
+	## `text_facts` retains the prepared text facts profile validation consumes:
+	## the ToUnicode mappings already built for the font leaves and the first
+	## private-use ActualText run. They are shared, not copied, and are
+	## released with this plan once preparation seals the structure.
+	Plan :: { structure : KernelStructure.Plan, text_facts : KernelPdfA4.TextFacts, work : Work }.{
 		build : KernelFacadeScenes.Plan, KernelFont.Inspection, KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
 		build = |scenes, font, descriptor, limits| build_plan(scenes, font, descriptor, NoDocumentFacts, NoNavigation, limits)
 
@@ -94,6 +99,9 @@ KernelFacadeOutput :: [].{
 
 		structure : Plan -> KernelStructure.Plan
 		structure = |plan| plan.structure
+
+		text_facts : Plan -> KernelPdfA4.TextFacts
+		text_facts = |plan| plan.text_facts
 
 		work : Plan -> Work
 		work = |plan| plan.work
@@ -135,6 +143,10 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	Ok(
 		KernelFacadeOutput.Plan.{
 			structure: KernelTaggedTextStructure.Plan.structure(structure),
+			text_facts: {
+				actual_text: KernelPdfText.ScenePlan.actual_text_private_use(text),
+				mappings: KernelPdfText.ScenePlan.mappings(text),
+			},
 			work: {
 				content_bytes: content_work.bytes_emitted,
 				content_command_visits: content_work.command_visits,
@@ -231,6 +243,10 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 	Ok(
 		KernelFacadeOutput.Plan.{
 			structure: KernelTaggedTextStructure.Plan.structure(structure),
+			text_facts: {
+				actual_text: KernelPdfText.ScenePlan.actual_text_private_use(text),
+				mappings: KernelPdfText.ScenePlan.mappings(text),
+			},
 			work: {
 				content_bytes: content_work.bytes_emitted,
 				content_command_visits: content_work.command_visits,

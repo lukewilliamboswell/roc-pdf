@@ -3,10 +3,11 @@
 An early-development pure [Roc](https://www.roc-lang.org/) package for
 deterministic PDF 2.0 generation.
 
-The package offers a stable public authoring path under the `Standard`
-profile: `Pdf.to_bytes`, `Pdf.to_bytes_with`, and `Pdf.to_chunks_with` all
-produce deterministic tagged PDF 2.0 output, and the buffered and chunked
-forms are byte-identical. The built-in theme supports title, heading,
+The package offers a stable public authoring path whose default profile is
+`Archive`: `Pdf.to_bytes`, `Pdf.to_bytes_with`, and `Pdf.to_chunks_with` all
+produce deterministic tagged PDF 2.0 output that also claims static PDF/A-4,
+and the buffered and chunked forms are byte-identical. `Standard` (PDF 2.0
+only) remains available through `Pdf.Options.with_profile`. The built-in theme supports title, heading,
 paragraph, and bulleted-list constructors, with either the packaged face or
 caller-registered faces selected through `Theme` — including a finite ordered
 multi-face policy with per-cluster coverage selection. Theme text colors use
@@ -16,8 +17,12 @@ edit, or repair PDFs, and unsupported requests return typed errors rather than
 producing blank output, substituting fonts, outlining text, or rasterizing
 content.
 
-This is not a PDF/A-4 or PDF/UA-2 package. `Archive` and `AccessibleArchive`
-deliberately return structured feature diagnostics, so do not make archival or
+Default output claims static PDF/A-4 (`Pdf20 + StaticPdfA4`): the package
+validates a closed whitelist before emitting any byte, and every Archive
+fixture passes the pinned veraPDF PDF/A-4 profile with zero failed checks. A
+document that cannot meet the claim returns a structured error; it is never
+downgraded to `Standard`. PDF/UA-2 is not claimed yet: `AccessibleArchive`
+deliberately returns a structured feature diagnostic, so do not make
 accessibility-conformance claims from it. Automatic hyphenation is not
 accepted, and the convenience shaping path covers a declared script set;
 right-to-left and case-transformation output are available at the advanced
@@ -36,9 +41,12 @@ with a stable feature code and roadmap explanation. See the
 [authoring support matrix](docs/authoring.md#forward-authoring-api).
 
 The current candidate scope is recorded in [the 0.1.0-rc2 release
-notes](docs/releases/0.1.0-rc2.md). Gate 4 is closed; its aggregated evidence is
-recorded in the [production-visual closure
-review](docs/performance/production-visual-closure.md).
+notes](docs/releases/0.1.0-rc2.md), and the pending default-profile change in
+the [draft 0.1.0-rc3 notes](docs/releases/0.1.0-rc3.md). Gate 4 is closed; its
+aggregated evidence is recorded in the [production-visual closure
+review](docs/performance/production-visual-closure.md). Gate 5 (static
+PDF/A-4) is closed on the pinned veraPDF profile basis; see the [static PDF/A-4
+record](docs/performance/static-pdfa4.md).
 
 ## Start here
 

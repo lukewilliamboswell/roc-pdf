@@ -141,10 +141,11 @@ options_for = |input| {
 		Pdf.Options.with_page_size(base, Letter)
 	}
 
-	## Archive and AccessibleArchive are still unavailable capabilities, so two
-	## of the three profiles reject before layout runs. They are generated
-	## anyway: the contract that an unavailable profile is a stable typed
-	## rejection rather than a crash is worth holding under extreme themes too.
+	## Standard and Archive both lay out and seal; Archive additionally runs
+	## static PDF/A-4 profile and lowered-plan validation, so extreme themes
+	## exercise the whitelist as well. AccessibleArchive is still an
+	## unavailable capability that rejects before layout; the contract that it
+	## is a stable typed rejection rather than a crash is held here too.
 	match input.profile % 3 {
 		0 => Pdf.Options.with_profile(sized, Standard)
 		1 => Pdf.Options.with_profile(sized, Archive)

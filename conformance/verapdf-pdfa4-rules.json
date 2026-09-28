@@ -1,0 +1,558 @@
+{
+  "rules": [
+    {
+      "description": "The file header shall begin at byte zero and shall consist of \"%PDF-2.n\" followed by a single EOL marker, where 'n' is a single digit number between 0 (30h) and 9 (39h)",
+      "id": "6.1.2-1",
+      "object": "CosDocument"
+    },
+    {
+      "description": "The aforementioned EOL marker shall be immediately followed by a % (25h) character followed by at least four bytes, each of whose encoded byte values shall have a decimal value greater than 127",
+      "id": "6.1.2-2",
+      "object": "CosDocument"
+    },
+    {
+      "description": "File identifiers shall be defined by the ID entry in a PDF file’s trailer dictionary",
+      "id": "6.1.3-1",
+      "object": "CosDocument"
+    },
+    {
+      "description": "The Encrypt key shall not be present in the trailer dictionary",
+      "id": "6.1.3-2",
+      "object": "CosTrailer"
+    },
+    {
+      "description": "No data shall follow the last end-of-file marker as described in ISO 32000-2:2020, 7.5.5",
+      "id": "6.1.3-3",
+      "object": "CosDocument"
+    },
+    {
+      "description": "The Info key shall not be present in the trailer dictionary of PDF/A-4 conforming files unless there exists a PieceInfo entry in the document catalog dictionary",
+      "id": "6.1.3-4",
+      "object": "CosDocument"
+    },
+    {
+      "description": "If a document information dictionary is present, it shall only contain a ModDate entry",
+      "id": "6.1.3-5",
+      "object": "CosInfo"
+    },
+    {
+      "description": "The xref keyword and the cross-reference subsection header shall be separated by a single EOL marker",
+      "id": "6.1.4-1",
+      "object": "CosXRef"
+    },
+    {
+      "description": "Hexadecimal strings shall contain an even number of non-white-space characters",
+      "id": "6.1.5-1",
+      "object": "CosString"
+    },
+    {
+      "description": "A hexadecimal string is written as a sequence of hexadecimal digits (0–9 and either A–F or a–f)",
+      "id": "6.1.5-2",
+      "object": "CosString"
+    },
+    {
+      "description": "The value of the Length key specified in the stream dictionary shall match the number of bytes in the file following the LINE FEED (0Ah) character after the stream keyword and preceding the EOL marker before the endstream keyword",
+      "id": "6.1.6.1-1",
+      "object": "CosStream"
+    },
+    {
+      "description": "A stream dictionary shall not contain the F, FFilter, or FDecodeParms keys",
+      "id": "6.1.6.1-2",
+      "object": "CosStream"
+    },
+    {
+      "description": "All standard stream filters listed in ISO 32000-2:2020, 7.4, Table 6 may be used, with the exception of LZWDecode. Filters that are not listed in ISO 32000-2:2020, 7.4, Table 6 shall not be used. In addition, the Crypt filter shall not be used unless the value of the Name key in the decode parameters dictionary is Identity",
+      "id": "6.1.6.2-1",
+      "object": "CosFilter"
+    },
+    {
+      "description": "Font names, names of colourants in Separation and DeviceN colour spaces, and structure type names, after expansion of character sequences escaped with a NUMBER SIGN (23h), if any, shall be valid UTF-8 character sequences",
+      "id": "6.1.7-1",
+      "object": "CosUnicodeName"
+    },
+    {
+      "description": "The object number and generation number shall be separated by a single white-space character. The generation number and obj keyword shall be separated by a single white-space character. The object number and endobj keyword shall each be preceded by an EOL marker. The obj and endobj keywords shall each be followed by an EOL marker",
+      "id": "6.1.8-1",
+      "object": "CosIndirect"
+    },
+    {
+      "description": "The value of the F key in the Inline Image dictionary shall not be LZW, LZWDecode, Crypt, a value not listed in ISO 32000-2:2020, 8.9.7, Table 92, or an array containing any such value",
+      "id": "6.1.9-1",
+      "object": "CosIIFilter"
+    },
+    {
+      "description": "No keys other than UR3 and DocMDP shall be present in a permissions dictionary (ISO 32000-2:2020, 12.8.6, Table 263)",
+      "id": "6.1.11-1",
+      "object": "PDPerms"
+    },
+    {
+      "description": "If the Version key is present in the document catalog dictionary, the first character in its value shall be a 2 (32h) and the second character of its value shall be a PERIOD (2Eh) (decimal point). The third character shall be a decimal digit. The number of characters of the value of the Version key shall be exactly 3",
+      "id": "6.1.12-1",
+      "object": "PDDocument"
+    },
+    {
+      "description": "Content streams shall not contain any operators not defined in ISO 32000-2:2020 even if such operators are bracketed by the BX/EX compatibility operators",
+      "id": "6.2.2-1",
+      "object": "Op_Undefined"
+    },
+    {
+      "description": "A content stream that references other objects, such as images and fonts that are necessary to fully render or process the stream, shall have an explicitly associated Resources dictionary as described in ISO 32000-2:2020, 7.8.3. Such resource dictionaries shall define all named resources referenced by this content stream",
+      "id": "6.2.2-2",
+      "object": "PDContentStream"
+    },
+    {
+      "description": "A content stream's named resources shall be defined by a resource dictionary, which shall enumerate the named resources needed by the operators in the content stream and the names by which they can be referred to",
+      "id": "6.2.2-3",
+      "object": "PDContentStream"
+    },
+    {
+      "description": "The profile stream that is the value of the DestOutputProfile key shall either be an output profile (Device Class = \"prtr\") or a monitor profile (Device Class = \"mntr\"). The profiles shall have a colour space of either \"GRAY\", \"RGB\", or \"CMYK\"",
+      "id": "6.2.3-1",
+      "object": "ICCOutputProfile"
+    },
+    {
+      "description": "If any OutputIntents array contains more than one entry, as might be the case where a file is compliant with this part of ISO 19005 and at the same time with PDF/X or PDF/E, then all entries that contain a DestOutputProfile key shall have as the value of that key the same indirect object, which shall be a valid ICC profile stream",
+      "id": "6.2.3-2",
+      "object": "OutputIntents"
+    },
+    {
+      "description": "The DestOutputProfileRef key, as defined in ISO 32000-2:2020, 14.11.5, Table 401, shall not be present in any output intent dictionary",
+      "id": "6.2.3-3",
+      "object": "PDOutputIntent"
+    },
+    {
+      "description": "The profile that forms the stream of an ICCBased colour space shall conform to ISO 32000-2:2020, 8.6.5.5",
+      "id": "6.2.4.2-1",
+      "object": "ICCInputProfile"
+    },
+    {
+      "description": "Overprint mode (as set by the OPM value in an ExtGState dictionary) shall not be one (1) when an ICCBased CMYK colour space is used for stroke and overprinting for stroke is set to true, or when ICCBased CMYK colour space is used for fill and overprinting for fill is set to true, or both",
+      "id": "6.2.4.2-2",
+      "object": "PDICCBasedCMYK"
+    },
+    {
+      "description": "An ICCBased colour space shall not be used where the profile is a CMYK destination profile and is identical to that in the current PDF/A OutputIntent or the current transparency blending colorspace",
+      "id": "6.2.4.2-3",
+      "object": "PDICCBasedCMYK"
+    },
+    {
+      "description": "DeviceRGB shall only be used if a device independent DefaultRGB colour space has been set when the DeviceRGB colour space is used or if the current transparency blending space, when the DeviceRGB colour space is used, is a device independent RGB-based colour space or the current PDF/A OutputIntent, when the DeviceRGB colour space is used, contains an 'RGB ' destination profile",
+      "id": "6.2.4.3-2",
+      "object": "PDDeviceRGB"
+    },
+    {
+      "description": "DeviceCMYK shall only be used if a device independent DefaultCMYK colour space has been set when the DeviceCMYK colour space is used or if the current transparency blending space, when the DeviceCMYK colour space is used, is a device independent CMYK-based colour space or the current PDF/A OutputIntent, when the DeviceCMYK colour space is used, contains a 'CMYK' destination profile",
+      "id": "6.2.4.3-3",
+      "object": "PDDeviceCMYK"
+    },
+    {
+      "description": "DeviceGray shall only be used if a device independent DefaultGray colour space has been set when the DeviceGray colour space is used, or if a PDF/A OutputIntent is in effect",
+      "id": "6.2.4.3-4",
+      "object": "PDDeviceGray"
+    },
+    {
+      "description": "For any spot colour used in a DeviceN or NChannel colour space, an entry in the Colorants dictionary shall be present",
+      "id": "6.2.4.4-1",
+      "object": "PDDeviceN"
+    },
+    {
+      "description": "All Separation arrays within a single conforming PDF/A-4 file (including those in Colorants dictionaries) that have the same name shall have the same tintTransform and alternateSpace. In evaluating equivalence, the PDF objects shall be compared, rather than the computational result of the use of those PDF objects. Compression and whether or not an object is direct or indirect shall be ignored",
+      "id": "6.2.4.4-2",
+      "object": "PDSeparation"
+    },
+    {
+      "description": "A graphics state parameter dictionary (ISO 32000-2:2020, 8.4.5) shall not contain the TR key",
+      "id": "6.2.5-1",
+      "object": "PDExtGState"
+    },
+    {
+      "description": "A graphics state parameter dictionary shall not contain the TR2 key with a value other than Default",
+      "id": "6.2.5-2",
+      "object": "PDExtGState"
+    },
+    {
+      "description": "A graphics state parameter dictionary shall not contain the HTO key",
+      "id": "6.2.5-3",
+      "object": "PDExtGState"
+    },
+    {
+      "description": "All halftones in a conforming PDF/A-4 file shall have the value 1 or 5 for the HalftoneType key",
+      "id": "6.2.5-4",
+      "object": "PDHalftone"
+    },
+    {
+      "description": "Halftones in a conforming PDF/A-4 file shall not contain a HalftoneName key",
+      "id": "6.2.5-5",
+      "object": "PDHalftone"
+    },
+    {
+      "description": "The TransferFunction key in a halftone dictionary shall be used only as required by ISO 32000-2:2020",
+      "id": "6.2.5-6",
+      "object": "PDHalftone"
+    },
+    {
+      "description": "An Image dictionary shall not contain the Alternates key",
+      "id": "6.2.7.1-1",
+      "object": "PDXImage"
+    },
+    {
+      "description": "An Image dictionary shall not contain the OPI key",
+      "id": "6.2.7.1-2",
+      "object": "PDXImage"
+    },
+    {
+      "description": "If an Image dictionary contains the Interpolate key, its value shall be false. For an inline image, the I key, if present, shall have a value of false",
+      "id": "6.2.7.1-3",
+      "object": "PDXImage"
+    },
+    {
+      "description": "If an Image dictionary contains the BitsPerComponent key, its value shall be 1, 2, 4, 8 or 16",
+      "id": "6.2.7.1-4",
+      "object": "PDXImage"
+    },
+    {
+      "description": "If an image mask dictionary contains the BitsPerComponent key, its value shall be 1",
+      "id": "6.2.7.1-5",
+      "object": "PDMaskImage"
+    },
+    {
+      "description": "The number of colour channels in the JPEG2000 data shall be 1, 3 or 4",
+      "id": "6.2.7.3-1",
+      "object": "JPEG2000"
+    },
+    {
+      "description": "If the number of colour space specifications in the JPEG2000 data is greater than 1, there shall be exactly one colour space specification that has the value 0x01 in the APPROX field",
+      "id": "6.2.7.3-2",
+      "object": "JPEG2000"
+    },
+    {
+      "description": "The value of the METH entry in its 'colr' box shall be 0x01, 0x02 or 0x03. A conforming processor shall use only that colour space and shall ignore all other colour space specifications",
+      "id": "6.2.7.3-3",
+      "object": "JPEG2000"
+    },
+    {
+      "description": "JPEG2000 enumerated colour space 19 (CIEJab) shall not be used",
+      "id": "6.2.7.3-4",
+      "object": "JPEG2000"
+    },
+    {
+      "description": "The bit-depth of the JPEG2000 data shall have a value in the range 1 to 38. All colour channels in the JPEG2000 data shall have the same bit-depth",
+      "id": "6.2.7.3-5",
+      "object": "JPEG2000"
+    },
+    {
+      "description": "A form XObject dictionary shall not contain an OPI key",
+      "id": "6.2.8.1-1",
+      "object": "PDXForm"
+    },
+    {
+      "description": "A conforming file shall not contain any reference XObjects",
+      "id": "6.2.8.2-1",
+      "object": "PDXForm"
+    },
+    {
+      "description": "Only blend modes that are specified in ISO 32000-2:2020 shall be used for the value of the BM key in a graphic state dictionary or an annotation dictionary",
+      "id": "6.2.9-1",
+      "object": "CosBM"
+    },
+    {
+      "description": "If the document does not contain a PDF/A output intent, then all pages that contain transparency shall either have a page-level PDF/A output intent or the page dictionary shall include the Group key, and the attribute dictionary that forms the value of that Group key shall include a CS entry whose value shall be used as the default blending colour space",
+      "id": "6.2.9-2",
+      "object": "PDPage"
+    },
+    {
+      "description": "All fonts and font programs used in a conforming file, regardless of rendering mode usage, shall conform to the provisions in ISO 32000-2:2020, 9.6 and 9.7, as well as to the font specifications referenced by these provisions. Type - name - (Required) The type of PDF object that this dictionary describes; must be Font for a font dictionary",
+      "id": "6.2.10.2-1",
+      "object": "PDFont"
+    },
+    {
+      "description": "All fonts and font programs used in a conforming file, regardless of rendering mode usage, shall conform to the provisions in ISO 32000-2:2020, 9.6 and 9.7, as well as to the font specifications referenced by these provisions. Subtype - name - (Required) The type of font; must be \"Type1\" for Type 1 fonts, \"MMType1\" for multiple master fonts, \"TrueType\" for TrueType fonts \"Type3\" for Type 3 fonts, \"Type0\" for Type 0 fonts and \"CIDFontType0\" or \"CIDFontType2\" for CID fonts",
+      "id": "6.2.10.2-2",
+      "object": "PDFont"
+    },
+    {
+      "description": "All fonts and font programs used in a conforming file, regardless of rendering mode usage, shall conform to the provisions in ISO 32000-2:2020, 9.6 and 9.7, as well as to the font specifications referenced by these provisions. BaseFont - name - (Required) The PostScript name of the font",
+      "id": "6.2.10.2-3",
+      "object": "PDFont"
+    },
+    {
+      "description": "All fonts and font programs used in a conforming file, regardless of rendering mode usage, shall conform to the provisions in ISO 32000-2:2020, 9.6 and 9.7, as well as to the font specifications referenced by these provisions. FirstChar - integer - (Required except for the standard 14 fonts) The first character code defined in the font's Widths array",
+      "id": "6.2.10.2-4",
+      "object": "PDSimpleFont"
+    },
+    {
+      "description": "All fonts and font programs used in a conforming file, regardless of rendering mode usage, shall conform to the provisions in ISO 32000-2:2020, 9.6 and 9.7, as well as to the font specifications referenced by these provisions. LastChar - integer - (Required except for the standard 14 fonts) The last character code defined in the font's Widths array",
+      "id": "6.2.10.2-5",
+      "object": "PDSimpleFont"
+    },
+    {
+      "description": "All fonts and font programs used in a conforming file, regardless of rendering mode usage, shall conform to the provisions in ISO 32000-2:2020, 9.6 and 9.7, as well as to the font specifications referenced by these provisions. Widths - array - (Required except for the standard 14 fonts; indirect reference preferred) An array of (LastChar − FirstChar + 1) widths",
+      "id": "6.2.10.2-6",
+      "object": "PDSimpleFont"
+    },
+    {
+      "description": "All fonts used in a conforming file shall conform to the font specifications defined in PDF Reference 5.5. The subtype is the value of the Subtype key, if present, in the font file stream dictionary. The only valid values of this key in PDF 2.0 are Type1C - Type 1–equivalent font program represented in the Compact Font Format (CFF), CIDFontType0C - Type 0 CIDFont program represented in the Compact Font Format (CFF) and OpenType - OpenType® font program, as described in the ISO/IEC 14496-22",
+      "id": "6.2.10.2-7",
+      "object": "PDFont"
+    },
+    {
+      "description": "For any given composite (Type 0) font within a conforming file, the CIDSystemInfo entry in its CIDFont dictionary and its Encoding dictionary shall have the following relationship: - If the Encoding key in the Type 0 font dictionary has a value of Identity-H or Identity-V, then any values for the Registry, Ordering, and Supplement keys may be used in the CIDSystemInfo dictionary of the CIDFont. - Otherwise the corresponding values of the Registry and Ordering keys in both CIDSystemInfo dictionaries shall be identical, and the value of the Supplement key in the CIDSystemInfo dictionary of the CIDFont shall be less than or equal to the value of the Supplement key in the CIDSystemInfo dictionary of the CMap",
+      "id": "6.2.10.3.1-1",
+      "object": "PDType0Font"
+    },
+    {
+      "description": "ISO 32000-2:2020, 9.7.4 Table 115 requires that all embedded Type 2 CIDFonts, the CIDFont dictionary shall contain a CIDToGIDMap entry that shall be a stream mapping from CIDs to glyph indices or the name Identity, as described in ISO 32000-2:2020, 9.7.4 Table 115",
+      "id": "6.2.10.3.2-1",
+      "object": "PDCIDFont"
+    },
+    {
+      "description": "All CMaps used within a conforming PDF/A-4 file, except those listed in ISO 32000-2:2020, 9.7.5.2 Table 116, shall be embedded in that file as described in ISO 32000-2:2020, 9.7.5",
+      "id": "6.2.10.3.3-1",
+      "object": "PDCMap"
+    },
+    {
+      "description": "For those CMaps that are embedded, the integer value of the WMode entry in the CMap dictionary shall be identical to the WMode value in the embedded CMap stream",
+      "id": "6.2.10.3.3-2",
+      "object": "CMapFile"
+    },
+    {
+      "description": "A CMap shall not reference any other CMap except those listed in ISO 32000-2:2020, 9.7.5.2 Table 116",
+      "id": "6.2.10.3.3-3",
+      "object": "PDReferencedCMap"
+    },
+    {
+      "description": "The font programs for all fonts used for rendering within a conforming file shall be embedded within that file, as defined in ISO 32000-2:2020, 9.9",
+      "id": "6.2.10.4.1-1",
+      "object": "PDFont"
+    },
+    {
+      "description": "Embedded fonts shall define all glyphs referenced for rendering within the conforming file. A font referenced for use solely in rendering mode 3 is therefore not rendered and is thus exempt from the embedding requirement. In all cases for TrueType fonts that are to be rendered, character codes shall be able to be mapped to glyphs according to ISO 32000-2:2020, 9.6.5 without the use of a non-standard mapping chosen by the conforming processor",
+      "id": "6.2.10.4.1-2",
+      "object": "Glyph"
+    },
+    {
+      "description": "For every font embedded in a conforming file, the glyph width information in the font dictionary and in the embedded font program shall be consistent for every glyph referenced for rendering. Glyphs that are referenced only with rendering mode 3 are exempt from this requirement",
+      "id": "6.2.10.5-1",
+      "object": "Glyph"
+    },
+    {
+      "description": "For all non-symbolic TrueType fonts used for rendering, the embedded TrueType font program shall contain at least Microsoft Unicode (3,1 – Platform ID=3, Encoding ID=1), or Macintosh Roman (1,0 – Platform ID=1, Encoding ID=0) 'cmap' subtable that all necessary glyph lookups are able to be carried out",
+      "id": "6.2.10.6-1",
+      "object": "TrueTypeFontProgram"
+    },
+    {
+      "description": "All non-symbolic TrueType fonts shall have either MacRomanEncoding or WinAnsiEncoding as the value for the Encoding key in the Font dictionary or as the value for the BaseEncoding key in the dictionary which is the value of the Encoding key in the Font dictionary. In addition, no non-symbolic TrueType font shall define a Differences array unless all of the glyph names in the Differences array are listed in the Adobe Glyph List and, if the font program is embedded, it shall contain at least the Microsoft Unicode (3,1 – Platform ID = 3, Encoding ID = 1) encoding in the 'cmap' subtable",
+      "id": "6.2.10.6-2",
+      "object": "PDTrueTypeFont"
+    },
+    {
+      "description": "Symbolic TrueType fonts shall not contain an Encoding entry in the font dictionary",
+      "id": "6.2.10.6-3",
+      "object": "PDTrueTypeFont"
+    },
+    {
+      "description": "The 'cmap' subtable in the embedded font program for a symbolic TrueType font shall contain either the Microsoft Symbol (3,0 – Platform ID=3, Encoding ID=0) or the Mac Roman (1,0 – Platform ID=1, Encoding ID=0) encoding",
+      "id": "6.2.10.6-4",
+      "object": "TrueTypeFontProgram"
+    },
+    {
+      "description": "If a ToUnicode CMap is present, the Unicode values specified there shall all be greater than zero (0), but not equal to either U+FEFF or U+FFFE",
+      "id": "6.2.10.7-1",
+      "object": "Glyph"
+    },
+    {
+      "description": "The ActualText entry shall not contain any PUA values",
+      "id": "6.2.10.8-1",
+      "object": "CosActualText"
+    },
+    {
+      "description": "A PDF/A-4 compliant document shall not contain a reference to the .notdef glyph from any of the text showing operators, regardless of text rendering mode, in any content stream",
+      "id": "6.2.10.9-1",
+      "object": "Glyph"
+    },
+    {
+      "description": "Annotation types not defined in ISO 32000-2:2020, 12.5.6.1, Table 171 shall not be permitted. Additionally, the Sound, Screen, Movie, 3D, RichMedia and FileAttachment types shall not be permitted",
+      "id": "6.3.1-1",
+      "object": "PDAnnot"
+    },
+    {
+      "description": "Except for annotation dictionaries whose Subtype value is Popup, all annotation dictionaries shall contain the F key",
+      "id": "6.3.2-1",
+      "object": "PDAnnot"
+    },
+    {
+      "description": "If present, the F key's Print flag bit shall be set to 1 and its Hidden, Invisible, ToggleNoView, and NoView flag bits shall be set to 0",
+      "id": "6.3.2-2",
+      "object": "PDAnnot"
+    },
+    {
+      "description": "Every annotation (including those whose Subtype value is Widget, as used for form fields), except for the two cases listed below, shall have at least one appearance dictionary: Annotations where the value of the Rect key consists of an array where the value at index 1 is equal to the value at index 3 and the value at index 2 is equal to the value at index 4; - annotations whose Subtype value is Popup, Link or Projection",
+      "id": "6.3.3-1",
+      "object": "PDAnnot"
+    },
+    {
+      "description": "For all annotation dictionaries containing an AP key, the appearance dictionary that it defines as its value shall contain only the N key",
+      "id": "6.3.3-2",
+      "object": "PDAnnot"
+    },
+    {
+      "description": "If an annotation dictionary's Subtype key has a value of Widget and its FT key has a value of Btn, the value of the N key shall be an appearance subdictionary",
+      "id": "6.3.3-3",
+      "object": "PDAnnot"
+    },
+    {
+      "description": "If an annotation dictionary's Subtype key has value other than Widget, or if FT key associated with Widget annotation has value other than Btn, the value of the N key shall be an appearance stream",
+      "id": "6.3.3-4",
+      "object": "PDAnnot"
+    },
+    {
+      "description": "A Widget annotation dictionary shall not contain the A key",
+      "id": "6.4.1-1",
+      "object": "PDWidgetAnnot"
+    },
+    {
+      "description": "The NeedAppearances flag of the interactive form dictionary shall either not be present or shall be false",
+      "id": "6.4.1-2",
+      "object": "PDAcroForm"
+    },
+    {
+      "description": "The document's interactive form dictionary that forms the value of the AcroForm key in the document's Catalog of a PDF/A-4 file, if present, shall not contain the XFA key",
+      "id": "6.4.2-1",
+      "object": "PDAcroForm"
+    },
+    {
+      "description": "A document's Catalog shall not contain the NeedsRendering key",
+      "id": "6.4.2-2",
+      "object": "CosDocument"
+    },
+    {
+      "description": "The Launch, Sound, Movie, ResetForm, ImportData, Hide, Rendition, Trans, SetOCGState and GoTo3DView actions shall not be permitted. Additionally, the obsoleted set-state and no-op actions shall not be permitted",
+      "id": "6.6.1-1",
+      "object": "PDAction"
+    },
+    {
+      "description": "Named actions other than NextPage, PrevPage, FirstPage, and LastPage shall not be permitted",
+      "id": "6.6.1-2",
+      "object": "PDNamedAction"
+    },
+    {
+      "description": "If a document catalog dictionary or page dictionary or an annotation dictionary (other than a Widget annotation dictionary) include an AA entry, its value (which is an additional-actions dictionary) shall only contain keys from the following list: E, X, D, U, Fo, and Bl",
+      "id": "6.6.3-1",
+      "object": "PDAdditionalActions"
+    },
+    {
+      "description": "The document catalog dictionary of a conforming file shall contain the Metadata key whose value is a metadata stream as defined in ISO 32000-2:2020, 14.3.2. The metadata stream dictionary shall contain entry Type with value /Metadata and entry Subtype with value /XML",
+      "id": "6.7.2.1-1",
+      "object": "PDDocument"
+    },
+    {
+      "description": "The bytes attribute shall not be used in the header of an XMP packet",
+      "id": "6.7.2.1-2",
+      "object": "XMPPackage"
+    },
+    {
+      "description": "The encoding attribute shall not be used in the header of an XMP packet",
+      "id": "6.7.2.1-3",
+      "object": "XMPPackage"
+    },
+    {
+      "description": "All content of all XMP packets located in any metadata stream present in the PDF shall be well-formed as defined by XMP (ISO 16684-1)",
+      "id": "6.7.2.1-4",
+      "object": "XMPPackage"
+    },
+    {
+      "description": "All metadata streams present in the PDF shall conform to the XMP Specification. The XMP package must be encoded as UTF-8",
+      "id": "6.7.2.1-5",
+      "object": "XMPPackage"
+    },
+    {
+      "description": "The PDF/A version and conformance level of a file shall be specified using the PDF/A Identification extension schema. The PDF/A Identification schema defined in Table 2 uses the namespace URI \"http://www.aiim.org/pdfa/ns/id/\"",
+      "id": "6.7.3-1",
+      "object": "MainXMPPackage"
+    },
+    {
+      "description": "The value of \"pdfaid:part\" shall be the part number of ISO 19005 to which the file conforms",
+      "id": "6.7.3-2",
+      "object": "PDFAIdentification"
+    },
+    {
+      "description": "A file that does not conform to either PDF/A-4e or PDF/A-4f shall not provide any \"pdfaid:conformance\"",
+      "id": "6.7.3-3",
+      "object": "PDFAIdentification"
+    },
+    {
+      "description": "Property \"part\" of the PDF/A Identification Schema shall have namespace prefix \"pdfaid\"",
+      "id": "6.7.3-4",
+      "object": "PDFAIdentification"
+    },
+    {
+      "description": "The value of \"pdfaid:rev\" shall be \"2020\"",
+      "id": "6.7.3-5",
+      "object": "PDFAIdentification"
+    },
+    {
+      "description": "Property \"rev\" of the PDF/A Identification Schema shall have namespace prefix \"pdfaid\"",
+      "id": "6.7.3-6",
+      "object": "PDFAIdentification"
+    },
+    {
+      "description": "The embedded file stream dictionary shall include a valid MIME type value for the Subtype key. If the MIME type is not known, the value \"application/octet-stream\" shall be used",
+      "id": "6.9-1",
+      "object": "EmbeddedFile"
+    },
+    {
+      "description": "The file specification dictionary for an embedded file shall contain the F and UF keys",
+      "id": "6.9-2",
+      "object": "CosFileSpecification"
+    },
+    {
+      "description": "All of the embedded files shall be compliant with ISO 19005-1, 19005-2 or 19005-4",
+      "id": "6.9-3",
+      "object": "EmbeddedFile"
+    },
+    {
+      "description": "Each embedded file’s file specification dictionary shall contain an AFRelationship key (ISO 32000-2, 7.11.3) that describes how this embedded file relates to the content of the PDF",
+      "id": "6.9-4",
+      "object": "CosFileSpecification"
+    },
+    {
+      "description": "Each optional content configuration dictionary that forms the value of the D key, or that is an element in the array that forms the value of the Configs key in the OCProperties dictionary, shall contain the Name key",
+      "id": "6.10-1",
+      "object": "PDOCConfig"
+    },
+    {
+      "description": "Each optional content configuration dictionary shall contain the Name key, whose value shall be unique amongst all optional content configuration dictionaries within the PDF/A-4 file",
+      "id": "6.10-2",
+      "object": "PDOCConfig"
+    },
+    {
+      "description": "If an optional content configuration dictionary contains the Order key, the array which is the value of this Order key shall contain references to all OCGs in the conforming file",
+      "id": "6.10-3",
+      "object": "PDOCConfig"
+    },
+    {
+      "description": "There shall be no AlternatePresentations entry in the document's name dictionary",
+      "id": "6.11-1",
+      "object": "PDDocument"
+    },
+    {
+      "description": "There shall be no PresSteps entry in any Page dictionary",
+      "id": "6.11-2",
+      "object": "PDPage"
+    },
+    {
+      "description": "The document catalog shall not contain the Requirements key",
+      "id": "6.12-1",
+      "object": "CosDocument"
+    }
+  ],
+  "schema_version": 1,
+  "validator": {
+    "flavour": "4",
+    "name": "veraPDF",
+    "profile": "org/verapdf/pdfa/validation/PDFA-4.xml",
+    "profile_sha256": "7c1d9450d6f39c957586463354bccbf57a12713caad9a85db83dc6bd4851a07b",
+    "source": "vendor/verapdf/verapdf-greenfield-1.30.2-installer.zip",
+    "version": "1.30.2"
+  }
+}

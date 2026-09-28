@@ -16,6 +16,11 @@ CONFORMANCE = ROOT / "conformance"
 BASELINE_PATH = CONFORMANCE / "normative-baseline.json"
 MATRIX_PATH = CONFORMANCE / "capability-matrix.json"
 LEDGER_PATH = CONFORMANCE / "ledger.json"
+RULE_CATALOG_PATH = CONFORMANCE / "verapdf-pdfa4-rules.json"
+PDFA4_VALIDATOR_PATH = ROOT / "package" / "KernelPdfA4.roc"
+VERAPDF_PDFA4_PREFIX = "verapdf-pdfa4:"
+APPLICABILITY = {"applicable", "package_excluded", "pending_iso_confirmation", "rejected_by_profile"}
+LEDGER_SCHEMA_VERSION = 2
 ASSET_MANIFEST_PATH = ROOT / "assets" / "provenance.json"
 DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
 SOURCE_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
@@ -31,6 +36,7 @@ ASSET_KINDS = {
     "image",
     "test_toolchain",
     "unicode_data",
+    "validator_corpus",
 }
 
 CAPABILITIES = {
@@ -45,7 +51,7 @@ CAPABILITY_AVAILABILITY = {
     "Pdf20": "available",
     "PdfA4f": "future",
     "PdfUa2": "defined_only",
-    "StaticPdfA4": "defined_only",
+    "StaticPdfA4": "available",
     "WtpdfAccessibility": "defined_only",
     "WtpdfReuse": "defined_only",
 }
@@ -223,9 +229,23 @@ def validate_matrix(value: object) -> None:
         fail("capability-matrix.profiles", f"must equal the facade mapping {PROFILES}")
 
 
-def validate_ledger(value: object, source_ids: set[str]) -> None:
+def pdfa4_requirement_codes() -> set[str]:
+    """Ledger identifiers named by the Roc profile validator's requirement map."""
+    return set(re.findall(r'"(ROC-PDF-PDFA4-[A-Z0-9-]+)"', PDFA4_VALIDATOR_PATH.read_text(encoding="utf-8")))
+
+
+def validate_ledger(
+    value: object,
+    source_ids: set[str],
+    catalog_rules: set[str] | None = None,
+    roc_codes: set[str] | None = None,
+    static_available: bool = False,
+) -> None:
+    catalog_rules = catalog_rules if catalog_rules is not None else set()
+    roc_codes = roc_codes if roc_codes is not None else set()
     document = require_object(value, "ledger", {"schema_version", "requirements"})
-    require_version(document, "ledger")
+    if document["schema_version"] != LEDGER_SCHEMA_VERSION:
+        fail("ledger.schema_version", f"must be {LEDGER_SCHEMA_VERSION}")
     raw_requirements = document["requirements"]
     if not isinstance(raw_requirements, list) or not raw_requirements:
         fail("ledger.requirements", "must be a non-empty list")
@@ -243,6 +263,7 @@ def validate_ledger(value: object, source_ids: set[str]) -> None:
                 "references",
                 "capabilities",
                 "implementation",
+                "applicability",
                 "machine_verification",
                 "human_verification",
                 "positive_scenarios",
@@ -266,8 +287,21 @@ def validate_ledger(value: object, source_ids: set[str]) -> None:
             fail(f"{path}.capabilities", f"unknown capabilities: {sorted(unknown_capabilities)}")
         if requirement["implementation"] not in {"defined_only", "implemented", "partial", "planned"}:
             fail(f"{path}.implementation", "must be defined_only, partial, implemented, or planned")
+        applicability = requirement["applicability"]
+        if applicability not in APPLICABILITY:
+            fail(f"{path}.applicability", f"must be one of {sorted(APPLICABILITY)}")
         require_string(requirement["machine_verification"], f"{path}.machine_verification")
-        require_string(requirement["human_verification"], f"{path}.human_verification")
+        human = require_string(requirement["human_verification"], f"{path}.human_verification")
+        if applicability == "pending_iso_confirmation":
+            if requirement["implementation"] != "partial" or human == "not_required":
+                fail(path, "a pending ISO-text confirmation is partial and names its human obligation")
+        elif (
+            static_available
+            and "StaticPdfA4" in capabilities
+            and all(CAPABILITY_AVAILABILITY[capability] == "available" for capability in capabilities)
+            and requirement["implementation"] != "implemented"
+        ):
+            fail(f"{path}.implementation", "an available StaticPdfA4 capability requires every confirmed requirement to be implemented")
         scenario_values: dict[str, list[str]] = {}
         for field in ("positive_scenarios", "negative_scenarios", "external_rule_ids"):
             values = require_string_list(requirement[field], f"{path}.{field}")
@@ -285,6 +319,27 @@ def validate_ledger(value: object, source_ids: set[str]) -> None:
     if ids != sorted(set(ids)):
         fail("ledger.requirements", "requirement ids must be sorted and unique")
     requirements_by_id = {requirement["id"]: requirement for requirement in raw_requirements}
+
+    # Every rule of the pinned veraPDF PDF/A-4 profile maps to exactly one
+    # StaticPdfA4 requirement, and every Roc requirement code is a ledger id.
+    mapped: dict[str, str] = {}
+    for requirement in raw_requirements:
+        for external in requirement["external_rule_ids"]:
+            if not external.startswith(VERAPDF_PDFA4_PREFIX):
+                continue
+            rule = external.removeprefix(VERAPDF_PDFA4_PREFIX)
+            if rule not in catalog_rules:
+                fail(requirement["id"], f"unknown pinned veraPDF PDF/A-4 rule {rule}")
+            if "StaticPdfA4" not in requirement["capabilities"]:
+                fail(requirement["id"], "a veraPDF PDF/A-4 rule belongs to a StaticPdfA4 requirement")
+            if rule in mapped:
+                fail(requirement["id"], f"rule {rule} is already mapped by {mapped[rule]}")
+            mapped[rule] = requirement["id"]
+    if catalog_rules and set(mapped) != catalog_rules:
+        fail("ledger.requirements", f"unmapped pinned veraPDF PDF/A-4 rules: {sorted(catalog_rules - set(mapped))}")
+    missing_codes = roc_codes - set(ids)
+    if missing_codes:
+        fail("ledger.requirements", f"KernelPdfA4 requirement codes missing from the ledger: {sorted(missing_codes)}")
     issue_rules = {
         "ROC-PDF-PDF20-GOTO-D-DESTINATION": "pdf-issues#140",
         "ROC-PDF-PDF20-NAMED-DESTINATION-SD": "pdf-issues#162",
@@ -423,10 +478,18 @@ def validate_assets(value: object) -> None:
         fail("asset-provenance.assets", f"must cover tracked binary assets; missing={missing}, extra={extra}")
 
 
+def catalog_rule_ids() -> set[str]:
+    catalog = load(RULE_CATALOG_PATH)
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("rules"), list):
+        fail("verapdf-pdfa4-rules", "must contain a rules list")
+    return {require_string(rule.get("id"), "verapdf-pdfa4-rules.rules[].id") for rule in catalog["rules"]}
+
+
 def validate_documents(baseline: object, matrix: object, ledger: object) -> None:
     source_ids = validate_baseline(baseline)
     validate_matrix(matrix)
-    validate_ledger(ledger, source_ids)
+    static_available = CAPABILITY_AVAILABILITY["StaticPdfA4"] == "available"
+    validate_ledger(ledger, source_ids, catalog_rule_ids(), pdfa4_requirement_codes(), static_available)
 
 
 def validate_repository() -> None:
@@ -452,6 +515,24 @@ def expect_rejected(baseline: object, matrix: object, ledger: object, mutate: st
         test_matrix["capabilities"][0]["availability"] = "defined_only"
     elif mutate == "source":
         test_ledger["requirements"][0]["source_ids"] = ["unknown-source"]
+    elif mutate == "applicability":
+        test_ledger["requirements"][0]["applicability"] = "optional"
+    elif mutate == "duplicate-rule":
+        rules = [requirement for requirement in test_ledger["requirements"] if requirement["external_rule_ids"] and requirement["external_rule_ids"][0].startswith(VERAPDF_PDFA4_PREFIX)]
+        rules[1]["external_rule_ids"] = sorted(rules[1]["external_rule_ids"] + rules[0]["external_rule_ids"][:1])
+    elif mutate == "unmapped-rule":
+        rules = [requirement for requirement in test_ledger["requirements"] if requirement["external_rule_ids"] and requirement["external_rule_ids"][0].startswith(VERAPDF_PDFA4_PREFIX)]
+        rules[0]["external_rule_ids"] = rules[0]["external_rule_ids"][1:]
+        if not rules[0]["external_rule_ids"]:
+            rules[0]["external_rule_ids"] = []
+    elif mutate == "unknown-rule":
+        rules = [requirement for requirement in test_ledger["requirements"] if requirement["external_rule_ids"] and requirement["external_rule_ids"][0].startswith(VERAPDF_PDFA4_PREFIX)]
+        rules[0]["external_rule_ids"] = sorted(rules[0]["external_rule_ids"] + [VERAPDF_PDFA4_PREFIX + "9.9-9"])
+    elif mutate == "roc-code":
+        test_ledger["requirements"] = [requirement for requirement in test_ledger["requirements"] if requirement["id"] != "ROC-PDF-PDFA4-6-7-3-IDENTIFICATION"]
+    elif mutate == "pending":
+        pending = next(requirement for requirement in test_ledger["requirements"] if requirement["applicability"] == "pending_iso_confirmation")
+        pending["human_verification"] = "not_required"
     elif mutate == "issue":
         issue_requirement = next(
             requirement
@@ -489,7 +570,10 @@ def self_test() -> None:
     matrix = load(MATRIX_PATH)
     ledger = load(LEDGER_PATH)
     validate_documents(baseline, matrix, ledger)
-    for mutation in ("digest", "profile", "availability", "source", "issue"):
+    for mutation in (
+        "digest", "profile", "availability", "source", "issue", "applicability",
+        "duplicate-rule", "unmapped-rule", "unknown-rule", "roc-code", "pending",
+    ):
         expect_rejected(baseline, matrix, ledger, mutation)
     assets = load(ASSET_MANIFEST_PATH)
     validate_assets(assets)

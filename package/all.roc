@@ -50,6 +50,7 @@ package
 		KernelOutputBound,
 		KernelPageLayout,
 		KernelPageObjects,
+		KernelPdfA4,
 		KernelPdfFont,
 		KernelPdfText,
 		KernelPipelineFixture,
