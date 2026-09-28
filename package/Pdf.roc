@@ -2,6 +2,7 @@ import Color
 import Conformance
 import Document
 import Font
+import Image
 import KernelLex
 import KernelEmit
 import KernelBuiltInFont
@@ -991,5 +992,206 @@ expect {
 	match Pdf.to_bytes(document) {
 		Err(InvalidNavigation(UnknownDestinationName({ annotation: 0 }))) => True
 		_ => False
+	}
+}
+
+## White-box twins over a realistic claimed plan: text, an alpha raster
+## figure, URI and internal links, an outline, and page labels. Each twin
+## differs from the prepared plan in exactly one lowered fact or one prepared
+## text fact and must be rejected with its own ledger requirement.
+archive_twin_document : Document
+archive_twin_document = {
+	image = Image.Source.rgb8({
+		alpha: PackedAlpha({ bytes: [0, 64, 128, 255], row_stride: 2 }),
+		dimensions: { height: 2, width: 2 },
+		pixels: [20, 90, 140, 240, 180, 40, 40, 160, 90, 245, 245, 240],
+		row_stride: 6,
+	})
+	Pdf.document({
+		contents: [
+			Pdf.destination_heading("start", 1, "Archive twins"),
+			Pdf.figure(Scene.drawing({}).image(image, Layout.rect(0, 0, 120, 120)), "A two by two translucent raster", Pdf.no_caption),
+			Pdf.link("Specification", "https://example.com/pdfa"),
+			Pdf.internal_link("Back to start", "start"),
+		],
+		language: "en-AU",
+		title: "Archive twins",
+	})
+		.with_outline([{ depth: 0, destination: "start", open: True, title: "Start" }])
+		.with_page_labels([{ prefix: "T-", start_number: 1, start_page: 0, style: DecimalArabic }])
+}
+
+archive_twin_options : Pdf.Options
+archive_twin_options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+
+archive_twin_packet : Str -> KernelXmp.Packet
+archive_twin_packet = |title| match KernelMetadata.validate({ created: Omitted, language: "en-AU", modified: Omitted, title }, standard_metadata_limits) {
+	Ok(validated) => match KernelXmp.Packet.build_identified(validated.facts, PdfA4Identification, standard_xmp_bytes) {
+		Ok(packet) => packet
+		Err(_) => {
+			crash "archive twin packet failed"
+		}
+	}
+	Err(_) => {
+		crash "archive twin metadata failed"
+	}
+}
+
+archive_twin_pipeline : Pdf.Options -> KernelFacadeOutput.Plan
+archive_twin_pipeline = |options| {
+	font = match selected_font(options) {
+		Ok(value) => value
+		Err(_) => {
+			crash "archive twin font failed"
+		}
+	}
+	facts = WithDocumentFacts({
+		condition_identifier: KernelMetadata.srgb_condition_identifier,
+		profile: Color.ProfileId.from_index(0),
+		registry_name: KernelMetadata.icc_registry_name,
+		language: "en-AU",
+		xmp: KernelXmp.Packet.bytes(archive_twin_packet("Archive twins")),
+	})
+	match KernelFacadePipeline.Plan.build_with_facts(Document.normalize(archive_twin_document), font, options.theme, layout_page_size(A4), standard_font_descriptor, facts, standard_pipeline_limits) {
+		Ok(pipeline) => KernelFacadePipeline.Plan.output(pipeline)
+		Err(_) => {
+			crash "archive twin pipeline failed"
+		}
+	}
+}
+
+ArchiveTwinOutcome : [Accepted, Rejected(KernelPdfA4.Requirement)]
+
+## Validate one white-box store mutation of the claimed twin plan.
+archive_twin_lowered : (KernelObject.Store -> KernelObject.Store) -> ArchiveTwinOutcome
+archive_twin_lowered = |mutate| {
+	plan = KernelFacadeOutput.Plan.structure(archive_twin_pipeline(archive_twin_options))
+	store = mutate(KernelSeal.Plan.store(KernelStructure.Plan.sealed(plan)))
+	builder = KernelObject.init(archive_twin_store_limits)
+	sealed = match KernelSeal.seal({ ..builder, store }) {
+		Ok(value) => value
+		Err(_) => {
+			crash "archive twin mutation broke the sealed store shape"
+		}
+	}
+	match KernelPdfA4.validate_lowered(StaticPdfA4Claim, { packet: archive_twin_packet("Archive twins"), root: KernelStructure.Plan.root(plan), sealed }) {
+		Ok(_) => Accepted
+		Err(found) => Rejected(found.requirement)
+	}
+}
+
+archive_twin_store_limits : KernelObject.Limits
+archive_twin_store_limits = {
+	max_array_items: 10000000,
+	max_byte_string_bytes: 100000000,
+	max_byte_strings: 10000000,
+	max_dictionary_entries: 10000000,
+	max_direct_depth: 64,
+	max_name_bytes: 10000000,
+	max_names: 10000000,
+	max_objects: 10000000,
+	max_payload_bytes: 1000000000,
+	max_payloads: 10000000,
+	max_streams: 10000000,
+	max_text_string_bytes: 100000000,
+	max_text_strings: 10000000,
+	max_values: 10000000,
+}
+
+## Replace the spelling of the first interned name equal to `from`.
+archive_twin_rename : Str, Str -> (KernelObject.Store -> KernelObject.Store)
+archive_twin_rename = |from, to| |store| {
+	var $names = store.names
+	var $index = 0
+	var $done = False
+	while !$done and $index < $names.len() {
+		if KernelLex.Name.bytes(twin_at($names, $index)) == Str.to_utf8(from) {
+			replacement = match KernelLex.Name.from_bytes(Str.to_utf8(to)) {
+				Ok(name) => name
+				Err(_) => {
+					crash "archive twin replacement name is invalid"
+				}
+			}
+			$names = match $names.set($index, replacement) {
+				Ok(updated) => updated
+				Err(_) => $names
+			}
+			$done = True
+		}
+		$index = $index + 1
+	}
+	{ ..store, names: $names }
+}
+
+## Rewrite the value of every dictionary entry keyed `key`.
+archive_twin_rewrite : Str, KernelObject.Value -> (KernelObject.Store -> KernelObject.Store)
+archive_twin_rewrite = |key, value| |store| {
+	var $values = store.values
+	var $entry = 0
+	while $entry < store.dictionary_entries.len() {
+		entry = twin_at(store.dictionary_entries, $entry)
+		if KernelLex.Name.bytes(twin_at(store.names, KernelObject.NameId.index(entry.key))) == Str.to_utf8(key) {
+			$values = match $values.set(KernelObject.ValueId.index(entry.value), value) {
+				Ok(updated) => updated
+				Err(_) => $values
+			}
+		}
+		$entry = $entry + 1
+	}
+	{ ..store, values: $values }
+}
+
+## The unmutated claimed plan is eligible.
+expect archive_twin_lowered(|store| store) == Accepted
+
+## Annotation flags: a hidden or unprintable link is rejected.
+expect archive_twin_lowered(archive_twin_rewrite("F", Integer(0))) == Rejected(AnnotationFlags)
+	and archive_twin_lowered(archive_twin_rewrite("F", Integer(6))) == Rejected(AnnotationFlags)
+		and archive_twin_lowered(archive_twin_rewrite("F", Integer(4 + 32))) == Rejected(AnnotationFlags)
+
+## Actions: a non-whitelisted action type, and a URI action retyped as a
+## non-link annotation.
+expect archive_twin_lowered(archive_twin_rename("URI", "Launch")) == Rejected(Actions)
+	and archive_twin_lowered(archive_twin_rename("Link", "Widget")) == Rejected(AnnotationTypes)
+
+## Images: interpolation, an unsupported bit depth, and OPI data.
+expect archive_twin_lowered(archive_twin_rewrite("BitsPerComponent", Integer(3))) == Rejected(ImageDictionary)
+	and archive_twin_lowered(archive_twin_rename("BitsPerComponent", "Interpolate")) == Rejected(ImageDictionary)
+		and archive_twin_lowered(archive_twin_rename("Width", "OPI")) == Rejected(ImageDictionary)
+
+## Fonts: a simple font subtype, a non-FontFile2 program, and a CIDFont
+## without CIDToGIDMap.
+expect archive_twin_lowered(archive_twin_rename("Type0", "TrueType")) == Rejected(FontDictionary)
+	and archive_twin_lowered(archive_twin_rename("FontFile2", "FontFile3")) == Rejected(FontEmbedding)
+		and archive_twin_lowered(archive_twin_rename("CIDToGIDMap", "CIDToGIDMapz")) == Rejected(CompositeFont)
+
+## Package exclusions reachable as keys anywhere in the plan.
+expect archive_twin_lowered(archive_twin_rename("Lang", "JS")) == Rejected(Actions)
+	and archive_twin_lowered(archive_twin_rename("Lang", "OC")) == Rejected(OptionalContent)
+		and archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(EmbeddedFiles)
+			and archive_twin_lowered(archive_twin_rename("Lang", "PresSteps")) == Rejected(Presentations)
+				and archive_twin_lowered(archive_twin_rename("Lang", "Ref")) == Rejected(ReferenceXObject)
+					and archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
+						and archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
+
+## Stream dictionaries must not reference external file data.
+expect archive_twin_lowered(archive_twin_rename("Length1", "FFilter")) == Rejected(StreamExternal)
+
+## Profile-stage twins over the prepared text facts of the same plan.
+expect {
+	facts = KernelFacadeOutput.Plan.text_facts(archive_twin_pipeline(archive_twin_options))
+	clean = KernelPdfA4.validate_text(StaticPdfA4Claim, facts)
+	bom = KernelPdfA4.validate_text(StaticPdfA4Claim, { ..facts, mappings: facts.mappings.append([{ cid: 1, scalars: [0xFEFF] }]) })
+	private = KernelPdfA4.validate_text(StaticPdfA4Claim, { ..facts, actual_text: PrivateUseInRun(0) })
+	clean.is_ok()
+		and bom == Err({ position: facts.mappings.map(|font| font.len()).sum(), requirement: ToUnicodeValues })
+			and private == Err({ position: 0, requirement: ActualTextPrivateUse })
+}
+
+twin_at : List(a), U64 -> a
+twin_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "archive twin index escaped"
 	}
 }
