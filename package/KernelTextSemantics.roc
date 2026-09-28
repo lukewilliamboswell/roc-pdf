@@ -278,14 +278,17 @@ test_store = {
 	assertions: [],
 	attribute_roles: [],
 	attributes: [],
-	content_spine: [ContentOccurrence(Semantics.OccurrenceId.from_index(0))],
+	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContentOccurrence(Semantics.OccurrenceId.from_index(0))],
 	contextual_artifacts: [],
 	document_root: Semantics.NodeId.from_index(0),
 	element_identifiers: [],
 	fragments: [{ content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: UnicodeRange(full_range) }],
 	mathml_subtrees: [],
 	namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
-	nodes: [{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range }],
+	nodes: [
+		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(1, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+	],
 	non_text_sources: [],
 	occurrence_fragments: [],
 	occurrences: [{ fragments: empty_range, id: Semantics.OccurrenceId.from_index(0), language: Inherited, source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(full_range)), text_properties: Semantics.Range.from_start_and_length(0, 1) }],
@@ -296,7 +299,7 @@ test_store = {
 }
 
 semantic_limits : KernelSemantics.Limits
-semantic_limits = KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 1, max_fragments: 1, max_namespaces: 1, max_nodes: 1, max_occurrences: 1, max_semantic_depth: 1 })
+semantic_limits = KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })
 
 text_limits : KernelTextSemantics.Limits
 text_limits = KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 2, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 })
@@ -340,7 +343,7 @@ expect {
 ## Text-property ownership stays unique across nodes and occurrences.
 expect {
 	node = list_at(test_store.nodes, 0)
-	bad = { ..test_store, nodes: [{ ..node, text_properties: Semantics.Range.from_start_and_length(0, 1) }] }
+	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.Range.from_start_and_length(0, 1) }) }
 	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
 		Err(DuplicateTextPropertyOwnership({ property: 0 })) => True
 		_ => False
@@ -360,7 +363,7 @@ expect {
 ## per-owner marking result.
 expect {
 	node = list_at(test_store.nodes, 0)
-	bad = { ..test_store, nodes: [{ ..node, text_properties: Semantics.Range.from_start_and_length(2, 0) }] }
+	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.Range.from_start_and_length(2, 0) }) }
 	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
 		Err(TextPropertySpanOutOfRange({ available: 1, length: 0, owner: 0, start: 2 })) => True
 		_ => False
