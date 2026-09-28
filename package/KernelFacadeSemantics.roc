@@ -1379,7 +1379,7 @@ build_store = |authoring, planning, source_plan| {
 						{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
 						authoring,
 						rich,
-						{ breaks: $break_cursor, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), role: "P", segments: breaks + 1, source_input: $source_input },
+						{ attributes: Semantics.Range.from_start_and_length(0, 0), breaks: $break_cursor, element_identifier: NoElementIdentifier, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), role: "P", segments: breaks + 1, source_input: $source_input },
 						source_plan,
 					)?
 					$content = placed.content
@@ -1496,7 +1496,7 @@ StoreBuffers : { content : List(Semantics.ContentSpineItem), nodes : List(Semant
 ## `in_language` span, which is also the effective language of the node
 ## that owns it: a node-level `/Lang` on that `Span` therefore describes all
 ## of its marked content, and no content item differs from its owner.
-place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { breaks : U64, language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, role : Str, segments : U64, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
+place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { attributes : Semantics.Range, breaks : U64, element_identifier : [HasElementIdentifier(Semantics.ElementId), NoElementIdentifier], language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, role : Str, segments : U64, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
 place_rich = |buffers, authoring, rich, at, source_plan| {
 	inlines = authoring.inlines
 	base = buffers.content.len()
@@ -1506,7 +1506,11 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		$content = $content.append(ChildNode(Semantics.NodeId.from_index(0)))
 		$slot = $slot + 1
 	}
-	var $nodes = list_set(buffers.nodes, at.node, make_node(at.node, ParentNode(at.parent), at.role, Semantics.Range.from_start_and_length(base, rich.children), Inherited))
+
+	## A table cell's attributes and identifier are written with its node
+	## here, so the caller never updates a node list it received through
+	## `?` (docs/performance/lowering-uniqueness.md).
+	var $nodes = list_set(buffers.nodes, at.node, { ..make_node(at.node, ParentNode(at.parent), at.role, Semantics.Range.from_start_and_length(base, rich.children), Inherited), attributes: at.attributes, element_identifier: at.element_identifier })
 	var $occurrences = buffers.occurrences
 	var $properties = buffers.properties
 	input_sources = KernelFacadeSources.Plan.input_sources(source_plan)
@@ -1676,16 +1680,6 @@ place_table = |store, authoring, planning, at, source_plan| {
 					HeaderCell(_) => "TH"
 					DataCell => "TD"
 				}
-				placed = place_rich(
-					{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
-					authoring,
-					rich,
-					{ breaks: $break_cursor, language: at.language, node: $cell_node, occurrence: $occurrence, parent: Semantics.NodeId.from_index(row_node), role, segments: breaks + 1, source_input: $source_input },
-					source_plan,
-				)?
-				$content = placed.content
-				$occurrences = placed.occurrences
-				$properties = placed.properties
 				attribute_start = $attributes.len()
 				if record.column_span > 1 {
 					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("ColSpan"), owner: Table, value: Integer(record.column_span.to_i64_wrap()) })
@@ -1708,8 +1702,28 @@ place_table = |store, authoring, planning, at, source_plan| {
 					}
 					DataCell => {}
 				}
-				cell = list_at(placed.nodes, $cell_node)
-				$nodes = list_set(placed.nodes, $cell_node, { ..cell, attributes: Semantics.Range.from_start_and_length(attribute_start, $attributes.len() - attribute_start), element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)) })
+				placed = place_rich(
+					{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+					authoring,
+					rich,
+					{
+						attributes: Semantics.Range.from_start_and_length(attribute_start, $attributes.len() - attribute_start),
+						breaks: $break_cursor,
+						element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)),
+						language: at.language,
+						node: $cell_node,
+						occurrence: $occurrence,
+						parent: Semantics.NodeId.from_index(row_node),
+						role,
+						segments: breaks + 1,
+						source_input: $source_input,
+					},
+					source_plan,
+				)?
+				$content = placed.content
+				$nodes = placed.nodes
+				$occurrences = placed.occurrences
+				$properties = placed.properties
 				$identifiers = $identifiers.append({ id: Semantics.ElementId.from_index(ordinal), value: cell_identifier(ordinal) })
 				$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.Range.from_start_and_length($occurrence, rich.leaves) }))
 				$occurrence = $occurrence + rich.leaves

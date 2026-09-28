@@ -639,8 +639,8 @@ append_layout = |bytes, value, limit| append_bytes(bytes, KernelLex.append_thous
 
 append_hex_u16 : List(U8), U16, U64 -> Try(List(U8), KernelPdfText.Error)
 append_hex_u16 = |bytes, value, limit| {
-	result = reserve(bytes, 4, limit)?
-	var $out = result
+	check_room(bytes.len(), 4, limit)?
+	var $out = bytes
 	$out = $out.append(hex_digit(value.shr_wrap(12).to_u8_wrap()))
 	$out = $out.append(hex_digit(value.shr_wrap(8).bitwise_and(0xf).to_u8_wrap()))
 	$out = $out.append(hex_digit(value.shr_wrap(4).bitwise_and(0xf).to_u8_wrap()))
@@ -655,7 +655,8 @@ append_literal = |bytes, literal, limit| append_bytes(bytes, Str.to_utf8(literal
 
 append_bytes : List(U8), List(U8), U64 -> Try(List(U8), KernelPdfText.Error)
 append_bytes = |bytes, added, limit| {
-	var $out = reserve(bytes, added.len(), limit)?
+	check_room(bytes.len(), added.len(), limit)?
+	var $out = bytes
 	var $index = 0
 	while $index < added.len() {
 		$out = $out.append(list_at(added, $index))
@@ -664,16 +665,21 @@ append_bytes = |bytes, added, limit| {
 	Ok($out)
 }
 
-reserve : List(U8), U64, U64 -> Try(List(U8), KernelPdfText.Error)
-reserve = |bytes, additional, limit| {
-	if bytes.len() > limit or additional > limit - bytes.len() {
-		attempted = match U64.plus_try(bytes.len(), additional) {
+## Checks that `additional` more bytes fit the content limit. It takes only
+## the length and reserves nothing: an explicit `List.reserve` sizes the
+## allocation exactly, and a list returned through `?` and then appended to
+## was copied per token by the pinned dev backend
+## (docs/performance/lowering-uniqueness.md).
+check_room : U64, U64, U64 -> Try({}, KernelPdfText.Error)
+check_room = |length, additional, limit| {
+	if length > limit or additional > limit - length {
+		attempted = match U64.plus_try(length, additional) {
 			Err(Overflow) => U64.highest
 			Ok(value) => value
 		}
 		Err(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
 	} else {
-		Ok(List.reserve(bytes, additional))
+		Ok({})
 	}
 }
 

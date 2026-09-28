@@ -421,8 +421,7 @@ add_structure_root = |builder, names, tagged, navigation, objects| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	document = list_at(semantics.nodes, semantics.document_root.index())
 	k = KernelObject.add_reference(builder, list_at(KernelObjectPlan.Plan.structure_elements(objects), document.structure_element.index())) ? Object
-	namespace_refs = add_references(k.builder, KernelObjectPlan.Plan.namespaces(objects))?
-	namespaces = KernelObject.add_array(namespace_refs.builder, namespace_refs.values) ? Object
+	namespaces = add_reference_array(k.builder, KernelObjectPlan.Plan.namespaces(objects))?
 	parent_tree = KernelObject.add_reference(namespaces.builder, KernelObjectPlan.Plan.parent_tree(objects)) ? Object
 	annotation_keys = match navigation {
 		NoNavigationLowering => 0
@@ -463,61 +462,40 @@ add_parent_tree = |builder, names, tagged, navigation, objects| {
 	var $builder = builder
 	var $numbers = List.with_capacity(rows.len() * 2)
 	var $row_index = 0
-	var $error = NoError
-	while $row_index < rows.len() and $error == NoError {
+	while $row_index < rows.len() {
 		row = list_at(rows, $row_index)
-		match KernelObject.add_integer($builder, row.content_stream.index().to_i64_wrap()) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(key) => match add_parent_entry_references(key.builder, entries, row.entries, structure) {
-				Err(error) => {
-					$error = Invalid(error)
-				}
-				Ok(references) => match KernelObject.add_array(references.builder, references.values) {
-					Err(error) => {
-						$error = Invalid(error)
-					}
-					Ok(array) => {
-						$builder = array.builder
-						$numbers = $numbers.append(key.id).append(array.id)
-					}
-				}
-			}
-		}
+		key = KernelObject.add_integer($builder, row.content_stream.index().to_i64_wrap()) ? Object
+		array = add_parent_entry_array(key.builder, entries, row.entries, structure) ? Object
+		$builder = array.builder
+		$numbers = $numbers.append(key.id).append(array.id)
 		$row_index = $row_index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => {
-			match navigation {
-				NoNavigationLowering => {}
-				WithNavigationLowering(input) => {
+	match navigation {
+		NoNavigationLowering => {}
+		WithNavigationLowering(input) => {
 
-					## One scalar ParentTree row per annotation after the
-					## content-stream rows: the key is the annotation's
-					## `/StructParent` value and the value is one direct
-					## reference to its owning structure element.
-					annotation_owners = KernelTagged.Plan.annotation_owners(tagged)
-					var $ordinal = 0
-					while $ordinal < input.ordered_annotations.len() {
-						annotation = list_at(input.ordered_annotations, $ordinal)
-						owner = list_at(annotation_owners, annotation)
-						key = KernelObject.add_integer($builder, (rows.len() + $ordinal).to_i64_wrap()) ? Object
-						value = KernelObject.add_reference(key.builder, list_at(structure, owner.index())) ? Object
-						$builder = value.builder
-						$numbers = $numbers.append(key.id).append(value.id)
-						$ordinal = $ordinal + 1
-					}
-				}
+			## One scalar ParentTree row per annotation after the
+			## content-stream rows: the key is the annotation's
+			## `/StructParent` value and the value is one direct
+			## reference to its owning structure element.
+			annotation_owners = KernelTagged.Plan.annotation_owners(tagged)
+			var $ordinal = 0
+			while $ordinal < input.ordered_annotations.len() {
+				annotation = list_at(input.ordered_annotations, $ordinal)
+				owner = list_at(annotation_owners, annotation)
+				key = KernelObject.add_integer($builder, (rows.len() + $ordinal).to_i64_wrap()) ? Object
+				value = KernelObject.add_reference(key.builder, list_at(structure, owner.index())) ? Object
+				$builder = value.builder
+				$numbers = $numbers.append(key.id).append(value.id)
+				$ordinal = $ordinal + 1
 			}
-			nums = KernelObject.add_array($builder, $numbers) ? Object
-			dictionary = KernelObject.add_dictionary(nums.builder, [{ key: names.nums, value: nums.id }]) ? Object
-			object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
-			ensure_object(object.id, KernelObjectPlan.Plan.parent_tree(objects))?
-			Ok(object.builder)
 		}
 	}
+	nums = KernelObject.add_array($builder, $numbers) ? Object
+	dictionary = KernelObject.add_dictionary(nums.builder, [{ key: names.nums, value: nums.id }]) ? Object
+	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+	ensure_object(object.id, KernelObjectPlan.Plan.parent_tree(objects))?
+	Ok(object.builder)
 }
 
 add_namespaces : KernelObject.Builder, Names, Semantics.Store, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
@@ -525,23 +503,12 @@ add_namespaces = |builder, names, semantics, objects| {
 	ids = KernelObjectPlan.Plan.namespaces(objects)
 	var $builder = builder
 	var $index = 0
-	var $error = NoError
-	while $index < semantics.namespaces.len() and $error == NoError {
+	while $index < semantics.namespaces.len() {
 		namespace = list_at(semantics.namespaces, $index)
-		match add_namespace($builder, names, namespace, list_at(ids, namespace.id.index())) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(next) => {
-				$builder = next
-			}
-		}
+		$builder = add_namespace($builder, names, namespace, list_at(ids, namespace.id.index()))?
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($builder)
-	}
+	Ok($builder)
 }
 
 add_namespace : KernelObject.Builder, Names, Semantics.Namespace, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
@@ -570,25 +537,15 @@ add_structure_elements = |builder, names, tagged, navigation, objects, catalog_l
 	var $attribute_dictionaries = 0
 	var $language_entries = 0
 	var $structure_index = 0
-	var $error = NoError
-	while $structure_index < ids.len() and $error == NoError {
+	while $structure_index < ids.len() {
 		node = list_at(semantics.nodes, list_at(nodes_by_structure, $structure_index).index())
-		match add_structure_element($builder, names, tagged, navigation, objects, catalog_language, node, list_at(ids, $structure_index)) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(next) => {
-				$builder = next.builder
-				$attribute_dictionaries = $attribute_dictionaries + next.attribute_dictionaries
-				$language_entries = $language_entries + next.language_entries
-			}
-		}
+		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, node, list_at(ids, $structure_index))?
+		$builder = next_builder
+		$attribute_dictionaries = $attribute_dictionaries + attribute_dictionaries
+		$language_entries = $language_entries + language_entries
 		$structure_index = $structure_index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ attribute_dictionaries: $attribute_dictionaries, builder: $builder, language_entries: $language_entries })
-	}
+	Ok({ attribute_dictionaries: $attribute_dictionaries, builder: $builder, language_entries: $language_entries })
 }
 
 ## One structure element dictionary. Its optional entries come only from
@@ -600,9 +557,8 @@ add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, Navigati
 add_structure_element = |builder, names, tagged, navigation, objects, catalog_language, node, expected| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	node_k = list_at(KernelTagged.Plan.node_k(tagged), node.id.index())
-	k_values = add_k_items(builder, names, KernelTagged.Plan.k_items(tagged), node_k.items, navigation, objects)?
-	k = KernelObject.add_array(k_values.builder, k_values.values) ? Object
-	ns = KernelObject.add_reference(k.builder, list_at(KernelObjectPlan.Plan.namespaces(objects), node.role.namespace.index())) ? Object
+	{ builder: with_k, id: k_id } = add_k_array(builder, names, KernelTagged.Plan.k_items(tagged), node_k.items, navigation, objects)?
+	{ builder: with_ns, id: ns_id } = KernelObject.add_reference(with_k, list_at(KernelObjectPlan.Plan.namespaces(objects), node.role.namespace.index())) ? Object
 	parent_object = match node.parent {
 		DocumentRoot => KernelObjectPlan.Plan.struct_tree_root(objects)
 		ParentNode(parent) => {
@@ -610,24 +566,24 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 			list_at(KernelObjectPlan.Plan.structure_elements(objects), parent_node.structure_element.index())
 		}
 	}
-	p = KernelObject.add_reference(ns.builder, parent_object) ? Object
-	role_name = KernelObject.add_name(p.builder, Str.to_utf8(node.role.local_name)) ? Object
-	s = KernelObject.add_name_value(role_name.builder, role_name.id) ? Object
-	type_value = add_name_value(s.builder, names.struct_elem)?
+	{ builder: with_p, id: p_id } = KernelObject.add_reference(with_ns, parent_object) ? Object
+	{ builder: with_role, id: role_id } = KernelObject.add_name(with_p, Str.to_utf8(node.role.local_name)) ? Object
+	{ builder: with_s, id: s_id } = KernelObject.add_name_value(with_role, role_id) ? Object
+	{ builder: with_type, id: type_id } = add_name_value(with_s, names.struct_elem)?
 	base_entries = if node_k.items.length() == 0 {
 		[
-			{ key: names.ns, value: ns.id },
-			{ key: names.p, value: p.id },
-			{ key: names.s, value: s.id },
-			{ key: names.type_name, value: type_value.id },
+			{ key: names.ns, value: ns_id },
+			{ key: names.p, value: p_id },
+			{ key: names.s, value: s_id },
+			{ key: names.type_name, value: type_id },
 		]
 	} else {
 		[
-			{ key: names.k, value: k.id },
-			{ key: names.ns, value: ns.id },
-			{ key: names.p, value: p.id },
-			{ key: names.s, value: s.id },
-			{ key: names.type_name, value: type_value.id },
+			{ key: names.k, value: k_id },
+			{ key: names.ns, value: ns_id },
+			{ key: names.p, value: p_id },
+			{ key: names.s, value: s_id },
+			{ key: names.type_name, value: type_id },
 		]
 	}
 	properties = node_properties(semantics, node)
@@ -637,12 +593,12 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	lowered_language = lowered_node_language(semantics, catalog_language, node)
 	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty
 	if !extras {
-		dictionary = KernelObject.add_dictionary(type_value.builder, base_entries) ? Object
-		object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
-		ensure_object(object.id, expected)?
-		return Ok({ attribute_dictionaries: 0, builder: object.builder, language_entries: 0 })
+		{ builder: with_dictionary, id: dictionary_id } = KernelObject.add_dictionary(with_type, base_entries) ? Object
+		{ builder: with_object, id: object_id } = KernelObject.add_object(with_dictionary, dictionary_id) ? Object
+		ensure_object(object_id, expected)?
+		return Ok({ attribute_dictionaries: 0, builder: with_object, language_entries: 0 })
 	}
-	attributes = add_attribute_value(type_value.builder, semantics, node)?
+	attributes = add_attribute_value(with_type, semantics, node)?
 	actual = add_text_entry(attributes.builder, "ActualText", properties.actual)?
 	alternative = add_text_entry(actual.builder, "Alt", properties.alternative)?
 	expansion = add_text_entry(alternative.builder, "E", properties.expansion)?
@@ -971,39 +927,44 @@ add_id_tree = |builder, semantics, objects| {
 	Ok(emitted.builder)
 }
 
-add_k_items : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelTaggedObjects.Error)
-add_k_items = |builder, names, items, range, navigation, objects| {
+## The `/K` array of one element: its kids' values, then the array value.
+##
+## Helpers that lower a variable number of values build their array
+## themselves and return only the builder and its id. Returning the builder
+## beside the value list, as `Try({ builder, values })`, made the pinned dev
+## backend treat the builder's store lists as shared once the caller passed
+## both on, so the next append copied every list once per element
+## (docs/performance/lowering-uniqueness.md).
+add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
+add_k_array = |builder, names, items, range, navigation, objects| {
 	var $builder = builder
 	var $values = List.with_capacity(range.length())
 	var $index = range.start()
 	end = range.start() + range.length()
-	var $error = NoError
-	while $index < end and $error == NoError {
-		item = list_at(items, $index)
-		added = match item {
-			AnnotationChild(annotation) => match navigation {
-				NoNavigationLowering => return Err(AnnotationObjectUnplanned({ annotation: annotation.index() }))
-				WithNavigationLowering(input) => add_objr($builder, names, input, annotation, objects)
-			}
-			ChildStructure(child) => KernelObject.add_reference($builder, list_at(KernelObjectPlan.Plan.structure_elements(objects), child.index()))
-			ContextualArtifactChild(artifact) => KernelObject.add_reference($builder, list_at(KernelObjectPlan.Plan.contextual_artifacts(objects), artifact.index()))
-			MarkedContent(reference) => add_mcr($builder, names, reference, objects)
-		}
-		match added {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(value) => {
-				$builder = value.builder
-				$values = $values.append(value.id)
-			}
-		}
+	while $index < end {
+		value = add_k_item($builder, names, list_at(items, $index), navigation, objects)?
+		$builder = value.builder
+		$values = $values.append(value.id)
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => Ok({ builder: $builder, values: $values })
+	array = KernelObject.add_array($builder, $values) ? Object
+	Ok(array)
+}
+
+## One `/K` kid: a structure element or artifact reference, an MCR, or an
+## OBJR. The builder moves straight into the chosen operation.
+add_k_item : KernelObject.Builder, Names, KernelTagged.KItem, NavigationLowering, KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
+add_k_item = |builder, names, item, navigation, objects| {
+	added = match item {
+		AnnotationChild(annotation) => match navigation {
+			NoNavigationLowering => return Err(AnnotationObjectUnplanned({ annotation: annotation.index() }))
+			WithNavigationLowering(input) => add_objr(builder, names, input, annotation, objects) ? Object
+		}
+		ChildStructure(child) => KernelObject.add_reference(builder, list_at(KernelObjectPlan.Plan.structure_elements(objects), child.index())) ? Object
+		ContextualArtifactChild(artifact) => KernelObject.add_reference(builder, list_at(KernelObjectPlan.Plan.contextual_artifacts(objects), artifact.index())) ? Object
+		MarkedContent(reference) => add_mcr(builder, names, reference, objects) ? Object
 	}
+	Ok(added)
 }
 
 add_mcr : KernelObject.Builder, Names, KernelTagged.MarkedContentReference, KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
@@ -1047,24 +1008,13 @@ add_contextual_artifacts = |builder, names, semantics, objects| {
 	structure = KernelObjectPlan.Plan.structure_elements(objects)
 	var $builder = builder
 	var $index = 0
-	var $error = NoError
-	while $index < semantics.contextual_artifacts.len() and $error == NoError {
+	while $index < semantics.contextual_artifacts.len() {
 		artifact = list_at(semantics.contextual_artifacts, $index)
 		parent = list_at(semantics.nodes, artifact.parent.index())
-		match add_contextual_artifact($builder, names, list_at(structure, parent.structure_element.index()), list_at(ids, artifact.id.index())) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(next) => {
-				$builder = next
-			}
-		}
+		$builder = add_contextual_artifact($builder, names, list_at(structure, parent.structure_element.index()), list_at(ids, artifact.id.index()))?
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($builder)
-	}
+	Ok($builder)
 }
 
 add_contextual_artifact : KernelObject.Builder, Names, KernelObject.ObjectId, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
@@ -1095,54 +1045,35 @@ add_contextual_artifact = |builder, names, parent_object, expected| {
 	Ok(object.builder)
 }
 
-add_parent_entry_references : KernelObject.Builder, List(KernelTagged.MarkedContentReference), Semantics.Range, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelObject.Error)
-add_parent_entry_references = |builder, entries, range, structure| {
+add_parent_entry_array : KernelObject.Builder, List(KernelTagged.MarkedContentReference), Semantics.Range, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
+add_parent_entry_array = |builder, entries, range, structure| {
 	var $builder = builder
 	var $values = List.with_capacity(range.length())
 	var $index = range.start()
 	end = range.start() + range.length()
-	var $error = NoError
-	while $index < end and $error == NoError {
+	while $index < end {
 		reference = list_at(entries, $index)
-		match KernelObject.add_reference($builder, list_at(structure, reference.structure_element.index())) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(added) => {
-				$builder = added.builder
-				$values = $values.append(added.id)
-			}
-		}
+		added = KernelObject.add_reference($builder, list_at(structure, reference.structure_element.index()))?
+		$builder = added.builder
+		$values = $values.append(added.id)
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ builder: $builder, values: $values })
-	}
+	KernelObject.add_array($builder, $values)
 }
 
-add_references : KernelObject.Builder, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelTaggedObjects.Error)
-add_references = |builder, objects| {
+add_reference_array : KernelObject.Builder, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
+add_reference_array = |builder, objects| {
 	var $builder = builder
 	var $values = List.with_capacity(objects.len())
 	var $index = 0
-	var $error = NoError
-	while $index < objects.len() and $error == NoError {
-		match KernelObject.add_reference($builder, list_at(objects, $index)) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(added) => {
-				$builder = added.builder
-				$values = $values.append(added.id)
-			}
-		}
+	while $index < objects.len() {
+		added = KernelObject.add_reference($builder, list_at(objects, $index)) ? Object
+		$builder = added.builder
+		$values = $values.append(added.id)
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => Ok({ builder: $builder, values: $values })
-	}
+	array = KernelObject.add_array($builder, $values) ? Object
+	Ok(array)
 }
 
 add_name_value : KernelObject.Builder, KernelObject.NameId -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)

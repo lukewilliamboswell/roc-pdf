@@ -846,10 +846,14 @@ append_xref_suffix = |output, xref_offset| {
 copy_bytes : List(U8) -> List(U8)
 copy_bytes = |source| append_all(List.with_capacity(source.len()), source)
 
+## Appends every element of `source`. It deliberately does not
+## `List.reserve` first: an explicit reserve sizes the allocation exactly, so
+## a target that keeps growing was reallocated on every call, while `append`
+## grows geometrically and keeps accumulation amortized linear.
 append_all : List(U8), List(U8) -> List(U8)
 append_all = |target, source| {
 	length = source.len()
-	var $out = List.reserve(target, length)
+	var $out = target
 	var $index = 0
 	while $index < length {
 		$out = $out.append(list_at(source, $index))

@@ -1723,10 +1723,14 @@ contains_bytes = |haystack, needle| {
 	$found
 }
 
+## Appends every element of `source`. It deliberately does not
+## `List.reserve` first: an explicit reserve sizes the allocation exactly, so
+## a target that keeps growing was reallocated on every call, while `append`
+## grows geometrically and keeps accumulation amortized linear.
 append_pdf_bytes : List(U8), List(U8) -> List(U8)
 append_pdf_bytes = |target, source| {
 	length = source.len()
-	var $out = List.reserve(target, length)
+	var $out = target
 	var $index = 0
 	while $index < length {
 		match source.get($index) {

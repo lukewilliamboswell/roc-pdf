@@ -168,32 +168,16 @@ build_font_plan = |prefix, tagged, content, font_objects, annotation_objects| {
 			var $annots = List.with_capacity(per_page.len())
 			var $builder = resources.builder
 			var $page = 0
-			var $error = NoError
-			while $page < per_page.len() and $error == NoError {
+			while $page < per_page.len() {
 				page_objects = list_at(per_page, $page)
 				if page_objects.is_empty() {
 					$annots = $annots.append(NoAnnots)
 				} else {
-					match add_references($builder, page_objects) {
-						Err(error) => {
-							$error = Invalid(error)
-						}
-						Ok(references) => match KernelObject.add_array(references.builder, references.values) {
-							Err(error) => {
-								$error = Invalid(Object(error))
-							}
-							Ok(array) => {
-								$builder = array.builder
-								$annots = $annots.append(WithAnnots(array.id))
-							}
-						}
-					}
+					array = add_reference_array($builder, page_objects)?
+					$builder = array.builder
+					$annots = $annots.append(WithAnnots(array.id))
 				}
 				$page = $page + 1
-			}
-			match $error {
-				Invalid(error) => return Err(error)
-				NoError => {}
 			}
 			{ builder: $builder, value: PerPageAnnotations($annots) }
 		}
@@ -338,29 +322,15 @@ add_named_references = |builder, prefix, objects| {
 	var $builder = builder
 	var $entries = List.with_capacity(objects.len())
 	var $index = 0
-	var $error = NoError
-	while $index < objects.len() and $error == NoError {
+	while $index < objects.len() {
 		name_bytes = KernelResourceName.bytes(prefix, $index)
-		match KernelObject.add_name($builder, name_bytes) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(name) => match KernelObject.add_reference(name.builder, list_at(objects, $index)) {
-				Err(error) => {
-					$error = Invalid(error)
-				}
-				Ok(reference) => {
-					$builder = reference.builder
-					$entries = $entries.append({ key: name.id, value: reference.id })
-				}
-			}
-		}
+		name = KernelObject.add_name($builder, name_bytes) ? Object
+		reference = KernelObject.add_reference(name.builder, list_at(objects, $index)) ? Object
+		$builder = reference.builder
+		$entries = $entries.append({ key: name.id, value: reference.id })
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => Ok({ builder: $builder, entries: $entries })
-	}
+	Ok({ builder: $builder, entries: $entries })
 }
 
 add_image_references : KernelObject.Builder, List(KernelObjectPlan.ImageObjects) -> Try({ builder : KernelObject.Builder, entries : List(KernelObject.DictionaryEntry) }, KernelPageObjects.Error)
@@ -380,27 +350,17 @@ add_page_tree = |builder, names, objects| {
 	var $builder = builder
 	var $level = 0
 	var $edges = 0
-	var $error = NoError
-	while $level < KernelBalanced.Shape.level_count(shape) and $error == NoError {
+	while $level < KernelBalanced.Shape.level_count(shape) {
 		var $node = 0
-		while $node < KernelBalanced.Shape.level_node_count(shape, $level) and $error == NoError {
-			match add_page_tree_node($builder, names, objects, $level, $node) {
-				Err(error) => {
-					$error = Invalid(error)
-				}
-				Ok(added) => {
-					$builder = added.builder
-					$edges = $edges + added.edges
-				}
-			}
+		while $node < KernelBalanced.Shape.level_node_count(shape, $level) {
+			added = add_page_tree_node($builder, names, objects, $level, $node)?
+			$builder = added.builder
+			$edges = $edges + added.edges
 			$node = $node + 1
 		}
 		$level = $level + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ builder: $builder, edges: $edges })
-	}
+	Ok({ builder: $builder, edges: $edges })
 }
 
 add_page_tree_node : KernelObject.Builder, Names, KernelObjectPlan.Plan, U64, U64 -> Try({ builder : KernelObject.Builder, edges : U64 }, KernelPageObjects.Error)
@@ -408,8 +368,7 @@ add_page_tree_node = |builder, names, objects, level, node| {
 	shape = KernelObjectPlan.Plan.page_tree_shape(objects)
 	is_leaf = level == KernelBalanced.Shape.leaf_level(shape)
 	span = if is_leaf KernelBalanced.Shape.item_span(shape, level, node) else KernelBalanced.Shape.child_span(shape, level, node)
-	children = (if is_leaf add_page_references(builder, KernelObjectPlan.Plan.pages(objects), span) else add_tree_references(builder, KernelObjectPlan.Plan.page_tree(objects), span))?
-	kids = KernelObject.add_array(children.builder, children.values) ? Object
+	kids = (if is_leaf add_page_reference_array(builder, KernelObjectPlan.Plan.pages(objects), span) else add_tree_reference_array(builder, KernelObjectPlan.Plan.page_tree(objects), span))?
 	descendants = KernelBalanced.Span.length(KernelBalanced.Shape.item_span(shape, level, node))
 	count = KernelObject.add_integer(kids.builder, descendants.to_i64_wrap()) ? Object
 	type_value = KernelObject.add_name_value(count.builder, names.pages) ? Object
@@ -446,8 +405,8 @@ add_page_tree_node = |builder, names, objects, level, node| {
 	Ok({ builder: object.builder, edges: KernelBalanced.Span.length(span) })
 }
 
-add_page_references : KernelObject.Builder, List(KernelObjectPlan.PageObjects), KernelBalanced.Span -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelPageObjects.Error)
-add_page_references = |builder, pages, span| {
+add_page_reference_array : KernelObject.Builder, List(KernelObjectPlan.PageObjects), KernelBalanced.Span -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPageObjects.Error)
+add_page_reference_array = |builder, pages, span| {
 	var $objects = List.with_capacity(KernelBalanced.Span.length(span))
 	var $index = KernelBalanced.Span.start(span)
 	end = $index + KernelBalanced.Span.length(span)
@@ -455,11 +414,11 @@ add_page_references = |builder, pages, span| {
 		$objects = $objects.append(list_at(pages, $index).page)
 		$index = $index + 1
 	}
-	add_references(builder, $objects)
+	add_reference_array(builder, $objects)
 }
 
-add_tree_references : KernelObject.Builder, List(KernelObject.ObjectId), KernelBalanced.Span -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelPageObjects.Error)
-add_tree_references = |builder, objects, span| {
+add_tree_reference_array : KernelObject.Builder, List(KernelObject.ObjectId), KernelBalanced.Span -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPageObjects.Error)
+add_tree_reference_array = |builder, objects, span| {
 	var $children = List.with_capacity(KernelBalanced.Span.length(span))
 	var $index = KernelBalanced.Span.start(span)
 	end = $index + KernelBalanced.Span.length(span)
@@ -467,31 +426,26 @@ add_tree_references = |builder, objects, span| {
 		$children = $children.append(list_at(objects, $index))
 		$index = $index + 1
 	}
-	add_references(builder, $children)
+	add_reference_array(builder, $children)
 }
 
-add_references : KernelObject.Builder, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelPageObjects.Error)
-add_references = |builder, objects| {
+## One reference value per object, then the array of them. It returns only
+## the builder and the array's id: returning the builder beside the value
+## list made the pinned dev backend copy the store once per call
+## (docs/performance/lowering-uniqueness.md).
+add_reference_array : KernelObject.Builder, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPageObjects.Error)
+add_reference_array = |builder, objects| {
 	var $builder = builder
 	var $values = List.with_capacity(objects.len())
 	var $index = 0
-	var $error = NoError
-	while $index < objects.len() and $error == NoError {
-		match KernelObject.add_reference($builder, list_at(objects, $index)) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(reference) => {
-				$builder = reference.builder
-				$values = $values.append(reference.id)
-			}
-		}
+	while $index < objects.len() {
+		reference = KernelObject.add_reference($builder, list_at(objects, $index)) ? Object
+		$builder = reference.builder
+		$values = $values.append(reference.id)
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => Ok({ builder: $builder, values: $values })
-	}
+	array = KernelObject.add_array($builder, $values) ? Object
+	Ok(array)
 }
 
 add_pages : KernelObject.Builder, Names, ResourcesFor, KernelTagged.Plan, KernelContent.Plan, KernelObjectPlan.Plan, PageGroups, PageAnnotations -> Try(KernelObject.Builder, KernelPageObjects.Error)
@@ -504,8 +458,7 @@ add_pages = |builder, names, resources, tagged, content, objects, groups, annota
 	tabs_s = KernelObject.add_name_value(page_type.builder, names.s) ? Object
 	var $builder = tabs_s.builder
 	var $index = 0
-	var $error = NoError
-	while $index < scenes.pages.len() and $error == NoError {
+	while $index < scenes.pages.len() {
 		page = list_at(scenes.pages, $index)
 		planned = list_at(page_objects, $index)
 		parent_index = leaf_offset + U64.div_by($index, KernelBalanced.Shape.fanout)
@@ -521,20 +474,10 @@ add_pages = |builder, names, resources, tagged, content, objects, groups, annota
 			NoAnnotations => NoAnnots
 			PerPageAnnotations(values) => list_at(values, $index)
 		}
-		match add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelObjectPlan.Plan.page_tree(objects), parent_index), planned, page_group, page_annots) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(next) => {
-				$builder = next
-			}
-		}
+		$builder = add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelObjectPlan.Plan.page_tree(objects), parent_index), planned, page_group, page_annots)?
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($builder)
-	}
+	Ok($builder)
 }
 
 add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.Stream, KernelObject.ObjectId, KernelObjectPlan.PageObjects, KernelPageObjects.PageGroup, KernelPageObjects.PageAnnots -> Try(KernelObject.Builder, KernelPageObjects.Error)

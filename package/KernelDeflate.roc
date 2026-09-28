@@ -718,9 +718,13 @@ checked_times = |left, right| match U64.times_try(left, right) {
 	Ok(total) => Ok(total)
 }
 
+## Appends every element of `source`. It deliberately does not
+## `List.reserve` first: an explicit reserve sizes the allocation exactly, so
+## a target that keeps growing was reallocated on every call, while `append`
+## grows geometrically and keeps accumulation amortized linear.
 append_all : List(U8), List(U8) -> List(U8)
 append_all = |target, source| {
-	var $out = List.reserve(target, source.len())
+	var $out = target
 	var $index = 0
 	while $index < source.len() {
 		$out = $out.append(list_at_u8(source, $index))
