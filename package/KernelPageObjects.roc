@@ -414,23 +414,33 @@ add_page_tree_node = |builder, names, objects, level, node| {
 	count = KernelObject.add_integer(kids.builder, descendants.to_i64_wrap()) ? Object
 	type_value = KernelObject.add_name_value(count.builder, names.pages) ? Object
 	global = KernelBalanced.Shape.level_offset(shape, level) + node
-	entries = if level == 0 {
-		[
-			{ key: names.count, value: count.id },
-			{ key: names.kids, value: kids.id },
-			{ key: names.type_name, value: type_value.id },
-		]
+
+	## A non-root node's `/Parent` reference joins the builder that the
+	## node's dictionary is then built from, so the dictionary never names
+	## a value that its builder does not hold.
+	linked = if level == 0 {
+		{
+			builder: type_value.builder,
+			entries: [
+				{ key: names.count, value: count.id },
+				{ key: names.kids, value: kids.id },
+				{ key: names.type_name, value: type_value.id },
+			],
+		}
 	} else {
 		parent_global = KernelBalanced.Shape.level_offset(shape, level - 1) + U64.div_by(node, KernelBalanced.Shape.fanout)
 		parent = KernelObject.add_reference(type_value.builder, list_at(KernelObjectPlan.Plan.page_tree(objects), parent_global)) ? Object
-		[
-			{ key: names.count, value: count.id },
-			{ key: names.kids, value: kids.id },
-			{ key: names.parent, value: parent.id },
-			{ key: names.type_name, value: type_value.id },
-		]
+		{
+			builder: parent.builder,
+			entries: [
+				{ key: names.count, value: count.id },
+				{ key: names.kids, value: kids.id },
+				{ key: names.parent, value: parent.id },
+				{ key: names.type_name, value: type_value.id },
+			],
+		}
 	}
-	dictionary = KernelObject.add_dictionary(type_value.builder, entries) ? Object
+	dictionary = KernelObject.add_dictionary(linked.builder, linked.entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, list_at(KernelObjectPlan.Plan.page_tree(objects), global))?
 	Ok({ builder: object.builder, edges: KernelBalanced.Span.length(span) })
