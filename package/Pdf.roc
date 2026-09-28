@@ -64,6 +64,16 @@ Pdf :: [].{
 	## the semantic role its content becomes; `Theme` decides presentation.
 	Inline : Document.Inline
 
+	## One list item: its body blocks, with a generated label.
+	ListItem : Document.ListItem
+
+	## Generated number styles of a numbered list.
+	NumberStyle : Document.NumberStyle
+
+	## The strength of a keep-with-next: `Required` is a mandatory layout
+	## constraint; `Preferred` is a ranked preference that may be relaxed.
+	Keep : Document.Keep
+
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
 	Error := [
@@ -157,6 +167,51 @@ Pdf :: [].{
 	bullets : List(Str) -> Document.Block
 	bullets = |items| Document.bullets(items)
 
+	## An unordered list (`L` with `ListNumbering /Disc`). Each item is an
+	## `LI` holding a generated bullet `Lbl` and an `LBody` of its blocks.
+	## Items hold paragraphs, rich paragraphs, and nested lists, and begin
+	## with a paragraph; lists nest at most four deep. Nested levels are
+	## indented by `Theme.bullet_indent` each.
+	bullet_list : List(ListItem) -> Document.Block
+	bullet_list = |items| Document.bullet_list(items)
+
+	## An ordered list whose generated labels count from `start` in `style`
+	## (`Decimal`, `LowerAlpha`, `UpperAlpha`, `LowerRoman`, or
+	## `UpperRoman`), each followed by a full stop: `1.`, `b.`, `iv.`. The
+	## style becomes the list's `ListNumbering`. A label must fit the list
+	## indent, letters and Roman numerals start at 1, and Roman numerals stop
+	## at 3999.
+	numbered_list : { start : U64, style : NumberStyle }, List(ListItem) -> Document.Block
+	numbered_list = |numbering, items| Document.numbered_list(numbering, items)
+
+	## One list item holding its body blocks in logical order.
+	list_item : List(Document.Block) -> ListItem
+	list_item = |contents| Document.list_item(contents)
+
+	## A mandatory page break: the next block starts a new page. A break must
+	## separate two flow blocks (never first, last, or doubled), and a break
+	## inside a `keep_together` or after a required keep is a conflict.
+	page_break : Document.Block
+	page_break = Document.page_break
+
+	## Keep blocks together on one page (a required constraint). The group
+	## produces no structure element; a group taller than a page body is
+	## `layout.keep_conflict`.
+	keep_together : List(Document.Block) -> Document.Block
+	keep_together = |contents| Document.keep_together(contents)
+
+	## Keep a block with the first placement unit of the next block: its
+	## first lines up to the orphan minimum, or all of it when unsplittable.
+	## `Required` is mandatory; `Preferred` ranks after heading keeps and may
+	## be relaxed.
+	keep_with_next : Keep, Document.Block -> Document.Block
+	keep_with_next = |keep, block| Document.keep_with_next(keep, block)
+
+	## Layout-only vertical space after the previous block, suppressed at the
+	## top of a page; it produces no structure.
+	spacer : Layout.Unit -> Document.Block
+	spacer = |amount| Document.spacer(amount)
+
 	## Group blocks as a PDF 2.0 `Part`: a large division of the document,
 	## such as a chapter group. Children keep their order and their own roles;
 	## grouping changes no layout.
@@ -240,6 +295,12 @@ Pdf :: [].{
 	## expansion, such as `Pdf.expansion("GST", "Goods and Services Tax")`.
 	expansion : Str, Str -> Inline
 	expansion = |value, expanded| Document.expansion(value, expanded)
+
+	## A mandatory line break inside a rich paragraph. It paints nothing and
+	## must separate text: a break at either end of the paragraph or directly
+	## after another break is `semantics.line_break_position`.
+	line_break : Inline
+	line_break = Document.line_break
 
 	## Gate 6-8 authoring shapes are stable before their lowering is enabled.
 	## These constructors retain the authored intent and reject transactionally
@@ -520,7 +581,7 @@ pipeline_error = |error, doc| match error {
 			BudgetExceeded,
 			"semantics.container_depth",
 			"A container is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested part, section, and division levels.",
-			container_path(Document.normalize(doc).groups, group),
+			group_path(Document.normalize(doc).groups, group),
 		),
 	)
 	Semantics(EmptyContainer({ group })) => InvalidDocument(
@@ -528,7 +589,7 @@ pipeline_error = |error, doc| match error {
 			InvalidRelationship,
 			"semantics.empty_container",
 			"A part, section, or division contains no semantic block; it would become an empty grouping element.",
-			container_path(Document.normalize(doc).groups, group),
+			group_path(Document.normalize(doc).groups, group),
 		),
 	)
 	Semantics(EmptyRichParagraph({ block })) => inline_error(doc, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
@@ -540,7 +601,302 @@ pipeline_error = |error, doc| match error {
 	Semantics(InvalidInlineUri({ block, error: uri_error, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_uri", "An inline link URI is not a valid absolute URI (${uri_problem(uri_error)}).")
 	Shape(UnsupportedInlineScript({ block, inline, script })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_script", "Inline text uses the script ${script}, which the convenience text path does not shape.")
 	Shape(InlineClusterBoundary({ block, inline })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_cluster", "An inline boundary falls inside a multi-scalar grapheme cluster, which the convenience shaper does not support.")
+	Semantics(LineBreakPosition({ block, line_break })) => line_break_error(doc, block, line_break)
+	Semantics(EmptyKeep({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.keep_empty", "A keep contains no laid-out block.")
+	Semantics(EmptyList({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_empty", "A list has no items.")
+	Semantics(EmptyListItem({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_empty", "A list item has no blocks.")
+	Semantics(ListDepthExceeded({ attempted, group, limit })) => group_error(doc, group, BudgetExceeded, "semantics.list_depth", "A list is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested lists.")
+	Semantics(ListItemStart({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_content", "A list item must begin with a paragraph or rich paragraph, which its label paints beside.")
+	Semantics(ListItemGroup({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_content", "A list item holds only paragraphs, rich paragraphs, and nested lists.")
+	Semantics(ListItemBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.list_item_content", "A list item holds only paragraphs, rich paragraphs, and nested lists.", [leaf_path(doc, block)])
+	Semantics(ListItemBreak({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), InvalidRelationship, "semantics.list_item_content", "A page break cannot appear inside a list item.")
+	Semantics(ListItemSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), InvalidRelationship, "semantics.list_item_content", "A spacer cannot appear inside a list item.")
+	Semantics(NegativeSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), LayoutConstraintViolated, "layout.spacer_negative", "A spacer has a negative height; spacing never overlaps content.")
+	Semantics(ListNumbering({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_numbering", "A generated list number cannot be written in its style: letters and Roman numerals start at 1, and Roman numerals stop at 3999.")
+	Lines(LabelTooWide({ available, block, width })) => label_width_error(doc, block, width, available)
+	Pages(PageBreakPosition({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), LayoutConstraintViolated, "layout.page_break_position", "A page break must separate two flow blocks; a break first, last, or directly after another would produce an empty page.")
+	Pages(PageLayout(KeepConflict(conflict))) => keep_conflict_error(doc, conflict)
+	Pages(PageLayout(Oversize({ available, block, required }))) => oversize_error(doc, block, required, available)
 	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+}
+
+## A layout-policy or list rejection located at authored group `group`.
+group_error : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+group_error = |doc, group, diagnostic, feature, message| {
+	normalized = Document.normalize(doc)
+	located_error(doc, diagnostic, feature, message, [group_path(normalized.groups, group)])
+}
+
+located_error : Document, Conformance.DiagnosticCode, Str, Str, List(Str) -> Pdf.Error
+located_error = |_doc, diagnostic, feature, message, paths| InvalidDocument(located_batch(diagnostic, feature, message, paths))
+
+## A page break or spacer located by its authored parent and position.
+flow_item_error : Document, [PageBreakItem(U64), SpacerItem(U64)], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+flow_item_error = |doc, item, diagnostic, feature, message| {
+	normalized = Document.normalize(doc)
+	path = match item {
+		PageBreakItem(index) => match normalized.page_breaks.get(index) {
+			Ok(record) => child_path(normalized.groups, record.parent, record.position)
+			Err(OutOfBounds) => crash "normalized page break path escaped"
+		}
+		SpacerItem(index) => match normalized.spacers.get(index) {
+			Ok(record) => child_path(normalized.groups, record.parent, record.position)
+			Err(OutOfBounds) => crash "normalized spacer path escaped"
+		}
+	}
+	located_error(doc, diagnostic, feature, message, [path])
+}
+
+## A line break with no text on one side, located by its paragraph path and
+## its authored inline position.
+line_break_error : Document, U64, U64 -> Pdf.Error
+line_break_error = |doc, block, line_break| {
+	normalized = Document.normalize(doc)
+	record = match normalized.line_breaks.get(line_break) {
+		Ok(value) => value
+		Err(OutOfBounds) => crash "normalized line break path escaped"
+	}
+	owner = if record.parent == 0 NoInline else AtInline(record.parent - 1)
+	path = "${inline_path(normalized, block, owner)}.inlines[${record.position.to_str()}]"
+	located_error(doc, InvalidRelationship, "semantics.line_break_position", "A line break must separate text inside its paragraph; it cannot begin or end the paragraph or follow another line break.", [path])
+}
+
+## A generated list label wider than the list indent, located at its item.
+label_width_error : Document, U64, U64, U64 -> Pdf.Error
+label_width_error = |doc, block, width, available| {
+	normalized = Document.normalize(doc)
+	var $item = normalized.groups.len()
+	var $index = 0
+	for group in normalized.groups {
+		match group.kind {
+			ListItem(_) => if group.first_block == block {
+				$item = $index
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	path = if $item < normalized.groups.len() group_path(normalized.groups, $item) else leaf_path(doc, block)
+	located_error(doc, LayoutConstraintViolated, "layout.list_label_width", "A generated list label is ${points_text(width)} wide but the list indent is ${points_text(available)}; labels are never shrunk or allowed to overlap their body. Widen the indent with Theme.with_bullet_indent.", [path])
+}
+
+## A mandatory keep conflict naming every participating source.
+keep_conflict_error : Document, KernelPageLayout.Conflict -> Pdf.Error
+keep_conflict_error = |doc, conflict| {
+	normalized = Document.normalize(doc)
+	feature = "layout.keep_conflict"
+	match conflict {
+		GroupTooTall({ available, group, required }) => {
+			index = together_group(normalized.groups, group)
+			record = match normalized.groups.get(index) {
+				Ok(value) => value
+				Err(OutOfBounds) => crash "normalized keep path escaped"
+			}
+			located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), leaf_path(doc, record.first_block), leaf_path(doc, record.block_end - 1)])
+		}
+		BreakInsideGroup({ block, group }) => located_error(doc, LayoutConstraintViolated, feature, "A page break falls inside a keep-together group.", [break_path(normalized, block), group_path(normalized.groups, together_group(normalized.groups, group))])
+		BreakAfterRequiredKeep({ block, next }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next is followed by a page break.", [required_keep_path(doc, normalized, block), break_path(normalized, next)])
+		ChainTooTall({ available, block, next, required }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next and the block it keeps with need ${points_text(required)} but a page body holds ${points_text(available)}.", [required_keep_path(doc, normalized, block), leaf_path(doc, next)])
+		RequiredKeepAtEnd({ block }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next has no following block.", [required_keep_path(doc, normalized, block)])
+	}
+}
+
+## An unsplittable block taller than a page body: a figure is
+## `document.figure_oversize`, any other block `layout.oversize_block`.
+oversize_error : Document, U64, U64, U64 -> Pdf.Error
+oversize_error = |doc, block, required, available| {
+	normalized = Document.normalize(doc)
+	figure = match normalized.blocks.get(block) {
+		Ok(record) => match record.kind {
+			Figure(_) => True
+			_ => False
+		}
+		Err(OutOfBounds) => False
+	}
+	feature = if figure "document.figure_oversize" else "layout.oversize_block"
+	located_error(doc, LayoutConstraintViolated, feature, "An unsplittable block needs ${points_text(required)} but a page body holds ${points_text(available)}; content is never shrunk, clipped, or split to fit.", [leaf_path(doc, block)])
+}
+
+## The `k`-th keep-together group in preorder, as a normalized group index.
+together_group : List(Document.NormalizedGroup), U64 -> U64
+together_group = |groups, k| {
+	var $seen = 0
+	var $found = groups.len()
+	var $index = 0
+	for group in groups {
+		match group.kind {
+			KeepTogether => {
+				if $seen == k and $found == groups.len() {
+					$found = $index
+				}
+				$seen = $seen + 1
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	$found
+}
+
+## The authored page break before leaf `block`.
+break_path : Document.NormalizedAuthoring, U64 -> Str
+break_path = |normalized, block| {
+	var $path = ""
+	for record in normalized.page_breaks {
+		if record.block == block and $path.is_empty() {
+			$path = child_path(normalized.groups, record.parent, record.position)
+		}
+	}
+	$path
+}
+
+## The innermost required `keep_with_next` whose last leaf is `block`.
+required_keep_path : Document, Document.NormalizedAuthoring, U64 -> Str
+required_keep_path = |doc, normalized, block| {
+	var $found = normalized.groups.len()
+	var $index = 0
+	for group in normalized.groups {
+		match group.kind {
+			KeepWithNext(Required) => if group.block_end == block + 1 {
+				$found = $index
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	if $found < normalized.groups.len() group_path(normalized.groups, $found) else leaf_path(doc, block)
+}
+
+## A fixed-point length as points, such as `746 pt` or `12.5 pt`.
+points_text : U64 -> Str
+points_text = |raw| {
+	whole = raw // 1000
+	fraction = raw % 1000
+	if fraction == 0 {
+		"${whole.to_str()} pt"
+	} else {
+		digits = (1000 + fraction).to_str()
+		trimmed = trim_zeros(Str.to_utf8(digits).drop_first(1))
+		text = match Str.from_utf8(trimmed) {
+			Ok(value) => value
+			Err(_) => "0"
+		}
+		"${whole.to_str()}.${text} pt"
+	}
+}
+
+trim_zeros : List(U8) -> List(U8)
+trim_zeros = |bytes| {
+	var $bytes = bytes
+	while !$bytes.is_empty() and (match $bytes.get($bytes.len() - 1) {
+		Ok(last) => last == 48
+		Err(OutOfBounds) => False
+	}) {
+		$bytes = $bytes.drop_last(1)
+	}
+	$bytes
+}
+
+located_batch : Conformance.DiagnosticCode, Str, Str, List(Str) -> Conformance.DiagnosticBatch
+located_batch = |diagnostic, feature, message, paths| {
+	full = "${message} No PDF bytes were emitted."
+	var $bytes = full.count_utf8_bytes()
+	for path in paths {
+		$bytes = $bytes + path.count_utf8_bytes()
+	}
+	{
+		detail_bytes: $bytes,
+		diagnostics: [
+			{
+				clause_references: [],
+				code: diagnostic,
+				details: paths,
+				feature: Feature(feature),
+				location: Document,
+				message: full,
+				requirement_ids: [],
+				stage: AuthoringValidation,
+			},
+		],
+		truncation: Complete,
+	}
+}
+
+## The authored path of normalized leaf `block`, recovered by walking the
+## authored tree in normalization order on the rejection path only. Groups
+## name their children `contents[k]`, a list its `items[k]`, and a keep
+## with next its single `block`.
+leaf_path : Document, U64 -> Str
+leaf_path = |doc, block| {
+	normalized = Document.normalize(doc)
+	record = match normalized.blocks.get(block) {
+		Ok(value) => value
+		Err(OutOfBounds) => crash "normalized leaf path escaped"
+	}
+	position = leaf_position(normalized, block, record.parent)
+	child_path(normalized.groups, record.parent, position)
+}
+
+## A leaf's authored index in its parent: the next leaves, groups, page
+## breaks, and spacers of the parent occupy the positions around it, so the
+## leaf's position is found by counting those siblings that precede it.
+leaf_position : Document.NormalizedAuthoring, U64, U64 -> U64
+leaf_position = |normalized, block, parent| {
+	match normalized.blocks.get(block) {
+		Ok(record) => match record.kind {
+			RichParagraph(paragraph) => match normalized.rich_paragraphs.get(paragraph) {
+				Ok(rich) => return rich.position
+				Err(OutOfBounds) => crash "normalized rich block path escaped"
+			}
+			_ => {}
+		}
+		Err(OutOfBounds) => crash "normalized leaf path escaped"
+	}
+
+	## Siblings in the same parent before this leaf: earlier leaves (a legacy
+	## bullet list counts once), child groups, page breaks, and spacers.
+	var $position = 0
+	var $index = 0
+	var $previous_list = U64.highest
+	while $index < block {
+		match normalized.blocks.get($index) {
+			Ok(sibling) => if sibling.parent == parent {
+				match sibling.kind {
+					Bullet({ item: _, list }) => if list != $previous_list {
+						$position = $position + 1
+						$previous_list = list
+					}
+					_ => {
+						$position = $position + 1
+					}
+				}
+			}
+			Err(OutOfBounds) => {}
+		}
+		$index = $index + 1
+	}
+	for group in normalized.groups {
+		if group.parent == parent and group.block_end <= block {
+			$position = $position + 1
+		}
+	}
+	for record in normalized.page_breaks {
+		if record.parent == parent and record.block <= block {
+			$position = $position + 1
+		}
+	}
+	for record in normalized.spacers {
+		if record.parent == parent and record.block <= block {
+			$position = $position + 1
+		}
+	}
+	match normalized.blocks.get(block) {
+		Ok(record) => match record.kind {
+			Bullet({ item, list: _ }) => if item > 0 $position - 1 else $position
+			_ => $position
+		}
+		Err(OutOfBounds) => $position
+	}
 }
 
 uri_problem : Document.NavigationError -> Str
@@ -569,14 +925,13 @@ inline_path = |normalized, block_index, inline| {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized rich block path escaped"
 	}
-	position = match block.kind {
-		RichParagraph(paragraph) => match normalized.rich_paragraphs.get(paragraph) {
-			Ok(rich) => rich.position
+	(paragraph, position) = match block.kind {
+		RichParagraph(index) => match normalized.rich_paragraphs.get(index) {
+			Ok(rich) => (index, rich.position)
 			Err(OutOfBounds) => crash "normalized rich block path escaped"
 		}
 		_ => crash "normalized rich block path named a non-rich block"
 	}
-	parent = if block.parent == 0 "" else "${container_path(normalized.groups, block.parent - 1)}."
 	var $positions = []
 	var $cursor = match inline {
 		AtInline(index) => index + 1
@@ -587,10 +942,10 @@ inline_path = |normalized, block_index, inline| {
 			Ok(value) => value
 			Err(OutOfBounds) => crash "normalized inline path escaped"
 		}
-		$positions = $positions.append(record.position)
+		$positions = $positions.append(authored_inline_position(normalized.line_breaks, paragraph, record.parent, record.position))
 		$cursor = record.parent
 	}
-	var $path = "${parent}contents[${position.to_str()}]"
+	var $path = child_path(normalized.groups, block.parent, position)
 	var $index = $positions.len()
 	while $index > 0 {
 		segment = match $positions.get($index - 1) {
@@ -603,32 +958,75 @@ inline_path = |normalized, block_index, inline| {
 	$path
 }
 
-## The compact authored location of container `group`, such as
-## `contents[3].contents[0]`: each segment is the container's index in its
-## parent's authored contents.
-container_path : List(Document.NormalizedGroup), U64 -> Str
-container_path = |groups, group| {
-	var $positions = []
-	var $code = group + 1
-	while $code != 0 {
-		record = match groups.get($code - 1) {
-			Ok(value) => value
-			Err(OutOfBounds) => crash "normalized container path escaped"
+## An inline record's `position` is its content-spine slot among its
+## siblings; line breaks hold no slot, so the authored index adds back each
+## sibling line break (in authored order) at or before it.
+authored_inline_position : List(Document.NormalizedLineBreak), U64, U64, U64 -> U64
+authored_inline_position = |line_breaks, paragraph, parent, slot| {
+	var $position = slot
+	for record in line_breaks {
+		if record.paragraph == paragraph and record.parent == parent and record.position <= $position {
+			$position = $position + 1
 		}
-		$positions = $positions.append(record.position)
-		$code = record.parent
+	}
+	$position
+}
+
+## The compact authored location of group `group`, such as
+## `contents[3].contents[0]` or `contents[2].items[1].contents[0]`: each
+## segment is the group's index in its parent's authored contents, named
+## `items[k]` inside a list and `block` inside a keep-with-next.
+group_path : List(Document.NormalizedGroup), U64 -> Str
+group_path = |groups, group| chain_path(groups, group + 1)
+
+## The path of the child at authored `position` of group code `parent`.
+child_path : List(Document.NormalizedGroup), U64, U64 -> Str
+child_path = |groups, parent, position| if parent == 0 {
+	"contents[${position.to_str()}]"
+} else {
+	"${chain_path(groups, parent)}.${child_segment(groups, parent, position)}"
+}
+
+## The path of group code `code`, from the outermost group inwards.
+chain_path : List(Document.NormalizedGroup), U64 -> Str
+chain_path = |groups, code| {
+	var $codes = []
+	var $cursor = code
+	while $cursor != 0 {
+		$codes = $codes.append($cursor)
+		$cursor = group_record(groups, $cursor).parent
 	}
 	var $path = ""
-	var $index = $positions.len()
+	var $index = $codes.len()
 	while $index > 0 {
-		position = match $positions.get($index - 1) {
-			Ok(value) => value
-			Err(OutOfBounds) => crash "normalized container path escaped"
+		record = match $codes.get($index - 1) {
+			Ok(value) => group_record(groups, value)
+			Err(OutOfBounds) => crash "normalized group path escaped"
 		}
-		$path = if $path.is_empty() "contents[${position.to_str()}]" else "${$path}.contents[${position.to_str()}]"
+		segment = child_segment(groups, record.parent, record.position)
+		$path = if $path.is_empty() segment else "${$path}.${segment}"
 		$index = $index - 1
 	}
 	$path
+}
+
+## One path segment: a list names its children `items[k]`, a keep with
+## next its single `block`, and every other parent `contents[k]`.
+child_segment : List(Document.NormalizedGroup), U64, U64 -> Str
+child_segment = |groups, parent, position| if parent == 0 {
+	"contents[${position.to_str()}]"
+} else {
+	match group_record(groups, parent).kind {
+		ItemList(_) => "items[${position.to_str()}]"
+		KeepWithNext(_) => "block"
+		_ => "contents[${position.to_str()}]"
+	}
+}
+
+group_record : List(Document.NormalizedGroup), U64 -> Document.NormalizedGroup
+group_record = |groups, code| match groups.get(code - 1) {
+	Ok(value) => value
+	Err(OutOfBounds) => crash "normalized group path escaped"
 }
 
 container_batch : Conformance.DiagnosticCode, Str, Str, Str -> Conformance.DiagnosticBatch
@@ -772,7 +1170,7 @@ standard_font_descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 standard_pipeline_limits : KernelFacadePipeline.Limits
 standard_pipeline_limits = KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 32 }),
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 48 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 100000, max_occurrences: 2048, max_pages: 1024 }),
 	navigation: KernelNavigation.standard_limits,
 	lines: KernelFacadeLines.Limits.make({
@@ -821,7 +1219,7 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		max_occurrences: 2048,
 		max_properties: 2048,
 		max_source_inputs: 2048,
-		semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 32 }),
+		semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 48 }),
 		sources: KernelFacadeSources.Limits.make({
 			max_hash_probes: 1000000,
 			max_inputs: 2048,
@@ -844,7 +1242,11 @@ standard_object_limits = {
 	max_byte_strings: 65536,
 	max_dictionary_entries: 1000000,
 	max_direct_depth: 8,
-	max_name_bytes: 8192,
+
+	## Every structure element interns its role name and every attribute
+	## dictionary its keys, so name bytes grow with structure: 4,096 nodes
+	## with the longest roles and their `/A` entries stay well inside 1 MiB.
+	max_name_bytes: 1048576,
 	max_names: 100000,
 	max_objects: 65536,
 	max_payload_bytes: 16000000,
@@ -1503,4 +1905,49 @@ expect {
 		_ => False
 	}
 	nested_rejected and empty_rejected
+}
+
+## Lists lower to `L > LI > (Lbl, LBody)` with a typed `ListNumbering` on
+## every `L`, including the legacy plain-text bullets; items hold paragraphs,
+## rich paragraphs, and nested lists; an explicit line break splits a rich
+## paragraph's lines without a painted glyph.
+expect {
+	item = |text| Pdf.list_item([Pdf.paragraph(text)])
+	document = Pdf.document({
+		contents: [
+			Pdf.bullets(["Legacy"]),
+			Pdf.numbered_list(
+				{ start: 1, style: LowerRoman },
+				[
+					Pdf.list_item([Pdf.rich_paragraph([Pdf.text("First"), Pdf.line_break, Pdf.strong([Pdf.text("second line")])]), Pdf.bullet_list([item("Nested")])]),
+					item("Two"),
+				],
+			),
+			Pdf.keep_with_next(Required, Pdf.paragraph("Kept")),
+			Pdf.keep_together([Pdf.paragraph("A"), Pdf.spacer(Layout.Unit.points(12)), Pdf.paragraph("B")]),
+			Pdf.page_break,
+			Pdf.paragraph("Next page"),
+		],
+		language: "en-AU",
+		title: "Lists",
+	})
+	bytes = Pdf.to_bytes(document)?
+	text = Str.from_utf8_lossy(bytes)
+
+	text.contains("/A << /ListNumbering /Disc /O /List >>") and text.contains("/A << /ListNumbering /LowerRoman /O /List >>") and text.contains("/S /LBody ") and text.contains("/Count 2")
+}
+
+## List, break, and keep rejections carry stable codes and authored paths.
+expect {
+	check = |contents, expected_feature, expected_path| match Pdf.to_bytes(Pdf.document({ contents, language: "en-AU", title: "Rejected" })) {
+		Err(InvalidDocument({ diagnostics: [{ details: [path, ..], feature: Feature(feature), .. }], .. })) => feature == expected_feature and path == expected_path
+		_ => False
+	}
+	check([Pdf.paragraph("Lead"), Pdf.bullet_list([Pdf.list_item([])])], "semantics.list_item_empty", "contents[1].items[0]")
+		and check([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("One"), Pdf.heading(2, "Nope")])])], "semantics.list_item_content", "contents[0].items[0].contents[1]")
+			and check([Pdf.paragraph("A"), Pdf.page_break, Pdf.page_break, Pdf.paragraph("B")], "layout.page_break_position", "contents[2]")
+				and check([Pdf.paragraph("A"), Pdf.keep_together([Pdf.paragraph("B"), Pdf.page_break, Pdf.paragraph("C")])], "layout.keep_conflict", "contents[1].contents[1]")
+					and check([Pdf.rich_paragraph([Pdf.text("A"), Pdf.line_break])], "semantics.line_break_position", "contents[0].inlines[1]")
+						and check([Pdf.keep_with_next(Required, Pdf.paragraph("A")), Pdf.page_break, Pdf.paragraph("B")], "layout.keep_conflict", "contents[0]")
+							and check([Pdf.numbered_list({ start: 0, style: UpperAlpha }, [Pdf.list_item([Pdf.paragraph("A")])])], "semantics.list_numbering", "contents[0]")
 }

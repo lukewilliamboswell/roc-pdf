@@ -16,13 +16,33 @@ DocumentBlock :: [
 	Heading({ level : U8, text : Str }),
 	Figure({ alternative : Str, caption : Caption, drawing : Scene.Drawing }),
 	InternalLink({ destination : Str, text : Str }),
+	KeepTogether(List(DocumentBlock)),
+	KeepWithNext({ contents : List(DocumentBlock), keep : Keep }),
 	Link({ text : Str, uri : Str }),
+	ListBlock({ items : List(DocumentListItem), marker : ListMarker }),
 	PageArtifact({ kind : PageArtifactKind, text : Str }),
+	PageBreak,
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
+	Spacer(Layout.Unit),
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
+
+## One authored list item: the blocks of its `LBody`, in logical order. Its
+## `Lbl` is generated from the enclosing list's marker.
+DocumentListItem :: [ListItem(List(DocumentBlock))].{}
+
+## List label numbering styles (ISO 32000-2 Table 380 `ListNumbering`).
+NumberStyle : [Decimal, LowerAlpha, LowerRoman, UpperAlpha, UpperRoman]
+
+## A list's generated labels: a bullet (`ListNumbering /Disc`) or numbers
+## counting from `start` in a style.
+ListMarker : [Bullet, Numbered({ start : U64, style : NumberStyle })]
+
+## The strength of an authored keep-with-next: `Required` is a mandatory
+## layout constraint; `Preferred` is the ranked preference R2.
+Keep : [Preferred, Required]
 
 ## Authored inline content of a rich paragraph. Every alternative carries the
 ## semantic role it becomes; presentation is Theme policy. Nesting is data,
@@ -33,6 +53,7 @@ DocumentInline :: [
 	Expansion({ expanded : Str, text : Str }),
 	InLanguage({ contents : List(DocumentInline), tag : Str }),
 	InternalLink({ contents : List(DocumentInline), destination : Str }),
+	LineBreak,
 	Link({ contents : List(DocumentInline), uri : Str }),
 	Quote(List(DocumentInline)),
 	Strong(List(DocumentInline)),
@@ -123,6 +144,34 @@ NormalizedBlockKind := [
 ## record by index, so plain blocks keep their compact kind.
 NormalizedRich : { children : U64, elements : U64, inlines : U64, leaves : U64, length : U64, position : U64 }
 
+## An explicit line break inside rich paragraph `paragraph`: the paragraph
+## text is split into segments at its line breaks, and every segment is its
+## own interned source, so the break is a mandatory line boundary with no
+## painted glyph, and paragraphs differing only in break positions never
+## share a line-cache identity. `leaf` is the ordinal of the paragraph's
+## first text leaf after the break and `text` the segment it begins.
+## `parent` (`0` or `i + 1` for inline `i`) and `position` are the break's
+## authored location. Breaks are stored in paragraph and authored order.
+NormalizedLineBreak : { leaf : U64, paragraph : U64, parent : U64, position : U64, text : Str }
+
+## An authored explicit page break before normalized leaf `block` (equal to
+## the leaf count when no leaf follows); `parent` and `position` locate it.
+NormalizedPageBreak : { block : U64, parent : U64, position : U64 }
+
+## Authored vertical space between leaves `block - 1` and `block`. Layout
+## adds it after leaf `block - 1`; space before the first leaf is at the top
+## of a page and therefore suppressed. `parent` and `position` locate it.
+NormalizedSpacer : { amount : Layout.Unit, block : U64, parent : U64, position : U64 }
+
+## One authored list: its item count and label marker.
+NormalizedList : { items : U64, marker : ListMarker }
+
+## The role of one normalized group. Containers become `Part`, `Sect`, or
+## `Div`; an item list becomes `L` (payload: its `lists` index) and each item
+## `LI` with a generated `Lbl` and an `LBody` (payload: the item ordinal).
+## Keep groups are layout-only and produce no structure element.
+NormalizedGroupKind := [Container(ContainerKind), ItemList(U32), KeepTogether, KeepWithNext(Keep), ListItem(U32)]
+
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
 NormalizedInlineKind := [
@@ -152,13 +201,16 @@ NormalizedInline : { children : U64, depth : U64, element : U64, first_leaf : U6
 ## root and `g + 1` for a child of normalized group `g`.
 NormalizedBlock := { kind : NormalizedBlockKind, parent : U64, text : Str }
 
-## One authored container in a dense preorder arena. `parent` uses the same
-## encoding as leaf blocks; `first_block..block_end` is the contiguous span of
-## leaf blocks inside the container's subtree, and `index + 1..group_end` the
-## contiguous span of its descendant groups. `depth` is one for a top-level
-## container and `position` is its index in its parent's authored contents.
-## No recursive per-node value survives normalization.
-NormalizedGroup : { block_end : U64, depth : U64, first_block : U64, group_end : U64, kind : ContainerKind, parent : U64, position : U64 }
+## One authored grouping block in a dense preorder arena. `parent` uses the
+## same encoding as leaf blocks; `first_block..block_end` is the contiguous
+## span of leaf blocks inside the group's subtree, and `index + 1..group_end`
+## the contiguous span of its descendant groups. `position` is the group's
+## index in its parent's authored contents (or items). `depth` is the
+## container nesting depth for containers (one at the top level) and the
+## list nesting level for lists and items; keep groups carry the depth of
+## the containers around them. No recursive per-node value survives
+## normalization.
+NormalizedGroup : { block_end : U64, depth : U64, first_block : U64, group_end : U64, kind : NormalizedGroupKind, parent : U64, position : U64 }
 
 ## Dense normalized meaningful-image facts retained between semantic planning,
 ## layout, resource inspection, and scene lowering.
@@ -170,10 +222,14 @@ NormalizedAuthoring := {
 	groups : List(NormalizedGroup),
 	inlines : List(NormalizedInline),
 	language : Str,
+	line_breaks : List(NormalizedLineBreak),
+	lists : List(NormalizedList),
 	metadata_title : Str,
 	outline : List(OutlineEntry),
+	page_breaks : List(NormalizedPageBreak),
 	page_labels : List(PageLabelRange),
 	rich_paragraphs : List(NormalizedRich),
+	spacers : List(NormalizedSpacer),
 }
 
 ## One authored outline entry in dense preorder: the depth below the outline
@@ -415,15 +471,24 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	FixedPageBuilder : FixedPageBuilder
 	FixedPlacement : FixedPlacement
 	Inline : DocumentInline
+	Keep : Keep
+	ListItem : DocumentListItem
+	ListMarker : ListMarker
 	NavigationError : NavigationError
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
 	NormalizedFigure : NormalizedFigure
 	NormalizedGroup : NormalizedGroup
+	NormalizedGroupKind : NormalizedGroupKind
 	NormalizedInline : NormalizedInline
 	NormalizedInlineKind : NormalizedInlineKind
+	NormalizedLineBreak : NormalizedLineBreak
+	NormalizedList : NormalizedList
+	NormalizedPageBreak : NormalizedPageBreak
 	NormalizedRich : NormalizedRich
+	NormalizedSpacer : NormalizedSpacer
 	NormalizedAuthoring : NormalizedAuthoring
+	NumberStyle : NumberStyle
 	OutlineEntry : OutlineEntry
 	PageArtifactKind : PageArtifactKind
 	PageLabelRange : PageLabelRange
@@ -619,6 +684,38 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	rich_paragraph : List(DocumentInline) -> DocumentBlock
 	rich_paragraph = |inlines| DocumentBlock.RichParagraph(inlines)
 
+	## An unordered list; each item's label is a generated bullet.
+	bullet_list : List(DocumentListItem) -> DocumentBlock
+	bullet_list = |items| DocumentBlock.ListBlock({ items, marker: Bullet })
+
+	## An ordered list whose generated labels count from `start` in `style`.
+	numbered_list : { start : U64, style : NumberStyle }, List(DocumentListItem) -> DocumentBlock
+	numbered_list = |numbering, items| DocumentBlock.ListBlock({ items, marker: Numbered(numbering) })
+
+	## One list item holding its body blocks in logical order.
+	list_item : List(DocumentBlock) -> DocumentListItem
+	list_item = |contents| DocumentListItem.ListItem(contents)
+
+	## A mandatory explicit page break between flow blocks.
+	page_break : DocumentBlock
+	page_break = DocumentBlock.PageBreak
+
+	## A required keep-together group; it produces no structure element.
+	keep_together : List(DocumentBlock) -> DocumentBlock
+	keep_together = |contents| DocumentBlock.KeepTogether(contents)
+
+	## Keep a block with the first placement unit of the block after it.
+	keep_with_next : Keep, DocumentBlock -> DocumentBlock
+	keep_with_next = |keep, block| DocumentBlock.KeepWithNext({ contents: [block], keep })
+
+	## Layout-only vertical space; suppressed at the top of a page.
+	spacer : Layout.Unit -> DocumentBlock
+	spacer = |amount| DocumentBlock.Spacer(amount)
+
+	## An explicit line break inside a rich paragraph.
+	line_break : DocumentInline
+	line_break = DocumentInline.LineBreak
+
 	## Plain inline text.
 	plain_text : Str -> DocumentInline
 	plain_text = |value| DocumentInline.Text(value)
@@ -739,7 +836,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 normalize_authoring : DocumentAuthoring -> NormalizedAuthoring
 normalize_authoring = |authoring| match authoring {
 	Compact(compact) => normalize_compact(compact)
-	Fixed(fixed) => { blocks: [], figures: [], groups: [], inlines: [], language: fixed.language, metadata_title: fixed.metadata_title, outline: [], page_labels: [], rich_paragraphs: [] }
+	Fixed(fixed) => { blocks: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [] }
 	Simple(simple) => normalize_simple(simple)
 }
 
@@ -749,6 +846,18 @@ first_unavailable_block = |blocks| {
 	while $index < blocks.len() {
 		match list_at(blocks, $index) {
 			Container({ contents, kind: _ }) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			KeepTogether(contents) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			KeepWithNext({ contents, keep: _ }) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			ListBlock({ items, marker: _ }) => match first_unavailable_nested(item_blocks(items)) {
 				Available => {}
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
@@ -762,9 +871,9 @@ first_unavailable_block = |blocks| {
 	Available
 }
 
-## Containers are walked with an explicit frame stack, allocated only when a
-## document has containers, so authored nesting depth never becomes Roc call
-## depth. The depth bound itself is a semantic-planning limit.
+## Grouping blocks are walked with an explicit frame stack, allocated only
+## when a document has them, so authored nesting depth never becomes Roc
+## call depth. The depth bounds themselves are semantic-planning limits.
 first_unavailable_nested : List(DocumentBlock) -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
 first_unavailable_nested = |contents| {
 	var $frames = [{ blocks: contents, next: 0 }]
@@ -778,6 +887,15 @@ first_unavailable_nested = |contents| {
 				Container({ contents: nested, kind: _ }) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
 				}
+				KeepTogether(nested) => {
+					$frames = $frames.append({ blocks: nested, next: 0 })
+				}
+				KeepWithNext({ contents: nested, keep: _ }) => {
+					$frames = $frames.append({ blocks: nested, next: 0 })
+				}
+				ListBlock({ items, marker: _ }) => {
+					$frames = $frames.append({ blocks: item_blocks(items), next: 0 })
+				}
 				block => match unavailable_leaf(block) {
 					Available => {}
 					UnavailableFeature(found) => return UnavailableFeature(found)
@@ -786,6 +904,21 @@ first_unavailable_nested = |contents| {
 		}
 	}
 	Available
+}
+
+## The blocks of a list's items in authored order, for the availability
+## walk only; normalization keeps the item structure.
+item_blocks : List(DocumentListItem) -> List(DocumentBlock)
+item_blocks = |items| {
+	var $blocks = []
+	for item in items {
+		match item {
+			ListItem(contents) => {
+				$blocks = $blocks.concat(contents)
+			}
+		}
+	}
+	$blocks
 }
 
 unavailable_leaf : DocumentBlock -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
@@ -853,24 +986,37 @@ normalize_compact = |compact| {
 		groups: [],
 		inlines: [],
 		language: compact.language,
+		line_breaks: [],
+		lists: [],
 		metadata_title: compact.metadata_title,
 		outline: [],
+		page_breaks: [],
 		page_labels: [],
 		rich_paragraphs: [],
+		spacers: [],
 	}
 }
 
-SimpleState : { blocks : List(NormalizedBlock), figures : List(NormalizedFigure), groups : List(NormalizedGroup), inlines : List(NormalizedInline), list_index : U64, rich_paragraphs : List(NormalizedRich) }
+SimpleState : {
+	blocks : List(NormalizedBlock),
+	figures : List(NormalizedFigure),
+	groups : List(NormalizedGroup),
+	inlines : List(NormalizedInline),
+	line_breaks : List(NormalizedLineBreak),
+	list_index : U64,
+	lists : List(NormalizedList),
+	page_breaks : List(NormalizedPageBreak),
+	rich_paragraphs : List(NormalizedRich),
+	spacers : List(NormalizedSpacer),
+}
 
 normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str } -> NormalizedAuthoring
 normalize_simple = |simple| {
-	var $state = { blocks: [], figures: [], groups: [], inlines: [], list_index: 0, rich_paragraphs: [] }
+	var $state = { blocks: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [] }
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
-		$state = match list_at(simple.contents, $block_index) {
-			Container({ contents, kind }) => append_container($state, contents, kind, $block_index)
-			block => append_leaf($state, block, 0, $block_index)
-		}
+		block = list_at(simple.contents, $block_index)
+		$state = if is_grouping(block) append_group($state, block, $block_index) else append_leaf($state, block, 0, $block_index)
 		$block_index = $block_index + 1
 	}
 	{
@@ -879,34 +1025,59 @@ normalize_simple = |simple| {
 		groups: $state.groups,
 		inlines: $state.inlines,
 		language: simple.language,
+		line_breaks: $state.line_breaks,
+		lists: $state.lists,
 		metadata_title: simple.metadata_title,
 		outline: [],
+		page_breaks: $state.page_breaks,
 		page_labels: [],
 		rich_paragraphs: $state.rich_paragraphs,
+		spacers: $state.spacers,
 	}
 }
 
-## Lower one top-level container and its descendants into the preorder
-## arenas with an explicit frame stack: entering a container appends its
-## group record, leaving it closes the group's leaf and descendant spans.
-append_container : SimpleState, List(DocumentBlock), ContainerKind, U64 -> SimpleState
-append_container = |state, contents, kind, position| {
-	var $state = open_group(state, kind, 0, 1, position)
-	var $frames = [{ blocks: contents, depth: 1, group: $state.groups.len(), next: 0 }]
+is_grouping : DocumentBlock -> Bool
+is_grouping = |block| match block {
+	Container(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => True
+	_ => False
+}
+
+## A frame of the group walk: the children of group `group` (encoded
+## `g + 1`), either blocks or, when `listing`, a list's items. `depth` is the
+## enclosing container depth and `list_depth` the list nesting level.
+GroupFrame : { blocks : List(DocumentBlock), depth : U64, group : U64, items : List(DocumentListItem), list_depth : U64, listing : Bool, next : U64 }
+
+## Lower one top-level grouping block and its descendants into the preorder
+## arenas with an explicit frame stack: entering a group appends its record,
+## leaving it closes the group's leaf and descendant spans. A list's frame
+## walks its items, each of which opens an item group over its blocks.
+append_group : SimpleState, DocumentBlock, U64 -> SimpleState
+append_group = |state, block, position| {
+	opened = open_block_group(state, block, 0, 0, 0, position)
+	var $state = opened.state
+	var $frames = [opened.frame]
 	while !$frames.is_empty() {
 		top = list_at($frames, $frames.len() - 1)
-		if top.next >= top.blocks.len() {
+		limit = if top.listing top.items.len() else top.blocks.len()
+		if top.next >= limit {
 			$frames = $frames.drop_last(1)
 			$state = close_group($state, top.group - 1)
 		} else {
 			$frames = list_set($frames, $frames.len() - 1, { ..top, next: top.next + 1 })
-			match list_at(top.blocks, top.next) {
-				Container({ contents: nested, kind: nested_kind }) => {
-					$state = open_group($state, nested_kind, top.group, top.depth + 1, top.next)
-					$frames = $frames.append({ blocks: nested, depth: top.depth + 1, group: $state.groups.len(), next: 0 })
+			if top.listing {
+				contents = match list_at(top.items, top.next) {
+					ListItem(blocks) => blocks
 				}
-				block => {
-					$state = append_leaf($state, block, top.group, top.next)
+				$state = open_group($state, ListItem(top.next.to_u32_wrap()), top.group, top.list_depth, top.next)
+				$frames = $frames.append({ blocks: contents, depth: top.depth, group: $state.groups.len(), items: [], list_depth: top.list_depth, listing: False, next: 0 })
+			} else {
+				child = list_at(top.blocks, top.next)
+				if is_grouping(child) {
+					nested = open_block_group($state, child, top.group, top.depth, top.list_depth, top.next)
+					$state = nested.state
+					$frames = $frames.append(nested.frame)
+				} else {
+					$state = append_leaf($state, child, top.group, top.next)
 				}
 			}
 		}
@@ -914,7 +1085,32 @@ append_container = |state, contents, kind, position| {
 	$state
 }
 
-open_group : SimpleState, ContainerKind, U64, U64, U64 -> SimpleState
+open_block_group : SimpleState, DocumentBlock, U64, U64, U64, U64 -> { frame : GroupFrame, state : SimpleState }
+open_block_group = |state, block, parent, depth, list_depth, position| match block {
+	Container({ contents, kind }) => {
+		opened = open_group(state, Container(kind), parent, depth + 1, position)
+		{ frame: { blocks: contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
+	KeepTogether(contents) => {
+		opened = open_group(state, KeepTogether, parent, depth, position)
+		{ frame: { blocks: contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
+	KeepWithNext({ contents, keep }) => {
+		opened = open_group(state, KeepWithNext(keep), parent, depth, position)
+		{ frame: { blocks: contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
+	ListBlock({ items, marker }) => {
+		index = state.lists.len()
+		listed = { ..state, lists: state.lists.append({ items: items.len(), marker }) }
+		opened = open_group(listed, ItemList(index.to_u32_wrap()), parent, list_depth + 1, position)
+		{ frame: { blocks: [], depth, group: opened.groups.len(), items, list_depth: list_depth + 1, listing: True, next: 0 }, state: opened }
+	}
+	_ => {
+		crash "normalized leaf escaped the group walk"
+	}
+}
+
+open_group : SimpleState, NormalizedGroupKind, U64, U64, U64 -> SimpleState
 open_group = |state, kind, parent, depth, position| {
 	..state,
 	groups: state.groups.append({ block_end: state.blocks.len(), depth, first_block: state.blocks.len(), group_end: state.groups.len() + 1, kind, parent, position }),
@@ -937,8 +1133,8 @@ append_leaf = |state, block, parent, position| match block {
 		}
 		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
 	}
-	Container(_) => {
-		crash "normalized container escaped the frame walk"
+	Container(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => {
+		crash "normalized group escaped the frame walk"
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
 	DestinationParagraph({ name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationParagraph({ name: name }), parent, text }) }
@@ -957,51 +1153,71 @@ append_leaf = |state, block, parent, position| match block {
 	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
 	Link({ text, uri }) => { ..state, blocks: state.blocks.append({ kind: Link({ uri: uri }), parent, text }) }
 	PageArtifact({ kind, text }) => { ..state, blocks: state.blocks.append({ kind: PageArtifact(kind), parent, text }) }
+	PageBreak => { ..state, page_breaks: state.page_breaks.append({ block: state.blocks.len(), parent, position }) }
 	Paragraph(text) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text }) }
 	RichParagraph(contents) => append_rich(state, contents, parent, position)
+	Spacer(amount) => { ..state, spacers: state.spacers.append({ amount, block: state.blocks.len(), parent, position }) }
 	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
 
 	## Preparation rejects this branch before normalization.
 	Unavailable({ feature: _, summary: _ }) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
 }
 
-InlineFrame : { depth : U64, items : List(DocumentInline), language : U64, next : U64, owner : U64 }
+InlineFrame : { breaks : U64, depth : U64, items : List(DocumentInline), language : U64, next : U64, owner : U64 }
 
 ## Lower one rich paragraph into the dense preorder inline arena with an
 ## explicit frame stack, so authored nesting never becomes Roc call depth.
 ## The paragraph's text is the concatenation of its leaves in logical order:
 ## one interned source, so line breaking sees the whole paragraph and every
-## leaf owns an exact byte range of it. Validation (emptiness, depth, links,
-## languages) is a semantic-planning concern with stable diagnostics.
+## leaf owns an exact byte range of it. An explicit line break instead ends
+## one segment and begins the next: the block text is the first segment,
+## each break record carries the segment after it, and a leaf's byte range
+## is relative to its own segment. A line break has no inline record and no
+## content-spine slot, so each record's `position` is its slot among its
+## siblings' records; the break keeps its authored position. Validation
+## (emptiness, depth, links, languages, break placement) is a
+## semantic-planning concern with stable diagnostics.
 append_rich : SimpleState, List(DocumentInline), U64, U64 -> SimpleState
 append_rich = |state, contents, parent, position| {
+	paragraph = state.rich_paragraphs.len()
 	base = state.inlines.len()
+	first_break = state.line_breaks.len()
 	var $inlines = state.inlines
+	var $line_breaks = state.line_breaks
 	var $elements = 0
 	var $leaves = 0
 	var $bytes = 0
-	var $frames = [{ depth: 1, items: contents, language: 0, next: 0, owner: 0 }]
+	var $root_breaks = 0
+	var $frames = [{ breaks: 0, depth: 1, items: contents, language: 0, next: 0, owner: 0 }]
 	while !$frames.is_empty() {
 		top = list_at($frames, $frames.len() - 1)
 		if top.next >= top.items.len() {
 			$frames = $frames.drop_last(1)
 			if top.owner != 0 {
 				record = list_at($inlines, top.owner - 1)
-				$inlines = list_set($inlines, top.owner - 1, { ..record, leaf_end: $leaves })
+				$inlines = list_set($inlines, top.owner - 1, { ..record, children: record.children - top.breaks, leaf_end: $leaves })
+			} else {
+				$root_breaks = top.breaks
 			}
 		} else {
 			$frames = list_set($frames, $frames.len() - 1, { ..top, next: top.next + 1 })
 			index = $inlines.len()
+			slot = top.next - top.breaks
 			match list_at(top.items, top.next) {
+				LineBreak => {
+					$line_breaks = $line_breaks.append({ leaf: $leaves, paragraph, parent: top.owner, position: top.next, text: "" })
+					$frames = list_set($frames, $frames.len() - 1, { ..top, breaks: top.breaks + 1, next: top.next + 1 })
+					$bytes = 0
+				}
 				Text(value) => {
 					length = value.count_utf8_bytes()
-					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: top.next, spine: 0 })
+					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
 				}
 				Code(value) => {
 					length = value.count_utf8_bytes()
-					$inlines = $inlines.append({ ..inline_element(top, Code, 1, $elements, $leaves), leaf_end: $leaves + 1 })
+					$inlines = $inlines.append({ ..inline_element(top, slot, Code, 1, $elements, $leaves), leaf_end: $leaves + 1 })
 					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
 					$elements = $elements + 1
 					$leaves = $leaves + 1
@@ -1009,40 +1225,40 @@ append_rich = |state, contents, parent, position| {
 				}
 				Expansion({ expanded, text: value }) => {
 					length = value.count_utf8_bytes()
-					$inlines = $inlines.append({ ..inline_element(top, Expansion(expanded), 1, $elements, $leaves), leaf_end: $leaves + 1 })
+					$inlines = $inlines.append({ ..inline_element(top, slot, Expansion(expanded), 1, $elements, $leaves), leaf_end: $leaves + 1 })
 					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
 					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
 				}
 				Emphasis(nested) => {
-					$inlines = $inlines.append(inline_element(top, Emphasis, nested.len(), $elements, $leaves))
-					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$inlines = $inlines.append(inline_element(top, slot, Emphasis, nested.len(), $elements, $leaves))
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
 					$elements = $elements + 1
 				}
 				Strong(nested) => {
-					$inlines = $inlines.append(inline_element(top, Strong, nested.len(), $elements, $leaves))
-					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$inlines = $inlines.append(inline_element(top, slot, Strong, nested.len(), $elements, $leaves))
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
 					$elements = $elements + 1
 				}
 				Quote(nested) => {
-					$inlines = $inlines.append(inline_element(top, Quote, nested.len(), $elements, $leaves))
-					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$inlines = $inlines.append(inline_element(top, slot, Quote, nested.len(), $elements, $leaves))
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
 					$elements = $elements + 1
 				}
 				Link({ contents: nested, uri }) => {
-					$inlines = $inlines.append(inline_element(top, Link(uri), nested.len(), $elements, $leaves))
-					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$inlines = $inlines.append(inline_element(top, slot, Link(uri), nested.len(), $elements, $leaves))
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
 					$elements = $elements + 1
 				}
 				InternalLink({ contents: nested, destination }) => {
-					$inlines = $inlines.append(inline_element(top, InternalLink(destination), nested.len(), $elements, $leaves))
-					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$inlines = $inlines.append(inline_element(top, slot, InternalLink(destination), nested.len(), $elements, $leaves))
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
 					$elements = $elements + 1
 				}
 				InLanguage({ contents: nested, tag }) => {
-					$inlines = $inlines.append(inline_element(top, InLanguage(tag), nested.len(), $elements, $leaves))
-					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: index + 1, next: 0, owner: index + 1 })
+					$inlines = $inlines.append(inline_element(top, slot, InLanguage(tag), nested.len(), $elements, $leaves))
+					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: index + 1, next: 0, owner: index + 1 })
 					$elements = $elements + 1
 				}
 			}
@@ -1051,7 +1267,8 @@ append_rich = |state, contents, parent, position| {
 
 	## Each element's children occupy one contiguous span of the content
 	## spine after the paragraph's own children, in element preorder.
-	var $spine = contents.len()
+	children = contents.len() - $root_breaks
+	var $spine = children
 	var $index = base
 	while $index < $inlines.len() {
 		record = list_at($inlines, $index)
@@ -1064,13 +1281,23 @@ append_rich = |state, contents, parent, position| {
 		}
 		$index = $index + 1
 	}
-	text = if $leaves == 1 single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
-	rich = { children: contents.len(), elements: $elements, inlines: base, leaves: $leaves, length: $inlines.len() - base, position }
-	{ ..state, blocks: state.blocks.append({ kind: RichParagraph(state.rich_paragraphs.len()), parent, text }), inlines: $inlines, rich_paragraphs: state.rich_paragraphs.append(rich) }
+	rich = { children, elements: $elements, inlines: base, leaves: $leaves, length: $inlines.len() - base, position }
+	if $line_breaks.len() == first_break {
+		text = if $leaves == 1 single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
+		return { ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text }), inlines: $inlines, line_breaks: $line_breaks, rich_paragraphs: state.rich_paragraphs.append(rich) }
+	}
+	segments = segment_texts($inlines, base, $line_breaks, first_break)
+	var $index_break = first_break
+	while $index_break < $line_breaks.len() {
+		record = list_at($line_breaks, $index_break)
+		$line_breaks = list_set($line_breaks, $index_break, { ..record, text: list_at(segments, $index_break - first_break + 1) })
+		$index_break = $index_break + 1
+	}
+	{ ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, rich_paragraphs: state.rich_paragraphs.append(rich) }
 }
 
-inline_element : InlineFrame, NormalizedInlineKind, U64, U64, U64 -> NormalizedInline
-inline_element = |frame, kind, children, element, leaves| { children, depth: frame.depth, element, first_leaf: leaves, kind, language: frame.language, leaf_end: leaves, parent: frame.owner, position: frame.next, spine: 0 }
+inline_element : InlineFrame, U64, NormalizedInlineKind, U64, U64, U64 -> NormalizedInline
+inline_element = |frame, slot, kind, children, element, leaves| { children, depth: frame.depth, element, first_leaf: leaves, kind, language: frame.language, leaf_end: leaves, parent: frame.owner, position: slot, spine: 0 }
 
 single_leaf_text : List(NormalizedInline), U64 -> Str
 single_leaf_text = |inlines, base| {
@@ -1104,6 +1331,40 @@ concatenated_text = |inlines, base, bytes| {
 		$index = $index + 1
 	}
 	$text
+}
+
+## The segment texts of a paragraph with line breaks: segment `k` holds the
+## leaves from break `k - 1` up to break `k`, in logical order. An empty
+## segment (a break at either end, or two adjacent breaks) stays empty here
+## and is rejected by semantic planning.
+segment_texts : List(NormalizedInline), U64, List(NormalizedLineBreak), U64 -> List(Str)
+segment_texts = |inlines, base, line_breaks, first_break| {
+	var $segments = List.with_capacity(line_breaks.len() - first_break + 1)
+	var $current = ""
+	var $next_break = first_break
+	var $leaf = 0
+	var $index = base
+	while $index < inlines.len() {
+		match list_at(inlines, $index).kind {
+			Text({ byte_length: _, byte_start: _, text }) => {
+				while $next_break < line_breaks.len() and list_at(line_breaks, $next_break).leaf <= $leaf {
+					$segments = $segments.append($current)
+					$current = ""
+					$next_break = $next_break + 1
+				}
+				$current = $current.concat(text)
+				$leaf = $leaf + 1
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	while $next_break < line_breaks.len() {
+		$segments = $segments.append($current)
+		$current = ""
+		$next_break = $next_break + 1
+	}
+	$segments.append($current)
 }
 
 ## Blocks with a secondary string (a URI or a destination name) intern it as

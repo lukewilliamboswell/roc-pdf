@@ -82,7 +82,7 @@ evidence_semantic_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -147,7 +147,7 @@ evidence_shape_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -232,7 +232,7 @@ evidence_line_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -330,7 +330,7 @@ evidence_page_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -636,7 +636,7 @@ synthetic_page_input = |block_count| {
 			policy: {
 				break_before: $block_index > 0 and $block_index % 10 == 0,
 				keep_together: kept,
-				keep_with_next: $block_index % 10 == 5 and $block_index + 1 < block_count,
+				keep_with_next: if $block_index % 10 == 5 and $block_index + 1 < block_count Required else NoKeep,
 				minimum_first_lines: 2,
 				minimum_last_lines: 2,
 			},
@@ -753,7 +753,7 @@ evidence_ordered_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,

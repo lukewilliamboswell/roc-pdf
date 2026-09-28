@@ -3,23 +3,52 @@ import Layout
 import Semantics
 
 KernelPageLayout :: [].{
-	Dimension : [Blocks, Fragments, Lines, Pages, Placements]
+	Dimension : [Blocks, Fragments, Groups, Lines, Pages, Placements]
+
+	## The ranked preferences of `reference-documents-v4`, highest first:
+	## R1 a heading keeps with its next block's first placement unit, R2 an
+	## author's preferred keep-with-next, R3 a table footer group carries a
+	## body row (reserved for the table slice), R4 the orphan minimum, and R5
+	## the widow minimum. A higher rank is never sacrificed for a lower one.
+	Rank : [AuthorKeep, FooterCarry, HeadingKeep, Orphan, Widow]
+
+	## Keep-with-next strength. `Required` is a mandatory constraint that is
+	## never relaxed; `Preferred` is a ranked preference.
+	Keep : [NoKeep, Preferred(Rank), Required]
+
+	## Conflicting mandatory constraints, each naming its participating
+	## sources by dense block and keep-group index.
+	Conflict : [
+		BreakAfterRequiredKeep({ block : U64, next : U64 }),
+		BreakInsideGroup({ block : U64, group : U64 }),
+		ChainTooTall({ available : U64, block : U64, next : U64, required : U64 }),
+		GroupTooTall({ available : U64, group : U64, required : U64 }),
+		RequiredKeepAtEnd({ block : U64 }),
+	]
 	Error : [
 		ArithmeticOverflow,
 		InvalidBlock({ block : U64 }),
 		InvalidConstraints,
+		InvalidGroup({ group : U64 }),
 		InvalidLine({ line : U64 }),
-		InvalidPolicy({ block : U64 }),
-		KeepImpossible({ block : U64, required : U64, available : U64 }),
+		KeepConflict(Conflict),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
+		Oversize({ available : U64, block : U64, required : U64 }),
 	]
 
 	Margins : { bottom : Layout.Unit, left : Layout.Unit, right : Layout.Unit, top : Layout.Unit }
 	Constraints : { margins : Margins, page : Layout.Size }
+
+	## Typed per-block policy. `break_before` is a mandatory explicit page
+	## break and `keep_together` a mandatory unsplittable block;
+	## `keep_with_next` binds the block's end to the next block's first
+	## placement unit (the whole next block when it is unsplittable, else
+	## its first `minimum_first_lines` lines). The line minimums are the R4
+	## and R5 preferences.
 	Policy : {
 		break_before : Bool,
 		keep_together : Bool,
-		keep_with_next : Bool,
+		keep_with_next : Keep,
 		minimum_first_lines : U64,
 		minimum_last_lines : U64,
 	}
@@ -31,6 +60,15 @@ KernelPageLayout :: [].{
 		policy : Policy,
 		space_after : Layout.Unit,
 	}
+
+	## A required keep-together group over a contiguous block range. Groups
+	## are listed in preorder: a group either nests inside an earlier one or
+	## starts after it ends.
+	KeepGroup : { blocks : Semantics.Range }
+
+	## One preference the chosen break left unsatisfied: its rank, the block
+	## whose policy declared it, and the page the break closed.
+	Relaxation : { block : U64, page : U64, rank : Rank }
 	Limits :: { max_blocks : U64, max_fragments : U64, max_lines : U64, max_pages : U64, max_placements : U64 }.{
 		make : { max_blocks : U64, max_fragments : U64, max_lines : U64, max_pages : U64, max_placements : U64 } -> Limits
 		make = |limits| Limits.(limits)
@@ -51,17 +89,27 @@ KernelPageLayout :: [].{
 		id : Semantics.PageId,
 		placements : Semantics.Range,
 	}
+
+	## `candidate_visits` counts every break position scored by the page
+	## scans, including positions rescanned after an earlier break was
+	## chosen; it is bounded by the placed lines plus one page of look-back
+	## per page, so it grows linearly with the document.
 	Work : {
 		block_visits : U64,
+		candidate_visits : U64,
 		fragment_writes : U64,
 		keep_policy_visits : U64,
 		line_visits : U64,
 		page_writes : U64,
 		placement_writes : U64,
 	}
-	Plan :: { fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), work : Work }.{
+	Plan :: { fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
 		build : List(Block), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build = |blocks, lines, constraints, limits| build_plan(blocks, lines, constraints, limits)
+		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, limits)
+
+		## Pagination with required keep-together groups.
+		build_with_groups : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
+		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, limits)
 
 		fragments : Plan -> List(Fragment)
 		fragments = |plan| plan.fragments
@@ -71,6 +119,9 @@ KernelPageLayout :: [].{
 
 		placements : Plan -> List(PlacedLine)
 		placements = |plan| plan.placements
+
+		relaxations : Plan -> List(Relaxation)
+		relaxations = |plan| plan.relaxations
 
 		work : Plan -> Work
 		work = |plan| plan.work
@@ -85,103 +136,120 @@ Geometry := {
 	page_height : U64,
 }
 
-Validation := { keep_requirements : List(U64), line_visits : U64 }
+## `heights[b]` is block b's line height; `atomic_ends[b]` is the exclusive
+## end of the outermost keep-together group starting at b, or zero (empty
+## when no group exists).
+Validation := { atomic_ends : List(U64), heights : List(U64), line_visits : U64 }
 
-build_plan : List(KernelPageLayout.Block), List(KernelLineLayout.Line), KernelPageLayout.Constraints, KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
-build_plan = |blocks, lines, constraints, limits| {
+## A page scan either reaches the end of the document or chooses a break at
+## `line` lines into `block` (line zero is the boundary before the block).
+Scan := { candidates : U64, end : [AllFits, Break({ block : U64, line : U64 })] }
+
+## Preference bits of a break's score vector, R1 highest.
+heading_bit : U64
+heading_bit = 16
+
+author_bit : U64
+author_bit = 8
+
+orphan_bit : U64
+orphan_bit = 2
+
+widow_bit : U64
+widow_bit = 1
+
+all_satisfied : U64
+all_satisfied = 31
+
+no_candidate : U64
+no_candidate = U64.highest
+
+build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
+build_plan = |blocks, groups, lines, constraints, limits| {
 	if blocks.len() == 0 or lines.len() == 0 {
 		return Err(InvalidConstraints)
 	}
 	check_limit(blocks.len(), limits.max_blocks, Blocks)?
 	check_limit(lines.len(), limits.max_lines, Lines)?
+	check_limit(groups.len(), limits.max_blocks, Groups)?
 	geometry = validate_geometry(constraints)?
-	validation = validate_input(blocks, lines, geometry.content_height)?
+	validation = validate_input(blocks, groups, lines, geometry.content_height)?
 	var $pages = []
 	var $fragments = []
 	var $placements = []
-	var $page_fragment_start = 0
-	var $page_placement_start = 0
-	var $used = 0
-	var $block_index = 0
-	while $block_index < blocks.len() {
-		block = list_at(blocks, $block_index)
-		line_end = range_end(block.lines)?
-		var $line_cursor = block.lines.start()
-		page_has_content = $placements.len() > $page_placement_start
-		if block.policy.break_before and page_has_content {
-			$pages = append_page($pages, $page_fragment_start, $fragments.len(), $page_placement_start, $placements.len(), limits.max_pages)?
-			$page_fragment_start = $fragments.len()
-			$page_placement_start = $placements.len()
-			$used = 0
+	var $relaxations = []
+	var $candidate_visits = 0
+	var $block = 0
+	var $line = 0
+	while $block < blocks.len() {
+		scan = scan_page(blocks, validation, geometry.content_height, $block, $line)?
+		$candidate_visits = checked_add($candidate_visits, scan.candidates)?
+		end = match scan.end {
+			AllFits => { block: blocks.len(), line: 0 }
+			Break(position) => position
 		}
-		keep_required = list_at(validation.keep_requirements, $block_index)
-		if keep_required > geometry.content_height {
-			return Err(KeepImpossible({ available: geometry.content_height, block: $block_index, required: keep_required }))
-		}
-		remaining_page = geometry.content_height - $used
-		if keep_required > remaining_page and $placements.len() > $page_placement_start {
-			$pages = append_page($pages, $page_fragment_start, $fragments.len(), $page_placement_start, $placements.len(), limits.max_pages)?
-			$page_fragment_start = $fragments.len()
-			$page_placement_start = $placements.len()
-			$used = 0
-		}
-		while $line_cursor < line_end {
+		page_index = $pages.len()
+		fragment_start = $fragments.len()
+		placement_start = $placements.len()
+
+		## Materialize the accepted page once, from the page start to the
+		## chosen break, exactly as the scan measured it.
+		var $used = 0
+		var $cursor_block = $block
+		var $cursor_line = $line
+		while $cursor_block < end.block or ($cursor_block == end.block and $cursor_line < end.line) {
+			block = list_at(blocks, $cursor_block)
+			line_count = block.lines.length()
+			stop = if $cursor_block == end.block end.line else line_count
+			take = stop - $cursor_line
 			leading = positive_raw(block.leading)?
-			remaining_lines = line_end - $line_cursor
-			available_lines = (geometry.content_height - $used) / leading
-			must_restart = available_lines == 0 or (remaining_lines > available_lines and available_lines < block.policy.minimum_first_lines)
-			if must_restart {
-				if $placements.len() == $page_placement_start {
-					return Err(InvalidPolicy({ block: $block_index }))
-				}
-				$pages = append_page($pages, $page_fragment_start, $fragments.len(), $page_placement_start, $placements.len(), limits.max_pages)?
-				$page_fragment_start = $fragments.len()
-				$page_placement_start = $placements.len()
-				$used = 0
+			fragment_height = checked_mul(take, leading)?
+			fragment_id = Semantics.FragmentId.from_index($fragments.len())
+			line_start = block.lines.start() + $cursor_line
+			fragment = make_fragment(block, lines, line_start, take, fragment_height, $used, geometry, page_index)?
+			check_limit(checked_add($fragments.len(), 1)?, limits.max_fragments, Fragments)?
+			$fragments = $fragments.append(fragment)
+			var $local = 0
+			while $local < take {
+				check_limit(checked_add($placements.len(), 1)?, limits.max_placements, Placements)?
+				baseline_descent = checked_add($used, checked_add(positive_raw(block.baseline_offset)?, checked_mul($local, leading)?)?)?
+				baseline_y = geometry.page_height - geometry.margin_top - baseline_descent
+				$placements = $placements.append({
+					baseline: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(baseline_y.to_i64_wrap()) },
+					fragment: fragment_id,
+					line: line_start + $local,
+				})
+				$local = $local + 1
+			}
+			$used = checked_add($used, fragment_height)?
+			if stop == line_count {
+				spaced = checked_add($used, nonnegative_raw(block.space_after)?)?
+				$used = if spaced > geometry.content_height geometry.content_height else spaced
+				$cursor_block = $cursor_block + 1
+				$cursor_line = 0
 			} else {
-				take = select_fragment_lines(block, $block_index, remaining_lines, available_lines)?
-				fragment_height = checked_mul(take, leading)?
-				fragment_id = Semantics.FragmentId.from_index($fragments.len())
-				fragment = make_fragment(block, lines, $line_cursor, take, fragment_height, $used, geometry, $pages.len())?
-				check_limit(checked_add($fragments.len(), 1)?, limits.max_fragments, Fragments)?
-				$fragments = $fragments.append(fragment)
-				var $local = 0
-				while $local < take {
-					check_limit(checked_add($placements.len(), 1)?, limits.max_placements, Placements)?
-					baseline_descent = checked_add($used, checked_add(positive_raw(block.baseline_offset)?, checked_mul($local, leading)?)?)?
-					baseline_y = geometry.page_height - geometry.margin_top - baseline_descent
-					$placements = $placements.append({
-						baseline: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(baseline_y.to_i64_wrap()) },
-						fragment: fragment_id,
-						line: $line_cursor + $local,
-					})
-					$local = $local + 1
-				}
-				$used = checked_add($used, fragment_height)?
-				$line_cursor = $line_cursor + take
-				if $line_cursor < line_end {
-					$pages = append_page($pages, $page_fragment_start, $fragments.len(), $page_placement_start, $placements.len(), limits.max_pages)?
-					$page_fragment_start = $fragments.len()
-					$page_placement_start = $placements.len()
-					$used = 0
-				}
+				$cursor_line = stop
 			}
 		}
-		space = nonnegative_raw(block.space_after)?
-		spaced = checked_add($used, space)?
-		$used = if spaced > geometry.content_height geometry.content_height else spaced
-		$block_index = $block_index + 1
-	}
-	if $placements.len() > $page_placement_start {
-		$pages = append_page($pages, $page_fragment_start, $fragments.len(), $page_placement_start, $placements.len(), limits.max_pages)?
+		$pages = append_page($pages, fragment_start, $fragments.len(), placement_start, $placements.len(), limits.max_pages)?
+		match scan.end {
+			AllFits => {}
+			Break(position) => {
+				$relaxations = record_relaxations($relaxations, blocks, position, $block, $line, page_index)
+			}
+		}
+		$block = end.block
+		$line = end.line
 	}
 	Ok(
 		KernelPageLayout.Plan.{
 			fragments: $fragments,
 			pages: $pages,
 			placements: $placements,
+			relaxations: $relaxations,
 			work: {
 				block_visits: blocks.len(),
+				candidate_visits: $candidate_visits,
 				fragment_writes: $fragments.len(),
 				keep_policy_visits: blocks.len(),
 				line_visits: validation.line_visits,
@@ -190,6 +258,191 @@ build_plan = |blocks, lines, constraints, limits| {
 			},
 		},
 	)
+}
+
+## Scan one fresh page from `start_block`/`start_line`: collect every legal
+## break position up to the last one whose content still fits, score each by
+## its (R1, ..., R5) vector, and keep the lexicographically greatest, the
+## latest on ties. Required keeps make a position illegal; keep-together
+## groups and unsplittable blocks are atomic units. A reachable explicit
+## break ends the page there. The scan keeps scalar state only.
+scan_page : List(KernelPageLayout.Block), Validation, U64, U64, U64 -> Try(Scan, KernelPageLayout.Error)
+scan_page = |blocks, validation, height, start_block, start_line| {
+	var $used = 0
+	var $best_block = 0
+	var $best_line = 0
+	var $best_score = no_candidate
+	var $visits = 0
+	var $blocked = no_candidate
+	var $index = start_block
+	var $first_line = start_line
+	while $index < blocks.len() {
+		block = list_at(blocks, $index)
+		if $index > start_block {
+			$visits = $visits + 1
+			if block.policy.break_before {
+				return Ok({ candidates: $visits, end: Break({ block: $index, line: 0 }) })
+			}
+			match list_at(blocks, $index - 1).policy.keep_with_next {
+				Required => {
+					$blocked = $index - 1
+				}
+				keep => {
+					score = all_satisfied - keep_bit(keep)
+					if $best_score == no_candidate or score >= $best_score {
+						$best_score = score
+						$best_block = $index
+						$best_line = 0
+					}
+				}
+			}
+		}
+		atomic_end = if validation.atomic_ends.is_empty() or $first_line != 0 0 else list_at(validation.atomic_ends, $index)
+		if atomic_end != 0 {
+			unit = group_height(blocks, validation.heights, $index, atomic_end)?
+			if checked_add($used, unit)? > height {
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: $used }, blocks)
+			}
+			spaced = checked_add(checked_add($used, unit)?, nonnegative_raw(list_at(blocks, atomic_end - 1).space_after)?)?
+			$used = if spaced > height height else spaced
+			$index = atomic_end
+			$first_line = 0
+		} else if block.policy.keep_together and $first_line == 0 {
+			unit = list_at(validation.heights, $index)
+			if checked_add($used, unit)? > height {
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit, used: $used }, blocks)
+			}
+			spaced = checked_add(checked_add($used, unit)?, nonnegative_raw(block.space_after)?)?
+			$used = if spaced > height height else spaced
+			$index = $index + 1
+		} else {
+			leading = positive_raw(block.leading)?
+			line_count = block.lines.length()
+			remaining = line_count - $first_line
+			fit = (height - $used) / leading
+			take_max = if fit < remaining fit else remaining
+			starts_here = $first_line == 0
+			previous_keep = if starts_here and $index > start_block list_at(blocks, $index - 1).policy.keep_with_next else NoKeep
+			var $taken = $first_line + 1
+			while $taken <= $first_line + take_max and $taken < line_count {
+				$visits = $visits + 1
+				var $score = all_satisfied
+				var $legal = True
+				if starts_here and $taken < block.policy.minimum_first_lines {
+					$score = $score - orphan_bit
+					match previous_keep {
+						Required => {
+							$legal = False
+							$blocked = $index - 1
+						}
+						keep => {
+							$score = $score - keep_bit(keep)
+						}
+					}
+				}
+				if line_count - $taken < block.policy.minimum_last_lines {
+					$score = $score - widow_bit
+				}
+				if $legal and ($best_score == no_candidate or $score >= $best_score) {
+					$best_score = $score
+					$best_block = $index
+					$best_line = $taken
+				}
+				$taken = $taken + 1
+			}
+			if remaining > fit {
+				return finish_scan($best_score, $best_block, $best_line, $visits, { blocked: $blocked, height, start: start_block, stop: $index, unit: leading, used: $used }, blocks)
+			}
+			spaced = checked_add(checked_add($used, checked_mul(remaining, leading)?)?, nonnegative_raw(block.space_after)?)?
+			$used = if spaced > height height else spaced
+			$index = $index + 1
+			$first_line = 0
+		}
+	}
+	Ok({ candidates: $visits, end: AllFits })
+}
+
+## The scan stopped at a unit that does not fit. The best legal candidate
+## ends the page; with none, the page start cannot be placed at all, and the
+## result is the error for that unit, never an empty page.
+finish_scan : U64, U64, U64, U64, { blocked : U64, height : U64, start : U64, stop : U64, unit : U64, used : U64 }, List(KernelPageLayout.Block) -> Try(Scan, KernelPageLayout.Error)
+finish_scan = |best_score, best_block, best_line, visits, stop, blocks| {
+	if best_score != no_candidate {
+		return Ok({ candidates: visits, end: Break({ block: best_block, line: best_line }) })
+	}
+	required = checked_add(stop.used, stop.unit)?
+	if stop.blocked != no_candidate {
+		Err(KeepConflict(ChainTooTall({ available: stop.height, block: stop.blocked, next: stop.blocked + 1, required })))
+	} else if stop.stop < blocks.len() {
+		Err(Oversize({ available: stop.height, block: stop.stop, required }))
+	} else {
+		Err(InvalidBlock({ block: stop.start }))
+	}
+}
+
+keep_bit : KernelPageLayout.Keep -> U64
+keep_bit = |keep| match keep {
+	NoKeep | Required => 0
+	Preferred(rank) => rank_bit(rank)
+}
+
+rank_bit : KernelPageLayout.Rank -> U64
+rank_bit = |rank| match rank {
+	HeadingKeep => heading_bit
+	AuthorKeep => author_bit
+	FooterCarry => 4
+	Orphan => orphan_bit
+	Widow => widow_bit
+}
+
+## Record each preference the chosen break leaves unsatisfied, with the
+## block whose policy declared it. The list stays empty (and unallocated)
+## for a document whose every break satisfies every preference.
+record_relaxations : List(KernelPageLayout.Relaxation), List(KernelPageLayout.Block), { block : U64, line : U64 }, U64, U64, U64 -> List(KernelPageLayout.Relaxation)
+record_relaxations = |relaxations, blocks, position, start_block, start_line, page| {
+	block = list_at(blocks, position.block)
+	if position.line == 0 {
+		if position.block == 0 {
+			return relaxations
+		}
+		return match list_at(blocks, position.block - 1).policy.keep_with_next {
+			Preferred(rank) => relaxations.append({ block: position.block - 1, page, rank })
+			_ => relaxations
+		}
+	}
+	starts_here = position.block > start_block or start_line == 0
+	var $relaxations = relaxations
+	if starts_here and position.line < block.policy.minimum_first_lines {
+		if position.block > start_block {
+			match list_at(blocks, position.block - 1).policy.keep_with_next {
+				Preferred(rank) => {
+					$relaxations = $relaxations.append({ block: position.block - 1, page, rank })
+				}
+				_ => {}
+			}
+		}
+		$relaxations = $relaxations.append({ block: position.block, page, rank: Orphan })
+	}
+	if block.lines.length() - position.line < block.policy.minimum_last_lines {
+		$relaxations = $relaxations.append({ block: position.block, page, rank: Widow })
+	}
+	$relaxations
+}
+
+## The height of an atomic keep-together group: its members' lines plus the
+## spacing between members (not after the last).
+group_height : List(KernelPageLayout.Block), List(U64), U64, U64 -> Try(U64, KernelPageLayout.Error)
+group_height = |blocks, heights, start, end| {
+	var $total = 0
+	var $index = start
+	while $index < end {
+		$total = checked_add($total, list_at(heights, $index))?
+		if $index + 1 < end {
+			$total = checked_add($total, nonnegative_raw(list_at(blocks, $index).space_after)?)?
+		}
+		$index = $index + 1
+	}
+	Ok($total)
 }
 
 validate_geometry : KernelPageLayout.Constraints -> Try(Geometry, KernelPageLayout.Error)
@@ -215,8 +468,16 @@ validate_geometry = |constraints| {
 	}
 }
 
-validate_input : List(KernelPageLayout.Block), List(KernelLineLayout.Line), U64 -> Try(Validation, KernelPageLayout.Error)
-validate_input = |blocks, lines, content_height| {
+## Static validation before any page is scanned: block and line shape,
+## unsplittable blocks that exceed a fresh page, keep-group nesting, explicit
+## breaks strictly inside a group, and required keep chains. The backward
+## pass computes each required chain's minimum height: the block's tail
+## (the whole block when unsplittable, else one line), its spacing, and the
+## next block's first placement unit or, when that block keeps too, its own
+## chain. A chain taller than a fresh page is a conflict naming the keep and
+## the block it binds.
+validate_input : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), U64 -> Try(Validation, KernelPageLayout.Error)
+validate_input = |blocks, groups, lines, content_height| {
 	var $heights = List.with_capacity(blocks.len())
 	var $line_cursor = 0
 	var $line_visits = 0
@@ -227,9 +488,6 @@ validate_input = |blocks, lines, content_height| {
 		if block.lines.start() != $line_cursor or line_count == 0 or block.policy.minimum_first_lines == 0 or block.policy.minimum_last_lines == 0 or block.policy.minimum_first_lines > line_count or block.policy.minimum_last_lines > line_count {
 			return Err(InvalidBlock({ block: $block_index }))
 		}
-		if block.policy.keep_with_next and !block.policy.keep_together {
-			return Err(InvalidPolicy({ block: $block_index }))
-		}
 		leading = positive_raw(block.leading) ? |_| InvalidBlock({ block: $block_index })
 		baseline = positive_raw(block.baseline_offset) ? |_| InvalidBlock({ block: $block_index })
 		if baseline > leading {
@@ -238,7 +496,7 @@ validate_input = |blocks, lines, content_height| {
 		_ = nonnegative_raw(block.space_after) ? |_| InvalidBlock({ block: $block_index })
 		height = checked_mul(line_count, leading)?
 		if block.policy.keep_together and height > content_height {
-			return Err(KeepImpossible({ available: content_height, block: $block_index, required: height }))
+			return Err(Oversize({ available: content_height, block: $block_index, required: height }))
 		}
 		var $local = 0
 		var $scalar_cursor = 0
@@ -249,7 +507,12 @@ validate_input = |blocks, lines, content_height| {
 				return Err(InvalidBlock({ block: $block_index }))
 			}
 			line = list_at(lines, line_index)
-			if $local > 0 and (line.source.scalars.start() != $scalar_cursor or line.source.utf8_bytes.start() != $byte_cursor) {
+
+			## Lines of one block continue one source, or begin the next
+			## explicit-line-break segment at its own source origin.
+			continues = line.source.scalars.start() == $scalar_cursor and line.source.utf8_bytes.start() == $byte_cursor
+			restarts = line.source.scalars.start() == 0 and line.source.utf8_bytes.start() == 0
+			if $local > 0 and !continues and !restarts {
 				return Err(InvalidLine({ line: line_index }))
 			}
 			$scalar_cursor = range_end(line.source.scalars)?
@@ -264,53 +527,95 @@ validate_input = |blocks, lines, content_height| {
 	if $line_cursor != lines.len() {
 		return Err(InvalidBlock({ block: blocks.len() }))
 	}
+	atomic_ends = validate_groups(blocks, groups, $heights, content_height)?
 	var $requirements = List.repeat(0, blocks.len())
 	var $reverse = blocks.len()
 	while $reverse > 0 {
 		$reverse = $reverse - 1
 		block = list_at(blocks, $reverse)
-		required = if block.policy.keep_with_next {
-			if $reverse + 1 >= blocks.len() {
-				return Err(InvalidPolicy({ block: $reverse }))
+		match block.policy.keep_with_next {
+			Required => {
+				if $reverse + 1 >= blocks.len() {
+					return Err(KeepConflict(RequiredKeepAtEnd({ block: $reverse })))
+				}
+				next = list_at(blocks, $reverse + 1)
+				if next.policy.break_before {
+					return Err(KeepConflict(BreakAfterRequiredKeep({ block: $reverse, next: $reverse + 1 })))
+				}
+				tail = if block.policy.keep_together list_at($heights, $reverse) else positive_raw(block.leading)?
+				next_unit = match next.policy.keep_with_next {
+					Required => list_at($requirements, $reverse + 1)
+					_ => first_unit(next, list_at($heights, $reverse + 1), atomic_ends, $reverse + 1, blocks, $heights)?
+				}
+				required = checked_add(tail, checked_add(nonnegative_raw(block.space_after)?, next_unit)?)?
+				if required > content_height {
+					return Err(KeepConflict(ChainTooTall({ available: content_height, block: $reverse, next: $reverse + 1, required })))
+				}
+				$requirements = list_set($requirements, $reverse, required)
 			}
-			next = list_at(blocks, $reverse + 1)
-			if next.policy.break_before {
-				return Err(InvalidPolicy({ block: $reverse }))
-			}
-			next_required = if next.policy.keep_with_next {
-				list_at($requirements, $reverse + 1)
-			} else {
-				checked_mul(next.policy.minimum_first_lines, positive_raw(next.leading)?)?
-			}
-			checked_add(list_at($heights, $reverse), checked_add(nonnegative_raw(block.space_after)?, next_required)?)?
-		} else if block.policy.keep_together {
-			list_at($heights, $reverse)
-		} else {
-			0
+			_ => {}
 		}
-		$requirements = list_set($requirements, $reverse, required)
 	}
-	Ok({ keep_requirements: $requirements, line_visits: $line_visits })
+	Ok({ atomic_ends, heights: $heights, line_visits: $line_visits })
 }
 
-select_fragment_lines : KernelPageLayout.Block, U64, U64, U64 -> Try(U64, KernelPageLayout.Error)
-select_fragment_lines = |block, block_index, remaining, available| {
-	if remaining <= available {
-		return Ok(remaining)
-	}
-	if block.policy.keep_together {
-		return Err(InvalidPolicy({ block: block_index }))
-	}
-	if available < block.policy.minimum_first_lines {
-		return Err(InvalidPolicy({ block: block_index }))
-	}
-	max_before_last = remaining - block.policy.minimum_last_lines
-	take = if available < max_before_last available else max_before_last
-	if take < block.policy.minimum_first_lines {
-		Err(InvalidPolicy({ block: block_index }))
+## A block's first placement unit: its keep-together group, the whole block
+## when unsplittable, or its orphan-minimum lines.
+first_unit : KernelPageLayout.Block, U64, List(U64), U64, List(KernelPageLayout.Block), List(U64) -> Try(U64, KernelPageLayout.Error)
+first_unit = |block, height, atomic_ends, index, blocks, heights| {
+	atomic_end = if atomic_ends.is_empty() 0 else list_at(atomic_ends, index)
+	if atomic_end != 0 {
+		group_height(blocks, heights, index, atomic_end)
+	} else if block.policy.keep_together {
+		Ok(height)
 	} else {
-		Ok(take)
+		checked_mul(block.policy.minimum_first_lines, positive_raw(block.leading)?)
 	}
+}
+
+## Groups arrive in preorder. Each group either starts at or after the end
+## of the current outermost group (a new outermost group) or nests entirely
+## inside it. Only outermost groups become atomic units; each is checked
+## once against a fresh page and for explicit breaks strictly inside it.
+validate_groups : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(U64), U64 -> Try(List(U64), KernelPageLayout.Error)
+validate_groups = |blocks, groups, heights, content_height| {
+	if groups.is_empty() {
+		return Ok([])
+	}
+	var $ends = List.repeat(0, blocks.len())
+	var $outer_start = 0
+	var $outer_end = 0
+	var $group_index = 0
+	while $group_index < groups.len() {
+		group = list_at(groups, $group_index).blocks
+		start = group.start()
+		end = range_end(group)?
+		if group.length() == 0 or end > blocks.len() or start < $outer_start {
+			return Err(InvalidGroup({ group: $group_index }))
+		}
+		if start < $outer_end {
+			if end > $outer_end {
+				return Err(InvalidGroup({ group: $group_index }))
+			}
+		} else {
+			var $member = start + 1
+			while $member < end {
+				if list_at(blocks, $member).policy.break_before {
+					return Err(KeepConflict(BreakInsideGroup({ block: $member, group: $group_index })))
+				}
+				$member = $member + 1
+			}
+			required = group_height(blocks, heights, start, end)?
+			if required > content_height {
+				return Err(KeepConflict(GroupTooTall({ available: content_height, group: $group_index, required })))
+			}
+			$ends = list_set($ends, start, end)
+			$outer_start = start
+			$outer_end = end
+		}
+		$group_index = $group_index + 1
+	}
+	Ok($ends)
 }
 
 make_fragment : KernelPageLayout.Block, List(KernelLineLayout.Line), U64, U64, U64, U64, Geometry, U64 -> Try(KernelPageLayout.Fragment, KernelPageLayout.Error)
@@ -319,6 +624,8 @@ make_fragment = |block, lines, start, length, height, used, geometry, page_index
 	last = list_at(lines, start + length - 1)
 	scalar_end = range_end(last.source.scalars)?
 	byte_end = range_end(last.source.utf8_bytes)?
+	scalar_start = if scalar_end < first.source.scalars.start() 0 else first.source.scalars.start()
+	byte_start = if byte_end < first.source.utf8_bytes.start() 0 else first.source.utf8_bytes.start()
 	origin_y = geometry.page_height - geometry.margin_top - used - height
 	Ok({
 		layout: {
@@ -328,8 +635,8 @@ make_fragment = |block, lines, start, length, height, used, geometry, page_index
 			},
 			occurrence: block.occurrence,
 			source_range: UnicodeRange({
-				scalars: Semantics.Range.from_start_and_length(first.source.scalars.start(), scalar_end - first.source.scalars.start()),
-				utf8_bytes: Semantics.Range.from_start_and_length(first.source.utf8_bytes.start(), byte_end - first.source.utf8_bytes.start()),
+				scalars: Semantics.Range.from_start_and_length(scalar_start, scalar_end - scalar_start),
+				utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_end - byte_start),
 			}),
 		},
 		lines: Semantics.Range.from_start_and_length(start, length),
@@ -426,7 +733,7 @@ test_lines = List.map(
 )
 
 test_policy : KernelPageLayout.Policy
-test_policy = { break_before: False, keep_together: False, keep_with_next: False, minimum_first_lines: 2, minimum_last_lines: 2 }
+test_policy = { break_before: False, keep_together: False, keep_with_next: NoKeep, minimum_first_lines: 2, minimum_last_lines: 2 }
 
 test_constraints : KernelPageLayout.Constraints
 test_constraints = {
@@ -437,56 +744,43 @@ test_constraints = {
 test_limits : KernelPageLayout.Limits
 test_limits = KernelPageLayout.Limits.make({ max_blocks: 8, max_fragments: 8, max_lines: 8, max_pages: 8, max_placements: 8 })
 
+test_block : KernelPageLayout.Block
+test_block = {
+	baseline_offset: Layout.Unit.from_raw(800),
+	leading: Layout.Unit.from_raw(1000),
+	lines: Semantics.Range.from_start_and_length(0, 1),
+	occurrence: Semantics.OccurrenceId.from_index(0),
+	policy: test_policy,
+	space_after: Layout.Unit.from_raw(0),
+}
+
 ## Five lines split three/two without violating widow/orphan minima.
 expect {
-	block = {
-		baseline_offset: Layout.Unit.from_raw(800),
-		leading: Layout.Unit.from_raw(1000),
-		lines: Semantics.Range.from_start_and_length(0, 5),
-		occurrence: Semantics.OccurrenceId.from_index(0),
-		policy: test_policy,
-		space_after: Layout.Unit.from_raw(0),
-	}
+	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 5) }
 	plan = KernelPageLayout.Plan.build([block], test_lines.take_first(5), test_constraints, test_limits)?
 	fragments = KernelPageLayout.Plan.fragments(plan)
 	pages = KernelPageLayout.Plan.pages(plan)
 	placements = KernelPageLayout.Plan.placements(plan)
-	fragments.len() == 2 and pages.len() == 2 and placements.len() == 5 and list_at(fragments, 0).lines.length() == 3 and list_at(fragments, 1).lines.length() == 2 and list_at(placements, 0).baseline.y.raw() == 3200
+	fragments.len() == 2 and pages.len() == 2 and placements.len() == 5 and list_at(fragments, 0).lines.length() == 3 and list_at(fragments, 1).lines.length() == 2 and list_at(placements, 0).baseline.y.raw() == 3200 and KernelPageLayout.Plan.relaxations(plan).is_empty()
 }
 
-## A kept heading chain moves as one unit so the following paragraph retains
-## its minimum first fragment.
+## A preferred heading keep moves the heading to the next page with its
+## following paragraph's first two lines; nothing is relaxed.
 expect {
-	leading = Layout.Unit.from_raw(1000)
-	base = {
-		baseline_offset: Layout.Unit.from_raw(800),
-		leading,
-		lines: Semantics.Range.from_start_and_length(0, 1),
-		occurrence: Semantics.OccurrenceId.from_index(0),
-		policy: test_policy,
-		space_after: Layout.Unit.from_raw(0),
-	}
 	blocks = [
-		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2), policy: { ..test_policy, keep_together: True } },
-		{ ..base, lines: Semantics.Range.from_start_and_length(2, 1), policy: { ..test_policy, keep_together: True, keep_with_next: True, minimum_first_lines: 1, minimum_last_lines: 1 } },
-		{ ..base, lines: Semantics.Range.from_start_and_length(3, 5), policy: test_policy },
+		{ ..test_block, lines: Semantics.Range.from_start_and_length(0, 2), policy: { ..test_policy, keep_together: True } },
+		{ ..test_block, lines: Semantics.Range.from_start_and_length(2, 1), policy: { ..test_policy, keep_together: True, keep_with_next: Preferred(HeadingKeep), minimum_first_lines: 1, minimum_last_lines: 1 } },
+		{ ..test_block, lines: Semantics.Range.from_start_and_length(3, 5), policy: test_policy },
 	]
 	plan = KernelPageLayout.Plan.build(blocks, test_lines, test_constraints, test_limits)?
 	pages = KernelPageLayout.Plan.pages(plan)
 	fragments = KernelPageLayout.Plan.fragments(plan)
-	pages.len() == 3 and list_at(fragments, 1).page.index() == 1 and list_at(fragments, 2).page.index() == 1
+	pages.len() == 3 and list_at(fragments, 1).page.index() == 1 and list_at(fragments, 2).page.index() == 1 and KernelPageLayout.Plan.relaxations(plan).is_empty()
 }
 
 ## Break-before starts the next block on a new page even when space remains.
 expect {
-	base = {
-		baseline_offset: Layout.Unit.from_raw(800),
-		leading: Layout.Unit.from_raw(1000),
-		lines: Semantics.Range.from_start_and_length(0, 1),
-		occurrence: Semantics.OccurrenceId.from_index(0),
-		policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 },
-		space_after: Layout.Unit.from_raw(0),
-	}
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
 		{ ..base, lines: Semantics.Range.from_start_and_length(0, 1) },
 		{ ..base, lines: Semantics.Range.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
@@ -495,39 +789,106 @@ expect {
 	KernelPageLayout.Plan.pages(plan).len() == 2
 }
 
-## A keep-together block larger than the content box fails instead of
+## An unsplittable block larger than the content box fails instead of
 ## overflowing the page or silently dropping the policy.
 expect {
-	block = {
-		baseline_offset: Layout.Unit.from_raw(800),
-		leading: Layout.Unit.from_raw(1000),
-		lines: Semantics.Range.from_start_and_length(0, 5),
-		occurrence: Semantics.OccurrenceId.from_index(0),
-		policy: { ..test_policy, keep_together: True },
-		space_after: Layout.Unit.from_raw(0),
-	}
+	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 5), policy: { ..test_policy, keep_together: True } }
 	match KernelPageLayout.Plan.build([block], test_lines.take_first(5), test_constraints, test_limits) {
-		Err(KeepImpossible({ available: 3000, block: 0, required: 5000 })) => True
+		Err(Oversize({ available: 3000, block: 0, required: 5000 })) => True
 		_ => False
 	}
 }
 
-## Keep-with-next and an explicit break on the next block are contradictory.
+## A required keep followed by an explicit break is a conflict naming both.
 expect {
-	base = {
-		baseline_offset: Layout.Unit.from_raw(800),
-		leading: Layout.Unit.from_raw(1000),
-		lines: Semantics.Range.from_start_and_length(0, 1),
-		occurrence: Semantics.OccurrenceId.from_index(0),
-		policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 },
-		space_after: Layout.Unit.from_raw(0),
-	}
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
-		{ ..base, policy: { ..base.policy, keep_together: True, keep_with_next: True } },
+		{ ..base, policy: { ..base.policy, keep_together: True, keep_with_next: Required } },
 		{ ..base, lines: Semantics.Range.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
 	]
 	match KernelPageLayout.Plan.build(blocks, test_lines.take_first(2), test_constraints, test_limits) {
-		Err(InvalidPolicy({ block: 0 })) => True
+		Err(KeepConflict(BreakAfterRequiredKeep({ block: 0, next: 1 }))) => True
+		_ => False
+	}
+}
+
+## A three-line paragraph with two lines left on the page moves whole: the
+## break before it satisfies every preference.
+expect {
+	blocks = [
+		{ ..test_block, lines: Semantics.Range.from_start_and_length(0, 1), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } },
+		{ ..test_block, lines: Semantics.Range.from_start_and_length(1, 3) },
+	]
+	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits)?
+	fragments = KernelPageLayout.Plan.fragments(plan)
+	fragments.len() == 2 and list_at(fragments, 1).page.index() == 1 and list_at(fragments, 1).lines.length() == 3 and KernelPageLayout.Plan.relaxations(plan).is_empty()
+}
+
+## When no break satisfies every preference, the lexicographically best one
+## is chosen: a three-line paragraph on a two-line page keeps its orphan
+## minimum (R4) and relaxes the widow minimum (R5), which is recorded.
+expect {
+	small = { ..test_constraints, page: { height: Layout.Unit.from_raw(4000), width: Layout.Unit.from_raw(10000) } }
+	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 3) }
+	plan = KernelPageLayout.Plan.build([block], test_lines.take_first(3), small, test_limits)?
+	fragments = KernelPageLayout.Plan.fragments(plan)
+	relaxations = KernelPageLayout.Plan.relaxations(plan)
+	fragments.len() == 2 and list_at(fragments, 0).lines.length() == 2 and relaxations == [{ block: 0, page: 0, rank: Widow }]
+}
+
+## A preferred heading keep that cannot hold (the heading and the next
+## unsplittable block never share a page) is relaxed and reported rather
+## than rejected.
+expect {
+	blocks = [
+		{ ..test_block, policy: { ..test_policy, keep_together: True, keep_with_next: Preferred(HeadingKeep), minimum_first_lines: 1, minimum_last_lines: 1 } },
+		{ ..test_block, lines: Semantics.Range.from_start_and_length(1, 3), policy: { ..test_policy, keep_together: True, minimum_first_lines: 1, minimum_last_lines: 1 } },
+	]
+	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits)?
+	KernelPageLayout.Plan.pages(plan).len() == 2 and KernelPageLayout.Plan.relaxations(plan) == [{ block: 0, page: 0, rank: HeadingKeep }]
+}
+
+## A keep-together group moves whole to the next page, and a group taller
+## than a fresh page is a conflict naming the group.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
+		{ ..base, lines: Semantics.Range.from_start_and_length(2, 1) },
+		{ ..base, lines: Semantics.Range.from_start_and_length(3, 1) },
+	]
+	plan = KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.Range.from_start_and_length(1, 2) }], test_lines.take_first(4), test_constraints, test_limits)?
+	fragments = KernelPageLayout.Plan.fragments(plan)
+	tall = KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.Range.from_start_and_length(0, 3) }], test_lines.take_first(4), test_constraints, test_limits)
+	moved = list_at(fragments, 1).page.index() == 1 and list_at(fragments, 2).page.index() == 1
+	moved and match tall {
+		Err(KeepConflict(GroupTooTall({ available: 3000, group: 0, required: 4000 }))) => True
+		_ => False
+	}
+}
+
+## An explicit break strictly inside a keep-together group conflicts.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		base,
+		{ ..base, lines: Semantics.Range.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
+	]
+	match KernelPageLayout.Plan.build_with_groups(blocks, [{ blocks: Semantics.Range.from_start_and_length(0, 2) }], test_lines.take_first(2), test_constraints, test_limits) {
+		Err(KeepConflict(BreakInsideGroup({ block: 1, group: 0 }))) => True
+		_ => False
+	}
+}
+
+## A required keep chain taller than a fresh page conflicts statically.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2), policy: { ..base.policy, keep_together: True, keep_with_next: Required } },
+		{ ..base, lines: Semantics.Range.from_start_and_length(2, 2), policy: { ..base.policy, keep_together: True } },
+	]
+	match KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits) {
+		Err(KeepConflict(ChainTooTall({ available: 3000, block: 0, next: 1, required: 4000 }))) => True
 		_ => False
 	}
 }

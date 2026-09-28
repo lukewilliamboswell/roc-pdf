@@ -160,7 +160,11 @@ build_prepared_plan = |prepared, limits| {
 			match row.label {
 				NoLabel => {}
 				Label(label) => {
-					$requests = $requests.append({ line: label.line, origin: placement.baseline, page: page.id, source_runs: label.runs })
+					if label.offset.raw() < 0 {
+						return Err(InvalidPlacement({ placement: $placement_cursor }))
+					}
+					label_x = checked_i64_add(placement.baseline.x.raw(), label.offset.raw())?
+					$requests = $requests.append({ line: label.line, origin: { x: Layout.Unit.from_raw(label_x), y: placement.baseline.y }, page: page.id, source_runs: label.runs })
 				}
 			}
 			if row.body_offset.raw() < 0 {
@@ -624,7 +628,7 @@ test_prepared = |shape| {
 			body_line: 1,
 			body_offset: Layout.Unit.from_raw(5),
 			body_runs: { physical: Semantics.Range.from_start_and_length(0, 1) },
-			label: Label({ line: 0, runs: { physical: Semantics.Range.from_start_and_length(0, 1) } }),
+			label: Label({ line: 0, offset: Layout.Unit.from_raw(0), runs: { physical: Semantics.Range.from_start_and_length(0, 1) } }),
 		},
 	],
 	shape,

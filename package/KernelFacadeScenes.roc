@@ -155,7 +155,7 @@ InternalArenaPrepared : {
 }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], figures: [], groups: [], inlines: [], language: "", metadata_title: "", outline: [], page_labels: [], rich_paragraphs: [] }
+empty_authoring = { blocks: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [] }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {

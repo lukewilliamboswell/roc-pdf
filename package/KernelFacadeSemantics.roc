@@ -13,14 +13,26 @@ KernelFacadeSemantics :: [].{
 		ContainerDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
 		EmptyContainer({ group : U64 }),
 		EmptyInline({ block : U64, inline : U64 }),
+		EmptyKeep({ group : U64 }),
 		EmptyLanguage,
 		EmptyLinkText({ block : U64, inline : U64 }),
+		EmptyList({ group : U64 }),
+		EmptyListItem({ group : U64 }),
 		EmptyMetadataTitle,
 		EmptyRichParagraph({ block : U64 }),
 		InlineDepthExceeded({ attempted : U64, block : U64, inline : U64, limit : U64 }),
 		InvalidInlineLanguage({ block : U64, inline : U64 }),
 		InvalidInlineUri({ block : U64, error : Document.NavigationError, inline : U64 }),
 		InvalidList({ block : U64 }),
+		LineBreakPosition({ block : U64, line_break : U64 }),
+		ListDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
+		ListItemBlock({ block : U64 }),
+		ListItemBreak({ page_break : U64 }),
+		ListItemGroup({ group : U64 }),
+		ListItemSpacer({ spacer : U64 }),
+		ListItemStart({ group : U64 }),
+		ListNumbering({ group : U64 }),
+		NegativeSpacer({ spacer : U64 }),
 		NestedLink({ block : U64, inline : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		Source(KernelFacadeSources.Error),
@@ -58,8 +70,12 @@ KernelFacadeSemantics :: [].{
 	Artifact : { block : U64, kind : Document.PageArtifactKind, text : Str }
 
 	## A rich paragraph owns a dense occurrence range, one occurrence per text
-	## leaf in logical order, all ranges of the paragraph's one interned source.
-	BlockOwnership : [ArtifactBlock(U64), RichTextBlock({ occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel] })]
+	## leaf in logical order, over its one interned source or, with explicit
+	## line breaks, over one interned source per segment. `label` is the
+	## generated list label painted on the block's first line, and `level`
+	## the block's list nesting level (zero outside lists), which decides its
+	## indentation.
+	BlockOwnership : [ArtifactBlock(U64), RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
 
 	## One authored destination declaration: the block's semantic node is the
 	## structure target and its content occurrence is the explicit layout
@@ -131,6 +147,7 @@ ChildEntry : { node : Semantics.NodeId, parent : U64 }
 
 Planning : {
 	artifacts : List(KernelFacadeSemantics.Artifact),
+	attribute_count : U64,
 	content_count : U64,
 	destinations : List(KernelFacadeSemantics.DestinationRecord),
 	group_nodes : List(U64),
@@ -218,6 +235,8 @@ plan_blocks = |authoring, limits| {
 	var $property_count = 0
 	var $next_list = 0
 	var $list_state = NoActiveList
+	var $attribute_count = 0
+	var $break_cursor = 0
 	var $block_index = 0
 	check_limit($next_node, limits.max_nodes, Nodes)?
 
@@ -227,21 +246,101 @@ plan_blocks = |authoring, limits| {
 	while $block_index < blocks.len() or $next_group < groups.len() {
 		if $next_group < groups.len() and ($block_index >= blocks.len() or list_at(groups, $next_group).first_block <= $block_index) {
 			group = list_at(groups, $next_group)
-			if group.depth > limits.max_container_depth {
-				return Err(ContainerDepthExceeded({ attempted: group.depth, group: $next_group, limit: limits.max_container_depth }))
+			in_item = in_list_item(groups, group.parent)
+			match group.kind {
+				Container(_) => {
+					if in_item {
+						return Err(ListItemGroup({ group: $next_group }))
+					}
+					if group.depth > limits.max_container_depth {
+						return Err(ContainerDepthExceeded({ attempted: group.depth, group: $next_group, limit: limits.max_container_depth }))
+					}
+					attempted_nodes = checked_add($next_node, 1)?
+					attempted_content = checked_add($content_count, 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					$group_nodes = $group_nodes.append($next_node)
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
+					$next_node = attempted_nodes
+					$content_count = attempted_content
+				}
+				KeepTogether | KeepWithNext(_) => {
+					if in_item {
+						return Err(ListItemGroup({ group: $next_group }))
+					}
+					if group.first_block >= group.block_end {
+						return Err(EmptyKeep({ group: $next_group }))
+					}
+
+					## A keep has no structure element: its children belong to
+					## the nearest semantic ancestor.
+					$group_nodes = $group_nodes.append(parent_node(group.parent, $group_nodes).index())
+				}
+				ItemList(list_index) => {
+					if group.depth > list_depth_limit {
+						return Err(ListDepthExceeded({ attempted: group.depth, group: $next_group, limit: list_depth_limit }))
+					}
+					if group.group_end == $next_group + 1 {
+						return Err(EmptyList({ group: $next_group }))
+					}
+					check_numbering(list_at(authoring.lists, list_index.to_u64()), $next_group)?
+					attempted_nodes = checked_add($next_node, 1)?
+					attempted_content = checked_add($content_count, 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					$group_nodes = $group_nodes.append($next_node)
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
+					$next_node = attempted_nodes
+					$content_count = attempted_content
+					$attribute_count = checked_add($attribute_count, 1)?
+					$list_count = checked_add($list_count, 1)?
+				}
+				ListItem(ordinal) => {
+					if group.first_block >= group.block_end {
+						return Err(EmptyListItem({ group: $next_group }))
+					}
+					first = list_at(blocks, group.first_block)
+					starts_with_paragraph = first.parent == $next_group + 1 and (match first.kind {
+						Paragraph | RichParagraph(_) => True
+						_ => False
+					})
+					if !starts_with_paragraph {
+						return Err(ListItemStart({ group: $next_group }))
+					}
+					label = item_label(authoring, group.parent, ordinal)
+					attempted_nodes = checked_add($next_node, 3)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 4)?
+					attempted_properties = checked_add($property_count, 1)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_properties, limits.max_properties, Properties)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+
+					## `LI` joins its list's span; the item's children join
+					## `LBody`, which the item group resolves to.
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: group.parent })
+					$group_nodes = $group_nodes.append($next_node + 2)
+					$sources = $sources.append(label)
+					$next_node = attempted_nodes
+					$next_occurrence = attempted_occurrences
+					$content_count = attempted_content
+					$property_count = attempted_properties
+					$list_item_count = checked_add($list_item_count, 1)?
+				}
 			}
-			attempted_nodes = checked_add($next_node, 1)?
-			attempted_content = checked_add($content_count, 1)?
-			check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-			check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-			$group_nodes = $group_nodes.append($next_node)
-			$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: group.parent })
-			$next_node = attempted_nodes
-			$content_count = attempted_content
 			$list_state = NoActiveList
 			$next_group = $next_group + 1
 		} else {
 			block = list_at(blocks, $block_index)
+			if in_list_item(groups, block.parent) {
+				match block.kind {
+					Paragraph | RichParagraph(_) => {}
+					_ => return Err(ListItemBlock({ block: $block_index }))
+				}
+			}
 			match block.kind {
 				PageArtifact(kind) => {
 					artifact_count = checked_add($artifacts.len(), 1)?
@@ -270,7 +369,8 @@ plan_blocks = |authoring, limits| {
 						$next_node = checked_add($next_node, 1)?
 						$next_list = checked_add($next_list, 1)?
 						$list_count = checked_add($list_count, 1)?
-						$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index(node), parent: block.parent })
+						$attribute_count = checked_add($attribute_count, 1)?
+						$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index(node), parent: semantic_code(groups, block.parent) })
 						$list_state = ActiveList({ expected_item: 1, list, node })
 						node
 					} else {
@@ -303,7 +403,7 @@ plan_blocks = |authoring, limits| {
 					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -319,7 +419,7 @@ plan_blocks = |authoring, limits| {
 					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -337,7 +437,7 @@ plan_blocks = |authoring, limits| {
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
 					check_limit(attempted_properties, limits.max_properties, Properties)?
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
 					$next_occurrence = attempted_occurrences
@@ -356,7 +456,7 @@ plan_blocks = |authoring, limits| {
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
 					$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -373,7 +473,7 @@ plan_blocks = |authoring, limits| {
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
 					$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -390,7 +490,7 @@ plan_blocks = |authoring, limits| {
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
 					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.Range.from_start_and_length($next_occurrence, 1), target: Uri(uri) })
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -407,7 +507,7 @@ plan_blocks = |authoring, limits| {
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
 					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.Range.from_start_and_length($next_occurrence, 1), target: InternalDestination(destination) })
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
 					$next_occurrence = checked_add($next_occurrence, 1)?
@@ -417,11 +517,13 @@ plan_blocks = |authoring, limits| {
 				RichParagraph(paragraph) => {
 					rich = list_at(authoring.rich_paragraphs, paragraph)
 					checked = check_rich(authoring.inlines, rich, $block_index, limits.max_inline_depth)?
+					breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
+					check_breaks(authoring.line_breaks, $break_cursor, breaks, rich, $block_index)?
 					attempted_nodes = checked_add($next_node, checked_add(rich.elements, 1)?)?
 					attempted_occurrences = checked_add($next_occurrence, rich.leaves)?
 					attempted_content = checked_add($content_count, checked_add(rich.length, 1)?)?
 					attempted_properties = checked_add($property_count, checked.expansions)?
-					attempted_sources = checked_add($sources.len(), 1)?
+					attempted_sources = checked_add($sources.len(), checked_add(breaks, 1)?)?
 					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
 					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
@@ -430,8 +532,9 @@ plan_blocks = |authoring, limits| {
 					if checked.links != 0 {
 						$links = append_rich_links($links, authoring.inlines, rich, $next_node, $next_occurrence)
 					}
-					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
-					$sources = $sources.append(block.text)
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$sources = if breaks == 0 $sources.append(block.text) else append_segment_sources($sources.append(block.text), authoring.line_breaks, $break_cursor, breaks)
+					$break_cursor = $break_cursor + breaks
 					$next_node = attempted_nodes
 					$next_occurrence = attempted_occurrences
 					$content_count = attempted_content
@@ -444,7 +547,208 @@ plan_blocks = |authoring, limits| {
 			$block_index = $block_index + 1
 		}
 	}
-	Ok({ artifacts: $artifacts, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
+	check_layout_items(authoring)?
+	Ok({ artifacts: $artifacts, attribute_count: $attribute_count, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
+}
+
+## Lists nest at most four deep. With 16 containers, a list level's
+## `L > LI > LBody`, the paragraph, and 8 inline elements, the deepest
+## facade chain stays below the kernel semantic depth bound.
+list_depth_limit : U64
+list_depth_limit = 4
+
+## Whether group code `code` (`0` or `g + 1`) names a list item.
+in_list_item : List(Document.NormalizedGroup), U64 -> Bool
+in_list_item = |groups, code| if code == 0 {
+	False
+} else {
+	match list_at(groups, code - 1).kind {
+		ListItem(_) => True
+		_ => False
+	}
+}
+
+## The nearest semantic group code at or above `code`: keep groups are
+## layout-only, so their children belong to the group around them.
+semantic_code : List(Document.NormalizedGroup), U64 -> U64
+semantic_code = |groups, code| {
+	var $code = code
+	var $searching = True
+	while $searching and $code != 0 {
+		group = list_at(groups, $code - 1)
+		match group.kind {
+			KeepTogether | KeepWithNext(_) => {
+				$code = group.parent
+			}
+			_ => {
+				$searching = False
+			}
+		}
+	}
+	$code
+}
+
+## A block's list nesting level: the depth of the list item that directly
+## holds it (list items hold only paragraphs and lists), else zero.
+block_level : List(Document.NormalizedGroup), U64 -> U64
+block_level = |groups, code| if code == 0 {
+	0
+} else {
+	group = list_at(groups, code - 1)
+	match group.kind {
+		ListItem(_) => group.depth
+		_ => 0
+	}
+}
+
+## Page breaks and spacers are flow constructs of the block level; a list
+## item holds only paragraphs and lists. A spacer's height is never
+## negative.
+check_layout_items : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
+check_layout_items = |authoring| {
+	var $index = 0
+	while $index < authoring.page_breaks.len() {
+		if in_list_item(authoring.groups, list_at(authoring.page_breaks, $index).parent) {
+			return Err(ListItemBreak({ page_break: $index }))
+		}
+		$index = $index + 1
+	}
+	$index = 0
+	while $index < authoring.spacers.len() {
+		spacer = list_at(authoring.spacers, $index)
+		if in_list_item(authoring.groups, spacer.parent) {
+			return Err(ListItemSpacer({ spacer: $index }))
+		}
+		if spacer.amount.raw() < 0 {
+			return Err(NegativeSpacer({ spacer: $index }))
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
+## Every generated number must be representable in its style: letters and
+## Roman numerals start at 1, and Roman numerals stop at 3999.
+check_numbering : Document.NormalizedList, U64 -> Try({}, KernelFacadeSemantics.Error)
+check_numbering = |list, group| match list.marker {
+	Bullet => Ok({})
+	Numbered({ start, style }) => {
+		valid = match U64.plus_try(start, list.items - 1) {
+			Err(_) => False
+			Ok(last) => match style {
+				Decimal => True
+				LowerAlpha | UpperAlpha => start >= 1
+				LowerRoman | UpperRoman => start >= 1 and last <= 3999
+			}
+		}
+		if valid Ok({}) else Err(ListNumbering({ group: group }))
+	}
+}
+
+## The generated label text of item `ordinal` in the list group `list_code`.
+item_label : Document.NormalizedAuthoring, U64, U32 -> Str
+item_label = |authoring, list_code, ordinal| match list_at(authoring.groups, list_code - 1).kind {
+	ItemList(index) => list_label(list_at(authoring.lists, index.to_u64()).marker, ordinal.to_u64())
+	_ => crash "validated list item parent escaped"
+}
+
+## A bullet is `•`; a number is its value in the list's style followed by a
+## full stop, such as `3.`, `c.`, or `iv.`.
+list_label : Document.ListMarker, U64 -> Str
+list_label = |marker, ordinal| match marker {
+	Bullet => "•"
+	Numbered({ start, style }) => {
+		value = start + ordinal
+		digits = match style {
+			Decimal => value.to_str()
+			LowerAlpha => alphabetic(value, 97)
+			UpperAlpha => alphabetic(value, 65)
+			LowerRoman => roman(value, Lower)
+			UpperRoman => roman(value, Upper)
+		}
+		"${digits}."
+	}
+}
+
+## Bijective base-26 letters: 1 is `a`, 26 is `z`, 27 is `aa`.
+alphabetic : U64, U8 -> Str
+alphabetic = |value, base| {
+	var $remaining = value
+	var $reversed = []
+	while $remaining > 0 {
+		$remaining = $remaining - 1
+		$reversed = $reversed.append(base + ($remaining % 26).to_u8_wrap())
+		$remaining = $remaining // 26
+	}
+	var $bytes = List.with_capacity($reversed.len())
+	var $index = $reversed.len()
+	while $index > 0 {
+		$index = $index - 1
+		$bytes = $bytes.append(list_at($reversed, $index))
+	}
+	match Str.from_utf8($bytes) {
+		Ok(text) => text
+		Err(_) => crash "generated list letters escaped ASCII"
+	}
+}
+
+## Roman numerals from 1 to 3999 in subtractive notation.
+roman : U64, [Lower, Upper] -> Str
+roman = |value, case| {
+	symbols = match case {
+		Upper => [("M", 1000), ("CM", 900), ("D", 500), ("CD", 400), ("C", 100), ("XC", 90), ("L", 50), ("XL", 40), ("X", 10), ("IX", 9), ("V", 5), ("IV", 4), ("I", 1)]
+		Lower => [("m", 1000), ("cm", 900), ("d", 500), ("cd", 400), ("c", 100), ("xc", 90), ("l", 50), ("xl", 40), ("x", 10), ("ix", 9), ("v", 5), ("iv", 4), ("i", 1)]
+	}
+	var $remaining = value
+	var $text = ""
+	for (symbol, amount) in symbols {
+		while $remaining >= amount {
+			$text = $text.concat(symbol)
+			$remaining = $remaining - amount
+		}
+	}
+	$text
+}
+
+## A paragraph's later segment texts, one source input each.
+append_segment_sources : List(Str), List(Document.NormalizedLineBreak), U64, U64 -> List(Str)
+append_segment_sources = |sources, line_breaks, cursor, count| {
+	var $sources = sources
+	var $segment = 0
+	while $segment < count {
+		$sources = $sources.append(list_at(line_breaks, cursor + $segment).text)
+		$segment = $segment + 1
+	}
+	$sources
+}
+
+## The number of line breaks of rich paragraph `paragraph`, which start at
+## `cursor` in the paragraph-ordered break arena.
+paragraph_breaks : List(Document.NormalizedLineBreak), U64, U64 -> U64
+paragraph_breaks = |line_breaks, cursor, paragraph| {
+	var $end = cursor
+	while $end < line_breaks.len() and list_at(line_breaks, $end).paragraph == paragraph {
+		$end = $end + 1
+	}
+	$end - cursor
+}
+
+## A line break separates text: every segment it bounds holds a text leaf,
+## so a break at either end of the paragraph or directly after another is
+## rejected, naming the break.
+check_breaks : List(Document.NormalizedLineBreak), U64, U64, Document.NormalizedRich, U64 -> Try({}, KernelFacadeSemantics.Error)
+check_breaks = |line_breaks, cursor, count, rich, block| {
+	var $previous = 0
+	var $index = 0
+	while $index < count {
+		record = list_at(line_breaks, cursor + $index)
+		if record.leaf <= $previous or record.leaf >= rich.leaves {
+			return Err(LineBreakPosition({ block, line_break: cursor + $index }))
+		}
+		$previous = record.leaf
+		$index = $index + 1
+	}
+	Ok({})
 }
 
 ## Validate one rich paragraph's inline span in preorder; the first failure
@@ -579,6 +883,7 @@ build_store = |authoring, planning, source_plan| {
 	dummy = make_node(0, DocumentRoot, "Document", empty, Language(language))
 	var $nodes = List.repeat(dummy, planning.node_count)
 	var $content = List.with_capacity(planning.content_count)
+	var $attributes = if planning.attribute_count == 0 [] else List.with_capacity(planning.attribute_count)
 	if groups.is_empty() {
 		for entry in planning.top_nodes {
 			$content = $content.append(ChildNode(entry.node))
@@ -596,11 +901,26 @@ build_store = |authoring, planning, source_plan| {
 		while $group < groups.len() {
 			group = list_at(groups, $group)
 			children = list_at(spans.counts, $group + 1)
-			if children == 0 {
-				return Err(EmptyContainer({ group: $group }))
-			}
 			node_index = list_at(planning.group_nodes, $group)
-			$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(group.kind), Semantics.Range.from_start_and_length($span_start, children), Inherited))
+			span = Semantics.Range.from_start_and_length($span_start, children)
+			match group.kind {
+				Container(kind) => {
+					if children == 0 {
+						return Err(EmptyContainer({ group: $group }))
+					}
+					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited))
+				}
+				KeepTogether | KeepWithNext(_) => {}
+				ItemList(list_index) => {
+					attribute = $attributes.len()
+					$attributes = $attributes.append(list_numbering(list_at(authoring.lists, list_index.to_u64()).marker))
+					node = make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), "L", span, Inherited)
+					$nodes = list_set($nodes, node_index, { ..node, attributes: Semantics.Range.from_start_and_length(attribute, 1) })
+				}
+				ListItem(_) => {
+					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(Semantics.NodeId.from_index(node_index - 2)), "LBody", span, Inherited))
+				}
+			}
 			$span_start = $span_start + children
 			$group = $group + 1
 		}
@@ -614,175 +934,222 @@ build_store = |authoring, planning, source_plan| {
 	var $next_occurrence = 0
 	var $source_input = 0
 	var $next_group = 0
+	var $break_cursor = 0
+	var $pending_label = NoLabel
 	while $index < blocks.len() {
-		while $next_group < groups.len() and list_at(groups, $next_group).first_block <= $index {
-			$next_node = checked_add($next_node, 1)?
-			$next_group = $next_group + 1
-		}
-		block = list_at(blocks, $index)
-		match block.kind {
-			PageArtifact(_) => {
-				$ownership = list_set($ownership, $index, ArtifactBlock($artifact))
-				$artifact = checked_add($artifact, 1)?
-				$index = $index + 1
-			}
-			Heading(level) => {
-				role = heading_role(level, $index)?
-				start = $content.len()
-				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
-				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
-				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
-				$next_node = checked_add($next_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$source_input = checked_add($source_input, 1)?
-				$index = $index + 1
-			}
-			Paragraph | Title | DestinationParagraph(_) => {
-				role = match block.kind {
-					Paragraph | DestinationParagraph(_) => "P"
-					Title => "Title"
-					_ => ""
+		if $next_group < groups.len() and list_at(groups, $next_group).first_block <= $index {
+			group = list_at(groups, $next_group)
+			match group.kind {
+				Container(_) | ItemList(_) => {
+					$next_node = checked_add($next_node, 1)?
 				}
-				start = $content.len()
-				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
-				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
-				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
-				$next_node = checked_add($next_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$source_input = checked_add($source_input, 1)?
-				$index = $index + 1
-			}
-			Figure(figure_index) => {
-				figure = list_at(figures, figure_index)
-				start = $content.len()
-				property_start = $properties.len()
-				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$properties = $properties.append(AlternativeText(figure.alternative))
-				node = make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Figure", Semantics.Range.from_start_and_length(start, 1), Inherited)
-				$nodes = list_set($nodes, $next_node, { ..node, text_properties: Semantics.Range.from_start_and_length(property_start, 1) })
-				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
-				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
-				$next_node = checked_add($next_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$source_input = checked_add($source_input, 1)?
-				$index = $index + 1
-			}
-			DestinationHeading({ level, name: _ }) => {
-				role = heading_role(level, $index)?
-				start = $content.len()
-				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
-				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
-				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
-				$next_node = checked_add($next_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$source_input = checked_add($source_input, 1)?
-				$index = $index + 1
-			}
-			Link(_) | InternalLink(_) => {
+				KeepTogether | KeepWithNext(_) => {}
+				ListItem(ordinal) => {
 
-				## A link block is a paragraph-shaped wrapper: a P node under
-				## the root containing one Link node that owns the link text.
-				## Per-page annotation occurrences join the Link node's spine
-				## after pagination.
-				wrapper_node = $next_node
-				link_node = checked_add(wrapper_node, 1)?
-				wrapper_start = $content.len()
-				$content = $content.append(ChildNode(Semantics.NodeId.from_index(link_node)))
-				link_start = $content.len()
-				$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
-				$nodes = list_set($nodes, wrapper_node, make_node(wrapper_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "P", Semantics.Range.from_start_and_length(wrapper_start, 1), Inherited))
-				$nodes = list_set($nodes, link_node, make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper_node)), "Link", Semantics.Range.from_start_and_length(link_start, 1), Inherited))
-				$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
-				$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel }))
-				$next_node = checked_add(link_node, 1)?
-				$next_occurrence = checked_add($next_occurrence, 1)?
-				$source_input = checked_add($source_input, 1)?
-				$index = $index + 1
-			}
-			RichParagraph(paragraph) => {
-				rich = list_at(authoring.rich_paragraphs, paragraph)
-				placed = place_rich(
-					{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
-					authoring,
-					rich,
-					{ language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), source_input: $source_input },
-					source_plan,
-				)?
-				$content = placed.content
-				$nodes = placed.nodes
-				$occurrences = placed.occurrences
-				$properties = placed.properties
-				$ownership = list_set($ownership, $index, RichTextBlock({ occurrences: Semantics.Range.from_start_and_length($next_occurrence, rich.leaves) }))
-				$next_node = checked_add($next_node, rich.elements + 1)?
-				$next_occurrence = checked_add($next_occurrence, rich.leaves)?
-				$source_input = checked_add($source_input, 1)?
-				$index = $index + 1
-			}
-			Bullet({ item, list }) => {
-				if item != 0 {
-					crash "validated facade list start escaped"
-				}
-				list_node = $next_node
-				$next_node = checked_add($next_node, 1)?
-				group_start = $index
-				var $group_end = $index
-				while $group_end < blocks.len() and same_normalized_list(list_at(blocks, $group_end), list) {
-					$group_end = $group_end + 1
-				}
-				list_content = $content.len()
-				var $item_node = $next_node
-				var $item_index = group_start
-				while $item_index < $group_end {
-					$content = $content.append(ChildNode(Semantics.NodeId.from_index($item_node)))
-					$item_node = checked_add($item_node, 3)?
-					$item_index = $item_index + 1
-				}
-				$nodes = list_set($nodes, list_node, make_node(list_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "L", Semantics.Range.from_start_and_length(list_content, $group_end - group_start), Inherited))
-				$item_index = group_start
-				while $item_index < $group_end {
+					## `LI` owns `[Lbl, LBody]`; `Lbl` owns the generated label
+					## occurrence, whose source-to-presentation fact names its
+					## whole label source. The label paints on the item's
+					## first paragraph line.
 					item_node = $next_node
 					label_node = checked_add(item_node, 1)?
 					body_node = checked_add(item_node, 2)?
-					label_occurrence = $next_occurrence
-					body_occurrence = checked_add(label_occurrence, 1)?
 					item_content = $content.len()
 					$content = $content.append(ChildNode(Semantics.NodeId.from_index(label_node))).append(ChildNode(Semantics.NodeId.from_index(body_node)))
-					$nodes = list_set($nodes, item_node, make_node(item_node, ParentNode(Semantics.NodeId.from_index(list_node)), "LI", Semantics.Range.from_start_and_length(item_content, 2), Inherited))
+					$nodes = list_set($nodes, item_node, make_node(item_node, ParentNode(Semantics.NodeId.from_index(list_at(planning.group_nodes, group.parent - 1))), "LI", Semantics.Range.from_start_and_length(item_content, 2), Inherited))
 					label_content = $content.len()
-					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index(label_occurrence)))
+					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
 					$nodes = list_set($nodes, label_node, make_node(label_node, ParentNode(Semantics.NodeId.from_index(item_node)), "Lbl", Semantics.Range.from_start_and_length(label_content, 1), Inherited))
 					label_property = $properties.len()
-					label_range = source_range($source_input, source_plan)
-					$properties = $properties.append(SourceToPresentation({ kind: GeneratedText, presentation: "•", source: label_range }))
-					$occurrences = $occurrences.append(make_occurrence(label_occurrence, $source_input, source_plan, language, Semantics.Range.from_start_and_length(label_property, 1)))
-					body_content = $content.len()
-					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index(body_occurrence)))
-					$nodes = list_set($nodes, body_node, make_node(body_node, ParentNode(Semantics.NodeId.from_index(item_node)), "LBody", Semantics.Range.from_start_and_length(body_content, 1), Inherited))
-					body_source_input = checked_add($source_input, 1)?
-					$occurrences = $occurrences.append(make_occurrence(body_occurrence, body_source_input, source_plan, language, empty))
-					$ownership = list_set($ownership, $item_index, TextBlock({ body: Semantics.OccurrenceId.from_index(body_occurrence), label: Label(Semantics.OccurrenceId.from_index(label_occurrence)) }))
+					$properties = $properties.append(SourceToPresentation({ kind: GeneratedText, presentation: item_label(authoring, group.parent, ordinal), source: source_range($source_input, source_plan) }))
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, Semantics.Range.from_start_and_length(label_property, 1)))
+					$pending_label = Label(Semantics.OccurrenceId.from_index($next_occurrence))
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$source_input = checked_add($source_input, 1)?
 					$next_node = checked_add($next_node, 3)?
-					$next_occurrence = checked_add($next_occurrence, 2)?
-					$source_input = checked_add($source_input, 2)?
-					$item_index = $item_index + 1
 				}
-				$index = $group_end
+			}
+			$next_group = $next_group + 1
+		} else {
+			block = list_at(blocks, $index)
+			list_level = block_level(groups, block.parent)
+			match block.kind {
+				PageArtifact(_) => {
+					$ownership = list_set($ownership, $index, ArtifactBlock($artifact))
+					$artifact = checked_add($artifact, 1)?
+					$index = $index + 1
+				}
+				Heading(level) => {
+					role = heading_role(level, $index)?
+					start = $content.len()
+					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
+					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$source_input = checked_add($source_input, 1)?
+					$index = $index + 1
+				}
+				Paragraph | Title | DestinationParagraph(_) => {
+					role = match block.kind {
+						Paragraph | DestinationParagraph(_) => "P"
+						Title => "Title"
+						_ => ""
+					}
+					start = $content.len()
+					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: $pending_label, level: list_level }))
+					$pending_label = NoLabel
+					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$source_input = checked_add($source_input, 1)?
+					$index = $index + 1
+				}
+				Figure(figure_index) => {
+					figure = list_at(figures, figure_index)
+					start = $content.len()
+					property_start = $properties.len()
+					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+					$properties = $properties.append(AlternativeText(figure.alternative))
+					node = make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Figure", Semantics.Range.from_start_and_length(start, 1), Inherited)
+					$nodes = list_set($nodes, $next_node, { ..node, text_properties: Semantics.Range.from_start_and_length(property_start, 1) })
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
+					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$source_input = checked_add($source_input, 1)?
+					$index = $index + 1
+				}
+				DestinationHeading({ level, name: _ }) => {
+					role = heading_role(level, $index)?
+					start = $content.len()
+					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+					$nodes = list_set($nodes, $next_node, make_node($next_node, ParentNode(parent_node(block.parent, planning.group_nodes)), role, Semantics.Range.from_start_and_length(start, 1), Inherited))
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
+					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$source_input = checked_add($source_input, 1)?
+					$index = $index + 1
+				}
+				Link(_) | InternalLink(_) => {
+
+					## A link block is a paragraph-shaped wrapper: a P node under
+					## the root containing one Link node that owns the link text.
+					## Per-page annotation occurrences join the Link node's spine
+					## after pagination.
+					wrapper_node = $next_node
+					link_node = checked_add(wrapper_node, 1)?
+					wrapper_start = $content.len()
+					$content = $content.append(ChildNode(Semantics.NodeId.from_index(link_node)))
+					link_start = $content.len()
+					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+					$nodes = list_set($nodes, wrapper_node, make_node(wrapper_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "P", Semantics.Range.from_start_and_length(wrapper_start, 1), Inherited))
+					$nodes = list_set($nodes, link_node, make_node(link_node, ParentNode(Semantics.NodeId.from_index(wrapper_node)), "Link", Semantics.Range.from_start_and_length(link_start, 1), Inherited))
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
+					$next_node = checked_add(link_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$source_input = checked_add($source_input, 1)?
+					$index = $index + 1
+				}
+				RichParagraph(paragraph) => {
+					rich = list_at(authoring.rich_paragraphs, paragraph)
+					breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
+					placed = place_rich(
+						{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+						authoring,
+						rich,
+						{ breaks: $break_cursor, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), segments: breaks + 1, source_input: $source_input },
+						source_plan,
+					)?
+					$content = placed.content
+					$nodes = placed.nodes
+					$occurrences = placed.occurrences
+					$properties = placed.properties
+					$ownership = list_set($ownership, $index, RichTextBlock({ label: $pending_label, level: list_level, occurrences: Semantics.Range.from_start_and_length($next_occurrence, rich.leaves) }))
+					$pending_label = NoLabel
+					$next_node = checked_add($next_node, rich.elements + 1)?
+					$next_occurrence = checked_add($next_occurrence, rich.leaves)?
+					$source_input = checked_add($source_input, breaks + 1)?
+					$break_cursor = $break_cursor + breaks
+					$index = $index + 1
+				}
+				Bullet({ item, list }) => {
+					if item != 0 {
+						crash "validated facade list start escaped"
+					}
+					list_node = $next_node
+					$next_node = checked_add($next_node, 1)?
+					group_start = $index
+					var $group_end = $index
+					while $group_end < blocks.len() and same_normalized_list(list_at(blocks, $group_end), list) {
+						$group_end = $group_end + 1
+					}
+					list_content = $content.len()
+					var $item_node = $next_node
+					var $item_index = group_start
+					while $item_index < $group_end {
+						$content = $content.append(ChildNode(Semantics.NodeId.from_index($item_node)))
+						$item_node = checked_add($item_node, 3)?
+						$item_index = $item_index + 1
+					}
+					list_attribute = $attributes.len()
+					$attributes = $attributes.append(list_numbering(Bullet))
+					bullet_list = make_node(list_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "L", Semantics.Range.from_start_and_length(list_content, $group_end - group_start), Inherited)
+					$nodes = list_set($nodes, list_node, { ..bullet_list, attributes: Semantics.Range.from_start_and_length(list_attribute, 1) })
+					$item_index = group_start
+					while $item_index < $group_end {
+						item_node = $next_node
+						label_node = checked_add(item_node, 1)?
+						body_node = checked_add(item_node, 2)?
+						label_occurrence = $next_occurrence
+						body_occurrence = checked_add(label_occurrence, 1)?
+						item_content = $content.len()
+						$content = $content.append(ChildNode(Semantics.NodeId.from_index(label_node))).append(ChildNode(Semantics.NodeId.from_index(body_node)))
+						$nodes = list_set($nodes, item_node, make_node(item_node, ParentNode(Semantics.NodeId.from_index(list_node)), "LI", Semantics.Range.from_start_and_length(item_content, 2), Inherited))
+						label_content = $content.len()
+						$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index(label_occurrence)))
+						$nodes = list_set($nodes, label_node, make_node(label_node, ParentNode(Semantics.NodeId.from_index(item_node)), "Lbl", Semantics.Range.from_start_and_length(label_content, 1), Inherited))
+						label_property = $properties.len()
+						label_range = source_range($source_input, source_plan)
+						$properties = $properties.append(SourceToPresentation({ kind: GeneratedText, presentation: "•", source: label_range }))
+						$occurrences = $occurrences.append(make_occurrence(label_occurrence, $source_input, source_plan, language, Semantics.Range.from_start_and_length(label_property, 1)))
+						body_content = $content.len()
+						$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index(body_occurrence)))
+						$nodes = list_set($nodes, body_node, make_node(body_node, ParentNode(Semantics.NodeId.from_index(item_node)), "LBody", Semantics.Range.from_start_and_length(body_content, 1), Inherited))
+						body_source_input = checked_add($source_input, 1)?
+						$occurrences = $occurrences.append(make_occurrence(body_occurrence, body_source_input, source_plan, language, empty))
+						$ownership = list_set($ownership, $item_index, TextBlock({ body: Semantics.OccurrenceId.from_index(body_occurrence), label: Label(Semantics.OccurrenceId.from_index(label_occurrence)), level: 1 }))
+						$next_node = checked_add($next_node, 3)?
+						$next_occurrence = checked_add($next_occurrence, 2)?
+						$source_input = checked_add($source_input, 2)?
+						$item_index = $item_index + 1
+					}
+					$index = $group_end
+				}
 			}
 		}
 	}
-	$next_node = checked_add($next_node, groups.len() - $next_group)?
+	while $next_group < groups.len() {
+		$next_node = match list_at(groups, $next_group).kind {
+			KeepTogether | KeepWithNext(_) => $next_node
+			ListItem(_) => checked_add($next_node, 3)?
+			_ => checked_add($next_node, 1)?
+		}
+		$next_group = $next_group + 1
+	}
 	unique_sources = KernelFacadeSources.Plan.sources(source_plan).map(|source| { unicode: source.unicode })
-	if $artifact != planning.artifacts.len() or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
+	if $attributes.len() != planning.attribute_count or $artifact != planning.artifacts.len() or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
 		crash "facade semantic planning count escaped"
 	}
 	store = {
 		annotations: [],
 		assertions: [],
 		attribute_roles: [],
-		attributes: [],
+		attributes: $attributes,
 		content_spine: $content,
 		contextual_artifacts: [],
 		document_root: Semantics.NodeId.from_index(0),
@@ -812,7 +1179,7 @@ StoreBuffers : { content : List(Semantics.ContentSpineItem), nodes : List(Semant
 ## `in_language` span, which is also the effective language of the node
 ## that owns it: a node-level `/Lang` on that `Span` therefore describes all
 ## of its marked content, and no content item differs from its owner.
-place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
+place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { breaks : U64, language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, segments : U64, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
 place_rich = |buffers, authoring, rich, at, source_plan| {
 	inlines = authoring.inlines
 	base = buffers.content.len()
@@ -825,9 +1192,11 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 	var $nodes = list_set(buffers.nodes, at.node, make_node(at.node, ParentNode(at.parent), "P", Semantics.Range.from_start_and_length(base, rich.children), Inherited))
 	var $occurrences = buffers.occurrences
 	var $properties = buffers.properties
-	source_id = list_at(KernelFacadeSources.Plan.input_sources(source_plan), at.source_input)
-	source = list_at(KernelFacadeSources.Plan.sources(source_plan), source_id.index())
-	boundaries = source.analysis.line_boundaries
+	input_sources = KernelFacadeSources.Plan.input_sources(source_plan)
+	sources = KernelFacadeSources.Plan.sources(source_plan)
+	var $segment = 0
+	var $source_id = list_at(input_sources, at.source_input)
+	var $boundaries = list_at(sources, $source_id.index()).analysis.line_boundaries
 	var $boundary = 0
 	var $index = rich.inlines
 	end = rich.inlines + rich.length
@@ -838,8 +1207,18 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		position = owner_spine + record.position
 		match record.kind {
 			Text({ byte_length, byte_start, text: _ }) => {
-				start = scalar_at(boundaries, $boundary, byte_start)?
-				finish = scalar_at(boundaries, start.index, byte_start + byte_length)?
+
+				## A leaf after a line break starts the next segment's source.
+				## Validated breaks separate text, so one leaf crosses at most
+				## one break.
+				if $segment + 1 < at.segments and list_at(authoring.line_breaks, at.breaks + $segment).leaf <= record.first_leaf {
+					$segment = $segment + 1
+					$source_id = list_at(input_sources, at.source_input + $segment)
+					$boundaries = list_at(sources, $source_id.index()).analysis.line_boundaries
+					$boundary = 0
+				}
+				start = scalar_at($boundaries, $boundary, byte_start)?
+				finish = scalar_at($boundaries, start.index, byte_start + byte_length)?
 				$boundary = finish.index
 				occurrence = at.occurrence + record.first_leaf
 				$content = list_set($content, position, ContentOccurrence(Semantics.OccurrenceId.from_index(occurrence)))
@@ -848,7 +1227,7 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 					id: Semantics.OccurrenceId.from_index(occurrence),
 					language: Language(leaf_language(inlines, record.language, at.language)),
 					source: Text(
-						source_id,
+						$source_id,
 						UnicodeRange({
 							scalars: Semantics.Range.from_start_and_length(start.index, finish.index - start.index),
 							utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_length),
@@ -918,6 +1297,23 @@ inline_language : Document.NormalizedInlineKind -> Semantics.Language
 inline_language = |kind| match kind {
 	InLanguage(tag) => Language(tag)
 	_ => Inherited
+}
+
+## The List-owned `ListNumbering` attribute of an `L`: `/Disc` for bullets,
+## else the number style (ISO 32000-2 Table 380).
+list_numbering : Document.ListMarker -> Semantics.StructureAttribute
+list_numbering = |marker| {
+	value = match marker {
+		Bullet => "Disc"
+		Numbered({ start: _, style }) => match style {
+			Decimal => "Decimal"
+			LowerAlpha => "LowerAlpha"
+			LowerRoman => "LowerRoman"
+			UpperAlpha => "UpperAlpha"
+			UpperRoman => "UpperRoman"
+		}
+	}
+	{ applicability: Family(ListRoles), name: Standard("ListNumbering"), owner: List, value: Name(value) }
 }
 
 container_role : Document.ContainerKind -> Str
@@ -1029,7 +1425,7 @@ test_limits = KernelFacadeSemantics.Limits.make({
 	max_occurrences: 12,
 	max_properties: 4,
 	max_source_inputs: 12,
-	semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 32, max_fragments: 0, max_namespaces: 1, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }),
+	semantics: KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: 32, max_fragments: 0, max_namespaces: 1, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }),
 	sources: KernelFacadeSources.Limits.make({
 		max_hash_probes: 64,
 		max_inputs: 12,
@@ -1056,10 +1452,14 @@ test_authoring = {
 	groups: [],
 	inlines: [],
 	language: "en-AU",
+	line_breaks: [],
+	lists: [],
 	metadata_title: "Report",
 	outline: [],
+	page_breaks: [],
 	page_labels: [],
 	rich_paragraphs: [],
+	spacers: [],
 }
 
 ## Facade semantics are planned before layout, with a PDF 2.0 Title and a
@@ -1178,8 +1578,8 @@ nested_authoring = {
 		{ kind: Bullet({ item: 1, list: 0 }), parent: 2, text: "Two" },
 	],
 	groups: [
-		{ block_end: 5, depth: 1, first_block: 1, group_end: 2, kind: Section, parent: 0, position: 1 },
-		{ block_end: 5, depth: 2, first_block: 3, group_end: 2, kind: Division, parent: 1, position: 2 },
+		{ block_end: 5, depth: 1, first_block: 1, group_end: 2, kind: Container(Section), parent: 0, position: 1 },
+		{ block_end: 5, depth: 2, first_block: 3, group_end: 2, kind: Container(Division), parent: 1, position: 2 },
 	],
 }
 
@@ -1222,8 +1622,8 @@ expect {
 		..nested_authoring,
 		blocks: nested_authoring.blocks.map(|block| if block.parent == 2 { ..block, parent: 1 } else block),
 		groups: [
-			{ block_end: 5, depth: 1, first_block: 1, group_end: 2, kind: Section, parent: 0, position: 1 },
-			{ block_end: 5, depth: 2, first_block: 5, group_end: 2, kind: Part, parent: 1, position: 4 },
+			{ block_end: 5, depth: 1, first_block: 1, group_end: 2, kind: Container(Section), parent: 0, position: 1 },
+			{ block_end: 5, depth: 2, first_block: 5, group_end: 2, kind: Container(Part), parent: 1, position: 4 },
 		],
 	}
 	depth_rejected = match KernelFacadeSemantics.Plan.build(deep, test_limits) {
@@ -1285,7 +1685,7 @@ expect {
 									and work.inline_elements == 3
 										and work.inline_leaves == 4
 											and (match KernelFacadeSemantics.Plan.block_ownership(plan) {
-												[RichTextBlock({ occurrences })] => occurrences.start() == 0 and occurrences.length() == 4
+												[RichTextBlock({ label: NoLabel, level: 0, occurrences })] => occurrences.start() == 0 and occurrences.length() == 4
 												_ => False
 											})
 }

@@ -52,7 +52,7 @@ KernelFacadeShape :: [].{
 	## face) segments in logical order, all at the paragraph's size and
 	## leading, so line breaking measures the whole paragraph at once.
 	LogicalRun : { physical : Semantics.Range }
-	BlockRuns : [ArtifactBlock(U64), TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel] })]
+	BlockRuns : [ArtifactBlock(U64), TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel], level : U64 })]
 	RunStyle : { color : Color.SourceValue, leading : Layout.Unit }
 
 	## Where each physical run's occurrence begins inside its interned source.
@@ -250,7 +250,7 @@ prepare_plan = |authoring, owners, store, sources, artifact_count, max_requests,
 	if has_rich_block(owners) {
 		prepare_ranged_plan(authoring, owners, store, sources, theme, face_check)
 	} else {
-		prepare_whole_plan(authoring, owners, store, sources.len(), theme, face_check)
+		prepare_whole_plan(authoring, owners, store, sources, theme, face_check)
 	}
 }
 
@@ -263,8 +263,9 @@ batch_options_for = |authoring| {
 	writing_mode: Horizontal,
 }
 
-prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, U64, Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
-prepare_whole_plan = |authoring, owners, store, source_count, theme, face_check| {
+prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
+	source_count = sources.len()
 	batch_language = Language(authoring.language)
 	batch_options = {
 		direction: LeftToRight,
@@ -291,8 +292,8 @@ prepare_whole_plan = |authoring, owners, store, source_count, theme, face_check|
 					Ok(updated) => updated
 				}
 			}
-			RichTextBlock({ occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
-			TextBlock({ body, label }) => {
+			RichTextBlock({ label: _, level: _, occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
+			TextBlock({ body, label, level }) => {
 				body_style = match block.kind {
 					Figure(index) => figure_style(list_at(authoring.figures, index), theme, $block_index)?
 					_ => style_for(block.kind, theme)
@@ -315,7 +316,7 @@ prepare_whole_plan = |authoring, owners, store, source_count, theme, face_check|
 							return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrence_index }))
 						}
 						occurrence = list_at(store.occurrences, occurrence_index)
-						if !generated_label_evidence_valid(occurrence, store.text_properties) {
+						if !generated_label_evidence_valid(occurrence, store.text_properties, sources) {
 							return Err(GeneratedLabelEvidenceInvalid({ block: $block_index, occurrence: occurrence_index }))
 						}
 						if occurrence.language != batch_language {
@@ -357,7 +358,7 @@ prepare_whole_plan = |authoring, owners, store, source_count, theme, face_check|
 				$requests = $requests.append({ occurrence: body, size: body_style.size, source: source_id })
 				$styles = $styles.append({ color: body_style.color, leading: body_style.leading })
 				$request_index = $request_index + 1
-				$block_runs = match $block_runs.set($block_index, TextBlock({ body: body_run, label: label_run })) {
+				$block_runs = match $block_runs.set($block_index, TextBlock({ body: body_run, label: label_run, level })) {
 					Err(OutOfBounds) => {
 						crash "validated facade shaping text write escaped"
 					}
@@ -395,21 +396,38 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 			ArtifactBlock(artifact) => {
 				$block_runs = list_set($block_runs, $block_index, ArtifactBlock(artifact))
 			}
-			RichTextBlock({ occurrences }) => {
+			RichTextBlock({ label, level, occurrences }) => {
 				rich = match block.kind {
 					RichParagraph(paragraph) => list_at(authoring.rich_paragraphs, paragraph)
 					_ => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 				}
-				if occurrences.length() != rich.leaves or first_request + rich.leaves > occurrence_count {
-					return Err(OccurrenceCoverage({ actual: first_request + rich.leaves, expected: occurrence_count }))
+				body_start = match label {
+					NoLabel => first_request
+					Label(_) => first_request + 1
 				}
-				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: { physical: Semantics.Range.from_start_and_length(first_request, rich.leaves) }, label: NoLabel }))
+				if occurrences.length() != rich.leaves or body_start + rich.leaves > occurrence_count {
+					return Err(OccurrenceCoverage({ actual: body_start + rich.leaves, expected: occurrence_count }))
+				}
+				label_run = match label {
+					NoLabel => NoLabel
+					Label(_) => Label(logical_run_single(Text.RunId.from_index(first_request)))
+				}
+				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: { physical: Semantics.Range.from_start_and_length(body_start, rich.leaves) }, label: label_run, level }))
+				match label {
+					NoLabel => {}
+					Label(_) => {
+						labelled = append_label_request($ranges, $requests, $styles, at, label)?
+						$ranges = labelled.ranges
+						$requests = labelled.requests
+						$styles = labelled.styles
+					}
+				}
 				appended = append_rich_requests($ranges, $requests, $styles, at, occurrences, rich)?
 				$ranges = appended.ranges
 				$requests = appended.requests
 				$styles = appended.styles
 			}
-			TextBlock({ body, label }) => {
+			TextBlock({ body, label, level }) => {
 				body_start = match label {
 					NoLabel => first_request
 					Label(_) => first_request + 1
@@ -418,7 +436,7 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 					NoLabel => NoLabel
 					Label(_) => Label(logical_run_single(Text.RunId.from_index(first_request)))
 				}
-				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: logical_run_single(Text.RunId.from_index(body_start)), label: label_run }))
+				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: logical_run_single(Text.RunId.from_index(body_start)), label: label_run, level }))
 				appended = append_plain_requests($ranges, $requests, $styles, at, body, label)?
 				$ranges = appended.ranges
 				$requests = appended.requests
@@ -460,7 +478,7 @@ append_plain_requests = |ranges, requests, styles, at, body, label| {
 				return Err(UnsupportedThemeFace({ block: at.block, face: label_style.font.index() }))
 			}
 			occurrence = whole_occurrence(at, occurrence_id)?
-			if !generated_label_evidence_valid(occurrence.value, at.store.text_properties) {
+			if !generated_label_evidence_valid(occurrence.value, at.store.text_properties, at.sources) {
 				return Err(GeneratedLabelEvidenceInvalid({ block: at.block, occurrence: occurrence_id.index() }))
 			}
 			$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source })
@@ -473,6 +491,28 @@ append_plain_requests = |ranges, requests, styles, at, body, label| {
 	$styles = $styles.append({ color: body_style.color, leading: body_style.leading })
 	$ranges = $ranges.append(whole_source_range(at.sources, occurrence.source, at.language))
 	Ok({ ranges: $ranges, requests: $requests, styles: $styles })
+}
+
+## The generated label request of a rich list-item paragraph, covering its
+## whole label source in the document language, exactly as a plain block's.
+append_label_request : List(KernelFacadeShape.RequestRange), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), RangedContext, [Label(Semantics.OccurrenceId), NoLabel] -> Try(RequestBuffers, KernelFacadeShape.Error)
+append_label_request = |ranges, requests, styles, at, label| match label {
+	NoLabel => Ok({ ranges, requests, styles })
+	Label(occurrence_id) => {
+		label_style = Theme.body_style(at.theme)
+		if at.face_check == RequireBuiltInFace and label_style.font.index() != 0 {
+			return Err(UnsupportedThemeFace({ block: at.block, face: label_style.font.index() }))
+		}
+		occurrence = whole_occurrence(at, occurrence_id)?
+		if !generated_label_evidence_valid(occurrence.value, at.store.text_properties, at.sources) {
+			return Err(GeneratedLabelEvidenceInvalid({ block: at.block, occurrence: occurrence_id.index() }))
+		}
+		Ok({
+			ranges: ranges.append(whole_source_range(at.sources, occurrence.source, at.language)),
+			requests: requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source }),
+			styles: styles.append({ color: label_style.color, leading: label_style.leading }),
+		})
+	}
 }
 
 ## A whole-source occurrence of a plain block, in the document language.
@@ -509,6 +549,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 	var $styles = styles
 	var $cluster = 0
 	var $script_run = 0
+	var $source = U64.highest
 	var $inline = rich.inlines
 	while $inline < rich.inlines + rich.length {
 		record = list_at(at.authoring.inlines, $inline)
@@ -528,6 +569,14 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 					_ => return Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
 				}
 				analysis = list_at(at.sources, located.id.index()).analysis
+
+				## Each explicit-line-break segment is its own source; the
+				## forward cursors restart at its origin.
+				if located.id.index() != $source {
+					$source = located.id.index()
+					$cluster = 0
+					$script_run = 0
+				}
 				scalar_start = located.range.scalars.start()
 				scalar_end = scalar_start + located.range.scalars.length()
 
@@ -730,7 +779,7 @@ build_ordered_plan = |authoring, owners, store, source_store, artifact_count, or
 			ArtifactBlock(artifact) => {
 				$block_runs = list_set($block_runs, $block_index, ArtifactBlock(artifact))
 			}
-			TextBlock({ body, label }) => {
+			TextBlock({ body, label, level }) => {
 				expanded_label = match label {
 					NoLabel => NoLabel
 					Label(logical) => {
@@ -741,7 +790,7 @@ build_ordered_plan = |authoring, owners, store, source_store, artifact_count, or
 				}
 				expanded_body = expand_logical(body, preparation, $segments_per_source, $expanded, limits.max_requests)?
 				$expanded = expanded_body.buffers
-				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: expanded_body.run, label: expanded_label }))
+				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: expanded_body.run, label: expanded_label, level }))
 			}
 		}
 		$block_index = $block_index + 1
@@ -918,8 +967,9 @@ ExpandedBuffers : { origins : List(KernelFacadeShape.Origin), requests : List(Ke
 ## Split one logical request range into its physical runs: each request's
 ## cluster range (its whole source, or a rich occurrence's sub-range)
 ## intersected with the source's selected face/script segments. Requests of
-## one logical run share one source in cluster order, so one forward segment
-## cursor makes the expansion linear. The segment split is the per-source
+## one logical run share one source in cluster order (or, across explicit
+## line breaks, one source per segment in order), so one forward segment
+## cursor per source makes the expansion linear. The segment split is the per-source
 ## selection fact, never recomputed per occurrence.
 expand_logical : KernelFacadeShape.LogicalRun, KernelFacadeShape.Preparation, List(List(SelectedSegment)), ExpandedBuffers, U64 -> Try({ buffers : ExpandedBuffers, run : KernelFacadeShape.LogicalRun }, KernelFacadeShape.Error)
 expand_logical = |logical, preparation, segments_per_source, buffers, max_requests| {
@@ -935,11 +985,19 @@ expand_logical = |logical, preparation, segments_per_source, buffers, max_reques
 	var $styles = buffers.styles
 	var $origins = buffers.origins
 	var $cursor = 0
+	var $cursor_source = U64.highest
 	var $request_index = first
 	while $request_index < first + count {
 		request = list_at(preparation.requests, $request_index)
 		style = list_at(preparation.styles, $request_index)
 		source_index = request.source.index()
+
+		## A logical run spans several sources only across explicit line
+		## breaks; each source's segment cursor restarts at its origin.
+		if source_index != $cursor_source {
+			$cursor_source = source_index
+			$cursor = 0
+		}
 		if source_index >= segments_per_source.len() {
 			return Err(InvalidOccurrence({ block: 0, occurrence: $request_index }))
 		}
@@ -1012,17 +1070,19 @@ total_font_tables = |fonts| {
 
 ## Labels are generated presentation, not punctuation inferred from a layout
 ## position. The source occurrence and its sole generated-text property remain
-## coupled before shaping so later text lowering receives an explicit fact.
-generated_label_evidence_valid : Semantics.ContentOccurrence, List(Semantics.TextProperty) -> Bool
-generated_label_evidence_valid = |occurrence, properties| {
+## coupled before shaping so later text lowering receives an explicit fact:
+## the property names the occurrence's whole range and presents exactly its
+## non-empty generated source text (a bullet or a list number).
+generated_label_evidence_valid : Semantics.ContentOccurrence, List(Semantics.TextProperty), List(KernelFacadeSources.Source) -> Bool
+generated_label_evidence_valid = |occurrence, properties, sources| {
 	match occurrence.source {
-		Text(_, UnicodeRange(source_range)) => {
+		Text(source_id, UnicodeRange(source_range)) => {
 			property_range = occurrence.text_properties
-			if property_range.length() != 1 or property_range.start() >= properties.len() {
+			if property_range.length() != 1 or property_range.start() >= properties.len() or source_id.index() >= sources.len() {
 				False
 			} else {
 				match list_at(properties, property_range.start()) {
-					SourceToPresentation({ kind: GeneratedText, presentation, source }) => presentation == "•" and text_ranges_equal(source, source_range)
+					SourceToPresentation({ kind: GeneratedText, presentation, source }) => !presentation.is_empty() and presentation == list_at(sources, source_id.index()).unicode and text_ranges_equal(source, source_range)
 					_ => False
 				}
 			}

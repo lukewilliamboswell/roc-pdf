@@ -28,7 +28,7 @@ Fixture :: [].{
 		preliminary = KernelFacadeSemantics.Plan.preliminary(plan)
 		store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
 		label = match list_at(KernelFacadeSemantics.Plan.block_ownership(plan), 0) {
-			TextBlock({ body: _, label: Label(occurrence) }) => occurrence.index()
+			TextBlock({ body: _, label: Label(occurrence), level: _ }) => occurrence.index()
 			_ => return Err(EvidenceFailure)
 		}
 		occurrence = list_at(store.occurrences, label)
@@ -64,7 +64,7 @@ semantic_limits = KernelFacadeSemantics.Limits.make({
 	max_occurrences: 4,
 	max_properties: 2,
 	max_source_inputs: 4,
-	semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 16, max_fragments: 0, max_namespaces: 1, max_nodes: 8, max_occurrences: 4, max_semantic_depth: 4 }),
+	semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: 16, max_fragments: 0, max_namespaces: 1, max_nodes: 8, max_occurrences: 4, max_semantic_depth: 4 }),
 	sources: KernelFacadeSources.Limits.make({
 		max_hash_probes: 16,
 		max_inputs: 4,

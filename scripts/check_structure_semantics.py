@@ -342,6 +342,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     objr_owner: dict[int, int] = {}
     identifiers: dict[bytes, int] = {}
     visited: set[int] = set()
+    labelled_items: set[int] = set()
 
     def walk(number: int, parent: int, inherited: str | None, parent_role: str | None, depth: int) -> str:
         require(depth <= 64, "structure tree too deep")
@@ -419,6 +420,13 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         if "Caption" in child_roles:
             positions = [index for index, value in enumerate(child_roles) if value == "Caption"]
             require(all(index in (0, len(child_roles) - 1) for index in positions), f"/{role} Caption is neither first nor last")
+        if role == "LI" and "Lbl" in child_roles:
+            labelled_items.add(number)
+        if role == "L" and any(isinstance(child, Ref) and int(child) in labelled_items for child in children):
+            # PDF/UA-2 8.2.5.25: a list whose items carry labels declares its
+            # numbering; /None would leave the labels unexplained.
+            numbering = [value.get("ListNumbering") for value in (element.get("A") if isinstance(element.get("A"), list) else [element.get("A")]) if isinstance(value, dict) and value.get("O") == "List"]
+            require(numbering and numbering[0] not in (None, "None"), "an L with labelled items lacks a /ListNumbering other than /None")
         label = " ".join([role] + facts)
         return label + ("" if not leaves else " [" + ", ".join(leaves) + "]")
 
@@ -529,7 +537,7 @@ def validate_structure_semantics_pdf(pdf: bytes, dimensions: dict[str, int]) -> 
 # ---------------------------------------------------------------------------
 NESTED_EXPECTED = [
     "Document [Title [mcid p0:0], P [mcid p0:1], Part [Sect [H1 [mcid p0:2], P [mcid p0:3], Div [Sect [H2 [mcid p0:4], P [mcid p0:5], "
-    "L [LI [Lbl [mcid p0:6], LBody [mcid p0:7]], LI [Lbl [mcid p0:8], LBody [mcid p0:9]], LI [Lbl [mcid p0:10], LBody [mcid p0:11]]]]], "
+    "L A={ListNumbering=Disc O=List} [LI [Lbl [mcid p0:6], LBody [mcid p0:7]], LI [Lbl [mcid p0:8], LBody [mcid p0:9]], LI [Lbl [mcid p0:10], LBody [mcid p0:11]]]]], "
     "P [Link [mcid p0:12, objr Link p0]]], Sect [H1 [mcid p0:13], P [mcid p0:14]]], Div [P [mcid p0:15]]]"
 ]
 
@@ -588,6 +596,7 @@ def self_test() -> None:
         ("/Headers names a missing identifier", lowering, b"/Headers [<6864722D7072696365>]", b"/Headers [<6864722D7072696366>]"),
         ("malformed nested language", lowering, b"/Lang <FEFF00660072>", b"/Lang <FEFF00360072>"),
         ("invalid Scope value", lowering, b"/A << /O /Table /Scope /Column >> /ID", b"/A << /O /Table /Scope /Colunn >> /ID"),
+        ("labelled list numbered /None", nested, b"/ListNumbering /Disc", b"/ListNumbering /None"),
     ]
     for label, source, old, new in mutations:
         mutated = replace_once(source, old, new)
