@@ -10,7 +10,7 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v3`**.
+Version: **`reference-documents-v4`**.
 
 - It is a design record. It claims no executable capability, conformance
   result, or reader behavior. Capability status remains governed by the
@@ -699,10 +699,16 @@ is an error naming every participating source.
 | --- | --- | --- |
 | Containment | geometry | `layout.oversize_block`, `layout.oversize_row`, `layout.unbreakable_token`, `layout.table_width`, `document.figure_oversize` |
 | Reserved template regions | page templates | `layout.template_body_space`, `layout.template_region_overflow` |
-| Unsplittable content | lines, figures with captions, custom blocks declaring `Unsplittable`, `Pdf.keep_together` groups, table rows under `KeepRows`, the table footer group, the lead region | `layout.oversize_block`, `layout.oversize_row`, `layout.keep_conflict` |
+| Unsplittable content | lines, headings and titles (theme), figures with captions, custom blocks declaring `Unsplittable`, `Pdf.keep_together` groups, table rows under `KeepRows`, the table footer group, the lead region | `layout.oversize_block`, `layout.oversize_row`, `layout.keep_conflict` |
 | Table start | caption + header rows + the first body row's first line are placed together | `layout.keep_conflict` if they cannot fit on a fresh page |
-| Required keep | `Pdf.keep_with_next(Required, block)` chains | `layout.keep_conflict` |
-| Explicit page break | `Pdf.page_break` | inside a required keep: `layout.keep_conflict` |
+| Required keep | `Pdf.keep_with_next(Required, block)` chains, binding the kept block's end to the next block's first placement unit | `layout.keep_conflict`, also when an explicit break follows or no block follows |
+| Explicit page break | `Pdf.page_break` between two flow blocks | strictly inside a `Pdf.keep_together` or after a required keep: `layout.keep_conflict`; first, last, or directly after another break: `layout.page_break_position` |
+
+A block's **first placement unit** is the keep-together group it starts, the
+whole block when it is unsplittable, or else its first orphan-minimum lines.
+Keeps bind a block to the next block's first placement unit. A page break at
+the edge of a `Pdf.keep_together` (its first or last item) does not split the
+group and is accepted.
 | Field fit | page and total-page fields | `layout.field_overflow` |
 
 A fresh page never receives nothing: if the next unit cannot be placed on an
@@ -717,9 +723,9 @@ lower one.
 
 | Rank | Preference | Default |
 | --- | --- | --- |
-| R1 | A heading keeps with the next block's first placement unit (and that block's orphan minimum) | on (theme) |
-| R2 | Author `Pdf.keep_with_next(Preferred, block)` | as authored |
-| R3 | The table footer group carries at least one body row onto its page | on |
+| R1 | A heading or title keeps with the next block's first placement unit (and that block's orphan minimum) | on (theme) |
+| R2 | Author `Pdf.keep_with_next(Preferred, block)`, binding the next block's first placement unit | as authored |
+| R3 | The table footer group carries at least one body row onto its page | on (reserved for the table slice) |
 | R4 | Orphan minimum: at least *k* lines of a paragraph at the bottom of a page | *k* = 2 (theme) |
 | R5 | Widow minimum: at least *k* lines of a paragraph at the top of a page | *k* = 2 (theme) |
 
@@ -740,6 +746,17 @@ Break selection, per page, in a single forward pass:
 Content deferred by an earlier break is placed on the next page and is laid
 out at most once more; measurements are cached by their complete key.
 
+The scan keeps scalar state only: the page start, the running height, and the
+best candidate so far. Required keeps make a candidate illegal; keep-together
+groups and unsplittable blocks are atomic units whose inner positions are not
+candidates. An explicit page break reachable from the page start ends the page
+there; a preference that binds across it (R1 or R2 of the block before it)
+cannot hold at that break and is recorded as relaxed. When a fresh page has no
+legal candidate, the unit at its start is the error: `layout.oversize_block`
+for an unsplittable block, `layout.keep_conflict` for a keep. Each page scans
+at most one page of positions past its chosen break, so the candidate visits
+grow linearly with the document; there is no backtracking across pages.
+
 ### Spacing
 
 - Block spacing before and after comes from the theme and is never relaxed.
@@ -747,6 +764,11 @@ out at most once more; measurements are cached by their complete key.
   never begins with block spacing. `Pdf.spacer` is authored space: it is kept
   everywhere except as the first placement on a page, where it is suppressed.
   Inside a `Pdf.keep_together`, a spacer moves with its group.
+- A spacer adds its height after the flow block before it, on top of that
+  block's theme spacing; a spacer before the first block is at the top of the
+  first page and therefore suppressed. A negative spacer is
+  `layout.spacer_negative`. Consecutive blocks inside one outermost list have
+  no paragraph spacing between them.
 
 ### Oversize policy
 
@@ -766,6 +788,27 @@ Lines break only at pinned UAX #14 opportunities and explicit
 `Pdf.line_break`s. A token without an opportunity that is wider than the widest
 width its container can receive is `layout.unbreakable_token`. There is no
 emergency breaking, character-level wrapping, ellipsis, or overflow in v1.
+
+An explicit line break splits its paragraph into segments, each its own
+interned source, so the break is a mandatory line boundary with no painted
+glyph, and two paragraphs that differ only in break positions never share a
+line-cache identity. Every segment must hold text:
+`semantics.line_break_position` otherwise.
+
+### Lists
+
+A list at nesting level *L* (1 for a top-level list) indents its items'
+blocks by *L* times the theme list indent (`Theme.bullet_indent`). Each item's
+generated label is painted start-aligned in the indent before its first
+paragraph's first line, at *L* − 1 indents. A label must fit the list indent:
+it has no break opportunity and is never shrunk or allowed to overlap its
+body (`layout.list_label_width`). An item holds paragraphs, rich paragraphs,
+and nested lists and begins with a paragraph; lists nest at most four deep.
+Labels are `•` for bullet lists, and for numbered lists the number in its
+style followed by a full stop (`7.`, `c.`, `iv.`, `XII.`); lower and upper
+letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
+`ListNumbering` (`/Disc`, `/Decimal`, `/LowerAlpha`, `/UpperAlpha`,
+`/LowerRoman`, or `/UpperRoman`).
 
 ### Tables
 
@@ -834,15 +877,18 @@ with an exact, fixed outcome:
 Every code below is stable, identifies the authored location (a compact block
 path such as `contents[4].table.body_rows[17].cells[1]` plus an optional scalar
 range), and is returned from preparation with no `Prepared` value and no PDF
-bytes. Codes marked *new family* need a `Conformance.DiagnosticCode`
-alternative (`LayoutConstraintViolated`) added by the first layout slice. The
-implementing slice decides whether the dotted code rides in the existing
-`FeatureReference` field or a dedicated field and records that choice here.
+bytes. Codes marked *new family* use the `Conformance.DiagnosticCode`
+alternative `LayoutConstraintViolated`, added by the lists-and-layout-policies
+slice (`reference-documents-v4`). Their dotted code rides in the existing
+`FeatureReference` field and `details` lists the authored path of every
+participating source in a fixed order: a keep conflict names the keep and
+then its first and last member, the explicit break, or the block it keeps
+with.
 
 | Code | Family | Meaning |
 | --- | --- | --- |
 | `layout.keep_conflict` | new family | Required keeps, unsplittable groups, table-start units, or explicit breaks cannot be satisfied together |
-| `layout.oversize_block` | new family | An unsplittable block or custom block exceeds an empty flow region |
+| `layout.oversize_block` | new family | An unsplittable block or custom block exceeds an empty flow region (a figure reports `document.figure_oversize`) |
 | `layout.oversize_row` | new family | A `KeepRows` row exceeds an empty flow region |
 | `layout.unbreakable_token` | new family | A token with no break opportunity exceeds its container |
 | `layout.table_width` | new family | Fixed widths plus column minima exceed the table width |
@@ -869,6 +915,16 @@ implementing slice decides whether the dotted code rides in the existing
 | `semantics.inline_depth` | `BudgetExceeded` | Inline elements nest more than 8 levels deep |
 | `semantics.container_depth` | `BudgetExceeded` | Parts, sections, and divisions nest more than 16 levels deep |
 | `semantics.empty_container` | `InvalidRelationship` | A part, section, or division contains no semantic block |
+| `semantics.list_empty` | `InvalidRelationship` | A list has no items |
+| `semantics.list_item_empty` | `InvalidRelationship` | A list item has no blocks |
+| `semantics.list_item_content` | `InvalidRelationship` | A list item holds a block other than a paragraph, rich paragraph, or list (including a page break or spacer), or does not begin with a paragraph |
+| `semantics.list_depth` | `BudgetExceeded` | Lists nest more than 4 deep |
+| `semantics.list_numbering` | `InvalidRelationship` | A generated number is not representable: letters or Roman numerals from 0, or Roman numerals beyond 3999 |
+| `semantics.line_break_position` | `InvalidRelationship` | A line break begins or ends its paragraph or directly follows another |
+| `layout.keep_empty` | new family | A keep holds no laid-out block |
+| `layout.page_break_position` | new family | A page break is first or last in the flow, or directly follows another |
+| `layout.spacer_negative` | new family | A spacer has a negative height |
+| `layout.list_label_width` | new family | A generated list label is wider than the list indent |
 
 Container diagnostics (from `reference-documents-v2`) carry their dotted code
 in the existing `FeatureReference` field and the compact block path of the
@@ -932,9 +988,9 @@ opportunities computed over the whole paragraph, across inline boundaries.
 Inline elements nest at most 8 deep. An inline link becomes one link
 annotation per page its text is painted on, with one quadrilateral per
 painted line. `line_break`, `page_number`, `total_pages`, and
-`reserved_width` are not yet executable; `line_break` needs a mandatory break
-inside one paragraph source without a painted glyph and is deferred to the
-slice that needs multi-line letterhead and address blocks.
+`reserved_width` are furniture-only and not yet executable. `line_break` is
+executable (lists-and-layout-policies slice): it splits the paragraph into
+segments, each its own interned source, and must separate text.
 
 ### Blocks and grouping
 
@@ -956,6 +1012,14 @@ spacer : Layout.Unit -> Block                  # layout-only vertical space
 Existing `title`, `heading`, `paragraph`, `bullets`, `destination_heading`,
 `destination_paragraph`, `link`, `internal_link`, `with_outline`, and
 `with_page_labels` remain.
+
+`bullet_list`, `numbered_list`, `list_item`, `NumberStyle`, `page_break`,
+`keep_together`, `keep_with_next` (with `Keep : [Required, Preferred]`), and
+`spacer` are executable with these names and shapes
+(lists-and-layout-policies slice, `reference-documents-v4`); see
+[Lists](#lists), [Mandatory constraints](#mandatory-constraints), and
+[Spacing](#spacing) for their rules. `bullets` also declares
+`ListNumbering /Disc`.
 
 `part`, `section`, and `division` are executable (semantic-foundation slice).
 Grouping has no layout effect, a container must contain at least one semantic
@@ -1091,6 +1155,20 @@ version, the task, the observed outcome, and any limitation.
 
 ## Change log
 
+- `reference-documents-v4`: the lists-and-layout-policies slice makes
+  `bullet_list`, `numbered_list`, `list_item`, `page_break`, `keep_together`,
+  `keep_with_next`, `spacer`, and `line_break` executable with unchanged
+  names and shapes; adds the `LayoutConstraintViolated` family with
+  `layout.keep_conflict`, `layout.oversize_block`, `layout.keep_empty`,
+  `layout.page_break_position`, `layout.spacer_negative`, and
+  `layout.list_label_width`, and the list codes `semantics.list_empty`,
+  `semantics.list_item_empty`, `semantics.list_item_content`,
+  `semantics.list_depth`, `semantics.list_numbering`, and
+  `semantics.line_break_position`; defines the first placement unit that
+  keeps bind, headings and titles as unsplittable, page-break position rules,
+  spacer placement, list geometry and labels, and the page scan's bounded
+  look-back; and records that dotted layout codes ride in `FeatureReference`
+  with every participating source's path in `details`.
 - `reference-documents-v1`: initial record.
 - `reference-documents-v3`: the rich-inline slice makes `rich_paragraph`,
   `text`, `emphasis`, `strong`, `code`, `quote`, `inline_link`,

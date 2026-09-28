@@ -280,6 +280,35 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-LIST-SEMANTICS",
+      "summary": "Facade lists lower to L > LI > (Lbl, LBody) in authored order: each item's generated label is an Lbl content item with a source-to-presentation fact, its blocks (paragraphs, rich paragraphs, and nested lists) are children of LBody, and every L declares its ListNumbering; explicit line breaks, page breaks, spacers, and keeps produce no structure.",
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 14.8.4.8.3",
+        "ISO 32000-2:2020 Table 380",
+        "docs/performance/layout-policies.md",
+        "docs/reference-documents.md: Lists"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "roc_facade_and_kernel_expects; layout_policies_harness_family_with_structure_semantics_containment_and_rich_inline_logical_order_checks; atomic_list_break_and_keep_negatives_emit_no_bytes",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/Pdf.roc",
+        "tests/layout_policies/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelFacadeSemantics.roc",
+        "tests/layout_policies/Fixture.roc"
+      ],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-NAMED-DESTINATION-SD",
       "summary": "A named-destination dictionary uses SD as defined by GoTo action Table 202.",
       "source_ids": [
@@ -1947,18 +1976,26 @@
       "references": [
         "ISO 14289-2:2024 8.2.5.25",
         "ISO 32000-2:2020 Table 380",
-        "docs/reference-documents.md: Blocks and grouping"
+        "docs/performance/layout-policies.md",
+        "docs/reference-documents.md: Lists"
       ],
       "capabilities": [
         "Pdf20",
         "PdfUa2"
       ],
-      "implementation": "planned",
+      "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "typed_list_owned_ListNumbering_validation_and_lowering_exist; the facade bullets constructor does not yet emit it (lists slice)",
+      "machine_verification": "every facade L, including the plain-text bullets, lowers a List-owned /A << /ListNumbering /O /List >> (/Disc or the number style); roc_facade_and_kernel_expects; structure_semantics_checker_requires_ListNumbering_other_than_None_on_every_L_with_labelled_items_with_a_mutation_twin; layout_policies_harness_family",
       "human_verification": "not_required",
-      "positive_scenarios": [],
-      "negative_scenarios": [],
+      "positive_scenarios": [
+        "package/Pdf.roc",
+        "tests/containers/main.roc",
+        "tests/layout_policies/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelSemantics.roc",
+        "scripts/check_structure_semantics.py"
+      ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.2.5.25-1"
       ]

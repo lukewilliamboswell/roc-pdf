@@ -79,6 +79,64 @@ empty inline), `semantics.link_text_empty`, `semantics.nested_link`,
 `semantics.language_tag`, `semantics.link_uri`, and, for unsupported text in a
 span, `text.unsupported_script` and `text.unsupported_cluster`.
 
+Build lists from items that hold blocks. `Pdf.bullet_list` and
+`Pdf.numbered_list` become an `L` whose `ListNumbering` states its labels
+(`/Disc`, or the number style); each `Pdf.list_item` becomes an `LI` with a
+generated `Lbl` and an `LBody` of its blocks. Items hold paragraphs, rich
+paragraphs, and nested lists, and begin with a paragraph, whose first line the
+label paints beside. Every nesting level is indented by the theme's list
+indent (`Theme.with_bullet_indent`):
+
+```roc
+Pdf.numbered_list(
+    { start: 1, style: Decimal },
+    [
+        Pdf.list_item([Pdf.paragraph("Extend the certified timber programme.")]),
+        Pdf.list_item([
+            Pdf.paragraph("Open the second dispatch dock:"),
+            Pdf.bullet_list([
+                Pdf.list_item([Pdf.paragraph("pour the slab,")]),
+                Pdf.list_item([Pdf.paragraph("fit the levellers.")]),
+            ]),
+        ]),
+    ],
+)
+```
+
+Number styles are `Decimal`, `LowerAlpha`, `UpperAlpha`, `LowerRoman`, and
+`UpperRoman`; labels read `1.`, `b.`, `iv.`. The plain-text `Pdf.bullets`
+remains and now also declares `ListNumbering /Disc`. Lists nest at most four
+deep. Rejections name the list, item, or block path, such as
+`contents[3].items[1].contents[0]`: `semantics.list_empty`,
+`semantics.list_item_empty`, `semantics.list_item_content` (an item holding
+anything else, or not beginning with a paragraph), `semantics.list_depth`,
+`semantics.list_numbering` (letters or Roman numerals from 0, or Roman
+numerals past 3999), and `layout.list_label_width` (a label wider than the
+list indent).
+
+Control the flow explicitly:
+
+- `Pdf.line_break` ends a line inside a rich paragraph without painting a
+  glyph; it must separate text (`semantics.line_break_position`).
+- `Pdf.page_break` starts the next block on a new page. It must separate two
+  blocks, and never asks for an empty page (`layout.page_break_position`).
+- `Pdf.spacer(Layout.Unit.points(12))` adds layout-only space after the
+  previous block; space at the top of a page is suppressed.
+- `Pdf.keep_together(blocks)` keeps blocks on one page. It is a required
+  constraint; a group taller than a page body is `layout.keep_conflict`.
+- `Pdf.keep_with_next(Required, block)` keeps a block on the same page as
+  the next block's first lines (its orphan minimum, or all of an unsplittable
+  block). `Preferred` makes the keep a ranked preference instead.
+
+Mandatory constraints are never relaxed: a conflict between them, or an
+unsplittable block taller than a page (`layout.oversize_block`), returns
+`InvalidDocument` naming every participating block path. Among the breaks
+that satisfy them, pagination prefers, in rank order, heading keeps (R1),
+preferred author keeps (R2), the orphan minimum (R4), and the widow minimum
+(R5), choosing the latest best break on each page. A preference that no legal
+break can satisfy is relaxed deterministically and recorded as a layout
+outcome for the planned preparation report.
+
 For deferred or repeated emission, prepare once. `Pdf.Prepared` is opaque: a
 successful value has completed document validation and object planning.
 
@@ -141,14 +199,16 @@ multi-command figures, and fixed pages remain forward API: they report
 
 | Authoring surface | Status |
 | --- | --- |
-| titles, headings, paragraphs, bullets, links, destinations | executable |
+| titles, headings, paragraphs, links, destinations | executable |
 | sRGB role styling, font selection, page size, spacing and margins | executable |
 | prepared and chunked emission | executable |
 | one-image figures using typed JPEG/packed raster sources | executable |
 | vector/grouped/multi-command drawings | representable; `document.figure` diagnostic |
 | parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | executable |
 | rich paragraphs: emphasis, strong, code, quote, inline links, language spans, and expansions | executable |
-| explicit line breaks, page fields, and a distinct face per inline role | not yet offered |
+| bulleted and numbered lists with nested blocks, `Pdf.bullets` | executable |
+| explicit line and page breaks, spacers, required and preferred keeps | executable |
+| page fields and a distinct face per inline role | not yet offered |
 | simple tables | representable; Gate 6 diagnostic |
 | fixed pages, columns, floats, footnotes, complex tables | representable; Gate 8 diagnostic |
 | `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
