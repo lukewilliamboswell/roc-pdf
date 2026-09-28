@@ -28,6 +28,7 @@ from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
 from check_pdf_structure import dictionary_ref, object_slices, require, validate_pdf
+from check_rich_inline import validate_rich_inline_pdf
 from check_rtl import validate_rtl_pdf
 from check_shadings import validate_shadings_pdf
 from check_soft_hyphen import EXPECTED_CONTENT as SOFT_HYPHEN_CONTENT
@@ -159,6 +160,7 @@ VALIDATORS: dict[str, Validator] = {
     "pdfa4_standard_twin": _dimensioned(validate_standard_twin_pdf, "PDF 2.0 file skeleton of a Standard twin with no PDF/A identification"),
     "metadata": _dimensioned(validate_metadata_pdf, "catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally"),
     "structure_semantics": _dimensioned(validate_structure_semantics_pdf, "object-number-independent structure tree, Table 5 containment, ParentTree/MCID/OBJR exactly-once, IDTree/ID, language inheritance, typed attributes, DisplayDocTitle, MarkInfo, and Tabs verified independently"),
+    "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),
     "caller_text": _simple(validate_caller_text_pdf, "exact caller font identity, CID, Unicode mapping, and visible text facts"),
@@ -206,6 +208,8 @@ PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 # The structure-semantics self-test reads committed facade and container
 # snapshots, which are in flux during --update-snapshots.
 PREFLIGHT_CHECKS["structure_semantics"] = PreflightCheck("check_structure_semantics.py", True)
+# The rich-inline self-test pins the rich-inline snapshots' logical text.
+PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
 
 
 def validate_registry_ids(validators: tuple[str, ...], field: str) -> None:
