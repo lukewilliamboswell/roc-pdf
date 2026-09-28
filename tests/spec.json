@@ -46,7 +46,8 @@
     "pdfa4",
     "build_verapdf_corpus_subset",
     "archive_renderers",
-    "structure_semantics"
+    "structure_semantics",
+    "rich_inline"
   ],
   "post_update_checks": [
     "contracts",
@@ -55,7 +56,8 @@
     "pdfa4",
     "archive_renderers",
     "fonts",
-    "structure_semantics"
+    "structure_semantics",
+    "rich_inline"
   ],
   "validation": {
     "sources": [
@@ -149,6 +151,10 @@
     {
       "source": "tests/containers/main.roc",
       "cases_jsonl": "tests/containers/cases.jsonl"
+    },
+    {
+      "source": "tests/rich_inline/main.roc",
+      "cases_jsonl": "tests/rich_inline/cases.jsonl"
     }
   ],
   "cases": [
@@ -7033,7 +7039,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 320,
+          "allocations": 319,
           "work": {
             "paragraphs": 1000,
             "unique_sources": 1,
@@ -7053,7 +7059,7 @@
           }
         },
         "x64musl": {
-          "allocations": 320,
+          "allocations": 319,
           "work": {
             "paragraphs": 1000,
             "unique_sources": 1,
@@ -20092,6 +20098,356 @@
       "retention": null,
       "validators": [
         "structure_semantics"
+      ]
+    },
+    {
+      "name": "rich inline mixed styles, links, languages, and expansions",
+      "scenario_revision": "rich-inline-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/mixed.pdf",
+      "args": [
+        "mixed",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 34,
+        "inline_elements": 16,
+        "link_annotations": 2
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 27430,
+          "work": {
+            "node_writes": 34,
+            "inline_elements": 16,
+            "inline_leaves": 32,
+            "content_writes": 73,
+            "occurrence_writes": 40,
+            "node_visits": 34,
+            "containment_edges": 33,
+            "shaped_runs": 40,
+            "lines": 17,
+            "final_runs": 43,
+            "fragments": 43,
+            "pages": 1,
+            "output_bytes": 35809
+          }
+        },
+        "x64musl": {
+          "allocations": 27430,
+          "work": {
+            "node_writes": 34,
+            "inline_elements": 16,
+            "inline_leaves": 32,
+            "content_writes": 73,
+            "occurrence_writes": 40,
+            "node_visits": 34,
+            "containment_edges": 33,
+            "shaped_runs": 40,
+            "lines": 17,
+            "final_runs": 43,
+            "fragments": 43,
+            "pages": 1,
+            "output_bytes": 35809
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline paragraphs x10",
+      "scenario_revision": "rich-inline-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/paragraphs_10.pdf",
+      "args": [
+        "paragraphs",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 10,
+        "structure_elements": 92,
+        "inline_elements": 80,
+        "link_annotations": 10
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 67780,
+          "work": {
+            "node_writes": 92,
+            "inline_elements": 80,
+            "inline_leaves": 170,
+            "content_writes": 262,
+            "occurrence_writes": 171,
+            "node_visits": 92,
+            "containment_edges": 91,
+            "shaped_runs": 171,
+            "lines": 21,
+            "final_runs": 181,
+            "fragments": 181,
+            "pages": 1,
+            "output_bytes": 47222
+          }
+        },
+        "x64musl": {
+          "allocations": 67780,
+          "work": {
+            "node_writes": 92,
+            "inline_elements": 80,
+            "inline_leaves": 170,
+            "content_writes": 262,
+            "occurrence_writes": 171,
+            "node_visits": 92,
+            "containment_edges": 91,
+            "shaped_runs": 171,
+            "lines": 21,
+            "final_runs": 181,
+            "fragments": 181,
+            "pages": 1,
+            "output_bytes": 47222
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline paragraphs x100",
+      "scenario_revision": "rich-inline-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/paragraphs_100.pdf",
+      "args": [
+        "paragraphs",
+        "100"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "paragraphs": 100,
+        "structure_elements": 902,
+        "inline_elements": 800,
+        "link_annotations": 100
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 635809,
+          "work": {
+            "node_writes": 902,
+            "inline_elements": 800,
+            "inline_leaves": 1700,
+            "content_writes": 2602,
+            "occurrence_writes": 1701,
+            "node_visits": 902,
+            "containment_edges": 901,
+            "shaped_runs": 1701,
+            "lines": 201,
+            "final_runs": 1801,
+            "fragments": 1801,
+            "pages": 6,
+            "output_bytes": 292714
+          }
+        },
+        "x64musl": {
+          "allocations": 635809,
+          "work": {
+            "node_writes": 902,
+            "inline_elements": 800,
+            "inline_leaves": 1700,
+            "content_writes": 2602,
+            "occurrence_writes": 1701,
+            "node_visits": 902,
+            "containment_edges": 901,
+            "shaped_runs": 1701,
+            "lines": 201,
+            "final_runs": 1801,
+            "fragments": 1801,
+            "pages": 6,
+            "output_bytes": 292714
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline ordered multi-face spans",
+      "scenario_revision": "rich-inline-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/ordered.pdf",
+      "args": [
+        "ordered",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 5,
+        "inline_elements": 3,
+        "link_annotations": 0
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3788,
+          "work": {
+            "node_writes": 5,
+            "inline_elements": 3,
+            "inline_leaves": 3,
+            "content_writes": 7,
+            "occurrence_writes": 3,
+            "node_visits": 5,
+            "containment_edges": 4,
+            "shaped_runs": 3,
+            "lines": 1,
+            "final_runs": 3,
+            "fragments": 3,
+            "pages": 1,
+            "output_bytes": 16899
+          }
+        },
+        "x64musl": {
+          "allocations": 3788,
+          "work": {
+            "node_writes": 5,
+            "inline_elements": 3,
+            "inline_leaves": 3,
+            "content_writes": 7,
+            "occurrence_writes": 3,
+            "node_visits": 5,
+            "containment_edges": 4,
+            "shaped_runs": 3,
+            "lines": 1,
+            "final_runs": 3,
+            "fragments": 3,
+            "pages": 1,
+            "output_bytes": 16899
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline atomic negatives",
+      "scenario_revision": "rich-inline-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/negatives.pdf",
+      "args": [
+        "atomic_negatives",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "rejections": 12
+      },
+      "work_counters": [
+        "rejections",
+        "boundary_bytes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 18460,
+          "work": {
+            "rejections": 12,
+            "boundary_bytes": 16325,
+            "output_bytes": 16120
+          }
+        },
+        "x64musl": {
+          "allocations": 18460,
+          "work": {
+            "rejections": 12,
+            "boundary_bytes": 16325,
+            "output_bytes": 16120
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
       ]
     }
   ]
