@@ -431,8 +431,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			var $annots = List.with_capacity(page_count)
 			var $annots_builder = $builder
 			var $annots_page = 0
-			var $annots_failure = NoFailure
-			while $annots_page < page_count and $annots_failure == NoFailure {
+			while $annots_page < page_count {
 				start = list_at(plan_input.store.page_annotation_offsets, $annots_page)
 				end = list_at(plan_input.store.page_annotation_offsets, $annots_page + 1)
 				if end == start {
@@ -440,10 +439,10 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 				} else {
 					var $refs = List.with_capacity(end - start)
 					var $slot = start
-					while $slot < end and $annots_failure == NoFailure {
+					while $slot < end {
 						match KernelObject.add_reference($annots_builder, list_at(plan_input.planned.ordered, $slot)) {
 							Err(error) => {
-								$annots_failure = Failed(Object(error))
+								return Err(Object(error))
 							}
 							Ok(added) => {
 								$annots_builder = added.builder
@@ -452,24 +451,17 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 						}
 						$slot = $slot + 1
 					}
-					match $annots_failure {
-						Failed(_) => {}
-						NoFailure => match KernelObject.add_array($annots_builder, $refs) {
-							Err(error) => {
-								$annots_failure = Failed(Object(error))
-							}
-							Ok(array) => {
-								$annots_builder = array.builder
-								$annots = $annots.append(WithAnnots(array.id))
-							}
+					match KernelObject.add_array($annots_builder, $refs) {
+						Err(error) => {
+							return Err(Object(error))
+						}
+						Ok(array) => {
+							$annots_builder = array.builder
+							$annots = $annots.append(WithAnnots(array.id))
 						}
 					}
 				}
 				$annots_page = $annots_page + 1
-			}
-			match $annots_failure {
-				Failed(error) => return Err(error)
-				NoFailure => {}
 			}
 			KernelPageObjects.Plan.build_with_page_navigation($annots_builder, tagged, content, base, $page_values, $references, $page_groups, $annots) ? Pages
 		}
@@ -1524,12 +1516,11 @@ add_function_object = |builder, names, shading_store, fact, objects, planned| {
 			var $builder = builder
 			var $bound_ids = List.with_capacity(record.stops.length() - 2)
 			var $bound = 1
-			var $bound_failure = NoFailure
-			while $bound < record.stops.length() - 1 and $bound_failure == NoFailure {
+			while $bound < record.stops.length() - 1 {
 				offset = list_at(shading_store.stops, record.stops.start() + $bound).offset
 				match add_alpha_value($builder, offset.to_u64()) {
 					Err(error) => {
-						$bound_failure = Failed(error)
+						return Err(error)
 					}
 					Ok(added) => {
 						$builder = added.builder
@@ -1537,10 +1528,6 @@ add_function_object = |builder, names, shading_store, fact, objects, planned| {
 					}
 				}
 				$bound = $bound + 1
-			}
-			match $bound_failure {
-				Failed(error) => return Err(error)
-				NoFailure => {}
 			}
 			bounds = KernelObject.add_array($builder, $bound_ids) ? Object
 			domain = add_domain_array(bounds.builder)?
@@ -1558,11 +1545,10 @@ add_function_object = |builder, names, shading_store, fact, objects, planned| {
 			var $reference_builder = function_type.builder
 			var $child_ids = List.with_capacity(children.len())
 			var $child = 0
-			var $child_failure = NoFailure
-			while $child < children.len() and $child_failure == NoFailure {
+			while $child < children.len() {
 				match KernelObject.add_reference($reference_builder, list_at(KernelFormObjects.Plan.functions(objects), list_at(children, $child))) {
 					Err(error) => {
-						$child_failure = Failed(Object(error))
+						return Err(Object(error))
 					}
 					Ok(reference) => {
 						$reference_builder = reference.builder
@@ -1570,10 +1556,6 @@ add_function_object = |builder, names, shading_store, fact, objects, planned| {
 					}
 				}
 				$child = $child + 1
-			}
-			match $child_failure {
-				Failed(error) => return Err(error)
-				NoFailure => {}
 			}
 			functions = KernelObject.add_array($reference_builder, $child_ids) ? Object
 			dictionary = KernelObject.add_dictionary(

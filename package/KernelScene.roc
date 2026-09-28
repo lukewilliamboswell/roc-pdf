@@ -354,41 +354,40 @@ validate_shadings = |store, resources, max_stops| {
 	var $owners = List.repeat(0, store.stops.len())
 	var $shading_index = 0
 	var $visits = 0
-	var $error = NoError
-	while $shading_index < store.shadings.len() and $error == NoError {
+	while $shading_index < store.shadings.len() {
 		shading = list_at(store.shadings, $shading_index)
 		if shading.id.index() != $shading_index {
-			$error = Invalid(NonDenseIdentity({ actual: shading.id.index(), expected: $shading_index, kind: ShadingIndex }))
+			return Err(NonDenseIdentity({ actual: shading.id.index(), expected: $shading_index, kind: ShadingIndex }))
 		} else if shading.space.index() >= resources.color_spaces {
-			$error = Invalid(IndexOutOfRange({ available: resources.color_spaces, index: shading.space.index(), kind: ColorSpaceIndex }))
+			return Err(IndexOutOfRange({ available: resources.color_spaces, index: shading.space.index(), kind: ColorSpaceIndex }))
 		} else if shading.stops.length() < 2 {
-			$error = Invalid(TooFewShadingStops({ shading: $shading_index, stops: shading.stops.length() }))
+			return Err(TooFewShadingStops({ shading: $shading_index, stops: shading.stops.length() }))
 		} else if shading.stops.length() > max_stops {
-			$error = Invalid(LimitExceeded({ attempted: shading.stops.length(), dimension: ShadingStops, limit: max_stops }))
+			return Err(LimitExceeded({ attempted: shading.stops.length(), dimension: ShadingStops, limit: max_stops }))
 		} else {
 			match validate_span(shading.stops, store.stops.len(), ShadingStopIndex, $shading_index) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(span) => {
 					var $stop_index = span.start
 					var $previous = 0
-					while $stop_index < span.end and $error == NoError {
+					while $stop_index < span.end {
 						match mark_once($owners, $stop_index, ShadingStopIndex) {
 							Err(error) => {
-								$error = Invalid(error)
+								return Err(error)
 							}
 							Ok(next_owners) => {
 								$owners = next_owners
 								offset = list_at(store.stops, $stop_index).offset.to_u64()
 								if $stop_index == span.start {
 									if offset != 0 {
-										$error = Invalid(ShadingStopEndpointInvalid({ shading: $shading_index }))
+										return Err(ShadingStopEndpointInvalid({ shading: $shading_index }))
 									}
 								} else if offset <= $previous {
-									$error = Invalid(ShadingStopsNotIncreasing({ shading: $shading_index, stop: $stop_index }))
+									return Err(ShadingStopsNotIncreasing({ shading: $shading_index, stop: $stop_index }))
 								} else if $stop_index == span.end - 1 and offset != 65535 {
-									$error = Invalid(ShadingStopEndpointInvalid({ shading: $shading_index }))
+									return Err(ShadingStopEndpointInvalid({ shading: $shading_index }))
 								} else {
 									{}
 								}
@@ -398,26 +397,19 @@ validate_shadings = |store, resources, max_stops| {
 						$stop_index = $stop_index + 1
 						$visits = $visits + 1
 					}
-					if $error == NoError {
-						match validate_shading_geometry(shading.geometry, $shading_index) {
-							Err(error) => {
-								$error = Invalid(error)
-							}
-							Ok({}) => {}
+					match validate_shading_geometry(shading.geometry, $shading_index) {
+						Err(error) => {
+							return Err(error)
 						}
+						Ok({}) => {}
 					}
 				}
 			}
 		}
 		$shading_index = $shading_index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => {
-			ensure_all_owned($owners, ShadingStopIndex)?
-			Ok({ stop_visits: $visits })
-		}
-	}
+	ensure_all_owned($owners, ShadingStopIndex)?
+	Ok({ stop_visits: $visits })
 }
 
 validate_shading_geometry : Scene.ShadingGeometry, U64 -> Try({}, KernelScene.Error)
@@ -458,47 +450,46 @@ validate_cells = |store, scenes, resources, max_depth| {
 	var $image_placements = 0
 	var $shading_paints = 0
 	var $maximum_depth = 0
-	var $error = NoError
-	while $cell_index < store.cells.len() and $error == NoError {
+	while $cell_index < store.cells.len() {
 		cell = list_at(store.cells, $cell_index)
 		if cell.id.index() != $cell_index {
-			$error = Invalid(NonDenseIdentity({ actual: cell.id.index(), expected: $cell_index, kind: PatternIndex }))
+			return Err(NonDenseIdentity({ actual: cell.id.index(), expected: $cell_index, kind: PatternIndex }))
 		} else if !positive_rect(cell.bbox) {
-			$error = Invalid(NonPositiveRect({ index: $cell_index, kind: PatternIndex }))
+			return Err(NonPositiveRect({ index: $cell_index, kind: PatternIndex }))
 		} else if cell.x_step.raw() <= 0 or cell.y_step.raw() <= 0 {
-			$error = Invalid(PatternStepInvalid({ pattern: $cell_index }))
+			return Err(PatternStepInvalid({ pattern: $cell_index }))
 		} else if cell.commands.length() == 0 {
-			$error = Invalid(EmptyPatternCell({ pattern: $cell_index }))
+			return Err(EmptyPatternCell({ pattern: $cell_index }))
 		} else {
 			match validate_pattern_matrix(cell.matrix, $cell_index) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok({}) => {
 					var $frames = [Frame.{ depth: 1, range: cell.commands }]
 					var $frame_index = 0
-					while $frame_index < $frames.len() and $error == NoError {
+					while $frame_index < $frames.len() {
 						frame = list_at($frames, $frame_index)
 						if frame.depth > max_depth {
-							$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
+							return Err(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
 						} else {
 							$maximum_depth = U64.max($maximum_depth, frame.depth)
 							match validate_span(frame.range, store.commands.len(), PatternCommandIndex, $cell_index) {
 								Err(error) => {
-									$error = Invalid(error)
+									return Err(error)
 								}
 								Ok(span) => {
 									var $command_index = span.start
-									while $command_index < span.end and $error == NoError {
+									while $command_index < span.end {
 										if $command_index < $expected_command {
-											$error = Invalid(DuplicateOwnership({ index: $command_index, kind: PatternCommandIndex }))
+											return Err(DuplicateOwnership({ index: $command_index, kind: PatternCommandIndex }))
 										} else if $command_index > $expected_command {
-											$error = Invalid(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
+											return Err(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
 										} else {
 											$expected_command = $expected_command + 1
 											match validate_cell_command(list_at(store.commands, $command_index), $command_index, scenes, resources) {
 												Err(error) => {
-													$error = Invalid(error)
+													return Err(error)
 												}
 												Ok(work) => {
 													$form_placements = $form_placements + work.form_placements
@@ -507,11 +498,11 @@ validate_cells = |store, scenes, resources, max_depth| {
 													match work.children {
 														Leaf => {}
 														Nested(children) => if children.length() == 0 {
-															$error = Invalid(EmptyPatternCell({ pattern: $cell_index }))
+															return Err(EmptyPatternCell({ pattern: $cell_index }))
 														} else {
 															match U64.plus_try(frame.depth, 1) {
 																Err(Overflow) => {
-																	$error = Invalid(ArithmeticOverflow)
+																	return Err(ArithmeticOverflow)
 																}
 																Ok(depth) => {
 																	$frames = $frames.append(Frame.{ depth, range: children })
@@ -537,20 +528,17 @@ validate_cells = |store, scenes, resources, max_depth| {
 		$cell_index = $cell_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => if $expected_command < store.commands.len() {
-			Err(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
-		} else {
-			Ok({
-				cell_child_ranges: $child_ranges,
-				cell_command_visits: $command_visits,
-				cell_form_placements: $form_placements,
-				cell_image_placements: $image_placements,
-				cell_shading_paints: $shading_paints,
-				max_cell_depth: $maximum_depth,
-			})
-		}
+	if $expected_command < store.commands.len() {
+		Err(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
+	} else {
+		Ok({
+			cell_child_ranges: $child_ranges,
+			cell_command_visits: $command_visits,
+			cell_form_placements: $form_placements,
+			cell_image_placements: $image_placements,
+			cell_shading_paints: $shading_paints,
+			max_cell_depth: $maximum_depth,
+		})
 	}
 }
 
@@ -595,40 +583,39 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 	var $shading_paints = 0
 	var $soft_mask_commands = 0
 	var $maximum_depth = 0
-	var $error = NoError
-	while $form_index < form_store.forms.len() and $error == NoError {
+	while $form_index < form_store.forms.len() {
 		form = list_at(form_store.forms, $form_index)
 		if form.id.index() != $form_index {
-			$error = Invalid(NonDenseIdentity({ actual: form.id.index(), expected: $form_index, kind: FormIndex }))
+			return Err(NonDenseIdentity({ actual: form.id.index(), expected: $form_index, kind: FormIndex }))
 		} else if !positive_rect(form.bbox) {
-			$error = Invalid(NonPositiveRect({ index: $form_index, kind: FormIndex }))
+			return Err(NonPositiveRect({ index: $form_index, kind: FormIndex }))
 		} else if form.commands.length() == 0 {
-			$error = Invalid(EmptyForm({ form: $form_index }))
+			return Err(EmptyForm({ form: $form_index }))
 		} else {
 			var $frames = [Frame.{ depth: 1, range: form.commands }]
 			var $frame_index = 0
-			while $frame_index < $frames.len() and $error == NoError {
+			while $frame_index < $frames.len() {
 				frame = list_at($frames, $frame_index)
 				if frame.depth > max_depth {
-					$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
+					return Err(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
 				} else {
 					$maximum_depth = U64.max($maximum_depth, frame.depth)
 					match validate_span(frame.range, form_store.commands.len(), FormCommandIndex, $form_index) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(span) => {
 							var $command_index = span.start
-							while $command_index < span.end and $error == NoError {
+							while $command_index < span.end {
 								if $command_index < $expected_command {
-									$error = Invalid(DuplicateOwnership({ index: $command_index, kind: FormCommandIndex }))
+									return Err(DuplicateOwnership({ index: $command_index, kind: FormCommandIndex }))
 								} else if $command_index > $expected_command {
-									$error = Invalid(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
+									return Err(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
 								} else {
 									$expected_command = $expected_command + 1
 									match validate_command(list_at(form_store.commands, $command_index), $command_index, scenes, resources) {
 										Err(error) => {
-											$error = Invalid(error)
+											return Err(error)
 										}
 										Ok(work) => {
 											$nested_placements = $nested_placements + work.form_placements
@@ -639,11 +626,11 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 											match work.children {
 												Leaf => {}
 												Nested(children) => if children.length() == 0 {
-													$error = Invalid(EmptyForm({ form: $form_index }))
+													return Err(EmptyForm({ form: $form_index }))
 												} else {
 													match U64.plus_try(frame.depth, 1) {
 														Err(Overflow) => {
-															$error = Invalid(ArithmeticOverflow)
+															return Err(ArithmeticOverflow)
 														}
 														Ok(depth) => {
 															$frames = $frames.append(Frame.{ depth, range: children })
@@ -667,23 +654,20 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 		$form_index = $form_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => if $expected_command < form_store.commands.len() {
-			Err(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
-		} else {
-			Ok({
-				form_child_ranges: $child_ranges,
-				form_command_visits: $command_visits,
-				form_opacity_commands: $opacity_commands,
-				form_pattern_fills: $pattern_fills,
-				form_shading_paints: $shading_paints,
-				form_soft_mask_commands: $soft_mask_commands,
-				form_visits: form_store.forms.len(),
-				max_form_depth: $maximum_depth,
-				nested_form_placements: $nested_placements,
-			})
-		}
+	if $expected_command < form_store.commands.len() {
+		Err(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
+	} else {
+		Ok({
+			form_child_ranges: $child_ranges,
+			form_command_visits: $command_visits,
+			form_opacity_commands: $opacity_commands,
+			form_pattern_fills: $pattern_fills,
+			form_shading_paints: $shading_paints,
+			form_soft_mask_commands: $soft_mask_commands,
+			form_visits: form_store.forms.len(),
+			max_form_depth: $maximum_depth,
+			nested_form_placements: $nested_placements,
+		})
 	}
 }
 
@@ -692,26 +676,25 @@ validate_paths = |scenes| {
 	var $owners = List.repeat(0, scenes.path_segments.len())
 	var $path_index = 0
 	var $visits = 0
-	var $error = NoError
-	while $path_index < scenes.paths.len() and $error == NoError {
+	while $path_index < scenes.paths.len() {
 		path = list_at(scenes.paths, $path_index)
 		if path.id.index() != $path_index {
-			$error = Invalid(NonDenseIdentity({ actual: path.id.index(), expected: $path_index, kind: PathIndex }))
+			return Err(NonDenseIdentity({ actual: path.id.index(), expected: $path_index, kind: PathIndex }))
 		} else if path.segments.length() == 0 {
-			$error = Invalid(EmptyPath({ path: $path_index }))
+			return Err(EmptyPath({ path: $path_index }))
 		} else {
 			match validate_span(path.segments, scenes.path_segments.len(), SegmentIndex, $path_index) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(span) => {
 					var $segment_index = span.start
 					var $subpath_open = False
 					var $draws = 0
-					while $segment_index < span.end and $error == NoError {
+					while $segment_index < span.end {
 						match mark_once($owners, $segment_index, SegmentIndex) {
 							Err(error) => {
-								$error = Invalid(error)
+								return Err(error)
 							}
 							Ok(next_owners) => {
 								$owners = next_owners
@@ -723,23 +706,23 @@ validate_paths = |scenes| {
 									LineTo(_) => if $subpath_open {
 										$draws = $draws + 1
 									} else {
-										$error = Invalid(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
+										return Err(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
 									}
 									CubicTo(_) => if $subpath_open {
 										$draws = $draws + 1
 									} else {
-										$error = Invalid(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
+										return Err(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
 									}
 									Close => if $subpath_open {
 										$subpath_open = False
 									} else {
-										$error = Invalid(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
+										return Err(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
 									}
 									Rectangle(rectangle) => if positive_rect(rectangle) {
 										$draws = $draws + 1
 										$subpath_open = False
 									} else {
-										$error = Invalid(NonPositiveRect({ index: $segment_index, kind: SegmentIndex }))
+										return Err(NonPositiveRect({ index: $segment_index, kind: SegmentIndex }))
 									}
 								}
 							}
@@ -747,8 +730,8 @@ validate_paths = |scenes| {
 						$segment_index = $segment_index + 1
 						$visits = $visits + 1
 					}
-					if $error == NoError and $draws == 0 {
-						$error = Invalid(NoPathPaint({ path: $path_index }))
+					if $draws == 0 {
+						return Err(NoPathPaint({ path: $path_index }))
 					}
 				}
 			}
@@ -756,13 +739,8 @@ validate_paths = |scenes| {
 		$path_index = $path_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => {
-			ensure_all_owned($owners, SegmentIndex)?
-			Ok({ path_segments: $visits })
-		}
-	}
+	ensure_all_owned($owners, SegmentIndex)?
+	Ok({ path_segments: $visits })
 }
 
 validate_pages : Scene.Store -> Try({ page_box_checks : U64, page_group_edges : U64 }, KernelScene.Error)
@@ -772,38 +750,37 @@ validate_pages = |scenes| {
 	var $page_index = 0
 	var $box_checks = 0
 	var $edge_visits = 0
-	var $error = NoError
-	while $page_index < scenes.pages.len() and $error == NoError {
+	while $page_index < scenes.pages.len() {
 		page = list_at(scenes.pages, $page_index)
 		if page.id.index() != $page_index {
-			$error = Invalid(NonDenseIdentity({ actual: page.id.index(), expected: $page_index, kind: PageIndex }))
+			return Err(NonDenseIdentity({ actual: page.id.index(), expected: $page_index, kind: PageIndex }))
 		} else {
 			match KernelGeometry.validate_page(page) {
 				Err(error) => {
-					$error = Invalid(Geometry(error))
+					return Err(Geometry(error))
 				}
 				Ok(geometry_work) => {
 					$box_checks = $box_checks + geometry_work.box_checks
 					match validate_span(page.paint_order, scenes.page_groups.len(), GroupIndex, $page_index) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(span) => {
 							var $edge = span.start
-							while $edge < span.end and $error == NoError {
+							while $edge < span.end {
 								match mark_once($edge_owners, $edge, PageGroupEdgeIndex) {
 									Err(error) => {
-										$error = Invalid(error)
+										return Err(error)
 									}
 									Ok(next_edge_owners) => {
 										$edge_owners = next_edge_owners
 										group_index = list_at(scenes.page_groups, $edge).index()
 										if group_index >= scenes.groups.len() {
-											$error = Invalid(IndexOutOfRange({ available: scenes.groups.len(), index: group_index, kind: GroupIndex }))
+											return Err(IndexOutOfRange({ available: scenes.groups.len(), index: group_index, kind: GroupIndex }))
 										} else {
 											match mark_once($group_owners, group_index, GroupIndex) {
 												Err(error) => {
-													$error = Invalid(error)
+													return Err(error)
 												}
 												Ok(next_group_owners) => {
 													$group_owners = next_group_owners
@@ -823,14 +800,9 @@ validate_pages = |scenes| {
 		$page_index = $page_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => {
-			ensure_all_owned($edge_owners, PageGroupEdgeIndex)?
-			ensure_all_owned($group_owners, GroupIndex)?
-			Ok({ page_box_checks: $box_checks, page_group_edges: $edge_visits })
-		}
-	}
+	ensure_all_owned($edge_owners, PageGroupEdgeIndex)?
+	ensure_all_owned($group_owners, GroupIndex)?
+	Ok({ page_box_checks: $box_checks, page_group_edges: $edge_visits })
 }
 
 validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, opacity_commands : U64, pattern_fills : U64, shading_paints : U64, soft_mask_commands : U64, text_placements : U64 }, KernelScene.Error)
@@ -849,38 +821,37 @@ validate_groups = |scenes, resources, max_depth| {
 	var $soft_mask_commands = 0
 	var $text_placements = 0
 	var $maximum_depth = 0
-	var $error = NoError
-	while $group_index < scenes.groups.len() and $error == NoError {
+	while $group_index < scenes.groups.len() {
 		group = list_at(scenes.groups, $group_index)
 		if group.id.index() != $group_index {
-			$error = Invalid(NonDenseIdentity({ actual: group.id.index(), expected: $group_index, kind: GroupIndex }))
+			return Err(NonDenseIdentity({ actual: group.id.index(), expected: $group_index, kind: GroupIndex }))
 		} else if group.commands.length() == 0 {
-			$error = Invalid(EmptyCommandRange({ group: $group_index }))
+			return Err(EmptyCommandRange({ group: $group_index }))
 		} else {
 			var $frames = [Frame.{ depth: 1, range: group.commands }]
 			var $frame_index = 0
-			while $frame_index < $frames.len() and $error == NoError {
+			while $frame_index < $frames.len() {
 				frame = list_at($frames, $frame_index)
 				if frame.depth > max_depth {
-					$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
+					return Err(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
 				} else {
 					$maximum_depth = U64.max($maximum_depth, frame.depth)
 					match validate_span(frame.range, scenes.commands.len(), CommandIndex, $group_index) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(span) => {
 							var $command_index = span.start
-							while $command_index < span.end and $error == NoError {
+							while $command_index < span.end {
 								if $command_index < $expected_command {
-									$error = Invalid(DuplicateOwnership({ index: $command_index, kind: CommandIndex }))
+									return Err(DuplicateOwnership({ index: $command_index, kind: CommandIndex }))
 								} else if $command_index > $expected_command {
-									$error = Invalid(Orphaned({ index: $expected_command, kind: CommandIndex }))
+									return Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
 								} else {
 									$expected_command = $expected_command + 1
 									match validate_command(list_at(scenes.commands, $command_index), $command_index, scenes, resources) {
 										Err(error) => {
-											$error = Invalid(error)
+											return Err(error)
 										}
 										Ok(work) => {
 											$color_references = $color_references + work.color_references
@@ -895,11 +866,11 @@ validate_groups = |scenes, resources, max_depth| {
 											match work.children {
 												Leaf => {}
 												Nested(children) => if children.length() == 0 {
-													$error = Invalid(EmptyCommandRange({ group: $group_index }))
+													return Err(EmptyCommandRange({ group: $group_index }))
 												} else {
 													match U64.plus_try(frame.depth, 1) {
 														Err(Overflow) => {
-															$error = Invalid(ArithmeticOverflow)
+															return Err(ArithmeticOverflow)
 														}
 														Ok(depth) => {
 															$frames = $frames.append(Frame.{ depth, range: children })
@@ -923,13 +894,10 @@ validate_groups = |scenes, resources, max_depth| {
 		$group_index = $group_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => if $expected_command < scenes.commands.len() {
-			Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
-		} else {
-			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, pattern_fills: $pattern_fills, shading_paints: $shading_paints, soft_mask_commands: $soft_mask_commands, text_placements: $text_placements })
-		}
+	if $expected_command < scenes.commands.len() {
+		Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
+	} else {
+		Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, pattern_fills: $pattern_fills, shading_paints: $shading_paints, soft_mask_commands: $soft_mask_commands, text_placements: $text_placements })
 	}
 }
 
@@ -1106,24 +1074,20 @@ validate_dash = |range, phase, command, values| {
 		span = validate_span(range, values.len(), DashIndex, command)?
 		var $index = span.start
 		var $has_positive = False
-		var $error = NoError
-		while $index < span.end and $error == NoError {
+		while $index < span.end {
 			value = list_at(values, $index).raw()
 			if value < 0 {
-				$error = Invalid(DashLengthNegative({ command, dash: $index }))
+				return Err(DashLengthNegative({ command, dash: $index }))
 			} else if value > 0 {
 				$has_positive = True
 			}
 			$index = $index + 1
 		}
-		match $error {
-			Invalid(error) => Err(error)
-			NoError => if $has_positive Ok(span.end - span.start) else scene_failure(
-				DashAllZero({
-					command: command,
-				}),
-			)
-		}
+		if $has_positive Ok(span.end - span.start) else scene_failure(
+			DashAllZero({
+				command: command,
+			}),
+		)
 	}
 }
 

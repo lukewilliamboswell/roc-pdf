@@ -156,11 +156,10 @@ add_names = |builder, font_count| {
 	var $builder = count.builder
 	var $font_resources = List.with_capacity(font_count)
 	var $font_index = 0
-	var $error = NoError
-	while $font_index < font_count and $error == NoError {
+	while $font_index < font_count {
 		match KernelObject.add_name($builder, font_resource_name($font_index)) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(Object(error))
 			}
 			Ok(added) => {
 				$builder = added.builder
@@ -169,36 +168,31 @@ add_names = |builder, font_count| {
 		}
 		$font_index = $font_index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => {
-			font = KernelObject.add_name($builder, Str.to_utf8("Font")) ? Object
-			kids = KernelObject.add_name(font.builder, Str.to_utf8("Kids")) ? Object
-			media_box = KernelObject.add_name(kids.builder, Str.to_utf8("MediaBox")) ? Object
-			page = KernelObject.add_name(media_box.builder, Str.to_utf8("Page")) ? Object
-			pages = KernelObject.add_name(page.builder, Str.to_utf8("Pages")) ? Object
-			parent = KernelObject.add_name(pages.builder, Str.to_utf8("Parent")) ? Object
-			resources = KernelObject.add_name(parent.builder, Str.to_utf8("Resources")) ? Object
-			type_name = KernelObject.add_name(resources.builder, Str.to_utf8("Type")) ? Object
-			Ok({
-				builder: type_name.builder,
-				names: {
-					catalog: catalog.id,
-					contents: contents.id,
-					count: count.id,
-					font: font.id,
-					font_resources: $font_resources,
-					kids: kids.id,
-					media_box: media_box.id,
-					page: page.id,
-					pages: pages.id,
-					parent: parent.id,
-					resources: resources.id,
-					type_name: type_name.id,
-				},
-			})
-		}
-	}
+	font = KernelObject.add_name($builder, Str.to_utf8("Font")) ? Object
+	kids = KernelObject.add_name(font.builder, Str.to_utf8("Kids")) ? Object
+	media_box = KernelObject.add_name(kids.builder, Str.to_utf8("MediaBox")) ? Object
+	page = KernelObject.add_name(media_box.builder, Str.to_utf8("Page")) ? Object
+	pages = KernelObject.add_name(page.builder, Str.to_utf8("Pages")) ? Object
+	parent = KernelObject.add_name(pages.builder, Str.to_utf8("Parent")) ? Object
+	resources = KernelObject.add_name(parent.builder, Str.to_utf8("Resources")) ? Object
+	type_name = KernelObject.add_name(resources.builder, Str.to_utf8("Type")) ? Object
+	Ok({
+		builder: type_name.builder,
+		names: {
+			catalog: catalog.id,
+			contents: contents.id,
+			count: count.id,
+			font: font.id,
+			font_resources: $font_resources,
+			kids: kids.id,
+			media_box: media_box.id,
+			page: page.id,
+			pages: pages.id,
+			parent: parent.id,
+			resources: resources.id,
+			type_name: type_name.id,
+		},
+	})
 }
 
 add_catalog : KernelObject.Builder, Names -> Try(KernelObject.Builder, KernelTextStructure.Error)
@@ -254,12 +248,11 @@ add_font_resources = |builder, names, count| {
 	var $builder = builder
 	var $entries = List.with_capacity(count)
 	var $index = 0
-	var $error = NoError
-	while $index < count and $error == NoError {
+	while $index < count {
 		type0_number = base_object_count + $index * objects_per_font + objects_per_font
 		match KernelObject.add_reference($builder, object_id(type0_number)) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(Object(error))
 			}
 			Ok(reference) => {
 				$builder = reference.builder
@@ -268,13 +261,8 @@ add_font_resources = |builder, names, count| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => {
-			dictionary = KernelObject.add_dictionary($builder, $entries) ? Object
-			Ok({ builder: dictionary.builder, value: dictionary.id })
-		}
-	}
+	dictionary = KernelObject.add_dictionary($builder, $entries) ? Object
+	Ok({ builder: dictionary.builder, value: dictionary.id })
 }
 
 add_content : KernelObject.Builder, List(U8) -> Try(KernelObject.Builder, KernelTextStructure.Error)

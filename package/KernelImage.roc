@@ -55,40 +55,36 @@ build_plan = |sources, colors, limits| {
 		var $markers_checked = 0
 		var $decoded_total = 0
 		var $encoded_total = 0
-		var $error = NoError
-		while $index < sources.resources.len() and $error == NoError {
+		while $index < sources.resources.len() {
 			source = list_at(sources.resources, $index)
 			if source.id.index() != $index {
-				$error = Invalid(NonDenseIdentity({ actual: source.id.index(), expected: $index }))
+				return Err(NonDenseIdentity({ actual: source.id.index(), expected: $index }))
 			} else {
 				match source.payload {
 					EncodedJpeg(jpeg) => {
 						$encoded_total = match checked_add($encoded_total, jpeg.bytes.len()) {
-							Err(error) => {
-								$error = Invalid(error)
-								$encoded_total
-							}
+							Err(error) => return Err(error)
 							Ok(total) => total
 						}
-						if $error == NoError and $encoded_total > limits.max_encoded_bytes {
-							$error = Invalid(LimitExceeded({ attempted: $encoded_total, dimension: EncodedBytes, limit: limits.max_encoded_bytes }))
-						} else if $error == NoError {
+						if $encoded_total > limits.max_encoded_bytes {
+							return Err(LimitExceeded({ attempted: $encoded_total, dimension: EncodedBytes, limit: limits.max_encoded_bytes }))
+						} else {
 							match inspect_jpeg(jpeg, $index, colors, limits) {
 								Err(error) => {
-									$error = Invalid(error)
+									return Err(error)
 								}
 								Ok(inspected) => {
 									decoded = checked_times(inspected.decoded_row_bytes, inspected.jpeg.dimensions.height.to_u64())
 									match decoded {
 										Err(error) => {
-											$error = Invalid(error)
+											return Err(error)
 										}
 										Ok(decoded_bytes) => match checked_add($decoded_total, decoded_bytes) {
 											Err(error) => {
-												$error = Invalid(error)
+												return Err(error)
 											}
 											Ok(total) => if total > limits.max_decoded_bytes {
-												$error = Invalid(LimitExceeded({ attempted: total, dimension: DecodedBytes, limit: limits.max_decoded_bytes }))
+												return Err(LimitExceeded({ attempted: total, dimension: DecodedBytes, limit: limits.max_decoded_bytes }))
 											} else {
 												$decoded_total = total
 												$bytes_checked = $bytes_checked + jpeg.bytes.len()
@@ -104,15 +100,15 @@ build_plan = |sources, colors, limits| {
 					}
 					PackedPixels(raster) => match validate_raster(raster, $index, colors, limits) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(work) => {
 							match checked_add($decoded_total, work.bytes_checked) {
 								Err(error) => {
-									$error = Invalid(error)
+									return Err(error)
 								}
 								Ok(total) => if total > limits.max_decoded_bytes {
-									$error = Invalid(LimitExceeded({ attempted: total, dimension: DecodedBytes, limit: limits.max_decoded_bytes }))
+									return Err(LimitExceeded({ attempted: total, dimension: DecodedBytes, limit: limits.max_decoded_bytes }))
 								} else {
 									$decoded_total = total
 									$bytes_checked = $bytes_checked + work.bytes_checked
@@ -127,10 +123,7 @@ build_plan = |sources, colors, limits| {
 			$index = $index + 1
 		}
 
-		match $error {
-			Invalid(error) => Err(error)
-			NoError => Ok(KernelImage.Plan.{ store: { resources: $resources }, work: { bytes_checked: $bytes_checked, markers_checked: $markers_checked, resource_visits: sources.resources.len(), rows_checked: $rows_checked } })
-		}
+		Ok(KernelImage.Plan.{ store: { resources: $resources }, work: { bytes_checked: $bytes_checked, markers_checked: $markers_checked, resource_visits: sources.resources.len(), rows_checked: $rows_checked } })
 	}
 }
 
@@ -156,50 +149,49 @@ inspect_jpeg = |source, resource, colors, limits| {
 		var $scan_count = 0
 		var $orientation = NoExif
 		var $done = False
-		var $error = NoError
-		while $done == False and $error == NoError {
+		while $done == False {
 			if $index >= bytes.len() or list_at(bytes, $index) != 0xff {
-				$error = Invalid(InvalidJpegSegment({ offset: $index, resource }))
+				return Err(InvalidJpegSegment({ offset: $index, resource }))
 			} else {
 				var $code_index = $index + 1
 				while $code_index < bytes.len() and list_at(bytes, $code_index) == 0xff {
 					$code_index = $code_index + 1
 				}
 				if $code_index >= bytes.len() {
-					$error = Invalid(InvalidJpegSegment({ offset: $index, resource }))
+					return Err(InvalidJpegSegment({ offset: $index, resource }))
 				} else {
 					marker = list_at(bytes, $code_index)
 					marker_start = $code_index - 1
 					$markers = $markers + 1
 					if $markers > limits.max_markers {
-						$error = Invalid(MarkerLimitExceeded({ attempted: $markers, limit: limits.max_markers, resource }))
+						return Err(MarkerLimitExceeded({ attempted: $markers, limit: limits.max_markers, resource }))
 					} else if marker == 0xd9 {
 						if $found_frame == False or $found_dht == False or $found_dqt == False or $scan_count == 0 or $code_index + 1 != bytes.len() {
-							$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+							return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 						} else {
 							$output = $output.append(0xff).append(0xd9)
 							$done = True
 							$index = bytes.len()
 						}
 					} else if marker == 0x00 or marker == 0xd8 or (marker >= 0xd0 and marker <= 0xd7) {
-						$error = Invalid(InvalidJpegMarker({ marker, offset: marker_start, resource }))
+						return Err(InvalidJpegMarker({ marker, offset: marker_start, resource }))
 					} else if $code_index + 2 >= bytes.len() {
-						$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+						return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 					} else {
 						segment_length = read_u16_be(bytes, $code_index + 1).to_u64()
 						data_start = $code_index + 3
 						if segment_length < 2 or segment_length - 2 > bytes.len() - data_start {
-							$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+							return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 						} else {
 							data_length = segment_length - 2
 							segment_end = data_start + data_length
 							if marker == 0xc0 or marker == 0xc1 or marker == 0xc2 {
 								if $found_frame {
-									$error = Invalid(InvalidJpegMarker({ marker, offset: marker_start, resource }))
+									return Err(InvalidJpegMarker({ marker, offset: marker_start, resource }))
 								} else {
 									match inspect_frame(bytes, data_start, data_length, resource, colors, source.color_space, limits) {
 										Err(error) => {
-											$error = Invalid(error)
+											return Err(error)
 										}
 										Ok(frame) => {
 											$width = frame.width
@@ -212,32 +204,32 @@ inspect_jpeg = |source, resource, colors, limits| {
 								}
 							} else if marker == 0xc4 {
 								if !valid_huffman_tables(bytes, data_start, data_length) {
-									$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+									return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 								} else {
 									$found_dht = True
 									$output = append_range($output, bytes, marker_start, segment_end)
 								}
 							} else if marker == 0xdb {
 								if !valid_quantization_tables(bytes, data_start, data_length) {
-									$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+									return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 								} else {
 									$found_dqt = True
 									$output = append_range($output, bytes, marker_start, segment_end)
 								}
 							} else if marker == 0xdd {
 								if data_length != 2 {
-									$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+									return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 								} else {
 									$output = append_range($output, bytes, marker_start, segment_end)
 								}
 							} else if marker == 0xda {
 								if $found_frame == False or !valid_scan_header(bytes, data_start, data_length, $component_count) {
-									$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+									return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 								} else {
 									$output = append_range($output, bytes, marker_start, segment_end)
 									match scan_entropy(bytes, segment_end, $output, resource) {
 										Err(error) => {
-											$error = Invalid(error)
+											return Err(error)
 										}
 										Ok(scan) => {
 											$output = scan.output
@@ -249,7 +241,7 @@ inspect_jpeg = |source, resource, colors, limits| {
 							} else if marker == 0xe0 {
 								if data_length >= 5 and matches(bytes, data_start, [0x4a, 0x46, 0x49, 0x46, 0x00]) {
 									if data_length < 14 {
-										$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+										return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 									} else {
 										$output = append_range($output, bytes, marker_start, segment_end)
 									}
@@ -258,7 +250,7 @@ inspect_jpeg = |source, resource, colors, limits| {
 								if data_length >= 6 and matches(bytes, data_start, [0x45, 0x78, 0x69, 0x66, 0x00, 0x00]) {
 									match inspect_exif_orientation(bytes, data_start, data_length, resource) {
 										Err(error) => {
-											$error = Invalid(error)
+											return Err(error)
 										}
 										Ok(found) => match ($orientation, found) {
 											(NoExif, next) => {
@@ -266,28 +258,24 @@ inspect_jpeg = |source, resource, colors, limits| {
 											}
 											(_, NoExif) => {}
 											_ => {
-												$error = Invalid(
-													InvalidExif({
-														resource: resource,
-													}),
-												)
+												return Err(InvalidExif({ resource: resource }))
 											}
 										}
 									}
 								}
 							} else if marker == 0xee {
 								if data_length < 12 or !matches(bytes, data_start, [0x41, 0x64, 0x6f, 0x62, 0x65]) or list_at(bytes, data_start + 11) > 1 {
-									$error = Invalid(InvalidJpegSegment({ offset: marker_start, resource }))
+									return Err(InvalidJpegSegment({ offset: marker_start, resource }))
 								} else {
 									$output = append_range($output, bytes, marker_start, segment_end)
 								}
 							} else if (marker >= 0xe2 and marker <= 0xed) or marker == 0xef or marker == 0xfe {
 								{}
 							} else {
-								$error = Invalid(InvalidJpegMarker({ marker, offset: marker_start, resource }))
+								return Err(InvalidJpegMarker({ marker, offset: marker_start, resource }))
 							}
 
-							if $error == NoError and marker != 0xda {
+							if marker != 0xda {
 								$index = segment_end
 							}
 						}
@@ -296,18 +284,13 @@ inspect_jpeg = |source, resource, colors, limits| {
 			}
 		}
 
-		match $error {
-			Invalid(error) => Err(error)
-			NoError => {
-				orientation_evidence = resolve_orientation($orientation, source.orientation_policy, resource)?
-				components = if $component_count == 1 One else Three
-				Ok({
-					decoded_row_bytes: checked_times($width.to_u64(), $component_count.to_u64())?,
-					jpeg: { bytes: $output, color_space: source.color_space, components, dimensions: { height: $height, width: $width }, orientation: orientation_evidence },
-					markers_checked: $markers,
-				})
-			}
-		}
+		orientation_evidence = resolve_orientation($orientation, source.orientation_policy, resource)?
+		components = if $component_count == 1 One else Three
+		Ok({
+			decoded_row_bytes: checked_times($width.to_u64(), $component_count.to_u64())?,
+			jpeg: { bytes: $output, color_space: source.color_space, components, dimensions: { height: $height, width: $width }, orientation: orientation_evidence },
+			markers_checked: $markers,
+		})
 	}
 }
 
@@ -431,14 +414,13 @@ scan_entropy : List(U8), U64, List(U8), U64 -> Try({ next_marker : U64, output :
 scan_entropy = |bytes, start, output, resource| {
 	var $index = start
 	var $done = False
-	var $error = NoError
-	while $done == False and $error == NoError {
+	while $done == False {
 		if $index >= bytes.len() {
-			$error = Invalid(InvalidJpegSegment({ offset: start, resource }))
+			return Err(InvalidJpegSegment({ offset: start, resource }))
 		} else if list_at(bytes, $index) != 0xff {
 			$index = $index + 1
 		} else if $index + 1 >= bytes.len() {
-			$error = Invalid(InvalidJpegSegment({ offset: $index, resource }))
+			return Err(InvalidJpegSegment({ offset: $index, resource }))
 		} else {
 			next = list_at(bytes, $index + 1)
 			if next == 0x00 or (next >= 0xd0 and next <= 0xd7) {
@@ -450,10 +432,7 @@ scan_entropy = |bytes, start, output, resource| {
 			}
 		}
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ next_marker: $index, output: append_range(output, bytes, start, $index) })
-	}
+	Ok({ next_marker: $index, output: append_range(output, bytes, start, $index) })
 }
 
 inspect_exif_orientation : List(U8), U64, U64, U64 -> Try([Exif(Image.ExifOrientation), NoExif], KernelImage.Error)
@@ -499,8 +478,7 @@ inspect_exif_orientation = |bytes, start, length, resource| {
 				} else {
 					var $index = 0
 					var $found = NoExif
-					var $error = NoError
-					while $index < count and $error == NoError {
+					while $index < count {
 						entry = ifd + 2 + $index * 12
 						tag = read_u16_ordered(bytes, entry, little)
 						if tag == 0x0112 {
@@ -508,21 +486,14 @@ inspect_exif_orientation = |bytes, start, length, resource| {
 							items = read_u32_ordered(bytes, entry + 4, little)
 							value = read_u16_ordered(bytes, entry + 8, little)
 							if type != 3 or items != 1 or value < 1 or value > 8 or $found != NoExif {
-								$error = Invalid(
-									InvalidExif({
-										resource: resource,
-									}),
-								)
+								return Err(InvalidExif({ resource: resource }))
 							} else {
 								$found = Exif(orientation_from_u16(value))
 							}
 						}
 						$index = $index + 1
 					}
-					match $error {
-						Invalid(error) => Err(error)
-						NoError => Ok($found)
-					}
+					Ok($found)
 				}
 			}
 		}

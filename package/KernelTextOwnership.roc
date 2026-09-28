@@ -98,19 +98,18 @@ apply_form_runs : List(RunOwner), List({ fragment : Semantics.FragmentId, run : 
 apply_form_runs = |owners, form_runs, text| {
 	var $owners = owners
 	var $index = 0
-	var $failure = NoFailure
-	while $index < form_runs.len() and $failure == NoFailure {
+	while $index < form_runs.len() {
 		assignment = list_at(form_runs, $index)
 		if assignment.run >= text.runs.len() {
-			$failure = Failed(RunIndexOutOfRange({ available: text.runs.len(), run: assignment.run }))
+			return Err(RunIndexOutOfRange({ available: text.runs.len(), run: assignment.run }))
 		} else {
 			record = list_at(text.runs, assignment.run)
 			if record.id.index() != assignment.run {
-				$failure = Failed(NonDenseRunIdentity({ actual: record.id.index(), expected: assignment.run }))
+				return Err(NonDenseRunIdentity({ actual: record.id.index(), expected: assignment.run }))
 			} else {
 				match list_at($owners, assignment.run) {
 					Owned(_) | ArtifactOwned => {
-						$failure = Failed(DuplicateRunOwnership({ run: assignment.run }))
+						return Err(DuplicateRunOwnership({ run: assignment.run }))
 					}
 					Unowned => {
 						$owners = list_set($owners, assignment.run, Owned(assignment.fragment))
@@ -120,10 +119,7 @@ apply_form_runs = |owners, form_runs, text| {
 		}
 		$index = $index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok($owners)
-	}
+	Ok($owners)
 }
 
 collect_owners : Scene.Store, Text.Store, ArtifactText -> Try(Collected, KernelTextOwnership.Error)
