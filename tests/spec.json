@@ -40,7 +40,9 @@
     "metadata_renderers",
     "navigation",
     "navigation_renderers",
-    "pdf_structure"
+    "pdf_structure",
+    "pdfa4_structure",
+    "extract_verapdf_rules"
   ],
   "post_update_checks": [
     "contracts",
@@ -19271,6 +19273,431 @@
       "retention": null,
       "validators": [
         "navigation"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 blank archive document",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_blank.pdf",
+      "args": [
+        "blank",
+        "1"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "archive_blank": 1
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 236,
+          "work": {
+            "output_bytes": 4838
+          }
+        },
+        "x64musl": {
+          "allocations": 236,
+          "work": {
+            "output_bytes": 4838
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 archived report with timestamps",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_report.pdf",
+      "args": [
+        "report",
+        "40"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "archive_report": 1,
+        "paragraphs": 40
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 70632,
+          "work": {
+            "output_bytes": 61944
+          }
+        },
+        "x64musl": {
+          "allocations": 70632,
+          "work": {
+            "output_bytes": 61944
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 archived report scaling x400",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_report_400.pdf",
+      "args": [
+        "report",
+        "400"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 29,
+        "archive_report": 1,
+        "paragraphs": 400
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 667864,
+          "work": {
+            "output_bytes": 404888
+          }
+        },
+        "x64musl": {
+          "allocations": 667864,
+          "work": {
+            "output_bytes": 404888
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 archived raster, alpha, gray, and JPEG figures",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_figures.pdf",
+      "args": [
+        "figures",
+        "1"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "archive_figures": 1,
+        "figures": 4
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4240,
+          "work": {
+            "output_bytes": 22529
+          }
+        },
+        "x64musl": {
+          "allocations": 4240,
+          "work": {
+            "output_bytes": 22529
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 archived navigation x8 links",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_navigation.pdf",
+      "args": [
+        "navigation",
+        "8"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "archive_navigation": 1,
+        "links": 9
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 7851,
+          "work": {
+            "output_bytes": 26902
+          }
+        },
+        "x64musl": {
+          "allocations": 7851,
+          "work": {
+            "output_bytes": 26902
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 archived navigation x64 links",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_navigation_64.pdf",
+      "args": [
+        "navigation",
+        "64"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "archive_navigation": 1,
+        "links": 65
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 29249,
+          "work": {
+            "output_bytes": 61455
+          }
+        },
+        "x64musl": {
+          "allocations": 29249,
+          "work": {
+            "output_bytes": 61455
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 archived caller font",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_caller.pdf",
+      "args": [
+        "caller",
+        "1"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "archive_caller": 1
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1582,
+          "work": {
+            "output_bytes": 14386
+          }
+        },
+        "x64musl": {
+          "allocations": 1582,
+          "work": {
+            "output_bytes": 14386
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 owned chunked output",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_report.pdf",
+      "args": [
+        "chunked-own",
+        "40"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "archive_chunked": 1,
+        "paragraphs": 40
+      },
+      "work_counters": [
+        "output_bytes",
+        "chunks",
+        "identical_to_buffered"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 141221,
+          "work": {
+            "output_bytes": 61944,
+            "chunks": 110,
+            "identical_to_buffered": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 141221,
+          "work": {
+            "output_bytes": 61944,
+            "chunks": 110,
+            "identical_to_buffered": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 shared chunked output",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_report.pdf",
+      "args": [
+        "chunked-share",
+        "40"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "archive_chunked": 1,
+        "paragraphs": 40
+      },
+      "work_counters": [
+        "output_bytes",
+        "chunks",
+        "identical_to_buffered"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 141220,
+          "work": {
+            "output_bytes": 61944,
+            "chunks": 110,
+            "identical_to_buffered": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 141220,
+          "work": {
+            "output_bytes": 61944,
+            "chunks": 110,
+            "identical_to_buffered": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 Archive and Standard profile twins",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_report.pdf",
+      "args": [
+        "profiles",
+        "40"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "archive_profiles": 1,
+        "paragraphs": 40
+      },
+      "work_counters": [
+        "archive_bytes",
+        "standard_bytes",
+        "identification_growth"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 141218,
+          "work": {
+            "archive_bytes": 61944,
+            "standard_bytes": 61832,
+            "identification_growth": 112
+          }
+        },
+        "x64musl": {
+          "allocations": 141218,
+          "work": {
+            "archive_bytes": 61944,
+            "standard_bytes": 61832,
+            "identification_growth": 112
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 facade atomic negatives",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade_negative.roc",
+      "snapshot": "tests/archive/archive_facade_negative.pdf",
+      "args": [
+        "Archive negatives"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "archive_facade_negative": 1,
+        "negatives": 5
+      },
+      "work_counters": [
+        "negatives_rejected",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2451,
+          "work": {
+            "negatives_rejected": 5,
+            "output_bytes": 15142
+          }
+        },
+        "x64musl": {
+          "allocations": 2451,
+          "work": {
+            "negatives_rejected": 5,
+            "output_bytes": 15142
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
       ]
     }
   ]
