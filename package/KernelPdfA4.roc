@@ -148,7 +148,7 @@ KernelPdfA4 :: [].{
 		ActualTextPrivateUse => "ActualText replacement text must not contain Private Use Area characters"
 		Actions => "only URI and GoTo actions without chained actions are supported"
 		AdditionalActions => "additional-action (AA) entries are not permitted"
-		AnnotationAppearance => "annotations need exactly one normal appearance stream"
+		AnnotationAppearance => "an annotation appearance must be a single normal appearance stream"
 		AnnotationFlags => "annotations must be printable and never hidden"
 		AnnotationTypes => "only link annotations are supported"
 		BlendMode => "only the Normal blend mode is supported"
@@ -671,8 +671,10 @@ is_action_type = |class| match class {
 	_ => False
 }
 
-## The package emits only link annotations, always printable and visible,
-## each with a single normal appearance stream.
+## The package emits only link annotations, always printable and visible.
+## ISO 19005-4 6.3.3 exempts link annotations from requiring an appearance,
+## so facade links without `/AP` are eligible; an appearance that is present
+## must be a single normal appearance stream.
 check_annotation : KernelObject.Store, List(NameClass), Summary, U64 -> Try({}, KernelPdfA4.Violation)
 check_annotation = |store, classes, summary, position| {
 	if summary.subtype != Link {
@@ -684,22 +686,23 @@ check_annotation = |store, classes, summary, position| {
 			return Err({ position, requirement: AnnotationFlags })
 		}
 	}
-	appearance = match summary.ap {
-		Absent => return Err({ position, requirement: AnnotationAppearance })
-		Present(value) => value
+	match summary.ap {
+		Absent => Ok({})
+		Present(appearance) => {
+			span = match resolve_dictionary(store, appearance) {
+				Resolved(found) => found
+				NotDictionary => return Err({ position, requirement: AnnotationAppearance })
+			}
+			if span.length != 1 {
+				return Err({ position, requirement: AnnotationAppearance })
+			}
+			entry = list_at(store.dictionary_entries, span.start)
+			if name_class(store, classes, entry.key) != N or !is_stream(store, entry.value) {
+				return Err({ position, requirement: AnnotationAppearance })
+			}
+			Ok({})
+		}
 	}
-	span = match resolve_dictionary(store, appearance) {
-		Resolved(found) => found
-		NotDictionary => return Err({ position, requirement: AnnotationAppearance })
-	}
-	if span.length != 1 {
-		return Err({ position, requirement: AnnotationAppearance })
-	}
-	entry = list_at(store.dictionary_entries, span.start)
-	if name_class(store, classes, entry.key) != N or !is_stream(store, entry.value) {
-		return Err({ position, requirement: AnnotationAppearance })
-	}
-	Ok({})
 }
 
 Resolution : [NotDictionary, Resolved(KernelObject.Span)]
