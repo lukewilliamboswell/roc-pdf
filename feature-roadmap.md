@@ -136,7 +136,7 @@ slice records the readiness dimensions above.
    evidence, not a new conformance claim. The reference documents, text-support
    matrix, and layout policies are recorded in
    [docs/reference-documents.md](docs/reference-documents.md)
-   (now `reference-documents-v2`).
+   (now `reference-documents-v3`).
 2. Continue Gate 6 business-authoring/semantic slices from the shared Gate 4
    foundation; Gate 5 archival closure is recorded below. Deliver each public
    feature through authoring, layout, diagnostics, and applicable evidence, and
@@ -149,6 +149,15 @@ slice records the readiness dimensions above.
    with the IDTree, typed Table and List attributes, and node text properties,
    and declares `/DisplayDocTitle` for every tagged facade document. It closes
    no Gate 6 capability as a whole and makes no PDF/UA-2 claim.
+   The rich-inline slice
+   ([docs/performance/rich-inline.md](docs/performance/rich-inline.md))
+   makes `Pdf.rich_paragraph` and its inline constructors executable:
+   `Em`, `Strong`, `Code`, `Quote`, `Link`, language `Span`s with `/Lang`, and
+   expansion `Span`s with `/E`, shaped and broken as one paragraph text with
+   theme-colored runs, inline link annotations that wrap across lines, and
+   located `semantics.*` and `text.*` diagnostics. Explicit line breaks and a
+   distinct face per inline role remain open; it closes no Gate 6 capability
+   as a whole and makes no PDF/UA-2 claim.
 3. Close Gate 7 only when both branches and the business-document release
    evidence are complete. New claims and defaults follow their original
    explicit gate requirements.

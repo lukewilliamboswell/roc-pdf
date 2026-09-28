@@ -43,6 +43,42 @@ block path, such as `contents[1].contents[0]`, as the diagnostic detail. Every
 tagged document also asks readers to display its metadata title
 (`/ViewerPreferences << /DisplayDocTitle true >>`).
 
+Write paragraphs with inline structure through `Pdf.rich_paragraph`. Each
+inline constructor fixes the PDF 2.0 role its content becomes, and the
+paragraph wraps as one text, breaking lines across inline boundaries:
+
+```roc
+Pdf.rich_paragraph([
+    Pdf.text("Revenue rose "),
+    Pdf.strong([Pdf.text("5.0%")]),
+    Pdf.text(", reported net of "),
+    Pdf.expansion("GST", "Goods and Services Tax"),
+    Pdf.text(". Our supplier "),
+    Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
+    Pdf.text(" keeps stock code "),
+    Pdf.code("WMS-7"),
+    Pdf.text("; see "),
+    Pdf.inline_link([Pdf.emphasis([Pdf.text("the audit")])], "https://example.org/audit"),
+    Pdf.text("."),
+])
+```
+
+`emphasis`, `strong`, `code`, and `quote` become `Em`, `Strong`, `Code`, and
+`Quote`; `in_language` a `Span` with `/Lang`; `expansion` a `Span` with `/E`;
+and `inline_link` or `inline_internal_link` a `Link` whose annotation covers
+its painted text, one quadrilateral per line. Quotation marks are authored
+text. Inline roles paint like the surrounding text unless the theme colors
+them (`Theme.with_emphasis_color`, `with_strong_color`, `with_code_color`,
+`with_quote_color`); the package ships one regular face and never
+synthesizes bold or italic.
+
+Rejections name the inline's authored path below its block, such as
+`contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an
+empty inline), `semantics.link_text_empty`, `semantics.nested_link`,
+`semantics.inline_depth` (more than 8 nested inline elements),
+`semantics.language_tag`, `semantics.link_uri`, and, for unsupported text in a
+span, `text.unsupported_script` and `text.unsupported_cluster`.
+
 For deferred or repeated emission, prepare once. `Pdf.Prepared` is opaque: a
 successful value has completed document validation and object planning.
 
@@ -111,7 +147,9 @@ multi-command figures, and fixed pages remain forward API: they report
 | one-image figures using typed JPEG/packed raster sources | executable |
 | vector/grouped/multi-command drawings | representable; `document.figure` diagnostic |
 | parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | executable |
-| rich inline content, simple tables | representable; Gate 6 diagnostic |
+| rich paragraphs: emphasis, strong, code, quote, inline links, language spans, and expansions | executable |
+| explicit line breaks, page fields, and a distinct face per inline role | not yet offered |
+| simple tables | representable; Gate 6 diagnostic |
 | fixed pages, columns, floats, footnotes, complex tables | representable; Gate 8 diagnostic |
 | `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
 | `AccessibleArchive` profile | representable; profile diagnostic |

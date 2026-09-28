@@ -10,7 +10,7 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v2`**.
+Version: **`reference-documents-v3`**.
 
 - It is a design record. It claims no executable capability, conformance
   result, or reader behavior. Capability status remains governed by the
@@ -57,9 +57,12 @@ dollars (AUD) and include 10% GST where stated. The document language is
   `Theme` styles over the same packaged face unless a variant says otherwise.
   No reference depends on a bold or italic face: the built-in package ships one
   regular face, and synthetic emboldening or obliquing is not produced.
-  `Em`, `Strong`, `Code`, and `Quote` are distinguished visually by their
-  theme styles (color and, when a caller registers one, a distinct face); the
-  semantic role never depends on that presentation.
+  `Em`, `Strong`, `Code`, and `Quote` are distinguished visually only by
+  their theme colors (`Theme.with_emphasis_color`, `with_strong_color`,
+  `with_code_color`, `with_quote_color`); an unthemed role paints exactly like
+  the text around it. A distinct caller-registered face per inline role (for
+  example a monospace face for `Code`) is not yet selectable. The semantic
+  role never depends on that presentation.
 - Numbers, currency amounts, and dates are caller-formatted strings. The
   package performs no arithmetic, rounding, currency formatting, or total
   verification; correctness of totals is an author obligation.
@@ -648,8 +651,9 @@ substitution, outlining, rasterization, or dropping text.
 | Case transformation | not offered | supported | no facade constructor; advanced: [case-transformation.md](performance/case-transformation.md) |
 | Automatic hyphenation | not offered | not offered | no language pattern set is claimed |
 | Vertical writing | rejected | rejected | `text.vertical_writing` (Gate 8) |
-| **Required:** nested language spans within one paragraph (`fr` in `en-AU`; `zh-Hans` in REP-A5) | required | — | today `semantics.nested_language`; the facade shaping batch currently holds one language per batch and rejects mixed occurrence languages |
-| **Required:** rich inline runs (`Em`, `Strong`, `Code`, `Quote`, `Link`, `Span`) with per-run theme styles in one line | required | — | today `semantics.rich_inline` |
+| Nested language spans within one paragraph (`fr` in `en-AU` through the packaged face; `zh-Hans` in a Latin paragraph through an ordered policy whose faces cover it) | supported | — | [rich-inline.md](performance/rich-inline.md); an unsupported script inside a span rejects as `text.unsupported_script` with its inline path. REP-A5's spaces around a Han span still depend on the Common-run row below |
+| Rich inline runs (`Em`, `Strong`, `Code`, `Quote`, `Link`, `Span`) with per-run theme colors in one line, wrapping across inline boundaries | supported | — | [rich-inline.md](performance/rich-inline.md) |
+| **Required:** a distinct caller-registered face per inline role (e.g. monospace `Code`) | required | — | not selectable yet; every inline paints in its paragraph's face, size, and leading |
 | **Required:** runs whose script stays Common after itemization (e.g. a cell holding only `1,284` or `+10.0%`) under an ordered policy | required | — | the ordered path rejects an unresolved Common run as `UndeclaredScript`; expected to affect every numeric table cell (to be confirmed by an atomic fixture). Proposed rule: a Common-only run takes the first face in policy order that covers every cluster, exactly as per-cluster coverage selection already does; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
 | **Required:** furniture text (headers, footers, page fields) shaped with exact artifact ownership | required | — | today `layout.page_template` |
 
@@ -859,7 +863,10 @@ implementing slice decides whether the dotted code rides in the existing
 | `semantics.heading_skip` | `InvalidRelationship` | A heading is more than one level deeper than its predecessor |
 | `semantics.nested_link` | `InvalidRelationship` | A link contains a link |
 | `semantics.link_text_empty` | `InvalidRelationship` | A link has no text content |
+| `semantics.link_uri` | `InvalidRelationship` | An `inline_link` URI fails the navigation URI grammar |
 | `semantics.language_tag` | `InvalidLanguage` | An `in_language` tag is not a well-formed BCP 47 tag |
+| `semantics.inline_empty` | `InvalidRelationship` | A rich paragraph has no text, or an inline text, code, expansion, or element is empty |
+| `semantics.inline_depth` | `BudgetExceeded` | Inline elements nest more than 8 levels deep |
 | `semantics.container_depth` | `BudgetExceeded` | Parts, sections, and divisions nest more than 16 levels deep |
 | `semantics.empty_container` | `InvalidRelationship` | A part, section, or division contains no semantic block |
 
@@ -867,13 +874,18 @@ Container diagnostics (from `reference-documents-v2`) carry their dotted code
 in the existing `FeatureReference` field and the compact block path of the
 offending container, such as `contents[3].contents[0]`, as the diagnostic's
 single `details` entry; their location is `Document`. Later codes follow the
-same convention.
+same convention. Rich-inline diagnostics (from `reference-documents-v3`)
+extend the paragraph's block path with the authored inline positions, such as
+`contents[2].inlines[1].inlines[0]`; `text.unsupported_script` and
+`text.unsupported_cluster` use it for text inside a rich paragraph.
 
 Existing codes keep their meaning: `document.generated_reference`,
 `text.vertical_writing`, `profile.accessible_archive`, and the typed
-`InvalidNavigation` and metadata errors. Placeholder codes that Gate 6
-retires as its constructors become executable (`semantics.rich_inline`,
-`semantics.containers`, `semantics.nested_language`,
+`InvalidNavigation` and metadata errors (an inline internal link to an
+unknown destination is still `InvalidNavigation(UnknownDestinationName)`).
+Placeholder codes that Gate 6 retires as its constructors become executable
+(`semantics.rich_inline` and `semantics.nested_language`, retired by the
+rich-inline slice; `semantics.containers`,
 `semantics.text_properties`, `table.simple`, `layout.page_template`) stop
 being returned for the supported subset. The facade still labels
 `layout.page_template` as Gate 8 in its roadmap message; the template slice
@@ -911,6 +923,18 @@ rich_paragraph : List(Inline) -> Document.Block
 `quote` does not generate quotation marks; authors supply them as text so no
 generated presentation text is needed. Links may contain other inlines but not
 links.
+
+`rich_paragraph`, `text`, `emphasis`, `strong`, `code`, `quote`,
+`inline_link`, `inline_internal_link`, `in_language`, and `expansion` are
+executable with these names and shapes (rich-inline slice). A rich
+paragraph's inlines share one paragraph text: lines break at pinned UAX #14
+opportunities computed over the whole paragraph, across inline boundaries.
+Inline elements nest at most 8 deep. An inline link becomes one link
+annotation per page its text is painted on, with one quadrilateral per
+painted line. `line_break`, `page_number`, `total_pages`, and
+`reserved_width` are not yet executable; `line_break` needs a mandatory break
+inside one paragraph source without a painted glyph and is deferred to the
+slice that needs multi-line letterhead and address blocks.
 
 ### Blocks and grouping
 
@@ -1068,6 +1092,13 @@ version, the task, the observed outcome, and any limitation.
 ## Change log
 
 - `reference-documents-v1`: initial record.
+- `reference-documents-v3`: the rich-inline slice makes `rich_paragraph`,
+  `text`, `emphasis`, `strong`, `code`, `quote`, `inline_link`,
+  `inline_internal_link`, `in_language`, and `expansion` executable with
+  unchanged names and shapes; defers `line_break`; limits inline presentation
+  to theme colors and records a distinct per-role face as a required text
+  row; adds `semantics.inline_empty`, `semantics.inline_depth`, and
+  `semantics.link_uri`; and extends diagnostic paths with `.inlines[k]`.
 - `reference-documents-v2`: the semantic-foundation slice makes `part`,
   `section`, and `division` executable with unchanged names; adds the
   `semantics.container_depth` and `semantics.empty_container` diagnostic codes

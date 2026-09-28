@@ -222,6 +222,37 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-INLINE-SEMANTICS",
+      "summary": "Rich paragraph inlines lower in authored order to PDF 2.0 Em, Strong, Code, Quote, Link, and Span structure elements inside one P; language spans carry /Lang, abbreviations carry /E, links never nest, and every inline link owns one OBJR-referenced link annotation per page its text is painted on, with one quadrilateral per painted line.",
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 12.5.6.5",
+        "ISO 32000-2:2020 14.8.4.7.2",
+        "ISO 32000-2:2020 14.9.2",
+        "ISO 32000-2:2020 14.9.5",
+        "docs/performance/rich-inline.md"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "roc_facade_and_kernel_expects; rich_inline_harness_family_with_pinned_normalized_structure; independent_checker_decodes_ToUnicode_logical_text_and_requires_structure_order_equal_to_paint_order; E_only_on_Span_and_OBJR_owning_Link_mutation_twins; atomic_inline_negatives_emit_no_bytes",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/Pdf.roc",
+        "tests/rich_inline/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelFacadeSemantics.roc",
+        "scripts/check_rich_inline.py",
+        "tests/rich_inline/Fixture.roc"
+      ],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-LEXICAL-CANONICAL",
       "summary": "Private PDF lexical emission uses exact canonical booleans, integers, finite fixed-decimal reals, names, byte strings, and Unicode text strings.",
       "source_ids": [
@@ -1996,7 +2027,7 @@
     },
     {
       "id": "ROC-PDF-PDFUA2-LANGUAGE-INHERITANCE",
-      "summary": "A structure element carries /Lang exactly when its explicit, well-formed language differs from the language it inherits; the Document element inherits the catalog /Lang.",
+      "summary": "A structure element carries /Lang exactly when its explicit, well-formed language differs from the language it inherits; the Document element inherits the catalog /Lang. Facade language spans own their text, so every marked-content sequence has its owning element's effective language and needs no marked-content /Lang.",
       "source_ids": [
         "bcp47-rfc5646",
         "iso-14289-2-2024",
@@ -2005,6 +2036,7 @@
       "references": [
         "ISO 14289-2:2024 8.4.4",
         "ISO 32000-2:2020 14.9.2",
+        "docs/performance/rich-inline.md",
         "docs/performance/semantic-foundation.md"
       ],
       "capabilities": [
@@ -2013,15 +2045,17 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "kernel_expects_reject_malformed_node_languages; tagged_structure_expect_pins_nested_Lang_and_root_omission; kernel_lowering_harness_case; independent_checker_rejects_malformed_and_redundant_Lang; mutation_twin",
+      "machine_verification": "kernel_expects_reject_malformed_node_languages; tagged_structure_expect_pins_nested_Lang_and_root_omission; kernel_lowering_harness_case; independent_checker_rejects_malformed_and_redundant_Lang; mutation_twin; facade_in_language_spans_lower_Span_Lang_with_leaf_occurrences_in_the_span_language; malformed_in_language_tags_reject_as_semantics.language_tag_before_layout",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelTaggedStructure.roc",
-        "tests/containers/main.roc"
+        "tests/containers/main.roc",
+        "tests/rich_inline/main.roc"
       ],
       "negative_scenarios": [
         "package/KernelSemantics.roc",
-        "scripts/check_structure_semantics.py"
+        "scripts/check_structure_semantics.py",
+        "tests/rich_inline/Fixture.roc"
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.4.4-2"
