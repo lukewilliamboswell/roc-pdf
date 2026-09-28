@@ -184,9 +184,10 @@ logical_run_first = |logical, block, run_count| {
 	}
 }
 
-## Every physical run of one logical occurrence must carry the identical
-## occurrence, size, and style: pagination treats the logical run as one
-## styled row source regardless of its face split.
+## Every physical run of one logical run must carry the identical size and
+## leading: pagination treats the logical run as one row source regardless
+## of its face or occurrence split. Fill colors may differ between the
+## occurrences of a rich paragraph; they are paint facts, not row geometry.
 assert_logical_identity : List(Text.Run), List(KernelFacadeShape.RunStyle), KernelFacadeShape.LogicalRun, U64 -> Try({}, KernelFacadePages.Error)
 assert_logical_identity = |runs, styles, logical, block| {
 	start = logical.physical.start()
@@ -199,22 +200,12 @@ assert_logical_identity = |runs, styles, logical, block| {
 	var $index = start + 1
 	while $index < start + length {
 		run = list_at(runs, $index)
-		if run.occurrence.index() != first.occurrence.index() or run.size.raw() != first.size.raw() or !styles_equal(list_at(styles, $index), first_style) {
+		if run.size.raw() != first.size.raw() or list_at(styles, $index).leading.raw() != first_style.leading.raw() {
 			return Err(InvalidRun({ block, run: $index }))
 		}
 		$index = $index + 1
 	}
 	Ok({})
-}
-
-styles_equal : KernelFacadeShape.RunStyle, KernelFacadeShape.RunStyle -> Bool
-styles_equal = |left, right| {
-	colors = match (left.color, right.color) {
-		(Srgb(Gray(first)), Srgb(Gray(second))) => first == second
-		(Srgb(Rgb(first)), Srgb(Rgb(second))) => first.red == second.red and first.green == second.green and first.blue == second.blue
-		_ => False
-	}
-	colors and left.leading.raw() == right.leading.raw()
 }
 
 keeps_together : Document.NormalizedBlockKind -> Bool

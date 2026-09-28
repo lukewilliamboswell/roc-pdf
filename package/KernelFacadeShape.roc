@@ -18,6 +18,7 @@ KernelFacadeShape :: [].{
 		ArtifactTextPending({ artifacts : U64 }),
 		FontSelectionRejected(List(Font.PlanError)),
 		GeneratedLabelEvidenceInvalid({ block : U64, occurrence : U64 }),
+		InlineClusterBoundary({ block : U64, inline : U64 }),
 		InvalidOccurrence({ block : U64, occurrence : U64 }),
 		LanguageMismatch({ occurrence : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
@@ -26,6 +27,7 @@ KernelFacadeShape :: [].{
 		ShapeFailure,
 		StyleArithmeticOverflow(U64),
 		UndeclaredScript({ script : Str, source : U64 }),
+		UnsupportedInlineScript({ block : U64, inline : U64, script : Str }),
 		UnsupportedThemeFace({ block : U64, face : U64 }),
 	]
 
@@ -44,9 +46,27 @@ KernelFacadeShape :: [].{
 	## an opportunity to split or place it. The current built-in Latin path
 	## creates exactly one physical run; later multi-face materialization will
 	## be allowed to widen this range without changing block ownership.
+	##
+	## A rich paragraph is one logical run over its one interned source: its
+	## physical runs are the per-occurrence (and, on the ordered path, per
+	## face) segments in logical order, all at the paragraph's size and
+	## leading, so line breaking measures the whole paragraph at once.
 	LogicalRun : { physical : Semantics.Range }
 	BlockRuns : [ArtifactBlock(U64), TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel] })]
 	RunStyle : { color : Color.SourceValue, leading : Layout.Unit }
+
+	## Where each physical run's occurrence begins inside its interned source.
+	## Shaped and line-layout ranges are source coordinates; the final text
+	## store is occurrence-relative. `WholeSources` states the construction
+	## fact that every occurrence covers its entire source (no rich paragraph
+	## exists), so no rebasing is needed; `Origins` has one entry per
+	## physical run.
+	Origin : { byte : U64, scalar : U64 }
+	Origins : [Origins(List(Origin)), WholeSources]
+
+	## One request's exact cluster range of its source, the natural language
+	## of its occurrence, and where that occurrence begins in the source.
+	RequestRange : { clusters : Semantics.Range, language : Semantics.Language, origin : Origin }
 	Work : {
 		font_bytes : U64,
 		font_tables : U64,
@@ -74,9 +94,12 @@ KernelFacadeShape :: [].{
 		OrderedFaces({ faces : List(Font.FaceId), fonts : List(KernelFont.Inspection), work : SelectionWork }),
 		SingleFace,
 	]
-	Preparation :: { block_runs : List(BlockRuns), options : KernelShape.BatchOptions, requests : List(KernelShape.SimpleRequest), styles : List(RunStyle) }.{
-		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, U64, U64, U64, Theme -> Try(Preparation, Error)
-		build = |authoring, owners, store, source_count, artifact_count, max_requests, theme| prepare_plan(authoring, owners, store, source_count, artifact_count, max_requests, theme, RequireBuiltInFace)
+
+	## `ranges` is empty unless the document has a rich paragraph; then it
+	## holds one entry per request, in request order.
+	Preparation :: { block_runs : List(BlockRuns), options : KernelShape.BatchOptions, ranges : List(RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(RunStyle) }.{
+		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, U64, Theme -> Try(Preparation, Error)
+		build = |authoring, owners, store, sources, artifact_count, max_requests, theme| prepare_plan(authoring, owners, store, sources, artifact_count, max_requests, theme, RequireBuiltInFace)
 
 		block_runs : Preparation -> List(BlockRuns)
 		block_runs = |preparation| preparation.block_runs
@@ -92,6 +115,7 @@ KernelFacadeShape :: [].{
 	}
 	Plan :: {
 		block_runs : List(BlockRuns),
+		origins : Origins,
 		requests : List(KernelShape.SimpleRequest),
 		selection : Selection,
 		shape : KernelShape.Batch,
@@ -109,6 +133,9 @@ KernelFacadeShape :: [].{
 
 		block_runs : Plan -> List(BlockRuns)
 		block_runs = |plan| plan.block_runs
+
+		origins : Plan -> Origins
+		origins = |plan| plan.origins
 
 		requests : Plan -> List(KernelShape.SimpleRequest)
 		requests = |plan| plan.requests
@@ -146,14 +173,25 @@ logical_run_single = |run| { physical: Semantics.Range.from_start_and_length(run
 
 build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_plan = |authoring, owners, store, source_store, artifact_count, font, theme, limits| {
-	preparation = prepare_plan(authoring, owners, store, source_store.len(), artifact_count, limits.max_requests, theme, RequireBuiltInFace)?
-	shape = match KernelShape.shape_simple_batch(font, source_store, preparation.options, preparation.requests, limits.shape) {
+	preparation = prepare_plan(authoring, owners, store, source_store, artifact_count, limits.max_requests, theme, RequireBuiltInFace)?
+
+	## Without a rich paragraph every occurrence covers its whole source and
+	## the exact whole-source batch shaper applies. A rich paragraph's
+	## occurrences cover sub-ranges of one source, which the range-exact
+	## selected shaper consumes with the one resolved face.
+	shaped = if preparation.ranges.is_empty() {
+		KernelShape.shape_simple_batch(font, source_store, preparation.options, preparation.requests, limits.shape)
+	} else {
+		KernelShape.shape_selected_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation), limits.shape)
+	}
+	shape = match shaped {
 		Err(_) => return Err(ShapeFailure)
 		Ok(value) => value
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
 			block_runs: preparation.block_runs,
+			origins: request_origins(preparation.ranges),
 			requests: preparation.requests,
 			selection: SingleFace,
 			shape,
@@ -172,16 +210,61 @@ build_plan = |authoring, owners, store, source_store, artifact_count, font, them
 	)
 }
 
+## Range-exact requests over the one resolved face (dense font 0), in
+## preparation order: each request shapes exactly its occurrence's clusters.
+single_face_requests : KernelFacadeShape.Preparation -> List(KernelShape.SelectedBatchRequest)
+single_face_requests = |preparation| {
+	latin = Font.Script.from_iso15924("Latn")
+	var $selected = List.with_capacity(preparation.requests.len())
+	var $index = 0
+	while $index < preparation.requests.len() {
+		request = list_at(preparation.requests, $index)
+		range = list_at(preparation.ranges, $index)
+		$selected = $selected.append({ clusters: range.clusters, instance: Font.InstanceId.from_index(0), language: range.language, occurrence: request.occurrence, script: latin, size: request.size, source: request.source })
+		$index = $index + 1
+	}
+	$selected
+}
+
+request_origins : List(KernelFacadeShape.RequestRange) -> KernelFacadeShape.Origins
+request_origins = |ranges| if ranges.is_empty() WholeSources else Origins(ranges.map(|range| range.origin))
+
 ## The single-face path requires every style to reference the exact resolved
 ## face; the ordered-policy path resolves fonts per cluster instead, so style
 ## face identities are deliberately not consulted there.
 FaceCheck : [RequireBuiltInFace, PolicySelectsFaces]
 
-prepare_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, U64, U64, U64, Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
-prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requests, theme, face_check| {
+## Request ranges exist only when a rich paragraph does. A document without
+## one keeps the exact whole-source preparation and its buffers; a document
+## with one prepares every request with its exact cluster range, language,
+## and occurrence origin.
+prepare_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, U64, Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_plan = |authoring, owners, store, sources, artifact_count, max_requests, theme, face_check| {
 	if artifact_count != 0 {
 		return Err(ArtifactTextPending({ artifacts: artifact_count }))
 	}
+	occurrence_count = store.occurrences.len()
+	if occurrence_count > max_requests {
+		return Err(LimitExceeded({ attempted: occurrence_count, dimension: Requests, limit: max_requests }))
+	}
+	if has_rich_block(owners) {
+		prepare_ranged_plan(authoring, owners, store, sources, theme, face_check)
+	} else {
+		prepare_whole_plan(authoring, owners, store, sources.len(), theme, face_check)
+	}
+}
+
+batch_options_for : Document.NormalizedAuthoring -> KernelShape.BatchOptions
+batch_options_for = |authoring| {
+	direction: LeftToRight,
+	instance: Font.InstanceId.from_index(0),
+	language: Language(authoring.language),
+	script: Font.Script.from_iso15924("Latn"),
+	writing_mode: Horizontal,
+}
+
+prepare_whole_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, U64, Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_whole_plan = |authoring, owners, store, source_count, theme, face_check| {
 	batch_language = Language(authoring.language)
 	batch_options = {
 		direction: LeftToRight,
@@ -191,9 +274,6 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 		writing_mode: Horizontal,
 	}
 	occurrence_count = store.occurrences.len()
-	if occurrence_count > max_requests {
-		return Err(LimitExceeded({ attempted: occurrence_count, dimension: Requests, limit: max_requests }))
-	}
 	var $requests = List.with_capacity(occurrence_count)
 	var $styles = List.with_capacity(occurrence_count)
 	var $block_runs = List.repeat(ArtifactBlock(0), authoring.blocks.len())
@@ -211,6 +291,7 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 					Ok(updated) => updated
 				}
 			}
+			RichTextBlock({ occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 			TextBlock({ body, label }) => {
 				body_style = match block.kind {
 					Figure(index) => figure_style(list_at(authoring.figures, index), theme, $block_index)?
@@ -289,7 +370,280 @@ prepare_plan = |authoring, owners, store, source_count, artifact_count, max_requ
 	if $request_index != occurrence_count {
 		return Err(OccurrenceCoverage({ actual: $request_index, expected: occurrence_count }))
 	}
-	Ok(KernelFacadeShape.Preparation.{ block_runs: $block_runs, options: batch_options, requests: $requests, styles: $styles })
+	Ok(KernelFacadeShape.Preparation.{ block_runs: $block_runs, options: batch_options, ranges: [], requests: $requests, styles: $styles })
+}
+
+## The ranged preparation of a document with rich paragraphs: one request
+## per occurrence in block order, each with its exact cluster range of its
+## source, its natural language, and its occurrence origin. Plain blocks
+## keep whole-source ranges in the document language. Buffers move through
+## the per-block helpers as separate arguments so they stay uniquely owned.
+prepare_ranged_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
+	batch_options = batch_options_for(authoring)
+	occurrence_count = store.occurrences.len()
+	var $requests = List.with_capacity(occurrence_count)
+	var $styles = List.with_capacity(occurrence_count)
+	var $ranges = List.with_capacity(occurrence_count)
+	var $block_runs = List.repeat(ArtifactBlock(0), authoring.blocks.len())
+	var $block_index = 0
+	while $block_index < authoring.blocks.len() {
+		block = list_at(authoring.blocks, $block_index)
+		first_request = $requests.len()
+		at = { authoring, block: $block_index, face_check, language: batch_options.language, sources, store, theme }
+		match list_at(owners, $block_index) {
+			ArtifactBlock(artifact) => {
+				$block_runs = list_set($block_runs, $block_index, ArtifactBlock(artifact))
+			}
+			RichTextBlock({ occurrences }) => {
+				rich = match block.kind {
+					RichParagraph(paragraph) => list_at(authoring.rich_paragraphs, paragraph)
+					_ => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
+				}
+				if occurrences.length() != rich.leaves or first_request + rich.leaves > occurrence_count {
+					return Err(OccurrenceCoverage({ actual: first_request + rich.leaves, expected: occurrence_count }))
+				}
+				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: { physical: Semantics.Range.from_start_and_length(first_request, rich.leaves) }, label: NoLabel }))
+				appended = append_rich_requests($ranges, $requests, $styles, at, occurrences, rich)?
+				$ranges = appended.ranges
+				$requests = appended.requests
+				$styles = appended.styles
+			}
+			TextBlock({ body, label }) => {
+				body_start = match label {
+					NoLabel => first_request
+					Label(_) => first_request + 1
+				}
+				label_run = match label {
+					NoLabel => NoLabel
+					Label(_) => Label(logical_run_single(Text.RunId.from_index(first_request)))
+				}
+				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: logical_run_single(Text.RunId.from_index(body_start)), label: label_run }))
+				appended = append_plain_requests($ranges, $requests, $styles, at, body, label)?
+				$ranges = appended.ranges
+				$requests = appended.requests
+				$styles = appended.styles
+			}
+		}
+		$block_index = $block_index + 1
+	}
+	if $requests.len() != occurrence_count {
+		return Err(OccurrenceCoverage({ actual: $requests.len(), expected: occurrence_count }))
+	}
+	Ok(KernelFacadeShape.Preparation.{ block_runs: $block_runs, options: batch_options, ranges: $ranges, requests: $requests, styles: $styles })
+}
+
+RequestBuffers : { ranges : List(KernelFacadeShape.RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(KernelFacadeShape.RunStyle) }
+
+RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_check : FaceCheck, language : Semantics.Language, sources : List(KernelFacadeSources.Source), store : Semantics.Store, theme : Theme }
+
+## A plain block in a ranged document: its optional generated label and its
+## body, each covering its whole source in the document language.
+append_plain_requests : List(KernelFacadeShape.RequestRange), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), RangedContext, Semantics.OccurrenceId, [Label(Semantics.OccurrenceId), NoLabel] -> Try(RequestBuffers, KernelFacadeShape.Error)
+append_plain_requests = |ranges, requests, styles, at, body, label| {
+	block = list_at(at.authoring.blocks, at.block)
+	body_style = match block.kind {
+		Figure(index) => figure_style(list_at(at.authoring.figures, index), at.theme, at.block)?
+		_ => style_for(block.kind, at.theme)
+	}
+	if at.face_check == RequireBuiltInFace and body_style.font.index() != 0 {
+		return Err(UnsupportedThemeFace({ block: at.block, face: body_style.font.index() }))
+	}
+	var $ranges = ranges
+	var $requests = requests
+	var $styles = styles
+	match label {
+		NoLabel => {}
+		Label(occurrence_id) => {
+			label_style = Theme.body_style(at.theme)
+			if at.face_check == RequireBuiltInFace and label_style.font.index() != 0 {
+				return Err(UnsupportedThemeFace({ block: at.block, face: label_style.font.index() }))
+			}
+			occurrence = whole_occurrence(at, occurrence_id)?
+			if !generated_label_evidence_valid(occurrence.value, at.store.text_properties) {
+				return Err(GeneratedLabelEvidenceInvalid({ block: at.block, occurrence: occurrence_id.index() }))
+			}
+			$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source })
+			$styles = $styles.append({ color: label_style.color, leading: label_style.leading })
+			$ranges = $ranges.append(whole_source_range(at.sources, occurrence.source, at.language))
+		}
+	}
+	occurrence = whole_occurrence(at, body)?
+	$requests = $requests.append({ occurrence: body, size: body_style.size, source: occurrence.source })
+	$styles = $styles.append({ color: body_style.color, leading: body_style.leading })
+	$ranges = $ranges.append(whole_source_range(at.sources, occurrence.source, at.language))
+	Ok({ ranges: $ranges, requests: $requests, styles: $styles })
+}
+
+## A whole-source occurrence of a plain block, in the document language.
+whole_occurrence : RangedContext, Semantics.OccurrenceId -> Try({ source : Semantics.TextSourceId, value : Semantics.ContentOccurrence }, KernelFacadeShape.Error)
+whole_occurrence = |at, occurrence_id| {
+	occurrence_index = occurrence_id.index()
+	if occurrence_index >= at.store.occurrences.len() {
+		return Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
+	}
+	occurrence = list_at(at.store.occurrences, occurrence_index)
+	if occurrence.language != at.language {
+		return Err(LanguageMismatch({ occurrence: occurrence_index }))
+	}
+	match occurrence.source {
+		Text(id, UnicodeRange(_)) => if id.index() < at.sources.len() Ok({ source: id, value: occurrence }) else Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
+		_ => Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
+	}
+}
+
+## One request per text leaf of a rich paragraph, in logical order: its
+## occurrence's exact cluster range of the shared source, its language, its
+## origin, and the paragraph style with the innermost themed inline color.
+## The buffers move through this helper so they keep their unique in-place
+## ownership in the caller's block loop. Every inline paints in the
+## paragraph's face, size, and leading.
+append_rich_requests : List(KernelFacadeShape.RequestRange), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), RangedContext, Semantics.Range, Document.NormalizedRich -> Try(RequestBuffers, KernelFacadeShape.Error)
+append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
+	body = Theme.body_style(at.theme)
+	if at.face_check == RequireBuiltInFace and body.font.index() != 0 {
+		return Err(UnsupportedThemeFace({ block: at.block, face: body.font.index() }))
+	}
+	var $ranges = ranges
+	var $requests = requests
+	var $styles = styles
+	var $cluster = 0
+	var $script_run = 0
+	var $inline = rich.inlines
+	while $inline < rich.inlines + rich.length {
+		record = list_at(at.authoring.inlines, $inline)
+		match record.kind {
+			Text(_) => {
+				occurrence_index = occurrences.start() + record.first_leaf
+				if occurrence_index >= at.store.occurrences.len() {
+					return Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
+				}
+				occurrence = list_at(at.store.occurrences, occurrence_index)
+				located = match occurrence.source {
+					Text(id, UnicodeRange(range)) => if id.index() < at.sources.len() {
+						{ id, range }
+					} else {
+						return Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
+					}
+					_ => return Err(InvalidOccurrence({ block: at.block, occurrence: occurrence_index }))
+				}
+				analysis = list_at(at.sources, located.id.index()).analysis
+				scalar_start = located.range.scalars.start()
+				scalar_end = scalar_start + located.range.scalars.length()
+
+				## The convenience path accepts only the declared scripts; a
+				## span in another script rejects here, naming the authored
+				## inline, before any shaping.
+				$script_run = inline_script(analysis.script_runs, $script_run, scalar_start, scalar_end, at.face_check, at.block, $inline)?
+				cluster_start = cluster_at(analysis.graphemes, $cluster, scalar_start, at.block, $inline)?
+				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
+				$cluster = cluster_end
+				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: body.size, source: located.id })
+				$styles = $styles.append({ color: inline_color(at.authoring.inlines, record.parent, at.theme, body.color), leading: body.leading })
+				$ranges = $ranges.append({
+					clusters: Semantics.Range.from_start_and_length(cluster_start, cluster_end - cluster_start),
+					language: occurrence.language,
+					origin: { byte: located.range.utf8_bytes.start(), scalar: scalar_start },
+				})
+			}
+			_ => {}
+		}
+		$inline = $inline + 1
+	}
+	Ok({ ranges: $ranges, requests: $requests, styles: $styles })
+}
+
+has_rich_block : List(KernelFacadeSemantics.BlockOwnership) -> Bool
+has_rich_block = |owners| {
+	var $index = 0
+	var $found = False
+	while !$found and $index < owners.len() {
+		$found = match list_at(owners, $index) {
+			RichTextBlock(_) => True
+			_ => False
+		}
+		$index = $index + 1
+	}
+	$found
+}
+
+whole_source_range : List(KernelFacadeSources.Source), Semantics.TextSourceId, Semantics.Language -> KernelFacadeShape.RequestRange
+whole_source_range = |sources, source, language| {
+	clusters: Semantics.Range.from_start_and_length(0, list_at(sources, source.index()).analysis.graphemes.len()),
+	language,
+	origin: { byte: 0, scalar: 0 },
+}
+
+## The grapheme-cluster index that starts at scalar `scalar`, searching
+## forward from `from` (or the cluster count at the source end). A leaf
+## boundary inside a multi-scalar cluster cannot be shaped as two runs.
+cluster_at : List(KernelUnicode.UnicodeRange), U64, U64, U64, U64 -> Try(U64, KernelFacadeShape.Error)
+cluster_at = |graphemes, from, scalar, block, inline| {
+	var $cursor = from
+	while $cursor < graphemes.len() and list_at(graphemes, $cursor).scalar_start < scalar {
+		$cursor = $cursor + 1
+	}
+	if $cursor < graphemes.len() {
+		if list_at(graphemes, $cursor).scalar_start == scalar Ok($cursor) else Err(InlineClusterBoundary({ block, inline }))
+	} else if $cursor > 0 and list_at(graphemes, $cursor - 1).scalar_end == scalar {
+		Ok($cursor)
+	} else {
+		Err(InlineClusterBoundary({ block, inline }))
+	}
+}
+
+## Every itemized script run a leaf overlaps must be one the path shapes:
+## Latin (with Common and Inherited) on the single-face path, and Latin or
+## Han on the ordered path, whose Common-run rule applies later. Returns
+## the advanced run cursor; leaves arrive in scalar order.
+inline_script : List(KernelUnicode.ScriptRun), U64, U64, U64, FaceCheck, U64, U64 -> Try(U64, KernelFacadeShape.Error)
+inline_script = |runs, from, scalar_start, scalar_end, face_check, block, inline| {
+	var $cursor = from
+	while $cursor < runs.len() and list_at(runs, $cursor).range.scalar_end <= scalar_start {
+		$cursor = $cursor + 1
+	}
+	var $probe = $cursor
+	while $probe < runs.len() and list_at(runs, $probe).range.scalar_start < scalar_end {
+		script = list_at(runs, $probe).script
+		accepted = script == "Latn" or script == "Zyyy" or script == "Zinh" or (face_check == PolicySelectsFaces and script == "Hani")
+		if !accepted {
+			return Err(UnsupportedInlineScript({ block, inline, script }))
+		}
+		$probe = $probe + 1
+	}
+	Ok($cursor)
+}
+
+## The innermost themed inline role around a leaf decides its color; with
+## no themed role the leaf paints like its paragraph.
+inline_color : List(Document.NormalizedInline), U64, Theme, Color.SourceValue -> Color.SourceValue
+inline_color = |inlines, parent, theme, paragraph_color| {
+	var $cursor = parent
+	var $color = Unresolved
+	while $cursor != 0 and $color == Unresolved {
+		record = list_at(inlines, $cursor - 1)
+		role = match record.kind {
+			Code => Role(Code)
+			Emphasis => Role(Emphasis)
+			Quote => Role(Quote)
+			Strong => Role(Strong)
+			_ => NoRole
+		}
+		match role {
+			Role(value) => match Theme.inline_color(theme, value) {
+				Themed(color) => {
+					$color = Resolved(color)
+				}
+				Inherited => {}
+			}
+			NoRole => {}
+		}
+		$cursor = record.parent
+	}
+	match $color {
+		Resolved(color) => color
+		Unresolved => paragraph_color
+	}
 }
 
 ## One selected physical segment of a source: a contiguous grapheme-cluster
@@ -298,7 +652,7 @@ SelectedSegment : { clusters : Semantics.Range, font : U64, script : Font.Script
 
 build_ordered_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_ordered_plan = |authoring, owners, store, source_store, artifact_count, ordered, theme, limits| {
-	preparation = prepare_plan(authoring, owners, store, source_store.len(), artifact_count, limits.max_requests, theme, PolicySelectsFaces)?
+	preparation = prepare_plan(authoring, owners, store, source_store, artifact_count, limits.max_requests, theme, PolicySelectsFaces)?
 	policy_faces = ordered.registry.policy_faces(ordered.policy) ? PolicyInvalid
 	batch_language = preparation.options.language
 
@@ -366,11 +720,9 @@ build_ordered_plan = |authoring, owners, store, source_store, artifact_count, or
 		$source_index = $source_index + 1
 	}
 
-	## Expand each logical occurrence request into its physical selected runs
-	## in the exact order the preparation assigned occurrence requests.
-	var $selected_requests = []
-	var $physical_requests = []
-	var $physical_styles = []
+	## Expand each logical request into its physical selected runs in the
+	## exact order the preparation assigned requests.
+	var $expanded = { origins: [], requests: [], selected: [], styles: [] }
 	var $block_runs = List.repeat(ArtifactBlock(0), preparation.block_runs.len())
 	var $block_index = 0
 	while $block_index < preparation.block_runs.len() {
@@ -382,40 +734,40 @@ build_ordered_plan = |authoring, owners, store, source_store, artifact_count, or
 				expanded_label = match label {
 					NoLabel => NoLabel
 					Label(logical) => {
-						expanded = expand_logical(logical, preparation, $segments_per_source, $selected_requests, $physical_requests, $physical_styles, limits.max_requests)?
-						$selected_requests = expanded.selected
-						$physical_requests = expanded.requests
-						$physical_styles = expanded.styles
+						expanded = expand_logical(logical, preparation, $segments_per_source, $expanded, limits.max_requests)?
+						$expanded = expanded.buffers
 						Label(expanded.run)
 					}
 				}
-				expanded_body = expand_logical(body, preparation, $segments_per_source, $selected_requests, $physical_requests, $physical_styles, limits.max_requests)?
-				$selected_requests = expanded_body.selected
-				$physical_requests = expanded_body.requests
-				$physical_styles = expanded_body.styles
+				expanded_body = expand_logical(body, preparation, $segments_per_source, $expanded, limits.max_requests)?
+				$expanded = expanded_body.buffers
 				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: expanded_body.run, label: expanded_label }))
 			}
 		}
 		$block_index = $block_index + 1
 	}
+	physical_requests = $expanded.requests
+	physical_styles = $expanded.styles
+	physical_origins = if preparation.ranges.is_empty() WholeSources else Origins($expanded.origins)
 
-	shape = match KernelShape.shape_selected_batch($fonts, source_store, { direction: LeftToRight, language: batch_language, writing_mode: Horizontal }, $selected_requests, limits.shape) {
+	shape = match KernelShape.shape_selected_batch($fonts, source_store, { direction: LeftToRight, language: batch_language, writing_mode: Horizontal }, $expanded.selected, limits.shape) {
 		Err(_) => return Err(ShapeFailure)
 		Ok(value) => value
 	}
 	Ok(
 		KernelFacadeShape.Plan.{
 			block_runs: $block_runs,
-			requests: $physical_requests,
+			origins: physical_origins,
+			requests: physical_requests,
 			selection: OrderedFaces({ faces: $used_faces, fonts: $fonts, work: $selection_work }),
 			shape,
-			styles: $physical_styles,
+			styles: physical_styles,
 			work: {
 				font_bytes: total_font_bytes($fonts),
 				font_tables: total_font_tables($fonts),
 				glyphs: shape.work.glyph_visits,
 				metric_reads: shape.work.metric_reads,
-				requests: $physical_requests.len(),
+				requests: physical_requests.len(),
 				scalars: shape.work.scalar_visits,
 				script_run_visits: shape.work.script_run_visits,
 				source_bytes: shape.work.utf8_bytes,
@@ -561,60 +913,80 @@ dense_font_index = |used_faces, instance, source_index| {
 	Err(InvalidOccurrence({ block: 0, occurrence: source_index }))
 }
 
-Expanded : { requests : List(KernelShape.SimpleRequest), run : KernelFacadeShape.LogicalRun, selected : List(KernelShape.SelectedBatchRequest), styles : List(KernelFacadeShape.RunStyle) }
+ExpandedBuffers : { origins : List(KernelFacadeShape.Origin), requests : List(KernelShape.SimpleRequest), selected : List(KernelShape.SelectedBatchRequest), styles : List(KernelFacadeShape.RunStyle) }
 
-## Split one logical occurrence request into its per-segment physical runs.
-## Every logical run keeps a physical range of at least one; the segment
-## split is the per-source selection fact, never recomputed per occurrence.
-expand_logical : KernelFacadeShape.LogicalRun, KernelFacadeShape.Preparation, List(List(SelectedSegment)), List(KernelShape.SelectedBatchRequest), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), U64 -> Try(Expanded, KernelFacadeShape.Error)
-expand_logical = |logical, preparation, segments_per_source, selected, physical_requests, styles, max_requests| {
-	if logical.physical.length() != 1 {
-		return Err(OccurrenceCoverage({ actual: logical.physical.length(), expected: 1 }))
+## Split one logical request range into its physical runs: each request's
+## cluster range (its whole source, or a rich occurrence's sub-range)
+## intersected with the source's selected face/script segments. Requests of
+## one logical run share one source in cluster order, so one forward segment
+## cursor makes the expansion linear. The segment split is the per-source
+## selection fact, never recomputed per occurrence.
+expand_logical : KernelFacadeShape.LogicalRun, KernelFacadeShape.Preparation, List(List(SelectedSegment)), ExpandedBuffers, U64 -> Try({ buffers : ExpandedBuffers, run : KernelFacadeShape.LogicalRun }, KernelFacadeShape.Error)
+expand_logical = |logical, preparation, segments_per_source, buffers, max_requests| {
+	first = logical.physical.start()
+	count = logical.physical.length()
+	if count == 0 or first + count > preparation.requests.len() {
+		return Err(OccurrenceCoverage({ actual: first + count, expected: preparation.requests.len() }))
 	}
-	request_index = logical.physical.start()
-	if request_index >= preparation.requests.len() {
-		return Err(OccurrenceCoverage({ actual: request_index, expected: preparation.requests.len() }))
-	}
-	request = list_at(preparation.requests, request_index)
-	style = list_at(preparation.styles, request_index)
-	source_index = request.source.index()
-	if source_index >= segments_per_source.len() {
-		return Err(InvalidOccurrence({ block: 0, occurrence: request_index }))
-	}
-	segments = list_at(segments_per_source, source_index)
-	if segments.is_empty() {
-		return Err(OccurrenceCoverage({ actual: 0, expected: 1 }))
-	}
-	physical_start = physical_requests.len()
-	attempted = physical_start + segments.len()
-	if attempted > max_requests {
-		return Err(LimitExceeded({ attempted, dimension: Requests, limit: max_requests }))
-	}
-	var $selected = selected
-	var $requests = physical_requests
-	var $styles = styles
-	var $segment_index = 0
-	while $segment_index < segments.len() {
-		segment = list_at(segments, $segment_index)
-		$selected = $selected.append({
-			clusters: segment.clusters,
-			instance: Font.InstanceId.from_index(segment.font),
-			occurrence: request.occurrence,
-			script: segment.script,
-			size: request.size,
-			source: request.source,
-		})
-		$requests = $requests.append(request)
-		$styles = $styles.append(style)
-		$segment_index = $segment_index + 1
+	ranged = !preparation.ranges.is_empty()
+	physical_start = buffers.requests.len()
+	var $selected = buffers.selected
+	var $requests = buffers.requests
+	var $styles = buffers.styles
+	var $origins = buffers.origins
+	var $cursor = 0
+	var $request_index = first
+	while $request_index < first + count {
+		request = list_at(preparation.requests, $request_index)
+		style = list_at(preparation.styles, $request_index)
+		source_index = request.source.index()
+		if source_index >= segments_per_source.len() {
+			return Err(InvalidOccurrence({ block: 0, occurrence: $request_index }))
+		}
+		segments = list_at(segments_per_source, source_index)
+		if segments.is_empty() {
+			return Err(OccurrenceCoverage({ actual: 0, expected: 1 }))
+		}
+		range = if ranged list_at(preparation.ranges, $request_index) else { clusters: Semantics.Range.from_start_and_length(0, segment_end(list_at(segments, segments.len() - 1))), language: preparation.options.language, origin: { byte: 0, scalar: 0 } }
+		range_start = range.clusters.start()
+		range_end = range_start + range.clusters.length()
+		while $cursor < segments.len() and segment_end(list_at(segments, $cursor)) <= range_start {
+			$cursor = $cursor + 1
+		}
+		var $segment = $cursor
+		while $segment < segments.len() and list_at(segments, $segment).clusters.start() < range_end {
+			segment = list_at(segments, $segment)
+			overlap_start = U64.max(segment.clusters.start(), range_start)
+			overlap_end = U64.min(segment_end(segment), range_end)
+			if $requests.len() + 1 > max_requests {
+				return Err(LimitExceeded({ attempted: $requests.len() + 1, dimension: Requests, limit: max_requests }))
+			}
+			$selected = $selected.append({
+				clusters: Semantics.Range.from_start_and_length(overlap_start, overlap_end - overlap_start),
+				instance: Font.InstanceId.from_index(segment.font),
+				language: range.language,
+				occurrence: request.occurrence,
+				script: segment.script,
+				size: request.size,
+				source: request.source,
+			})
+			$requests = $requests.append(request)
+			$styles = $styles.append(style)
+			if ranged {
+				$origins = $origins.append(range.origin)
+			}
+			$segment = $segment + 1
+		}
+		$request_index = $request_index + 1
 	}
 	Ok({
-		requests: $requests,
-		run: { physical: Semantics.Range.from_start_and_length(physical_start, segments.len()) },
-		selected: $selected,
-		styles: $styles,
+		buffers: { origins: $origins, requests: $requests, selected: $selected, styles: $styles },
+		run: { physical: Semantics.Range.from_start_and_length(physical_start, $requests.len() - physical_start) },
 	})
 }
+
+segment_end : SelectedSegment -> U64
+segment_end = |segment| segment.clusters.start() + segment.clusters.length()
 
 total_font_bytes : List(KernelFont.Inspection) -> U64
 total_font_bytes = |fonts| {
@@ -679,7 +1051,7 @@ style_for : Document.NormalizedBlockKind, Theme -> Theme.TextStyle
 style_for = |kind, theme| match kind {
 	Title => Theme.title_style(theme)
 	Heading(_) | DestinationHeading(_) => Theme.heading_style(theme)
-	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | PageArtifact(_) => Theme.body_style(theme)
+	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | PageArtifact(_) | RichParagraph(_) => Theme.body_style(theme)
 }
 
 figure_style : Document.NormalizedFigure, Theme, U64 -> Try(Theme.TextStyle, KernelFacadeShape.Error)

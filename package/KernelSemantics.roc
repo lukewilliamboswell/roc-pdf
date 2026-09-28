@@ -117,6 +117,11 @@ KernelSemantics :: [].{
 		work = |plan| plan.work
 	}
 
+	## The language-tag shape nested `/Lang` values must have. Authoring
+	## stages apply it before layout so a malformed tag can name its authored
+	## location; graph validation applies the same predicate to every node.
+	language_tag_valid : Str -> Bool
+	language_tag_valid = |tag| valid_language_tag(tag)
 }
 
 ## `language_owner` is the nearest ancestor with an explicit language, or

@@ -123,10 +123,13 @@ KernelShape :: [].{
 	## grapheme-cluster range of one interned source shaped with one dense
 	## output font. The instance index is the dense output-font identity that
 	## PDF lowering resolves to the matching plan, subset, and resource name;
-	## it is never re-derived from coverage during or after shaping.
+	## it is never re-derived from coverage during or after shaping. The
+	## request's language is the natural language of its occurrence and
+	## becomes the run's language fact.
 	SelectedBatchRequest : {
 		clusters : Semantics.Range,
 		instance : Font.InstanceId,
+		language : Semantics.Language,
 		occurrence : Semantics.OccurrenceId,
 		script : Font.Script,
 		size : Layout.Unit,
@@ -151,10 +154,11 @@ KernelShape :: [].{
 	shape_simple_batch : KernelFont.Inspection, List(SimpleSource), BatchOptions, List(SimpleRequest), Limits -> Try(Batch, Error)
 	shape_simple_batch = |font, sources, options, requests, limits| shape_simple_batch_latin(font, sources, options, requests, limits)
 
-	## The ordered multi-face facade path. Requests arrive grouped per logical
-	## occurrence; each group's cluster ranges must exactly partition its
-	## source, and every occurrence of one source must carry the identical
-	## font split. Shaping walks each unique source once, assigning the
+	## The ordered multi-face facade path. Requests arrive in groups that
+	## each exactly partition one source in cluster order: one occurrence
+	## covering its whole source, or the consecutive occurrences of a rich
+	## paragraph covering adjacent sub-ranges of their shared source. Every
+	## group over one source must carry the identical font split. Shaping walks each unique source once, assigning the
 	## planner-selected dense font per grapheme cluster; it remains the
 	## horizontal left-to-right one-scalar-per-cluster convenience boundary.
 	shape_selected_batch : List(KernelFont.Inspection), List(SimpleSource), SelectedBatchOptions, List(SelectedBatchRequest), Limits -> Try(Batch, Error)
@@ -539,7 +543,6 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 	var $planned_source_bytes = 0
 	var $group_source = sources.len()
 	var $group_cursor = 0
-	var $group_occurrence = 0
 	var $group_open = Bool.False
 	var $group_writes = Bool.False
 	var $request_index = 0
@@ -564,18 +567,17 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		if cluster_count != scalar_count {
 			return Err(AnalysisMismatch(GraphemeFacts))
 		}
-		continues_group = $group_open and $group_occurrence == request.occurrence.index()
+
+		## A group stays open until its cursor reaches the end of its source;
+		## the next request must then continue it exactly where it stopped.
+		continues_group = $group_open and $group_cursor != list_at(sources, $group_source).analysis.graphemes.len()
 		if continues_group {
 			if $group_source != source_index {
 				return Err(SelectedRequestInvalid({ reason: Coverage, request: $request_index }))
 			}
 		} else {
-			if $group_open and $group_cursor != list_at(sources, $group_source).analysis.graphemes.len() {
-				return Err(SelectedRequestInvalid({ reason: Coverage, request: $request_index }))
-			}
 			$group_source = source_index
 			$group_cursor = 0
-			$group_occurrence = request.occurrence.index()
 			$group_open = Bool.True
 			$group_writes = list_at($source_seen, source_index) == Bool.False
 			$source_seen = list_set($source_seen, source_index, Bool.True)
@@ -751,7 +753,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			glyphs: Semantics.Range.from_start_and_length(glyph_start, range_length),
 			id: Text.RunId.from_index($request_index),
 			instance: request.instance,
-			language: options.language,
+			language: request.language,
 			occurrence: request.occurrence,
 			script: request.script,
 			size: request.size,

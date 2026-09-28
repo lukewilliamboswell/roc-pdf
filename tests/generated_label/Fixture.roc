@@ -40,7 +40,7 @@ Fixture :: [].{
 			KernelFacadeSemantics.Plan.authoring(plan),
 			KernelFacadeSemantics.Plan.block_ownership(plan),
 			malformed,
-			KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(plan)).len(),
+			KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(plan)),
 			KernelFacadeSemantics.Plan.artifacts(plan).len(),
 			2,
 			Theme.default,
@@ -58,6 +58,7 @@ semantic_limits : KernelFacadeSemantics.Limits
 semantic_limits = KernelFacadeSemantics.Limits.make({
 	max_artifacts: 0,
 	max_container_depth: 16,
+	max_inline_depth: 8,
 	max_content_spine: 16,
 	max_nodes: 8,
 	max_occurrences: 4,

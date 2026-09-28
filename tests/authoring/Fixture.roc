@@ -76,6 +76,7 @@ evidence_semantic_facade = |repetitions| {
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
 			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -140,6 +141,7 @@ evidence_shape_facade = |repetitions| {
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
 			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -224,6 +226,7 @@ evidence_line_facade = |repetitions| {
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
 			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -321,6 +324,7 @@ evidence_page_facade = |repetitions| {
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
 			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -743,6 +747,7 @@ evidence_ordered_facade = |repetitions| {
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
 			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
@@ -888,7 +893,7 @@ inspect = |store| {
 			Title => {
 				$titles = $titles + 1
 			}
-			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | InternalLink(_) | Link(_) => return Err(InvalidStore)
+			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
 		}
 		$index = $index + 1
 	}

@@ -50,7 +50,7 @@ KernelFacadeFragments :: [].{
 		WithNavigationAuthoring(
 			{
 				destinations : List({ anchor : Semantics.OccurrenceId, name : Str, target : Semantics.NodeId }),
-				links : List({ node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }),
+				links : List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }),
 				outline : List(Document.OutlineEntry),
 				page_labels : List(Document.PageLabelRange),
 			},
@@ -185,7 +185,7 @@ derive_run_geometry = |text_plan| {
 			$glyph = $glyph + 1
 		}
 		size = run.size.raw()
-		leading = list_at(styles, run.occurrence.index()).leading.raw()
+		leading = list_at(styles, $run_index).leading.raw()
 		height = if leading > size leading else size
 		top = checked_i64(placement.origin.y.raw(), size)?
 		bottom = top - height
@@ -204,28 +204,19 @@ derive_run_geometry = |text_plan| {
 ## per (link, page) with the page's line boxes as quadrilaterals and their
 ## union as the rectangle. Keyboard order is the per-page annotation
 ## creation order, which follows the links' spine order.
-group_link_annotations : Semantics.Store, KernelFacadeText.Plan, List(KernelNavigation.AnchorRect), List({ node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }), U64 -> Try({ annotations : List(KernelNavigation.AnnotationInput), per_link : List(U64) }, KernelFacadeFragments.Error)
+group_link_annotations : Semantics.Store, KernelFacadeText.Plan, List(KernelNavigation.AnchorRect), List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }), U64 -> Try({ annotations : List(KernelNavigation.AnnotationInput), per_link : List(U64) }, KernelFacadeFragments.Error)
 group_link_annotations = |store, text_plan, rects, links, page_count| {
 	text = KernelFacadeText.Plan.text(text_plan)
 	placements = KernelFacadeText.Plan.placements(text_plan)
 	sentinel = links.len()
-	var $link_of_occurrence = List.repeat(sentinel, store.occurrences.len())
-	var $link_index = 0
-	while $link_index < links.len() {
-		link = list_at(links, $link_index)
-		if link.occurrence.index() >= store.occurrences.len() {
-			return Err(InvalidOccurrence({ available: store.occurrences.len(), run: link.occurrence.index() }))
-		}
-		$link_of_occurrence = list_set($link_of_occurrence, link.occurrence.index(), $link_index)
-		$link_index = $link_index + 1
-	}
+	link_of_occurrence = link_owners(links, store.occurrences.len())?
 
 	## Per link: the list of page groups in ascending page order.
 	var $groups = List.repeat([], links.len())
 	var $run_index = 0
 	while $run_index < text.runs.len() {
 		run = list_at(text.runs, $run_index)
-		owner = list_at($link_of_occurrence, run.occurrence.index())
+		owner = list_at(link_of_occurrence, run.occurrence.index())
 		if owner != sentinel {
 			placement = list_at(placements, $run_index)
 			quad = match list_at(rects, $run_index) {
@@ -242,7 +233,20 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 			var $link_groups = list_at($groups, owner)
 			appended = match $link_groups.last() {
 				Ok(group) => if group.page == placement.page.index() {
-					updated = { ..group, quads: group.quads.append(quad) }
+
+					## Adjacent runs of one link on one line (an inline link
+					## containing differently styled text) extend the line's
+					## quadrilateral rather than adding a second one, so each
+					## painted line of a link contributes exactly one quad.
+					quads = match group.quads.last() {
+						Ok(previous) => if previous.y_bottom.raw() == quad.y_bottom.raw() and previous.y_top.raw() == quad.y_top.raw() and previous.x_right.raw() == quad.x_left.raw() {
+							list_set(group.quads, group.quads.len() - 1, { ..previous, x_right: quad.x_right })
+						} else {
+							group.quads.append(quad)
+						}
+						Err(_) => group.quads.append(quad)
+					}
+					updated = { ..group, quads }
 					{ groups: list_set($link_groups, $link_groups.len() - 1, updated), new_group: Bool.False }
 				} else {
 					{ groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: Bool.True }
@@ -257,7 +261,7 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 	var $annotations = []
 	var $per_link = List.with_capacity(links.len())
 	var $page_counters = List.repeat(0, page_count)
-	$link_index = 0
+	var $link_index = 0
 	while $link_index < links.len() {
 		link = list_at(links, $link_index)
 		link_groups = list_at($groups, $link_index)
@@ -287,6 +291,36 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 		$link_index = $link_index + 1
 	}
 	Ok({ annotations: $annotations, per_link: $per_link })
+}
+
+## The owning link of every occurrence (`links.len()` for none), in one
+## flat pass over the links' dense occurrence ranges.
+link_owners : List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }), U64 -> Try(List(U64), KernelFacadeFragments.Error)
+link_owners = |links, occurrence_count| {
+	sentinel = links.len()
+	var $owners = List.repeat(sentinel, occurrence_count)
+	var $link_index = 0
+	var $occurrence = 0
+	var $link_end = 0
+	while $link_index < links.len() {
+		if $occurrence < $link_end {
+			$owners = list_set($owners, $occurrence, $link_index)
+			$occurrence = $occurrence + 1
+			if $occurrence == $link_end {
+				$link_index = $link_index + 1
+			}
+		} else {
+			link = list_at(links, $link_index)
+			first = link.occurrences.start()
+			count = link.occurrences.length()
+			if count == 0 or first >= occurrence_count or count > occurrence_count - first {
+				return Err(InvalidOccurrence({ available: occurrence_count, run: first }))
+			}
+			$occurrence = first
+			$link_end = first + count
+		}
+	}
+	Ok($owners)
 }
 
 union_quads : List(KernelNavigation.Quad) -> Try(Layout.Rect, KernelFacadeFragments.Error)
@@ -319,7 +353,7 @@ union_quads = |quads| {
 ## Rebuild the content spine with each Link node's per-page annotation
 ## occurrences appended to its span, in node order, assigning dense
 ## annotation identities and logical ranks in the same pass.
-patch_spine : Semantics.Store, List({ node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }), List(U64) -> Try({ annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, KernelFacadeFragments.Error)
+patch_spine : Semantics.Store, List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }), List(U64) -> Try({ annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, KernelFacadeFragments.Error)
 patch_spine = |store, links, per_link| {
 	sentinel = links.len()
 	var $link_of_node = List.repeat(sentinel, store.nodes.len())

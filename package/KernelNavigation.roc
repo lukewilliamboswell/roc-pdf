@@ -290,6 +290,15 @@ KernelNavigation :: [].{
 		Ok({ destinations: $resolved, work: { anchor_lookups: $lookups, destinations_resolved: count } })
 	}
 
+	## The authored URI grammar `validate` applies to URI annotations, under
+	## the facade's standard byte bound. Authoring stages call it before
+	## layout so a malformed inline link URI can name its authored location.
+	check_uri : Str -> Try({}, Document.NavigationError)
+	check_uri = |uri| {
+		_bytes = validate_uri(uri, 0, standard_limit_values.max_uri_bytes)?
+		Ok({})
+	}
+
 	validate : Input, Context, Limits -> Try({ store : Store, work : Work }, Document.NavigationError)
 	validate = |input, context, Limits.(limits)| {
 		destinations = validate_destinations(input.destinations, context, limits)?

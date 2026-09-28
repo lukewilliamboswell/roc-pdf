@@ -60,6 +60,10 @@ Pdf :: [].{
 	## Stable roadmap feature identity carried by `FeatureUnavailable` diagnostics.
 	Feature : Document.Feature
 
+	## Opaque inline content of a rich paragraph. Each constructor below fixes
+	## the semantic role its content becomes; `Theme` decides presentation.
+	Inline : Document.Inline
+
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
 	Error := [
@@ -139,15 +143,15 @@ Pdf :: [].{
 
 	## Add the document's visible title block.
 	title : Str -> Document.Block
-	title = |text| Document.title(text)
+	title = |value| Document.title(value)
 
 	## Add a semantic heading at the requested level.
 	heading : U8, Str -> Document.Block
-	heading = |level, text| Document.heading(level, text)
+	heading = |level, value| Document.heading(level, value)
 
 	## Add a plain paragraph.
 	paragraph : Str -> Document.Block
-	paragraph = |text| Document.paragraph(text)
+	paragraph = |value| Document.paragraph(value)
 
 	## Add an unordered list whose items are plain text.
 	bullets : List(Str) -> Document.Block
@@ -177,7 +181,7 @@ Pdf :: [].{
 
 	## Add an optional visible caption to a figure.
 	caption : Str -> Document.Caption
-	caption = |text| Document.caption(text)
+	caption = |value| Document.caption(value)
 
 	## Explicitly omit a visible figure caption; alternative text is still required.
 	no_caption : Document.Caption
@@ -187,12 +191,59 @@ Pdf :: [].{
 	fixed_page : Layout.Size -> Document.FixedPageBuilder
 	fixed_page = |size| Document.fixed_page(size)
 
+	## A paragraph (`P`) of inline content in logical order. Its text wraps as
+	## one paragraph: lines break at Unicode line-break opportunities across
+	## inline boundaries, and every inline keeps its own structure element.
+	## A rich paragraph must contain text; empty inlines, links inside links,
+	## inline nesting deeper than 8 elements, malformed language tags, and
+	## malformed URIs reject with stable `semantics.*` codes and the inline's
+	## path, such as `contents[2].inlines[1].inlines[0]`.
+	rich_paragraph : List(Inline) -> Document.Block
+	rich_paragraph = |inlines| Document.rich_paragraph(inlines)
+
+	## Plain inline text in the surrounding language and role.
+	text : Str -> Inline
+	text = |value| Document.plain_text(value)
+
+	## Stressed emphasis, an `Em` structure element.
+	emphasis : List(Inline) -> Inline
+	emphasis = |contents| Document.emphasis(contents)
+
+	## Strong importance, a `Strong` structure element.
+	strong : List(Inline) -> Inline
+	strong = |contents| Document.strong(contents)
+
+	## A fragment of computer code, a `Code` structure element.
+	code : Str -> Inline
+	code = |value| Document.code(value)
+
+	## An inline quotation, a `Quote` structure element. Quotation marks are
+	## authored text; none are generated.
+	quote : List(Inline) -> Inline
+	quote = |contents| Document.quote(contents)
+
+	## A URI link around inline content: a `Link` element with one link
+	## annotation per page whose quadrilaterals are its painted line boxes.
+	inline_link : List(Inline), Str -> Inline
+	inline_link = |contents, uri| Document.inline_link(contents, uri)
+
+	## An internal link around inline content to an authored destination name.
+	inline_internal_link : List(Inline), Str -> Inline
+	inline_internal_link = |contents, destination| Document.inline_internal_link(contents, destination)
+
+	## Inline content in another natural language: a `Span` with `/Lang`,
+	## such as `Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")])`.
+	in_language : Str, List(Inline) -> Inline
+	in_language = |tag, contents| Document.in_language(tag, contents)
+
+	## An abbreviation with its expansion: a `Span` whose `/E` is the
+	## expansion, such as `Pdf.expansion("GST", "Goods and Services Tax")`.
+	expansion : Str, Str -> Inline
+	expansion = |value, expanded| Document.expansion(value, expanded)
+
 	## Gate 6-8 authoring shapes are stable before their lowering is enabled.
 	## These constructors retain the authored intent and reject transactionally
 	## at preparation with a feature-specific explanation.
-	## Reserve authored rich-inline intent; currently reports `semantics.rich_inline`.
-	rich_paragraph : Str -> Document.Block
-	rich_paragraph = |text| Document.unavailable(RichInline, text)
 
 	## Reserve a simple logical table; currently reports `table.simple`.
 	simple_table : Str -> Document.Block
@@ -204,11 +255,11 @@ Pdf :: [].{
 
 	## Reserve footnote content; currently reports `document.footnote`.
 	footnote : Str -> Document.Block
-	footnote = |text| Document.unavailable(Footnotes, text)
+	footnote = |value| Document.unavailable(Footnotes, value)
 
 	## Reserve sidebar content; currently reports `document.side_content`.
 	side_content : Str -> Document.Block
-	side_content = |text| Document.unavailable(SideContent, text)
+	side_content = |value| Document.unavailable(SideContent, value)
 
 	## Reserve a generated cross-reference; currently reports `document.generated_reference`.
 	generated_reference : Str -> Document.Block
@@ -223,25 +274,25 @@ Pdf :: [].{
 	custom_layout = |summary| Document.unavailable(CustomLayout, summary)
 
 	page_header : Str -> Document.Block
-	page_header = |text| Document.page_header(text)
+	page_header = |value| Document.page_header(value)
 
 	page_footer : Str -> Document.Block
-	page_footer = |text| Document.page_footer(text)
+	page_footer = |value| Document.page_footer(value)
 
 	## A URI link block; the whole text is the link.
 	link : Str, Str -> Document.Block
-	link = |text, uri| Document.link(text, uri)
+	link = |value, uri| Document.link(value, uri)
 
 	## An internal link block referencing an authored destination name.
 	internal_link : Str, Str -> Document.Block
-	internal_link = |text, destination| Document.internal_link(text, destination)
+	internal_link = |value, destination| Document.internal_link(value, destination)
 
 	## A heading that also declares a named destination.
 	destination_heading : Str, U8, Str -> Document.Block
-	destination_heading = |name, level, text| Document.destination_heading(name, level, text)
+	destination_heading = |name, level, value| Document.destination_heading(name, level, value)
 
 	destination_paragraph : Str, Str -> Document.Block
-	destination_paragraph = |name, text| Document.destination_paragraph(name, text)
+	destination_paragraph = |name, value| Document.destination_paragraph(name, value)
 
 	## The authored document outline in dense preorder over authored
 	## destination names.
@@ -480,7 +531,76 @@ pipeline_error = |error, doc| match error {
 			container_path(Document.normalize(doc).groups, group),
 		),
 	)
+	Semantics(EmptyRichParagraph({ block })) => inline_error(doc, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
+	Semantics(EmptyInline({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
+	Semantics(EmptyLinkText({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")
+	Semantics(NestedLink({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")
+	Semantics(InlineDepthExceeded({ attempted, block, inline, limit })) => inline_error(doc, block, AtInline(inline), BudgetExceeded, "semantics.inline_depth", "An inline element is nested ${attempted.to_str()} levels deep; rich paragraphs accept at most ${limit.to_str()} nested inline elements.")
+	Semantics(InvalidInlineLanguage({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidLanguage, "semantics.language_tag", "An in_language tag is not a well-formed BCP 47 language tag.")
+	Semantics(InvalidInlineUri({ block, error: uri_error, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_uri", "An inline link URI is not a valid absolute URI (${uri_problem(uri_error)}).")
+	Shape(UnsupportedInlineScript({ block, inline, script })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_script", "Inline text uses the script ${script}, which the convenience text path does not shape.")
+	Shape(InlineClusterBoundary({ block, inline })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_cluster", "An inline boundary falls inside a multi-scalar grapheme cluster, which the convenience shaper does not support.")
 	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+}
+
+uri_problem : Document.NavigationError -> Str
+uri_problem = |error| match error {
+	UriEmpty(_) => "it is empty"
+	UriTooLong(_) => "it is too long"
+	UriMissingScheme(_) => "it has no scheme"
+	UriInvalidPercentEncoding(_) => "it has an invalid percent-encoding"
+	UriInvalidByte(_) => "it contains a byte outside the URI grammar"
+	_ => "it is malformed"
+}
+
+## A rich-inline rejection located by the authored block path of its
+## paragraph and, below it, the authored inline positions, such as
+## `contents[2].inlines[1].inlines[0]`. Like the container paths, the
+## normalized arenas are rebuilt only on this rejection path.
+inline_error : Document, U64, [AtInline(U64), NoInline], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+inline_error = |doc, block, inline, diagnostic, feature, message| {
+	normalized = Document.normalize(doc)
+	InvalidDocument(container_batch(diagnostic, feature, message, inline_path(normalized, block, inline)))
+}
+
+inline_path : Document.NormalizedAuthoring, U64, [AtInline(U64), NoInline] -> Str
+inline_path = |normalized, block_index, inline| {
+	block = match normalized.blocks.get(block_index) {
+		Ok(value) => value
+		Err(OutOfBounds) => crash "normalized rich block path escaped"
+	}
+	position = match block.kind {
+		RichParagraph(paragraph) => match normalized.rich_paragraphs.get(paragraph) {
+			Ok(rich) => rich.position
+			Err(OutOfBounds) => crash "normalized rich block path escaped"
+		}
+		_ => crash "normalized rich block path named a non-rich block"
+	}
+	parent = if block.parent == 0 "" else "${container_path(normalized.groups, block.parent - 1)}."
+	var $positions = []
+	var $cursor = match inline {
+		AtInline(index) => index + 1
+		NoInline => 0
+	}
+	while $cursor != 0 {
+		record = match normalized.inlines.get($cursor - 1) {
+			Ok(value) => value
+			Err(OutOfBounds) => crash "normalized inline path escaped"
+		}
+		$positions = $positions.append(record.position)
+		$cursor = record.parent
+	}
+	var $path = "${parent}contents[${position.to_str()}]"
+	var $index = $positions.len()
+	while $index > 0 {
+		segment = match $positions.get($index - 1) {
+			Ok(value) => value
+			Err(OutOfBounds) => crash "normalized inline path escaped"
+		}
+		$path = "${$path}.inlines[${segment.to_str()}]"
+		$index = $index - 1
+	}
+	$path
 }
 
 ## The compact authored location of container `group`, such as
@@ -512,14 +632,14 @@ container_path = |groups, group| {
 }
 
 container_batch : Conformance.DiagnosticCode, Str, Str, Str -> Conformance.DiagnosticBatch
-container_batch = |code, feature, message, path| {
+container_batch = |diagnostic, feature, message, path| {
 	full = "${message} No PDF bytes were emitted."
 	{
 		detail_bytes: full.count_utf8_bytes() + path.count_utf8_bytes(),
 		diagnostics: [
 			{
 				clause_references: [],
-				code,
+				code: diagnostic,
 				details: [path],
 				feature: Feature(feature),
 				location: Document,
@@ -577,7 +697,7 @@ unavailable_message = |feature, summary| {
 		ArchiveProfile => "Gate 5"
 		AccessibleArchiveProfile => "Gate 7"
 		Figures => "the current figure authoring slice"
-		RichInline | ContextualArtifacts | NestedLanguage | SemanticTextProperties | SimpleTables => "Gate 6"
+		ContextualArtifacts | SemanticTextProperties | SimpleTables => "Gate 6"
 		ComplexTables | CustomLayout | Floats | Footnotes | GeneratedReferences | MultiColumnLayout | PageTemplates | SideContent | VerticalWriting => "Gate 8"
 	}
 	"${summary} No PDF bytes were emitted. This capability remains scheduled for ${roadmap}."
@@ -588,9 +708,7 @@ feature_code = |feature| match feature {
 	ArchiveProfile => "profile.archive"
 	AccessibleArchiveProfile => "profile.accessible_archive"
 	Figures => "document.figure"
-	RichInline => "semantics.rich_inline"
 	ContextualArtifacts => "semantics.contextual_artifact"
-	NestedLanguage => "semantics.nested_language"
 	SemanticTextProperties => "semantics.text_properties"
 	SimpleTables => "table.simple"
 	ComplexTables => "table.complex"
@@ -698,6 +816,7 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		max_artifacts: 0,
 		max_container_depth: 16,
 		max_content_spine: 8192,
+		max_inline_depth: 8,
 		max_nodes: 4096,
 		max_occurrences: 2048,
 		max_properties: 2048,
@@ -1331,4 +1450,57 @@ expect {
 		_ => False
 	}
 	deep_rejected and empty_rejected
+}
+
+## Rich paragraphs lower each inline to its PDF 2.0 role inside one `P`,
+## with `/Lang` on language spans and `/E` on expansions, and an inline link
+## gains a link annotation owned by its `Link` element.
+expect {
+	document = Pdf.document({
+		contents: [
+			Pdf.section([
+				Pdf.rich_paragraph([
+					Pdf.text("Revenue rose "),
+					Pdf.strong([Pdf.text("5.0%")]),
+					Pdf.text(" under "),
+					Pdf.expansion("GST", "Goods and Services Tax"),
+					Pdf.text(" at "),
+					Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]),
+					Pdf.text("; see "),
+					Pdf.inline_link([Pdf.emphasis([Pdf.text("the report")])], "https://example.org/report"),
+					Pdf.text(" and "),
+					Pdf.code("WMS-7"),
+					Pdf.text(" in "),
+					Pdf.quote([Pdf.text("“quotes”")]),
+					Pdf.text("."),
+				]),
+			]),
+		],
+		language: "en-AU",
+		title: "Rich",
+	})
+	bytes = Pdf.to_bytes(document)?
+	text = Str.from_utf8_lossy(bytes)
+
+	text.contains("/S /Sect ") and text.contains("/S /Strong ") and text.contains("/S /Em ") and text.contains("/S /Code ") and text.contains("/S /Quote ") and text.contains("/S /Link ") and text.contains("/Lang <FEFF00660072>") and text.contains("/E <FEFF") and text.contains("/Subtype /Link")
+}
+
+## Inline rejections carry a stable dotted code and the inline's authored
+## path below its paragraph; no bytes are emitted.
+expect {
+	nested = Pdf.document({
+		contents: [Pdf.paragraph("Lead"), Pdf.section([Pdf.rich_paragraph([Pdf.inline_link([Pdf.text("a "), Pdf.inline_link([Pdf.text("b")], "https://example.org")], "https://example.org")])])],
+		language: "en-AU",
+		title: "Nested link",
+	})
+	empty = Pdf.document({ contents: [Pdf.rich_paragraph([Pdf.text("Lead "), Pdf.strong([])])], language: "en-AU", title: "Empty inline" })
+	nested_rejected = match Pdf.to_bytes(nested) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [path], feature: Feature(feature), .. }], .. })) => feature == "semantics.nested_link" and path == "contents[1].contents[0].inlines[0].inlines[1]"
+		_ => False
+	}
+	empty_rejected = match Pdf.to_bytes(empty) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: [path], feature: Feature(feature), .. }], .. })) => feature == "semantics.inline_empty" and path == "contents[0].inlines[1]"
+		_ => False
+	}
+	nested_rejected and empty_rejected
 }

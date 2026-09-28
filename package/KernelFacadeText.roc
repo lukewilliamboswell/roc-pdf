@@ -46,6 +46,7 @@ KernelFacadeText :: [].{
 		fragment_count : U64,
 		label_rows : U64,
 		lines : List(KernelLineLayout.Line),
+		origins : KernelFacadeShape.Origins,
 		page_placements : List(KernelPageLayout.PlacedLine),
 		pages : List(KernelPageLayout.Page),
 		rows : List(KernelFacadePages.Row),
@@ -106,6 +107,7 @@ build_plan = |shape_plan, line_plan, page_plan, limits| {
 			fragment_count: KernelPageLayout.Plan.fragments(pagination).len(),
 			label_rows: KernelFacadePages.Plan.work(page_plan).label_rows,
 			lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(line_plan)),
+			origins: KernelFacadeShape.Plan.origins(shape_plan),
 			page_placements: KernelPageLayout.Plan.placements(pagination),
 			pages: KernelPageLayout.Plan.pages(pagination),
 			rows: KernelFacadePages.Plan.rows(page_plan),
@@ -210,6 +212,7 @@ build_prepared_plan = |prepared, limits| {
 				shape,
 				styles,
 				lines,
+				prepared.origins,
 				request,
 				limits,
 			)?
@@ -342,8 +345,13 @@ PaintAccumulator : {
 ## Materialize one line of a logical run that spans several physical face
 ## runs: one final run and placement per overlapped physical segment, with
 ## origins advanced by the accumulated widths of the preceding segments.
-paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), PaintRequest, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
-paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
+##
+## Shaped and line ranges are source coordinates; every final run and
+## cluster is rebased to its occurrence (a rich paragraph's occurrences begin
+## inside their shared source), the text store's occurrence-relative
+## contract.
+paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), KernelFacadeShape.Origins, PaintRequest, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
+paint_split_logical = |accumulator, shape, styles, lines, origins, request, limits| {
 	var $clusters = accumulator.clusters
 	var $glyph_indices = accumulator.glyph_indices
 	var $glyphs = accumulator.glyphs
@@ -391,6 +399,7 @@ paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
 		segment_start = if line.clusters.start() > run.clusters.start() line.clusters.start() else run.clusters.start()
 		segment_end = if line_cluster_end < run_cluster_end line_cluster_end else run_cluster_end
 		if segment_end > segment_start {
+			origin = origin_of(origins, $physical)
 			cluster_start_new = $clusters.len()
 			glyph_start_new = $glyphs.len()
 			segment_first = list_at(shape.clusters, segment_start)
@@ -428,6 +437,7 @@ paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
 				$clusters = $clusters.append({
 					..cluster,
 					glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
+					source: rebase(cluster.source, origin, $physical)?,
 				})
 				$cluster_index = $cluster_index + 1
 			}
@@ -440,10 +450,14 @@ paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
 				clusters: Semantics.Range.from_start_and_length(cluster_start_new, $clusters.len() - cluster_start_new),
 				glyphs: Semantics.Range.from_start_and_length(glyph_start_new, $glyphs.len() - glyph_start_new),
 				id: new_run_id,
-				source: {
-					scalars: Semantics.Range.from_start_and_length(segment_scalar_start, $source_scalar - segment_scalar_start),
-					utf8_bytes: Semantics.Range.from_start_and_length(segment_byte_start, $source_byte - segment_byte_start),
-				},
+				source: rebase(
+					{
+						scalars: Semantics.Range.from_start_and_length(segment_scalar_start, $source_scalar - segment_scalar_start),
+						utf8_bytes: Semantics.Range.from_start_and_length(segment_byte_start, $source_byte - segment_byte_start),
+					},
+					origin,
+					$physical,
+				)?,
 				substitutions: Semantics.Range.from_start_and_length(0, 0),
 				transformations: Semantics.Range.from_start_and_length(0, 0),
 			})
@@ -463,6 +477,24 @@ paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
 		placements: $placements,
 		runs: $runs,
 		styles: $final_styles,
+	})
+}
+
+origin_of : KernelFacadeShape.Origins, U64 -> KernelFacadeShape.Origin
+origin_of = |origins, physical| match origins {
+	WholeSources => { byte: 0, scalar: 0 }
+	Origins(values) => list_at(values, physical)
+}
+
+## A source-coordinate range expressed relative to its occurrence origin.
+rebase : Semantics.TextRange, KernelFacadeShape.Origin, U64 -> Try(Semantics.TextRange, KernelFacadeText.Error)
+rebase = |range, origin, run| {
+	if range.scalars.start() < origin.scalar or range.utf8_bytes.start() < origin.byte {
+		return Err(InvalidRun({ run: run }))
+	}
+	Ok({
+		scalars: Semantics.Range.from_start_and_length(range.scalars.start() - origin.scalar, range.scalars.length()),
+		utf8_bytes: Semantics.Range.from_start_and_length(range.utf8_bytes.start() - origin.byte, range.utf8_bytes.length()),
 	})
 }
 
@@ -584,6 +616,7 @@ test_prepared = |shape| {
 	fragment_count: 1,
 	label_rows: 1,
 	lines: test_lines,
+	origins: WholeSources,
 	page_placements: [{ baseline: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(20) }, fragment: Semantics.FragmentId.from_index(0), line: 0 }],
 	pages: [{ fragments: Semantics.Range.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.Range.from_start_and_length(0, 1) }],
 	rows: [

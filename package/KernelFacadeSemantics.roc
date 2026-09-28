@@ -1,7 +1,9 @@
 import Document
 import KernelFacadeSources
+import KernelNavigation
 import KernelSemantics
 import KernelTextSemantics
+import KernelUnicode
 import Semantics
 
 KernelFacadeSemantics :: [].{
@@ -10,9 +12,16 @@ KernelFacadeSemantics :: [].{
 		ArithmeticOverflow,
 		ContainerDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
 		EmptyContainer({ group : U64 }),
+		EmptyInline({ block : U64, inline : U64 }),
 		EmptyLanguage,
+		EmptyLinkText({ block : U64, inline : U64 }),
 		EmptyMetadataTitle,
+		EmptyRichParagraph({ block : U64 }),
+		InlineDepthExceeded({ attempted : U64, block : U64, inline : U64, limit : U64 }),
+		InvalidInlineLanguage({ block : U64, inline : U64 }),
+		InvalidInlineUri({ block : U64, error : Document.NavigationError, inline : U64 }),
 		InvalidList({ block : U64 }),
+		NestedLink({ block : U64, inline : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		Source(KernelFacadeSources.Error),
 		TextSemantics(KernelTextSemantics.Error),
@@ -22,6 +31,7 @@ KernelFacadeSemantics :: [].{
 		max_artifacts : U64,
 		max_container_depth : U64,
 		max_content_spine : U64,
+		max_inline_depth : U64,
 		max_nodes : U64,
 		max_occurrences : U64,
 		max_properties : U64,
@@ -34,6 +44,7 @@ KernelFacadeSemantics :: [].{
 			max_artifacts : U64,
 			max_container_depth : U64,
 			max_content_spine : U64,
+			max_inline_depth : U64,
 			max_nodes : U64,
 			max_occurrences : U64,
 			max_properties : U64,
@@ -45,20 +56,27 @@ KernelFacadeSemantics :: [].{
 		make = |limits| Limits.(limits)
 	}
 	Artifact : { block : U64, kind : Document.PageArtifactKind, text : Str }
-	BlockOwnership : [ArtifactBlock(U64), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel] })]
+
+	## A rich paragraph owns a dense occurrence range, one occurrence per text
+	## leaf in logical order, all ranges of the paragraph's one interned source.
+	BlockOwnership : [ArtifactBlock(U64), RichTextBlock({ occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel] })]
 
 	## One authored destination declaration: the block's semantic node is the
 	## structure target and its content occurrence is the explicit layout
 	## anchor.
 	DestinationRecord : { anchor : Semantics.OccurrenceId, name : Str, target : Semantics.NodeId }
 
-	## One authored link block: its Link structure node, the text occurrence
-	## the annotations will attach beside, and the closed authored target.
-	LinkRecord : { node : Semantics.NodeId, occurrence : Semantics.OccurrenceId, target : [InternalDestination(Str), Uri(Str)] }
+	## One authored link: its Link structure node, the dense range of text
+	## occurrences whose painted runs its annotations cover, and the closed
+	## authored target. A link block owns one occurrence; an inline link owns
+	## the contiguous occurrences of the text leaves inside it.
+	LinkRecord : { node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }
 	Work : {
 		artifacts : U64,
 		container_nodes : U64,
 		content_writes : U64,
+		inline_elements : U64,
+		inline_leaves : U64,
 		list_items : U64,
 		lists : U64,
 		node_writes : U64,
@@ -116,6 +134,8 @@ Planning : {
 	content_count : U64,
 	destinations : List(KernelFacadeSemantics.DestinationRecord),
 	group_nodes : List(U64),
+	inline_elements : U64,
+	inline_leaves : U64,
 	links : List(KernelFacadeSemantics.LinkRecord),
 	list_count : U64,
 	list_item_count : U64,
@@ -134,9 +154,9 @@ build_plan = |authoring, limits| {
 	if authoring.metadata_title.is_empty() {
 		return Err(EmptyMetadataTitle)
 	}
-	planning = plan_blocks(authoring.blocks, authoring.groups, limits)?
+	planning = plan_blocks(authoring, limits)?
 	sources = KernelFacadeSources.Plan.build(planning.source_inputs, limits.sources) ? Source
-	built = build_store(authoring.language, authoring.blocks, authoring.groups, authoring.figures, planning, sources)?
+	built = build_store(authoring, planning, sources)?
 	check_limit(built.store.content_spine.len(), limits.max_content_spine, ContentSpine)?
 	check_limit(built.store.text_properties.len(), limits.max_properties, Properties)?
 	navigated = !planning.links.is_empty() or !planning.destinations.is_empty()
@@ -160,6 +180,8 @@ build_plan = |authoring, limits| {
 				artifacts: planning.artifacts.len(),
 				container_nodes: planning.group_nodes.len(),
 				content_writes: built.store.content_spine.len(),
+				inline_elements: planning.inline_elements,
+				inline_leaves: planning.inline_leaves,
 				list_items: planning.list_item_count,
 				lists: planning.list_count,
 				node_writes: built.store.nodes.len(),
@@ -174,8 +196,10 @@ build_plan = |authoring, limits| {
 ## Node identities follow authored preorder: a container's node is allocated
 ## immediately before its first descendant, so documents without containers
 ## keep their exact node, content, and structure-element numbering.
-plan_blocks : List(Document.NormalizedBlock), List(Document.NormalizedGroup), KernelFacadeSemantics.Limits -> Try(Planning, KernelFacadeSemantics.Error)
-plan_blocks = |blocks, groups, limits| {
+plan_blocks : Document.NormalizedAuthoring, KernelFacadeSemantics.Limits -> Try(Planning, KernelFacadeSemantics.Error)
+plan_blocks = |authoring, limits| {
+	blocks = authoring.blocks
+	groups = authoring.groups
 	source_bound = if blocks.len() > U64.highest / 2 U64.highest else blocks.len() * 2
 	var $artifacts = List.with_capacity(U64.min(blocks.len(), limits.max_artifacts))
 	var $destinations = []
@@ -187,6 +211,8 @@ plan_blocks = |blocks, groups, limits| {
 	var $content_count = 0
 	var $list_count = 0
 	var $list_item_count = 0
+	var $inline_elements = 0
+	var $inline_leaves = 0
 	var $next_node = 1
 	var $next_occurrence = 0
 	var $property_count = 0
@@ -363,7 +389,7 @@ plan_blocks = |blocks, groups, limits| {
 					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrence: Semantics.OccurrenceId.from_index($next_occurrence), target: Uri(uri) })
+					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.Range.from_start_and_length($next_occurrence, 1), target: Uri(uri) })
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
@@ -380,7 +406,7 @@ plan_blocks = |blocks, groups, limits| {
 					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
 					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
 					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrence: Semantics.OccurrenceId.from_index($next_occurrence), target: InternalDestination(destination) })
+					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.Range.from_start_and_length($next_occurrence, 1), target: InternalDestination(destination) })
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
@@ -388,11 +414,143 @@ plan_blocks = |blocks, groups, limits| {
 					$content_count = attempted_content
 					$list_state = NoActiveList
 				}
+				RichParagraph(paragraph) => {
+					rich = list_at(authoring.rich_paragraphs, paragraph)
+					checked = check_rich(authoring.inlines, rich, $block_index, limits.max_inline_depth)?
+					attempted_nodes = checked_add($next_node, checked_add(rich.elements, 1)?)?
+					attempted_occurrences = checked_add($next_occurrence, rich.leaves)?
+					attempted_content = checked_add($content_count, checked_add(rich.length, 1)?)?
+					attempted_properties = checked_add($property_count, checked.expansions)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
+					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
+					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_limit(attempted_properties, limits.max_properties, Properties)?
+					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					if checked.links != 0 {
+						$links = append_rich_links($links, authoring.inlines, rich, $next_node, $next_occurrence)
+					}
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: block.parent })
+					$sources = $sources.append(block.text)
+					$next_node = attempted_nodes
+					$next_occurrence = attempted_occurrences
+					$content_count = attempted_content
+					$property_count = attempted_properties
+					$inline_elements = checked_add($inline_elements, rich.elements)?
+					$inline_leaves = checked_add($inline_leaves, rich.leaves)?
+					$list_state = NoActiveList
+				}
 			}
 			$block_index = $block_index + 1
 		}
 	}
-	Ok({ artifacts: $artifacts, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
+	Ok({ artifacts: $artifacts, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
+}
+
+## Validate one rich paragraph's inline span in preorder; the first failure
+## in authored order wins. Every text leaf is non-empty, every element holds
+## text, inline elements nest at most `max_depth` deep, links never contain
+## links, language tags are well formed, and URIs pass the navigation URI
+## grammar. Returns the counts semantic planning reserves.
+check_rich : List(Document.NormalizedInline), Document.NormalizedRich, U64, U64 -> Try({ expansions : U64, links : U64 }, KernelFacadeSemantics.Error)
+check_rich = |inlines, rich, block, max_depth| {
+	if rich.leaves == 0 {
+		return Err(EmptyRichParagraph({ block: block }))
+	}
+	var $expansions = 0
+	var $links = 0
+	var $index = rich.inlines
+	end = rich.inlines + rich.length
+	while $index < end {
+		record = list_at(inlines, $index)
+		match record.kind {
+			Text({ byte_length, byte_start: _, text: _ }) => if byte_length == 0 {
+				return Err(EmptyInline({ block, inline: $index }))
+			}
+			kind => {
+				if record.depth > max_depth {
+					return Err(InlineDepthExceeded({ attempted: record.depth, block, inline: $index, limit: max_depth }))
+				}
+				linked = match kind {
+					Link(_) | InternalLink(_) => True
+					_ => False
+				}
+				if record.leaf_end == record.first_leaf {
+					return if linked Err(EmptyLinkText({ block, inline: $index })) else Err(EmptyInline({ block, inline: $index }))
+				}
+				if linked {
+					if inside_link(inlines, record.parent) {
+						return Err(NestedLink({ block, inline: $index }))
+					}
+					$links = $links + 1
+				}
+				match kind {
+					InLanguage(tag) => if !KernelSemantics.language_tag_valid(tag) {
+						return Err(InvalidInlineLanguage({ block, inline: $index }))
+					}
+					Link(uri) => match KernelNavigation.check_uri(uri) {
+						Ok(_) => {}
+						Err(error) => return Err(InvalidInlineUri({ block, error, inline: $index }))
+					}
+					Expansion(expanded) => {
+						if expanded.is_empty() {
+							return Err(EmptyInline({ block, inline: $index }))
+						}
+						$expansions = $expansions + 1
+					}
+					_ => {}
+				}
+			}
+		}
+		$index = $index + 1
+	}
+	Ok({ expansions: $expansions, links: $links })
+}
+
+## Whether an inline's ancestor chain (`parent` encoded `0` or `i + 1`)
+## contains a link. Chains are bounded by the validated inline depth.
+inside_link : List(Document.NormalizedInline), U64 -> Bool
+inside_link = |inlines, parent| {
+	var $cursor = parent
+	var $found = False
+	while $cursor != 0 and !$found {
+		record = list_at(inlines, $cursor - 1)
+		$found = match record.kind {
+			Link(_) | InternalLink(_) => True
+			_ => False
+		}
+		$cursor = record.parent
+	}
+	$found
+}
+
+## One link record per inline link: its node follows the paragraph node in
+## element preorder and its occurrences are the leaves below it.
+append_rich_links : List(KernelFacadeSemantics.LinkRecord), List(Document.NormalizedInline), Document.NormalizedRich, U64, U64 -> List(KernelFacadeSemantics.LinkRecord)
+append_rich_links = |links, inlines, rich, paragraph_node, first_occurrence| {
+	var $links = links
+	var $index = rich.inlines
+	end = rich.inlines + rich.length
+	while $index < end {
+		record = list_at(inlines, $index)
+		target = match record.kind {
+			Link(uri) => Linked(Uri(uri))
+			InternalLink(destination) => Linked(InternalDestination(destination))
+			_ => NotLinked
+		}
+		match target {
+			Linked(value) => {
+				$links = $links.append({
+					node: Semantics.NodeId.from_index(paragraph_node + 1 + record.element),
+					occurrences: Semantics.Range.from_start_and_length(first_occurrence + record.first_leaf, record.leaf_end - record.first_leaf),
+					target: value,
+				})
+			}
+			NotLinked => {}
+		}
+		$index = $index + 1
+	}
+	$links
 }
 
 heading_role : U8, U64 -> Try(Str, KernelFacadeSemantics.Error)
@@ -411,8 +569,12 @@ heading_role = |level, block| match level {
 ## builds those contiguous spans in O(children + groups). Leaf content
 ## follows in block order exactly as before, so a document without
 ## containers keeps its exact spine.
-build_store : Str, List(Document.NormalizedBlock), List(Document.NormalizedGroup), List(Document.NormalizedFigure), Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), store : Semantics.Store }, KernelFacadeSemantics.Error)
-build_store = |language, blocks, groups, figures, planning, source_plan| {
+build_store : Document.NormalizedAuthoring, Planning, KernelFacadeSources.Plan -> Try({ block_ownership : List(KernelFacadeSemantics.BlockOwnership), store : Semantics.Store }, KernelFacadeSemantics.Error)
+build_store = |authoring, planning, source_plan| {
+	language = authoring.language
+	blocks = authoring.blocks
+	groups = authoring.groups
+	figures = authoring.figures
 	empty = Semantics.Range.from_start_and_length(0, 0)
 	dummy = make_node(0, DocumentRoot, "Document", empty, Language(language))
 	var $nodes = List.repeat(dummy, planning.node_count)
@@ -540,6 +702,25 @@ build_store = |language, blocks, groups, figures, planning, source_plan| {
 				$source_input = checked_add($source_input, 1)?
 				$index = $index + 1
 			}
+			RichParagraph(paragraph) => {
+				rich = list_at(authoring.rich_paragraphs, paragraph)
+				placed = place_rich(
+					{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+					authoring,
+					rich,
+					{ language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), source_input: $source_input },
+					source_plan,
+				)?
+				$content = placed.content
+				$nodes = placed.nodes
+				$occurrences = placed.occurrences
+				$properties = placed.properties
+				$ownership = list_set($ownership, $index, RichTextBlock({ occurrences: Semantics.Range.from_start_and_length($next_occurrence, rich.leaves) }))
+				$next_node = checked_add($next_node, rich.elements + 1)?
+				$next_occurrence = checked_add($next_occurrence, rich.leaves)?
+				$source_input = checked_add($source_input, 1)?
+				$index = $index + 1
+			}
 			Bullet({ item, list }) => {
 				if item != 0 {
 					crash "validated facade list start escaped"
@@ -619,6 +800,124 @@ build_store = |language, blocks, groups, figures, planning, source_plan| {
 		text_sources: unique_sources,
 	}
 	Ok({ block_ownership: $ownership, store })
+}
+
+StoreBuffers : { content : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node), occurrences : List(Semantics.ContentOccurrence), properties : List(Semantics.TextProperty) }
+
+## Place one rich paragraph: its `P` node, one node per inline element in
+## preorder, and one occurrence per text leaf over an exact sub-range of the
+## paragraph's interned source. The paragraph's spine span is reserved first
+## and each item is written at its authored position, so every node owns one
+## contiguous span. A leaf occurrence carries the language of its nearest
+## `in_language` span, which is also the effective language of the node
+## that owns it: a node-level `/Lang` on that `Span` therefore describes all
+## of its marked content, and no content item differs from its owner.
+place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
+place_rich = |buffers, authoring, rich, at, source_plan| {
+	inlines = authoring.inlines
+	base = buffers.content.len()
+	var $content = buffers.content
+	var $slot = 0
+	while $slot < rich.length {
+		$content = $content.append(ChildNode(Semantics.NodeId.from_index(0)))
+		$slot = $slot + 1
+	}
+	var $nodes = list_set(buffers.nodes, at.node, make_node(at.node, ParentNode(at.parent), "P", Semantics.Range.from_start_and_length(base, rich.children), Inherited))
+	var $occurrences = buffers.occurrences
+	var $properties = buffers.properties
+	source_id = list_at(KernelFacadeSources.Plan.input_sources(source_plan), at.source_input)
+	source = list_at(KernelFacadeSources.Plan.sources(source_plan), source_id.index())
+	boundaries = source.analysis.line_boundaries
+	var $boundary = 0
+	var $index = rich.inlines
+	end = rich.inlines + rich.length
+	while $index < end {
+		record = list_at(inlines, $index)
+		owner_spine = if record.parent == 0 base else base + list_at(inlines, record.parent - 1).spine
+		owner_node = if record.parent == 0 at.node else at.node + 1 + list_at(inlines, record.parent - 1).element
+		position = owner_spine + record.position
+		match record.kind {
+			Text({ byte_length, byte_start, text: _ }) => {
+				start = scalar_at(boundaries, $boundary, byte_start)?
+				finish = scalar_at(boundaries, start.index, byte_start + byte_length)?
+				$boundary = finish.index
+				occurrence = at.occurrence + record.first_leaf
+				$content = list_set($content, position, ContentOccurrence(Semantics.OccurrenceId.from_index(occurrence)))
+				$occurrences = $occurrences.append({
+					fragments: Semantics.Range.from_start_and_length(0, 0),
+					id: Semantics.OccurrenceId.from_index(occurrence),
+					language: Language(leaf_language(inlines, record.language, at.language)),
+					source: Text(
+						source_id,
+						UnicodeRange({
+							scalars: Semantics.Range.from_start_and_length(start.index, finish.index - start.index),
+							utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_length),
+						}),
+					),
+					text_properties: Semantics.Range.from_start_and_length(0, 0),
+				})
+			}
+			kind => {
+				node_index = at.node + 1 + record.element
+				$content = list_set($content, position, ChildNode(Semantics.NodeId.from_index(node_index)))
+				node = make_node(node_index, ParentNode(Semantics.NodeId.from_index(owner_node)), inline_role(kind), Semantics.Range.from_start_and_length(base + record.spine, record.children), inline_language(kind))
+				match kind {
+					Expansion(expanded) => {
+						property = $properties.len()
+						$properties = $properties.append(ExpandedText(expanded))
+						$nodes = list_set($nodes, node_index, { ..node, text_properties: Semantics.Range.from_start_and_length(property, 1) })
+					}
+					_ => {
+						$nodes = list_set($nodes, node_index, node)
+					}
+				}
+			}
+		}
+		$index = $index + 1
+	}
+	Ok({ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties })
+}
+
+## The scalar offset at a UTF-8 byte offset, walking the dense per-scalar
+## boundary facts forward from `from`; leaves arrive in byte order, so one
+## paragraph costs O(scalars).
+scalar_at : List(KernelUnicode.LineBoundary), U64, U64 -> Try({ index : U64 }, KernelFacadeSemantics.Error)
+scalar_at = |boundaries, from, byte_offset| {
+	var $cursor = from
+	while $cursor < boundaries.len() and list_at(boundaries, $cursor).byte_offset < byte_offset {
+		$cursor = $cursor + 1
+	}
+	if $cursor >= boundaries.len() or list_at(boundaries, $cursor).byte_offset != byte_offset {
+		crash "rich paragraph leaf boundary escaped its source"
+	}
+	Ok({ index: $cursor })
+}
+
+leaf_language : List(Document.NormalizedInline), U64, Str -> Str
+leaf_language = |inlines, owner, document_language| if owner == 0 {
+	document_language
+} else {
+	match list_at(inlines, owner - 1).kind {
+		InLanguage(tag) => tag
+		_ => crash "normalized inline language owner escaped"
+	}
+}
+
+inline_role : Document.NormalizedInlineKind -> Str
+inline_role = |kind| match kind {
+	Code => "Code"
+	Emphasis => "Em"
+	Expansion(_) | InLanguage(_) => "Span"
+	InternalLink(_) | Link(_) => "Link"
+	Quote => "Quote"
+	Strong => "Strong"
+	Text(_) => "Span"
+}
+
+inline_language : Document.NormalizedInlineKind -> Semantics.Language
+inline_language = |kind| match kind {
+	InLanguage(tag) => Language(tag)
+	_ => Inherited
 }
 
 container_role : Document.ContainerKind -> Str
@@ -724,6 +1023,7 @@ test_limits : KernelFacadeSemantics.Limits
 test_limits = KernelFacadeSemantics.Limits.make({
 	max_artifacts: 2,
 	max_container_depth: 2,
+	max_inline_depth: 8,
 	max_content_spine: 32,
 	max_nodes: 16,
 	max_occurrences: 12,
@@ -754,10 +1054,12 @@ test_authoring = {
 	],
 	figures: [],
 	groups: [],
+	inlines: [],
 	language: "en-AU",
 	metadata_title: "Report",
 	outline: [],
 	page_labels: [],
+	rich_paragraphs: [],
 }
 
 ## Facade semantics are planned before layout, with a PDF 2.0 Title and a
@@ -849,6 +1151,7 @@ expect {
 		max_artifacts: 2,
 		max_container_depth: 4,
 		max_content_spine: 32,
+		max_inline_depth: 8,
 		max_nodes: 1,
 		max_occurrences: 12,
 		max_properties: 4,
@@ -932,4 +1235,74 @@ expect {
 		_ => False
 	}
 	depth_rejected and empty_rejected
+}
+
+rich_authoring : List(Document.Inline) -> Document.NormalizedAuthoring
+rich_authoring = |inlines| Document.normalize(Document.from_blocks({ contents: [Document.rich_paragraph(inlines)], language: "en-AU", title: "Rich" }))
+
+## A rich paragraph plans one `P`, one node per inline element in preorder,
+## and one occurrence per text leaf over an exact sub-range of its single
+## interned source; every node owns one contiguous spine span in authored
+## order, and an inline language becomes the leaf occurrence's language.
+expect {
+	authoring = rich_authoring([
+		Document.plain_text("Ab "),
+		Document.emphasis([Document.plain_text("cd "), Document.strong([Document.in_language("fr", [Document.plain_text("é")])])]),
+		Document.plain_text(" f"),
+	])
+	plan = KernelFacadeSemantics.Plan.build(authoring, test_limits)?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	spine = |index| {
+		node = list_at(store.nodes, index)
+		store.content_spine.sublist({ start: node.content.start(), len: node.content.length() }).map(
+			|item| match item {
+				ChildNode(child) => child.index() * 10
+				ContentOccurrence(occurrence) => occurrence.index() * 10 + 1
+				_ => 99
+			},
+		)
+	}
+	ranges = store.occurrences.map(
+		|occurrence| match occurrence.source {
+			Text(_, UnicodeRange(range)) => [range.scalars.start(), range.scalars.length(), range.utf8_bytes.start(), range.utf8_bytes.length()]
+			_ => []
+		},
+	)
+	french = match list_at(store.occurrences, 2).language {
+		Language(tag) => tag == "fr"
+		Inherited => False
+	}
+	work = KernelFacadeSemantics.Plan.work(plan)
+
+	store.nodes.map(|node| node.role.local_name) == ["Document", "P", "Em", "Strong", "Span"]
+		and spine(1) == [1, 20, 31]
+			and spine(2) == [11, 30]
+				and spine(3) == [40]
+					and spine(4) == [21]
+						and ranges == [[0, 3, 0, 3], [3, 3, 3, 3], [6, 1, 6, 2], [7, 2, 8, 2]]
+							and french
+								and list_at(store.nodes, 4).language == Language("fr")
+									and work.inline_elements == 3
+										and work.inline_leaves == 4
+											and (match KernelFacadeSemantics.Plan.block_ownership(plan) {
+												[RichTextBlock({ occurrences })] => occurrences.start() == 0 and occurrences.length() == 4
+												_ => False
+											})
+}
+
+## Inline rejections name the paragraph block and the inline's arena index.
+expect {
+	empty = KernelFacadeSemantics.Plan.build(rich_authoring([Document.plain_text("a"), Document.strong([])]), test_limits)
+	nested = KernelFacadeSemantics.Plan.build(rich_authoring([Document.inline_link([Document.inline_link([Document.plain_text("b")], "https://example.org")], "https://example.org")]), test_limits)
+	language = KernelFacadeSemantics.Plan.build(rich_authoring([Document.in_language("fr_CA", [Document.plain_text("b")])]), test_limits)
+	uri = KernelFacadeSemantics.Plan.build(rich_authoring([Document.inline_link([Document.plain_text("b")], "no scheme")]), test_limits)
+	blank = KernelFacadeSemantics.Plan.build(rich_authoring([]), test_limits)
+	deep = KernelFacadeSemantics.Plan.build(
+		rich_authoring([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.emphasis([Document.plain_text("x")])])])])])])])])])]),
+		test_limits,
+	)
+	match (empty, nested, language, uri, blank, deep) {
+		(Err(EmptyInline({ block: 0, inline: 1 })), Err(NestedLink({ block: 0, inline: 1 })), Err(InvalidInlineLanguage({ block: 0, inline: 0 })), Err(InvalidInlineUri({ block: 0, error: UriMissingScheme(_), inline: 0 })), Err(EmptyRichParagraph({ block: 0 })), Err(InlineDepthExceeded({ attempted: 9, block: 0, inline: 8, limit: 8 }))) => True
+		_ => False
+	}
 }

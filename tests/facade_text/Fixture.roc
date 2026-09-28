@@ -197,6 +197,7 @@ synthetic_input = |source_runs| {
 			fragment_count: $pages.len(),
 			label_rows: 0,
 			lines: $lines,
+			origins: WholeSources,
 			page_placements: $placements,
 			pages: $pages,
 			rows: $rows,

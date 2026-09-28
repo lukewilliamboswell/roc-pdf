@@ -111,6 +111,7 @@ semantic_limits : KernelFacadeSemantics.Limits
 semantic_limits = KernelFacadeSemantics.Limits.make({
 	max_artifacts: 0,
 	max_container_depth: 16,
+	max_inline_depth: 8,
 	max_content_spine: 8192,
 	max_nodes: 4096,
 	max_occurrences: 2048,

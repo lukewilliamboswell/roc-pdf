@@ -37,8 +37,8 @@ KernelFacadeLines :: [].{
 		build : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build = |shape, sources, page, theme, limits| build_plan(shape, sources, page, theme, limits)
 
-		## The ordered multi-face path: one line-layout request per logical
-		## occurrence run, measured across its adjacent physical face runs.
+		## The logical path: one line-layout request per logical run,
+		## measured across its adjacent physical face or occurrence runs.
 		build_ordered : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build_ordered = |shape, sources, page, theme, limits| build_ordered_plan(shape, sources, page, theme, limits)
 
@@ -56,6 +56,13 @@ KernelFacadeLines :: [].{
 build_plan : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_plan = |shape, sources, page, theme, limits| {
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
+
+	## A rich paragraph's logical run spans several physical runs; the
+	## logical batch measures such ranges. Documents whose runs are all
+	## single keep the exact one-run batch.
+	if has_multi_run(block_runs) {
+		return build_ordered_plan(shape, sources, page, theme, limits)
+	}
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
 	shape_batch = KernelFacadeShape.Plan.shape(shape)
 	run_count = shape_requests.len()
@@ -279,6 +286,20 @@ single_run_index = |logical, block| {
 	} else {
 		Ok(physical.start())
 	}
+}
+
+has_multi_run : List(KernelFacadeShape.BlockRuns) -> Bool
+has_multi_run = |block_runs| {
+	var $index = 0
+	var $found = False
+	while !$found and $index < block_runs.len() {
+		$found = match list_at(block_runs, $index) {
+			TextBlock({ body, label: _ }) => body.physical.length() != 1
+			ArtifactBlock(_) => False
+		}
+		$index = $index + 1
+	}
+	$found
 }
 
 calculate_content_width : Layout.Size, Theme.PageMargin -> Try(U64, KernelFacadeLines.Error)

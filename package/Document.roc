@@ -19,8 +19,24 @@ DocumentBlock :: [
 	Link({ text : Str, uri : Str }),
 	PageArtifact({ kind : PageArtifactKind, text : Str }),
 	Paragraph(Str),
+	RichParagraph(List(DocumentInline)),
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
+].{}
+
+## Authored inline content of a rich paragraph. Every alternative carries the
+## semantic role it becomes; presentation is Theme policy. Nesting is data,
+## normalized with an explicit frame stack rather than recursion.
+DocumentInline :: [
+	Code(Str),
+	Emphasis(List(DocumentInline)),
+	Expansion({ expanded : Str, text : Str }),
+	InLanguage({ contents : List(DocumentInline), tag : Str }),
+	InternalLink({ contents : List(DocumentInline), destination : Str }),
+	Link({ contents : List(DocumentInline), uri : Str }),
+	Quote(List(DocumentInline)),
+	Strong(List(DocumentInline)),
+	Text(Str),
 ].{}
 
 ## A figure may have visible caption text independently of required alternative text.
@@ -43,9 +59,7 @@ AuthoringFeature := [
 	Footnotes,
 	GeneratedReferences,
 	MultiColumnLayout,
-	NestedLanguage,
 	PageTemplates,
-	RichInline,
 	SemanticTextProperties,
 	SideContent,
 	SimpleTables,
@@ -97,8 +111,42 @@ NormalizedBlockKind := [
 	Link({ uri : Str }),
 	PageArtifact(PageArtifactKind),
 	Paragraph,
+	RichParagraph(U64),
 	Title,
 ]
+
+## A rich paragraph's span of the dense inline arena: `inlines..inlines +
+## length` in preorder, `children` direct children of the paragraph,
+## `elements` inline elements, and `leaves` text leaves. `position` is the
+## paragraph's index in its parent's authored contents, kept for diagnostics.
+## Records live in `NormalizedAuthoring.rich_paragraphs`; a block names its
+## record by index, so plain blocks keep their compact kind.
+NormalizedRich : { children : U64, elements : U64, inlines : U64, leaves : U64, length : U64, position : U64 }
+
+## The semantic role of one normalized inline. Text leaves hold their exact
+## authored string and its byte range in the paragraph's concatenated text.
+NormalizedInlineKind := [
+	Code,
+	Emphasis,
+	Expansion(Str),
+	InLanguage(Str),
+	InternalLink(Str),
+	Link(Str),
+	Quote,
+	Strong,
+	Text({ byte_length : U64, byte_start : U64, text : Str }),
+]
+
+## One inline in the dense preorder arena of `NormalizedAuthoring.inlines`.
+## `parent` is `0` for a direct child of the paragraph and `i + 1` for the
+## inline at arena index `i`; `position` is the index in the parent's
+## authored list and `depth` is one for a direct child. For an element,
+## `element` is its preorder ordinal among the paragraph's elements,
+## `children` its direct child count, `spine` the offset of its children in
+## the paragraph's content spine, and `first_leaf..leaf_end` the ordinals of
+## the text leaves below it. A leaf's `first_leaf` is its own ordinal.
+## `language` is `0` or `i + 1` for the nearest enclosing `InLanguage`.
+NormalizedInline : { children : U64, depth : U64, element : U64, first_leaf : U64, kind : NormalizedInlineKind, language : U64, leaf_end : U64, parent : U64, position : U64, spine : U64 }
 
 ## One normalized leaf block. `parent` is `0` for a child of the Document
 ## root and `g + 1` for a child of normalized group `g`.
@@ -120,10 +168,12 @@ NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
+	inlines : List(NormalizedInline),
 	language : Str,
 	metadata_title : Str,
 	outline : List(OutlineEntry),
 	page_labels : List(PageLabelRange),
+	rich_paragraphs : List(NormalizedRich),
 }
 
 ## One authored outline entry in dense preorder: the depth below the outline
@@ -364,11 +414,15 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	FixedPage : FixedPage
 	FixedPageBuilder : FixedPageBuilder
 	FixedPlacement : FixedPlacement
+	Inline : DocumentInline
 	NavigationError : NavigationError
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
 	NormalizedFigure : NormalizedFigure
 	NormalizedGroup : NormalizedGroup
+	NormalizedInline : NormalizedInline
+	NormalizedInlineKind : NormalizedInlineKind
+	NormalizedRich : NormalizedRich
 	NormalizedAuthoring : NormalizedAuthoring
 	OutlineEntry : OutlineEntry
 	PageArtifactKind : PageArtifactKind
@@ -561,6 +615,46 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	division : List(DocumentBlock) -> DocumentBlock
 	division = |contents| DocumentBlock.Container({ contents, kind: Division })
 
+	## A paragraph of inline content in authored order.
+	rich_paragraph : List(DocumentInline) -> DocumentBlock
+	rich_paragraph = |inlines| DocumentBlock.RichParagraph(inlines)
+
+	## Plain inline text.
+	plain_text : Str -> DocumentInline
+	plain_text = |value| DocumentInline.Text(value)
+
+	## Stressed emphasis (`Em`).
+	emphasis : List(DocumentInline) -> DocumentInline
+	emphasis = |contents| DocumentInline.Emphasis(contents)
+
+	## Strong importance (`Strong`).
+	strong : List(DocumentInline) -> DocumentInline
+	strong = |contents| DocumentInline.Strong(contents)
+
+	## A fragment of computer code (`Code`).
+	code : Str -> DocumentInline
+	code = |value| DocumentInline.Code(value)
+
+	## An inline quotation (`Quote`); quotation marks are authored text.
+	quote : List(DocumentInline) -> DocumentInline
+	quote = |contents| DocumentInline.Quote(contents)
+
+	## A URI link around inline content (`Link`).
+	inline_link : List(DocumentInline), Str -> DocumentInline
+	inline_link = |contents, uri| DocumentInline.Link({ contents, uri })
+
+	## An internal link around inline content to an authored destination name.
+	inline_internal_link : List(DocumentInline), Str -> DocumentInline
+	inline_internal_link = |contents, destination| DocumentInline.InternalLink({ contents, destination })
+
+	## Inline content in another natural language (`Span` with `/Lang`).
+	in_language : Str, List(DocumentInline) -> DocumentInline
+	in_language = |tag, contents| DocumentInline.InLanguage({ contents, tag })
+
+	## An abbreviation and its expansion (`Span` with `/E`).
+	expansion : Str, Str -> DocumentInline
+	expansion = |value, expanded| DocumentInline.Expansion({ expanded, text: value })
+
 	## Attach meaningful drawing content with required alternative text.
 	figure : Scene.Drawing, Str, Caption -> DocumentBlock
 	figure = |drawing_value, alternative, caption_value| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value })
@@ -645,7 +739,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 normalize_authoring : DocumentAuthoring -> NormalizedAuthoring
 normalize_authoring = |authoring| match authoring {
 	Compact(compact) => normalize_compact(compact)
-	Fixed(fixed) => { blocks: [], figures: [], groups: [], language: fixed.language, metadata_title: fixed.metadata_title, outline: [], page_labels: [] }
+	Fixed(fixed) => { blocks: [], figures: [], groups: [], inlines: [], language: fixed.language, metadata_title: fixed.metadata_title, outline: [], page_labels: [], rich_paragraphs: [] }
 	Simple(simple) => normalize_simple(simple)
 }
 
@@ -757,23 +851,25 @@ normalize_compact = |compact| {
 		blocks: $blocks,
 		figures: [],
 		groups: [],
+		inlines: [],
 		language: compact.language,
 		metadata_title: compact.metadata_title,
 		outline: [],
 		page_labels: [],
+		rich_paragraphs: [],
 	}
 }
 
-SimpleState : { blocks : List(NormalizedBlock), figures : List(NormalizedFigure), groups : List(NormalizedGroup), list_index : U64 }
+SimpleState : { blocks : List(NormalizedBlock), figures : List(NormalizedFigure), groups : List(NormalizedGroup), inlines : List(NormalizedInline), list_index : U64, rich_paragraphs : List(NormalizedRich) }
 
 normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str } -> NormalizedAuthoring
 normalize_simple = |simple| {
-	var $state = { blocks: [], figures: [], groups: [], list_index: 0 }
+	var $state = { blocks: [], figures: [], groups: [], inlines: [], list_index: 0, rich_paragraphs: [] }
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
 		$state = match list_at(simple.contents, $block_index) {
 			Container({ contents, kind }) => append_container($state, contents, kind, $block_index)
-			block => append_leaf($state, block, 0)
+			block => append_leaf($state, block, 0, $block_index)
 		}
 		$block_index = $block_index + 1
 	}
@@ -781,10 +877,12 @@ normalize_simple = |simple| {
 		blocks: $state.blocks,
 		figures: $state.figures,
 		groups: $state.groups,
+		inlines: $state.inlines,
 		language: simple.language,
 		metadata_title: simple.metadata_title,
 		outline: [],
 		page_labels: [],
+		rich_paragraphs: $state.rich_paragraphs,
 	}
 }
 
@@ -808,7 +906,7 @@ append_container = |state, contents, kind, position| {
 					$frames = $frames.append({ blocks: nested, depth: top.depth + 1, group: $state.groups.len(), next: 0 })
 				}
 				block => {
-					$state = append_leaf($state, block, top.group)
+					$state = append_leaf($state, block, top.group, top.next)
 				}
 			}
 		}
@@ -828,8 +926,8 @@ close_group = |state, group| {
 	{ ..state, groups: list_set(state.groups, group, { ..record, block_end: state.blocks.len(), group_end: state.groups.len() }) }
 }
 
-append_leaf : SimpleState, DocumentBlock, U64 -> SimpleState
-append_leaf = |state, block, parent| match block {
+append_leaf : SimpleState, DocumentBlock, U64, U64 -> SimpleState
+append_leaf = |state, block, parent, position| match block {
 	Bullets(items) => {
 		var $blocks = state.blocks
 		var $item = 0
@@ -860,10 +958,152 @@ append_leaf = |state, block, parent| match block {
 	Link({ text, uri }) => { ..state, blocks: state.blocks.append({ kind: Link({ uri: uri }), parent, text }) }
 	PageArtifact({ kind, text }) => { ..state, blocks: state.blocks.append({ kind: PageArtifact(kind), parent, text }) }
 	Paragraph(text) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text }) }
+	RichParagraph(contents) => append_rich(state, contents, parent, position)
 	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
 
 	## Preparation rejects this branch before normalization.
 	Unavailable({ feature: _, summary: _ }) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
+}
+
+InlineFrame : { depth : U64, items : List(DocumentInline), language : U64, next : U64, owner : U64 }
+
+## Lower one rich paragraph into the dense preorder inline arena with an
+## explicit frame stack, so authored nesting never becomes Roc call depth.
+## The paragraph's text is the concatenation of its leaves in logical order:
+## one interned source, so line breaking sees the whole paragraph and every
+## leaf owns an exact byte range of it. Validation (emptiness, depth, links,
+## languages) is a semantic-planning concern with stable diagnostics.
+append_rich : SimpleState, List(DocumentInline), U64, U64 -> SimpleState
+append_rich = |state, contents, parent, position| {
+	base = state.inlines.len()
+	var $inlines = state.inlines
+	var $elements = 0
+	var $leaves = 0
+	var $bytes = 0
+	var $frames = [{ depth: 1, items: contents, language: 0, next: 0, owner: 0 }]
+	while !$frames.is_empty() {
+		top = list_at($frames, $frames.len() - 1)
+		if top.next >= top.items.len() {
+			$frames = $frames.drop_last(1)
+			if top.owner != 0 {
+				record = list_at($inlines, top.owner - 1)
+				$inlines = list_set($inlines, top.owner - 1, { ..record, leaf_end: $leaves })
+			}
+		} else {
+			$frames = list_set($frames, $frames.len() - 1, { ..top, next: top.next + 1 })
+			index = $inlines.len()
+			match list_at(top.items, top.next) {
+				Text(value) => {
+					length = value.count_utf8_bytes()
+					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: top.next, spine: 0 })
+					$leaves = $leaves + 1
+					$bytes = $bytes + length
+				}
+				Code(value) => {
+					length = value.count_utf8_bytes()
+					$inlines = $inlines.append({ ..inline_element(top, Code, 1, $elements, $leaves), leaf_end: $leaves + 1 })
+					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
+					$elements = $elements + 1
+					$leaves = $leaves + 1
+					$bytes = $bytes + length
+				}
+				Expansion({ expanded, text: value }) => {
+					length = value.count_utf8_bytes()
+					$inlines = $inlines.append({ ..inline_element(top, Expansion(expanded), 1, $elements, $leaves), leaf_end: $leaves + 1 })
+					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
+					$elements = $elements + 1
+					$leaves = $leaves + 1
+					$bytes = $bytes + length
+				}
+				Emphasis(nested) => {
+					$inlines = $inlines.append(inline_element(top, Emphasis, nested.len(), $elements, $leaves))
+					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$elements = $elements + 1
+				}
+				Strong(nested) => {
+					$inlines = $inlines.append(inline_element(top, Strong, nested.len(), $elements, $leaves))
+					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$elements = $elements + 1
+				}
+				Quote(nested) => {
+					$inlines = $inlines.append(inline_element(top, Quote, nested.len(), $elements, $leaves))
+					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$elements = $elements + 1
+				}
+				Link({ contents: nested, uri }) => {
+					$inlines = $inlines.append(inline_element(top, Link(uri), nested.len(), $elements, $leaves))
+					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$elements = $elements + 1
+				}
+				InternalLink({ contents: nested, destination }) => {
+					$inlines = $inlines.append(inline_element(top, InternalLink(destination), nested.len(), $elements, $leaves))
+					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: top.language, next: 0, owner: index + 1 })
+					$elements = $elements + 1
+				}
+				InLanguage({ contents: nested, tag }) => {
+					$inlines = $inlines.append(inline_element(top, InLanguage(tag), nested.len(), $elements, $leaves))
+					$frames = $frames.append({ depth: top.depth + 1, items: nested, language: index + 1, next: 0, owner: index + 1 })
+					$elements = $elements + 1
+				}
+			}
+		}
+	}
+
+	## Each element's children occupy one contiguous span of the content
+	## spine after the paragraph's own children, in element preorder.
+	var $spine = contents.len()
+	var $index = base
+	while $index < $inlines.len() {
+		record = list_at($inlines, $index)
+		match record.kind {
+			Text(_) => {}
+			_ => {
+				$inlines = list_set($inlines, $index, { ..record, spine: $spine })
+				$spine = $spine + record.children
+			}
+		}
+		$index = $index + 1
+	}
+	text = if $leaves == 1 single_leaf_text($inlines, base) else concatenated_text($inlines, base, $bytes)
+	rich = { children: contents.len(), elements: $elements, inlines: base, leaves: $leaves, length: $inlines.len() - base, position }
+	{ ..state, blocks: state.blocks.append({ kind: RichParagraph(state.rich_paragraphs.len()), parent, text }), inlines: $inlines, rich_paragraphs: state.rich_paragraphs.append(rich) }
+}
+
+inline_element : InlineFrame, NormalizedInlineKind, U64, U64, U64 -> NormalizedInline
+inline_element = |frame, kind, children, element, leaves| { children, depth: frame.depth, element, first_leaf: leaves, kind, language: frame.language, leaf_end: leaves, parent: frame.owner, position: frame.next, spine: 0 }
+
+single_leaf_text : List(NormalizedInline), U64 -> Str
+single_leaf_text = |inlines, base| {
+	var $index = base
+	var $found = ""
+	while $index < inlines.len() {
+		match list_at(inlines, $index).kind {
+			Text({ byte_length: _, byte_start: _, text }) => {
+				$found = text
+				$index = inlines.len()
+			}
+			_ => {
+				$index = $index + 1
+			}
+		}
+	}
+	$found
+}
+
+concatenated_text : List(NormalizedInline), U64, U64 -> Str
+concatenated_text = |inlines, base, bytes| {
+	var $text = Str.with_capacity(bytes)
+	var $index = base
+	while $index < inlines.len() {
+		match list_at(inlines, $index).kind {
+			Text({ byte_length: _, byte_start: _, text }) => {
+				$text = $text.concat(text)
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	$text
 }
 
 ## Blocks with a secondary string (a URI or a destination name) intern it as
