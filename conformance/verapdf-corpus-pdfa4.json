@@ -1,0 +1,1971 @@
+{
+  "files": [
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.11 Permissions/veraPDF test suite 6-1-11-t01-fail-a.pdf",
+      "sha256": "4afc5b284726b15ab7a203f7edff142cb8f4151dcd3b7ff93ee0a260d6caf54f"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.11 Permissions/veraPDF test suite 6-1-11-t01-pass-a.pdf",
+      "sha256": "0f9d20855519c455802a8d85e6b5afac9ec65719421a02973977e3447cba3419"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.12 Document catalog dictionary/veraPDF test suite 6-1-12-t01-fail-a.pdf",
+      "sha256": "29937e700e869402a10f01bb8c14f14c6a19bd029a088808c44cd8a736c1dec9"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.12 Document catalog dictionary/veraPDF test suite 6-1-12-t01-fail-b.pdf",
+      "sha256": "eab1a91fd290b9827e6007a2f0f6ea9d8a97fc7d183e05e21d0b4fe73b390afa"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.12 Document catalog dictionary/veraPDF test suite 6-1-12-t01-fail-c.pdf",
+      "sha256": "0d20ea595813752d7a21ca355cb578b628abf1c379ec7e41eb9454039495279e"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.12 Document catalog dictionary/veraPDF test suite 6-1-12-t01-fail-d.pdf",
+      "sha256": "96d54f365d70c6386a59462f58fa18078e4fb695beb673966ee738eccd768b49"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.12 Document catalog dictionary/veraPDF test suite 6-1-12-t01-pass-a.pdf",
+      "sha256": "781ac228f26df7e2a29e010b9cc3103898acab60638f15f2034ac2100e389646"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.12 Document catalog dictionary/veraPDF test suite 6-1-12-t01-pass-b.pdf",
+      "sha256": "02a659c6e02ed1ee8fd089f10b9af67db9b6e5d76034cb17ae63891f2a4952f3"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t01-fail-a.pdf",
+      "sha256": "208b667690ea033cc62b4daa424482b2c74daefa4e912e0b4c631142e3e43be5"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t01-fail-b.pdf",
+      "sha256": "37bb3b891382e6243c74009605c54d4e5e0b16495b93963a3f2c80842c214a8a"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t01-fail-c.pdf",
+      "sha256": "7af3e508c2168c788cbe17dbc3da227bc1b6b511ff9a096dc78fd41f5c30b4fa"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t01-fail-d.pdf",
+      "sha256": "c2db2bf325d34da145ff6046e00dcf77a18fdfec2cb56d8fe84100000c69899f"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t01-pass-a.pdf",
+      "sha256": "97814be08003c207e1bed44fc49df78afa460660e82708bd17ca26b626a6e4ec"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t02-fail-a.pdf",
+      "sha256": "5135941b9d8f6bc419e95629e84fee94950a2100c9d4793738ed8141db808553"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t02-fail-b.pdf",
+      "sha256": "130fe48df7c162ad3fa5ab43e75994ac54dfe13a9cdba178f86947494390ee2a"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t02-fail-c.pdf",
+      "sha256": "e275afaccc95f7971493673db347dc342723e855e87806a6731f0a62052d2d9f"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t02-fail-d.pdf",
+      "sha256": "8eebf1db99b08156fcd61b03c003439ca0b8f0cc52b3d1c7998b2f9f2c02eb46"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.2 File header/veraPDF test suite 6-1-2-t02-pass-a.pdf",
+      "sha256": "c9dccd24d0781af0d04b67d2c55db3e70c810b236367dae672db85eb8b4c62e8"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t01-fail-a.pdf",
+      "sha256": "67756c61627d80d86dff240218de175330ebca7ff0a5ed158df6cad7abab2ac7"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t01-fail-b.pdf",
+      "sha256": "3a05ed120e644042b2ed6025510fc2f9120fa4479edfa1315349b89f5e452e86"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t02-fail-a.pdf",
+      "sha256": "b190b24a72a9650e256118b1db2d937dbd81b30769935bc3c9293b12577d5ad4"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t03-fail-a.pdf",
+      "sha256": "79133fe1a372218a98f790c116f9ed4e30a81e14427de005ec7080183b2babaa"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t03-pass-a.pdf",
+      "sha256": "70487db85b5504ce5700c1a39a3cba30f4ca3adff48bce1c5386529d2bee111d"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t04-fail-a.pdf",
+      "sha256": "286a988bc7ba373456642f85150e6afd83aa49dda29dedcb85089d7419a92232"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t04-pass-a.pdf",
+      "sha256": "2e029d374bc1f87b115926f095c1359b9c230423606a172dd97a249201f7834d"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t04-pass-b.pdf",
+      "sha256": "8277b09e3ac1f0243a8e8f5549fca32fefda17732446dfaefbbf887537774149"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.3 File trailer/veraPDF test suite 6-1-3-t05-fail-a.pdf",
+      "sha256": "b3d43fccf2460e12fa6076910e0a349a1ac489c3b4dc16ec60836d8ee4d67ca1"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.4 Cross reference table/veraPDF test suite 6-1-4-t01-fail-a.pdf",
+      "sha256": "7592c485c63c5f3581cd9666a3ff08f90bd1753cd082f01fac98bd6adc0de32e"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.4 Cross reference table/veraPDF test suite 6-1-4-t01-fail-b.pdf",
+      "sha256": "95907c4a287eafdba0f60b719a34f7ab6b218520320a5fdb3f048c0b3c47f075"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.4 Cross reference table/veraPDF test suite 6-1-4-t02-pass-a.pdf",
+      "sha256": "b613e6613772ae0b4c8cdf643f9866f892dcc5b6510ca25203c4d91bd75366bc"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.4 Cross reference table/veraPDF test suite 6-1-4-t02-pass-b.pdf",
+      "sha256": "19fdc95d009270d9e90964b7d11ef8e3e54080a991f53c9b7d5f789db054fd5b"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.5 String objects/veraPDF test suite 6-1-5-t01-fail-a.pdf",
+      "sha256": "9887c9dae0be4b0d65e226e6bcba830f860316963c0b9ae29b79d4889b09819f"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.5 String objects/veraPDF test suite 6-1-5-t02-fail-a.pdf",
+      "sha256": "5c7a4faba479c9e40ef83e51343d6bf5f6f6113b1ab14b9d9683de4ff61a1b1b"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.5 String objects/veraPDF test suite 6-1-5-t02-pass-a.pdf",
+      "sha256": "b00a533c0eca2278020efe84f01bcf0db90692ff53174f761aeddd92aad15e68"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.6 Stream objects/6.1.6.1 General/veraPDF test suite 6-1-6-1-t01-fail-a.pdf",
+      "sha256": "3d9d6ef73f73ff092a798ae33822b22370fe568a1010de89a4ec6206ea6802c3"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.6 Stream objects/6.1.6.1 General/veraPDF test suite 6-1-6-1-t02-fail-a.pdf",
+      "sha256": "09c178fddda71e212896137546419b7e824fb1ea8c6b1d3d921e5d06018f46a0"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.6 Stream objects/6.1.6.1 General/veraPDF test suite 6-1-6-1-t02-fail-b.pdf",
+      "sha256": "4aad6de4de721bc5bceab5b84b0f1cd8a984ec9b53970971379e533f0a83becf"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.6 Stream objects/6.1.6.1 General/veraPDF test suite 6-1-6-1-t02-fail-c.pdf",
+      "sha256": "a258df03e7213e4b4401cdb1d765768e4cfc6c952f7d7aa3d95b4e06787fb6c5"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.6 Stream objects/6.1.6.2 Filters/veraPDF test suite 6-1-6-2-t01-fail-a.pdf",
+      "sha256": "6125665ed43b9ee090403f74ef5a37c72ce6a8d72f7dfea3547db9d0d36e7127"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.6 Stream objects/6.1.6.2 Filters/veraPDF test suite 6-1-6-2-t01-fail-b.pdf",
+      "sha256": "4455aceed6d8b4c8b23b5240bf1139477465ed5365abcdb34c2f73743384e905"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.7 Name objects/veraPDF test suite 6-1-7-t01-fail-a.pdf",
+      "sha256": "4d0cbc98df69f4f39a026b5fd6225399e4af19cc97710a9f62afc3482ddb0b3c"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.7 Name objects/veraPDF test suite 6-1-7-t01-fail-b.pdf",
+      "sha256": "a8b5f22d285572bc1f39399587b6b51026f30219b15702065e25e8f321d4632a"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.7 Name objects/veraPDF test suite 6-1-7-t01-fail-c.pdf",
+      "sha256": "e69730958951944b91d9d28ed414910b56d5e2ec141383564f7e3251f3cb0025"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.7 Name objects/veraPDF test suite 6-1-7-t01-fail-d.pdf",
+      "sha256": "da220208413fc96f7fa0098bb2706d81ba90143193a1226e990b0593e65e3133"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.7 Name objects/veraPDF test suite 6-1-7-t01-fail-e.pdf",
+      "sha256": "5b759d3e0a0ed5f860f3777907b2f6e758349899548f74ea5c68ccd426c44e2b"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.8 Indirect objects/veraPDF test suite 6-1-8-t01-fail-a.pdf",
+      "sha256": "950c46606fa7532198ca5f208936da17f54a4c680ef11edc8152089484baa084"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.8 Indirect objects/veraPDF test suite 6-1-8-t01-fail-b.pdf",
+      "sha256": "5485315331a04633bb2fc0a3297610ddfb197bf2b8811507222e3d9a73f1a8f4"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.8 Indirect objects/veraPDF test suite 6-1-8-t01-fail-c.pdf",
+      "sha256": "bacdc55bf407fcb844652a046a55639fdd50aca01b63fefff768b3a2d71753b7"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.8 Indirect objects/veraPDF test suite 6-1-8-t01-fail-d.pdf",
+      "sha256": "5b434c1b6629fcbf33c9a6c454d59fc50c082db13e0460e20abeacd941af92e3"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.8 Indirect objects/veraPDF test suite 6-1-8-t01-fail-e.pdf",
+      "sha256": "1051d079f1ee5e433db269642be53936d10fd4a239c60f8792bcd16205d5b5c2"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.8 Indirect objects/veraPDF test suite 6-1-8-t01-fail-f.pdf",
+      "sha256": "2ad8206a1c6d66987f27ccb1558d825d1944b20346f7f9df4d6d433033badf32"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.8 Indirect objects/veraPDF test suite 6-1-8-t01-fail-g.pdf",
+      "sha256": "3c7d758891a5d6c1b1a91f8cfe9db3e8debf84519299837ace6ebafc943e2c9b"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.9 Inline image dictionaries/veraPDF test suite 6-1-9-t01-fail-a.pdf",
+      "sha256": "c18809150462b06ab4d2da208e2a34501cfd9e42ba89b44aeed0c8dacee017d5"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.9 Inline image dictionaries/veraPDF test suite 6-1-9-t01-fail-b.pdf",
+      "sha256": "cefcc99880266bf5367b7423d6d86ee858d2e666227713b1a34cb332d0698b7e"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.9 Inline image dictionaries/veraPDF test suite 6-1-9-t01-fail-c.pdf",
+      "sha256": "4ae93fdeafff85261e7fc390cdb71b52b78b83278aaefa9a60ee73f84424f3a3"
+    },
+    {
+      "path": "PDF_A-4/6.1 File structure/6.1.9 Inline image dictionaries/veraPDF test suite 6-1-9-t01-fail-d.pdf",
+      "sha256": "ced9889341f01f8b3e14bc186eafee35a879e273f3984e6dec429c7b71ec6e57"
+    },
+    {
+      "path": "PDF_A-4/6.10 Optional content/veraPDF test suite 6-10-t01-fail-b.pdf",
+      "sha256": "24a2ffeadbcddcd40983ffb429a636de70146c53582cad3b43ea9c4d6063388a"
+    },
+    {
+      "path": "PDF_A-4/6.10 Optional content/veraPDF test suite 6-10-t01-fail-c.pdf",
+      "sha256": "6b86688df4d767272dea31d2857596286529adc8bf6b91318ae6ea97a5c7cfbb"
+    },
+    {
+      "path": "PDF_A-4/6.10 Optional content/veraPDF test suite 6-10-t01-fail-d.pdf",
+      "sha256": "30c527d35a4f53bb2613a8eb2a6fc0331a88a1a34b65db038382edb866e9a39f"
+    },
+    {
+      "path": "PDF_A-4/6.10 Optional content/veraPDF test suite 6-10-t01-pass-a.pdf",
+      "sha256": "4167d8dde59a858ff0521d83f7bc69c4017033952a1ac236ff00586bc36d6084"
+    },
+    {
+      "path": "PDF_A-4/6.10 Optional content/veraPDF test suite 6-10-t01-pass-b.pdf",
+      "sha256": "49df5f31ea1e2f31c447ce5d97611bb5e26af5da9d0d31945e04f332d08b7667"
+    },
+    {
+      "path": "PDF_A-4/6.10 Optional content/veraPDF test suite 6-10-t02-fail-a.pdf",
+      "sha256": "43e9fff3f7c43f06ca5558a7567ee1f774e358145d4ee7e1e016806ffbd1c33c"
+    },
+    {
+      "path": "PDF_A-4/6.10 Optional content/veraPDF test suite 6-10-t02-pass-a.pdf",
+      "sha256": "047b3c080c2822a4951b8792bb6240a536627906ff8a818bde5f3c0539eca4e6"
+    },
+    {
+      "path": "PDF_A-4/6.11 Use of alternate presentations and transitions/veraPDF test suite 6-11-t01-fail-a.pdf",
+      "sha256": "4c22bd224eea8a83e59c652c05c5086f713af35afa92d0d48e673f7289a36a17"
+    },
+    {
+      "path": "PDF_A-4/6.11 Use of alternate presentations and transitions/veraPDF test suite 6-11-t02-fail-a.pdf",
+      "sha256": "489ac925e49a4d436d70efdec34c811c293aef36c1c36b0a5ba716f4124ca196"
+    },
+    {
+      "path": "PDF_A-4/6.12 Document requirements/veraPDF test suite 6-12-t01-fail-a.pdf",
+      "sha256": "2cd05c43335c074815e7997cb46e257ffd33bd9495e2813f9196ca3d7403ed70"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.1 General/veraPDF test suite 6-2-10-3-1-t01-fail-a.pdf",
+      "sha256": "18461523edf629e4eb9529028aa8a4d696c47e92f3dd86d62055832d72a24695"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.1 General/veraPDF test suite 6-2-10-3-1-t01-fail-b.pdf",
+      "sha256": "84dd7b36d55a88bae092857ff7b3194d04f448ddc410db7de0f9a1e4e4725eeb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.1 General/veraPDF test suite 6-2-10-3-1-t01-fail-c.pdf",
+      "sha256": "89521d32bbea07423594b361420957d55e96c3750d93ffb1c000d56b6e118748"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.1 General/veraPDF test suite 6-2-10-3-1-t01-pass-a.pdf",
+      "sha256": "7ae0a8ef655aa4717425ab88a89162a8f2f07ca76e482a6954d3a6f8f1c4f5f6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.1 General/veraPDF test suite 6-2-10-3-1-t01-pass-b.pdf",
+      "sha256": "18474c52dbd79383f676c71c4f36aa4d111d3541483cd4275424a74cdd08ddde"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.1 General/veraPDF test suite 6-2-10-3-1-t01-pass-c.pdf",
+      "sha256": "2f901ebbe049fe378d8456cc6d15ceaf7d3a6a0556d9b901d27e61c842ed62fb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.2 CIDFonts/veraPDF test suite 6-2-10-3-2-t01-fail-a.pdf",
+      "sha256": "57d0189a42cc097b0c5bedee6c7541aca242ec9f405b1273cf851ca1f1b9c509"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.2 CIDFonts/veraPDF test suite 6-2-10-3-2-t01-fail-b.pdf",
+      "sha256": "1ac25d08023e68b21865f05f18eb0ead21042a81413731cf26a837e1110c3ef7"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.2 CIDFonts/veraPDF test suite 6-2-10-3-2-t01-fail-c.pdf",
+      "sha256": "8e2ce2d92bed172a23cb9a034331fcb8d33b9acc0ffc271de8417c1d126ccf61"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.2 CIDFonts/veraPDF test suite 6-2-10-3-2-t01-pass-a.pdf",
+      "sha256": "6f2cb3759fd38b0d9b969c1d65ef29ef6303b6fc67ca72d57fb43616896e50d4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.2 CIDFonts/veraPDF test suite 6-2-10-3-2-t01-pass-b.pdf",
+      "sha256": "72437019bdb177fa742ffa02bdb379c88f3208020e69fe238e312d87368bd343"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.3 CMaps/veraPDF test suite 6-2-10-3-3-t01-fail-a.pdf",
+      "sha256": "93d3fefa166d8bf47ea6360fb4b7d511dfe709628d2aec4091466ec4d7e0b1b8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.3 CMaps/veraPDF test suite 6-2-10-3-3-t02-fail-a.pdf",
+      "sha256": "23f5949dfbc0dabdb4c2b3c9628efa5419f0ed267dac180cef17e10975bce968"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.3 CMaps/veraPDF test suite 6-2-10-3-3-t02-fail-b.pdf",
+      "sha256": "b162f4c8a1c97b602207e259d2913ad6c066df95498d113894692034cf86f913"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.3 CMaps/veraPDF test suite 6-2-10-3-3-t03-fail-a.pdf",
+      "sha256": "2458715ebf1c356f88829564a64d4f935e78feee558f2e5dd8be8704016f5c6b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.3 Composite fonts/6.2.10.3.3 CMaps/veraPDF test suite 6-2-10-3-3-t03-pass-a.pdf",
+      "sha256": "6cf0b48a1c6ba7b06b7f2bae835e15572da56e4f9d8d2422ffe3b38c51ce07cb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t01-fail-a.pdf",
+      "sha256": "d54a0b05dbe3bb7295e6fb17ffa60259809a6d49f2751f7f5ffeb36cf9f8a5fe"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t01-fail-b.pdf",
+      "sha256": "bd6c82e8766607bf1bfb58a512691a968c41e0c0f523f8f18fe74bc1d35063e4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t01-fail-c.pdf",
+      "sha256": "017372a3f632ddc95efa445f152bef6f725219876e99b6ee3f0e9c5279b928a3"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t01-fail-d.pdf",
+      "sha256": "726f5b81ab78bcd059a65e50876b946cdef8624a29861e7e387b9abbd31209c6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t01-fail-e.pdf",
+      "sha256": "df557a56f9e29a56d9481014e1d2e4ac6cff4de100a18c2d36801ec146bb4fd9"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t01-pass-a.pdf",
+      "sha256": "c40666123baf8020d0c40de6988565ff2c266e650719c2f5c2ce382d840c60d8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t02-fail-a.pdf",
+      "sha256": "6652536baebb4d245b1721674005715c9cf694e09b93ec985437cd4def6efe94"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t02-fail-b.pdf",
+      "sha256": "47200dda7f36a4694de3d521931a55d3f2b80da59d71e58e17712a96dad5386f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t02-fail-c.pdf",
+      "sha256": "9ff75ac1202e188af167779225b4f95664c92c26187cc27b5c9daa65aaf0b15b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t02-fail-d.pdf",
+      "sha256": "8b08aec7d798ff93277020180e085e6cd303251d26fe4f1d1ac93b8d532dfbb7"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.4 Embedding/6.2.10.4.1 General/veraPDF test suite 6-2-10-4-1-t02-fail-e.pdf",
+      "sha256": "0dc925fe3fda0b41701f0106d81e662e86fc5717d5b2c953deb49458dbe691e1"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-fail-a.pdf",
+      "sha256": "82dd1196f61c31d1304aa91e036ab89428ed73c2b1eeb8175060f5f959e6786c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-fail-b.pdf",
+      "sha256": "fed479b46d3e1adfbfe1fca3daf29ae1886e56fcccd44ac44bb97c37fe680f7c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-fail-c.pdf",
+      "sha256": "390fc138a775a758dd2841cf3aaf8ca14731820bc0d42ced5c432dbb7aef048c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-fail-d.pdf",
+      "sha256": "eb3913339c214ee7cab3edd947920928bf560b09714efa7a0fd91b387e4869cb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-fail-e.pdf",
+      "sha256": "557d150c1e73e0755a0ed55b83e9f3a9e65ef5ba760a49a177bd12cd4cf51fd8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-fail-f.pdf",
+      "sha256": "4eaa7eedd36d999d0e04c9b82644bbecdf83d9b139f78d2869a0373b303af7f5"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-fail-g.pdf",
+      "sha256": "1be53a4187c1b9ead43e334d5b314345c0313e43b76f23a8279ed1b06b699e5b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-fail-h.pdf",
+      "sha256": "393cd5c3598b3faf2dac8d456513d0e25e8730623c9036198e87b77988be14c3"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-pass-a.pdf",
+      "sha256": "b99d7d3c967387e2243f97c4663ddb443c56a1c4326aeacfd72786eb2de2b7a1"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.5 Font metrics/veraPDF test suite 6-2-10-5-t01-pass-b.pdf",
+      "sha256": "e54196a438f25f1e1f98878c2ca3ecef748f66225cbf702c7f7ee346fb457a61"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t02-fail-a.pdf",
+      "sha256": "00000b46a527a4a4d233ebfe4cb4be95359dc82e5e5db8849608c4097dfeb4f7"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t02-fail-b.pdf",
+      "sha256": "dea7aeb2fa13542436bf9314c5eb9a776bafd15cfb742bfc180a9e7b0c0c2444"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t02-fail-c.pdf",
+      "sha256": "0d34c65c7b0d25b908389e93489022704e72583c5d3ae6a6556c52e272051960"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t02-fail-d.pdf",
+      "sha256": "56257d50ba9cea8be36cff065ff5740d6deb10e7cca4edf712a639ecfeb294a2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t02-pass-a.pdf",
+      "sha256": "df3abfa14a12a271ef3d8ccca755bed2efb3b43d89522f75915bc95b1494169e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t02-pass-b.pdf",
+      "sha256": "5feb44702ef9fa3adb7df5dc4290f3e20c2256f0fe58e9f225159041a57f2746"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t02-pass-c.pdf",
+      "sha256": "8b0b6003736dea360a0818fbed3f55cd2d6a08985472abb1742efa951d7ded9b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t03-fail-a.pdf",
+      "sha256": "5e61118974c1de052c1c4e42e52ce0ecef1b077baba1d9d1dea3e1c589d91754"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.6 Character encodings/veraPDF test suite 6-2-10-6-t03-pass-a.pdf",
+      "sha256": "82e2b2908e9106956b50f6e9b52fb8b30f96b04e01a2b03612425e44cfe00ba6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.7 Unicode character maps/veraPDF test suite 6-2-10-7-t01-fail-a.pdf",
+      "sha256": "f275d7586ee02d151abd15668a87b02a3e2f14ebe220b090ae1a8a04a51c061f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.7 Unicode character maps/veraPDF test suite 6-2-10-7-t01-fail-b.pdf",
+      "sha256": "47777153f3a22f7ccff4ae5f861d51dc9465edd3ed422042ca0bb139f781df30"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.7 Unicode character maps/veraPDF test suite 6-2-10-7-t01-fail-c.pdf",
+      "sha256": "adbfda6eb67ef32e2e5e794339c4c0472149b908a2ebc33fb04f5196608ea8d4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.7 Unicode character maps/veraPDF test suite 6-2-10-7-t01-pass-a.pdf",
+      "sha256": "92d36478d8e44d61da922f9bf6001a1662f7c9340a69ce7f1f8dd58fbb920757"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.8 Use of ActualText/veraPDF test suite 6-2-10-8-t01-fail-a.pdf",
+      "sha256": "ee5aa1acae6ddaf900e2163ec5a747f144055c70e02cde44e6f676350e160535"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.8 Use of ActualText/veraPDF test suite 6-2-10-8-t01-fail-b.pdf",
+      "sha256": "f434e106a13ee9d0cb3fbd0d989cfcd0912e94b9c58addb824350acd0aa3b0d3"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.8 Use of ActualText/veraPDF test suite 6-2-10-8-t01-pass-a.pdf",
+      "sha256": "f723457f62f1d08d91fd9ab941e88e99834193837a3ec44e32e91846c7ef8acb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.8 Use of ActualText/veraPDF test suite 6-2-10-8-t01-pass-b.pdf",
+      "sha256": "9b700f14f32b3c115a5b9da4c60c80406f06cbf23458fafc59bff490d9ec657a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.9 Use of .notdef glyph/veraPDF test suite 6-2-10-9-t01-fail-a.pdf",
+      "sha256": "9e26babc50b53de5b273c0ee3ee1af09152aa02c0ca4c8a7314f4ac05d361b4f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.9 Use of .notdef glyph/veraPDF test suite 6-2-10-9-t01-fail-b.pdf",
+      "sha256": "a4cfde4b1d2f400ebcfb9b6d98de9c8ac5aed70139c16f44341ed84ce08ffc21"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.9 Use of .notdef glyph/veraPDF test suite 6-2-10-9-t01-fail-c.pdf",
+      "sha256": "83e018a8edc1529c51785a65f0450b4eb27033cadd9d87f1342233aff8d6884c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.9 Use of .notdef glyph/veraPDF test suite 6-2-10-9-t01-fail-d.pdf",
+      "sha256": "e024302f925cfcdb228c6d8b8ef5d853f55a903660f29f963851fe8359366aa8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.10 Fonts/6.2.10.9 Use of .notdef glyph/veraPDF test suite 6-2-10-9-t01-fail-e.pdf",
+      "sha256": "fd30ebc6c0f86ff1dd1b8f58b6106372a1cf63b5c254e69d5dcb21cef3ac82b9"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t01-fail-a.pdf",
+      "sha256": "e5e8d6978cb112a48a6ec2afff35a845d401efdec9f4f6d8fe0e42215cbb6480"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t01-fail-b.pdf",
+      "sha256": "4facdf298486b274378e0c3fe198b4040a2c45d6ea1f76a978fa5421fd976c86"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t01-fail-c.pdf",
+      "sha256": "8e5af0bf1ba3bfd8d12b924150d7586b12010f1fc5181ad312cab87aea9f6080"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t02-fail-a.pdf",
+      "sha256": "e7bba8500e8cfbc7af4d8a843659667fef89c826e2df6a2750368be17971378e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t02-fail-b.pdf",
+      "sha256": "573ccddfe5db143dad80427a18f52e6fa0612a63eb4c2de29b55c921998fcee2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t02-fail-c.pdf",
+      "sha256": "633422e72edbee0219135fb7d0b6749a18c39faad7c1a7d55ddd1030e56fb2dd"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t02-fail-d.pdf",
+      "sha256": "60fede4c509500365e3b681c5b1c670c849cf9d5a5bdf588fbad278efc34566a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t02-pass-a.pdf",
+      "sha256": "073643df1890699d63aaf6e6415de0a29975de6a1888cfed14c22923c46eb76e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t02-pass-b.pdf",
+      "sha256": "1dd4e777b1d973584733651748bbad2295dae36c534aecc19bd51068c2eb3319"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t02-pass-c.pdf",
+      "sha256": "984c4f4a5fc1d3d6573a8d3c509760670426cbe23e3f76a364b4ea5c589d3217"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t02-pass-d.pdf",
+      "sha256": "97ff9483e6441f975b752cffd78f98ddccbf528294ad981727d3d713afc066dd"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t03-fail-a.pdf",
+      "sha256": "be3b24be7daa8780d0e515c201d023cf4360abd85fbede0c2c9bfee21591fecb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t03-fail-b.pdf",
+      "sha256": "92f9d0b16473f305aa390a6deeb7608e429236e1add3f32bff378a69ab0948d9"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t04-fail-a.pdf",
+      "sha256": "9e2e89f50fae7c0d2b0d323f0367bfd8c6ca67c878ec82c4690d5076922ea5be"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t04-fail-b.pdf",
+      "sha256": "8313ef88070ee5e128dc2cb403ccb19170c8b1480c8e1432807263d0432f016c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.2 Content streams/veraPDF test suite 6-2-2-t04-pass-a.pdf",
+      "sha256": "2f2f0f57fcc3a9498d905f52e9f198fcec480d4cd8953edaca12e33f3a2c0d8e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t01-fail-a.pdf",
+      "sha256": "939c3fcfce22d1f1eadb713d19ba8162309eb38daa26ea3a2d32d4a8434dca4e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t01-fail-b.pdf",
+      "sha256": "29eb8590d65760d891867f9c52be1dac28c051afd88e2e7c3b09e607b34d8846"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t01-fail-c.pdf",
+      "sha256": "f3156227930af3e5a28f349915971875faeaae0af0d01fa9c0ae97d2a1ea08fa"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t01-fail-d.pdf",
+      "sha256": "b0bc23d816cf627ad6d8099495952dcc5ddf84d0a02f78eade42e3a8f05155f5"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t01-pass-a.pdf",
+      "sha256": "09312fed75bbb8e480a278f03058317db04caa14517fdf0b2087a71fc801d45f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t02-fail-a.pdf",
+      "sha256": "a77234fcd562a1064191ab273d0da3399e6f3d12c95fe2df4e12f382222bd3b4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t02-pass-a.pdf",
+      "sha256": "bf3c4b19abd34e934309facd89cef1d722b7a33e8c17563e1953565c071be0bb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t03-fail-a.pdf",
+      "sha256": "a03ef3de4c893bb55277d6dd8d5f214c9fc4c13b7fc00dcb27e1e0eafc9988b2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t03-fail-b.pdf",
+      "sha256": "47e8db163db2de62f0ca5c69959bb803ce414c963804fba6302d85c018b7aa35"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t04-fail-a.pdf",
+      "sha256": "0ff598a8f1b498af7a801fb017e1fabec27033187e39a8ab83f7f4b87b2be9bb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t05-fail-a.pdf",
+      "sha256": "2044ded42d1d04cc95eb63b44e1dd42282aca23ba09e465d30b7f3a96b8e89c3"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.3 Output intent/veraPDF test suite 6-2-3-t05-pass-a.pdf",
+      "sha256": "5a9b67884942e566828f5efc653936d85df8f1ae4c1bcc074a534a81f719d097"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t01-pass-a.pdf",
+      "sha256": "844f03f3f82ce97bfd95f8c7f07acfb0049bd0a90125a6a3b186550670ee5701"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t02-fail-a.pdf",
+      "sha256": "9c25427dbbafc300725145747286ddae9641c17fa0a6588ebbd791d8d29832f2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t02-fail-b.pdf",
+      "sha256": "d843aa59c580fd539335ef61a5275f4ba35b4a3add029599830a5b9d8e276f0b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t02-fail-c.pdf",
+      "sha256": "12b1dbba1d8391105400719bdfdaf9728d2ffab25d2d73116fc7a397d32cbab4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t02-pass-a.pdf",
+      "sha256": "5c05d171988530e261aa5b63fa19f0932868f255d9bdb12d9b4ff28af7005ff6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t02-pass-b.pdf",
+      "sha256": "c13d85bfd3f148b86c45ea281433f6bcbddb16d3577bc200d00cd3e851271678"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t02-pass-c.pdf",
+      "sha256": "092e5216a695b4462851ced1ecb8c243ee7080970268f959836485fe21dd48bb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-fail-a.pdf",
+      "sha256": "af85a022fbb5230256ed97684b2941bef4760ef77762f12c38f8940a2052880e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-fail-b.pdf",
+      "sha256": "ca07df4ff4dc292bb75c86cadca167db449e4a21f735b587051bded520bf0c03"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-fail-c.pdf",
+      "sha256": "a4e946c1985b5645e4cc907632e985d9396d5d91162fa877e0bdaef8fc378e08"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-fail-d.pdf",
+      "sha256": "637515280f933864e1c3195defe1163ced8db099a6c6e1f1835ff76f5eed402e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-fail-e.pdf",
+      "sha256": "1e2a0ded18c065555e11ebaba2ae90f03122356c268975e8e00f97e5016c2991"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-fail-f.pdf",
+      "sha256": "6a0a579243becd2197137eb9db27baba7aed04ebfaadabb3c6ea511b02a36290"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-pass-a.pdf",
+      "sha256": "1a8c40404db2d3b81ff2707810fed7d8a89b03fe4000ae7e9a3770cd16891ab0"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-pass-b.pdf",
+      "sha256": "3931a64b17ed9df9174eec5728b915bf2ad26a50982043b53316d79441822a86"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-pass-c.pdf",
+      "sha256": "70cad8ad21e1b3218adbe1d118aab51f2ce16ace5bc405ac656350e38686deea"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-pass-d.pdf",
+      "sha256": "b3a4a313cb067ee376b038e6c815a0ee07fda328b064b77b97947f3b632027eb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.2 ICCBased colour spaces/veraPDF test suite 6-2-4-2-t03-pass-e.pdf",
+      "sha256": "d8e467960ac570ce55f8be11a0ef670bf76c164ce1ba46455e903d6e2c426eb2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-a.pdf",
+      "sha256": "104d0aafee910b72f18e50f698b1e5730100e67afc711c539a567623537d9f1a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-b.pdf",
+      "sha256": "77b5e7bc4a15d8e4ed6edb7a2e3f2f30596b783dd7223d238b081360d18d1f1d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-c.pdf",
+      "sha256": "47a5b34798d934797690275c81344580dbeb17da694abbd9798dc4820b66b284"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-d.pdf",
+      "sha256": "5c7b1d4961d11daae01fe9b3b118e2983ac4a11d6f6909c2c797a04d745aa199"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-e.pdf",
+      "sha256": "be4a67f608af2804423d940a0aa6711574a2cf45e1478892e6d92aa6077e6eea"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-f.pdf",
+      "sha256": "a723bb0abced41033d18aa012db38439781eda9f6f54adc2f5debd8608ac9f83"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-g.pdf",
+      "sha256": "009b8edf05af0f1d0ac82fa126ef1a966114f04e7c2742ceed1e550144607211"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-h.pdf",
+      "sha256": "edbe1464f5445648dcd10803c8993ea41a42f517104295e1f73d98f9b37ad366"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-i.pdf",
+      "sha256": "7955f99aeb18bd30d8b27bc33194a195f368972fe9c4f4dede013a0777e66697"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-j.pdf",
+      "sha256": "6cebb1a8245ffbbfe97cfcec1100ddf48a49d40a14064adcbf1a787f988a57b5"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-k.pdf",
+      "sha256": "b4405f590679971303a4fa627a4639b6c9487feefd948b5294c5e1ec27b7672d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-l.pdf",
+      "sha256": "a0055863f81fddd3a3cee3f8848339b19531faf447b79321655d64340598ad8d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-m.pdf",
+      "sha256": "6282f516a9d1c28812af4831f77206e7b4c8276ead4a6cfcba990cf10481bedb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-n.pdf",
+      "sha256": "38a2375a8f4d0184b6705002d1cf744c90e23fc36358234c7d8c939a38197d6f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-o.pdf",
+      "sha256": "cd74781a1c3abf0f57a21c6d867296c1b9a1713bed28d2d464d3141b71ccb593"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-p.pdf",
+      "sha256": "9e7c75f22568dab5c470bbb167cfc053c1d4ddc976992502ac3115768f47e987"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-q.pdf",
+      "sha256": "f24d96a74a452668151236db81e9aa3e25a5e8dc9227d7b3cc6af48c115d984d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-r.pdf",
+      "sha256": "36940550f516c58392d2c11b6dd0ffc7e0c4f4827efe985080b5ae5cfc081921"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-s.pdf",
+      "sha256": "55cb881e5c91b7362d7901b634c094394791cd94053b948c528b82dec3c1f31e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-fail-t.pdf",
+      "sha256": "d06cf92eccc99b91f42cfca00201e09f6b4695e65189585eca3717d5211dda75"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-pass-a.pdf",
+      "sha256": "113a25c2009d6ca57139bd6ad13ec10fd87ba932ed24a1a8523a86dae58bc308"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-pass-b.pdf",
+      "sha256": "454ad2b449c72207d26fe1deb65448dce5789744d304d1ed0fd161972a0a6c3e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-pass-c.pdf",
+      "sha256": "581383624e7d178ca0fc42563559b3b54230589c659222bf6acc1777a1f272ee"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-pass-d.pdf",
+      "sha256": "5eb46ebe589da755fed8af9cb9a46002cf07aae1b48d6ff6603a0cf97c63f8ab"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t01-pass-e.pdf",
+      "sha256": "b2b40e60a6a8e2a52cedd2ad520357057a7b48565ed98b566d08bf2d55d8eb46"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-fail-a.pdf",
+      "sha256": "6fa7ecd4023729b32b1aee4a3b9e835e0e57378e32053e2718a41aef9de96f28"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-fail-b.pdf",
+      "sha256": "b0e8ebe6b8d130cd3fabbf0ab85570d44ef1aee37772ad57926f8b8afd78cdd1"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-fail-c.pdf",
+      "sha256": "0606691dffd3007afa51449a76c7b6d7bb8b82efba221b63474e5b2904c1621d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-fail-d.pdf",
+      "sha256": "eb7b5ac71d7a61b1013988e943e77c8570c7c91274f3a5f52e4c89bdbc15bc63"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-fail-e.pdf",
+      "sha256": "a75c8589768852a8a4ec04778f6670d01a9d14e37d10bec4e548fd2afc7c1a24"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-fail-f.pdf",
+      "sha256": "c7fbba88b6def5b40d715489dba7f2909b6a77290835006d4aca61f73846ba6a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-fail-g.pdf",
+      "sha256": "1bddc26eb7e87d2dfbcc6249c44a82214008062e2ccb1eab0d77078e140cfd9a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-fail-h.pdf",
+      "sha256": "9609e3c8c89c261d9e80a43ad8137e1c014ac60321d509c29aafd539ce6cad0a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-pass-a.pdf",
+      "sha256": "2bd590bce426509d7dbabff59b22df0c730f34a34cb66ffb2dbf9bf73d727b4a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-pass-b.pdf",
+      "sha256": "cc950f56545d6926b519e549fbca76f7f87c3c1f7e853deef7dbc5e8db29bab9"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-pass-c.pdf",
+      "sha256": "556f874230f47d31360e50a3138519ee4de222597f89cab18be246a931984e1c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-pass-d.pdf",
+      "sha256": "606a9d9917fe0867a311b96c2d896d5ddba9d5007b4be756527cf24ad80de894"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-pass-e.pdf",
+      "sha256": "2bab6d0d0641ac6651dcd4e37cdd601e3319bdf737daded88a2b3ee9991c7096"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-pass-f.pdf",
+      "sha256": "581d75c134806871fbec74a3884bd077c500b65e134c7787d3415288097bbeb6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t02-pass-g.pdf",
+      "sha256": "a03d695912ada99b20dd23a069af1e54a0057674f2354e770fb5e7fc26894542"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t03-fail-a.pdf",
+      "sha256": "2863dce295b41d8a64bded488a0e12d0e8ee5153d8805f9958af166aae8b85bf"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t03-fail-b.pdf",
+      "sha256": "7b0d8a0779fe2dfdd3199655d1ee73c99225d341daf59c4b5dd45181fdb3f7b4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t03-fail-c.pdf",
+      "sha256": "e33bdc8f433af1661c73a519ee1f661c46fa6dc4f75953f3408e8cccf4fd62b2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t03-fail-d.pdf",
+      "sha256": "915a5971adb7230ab6ff24bc83d04fb4f1a4ba869308ede67827d9980b6b6ef7"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t03-pass-a.pdf",
+      "sha256": "85cbbabf4081d417d770cb272c7961291a7cb4ec736b89b568d731a4d6b757a7"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t03-pass-b.pdf",
+      "sha256": "476922189306546fa5d6abc165e3269120afd46b00a2124153d1cf37befe2342"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t03-pass-c.pdf",
+      "sha256": "97f0cb45a92c3848c576ea25defec59f365647f50f6429ae186beefb1b6e4836"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t03-pass-d.pdf",
+      "sha256": "7c2c60b27162ca25cce4bad0daf64e50d541fa808e38fbe3905b36b55d26e9e5"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-a.pdf",
+      "sha256": "a0dfa95d26f060ef25af21cbc4036ec1785cc50ea96cbdb0e7a3380da42eae89"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-b.pdf",
+      "sha256": "98c6b67087ff5e9a8c965b180c5b4b88b1233f45f708a5f61e78cf8c19e01855"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-c.pdf",
+      "sha256": "08843dc10a59df3a2b44fb9f104e79ba507efadf6c1b16075569ad210ed3ffff"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-d.pdf",
+      "sha256": "ff67ea4485cc8de0927214206e9ba8d91465727c680be7d03bf67fa8acc0a62c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-e.pdf",
+      "sha256": "19591690b9f6320821bad14561493badd95c2ca03772fe08794cdca10bf779cc"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-f.pdf",
+      "sha256": "2cc6031750066bd493415fab1faf561a28f802af26c88d468b5ba15c4a27c2fc"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-g.pdf",
+      "sha256": "fa595b383aef1de44af0c0f7d2e080442e11f8723d1f8e1ece01349dba4b88e6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-h.pdf",
+      "sha256": "eb841b70559f08e27afaec3287ce4132e4711e5959bb2edce3c1fedb9266a61b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-i.pdf",
+      "sha256": "108a07f40a685adfd86f13fb279910a830bc32b6d2eb5232a35b1d984c8bc141"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-j.pdf",
+      "sha256": "04f3bf0b98df865ab5be8fa0d1ad3e5dd8ec32fa4359000170a2a052fe89cb21"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-k.pdf",
+      "sha256": "92b7d1c89f5d40f36208b6491f98d1175b402c8036fd7167321faab200508412"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-l.pdf",
+      "sha256": "602fe1f4bf45d9b0c2778e47dbbd0ec2a93f97d62e1181c90ea3d68691dc2cb3"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-m.pdf",
+      "sha256": "6b06d3ad911d80f9b69be6f9fbf7c0278bd3535a2c37bcc38b70e8be81c44788"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-n.pdf",
+      "sha256": "07083a94a35aef6a67ef8110a7de8ad65b4e7f5b806ad3c08515d1b949f0f6c8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-o.pdf",
+      "sha256": "03169d217009c065ebac160c93538dd15524e166e25d73c381d7d73f83f69e9c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-p.pdf",
+      "sha256": "7a317edd3dc9797308763eceea0078400e0ddf20d04042b33ce72f12abeb5c4a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-q.pdf",
+      "sha256": "dbc4c9d2c18c0f25529e33c216e76a162f1d3b5e9ac9a49430284eb598eaf847"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-r.pdf",
+      "sha256": "08fe6453d28efadce69fbfce7f7981ea5e44b7ce738dcdc55f7daa10fe470efb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-s.pdf",
+      "sha256": "8f36af848e603c009b1feb0441c3a6f117149ed3c3e4d9e57984b72264d91c1f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-t.pdf",
+      "sha256": "12d786623477a8588c3cb8cb5b84fecc873f4fa6694c64550cbc7f39cd38aba1"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-u.pdf",
+      "sha256": "43e38625ce941c4735884c5027ad08e49f1279b2983528f9a144d7258da05fa8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-fail-v.pdf",
+      "sha256": "fa4cd605ce63f1464a23cdc35a27b269b03edac54e695507c17dfa68e99d4bb8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-a.pdf",
+      "sha256": "9dc7590f78a519bb721dd1bd97d5ca893f5b852102bb07bcd6e7016924b3da1c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-b.pdf",
+      "sha256": "aaf076c45dc12c272e065355869e809ce0ed49074531815020e6bd54ef6f7f5d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-c.pdf",
+      "sha256": "6aa9e83e3520225a907f3f4a307107ba23026cb21de3212adc77d14f797c50b3"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-d.pdf",
+      "sha256": "96663a0fd609d1c217ddc7dba673664684563988293b14cd3aeabc8cfcee2096"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-e.pdf",
+      "sha256": "dcf76bfa64b6908d173d608cdb9211c59033312735af5f77caaad3d123fe631a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-f.pdf",
+      "sha256": "88623ceb10536fadc487b1828acd3aeef469c8b1ce5ecb9dc60c971e7205b94c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-g.pdf",
+      "sha256": "5540ba264c8fcbb75a871c28c5005e65ef5ee5b4250f27ca791846042b328c6f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-h.pdf",
+      "sha256": "84eaf0d7f0adf87d3e5e9146a63a566945120496ae03fc39f8db8da534d2526c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.3 Uncalibrated -Device colour spaces/veraPDF test suite 6-2-4-3-t04-pass-i.pdf",
+      "sha256": "79578462f95af2e438795732caf5b53d9b7d7f1f0c5c6373d80a6007efcdb5d5"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-a.pdf",
+      "sha256": "eeb81818114cadf36d4559013355ef7cf79c160d8f57decb792c840a7dc51d2f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-b.pdf",
+      "sha256": "0034869527e3e247b83557b2a59d6a56ea0dd337e3721a2aa8a64b091e65d036"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-c.pdf",
+      "sha256": "18f79d99b123cbb15665772e2629711134666946b17a5ce4acf9ca5ad9b94843"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-d.pdf",
+      "sha256": "b10c401806647ddf1bd09fd9e02e227354cdc02c08427f7aee25154d13dec0fd"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-e.pdf",
+      "sha256": "1bb2782b1ae46d1647610ca925480fcf2fa0e1e37226571d5b3867f8a273db17"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-f.pdf",
+      "sha256": "2dc934d0fc118b01bf18a3d56ef29583d8ae170a1dc80604b91772e865c440aa"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-g.pdf",
+      "sha256": "ac23b193ef94e317e826e3ce09dc35e7a59dc9a37ca6d734f534239e73f5d0bb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-h.pdf",
+      "sha256": "f2e0650845eb4ecc32ebe4651c8b3790698b5d05c9231240f1fa34f107f18a28"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-i.pdf",
+      "sha256": "7eff4f795529533d056b337bfa371f268457e40daaea01a5a22c674b2310e51b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-fail-j.pdf",
+      "sha256": "4d93f6cf4ef95a4adce5a83dd617f3265429688f54031c6d26c64e6a32eceeac"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-a.pdf",
+      "sha256": "c8944cb6d05509301c72ffd3c537eaa6a2ef462e9726c1694d7865b9e5c61071"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-b.pdf",
+      "sha256": "234ca825f768db3250b166c970ff01d5a2c5b723d7b3d09a80d296668fb40428"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-c.pdf",
+      "sha256": "ce998476a891a6c38a97de8e5b883747faba74b6e9fb2a71aa538b0383d1983a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-d.pdf",
+      "sha256": "0048b842ee96f8614584346101ceb7f723a1f39234f23b42200e07a65c466999"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-e.pdf",
+      "sha256": "a1351da591d0b973d5a6d41ca57c121744a781e26cdf736005dfc5f2d8292295"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-f.pdf",
+      "sha256": "e22a356a0dfa9bdf371f67828a13d2be52c3db8589b7bf94131fba08205d8b4a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-g.pdf",
+      "sha256": "95b9c158e3626f9588be31b61b4b5db99cac120240d420d7d61d8203a19a7e02"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-h.pdf",
+      "sha256": "18e82c5dad6619a66943b317cf26c44ea39daad52f3a51c2b2aa130c8652d1cf"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t01-pass-i.pdf",
+      "sha256": "c77f7b83fced5ca8d988493e6cc6c300a89fa7df881a4d63778fd072ba7df47e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t02-fail-a.pdf",
+      "sha256": "3f76d891ddea47c6cd560baa93d3d17de22aeca6091bcba0d77203ffbe9335d0"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t02-fail-b.pdf",
+      "sha256": "2277d09261a3ca015d09533d5ab7e3dd496101417b5d39797c11a908779db1a5"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t02-fail-c.pdf",
+      "sha256": "1b20a3055892ae6cab511c8d2afa61efa9faa2d58c0bbd8545a5c23183420781"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t02-pass-a.pdf",
+      "sha256": "af4ddf31353604393f45e8d2457f41a876da40ba69d971622ea8ee9accd1343f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t03-fail-a.pdf",
+      "sha256": "cd439158563693666fc43f0e84459c88741bb5e7529e8a214381c6b0a1cd9392"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t03-fail-b.pdf",
+      "sha256": "105f828fe7d1f8a9fa12ddbccc4bfc3bca6c889c95f5a991344e64f8a35d2ef1"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t03-fail-c.pdf",
+      "sha256": "0d00e3f0ade35c9e1202dbcd1bb59ddef5f0e421c0c9aa7b166781f1f49a49ef"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t03-fail-d.pdf",
+      "sha256": "f201c790592bc6007156962db20581d8e25d977a44a507436d33dd5eecb478d0"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.4 Separation and DeviceN colour spaces/veraPDF test suite 6-2-4-4-t03-pass-a.pdf",
+      "sha256": "90c5ea8348cec0f8bbc61047651bf73f9fdea4cb608dbbb1bdc0697821bef062"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-fail-a.pdf",
+      "sha256": "77bc6950b5f374570fa0bba18627de73b5cc2dd8fa33e7352703af7f8d06da11"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-fail-b.pdf",
+      "sha256": "ef55ed7e94c0c2f90dcec855a989510a7d047dcd62ab80ba56036f5717617d55"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-fail-c.pdf",
+      "sha256": "c4df026c13d1b3fc415c306568b35d04de48a15eea5b275c3afe1bdd2ae93f81"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-pass-a.pdf",
+      "sha256": "561ca9e8629d6152e564de7515f89879719c2fc4187aa88944ed0472bcf68755"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-pass-b.pdf",
+      "sha256": "d1db857583f4c7ad2f53125e78b99e4c177b9daf947aaf0419af42d77dfed610"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-pass-c.pdf",
+      "sha256": "d6f49bcf91b949330ce757836aac19297ce3a5707117e69519706901f4b7b6fb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-pass-d.pdf",
+      "sha256": "18a6359ac45ddf95e5aefe3b2d312a7f2767e49c3c3fb6461106c02a97912f56"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-pass-e.pdf",
+      "sha256": "a6eba41440053781c59752713c31ccb300436cd486404afd5da48192d3e4f495"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.4 Colour spaces/6.2.4.5 Indexed and Pattern colour spaces/veraPDF test suite 6-2-4-5-t01-pass-f.pdf",
+      "sha256": "87a181eb524069e49381574875a2a9a7daed107db17c6d3b5d86f562df7a1805"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t01-fail-a.pdf",
+      "sha256": "d29b9c42a70fe74441c329e3a7ba0b1633d50da640c358645f84ad72280d1db2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t01-fail-b.pdf",
+      "sha256": "56551149346bef2adec93ccf0faa2509eb3170a4b4a4c4cc4d3379367a4168ec"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t02-fail-a.pdf",
+      "sha256": "6a8eab571c23e565a473980f61f8f1b6b3e1bc2331e2816908d38fff42a565b8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t02-pass-a.pdf",
+      "sha256": "478f1a958794de8f5b0d7e03d96066c256d6a25788a6714ad2f89de685fb5c37"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t03-fail-a.pdf",
+      "sha256": "9740b832a0c47783e2aac26d6353f5e7fc2a2006b430400b23d98dd7f2667688"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t03-pass-a.pdf",
+      "sha256": "b98747ad555aa3ba8b7090831e3ab4466bddeff59896b2cdbe3d532352ab4327"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t03-pass-b.pdf",
+      "sha256": "5a9f70fb8e07810769e87978550701208785d10db9173f31a5611fac0ff03b7b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t04-fail-a.pdf",
+      "sha256": "0486ba83b33d15bfa8062e387dfbafa3bfc541ebfb2308c4523dcaf4ab49836d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t05-fail-a.pdf",
+      "sha256": "36d9e11e540ede2467d1e69cc4a55f98aab404287d28e21f2772b0ee56bf2926"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t05-fail-b.pdf",
+      "sha256": "77607fcb6d532cd08a2c07608a35632efe2eefcfc75febf1478611a26f271561"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t05-fail-c.pdf",
+      "sha256": "09d1dbe44edd695a1bc5f95f49cca28b40973ce1ca52a1b0513065e8d10f7602"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.5 Extended graphics state/veraPDF test suite 6-2-5-t05-pass-a.pdf",
+      "sha256": "d60b0944c7b796cd32e865085eb7cb7ce2f12459f334537140813c65d53913f6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.7 Images/6.2.7.1 General/veraPDF test suite 6-2-7-1-t01-fail-a.pdf",
+      "sha256": "d52fecab9dabdae09e983833771364bad1694b553cbb73a04554b9f3c6cad850"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.7 Images/6.2.7.1 General/veraPDF test suite 6-2-7-1-t02-fail-a.pdf",
+      "sha256": "b2d99603aeb87d3adb26c0b33348e1394f6b8015aed9c94e37bf513fdf22446e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.7 Images/6.2.7.1 General/veraPDF test suite 6-2-7-1-t03-fail-a.pdf",
+      "sha256": "0a75f2fc2d177ddb39cd0ad57b74a630bc1a1d755e718f8747ed3ad8aad7aed9"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.7 Images/6.2.7.1 General/veraPDF test suite 6-2-7-1-t03-fail-b.pdf",
+      "sha256": "816506f28e4ac6757539c0b5da7a193da649c03f26748fd02046c7137cbbb12c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.7 Images/6.2.7.1 General/veraPDF test suite 6-2-7-1-t03-pass-a.pdf",
+      "sha256": "42eef27a85cc8868dfafcc85705da86d9156431170ab62217e601f7b7d3f5ef4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.7 Images/6.2.7.1 General/veraPDF test suite 6-2-7-1-t03-pass-b.pdf",
+      "sha256": "1558cdfb1bef7b1fb77d1336ed0d82c64b3c7d38104fcfdab1539c6d7fa0679e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.8 XObjects/6.2.8.1 Form XObjects/veraPDF test suite 6-2-8-1-t01-fail-a.pdf",
+      "sha256": "e682ef3459274609aad20d8a15929bc83095fbab1433b09b01ad64fa3948beaa"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.8 XObjects/6.2.8.2 Reference XObjects/veraPDF test suite 6-2-8-2-t01-fail-a.pdf",
+      "sha256": "e370c431b573b6dc185b0739bb07664d2c4c2674bb8550b4316b87b607602dae"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-fail-a.pdf",
+      "sha256": "3f37535c6bedfdebf7650bcefabb8aba88be70fea9755032221d4df97a0c53e6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-fail-b.pdf",
+      "sha256": "c7f288810590db365a2381a895470a4b8bf6e36614af3e34b5f464e5565e0502"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-fail-c.pdf",
+      "sha256": "5dfe1a319124608688d05bb2cee157e0deeb3fdd11c965817db73e7c74c3be66"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-fail-d.pdf",
+      "sha256": "3cc1a06028fb78b7b447d74f11cf01102a6c3973f256c26ac2a56569eafdc099"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-fail-e.pdf",
+      "sha256": "ef2dc298e03f305c0d311773f205e80c4ffb66b4af00397659f99e603af04c2c"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-fail-f.pdf",
+      "sha256": "a2122ffef180131abc64d0766b80564cc4849a318c49a5ebed78f1b698ca6548"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-fail-g.pdf",
+      "sha256": "cdc7041475269ce3c60c03f0391f9e47f3619d8aa26488e7687a1848ef57a1b8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-fail-h.pdf",
+      "sha256": "ea448f17f2ed7672bdbc48d844fdf5e3a2935b4f12e4a53c2f30af2bfd331dde"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-pass-a.pdf",
+      "sha256": "dfa21f8c1c94b5f101033d6b8980ebba8111fb5eed327778c805696e12f1a8bf"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-pass-b.pdf",
+      "sha256": "3b0b1087404e59f5a1b5dd57cdaa9959948a0dc25ba3cc87e9d227ceb3f546c7"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-pass-c.pdf",
+      "sha256": "5a82b899bf4c14fec6f3c562563ea8f77ba7a38f560c45ce8d150060854b00b8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t01-pass-d.pdf",
+      "sha256": "87a198d17cc57821a9016448bbfda3d20007bef67b22cd8ce6b1b850074d410b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t02-fail-a.pdf",
+      "sha256": "adb44564968fdfc631fab7b1838f82a643f256874455b3132e4c77266623bf70"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t02-fail-c.pdf",
+      "sha256": "02f18932c041cb9d8956e389fa097f2dcb4e30851045f937674dba8d88021a28"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t02-pass-a.pdf",
+      "sha256": "a1c529476b11b698c359dade2302b2751f899193dcd46a3be2b9ff48d40d9f01"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t02-pass-b.pdf",
+      "sha256": "df70ae63f46914e7e90385062ae345db9a79a86a7e790f92fba438f1b9cee376"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t02-pass-c.pdf",
+      "sha256": "09a64c7668d08e1ea549495a54d32bf3a4a7c30325aae1b114df30505d61a68e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-fail-a.pdf",
+      "sha256": "28f03e067c7d2dc3462a3dd9126c7f92140b9c345a707a54fe4e7ea4de81a0c6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-fail-b.pdf",
+      "sha256": "363a1400941fc5a5afdf5e7872d7bc5a3e43e8f957b5fa6c10fead0eb1fb0f01"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-fail-c.pdf",
+      "sha256": "839faf9b5dddac0852ebfc515ccecd576e9069a1c5b4f5223ce75dfe59f97a9d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-fail-d.pdf",
+      "sha256": "d9d155f4100ba610698bee47171969ae69497dd54d0490bc2533395db42a087f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-fail-e.pdf",
+      "sha256": "4df719766e1c8eb6f1114fbc137dda04c2192c72c2e32e14df0ba8d4db9a20fd"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-fail-f.pdf",
+      "sha256": "4fa03fadfb86c3761009e0f4ecad218200c742c0c9423f781872d1987eac1736"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-fail-g.pdf",
+      "sha256": "0cc58c823bfc70ea08ea59ee4c52bf33932f2c72fffe2b31ba451870b43a696d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-fail-h.pdf",
+      "sha256": "e0797e404464b5ac9c580bf4eb1084114b1c1aee12a2339326a56a8ba87b614e"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t03-pass-a.pdf",
+      "sha256": "6ef069e3cc5f19e15527f9fba1ffda0de3043e5afb67264c865f17a14a2bdbf0"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-a.pdf",
+      "sha256": "9bbb0aac11fccea82211d1f2269e1ec37cbe30c2481a18b5c765d1a04bb1bb83"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-b.pdf",
+      "sha256": "51aa9ba02df0b82a3f540a52e199d71c96db9ecd6e88c9fbd220b9676d48d2b3"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-c.pdf",
+      "sha256": "11a499a9a4aab00b0bb2815a6467541012ad4c8bbe65394d9df809f145e8a296"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-d.pdf",
+      "sha256": "e38f5797d3c672f1e28541a04ea3a8816f3fd399f84b72d7572ff94a9f97363a"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-e.pdf",
+      "sha256": "7874b46bbb0ba36d34528d2324160bd5c6927cd81aa84698ca355d13a7ba9bb1"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-f.pdf",
+      "sha256": "0dbbf095ee3e958be11d5385d1430ff484b8360855dafb031ea38e78f798eaf2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-g.pdf",
+      "sha256": "9841c53bc866a0858ebdd826fa3e8bb321a2033a23252d274ce2b2075a811a38"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-h.pdf",
+      "sha256": "e2afb07d7a96325faf21d576a8d65ceb9d365d8ca4aef6ed99fb99fa10c45ad8"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-fail-i.pdf",
+      "sha256": "aaa6e8a685234c7c76104eb6746714aa5f8ac359a4376ad5bcdffa8d0ee5c0d4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t04-pass-a.pdf",
+      "sha256": "7c0bb3ba33002a22058d2995fcaf29de52ae3dc0d63b2e8fbc6beba2e19c96b9"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-a.pdf",
+      "sha256": "1c70a82b5f93988321a31e3342d45d8463fef417316269ee44ca69658e50e4a0"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-b.pdf",
+      "sha256": "b7b1ff7787ac6bcd8fa6d1e0d07a8d78b9e298f02ed7475088eaafb05dc47e91"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-c.pdf",
+      "sha256": "3413300016f59e499e876cdbf7acc3beb4e2b22d276b05d190fa0a14987d6582"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-d.pdf",
+      "sha256": "4f1007af5d4955b0f7372e8289717cfc19cb77fae141f0b0287b0fb23947c3e9"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-e.pdf",
+      "sha256": "3ccb26c37c1c798c1645f7240cd568e2b09e6c238f8f0c794c46365e2ad0a08d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-f.pdf",
+      "sha256": "bb14ba42e9e72851503956e629dbee3b24ee7971d0777cf181a8ca09b86c6b0b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-g.pdf",
+      "sha256": "1c6e471089b5a0cdbaa7c5e16a538cc3cc242c09c7f4b9fcc07d974714fcc586"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-h.pdf",
+      "sha256": "88fc8f39bdb9b4222b05d3cd6882f2e625a90c9733568e0a33fdb9ddfdb5f5b2"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-fail-i.pdf",
+      "sha256": "06dbff661717dbffb89acfa64c4f8e0da5c209d3c22361d5999488b66dd0adc5"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t05-pass-a.pdf",
+      "sha256": "5fe32d26bf17a4c1479921c0ada8c1fc2bf7f062c875a6b0487876bc6cf853dc"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t06-fail-a.pdf",
+      "sha256": "97dba1364581acbd727ad04c4e3996d2ab3255c086cb594147418b7781b65ae6"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t06-fail-b.pdf",
+      "sha256": "9be123870d793c1901f07f791c2a6f07adaec381b57fada616e8a135f339d5ac"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t06-fail-c.pdf",
+      "sha256": "2759e8df6d452f42a8c89a21eccc4fe3bd69507cbf60ce36898769af8a064e25"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t06-fail-d.pdf",
+      "sha256": "9a8342591bc12ea16496615beb1b6bab232666734a49ef545521fbd926d0a98d"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t06-fail-e.pdf",
+      "sha256": "74d700301a5e39a91cb63dd165faf2239ad2519cfdaadfebe7a39adb5c8b5846"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t06-fail-f.pdf",
+      "sha256": "15f4c7662e1ca1268a06fca09d971bd49532c5eb7ae95352602865ba010fd81b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t06-fail-g.pdf",
+      "sha256": "58a195b8f03466cb3c2203b8f5799aed533f4f140a16bf8ff9a2641a560c293b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t06-pass-a.pdf",
+      "sha256": "e2f0d4ccd9e425ec9623201f23057b442f9b9db9f2af825c1cf056d112bbacc9"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t07-fail-a.pdf",
+      "sha256": "dfffbf13c15b1bd12383d841c2fa9f442d39dbfb0cd2ca7d84d7adc24fa0b71b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t07-fail-b.pdf",
+      "sha256": "7e0e704b1314ce016d8c6d816de74a996ca26970441d0808c18bb2aacb941239"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t07-fail-c.pdf",
+      "sha256": "ed35a80d47427aeb5020fced568e2610c088f6ab84bc16f89b3548d4612c0f5b"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t07-fail-d.pdf",
+      "sha256": "c8368e0d78c507a4b0b413356a950170d6956f2a82f65c122de1a23b8f4742d4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t07-fail-e.pdf",
+      "sha256": "70fa39bde62b97bab2e78d5ed59a489eb9e6234fa11c51cd0deaeae37050e9c4"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t07-fail-f.pdf",
+      "sha256": "de528741b0390329f02ba80c6cbfef14075d0ba17b3c19d2455ad274a06a495f"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t07-fail-g.pdf",
+      "sha256": "8ec0221cd2b1d7559295bea4d733a515c0f1d13b3ab059fa1153c5ac7b97aebb"
+    },
+    {
+      "path": "PDF_A-4/6.2 Graphics/6.2.9 Transparency/veraPDF test suite 6-2-9-t07-pass-a.pdf",
+      "sha256": "ebb014452682547b7cfd826b9b761f5cfcc4e8468fc9705b9cc845e07549f0d5"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.1 Annotation types/veraPDF test suite 6-3-1-t01-fail-a.pdf",
+      "sha256": "a6dcc875e1467f64c88c6bc38a1dba97f81a255c80c1b81661124cb30b5ead8b"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.1 Annotation types/veraPDF test suite 6-3-1-t01-fail-b.pdf",
+      "sha256": "fe67f0fcf3e7376e382996edbc1ebcb9f300c2839b507de316df9a891df783af"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.1 Annotation types/veraPDF test suite 6-3-1-t01-fail-c.pdf",
+      "sha256": "6bce1ec54821fa4ac6fc716a73aa7a1bc83ec53a46361454154940f100075792"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.1 Annotation types/veraPDF test suite 6-3-1-t01-fail-d.pdf",
+      "sha256": "996fa50216f6414aba34da768f5edf3008e8b697efd72f01df4416fba83a5166"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.1 Annotation types/veraPDF test suite 6-3-1-t01-fail-e.pdf",
+      "sha256": "77e423613137e67e559809bc538523b54ce0140c837d7abdf74732b9ba967dbd"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.1 Annotation types/veraPDF test suite 6-3-1-t01-fail-f.pdf",
+      "sha256": "86df550a37b4baeee9f59522e165a3f371ea659ab5f77d54bf87f1ec44f76c20"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.1 Annotation types/veraPDF test suite 6-3-1-t01-fail-g.pdf",
+      "sha256": "2fead922ae2ccd4398d4ec19681d513a6c4819c3073e4a415c32f277f2b50d18"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-a.pdf",
+      "sha256": "3b61ba4d071561a83b3406e090bae9320381c86a70e0ba8226ab187f2ce98e96"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-b.pdf",
+      "sha256": "9ac292239d2c4dde3ae9a0830b2bf918ae0b34ed4d34c5d3ab9581a6425adcd6"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-c.pdf",
+      "sha256": "59fc765fedfc172e3bd78053c2215a39581865338292cf8df723fef5b04a3e88"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-d.pdf",
+      "sha256": "7ca0b2096c9ef57c3ee23c0cfe23105db5e25b88358135817113fca74cf1e6ca"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-e.pdf",
+      "sha256": "e551697c5331c9fe4bbf16f3ed625aebe5aafde0b5e6b8c848ece3f90465dc4a"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-f.pdf",
+      "sha256": "b7d9cd897f9d10e8ffdf9585d3143c5f26fdf2c58c2b27ddc82e3cff74809185"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-g.pdf",
+      "sha256": "2dccbe6e681946bc7287fa591ed4d4236cd1dbdec0894cfc723cd685e7285fc7"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-h.pdf",
+      "sha256": "9a63c237e330ec30233b6b083a59584da88bbe3f2b4211898fdce3147b1953a7"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-i.pdf",
+      "sha256": "e630e5b81f3fd3b2ce8e927320a288268a4f552abb1da134ff5b7dad1b4d4cec"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-j.pdf",
+      "sha256": "075e3eb5eb41dbbcd3a56c3875c7dc5c40805b5237d4481b7a95ef9f1676d47a"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-k.pdf",
+      "sha256": "7a98b82aae5d9309f8561f5f6ab0bf565b2ca876989e5db25d686b4c5c8b6d9d"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-l.pdf",
+      "sha256": "ec709aab6f283185853c0fcba1d5c9e9c82babbb8e37451f1760e78f52c0e7c4"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-m.pdf",
+      "sha256": "f9473daa562d18c337203a9a0f4356acb9f1b89161c297ac0456adc8d89ec71c"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-n.pdf",
+      "sha256": "dee02b90ba513c124fed575911603ee292e7016d0c0f95fc360437cb9a5c77ac"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-o.pdf",
+      "sha256": "fb957cb5c77048fefe140dcc5dbfa8166cc29b2873312d6fbc713806385a00ee"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-p.pdf",
+      "sha256": "16ff6b5aecc8f72e61159140d3583560908794729760b45ee95a19743c29580f"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-q.pdf",
+      "sha256": "360e83c1775653ee8f19313bd3e0f6fccfed8225021aedc8ac3c9bd49979358e"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-r.pdf",
+      "sha256": "3c00594a1671d228c05ecde1d9c2047316cb119c2ab7151accfe010492c68613"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-s.pdf",
+      "sha256": "109d2309b371e784ed9917e59ab04d4e86bff9b8ae8514f3bf5f26af0bedc7ad"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-t.pdf",
+      "sha256": "c7816d0c46d31c9090f7676a8764bf7cb3d790d38f47931d4d27817fdf323b50"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-fail-u.pdf",
+      "sha256": "fc1177f7721393dc3112509f4a55939b687adc9e3e2d2636af5a564c92e3cc65"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-pass-a.pdf",
+      "sha256": "0af89a92245ed5f822a1f2ebb8e66f0b6b54cf16bce79ad0e7df3a4483d3e3ba"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t01-pass-b.pdf",
+      "sha256": "456989346afdf3f39b168b4350ae49e59974059c6206d4cb3ef8888207719597"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t02-fail-a.pdf",
+      "sha256": "14c3905bb0706071f44b5fa6c12dd4be397ef7ef76fb4404345c04b78c6d1400"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t02-fail-b.pdf",
+      "sha256": "7df7af61b51b3d88e79ecd7f26a74e598dd6b11394694b1f597533e625d17847"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t02-fail-c.pdf",
+      "sha256": "4e47633fe8bed743c94c74e5c889380ce6885a4006ae6e95e6508d297192cbfe"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t02-fail-d.pdf",
+      "sha256": "924bed83dcf00df6b68538c4861d765ea9881f39c382685fcf08daa728b3092b"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.2 Annotation dictionaries/veraPDF test suite 6-3-2-t02-fail-e.pdf",
+      "sha256": "daec6eb5426beb9077c8688f2cf94a5367d65a9586e694d05a101a3662f088bd"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-a.pdf",
+      "sha256": "9df0675a5b9cf137c8bdc2cebbc5d2bd1c53fc7bf9c968d2320f0f69551b10f7"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-b.pdf",
+      "sha256": "f2dc006e119f82a63996d99875127132687640f3747f83f10aee583b2b661736"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-c.pdf",
+      "sha256": "69e659ecfbe19611d8f8a4dc4abe159c091fdde2958f3bdcace1e4141dc724c8"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-d.pdf",
+      "sha256": "ea4d1b7864e8ead04f703bf42492eb95eadda6126b137e94b9ae71e0fb495b0d"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-e.pdf",
+      "sha256": "b65647b753af6ecf520fea022ae6ec38f3eac43402ad059cac553e6fdc32baac"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-f.pdf",
+      "sha256": "bf4ab0fe83a97438d5c62786018e8e0d5794dcd64b237a7aaf7e78610c97c20e"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-g.pdf",
+      "sha256": "48b5736b55ace1e148f3491f2ca4284c1874e230a354894c61154f33216e65c5"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-h.pdf",
+      "sha256": "da6e366f5001f6bc2ac140175ecf14067067965868ef9e18cf88b4c76eb02997"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-i.pdf",
+      "sha256": "7b8d6068e8a0260631baa0e4f9fe46e574bb554cb57db825bb662ab2ccfe4d1f"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-j.pdf",
+      "sha256": "5c7e5d3068c876394954910e27825329fd26f37ebfa083912dd07ab7529477a1"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-k.pdf",
+      "sha256": "bd2e563ae4e46e1568448ec86b8dda9881c4c22e0bac3521c8df71764413f89a"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-l.pdf",
+      "sha256": "feb388dc86fdae5bcea99ee532b47a17b1ff12bee1358654e1bcf180b011d159"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-m.pdf",
+      "sha256": "cb905c2d76b870409cc893948f818358ae5e5c21f1d21fc01166e3129ddb7234"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-n.pdf",
+      "sha256": "db559933c24c39ea1c5891da94b4fc1a0a4bda45435416535a8962bb7cf5a193"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-o.pdf",
+      "sha256": "313dc27cd432f1d013e98cb476a5b6caaa0247ca6dcab7dcd1f15450ec31e83d"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-p.pdf",
+      "sha256": "005f3c7d8cd360c630914c789ee36ac1170d3730dcecbdd859a5334065dc05eb"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-q.pdf",
+      "sha256": "f0a603780b94f0497b09dcfa4c9dec628a4817c2813a651a50f06f517d23553f"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-r.pdf",
+      "sha256": "5cd1fcbb9761da8041d54227897a544fbc57762bf882257600221326ec5caea0"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-fail-s.pdf",
+      "sha256": "38862e18a8f9de410b53db1a9b93abb153c2a8bd785c85bf45283d86d2579e14"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-pass-a.pdf",
+      "sha256": "137ef5c6c24dd8e920bbf9153b8d702c29afe80542a5f800bf1e36247647008a"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-pass-b.pdf",
+      "sha256": "5d80a1de06ac49f23f6a8ceff11873361aa50eaa74d777aa6dd23b7616ef09d3"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-pass-c.pdf",
+      "sha256": "edc1f972d3962dcb7c9e8221e6b0d553f1498feb46bbb96246bc20e76cbdb442"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t01-pass-d.pdf",
+      "sha256": "440a193a4b0f5b347d104add04a5168e51f31c5bd61244e0795d2d2422549ccb"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t02-fail-a.pdf",
+      "sha256": "d1ba3d0064dc7cb7c64ee50d9207571733dec45b37b95d34038a487d60938f54"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t02-fail-b.pdf",
+      "sha256": "8e08cf03c777d70e29e54478bed8dd344647a834bcbe4322d142f2393768d697"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t02-pass-a.pdf",
+      "sha256": "02d5128b6b6f61cf98b27195cf02f8899fe2f4b022b234271e952c425f3c0f1a"
+    },
+    {
+      "path": "PDF_A-4/6.3 Annotations/6.3.3 Annotation appearances/veraPDF test suite 6-3-3-t02-pass-b.pdf",
+      "sha256": "9a91e8724c8428da2898251d60822b9c822a0e76a4fed80b170543e2fb1ef9ed"
+    },
+    {
+      "path": "PDF_A-4/6.4 Interactive forms/6.4.1 General/veraPDF test suite 6-4-1-t01-fail-a.pdf",
+      "sha256": "5babb722906ecf885b6ede1db594ea10cd7933aed1440b5d36c130bfbe40ece2"
+    },
+    {
+      "path": "PDF_A-4/6.4 Interactive forms/6.4.1 General/veraPDF test suite 6-4-1-t01-pass-a.pdf",
+      "sha256": "4cfa6a1b63a6543d1c869437463ac75c3e165adff40e45f95e0b71a005d40583"
+    },
+    {
+      "path": "PDF_A-4/6.4 Interactive forms/6.4.1 General/veraPDF test suite 6-4-1-t01-pass-b.pdf",
+      "sha256": "886684f0bc9274897e5c86941f607e75d181e21fb483f97f520a8ff31d387b1d"
+    },
+    {
+      "path": "PDF_A-4/6.4 Interactive forms/6.4.1 General/veraPDF test suite 6-4-1-t02-fail-a.pdf",
+      "sha256": "cc68a2b4e5598db79d5dca3478076a74739f705f361446485342e28456a59001"
+    },
+    {
+      "path": "PDF_A-4/6.4 Interactive forms/6.4.1 General/veraPDF test suite 6-4-1-t02-pass-a.pdf",
+      "sha256": "500ce8719e6693fb32c8774b88bc95c29363463d68e5584fa52d2af9d0b1596a"
+    },
+    {
+      "path": "PDF_A-4/6.4 Interactive forms/6.4.2 XFA forms/veraPDF test suite 6-4-2-t01-fail-a.pdf",
+      "sha256": "bd2a561daf5c3df1a28bdd89699880efa19fa31b5a429b7997c32f0d2b6012d1"
+    },
+    {
+      "path": "PDF_A-4/6.4 Interactive forms/6.4.2 XFA forms/veraPDF test suite 6-4-2-t01-fail-b.pdf",
+      "sha256": "7d85fe8e168fca1a5f57d9ff13511f1b93c2a420c6a291e8f35921ec5310abef"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-a.pdf",
+      "sha256": "e357296105af21032f46864ffadb9a9ab18b89e5cf802d7c491db1bbf15d8679"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-b.pdf",
+      "sha256": "5c57998b9688212110a5cf766e53a325477dc9822599261d0881896454914f4d"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-c.pdf",
+      "sha256": "3b063644048a4ab0001a1d279243f90f920f42f90bd5b13e7663d6e199035cd2"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-d.pdf",
+      "sha256": "6ba303cf966dae5ce2578b30c22678edcdde505035466d3449868510b9fc5ac3"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-e.pdf",
+      "sha256": "04edbfa070694bc0a8fed7c02776bda2c5b8b23ec7cbeaabda94f12e8287923c"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-f.pdf",
+      "sha256": "a95fcba22c665d2cc71fe5fe88482b4e0358555b150afd6e2c2678bb3069e721"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-g.pdf",
+      "sha256": "8fb7a277a2bba3051ff1730fc9b75448919650cd2ca9e8d582a62f55997d8b51"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-h.pdf",
+      "sha256": "ede47e72f948e8c75ad1829910eab10285afd503ca4ccfc9835a5133be11f125"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-i.pdf",
+      "sha256": "90f6b76aeac997bfbd41310e9de771b6ee756fcfe9b51465b70ec4c884f6f01f"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-j.pdf",
+      "sha256": "2dc6333a5725adcac284f3c4f1cf7a3c5d20841da4e993460319ff1a02962f53"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-k.pdf",
+      "sha256": "b0f7d1bf76c826096831c99172349c307ce503b23542b96ee57b9a5b18b9683a"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-l.pdf",
+      "sha256": "7c5039d69fcc6785854ce774cfe91805a32d02f6eb47ad486935ea6732140291"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-fail-m.pdf",
+      "sha256": "ff3e02f46a2ffbcbfd806fa9bfdd50baa6eebfd09d7764949887f23c18c1fece"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t01-pass-a.pdf",
+      "sha256": "f9ecea445a2b8f5539a713e9e7c826418ec9d0e85f96d065c7b5199e9225238c"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t02-fail-a.pdf",
+      "sha256": "e87314a3b90ab2315d0c2be59f51a5493d55697d4cab32cc3d841f0a05695140"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.1 General/veraPDF test suite 6-6-1-t02-pass-a.pdf",
+      "sha256": "0817fb85791ef88789d6595d73b6bb029b611e9a443ee749b70f8c92c1a98e5d"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.3 Trigger events/veraPDF test suite 6-6-3-t01-fail-a.pdf",
+      "sha256": "5ff7465a9bf726c83e75daaccab9f3ac846266bd7506ea0121af27b862d12f60"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.3 Trigger events/veraPDF test suite 6-6-3-t01-fail-b.pdf",
+      "sha256": "54452603e83ddddcfc95714a78815ed44e6d8be89ff8a831621e69d34109d266"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.3 Trigger events/veraPDF test suite 6-6-3-t01-fail-c.pdf",
+      "sha256": "efbeb30ba765e5fb756c597a9b8c57b5fa56309335a03f835b87cab34509d870"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.3 Trigger events/veraPDF test suite 6-6-3-t01-pass-a.pdf",
+      "sha256": "7d83ca1266b81f3a657b3a9950a7429e64d7bd08c833a4acc4bc0a54f74d55ad"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.3 Trigger events/veraPDF test suite 6-6-3-t01-pass-b.pdf",
+      "sha256": "33a83b2644e7106f2ebdf9e0ce8e9cf19c56fedd3ccf954c5a5f78e0d438681f"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.3 Trigger events/veraPDF test suite 6-6-3-t01-pass-c.pdf",
+      "sha256": "c562f6a373806e09b455e0fdfe2d0b8a56a084d80eda59d2116a1e17ed8b04b0"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.3 Trigger events/veraPDF test suite 6-6-3-t01-pass-d.pdf",
+      "sha256": "166fe77901671d498381151360a93e3d25c71ea1ea5444f199fc95c036366193"
+    },
+    {
+      "path": "PDF_A-4/6.6 Action/6.6.3 Trigger events/veraPDF test suite 6-6-3-t01-pass-e.pdf",
+      "sha256": "66a502927a0e8521a8846a06fcd4c6d45ff479c517578054375e7c77d94c707a"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.2 Metadata streams/6.7.2.1 General/veraPDF test suite 6-7-2-1-t01-fail-a.pdf",
+      "sha256": "60be90d7d1dc94a33815573e239e635e4a51d5c2c692dc2b9a898777aa88b787"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.2 Metadata streams/6.7.2.1 General/veraPDF test suite 6-7-2-1-t01-fail-b.pdf",
+      "sha256": "ba3009ddb9b9555a17be25d49869baa2ac657f0aa6769ef56c161596a2ed6c1a"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.2 Metadata streams/6.7.2.1 General/veraPDF test suite 6-7-2-1-t01-fail-c.pdf",
+      "sha256": "deef56eb537225bce4f1e6098407f8258625b9a63e1e5dd6cdd0d7e3f154d78c"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.2 Metadata streams/6.7.2.1 General/veraPDF test suite 6-7-2-1-t01-fail-d.pdf",
+      "sha256": "8819c7858ccea59cddbc77125379e5f876dbe1a5353184166c9ff1afd49b6f71"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.2 Metadata streams/6.7.2.1 General/veraPDF test suite 6-7-2-1-t01-fail-e.pdf",
+      "sha256": "058cc96d282e5b51c359bb4ae772296ce824b1c9a9c65100fbf83d71f8d33b10"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-a.pdf",
+      "sha256": "45e283bd989b85e8961f15e740b19d4c56450955933e8a32b6fd6c4861c4ca6d"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-b.pdf",
+      "sha256": "34cd7cd7dc0158396da549b5423d6028af11737c4c92cfdf4c82a25d94b6da8b"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-c.pdf",
+      "sha256": "4e1e073706a6a560f2a09cc5b906a0adee134062367ed703926ce79db714ee7e"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-d.pdf",
+      "sha256": "fb20f129a4f24e2afed4b15ac6f5382929a74978c6a8c859b29b6d0edcfbf321"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-e.pdf",
+      "sha256": "aefcc9a4ced2587da1068853ae68d0a28225496d58ab209a9706825fcd6cce17"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-f.pdf",
+      "sha256": "09a3fd76f8026778618205dbcf5ffb63775ea445d0c7ddd773fe706076616044"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-g.pdf",
+      "sha256": "2cf9aa55c6355937c59b025d05df27889176de012913fcb5bbbe7261c6bc1bee"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-h.pdf",
+      "sha256": "648e8cc811e00e9cc61e35bc59aa759630f3460a21fee6c333b24b4012eab8e7"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t01-fail-i.pdf",
+      "sha256": "8a156866f87df5b34e93511210e70b750070930dae2d3a69757414382010963e"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.3 Version identification/veraPDF test suite 6-7-3-t05-fail-a.pdf",
+      "sha256": "466c6904b009a56bd1f22fe8b7879fee9f856cf90e6b2645302689ef50ecc792"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.5 File provenance information/veraPDF test suite 6-7-5-t01-pass-a.pdf",
+      "sha256": "82af6b2b1dfeaa59ca471cd432bd99b043bcc17f925d1d9506112525e5027aa5"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.5 File provenance information/veraPDF test suite 6-7-5-t01-pass-b.pdf",
+      "sha256": "86a6895fbc5be9cab5a8ff5cf5c1ec1b3bbbc92eac5aa248ed409a68b0ca4b49"
+    },
+    {
+      "path": "PDF_A-4/6.7 Metadata/6.7.5 File provenance information/veraPDF test suite 6-7-5-t01-pass-c.pdf",
+      "sha256": "43b9019f4db7d3395fc991f3ba5d4390f9eb09605d6f7dd87f206bfdc9bf78c2"
+    },
+    {
+      "path": "PDF_A-4/6.9 Embedded files/veraPDF test suite 6-9-t01-fail-a.pdf",
+      "sha256": "2cdd5beb68d08fd80e1e99e0707a56eee5dd8a8a10a450752406e7d8847ad9f5"
+    },
+    {
+      "path": "PDF_A-4/6.9 Embedded files/veraPDF test suite 6-9-t02-fail-a.pdf",
+      "sha256": "900856faf20926dfc84a40340fced24668c0f86a97a44a22c2a204d6184ab33b"
+    },
+    {
+      "path": "PDF_A-4/6.9 Embedded files/veraPDF test suite 6-9-t02-fail-b.pdf",
+      "sha256": "c941b464c0f78d5b0b6763bf5f2711dfdbfc4eac2a3fd569cd2b84ff7b533193"
+    },
+    {
+      "path": "PDF_A-4/6.9 Embedded files/veraPDF test suite 6-9-t03-fail-a.pdf",
+      "sha256": "5769a7221200392bb0e038292b36e342cf0ed9296b4717484e906c9455723556"
+    },
+    {
+      "path": "PDF_A-4/6.9 Embedded files/veraPDF test suite 6-9-t03-fail-b.pdf",
+      "sha256": "12ca93cbe1d59c0fc2f673d1ff8d6ac5f1dc2c17558987836d42e7b512e8b5e5"
+    },
+    {
+      "path": "PDF_A-4/6.9 Embedded files/veraPDF test suite 6-9-t03-pass-a.pdf",
+      "sha256": "a041a3bb099b5077b93ce51e2348e5df4ca664cd0d74b19ffcf08bee62213ec9"
+    },
+    {
+      "path": "PDF_A-4/6.9 Embedded files/veraPDF test suite 6-9-t04-fail-a.pdf",
+      "sha256": "f35d0c807b219b79504e5df4d9a101937a29de2b97d74d2e735e3b96fce5c016"
+    },
+    {
+      "path": "README.md",
+      "sha256": "acefbacff2886458084e4514b2bc1abd52217e69549161a6118a0a87497d3646"
+    }
+  ],
+  "schema_version": 1,
+  "subset": {
+    "path": "vendor/verapdf-corpus/verapdf-corpus-pdfa4-49de56c.tgz",
+    "retained": [
+      "PDF_A-4/",
+      "README.md"
+    ],
+    "sha256": "c183bf25a38d1ceb9197d0ded548c73d7f14b02dd9e40fefd26e7520363f59bc"
+  },
+  "upstream": {
+    "commit": "49de56cd987929932c9e4fbbbe67d052bf44ef83",
+    "license": "CC-BY-4.0",
+    "sha256": "5c1a138e0fd89fafa51d03a23a1a0bf0a9bcb028430e1d5dd125364e19b87f57",
+    "url": "https://github.com/veraPDF/veraPDF-corpus/archive/49de56cd987929932c9e4fbbbe67d052bf44ef83.tar.gz"
+  }
+}

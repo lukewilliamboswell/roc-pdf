@@ -31,6 +31,7 @@ ASSET_KINDS = {
     "image",
     "test_toolchain",
     "unicode_data",
+    "validator_corpus",
 }
 
 CAPABILITIES = {

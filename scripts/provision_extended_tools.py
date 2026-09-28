@@ -9,7 +9,10 @@ access:
 - ``mutool`` is compiled from ``vendor/mupdf/mupdf-1.28.2-source.tgz``;
 - veraPDF greenfield is laid down from
   ``vendor/verapdf/verapdf-greenfield-1.30.2-installer.zip`` through its
-  izpack automated installer.
+  izpack automated installer;
+- the upstream veraPDF PDF/A-4 corpus subset is extracted from
+  ``vendor/verapdf-corpus/verapdf-corpus-pdfa4-49de56c.tgz`` for
+  ``check_pdfa4.py --corpus``.
 
 Every artifact's SHA-256 is verified against ``assets/provenance.json``
 before it is used, matching the vendored-tool contract. The default target
@@ -37,6 +40,7 @@ MUPDF_ARCHIVE = ROOT / "vendor" / "mupdf" / "mupdf-1.28.2-source.tgz"
 MUPDF_SOURCE_DIR = "mupdf-1.28.2-source"
 VERAPDF_ARCHIVE = ROOT / "vendor" / "verapdf" / "verapdf-greenfield-1.30.2-installer.zip"
 VERAPDF_INSTALLER = "verapdf-greenfield-1.30.2/verapdf-izpack-installer-1.30.2.jar"
+CORPUS_ARCHIVE = ROOT / "vendor" / "verapdf-corpus" / "verapdf-corpus-pdfa4-49de56c.tgz"
 DEFAULT_TARGET = ROOT / ".roc-pdf-tmp" / "extended-tools"
 
 AUTO_INSTALL_TEMPLATE = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -138,6 +142,21 @@ def provision_verapdf(target: Path) -> Path:
     return verapdf
 
 
+def provision_corpus(target: Path) -> Path:
+    verify_digest(CORPUS_ARCHIVE)
+    root = target / "verapdf-corpus"
+    corpus = root / "verapdf-corpus-pdfa4" / "PDF_A-4"
+    if corpus.is_dir():
+        print(f"veraPDF PDF/A-4 corpus already provisioned at {corpus}")
+        return corpus
+    root.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(CORPUS_ARCHIVE, "r:gz") as archive:
+        archive.extractall(root, filter="data")
+    if not corpus.is_dir():
+        fail("corpus extraction completed without producing the PDF_A-4 tree")
+    return corpus
+
+
 def report(tool: str, path: Path, arguments: list[str]) -> None:
     result = subprocess.run([str(path), *arguments], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     first_line = result.stdout.decode("utf-8", errors="replace").splitlines()[0]
@@ -151,6 +170,7 @@ def main() -> None:
     parser.add_argument("--jobs", type=int, default=max(1, multiprocessing.cpu_count() - 1))
     parser.add_argument("--skip-mupdf", action="store_true")
     parser.add_argument("--skip-verapdf", action="store_true")
+    parser.add_argument("--skip-corpus", action="store_true")
     args = parser.parse_args()
     target = args.target.resolve()
     target.mkdir(parents=True, exist_ok=True)
@@ -160,6 +180,9 @@ def main() -> None:
     if not args.skip_verapdf:
         verapdf = provision_verapdf(target)
         report("veraPDF", verapdf, ["--version"])
+    if not args.skip_corpus:
+        corpus = provision_corpus(target)
+        print(f"veraPDF PDF/A-4 corpus: {corpus} ({sum(1 for _ in corpus.rglob('*.pdf'))} PDFs)")
     print("extended tools provisioned from vendored pinned bytes")
 
 
