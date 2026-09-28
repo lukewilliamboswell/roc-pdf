@@ -84,15 +84,24 @@ def canonical_xmp(
     language: str,
     created: str | None = None,
     modified: str | None = None,
+    identified: bool = False,
 ) -> bytes:
-    """The canonical XMP policy, reimplemented independently of KernelXmp."""
+    """The canonical XMP policy, reimplemented independently of KernelXmp.
+
+    ``identified`` adds the PDF/A Identification schema a validated static
+    PDF/A-4 claim declares: its namespace URI sorts after Dublin Core, and
+    ``part`` then ``rev`` follow ``dc:title``.
+    """
     parts = ['<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>\n']
     parts.append('<x:xmpmeta xmlns:x="adobe:ns:meta/">\n')
     parts.append('\t<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\n')
     parts.append('\t\t<rdf:Description rdf:about=""')
     if created is not None or modified is not None:
         parts.append(' xmlns:xmp="http://ns.adobe.com/xap/1.0/"')
-    parts.append(' xmlns:dc="http://purl.org/dc/elements/1.1/">\n')
+    parts.append(' xmlns:dc="http://purl.org/dc/elements/1.1/"')
+    if identified:
+        parts.append(' xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/"')
+    parts.append(">\n")
     if created is not None:
         parts.append(f"\t\t\t<xmp:CreateDate>{created}</xmp:CreateDate>\n")
     if modified is not None:
@@ -103,6 +112,8 @@ def canonical_xmp(
     parts.append("\t\t\t<dc:title>\n\t\t\t\t<rdf:Alt>\n")
     parts.append(f'\t\t\t\t\t<rdf:li xml:lang="x-default">{escape_xml(title)}</rdf:li>\n')
     parts.append("\t\t\t\t</rdf:Alt>\n\t\t\t</dc:title>\n")
+    if identified:
+        parts.append("\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n")
     parts.append("\t\t</rdf:Description>\n\t</rdf:RDF>\n</x:xmpmeta>\n")
     parts.append('<?xpacket end="w"?>')
     return "".join(parts).encode("utf-8")
@@ -120,6 +131,7 @@ def check_metadata(
     modified: str | None,
     expected_pages: int,
     icc_based_spaces: int,
+    identified: bool = False,
 ) -> None:
     # File skeleton: header, EOF, xref integrity, page tree, and stream
     # lengths; content-stream bytes are covered by the exact snapshot and the
@@ -164,7 +176,7 @@ def check_metadata(
     require(b"/Filter" not in metadata_dictionary, "metadata stream must stay unfiltered")
     length = indirect_length(bodies, dictionary_ref(metadata_dictionary, b"Length"))
     _, packet = stream_parts(metadata_body, length)
-    expected_packet = canonical_xmp(title, language, created, modified)
+    expected_packet = canonical_xmp(title, language, created, modified, identified)
     require(packet == expected_packet, "metadata stream is not the canonical XMP packet")
 
     # The XMP language bag must agree with the catalog /Lang entry.
@@ -229,12 +241,15 @@ def validate_title(pdf: bytes, segments: int) -> None:
     check_metadata(pdf, "A&" * segments, "en-AU", SHOWCASE_CREATED, SHOWCASE_MODIFIED, 1, 1)
 
 
+# The facade fixtures author through `Pdf.to_bytes`, whose default profile is
+# `Archive`, so their packets carry the PDF/A identification; the kernel
+# fixtures lower `NoIdentification` packets.
 def validate_facade(pdf: bytes, pages: int) -> None:
-    check_metadata(pdf, FACADE_TITLE, "en-AU", SHOWCASE_CREATED, SHOWCASE_MODIFIED, pages, 0)
+    check_metadata(pdf, FACADE_TITLE, "en-AU", SHOWCASE_CREATED, SHOWCASE_MODIFIED, pages, 0, identified=True)
 
 
 def validate_facade_negative(pdf: bytes) -> None:
-    check_metadata(pdf, "Valid", "en-AU", None, None, 1, 0)
+    check_metadata(pdf, "Valid", "en-AU", None, None, 1, 0, identified=True)
 
 
 def validate_metadata_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:

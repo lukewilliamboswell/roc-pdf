@@ -51,7 +51,7 @@ CAPABILITY_AVAILABILITY = {
     "Pdf20": "available",
     "PdfA4f": "future",
     "PdfUa2": "defined_only",
-    "StaticPdfA4": "defined_only",
+    "StaticPdfA4": "available",
     "WtpdfAccessibility": "defined_only",
     "WtpdfReuse": "defined_only",
 }
@@ -295,7 +295,12 @@ def validate_ledger(
         if applicability == "pending_iso_confirmation":
             if requirement["implementation"] != "partial" or human == "not_required":
                 fail(path, "a pending ISO-text confirmation is partial and names its human obligation")
-        elif static_available and "StaticPdfA4" in capabilities and requirement["implementation"] != "implemented":
+        elif (
+            static_available
+            and "StaticPdfA4" in capabilities
+            and all(CAPABILITY_AVAILABILITY[capability] == "available" for capability in capabilities)
+            and requirement["implementation"] != "implemented"
+        ):
             fail(f"{path}.implementation", "an available StaticPdfA4 capability requires every confirmed requirement to be implemented")
         scenario_values: dict[str, list[str]] = {}
         for field in ("positive_scenarios", "negative_scenarios", "external_rule_ids"):

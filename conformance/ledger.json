@@ -108,7 +108,7 @@
         "Pdf20",
         "StaticPdfA4"
       ],
-      "implementation": "partial",
+      "implementation": "implemented",
       "applicability": "applicable",
       "machine_verification": "schema_and_roc_contract; canonical_case_rfc5646_subset_validation_with_typed_rejections; canonical_xmp_packet_with_pinned_golden_bytes_and_catalog_lang_agreement; explicit_utc_timestamps_or_deterministic_omission; pdfa_identification_only_for_a_validated_static_pdfa4_claim; xmp_document_identifiers_omitted_because_the_id_digest_covers_the_packet",
       "human_verification": "not_required",

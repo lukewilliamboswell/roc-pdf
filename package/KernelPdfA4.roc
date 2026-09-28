@@ -869,10 +869,13 @@ check_output_intents = |store, classes, value, position| {
 		return Err({ position, requirement: OutputIntent })
 	}
 	major = list_at(profile_bytes, 8)
-	class = profile_bytes.sublist({ start: 12, len: 4 })
 
-	## 'mntr' and 'prtr' device classes; ICC major versions 2 through 4.
-	if major < 2 or major > 4 or (class != [109, 110, 116, 114] and class != [112, 114, 116, 114]) {
+	## 'mntr' and 'prtr' device classes, compared in place without a slice;
+	## ICC major versions 2 through 4.
+	monitor = list_at(profile_bytes, 12) == 109 and list_at(profile_bytes, 13) == 110
+	printer = list_at(profile_bytes, 12) == 112 and list_at(profile_bytes, 13) == 114
+	device_tail = list_at(profile_bytes, 14) == 116 and list_at(profile_bytes, 15) == 114
+	if major < 2 or major > 4 or !((monitor or printer) and device_tail) {
 		return Err({ position, requirement: OutputIntent })
 	}
 	Ok({})

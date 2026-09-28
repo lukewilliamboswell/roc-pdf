@@ -1188,15 +1188,6 @@ def main() -> None:
         else:
             executor.shutdown()
 
-    if args.update_snapshots:
-        phase("Post-update contract validation")
-        for check_id in suite.post_update_checks:
-            command(
-                sys.executable,
-                f"scripts/{PREFLIGHT_CHECKS[check_id].script}",
-                "--self-test",
-            )
-
     if args.baseline_report is not None:
         work_names = {case.name: case.work_counters for case in suite.cases}
         report = [
@@ -1209,6 +1200,15 @@ def main() -> None:
         ]
         args.baseline_report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         announce("RUN", f"Wrote {len(report)} baseline differences to {args.baseline_report}")
+
+    if args.update_snapshots:
+        phase("Post-update contract validation")
+        for check_id in suite.post_update_checks:
+            command(
+                sys.executable,
+                f"scripts/{PREFLIGHT_CHECKS[check_id].script}",
+                "--self-test",
+            )
 
     if baseline_deltas:
         announce("FAIL", "Allocation baseline comparison:")

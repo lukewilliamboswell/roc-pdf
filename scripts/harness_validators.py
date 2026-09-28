@@ -187,11 +187,15 @@ PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
         "check_color_image_renderers.py", "check_transparency.py", "check_transparency_renderers.py",
         "check_soft_masks.py", "check_soft_mask_renderers.py", "check_shadings.py", "check_shading_renderers.py",
         "check_fonts.py", "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
-        "check_navigation.py", "check_navigation_renderers.py", "check_pdfa4_structure.py",
-        "check_pdfa4.py", "check_archive_renderers.py", "extract_verapdf_rules.py",
+        "check_navigation.py", "check_navigation_renderers.py", "extract_verapdf_rules.py",
         "build_verapdf_corpus_subset.py",
     )
 }
+# The static PDF/A-4 self-tests read Archive and Standard snapshots, which are
+# in flux during --update-snapshots; they run again as post-update checks.
+PREFLIGHT_CHECKS["pdfa4_structure"] = PreflightCheck("check_pdfa4_structure.py", True)
+PREFLIGHT_CHECKS["pdfa4"] = PreflightCheck("check_pdfa4.py", True)
+PREFLIGHT_CHECKS["archive_renderers"] = PreflightCheck("check_archive_renderers.py", True)
 PREFLIGHT_CHECKS["contracts"] = PreflightCheck("check_contracts.py", True)
 PREFLIGHT_CHECKS["pdf_structure"] = PreflightCheck("check_pdf_structure.py", True)
 

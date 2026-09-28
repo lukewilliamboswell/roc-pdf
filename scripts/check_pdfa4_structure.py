@@ -239,7 +239,7 @@ def validate_standard_twin_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
 def self_test() -> None:
     for name, pages in SNAPSHOTS:
         validate_archive_pdf((ARCHIVE / name).read_bytes(), pages)
-    validate_standard_pdf((ROOT / "tests" / "metadata" / "metadata_facade.pdf").read_bytes())
+    validate_standard_pdf((ROOT / "tests" / "metadata" / "metadata.pdf").read_bytes())
     for name in ("archive_figures_standard.pdf", "archive_navigation_standard.pdf"):
         validate_standard_twin_pdf((ARCHIVE / name).read_bytes(), {"pages": 1})
 

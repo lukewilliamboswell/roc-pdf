@@ -79,12 +79,17 @@ Pdf :: [].{
 		profile : Profile,
 		theme : Theme,
 	}.{
+
+		## The production default selects the most complete public profile whose
+		## claim set is implemented and validated: `Archive` (PDF 2.0 plus static
+		## PDF/A-4). `AccessibleArchive` becomes the default only when its combined
+		## claim closes; `Standard` is an explicit opt-out, never a fallback.
 		default : Options
 		default = Options.{
 			chunk_retention: ShareUnchangedResources,
 			font_source: BuiltIn,
 			page_size: A4,
-			profile: Standard,
+			profile: Archive,
 			theme: Theme.default,
 		}
 
@@ -244,10 +249,11 @@ Pdf :: [].{
 	with_modified : Document, Str -> Document
 	with_modified = |doc, timestamp| Document.with_modified(doc, timestamp)
 
-	## Standard and Archive content follow the completed typed facade pipeline;
-	## Archive additionally passes static PDF/A-4 profile and lowered-plan
-	## validation before any byte exists. AccessibleArchive remains unavailable
-	## until its combined capability closes.
+	## The default profile is `Archive`: content follows the completed typed
+	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
+	## validation before any byte exists. `Standard` is an explicit opt-out.
+	## AccessibleArchive remains unavailable until its combined capability
+	## closes; a document that cannot meet the requested claim is an error.
 	to_bytes : Document -> Try(List(U8), Error)
 	to_bytes = |doc| to_bytes_with(doc, Options.default)
 
@@ -720,7 +726,7 @@ expect {
 	bytes.len() > 0
 }
 
-## Standard authored content crosses the public facade without exposing PDF internals.
+## Default authored content crosses the public facade without exposing PDF internals.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -771,7 +777,7 @@ expect {
 	}
 }
 
-## Empty Standard documents emit one structural PDF 2.0 page.
+## Empty default documents emit one structural PDF 2.0 page.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
 	bytes = Pdf.to_bytes(document)?
@@ -790,6 +796,17 @@ expect {
 	bytes = Pdf.to_bytes_with(document, options)?
 
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
+}
+
+## The default is exactly `to_bytes_with(document, Options.default)`, and
+## that default claims static PDF/A-4.
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Default")], language: "en-AU", title: "Default" })
+	implicit = Pdf.to_bytes(document)?
+	explicit = Pdf.to_bytes_with(document, Pdf.Options.default)?
+	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
+
+	implicit == explicit and implicit == archive and contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>"))
 }
 
 ## Archive emits the same document with exactly the PDF/A identification
