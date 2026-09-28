@@ -115,8 +115,8 @@ unicode_mappings = [{ cid: 1, scalars: [0x41] }, { cid: 3, scalars: [0x00e9] }]
 object_limits : KernelObject.Limits
 object_limits = {
 	max_array_items: 32,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 64,
 	max_direct_depth: 8,
 	max_name_bytes: 1024,
@@ -125,8 +125,8 @@ object_limits = {
 	max_payload_bytes: 200000,
 	max_payloads: 3,
 	max_streams: 3,
-	max_text_string_bytes: 32,
-	max_text_strings: 2,
+	max_text_string_bytes: 19,
+	max_text_strings: 0,
 	max_values: 128,
 }
 

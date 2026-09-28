@@ -313,10 +313,12 @@ add_cid_font = |builder, names, base_font, cid_to_gid, descriptor, font, plan| {
 
 add_cid_system_info : KernelObject.Builder, Names -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPdfFont.Error)
 add_cid_system_info = |builder, names| {
-	ordering_text = KernelObject.add_text_string(builder, "Identity") ? Object
-	ordering = KernelObject.add_text_string_value(ordering_text.builder, ordering_text.id) ? Object
-	registry_text = KernelObject.add_text_string(ordering.builder, "Adobe") ? Object
-	registry = KernelObject.add_text_string_value(registry_text.builder, registry_text.id) ? Object
+	# ISO 32000-2 Table 114 types Registry and Ordering as ASCII strings, so
+	# they are opaque byte strings rather than UTF-16BE text strings.
+	ordering_bytes = KernelObject.add_byte_string(builder, Str.to_utf8("Identity")) ? Object
+	ordering = KernelObject.add_byte_string_value(ordering_bytes.builder, ordering_bytes.id) ? Object
+	registry_bytes = KernelObject.add_byte_string(ordering.builder, Str.to_utf8("Adobe")) ? Object
+	registry = KernelObject.add_byte_string_value(registry_bytes.builder, registry_bytes.id) ? Object
 	supplement = KernelObject.add_integer(registry.builder, 0) ? Object
 	dictionary = KernelObject.add_dictionary(
 		supplement.builder,

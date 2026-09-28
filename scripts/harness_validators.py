@@ -186,7 +186,7 @@ PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
         "check_text_renderers.py", "check_forms.py", "check_form_renderers.py", "check_color_images.py",
         "check_color_image_renderers.py", "check_transparency.py", "check_transparency_renderers.py",
         "check_soft_masks.py", "check_soft_mask_renderers.py", "check_shadings.py", "check_shading_renderers.py",
-        "check_fonts.py", "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
+        "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
         "check_navigation.py", "check_navigation_renderers.py", "extract_verapdf_rules.py",
         "build_verapdf_corpus_subset.py",
     )
@@ -198,6 +198,9 @@ PREFLIGHT_CHECKS["pdfa4"] = PreflightCheck("check_pdfa4.py", True)
 PREFLIGHT_CHECKS["archive_renderers"] = PreflightCheck("check_archive_renderers.py", True)
 PREFLIGHT_CHECKS["contracts"] = PreflightCheck("check_contracts.py", True)
 PREFLIGHT_CHECKS["pdf_structure"] = PreflightCheck("check_pdf_structure.py", True)
+# The font self-test validates the committed font-leaf snapshots' exact
+# descendant dictionaries, which are also in flux during --update-snapshots.
+PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 
 
 def validate_registry_ids(validators: tuple[str, ...], field: str) -> None:

@@ -184,8 +184,8 @@ content_limits = KernelContent.Limits.make({ max_content_bytes: 1048576, max_con
 object_limits : KernelObject.Limits
 object_limits = {
 	max_array_items: 65536,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 832,
+	max_byte_strings: 128,
 	max_dictionary_entries: 65536,
 	max_direct_depth: 8,
 	max_name_bytes: 65536,
@@ -194,8 +194,8 @@ object_limits = {
 	max_payload_bytes: 8388608,
 	max_payloads: 4096,
 	max_streams: 4096,
-	max_text_string_bytes: 65536,
-	max_text_strings: 2048,
+	max_text_string_bytes: 64704,
+	max_text_strings: 1920,
 	max_values: 262144,
 }
 

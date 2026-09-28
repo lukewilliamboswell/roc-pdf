@@ -345,8 +345,8 @@ descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 tagged_object_limits : KernelObject.Limits
 tagged_object_limits = {
 	max_array_items: 64,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 128,
 	max_direct_depth: 8,
 	max_name_bytes: 3072,
@@ -355,8 +355,8 @@ tagged_object_limits = {
 	max_payload_bytes: 200000,
 	max_payloads: 4,
 	max_streams: 4,
-	max_text_string_bytes: 64,
-	max_text_strings: 4,
+	max_text_string_bytes: 51,
+	max_text_strings: 2,
 	max_values: 256,
 }
 

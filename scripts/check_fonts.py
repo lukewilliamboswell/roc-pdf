@@ -141,9 +141,9 @@ class Bundle:
         require(b"/Subtype /CIDFontType2" in descendant, f"{owner}: descendant is not CIDFontType2")
         require(base.group(0) in descendant, f"{owner}: descendant BaseFont disagrees")
         require(
-            b"/CIDSystemInfo << /Ordering <FEFF004900640065006E0074006900740079> "
-            b"/Registry <FEFF00410064006F00620065> /Supplement 0 >>" in descendant,
-            f"{owner}: CIDSystemInfo is not the canonical UTF-16BE Adobe-Identity-0",
+            b"/CIDSystemInfo << /Ordering <4964656E74697479> "
+            b"/Registry <41646F6265> /Supplement 0 >>" in descendant,
+            f"{owner}: CIDSystemInfo is not the canonical ASCII Adobe-Identity-0",
         )
         require(b"/DW 1000" in descendant, f"{owner}: /DW is not 1000")
         self.descriptor = dictionary_ref(descendant, b"FontDescriptor")

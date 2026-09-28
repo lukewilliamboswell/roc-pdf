@@ -949,7 +949,7 @@ build_rtl_sample_after_shape = |font, semantic, shape| {
 }
 
 rtl_object_limits : KernelObject.Limits
-rtl_object_limits = { ..multi_face_object_limits, max_text_strings: 8 }
+rtl_object_limits = { ..multi_face_object_limits, max_byte_string_bytes: 13, max_byte_strings: 2, max_text_string_bytes: 51, max_text_strings: 6 }
 
 ## Full Unicode default uppercase of `aß`. The expansion is resolved by the
 ## pinned dependency, never a fixture-local table.
@@ -2116,8 +2116,8 @@ ligature_shape_limits = |_| KernelShape.AdvancedLimits.make({ max_clusters: 1, m
 tagged_object_limits : KernelObject.Limits
 tagged_object_limits = {
 	max_array_items: 64,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 128,
 	max_direct_depth: 8,
 	max_name_bytes: 3072,
@@ -2126,16 +2126,16 @@ tagged_object_limits = {
 	max_payload_bytes: 200000,
 	max_payloads: 4,
 	max_streams: 4,
-	max_text_string_bytes: 64,
-	max_text_strings: 4,
+	max_text_string_bytes: 51,
+	max_text_strings: 2,
 	max_values: 256,
 }
 
 multi_face_object_limits : KernelObject.Limits
 multi_face_object_limits = {
 	max_array_items: 256,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 26,
+	max_byte_strings: 4,
 	max_dictionary_entries: 512,
 	max_direct_depth: 8,
 	max_name_bytes: 3072,
@@ -2144,8 +2144,8 @@ multi_face_object_limits = {
 	max_payload_bytes: 300000,
 	max_payloads: 16,
 	max_streams: 16,
-	max_text_string_bytes: 64,
-	max_text_strings: 8,
+	max_text_string_bytes: 38,
+	max_text_strings: 4,
 	max_values: 2048,
 }
 

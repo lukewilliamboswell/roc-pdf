@@ -488,8 +488,8 @@ descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 output_object_limits : KernelObject.Limits
 output_object_limits = {
 	max_array_items: 256,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 512,
 	max_direct_depth: 8,
 	max_name_bytes: 4096,
@@ -498,8 +498,8 @@ output_object_limits = {
 	max_payload_bytes: 200000,
 	max_payloads: 8,
 	max_streams: 8,
-	max_text_string_bytes: 256,
-	max_text_strings: 8,
+	max_text_string_bytes: 243,
+	max_text_strings: 6,
 	max_values: 1024,
 }
 
