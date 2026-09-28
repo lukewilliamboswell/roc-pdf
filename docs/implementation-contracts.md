@@ -102,11 +102,17 @@ checks. Preflight checker self-tests are likewise an ordered manifest list.
 Python registries bind those IDs to project-owned callables and scripts without
 allowing manifest data to import or execute arbitrary code.
 
-Exact allocation baselines are measured from a cold Roc cache, in the full
-harness order that CI runs. The pinned compiler can produce different
-allocation counts for identical source when a warm local cache holds artifacts
-from other command sequences, even though bytes and work counters are
-identical. A delta observed only with a warm cache is not evidence. A case's
+Exact allocation baselines and allocated-bytes ceilings are measured from a
+cold Roc cache, in the full harness order that CI runs, with fixture
+executables built by `roc build --no-cache`. The pinned compiler produces
+different code for identical source when it reuses procedures cached by other
+programs: a program built against procedures compiled for another fixture can
+copy a list that the same program built alone updates in place, even though
+bytes and work counters are identical. Building fixtures without the cache
+makes each case's allocation evidence independent of build order and cache
+state. A reproduction of the cache dependence is recorded in
+[upstream-roc-uniqueness-issue.md](performance/upstream-roc-uniqueness-issue.md)
+(B). A case's
 static PDF/A-4 claim is declared by its `pdfa4` validator; Standard-only
 snapshots must never declare PDF/A identification, and
 `scripts/check_pdfa4.py` enforces both directions.

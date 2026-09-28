@@ -31,8 +31,14 @@
   bounds before fixing a representation.
 - Run affected tests through `./scripts/test.py`. Every focused case must keep
   its exact Roc allocation count and deterministic work evidence under the
-  pinned build. Do not mechanically accept allocation-count or PDF snapshot
+  pinned build, and must stay within 10% of its recorded allocated bytes. Do
+  not mechanically accept allocation-count, allocated-bytes, or PDF snapshot
   changes; explain and review their architectural cause first.
+- Keep accumulators uniquely owned. Do not thread a growing list or builder
+  through a `Try` that the caller then updates, keep it live on an error path
+  (`Err(e) => { $error = … }` loop state), return it beside another list, or
+  grow it with `List.reserve`/`List.concat` (both size exactly). See
+  `docs/performance/lowering-uniqueness.md`.
 - If a proposed change alters an enduring architectural decision or roadmap
   capability boundary, update the corresponding document in the same change.
   Do not use an implementation workaround to avoid resolving the conflict.

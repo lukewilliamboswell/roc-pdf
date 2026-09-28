@@ -90,12 +90,17 @@ are not a substitute for the full conformance ledger.
 
 Every focused case keeps its exact Roc allocation count and deterministic work
 counters under the pinned build, as described in the performance review below;
-these remain mandatory. Every scalable feature additionally carries at least
-one small/large scale pair whose work counters prove linear or `n log n`
-growth, for example a small invoice against a large statement/invoice batch.
-The goal of this evidence is to catch super-linear or exponential blow-ups that
-would make the package unusable, together with unreviewed representation
-changes.
+these remain mandatory. Every case also records the bytes its Roc allocations
+request (`allocated_bytes`, the sum of every `roc_alloc` size and every
+`roc_realloc` new size), and a run fails when a case exceeds its recorded value
+by more than 10%. The ceiling catches a list copied on every append, which
+grows allocated bytes quadratically while the allocation count (one event per
+copy) still looks linear. Decreases pass; a reviewed rebaseline lowers the
+recorded value. Every scalable feature additionally carries at least one
+small/large scale pair whose work counters prove linear or `n log n` growth,
+for example a small invoice against a large statement/invoice batch. The goal
+of this evidence is to catch super-linear or exponential blow-ups that would
+make the package unusable, together with unreviewed representation changes.
 
 There are no numeric latency, peak-memory, throughput, output-size, or
 benchmark product targets, and no controlled timing or memory jobs are
@@ -245,13 +250,14 @@ authoring construction; a phase-specific case resets it at an explicitly named
 phase boundary. Python excludes its own work and external validators from that
 count. The checked-in performance record identifies the Roc compiler revision,
 target, optimization mode, scenario revision, measurement boundary, input
-dimensions, exact allocation count, and deterministic work counters. Allocated
-bytes, bytes copied, ARC increments/decrements, retained/live bytes, peak RSS,
-and timing are recorded only where existing instrumentation reports them; a
-slice does not need to build new timing or memory instrumentation.
+dimensions, exact allocation count, allocated-bytes ceiling, and deterministic
+work counters. Bytes copied, ARC increments/decrements, retained/live bytes,
+peak RSS, and timing are recorded only where existing instrumentation reports
+them; a slice does not need to build new timing or memory instrumentation.
 
-Exact allocation equality is enforced only for the pinned compiler, target,
-and dev backend; results from other configurations are diagnostic. A count
+Exact allocation equality and the allocated-bytes ceiling are enforced only
+for the pinned compiler, target, and dev backend; results from other
+configurations are diagnostic. A count
 increase cannot be accepted by mechanically regenerating the baseline: review
 must identify its representation or ownership cause and record why the feature
 benefit requires it. Decreases are likewise reviewed and recorded deliberately.
@@ -380,8 +386,9 @@ within an early correctness gate.
   reproduce exactly for the pinned compiler, dev backend, target, fixture
   revision, and measurement boundary.
 - A deliberately introduced allocation regression fails the baseline check,
-  while scaling fixtures demonstrate that deterministic work counters catch a
-  complexity regression even when allocation counts remain unchanged.
+  allocated bytes above the recorded ceiling fail it, and scaling fixtures
+  demonstrate that deterministic work counters catch a complexity regression
+  even when allocation counts remain unchanged.
 
 ## Gate 1: PDF 2.0 structural kernel
 

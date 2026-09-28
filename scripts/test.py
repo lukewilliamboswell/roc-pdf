@@ -46,17 +46,26 @@ ACTIVE_PROCESSES: set[subprocess.Popen[object]] = set()
 SNAPSHOT_LOCKS: dict[Path, threading.Lock] = {}
 UPDATED_SNAPSHOT_BYTES: dict[Path, bytes] = {}
 METRICS_REPORT = re.compile(
-    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
+    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) allocated_bytes=([0-9]+) "
+    rb"work=([0-9]+(?:,[0-9]+)*)?\r?\n"
 )
 RETENTION_REPORT = re.compile(
     rb"ROC_RETENTION protocol=([0-9]+) backing_refs=([0-9]+) source_offset=([0-9]+) owned_capacity=([0-9]+)\r?\n"
-    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
+    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) allocated_bytes=([0-9]+) "
+    rb"work=([0-9]+(?:,[0-9]+)*)?\r?\n"
 )
+# A case may allocate at most this many tenths of its recorded allocated
+# bytes. The bytes requested by every roc_alloc and roc_realloc grow
+# quadratically when a list is copied on every append, which an exact
+# allocation count (one event per copy) does not distinguish from linear
+# growth; the ceiling absorbs small drift and fails a blow-up.
+ALLOCATED_BYTES_CEILING_TENTHS = 11
 
 
 @dataclass(frozen=True)
 class Metrics:
     allocations: int
+    allocated_bytes: int
     work: tuple[int, ...]
 
 
@@ -120,6 +129,7 @@ class BaselineDelta:
 @dataclass(frozen=True)
 class CaseRunResult:
     delta: BaselineDelta | None
+    drift: BaselineDelta | None
     metrics: Metrics
     output_bytes: int
 
@@ -295,8 +305,8 @@ def load_suite() -> TestSuite:
         "cases",
     }:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 5 or data["protocol_version"] != 1:
-        raise SystemExit(f"{SPEC_PATH}: schema_version must be 5 and protocol_version must be 1")
+    if data["schema_version"] != 6 or data["protocol_version"] != 2:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 6 and protocol_version must be 2")
 
     preflight_checks = string_list(data["preflight_checks"], "preflight_checks")
     validate_preflight_ids(preflight_checks, f"{SPEC_PATH}: preflight_checks")
@@ -460,12 +470,15 @@ def load_suite() -> TestSuite:
             raise SystemExit(f"{SPEC_PATH}: {name}: expectations must cover every supported target")
         expectations: dict[str, Metrics] = {}
         for target, raw_metrics in raw_expectations.items():
-            if not isinstance(raw_metrics, dict) or set(raw_metrics) != {"allocations", "work"}:
+            if not isinstance(raw_metrics, dict) or set(raw_metrics) != {"allocations", "allocated_bytes", "work"}:
                 raise SystemExit(f"{SPEC_PATH}: {name}.{target}: invalid metrics schema")
             allocations = raw_metrics["allocations"]
+            allocated_bytes = raw_metrics["allocated_bytes"]
             work = raw_metrics["work"]
             if type(allocations) is not int or allocations < 0:
                 raise SystemExit(f"{SPEC_PATH}: {name}.{target}: allocations must be non-negative")
+            if type(allocated_bytes) is not int or allocated_bytes < 0:
+                raise SystemExit(f"{SPEC_PATH}: {name}.{target}: allocated_bytes must be non-negative")
             if (
                 not isinstance(work, dict)
                 or set(work) != set(work_counters)
@@ -477,6 +490,7 @@ def load_suite() -> TestSuite:
                 )
             expectations[target] = Metrics(
                 allocations,
+                allocated_bytes,
                 tuple(work[counter] for counter in work_counters),
             )
 
@@ -632,6 +646,12 @@ def metrics_mismatch(
         differences.append(
             f"allocations expected {expected.allocations}, got {actual.allocations}"
         )
+    if check_allocations and allocated_bytes_exceeded(expected, actual):
+        differences.append(
+            f"allocated_bytes {actual.allocated_bytes} exceeds the recorded "
+            f"{expected.allocated_bytes} by more than "
+            f"{(ALLOCATED_BYTES_CEILING_TENTHS - 10) * 10}%"
+        )
     for name, expected_value, actual_value in zip(work_counters, expected.work, actual.work):
         if actual_value != expected_value:
             differences.append(f"{name} expected {expected_value}, got {actual_value}")
@@ -640,17 +660,40 @@ def metrics_mismatch(
     return "; ".join(differences) if differences else None
 
 
+def allocated_bytes_exceeded(expected: Metrics, actual: Metrics) -> bool:
+    return actual.allocated_bytes * 10 > expected.allocated_bytes * ALLOCATED_BYTES_CEILING_TENTHS
+
+
+def metrics_drift(expected: Metrics, actual: Metrics) -> bool:
+    """Any exact difference, including allocated bytes inside the ceiling."""
+    return expected != actual
+
+
 def self_test_metrics(suite: TestSuite) -> None:
     case = suite.cases[0]
     expected = case.expectations["arm64mac"]
-    allocation_regression = Metrics(expected.allocations + 1, expected.work)
+    allocation_regression = Metrics(expected.allocations + 1, expected.allocated_bytes, expected.work)
     if metrics_mismatch(expected, allocation_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted an allocation regression")
     changed_work = list(expected.work)
     changed_work[0] += 1
-    work_regression = Metrics(expected.allocations, tuple(changed_work))
+    work_regression = Metrics(expected.allocations, expected.allocated_bytes, tuple(changed_work))
     if metrics_mismatch(expected, work_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted a work regression")
+    ceiling = expected.allocated_bytes * ALLOCATED_BYTES_CEILING_TENTHS // 10
+    byte_blowup = Metrics(expected.allocations, ceiling + 1, expected.work)
+    if metrics_mismatch(expected, byte_blowup, case.work_counters) is None:
+        raise SystemExit("Performance baseline self-test accepted allocated bytes above the ceiling")
+    for accepted_bytes in (ceiling, expected.allocated_bytes // 2):
+        accepted = Metrics(expected.allocations, accepted_bytes, expected.work)
+        if metrics_mismatch(expected, accepted, case.work_counters) is not None:
+            raise SystemExit(
+                "Performance baseline self-test rejected allocated bytes within the ceiling"
+            )
+    if metrics_mismatch(expected, byte_blowup, case.work_counters, check_allocations=False) is not None:
+        raise SystemExit(
+            "Performance baseline self-test checked allocated bytes without allocation baselines"
+        )
     detail("PASS performance baseline self-test")
 
 
@@ -720,11 +763,21 @@ def build_case_sources(
         executable = build_dir / f"source-{source_key(source)}"
         started = time.monotonic()
         detail(f"START BUILD {relative(source)}")
+        # Evidence executables never reuse compiled procedures from the
+        # cache. The pinned compiler reuses a package procedure compiled for
+        # an earlier fixture program in a later one, and the later program
+        # can then copy lists that it updates in place when built alone: the
+        # allocation counts and allocated bytes of a case depended on which
+        # fixtures were built before it. Built without the cache, every
+        # fixture compiles exactly as a standalone `roc build --no-cache`
+        # does, whatever the order or cache state
+        # (docs/performance/lowering-uniqueness.md).
         roc(
             "build",
             relative(source),
             f"--opt={roc_optimization}",
             f"--target={target}",
+            "--no-cache",
             f"--output={executable}",
         )
         return source, time.monotonic() - started
@@ -823,12 +876,14 @@ def run_case(
         match = METRICS_REPORT.fullmatch(result.stderr)
         protocol_group = 1
         allocations_group = 2
-        work_group = 3
+        allocated_bytes_group = 3
+        work_group = 4
     else:
         match = RETENTION_REPORT.fullmatch(result.stderr)
         protocol_group = 5
         allocations_group = 6
-        work_group = 7
+        allocated_bytes_group = 7
+        work_group = 8
     if match is None:
         raise SystemExit(
             f"{case.name}: expected its versioned evidence report on stderr, got "
@@ -854,7 +909,11 @@ def run_case(
         )
     work_text = match.group(work_group)
     actual_work = () if not work_text else tuple(int(value) for value in work_text.split(b","))
-    actual_metrics = Metrics(int(match.group(allocations_group)), actual_work)
+    actual_metrics = Metrics(
+        int(match.group(allocations_group)),
+        int(match.group(allocated_bytes_group)),
+        actual_work,
+    )
     expected_metrics = case.expectations[target]
     mismatch = metrics_mismatch(
         expected_metrics,
@@ -890,6 +949,7 @@ def run_case(
     detail(
         f"PASS {case.name}: {describe_bytes(result.stdout)}, "
         f"{actual_metrics.allocations} allocations, "
+        f"{actual_metrics.allocated_bytes} allocated bytes, "
         + ", ".join(
             f"{name}={value}" for name, value in zip(case.work_counters, actual_metrics.work)
         )
@@ -903,7 +963,12 @@ def run_case(
     )
 
     delta = None if mismatch is None else BaselineDelta(case.name, expected_metrics, actual_metrics)
-    return CaseRunResult(delta, actual_metrics, len(result.stdout))
+    drift = (
+        BaselineDelta(case.name, expected_metrics, actual_metrics)
+        if metrics_drift(expected_metrics, actual_metrics)
+        else None
+    )
+    return CaseRunResult(delta, drift, actual_metrics, len(result.stdout))
 
 
 def available_cpu_count() -> int:
@@ -1130,6 +1195,7 @@ def main() -> None:
         f"(toolchain cap {suite.toolchain.max_build_workers})"
     )
     baseline_deltas: list[BaselineDelta] = []
+    baseline_drift: list[BaselineDelta] = []
     with tempfile.TemporaryDirectory(prefix="test-", dir=TEMP_ROOT) as temporary:
         build_dir = Path(temporary)
         build_case_sources(
@@ -1182,6 +1248,8 @@ def main() -> None:
                 )
                 if result.delta is not None:
                     baseline_deltas.append(result.delta)
+                if result.drift is not None:
+                    baseline_drift.append(result.drift)
         except KeyboardInterrupt:
             cancel_parallel(executor, futures)
             raise
@@ -1190,13 +1258,24 @@ def main() -> None:
 
     if args.baseline_report is not None:
         work_names = {case.name: case.work_counters for case in suite.cases}
+        # The report lists every exact difference, including allocated bytes
+        # that stay inside the ceiling, so a reviewed rebaseline can lower
+        # recorded ceilings as well as accept failing deltas.
         report = [
             {
                 "case": delta.case_name,
-                "expected": {"allocations": delta.expected.allocations, "work": dict(zip(work_names[delta.case_name], delta.expected.work))},
-                "actual": {"allocations": delta.actual.allocations, "work": dict(zip(work_names[delta.case_name], delta.actual.work))},
+                "expected": {
+                    "allocations": delta.expected.allocations,
+                    "allocated_bytes": delta.expected.allocated_bytes,
+                    "work": dict(zip(work_names[delta.case_name], delta.expected.work)),
+                },
+                "actual": {
+                    "allocations": delta.actual.allocations,
+                    "allocated_bytes": delta.actual.allocated_bytes,
+                    "work": dict(zip(work_names[delta.case_name], delta.actual.work)),
+                },
             }
-            for delta in sorted(baseline_deltas, key=lambda item: item.case_name)
+            for delta in sorted(baseline_drift, key=lambda item: item.case_name)
         ]
         args.baseline_report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         announce("RUN", f"Wrote {len(report)} baseline differences to {args.baseline_report}")
@@ -1212,15 +1291,20 @@ def main() -> None:
 
     if baseline_deltas:
         announce("FAIL", "Allocation baseline comparison:")
-        announce("FAIL", "| Case | Expected | Actual | Delta | Work counters |")
-        announce("FAIL", "| --- | ---: | ---: | ---: | --- |")
+        announce("FAIL", "| Case | Expected | Actual | Delta | Allocated bytes | Work counters |")
+        announce("FAIL", "| --- | ---: | ---: | ---: | --- | --- |")
         for delta in baseline_deltas:
             work_status = "unchanged" if delta.expected.work == delta.actual.work else "CHANGED"
             allocation_delta = delta.actual.allocations - delta.expected.allocations
+            bytes_status = (
+                f"{delta.actual.allocated_bytes} OVER CEILING of {delta.expected.allocated_bytes}"
+                if allocated_bytes_exceeded(delta.expected, delta.actual)
+                else f"{delta.actual.allocated_bytes} (recorded {delta.expected.allocated_bytes})"
+            )
             announce(
                 "FAIL",
                 f"| {delta.case_name} | {delta.expected.allocations} | "
-                f"{delta.actual.allocations} | {allocation_delta:+d} | {work_status} |",
+                f"{delta.actual.allocations} | {allocation_delta:+d} | {bytes_status} | {work_status} |",
             )
         raise SystemExit(
             "Performance baselines differ; review and update tests/spec.json deliberately"
