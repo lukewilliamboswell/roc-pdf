@@ -333,16 +333,17 @@ files, so the committed previews are unchanged.
 **Arlington 1.30.2** (pinned image `sha256:15433689…`) accepts the blank
 Archive document with 9,022 passed rules.
 
-Every font-bearing output, Archive and Standard alike and predating this
-slice, fails two object-model rules. `CIDSystemInfo` `/Registry` and
-`/Ordering` are written as UTF-16BE text strings (`<FEFF…>`), but ISO 32000-2
-Table 114 requires ASCII strings.
+When this slice closed, every font-bearing output, Archive and Standard
+alike and predating this slice, failed two object-model rules: `CIDSystemInfo`
+`/Registry` and `/Ordering` were written as UTF-16BE text strings (`<FEFF…>`),
+but ISO 32000-2 Table 114 requires ASCII strings. veraPDF PDF/A-4 decodes them
+and reports no finding, so it did not block the Gate 5 claim.
 
-veraPDF PDF/A-4 decodes them and reports no finding, so this does not block
-the Gate 5 claim. It is a `Pdf20` object-model defect, and Gate 7 requires
-Arlington to pass every fixture. It is recorded under remaining work. The fix
-changes every font-bearing snapshot and the byte-string budgets of about 15
-fixture families, so it is deliberately a separate reviewed change.
+That `Pdf20` defect is now resolved in its own reviewed change
+([cid-system-info-ascii.md](cid-system-info-ascii.md)): the entries are ASCII
+byte strings, and the Arlington `--cases` lane in Linux CI requires every
+package snapshot, Archive and Standard, and every gallery example to pass with
+zero failed rules and checks.
 
 ## Reviewed rebaselines
 
@@ -401,8 +402,6 @@ the rerun passed.
 
 - Confirm `ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION` against the licensed ISO
   19005-4:2020 text before Gate 7's combined claim.
-- Emit `CIDSystemInfo` `/Registry` and `/Ordering` as ASCII strings, so that
-  Arlington accepts every font-bearing fixture (Gate 7 evidence).
 - `AccessibleArchive` and the combined `StaticPdfA4 + PdfUa2` validation remain
   Gate 7.
 - A PDF/A claim through the advanced `Encode` boundary would need a typed

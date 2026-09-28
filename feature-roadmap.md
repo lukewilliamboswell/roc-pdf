@@ -798,10 +798,12 @@ construction and the whitelist. They remain recorded as
 `ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION`, pending confirmation against the
 licensed standard text before Gate 7's combined claim.
 
-Arlington object-model validation of font-bearing output also records a
-pre-existing `Pdf20` defect: `CIDSystemInfo` `/Registry` and `/Ordering` are
-text strings rather than ASCII strings. It must be resolved as Gate 7
-evidence. The advanced `Encode` boundary remains `Standard`-only.
+Arlington object-model validation of font-bearing output also found a
+pre-existing `Pdf20` defect: `CIDSystemInfo` `/Registry` and `/Ordering` were
+text strings rather than ASCII strings. It is resolved
+(`docs/performance/cid-system-info-ascii.md`), and Linux CI now requires every
+package snapshot and gallery example to pass the pinned Arlington checker with
+zero failures. The advanced `Encode` boundary remains `Standard`-only.
 
 ## Gate 6: business authoring and core PDF/UA-2 vocabulary
 
