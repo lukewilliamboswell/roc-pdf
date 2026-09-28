@@ -52,8 +52,14 @@ KernelPageLayout :: [].{
 		minimum_first_lines : U64,
 		minimum_last_lines : U64,
 	}
+
+	## `lead` is height reserved at the top of every page on which this
+	## block starts or continues: a continued table repaints its header rows
+	## there. It is zero for every other block, and every fit check of a unit
+	## starting a page subtracts its first block's lead from the page body.
 	Block : {
 		baseline_offset : Layout.Unit,
+		lead : Layout.Unit,
 		leading : Layout.Unit,
 		lines : Semantics.Range,
 		occurrence : Semantics.OccurrenceId,
@@ -194,7 +200,7 @@ build_plan = |blocks, groups, lines, constraints, limits| {
 
 		## Materialize the accepted page once, from the page start to the
 		## chosen break, exactly as the scan measured it.
-		var $used = 0
+		var $used = nonnegative_raw(list_at(blocks, $block).lead)?
 		var $cursor_block = $block
 		var $cursor_line = $line
 		while $cursor_block < end.block or ($cursor_block == end.block and $cursor_line < end.line) {
@@ -268,7 +274,7 @@ build_plan = |blocks, groups, lines, constraints, limits| {
 ## break ends the page there. The scan keeps scalar state only.
 scan_page : List(KernelPageLayout.Block), Validation, U64, U64, U64 -> Try(Scan, KernelPageLayout.Error)
 scan_page = |blocks, validation, height, start_block, start_line| {
-	var $used = 0
+	var $used = nonnegative_raw(list_at(blocks, start_block).lead)?
 	var $best_block = 0
 	var $best_line = 0
 	var $best_score = no_candidate
@@ -495,8 +501,9 @@ validate_input = |blocks, groups, lines, content_height| {
 		}
 		_ = nonnegative_raw(block.space_after) ? |_| InvalidBlock({ block: $block_index })
 		height = checked_mul(line_count, leading)?
-		if block.policy.keep_together and height > content_height {
-			return Err(Oversize({ available: content_height, block: $block_index, required: height }))
+		lead = nonnegative_raw(block.lead) ? |_| InvalidBlock({ block: $block_index })
+		if block.policy.keep_together and checked_add(height, lead)? > content_height {
+			return Err(Oversize({ available: content_height, block: $block_index, required: checked_add(height, lead)? }))
 		}
 		var $local = 0
 		var $scalar_cursor = 0
@@ -547,7 +554,7 @@ validate_input = |blocks, groups, lines, content_height| {
 					Required => list_at($requirements, $reverse + 1)
 					_ => first_unit(next, list_at($heights, $reverse + 1), atomic_ends, $reverse + 1, blocks, $heights)?
 				}
-				required = checked_add(tail, checked_add(nonnegative_raw(block.space_after)?, next_unit)?)?
+				required = checked_add(nonnegative_raw(block.lead)?, checked_add(tail, checked_add(nonnegative_raw(block.space_after)?, next_unit)?)?)?
 				if required > content_height {
 					return Err(KeepConflict(ChainTooTall({ available: content_height, block: $reverse, next: $reverse + 1, required })))
 				}
@@ -605,7 +612,7 @@ validate_groups = |blocks, groups, heights, content_height| {
 				}
 				$member = $member + 1
 			}
-			required = group_height(blocks, heights, start, end)?
+			required = checked_add(nonnegative_raw(list_at(blocks, start).lead)?, group_height(blocks, heights, start, end)?)?
 			if required > content_height {
 				return Err(KeepConflict(GroupTooTall({ available: content_height, group: $group_index, required })))
 			}
@@ -747,6 +754,7 @@ test_limits = KernelPageLayout.Limits.make({ max_blocks: 8, max_fragments: 8, ma
 test_block : KernelPageLayout.Block
 test_block = {
 	baseline_offset: Layout.Unit.from_raw(800),
+	lead: Layout.Unit.from_raw(0),
 	leading: Layout.Unit.from_raw(1000),
 	lines: Semantics.Range.from_start_and_length(0, 1),
 	occurrence: Semantics.OccurrenceId.from_index(0),
@@ -891,4 +899,23 @@ expect {
 		Err(KeepConflict(ChainTooTall({ available: 3000, block: 0, next: 1, required: 4000 }))) => True
 		_ => False
 	}
+}
+
+## A block's lead is reserved at the top of every page it starts or
+## continues on: the kept second block moves to page two below its lead,
+## and a kept block that cannot fit a fresh page with its lead is oversize.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
+		{ ..base, lead: Layout.Unit.from_raw(1000), lines: Semantics.Range.from_start_and_length(2, 2), policy: { ..base.policy, keep_together: True } },
+	]
+	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits)?
+	placements = KernelPageLayout.Plan.placements(plan)
+	moved = KernelPageLayout.Plan.pages(plan).len() == 2 and list_at(placements, 2).baseline.y.raw() == 2200 and list_at(placements, 3).baseline.y.raw() == 1200
+	oversize = match KernelPageLayout.Plan.build([{ ..base, lead: Layout.Unit.from_raw(1000), lines: Semantics.Range.from_start_and_length(0, 3), policy: { ..base.policy, keep_together: True } }], test_lines.take_first(3), test_constraints, test_limits) {
+		Err(Oversize({ available: 3000, block: 0, required: 4000 })) => True
+		_ => False
+	}
+	moved and oversize
 }

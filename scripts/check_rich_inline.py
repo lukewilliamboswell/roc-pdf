@@ -45,6 +45,7 @@ PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 
 INLINE_ROLES = {"Em", "Strong", "Code", "Quote", "Span", "Link"}
+ARTIFACT = "artifact"
 BLOCK_ROLES = {"Title", "P", "H1", "H2", "H3", "H4", "H5", "H6", "Lbl", "LBody", "Caption", "Figure"}
 
 TOKEN = re.compile(
@@ -115,6 +116,12 @@ def page_marked_text(document: Document, page: int) -> list[tuple[int, str]]:
             if operator == "BDC":
                 properties = operands[-1]
                 mcid = properties.get("MCID") if isinstance(properties, dict) else None
+                if mcid is None and len(operands) >= 2 and operands[-2] == "/Artifact":
+                    # Page-artifact text (a continued table's repainted header
+                    # rows) is decoded but belongs to no logical text.
+                    stack.append(ARTIFACT)
+                    operands = []
+                    continue
                 stack.append(mcid)
                 if mcid is not None:
                     require(mcid not in texts, f"MCID {mcid} is marked twice on one page")
@@ -135,14 +142,15 @@ def page_marked_text(document: Document, page: int) -> list[tuple[int, str]]:
                 shown = operands[-1]
                 strings = [shown] if isinstance(shown, bytes) else [item for item in shown if isinstance(item, bytes)]
                 owner = next((mcid for mcid in reversed(stack) if mcid is not None), None)
-                require(owner is not None, "text is shown outside any MCID-bearing marked content")
+                require(owner is not None, "text is shown outside any MCID-bearing or artifact marked content")
                 require(current is not None, "text is shown before a font is selected")
                 for string in strings:
                     require(len(string) % 2 == 0, "Identity-H string has an odd byte length")
                     for index in range(0, len(string), 2):
                         cid = int.from_bytes(string[index : index + 2], "big")
                         require(cid in current, f"CID {cid} has no ToUnicode mapping")
-                        texts[owner].append(current[cid])
+                        if owner is not ARTIFACT:
+                            texts[owner].append(current[cid])
             operands = []
     require(not stack, "marked content is not balanced")
     return [(mcid, "".join(texts[mcid])) for mcid in order]

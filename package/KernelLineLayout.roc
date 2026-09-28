@@ -1,3 +1,4 @@
+import Font
 import KernelShape
 import KernelUnicode
 import Layout
@@ -55,6 +56,9 @@ KernelLineLayout :: [].{
 	BatchLimits :: { line : Limits, max_key_probes : U64, max_lines : U64, max_runs : U64, max_table_slots : U64, max_templates : U64 }.{
 		make : { line : Limits, max_key_probes : U64, max_lines : U64, max_runs : U64, max_table_slots : U64, max_templates : U64 } -> BatchLimits
 		make = |limits| BatchLimits.(limits)
+
+		line : BatchLimits -> Limits
+		line = |BatchLimits.(limits)| limits.line
 	}
 	BatchWork : {
 		boundary_visits : U64,
@@ -78,6 +82,20 @@ KernelLineLayout :: [].{
 	## paragraph's analysis; the later text materializer splits paint runs
 	## again.
 	LogicalRunRequest : { runs : Semantics.Range, source : Semantics.TextSourceId, width : Layout.Unit }
+
+	## Width facts of one whole-source logical request, independent of any
+	## line width: `max_content` is its widest line between mandatory
+	## breaks, and `min_content` its widest unbreakable piece between break
+	## opportunities (with any trailing space the line would carry), whose
+	## global cluster range is `token`. Laying the request out at any width
+	## of at least `min_content` never meets an unbreakable piece, and at
+	## `max_content` every mandatory-break line takes exactly one line.
+	Measure : { max_content : I64, min_content : I64, token : Semantics.Range }
+
+	## Measure one logical request with the same boundary and advance
+	## validation as line selection, in O(clusters + boundaries).
+	measure_logical : List(KernelShape.SimpleSource), Text.Store, LogicalRunRequest, Limits -> Try({ measure : Measure, work : Work }, Error)
+	measure_logical = |sources, store, request, limits| measure_request(sources, store, request, limits)
 
 	BatchPlan :: { lines : List(Line), run_lines : List(Semantics.Range), work : BatchWork }.{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
@@ -502,6 +520,70 @@ logical_bounds = |store, run_range, expected_start| {
 	})
 }
 
+measure_request : List(KernelShape.SimpleSource), Text.Store, KernelLineLayout.LogicalRunRequest, KernelLineLayout.Limits -> Try({ measure : KernelLineLayout.Measure, work : KernelLineLayout.Work }, KernelLineLayout.Error)
+measure_request = |sources, store, request, limits| {
+	source_index = request.source.index()
+	if source_index >= sources.len() {
+		return Err(InvalidRun({ run: request.runs.start() }))
+	}
+	logical = logical_bounds(store, request.runs, request.runs.start())?
+	bounds = logical.bounds
+	analysis = list_at(sources, source_index).analysis
+	cluster_start = bounds.cluster_start
+	cluster_end = bounds.cluster_end
+	scalars = analysis.work.scalar_visits
+	if scalars == 0 or analysis.line_boundaries.len() != scalars + 1 or cluster_end <= cluster_start {
+		return Err(InvalidAnalysis)
+	}
+	check_limit(analysis.line_boundaries.len(), limits.max_boundaries, Boundaries)?
+	check_limit(cluster_end - cluster_start, limits.max_clusters, Clusters)?
+	boundary_work = validate_boundaries(analysis.line_boundaries, store.clusters, cluster_start, cluster_end, scalars)?
+	measure = measure_clusters(store.clusters, store.glyph_indices, store.glyphs, cluster_start, cluster_end, bounds.glyph_start, bounds.glyph_end, scalars)?
+	if measure.glyph_index_visits != logical.glyph_length {
+		return Err(InvalidRun({ run: request.runs.start() }))
+	}
+	var $max_content = 0
+	var $min_content = 0
+	var $token_start = cluster_start
+	var $token_end = cluster_start
+	var $line_start = cluster_start
+	var $piece_start = cluster_start
+	var $candidate = cluster_start + 1
+	while $candidate <= cluster_end {
+		cluster = list_at(store.clusters, $candidate - 1)
+		boundary = list_at(analysis.line_boundaries, range_end(cluster.source.scalars)?)
+		match boundary.decision {
+			Prohibited => {}
+			decision => {
+				piece = list_at(measure.prefix, $candidate - cluster_start) - list_at(measure.prefix, $piece_start - cluster_start)
+				if piece > $min_content {
+					$min_content = piece
+					$token_start = $piece_start
+					$token_end = $candidate
+				}
+				$piece_start = $candidate
+				if decision == Mandatory {
+					line = list_at(measure.prefix, $candidate - cluster_start) - list_at(measure.prefix, $line_start - cluster_start)
+					$max_content = I64.max($max_content, line)
+					$line_start = $candidate
+				}
+			}
+		}
+		$candidate = $candidate + 1
+	}
+	Ok({
+		measure: { max_content: $max_content, min_content: $min_content, token: Semantics.Range.from_start_and_length($token_start, $token_end - $token_start) },
+		work: {
+			boundary_visits: boundary_work.visits,
+			candidate_visits: cluster_end - cluster_start,
+			cluster_visits: cluster_end - cluster_start,
+			glyph_index_visits: measure.glyph_index_visits,
+			glyph_visits: measure.glyph_index_visits,
+			line_writes: 0,
+		},
+	})
+}
+
 key_equal : BatchKey, BatchKey -> Bool
 key_equal = |left, right| left.instance == right.instance and left.size == right.size and left.source == right.source and left.width == right.width
 
@@ -879,4 +961,30 @@ expect {
 		Err(InvalidAnalysis) => True
 		_ => False
 	}
+}
+
+## Width facts: the widest piece between break opportunities is the
+## min-content width with its cluster range, and the whole line the
+## max-content width.
+expect {
+	run = {
+		actual_text: FromOccurrence,
+		clusters: Semantics.Range.from_start_and_length(0, 6),
+		direction: LeftToRight,
+		glyphs: Semantics.Range.from_start_and_length(0, 6),
+		id: Text.RunId.from_index(0),
+		instance: Font.InstanceId.from_index(0),
+		language: Inherited,
+		occurrence: Semantics.OccurrenceId.from_index(0),
+		script: Font.Script.from_iso15924("Latn"),
+		size: Layout.Unit.from_raw(1000),
+		source: { scalars: Semantics.Range.from_start_and_length(0, 6), utf8_bytes: Semantics.Range.from_start_and_length(0, 6) },
+		substitutions: Semantics.Range.from_start_and_length(0, 0),
+		transformations: Semantics.Range.from_start_and_length(0, 0),
+		writing_mode: Horizontal,
+	}
+	store = { ..test_store, runs: [run] }
+	sources = [{ analysis: test_analysis, unicode: "abcdef" }]
+	measured = KernelLineLayout.measure_logical(sources, store, { runs: Semantics.Range.from_start_and_length(0, 1), source: Semantics.TextSourceId.from_index(0), width: Layout.Unit.from_raw(1) }, test_limits)?
+	measured.measure.max_content == 6000 and measured.measure.min_content == 2000 and measured.measure.token.start() == 0 and measured.measure.token.length() == 2
 }

@@ -181,7 +181,7 @@ build_ordered_pipeline = |authoring, ordered, theme, page_size, descriptor, fact
 		theme,
 		limits.shape,
 	) ? Shape
-	lines = KernelFacadeLines.Plan.build_ordered(shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 	pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
 	text = KernelFacadeText.Plan.build(shape, lines, pages, limits.text) ? Text
 	fragments = KernelFacadeFragments.Plan.build_with_navigation(preliminary, text, navigation_authoring(semantics, authoring), limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
@@ -272,7 +272,7 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 	if stage == ShapeReady {
 		return Ok(shape_work)
 	}
-	lines = KernelFacadeLines.Plan.build(shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 	line_work = { ..shape_work, lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len() }
 	if stage == LinesReady {
 		return Ok(line_work)
@@ -296,7 +296,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, limits| {
 		theme,
 		limits.shape,
 	) ? Shape
-	lines = KernelFacadeLines.Plan.build(shape, source_store, page_size, theme, limits.lines) ? Lines
+	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 	pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
 	text = KernelFacadeText.Plan.build(shape, lines, pages, limits.text) ? Text
 	shape_store = KernelFacadeShape.Plan.shape(shape).store

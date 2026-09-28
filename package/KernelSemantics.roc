@@ -19,6 +19,11 @@ KernelSemantics :: [].{
 		ElementIdentifierOrder({ element : U64 }),
 		EmptyElementIdentifier({ element : U64 }),
 		FragmentRangeOutsideOccurrence({ fragment : U64 }),
+
+		## A cell's `/Headers` attribute and its `HeaderFor` relationships
+		## disagree: `node` names the cell, or the node count when a
+		## relationship has no matching `/Headers` entry.
+		HeaderAssociationMismatch({ node : U64, relationship : U64 }),
 		IllegalContainment({ child : U64, parent : U64 }),
 		IllegalContentItem({ content : U64, node : U64 }),
 		IndexOutOfRange({ available : U64, index : U64, kind : IndexKind }),
@@ -689,8 +694,9 @@ validate_graph = |store, max_depth, text_allowed, navigation| {
 				keys = validate_identifiers(store.element_identifiers)?
 				attribute_checks = validate_attributes(store, keys)?
 				relationship_visits = validate_relationships(store)?
+				association_checks = validate_header_associations(store)?
 				Ok({
-					attribute_visits: $attribute_visits + attribute_checks,
+					attribute_visits: $attribute_visits + attribute_checks + association_checks,
 					containment_edges: $containment_edges,
 					content_visits: $content_visits,
 					identifier_visits: store.element_identifiers.len(),
@@ -1011,6 +1017,77 @@ validate_relationships = |store| {
 		$index = $index + 1
 	}
 	Ok(store.relationships.len())
+}
+
+## `/Headers` and `HeaderFor` state the same associations. `HeaderFor`
+## relationships are stored grouped by cell in node order and, within a
+## cell, in its `/Headers` order: one forward cursor proves that every
+## `/Headers` value is the identifier of the header its matching
+## relationship names, from a cell carrying that relationship's element
+## identifier, and that no relationship is left without a `/Headers` entry.
+## The check allocates nothing and costs O(nodes + attribute values +
+## relationships).
+validate_header_associations : Semantics.Store -> Try(U64, KernelSemantics.Error)
+validate_header_associations = |store| {
+	if store.relationships.is_empty() and store.attributes.is_empty() {
+		return Ok(0)
+	}
+	var $cursor = next_header_relation(store.relationships, 0)
+	var $checks = 0
+	var $node_index = 0
+	while $node_index < store.nodes.len() {
+		node = list_at(store.nodes, $node_index)
+		var $attribute = node.attributes.start()
+		while $attribute < node.attributes.start() + node.attributes.length() {
+			attribute = list_at(store.attributes, $attribute)
+			headers = match (attribute.owner, attribute.name, attribute.value) {
+				(Table, Standard(name), Names(values)) => if name == "Headers" values else []
+				_ => []
+			}
+			if !headers.is_empty() {
+				cell = match node.element_identifier {
+					HasElementIdentifier(element) => element.index()
+					NoElementIdentifier => return Err(HeaderAssociationMismatch({ node: $node_index, relationship: $cursor }))
+				}
+				for value in headers {
+					agrees = match store.relationships.get($cursor) {
+						Ok(HeaderFor({ cell: related, header })) => related.index() == cell and header.index() < store.element_identifiers.len() and list_at(store.element_identifiers, header.index()).value == value
+						_ => False
+					}
+					if !agrees {
+						return Err(HeaderAssociationMismatch({ node: $node_index, relationship: $cursor }))
+					}
+					$cursor = next_header_relation(store.relationships, $cursor + 1)
+					$checks = $checks + 1
+				}
+			}
+			$attribute = $attribute + 1
+		}
+		$node_index = $node_index + 1
+	}
+	if $cursor < store.relationships.len() {
+		Err(HeaderAssociationMismatch({ node: store.nodes.len(), relationship: $cursor }))
+	} else {
+		Ok($checks)
+	}
+}
+
+## The first `HeaderFor` relationship at or after `from`.
+next_header_relation : List(Semantics.Relationship), U64 -> U64
+next_header_relation = |relationships, from| {
+	var $index = from
+	var $searching = True
+	while $searching and $index < relationships.len() {
+		match list_at(relationships, $index) {
+			HeaderFor(_) => {
+				$searching = False
+			}
+			_ => {
+				$index = $index + 1
+			}
+		}
+	}
+	$index
 }
 
 header_relation_valid : Semantics.Store, List(U64), U64, U64 -> Bool
@@ -1913,7 +1990,7 @@ expect {
 	plan = build_shaped(table_store)?
 	work = KernelSemantics.Plan.work(plan)
 
-	work.identifier_visits == 2 and work.relationship_visits == 1 and work.attribute_visits == 5
+	work.identifier_visits == 2 and work.relationship_visits == 1 and work.attribute_visits == 6
 }
 
 ## Element identifiers are unique, ordered, non-empty, and owned exactly once.
@@ -2064,4 +2141,24 @@ expect {
 		_ => False
 	}
 	repeated and nested and malformed and repeats_language(with_languages("fr-CA", "fr-CA"), 2, "fr-CA") and !repeats_language(store, U64.highest, "fr-CA")
+}
+
+## `/Headers` and `HeaderFor` must state the same associations: a `/Headers`
+## value without its relationship, a relationship without its `/Headers`
+## value, and a relationship naming a different header are all rejected.
+expect {
+	unrelated = { ..table_store, relationships: [] }
+	unheaded = {
+		..table_store,
+		attributes: list_set(table_store.attributes, 1, { applicability: Family(TableRoles), name: Standard("ColSpan"), owner: Table, value: Integer(1) }),
+	}
+	missing = match build_shaped(unrelated) {
+		Err(HeaderAssociationMismatch({ node: 4, relationship: 0 })) => True
+		_ => False
+	}
+	orphan = match build_shaped(unheaded) {
+		Err(HeaderAssociationMismatch({ node: 5, relationship: 0 })) => True
+		_ => False
+	}
+	missing and orphan
 }

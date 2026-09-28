@@ -544,6 +544,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 	if at.face_check == RequireBuiltInFace and body.font.index() != 0 {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body.font.index() }))
 	}
+	paragraph_color = header_cell_color(at.authoring, at.block, at.theme, body.color)
 	var $ranges = ranges
 	var $requests = requests
 	var $styles = styles
@@ -588,7 +589,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
 				$cluster = cluster_end
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: body.size, source: located.id })
-				$styles = $styles.append({ color: inline_color(at.authoring.inlines, record.parent, at.theme, body.color), leading: body.leading })
+				$styles = $styles.append({ color: inline_color(at.authoring.inlines, record.parent, at.theme, paragraph_color), leading: body.leading })
 				$ranges = $ranges.append({
 					clusters: Semantics.Range.from_start_and_length(cluster_start, cluster_end - cluster_start),
 					language: occurrence.language,
@@ -600,6 +601,39 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 		$inline = $inline + 1
 	}
 	Ok({ ranges: $ranges, requests: $requests, styles: $styles })
+}
+
+## Header-cell text paints in the theme's table header color when one is
+## set; every other rich block paints in its paragraph color.
+header_cell_color : Document.NormalizedAuthoring, U64, Theme, Color.SourceValue -> Color.SourceValue
+header_cell_color = |authoring, block, theme, paragraph_color| {
+	parent = list_at(authoring.blocks, block).parent
+	in_row = parent != 0 and (match list_at(authoring.groups, parent - 1).kind {
+		TableRow(_) => True
+		_ => False
+	})
+	if !in_row {
+		return paragraph_color
+	}
+	match Theme.table_style(theme).header_color {
+		Inherited => paragraph_color
+		Themed(color) => {
+			var $low = 0
+			var $high = authoring.cells.len()
+			while $low < $high {
+				middle = $low + ($high - $low) // 2
+				if list_at(authoring.cells, middle).block < block {
+					$low = middle + 1
+				} else {
+					$high = middle
+				}
+			}
+			match list_at(authoring.cells, $low).kind {
+				HeaderCell(_) => color
+				DataCell => paragraph_color
+			}
+		}
+	}
 }
 
 has_rich_block : List(KernelFacadeSemantics.BlockOwnership) -> Bool
@@ -864,11 +898,14 @@ ordered_source_clusters = |source, source_index| {
 	}
 }
 
-## The convenience path's declared script set. Everything else, including an
-## unresolved Common itemization run, is an explicit typed rejection rather
-## than an implicit fallback face search.
+## The convenience path's declared script set, plus runs whose script stays
+## Common or Inherited after itemization (digits, punctuation, and spaces
+## beside another script). Each cluster of such a run takes the first face in
+## policy order that covers it; the convenience shaper applies no
+## script-specific shaping, so no further fact is needed. Everything else is
+## an explicit typed rejection rather than an implicit fallback face search.
 declared_script : Str -> Bool
-declared_script = |alias| alias == "Latn" or alias == "Hani"
+declared_script = |alias| alias == "Latn" or alias == "Hani" or alias == "Zyyy" or alias == "Zinh"
 
 ordered_script_at : List(KernelUnicode.ScriptRun), U64, U64, U64 -> Try({ cursor : U64, script : Font.Script }, KernelFacadeShape.Error)
 ordered_script_at = |runs, scalar_index, cursor, source_index| {

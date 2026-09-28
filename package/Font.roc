@@ -437,7 +437,7 @@ select_instance = |store, policy, cluster, script, prior_coverage, prior_faces| 
 		face = list_at(store.faces, face_index)
 		$face_visits = $face_visits + 1
 
-		if face.id.index() == instance_record.face.index() and face_supports_script(store, face, script) {
+		if face.id.index() == instance_record.face.index() and (common_script(script) or face_supports_script(store, face, script)) {
 			coverage = cluster_coverage(store, face, cluster.scalars, $coverage_visits)
 			$coverage_visits = coverage.visits
 			if coverage.covered {
@@ -448,6 +448,13 @@ select_instance = |store, policy, cluster, script, prior_coverage, prior_faces| 
 	}
 	Err({ coverage_span_visits: $coverage_visits, face_visits: $face_visits })
 }
+
+## A cluster whose script stays Common (`Zyyy`) or Inherited (`Zinh`) after
+## itemization belongs to no script a face declares. It takes the first
+## face in policy order whose coverage holds it, exactly as every other
+## cluster is selected by coverage, with no script-specific requirement.
+common_script : Font.Script -> Bool
+common_script = |script| script.as_str() == "Zyyy" or script.as_str() == "Zinh"
 
 face_supports_script : Font.Store, Font.Face, Font.Script -> Bool
 face_supports_script = |store, face, script| {

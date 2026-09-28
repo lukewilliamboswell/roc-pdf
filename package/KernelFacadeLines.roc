@@ -1,5 +1,7 @@
+import Document
 import KernelFacadeShape
 import KernelFacadeSources
+import KernelFacadeTables
 import KernelLineLayout
 import KernelShape
 import Layout
@@ -18,6 +20,7 @@ KernelFacadeLines :: [].{
 		LineLayout(KernelLineLayout.Error),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		RunCoverage({ actual : U64, expected : U64 }),
+		Tables(KernelFacadeTables.Error),
 	]
 	Limits :: { line : KernelLineLayout.BatchLimits, max_blocks : U64, max_runs : U64 }.{
 		make : { line : KernelLineLayout.BatchLimits, max_blocks : U64, max_runs : U64 } -> Limits
@@ -41,14 +44,30 @@ KernelFacadeLines :: [].{
 		line : KernelLineLayout.BatchWork,
 		run_writes : U64,
 	}
-	Plan :: { blocks : List(BlockLines), line : KernelLineLayout.BatchPlan, work : Work }.{
+
+	## `geometry` holds the resolved table geometry when the document has
+	## tables; each cell's lines are laid out at its column text width.
+	Plan :: { blocks : List(BlockLines), geometry : [NoTables, WithTables(KernelFacadeTables.Plan)], line : KernelLineLayout.BatchPlan, work : Work }.{
 		build : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build = |shape, sources, page, theme, limits| build_plan(shape, sources, page, theme, limits)
+
+		## The authoring-aware entry: a document with tables resolves its
+		## column widths once from measured cell widths, then lays every
+		## cell out at its text width through the logical batch; any other
+		## document takes `build` exactly.
+		build_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
+		build_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() build_plan(shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits)
+
+		geometry : Plan -> [NoTables, WithTables(KernelFacadeTables.Plan)]
+		geometry = |plan| plan.geometry
 
 		## The logical path: one line-layout request per logical run,
 		## measured across its adjacent physical face or occurrence runs.
 		build_ordered : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_ordered = |shape, sources, page, theme, limits| build_ordered_plan(shape, sources, page, theme, limits)
+		build_ordered = |shape, sources, page, theme, limits| build_ordered_plan(shape, sources, page, theme, limits, [])
+
+		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
+		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() build_ordered_plan(shape, sources, page, theme, limits, []) else build_table_plan(authoring, shape, sources, page, theme, limits)
 
 		blocks : Plan -> List(BlockLines)
 		blocks = |plan| plan.blocks
@@ -69,7 +88,7 @@ build_plan = |shape, sources, page, theme, limits| {
 	## logical batch measures such ranges. Documents whose runs are all
 	## single keep the exact one-run batch.
 	if has_multi_run(block_runs) {
-		return build_ordered_plan(shape, sources, page, theme, limits)
+		return build_ordered_plan(shape, sources, page, theme, limits, [])
 	}
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
 	shape_batch = KernelFacadeShape.Plan.shape(shape)
@@ -144,6 +163,7 @@ build_plan = |shape, sources, page, theme, limits| {
 	Ok(
 		KernelFacadeLines.Plan.{
 			blocks: $blocks,
+			geometry: NoTables,
 			line,
 			work: {
 				block_mapping_visits: block_runs.len(),
@@ -156,8 +176,24 @@ build_plan = |shape, sources, page, theme, limits| {
 	)
 }
 
-build_ordered_plan : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
-build_ordered_plan = |shape, sources, page, theme, limits| {
+## Tables resolve their geometry before any line is broken; each cell's
+## text width then replaces the flow width of its block.
+build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
+build_table_plan = |authoring, shape, sources, page, theme, limits| {
+	content_width = calculate_content_width(page, Theme.page_margin(theme))?
+	tables = KernelFacadeTables.Plan.build(authoring, shape, sources, content_width, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
+	var $widths = List.repeat(0, authoring.blocks.len())
+	for cell in KernelFacadeTables.Plan.cells(tables) {
+		$widths = list_set($widths, cell.block, cell.width)
+	}
+	plan = build_ordered_plan(shape, sources, page, theme, limits, $widths)?
+	Ok({ ..plan, geometry: WithTables(tables) })
+}
+
+## `widths` is empty, or holds one text width per block where a nonzero
+## entry (a table cell's) replaces the block's flow width.
+build_ordered_plan : KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits, List(U64) -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
+build_ordered_plan = |shape, sources, page, theme, limits, widths| {
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
 	shape_batch = KernelFacadeShape.Plan.shape(shape)
@@ -197,7 +233,8 @@ build_ordered_plan = |shape, sources, page, theme, limits| {
 					}
 				}
 				body_start = logical_run_bounds(body, $block_index, $next_physical, run_count)?
-				width = geometry.body_width
+				override = if widths.is_empty() 0 else list_at(widths, $block_index)
+				width = if override == 0 geometry.body_width else override
 				$logical_index_of_body = list_set(
 					$logical_index_of_body,
 					$block_index,
@@ -262,6 +299,7 @@ build_ordered_plan = |shape, sources, page, theme, limits| {
 	Ok(
 		KernelFacadeLines.Plan.{
 			blocks: $blocks,
+			geometry: NoTables,
 			line,
 			work: {
 				block_mapping_visits: block_runs.len(),

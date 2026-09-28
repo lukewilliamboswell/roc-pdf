@@ -61,10 +61,10 @@ KernelFacadeFragments :: [].{
 		## Focused phase evidence stops at the flat fragment arena. The production
 		## `Plan.build` additionally rebuilds the validated semantic reverse index.
 		build : KernelTextSemantics.Plan, KernelFacadeText.Plan, Limits -> Try(Arena, Error)
-		build = |preliminary, text, limits| build_arena(preliminary, prepare_text(text), limits)
+		build = |preliminary, text, limits| build_arena(preliminary, prepare_text(text), KernelFacadeText.Plan.artifact_runs(text), limits)
 
 		build_prepared : KernelTextSemantics.Plan, Prepared, Limits -> Try(Arena, Error)
-		build_prepared = |preliminary, prepared, limits| build_arena(preliminary, prepared, limits)
+		build_prepared = |preliminary, prepared, limits| build_arena(preliminary, prepared, [], limits)
 
 		fragments : Arena -> List(Semantics.LayoutFragment)
 		fragments = |arena| arena.fragments
@@ -124,7 +124,7 @@ no_navigation_limits = KernelNavigation.Limits.make({
 
 build_plan : KernelTextSemantics.Plan, KernelFacadeText.Plan, KernelFacadeFragments.NavigationAuthoring, KernelFacadeFragments.Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
 build_plan = |preliminary, text, navigation, limits, semantic_limits, navigation_limits| {
-	arena = build_arena(preliminary, prepare_text(text), limits)?
+	arena = build_arena(preliminary, prepare_text(text), KernelFacadeText.Plan.artifact_runs(text), limits)?
 	page_count = KernelFacadeText.Plan.pages(text).len()
 	match navigation {
 		NoNavigationAuthoring => {
@@ -172,29 +172,38 @@ derive_run_geometry = |text_plan| {
 	text = KernelFacadeText.Plan.text(text_plan)
 	placements = KernelFacadeText.Plan.placements(text_plan)
 	styles = KernelFacadeText.Plan.styles(text_plan)
-	var $rects = List.with_capacity(text.runs.len())
+	artifact_runs = KernelFacadeText.Plan.artifact_runs(text_plan)
+	var $rects = List.with_capacity(text.runs.len() - artifact_runs.len())
+	var $artifact_cursor = 0
 	var $run_index = 0
 	while $run_index < text.runs.len() {
-		run = list_at(text.runs, $run_index)
-		placement = list_at(placements, $run_index)
-		var $width = 0
-		var $glyph = run.glyphs.start()
-		glyph_end = run.glyphs.start() + run.glyphs.length()
-		while $glyph < glyph_end {
-			$width = checked_i64(list_at(text.glyphs, $glyph).advance_x.raw(), $width)?
-			$glyph = $glyph + 1
+		if $artifact_cursor < artifact_runs.len() and list_at(artifact_runs, $artifact_cursor) == $run_index {
+
+			## A repainted header run is a page artifact: it anchors no
+			## destination and joins no link.
+			$artifact_cursor = $artifact_cursor + 1
+		} else {
+			run = list_at(text.runs, $run_index)
+			placement = list_at(placements, $run_index)
+			var $width = 0
+			var $glyph = run.glyphs.start()
+			glyph_end = run.glyphs.start() + run.glyphs.length()
+			while $glyph < glyph_end {
+				$width = checked_i64(list_at(text.glyphs, $glyph).advance_x.raw(), $width)?
+				$glyph = $glyph + 1
+			}
+			size = run.size.raw()
+			leading = list_at(styles, $run_index).leading.raw()
+			height = if leading > size leading else size
+			top = checked_i64(placement.origin.y.raw(), size)?
+			bottom = top - height
+			$rects = $rects.append(
+				AnchorAt({
+					origin: { x: placement.origin.x, y: Layout.Unit.from_raw(bottom) },
+					size: { height: Layout.Unit.from_raw(height), width: Layout.Unit.from_raw($width) },
+				}),
+			)
 		}
-		size = run.size.raw()
-		leading = list_at(styles, $run_index).leading.raw()
-		height = if leading > size leading else size
-		top = checked_i64(placement.origin.y.raw(), size)?
-		bottom = top - height
-		$rects = $rects.append(
-			AnchorAt({
-				origin: { x: placement.origin.x, y: Layout.Unit.from_raw(bottom) },
-				size: { height: Layout.Unit.from_raw(height), width: Layout.Unit.from_raw($width) },
-			}),
-		)
 		$run_index = $run_index + 1
 	}
 	Ok({ rects: $rects })
@@ -211,15 +220,24 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 	sentinel = links.len()
 	link_of_occurrence = link_owners(links, store.occurrences.len())?
 
-	## Per link: the list of page groups in ascending page order.
+	## Per link: the list of page groups in ascending page order. Repainted
+	## header runs are page artifacts and never join a link; `rects` holds
+	## one box per fragment (every other run, in order).
+	artifact_runs = KernelFacadeText.Plan.artifact_runs(text_plan)
 	var $groups = List.repeat([], links.len())
+	var $artifact_cursor = 0
+	var $fragment = 0
 	var $run_index = 0
 	while $run_index < text.runs.len() {
 		run = list_at(text.runs, $run_index)
-		owner = list_at(link_of_occurrence, run.occurrence.index())
+		artifact = $artifact_cursor < artifact_runs.len() and list_at(artifact_runs, $artifact_cursor) == $run_index
+		if artifact {
+			$artifact_cursor = $artifact_cursor + 1
+		}
+		owner = if artifact sentinel else list_at(link_of_occurrence, run.occurrence.index())
 		if owner != sentinel {
 			placement = list_at(placements, $run_index)
-			quad = match list_at(rects, $run_index) {
+			quad = match list_at(rects, $fragment) {
 				AnchorAt(rect) => {
 					x_left: rect.origin.x,
 					x_right: Layout.Unit.from_raw(checked_i64(rect.origin.x.raw(), rect.size.width.raw())?),
@@ -254,6 +272,9 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 				Err(_) => { groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: Bool.True }
 			}
 			$groups = list_set($groups, owner, appended.groups)
+		}
+		if !artifact {
+			$fragment = $fragment + 1
 		}
 		$run_index = $run_index + 1
 	}
@@ -425,8 +446,11 @@ prepare_text = |text_plan| {
 	text: KernelFacadeText.Plan.text(text_plan),
 }
 
-build_arena : KernelTextSemantics.Plan, KernelFacadeFragments.Prepared, KernelFacadeFragments.Limits -> Try(KernelFacadeFragments.Arena, KernelFacadeFragments.Error)
-build_arena = |preliminary, prepared, limits| {
+## `artifact_runs` (ascending) are repainted header runs: page artifacts
+## with no layout fragment. Every other run is one fragment, dense in run
+## order.
+build_arena : KernelTextSemantics.Plan, KernelFacadeFragments.Prepared, List(U64), KernelFacadeFragments.Limits -> Try(KernelFacadeFragments.Arena, KernelFacadeFragments.Error)
+build_arena = |preliminary, prepared, artifact_runs, limits| {
 	semantic_store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
 	text = prepared.text
 	placements = prepared.placements
@@ -468,7 +492,8 @@ build_arena = |preliminary, prepared, limits| {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
 	var $continuations = List.repeat(0, semantic_store.occurrences.len())
-	var $fragments = List.with_capacity(text.runs.len())
+	var $fragments = List.with_capacity(text.runs.len() - artifact_runs.len())
+	var $artifact_cursor = 0
 	var $run_index = 0
 	while $run_index < text.runs.len() {
 		run = list_at(text.runs, $run_index)
@@ -476,41 +501,46 @@ build_arena = |preliminary, prepared, limits| {
 		if run.id.index() != $run_index or placement.run.index() != $run_index {
 			return Err(InvalidRun({ run: $run_index }))
 		}
-		occurrence_index = run.occurrence.index()
-		if occurrence_index >= semantic_store.occurrences.len() {
-			return Err(InvalidOccurrence({ available: semantic_store.occurrences.len(), run: $run_index }))
+		artifact = $artifact_cursor < artifact_runs.len() and list_at(artifact_runs, $artifact_cursor) == $run_index
+		if artifact {
+			$artifact_cursor = $artifact_cursor + 1
+		} else {
+			occurrence_index = run.occurrence.index()
+			if occurrence_index >= semantic_store.occurrences.len() {
+				return Err(InvalidOccurrence({ available: semantic_store.occurrences.len(), run: $run_index }))
+			}
+			occurrence = list_at(semantic_store.occurrences, occurrence_index)
+			occurrence_range = match occurrence.source {
+				Text(_, UnicodeRange(range)) => range
+				_ => return Err(SourceRangeMismatch({ run: $run_index }))
+			}
+			if !relative_range_fits(run.source, occurrence_range) {
+				return Err(SourceRangeMismatch({ run: $run_index }))
+			}
+			fragment_range = {
+				scalars: Semantics.Range.from_start_and_length(checked_add(occurrence_range.scalars.start(), run.source.scalars.start())?, run.source.scalars.length()),
+				utf8_bytes: Semantics.Range.from_start_and_length(checked_add(occurrence_range.utf8_bytes.start(), run.source.utf8_bytes.start())?, run.source.utf8_bytes.length()),
+			}
+			continuation = list_at($continuations, occurrence_index)
+			$continuations = list_set($continuations, occurrence_index, checked_add(continuation, 1)?)
+			$fragments = $fragments.append({
+				content_stream: Semantics.ContentStreamId.from_index(placement.page.index()),
+				continuation_index: continuation,
+				id: Semantics.FragmentId.from_index($fragments.len()),
+				occurrence: run.occurrence,
+				page: placement.page,
+				source_range: UnicodeRange(fragment_range),
+			})
 		}
-		occurrence = list_at(semantic_store.occurrences, occurrence_index)
-		occurrence_range = match occurrence.source {
-			Text(_, UnicodeRange(range)) => range
-			_ => return Err(SourceRangeMismatch({ run: $run_index }))
-		}
-		if !relative_range_fits(run.source, occurrence_range) {
-			return Err(SourceRangeMismatch({ run: $run_index }))
-		}
-		fragment_range = {
-			scalars: Semantics.Range.from_start_and_length(checked_add(occurrence_range.scalars.start(), run.source.scalars.start())?, run.source.scalars.length()),
-			utf8_bytes: Semantics.Range.from_start_and_length(checked_add(occurrence_range.utf8_bytes.start(), run.source.utf8_bytes.start())?, run.source.utf8_bytes.length()),
-		}
-		continuation = list_at($continuations, occurrence_index)
-		$continuations = list_set($continuations, occurrence_index, checked_add(continuation, 1)?)
-		$fragments = $fragments.append({
-			content_stream: Semantics.ContentStreamId.from_index(placement.page.index()),
-			continuation_index: continuation,
-			id: Semantics.FragmentId.from_index($run_index),
-			occurrence: run.occurrence,
-			page: placement.page,
-			source_range: UnicodeRange(fragment_range),
-		})
 		$run_index = $run_index + 1
 	}
 	Ok(
 		KernelFacadeFragments.Arena.{
 			fragments: $fragments,
 			work: {
-				continuation_reads: text.runs.len(),
-				continuation_writes: text.runs.len(),
-				fragment_writes: text.runs.len(),
+				continuation_reads: $fragments.len(),
+				continuation_writes: $fragments.len(),
+				fragment_writes: $fragments.len(),
 				page_visits: pages.len(),
 				placement_visits: placements.len(),
 			},

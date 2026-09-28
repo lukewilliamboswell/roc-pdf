@@ -35,7 +35,17 @@ KernelFacadeSemantics :: [].{
 		NegativeSpacer({ spacer : U64 }),
 		NestedLink({ block : U64, inline : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
+
+		## A content bound crossed while planning authored leaf `block`: the
+		## facade's documented size bounds, located at the first block that
+		## exceeds them.
+		BlockLimitExceeded({ attempted : U64, block : U64, dimension : Dimension, limit : U64 }),
 		Source(KernelFacadeSources.Error),
+		TableCellEmpty({ block : U64 }),
+		TableEmpty({ group : U64 }),
+		TableGridMismatch({ columns : U64, group : U64, spanned : U64 }),
+		TableHeaderMissing({ group : U64 }),
+		TableRowSpan({ block : U64 }),
 		TextSemantics(KernelTextSemantics.Error),
 		UnsupportedHeadingLevel({ block : U64, level : U8 }),
 	]
@@ -91,6 +101,7 @@ KernelFacadeSemantics :: [].{
 		artifacts : U64,
 		container_nodes : U64,
 		content_writes : U64,
+		header_association_edges : U64,
 		inline_elements : U64,
 		inline_leaves : U64,
 		list_items : U64,
@@ -99,6 +110,8 @@ KernelFacadeSemantics :: [].{
 		occurrence_writes : U64,
 		property_writes : U64,
 		source_inputs : U64,
+		table_cells : U64,
+		tables : U64,
 	}
 	Plan :: {
 		artifacts : List(Artifact),
@@ -148,9 +161,11 @@ ChildEntry : { node : Semantics.NodeId, parent : U64 }
 Planning : {
 	artifacts : List(KernelFacadeSemantics.Artifact),
 	attribute_count : U64,
+	cell_headers : List(U64),
 	content_count : U64,
 	destinations : List(KernelFacadeSemantics.DestinationRecord),
 	group_nodes : List(U64),
+	header_ranges : List(Semantics.Range),
 	inline_elements : U64,
 	inline_leaves : U64,
 	links : List(KernelFacadeSemantics.LinkRecord),
@@ -159,7 +174,9 @@ Planning : {
 	node_count : U64,
 	occurrence_count : U64,
 	property_count : U64,
+	relationship_count : U64,
 	source_inputs : List(Str),
+	table_count : U64,
 	top_nodes : List(ChildEntry),
 }
 
@@ -197,6 +214,7 @@ build_plan = |authoring, limits| {
 				artifacts: planning.artifacts.len(),
 				container_nodes: planning.group_nodes.len(),
 				content_writes: built.store.content_spine.len(),
+				header_association_edges: planning.relationship_count,
 				inline_elements: planning.inline_elements,
 				inline_leaves: planning.inline_leaves,
 				list_items: planning.list_item_count,
@@ -205,6 +223,8 @@ build_plan = |authoring, limits| {
 				occurrence_writes: built.store.occurrences.len(),
 				property_writes: built.store.text_properties.len(),
 				source_inputs: planning.source_inputs.len(),
+				table_cells: planning.header_ranges.len(),
+				tables: planning.table_count,
 			},
 		},
 	)
@@ -237,6 +257,11 @@ plan_blocks = |authoring, limits| {
 	var $list_state = NoActiveList
 	var $attribute_count = 0
 	var $break_cursor = 0
+	var $cell_cursor = 0
+	var $cell_headers = []
+	var $header_ranges = if authoring.cells.is_empty() [] else List.with_capacity(authoring.cells.len())
+	var $relationship_count = 0
+	var $table_count = 0
 	var $block_index = 0
 	check_limit($next_node, limits.max_nodes, Nodes)?
 
@@ -257,8 +282,8 @@ plan_blocks = |authoring, limits| {
 					}
 					attempted_nodes = checked_add($next_node, 1)?
 					attempted_content = checked_add($content_count, 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					$group_nodes = $group_nodes.append($next_node)
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
 					$next_node = attempted_nodes
@@ -286,14 +311,62 @@ plan_blocks = |authoring, limits| {
 					check_numbering(list_at(authoring.lists, list_index.to_u64()), $next_group)?
 					attempted_nodes = checked_add($next_node, 1)?
 					attempted_content = checked_add($content_count, 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
 					$group_nodes = $group_nodes.append($next_node)
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
 					$next_node = attempted_nodes
 					$content_count = attempted_content
 					$attribute_count = checked_add($attribute_count, 1)?
 					$list_count = checked_add($list_count, 1)?
+				}
+				Table(table_index) => {
+					if in_item {
+						return Err(ListItemGroup({ group: $next_group }))
+					}
+
+					## A table plans its whole subtree at once: its rows and
+					## cells are fixed-depth descendants, so the walk resumes
+					## after the table's last group and leaf.
+					planned = plan_table(
+						authoring,
+						$next_group,
+						table_index.to_u64(),
+						{ break_cursor: $break_cursor, cell: $cell_cursor, node: $next_node, occurrence: $next_occurrence },
+						limits.max_inline_depth,
+						{ group_nodes: $group_nodes, headers: $cell_headers, links: $links, ranges: $header_ranges, sources: $sources },
+					)?
+					attempted_nodes = checked_add($next_node, planned.nodes)?
+					attempted_occurrences = checked_add($next_occurrence, planned.occurrences)?
+					attempted_content = checked_add($content_count, planned.content)?
+					attempted_properties = checked_add($property_count, planned.expansions)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, group.first_block)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, group.first_block)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, group.first_block)?
+					check_at(attempted_properties, limits.max_properties, Properties, group.first_block)?
+					check_at(planned.buffers.sources.len(), limits.max_source_inputs, SourceInputs, group.first_block)?
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
+					$group_nodes = planned.buffers.group_nodes
+					$cell_headers = planned.buffers.headers
+					$links = planned.buffers.links
+					$header_ranges = planned.buffers.ranges
+					$sources = planned.buffers.sources
+					$next_node = attempted_nodes
+					$next_occurrence = attempted_occurrences
+					$content_count = attempted_content
+					$property_count = attempted_properties
+					$attribute_count = checked_add($attribute_count, planned.attributes)?
+					$relationship_count = checked_add($relationship_count, planned.relationships)?
+					$inline_elements = checked_add($inline_elements, planned.elements)?
+					$inline_leaves = checked_add($inline_leaves, planned.leaves)?
+					$break_cursor = $break_cursor + planned.breaks
+					$cell_cursor = $cell_cursor + planned.cells
+					$table_count = $table_count + 1
+					$block_index = group.block_end
+					$next_group = group.group_end - 1
+				}
+				TableRow(_) => {
+					crash "normalized table row escaped its table"
 				}
 				ListItem(ordinal) => {
 					if group.first_block >= group.block_end {
@@ -313,11 +386,11 @@ plan_blocks = |authoring, limits| {
 					attempted_content = checked_add($content_count, 4)?
 					attempted_properties = checked_add($property_count, 1)?
 					attempted_sources = checked_add($sources.len(), 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_properties, limits.max_properties, Properties)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_properties, limits.max_properties, Properties, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 
 					## `LI` joins its list's span; the item's children join
 					## `LBody`, which the item group resolves to.
@@ -356,11 +429,11 @@ plan_blocks = |authoring, limits| {
 					attempted_content = checked_add($content_count, content_increment)?
 					attempted_properties = checked_add($property_count, 1)?
 					attempted_sources = checked_add($sources.len(), 2)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_properties, limits.max_properties, Properties)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_properties, limits.max_properties, Properties, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					_list_node = if item == 0 {
 						if list != $next_list {
 							return Err(InvalidList({ block: $block_index }))
@@ -399,10 +472,10 @@ plan_blocks = |authoring, limits| {
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 2)?
 					attempted_sources = checked_add($sources.len(), 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
@@ -415,10 +488,10 @@ plan_blocks = |authoring, limits| {
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 2)?
 					attempted_sources = checked_add($sources.len(), 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = checked_add($next_node, 1)?
@@ -432,11 +505,11 @@ plan_blocks = |authoring, limits| {
 					attempted_content = checked_add($content_count, 2)?
 					attempted_sources = checked_add($sources.len(), 1)?
 					attempted_properties = checked_add($property_count, 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
-					check_limit(attempted_properties, limits.max_properties, Properties)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
+					check_at(attempted_properties, limits.max_properties, Properties, $block_index)?
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
 					$next_node = attempted_nodes
@@ -451,10 +524,10 @@ plan_blocks = |authoring, limits| {
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 2)?
 					attempted_sources = checked_add($sources.len(), 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
@@ -468,10 +541,10 @@ plan_blocks = |authoring, limits| {
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 2)?
 					attempted_sources = checked_add($sources.len(), 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$destinations = $destinations.append({ anchor: Semantics.OccurrenceId.from_index($next_occurrence), name, target: Semantics.NodeId.from_index($next_node) })
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
@@ -485,10 +558,10 @@ plan_blocks = |authoring, limits| {
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 3)?
 					attempted_sources = checked_add($sources.len(), 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.Range.from_start_and_length($next_occurrence, 1), target: Uri(uri) })
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
@@ -502,10 +575,10 @@ plan_blocks = |authoring, limits| {
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 3)?
 					attempted_sources = checked_add($sources.len(), 1)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					$links = $links.append({ node: Semantics.NodeId.from_index($next_node + 1), occurrences: Semantics.Range.from_start_and_length($next_occurrence, 1), target: InternalDestination(destination) })
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
 					$sources = $sources.append(block.text)
@@ -524,11 +597,11 @@ plan_blocks = |authoring, limits| {
 					attempted_content = checked_add($content_count, checked_add(rich.length, 1)?)?
 					attempted_properties = checked_add($property_count, checked.expansions)?
 					attempted_sources = checked_add($sources.len(), checked_add(breaks, 1)?)?
-					check_limit(attempted_nodes, limits.max_nodes, Nodes)?
-					check_limit(attempted_occurrences, limits.max_occurrences, Occurrences)?
-					check_limit(attempted_content, limits.max_content_spine, ContentSpine)?
-					check_limit(attempted_properties, limits.max_properties, Properties)?
-					check_limit(attempted_sources, limits.max_source_inputs, SourceInputs)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_properties, limits.max_properties, Properties, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
 					if checked.links != 0 {
 						$links = append_rich_links($links, authoring.inlines, rich, $next_node, $next_occurrence)
 					}
@@ -548,7 +621,214 @@ plan_blocks = |authoring, limits| {
 		}
 	}
 	check_layout_items(authoring)?
-	Ok({ artifacts: $artifacts, attribute_count: $attribute_count, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, source_inputs: $sources, top_nodes: $top_nodes })
+	Ok({ artifacts: $artifacts, attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
+}
+
+TableCursor : { break_cursor : U64, cell : U64, node : U64, occurrence : U64 }
+
+TableBuffers : { group_nodes : List(U64), headers : List(U64), links : List(KernelFacadeSemantics.LinkRecord), ranges : List(Semantics.Range), sources : List(Str) }
+
+TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, expansions : U64, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
+
+## Validate and count one table in authored order: a table needs columns
+## and a body row; each cell has non-empty inline content and no row span;
+## each row's column spans sum to the column count; and at least one cell is
+## a header cell. Nodes are numbered in preorder: `Table`, the optional
+## `Caption > P`, then each present section (`THead`, `TBody`, `TFoot`)
+## before its rows, each `TR` before its cells, and each cell before its
+## inline elements. The `Headers` of every data cell are derived here from
+## declared scopes, never from geometry: the `Column`- or `Both`-scoped
+## header cells of earlier rows in the columns it spans (ascending cell
+## order), then the `Row`- or `Both`-scoped header cells of its own row.
+## Header cells carry no `Headers`. Each cell's range into the flattened
+## header list is recorded in table order, one per cell.
+plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, U64, TableBuffers -> Try(TablePlan, KernelFacadeSemantics.Error)
+plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
+	group = list_at(authoring.groups, group_index)
+	table = list_at(authoring.tables, table_index)
+	columns = table.columns.len()
+	if columns == 0 or table.body_rows == 0 {
+		return Err(TableEmpty({ group: group_index }))
+	}
+	caption_nodes = if table.caption 2 else 0
+	sections = (if table.header_rows > 0 1 else 0) + 1 + (if table.footer_rows > 0 1 else 0)
+	var $group_nodes = buffers.group_nodes.append(at.node)
+	var $headers = buffers.headers
+	var $links = buffers.links
+	var $ranges = buffers.ranges
+	var $sources = buffers.sources
+	var $next_node = at.node + 1 + caption_nodes
+	var $content = 1 + (if table.caption 1 else 0) + sections + caption_nodes
+	var $occurrences = 0
+	var $attributes = 0
+	var $relationships = 0
+	var $expansions = 0
+	var $elements = 0
+	var $leaves = 0
+	var $breaks = 0
+	if table.caption {
+		$sources = $sources.append(list_at(authoring.blocks, group.first_block).text)
+		$occurrences = 1
+	}
+	var $column_headers = List.repeat([], columns)
+	var $row_headers = []
+	var $has_header = False
+	var $cell = at.cell
+	var $row_ordinal = 0
+	var $row_group = group_index + 1
+	while $row_group < group.group_end {
+		row = list_at(authoring.groups, $row_group)
+
+		## A section element precedes its first row.
+		if ($row_ordinal == 0 and table.header_rows > 0) or $row_ordinal == table.header_rows or ($row_ordinal == table.header_rows + table.body_rows and table.footer_rows > 0) {
+			$next_node = $next_node + 1
+		}
+		$group_nodes = $group_nodes.append($next_node)
+		$next_node = $next_node + 1
+		$content = $content + 1 + (row.block_end - row.first_block)
+		$row_headers = $row_headers.take_first(0)
+		first_cell = $cell
+		var $spanned = 0
+		var $block = row.first_block
+		while $block < row.block_end {
+			record = list_at(authoring.cells, $cell)
+			if record.row_span != 1 {
+				return Err(TableRowSpan({ block: $block }))
+			}
+			if record.column_span == 0 {
+				return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
+			}
+			paragraph = match list_at(authoring.blocks, $block).kind {
+				RichParagraph(value) => value
+				_ => crash "normalized table cell escaped its rich paragraph"
+			}
+			rich = list_at(authoring.rich_paragraphs, paragraph)
+			checked = match check_rich(authoring.inlines, rich, $block, max_depth) {
+				Ok(value) => value
+				Err(EmptyRichParagraph({ block: empty })) => return Err(TableCellEmpty({ block: empty }))
+				Err(error) => return Err(error)
+			}
+			cursor = at.break_cursor + $breaks
+			cell_breaks = paragraph_breaks(authoring.line_breaks, cursor, paragraph)
+			check_breaks(authoring.line_breaks, cursor, cell_breaks, rich, $block)?
+			if checked.links != 0 {
+				$links = append_rich_links($links, authoring.inlines, rich, $next_node, at.occurrence + $occurrences)
+			}
+			$sources = if cell_breaks == 0 $sources.append(list_at(authoring.blocks, $block).text) else append_segment_sources($sources.append(list_at(authoring.blocks, $block).text), authoring.line_breaks, cursor, cell_breaks)
+			$breaks = $breaks + cell_breaks
+			$next_node = $next_node + 1 + rich.elements
+			$content = $content + rich.length
+			$occurrences = $occurrences + rich.leaves
+			$expansions = $expansions + checked.expansions
+			$elements = $elements + rich.elements
+			$leaves = $leaves + rich.leaves
+			$spanned = $spanned + record.column_span
+			if record.column_span > 1 {
+				$attributes = $attributes + 1
+			}
+			match record.kind {
+				HeaderCell(scope) => {
+					$has_header = True
+					$attributes = $attributes + 1
+					if scope != Column {
+						$row_headers = $row_headers.append($cell)
+					}
+				}
+				DataCell => {}
+			}
+			$cell = $cell + 1
+			$block = $block + 1
+		}
+		if $spanned != columns {
+			return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
+		}
+
+		## Every row's header cells are known before its data cells'
+		## associations are derived; column headers come from earlier rows.
+		var $column = 0
+		var $index = first_cell
+		while $index < $cell {
+			record = list_at(authoring.cells, $index)
+			start = $headers.len()
+			match record.kind {
+				DataCell => {
+					$headers = if record.column_span == 1 {
+						$headers.concat(list_at($column_headers, $column))
+					} else {
+						append_spanned_headers($headers, $column_headers, $column, record.column_span)
+					}
+					$headers = $headers.concat($row_headers)
+				}
+				HeaderCell(_) => {}
+			}
+			count = $headers.len() - start
+			if count != 0 {
+				$attributes = $attributes + 1
+				$relationships = $relationships + count
+			}
+			$ranges = $ranges.append(Semantics.Range.from_start_and_length(start, count))
+			$column = $column + record.column_span
+			$index = $index + 1
+		}
+		$column = 0
+		$index = first_cell
+		while $index < $cell {
+			record = list_at(authoring.cells, $index)
+			match record.kind {
+				HeaderCell(scope) => if scope != Row {
+					var $spanned_column = $column
+					while $spanned_column < $column + record.column_span {
+						$column_headers = list_set($column_headers, $spanned_column, list_at($column_headers, $spanned_column).append($index))
+						$spanned_column = $spanned_column + 1
+					}
+				}
+				DataCell => {}
+			}
+			$column = $column + record.column_span
+			$index = $index + 1
+		}
+		$row_ordinal = $row_ordinal + 1
+		$row_group = $row_group + 1
+	}
+	if !$has_header {
+		return Err(TableHeaderMissing({ group: group_index }))
+	}
+	Ok({
+		attributes: $attributes,
+		breaks: $breaks,
+		buffers: { group_nodes: $group_nodes, headers: $headers, links: $links, ranges: $ranges, sources: $sources },
+		cells: $cell - at.cell,
+		content: $content,
+		elements: $elements,
+		expansions: $expansions,
+		leaves: $leaves,
+		nodes: $next_node - at.node,
+		occurrences: $occurrences,
+		relationships: $relationships,
+	})
+}
+
+## The union of the column headers of a spanning data cell's columns, in
+## ascending cell order and without repeats (a spanning header cell heads
+## every column it spans).
+append_spanned_headers : List(U64), List(List(U64)), U64, U64 -> List(U64)
+append_spanned_headers = |headers, column_headers, column, span| {
+	var $merged = []
+	var $index = column
+	while $index < column + span {
+		$merged = $merged.concat(list_at(column_headers, $index))
+		$index = $index + 1
+	}
+	sorted = $merged.sort_with(|left, right| if left < right Before else if left > right After else Same)
+	var $headers = headers
+	var $previous = U64.highest
+	for value in sorted {
+		if value != $previous {
+			$headers = $headers.append(value)
+			$previous = value
+		}
+	}
+	$headers
 }
 
 ## Lists nest at most four deep. With 16 containers, a list level's
@@ -920,6 +1200,9 @@ build_store = |authoring, planning, source_plan| {
 				ListItem(_) => {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(Semantics.NodeId.from_index(node_index - 2)), "LBody", span, Inherited))
 				}
+
+				## A table places its whole subtree in the block walk below.
+				Table(_) | TableRow(_) => {}
 			}
 			$span_start = $span_start + children
 			$group = $group + 1
@@ -927,6 +1210,8 @@ build_store = |authoring, planning, source_plan| {
 	}
 	var $occurrences = List.with_capacity(planning.occurrence_count)
 	var $properties = List.with_capacity(planning.property_count)
+	var $identifiers = if planning.header_ranges.is_empty() [] else List.with_capacity(planning.header_ranges.len())
+	var $relationships = if planning.relationship_count == 0 [] else List.with_capacity(planning.relationship_count)
 	var $ownership = List.repeat(ArtifactBlock(0), blocks.len())
 	var $artifact = 0
 	var $index = 0
@@ -944,6 +1229,38 @@ build_store = |authoring, planning, source_plan| {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) => {}
+				Table(table_index) => {
+					placed = place_table(
+						{
+							attributes: $attributes,
+							buffers: { content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+							identifiers: $identifiers,
+							ownership: $ownership,
+							relationships: $relationships,
+						},
+						authoring,
+						planning,
+						{ break_cursor: $break_cursor, group: $next_group, language, node: $next_node, occurrence: $next_occurrence, source_input: $source_input, table: table_index.to_u64() },
+						source_plan,
+					)?
+					$attributes = placed.attributes
+					$content = placed.buffers.content
+					$nodes = placed.buffers.nodes
+					$occurrences = placed.buffers.occurrences
+					$properties = placed.buffers.properties
+					$identifiers = placed.identifiers
+					$ownership = placed.ownership
+					$relationships = placed.relationships
+					$next_node = placed.node
+					$next_occurrence = placed.occurrence
+					$source_input = placed.source_input
+					$break_cursor = placed.break_cursor
+					$index = group.block_end
+					$next_group = group.group_end - 1
+				}
+				TableRow(_) => {
+					crash "normalized table row escaped its table"
+				}
 				ListItem(ordinal) => {
 
 					## `LI` owns `[Lbl, LBody]`; `Lbl` owns the generated label
@@ -1062,7 +1379,7 @@ build_store = |authoring, planning, source_plan| {
 						{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
 						authoring,
 						rich,
-						{ breaks: $break_cursor, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), segments: breaks + 1, source_input: $source_input },
+						{ breaks: $break_cursor, language, node: $next_node, occurrence: $next_occurrence, parent: parent_node(block.parent, planning.group_nodes), role: "P", segments: breaks + 1, source_input: $source_input },
 						source_plan,
 					)?
 					$content = placed.content
@@ -1135,14 +1452,14 @@ build_store = |authoring, planning, source_plan| {
 	}
 	while $next_group < groups.len() {
 		$next_node = match list_at(groups, $next_group).kind {
-			KeepTogether | KeepWithNext(_) => $next_node
+			KeepTogether | KeepWithNext(_) | Table(_) | TableRow(_) => $next_node
 			ListItem(_) => checked_add($next_node, 3)?
 			_ => checked_add($next_node, 1)?
 		}
 		$next_group = $next_group + 1
 	}
 	unique_sources = KernelFacadeSources.Plan.sources(source_plan).map(|source| { unicode: source.unicode })
-	if $attributes.len() != planning.attribute_count or $artifact != planning.artifacts.len() or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
+	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $artifact != planning.artifacts.len() or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
 		crash "facade semantic planning count escaped"
 	}
 	store = {
@@ -1153,7 +1470,7 @@ build_store = |authoring, planning, source_plan| {
 		content_spine: $content,
 		contextual_artifacts: [],
 		document_root: Semantics.NodeId.from_index(0),
-		element_identifiers: [],
+		element_identifiers: $identifiers,
 		fragments: [],
 		mathml_subtrees: [],
 		namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
@@ -1161,7 +1478,7 @@ build_store = |authoring, planning, source_plan| {
 		non_text_sources: [],
 		occurrence_fragments: [],
 		occurrences: $occurrences,
-		relationships: [],
+		relationships: $relationships,
 		role_mappings: [],
 		text_properties: $properties,
 		text_sources: unique_sources,
@@ -1179,7 +1496,7 @@ StoreBuffers : { content : List(Semantics.ContentSpineItem), nodes : List(Semant
 ## `in_language` span, which is also the effective language of the node
 ## that owns it: a node-level `/Lang` on that `Span` therefore describes all
 ## of its marked content, and no content item differs from its owner.
-place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { breaks : U64, language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, segments : U64, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
+place_rich : StoreBuffers, Document.NormalizedAuthoring, Document.NormalizedRich, { breaks : U64, language : Str, node : U64, occurrence : U64, parent : Semantics.NodeId, role : Str, segments : U64, source_input : U64 }, KernelFacadeSources.Plan -> Try(StoreBuffers, KernelFacadeSemantics.Error)
 place_rich = |buffers, authoring, rich, at, source_plan| {
 	inlines = authoring.inlines
 	base = buffers.content.len()
@@ -1189,7 +1506,7 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		$content = $content.append(ChildNode(Semantics.NodeId.from_index(0)))
 		$slot = $slot + 1
 	}
-	var $nodes = list_set(buffers.nodes, at.node, make_node(at.node, ParentNode(at.parent), "P", Semantics.Range.from_start_and_length(base, rich.children), Inherited))
+	var $nodes = list_set(buffers.nodes, at.node, make_node(at.node, ParentNode(at.parent), at.role, Semantics.Range.from_start_and_length(base, rich.children), Inherited))
 	var $occurrences = buffers.occurrences
 	var $properties = buffers.properties
 	input_sources = KernelFacadeSources.Plan.input_sources(source_plan)
@@ -1255,6 +1572,224 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		$index = $index + 1
 	}
 	Ok({ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties })
+}
+
+TableStore : { attributes : List(Semantics.StructureAttribute), buffers : StoreBuffers, identifiers : List(Semantics.ElementIdentifier), ownership : List(KernelFacadeSemantics.BlockOwnership), relationships : List(Semantics.Relationship) }
+
+TablePlaced : { attributes : List(Semantics.StructureAttribute), break_cursor : U64, buffers : StoreBuffers, identifiers : List(Semantics.ElementIdentifier), node : U64, occurrence : U64, ownership : List(KernelFacadeSemantics.BlockOwnership), relationships : List(Semantics.Relationship), source_input : U64 }
+
+## Place one planned table in preorder. The content spine receives, in
+## order, the `Table` span (`Caption`, then each present section), the
+## caption's `Caption > P` spans, and for each section its `TR` span followed
+## by each row's cell span and each cell's rich span. Every cell carries its
+## generated element identifier (`c` and its six-digit cell ordinal, so
+## identifier order is byte order); a header cell carries `Scope`, a data
+## cell with associations `Headers` and one `HeaderFor` relationship per
+## header in the same order, and a spanning cell `ColSpan`. A cell's text is
+## a rich paragraph owned by its `TH` or `TD` directly.
+place_table : TableStore, Document.NormalizedAuthoring, Planning, { break_cursor : U64, group : U64, language : Str, node : U64, occurrence : U64, source_input : U64, table : U64 }, KernelFacadeSources.Plan -> Try(TablePlaced, KernelFacadeSemantics.Error)
+place_table = |store, authoring, planning, at, source_plan| {
+	group = list_at(authoring.groups, at.group)
+	table = list_at(authoring.tables, at.table)
+	empty = Semantics.Range.from_start_and_length(0, 0)
+	table_node = at.node
+	caption_nodes = if table.caption 2 else 0
+	var $attributes = store.attributes
+	var $content = store.buffers.content
+	var $nodes = store.buffers.nodes
+	var $occurrences = store.buffers.occurrences
+	var $properties = store.buffers.properties
+	var $identifiers = store.identifiers
+	var $ownership = store.ownership
+	var $relationships = store.relationships
+	var $occurrence = at.occurrence
+	var $source_input = at.source_input
+	var $break_cursor = at.break_cursor
+
+	## Section nodes: the first row of each present section is preceded by
+	## its section element.
+	header_rows = table.header_rows
+	body_start = at.group + 1 + header_rows
+	footer_start = body_start + table.body_rows
+	head_node = table_node + 1 + caption_nodes
+	body_node = if header_rows > 0 list_at(planning.group_nodes, body_start) - 1 else head_node
+	foot_node = if table.footer_rows > 0 list_at(planning.group_nodes, footer_start) - 1 else 0
+	table_children = $content.len()
+	if table.caption {
+		$content = $content.append(ChildNode(Semantics.NodeId.from_index(table_node + 1)))
+	}
+	if header_rows > 0 {
+		$content = $content.append(ChildNode(Semantics.NodeId.from_index(head_node)))
+	}
+	$content = $content.append(ChildNode(Semantics.NodeId.from_index(body_node)))
+	if table.footer_rows > 0 {
+		$content = $content.append(ChildNode(Semantics.NodeId.from_index(foot_node)))
+	}
+	$nodes = list_set($nodes, table_node, make_node(table_node, ParentNode(parent_node(group.parent, planning.group_nodes)), "Table", Semantics.Range.from_start_and_length(table_children, $content.len() - table_children), Inherited))
+	if table.caption {
+		caption_block = group.first_block
+		caption_span = $content.len()
+		$content = $content.append(ChildNode(Semantics.NodeId.from_index(table_node + 2)))
+		paragraph_span = $content.len()
+		$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($occurrence)))
+		$nodes = list_set($nodes, table_node + 1, make_node(table_node + 1, ParentNode(Semantics.NodeId.from_index(table_node)), "Caption", Semantics.Range.from_start_and_length(caption_span, 1), Inherited))
+		$nodes = list_set($nodes, table_node + 2, make_node(table_node + 2, ParentNode(Semantics.NodeId.from_index(table_node + 1)), "P", Semantics.Range.from_start_and_length(paragraph_span, 1), Inherited))
+		$occurrences = $occurrences.append(make_occurrence($occurrence, $source_input, source_plan, at.language, empty))
+		$ownership = list_set($ownership, caption_block, TextBlock({ body: Semantics.OccurrenceId.from_index($occurrence), label: NoLabel, level: 0 }))
+		$occurrence = $occurrence + 1
+		$source_input = $source_input + 1
+	}
+	var $row_group = at.group + 1
+	while $row_group < group.group_end {
+		section_end = if $row_group < body_start body_start else if $row_group < footer_start footer_start else group.group_end
+		section_node = if $row_group < body_start head_node else if $row_group < footer_start body_node else foot_node
+		section_role = if $row_group < body_start "THead" else if $row_group < footer_start "TBody" else "TFoot"
+		section_span = $content.len()
+		var $member = $row_group
+		while $member < section_end {
+			$content = $content.append(ChildNode(Semantics.NodeId.from_index(list_at(planning.group_nodes, $member))))
+			$member = $member + 1
+		}
+		$nodes = list_set($nodes, section_node, make_node(section_node, ParentNode(Semantics.NodeId.from_index(table_node)), section_role, Semantics.Range.from_start_and_length(section_span, section_end - $row_group), Inherited))
+		while $row_group < section_end {
+			row = list_at(authoring.groups, $row_group)
+			row_node = list_at(planning.group_nodes, $row_group)
+			row_span = $content.len()
+			var $cell_node = row_node + 1
+			var $block = row.first_block
+			while $block < row.block_end {
+				$content = $content.append(ChildNode(Semantics.NodeId.from_index($cell_node)))
+				rich = list_at(authoring.rich_paragraphs, rich_index(authoring, $block))
+				$cell_node = $cell_node + 1 + rich.elements
+				$block = $block + 1
+			}
+			$nodes = list_set($nodes, row_node, make_node(row_node, ParentNode(Semantics.NodeId.from_index(section_node)), "TR", Semantics.Range.from_start_and_length(row_span, row.block_end - row.first_block), Inherited))
+			$cell_node = row_node + 1
+			$block = row.first_block
+			while $block < row.block_end {
+				paragraph = rich_index(authoring, $block)
+				rich = list_at(authoring.rich_paragraphs, paragraph)
+				ordinal = cell_ordinal(authoring.cells, $block)
+				record = list_at(authoring.cells, ordinal)
+				breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
+				role = match record.kind {
+					HeaderCell(_) => "TH"
+					DataCell => "TD"
+				}
+				placed = place_rich(
+					{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+					authoring,
+					rich,
+					{ breaks: $break_cursor, language: at.language, node: $cell_node, occurrence: $occurrence, parent: Semantics.NodeId.from_index(row_node), role, segments: breaks + 1, source_input: $source_input },
+					source_plan,
+				)?
+				$content = placed.content
+				$occurrences = placed.occurrences
+				$properties = placed.properties
+				attribute_start = $attributes.len()
+				if record.column_span > 1 {
+					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("ColSpan"), owner: Table, value: Integer(record.column_span.to_i64_wrap()) })
+				}
+				associations = list_at(planning.header_ranges, ordinal)
+				if associations.length() != 0 {
+					var $names = List.with_capacity(associations.length())
+					var $edge = associations.start()
+					while $edge < associations.start() + associations.length() {
+						header = list_at(planning.cell_headers, $edge)
+						$names = $names.append(cell_identifier(header))
+						$relationships = $relationships.append(HeaderFor({ cell: Semantics.ElementId.from_index(ordinal), header: Semantics.ElementId.from_index(header) }))
+						$edge = $edge + 1
+					}
+					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("Headers"), owner: Table, value: Names($names) })
+				}
+				match record.kind {
+					HeaderCell(scope) => {
+						$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("Scope"), owner: Table, value: Name(scope_name(scope)) })
+					}
+					DataCell => {}
+				}
+				cell = list_at(placed.nodes, $cell_node)
+				$nodes = list_set(placed.nodes, $cell_node, { ..cell, attributes: Semantics.Range.from_start_and_length(attribute_start, $attributes.len() - attribute_start), element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)) })
+				$identifiers = $identifiers.append({ id: Semantics.ElementId.from_index(ordinal), value: cell_identifier(ordinal) })
+				$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.Range.from_start_and_length($occurrence, rich.leaves) }))
+				$occurrence = $occurrence + rich.leaves
+				$source_input = $source_input + breaks + 1
+				$break_cursor = $break_cursor + breaks
+				$cell_node = $cell_node + 1 + rich.elements
+				$block = $block + 1
+			}
+			$row_group = $row_group + 1
+		}
+	}
+	last_row = list_at(authoring.groups, group.group_end - 1)
+	last_node = list_at(planning.group_nodes, group.group_end - 1) + 1 + subtree_elements(authoring, last_row)
+	Ok({
+		attributes: $attributes,
+		break_cursor: $break_cursor,
+		buffers: { content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+		identifiers: $identifiers,
+		node: last_node,
+		occurrence: $occurrence,
+		ownership: $ownership,
+		relationships: $relationships,
+		source_input: $source_input,
+	})
+}
+
+## The nodes of a row's cells and their inline elements.
+subtree_elements : Document.NormalizedAuthoring, Document.NormalizedGroup -> U64
+subtree_elements = |authoring, row| {
+	var $count = 0
+	var $block = row.first_block
+	while $block < row.block_end {
+		$count = $count + 1 + list_at(authoring.rich_paragraphs, rich_index(authoring, $block)).elements
+		$block = $block + 1
+	}
+	$count
+}
+
+rich_index : Document.NormalizedAuthoring, U64 -> U64
+rich_index = |authoring, block| match list_at(authoring.blocks, block).kind {
+	RichParagraph(value) => value
+	_ => crash "normalized table cell escaped its rich paragraph"
+}
+
+## The cell ordinal of cell leaf `block`: cells are stored in leaf order,
+## so a binary search over their block indexes finds it.
+cell_ordinal : List(Document.NormalizedCell), U64 -> U64
+cell_ordinal = |cells, block| {
+	var $low = 0
+	var $high = cells.len()
+	while $low < $high {
+		middle = $low + ($high - $low) // 2
+		if list_at(cells, middle).block < block {
+			$low = middle + 1
+		} else {
+			$high = middle
+		}
+	}
+	if $low >= cells.len() or list_at(cells, $low).block != block {
+		crash "normalized table cell escaped the cell arena"
+	}
+	$low
+}
+
+## The generated element identifier of cell ordinal `ordinal`: `c` and the
+## one-based ordinal in six zero-padded digits, so byte order is cell order.
+cell_identifier : U64 -> Str
+cell_identifier = |ordinal| {
+	digits = (1000000 + ordinal + 1).to_str()
+	match Str.from_utf8(Str.to_utf8(digits).drop_first(1)) {
+		Ok(text) => "c${text}"
+		Err(_) => crash "generated cell identifier escaped ASCII"
+	}
+}
+
+scope_name : Document.HeaderScope -> Str
+scope_name = |scope| match scope {
+	Both => "Both"
+	Column => "Column"
+	Row => "Row"
 }
 
 ## The scalar offset at a UTF-8 byte offset, walking the dense per-scalar
@@ -1390,6 +1925,10 @@ same_normalized_list = |block, list| match block.kind {
 	_ => False
 }
 
+## A facade content bound checked at authored leaf `block`.
+check_at : U64, U64, KernelFacadeSemantics.Dimension, U64 -> Try({}, KernelFacadeSemantics.Error)
+check_at = |attempted, limit, dimension, block| if attempted > limit Err(BlockLimitExceeded({ attempted, block, dimension, limit })) else Ok({})
+
 check_limit : U64, U64, KernelFacadeSemantics.Dimension -> Try({}, KernelFacadeSemantics.Error)
 check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})
 
@@ -1416,7 +1955,9 @@ list_set = |items, index, value| match items.set(index, value) {
 }
 
 test_limits : KernelFacadeSemantics.Limits
-test_limits = KernelFacadeSemantics.Limits.make({
+test_limits = KernelFacadeSemantics.Limits.make(test_limits_record)
+
+test_limits_record = {
 	max_artifacts: 2,
 	max_container_depth: 2,
 	max_inline_depth: 8,
@@ -1436,7 +1977,7 @@ test_limits = KernelFacadeSemantics.Limits.make({
 		unicode: { max_graphemes: 16, max_line_boundaries: 17, max_scalars: 16, max_script_runs: 8 },
 	}),
 	text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: 4, max_text_property_bytes: 8, max_text_source_bytes: 64, max_text_source_scalars: 64, max_text_sources: 12 }),
-})
+}
 
 test_authoring : Document.NormalizedAuthoring
 test_authoring = {
@@ -1448,6 +1989,7 @@ test_authoring = {
 		{ kind: Bullet({ item: 1, list: 0 }), parent: 0, text: "Two" },
 		{ kind: PageArtifact(Header), parent: 0, text: "Header" },
 	],
+	cells: [],
 	figures: [],
 	groups: [],
 	inlines: [],
@@ -1460,6 +2002,7 @@ test_authoring = {
 	page_labels: [],
 	rich_paragraphs: [],
 	spacers: [],
+	tables: [],
 }
 
 ## Facade semantics are planned before layout, with a PDF 2.0 Title and a
@@ -1562,7 +2105,7 @@ expect {
 	})
 	blocks = [{ kind: Paragraph, parent: 0, text: "Bounded" }]
 	match KernelFacadeSemantics.Plan.build({ ..test_authoring, blocks }, limits) {
-		Err(LimitExceeded({ attempted: 2, dimension: Nodes, limit: 1 })) => True
+		Err(BlockLimitExceeded({ attempted: 2, block: 0, dimension: Nodes, limit: 1 })) => True
 		_ => False
 	}
 }
@@ -1703,6 +2246,63 @@ expect {
 	)
 	match (empty, nested, language, uri, blank, deep) {
 		(Err(EmptyInline({ block: 0, inline: 1 })), Err(NestedLink({ block: 0, inline: 1 })), Err(InvalidInlineLanguage({ block: 0, inline: 0 })), Err(InvalidInlineUri({ block: 0, error: UriMissingScheme(_), inline: 0 })), Err(EmptyRichParagraph({ block: 0 })), Err(InlineDepthExceeded({ attempted: 9, block: 0, inline: 8, limit: 8 }))) => True
+		_ => False
+	}
+}
+
+table_authoring : Document.NormalizedAuthoring
+table_authoring = Document.normalize(
+	Document.from_blocks({
+		contents: [
+			Document.table({
+				body_rows: [
+					Document.row([Document.header_cell(Row, [Document.plain_text("A")]), Document.cell([Document.plain_text("1")])]),
+					Document.row([Document.spanning(2, Document.cell([Document.plain_text("Wide")]))]),
+				],
+				caption: Document.caption("Cap"),
+				columns: [{ align: Start, width: Content }, { align: End, width: Share(1) }],
+				footer_rows: [],
+				header_rows: [Document.row([Document.header_cell(Both, [Document.plain_text("Key")]), Document.header_cell(Column, [Document.plain_text("Value")])])],
+				row_split: KeepRows,
+			}),
+		],
+		language: "en-AU",
+		title: "Table",
+	}),
+)
+
+## A table plans `Table > (Caption > P, THead, TBody)` in preorder with one
+## `TR` per row and one `TH`/`TD` per cell. Every cell has an element
+## identifier in cell order, and a data cell's `Headers` are the column
+## headers above it in its columns followed by its row headers, each with a
+## `HeaderFor` relationship in the same order.
+expect {
+	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, max_nodes: 64, max_content_spine: 64, semantics: KernelSemantics.Limits.make({ max_attributes: 32, max_content_spine: 64, max_fragments: 0, max_namespaces: 1, max_nodes: 64, max_occurrences: 12, max_semantic_depth: 16 }) })
+	plan = KernelFacadeSemantics.Plan.build(table_authoring, limits)?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	roles = store.nodes.map(|node| node.role.local_name)
+	headers = store.attributes.keep_if(|attribute| attribute.name == Standard("Headers")).map(|attribute| attribute.value)
+	work = KernelFacadeSemantics.Plan.work(plan)
+
+	roles == ["Document", "Table", "Caption", "P", "THead", "TR", "TH", "TH", "TBody", "TR", "TH", "TD", "TR", "TD"]
+		and store.element_identifiers.map(|identifier| identifier.value) == ["c000001", "c000002", "c000003", "c000004", "c000005"]
+			and headers == [Names(["c000002", "c000003"]), Names(["c000001", "c000002"])]
+				and store.relationships.len() == 4
+					and work.tables == 1 and work.table_cells == 5 and work.header_association_edges == 4
+}
+
+## Table rejections name the table, the row, or the cell.
+expect {
+	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, max_nodes: 64, max_content_spine: 64 })
+	table = |spec| Document.normalize(Document.from_blocks({ contents: [Document.table(spec)], language: "en-AU", title: "Table" }))
+	header = Document.row([Document.header_cell(Column, [Document.plain_text("H")])])
+	base = { body_rows: [Document.row([Document.cell([Document.plain_text("x")])])], caption: NoCaption, columns: [{ align: Start, width: Content }], footer_rows: [], header_rows: [header], row_split: KeepRows }
+	empty = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [] }), limits)
+	grid = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.cell([Document.plain_text("x")]), Document.cell([Document.plain_text("y")])])] }), limits)
+	missing = KernelFacadeSemantics.Plan.build(table({ ..base, header_rows: [] }), limits)
+	spanned = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.row_spanning(2, Document.cell([Document.plain_text("x")]))])] }), limits)
+	match (empty, grid, missing, spanned) {
+		(Err(TableEmpty({ group: 0 })), Err(TableGridMismatch({ columns: 1, group: 2, spanned: 2 })), Err(TableHeaderMissing({ group: 0 })), Err(TableRowSpan({ block: 1 }))) => True
 		_ => False
 	}
 }

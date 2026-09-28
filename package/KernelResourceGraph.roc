@@ -2112,6 +2112,7 @@ artifact_rank = |kind| match kind {
 	Header => 4
 	PageNumber => 5
 	Watermark => 6
+	RepeatedHeader => 7
 }
 
 ## Two distinct digest buckets may each hold entries with the same descriptor

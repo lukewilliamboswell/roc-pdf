@@ -24,6 +24,7 @@ package
 		KernelFacadeSemantics,
 		KernelFacadeShape,
 		KernelFacadeSources,
+		KernelFacadeTables,
 		KernelFacadeText,
 		KernelFixture,
 		KernelFont,

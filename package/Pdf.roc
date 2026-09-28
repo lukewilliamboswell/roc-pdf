@@ -74,6 +74,26 @@ Pdf :: [].{
 	## constraint; `Preferred` is a ranked preference that may be relaxed.
 	Keep : Document.Keep
 
+	## One table column: how it is sized and how its cell text aligns.
+	## `Fixed` is an exact width; `Share(n)` takes `n` shares of the width
+	## left after fixed and content columns; `Content` takes its widest
+	## content, reduced toward its widest unbreakable word only as needed.
+	Column : Document.TableColumn
+
+	## One table row of cells, from `row`.
+	Row : Document.Row
+
+	## One table cell, from `cell` or `header_cell`.
+	Cell : Document.Cell
+
+	## The cells a header cell heads: the data cells below it in its columns
+	## (`Column`), the data cells of its row (`Row`), or both.
+	Scope : Document.HeaderScope
+
+	## Whether a body row may break across pages at a line boundary
+	## (`SplitRows`) or always moves whole to the next page (`KeepRows`).
+	RowSplit : Document.RowSplit
+
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
 	Error := [
@@ -302,13 +322,51 @@ Pdf :: [].{
 	line_break : Inline
 	line_break = Document.line_break
 
+	## An ordinary table: a `Table` element with an optional `Caption`, one
+	## `THead`, `TBody`, and `TFoot` for its header, body, and footer rows,
+	## `TR` rows, and `TH`/`TD` cells. Every cell has a generated element
+	## identifier; a header cell declares its `Scope`, and a data cell's
+	## `Headers` name the column header cells above it in its columns and
+	## the row header cells of its row, derived from the declared scopes.
+	##
+	## Column widths resolve once per table (fixed, then content, then
+	## shares). Cells wrap within their columns; header rows repeat at the
+	## top of every continuation page as a pagination artifact, never as new
+	## rows; footer rows stay together after the last body row and prefer to
+	## carry at least one body row. `KeepRows` moves a row that does not fit
+	## to the next page and rejects a row taller than a page body as
+	## `layout.oversize_row`; `SplitRows` breaks a row at a line boundary.
+	## Each row's column spans must sum to the column count
+	## (`table.grid_mismatch`), a table needs a header cell
+	## (`table.header_missing`), and row spans are not yet supported
+	## (`table.row_span`).
+	table : { body_rows : List(Row), caption : Document.Caption, columns : List(Column), footer_rows : List(Row), header_rows : List(Row), row_split : RowSplit } -> Document.Block
+	table = |spec| Document.table(spec)
+
+	## One table row: its cells in logical order.
+	row : List(Cell) -> Row
+	row = |cells| Document.row(cells)
+
+	## A data cell (`TD`) whose inline content forms one paragraph.
+	cell : List(Inline) -> Cell
+	cell = |contents| Document.cell(contents)
+
+	## A header cell (`TH`) with its declared scope.
+	header_cell : Scope, List(Inline) -> Cell
+	header_cell = |scope, contents| Document.header_cell(scope, contents)
+
+	## A cell spanning `count` columns (`ColSpan`).
+	spanning : U16, Cell -> Cell
+	spanning = |count, value| Document.spanning(count, value)
+
+	## A cell spanning `count` rows. Row spans are outside the supported
+	## table subset: preparation reports `table.row_span` until Gate 8.
+	row_spanning : U16, Cell -> Cell
+	row_spanning = |count, value| Document.row_spanning(count, value)
+
 	## Gate 6-8 authoring shapes are stable before their lowering is enabled.
 	## These constructors retain the authored intent and reject transactionally
 	## at preparation with a feature-specific explanation.
-
-	## Reserve a simple logical table; currently reports `table.simple`.
-	simple_table : Str -> Document.Block
-	simple_table = |summary| Document.unavailable(SimpleTables, summary)
 
 	## Reserve a spanning/header-associated table; currently reports `table.complex`.
 	complex_table : Str -> Document.Block
@@ -593,6 +651,16 @@ pipeline_error = |error, doc| match error {
 		),
 	)
 	Semantics(EmptyRichParagraph({ block })) => inline_error(doc, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
+	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell contains no text.", [leaf_path(doc, block)])
+	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column and one body row.")
+	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
+	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
+	Semantics(TableRowSpan({ block })) => located_error(doc, FeatureUnavailable, "table.row_span", "A table cell spans rows; row spans are scheduled for Gate 8 and only column spans are supported.", [leaf_path(doc, block)])
+	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.", if block < Document.normalize(doc).blocks.len() [member_path(doc, Document.normalize(doc), block)] else [])
+	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
+	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [leaf_path(doc, block)])
+	Pages(TableLayout({ error: layout_error, groups: sources, units })) => table_layout_error(doc, layout_error, sources, units)
+	Pages(TableRuleWidth({ gap, width })) => located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's table rule is ${points_text(width)} wide but the row gap it is drawn in is ${points_text(gap)}.", [])
 	Semantics(EmptyInline({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
 	Semantics(EmptyLinkText({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")
 	Semantics(NestedLink({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")
@@ -617,7 +685,91 @@ pipeline_error = |error, doc| match error {
 	Pages(PageBreakPosition({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), LayoutConstraintViolated, "layout.page_break_position", "A page break must separate two flow blocks; a break first, last, or directly after another would produce an empty page.")
 	Pages(PageLayout(KeepConflict(conflict))) => keep_conflict_error(doc, conflict)
 	Pages(PageLayout(Oversize({ available, block, required }))) => oversize_error(doc, block, required, available)
+	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+}
+
+dimension_name : KernelFacadeSemantics.Dimension -> Str
+dimension_name = |dimension| match dimension {
+	Artifacts => "page artifacts"
+	ContentSpine => "content-spine items"
+	Nodes => "structure elements"
+	Occurrences => "content occurrences"
+	Properties => "text properties"
+	SourceInputs => "text sources"
+}
+
+## The authored member a leaf stands for: the table around a caption or a
+## cell, else the leaf itself.
+member_path : Document, Document.NormalizedAuthoring, U64 -> Str
+member_path = |doc, normalized, block| {
+	var $code = match normalized.blocks.get(block) {
+		Ok(record) => record.parent
+		Err(OutOfBounds) => 0
+	}
+	var $table = 0
+	while $code != 0 {
+		record = group_record(normalized.groups, $code)
+		match record.kind {
+			Table(_) => {
+				$table = $code
+			}
+			_ => {}
+		}
+		$code = record.parent
+	}
+	if $table == 0 leaf_path(doc, block) else group_path(normalized.groups, $table - 1)
+}
+
+## A page-layout rejection of a document with tables, whose block indexes
+## name page-layout units: a leaf block's path, or a table row's
+## `contents[k].table.body_rows[r]`.
+table_layout_error : Document, KernelPageLayout.Error, List(KernelFacadePages.KeepSource), List(KernelFacadePages.Unit) -> Pdf.Error
+table_layout_error = |doc, error, sources, units| {
+	normalized = Document.normalize(doc)
+	unit_at = |index| match units.get(index) {
+		Ok(value) => value
+		Err(OutOfBounds) => crash "page-layout unit escaped"
+	}
+	unit_path = |index| match unit_at(index) {
+		LeafUnit(block) => leaf_path(doc, block)
+		RowUnit(group) => group_path(normalized.groups, group)
+	}
+	leaf_of = |index| match unit_at(index) {
+		LeafUnit(block) => block
+		RowUnit(group) => group_record(normalized.groups, group + 1).block_end - 1
+	}
+	feature = "layout.keep_conflict"
+	match error {
+		Oversize({ available, block, required }) => match unit_at(block) {
+			LeafUnit(leaf) => oversize_error(doc, leaf, required, available)
+			RowUnit(group) => located_error(doc, LayoutConstraintViolated, "layout.oversize_row", "A table row needs ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}; under KeepRows a row is never split, shrunk, or clipped. Select SplitRows to let rows break at line boundaries.", [group_path(normalized.groups, group)])
+		}
+		KeepConflict(conflict) => match conflict {
+			GroupTooTall({ available, group, required }) => match sources.get(group) {
+				Ok(FooterRows({ first, last })) => located_error(doc, LayoutConstraintViolated, feature, "A table's footer rows stay together and need ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}.", [group_path(normalized.groups, first), group_path(normalized.groups, last)])
+				Ok(AuthoredKeep(k)) => {
+					index = together_group(normalized.groups, k)
+					record = group_record(normalized.groups, index + 1)
+					located_error(doc, LayoutConstraintViolated, feature, "A keep-together group needs ${points_text(required)} but a page body holds ${points_text(available)}.", [group_path(normalized.groups, index), member_path(doc, normalized, record.first_block), member_path(doc, normalized, record.block_end - 1)])
+				}
+				Err(OutOfBounds) => crash "page-layout group escaped"
+			}
+			BreakInsideGroup({ block, group }) => {
+				group_paths = match sources.get(group) {
+					Ok(AuthoredKeep(k)) => [group_path(normalized.groups, together_group(normalized.groups, k))]
+					Ok(FooterRows({ first, last: _ })) => [group_path(normalized.groups, first)]
+					Err(OutOfBounds) => []
+				}
+				located_error(doc, LayoutConstraintViolated, feature, "A page break falls inside a keep-together group.", [break_path(normalized, leaf_of(block))].concat(group_paths))
+			}
+			BreakAfterRequiredKeep({ block, next }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next is followed by a page break.", [required_keep_path(doc, normalized, leaf_of(block)), break_path(normalized, leaf_of(next))])
+			ChainTooTall({ available, block, next, required }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next chain (such as a table's caption, header rows, and first body row) needs ${points_text(required)} but a page body holds ${points_text(available)}.", [unit_path(block), unit_path(next)])
+			RequiredKeepAtEnd({ block }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next has no following block.", [required_keep_path(doc, normalized, leaf_of(block))])
+		}
+		LimitExceeded({ attempted, dimension: Pages, limit }) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
+		_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+	}
 }
 
 ## A layout-policy or list rejection located at authored group `group`.
@@ -1003,7 +1155,12 @@ chain_path = |groups, code| {
 			Ok(value) => group_record(groups, value)
 			Err(OutOfBounds) => crash "normalized group path escaped"
 		}
-		segment = child_segment(groups, record.parent, record.position)
+		segment = match record.kind {
+			TableRow(Header) => "table.header_rows[${record.position.to_str()}]"
+			TableRow(Body) => "table.body_rows[${record.position.to_str()}]"
+			TableRow(Footer) => "table.footer_rows[${record.position.to_str()}]"
+			_ => child_segment(groups, record.parent, record.position)
+		}
 		$path = if $path.is_empty() segment else "${$path}.${segment}"
 		$index = $index - 1
 	}
@@ -1019,6 +1176,8 @@ child_segment = |groups, parent, position| if parent == 0 {
 	match group_record(groups, parent).kind {
 		ItemList(_) => "items[${position.to_str()}]"
 		KeepWithNext(_) => "block"
+		Table(_) => "caption"
+		TableRow(_) => "cells[${position.to_str()}]"
 		_ => "contents[${position.to_str()}]"
 	}
 }
@@ -1095,7 +1254,7 @@ unavailable_message = |feature, summary| {
 		ArchiveProfile => "Gate 5"
 		AccessibleArchiveProfile => "Gate 7"
 		Figures => "the current figure authoring slice"
-		ContextualArtifacts | SemanticTextProperties | SimpleTables => "Gate 6"
+		ContextualArtifacts | SemanticTextProperties => "Gate 6"
 		ComplexTables | CustomLayout | Floats | Footnotes | GeneratedReferences | MultiColumnLayout | PageTemplates | SideContent | VerticalWriting => "Gate 8"
 	}
 	"${summary} No PDF bytes were emitted. This capability remains scheduled for ${roadmap}."
@@ -1108,7 +1267,6 @@ feature_code = |feature| match feature {
 	Figures => "document.figure"
 	ContextualArtifacts => "semantics.contextual_artifact"
 	SemanticTextProperties => "semantics.text_properties"
-	SimpleTables => "table.simple"
 	ComplexTables => "table.complex"
 	CustomLayout => "layout.custom"
 	Floats => "layout.float"
@@ -1168,22 +1326,49 @@ standard_font_limits = KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mapp
 standard_font_descriptor : KernelPdfFont.Descriptor
 standard_font_descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
+## The facade's documented content bounds. A document may hold up to
+## 16,384 content occurrences (text leaves, cells, and generated labels),
+## 16,384 structure elements and interned text sources, 65,536 content-spine
+## items, 65,536 typed attributes and relationships, 16,384 leaf blocks,
+## 65,536 shaped physical runs, and 1,024 pages. The semantic bounds are
+## checked first, while planning each authored block, and exceeding one is
+## the located `document.content_limit` diagnostic; every later stage's
+## bound is at least as large, so it cannot be reached first by content the
+## semantic bounds admit (a 500-row invoice table is far inside them).
+facade_occurrences : U64
+facade_occurrences = 16384
+
+facade_nodes : U64
+facade_nodes = 16384
+
+facade_spine : U64
+facade_spine = 65536
+
+facade_attributes : U64
+facade_attributes = 65536
+
+facade_blocks : U64
+facade_blocks = 16384
+
+facade_runs : U64
+facade_runs = 65536
+
 standard_pipeline_limits : KernelFacadePipeline.Limits
 standard_pipeline_limits = KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 48 }),
-	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 100000, max_occurrences: 2048, max_pages: 1024 }),
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine + facade_runs, max_fragments: 1000000, max_namespaces: 1, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
+	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 1000000, max_occurrences: facade_occurrences, max_pages: 1024 }),
 	navigation: KernelNavigation.standard_limits,
 	lines: KernelFacadeLines.Limits.make({
 		line: KernelLineLayout.BatchLimits.make({
 			line: KernelLineLayout.Limits.make({ max_boundaries: 1000001, max_candidates: 2000000, max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_lines: 1000000 }),
-			max_key_probes: 1000000,
+			max_key_probes: 4000000,
 			max_lines: 1000000,
-			max_runs: 2048,
-			max_table_slots: 8192,
-			max_templates: 2048,
+			max_runs: facade_runs,
+			max_table_slots: 262144,
+			max_templates: facade_runs,
 		}),
-		max_blocks: 2048,
-		max_runs: 2048,
+		max_blocks: facade_blocks,
+		max_runs: facade_runs,
 	}),
 	output: KernelFacadeOutput.Limits.make({
 		content: KernelContent.Limits.make({ max_content_bytes: 16000000, max_content_streams: 1024 }),
@@ -1198,9 +1383,9 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		text: KernelPdfText.Limits.make({ max_actual_text_scalars: 1000000, max_content_bytes: 16000000, max_mappings: 10000, max_placements: 0, max_source_scalars: 1000000 }),
 	}),
 	pages: KernelFacadePages.Limits.make({
-		max_blocks: 2048,
+		max_blocks: facade_blocks,
 		max_rows: 1000000,
-		page: KernelPageLayout.Limits.make({ max_blocks: 2048, max_fragments: 1000000, max_lines: 1000000, max_pages: 1024, max_placements: 1000000 }),
+		page: KernelPageLayout.Limits.make({ max_blocks: facade_blocks, max_fragments: 1000000, max_lines: 1000000, max_pages: 1024, max_placements: 1000000 }),
 	}),
 	scenes: KernelFacadeScenes.Limits.make({
 		color: KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 2, max_tags: KernelSrgbProfile.tag_count }),
@@ -1208,53 +1393,55 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		max_groups: 1000000,
 		max_page_group_edges: 1000000,
 		max_pages: 1024,
-		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 0, max_paths: 0 }),
+		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 1000000, max_paths: 1000000 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
 		max_artifacts: 0,
 		max_container_depth: 16,
-		max_content_spine: 8192,
+		max_content_spine: facade_spine,
 		max_inline_depth: 8,
-		max_nodes: 4096,
-		max_occurrences: 2048,
-		max_properties: 2048,
-		max_source_inputs: 2048,
-		semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 48 }),
+		max_nodes: facade_nodes,
+		max_occurrences: facade_occurrences,
+		max_properties: facade_occurrences,
+		max_source_inputs: facade_occurrences,
+		semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine, max_fragments: 0, max_namespaces: 1, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
 		sources: KernelFacadeSources.Limits.make({
-			max_hash_probes: 1000000,
-			max_inputs: 2048,
+			max_hash_probes: 4000000,
+			max_inputs: facade_occurrences,
 			max_source_bytes: 1000000,
 			max_source_scalars: 1000000,
-			max_table_slots: 8192,
-			max_unique_sources: 2048,
+			max_table_slots: 65536,
+			max_unique_sources: facade_occurrences,
 			unicode: { max_graphemes: 1000000, max_line_boundaries: 1000001, max_scalars: 1000000, max_script_runs: 2048 },
 		}),
-		text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: 2048, max_text_property_bytes: 1000000, max_text_source_bytes: 1000000, max_text_source_scalars: 1000000, max_text_sources: 2048 }),
+		text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: facade_occurrences, max_text_property_bytes: 1000000, max_text_source_bytes: 1000000, max_text_source_scalars: 1000000, max_text_sources: facade_occurrences }),
 	}),
-	shape: KernelFacadeShape.Limits.make({ max_requests: 2048, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) }),
+	shape: KernelFacadeShape.Limits.make({ max_requests: facade_runs, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) }),
 	text: KernelFacadeText.Limits.make({ max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_pages: 1024, max_placements: 1000000, max_runs: 1000000 }),
 })
 
 standard_object_limits : KernelObject.Limits
 standard_object_limits = {
-	max_array_items: 1000000,
-	max_byte_string_bytes: 1048576,
-	max_byte_strings: 65536,
-	max_dictionary_entries: 1000000,
+	max_array_items: 4000000,
+	max_byte_string_bytes: 8388608,
+	max_byte_strings: 1000000,
+	max_dictionary_entries: 4000000,
 	max_direct_depth: 8,
 
 	## Every structure element interns its role name and every attribute
-	## dictionary its keys, so name bytes grow with structure: 4,096 nodes
-	## with the longest roles and their `/A` entries stay well inside 1 MiB.
-	max_name_bytes: 1048576,
-	max_names: 100000,
+	## dictionary its keys, so names grow with structure: the facade's
+	## 16,384 nodes with the longest roles and their `/A` entries, and a
+	## table cell's element identifier and `/Headers` byte strings, stay
+	## well inside these bounds.
+	max_name_bytes: 8388608,
+	max_names: 1000000,
 	max_objects: 65536,
 	max_payload_bytes: 16000000,
 	max_payloads: 100000,
 	max_streams: 100000,
 	max_text_string_bytes: 1000000,
 	max_text_strings: 16384,
-	max_values: 1000000,
+	max_values: 4000000,
 }
 
 ## Public profiles map to exact claim sets without enabling orthogonal WTPDF claims.
@@ -1950,4 +2137,55 @@ expect {
 					and check([Pdf.rich_paragraph([Pdf.text("A"), Pdf.line_break])], "semantics.line_break_position", "contents[0].inlines[1]")
 						and check([Pdf.keep_with_next(Required, Pdf.paragraph("A")), Pdf.page_break, Pdf.paragraph("B")], "layout.keep_conflict", "contents[0]")
 							and check([Pdf.numbered_list({ start: 0, style: UpperAlpha }, [Pdf.list_item([Pdf.paragraph("A")])])], "semantics.list_numbering", "contents[0]")
+}
+
+## A public table lowers `Table > THead/TBody > TR > TH/TD` with typed
+## `Scope`, `ColSpan`, identifiers, and `Headers`, and a table continued on
+## a second page repaints its header row as a pagination artifact.
+expect {
+	row = |code| Pdf.row([Pdf.header_cell(Row, [Pdf.text(code)]), Pdf.cell([Pdf.text("Standing desk frame, twin motor")]), Pdf.cell([Pdf.text("2,756.00")])])
+	document = Pdf.document({
+		contents: [
+			Pdf.table({
+				body_rows: List.repeat(row("HF-DSK-140"), 60),
+				caption: Pdf.caption("Items"),
+				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(Layout.Unit.points(80)) }],
+				footer_rows: [Pdf.row([Pdf.spanning(2, Pdf.header_cell(Row, [Pdf.text("Total")])), Pdf.cell([Pdf.text("165,360.00")])])],
+				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Amount")])])],
+				row_split: KeepRows,
+			}),
+		],
+		language: "en-AU",
+		title: "Table",
+	})
+	bytes = Pdf.to_bytes(document)?
+	contains = |needle| {
+		pattern = Str.to_utf8(needle)
+		var $index = 0
+		var $found = False
+		while !$found and $index + pattern.len() <= bytes.len() {
+			$found = bytes.sublist({ start: $index, len: pattern.len() }) == pattern
+			$index = $index + 1
+		}
+		$found
+	}
+
+	contains("/S /THead") and contains("/S /TFoot") and contains("/ColSpan 2") and contains("/Scope /Column") and contains("/Headers [<63303030303032> <63303030303034>]") and contains("/IDTree")
+}
+
+## Table rejections are located: the row whose spans do not sum to the
+## column count, and a cell that spans rows.
+expect {
+	columns = [{ align: Start, width: Content }, { align: Start, width: Share(1) }]
+	header = Pdf.row([Pdf.header_cell(Column, [Pdf.text("A")]), Pdf.header_cell(Column, [Pdf.text("B")])])
+	table = |rows| Pdf.document({ contents: [Pdf.table({ body_rows: rows, caption: Pdf.no_caption, columns, footer_rows: [], header_rows: [header], row_split: KeepRows })], language: "en-AU", title: "Table" })
+	grid = match Pdf.to_bytes(table([Pdf.row([Pdf.cell([Pdf.text("x")])])])) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[0].table.body_rows[0]"], feature: Feature("table.grid_mismatch"), .. }], .. })) => True
+		_ => False
+	}
+	spanned = match Pdf.to_bytes(table([Pdf.row([Pdf.row_spanning(2, Pdf.cell([Pdf.text("x")])), Pdf.cell([Pdf.text("y")])])])) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, details: ["contents[0].table.body_rows[0].cells[0]"], feature: Feature("table.row_span"), .. }], .. })) => True
+		_ => False
+	}
+	grid and spanned
 }

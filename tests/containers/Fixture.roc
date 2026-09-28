@@ -161,7 +161,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.title("Deep"), nest(Pdf.paragraph("Leaf"), 17 + offset)]), BudgetExceeded, "semantics.container_depth", "contents[1]${Str.repeat(".contents[0]", 16)}"),
 		rejects(document([Pdf.paragraph("Lead"), nest(Pdf.section([Pdf.paragraph("Kept"), Pdf.division([])]), offset)]), InvalidRelationship, "semantics.empty_container", "contents[1].contents[1]"),
 		rejects(document([nest(Pdf.section([]), offset), Pdf.paragraph("Body")]), InvalidRelationship, "semantics.empty_container", "contents[0]"),
-		rejects(document([nest(Pdf.section([Pdf.heading(1, "Tables"), Pdf.simple_table("A nested table placeholder.")]), offset)]), FeatureUnavailable, "table.simple", ""),
+		rejects(document([nest(Pdf.section([Pdf.heading(1, "Tables"), Pdf.complex_table("A nested table placeholder.")]), offset)]), FeatureUnavailable, "table.complex", ""),
 		rejects(document([nest(Pdf.part([Pdf.division([Pdf.figure(blank_figure, "", Pdf.no_caption)])]), offset)]), FeatureUnavailable, "document.figure", ""),
 	]
 	passed = checks.sum()

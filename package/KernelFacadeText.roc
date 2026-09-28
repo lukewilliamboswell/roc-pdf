@@ -61,9 +61,15 @@ KernelFacadeText :: [].{
 		placement_visits : U64,
 		run_writes : U64,
 	}
+
+	## `artifact_runs` names, in ascending order, the final runs that repaint
+	## a continued table's header rows: page artifacts that belong to no
+	## layout fragment. `rules` are the table rules to paint as decoration.
 	Plan :: {
+		artifact_runs : List(U64),
 		pages : List(Page),
 		placements : List(Placement),
+		rules : List(KernelFacadePages.Rule),
 		styles : List(KernelFacadeShape.RunStyle),
 		text : Text.Store,
 		work : Work,
@@ -75,7 +81,13 @@ KernelFacadeText :: [].{
 		## The production facade uses `build`, which extracts it from validated
 		## preceding plans without exposing this internal module publicly.
 		build_prepared : Prepared, Limits -> Try(Plan, Error)
-		build_prepared = |prepared, limits| build_prepared_plan(prepared, limits)
+		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], limits)
+
+		artifact_runs : Plan -> List(U64)
+		artifact_runs = |plan| plan.artifact_runs
+
+		rules : Plan -> List(KernelFacadePages.Rule)
+		rules = |plan| plan.rules
 
 		pages : Plan -> List(Page)
 		pages = |plan| plan.pages
@@ -97,7 +109,7 @@ KernelFacadeText :: [].{
 ## The request remains attached to the logical run range selected before line
 ## breaking. The current materializer rejects a range wider than one physical
 ## run explicitly; it no longer relies on a bare run ID to hide that boundary.
-PaintRequest := { line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
+PaintRequest := { artifact : Bool, line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
 
 build_plan : KernelFacadeShape.Plan, KernelFacadeLines.Plan, KernelFacadePages.Plan, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
 build_plan = |shape_plan, line_plan, page_plan, limits| {
@@ -108,18 +120,24 @@ build_plan = |shape_plan, line_plan, page_plan, limits| {
 			label_rows: KernelFacadePages.Plan.work(page_plan).label_rows,
 			lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(line_plan)),
 			origins: KernelFacadeShape.Plan.origins(shape_plan),
-			page_placements: KernelPageLayout.Plan.placements(pagination),
-			pages: KernelPageLayout.Plan.pages(pagination),
+			page_placements: KernelFacadePages.Plan.placements(page_plan),
+			pages: KernelFacadePages.Plan.pages(page_plan),
 			rows: KernelFacadePages.Plan.rows(page_plan),
 			shape: KernelFacadeShape.Plan.shape(shape_plan).store,
 			styles: KernelFacadeShape.Plan.styles(shape_plan),
 		},
+		KernelFacadePages.Plan.artifact_rows(page_plan),
+		KernelFacadePages.Plan.rules(page_plan),
 		limits,
 	)
 }
 
-build_prepared_plan : KernelFacadeText.Prepared, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
-build_prepared_plan = |prepared, limits| {
+## `artifact_rows` names the rows (ascending) that repaint header rows as
+## page artifacts. Their runs duplicate shaped clusters already painted by
+## the header's own occurrence, so the once-each coverage proof counts only
+## the other runs, and the artifact runs are reported for scene ownership.
+build_prepared_plan : KernelFacadeText.Prepared, List(U64), List(KernelFacadePages.Rule), KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+build_prepared_plan = |prepared, artifact_rows, rules, limits| {
 	shape = prepared.shape
 	styles = prepared.styles
 	lines = prepared.lines
@@ -143,6 +161,7 @@ build_prepared_plan = |prepared, limits| {
 	check_limit(run_count, limits.max_placements, Placements)?
 	check_limit(run_count, limits.max_runs, Runs)?
 	var $requests = List.with_capacity(run_count)
+	var $artifact_cursor = 0
 	var $placement_cursor = 0
 	var $page_index = 0
 	while $page_index < pages.len() {
@@ -164,7 +183,7 @@ build_prepared_plan = |prepared, limits| {
 						return Err(InvalidPlacement({ placement: $placement_cursor }))
 					}
 					label_x = checked_i64_add(placement.baseline.x.raw(), label.offset.raw())?
-					$requests = $requests.append({ line: label.line, origin: { x: Layout.Unit.from_raw(label_x), y: placement.baseline.y }, page: page.id, source_runs: label.runs })
+					$requests = $requests.append({ artifact: False, line: label.line, origin: { x: Layout.Unit.from_raw(label_x), y: placement.baseline.y }, page: page.id, source_runs: label.runs })
 				}
 			}
 			if row.body_offset.raw() < 0 {
@@ -172,7 +191,11 @@ build_prepared_plan = |prepared, limits| {
 			}
 			body_x = checked_i64_add(placement.baseline.x.raw(), row.body_offset.raw())?
 			body_origin = { x: Layout.Unit.from_raw(body_x), y: placement.baseline.y }
-			$requests = $requests.append({ line: row.body_line, origin: body_origin, page: page.id, source_runs: row.body_runs })
+			artifact = $artifact_cursor < artifact_rows.len() and list_at(artifact_rows, $artifact_cursor) == $placement_cursor
+			if artifact {
+				$artifact_cursor = $artifact_cursor + 1
+			}
+			$requests = $requests.append({ artifact, line: row.body_line, origin: body_origin, page: page.id, source_runs: row.body_runs })
 			$placement_cursor = $placement_cursor + 1
 		}
 		$page_index = $page_index + 1
@@ -192,9 +215,17 @@ build_prepared_plan = |prepared, limits| {
 	var $page_records = List.with_capacity(pages.len())
 	var $page_cursor = 0
 	var $page_run_start = 0
+	var $artifact_runs = []
+	var $artifact_clusters = 0
+	var $artifact_glyphs = 0
+	var $artifact_references = 0
 	var $request_index = 0
 	while $request_index < $requests.len() {
 		request = list_at($requests, $request_index)
+		runs_before = $runs.len()
+		clusters_before = $clusters.len()
+		glyphs_before = $glyphs.len()
+		references_before = $glyph_indices.len()
 		while $page_cursor < request.page.index() {
 			$page_records = $page_records.append({
 				id: Semantics.PageId.from_index($page_cursor),
@@ -226,6 +257,16 @@ build_prepared_plan = |prepared, limits| {
 			$placements = split.placements
 			$runs = split.runs
 			$final_styles = split.styles
+			if request.artifact {
+				var $artifact_run = runs_before
+				while $artifact_run < $runs.len() {
+					$artifact_runs = $artifact_runs.append($artifact_run)
+					$artifact_run = $artifact_run + 1
+				}
+				$artifact_clusters = $artifact_clusters + ($clusters.len() - clusters_before)
+				$artifact_glyphs = $artifact_glyphs + ($glyphs.len() - glyphs_before)
+				$artifact_references = $artifact_references + ($glyph_indices.len() - references_before)
+			}
 			$request_index = $request_index + 1
 		} else {
 			source_run_index = single_run_index(request.source_runs)?
@@ -295,6 +336,12 @@ build_prepared_plan = |prepared, limits| {
 			})
 			$placements = $placements.append({ origin: request.origin, page: request.page, run: new_run_id })
 			$final_styles = $final_styles.append(list_at(styles, source_run_index))
+			if request.artifact {
+				$artifact_runs = $artifact_runs.append(runs_before)
+				$artifact_clusters = $artifact_clusters + ($clusters.len() - clusters_before)
+				$artifact_glyphs = $artifact_glyphs + ($glyphs.len() - glyphs_before)
+				$artifact_references = $artifact_references + ($glyph_indices.len() - references_before)
+			}
 			$request_index = $request_index + 1
 		}
 	}
@@ -306,7 +353,7 @@ build_prepared_plan = |prepared, limits| {
 		$page_cursor = $page_cursor + 1
 		$page_run_start = $runs.len()
 	}
-	if $clusters.len() != shape.clusters.len() or $glyph_indices.len() != shape.glyph_indices.len() or $glyphs.len() != shape.glyphs.len() {
+	if $artifact_cursor != artifact_rows.len() or $clusters.len() - $artifact_clusters != shape.clusters.len() or $glyph_indices.len() - $artifact_references != shape.glyph_indices.len() or $glyphs.len() - $artifact_glyphs != shape.glyphs.len() {
 		return Err(InvalidRun({ run: $runs.len() }))
 	}
 	text = {
@@ -319,8 +366,10 @@ build_prepared_plan = |prepared, limits| {
 	}
 	Ok(
 		KernelFacadeText.Plan.{
+			artifact_runs: $artifact_runs,
 			pages: $page_records,
 			placements: $placements,
+			rules,
 			styles: $final_styles,
 			text,
 			work: {

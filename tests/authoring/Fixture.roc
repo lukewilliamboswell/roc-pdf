@@ -630,6 +630,7 @@ synthetic_page_input = |block_count| {
 		kept = $block_index % 5 == 0
 		$blocks = $blocks.append({
 			baseline_offset: Layout.Unit.from_raw(800),
+			lead: Layout.Unit.from_raw(0),
 			leading: Layout.Unit.from_raw(1000),
 			lines: Semantics.Range.from_start_and_length(line_start, 6),
 			occurrence: Semantics.OccurrenceId.from_index($block_index),

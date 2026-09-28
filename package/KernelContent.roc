@@ -458,6 +458,7 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 			Footer => "/Artifact <</Type /Pagination /Subtype /Footer>> BDC\n"
 			Header => "/Artifact <</Type /Pagination /Subtype /Header>> BDC\n"
 			PageNumber => "/Artifact <</Type /Pagination /Subtype /PageNum>> BDC\n"
+			RepeatedHeader => "/Artifact <</Type /Pagination>> BDC\n"
 			Watermark => "/Artifact <</Type /Pagination /Subtype /Watermark>> BDC\n"
 		}
 		Ok({ artifacts: 1, bytes: append_literal(bytes, prefix, limit)?, fragments: 0 })

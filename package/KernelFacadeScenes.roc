@@ -3,6 +3,7 @@ import Document
 import Image
 import KernelColor
 import KernelFacadeFragments
+import KernelFacadePages
 import KernelFacadeShape
 import KernelFacadeText
 import KernelScene
@@ -105,10 +106,12 @@ KernelFacadeScenes :: [].{
 		build_prepared = |semantics, prepared, limits| build_validated(
 			semantics,
 			{
+				artifact_runs: [],
 				authoring: empty_authoring,
 				page_size: prepared.page_size,
 				pages: prepared.pages,
 				placements: prepared.placements,
+				rules: [],
 				styles: prepared.styles,
 				text: prepared.text,
 			},
@@ -136,36 +139,45 @@ KernelFacadeScenes :: [].{
 }
 
 InternalPrepared : {
+	artifact_runs : List(U64),
 	authoring : Document.NormalizedAuthoring,
 	page_size : Layout.Size,
 	pages : List(KernelFacadeText.Page),
 	placements : List(KernelFacadeText.Placement),
+	rules : List(KernelFacadePages.Rule),
 	styles : List(KernelFacadeShape.RunStyle),
 	text : Text.Store,
 }
 
+## `artifact_runs` (ascending) are repainted header runs, owned by a
+## `RepeatedHeader` page artifact rather than a fragment; `rules` are table
+## rules painted as `Decoration` artifacts at the end of their page.
 InternalArenaPrepared : {
+	artifact_runs : List(U64),
 	authoring : Document.NormalizedAuthoring,
 	figure_by_occurrence : List([Figure(U64), NoFigure]),
 	page_size : Layout.Size,
 	pages : List(KernelFacadeText.Page),
 	placements : List(KernelFacadeText.Placement),
+	rules : List(KernelFacadePages.Rule),
 	run_occurrences : List(Semantics.OccurrenceId),
 	styles : List(KernelFacadeShape.RunStyle),
 }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [] }
+empty_authoring = { blocks: [], cells: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [] }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {
 	text_plan = KernelFacadeFragments.Plan.text(fragment_plan)
 	text = KernelFacadeText.Plan.text(text_plan)
 	prepared = {
+		artifact_runs: KernelFacadeText.Plan.artifact_runs(text_plan),
 		authoring,
 		page_size,
 		pages: KernelFacadeText.Plan.pages(text_plan),
 		placements: KernelFacadeText.Plan.placements(text_plan),
+		rules: KernelFacadeText.Plan.rules(text_plan),
 		styles: KernelFacadeText.Plan.styles(text_plan),
 		text,
 	}
@@ -185,16 +197,18 @@ build_validated = |semantics, prepared, intent, limits| {
 		KernelScene.Resources.with_text({ color_spaces: arena.colors.spaces.len(), images: arena.images.resources.len(), text_runs: text.runs.len() }),
 		limits.scene,
 	) ? Scene
-	ownership = KernelTextOwnership.Plan.build(semantics, scene, text) ? Ownership
+	ownership = (if prepared.artifact_runs.is_empty() KernelTextOwnership.Plan.build(semantics, scene, text) else KernelTextOwnership.Plan.build_with_artifact_text(semantics, scene, text)) ? Ownership
 	Ok(KernelFacadeScenes.Plan.{ colors, images: arena.images, ownership, scene, work: arena.work })
 }
 
 prepare_arena : InternalPrepared -> InternalArenaPrepared
 prepare_arena = |prepared| {
+	artifact_runs: prepared.artifact_runs,
 	authoring: prepared.authoring,
 	page_size: prepared.page_size,
 	pages: prepared.pages,
 	placements: prepared.placements,
+	rules: prepared.rules,
 	styles: prepared.styles,
 	run_occurrences: prepared.text.runs.map(|run| run.occurrence),
 	figure_by_occurrence: [],
@@ -203,11 +217,13 @@ prepare_arena = |prepared| {
 build_arena : KernelFacadeScenes.ArenaPrepared, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Arena, KernelFacadeScenes.Error)
 build_arena = |prepared, limits| build_arena_with_intent(
 	{
+		artifact_runs: [],
 		authoring: empty_authoring,
 		figure_by_occurrence: [],
 		page_size: prepared.page_size,
 		pages: prepared.pages,
 		placements: prepared.placements,
+		rules: [],
 		run_occurrences: List.repeat(Semantics.OccurrenceId.from_index(0), prepared.text_runs),
 		styles: prepared.styles,
 	},
@@ -221,10 +237,12 @@ build_arena_with_intent = |prepared, intent, limits| {
 		return Err(InvalidPageSize)
 	}
 	run_count = prepared.run_occurrences.len()
-	command_count = checked_add(checked_times(run_count, 2)?, prepared.authoring.figures.len())?
+	rule_count = prepared.rules.len()
+	command_count = checked_add(checked_add(checked_times(run_count, 2)?, prepared.authoring.figures.len())?, rule_count)?
+	group_count = checked_add(run_count, rule_count)?
 	check_limit(command_count, limits.max_commands, Commands)?
-	check_limit(run_count, limits.max_groups, Groups)?
-	check_limit(run_count, limits.max_page_group_edges, PageGroupEdges)?
+	check_limit(group_count, limits.max_groups, Groups)?
+	check_limit(group_count, limits.max_page_group_edges, PageGroupEdges)?
 	check_limit(prepared.pages.len(), limits.max_pages, Pages)?
 	if prepared.placements.len() != run_count {
 		return Err(InvalidPlacement({ placement: prepared.placements.len() }))
@@ -240,15 +258,20 @@ build_arena_with_intent = |prepared, intent, limits| {
 	has_gray_images = prepared.authoring.figures.any(|figure| source_is_gray(figure.image))
 	use_srgb = match intent {
 		NoIntentProfile => False
-		PackagedSrgbIntent => has_nonblack_srgb(prepared.styles) or has_rgb_images
+		PackagedSrgbIntent => has_nonblack_srgb(prepared.styles) or has_rgb_images or prepared.rules.any(|rule| nonblack(rule.color))
 	}
 	color_checks = match intent {
 		NoIntentProfile => run_count
 		PackagedSrgbIntent => checked_add(run_count, run_count)?
 	}
 	var $commands = List.with_capacity(command_count)
-	var $groups = List.with_capacity(run_count)
-	var $page_groups = List.with_capacity(run_count)
+	var $groups = List.with_capacity(group_count)
+	var $page_groups = List.with_capacity(group_count)
+	var $paths = if rule_count == 0 [] else List.with_capacity(rule_count)
+	var $path_segments = if rule_count == 0 [] else List.with_capacity(rule_count)
+	var $artifact_cursor = 0
+	var $fragment = 0
+	var $rule_cursor = 0
 	var $pages = List.with_capacity(prepared.pages.len())
 	var $painted_figures = if prepared.authoring.figures.is_empty() [] else List.repeat(False, prepared.authoring.figures.len())
 	var $placement_cursor = 0
@@ -328,13 +351,41 @@ build_arena_with_intent = |prepared, intent, limits| {
 				}),
 			).append(DrawText({ paint, run: placement.run }))
 			group = Scene.GroupId.from_index($groups.len())
+			artifact = $artifact_cursor < prepared.artifact_runs.len() and list_at(prepared.artifact_runs, $artifact_cursor) == $placement_cursor
+			owner = if artifact {
+				$artifact_cursor = $artifact_cursor + 1
+				PageArtifact(RepeatedHeader)
+			} else {
+				fragment = $fragment
+				$fragment = $fragment + 1
+				Fragment(Semantics.FragmentId.from_index(fragment))
+			}
 			$groups = $groups.append({
 				commands: Semantics.Range.from_start_and_length(command_start, group_length),
 				id: group,
-				owner: Fragment(Semantics.FragmentId.from_index($placement_cursor)),
+				owner,
 			})
 			$page_groups = $page_groups.append(group)
 			$placement_cursor = $placement_cursor + 1
+		}
+
+		## Table rules paint after the page's text, each a filled rectangle
+		## owned by a layout decoration artifact.
+		while $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
+			rule = list_at(prepared.rules, $rule_cursor)
+			fill = match paint_color(rule.color, intent, use_srgb) {
+				Ok(value) => value
+				Err(_) => return Err(UnsupportedColor({ run: $placement_cursor }))
+			}
+			path = Scene.PathId.from_index($paths.len())
+			$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), 1) })
+			$path_segments = $path_segments.append(Rectangle(rule.rect))
+			command = $commands.len()
+			$commands = $commands.append(DrawPath({ path, style: { fill: SolidFill({ color: fill, rule: Nonzero }), stroke: NoStroke } }))
+			group = Scene.GroupId.from_index($groups.len())
+			$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command, 1), id: group, owner: PageArtifact(Decoration) })
+			$page_groups = $page_groups.append(group)
+			$rule_cursor = $rule_cursor + 1
 		}
 		$pages = $pages.append({
 			boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
@@ -391,14 +442,14 @@ build_arena_with_intent = |prepared, intent, limits| {
 				groups: $groups,
 				page_groups: $page_groups,
 				pages: $pages,
-				path_segments: [],
-				paths: [],
+				path_segments: $path_segments,
+				paths: $paths,
 			},
 			work: {
 				color_checks,
 				command_writes: command_count,
-				group_writes: run_count,
-				page_group_writes: run_count,
+				group_writes: group_count,
+				page_group_writes: group_count,
 				page_writes: prepared.pages.len(),
 				placement_visits: run_count,
 			},
@@ -464,6 +515,24 @@ source_resource = |source, id, rgb_space, gray_space| {
 		PackedRgb8View({ alpha, dimensions, pixels, row_stride }) => PackedPixels({ alpha, color_space: rgb_space, dimensions, format: Rgb8, pixels, row_stride })
 	}
 	{ id, payload }
+}
+
+nonblack : Color.SourceValue -> Bool
+nonblack = |color| match color {
+	Srgb(Rgb({ blue, green, red })) => blue != 0 or green != 0 or red != 0
+	_ => False
+}
+
+## The fill of a table rule in the page's painting space: black is the
+## calibrated gray zero without an intent profile, and every color is sRGB
+## when the page paints in sRGB.
+paint_color : Color.SourceValue, KernelFacadeScenes.IntentProfile, Bool -> Try(Color.Value, [Unsupported])
+paint_color = |color, intent, use_srgb| match color {
+	Srgb(Rgb(channels)) => match intent {
+		NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
+		PackagedSrgbIntent => if use_srgb Ok({ channels: Rgb(channels), space: Color.SpaceId.from_index(0) }) else if channels.red == 0 and channels.green == 0 and channels.blue == 0 Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
+	}
+	_ => Err(Unsupported)
 }
 
 has_nonblack_srgb : List(KernelFacadeShape.RunStyle) -> Bool

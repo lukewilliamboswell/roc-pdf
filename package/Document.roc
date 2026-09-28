@@ -25,9 +25,45 @@ DocumentBlock :: [
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
 	Spacer(Layout.Unit),
+	Table(Box(TableSpec)),
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
+
+## An ordinary table: boxed, so the authored block union keeps the size of
+## its other alternatives. An optional caption, the column declarations, and its
+## header, body, and footer rows in logical order. Header rows are declared
+## once; the rows of every section become `TR` elements of `THead`, `TBody`,
+## and `TFoot`.
+TableSpec : { body_rows : List(DocumentRow), caption : Caption, columns : List(TableColumn), footer_rows : List(DocumentRow), header_rows : List(DocumentRow), row_split : RowSplit }
+
+## How a table column is sized: an exact width, a proportional share of the
+## width that remains, or its content's width.
+ColumnWidth : [Content, Fixed(Layout.Unit), Share(U16)]
+
+## How cell text aligns inside its column: at the start edge, at the end
+## edge (numeric amounts), or centered.
+ColumnAlign : [Center, End, Start]
+
+TableColumn : { align : ColumnAlign, width : ColumnWidth }
+
+## The cells a header cell heads: those below it in its columns, those in
+## its row, or both.
+HeaderScope : [Both, Column, Row]
+
+## Whether a body row may break across pages at a line boundary.
+RowSplit : [KeepRows, SplitRows]
+
+## A data cell (`TD`) or a header cell (`TH`) with its declared scope.
+CellKind : [DataCell, HeaderCell(HeaderScope)]
+
+## One authored table row: its cells in logical order.
+DocumentRow :: [Row(List(DocumentCell))].{}
+
+## One authored table cell: inline content forming one paragraph, its kind,
+## and the columns and rows it spans. Row spans are represented so they can
+## be rejected with a located diagnostic.
+DocumentCell :: [Cell({ column_span : U16, contents : List(DocumentInline), kind : CellKind, row_span : U16 })].{}
 
 ## One authored list item: the blocks of its `LBody`, in logical order. Its
 ## `Lbl` is generated from the enclosing list's marker.
@@ -83,7 +119,6 @@ AuthoringFeature := [
 	PageTemplates,
 	SemanticTextProperties,
 	SideContent,
-	SimpleTables,
 	VerticalWriting,
 ]
 
@@ -166,11 +201,27 @@ NormalizedSpacer : { amount : Layout.Unit, block : U64, parent : U64, position :
 ## One authored list: its item count and label marker.
 NormalizedList : { items : U64, marker : ListMarker }
 
+## One authored table: its columns, row split policy, whether a caption
+## leaf precedes its rows, and its row counts per section.
+NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn), footer_rows : U64, header_rows : U64, row_split : RowSplit }
+
+## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
+## kind, and its authored column and row spans.
+NormalizedCell : { block : U64, column_span : U64, kind : CellKind, row_span : U64 }
+
+## The section a normalized table row belongs to.
+TableSection : [Body, Footer, Header]
+
 ## The role of one normalized group. Containers become `Part`, `Sect`, or
 ## `Div`; an item list becomes `L` (payload: its `lists` index) and each item
 ## `LI` with a generated `Lbl` and an `LBody` (payload: the item ordinal).
 ## Keep groups are layout-only and produce no structure element.
-NormalizedGroupKind := [Container(ContainerKind), ItemList(U32), KeepTogether, KeepWithNext(Keep), ListItem(U32)]
+##
+## A table becomes `Table` (payload: its `tables` index) holding its caption
+## leaf and one `TableRow` group per row, whose payload names its section and
+## whose `position` is the row's index in that section. Each cell is a rich
+## paragraph leaf of its row group, described in `cells`.
+NormalizedGroupKind := [Container(ContainerKind), ItemList(U32), KeepTogether, KeepWithNext(Keep), ListItem(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -218,6 +269,7 @@ NormalizedFigure := { alternative : Str, caption : Caption, image : Image.Source
 
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
+	cells : List(NormalizedCell),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
 	inlines : List(NormalizedInline),
@@ -230,6 +282,7 @@ NormalizedAuthoring := {
 	page_labels : List(PageLabelRange),
 	rich_paragraphs : List(NormalizedRich),
 	spacers : List(NormalizedSpacer),
+	tables : List(NormalizedTable),
 }
 
 ## One authored outline entry in dense preorder: the depth below the outline
@@ -464,12 +517,17 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	Block : DocumentBlock
 	Builder : DocumentBuilder
 	Caption : Caption
+	Cell : DocumentCell
+	CellKind : CellKind
+	ColumnAlign : ColumnAlign
+	ColumnWidth : ColumnWidth
 	ContainerKind : ContainerKind
 	Feature : AuthoringFeature
 	FixedArtifact : FixedArtifact
 	FixedPage : FixedPage
 	FixedPageBuilder : FixedPageBuilder
 	FixedPlacement : FixedPlacement
+	HeaderScope : HeaderScope
 	Inline : DocumentInline
 	Keep : Keep
 	ListItem : DocumentListItem
@@ -477,6 +535,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NavigationError : NavigationError
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
+	NormalizedCell : NormalizedCell
 	NormalizedFigure : NormalizedFigure
 	NormalizedGroup : NormalizedGroup
 	NormalizedGroupKind : NormalizedGroupKind
@@ -487,12 +546,18 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedPageBreak : NormalizedPageBreak
 	NormalizedRich : NormalizedRich
 	NormalizedSpacer : NormalizedSpacer
+	NormalizedTable : NormalizedTable
 	NormalizedAuthoring : NormalizedAuthoring
 	NumberStyle : NumberStyle
 	OutlineEntry : OutlineEntry
 	PageArtifactKind : PageArtifactKind
 	PageLabelRange : PageLabelRange
 	PageLabelStyle : PageLabelStyle
+	Row : DocumentRow
+	RowSplit : RowSplit
+	TableColumn : TableColumn
+	TableSection : TableSection
+	TableSpec : TableSpec
 
 	## Reusable resource identity is independent of the scene group that uses
 	## it. Placements carry only this scalar edge, never another payload copy.
@@ -712,6 +777,35 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	spacer : Layout.Unit -> DocumentBlock
 	spacer = |amount| DocumentBlock.Spacer(amount)
 
+	## An ordinary table of rows and cells.
+	table : TableSpec -> DocumentBlock
+	table = |spec| DocumentBlock.Table(Box.box(spec))
+
+	## One table row of cells in logical order.
+	row : List(DocumentCell) -> DocumentRow
+	row = |cells| DocumentRow.Row(cells)
+
+	## A data cell (`TD`) of inline content.
+	cell : List(DocumentInline) -> DocumentCell
+	cell = |contents| DocumentCell.Cell({ column_span: 1, contents, kind: DataCell, row_span: 1 })
+
+	## A header cell (`TH`) with its declared scope.
+	header_cell : HeaderScope, List(DocumentInline) -> DocumentCell
+	header_cell = |scope, contents| DocumentCell.Cell({ column_span: 1, contents, kind: HeaderCell(scope), row_span: 1 })
+
+	## A cell spanning `count` columns.
+	spanning : U16, DocumentCell -> DocumentCell
+	spanning = |count, value| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, column_span: count })
+	}
+
+	## A cell spanning `count` rows; row spans are outside the supported
+	## subset and reject at preparation.
+	row_spanning : U16, DocumentCell -> DocumentCell
+	row_spanning = |count, value| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, row_span: count })
+	}
+
 	## An explicit line break inside a rich paragraph.
 	line_break : DocumentInline
 	line_break = DocumentInline.LineBreak
@@ -836,7 +930,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 normalize_authoring : DocumentAuthoring -> NormalizedAuthoring
 normalize_authoring = |authoring| match authoring {
 	Compact(compact) => normalize_compact(compact)
-	Fixed(fixed) => { blocks: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [] }
+	Fixed(fixed) => { blocks: [], cells: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [] }
 	Simple(simple) => normalize_simple(simple)
 }
 
@@ -982,6 +1076,7 @@ normalize_compact = |compact| {
 	}
 	{
 		blocks: $blocks,
+		cells: [],
 		figures: [],
 		groups: [],
 		inlines: [],
@@ -994,11 +1089,13 @@ normalize_compact = |compact| {
 		page_labels: [],
 		rich_paragraphs: [],
 		spacers: [],
+		tables: [],
 	}
 }
 
 SimpleState : {
 	blocks : List(NormalizedBlock),
+	cells : List(NormalizedCell),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
 	inlines : List(NormalizedInline),
@@ -1008,11 +1105,12 @@ SimpleState : {
 	page_breaks : List(NormalizedPageBreak),
 	rich_paragraphs : List(NormalizedRich),
 	spacers : List(NormalizedSpacer),
+	tables : List(NormalizedTable),
 }
 
 normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str } -> NormalizedAuthoring
 normalize_simple = |simple| {
-	var $state = { blocks: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [] }
+	var $state = { blocks: [], cells: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
 		block = list_at(simple.contents, $block_index)
@@ -1021,6 +1119,7 @@ normalize_simple = |simple| {
 	}
 	{
 		blocks: $state.blocks,
+		cells: $state.cells,
 		figures: $state.figures,
 		groups: $state.groups,
 		inlines: $state.inlines,
@@ -1033,6 +1132,7 @@ normalize_simple = |simple| {
 		page_labels: [],
 		rich_paragraphs: $state.rich_paragraphs,
 		spacers: $state.spacers,
+		tables: $state.tables,
 	}
 }
 
@@ -1157,10 +1257,63 @@ append_leaf = |state, block, parent, position| match block {
 	Paragraph(text) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text }) }
 	RichParagraph(contents) => append_rich(state, contents, parent, position)
 	Spacer(amount) => { ..state, spacers: state.spacers.append({ amount, block: state.blocks.len(), parent, position }) }
+	Table(spec) => append_table(state, Box.unbox(spec), parent, position)
 	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
 
 	## Preparation rejects this branch before normalization.
 	Unavailable({ feature: _, summary: _ }) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
+}
+
+## Lower one table: its `Table` group, an optional caption paragraph leaf,
+## and one `TableRow` group per row (header, body, then footer rows) whose
+## cells are rich paragraph leaves described in the `cells` arena. A table
+## has fixed depth, so no frame stack is needed.
+append_table : SimpleState, TableSpec, U64, U64 -> SimpleState
+append_table = |state, spec, parent, position| {
+	table_group = state.groups.len()
+	table_code = table_group + 1
+	var $state = open_group({ ..state, tables: state.tables.append({ body_rows: spec.body_rows.len(), caption: has_caption(spec.caption), columns: spec.columns, footer_rows: spec.footer_rows.len(), header_rows: spec.header_rows.len(), row_split: spec.row_split }) }, Table(state.tables.len().to_u32_wrap()), parent, 0, position)
+	match spec.caption {
+		Caption(text) => {
+			$state = { ..$state, blocks: $state.blocks.append({ kind: Paragraph, parent: table_code, text }) }
+		}
+		NoCaption => {}
+	}
+	$state = append_table_rows($state, spec.header_rows, Header, table_code)
+	$state = append_table_rows($state, spec.body_rows, Body, table_code)
+	$state = append_table_rows($state, spec.footer_rows, Footer, table_code)
+	close_group($state, table_group)
+}
+
+has_caption : Caption -> Bool
+has_caption = |caption| match caption {
+	Caption(_) => True
+	NoCaption => False
+}
+
+append_table_rows : SimpleState, List(DocumentRow), TableSection, U64 -> SimpleState
+append_table_rows = |state, rows, section, table_code| {
+	var $state = state
+	var $ordinal = 0
+	while $ordinal < rows.len() {
+		cells = match list_at(rows, $ordinal) {
+			Row(value) => value
+		}
+		row_group = $state.groups.len()
+		$state = open_group($state, TableRow(section), table_code, 0, $ordinal)
+		var $index = 0
+		while $index < cells.len() {
+			record = match list_at(cells, $index) {
+				Cell(value) => value
+			}
+			$state = { ..$state, cells: $state.cells.append({ block: $state.blocks.len(), column_span: record.column_span.to_u64(), kind: record.kind, row_span: record.row_span.to_u64() }) }
+			$state = append_rich($state, record.contents, row_group + 1, $index)
+			$index = $index + 1
+		}
+		$state = close_group($state, row_group)
+		$ordinal = $ordinal + 1
+	}
+	$state
 }
 
 InlineFrame : { breaks : U64, depth : U64, items : List(DocumentInline), language : U64, next : U64, owner : U64 }

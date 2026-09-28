@@ -49,6 +49,8 @@ SNAPSHOTS = {
     "facade": ROOT / "tests" / "pdf_facade" / "pdf_facade.pdf",
     "navigation": ROOT / "tests" / "navigation" / "navigation_facade.pdf",
     "figure": ROOT / "tests" / "pdf_facade" / "image_figure.pdf",
+    "table": ROOT / "tests" / "tables" / "spans.pdf",
+    "continued_table": ROOT / "tests" / "tables" / "footer_carry.pdf",
 }
 
 VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
@@ -483,6 +485,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
             for target in filter(None, match.group(1).split(",")):
                 require(target.encode("latin-1") in identifiers, f"/Headers names unknown element identifier {target}")
 
+    check_tables(document, visited, identifiers, pages, page_index)
+
     expected_elements = dimensions.get("structure_elements")
     if expected_elements is not None:
         require(len(visited) == expected_elements, f"expected {expected_elements} structure elements, found {len(visited)}")
@@ -490,6 +494,97 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     if expected_ids is not None:
         require(len(identifiers) == expected_ids, "element identifier count differs")
     return lines
+
+
+def table_attributes(element: dict) -> dict:
+    values = element.get("A")
+    for dictionary in values if isinstance(values, list) else [values]:
+        if isinstance(dictionary, dict) and dictionary.get("O") == "Table":
+            return dictionary
+    return {}
+
+
+def element_children(document: Document, element: dict) -> list:
+    children = element.get("K", [])
+    return children if isinstance(children, list) else [children]
+
+
+def mcr_pages(document: Document, number: int) -> set[int]:
+    """Pages of every MCR in the subtree of structure element `number`."""
+    found: set[int] = set()
+    stack = [number]
+    while stack:
+        element = document.get(stack.pop())
+        for child in element_children(document, element):
+            if isinstance(child, Ref):
+                stack.append(int(child))
+            elif isinstance(child, dict) and child.get("Type") == "MCR":
+                found.add(int(child["Pg"]))
+    return found
+
+
+def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int]) -> None:
+    """Independent table checks, derived from the bytes alone:
+
+    * grid regularity: every row of a table spans the same number of
+      columns (the sum of its cells' /ColSpan, default 1), and no cell spans
+      rows (the package's declared subset);
+    * every TH declares a /Scope, and every /Headers target resolves through
+      the IDTree to a TH;
+    * header-once semantics: a table's THead content lies on the table's
+      first page only;
+    * repeated headers are artifacts: every later page on which the table
+      continues repaints text inside /Artifact <</Type /Pagination>> marked
+      content that carries no MCID.
+    """
+    for number in sorted(visited):
+        element = document.get(number)
+        if str(element["S"]) == "TH":
+            require("Scope" in table_attributes(element), "a TH declares no /Scope")
+        headers = table_attributes(element).get("Headers")
+        if headers is not None:
+            for target in headers:
+                require(target in identifiers and str(document.get(identifiers[target])["S"]) == "TH", "/Headers names an element that is not a TH")
+        if str(element["S"]) != "Table":
+            continue
+        rows: list[int] = []
+        head: list[int] = []
+        for child in element_children(document, element):
+            if not isinstance(child, Ref):
+                continue
+            child_role = str(document.get(int(child))["S"])
+            if child_role == "TR":
+                rows.append(int(child))
+            elif child_role in ("THead", "TBody", "TFoot"):
+                if child_role == "THead":
+                    head.append(int(child))
+                rows.extend(int(row) for row in element_children(document, document.get(int(child))) if isinstance(row, Ref))
+        widths = set()
+        for row in rows:
+            width = 0
+            for cell in element_children(document, document.get(row)):
+                if not isinstance(cell, Ref):
+                    continue
+                attributes = table_attributes(document.get(int(cell)))
+                require(attributes.get("RowSpan", 1) == 1, "a table cell spans rows outside the declared subset")
+                span = attributes.get("ColSpan", 1)
+                require(isinstance(span, int) and span >= 1, "a /ColSpan is not a positive integer")
+                width += span
+            widths.add(width)
+        require(len(widths) <= 1, f"table rows span different column counts {sorted(widths)}")
+        table_pages = sorted(mcr_pages(document, number), key=lambda page: page_index[page])
+        if not head or not table_pages:
+            continue
+        first = table_pages[0]
+        require(mcr_pages(document, head[0]) <= {first}, "a THead's content appears after the table's first page")
+        for page in table_pages[1:]:
+            content = document.stream(int(document.get(page)["Contents"]))
+            repainted = False
+            for match in re.finditer(rb"/Artifact <</Type /Pagination>> BDC\n(.*?)EMC\n", content, re.S):
+                body = match.group(1)
+                require(b"/MCID" not in body, "a repeated header artifact carries an MCID")
+                repainted = repainted or b"Tj" in body or b"TJ" in body
+            require(repainted, f"table continues on page {page_index[page]} without repainting its header rows as a pagination artifact")
 
 
 def normalize_attributes(value, role: str) -> str:
@@ -582,7 +677,11 @@ def self_test() -> None:
     nested = SNAPSHOTS["nested"].read_bytes()
     lowering = SNAPSHOTS["lowering"].read_bytes()
     facade = SNAPSHOTS["facade"].read_bytes()
+    table = SNAPSHOTS["table"].read_bytes()
     mutations = [
+        ("irregular table grid", table, b"/ColSpan 2", b"/ColSpan 3"),
+        ("row span outside the declared subset", table, b"/ColSpan 2", b"/RowSpan 2"),
+        ("/Headers names a TD", table, b"/Headers [<63303030303032> <63303030303035> <63303030303038>]", b"/Headers [<63303030303032> <63303030303035> <63303030303039>]"),
         ("illegal containment Document > Span", nested, b"/S /Part ", b"/S /Span "),
         ("illegal containment Sect > LI", nested, b"/S /H1 ", b"/S /LI "),
         ("content item in L", nested, b"/P 5 0 R /S /P /Type", b"/P 5 0 R /S /L /Type"),
