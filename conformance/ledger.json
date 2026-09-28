@@ -1845,6 +1845,225 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDFUA2-6-2-MARK-INFO",
+      "summary": "Every tagged document's catalog declares /MarkInfo << /Marked true >>.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 14289-2:2024 6.2",
+        "ISO 32000-2:2020 14.7.1",
+        "docs/performance/semantic-foundation.md"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "tagged_catalog_lowering; independent_structure_semantics_checker_on_container_and_facade_snapshots; mutation_twin_unmarks_the_document",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/KernelTaggedObjects.roc",
+        "tests/containers/main.roc"
+      ],
+      "negative_scenarios": [
+        "scripts/check_structure_semantics.py"
+      ],
+      "external_rule_ids": [
+        "verapdf-pdfua2:6.2-1"
+      ]
+    },
+    {
+      "id": "ROC-PDF-PDFUA2-8-11-2-DISPLAY-DOC-TITLE",
+      "summary": "Every tagged document lowered with a validated metadata title declares catalog /ViewerPreferences << /DisplayDocTitle true >>, so readers present the dc:title rather than the file name.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 14289-2:2024 8.11.2",
+        "ISO 32000-2:2020 Table 147",
+        "docs/performance/semantic-foundation.md"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "roc_facade_expect; every_facade_snapshot_rebaselined_with_the_entry; independent_structure_semantics_checker_requires_it_whenever_metadata_exists; mutation_twins_remove_and_falsify_it",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/Pdf.roc",
+        "tests/containers/main.roc"
+      ],
+      "negative_scenarios": [
+        "scripts/check_structure_semantics.py"
+      ],
+      "external_rule_ids": [
+        "verapdf-pdfua2:8.11.2-1"
+      ]
+    },
+    {
+      "id": "ROC-PDF-PDFUA2-8-2-5-25-LIST-NUMBERING",
+      "summary": "An L whose items carry Lbl children declares a ListNumbering attribute other than None.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 14289-2:2024 8.2.5.25",
+        "ISO 32000-2:2020 Table 380",
+        "docs/reference-documents.md: Blocks and grouping"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "planned",
+      "applicability": "applicable",
+      "machine_verification": "typed_list_owned_ListNumbering_validation_and_lowering_exist; the facade bullets constructor does not yet emit it (lists slice)",
+      "human_verification": "not_required",
+      "positive_scenarios": [],
+      "negative_scenarios": [],
+      "external_rule_ids": [
+        "verapdf-pdfua2:8.2.5.25-1"
+      ]
+    },
+    {
+      "id": "ROC-PDF-PDFUA2-8-9-3-3-PAGE-TABS",
+      "summary": "Every page of a tagged document declares /Tabs /S, so annotation tab order follows the structure order.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 14289-2:2024 8.9.3.3",
+        "ISO 32000-2:2020 Table 31",
+        "docs/performance/semantic-foundation.md"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "tagged_page_lowering; independent_structure_semantics_checker_checks_every_page; mutation_twin_changes_the_tab_order",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/KernelPageObjects.roc",
+        "tests/containers/main.roc"
+      ],
+      "negative_scenarios": [
+        "scripts/check_structure_semantics.py"
+      ],
+      "external_rule_ids": [
+        "verapdf-pdfua2:8.9.3.3-1"
+      ]
+    },
+    {
+      "id": "ROC-PDF-PDFUA2-IDTREE-INTEGRITY",
+      "summary": "Element identifiers are non-empty, unique, stored in ascending byte order, and owned by exactly one structure element; each lowers as /ID and the balanced StructTreeRoot /IDTree maps every identifier back to exactly that element. /Headers targets name existing identifiers.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 14.7.2 Tables 354 and 355",
+        "ISO 32000-2:2020 14.8.5.7",
+        "docs/performance/semantic-foundation.md"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "kernel_expects_reject_duplicate_unordered_empty_orphan_identifiers_and_dangling_headers; tagged_structure_expect_pins_ID_and_IDTree_bytes; kernel_lowering_harness_case; independent_structure_semantics_checker_compares_IDTree_and_ID; mutation_twins_break_the_tree_and_the_headers",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/KernelSemantics.roc",
+        "package/KernelTaggedStructure.roc",
+        "tests/containers/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelSemantics.roc",
+        "scripts/check_structure_semantics.py"
+      ],
+      "external_rule_ids": []
+    },
+    {
+      "id": "ROC-PDF-PDFUA2-LANGUAGE-INHERITANCE",
+      "summary": "A structure element carries /Lang exactly when its explicit, well-formed language differs from the language it inherits; the Document element inherits the catalog /Lang.",
+      "source_ids": [
+        "bcp47-rfc5646",
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 14289-2:2024 8.4.4",
+        "ISO 32000-2:2020 14.9.2",
+        "docs/performance/semantic-foundation.md"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "kernel_expects_reject_malformed_node_languages; tagged_structure_expect_pins_nested_Lang_and_root_omission; kernel_lowering_harness_case; independent_checker_rejects_malformed_and_redundant_Lang; mutation_twin",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/KernelTaggedStructure.roc",
+        "tests/containers/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelSemantics.roc",
+        "scripts/check_structure_semantics.py"
+      ],
+      "external_rule_ids": [
+        "verapdf-pdfua2:8.4.4-2"
+      ]
+    },
+    {
+      "id": "ROC-PDF-PDFUA2-TABLE5-CONTAINMENT",
+      "summary": "Every parent/child structure edge, content item, at-most-one child, and Caption position satisfies ISO/TS 32005 Table 5 and PDF/UA-2 8.2.5.25/8.2.5.27 for the supported PDF 2.0 roles; an illegal edge is rejected, never flattened or remapped.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3",
+        "iso-ts-32005-2023"
+      ],
+      "references": [
+        "ISO 14289-2:2024 8.2.5.25",
+        "ISO 14289-2:2024 8.2.5.27",
+        "ISO/TS 32005:2023 Table 5",
+        "docs/performance/semantic-foundation.md"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "dense_bit_matrix_one_check_per_edge; legal_and_illegal_matrix_expect; kernel_store_negatives_for_edges_content_items_cardinality_and_caption_position; independent_checker_table_compared_with_the_pinned_veraPDF_ISO32005_profile_on_784_role_pairs; mutation_twins",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/KernelSemantics.roc",
+        "tests/containers/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelSemantics.roc",
+        "scripts/check_structure_semantics.py"
+      ],
+      "external_rule_ids": [
+        "verapdf-pdfua2:8.2.5.25-2",
+        "verapdf-pdfua2:8.2.5.27-1",
+        "verapdf-pdfua2:Table 5"
+      ]
+    },
+    {
       "id": "ROC-PDF-PREPARED-STAGE-CONTRACT",
       "summary": "Prepared documents contain exact resolved layout, semantic ownership, scenes, validated resources, bounded work, and no speculative handlers or unresolved references.",
       "source_ids": [
@@ -2032,14 +2251,18 @@
         "Pdf20",
         "PdfUa2"
       ],
-      "implementation": "defined_only",
+      "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract",
+      "machine_verification": "schema_and_roc_contract; kernel_validation_of_element_identifiers_and_HeaderFor_CaptionFor_LabelFor_relations_with_negative_expects; IDTree_lowering; other relation kinds remain outside the text subset",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "package/KernelSemantics.roc",
+        "tests/containers/main.roc",
         "tests/contracts/advanced_semantics_contract.roc"
       ],
-      "negative_scenarios": [],
+      "negative_scenarios": [
+        "package/KernelSemantics.roc"
+      ],
       "external_rule_ids": []
     },
     {
@@ -2084,14 +2307,18 @@
         "Pdf20",
         "PdfUa2"
       ],
-      "implementation": "defined_only",
+      "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract",
+      "machine_verification": "schema_and_roc_contract; typed_Table_and_List_attribute_validation_and_A_lowering_with_negative_expects; role mappings, attribute role lists, Layout and namespace-owned attributes remain rejected",
       "human_verification": "not_required",
       "positive_scenarios": [
+        "package/KernelSemantics.roc",
+        "tests/containers/main.roc",
         "tests/contracts/advanced_semantics_contract.roc"
       ],
-      "negative_scenarios": [],
+      "negative_scenarios": [
+        "package/KernelSemantics.roc"
+      ],
       "external_rule_ids": []
     },
     {

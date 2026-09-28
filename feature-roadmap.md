@@ -136,11 +136,19 @@ slice records the readiness dimensions above.
    evidence, not a new conformance claim. The reference documents, text-support
    matrix, and layout policies are recorded in
    [docs/reference-documents.md](docs/reference-documents.md)
-   (`reference-documents-v1`).
+   (now `reference-documents-v2`).
 2. Continue Gate 6 business-authoring/semantic slices from the shared Gate 4
    foundation; Gate 5 archival closure is recorded below. Deliver each public
    feature through authoring, layout, diagnostics, and applicable evidence, and
    declare its static PDF/A-4 eligibility as it joins the `Archive` whitelist.
+   The semantic-foundation slice
+   ([docs/performance/semantic-foundation.md](docs/performance/semantic-foundation.md))
+   makes `Pdf.part`, `Pdf.section`, and `Pdf.division` executable over a dense
+   nested authoring tree, widens the kernel vocabulary with an ISO/TS 32005
+   Table 5 containment checker, lowers node languages, element identifiers
+   with the IDTree, typed Table and List attributes, and node text properties,
+   and declares `/DisplayDocTitle` for every tagged facade document. It closes
+   no Gate 6 capability as a whole and makes no PDF/UA-2 claim.
 3. Close Gate 7 only when both branches and the business-document release
    evidence are complete. New claims and defaults follow their original
    explicit gate requirements.

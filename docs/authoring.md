@@ -18,6 +18,31 @@ document = Pdf.document({
 bytes = Pdf.to_bytes(document)?
 ```
 
+Group related blocks with `Pdf.part`, `Pdf.section`, and `Pdf.division`. They
+become PDF 2.0 `Part`, `Sect`, and `Div` structure elements around their
+children, in authored order; headings inside keep their explicit `H1`..`H6`
+levels, and grouping never changes layout:
+
+```roc
+contents = [
+    Pdf.title("Operations handbook"),
+    Pdf.part([
+        Pdf.section([
+            Pdf.heading(1, "Receiving"),
+            Pdf.paragraph("Deliveries arrive between 7 am and 3 pm."),
+            Pdf.division([Pdf.bullets(["Count the cartons", "Check each seal"])]),
+        ]),
+    ]),
+]
+```
+
+A container must hold at least one semantic block, and containers nest at most
+16 levels. Violations return `InvalidDocument` with the dotted codes
+`semantics.empty_container` or `semantics.container_depth` and the container's
+block path, such as `contents[1].contents[0]`, as the diagnostic detail. Every
+tagged document also asks readers to display its metadata title
+(`/ViewerPreferences << /DisplayDocTitle true >>`).
+
 For deferred or repeated emission, prepare once. `Pdf.Prepared` is opaque: a
 successful value has completed document validation and object planning.
 
@@ -85,7 +110,8 @@ multi-command figures, and fixed pages remain forward API: they report
 | prepared and chunked emission | executable |
 | one-image figures using typed JPEG/packed raster sources | executable |
 | vector/grouped/multi-command drawings | representable; `document.figure` diagnostic |
-| semantic containers, rich inline content, simple tables | representable; Gate 6 diagnostic |
+| parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | executable |
+| rich inline content, simple tables | representable; Gate 6 diagnostic |
 | fixed pages, columns, floats, footnotes, complex tables | representable; Gate 8 diagnostic |
 | `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
 | `AccessibleArchive` profile | representable; profile diagnostic |

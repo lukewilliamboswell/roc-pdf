@@ -10,7 +10,7 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v1`**.
+Version: **`reference-documents-v2`**.
 
 - It is a design record. It claims no executable capability, conformance
   result, or reader behavior. Capability status remains governed by the
@@ -620,11 +620,11 @@ rules.
 
 ## Declared production text support
 
-This matrix is the facade's declared production text support for
-`reference-documents-v1`. It distinguishes the one-import facade from the
-advanced positioned-run boundary, which has its own closed rows in the
-[text-layout closure review](performance/text-layout-closure.md). A row is
-supported only when its evidence exists; rows marked **required** are
+This matrix is the facade's declared production text support for this record
+(unchanged since `reference-documents-v1`). It distinguishes the one-import
+facade from the advanced positioned-run boundary, which has its own closed rows
+in the [text-layout closure review](performance/text-layout-closure.md). A row
+is supported only when its evidence exists; rows marked **required** are
 additions the references need and that Gate 6 slices must close. Each
 unsupported row names its stable rejection. No row is satisfied by font
 substitution, outlining, rasterization, or dropping text.
@@ -860,6 +860,14 @@ implementing slice decides whether the dotted code rides in the existing
 | `semantics.nested_link` | `InvalidRelationship` | A link contains a link |
 | `semantics.link_text_empty` | `InvalidRelationship` | A link has no text content |
 | `semantics.language_tag` | `InvalidLanguage` | An `in_language` tag is not a well-formed BCP 47 tag |
+| `semantics.container_depth` | `BudgetExceeded` | Parts, sections, and divisions nest more than 16 levels deep |
+| `semantics.empty_container` | `InvalidRelationship` | A part, section, or division contains no semantic block |
+
+Container diagnostics (from `reference-documents-v2`) carry their dotted code
+in the existing `FeatureReference` field and the compact block path of the
+offending container, such as `contents[3].contents[0]`, as the diagnostic's
+single `details` entry; their location is `Document`. Later codes follow the
+same convention.
 
 Existing codes keep their meaning: `document.generated_reference`,
 `text.vertical_writing`, `profile.accessible_archive`, and the typed
@@ -924,6 +932,11 @@ spacer : Layout.Unit -> Block                  # layout-only vertical space
 Existing `title`, `heading`, `paragraph`, `bullets`, `destination_heading`,
 `destination_paragraph`, `link`, `internal_link`, `with_outline`, and
 `with_page_labels` remain.
+
+`part`, `section`, and `division` are executable (semantic-foundation slice).
+Grouping has no layout effect, a container must contain at least one semantic
+block, and containers nest at most 16 levels deep; see the container
+diagnostics under [Diagnostic codes](#diagnostic-codes).
 
 ### Tables
 
@@ -1055,3 +1068,8 @@ version, the task, the observed outcome, and any limitation.
 ## Change log
 
 - `reference-documents-v1`: initial record.
+- `reference-documents-v2`: the semantic-foundation slice makes `part`,
+  `section`, and `division` executable with unchanged names; adds the
+  `semantics.container_depth` and `semantics.empty_container` diagnostic codes
+  with a 16-level container depth bound; and records that a dotted code rides
+  in `FeatureReference` with the compact block path in `details`.
