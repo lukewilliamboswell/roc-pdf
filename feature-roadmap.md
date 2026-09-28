@@ -133,7 +133,10 @@ slice records the readiness dimensions above.
 1. Record the reference documents, text-support matrix, and layout policies
    before fixing remaining business-authoring representations. Early reader/AT
    observations are optional. This is release planning and exploratory
-   evidence, not a new conformance claim.
+   evidence, not a new conformance claim. The reference documents, text-support
+   matrix, and layout policies are recorded in
+   [docs/reference-documents.md](docs/reference-documents.md)
+   (`reference-documents-v1`).
 2. Continue Gate 6 business-authoring/semantic slices from the shared Gate 4
    foundation; Gate 5 archival closure is recorded below. Deliver each public
    feature through authoring, layout, diagnostics, and applicable evidence, and
