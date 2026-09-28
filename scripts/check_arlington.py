@@ -1,4 +1,26 @@
 #!/usr/bin/env python3
+"""Pinned Arlington PDF 2.0 object-model lane (veraPDF Arlington 1.30.2).
+
+The validator runs as the digest-pinned ``verapdf/arlington`` REST service
+(default ``http://127.0.0.1:18080``). A report is accepted only when the
+pinned releases and profile are reported, the job ended normally with no
+parser, encryption, memory, or validator exception, and zero rules and
+checks failed.
+
+Modes:
+
+``PDF...``
+    Validate the named files.
+``--cases``
+    Validate every distinct non-empty snapshot referenced by tests/spec.json
+    plus every public example in examples/*.pdf. Only the files in
+    ``FIXTURE_EXCEPTIONS`` may fail, and each must fail exactly its recorded
+    rule set; an exception that no longer fails, or fails differently, is
+    itself an error.
+``--self-test``
+    Exercises report classification, exception matching, and case
+    collection with synthetic reports and the local spec (no network).
+"""
 
 import argparse
 import copy
@@ -9,11 +31,24 @@ import urllib.request
 from pathlib import Path
 
 
+ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_PROFILE = "Arlington PDF 2.0 profile"
 EXPECTED_RELEASES = {
     "core-arlington": "1.30.2",
     "validation-model-arlington": "1.30.2",
     "verapdf-rest-arlington": "1.30.2",
+}
+
+
+# Files that are not package output and deliberately fall outside the
+# Arlington model. Keys are paths relative to the repository root; values are
+# the exact failing rule identifiers (``clause#testNumber``) and why.
+FIXTURE_EXCEPTIONS: dict[str, tuple[frozenset[str], str]] = {
+    "tests/placeholder/snapshot.pdf": (
+        frozenset({"FileTrailer-ID#11"}),
+        "the harness placeholder is a fixed classic-xref PDF written by the test "
+        "platform, not package output; it has no trailer /ID",
+    ),
 }
 
 
@@ -106,6 +141,92 @@ def validate_report(
     require(validation.get("nonCompliantPdfaCount") == 0, "Arlington counted a non-compliant PDF")
     require(validation.get("compliantPdfaCount") == 1, "Arlington did not count one compliant PDF")
     return passed_rules, passed_checks
+
+
+def failed_rules(value: object) -> frozenset[str]:
+    """Return the failing rule identifiers of a report whose job otherwise ran
+    normally. Reports that did not run normally raise instead."""
+    root = object_value(value, "response")
+    report = object_value(root.get("report"), "report")
+    summary = object_value(report.get("batchSummary"), "batchSummary")
+    for field in [
+        "failedEncryptedJobs",
+        "failedParsingJobs",
+        "outOfMemory",
+        "veraExceptions",
+    ]:
+        require(summary.get(field) == 0, f"Arlington batch summary has nonzero {field}")
+    jobs = list_value(report.get("jobs"), "jobs")
+    require(len(jobs) == 1, f"expected one Arlington job, got {len(jobs)}")
+    job = object_value(jobs[0], "jobs[0]")
+    results = list_value(job.get("arlingtonResult"), "arlingtonResult")
+    require(len(results) == 1, f"expected one Arlington result, got {len(results)}")
+    result = object_value(results[0], "arlingtonResult[0]")
+    require(result.get("profileName") == EXPECTED_PROFILE, "unexpected Arlington profile")
+    require(result.get("jobEndStatus") == "normal", "Arlington job did not end normally")
+    details = object_value(result.get("details"), "details")
+    summaries = list_value(details.get("ruleSummaries"), "ruleSummaries")
+    rules: set[str] = set()
+    for index, raw_rule in enumerate(summaries):
+        rule = object_value(raw_rule, f"ruleSummaries[{index}]")
+        clause = rule.get("clause")
+        number = rule.get("testNumber")
+        require(isinstance(clause, str), f"ruleSummaries[{index}].clause must be text")
+        require(type(number) is int, f"ruleSummaries[{index}].testNumber must be an integer")
+        rules.add(f"{clause}#{number}")
+    return frozenset(rules)
+
+
+def describe_failures(value: object) -> str:
+    lines = []
+    try:
+        result = value["report"]["jobs"][0]["arlingtonResult"][0]  # type: ignore[index]
+        for rule in result["details"]["ruleSummaries"]:
+            lines.append(
+                f"  {rule.get('clause')}#{rule.get('testNumber')}: {rule.get('description')} "
+                f"({rule.get('failedChecks')} checks)"
+            )
+    except (KeyError, IndexError, TypeError):
+        pass
+    return "".join("\n" + line for line in lines)
+
+
+def classify_case(value: object, relative: str, expected_size: int) -> str:
+    """Accept one case report, or raise with the precise failure."""
+    exception = FIXTURE_EXCEPTIONS.get(relative)
+    if exception is None:
+        try:
+            passed_rules, passed_checks = validate_report(value, Path(relative).name, expected_size)
+        except ValidationError as error:
+            raise ValidationError(f"{relative}: {error}{describe_failures(value)}") from error
+        return f"passed_rules={passed_rules}, passed_checks={passed_checks}"
+    expected_rules, reason = exception
+    observed = failed_rules(value)
+    require(
+        observed == expected_rules,
+        f"{relative}: recorded exception {sorted(expected_rules)} but Arlington failed "
+        f"{sorted(observed)}; update or remove the exception",
+    )
+    return f"recorded exception {sorted(expected_rules)}: {reason}"
+
+
+def case_paths(root: Path = ROOT) -> list[str]:
+    """Distinct non-empty spec snapshots, then the public examples, relative
+    to ``root``. Zero-byte snapshots are negative cases that emit no bytes."""
+    spec = json.loads((root / "tests" / "spec.json").read_text())
+    cases = list_value(spec.get("cases"), "cases")
+    snapshots: set[str] = set()
+    for index, raw_case in enumerate(cases):
+        case = object_value(raw_case, f"cases[{index}]")
+        snapshot = case.get("snapshot")
+        require(isinstance(snapshot, str), f"cases[{index}].snapshot must be text")
+        snapshots.add(snapshot)
+    for relative in sorted(snapshots):
+        require((root / relative).is_file(), f"spec snapshot {relative} is missing")
+    selected = sorted(relative for relative in snapshots if (root / relative).stat().st_size > 0)
+    examples = sorted(path.relative_to(root).as_posix() for path in (root / "examples").glob("*.pdf"))
+    require(bool(examples), "examples/*.pdf is empty")
+    return selected + examples
 
 
 def wait_ready(base_url: str, timeout_seconds: float = 90.0) -> None:
@@ -224,7 +345,89 @@ def self_test() -> None:
             pass
         else:
             raise SystemExit(f"Arlington report checker accepted {label}")
-    print("PASS Arlington report checker self-test")
+
+    ## Case classification: a clean file passes, an unrecorded failure is
+    ## rejected, and a recorded exception must fail exactly as recorded.
+    require(
+        classify_case(valid, "tests/example/fixture.pdf", 10).startswith("passed_rules="),
+        "clean case was not accepted",
+    )
+    failing = copy.deepcopy(valid)
+    job = failing["report"]["jobs"][0]  # type: ignore[index]
+    job["itemDetails"]["name"] = "snapshot.pdf"
+    result = job["arlingtonResult"][0]
+    result["compliant"] = False
+    result["details"]["failedRules"] = 1
+    result["details"]["failedChecks"] = 1
+    result["details"]["ruleSummaries"] = [
+        {
+            "clause": "FileTrailer-ID",
+            "testNumber": 11,
+            "description": "Entry ID in FileTrailer is required",
+            "failedChecks": 1,
+        }
+    ]
+    try:
+        classify_case(failing, "tests/example/snapshot.pdf", 10)
+    except ValidationError:
+        pass
+    else:
+        raise SystemExit("Arlington case checker accepted an unrecorded failure")
+    require(
+        classify_case(failing, "tests/placeholder/snapshot.pdf", 10).startswith("recorded exception"),
+        "recorded exception was not accepted",
+    )
+    changed = copy.deepcopy(failing)
+    changed["report"]["jobs"][0]["arlingtonResult"][0]["details"]["ruleSummaries"][0]["testNumber"] = 12  # type: ignore[index]
+    parser_failure = copy.deepcopy(failing)
+    parser_failure["report"]["batchSummary"]["failedParsingJobs"] = 1  # type: ignore[index]
+    for label, candidate in [
+        ("stale exception", valid),
+        ("changed exception", changed),
+        ("exception with parser recovery", parser_failure),
+    ]:
+        try:
+            classify_case(candidate, "tests/placeholder/snapshot.pdf", 10)
+        except ValidationError:
+            continue
+        raise SystemExit(f"Arlington case checker accepted a {label}")
+
+    ## Case collection is deterministic, distinct, and covers every recorded
+    ## exception and the public examples.
+    paths = case_paths()
+    snapshots = [path for path in paths if not path.startswith("examples/")]
+    examples = [path for path in paths if path.startswith("examples/")]
+    require(paths == sorted(snapshots) + sorted(examples), "case order is not canonical")
+    require(len(paths) == len(set(paths)), "case paths are not distinct")
+    require(bool(examples), "no public examples collected")
+    require(set(FIXTURE_EXCEPTIONS) <= set(paths), "an Arlington exception names no case file")
+    print(
+        f"PASS Arlington report checker self-test: {len(snapshots)} snapshots and "
+        f"{len(examples)} examples collected"
+    )
+
+
+def run_cases(base_url: str) -> None:
+    paths = case_paths()
+    wait_ready(base_url)
+    failures = 0
+    exceptions = 0
+    for relative in paths:
+        pdf = ROOT / relative
+        try:
+            outcome = classify_case(request_report(base_url, pdf), relative, pdf.stat().st_size)
+        except ValidationError as error:
+            failures += 1
+            print(f"FAIL Arlington 1.30.2: {error}")
+            continue
+        if outcome.startswith("recorded exception"):
+            exceptions += 1
+        print(f"PASS Arlington 1.30.2: {relative}, {outcome}")
+    require(failures == 0, f"Arlington failed {failures} of {len(paths)} case files")
+    print(
+        f"PASS Arlington 1.30.2: {len(paths) - exceptions} case files compliant with zero "
+        f"failed rules and checks; {exceptions} recorded exception(s) failed exactly as recorded"
+    )
 
 
 def main() -> None:
@@ -232,9 +435,14 @@ def main() -> None:
     parser.add_argument("pdf", nargs="*", type=Path)
     parser.add_argument("--base-url", default="http://127.0.0.1:18080")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--cases", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
+        return
+    if args.cases:
+        require(not args.pdf, "--cases takes no PDF paths")
+        run_cases(args.base_url)
         return
     if not args.pdf:
         raise SystemExit("at least one PDF path is required")

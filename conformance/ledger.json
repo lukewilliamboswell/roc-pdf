@@ -143,7 +143,7 @@
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_unit_buffered_chunk_identity_canonical_stream_dictionary_merge_and_bounded_deflate_transition; independent_offsets_lengths_xref_page_and_generated_content_facts; optimized_multiblock_deflate_exact_allocations_and_work; qpdf_12_3_2_linux_ci; verapdf_arlington_1_30_2_digest_pinned_zero_failures_all_structural_snapshots; pdfbox_3_0_8_parse_false_warning_free_exact_page_object_and_content_facts_with_recovery_negative; atomic_internal_and_external_negative_matrix; byte_identical_shared_snapshots_on_arm64mac_and_x64musl",
+      "machine_verification": "roc_unit_buffered_chunk_identity_canonical_stream_dictionary_merge_and_bounded_deflate_transition; independent_offsets_lengths_xref_page_and_generated_content_facts; optimized_multiblock_deflate_exact_allocations_and_work; qpdf_12_3_2_linux_ci; verapdf_arlington_1_30_2_digest_pinned_linux_ci_zero_failures_all_package_snapshots_and_examples; pdfbox_3_0_8_parse_false_warning_free_exact_page_object_and_content_facts_with_recovery_negative; atomic_internal_and_external_negative_matrix; byte_identical_shared_snapshots_on_arm64mac_and_x64musl",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelEmit.roc",
