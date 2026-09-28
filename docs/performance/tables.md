@@ -350,7 +350,12 @@ the next run.
   destructuring the builder in `add_value` alone removed 37,000 of 324,000
   allocations at 200 rows and halved the instructions at 400. Every
   object-producing case's allocation count would change, so the fix is left
-  to its own reviewed rebaseline (see open issues).
+  to its own reviewed rebaseline (see open issues). **Resolved** by S6b
+  ([lowering-uniqueness.md](lowering-uniqueness.md)): the copies came from
+  several ownership patterns in lowering, semantic planning, and content
+  emission, and from fixtures reusing procedures cached by other fixture
+  programs; the x500 invoice now allocates 1.7 GB instead of 35 GB (67 GB in
+  harness order) and its instructions grow linearly.
 
 ## Readiness dimensions
 
@@ -364,8 +369,9 @@ the next run.
 
 ## Open issues
 
-- **Object-store copying** (above): fix `KernelObject`'s builder updates and
-  rebaseline every case in one reviewed change.
+- ~~**Object-store copying**~~: resolved by S6b
+  ([lowering-uniqueness.md](lowering-uniqueness.md)), with every case
+  rebaselined in one reviewed change.
 - **Reference documents.** The invoice and report tables are exercised in
   this family, but the complete reference documents (templates, furniture,
   figures) belong to later slices; `examples/prepared_invoice.roc` still
