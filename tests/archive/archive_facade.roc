@@ -199,6 +199,18 @@ main! = |args| {
 			identical = if streamed.bytes == buffered 1 else 0
 			{ bytes: streamed.bytes, work: [streamed.bytes.len(), streamed.chunks, identical] }
 		}
+		"figures-standard" => {
+
+			## Standard twins of single-page Archive documents; the renderer
+			## matrix requires Archive and Standard to rasterize identically
+			## because the identification is metadata only.
+			bytes = generate(figure_document({}), standard)
+			{ bytes, work: [bytes.len()] }
+		}
+		"navigation-standard" => {
+			bytes = generate(navigation_document(scale), standard)
+			{ bytes, work: [bytes.len()] }
+		}
 		"profiles" => {
 
 			## The same document under both profiles: Archive adds exactly the

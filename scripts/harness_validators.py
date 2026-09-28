@@ -23,7 +23,7 @@ from check_generated_labels import validate_generated_labels_pdf
 from check_ligature import EXPECTED_CONTENT as LIGATURE_CONTENT
 from check_ligature import validate_ligature_pdf
 from check_metadata import validate_metadata_pdf
-from check_pdfa4_structure import validate_pdfa4_pdf
+from check_pdfa4_structure import validate_pdfa4_pdf, validate_standard_twin_pdf
 from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
@@ -155,6 +155,7 @@ VALIDATORS: dict[str, Validator] = {
     "shadings": _dimensioned(validate_shadings_pdf, "canonical shading/function/pattern objects, exact per-stream /Shading and /Pattern dictionaries, re-derived stop models, ownership-neutral pattern streams, and sh/scn operand resolution"),
     "navigation": _dimensioned(validate_navigation_pdf, "paired /SD + /D actions, keyboard-ordered /Annots, OBJR/ParentTree linkage, named destinations, outline preorder, page labels, and appearance geometry verified structurally"),
     "pdfa4": _dimensioned(validate_pdfa4_pdf, "PDF/A-4 identification packet, single GTS_PDFA1 sRGB2014 intent, printable links, FontFile2 Type 0 fonts, permitted filters and images, no /Info or excluded keys, verified structurally"),
+    "pdfa4_standard_twin": _dimensioned(validate_standard_twin_pdf, "PDF 2.0 file skeleton of a Standard twin with no PDF/A identification"),
     "metadata": _dimensioned(validate_metadata_pdf, "catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),
@@ -188,6 +189,7 @@ PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
         "check_fonts.py", "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
         "check_navigation.py", "check_navigation_renderers.py", "check_pdfa4_structure.py",
         "check_pdfa4.py", "check_archive_renderers.py", "extract_verapdf_rules.py",
+        "build_verapdf_corpus_subset.py",
     )
 }
 PREFLIGHT_CHECKS["contracts"] = PreflightCheck("check_contracts.py", True)

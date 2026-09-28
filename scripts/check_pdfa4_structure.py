@@ -230,10 +230,18 @@ def validate_pdfa4_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
     validate_archive_pdf(pdf, dimensions.get("pages", 0))
 
 
+def validate_standard_twin_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
+    """A Standard twin keeps the PDF 2.0 skeleton and never declares PDF/A."""
+    skeleton(pdf, dimensions.get("pages", 0))
+    validate_standard_pdf(pdf)
+
+
 def self_test() -> None:
     for name, pages in SNAPSHOTS:
         validate_archive_pdf((ARCHIVE / name).read_bytes(), pages)
     validate_standard_pdf((ROOT / "tests" / "metadata" / "metadata_facade.pdf").read_bytes())
+    for name in ("archive_figures_standard.pdf", "archive_navigation_standard.pdf"):
+        validate_standard_twin_pdf((ARCHIVE / name).read_bytes(), {"pages": 1})
 
     navigation = (ARCHIVE / "archive_navigation.pdf").read_bytes()
     report = (ARCHIVE / "archive_report.pdf").read_bytes()

@@ -42,7 +42,10 @@
     "navigation_renderers",
     "pdf_structure",
     "pdfa4_structure",
-    "extract_verapdf_rules"
+    "extract_verapdf_rules",
+    "pdfa4",
+    "build_verapdf_corpus_subset",
+    "archive_renderers"
   ],
   "post_update_checks": [
     "contracts",
@@ -19698,6 +19701,80 @@
       "retention": null,
       "validators": [
         "pdfa4"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 Standard twin of the archived figures",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_figures_standard.pdf",
+      "args": [
+        "figures-standard",
+        "1"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "archive_standard_twin": 1,
+        "figures": 4
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4237,
+          "work": {
+            "output_bytes": 22417
+          }
+        },
+        "x64musl": {
+          "allocations": 4237,
+          "work": {
+            "output_bytes": 22417
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4_standard_twin"
+      ]
+    },
+    {
+      "name": "static PDF/A-4 Standard twin of the archived navigation",
+      "scenario_revision": "static-pdfa4-v1",
+      "source": "tests/archive/archive_facade.roc",
+      "snapshot": "tests/archive/archive_navigation_standard.pdf",
+      "args": [
+        "navigation-standard",
+        "8"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "archive_standard_twin": 1,
+        "links": 9
+      },
+      "work_counters": [
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 7848,
+          "work": {
+            "output_bytes": 26790
+          }
+        },
+        "x64musl": {
+          "allocations": 7848,
+          "work": {
+            "output_bytes": 26790
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4_standard_twin"
       ]
     }
   ]
