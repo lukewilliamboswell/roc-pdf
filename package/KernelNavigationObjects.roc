@@ -119,6 +119,17 @@ KernelNavigationObjects :: [].{
 		quad_numbers : U64,
 	}
 
+	## The three names a byte-keyed balanced tree node uses.
+	TreeNames : { kids : KernelObject.NameId, limits : KernelObject.NameId, names : KernelObject.NameId }
+
+	## Lower a validated balanced byte-keyed tree (the named-destination name
+	## tree or the structure IDTree) onto its planned node objects in
+	## breadth-first order: intermediate nodes carry `/Kids` then `/Limits`,
+	## leaves `/Limits` then `/Names`, and a single root carries neither
+	## limits nor kids.
+	emit_name_tree : KernelObject.Builder, TreeNames, KernelIndex.ByteTree, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder }, Error)
+	emit_name_tree = |builder, names, tree, planned| emit_byte_tree(builder, names, tree, planned)
+
 	## Plan navigation object identities after `base_count` existing objects.
 	plan : U64, KernelNavigation.Store -> Try(Objects, Error)
 	plan = |base_count, store| plan_objects(base_count, store)
@@ -530,11 +541,11 @@ add_name_tree = |builder, names, store, resolved, objects, context| {
 			NameTree,
 			KernelIndex.Limits.make({ max_entries: store.destinations.len(), max_key_bytes: store.name_bytes.len(), value_count: counts.values }),
 		) ? Index
-		emit_byte_tree($builder, names, tree, objects.name_nodes)
+		emit_byte_tree($builder, { kids: names.kids, limits: names.limits, names: names.names }, tree, objects.name_nodes)
 	}
 }
 
-emit_byte_tree : KernelObject.Builder, KernelNavigationObjects.Names, KernelIndex.ByteTree, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder }, KernelNavigationObjects.Error)
+emit_byte_tree : KernelObject.Builder, KernelNavigationObjects.TreeNames, KernelIndex.ByteTree, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder }, KernelNavigationObjects.Error)
 emit_byte_tree = |builder, names, tree, planned| {
 	var $builder = builder
 	var $global = 0

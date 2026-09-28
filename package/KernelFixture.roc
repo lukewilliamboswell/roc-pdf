@@ -30,6 +30,31 @@ KernelFixture :: [].{
 
 	contextual_tagged_plan : U64 -> Try(KernelTagged.Plan, Error)
 	contextual_tagged_plan = |content_streams| build_tagged_plan(contextual_semantics, content_streams)
+
+	## The same one-paragraph store with lowerable node facts: the paragraph
+	## owns element identifier `para-1` and a nested `fr` language under an
+	## `en-AU` Document.
+	identified_tagged_plan : U64 -> Try(KernelTagged.Plan, Error)
+	identified_tagged_plan = |content_streams| build_tagged_plan(identified_semantics, content_streams)
+}
+
+identified_semantics : Semantics.Store
+identified_semantics = {
+	root = { ..test_node(0), language: Language("en-AU") }
+	paragraph = { ..test_node(1), element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(0)), language: Language("fr") }
+	{
+		..test_semantics,
+		element_identifiers: [{ id: Semantics.ElementId.from_index(0), value: "para-1" }],
+		nodes: [root, paragraph],
+	}
+}
+
+test_node : U64 -> Semantics.Node
+test_node = |index| match test_semantics.nodes.get(index) {
+	Ok(node) => node
+	Err(OutOfBounds) => {
+		crash "kernel fixture node index escaped"
+	}
 }
 
 test_semantics : Semantics.Store

@@ -1,3 +1,4 @@
+import KernelIndex
 import KernelObjectPlan
 import KernelPipelineFixture
 import KernelMetadata
@@ -13,6 +14,9 @@ KernelTaggedObjects :: [].{
 	## object identities is a structured rejection, never a silent drop.
 	Error : [
 		AnnotationObjectUnplanned({ annotation : U64 }),
+		IdTree(KernelNavigationObjects.Error),
+		IdTreeIndex(KernelIndex.Error),
+		IdTreeUnplanned({ identifiers : U64, planned : U64 }),
 		InvalidFigureAlternative({ node : U64 }),
 		Object(KernelObject.Error),
 		ObjectOrder({ actual : KernelObject.ObjectId, expected : KernelObject.ObjectId }),
@@ -20,8 +24,11 @@ KernelTaggedObjects :: [].{
 
 	Work : {
 		annotation_entries : U64,
+		attribute_dictionaries : U64,
 		contextual_artifacts : U64,
+		id_tree_entries : U64,
 		k_items : U64,
+		language_entries : U64,
 		namespaces : U64,
 		parent_entries : U64,
 		parent_rows : U64,
@@ -130,12 +137,17 @@ build_plan = |tagged, objects, facts, navigation, limits| {
 			}
 		}
 	}
+	catalog_language = match prepared.input {
+		NoCatalogInput => NoCatalogLanguage
+		CatalogInput(input) => CatalogLanguage(input.facts.language)
+	}
 	with_catalog = add_catalog(lowering.builder, added_names.names, prepared.input, lowering.value, objects)?
 	with_root = add_structure_root(with_catalog, added_names.names, tagged, lowering.value, objects)?
 	with_parent_tree = add_parent_tree(with_root, added_names.names, tagged, lowering.value, objects)?
 	with_namespaces = add_namespaces(with_parent_tree, added_names.names, semantics, objects)?
-	with_structure = add_structure_elements(with_namespaces, added_names.names, tagged, lowering.value, objects)?
-	with_artifacts = add_contextual_artifacts(with_structure, added_names.names, semantics, objects)?
+	with_structure = add_structure_elements(with_namespaces, added_names.names, tagged, lowering.value, objects, catalog_language)?
+	with_contextual = add_contextual_artifacts(with_structure.builder, added_names.names, semantics, objects)?
+	with_artifacts = add_id_tree(with_contextual, semantics, objects)?
 	annotation_entries = match lowering.value {
 		NoNavigationLowering => 0
 		WithNavigationLowering(input) => input.ordered_annotations.len()
@@ -149,8 +161,11 @@ build_plan = |tagged, objects, facts, navigation, limits| {
 			},
 			work: {
 				annotation_entries,
+				attribute_dictionaries: with_structure.attribute_dictionaries,
 				contextual_artifacts: semantics.contextual_artifacts.len(),
+				id_tree_entries: semantics.element_identifiers.len(),
 				k_items: KernelTagged.Plan.k_items(tagged).len(),
+				language_entries: with_structure.language_entries,
 				namespaces: semantics.namespaces.len(),
 				parent_entries: KernelTagged.Plan.parent_entries(tagged).len(),
 				parent_rows: KernelTagged.Plan.parent_rows(tagged).len(),
@@ -219,6 +234,7 @@ add_names = |builder| {
 ## without facts keep their exact name table and identity digest.
 FactNames := {
 	dest_output_profile : KernelObject.NameId,
+	display_doc_title : KernelObject.NameId,
 	gts_pdfa1 : KernelObject.NameId,
 	lang : KernelObject.NameId,
 	metadata : KernelObject.NameId,
@@ -226,7 +242,10 @@ FactNames := {
 	output_intent : KernelObject.NameId,
 	output_intents : KernelObject.NameId,
 	registry_name : KernelObject.NameId,
+	viewer_preferences : KernelObject.NameId,
 }
+
+CatalogLanguage : [CatalogLanguage(Str), NoCatalogLanguage]
 
 CatalogInputFacts : [CatalogInput({ facts : KernelMetadata.CatalogInput, names : FactNames }), NoCatalogInput]
 
@@ -240,10 +259,13 @@ add_fact_names = |builder| {
 	output_intent = KernelObject.add_name(output_condition_identifier.builder, Str.to_utf8("OutputIntent")) ? Object
 	output_intents = KernelObject.add_name(output_intent.builder, Str.to_utf8("OutputIntents")) ? Object
 	registry_name = KernelObject.add_name(output_intents.builder, Str.to_utf8("RegistryName")) ? Object
+	display_doc_title = KernelObject.add_name(registry_name.builder, Str.to_utf8("DisplayDocTitle")) ? Object
+	viewer_preferences = KernelObject.add_name(display_doc_title.builder, Str.to_utf8("ViewerPreferences")) ? Object
 	Ok({
-		builder: registry_name.builder,
+		builder: viewer_preferences.builder,
 		names: {
 			dest_output_profile: dest_output_profile.id,
+			display_doc_title: display_doc_title.id,
 			gts_pdfa1: gts_pdfa1.id,
 			lang: lang.id,
 			metadata: metadata.id,
@@ -251,6 +273,7 @@ add_fact_names = |builder| {
 			output_intent: output_intent.id,
 			output_intents: output_intents.id,
 			registry_name: registry_name.id,
+			viewer_preferences: viewer_preferences.id,
 		},
 	})
 }
@@ -270,7 +293,12 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 			metadata_reference = KernelObject.add_reference(lang_value.builder, facts.metadata_stream) ? Object
 			intent = add_output_intent(metadata_reference.builder, names, fact_names, facts)?
 			intents = KernelObject.add_array(intent.builder, [intent.id]) ? Object
-			{ builder: intents.builder, values: WithMetadataValues({ fact_names, intents: intents.id, lang: lang_value.id, metadata: metadata_reference.id }) }
+
+			## PDF/UA-2 8.11.2: a document with a validated metadata title asks
+			## readers to display that title rather than the file name.
+			display_title = KernelObject.add_boolean(intents.builder, True) ? Object
+			viewer = KernelObject.add_dictionary(display_title.builder, [{ key: fact_names.display_doc_title, value: display_title.id }]) ? Object
+			{ builder: viewer.builder, values: WithMetadataValues({ fact_names, intents: intents.id, lang: lang_value.id, metadata: metadata_reference.id, viewer: viewer.id }) }
 		}
 	}
 	navigation_values = match navigation {
@@ -350,6 +378,12 @@ add_catalog = |builder, names, catalog_input, navigation, objects| {
 	$entries = $entries.append({ key: names.pages, value: pages.id })
 	$entries = $entries.append({ key: names.struct_tree_root, value: structure.id })
 	$entries = $entries.append({ key: names.type_name, value: type_value.id })
+	match metadata_values.values {
+		NoMetadataValues => {}
+		WithMetadataValues(values) => {
+			$entries = $entries.append({ key: values.fact_names.viewer_preferences, value: values.viewer })
+		}
+	}
 	dictionary = KernelObject.add_dictionary(navigation_values.builder, $entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, KernelObjectPlan.Plan.catalog(objects))?
@@ -396,16 +430,26 @@ add_structure_root = |builder, names, tagged, navigation, objects| {
 	}
 	next_key = KernelObject.add_integer(parent_tree.builder, (KernelTagged.Plan.parent_rows(tagged).len() + annotation_keys).to_i64_wrap()) ? Object
 	type_value = add_name_value(next_key.builder, names.struct_tree_root)?
-	dictionary = KernelObject.add_dictionary(
-		type_value.builder,
-		[
-			{ key: names.k, value: k.id },
-			{ key: names.namespaces, value: namespaces.id },
-			{ key: names.parent_tree, value: parent_tree.id },
-			{ key: names.parent_tree_next_key, value: next_key.id },
-			{ key: names.type_name, value: type_value.id },
-		],
-	) ? Object
+	base_entries = [
+		{ key: names.k, value: k.id },
+		{ key: names.namespaces, value: namespaces.id },
+		{ key: names.parent_tree, value: parent_tree.id },
+		{ key: names.parent_tree_next_key, value: next_key.id },
+		{ key: names.type_name, value: type_value.id },
+	]
+	entries = match KernelObjectPlan.Plan.id_tree(objects).first() {
+		Err(ListWasEmpty) => { builder: type_value.builder, entries: base_entries }
+		Ok(id_tree_root) => {
+
+			## ISO 32000-2 14.7.2 Table 354: the IDTree maps every element
+			## identifier to its structure element; its root is the first
+			## planned IDTree node object.
+			id_tree_name = KernelObject.add_name(type_value.builder, Str.to_utf8("IDTree")) ? Object
+			root_reference = KernelObject.add_reference(id_tree_name.builder, id_tree_root) ? Object
+			{ builder: root_reference.builder, entries: [{ key: id_tree_name.id, value: root_reference.id }].concat(base_entries) }
+		}
+	}
+	dictionary = KernelObject.add_dictionary(entries.builder, entries.entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, KernelObjectPlan.Plan.struct_tree_root(objects))?
 	Ok(object.builder)
@@ -517,34 +561,43 @@ add_namespace = |builder, names, namespace, expected| {
 	Ok(object.builder)
 }
 
-add_structure_elements : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
-add_structure_elements = |builder, names, tagged, navigation, objects| {
+add_structure_elements : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan, CatalogLanguage -> Try({ attribute_dictionaries : U64, builder : KernelObject.Builder, language_entries : U64 }, KernelTaggedObjects.Error)
+add_structure_elements = |builder, names, tagged, navigation, objects, catalog_language| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	nodes_by_structure = index_nodes_by_structure(semantics.nodes)
 	ids = KernelObjectPlan.Plan.structure_elements(objects)
 	var $builder = builder
+	var $attribute_dictionaries = 0
+	var $language_entries = 0
 	var $structure_index = 0
 	var $error = NoError
 	while $structure_index < ids.len() and $error == NoError {
 		node = list_at(semantics.nodes, list_at(nodes_by_structure, $structure_index).index())
-		match add_structure_element($builder, names, tagged, navigation, objects, node, list_at(ids, $structure_index)) {
+		match add_structure_element($builder, names, tagged, navigation, objects, catalog_language, node, list_at(ids, $structure_index)) {
 			Err(error) => {
 				$error = Invalid(error)
 			}
 			Ok(next) => {
-				$builder = next
+				$builder = next.builder
+				$attribute_dictionaries = $attribute_dictionaries + next.attribute_dictionaries
+				$language_entries = $language_entries + next.language_entries
 			}
 		}
 		$structure_index = $structure_index + 1
 	}
 	match $error {
 		Invalid(error) => Err(error)
-		NoError => Ok($builder)
+		NoError => Ok({ attribute_dictionaries: $attribute_dictionaries, builder: $builder, language_entries: $language_entries })
 	}
 }
 
-add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan, Semantics.Node, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
-add_structure_element = |builder, names, tagged, navigation, objects, node, expected| {
+## One structure element dictionary. Its optional entries come only from
+## validated node facts: `/A` from typed Table and List attributes, `/ActualText`,
+## `/Alt`, and `/E` from node text properties, `/ID` from the element
+## identifier, and `/Lang` where the node's explicit language differs from the
+## language it inherits. Entries are emitted in canonical key order.
+add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan, CatalogLanguage, Semantics.Node, KernelObject.ObjectId -> Try({ attribute_dictionaries : U64, builder : KernelObject.Builder, language_entries : U64 }, KernelTaggedObjects.Error)
+add_structure_element = |builder, names, tagged, navigation, objects, catalog_language, node, expected| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	node_k = list_at(KernelTagged.Plan.node_k(tagged), node.id.index())
 	k_values = add_k_items(builder, names, KernelTagged.Plan.k_items(tagged), node_k.items, navigation, objects)?
@@ -577,25 +630,345 @@ add_structure_element = |builder, names, tagged, navigation, objects, node, expe
 			{ key: names.type_name, value: type_value.id },
 		]
 	}
-	with_alternative = if node.role.local_name == "Figure" {
-		if node.text_properties.length() != 1 or node.text_properties.start() >= semantics.text_properties.len() {
-			return Err(InvalidFigureAlternative({ node: node.id.index() }))
-		}
-		alternative = match list_at(semantics.text_properties, node.text_properties.start()) {
-			AlternativeText(value) => value
-			_ => return Err(InvalidFigureAlternative({ node: node.id.index() }))
-		}
-		alt_name = KernelObject.add_name(type_value.builder, Str.to_utf8("Alt")) ? Object
-		alt_text = KernelObject.add_text_string(alt_name.builder, alternative) ? Object
-		alt_value = KernelObject.add_text_string_value(alt_text.builder, alt_text.id) ? Object
-		{ builder: alt_value.builder, entries: [{ key: alt_name.id, value: alt_value.id }].concat(base_entries) }
-	} else {
-		{ builder: type_value.builder, entries: base_entries }
+	properties = node_properties(semantics, node)
+	if node.role.local_name == "Figure" and properties.alternative == NoProperty {
+		return Err(InvalidFigureAlternative({ node: node.id.index() }))
 	}
-	dictionary = KernelObject.add_dictionary(with_alternative.builder, with_alternative.entries) ? Object
+	lowered_language = lowered_node_language(semantics, catalog_language, node)
+	extras = node.attributes.length() != 0 or properties.actual != NoProperty or properties.alternative != NoProperty or properties.expansion != NoProperty or node.element_identifier != NoElementIdentifier or lowered_language != NoProperty
+	if !extras {
+		dictionary = KernelObject.add_dictionary(type_value.builder, base_entries) ? Object
+		object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
+		ensure_object(object.id, expected)?
+		return Ok({ attribute_dictionaries: 0, builder: object.builder, language_entries: 0 })
+	}
+	attributes = add_attribute_value(type_value.builder, semantics, node)?
+	actual = add_text_entry(attributes.builder, "ActualText", properties.actual)?
+	alternative = add_text_entry(actual.builder, "Alt", properties.alternative)?
+	expansion = add_text_entry(alternative.builder, "E", properties.expansion)?
+	identifier = match node.element_identifier {
+		NoElementIdentifier => { builder: expansion.builder, entry: NoEntry }
+		HasElementIdentifier(element) => {
+			id_name = KernelObject.add_name(expansion.builder, Str.to_utf8("ID")) ? Object
+			id_string = KernelObject.add_byte_string(id_name.builder, Str.to_utf8(list_at(semantics.element_identifiers, element.index()).value)) ? Object
+			id_value = KernelObject.add_byte_string_value(id_string.builder, id_string.id) ? Object
+			{ builder: id_value.builder, entry: WithEntry({ key: id_name.id, value: id_value.id }) }
+		}
+	}
+	language = add_text_entry(identifier.builder, "Lang", lowered_language)?
+	var $entries = List.with_capacity(base_entries.len() + 6)
+	$entries = append_entry($entries, attributes.entry)
+	$entries = append_entry($entries, actual.entry)
+	$entries = append_entry($entries, alternative.entry)
+	$entries = append_entry($entries, expansion.entry)
+	$entries = append_entry($entries, identifier.entry)
+	var $base = 0
+	while $base < base_entries.len() {
+		entry = list_at(base_entries, $base)
+
+		## `/Lang` sorts after `/K` and before `/NS`.
+		if KernelObject.NameId.index(entry.key) == KernelObject.NameId.index(names.ns) {
+			$entries = append_entry($entries, language.entry)
+		}
+		$entries = $entries.append(entry)
+		$base = $base + 1
+	}
+	dictionary = KernelObject.add_dictionary(language.builder, $entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, expected)?
-	Ok(object.builder)
+	Ok({
+		attribute_dictionaries: attributes.dictionaries,
+		builder: object.builder,
+		language_entries: if lowered_language == NoProperty 0 else 1,
+	})
+}
+
+OptionalProperty : [NoProperty, Property(Str)]
+
+OptionalEntry : [NoEntry, WithEntry({ key : KernelObject.NameId, value : KernelObject.ValueId })]
+
+append_entry : List({ key : KernelObject.NameId, value : KernelObject.ValueId }), OptionalEntry -> List({ key : KernelObject.NameId, value : KernelObject.ValueId })
+append_entry = |entries, entry| match entry {
+	NoEntry => entries
+	WithEntry(value) => entries.append(value)
+}
+
+## Validated node text properties hold at most one of each kind.
+node_properties : Semantics.Store, Semantics.Node -> { actual : OptionalProperty, alternative : OptionalProperty, expansion : OptionalProperty }
+node_properties = |semantics, node| {
+	var $actual = NoProperty
+	var $alternative = NoProperty
+	var $expansion = NoProperty
+	var $index = node.text_properties.start()
+	end = node.text_properties.start() + node.text_properties.length()
+	while $index < end and $index < semantics.text_properties.len() {
+		match list_at(semantics.text_properties, $index) {
+			ActualText(value) => {
+				$actual = Property(value)
+			}
+			AlternativeText(value) => {
+				$alternative = Property(value)
+			}
+			ExpandedText(value) => {
+				$expansion = Property(value)
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	{ actual: $actual, alternative: $alternative, expansion: $expansion }
+}
+
+## ISO 32000-2 14.9.2: a structure element's `/Lang` overrides the language
+## it inherits from its nearest ancestor with an explicit language, and the
+## Document element inherits the catalog `/Lang`. Only a differing explicit
+## language lowers. Without catalog facts the kernel path lowers no catalog
+## language, so the root's own language is the unexpressed default and only
+## descendants that differ from it lower `/Lang`.
+lowered_node_language : Semantics.Store, CatalogLanguage, Semantics.Node -> OptionalProperty
+lowered_node_language = |semantics, catalog, node| match node.language {
+	Inherited => NoProperty
+	Language(tag) => match node.parent {
+		DocumentRoot => match catalog {
+			CatalogLanguage(document) => if document == tag NoProperty else Property(tag)
+			NoCatalogLanguage => NoProperty
+		}
+		ParentNode(parent) => match inherited_language(semantics, catalog, parent.index()) {
+			Property(inherited) => if inherited == tag NoProperty else Property(tag)
+			NoProperty => Property(tag)
+		}
+	}
+}
+
+inherited_language : Semantics.Store, CatalogLanguage, U64 -> OptionalProperty
+inherited_language = |semantics, catalog, start| {
+	var $node = start
+	var $depth = 0
+	var $result = Unresolved
+	while $result == Unresolved {
+		current = list_at(semantics.nodes, $node)
+		match current.language {
+			Language(tag) => {
+				$result = Resolved(Property(tag))
+			}
+			Inherited => match current.parent {
+				DocumentRoot => {
+					$result = Resolved(
+						match catalog {
+							CatalogLanguage(document) => Property(document)
+							NoCatalogLanguage => NoProperty
+						},
+					)
+				}
+				ParentNode(parent) => {
+					$node = parent.index()
+				}
+			}
+		}
+		$depth = $depth + 1
+		if $depth > semantics.nodes.len() {
+			crash "validated structure ancestry escaped"
+		}
+	}
+	match $result {
+		Resolved(value) => value
+		Unresolved => NoProperty
+	}
+}
+
+add_text_entry : KernelObject.Builder, Str, OptionalProperty -> Try({ builder : KernelObject.Builder, entry : OptionalEntry }, KernelTaggedObjects.Error)
+add_text_entry = |builder, key, property| match property {
+	NoProperty => Ok({ builder, entry: NoEntry })
+	Property(value) => {
+		name = KernelObject.add_name(builder, Str.to_utf8(key)) ? Object
+		text = KernelObject.add_text_string(name.builder, value) ? Object
+		text_value = KernelObject.add_text_string_value(text.builder, text.id) ? Object
+		Ok({ builder: text_value.builder, entry: WithEntry({ key: name.id, value: text_value.id }) })
+	}
+}
+
+## `/A` lowers each attribute owner present on the node as one attribute
+## dictionary with its `/O` owner and entries in canonical key order
+## (ISO 32000-2 14.7.6); one owner is a direct dictionary, two are an array.
+add_attribute_value : KernelObject.Builder, Semantics.Store, Semantics.Node -> Try({ builder : KernelObject.Builder, dictionaries : U64, entry : OptionalEntry }, KernelTaggedObjects.Error)
+add_attribute_value = |builder, semantics, node| {
+	if node.attributes.length() == 0 {
+		return Ok({ builder, dictionaries: 0, entry: NoEntry })
+	}
+	list_dictionary = add_owner_dictionary(builder, semantics, node, ListOwner)?
+	table_dictionary = add_owner_dictionary(list_dictionary.builder, semantics, node, TableOwner)?
+	present = [list_dictionary.value, table_dictionary.value].keep_if(|value| value != NoValue)
+	a_name = KernelObject.add_name(table_dictionary.builder, Str.to_utf8("A")) ? Object
+	match present {
+		[WithValue(single)] => Ok({ builder: a_name.builder, dictionaries: 1, entry: WithEntry({ key: a_name.id, value: single }) })
+		_ => {
+			values = present.keep_oks(
+				|value| match value {
+					WithValue(id) => Ok(id)
+					NoValue => Err(NoValue)
+				},
+			)
+			array = KernelObject.add_array(a_name.builder, values) ? Object
+			Ok({ builder: array.builder, dictionaries: values.len(), entry: WithEntry({ key: a_name.id, value: array.id }) })
+		}
+	}
+}
+
+AttributeOwnerKind : [ListOwner, TableOwner]
+
+owner_matches : Semantics.AttributeOwner, AttributeOwnerKind -> Bool
+owner_matches = |owner, kind| match (owner, kind) {
+	(List, ListOwner) => True
+	(Table, TableOwner) => True
+	_ => False
+}
+
+## Canonical key order per owner: `ListNumbering`, `O` for List; `ColSpan`,
+## `Headers`, `O`, `RowSpan`, `Scope`, `Summary` for Table.
+owner_keys : AttributeOwnerKind -> List(Str)
+owner_keys = |kind| match kind {
+	ListOwner => ["ListNumbering", "O"]
+	TableOwner => ["ColSpan", "Headers", "O", "RowSpan", "Scope", "Summary"]
+}
+
+add_owner_dictionary : KernelObject.Builder, Semantics.Store, Semantics.Node, AttributeOwnerKind -> Try({ builder : KernelObject.Builder, value : [NoValue, WithValue(KernelObject.ValueId)] }, KernelTaggedObjects.Error)
+add_owner_dictionary = |builder, semantics, node, kind| {
+	start = node.attributes.start()
+	end = start + node.attributes.length()
+	var $present = False
+	var $index = start
+	while $index < end {
+		if owner_matches(list_at(semantics.attributes, $index).owner, kind) {
+			$present = True
+		}
+		$index = $index + 1
+	}
+	if !$present {
+		return Ok({ builder, value: NoValue })
+	}
+	keys = owner_keys(kind)
+	var $builder = builder
+	var $entries = List.with_capacity(keys.len())
+	var $key_index = 0
+	while $key_index < keys.len() {
+		key = list_at(keys, $key_index)
+		if key == "O" {
+			o_name = KernelObject.add_name($builder, Str.to_utf8("O")) ? Object
+			owner_name = KernelObject.add_name(o_name.builder, Str.to_utf8(if kind == ListOwner "List" else "Table")) ? Object
+			owner_value = KernelObject.add_name_value(owner_name.builder, owner_name.id) ? Object
+			$builder = owner_value.builder
+			$entries = $entries.append({ key: o_name.id, value: owner_value.id })
+		} else {
+			var $attribute = start
+			while $attribute < end {
+				attribute = list_at(semantics.attributes, $attribute)
+				named = match attribute.name {
+					Standard(value) => value == key
+					Namespaced(_) => False
+				}
+				if named and owner_matches(attribute.owner, kind) {
+					key_name = KernelObject.add_name($builder, Str.to_utf8(key)) ? Object
+					value = add_attribute_scalar(key_name.builder, attribute.value)?
+					$builder = value.builder
+					$entries = $entries.append({ key: key_name.id, value: value.id })
+				}
+				$attribute = $attribute + 1
+			}
+		}
+		$key_index = $key_index + 1
+	}
+	dictionary = KernelObject.add_dictionary($builder, $entries) ? Object
+	Ok({ builder: dictionary.builder, value: WithValue(dictionary.id) })
+}
+
+## Names lower as PDF names, identifier lists (`/Headers`) as arrays of byte
+## strings matching `/ID`, integers as integers, and text as text strings.
+add_attribute_scalar : KernelObject.Builder, Semantics.AttributeValue -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
+add_attribute_scalar = |builder, value| match value {
+	Name(name) => {
+		interned = KernelObject.add_name(builder, Str.to_utf8(name)) ? Object
+		added = KernelObject.add_name_value(interned.builder, interned.id) ? Object
+		Ok(added)
+	}
+	Names(identifiers) => {
+		var $builder = builder
+		var $values = List.with_capacity(identifiers.len())
+		var $index = 0
+		while $index < identifiers.len() {
+			string = KernelObject.add_byte_string($builder, Str.to_utf8(list_at(identifiers, $index))) ? Object
+			string_value = KernelObject.add_byte_string_value(string.builder, string.id) ? Object
+			$builder = string_value.builder
+			$values = $values.append(string_value.id)
+			$index = $index + 1
+		}
+		array = KernelObject.add_array($builder, $values) ? Object
+		Ok(array)
+	}
+	Integer(number) => {
+		added = KernelObject.add_integer(builder, number) ? Object
+		Ok(added)
+	}
+	Text(text) => {
+		string = KernelObject.add_text_string(builder, text) ? Object
+		added = KernelObject.add_text_string_value(string.builder, string.id) ? Object
+		Ok(added)
+	}
+}
+
+## The IDTree lowers after contextual Artifact elements onto its planned
+## node objects: entries in the store's validated ascending identifier order,
+## each mapping the identifier bytes to its owning structure element.
+add_id_tree : KernelObject.Builder, Semantics.Store, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
+add_id_tree = |builder, semantics, objects| {
+	planned = KernelObjectPlan.Plan.id_tree(objects)
+	identifiers = semantics.element_identifiers
+	if identifiers.is_empty() {
+		if !planned.is_empty() {
+			return Err(IdTreeUnplanned({ identifiers: 0, planned: planned.len() }))
+		}
+		return Ok(builder)
+	}
+	if planned.is_empty() {
+		return Err(IdTreeUnplanned({ identifiers: identifiers.len(), planned: 0 }))
+	}
+	structure = KernelObjectPlan.Plan.structure_elements(objects)
+	var $owners = List.repeat(0, identifiers.len())
+	var $node_index = 0
+	while $node_index < semantics.nodes.len() {
+		node = list_at(semantics.nodes, $node_index)
+		match node.element_identifier {
+			NoElementIdentifier => {}
+			HasElementIdentifier(element) => {
+				$owners = list_set($owners, element.index(), node.structure_element.index())
+			}
+		}
+		$node_index = $node_index + 1
+	}
+	var $builder = builder
+	var $entries = List.with_capacity(identifiers.len())
+	var $key_bytes = 0
+	var $index = 0
+	while $index < identifiers.len() {
+		key = Str.to_utf8(list_at(identifiers, $index).value)
+		reference = KernelObject.add_reference($builder, list_at(structure, list_at($owners, $index))) ? Object
+		$builder = reference.builder
+		$entries = $entries.append(KernelIndex.ByteEntry.make(key, reference.id))
+		$key_bytes = U64.max($key_bytes, key.len())
+		$index = $index + 1
+	}
+	tree = KernelIndex.ByteTree.build(
+		$entries,
+		IDTree,
+		KernelIndex.Limits.make({ max_entries: identifiers.len(), max_key_bytes: $key_bytes, value_count: KernelObject.counts($builder).values }),
+	) ? IdTreeIndex
+	if KernelIndex.ByteTree.node_count(tree) != planned.len() {
+		return Err(IdTreeUnplanned({ identifiers: identifiers.len(), planned: planned.len() }))
+	}
+	kids = KernelObject.add_name($builder, Str.to_utf8("Kids")) ? Object
+	limits = KernelObject.add_name(kids.builder, Str.to_utf8("Limits")) ? Object
+	tree_names = KernelObject.add_name(limits.builder, Str.to_utf8("Names")) ? Object
+	emitted = KernelNavigationObjects.emit_name_tree(tree_names.builder, { kids: kids.id, limits: limits.id, names: tree_names.id }, tree, planned) ? IdTree
+	Ok(emitted.builder)
 }
 
 add_k_items : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelTaggedObjects.Error)
@@ -833,7 +1206,7 @@ expect {
 	plan = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
 	counts = KernelObject.counts(KernelTaggedObjects.Plan.builder(plan))
 	first_page_tree = list_at(KernelObjectPlan.Plan.page_tree(pipeline.objects), 0)
-	counts.objects + 1 == KernelObject.ObjectId.number(first_page_tree) and KernelTaggedObjects.Plan.work(plan) == { annotation_entries: 0, contextual_artifacts: 0, k_items: 2, namespaces: 1, parent_entries: 1, parent_rows: 1, structure_elements: 2 }
+	counts.objects + 1 == KernelObject.ObjectId.number(first_page_tree) and KernelTaggedObjects.Plan.work(plan) == { annotation_entries: 0, attribute_dictionaries: 0, contextual_artifacts: 0, id_tree_entries: 0, k_items: 2, language_entries: 0, namespaces: 1, parent_entries: 1, parent_rows: 1, structure_elements: 2 }
 }
 
 ## Contextual Artifact structure elements remain distinct planned objects.

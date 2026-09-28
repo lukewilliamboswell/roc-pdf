@@ -38,6 +38,7 @@ KernelObjectPlan :: [].{
 	Work : {
 		color_space_objects : U64,
 		contextual_artifact_objects : U64,
+		id_tree_objects : U64,
 		image_objects : U64,
 		namespace_objects : U64,
 		object_identities : U64,
@@ -52,6 +53,8 @@ KernelObjectPlan :: [].{
 		catalog : KernelObject.ObjectId,
 		color_spaces : List(KernelObject.ObjectId),
 		contextual_artifacts : List(KernelObject.ObjectId),
+		id_tree : List(KernelObject.ObjectId),
+		id_tree_shape : [IdTreeShape(KernelBalanced.Shape), NoIdTree],
 		images : List(ImageObjects),
 		namespaces : List(KernelObject.ObjectId),
 		pages : List(PageObjects),
@@ -85,6 +88,15 @@ KernelObjectPlan :: [].{
 
 		contextual_artifacts : Plan -> List(KernelObject.ObjectId)
 		contextual_artifacts = |plan| plan.contextual_artifacts
+
+		## Structure-tree IDTree node objects in breadth-first order, planned
+		## after contextual Artifact elements only when element identifiers
+		## exist; a store without identifiers keeps every later identity.
+		id_tree : Plan -> List(KernelObject.ObjectId)
+		id_tree = |plan| plan.id_tree
+
+		id_tree_shape : Plan -> [IdTreeShape(KernelBalanced.Shape), NoIdTree]
+		id_tree_shape = |plan| plan.id_tree_shape
 
 		images : Plan -> List(ImageObjects)
 		images = |plan| plan.images
@@ -127,6 +139,7 @@ KernelObjectPlan :: [].{
 ObjectCounts := {
 	color_spaces : U64,
 	contextual_artifacts : U64,
+	element_identifiers : U64,
 	image_alpha : List(Bool),
 	namespaces : U64,
 	pages : U64,
@@ -154,6 +167,7 @@ build_plan = |tagged, colors, images, resource_use, content, limits| {
 			{
 				color_spaces: color_count,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
+				element_identifiers: semantic_store.element_identifiers.len(),
 				image_alpha: alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -185,6 +199,7 @@ build_text_plan = |tagged, colors, images, resource_use, content, limits| {
 			{
 				color_spaces: color_count,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
+				element_identifiers: semantic_store.element_identifiers.len(),
 				image_alpha: alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -215,6 +230,7 @@ build_canonical_plan = |tagged, colors, images, resource_use, content, leaves, l
 			{
 				color_spaces: leaves.color_spaces,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
+				element_identifiers: semantic_store.element_identifiers.len(),
 				image_alpha: leaves.image_alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -254,9 +270,18 @@ build_counts = |counts, limits| {
 	} else {
 		shape = KernelBalanced.Shape.build(counts.pages, limits.max_pages) ? Shape
 		page_tree_count = KernelBalanced.Shape.node_count(shape)
+		id_tree_shape = if counts.element_identifiers == 0 {
+			NoIdTree
+		} else {
+			IdTreeShape(KernelBalanced.Shape.build(counts.element_identifiers, counts.element_identifiers) ? Shape)
+		}
+		id_tree_count = match id_tree_shape {
+			NoIdTree => 0
+			IdTreeShape(tree) => KernelBalanced.Shape.node_count(tree)
+		}
 		alpha_count = count_true(counts.image_alpha)
 		fixed_count = checked_add(3, counts.namespaces)?
-		structure_end = checked_add(checked_add(fixed_count, counts.structure_elements)?, counts.contextual_artifacts)?
+		structure_end = checked_add(checked_add(checked_add(fixed_count, counts.structure_elements)?, counts.contextual_artifacts)?, id_tree_count)?
 		page_tree_end = checked_add(structure_end, page_tree_count)?
 		page_object_count = checked_times(counts.pages, 3)?
 		pages_end = checked_add(page_tree_end, page_object_count)?
@@ -278,7 +303,9 @@ build_counts = |counts, limits| {
 			structure_elements = object_ids(structure_start, counts.structure_elements)
 			contextual_start = checked_add(structure_start, counts.structure_elements)?
 			contextual_artifacts = object_ids(contextual_start, counts.contextual_artifacts)
-			page_tree_start = checked_add(contextual_start, counts.contextual_artifacts)?
+			id_tree_start = checked_add(contextual_start, counts.contextual_artifacts)?
+			id_tree = object_ids(id_tree_start, id_tree_count)
+			page_tree_start = checked_add(id_tree_start, id_tree_count)?
 			page_tree = object_ids(page_tree_start, page_tree_count)
 			pages_start = checked_add(page_tree_start, page_tree_count)?
 			pages = page_rows(pages_start, counts.pages)
@@ -294,6 +321,8 @@ build_counts = |counts, limits| {
 					catalog,
 					color_spaces,
 					contextual_artifacts,
+					id_tree,
+					id_tree_shape,
 					images,
 					namespaces,
 					pages,
@@ -306,6 +335,7 @@ build_counts = |counts, limits| {
 					work: {
 						color_space_objects: counts.color_spaces,
 						contextual_artifact_objects: counts.contextual_artifacts,
+						id_tree_objects: id_tree_count,
 						image_objects: base_image_objects,
 						namespace_objects: counts.namespaces,
 						object_identities: object_count,
@@ -423,7 +453,7 @@ list_at = |items, index| match items.get(index) {
 ## Object families receive stable contiguous identities, including alpha masks.
 expect {
 	plan = build_counts(
-		{ color_spaces: 1, contextual_artifacts: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
+		{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
 		KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }),
 	)?
 	first_page = list_at(plan.pages, 0)
@@ -456,7 +486,7 @@ expect {
 ## Object work separates stored objects from the generated xref object.
 expect {
 	plan = build_counts(
-		{ color_spaces: 1, contextual_artifacts: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
+		{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
 		KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }),
 	)?
 	work = KernelObjectPlan.Plan.work(plan)
@@ -465,7 +495,7 @@ expect {
 
 ## Object limits reject the whole plan before any builder mutation.
 expect match build_counts(
-	{ color_spaces: 1, contextual_artifacts: 1, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
+	{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
 	KernelObjectPlan.Limits.make({ max_objects: 19, max_pages: 1 }),
 ) {
 	Err(LimitExceeded({ attempted: 20, dimension: Objects, limit: 19 })) => True
@@ -474,9 +504,21 @@ expect match build_counts(
 
 ## A PDF object plan cannot omit the page-tree root.
 expect match build_counts(
-	{ color_spaces: 0, contextual_artifacts: 0, image_alpha: [], namespaces: 1, pages: 0, profiles: 0, structure_elements: 1 },
+	{ color_spaces: 0, contextual_artifacts: 0, element_identifiers: 0, image_alpha: [], namespaces: 1, pages: 0, profiles: 0, structure_elements: 1 },
 	KernelObjectPlan.Limits.make({ max_objects: 8, max_pages: 1 }),
 ) {
 	Err(PageCountZero) => True
 	_ => False
+}
+
+## IDTree nodes follow contextual Artifact elements and precede the page
+## tree only when element identifiers exist: 33 identifiers need a root and
+## two leaves at the fixed fanout of 32.
+expect {
+	plan = build_counts(
+		{ color_spaces: 0, contextual_artifacts: 1, element_identifiers: 33, image_alpha: [], namespaces: 1, pages: 1, profiles: 0, structure_elements: 2 },
+		KernelObjectPlan.Limits.make({ max_objects: 20, max_pages: 1 }),
+	)?
+	numbers = plan.id_tree.map(|id| KernelObject.ObjectId.number(id))
+	numbers == [8, 9, 10] and KernelObject.ObjectId.number(list_at(plan.page_tree, 0)) == 11 and KernelObjectPlan.Plan.work(plan).id_tree_objects == 3
 }
