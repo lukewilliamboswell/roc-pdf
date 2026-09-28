@@ -142,21 +142,25 @@ KernelDeflate :: [].{
 	to_bytes = |plan| {
 		var $encoder = Encoder.start(plan)
 		var $bytes = []
-		var $work = Encoder.work($encoder)
-		var $done = False
-		while $done == False {
-			match Encoder.next($encoder)? {
-				Done(work) => {
-					$work = work
-					$done = True
+		while Bool.True {
+
+			## `Done` returns rather than setting a flag, so no arm keeps the
+			## old encoder live across `Encoder.next`
+			## (docs/performance/emission-linearity.md).
+			match Encoder.next($encoder) {
+				Err(error) => {
+					return Err(error)
 				}
-				Emit(chunk, next) => {
+				Ok(Done(work)) => {
+					return Ok({ bytes: $bytes, work })
+				}
+				Ok(Emit(chunk, next)) => {
 					$bytes = append_all($bytes, chunk)
 					$encoder = next
 				}
 			}
 		}
-		Ok({ bytes: $bytes, work: $work })
+		Ok({ bytes: $bytes, work: Encoder.work($encoder) })
 	}
 }
 
