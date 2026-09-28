@@ -1385,6 +1385,19 @@ byte_at = |bytes, index| match bytes.get(index) {
 	}
 }
 
+## Appends a test payload element-wise; `List.concat` would size the arena
+## exactly on every resource.
+append_payload : List(U8), List(U8) -> List(U8)
+append_payload = |target, source| {
+	var $out = target
+	var $index = 0
+	while $index < source.len() {
+		$out = $out.append(list_at(source, $index))
+		$index = $index + 1
+	}
+	$out
+}
+
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
 	Ok(value) => value
@@ -1440,7 +1453,7 @@ test_input = |resources, edges, root_count, root_uses, placements, digest_policy
 	while $index < resources.len() {
 		resource = list_at(resources, $index)
 		start = $bytes.len()
-		$bytes = $bytes.concat(resource.payload)
+		$bytes = append_payload($bytes, resource.payload)
 		$sources = $sources.append({ descriptor: resource.descriptor, length: resource.payload.len(), start: start })
 		$index = $index + 1
 	}
