@@ -34,11 +34,15 @@ text coverage, layout policies, and release evidence. General publishing
 features such as floats, footnotes, indexes, and advanced writing modes are
 separate expansions rather than prerequisites for this release.
 
-Product readiness requires usable authoring, predictable layout, actionable
-diagnostics, conformance evidence, demonstrated reader and assistive-technology
-behavior, and measured performance on those documents. Internal compiler
-support alone does not establish public availability or release readiness.
-Exact allocation and work evidence remains required alongside these outcomes.
+Correctness comes first. Product readiness requires usable authoring,
+predictable layout, actionable diagnostics, and conformance evidence on those
+documents. Internal compiler support alone does not establish public
+availability or release readiness. Exact allocation and deterministic work
+evidence remains required alongside these outcomes; its purpose is to catch
+super-linear or exponential blow-ups that would make the package unusable, and
+there are no numeric latency, memory, or throughput product targets. Reader and
+assistive-technology behavior evidence is recorded where reviewed but is
+optional.
 
 This document owns enduring contracts. Versioned representation and repository
 harness details live in [implementation contracts](docs/implementation-contracts.md),
@@ -336,8 +340,8 @@ that avoid unnecessary intermediate lists. Exact size hints are preserved when
 available.
 
 Hot byte, glyph, path, pixel, scene-command, and object loops use direct indexed
-or `while` loops over dense buffers unless optimized-code and benchmark evidence
-shows an `Iter` path has equivalent allocation, ARC, and dispatch behavior.
+or `while` loops over dense buffers unless optimized-code evidence shows an
+`Iter` path has equivalent allocation, ARC, and dispatch behavior.
 The architecture does not use `Iter(U8)`, does not rely on deep
 adapter/`concat` chains, and does not assume unknown-length reverse/tail
 operations remain streaming. `Iter` values are not stored in `Document`,
@@ -1419,6 +1423,10 @@ Five claims are tested independently:
 4. The file satisfies each declared PDF/A-4, PDF/UA-2, or WTPDF profile.
 5. Human users can navigate and understand the authored semantics.
 
+The first four claims are mandatory machine-checked evidence. The fifth is
+recorded through optional human review where performed; it never substitutes
+for, or blocks, the mechanical claims.
+
 No tool is the specification or the sole oracle. Python invokes a compiled Roc
 scenario application and then runs layered checks against the original,
 unmodified bytes:
@@ -1440,7 +1448,7 @@ PDF bytes + normalized generation report
           +-- explicit veraPDF profile validation
           +-- normalized semantic-spine inspection
           +-- normalized occurrence-to-fragment inspection
-          `-- human accessibility protocol where required
+          `-- optional human accessibility review
 ```
 
 Tools do not rewrite or repair a file before it is checked. Parser recovery and
@@ -1467,17 +1475,19 @@ not leak into the common path accidentally.
 Every feature fixture has a small semantic source, selected capabilities,
 expected generation result, normalized content spine, occurrence-to-fragment
 map, lowered structure order, text and reading order, visual assertions,
-validator expectations, human checks where applicable, asset provenance, and
+validator expectations, optional human checks, asset provenance, and
 an atomic negative twin. Validation failure is transactional and produces no
 partial PDF.
 
 Reference business documents additionally exercise only supported public
 authoring surfaces and are reviewed as complete documents. Their acceptance
 includes ordinary and adverse content variation, typography and pagination,
-diagnostic usefulness, reader interaction, assistive-technology tasks, and
-product performance targets. They complement atomic feature evidence rather
-than replace it. Early exploratory reader/AT findings inform contracts before
-closure; release review still requires the full pinned protocol. A separately
+diagnostic usefulness, and scale cases whose work counters show no super-linear
+growth. Reader interaction and assistive-technology tasks are optional human
+review. They complement atomic feature evidence rather than replace it.
+Exploratory reader/AT findings may inform contracts; the release protocol
+records human-verifiable obligations, and performing that review is optional.
+A separately
 authored extension fixture must exercise the bounded custom-block contract
 before that integration surface is declared stable.
 
@@ -1500,8 +1510,10 @@ retained with asset provenance and promoted to ordinary regression tests. This
 lane complements rather than replaces typed construct generation and atomic
 hand-authored negative twins.
 
-Performance evidence uses the pinned Roc dev backend and combines controlled
-timing and peak-RSS jobs with deterministic operation counters. Every focused
+Performance evidence uses the pinned Roc dev backend and combines exact
+allocation counts with deterministic operation counters. Its purpose is to
+catch super-linear or exponential blow-ups and unreviewed representation
+changes, not to meet numeric speed or memory targets. Every focused
 test case records the exact number of Roc allocations after resetting the
 allocator counter at its declared Roc measurement boundary. Whole-pipeline
 cases reset before authoring construction; phase cases reset immediately before
@@ -1517,34 +1529,32 @@ A pinned Roc compiler or target upgrade uses an explicit bulk re-baseline
 procedure rather than treating every changed count as an implementation
 regression. The old and proposed toolchains run the full allocation suite on
 the same controlled host and inputs; all outliers and a representative sample
-from every subsystem are investigated alongside deterministic work, copied-
-byte, ARC, timing, and retained-memory evidence. The review records the
+from every subsystem are investigated alongside deterministic work evidence
+and any copied-byte, ARC, timing, or retained-memory figures that existing
+instrumentation reports. The review records the
 toolchain change as the shared cause, separates any feature-caused deltas, and
 updates `.roc-version`, compiler metadata, and allocation baselines atomically.
 Unexplained outliers or changed algorithmic counters block the upgrade.
 
 Allocation count is a design signal, not the sole performance oracle. Each
-phase also records input/output counts, node and edge visits, allocated bytes,
-bytes copied, live/retained bytes, ARC operations where instrumentation exists,
-cache entries/hits, layout passes, resource hashes and collision-equality work,
-time to sealed plan, time to first chunk, and total output. Ordinary tests
-assert declared linear, `O(n log n)`, or pass-multiplied-linear bounds through
-operation counts rather than fragile wall-clock thresholds. Slice-output tests
+phase also records deterministic work such as input/output counts, node and
+edge visits, cache entries/hits, layout passes, resource hashes and
+collision-equality work, and total output. Allocated bytes, bytes copied,
+live/retained bytes, ARC operations, and timing are recorded where existing
+instrumentation reports them. Ordinary tests assert declared linear,
+`O(n log n)`, or pass-multiplied-linear bounds through operation counts rather
+than fragile wall-clock thresholds; every scalable feature carries at least
+one small/large scale pair demonstrating that growth. Slice-output tests
 separately cover immediate consumption and retained small slices of large
 resources so a lower copy count cannot hide excessive source retention.
 
-Product performance targets additionally specify acceptable preparation
-latency, total generation time, peak memory, output size, and batch throughput
-for representative business workloads on a controlled deployment configuration.
-Targets record document/resource dimensions, compiler and host configuration,
-measurement boundaries, repetitions, and the chosen acceptance statistic.
-Thresholds are reviewed from deployment needs and measured baselines before
-production closure; linear complexity alone is not an acceptable substitute.
-These controlled targets supplement exact-allocation and deterministic-work
-checks and do not introduce wall-clock thresholds into ordinary unit tests.
+There are no numeric product targets for preparation latency, generation time,
+peak memory, output size, or throughput, and no controlled timing or memory
+jobs are required. Exact allocation counts plus scale pairs demonstrating the
+declared linear or `O(n log n)` growth are the performance acceptance standard.
 
-The benchmark corpus scales homogeneous documents through 1, 10, 100, 1,000,
-and 10,000 pages and includes million-node/object/tree cases; one source range
+The scale corpus draws from homogeneous documents of increasing page count (up
+to 10,000 pages) and million-node/object/tree cases; one source range
 split into many fragments; huge paragraphs and tables; stable and cyclic
 layouts; one large image placed many times; one shared font and many one-use
 fonts; digest-collision injection; sorted/equal ordering inputs; retained
@@ -1574,9 +1584,12 @@ applicable rather than relying only on metadata autodetection. The validator
 executable and validation-profile revisions are pinned independently.
 
 veraPDF formalizes PDF/A-4, PDF/UA-2, and WTPDF rules, but its PDF/UA checks are
-limited to machine-verifiable requirements. This limitation is why the human
-review protocol is an architectural requirement rather than a release
-afterthought. [veraPDF validation documentation](https://docs.verapdf.org/validation/)
+limited to machine-verifiable requirements. This limitation is why
+human-verifiable requirements are recorded architecturally as explicit author
+obligations and review protocols rather than left implicit. Performing the
+human review is optional; it neither replaces machine validation nor lets the
+package claim to certify semantic quality.
+[veraPDF validation documentation](https://docs.verapdf.org/validation/)
 
 ## Security and resource policy
 
@@ -1622,7 +1635,8 @@ deterministic assets.
   builders consume accumulators and layout commits a selected fragment once.
 - **`Iter` as a universal hot-path representation:** current per-step closure,
   dispatch, and ARC costs are not assumed away; dense byte/glyph/object loops
-  use the representation demonstrated fastest in optimized evidence.
+  use direct loops unless optimized evidence shows an `Iter` path is
+  equivalent.
 - **Text shaping inside the serializer:** typography and PDF lowering have
   different responsibilities; the boundary must instead carry complete shaped
   evidence.

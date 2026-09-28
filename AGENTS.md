@@ -19,6 +19,12 @@
 - Use current Roc syntax and keep the high-level `Pdf` facade as the primary
   user experience. Advanced integration must not leak PDF object internals into
   the common path.
+- Correctness comes first. Performance evidence exists to catch super-linear
+  or exponential blow-ups: exact Roc allocation counts and deterministic work
+  counters remain mandatory, and scalable features carry small/large scale
+  pairs, but there are no numeric product performance targets or required
+  timing/memory jobs. Human reader and assistive-technology review is optional
+  and never blocks gate closure; machine-verifiable conformance does not relax.
 - Treat performance as part of every feature slice's design and completion
   evidence. Review ownership, ARC/uniqueness, dense storage, traversal choice,
   caching, copying, seamless-slice retention, worst-case complexity, and error

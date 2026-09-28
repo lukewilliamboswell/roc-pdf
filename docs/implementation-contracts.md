@@ -110,3 +110,27 @@ identical. A delta observed only with a warm cache is not evidence. A case's
 static PDF/A-4 claim is declared by its `pdfa4` validator; Standard-only
 snapshots must never declare PDF/A identification, and
 `scripts/check_pdfa4.py` enforces both directions.
+
+## Scope decisions (2026-09-28)
+
+The maintainer refocused the project's goals on correctness to stop gates from
+accumulating evidence that does not affect whether generated PDFs are right.
+[architecture.md](../architecture.md), the [roadmap](../feature-roadmap.md),
+and `AGENTS.md` now state that:
+
+- Performance evidence exists to catch super-linear or exponential blow-ups
+  that would make the package unusable. Exact per-case Roc allocation counts,
+  deterministic work counters, and the pinned-compiler re-baseline protocol
+  remain mandatory and unchanged; every scalable feature carries at least one
+  small/large scale pair proving linear or `n log n` work growth.
+- There are no numeric latency, peak-memory, throughput, output-size, or
+  benchmark product targets, and no controlled timing or memory jobs. Copied
+  bytes, ARC counts, retained bytes, peak RSS, and timing are recorded only
+  where existing instrumentation reports them.
+- Human reader and assistive-technology review, expert review, and assessor
+  sign-off are optional recorded protocols that do not block Gate 6, Gate 7,
+  or later closure. Human-verifiable requirements remain recorded as author
+  obligations, and the package still never claims to certify semantic quality.
+- Machine-verifiable conformance (veraPDF profiles, PDF/UA-2 and PDF/A-4
+  ledger rules, structural checks, and atomic negative twins), determinism,
+  ownership, and no-fallback invariants are unchanged.
