@@ -10,7 +10,7 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v4`**.
+Version: **`reference-documents-v5`**.
 
 - It is a design record. It claims no executable capability, conformance
   result, or reader behavior. Capability status remains governed by the
@@ -240,14 +240,15 @@ follows its `Link` element.
 Artifacts: header logo (`Header`), continuation header text (`Header`), footer
 ABN text (`Footer`), `Page N of M` (`PageNumber`), header rows repainted on
 continuation pages (repeated-table-header pagination artifact), and table
-rules and header-row shading (`Decoration`).
+rules (`Decoration`).
 
 ### Expected appearance
 
 - Page 1: logo top-left in the 44 pt header region. Supplier block at the top of
   the body, start-aligned; then the title at the title style; then the details
   table as a two-column key/value grid with no rules; `Bill to`; `Items`
-  heading; the caption above the items table; the shaded header row; body rows.
+  heading; the caption above the items table; the header row with a rule below
+  it; body rows.
   Code cells hug their content width; descriptions wrap within the share
   column; numeric columns are end-aligned so decimal points line up because
   every amount has two decimals. Footer: ABN text start-aligned, `Page 1 of M`
@@ -463,7 +464,7 @@ custom block).
 - Page 1: title, subtitle paragraph, section 1 with its list (nested list
   indented by the theme's list indent), and the callout panel if it fits
   entirely; otherwise the panel moves to page 2 whole.
-- Following pages: section 2 with Table 1 (caption above, header row shaded,
+- Following pages: section 2 with Table 1 (caption above, a rule below the header row,
   total row after a rule) and Figure 1 with its caption below; section 3 with
   Figure 2; section 4; Appendix A with Table 2 continuing across pages and its
   header row repainted on each continuation page.
@@ -651,10 +652,10 @@ substitution, outlining, rasterization, or dropping text.
 | Case transformation | not offered | supported | no facade constructor; advanced: [case-transformation.md](performance/case-transformation.md) |
 | Automatic hyphenation | not offered | not offered | no language pattern set is claimed |
 | Vertical writing | rejected | rejected | `text.vertical_writing` (Gate 8) |
-| Nested language spans within one paragraph (`fr` in `en-AU` through the packaged face; `zh-Hans` in a Latin paragraph through an ordered policy whose faces cover it) | supported | — | [rich-inline.md](performance/rich-inline.md); an unsupported script inside a span rejects as `text.unsupported_script` with its inline path. REP-A5's spaces around a Han span still depend on the Common-run row below |
+| Nested language spans within one paragraph (`fr` in `en-AU` through the packaged face; `zh-Hans` in a Latin paragraph through an ordered policy whose faces cover it) | supported | — | [rich-inline.md](performance/rich-inline.md); an unsupported script inside a span rejects as `text.unsupported_script` with its inline path. REP-A5's spaces around a Han span take the Common-run row below |
 | Rich inline runs (`Em`, `Strong`, `Code`, `Quote`, `Link`, `Span`) with per-run theme colors in one line, wrapping across inline boundaries | supported | — | [rich-inline.md](performance/rich-inline.md) |
 | **Required:** a distinct caller-registered face per inline role (e.g. monospace `Code`) | required | — | not selectable yet; every inline paints in its paragraph's face, size, and leading |
-| **Required:** runs whose script stays Common after itemization (e.g. a cell holding only `1,284` or `+10.0%`) under an ordered policy | required | — | the ordered path rejects an unresolved Common run as `UndeclaredScript`; expected to affect every numeric table cell (to be confirmed by an atomic fixture). Proposed rule: a Common-only run takes the first face in policy order that covers every cluster, exactly as per-cluster coverage selection already does; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
+| Runs whose script stays Common (or Inherited) after itemization, e.g. a cell holding only `1,284` or `+10.0%`, or the spaces in `Café 中 PDF`, under an ordered policy | supported | — | [tables.md](performance/tables.md): each cluster of such a run takes the first face in policy order that covers it, exactly as per-cluster coverage selection does for declared scripts; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
 | **Required:** furniture text (headers, footers, page fields) shaped with exact artifact ownership | required | — | today `layout.page_template` |
 
 The text diagnostics above may continue to surface through the existing typed
@@ -812,36 +813,73 @@ letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
 
 ### Tables
 
-- Column widths are resolved once per table: `Fixed` widths are exact;
-  `Content` columns take their max-content width, reduced toward their
-  min-content width (widest unbreakable token) only as needed; the remaining
-  width is divided among `Share` columns in proportion to their weights, with
-  any millipoint remainder assigned left to right. If fixed widths plus all
-  minima exceed the table width, preparation fails with `layout.table_width`
-  (or `layout.unbreakable_token` when a single token alone cannot fit).
-- Cell content is a sequence of inlines forming one paragraph. Cells wrap
-  within their column width; there is no block flow inside cells in v1.
-- Every row's spans must sum to the table's column count
-  (`table.grid_mismatch`). Column spans are supported; row spans are rejected
-  as `table.row_span` until Gate 8. A table must have at least one header cell
-  (`table.header_missing`).
+- Column widths are resolved once per table, before any cell line is
+  broken, from measured cell widths: a cell's max-content width is its
+  widest line between mandatory breaks and its min-content width its widest
+  piece between UAX #14 opportunities (with the trailing space a line would
+  carry), both plus the theme's cell padding on each side. A column's
+  minimum and maximum are those of its single-column cells; spanning cells
+  are checked against their resolved spans afterwards. `Fixed` widths are
+  exact; `Content` columns take their max-content width, reduced toward
+  their min-content width only as needed, in proportion to each column's
+  slack; the remaining width is divided among `Share` columns in proportion
+  to their weights, a share below its column's minimum being fixed at that
+  minimum and the rest redistributed. Any millipoint remainder is assigned
+  left to right. Without `Share` columns a table may be narrower than the
+  flow. If fixed widths plus all minima exceed the table width, preparation
+  fails with `layout.table_width`; a single column whose minimum exceeds its
+  fixed width or the flow width, or a spanning cell whose widest piece
+  exceeds its resolved span, is `layout.unbreakable_token`, naming the cell
+  and the piece's scalar range.
+- Cell content is a sequence of inlines forming one paragraph (explicit line
+  breaks included). Cells wrap within their column text width; there is no
+  block flow inside cells in v1. A cell must hold text (`table.cell_empty`).
+  A cell's lines align by their visible advance (trailing spaces excluded)
+  in the alignment of the first column it spans; lines start at the top of
+  the row.
+- Every row's spans must sum to the table's column count, and every span is
+  at least one (`table.grid_mismatch`). Column spans are supported; a cell
+  declared with `Pdf.row_spanning` is rejected as `table.row_span` until
+  Gate 8. A table needs a column and a body row (`table.empty`) and at least
+  one header cell (`table.header_missing`).
+- A row's height is its tallest cell's line count times the cell leading;
+  rows are separated by the theme's row gap. The caption is unsplittable
+  and required to keep with the header rows, which are unsplittable and
+  required to keep with the first body row's first placement unit, so the
+  table start is placed together (`layout.keep_conflict` otherwise).
 - `row_split: KeepRows` (default): a row is unsplittable; a row that does not
   fit moves to the next page; a row taller than an empty flow region, after
   the repeated header rows, is `layout.oversize_row`.
-- `row_split: SplitRows`: a row may break at a vertical position where every
-  cell is at a line boundary; the largest such position that fits is chosen.
-  Cells that finished earlier paint nothing further. The widow/orphan minimums
-  apply per cell.
-- Header rows are declared once. On every page where the table continues,
-  they are repainted at the top of the table fragment as a
-  repeated-table-header pagination artifact. The logical `THead` is emitted
+- `row_split: SplitRows`: a row may break at a line of its grid: all of a
+  row's cells share one leading and start at its top, so every grid line is
+  a line boundary of every cell. The largest such position that fits is
+  chosen, cells that finished earlier paint nothing further, and the widow
+  and orphan minimums apply to the row's grid (its tallest cell).
+- Header rows are declared once. On every page where the table continues
+  (the page starts at a body or footer row, including a split row's
+  continuation), they are repainted at the top of the page as a
+  repeated-table-header pagination artifact (`/Artifact <</Type
+  /Pagination>>`, the `RepeatedHeader` page-artifact kind): body and footer
+  rows reserve the header rows' height, with the gap after them, at the top
+  of any page they start or continue on. The logical `THead` is emitted
   once, and no new logical header cells or relationships are invented.
-- Footer rows form one unsplittable group placed once, after the last body
-  row, and follow R3.
-- `Headers` associations are derived from declared scopes: a data cell
-  references the `Column`-scoped header cells above it in its column (all
-  header rows, including spanning cells) and the `Row`-scoped header cells in
-  its row.
+- Footer rows are unsplittable and, when there are several, form one
+  required group placed once, after the last body row; the last body row
+  keeps with them by preference R3.
+- A rule of the theme's color and width is drawn centered in the row gap
+  below the last header row (the original and every repainted copy) and
+  above the first footer row when a body row precedes it on the page, across
+  the table width, as a `Decoration` artifact; it must fit inside the gap
+  (`layout.table_rule`). Header-row shading is not offered in v1.
+- `Headers` associations are derived from declared scopes, never geometry:
+  a data cell references the `Column`- or `Both`-scoped header cells of
+  earlier rows in the columns it spans (all header rows, including spanning
+  cells), in ascending cell order without repeats, then the `Row`- or
+  `Both`-scoped header cells of its own row. Header cells carry no
+  `Headers`. Every cell carries a generated element identifier (`c` and its
+  one-based cell ordinal in six digits, so identifier order is cell order),
+  and each `Headers` entry is also a typed `HeaderFor` relationship; the
+  kernel rejects any disagreement between the two.
 
 ### Page and total-page fields
 
@@ -901,6 +939,10 @@ with.
 | `table.grid_mismatch` | `InvalidRelationship` | Row spans do not sum to the column count |
 | `table.header_missing` | `InvalidRelationship` | A table declares no header cell |
 | `table.row_span` | `FeatureUnavailable` | Row spans (Gate 8) |
+| `table.empty` | `InvalidRelationship` | A table declares no column or no body row |
+| `table.cell_empty` | `InvalidRelationship` | A table cell holds no text |
+| `layout.table_rule` | new family | The theme's table rule is wider than the row gap it is drawn in |
+| `document.content_limit` | `BudgetExceeded` | The document crosses a documented facade content bound; `details` names the table or block at which planning crossed it |
 | `text.unsupported_script` | `FontCoverageMissing` | Script outside the declared facade set |
 | `text.coverage_missing` | `FontCoverageMissing` | No selected face covers a cluster |
 | `text.unsupported_cluster` | `FontCoverageMissing` | A multi-scalar cluster reaches the one-scalar convenience shaper |
@@ -1035,15 +1077,22 @@ table : {
     header_rows : List(Row),
     body_rows : List(Row),
     footer_rows : List(Row),
-    row_split : [KeepRows, SplitRows],
+    row_split : RowSplit,                        # RowSplit : [KeepRows, SplitRows]
 } -> Block
-Column : { width : [Fixed(Layout.Unit), Share(U16), Content], align : Align }
-Align : [Start, End, Center]
+Column : { width : [Fixed(Layout.Unit), Share(U16), Content], align : [Start, End, Center] }
 row : List(Cell) -> Row
 cell : List(Inline) -> Cell                      # TD
 header_cell : Scope, List(Inline) -> Cell        # TH; Scope : [Column, Row, Both]
 spanning : U16, Cell -> Cell                     # column span only
+row_spanning : U16, Cell -> Cell                 # represented; rejects as table.row_span
 ```
+
+These are executable with these names and shapes (tables slice,
+`reference-documents-v5`); `Pdf.Column`, `Pdf.Row`, `Pdf.Cell`, `Pdf.Scope`,
+and `Pdf.RowSplit` name the types, and `Pdf.simple_table` is retired. Table
+presentation is `Theme` policy: `with_table_cell_padding`,
+`with_table_row_gap`, `with_table_rule` (`Rule({ color, width })` or
+`NoRule`), and `with_table_header_color`; cells paint in the body style.
 
 ### Page templates
 
@@ -1068,8 +1117,8 @@ Only the first-page template can hold a lead region, so a lead region on a
 continuation page is unrepresentable rather than rejected. A document without
 `with_page_templates` keeps today's template-free pagination. A furniture text
 item containing a page field lowers as a `PageNumber` artifact; other items
-take their region's kind. A repeated-table-header artifact kind is added to
-`PageArtifactKind` by the table slice.
+take their region's kind. The repeated-table-header artifact kind is
+`Scene.PageArtifactKind.RepeatedHeader` (tables slice).
 
 ### Figures, decorations, and extensions
 
@@ -1155,6 +1204,20 @@ version, the task, the observed outcome, and any limitation.
 
 ## Change log
 
+- `reference-documents-v5`: the tables slice makes `table`, `row`, `cell`,
+  `header_cell`, and `spanning` executable with unchanged names and shapes,
+  adds `row_spanning` (represented, rejected as `table.row_span`) and the
+  theme's table style, and retires `Pdf.simple_table`; refines the
+  column-width algorithm (measured minima and maxima with padding, slack-
+  proportional content reduction, share minima, spanning cells checked
+  afterwards), states that SplitRows minimums apply to the row's line grid,
+  that cells align by their visible advance in their first column's
+  alignment, and that header rows repaint as `/Artifact <</Type
+  /Pagination>>` (`RepeatedHeader`); replaces header-row shading with rules
+  in the invoice and report appearance; adds `table.empty`,
+  `table.cell_empty`, `layout.table_rule`, and `document.content_limit`;
+  records the facade's content bounds; and marks the Common-run text row
+  supported, each cluster taking the first policy face that covers it.
 - `reference-documents-v4`: the lists-and-layout-policies slice makes
   `bullet_list`, `numbered_list`, `list_item`, `page_break`, `keep_together`,
   `keep_with_next`, `spacer`, and `line_break` executable with unchanged

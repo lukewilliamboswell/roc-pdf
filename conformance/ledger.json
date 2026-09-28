@@ -449,6 +449,37 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-TABLE-SEMANTICS",
+      "summary": "Facade tables lower to Table > (Caption > P, THead, TBody, TFoot) > TR > TH/TD in authored order with typed Table attributes: TH declares Scope, spanning cells ColSpan, every cell a generated element identifier in the IDTree, and each data cell's Headers are derived from declared scopes; header rows are logical once, and header rows repainted on continuation pages are Pagination artifacts with no structure.",
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 14.8.2.2.2",
+        "ISO 32000-2:2020 14.8.4.8.3",
+        "ISO 32000-2:2020 14.8.5.7",
+        "docs/performance/tables.md",
+        "docs/reference-documents.md: Tables"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "roc_facade_and_kernel_expects; tables_harness_family_with_structure_semantics_table_checks_for_grid_regularity_scope_headers_idtree_header_once_and_pagination_artifacts; rich_inline_logical_order_checks; atomic_table_negatives_emit_no_bytes",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/Pdf.roc",
+        "tests/tables/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelFacadeSemantics.roc",
+        "scripts/check_structure_semantics.py",
+        "tests/tables/Fixture.roc"
+      ],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-TAGGED-VISUAL-KERNEL",
       "summary": "The private minimal visual kernel emits checked geometry, typed color and images, exact meaningful-paint ownership, page and contextual Artifacts, MCIDs, ParentTree rows, and mixed structure order.",
       "source_ids": [
@@ -1998,6 +2029,75 @@
       ],
       "external_rule_ids": [
         "verapdf-pdfua2:8.2.5.25-1"
+      ]
+    },
+    {
+      "id": "ROC-PDF-PDFUA2-8-2-5-26-TABLE-HEADERS",
+      "summary": "Every TH declares its Scope, and every data cell that a header cell pertains to by declared scope carries a Headers attribute naming those TH element identifiers, which resolve through the IDTree; the kernel rejects a Headers attribute that disagrees with the cell's HeaderFor relationships.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 14289-2:2024 8.2.5.26",
+        "ISO 32000-2:2020 14.8.5.7",
+        "docs/performance/tables.md",
+        "docs/reference-documents.md: Tables"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "headers_derived_from_declared_scopes_in_semantic_planning; kernel_HeaderFor_Headers_agreement_check_with_expects; structure_semantics_checker_requires_TH_Scope_and_Headers_targets_resolving_to_TH_through_the_IDTree; tables_harness_family",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/Pdf.roc",
+        "tests/tables/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelSemantics.roc",
+        "scripts/check_structure_semantics.py"
+      ],
+      "external_rule_ids": [
+        "verapdf-pdfua2:8.2.5.26-5",
+        "verapdf-pdfua2:8.2.5.26-6"
+      ]
+    },
+    {
+      "id": "ROC-PDF-PDFUA2-8-2-5-26-TABLE-REGULARITY",
+      "summary": "Tables are regular: every row's column spans sum to the table's column count, no cell spans rows, and rows are grouped once by THead, TBody, and TFoot; an irregular grid is rejected before layout, never flattened.",
+      "source_ids": [
+        "iso-14289-2-2024",
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 14289-2:2024 8.2.5.26",
+        "docs/performance/tables.md",
+        "docs/reference-documents.md: Tables"
+      ],
+      "capabilities": [
+        "Pdf20",
+        "PdfUa2"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "table_grid_mismatch_and_row_span_rejections_in_semantic_planning; structure_semantics_checker_grid_regularity; atomic_table_negatives_emit_no_bytes",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "tests/tables/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelFacadeSemantics.roc",
+        "scripts/check_structure_semantics.py",
+        "tests/tables/Fixture.roc"
+      ],
+      "external_rule_ids": [
+        "verapdf-pdfua2:8.2.5.26-1",
+        "verapdf-pdfua2:8.2.5.26-2",
+        "verapdf-pdfua2:8.2.5.26-3",
+        "verapdf-pdfua2:8.2.5.26-4"
       ]
     },
     {

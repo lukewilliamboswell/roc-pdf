@@ -128,12 +128,76 @@ Control the flow explicitly:
   the next block's first lines (its orphan minimum, or all of an unsplittable
   block). `Preferred` makes the keep a ranked preference instead.
 
+Build ordinary tables from columns and rows of cells. `Pdf.table` becomes a
+`Table` with an optional `Caption`, one `THead`, `TBody`, and `TFoot`, a `TR`
+per row, and a `TH` or `TD` per cell:
+
+```roc
+Pdf.table({
+    caption: Pdf.caption("Items supplied under purchase order PO 88213"),
+    columns: [
+        { width: Content, align: Start },
+        { width: Share(1), align: Start },
+        { width: Fixed(Layout.Unit.points(80)), align: End },
+    ],
+    header_rows: [
+        Pdf.row([
+            Pdf.header_cell(Column, [Pdf.text("Code")]),
+            Pdf.header_cell(Column, [Pdf.text("Description")]),
+            Pdf.header_cell(Column, [Pdf.text("Amount (AUD)")]),
+        ]),
+    ],
+    body_rows: [
+        Pdf.row([
+            Pdf.header_cell(Row, [Pdf.text("HF-DSK-140")]),
+            Pdf.cell([Pdf.text("Standing desk frame, twin motor")]),
+            Pdf.cell([Pdf.text("2,756.00")]),
+        ]),
+    ],
+    footer_rows: [
+        Pdf.row([
+            Pdf.spanning(2, Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")])),
+            Pdf.cell([Pdf.strong([Pdf.text("2,756.00")])]),
+        ]),
+    ],
+    row_split: KeepRows,
+})
+```
+
+Cells hold inline content that wraps within the column; a header cell
+declares its `Scope` (`Column`, `Row`, or `Both`), and `Pdf.spanning(n, cell)`
+spans columns. Every cell gets a generated identifier, and each data cell's
+`Headers` name the column headers above it and the row headers beside it,
+derived from the declared scopes. Column widths resolve once per table:
+`Fixed` widths are exact, `Content` columns take their content's width,
+reduced toward their widest word only as needed, and `Share` columns divide
+the rest. `End` aligns amounts at the column's end edge.
+
+Tables continue across pages. The header rows repaint at the top of every
+continuation page as a pagination artifact, never as new rows; the table
+start (caption, header rows, first body row) is placed together; footer rows
+stay together after the last body row and prefer to carry at least one body
+row. `KeepRows` (the default) moves a row that does not fit to the next page
+and rejects a row taller than a page body as `layout.oversize_row`;
+`SplitRows` lets a row break at a line boundary. Table presentation is theme
+policy: `Theme.with_table_cell_padding`, `with_table_row_gap`,
+`with_table_rule`, and `with_table_header_color`. Rejections name the table,
+row, or cell, such as `contents[4].table.body_rows[17].cells[1]`:
+`table.grid_mismatch`, `table.header_missing`, `table.empty`,
+`table.cell_empty`, `table.row_span` (row spans are Gate 8),
+`layout.table_width`, `layout.unbreakable_token`, and `layout.table_rule`.
+
+Documents are bounded: up to 16,384 content occurrences, structure elements,
+and text sources, and 1,024 pages. A document past a bound fails with the
+`BudgetExceeded` diagnostic `document.content_limit`, naming the table or
+block at which it was crossed.
+
 Mandatory constraints are never relaxed: a conflict between them, or an
 unsplittable block taller than a page (`layout.oversize_block`), returns
 `InvalidDocument` naming every participating block path. Among the breaks
 that satisfy them, pagination prefers, in rank order, heading keeps (R1),
-preferred author keeps (R2), the orphan minimum (R4), and the widow minimum
-(R5), choosing the latest best break on each page. A preference that no legal
+preferred author keeps (R2), a table's footer rows carrying a body row (R3),
+the orphan minimum (R4), and the widow minimum (R5), choosing the latest best break on each page. A preference that no legal
 break can satisfy is relaxed deterministically and recorded as a layout
 outcome for the planned preparation report.
 
@@ -208,9 +272,9 @@ multi-command figures, and fixed pages remain forward API: they report
 | rich paragraphs: emphasis, strong, code, quote, inline links, language spans, and expansions | executable |
 | bulleted and numbered lists with nested blocks, `Pdf.bullets` | executable |
 | explicit line and page breaks, spacers, required and preferred keeps | executable |
+| ordinary tables with captions, header rows, column spans, footers, and repeated headers | executable |
 | page fields and a distinct face per inline role | not yet offered |
-| simple tables | representable; Gate 6 diagnostic |
-| fixed pages, columns, floats, footnotes, complex tables | representable; Gate 8 diagnostic |
+| fixed pages, columns, floats, footnotes, row spans, complex tables | representable; Gate 8 diagnostic |
 | `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
 | `AccessibleArchive` profile | representable; profile diagnostic |
 
