@@ -110,13 +110,23 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 4717
 }
 
-## Nested profile and option modules use current package shorthand syntax.
+## Nested profile and option modules use current package shorthand syntax;
+## the Archive profile is executable through the public options.
 expect {
 	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
+	bytes = Pdf.to_bytes_with(document, options)?
+
+	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
+}
+
+## AccessibleArchive still rejects transactionally with its own feature code.
+expect {
+	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)
+	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
 
 	match Pdf.to_bytes_with(document, options) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), .. }], .. })) => code == "profile.archive"
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), .. }], .. })) => code == "profile.accessible_archive"
 		_ => False
 	}
 }

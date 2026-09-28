@@ -10,6 +10,7 @@ import KernelFont
 import KernelFontPlan
 import KernelMetadata
 import KernelNavigation
+import KernelPdfA4
 import KernelSrgbProfile
 import KernelXmp
 import Metadata
@@ -242,8 +243,10 @@ Pdf :: [].{
 	with_modified : Document, Str -> Document
 	with_modified = |doc, timestamp| Document.with_modified(doc, timestamp)
 
-	## Standard authored content follows the completed typed facade pipeline.
-	## Archive claims remain unavailable until their independent capabilities close.
+	## Standard and Archive content follow the completed typed facade pipeline;
+	## Archive additionally passes static PDF/A-4 profile and lowered-plan
+	## validation before any byte exists. AccessibleArchive remains unavailable
+	## until its combined capability closes.
 	to_bytes : Document -> Try(List(U8), Error)
 	to_bytes = |doc| to_bytes_with(doc, Options.default)
 
@@ -262,7 +265,7 @@ Pdf :: [].{
 			Available => {}
 			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
 		}
-		plan = build_standard_plan(doc, options)?
+		plan = build_plan(doc, options)?
 		Ok(Prepared.(plan))
 	}
 
@@ -305,12 +308,13 @@ Pdf :: [].{
 	}
 }
 
-build_standard_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
-build_standard_plan = |doc, options| {
-	validate_standard_request(options)?
+build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
+build_plan = |doc, options| {
+	claim = validate_profile_request(options)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
-	## serializes once; every later stage consumes the same validated values.
+	## serializes once, identified exactly when the requested profile claims
+	## static PDF/A-4; every later stage consumes the same validated values.
 	validated = KernelMetadata.validate(
 		{
 			created: Document.created(doc),
@@ -320,7 +324,7 @@ build_standard_plan = |doc, options| {
 		},
 		standard_metadata_limits,
 	) ? InvalidMetadata
-	xmp = KernelXmp.Packet.build(validated.facts, standard_xmp_bytes) ? |_| InternalGenerationFailure
+	xmp = KernelXmp.Packet.build_identified(validated.facts, KernelPdfA4.identification(claim), standard_xmp_bytes) ? |_| InternalGenerationFailure
 	if Document.block_count(doc) == 0 {
 		plan = KernelStructure.build_blank_with_facts(
 			1,
@@ -334,6 +338,7 @@ build_standard_plan = |doc, options| {
 				xmp: KernelXmp.Packet.bytes(xmp),
 			},
 		) ? |_| InternalGenerationFailure
+		validate_lowered_plan(claim, xmp, plan)?
 		return Ok(plan)
 	}
 	facts = WithDocumentFacts({
@@ -363,7 +368,45 @@ build_standard_plan = |doc, options| {
 			standard_pipeline_limits,
 		) ? |error| ordered_pipeline_error(error, ordered.policy, Document.block_count(doc))
 	}
-	Ok(KernelFacadePipeline.Plan.structure(pipeline))
+	output = KernelFacadePipeline.Plan.output(pipeline)
+	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	plan = KernelFacadeOutput.Plan.structure(output)
+	validate_lowered_plan(claim, xmp, plan)?
+	Ok(plan)
+}
+
+## Lowered-plan validation runs on every prepared plan before it is wrapped:
+## an unclaimed plan checks only that its packet declares no identification,
+## and a claimed plan is checked against the full static whitelist.
+validate_lowered_plan : KernelPdfA4.Claim, KernelXmp.Packet, KernelStructure.Plan -> Try({}, Pdf.Error)
+validate_lowered_plan = |claim, packet, plan| {
+	_work = KernelPdfA4.validate_lowered(
+		claim,
+		{ packet, root: KernelStructure.Plan.root(plan), sealed: KernelStructure.Plan.sealed(plan) },
+	) ? |violation| InvalidDocument(profile_batch(violation, LoweredPlanValidation))
+	Ok({})
+}
+
+profile_batch : KernelPdfA4.Violation, Conformance.ValidationStage -> Conformance.DiagnosticBatch
+profile_batch = |violation, stage| {
+	requirement = violation.requirement
+	message = "The Archive profile requires that ${KernelPdfA4.summary(requirement)} (${KernelPdfA4.clause(requirement)}). No PDF bytes were emitted; this is not a downgrade to Standard."
+	{
+		detail_bytes: Str.to_utf8(message).len(),
+		diagnostics: [
+			{
+				clause_references: [KernelPdfA4.clause(requirement)],
+				code: ProfileRequirementViolated,
+				details: [],
+				feature: Feature(feature_code(ArchiveProfile)),
+				location: Document,
+				message,
+				requirement_ids: [KernelPdfA4.requirement_code(requirement)],
+				stage,
+			},
+		],
+		truncation: Complete,
+	}
 }
 
 ## The Theme decides between exact style faces and an ordered policy. Policy
@@ -430,12 +473,14 @@ selected_registered_font = |registry, face| {
 	Ok(font)
 }
 
-validate_standard_request : Pdf.Options -> Try({}, Pdf.Error)
-validate_standard_request = |options| {
+## The requested claim is derived from the public profile's exact claim set.
+## A profile whose claim set includes an unfinished capability is rejected
+## before any work; it never falls back to a narrower claim set.
+validate_profile_request : Pdf.Options -> Try(KernelPdfA4.Claim, Pdf.Error)
+validate_profile_request = |options| {
 	match options.profile {
-		Archive => Err(Pdf.Error.InvalidDocument(unavailable_batch(ArchiveProfile, "The Archive profile requires the unfinished PDF/A-4 capability.")))
 		AccessibleArchive => Err(Pdf.Error.InvalidDocument(unavailable_batch(AccessibleArchiveProfile, "The AccessibleArchive profile requires the unfinished combined PDF/A-4 and PDF/UA-2 capability.")))
-		Standard => Ok({})
+		Archive | Standard => Ok(if Pdf.claims_for_profile(options.profile).static_pdf_a4 StaticPdfA4Claim else NoArchiveClaim)
 	}
 }
 
@@ -746,15 +791,23 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## Archive remains unavailable rather than silently emitting Standard output.
+## Archive emits the same document with exactly the PDF/A identification
+## added to its canonical metadata; Standard never declares it.
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Archive")], language: "en-AU", title: "Archive" })
+	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
+	standard = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard))?
+	marker = Str.to_utf8("<pdfaid:part>4</pdfaid:part>")
+
+	archive.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(archive, marker) and !contains_bytes(standard, marker)
+}
+
+## A blank Archive document is validated on the same lowered-plan path.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
-	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
 
-	match Pdf.to_bytes_with(document, options) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), message, .. }], .. })) => code == "profile.archive" and message.contains("Gate 5")
-		_ => False
-	}
+	contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
 }
 
 ## AccessibleArchive remains unavailable rather than dropping its UA claim.
@@ -851,6 +904,17 @@ collect_chunks = |encoder| {
 		}
 	}
 	{ bytes: $bytes, chunks: $chunks }
+}
+
+contains_bytes : List(U8), List(U8) -> Bool
+contains_bytes = |haystack, needle| {
+	var $start = 0
+	var $found = False
+	while !$found and $start + needle.len() <= haystack.len() {
+		$found = haystack.sublist({ start: $start, len: needle.len() }) == needle
+		$start = $start + 1
+	}
+	$found
 }
 
 append_pdf_bytes : List(U8), List(U8) -> List(U8)
