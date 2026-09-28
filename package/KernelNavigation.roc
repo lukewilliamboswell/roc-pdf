@@ -374,7 +374,7 @@ validate_destinations = |inputs, context, limits| {
 			return Err(DestinationAnchorOutOfRange({ attempted: input.anchor.index(), destination: $index, occurrences: context.occurrences }))
 		}
 		start = $name_bytes.len()
-		$name_bytes = $name_bytes.concat(bytes)
+		$name_bytes = append_all($name_bytes, bytes)
 		$destinations = $destinations.append({
 			anchor: input.anchor,
 			id: Semantics.DestinationId.from_index($index),
@@ -604,7 +604,7 @@ validate_annotations = |inputs, destinations, name_order, context, limits| {
 			Uri(uri) => {
 				uri_bytes = validate_uri(uri, $index, limits.max_uri_bytes)?
 				start = $uri_bytes.len()
-				$uri_bytes = $uri_bytes.concat(uri_bytes)
+				$uri_bytes = append_all($uri_bytes, uri_bytes)
 				$uri_bytes_checked = $uri_bytes_checked + uri_bytes.len()
 				UriAction(Semantics.Range.from_start_and_length(start, uri_bytes.len()))
 			}
@@ -899,6 +899,21 @@ is_uri_byte = |byte| is_ascii_alpha(byte) or
 																					byte == ',' or
 																						byte == ';' or
 																							byte == '='
+
+## Appends every element of `source`. `List.concat` sizes its result
+## exactly, so an accumulator grown by `concat` in a loop was reallocated,
+## and copied, on every call; `append` grows geometrically
+## (docs/performance/emission-linearity.md).
+append_all : List(a), List(a) -> List(a)
+append_all = |target, source| {
+	var $out = target
+	var $index = 0
+	while $index < source.len() {
+		$out = $out.append(list_at(source, $index))
+		$index = $index + 1
+	}
+	$out
+}
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

@@ -1008,7 +1008,7 @@ item_blocks = |items| {
 	for item in items {
 		match item {
 			ListItem(contents) => {
-				$blocks = $blocks.concat(contents)
+				$blocks = append_all($blocks, contents)
 			}
 		}
 	}
@@ -1493,7 +1493,11 @@ concatenated_text = |inlines, base, bytes| {
 segment_texts : List(NormalizedInline), U64, List(NormalizedLineBreak), U64 -> List(Str)
 segment_texts = |inlines, base, line_breaks, first_break| {
 	var $segments = List.with_capacity(line_breaks.len() - first_break + 1)
-	var $current = ""
+
+	## A segment's leaf texts are joined once when the segment ends. Growing
+	## the segment with `Str.concat` sized it exactly on every leaf, which
+	## copied the segment once per leaf.
+	var $current = []
 	var $next_break = first_break
 	var $leaf = 0
 	var $index = base
@@ -1501,11 +1505,11 @@ segment_texts = |inlines, base, line_breaks, first_break| {
 		match list_at(inlines, $index).kind {
 			Text({ byte_length: _, byte_start: _, text }) => {
 				while $next_break < line_breaks.len() and list_at(line_breaks, $next_break).leaf <= $leaf {
-					$segments = $segments.append($current)
-					$current = ""
+					$segments = $segments.append(Str.join_with($current, ""))
+					$current = []
 					$next_break = $next_break + 1
 				}
-				$current = $current.concat(text)
+				$current = $current.append(text)
 				$leaf = $leaf + 1
 			}
 			_ => {}
@@ -1513,11 +1517,11 @@ segment_texts = |inlines, base, line_breaks, first_break| {
 		$index = $index + 1
 	}
 	while $next_break < line_breaks.len() {
-		$segments = $segments.append($current)
-		$current = ""
+		$segments = $segments.append(Str.join_with($current, ""))
+		$current = []
 		$next_break = $next_break + 1
 	}
-	$segments.append($current)
+	$segments.append(Str.join_with($current, ""))
 }
 
 ## Blocks with a secondary string (a URI or a destination name) intern it as
@@ -1618,6 +1622,21 @@ destination_heading_tag = 7
 
 destination_paragraph_tag : U8
 destination_paragraph_tag = 8
+
+## Appends every element of `source`. `List.concat` sizes its result
+## exactly, so an accumulator grown by `concat` in a loop was reallocated,
+## and copied, on every call; `append` grows geometrically
+## (docs/performance/emission-linearity.md).
+append_all : List(a), List(a) -> List(a)
+append_all = |target, source| {
+	var $out = target
+	var $index = 0
+	while $index < source.len() {
+		$out = $out.append(list_at(source, $index))
+		$index = $index + 1
+	}
+	$out
+}
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

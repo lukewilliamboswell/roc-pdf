@@ -753,11 +753,11 @@ plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
 			match record.kind {
 				DataCell => {
 					$headers = if record.column_span == 1 {
-						$headers.concat(list_at($column_headers, $column))
+						append_all($headers, list_at($column_headers, $column))
 					} else {
 						append_spanned_headers($headers, $column_headers, $column, record.column_span)
 					}
-					$headers = $headers.concat($row_headers)
+					$headers = append_all($headers, $row_headers)
 				}
 				HeaderCell(_) => {}
 			}
@@ -816,7 +816,7 @@ append_spanned_headers = |headers, column_headers, column, span| {
 	var $merged = []
 	var $index = column
 	while $index < column + span {
-		$merged = $merged.concat(list_at(column_headers, $index))
+		$merged = append_all($merged, list_at(column_headers, $index))
 		$index = $index + 1
 	}
 	sorted = $merged.sort_with(|left, right| if left < right Before else if left > right After else Same)
@@ -1950,6 +1950,21 @@ checked_add : U64, U64 -> Try(U64, KernelFacadeSemantics.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {
 	Err(_) => Err(ArithmeticOverflow)
 	Ok(value) => Ok(value)
+}
+
+## Appends every element of `source`. `List.concat` sizes its result
+## exactly, so an accumulator grown by `concat` in a loop was reallocated,
+## and copied, on every call; `append` grows geometrically
+## (docs/performance/emission-linearity.md).
+append_all : List(a), List(a) -> List(a)
+append_all = |target, source| {
+	var $out = target
+	var $index = 0
+	while $index < source.len() {
+		$out = $out.append(list_at(source, $index))
+		$index = $index + 1
+	}
+	$out
 }
 
 list_at : List(a), U64 -> a
