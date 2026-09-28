@@ -283,109 +283,127 @@ build_arena_with_intent = |prepared, intent, limits| {
 		}
 		paint_start = $page_groups.len()
 		page_end = checked_add(page.runs.start(), page.runs.length())?
-		while $placement_cursor < page_end {
-			placement = list_at(prepared.placements, $placement_cursor)
-			if placement.page.index() != $page_index or placement.run.index() != $placement_cursor {
-				return Err(InvalidPlacement({ placement: $placement_cursor }))
-			}
-			style = list_at(prepared.styles, $placement_cursor)
-			paint = match style.color {
-				Srgb(Rgb(channels)) => match intent {
-					NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 {
-						{
-							fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
-							mode: Fill,
-							opacity: 65535,
-							stroke: NoStroke,
-						}
-					} else {
-						return Err(UnsupportedColor({ run: $placement_cursor }))
-					}
-					PackagedSrgbIntent => if use_srgb {
-						{
-							fill: { channels: Rgb(channels), space: Color.SpaceId.from_index(0) },
-							mode: Fill,
-							opacity: 65535,
-							stroke: NoStroke,
-						}
-					} else {
-						{
-							fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
-							mode: Fill,
-							opacity: 65535,
-							stroke: NoStroke,
-						}
-					}
-				}
-				_ => return Err(UnsupportedColor({ run: $placement_cursor }))
-			}
-			occurrence = list_at(prepared.run_occurrences, $placement_cursor)
-			figure = if occurrence.index() < prepared.figure_by_occurrence.len() list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
-			command_start = $commands.len()
-			group_length = match figure {
-				NoFigure => 1
-				Figure(figure_index) => if list_at($painted_figures, figure_index) {
-					1
-				} else {
-					authored = list_at(prepared.authoring.figures, figure_index)
-					image_x = checked_i64_add(placement.origin.x.raw(), authored.placement.origin.x.raw())?
-					image_top = checked_i64_minus(placement.origin.y.raw(), authored.placement.size.height.raw())?
-					image_y = checked_i64_add(image_top, authored.placement.origin.y.raw())?
-					$commands = $commands.append(DrawImage({ image: Image.Id.from_index(figure_index), placement: { origin: { x: Layout.Unit.from_raw(image_x), y: Layout.Unit.from_raw(image_y) }, size: authored.placement.size } }))
-					$painted_figures = list_set($painted_figures, figure_index, True)
-					2
-				}
-			}
-			text_command = $commands.len() + 1
-			$commands = $commands.append(
-				Transform({
-					children: Semantics.Range.from_start_and_length(text_command, 1),
-					matrix: {
-						a: Layout.Unit.from_raw(1000),
-						b: Layout.Unit.from_raw(0),
-						c: Layout.Unit.from_raw(0),
-						d: Layout.Unit.from_raw(1000),
-						e: placement.origin.x,
-						f: placement.origin.y,
-					},
-				}),
-			).append(DrawText({ paint, run: placement.run }))
-			group = Scene.GroupId.from_index($groups.len())
-			artifact = $artifact_cursor < prepared.artifact_runs.len() and list_at(prepared.artifact_runs, $artifact_cursor) == $placement_cursor
-			owner = if artifact {
-				$artifact_cursor = $artifact_cursor + 1
-				PageArtifact(RepeatedHeader)
-			} else {
-				fragment = $fragment
-				$fragment = $fragment + 1
-				Fragment(Semantics.FragmentId.from_index(fragment))
-			}
-			$groups = $groups.append({
-				commands: Semantics.Range.from_start_and_length(command_start, group_length),
-				id: group,
-				owner,
-			})
-			$page_groups = $page_groups.append(group)
-			$placement_cursor = $placement_cursor + 1
-		}
 
-		## Table rules paint after the page's text, each a filled rectangle
-		## owned by a layout decoration artifact.
-		while $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
-			rule = list_at(prepared.rules, $rule_cursor)
-			fill = match paint_color(rule.color, intent, use_srgb) {
-				Ok(value) => value
-				Err(_) => return Err(UnsupportedColor({ run: $placement_cursor }))
+		## One loop per page paints the page's text placements and then its
+		## table rules. Two consecutive inner loops over the same accumulators
+		## copied `$commands`, `$groups`, and `$page_groups` once per page: the
+		## first loop's exit state reached the second loop's entry through an
+		## aggregate that still held them (docs/performance/emission-linearity.md).
+		while $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) {
+			if $placement_cursor < page_end {
+				placement = list_at(prepared.placements, $placement_cursor)
+				if placement.page.index() != $page_index or placement.run.index() != $placement_cursor {
+					return Err(InvalidPlacement({ placement: $placement_cursor }))
+				}
+				style = list_at(prepared.styles, $placement_cursor)
+				paint = match style.color {
+					Srgb(Rgb(channels)) => match intent {
+						NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 {
+							{
+								fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
+								mode: Fill,
+								opacity: 65535,
+								stroke: NoStroke,
+							}
+						} else {
+							return Err(UnsupportedColor({ run: $placement_cursor }))
+						}
+						PackagedSrgbIntent => if use_srgb {
+							{
+								fill: { channels: Rgb(channels), space: Color.SpaceId.from_index(0) },
+								mode: Fill,
+								opacity: 65535,
+								stroke: NoStroke,
+							}
+						} else {
+							{
+								fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
+								mode: Fill,
+								opacity: 65535,
+								stroke: NoStroke,
+							}
+						}
+					}
+					_ => return Err(UnsupportedColor({ run: $placement_cursor }))
+				}
+				occurrence = list_at(prepared.run_occurrences, $placement_cursor)
+				figure = if occurrence.index() < prepared.figure_by_occurrence.len() list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
+				command_start = $commands.len()
+
+				## The image command is built before any accumulator changes, so
+				## the `?` exits sit outside the `match` that appends it.
+				first_figure = match figure {
+					NoFigure => NoFigure
+					Figure(figure_index) => if list_at($painted_figures, figure_index) NoFigure else Figure(figure_index)
+				}
+				image = match first_figure {
+					NoFigure => NoImage
+					Figure(figure_index) => {
+						authored = list_at(prepared.authoring.figures, figure_index)
+						image_x = checked_i64_add(placement.origin.x.raw(), authored.placement.origin.x.raw())?
+						image_top = checked_i64_minus(placement.origin.y.raw(), authored.placement.size.height.raw())?
+						image_y = checked_i64_add(image_top, authored.placement.origin.y.raw())?
+						PaintImage({ command: DrawImage({ image: Image.Id.from_index(figure_index), placement: { origin: { x: Layout.Unit.from_raw(image_x), y: Layout.Unit.from_raw(image_y) }, size: authored.placement.size } }), figure: figure_index })
+					}
+				}
+				match image {
+					NoImage => {}
+					PaintImage({ command, figure: figure_index }) => {
+						$commands = $commands.append(command)
+						$painted_figures = list_set($painted_figures, figure_index, True)
+					}
+				}
+				group_length = $commands.len() - command_start + 1
+				text_command = $commands.len() + 1
+				$commands = $commands.append(
+					Transform({
+						children: Semantics.Range.from_start_and_length(text_command, 1),
+						matrix: {
+							a: Layout.Unit.from_raw(1000),
+							b: Layout.Unit.from_raw(0),
+							c: Layout.Unit.from_raw(0),
+							d: Layout.Unit.from_raw(1000),
+							e: placement.origin.x,
+							f: placement.origin.y,
+						},
+					}),
+				).append(DrawText({ paint, run: placement.run }))
+				group = Scene.GroupId.from_index($groups.len())
+				artifact = $artifact_cursor < prepared.artifact_runs.len() and list_at(prepared.artifact_runs, $artifact_cursor) == $placement_cursor
+				owner = if artifact {
+					$artifact_cursor = $artifact_cursor + 1
+					PageArtifact(RepeatedHeader)
+				} else {
+					fragment = $fragment
+					$fragment = $fragment + 1
+					Fragment(Semantics.FragmentId.from_index(fragment))
+				}
+				$groups = $groups.append({
+					commands: Semantics.Range.from_start_and_length(command_start, group_length),
+					id: group,
+					owner,
+				})
+				$page_groups = $page_groups.append(group)
+				$placement_cursor = $placement_cursor + 1
+			} else {
+
+				## Table rules paint after the page's text, each a filled rectangle
+				## owned by a layout decoration artifact.
+				rule = list_at(prepared.rules, $rule_cursor)
+				fill = match paint_color(rule.color, intent, use_srgb) {
+					Ok(value) => value
+					Err(_) => return Err(UnsupportedColor({ run: $placement_cursor }))
+				}
+				path = Scene.PathId.from_index($paths.len())
+				$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), 1) })
+				$path_segments = $path_segments.append(Rectangle(rule.rect))
+				command = $commands.len()
+				$commands = $commands.append(DrawPath({ path, style: { fill: SolidFill({ color: fill, rule: Nonzero }), stroke: NoStroke } }))
+				group = Scene.GroupId.from_index($groups.len())
+				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command, 1), id: group, owner: PageArtifact(Decoration) })
+				$page_groups = $page_groups.append(group)
+				$rule_cursor = $rule_cursor + 1
 			}
-			path = Scene.PathId.from_index($paths.len())
-			$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), 1) })
-			$path_segments = $path_segments.append(Rectangle(rule.rect))
-			command = $commands.len()
-			$commands = $commands.append(DrawPath({ path, style: { fill: SolidFill({ color: fill, rule: Nonzero }), stroke: NoStroke } }))
-			group = Scene.GroupId.from_index($groups.len())
-			$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command, 1), id: group, owner: PageArtifact(Decoration) })
-			$page_groups = $page_groups.append(group)
-			$rule_cursor = $rule_cursor + 1
 		}
 		$pages = $pages.append({
 			boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
