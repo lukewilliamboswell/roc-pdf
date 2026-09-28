@@ -155,6 +155,10 @@
     {
       "source": "tests/rich_inline/main.roc",
       "cases_jsonl": "tests/rich_inline/cases.jsonl"
+    },
+    {
+      "source": "tests/layout_policies/main.roc",
+      "cases_jsonl": "tests/layout_policies/cases.jsonl"
     }
   ],
   "cases": [
@@ -1745,7 +1749,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 278,
+          "allocations": 281,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -1767,7 +1771,7 @@
           }
         },
         "x64musl": {
-          "allocations": 278,
+          "allocations": 281,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -1834,7 +1838,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 309,
+          "allocations": 312,
           "work": {
             "authoring_blocks": 10003,
             "normalized_blocks": 10004,
@@ -1856,7 +1860,7 @@
           }
         },
         "x64musl": {
-          "allocations": 309,
+          "allocations": 312,
           "work": {
             "authoring_blocks": 10003,
             "normalized_blocks": 10004,
@@ -1921,7 +1925,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1277,
+          "allocations": 1280,
           "work": {
             "paragraphs": 1000,
             "shape_requests": 1006,
@@ -1940,7 +1944,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1277,
+          "allocations": 1280,
           "work": {
             "paragraphs": 1000,
             "shape_requests": 1006,
@@ -2002,7 +2006,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1308,
+          "allocations": 1311,
           "work": {
             "paragraphs": 10000,
             "shape_requests": 10006,
@@ -2021,7 +2025,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1308,
+          "allocations": 1311,
           "work": {
             "paragraphs": 10000,
             "shape_requests": 10006,
@@ -2083,7 +2087,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1313,
+          "allocations": 1316,
           "work": {
             "paragraphs": 1000,
             "blocks": 1004,
@@ -2105,7 +2109,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1313,
+          "allocations": 1316,
           "work": {
             "paragraphs": 1000,
             "blocks": 1004,
@@ -2170,7 +2174,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1344,
+          "allocations": 1347,
           "work": {
             "paragraphs": 10000,
             "blocks": 10004,
@@ -2192,7 +2196,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1344,
+          "allocations": 1347,
           "work": {
             "paragraphs": 10000,
             "blocks": 10004,
@@ -2253,7 +2257,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1351,
+          "allocations": 1354,
           "work": {
             "paragraphs": 1000,
             "block_planning_visits": 1004,
@@ -2270,7 +2274,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1351,
+          "allocations": 1354,
           "work": {
             "paragraphs": 1000,
             "block_planning_visits": 1004,
@@ -2326,7 +2330,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1396,
+          "allocations": 1399,
           "work": {
             "paragraphs": 10000,
             "block_planning_visits": 10004,
@@ -2343,7 +2347,7 @@
           }
         },
         "x64musl": {
-          "allocations": 1396,
+          "allocations": 1399,
           "work": {
             "paragraphs": 10000,
             "block_planning_visits": 10004,
@@ -4070,15 +4074,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2875,
+          "allocations": 2911,
           "work": {
-            "output_bytes": 15669
+            "output_bytes": 15708
           }
         },
         "x64musl": {
-          "allocations": 2875,
+          "allocations": 2911,
           "work": {
-            "output_bytes": 15669
+            "output_bytes": 15708
           }
         }
       },
@@ -4107,14 +4111,14 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 149,
+          "allocations": 152,
           "work": {
             "generated_label_property_rejected": 1,
             "evidence_pdf_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 149,
+          "allocations": 152,
           "work": {
             "generated_label_property_rejected": 1,
             "evidence_pdf_bytes": 667
@@ -19369,15 +19373,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 70638,
+          "allocations": 70674,
           "work": {
-            "output_bytes": 61957
+            "output_bytes": 61996
           }
         },
         "x64musl": {
-          "allocations": 70638,
+          "allocations": 70674,
           "work": {
-            "output_bytes": 61957
+            "output_bytes": 61996
           }
         }
       },
@@ -19406,15 +19410,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 667870,
+          "allocations": 667906,
           "work": {
-            "output_bytes": 404901
+            "output_bytes": 404940
           }
         },
         "x64musl": {
-          "allocations": 667870,
+          "allocations": 667906,
           "work": {
-            "output_bytes": 404901
+            "output_bytes": 404940
           }
         }
       },
@@ -19592,17 +19596,17 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 141233,
+          "allocations": 141305,
           "work": {
-            "output_bytes": 61957,
+            "output_bytes": 61996,
             "chunks": 110,
             "identical_to_buffered": 1
           }
         },
         "x64musl": {
-          "allocations": 141233,
+          "allocations": 141305,
           "work": {
-            "output_bytes": 61957,
+            "output_bytes": 61996,
             "chunks": 110,
             "identical_to_buffered": 1
           }
@@ -19635,17 +19639,17 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 141232,
+          "allocations": 141304,
           "work": {
-            "output_bytes": 61957,
+            "output_bytes": 61996,
             "chunks": 110,
             "identical_to_buffered": 1
           }
         },
         "x64musl": {
-          "allocations": 141232,
+          "allocations": 141304,
           "work": {
-            "output_bytes": 61957,
+            "output_bytes": 61996,
             "chunks": 110,
             "identical_to_buffered": 1
           }
@@ -19678,18 +19682,18 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 141231,
+          "allocations": 141303,
           "work": {
-            "archive_bytes": 61957,
-            "standard_bytes": 61845,
+            "archive_bytes": 61996,
+            "standard_bytes": 61884,
             "identification_growth": 112
           }
         },
         "x64musl": {
-          "allocations": 141231,
+          "allocations": 141303,
           "work": {
-            "archive_bytes": 61957,
-            "standard_bytes": 61845,
+            "archive_bytes": 61996,
+            "standard_bytes": 61884,
             "identification_growth": 112
           }
         }
@@ -19839,7 +19843,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8612,
+          "allocations": 8652,
           "work": {
             "node_writes": 28,
             "container_nodes": 6,
@@ -19848,11 +19852,11 @@
             "node_visits": 28,
             "containment_edges": 27,
             "max_semantic_depth": 8,
-            "output_bytes": 26149
+            "output_bytes": 26188
           }
         },
         "x64musl": {
-          "allocations": 8612,
+          "allocations": 8652,
           "work": {
             "node_writes": 28,
             "container_nodes": 6,
@@ -19861,7 +19865,7 @@
             "node_visits": 28,
             "containment_edges": 27,
             "max_semantic_depth": 8,
-            "output_bytes": 26149
+            "output_bytes": 26188
           }
         }
       },
@@ -20133,7 +20137,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 27430,
+          "allocations": 27505,
           "work": {
             "node_writes": 34,
             "inline_elements": 16,
@@ -20147,11 +20151,11 @@
             "final_runs": 43,
             "fragments": 43,
             "pages": 1,
-            "output_bytes": 35809
+            "output_bytes": 35848
           }
         },
         "x64musl": {
-          "allocations": 27430,
+          "allocations": 27505,
           "work": {
             "node_writes": 34,
             "inline_elements": 16,
@@ -20165,7 +20169,7 @@
             "final_runs": 43,
             "fragments": 43,
             "pages": 1,
-            "output_bytes": 35809
+            "output_bytes": 35848
           }
         }
       },
@@ -20440,6 +20444,691 @@
             "rejections": 12,
             "boundary_bytes": 16325,
             "output_bytes": 16120
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies nested lists",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/nested_lists.pdf",
+      "args": [
+        "lists",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 66
+      },
+      "work_counters": [
+        "node_writes",
+        "lists",
+        "list_items",
+        "content_writes",
+        "occurrence_writes",
+        "max_semantic_depth",
+        "lines",
+        "pages",
+        "fragments",
+        "candidate_visits",
+        "heading_relaxations",
+        "author_relaxations",
+        "orphan_relaxations",
+        "widow_relaxations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 15709,
+          "work": {
+            "node_writes": 66,
+            "lists": 5,
+            "list_items": 14,
+            "content_writes": 100,
+            "occurrence_writes": 35,
+            "max_semantic_depth": 11,
+            "lines": 34,
+            "pages": 1,
+            "fragments": 19,
+            "candidate_visits": 19,
+            "heading_relaxations": 0,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 33534
+          }
+        },
+        "x64musl": {
+          "allocations": 15709,
+          "work": {
+            "node_writes": 66,
+            "lists": 5,
+            "list_items": 14,
+            "content_writes": 100,
+            "occurrence_writes": 35,
+            "max_semantic_depth": 11,
+            "lines": 34,
+            "pages": 1,
+            "fragments": 19,
+            "candidate_visits": 19,
+            "heading_relaxations": 0,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 33534
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies explicit breaks and spacers",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/breaks.pdf",
+      "args": [
+        "breaks",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "structure_elements": 19
+      },
+      "work_counters": [
+        "node_writes",
+        "lists",
+        "list_items",
+        "content_writes",
+        "occurrence_writes",
+        "max_semantic_depth",
+        "lines",
+        "pages",
+        "fragments",
+        "candidate_visits",
+        "heading_relaxations",
+        "author_relaxations",
+        "orphan_relaxations",
+        "widow_relaxations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 14740,
+          "work": {
+            "node_writes": 19,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 42,
+            "occurrence_writes": 24,
+            "max_semantic_depth": 4,
+            "lines": 25,
+            "pages": 2,
+            "fragments": 13,
+            "candidate_visits": 22,
+            "heading_relaxations": 0,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 34357
+          }
+        },
+        "x64musl": {
+          "allocations": 14740,
+          "work": {
+            "node_writes": 19,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 42,
+            "occurrence_writes": 24,
+            "max_semantic_depth": 4,
+            "lines": 25,
+            "pages": 2,
+            "fragments": 13,
+            "candidate_visits": 22,
+            "heading_relaxations": 0,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 34357
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies keeps across page boundaries",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/keeps.pdf",
+      "args": [
+        "keeps",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5,
+        "structure_elements": 16
+      },
+      "work_counters": [
+        "node_writes",
+        "lists",
+        "list_items",
+        "content_writes",
+        "occurrence_writes",
+        "max_semantic_depth",
+        "lines",
+        "pages",
+        "fragments",
+        "candidate_visits",
+        "heading_relaxations",
+        "author_relaxations",
+        "orphan_relaxations",
+        "widow_relaxations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 10739,
+          "work": {
+            "node_writes": 16,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 30,
+            "occurrence_writes": 15,
+            "max_semantic_depth": 2,
+            "lines": 15,
+            "pages": 5,
+            "fragments": 15,
+            "candidate_visits": 12,
+            "heading_relaxations": 1,
+            "author_relaxations": 1,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 28141
+          }
+        },
+        "x64musl": {
+          "allocations": 10739,
+          "work": {
+            "node_writes": 16,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 30,
+            "occurrence_writes": 15,
+            "max_semantic_depth": 2,
+            "lines": 15,
+            "pages": 5,
+            "fragments": 15,
+            "candidate_visits": 12,
+            "heading_relaxations": 1,
+            "author_relaxations": 1,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 28141
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies reported relaxations",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/relaxations.pdf",
+      "args": [
+        "relaxations",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "structure_elements": 3
+      },
+      "work_counters": [
+        "node_writes",
+        "lists",
+        "list_items",
+        "content_writes",
+        "occurrence_writes",
+        "max_semantic_depth",
+        "lines",
+        "pages",
+        "fragments",
+        "candidate_visits",
+        "heading_relaxations",
+        "author_relaxations",
+        "orphan_relaxations",
+        "widow_relaxations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5841,
+          "work": {
+            "node_writes": 3,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 4,
+            "occurrence_writes": 2,
+            "max_semantic_depth": 2,
+            "lines": 4,
+            "pages": 4,
+            "fragments": 4,
+            "candidate_visits": 3,
+            "heading_relaxations": 0,
+            "author_relaxations": 1,
+            "orphan_relaxations": 1,
+            "widow_relaxations": 1,
+            "output_bytes": 21548
+          }
+        },
+        "x64musl": {
+          "allocations": 5841,
+          "work": {
+            "node_writes": 3,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 4,
+            "occurrence_writes": 2,
+            "max_semantic_depth": 2,
+            "lines": 4,
+            "pages": 4,
+            "fragments": 4,
+            "candidate_visits": 3,
+            "heading_relaxations": 0,
+            "author_relaxations": 1,
+            "orphan_relaxations": 1,
+            "widow_relaxations": 1,
+            "output_bytes": 21548
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies keep groups and lists x50",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/groups_50.pdf",
+      "args": [
+        "groups",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5,
+        "structure_elements": 352
+      },
+      "work_counters": [
+        "node_writes",
+        "lists",
+        "list_items",
+        "content_writes",
+        "occurrence_writes",
+        "max_semantic_depth",
+        "lines",
+        "pages",
+        "fragments",
+        "candidate_visits",
+        "heading_relaxations",
+        "author_relaxations",
+        "orphan_relaxations",
+        "widow_relaxations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 70540,
+          "work": {
+            "node_writes": 352,
+            "lists": 50,
+            "list_items": 50,
+            "content_writes": 552,
+            "occurrence_writes": 201,
+            "max_semantic_depth": 5,
+            "lines": 201,
+            "pages": 5,
+            "fragments": 151,
+            "candidate_visits": 100,
+            "heading_relaxations": 0,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 82717
+          }
+        },
+        "x64musl": {
+          "allocations": 70540,
+          "work": {
+            "node_writes": 352,
+            "lists": 50,
+            "list_items": 50,
+            "content_writes": 552,
+            "occurrence_writes": 201,
+            "max_semantic_depth": 5,
+            "lines": 201,
+            "pages": 5,
+            "fragments": 151,
+            "candidate_visits": 100,
+            "heading_relaxations": 0,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 82717
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies keep groups and lists x500",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/groups_500.pdf",
+      "args": [
+        "groups",
+        "500"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 48,
+        "structure_elements": 3502
+      },
+      "work_counters": [
+        "node_writes",
+        "lists",
+        "list_items",
+        "content_writes",
+        "occurrence_writes",
+        "max_semantic_depth",
+        "lines",
+        "pages",
+        "fragments",
+        "candidate_visits",
+        "heading_relaxations",
+        "author_relaxations",
+        "orphan_relaxations",
+        "widow_relaxations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 685972,
+          "work": {
+            "node_writes": 3502,
+            "lists": 500,
+            "list_items": 500,
+            "content_writes": 5502,
+            "occurrence_writes": 2001,
+            "max_semantic_depth": 5,
+            "lines": 2001,
+            "pages": 48,
+            "fragments": 1501,
+            "candidate_visits": 1000,
+            "heading_relaxations": 0,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 680772
+          }
+        },
+        "x64musl": {
+          "allocations": 685972,
+          "work": {
+            "node_writes": 3502,
+            "lists": 500,
+            "list_items": 500,
+            "content_writes": 5502,
+            "occurrence_writes": 2001,
+            "max_semantic_depth": 5,
+            "lines": 2001,
+            "pages": 48,
+            "fragments": 1501,
+            "candidate_visits": 1000,
+            "heading_relaxations": 0,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 680772
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies adversarial heading chain x50",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/heading_chain_50.pdf",
+      "args": [
+        "heading_chain",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "structure_elements": 52
+      },
+      "work_counters": [
+        "node_writes",
+        "lists",
+        "list_items",
+        "content_writes",
+        "occurrence_writes",
+        "max_semantic_depth",
+        "lines",
+        "pages",
+        "fragments",
+        "candidate_visits",
+        "heading_relaxations",
+        "author_relaxations",
+        "orphan_relaxations",
+        "widow_relaxations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 16554,
+          "work": {
+            "node_writes": 52,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 102,
+            "occurrence_writes": 51,
+            "max_semantic_depth": 2,
+            "lines": 51,
+            "pages": 2,
+            "fragments": 51,
+            "candidate_visits": 50,
+            "heading_relaxations": 1,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 26159
+          }
+        },
+        "x64musl": {
+          "allocations": 16554,
+          "work": {
+            "node_writes": 52,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 102,
+            "occurrence_writes": 51,
+            "max_semantic_depth": 2,
+            "lines": 51,
+            "pages": 2,
+            "fragments": 51,
+            "candidate_visits": 50,
+            "heading_relaxations": 1,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 26159
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies adversarial heading chain x500",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/heading_chain_500.pdf",
+      "args": [
+        "heading_chain",
+        "500"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 19,
+        "structure_elements": 502
+      },
+      "work_counters": [
+        "node_writes",
+        "lists",
+        "list_items",
+        "content_writes",
+        "occurrence_writes",
+        "max_semantic_depth",
+        "lines",
+        "pages",
+        "fragments",
+        "candidate_visits",
+        "heading_relaxations",
+        "author_relaxations",
+        "orphan_relaxations",
+        "widow_relaxations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 135627,
+          "work": {
+            "node_writes": 502,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 1002,
+            "occurrence_writes": 501,
+            "max_semantic_depth": 2,
+            "lines": 501,
+            "pages": 19,
+            "fragments": 501,
+            "candidate_visits": 500,
+            "heading_relaxations": 18,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 106412
+          }
+        },
+        "x64musl": {
+          "allocations": 135627,
+          "work": {
+            "node_writes": 502,
+            "lists": 0,
+            "list_items": 0,
+            "content_writes": 1002,
+            "occurrence_writes": 501,
+            "max_semantic_depth": 2,
+            "lines": 501,
+            "pages": 19,
+            "fragments": 501,
+            "candidate_visits": 500,
+            "heading_relaxations": 18,
+            "author_relaxations": 0,
+            "orphan_relaxations": 0,
+            "widow_relaxations": 0,
+            "output_bytes": 106412
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "layout policies atomic negatives",
+      "scenario_revision": "layout-policies-v1",
+      "source": "tests/layout_policies/main.roc",
+      "snapshot": "tests/layout_policies/negatives.pdf",
+      "args": [
+        "atomic_negatives",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "rejections": 25,
+        "structure_elements": 7
+      },
+      "work_counters": [
+        "rejections",
+        "boundary_bytes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 33852,
+          "work": {
+            "rejections": 25,
+            "boundary_bytes": 18254,
+            "output_bytes": 16697
+          }
+        },
+        "x64musl": {
+          "allocations": 33852,
+          "work": {
+            "rejections": 25,
+            "boundary_bytes": 18254,
+            "output_bytes": 16697
           }
         }
       },
