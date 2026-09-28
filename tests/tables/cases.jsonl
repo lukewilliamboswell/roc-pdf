@@ -1,0 +1,7 @@
+{"name":"tables invoice x50","schema_version":1,"case":{"Invoice":{"rows":50}}}
+{"name":"tables invoice x500","schema_version":1,"case":{"Invoice":{"rows":500}}}
+{"name":"tables column spans and two header rows","schema_version":1,"case":{"Spans":{"context":0}}}
+{"name":"tables split rows","schema_version":1,"case":{"SplitRows":{"context":0}}}
+{"name":"tables footer carry","schema_version":1,"case":{"FooterCarry":{"context":0}}}
+{"name":"tables ordered numeric cells","schema_version":1,"case":{"Ordered":{"context":0}}}
+{"name":"tables atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}

@@ -159,6 +159,10 @@
     {
       "source": "tests/layout_policies/main.roc",
       "cases_jsonl": "tests/layout_policies/cases.jsonl"
+    },
+    {
+      "source": "tests/tables/main.roc",
+      "cases_jsonl": "tests/tables/cases.jsonl"
     }
   ],
   "cases": [
@@ -20073,7 +20077,7 @@
             "containment_edges": 5,
             "identifier_visits": 2,
             "relationship_visits": 1,
-            "attribute_visits": 7,
+            "attribute_visits": 8,
             "max_semantic_depth": 5,
             "structure_elements": 6,
             "attribute_dictionaries": 3,
@@ -20089,7 +20093,7 @@
             "containment_edges": 5,
             "identifier_visits": 2,
             "relationship_visits": 1,
-            "attribute_visits": 7,
+            "attribute_visits": 8,
             "max_semantic_depth": 5,
             "structure_elements": 6,
             "attribute_dictionaries": 3,
@@ -21129,6 +21133,552 @@
             "rejections": 25,
             "boundary_bytes": 18254,
             "output_bytes": 16697
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "tables invoice x50",
+      "scenario_revision": "tables-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/invoice_50.pdf",
+      "args": [
+        "invoice",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "structure_elements": 356,
+        "element_identifiers": 269
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "tables",
+        "table_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "measurement_cache_hits",
+        "column_width_passes",
+        "row_visits",
+        "lines",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 110221,
+          "work": {
+            "node_writes": 356,
+            "occurrence_writes": 288,
+            "tables": 2,
+            "table_cells": 269,
+            "header_association_edges": 410,
+            "cell_measurements": 104,
+            "measurement_cache_hits": 165,
+            "column_width_passes": 2,
+            "row_visits": 58,
+            "lines": 341,
+            "pages": 4,
+            "candidate_visits": 69,
+            "repeated_header_paints": 3,
+            "fragments": 347,
+            "artifact_runs": 21,
+            "output_bytes": 127405
+          }
+        },
+        "x64musl": {
+          "allocations": 110221,
+          "work": {
+            "node_writes": 356,
+            "occurrence_writes": 288,
+            "tables": 2,
+            "table_cells": 269,
+            "header_association_edges": 410,
+            "cell_measurements": 104,
+            "measurement_cache_hits": 165,
+            "column_width_passes": 2,
+            "row_visits": 58,
+            "lines": 341,
+            "pages": 4,
+            "candidate_visits": 69,
+            "repeated_header_paints": 3,
+            "fragments": 347,
+            "artifact_runs": 21,
+            "output_bytes": 127405
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "tables invoice x500",
+      "scenario_revision": "tables-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/invoice_500.pdf",
+      "args": [
+        "invoice",
+        "500"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 27,
+        "structure_elements": 3113,
+        "element_identifiers": 2519
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "tables",
+        "table_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "measurement_cache_hits",
+        "column_width_passes",
+        "row_visits",
+        "lines",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 897797,
+          "work": {
+            "node_writes": 3113,
+            "occurrence_writes": 2595,
+            "tables": 2,
+            "table_cells": 2519,
+            "header_association_edges": 4010,
+            "cell_measurements": 104,
+            "measurement_cache_hits": 2415,
+            "column_width_passes": 2,
+            "row_visits": 508,
+            "lines": 3098,
+            "pages": 27,
+            "candidate_visits": 519,
+            "repeated_header_paints": 26,
+            "fragments": 3161,
+            "artifact_runs": 182,
+            "output_bytes": 934252
+          }
+        },
+        "x64musl": {
+          "allocations": 897797,
+          "work": {
+            "node_writes": 3113,
+            "occurrence_writes": 2595,
+            "tables": 2,
+            "table_cells": 2519,
+            "header_association_edges": 4010,
+            "cell_measurements": 104,
+            "measurement_cache_hits": 2415,
+            "column_width_passes": 2,
+            "row_visits": 508,
+            "lines": 3098,
+            "pages": 27,
+            "candidate_visits": 519,
+            "repeated_header_paints": 26,
+            "fragments": 3161,
+            "artifact_runs": 182,
+            "output_bytes": 934252
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "tables column spans and two header rows",
+      "scenario_revision": "tables-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/spans.pdf",
+      "args": [
+        "spans",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 47,
+        "element_identifiers": 29
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "tables",
+        "table_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "measurement_cache_hits",
+        "column_width_passes",
+        "row_visits",
+        "lines",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 15966,
+          "work": {
+            "node_writes": 47,
+            "occurrence_writes": 33,
+            "tables": 1,
+            "table_cells": 29,
+            "header_association_edges": 51,
+            "cell_measurements": 29,
+            "measurement_cache_hits": 0,
+            "column_width_passes": 1,
+            "row_visits": 8,
+            "lines": 33,
+            "pages": 1,
+            "candidate_visits": 11,
+            "repeated_header_paints": 0,
+            "fragments": 33,
+            "artifact_runs": 0,
+            "output_bytes": 34793
+          }
+        },
+        "x64musl": {
+          "allocations": 15966,
+          "work": {
+            "node_writes": 47,
+            "occurrence_writes": 33,
+            "tables": 1,
+            "table_cells": 29,
+            "header_association_edges": 51,
+            "cell_measurements": 29,
+            "measurement_cache_hits": 0,
+            "column_width_passes": 1,
+            "row_visits": 8,
+            "lines": 33,
+            "pages": 1,
+            "candidate_visits": 11,
+            "repeated_header_paints": 0,
+            "fragments": 33,
+            "artifact_runs": 0,
+            "output_bytes": 34793
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "tables split rows",
+      "scenario_revision": "tables-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/split_rows.pdf",
+      "args": [
+        "split_rows",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "structure_elements": 23,
+        "element_identifiers": 12
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "tables",
+        "table_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "measurement_cache_hits",
+        "column_width_passes",
+        "row_visits",
+        "lines",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 124403,
+          "work": {
+            "node_writes": 23,
+            "occurrence_writes": 14,
+            "tables": 1,
+            "table_cells": 12,
+            "header_association_edges": 12,
+            "cell_measurements": 10,
+            "measurement_cache_hits": 2,
+            "column_width_passes": 1,
+            "row_visits": 4,
+            "lines": 263,
+            "pages": 6,
+            "candidate_visits": 254,
+            "repeated_header_paints": 5,
+            "fragments": 263,
+            "artifact_runs": 15,
+            "output_bytes": 71825
+          }
+        },
+        "x64musl": {
+          "allocations": 124403,
+          "work": {
+            "node_writes": 23,
+            "occurrence_writes": 14,
+            "tables": 1,
+            "table_cells": 12,
+            "header_association_edges": 12,
+            "cell_measurements": 10,
+            "measurement_cache_hits": 2,
+            "column_width_passes": 1,
+            "row_visits": 4,
+            "lines": 263,
+            "pages": 6,
+            "candidate_visits": 254,
+            "repeated_header_paints": 5,
+            "fragments": 263,
+            "artifact_runs": 15,
+            "output_bytes": 71825
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics"
+      ]
+    },
+    {
+      "name": "tables footer carry",
+      "scenario_revision": "tables-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/footer_carry.pdf",
+      "args": [
+        "footer_carry",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "structure_elements": 216,
+        "element_identifiers": 171
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "tables",
+        "table_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "measurement_cache_hits",
+        "column_width_passes",
+        "row_visits",
+        "lines",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 50832,
+          "work": {
+            "node_writes": 216,
+            "occurrence_writes": 173,
+            "tables": 1,
+            "table_cells": 171,
+            "header_association_edges": 262,
+            "cell_measurements": 46,
+            "measurement_cache_hits": 125,
+            "column_width_passes": 1,
+            "row_visits": 36,
+            "lines": 175,
+            "pages": 2,
+            "candidate_visits": 36,
+            "repeated_header_paints": 1,
+            "fragments": 175,
+            "artifact_runs": 7,
+            "output_bytes": 71697
+          }
+        },
+        "x64musl": {
+          "allocations": 50832,
+          "work": {
+            "node_writes": 216,
+            "occurrence_writes": 173,
+            "tables": 1,
+            "table_cells": 171,
+            "header_association_edges": 262,
+            "cell_measurements": 46,
+            "measurement_cache_hits": 125,
+            "column_width_passes": 1,
+            "row_visits": 36,
+            "lines": 175,
+            "pages": 2,
+            "candidate_visits": 36,
+            "repeated_header_paints": 1,
+            "fragments": 175,
+            "artifact_runs": 7,
+            "output_bytes": 71697
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "tables ordered numeric cells",
+      "scenario_revision": "tables-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/ordered.pdf",
+      "args": [
+        "ordered",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 19,
+        "element_identifiers": 9
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "tables",
+        "table_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "measurement_cache_hits",
+        "column_width_passes",
+        "row_visits",
+        "lines",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6834,
+          "work": {
+            "node_writes": 19,
+            "occurrence_writes": 12,
+            "tables": 1,
+            "table_cells": 9,
+            "header_association_edges": 8,
+            "cell_measurements": 9,
+            "measurement_cache_hits": 0,
+            "column_width_passes": 1,
+            "row_visits": 3,
+            "lines": 10,
+            "pages": 1,
+            "candidate_visits": 3,
+            "repeated_header_paints": 0,
+            "fragments": 18,
+            "artifact_runs": 0,
+            "output_bytes": 22867
+          }
+        },
+        "x64musl": {
+          "allocations": 6834,
+          "work": {
+            "node_writes": 19,
+            "occurrence_writes": 12,
+            "tables": 1,
+            "table_cells": 9,
+            "header_association_edges": 8,
+            "cell_measurements": 9,
+            "measurement_cache_hits": 0,
+            "column_width_passes": 1,
+            "row_visits": 3,
+            "lines": 10,
+            "pages": 1,
+            "candidate_visits": 3,
+            "repeated_header_paints": 0,
+            "fragments": 18,
+            "artifact_runs": 0,
+            "output_bytes": 22867
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "tables atomic negatives",
+      "scenario_revision": "tables-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/negatives.pdf",
+      "args": [
+        "atomic_negatives",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "rejections": 14,
+        "structure_elements": 13,
+        "element_identifiers": 6
+      },
+      "work_counters": [
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 72700,
+          "work": {
+            "rejections": 14,
+            "output_bytes": 19392
+          }
+        },
+        "x64musl": {
+          "allocations": 72700,
+          "work": {
+            "rejections": 14,
+            "output_bytes": 19392
           }
         }
       },
