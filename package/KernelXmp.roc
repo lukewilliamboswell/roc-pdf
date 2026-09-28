@@ -14,6 +14,11 @@
 ## - Text content escapes exactly `&`, `<`, and `>`; validation has already
 ##   rejected scalars XML 1.0 cannot represent, and no other substitution or
 ##   whitespace policy applies.
+## - A packet built for a validated static PDF/A-4 claim additionally declares
+##   the PDF/A Identification schema (`pdfaid:part` 4, `pdfaid:rev` 2020). Its
+##   namespace URI sorts last, so the declaration follows `xmlns:dc` and the two
+##   properties follow `dc:title`. An unidentified packet is byte-identical to
+##   the packet this policy produced before the identification existed.
 ## - Indentation is one tab per element depth with single newlines; the packet
 ##   carries no trailing newline. There are no XMP identifiers: deterministic
 ##   document identity remains the trailer `/ID` digest, which hashes the
@@ -32,20 +37,33 @@ KernelXmp :: [].{
 
 	Work : { packet_bytes : U64, properties : U64, title_escapes : U64 }
 
-	Packet :: { bytes : List(U8), work : Work }.{
+	## The PDF/A Identification schema *is* the conformance declaration, so it
+	## is a typed input rather than a metadata fact: only a caller that holds a
+	## requested static PDF/A-4 claim selects `PdfA4Identification`, and the
+	## lowered-plan validator checks the packet's identification against that
+	## same claim before any byte is emitted.
+	Identification : [NoIdentification, PdfA4Identification]
+
+	Packet :: { bytes : List(U8), identification : Identification, work : Work }.{
 		build : KernelMetadata.Facts, U64 -> Try(Packet, Error)
-		build = |facts, max_bytes| build_packet(facts, max_bytes)
+		build = |facts, max_bytes| build_packet(facts, NoIdentification, max_bytes)
+
+		build_identified : KernelMetadata.Facts, Identification, U64 -> Try(Packet, Error)
+		build_identified = |facts, identification, max_bytes| build_packet(facts, identification, max_bytes)
 
 		bytes : Packet -> List(U8)
 		bytes = |packet| packet.bytes
+
+		identification : Packet -> Identification
+		identification = |packet| packet.identification
 
 		work : Packet -> Work
 		work = |packet| packet.work
 	}
 }
 
-build_packet : KernelMetadata.Facts, U64 -> Try(KernelXmp.Packet, KernelXmp.Error)
-build_packet = |facts, max_bytes| {
+build_packet : KernelMetadata.Facts, KernelXmp.Identification, U64 -> Try(KernelXmp.Packet, KernelXmp.Error)
+build_packet = |facts, identification, max_bytes| {
 	head = Str.to_utf8(head_open)
 	bom = [239, 187, 191]
 	head_rest = Str.to_utf8(head_close)
@@ -66,6 +84,17 @@ build_packet = |facts, max_bytes| {
 	has_timestamps = timestamp_len > 0
 	namespace_len = if has_timestamps xmp_namespace.len() else 0
 
+	## The identification segments are materialized only for an identified
+	## packet, so the unidentified packet's bytes and allocations are unchanged.
+	identified = match identification {
+		NoIdentification => NotIdentified
+		PdfA4Identification => Identified({ namespace: Str.to_utf8(pdfaid_namespace_attribute), properties: Str.to_utf8(pdfaid_properties) })
+	}
+	identification_len = match identified {
+		NotIdentified => 0
+		Identified({ namespace, properties }) => namespace.len() + properties.len()
+	}
+
 	escapes = facts.title_escapes
 	escape_count = escapes.amps + escapes.lts + escapes.gts
 	escaped_title_len = title_bytes.len() + escapes.amps * 4 + escapes.lts * 3 + escapes.gts * 3
@@ -75,6 +104,7 @@ build_packet = |facts, max_bytes| {
 		+ head_rest.len()
 		+ namespace_len
 		+ dc_namespace.len()
+		+ identification_len
 		+ description_end.len()
 		+ timestamp_len
 		+ language_head.len()
@@ -97,6 +127,12 @@ build_packet = |facts, max_bytes| {
 		$out = $out.concat(xmp_namespace)
 	}
 	$out = $out.concat(dc_namespace)
+	match identified {
+		NotIdentified => {}
+		Identified(segments) => {
+			$out = $out.concat(segments.namespace)
+		}
+	}
 	$out = $out.concat(description_end)
 	$out = append_segments($out, created)
 	$out = append_segments($out, modified)
@@ -106,20 +142,33 @@ build_packet = |facts, max_bytes| {
 	$out = $out.concat(title_head)
 	$out = append_escaped($out, title_bytes)
 	$out = $out.concat(title_tail)
+	match identified {
+		NotIdentified => {}
+		Identified(segments) => {
+			$out = $out.concat(segments.properties)
+		}
+	}
 	$out = $out.concat(tail)
 
 	if $out.len() != total {
 		crash "canonical XMP length invariant failed"
 	}
 
-	properties = 2 + segment_count(created) + segment_count(modified)
+	identification_properties = match identified {
+		NotIdentified => 0
+		Identified(_) => 2
+	}
+	properties = 2 + segment_count(created) + segment_count(modified) + identification_properties
 	Ok(
 		KernelXmp.Packet.{
 			bytes: $out,
+			identification,
 			work: { packet_bytes: total, properties, title_escapes: escape_count },
 		},
 	)
 }
+
+IdentificationSegments : [Identified({ namespace : List(U8), properties : List(U8) }), NotIdentified]
 
 TimestampSegments : [NoTimestamp, Timestamp({ close : List(U8), open : List(U8), value : List(U8) })]
 
@@ -184,6 +233,15 @@ xmp_namespace_attribute = " xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\""
 
 dc_namespace_attribute : Str
 dc_namespace_attribute = " xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
+
+## The PDF/A Identification namespace URI sorts after both the XMP and Dublin
+## Core URIs, and `part` sorts before `rev`; ISO 19005-4 forbids
+## `pdfaid:conformance` for a file that is neither PDF/A-4e nor PDF/A-4f.
+pdfaid_namespace_attribute : Str
+pdfaid_namespace_attribute = " xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\""
+
+pdfaid_properties : Str
+pdfaid_properties = "\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n"
 
 language_open : Str
 language_open = "\t\t\t<dc:language>\n\t\t\t\t<rdf:Bag>\n\t\t\t\t\t<rdf:li>"
@@ -309,6 +367,53 @@ expect {
 	small = KernelXmp.Packet.build(sample_facts, 4096)?
 	limit = KernelXmp.Packet.work(small).packet_bytes - 1
 	match KernelXmp.Packet.build(sample_facts, limit) {
+		Err(PacketTooLarge({ attempted, limit: reported })) => attempted == limit + 1 and reported == limit
+		_ => False
+	}
+}
+
+## The identified packet adds exactly the PDF/A Identification declaration and
+## its two properties in canonical URI order, and nothing else.
+expect {
+	plain = KernelXmp.Packet.build(sample_facts, 4096)?
+	identified = KernelXmp.Packet.build_identified(sample_facts, PdfA4Identification, 4096)?
+	expected = Str.to_utf8("<?xpacket begin=\"")
+		.concat([239, 187, 191])
+		.concat(
+			Str.to_utf8(
+				"\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n\t<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\t\t<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">\n\t\t\t<dc:language>\n\t\t\t\t<rdf:Bag>\n\t\t\t\t\t<rdf:li>en-AU</rdf:li>\n\t\t\t\t</rdf:Bag>\n\t\t\t</dc:language>\n\t\t\t<dc:title>\n\t\t\t\t<rdf:Alt>\n\t\t\t\t\t<rdf:li xml:lang=\"x-default\">Report</rdf:li>\n\t\t\t\t</rdf:Alt>\n\t\t\t</dc:title>\n\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n\t\t</rdf:Description>\n\t</rdf:RDF>\n</x:xmpmeta>\n<?xpacket end=\"w\"?>",
+			),
+		)
+
+	KernelXmp.Packet.bytes(identified) == expected
+		and KernelXmp.Packet.work(identified) == { packet_bytes: expected.len(), properties: 4, title_escapes: 0 }
+			and KernelXmp.Packet.bytes(identified).len() == KernelXmp.Packet.bytes(plain).len() + 112
+				and KernelXmp.Packet.identification(identified) == PdfA4Identification
+					and KernelXmp.Packet.identification(plain) == NoIdentification
+}
+
+## Explicit timestamps keep the XMP namespace first and the identification last.
+expect {
+	facts = { ..sample_facts, created: Explicit("2026-01-02T03:04:05Z") }
+	packet = KernelXmp.Packet.build_identified(facts, PdfA4Identification, 4096)?
+	text = match Str.from_utf8(KernelXmp.Packet.bytes(packet)) {
+		Ok(value) => value
+		Err(_) => {
+			crash "canonical XMP produced invalid UTF-8"
+		}
+	}
+
+	Str.contains(text, " xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">")
+		and Str.contains(text, "</dc:title>\n\t\t\t<pdfaid:part>4</pdfaid:part>\n\t\t\t<pdfaid:rev>2020</pdfaid:rev>\n\t\t</rdf:Description>")
+			and !Str.contains(text, "pdfaid:conformance")
+				and KernelXmp.Packet.work(packet).properties == 5
+}
+
+## The identified packet budget includes the identification bytes.
+expect {
+	identified = KernelXmp.Packet.build_identified(sample_facts, PdfA4Identification, 4096)?
+	limit = KernelXmp.Packet.work(identified).packet_bytes - 1
+	match KernelXmp.Packet.build_identified(sample_facts, PdfA4Identification, limit) {
 		Err(PacketTooLarge({ attempted, limit: reported })) => attempted == limit + 1 and reported == limit
 		_ => False
 	}

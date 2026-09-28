@@ -62,9 +62,18 @@ KernelPdfText :: [].{
 
 	## Scene lowering prepares one local-coordinate text object per validated run.
 	## Placement and marked-content ownership remain facts of the scene/tagged plans.
-	ScenePlan :: { content : KernelContent.TextPlan, mappings : List(List(KernelPdfFont.UnicodeMapping)), work : Work }.{
+	## The first run, in dense run order, whose ActualText replacement carries
+	## a Private Use Area scalar. It is a Unicode fact of the prepared text,
+	## recorded where the replacement is materialized so later profile
+	## validation never re-reads content streams.
+	ActualTextPrivateUse : [NoPrivateUse, PrivateUseInRun(U64)]
+
+	ScenePlan :: { actual_text_private_use : ActualTextPrivateUse, content : KernelContent.TextPlan, mappings : List(List(KernelPdfFont.UnicodeMapping)), work : Work }.{
 		build : KernelTextOwnership.Plan, List(KernelFontPlan.Plan), Limits -> Try(ScenePlan, Error)
 		build = |ownership, fonts, limits| build_scene_plan(ownership, fonts, limits)
+
+		actual_text_private_use : ScenePlan -> ActualTextPrivateUse
+		actual_text_private_use = |plan| plan.actual_text_private_use
 
 		content : ScenePlan -> KernelContent.TextPlan
 		content = |plan| plan.content
@@ -179,6 +188,7 @@ build_scene_plan = |ownership, fonts, limits| {
 	var $content_bytes = 0
 	var $glyph_visits = 0
 	var $mapping_conflicts = 0
+	var $private_use = NoPrivateUse
 	var $run_index = 0
 	while $run_index < text.runs.len() {
 		run = list_at(text.runs, $run_index)
@@ -207,6 +217,9 @@ build_scene_plan = |ownership, fonts, limits| {
 			NoActualText => []
 			UseActualText(values) => append_actual_text_begin([], values, run.id.index(), remaining)?
 		}
+		if $private_use == NoPrivateUse and has_private_use(actual_text) {
+			$private_use = PrivateUseInRun($run_index)
+		}
 		remaining_body = remaining - actual_text_begin.len()
 
 		## The prepared body carries only the glyph operators: the font
@@ -224,6 +237,7 @@ build_scene_plan = |ownership, fonts, limits| {
 	finished = finish_mappings($states, limits.max_mappings)?
 	Ok(
 		KernelPdfText.ScenePlan.{
+			actual_text_private_use: $private_use,
 			content: KernelContent.TextPlan.make($runs),
 			mappings: finished.mappings,
 			work: {
@@ -310,6 +324,22 @@ relative_text_range_fits = |inner, outer| relative_range_fits(inner.scalars, out
 
 relative_range_fits : Semantics.Range, Semantics.Range -> Bool
 relative_range_fits = |inner, outer| inner.start() <= outer.length() and inner.length() <= outer.length() - inner.start()
+
+## Private Use Area planes: U+E000..U+F8FF, plane 15, and plane 16.
+has_private_use : ActualText -> Bool
+has_private_use = |actual_text| match actual_text {
+	NoActualText => False
+	UseActualText(values) => {
+		var $index = 0
+		var $found = False
+		while !$found and $index < values.len() {
+			value = list_at(values, $index)
+			$found = (value >= 0xE000 and value <= 0xF8FF) or (value >= 0xF0000 and value <= 0xFFFFD) or (value >= 0x100000 and value <= 0x10FFFD)
+			$index = $index + 1
+		}
+		$found
+	}
+}
 
 actual_text_for_run : Semantics.Store, ScalarCache, Text.Store, Text.Run, U64, U64, U64 -> Try(ActualText, KernelPdfText.Error)
 actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
