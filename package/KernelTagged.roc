@@ -164,20 +164,19 @@ build_occurrence_nodes = |store| {
 	var $owners = List.repeat(0, store.occurrences.len())
 	var $nodes = List.repeat(store.document_root, store.occurrences.len())
 	var $node_index = 0
-	var $error = NoError
-	while $node_index < store.nodes.len() and $error == NoError {
+	while $node_index < store.nodes.len() {
 		node = list_at(store.nodes, $node_index)
 		start = node.content.start()
 		end = start + node.content.length()
 		var $content_index = start
-		while $content_index < end and $error == NoError {
+		while $content_index < end {
 			match list_at(store.content_spine, $content_index) {
 				ContentOccurrence(occurrence) => {
 					index = occurrence.index()
 					if index >= $owners.len() {
-						$error = Invalid(IndexOutOfRange({ available: $owners.len(), index, kind: OccurrenceIndex }))
+						return Err(IndexOutOfRange({ available: $owners.len(), index, kind: OccurrenceIndex }))
 					} else if list_at($owners, index) != 0 {
-						$error = Invalid(DuplicateFragmentOwnership({ fragment: index }))
+						return Err(DuplicateFragmentOwnership({ fragment: index }))
 					} else {
 						$owners = list_set($owners, index, 1)
 						$nodes = list_set($nodes, index, node.id)
@@ -189,10 +188,7 @@ build_occurrence_nodes = |store| {
 		}
 		$node_index = $node_index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($nodes)
-	}
+	Ok($nodes)
 }
 
 collect_paint_order : Semantics.Store, Scene.Store -> Try(PaintWork, KernelTagged.Error)
@@ -203,13 +199,12 @@ collect_paint_order = |semantics, scenes| {
 	var $paint_edges = 0
 	var $fragment_groups = 0
 	var $artifact_groups = 0
-	var $error = NoError
-	while $page_index < scenes.pages.len() and $error == NoError {
+	while $page_index < scenes.pages.len() {
 		page = list_at(scenes.pages, $page_index)
 		start = page.paint_order.start()
 		end = start + page.paint_order.length()
 		var $edge = start
-		while $edge < end and $error == NoError {
+		while $edge < end {
 			group_index = list_at(scenes.page_groups, $edge).index()
 			group = list_at(scenes.groups, group_index)
 			match group.owner {
@@ -219,14 +214,14 @@ collect_paint_order = |semantics, scenes| {
 				Fragment(fragment) => {
 					fragment_index = fragment.index()
 					if fragment_index >= semantics.fragments.len() {
-						$error = Invalid(IndexOutOfRange({ available: semantics.fragments.len(), index: fragment_index, kind: FragmentIndex }))
+						return Err(IndexOutOfRange({ available: semantics.fragments.len(), index: fragment_index, kind: FragmentIndex }))
 					} else if list_at($owners, fragment_index) != 0 {
-						$error = Invalid(DuplicateFragmentOwnership({ fragment: fragment_index }))
+						return Err(DuplicateFragmentOwnership({ fragment: fragment_index }))
 					} else {
 						semantic_fragment = list_at(semantics.fragments, fragment_index)
 						expected_page = semantic_fragment.page.index()
 						if expected_page != $page_index {
-							$error = Invalid(FragmentPageMismatch({ actual: $page_index, expected: expected_page, fragment: fragment_index }))
+							return Err(FragmentPageMismatch({ actual: $page_index, expected: expected_page, fragment: fragment_index }))
 						} else {
 							$owners = list_set($owners, fragment_index, 1)
 							$fragment_order = $fragment_order.append(fragment)
@@ -241,16 +236,13 @@ collect_paint_order = |semantics, scenes| {
 		$page_index = $page_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => match first_unowned($owners) {
-			AllOwned => Ok({ artifact_groups: $artifact_groups, fragment_groups: $fragment_groups, fragment_order: $fragment_order, paint_edges: $paint_edges })
-			Unowned(fragment) => Err(
-				OrphanFragment({
-					fragment: fragment,
-				}),
-			)
-		}
+	match first_unowned($owners) {
+		AllOwned => Ok({ artifact_groups: $artifact_groups, fragment_groups: $fragment_groups, fragment_order: $fragment_order, paint_edges: $paint_edges })
+		Unowned(fragment) => Err(
+			OrphanFragment({
+				fragment: fragment,
+			}),
+		)
 	}
 }
 

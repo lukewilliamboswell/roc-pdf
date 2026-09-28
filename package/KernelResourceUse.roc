@@ -289,10 +289,7 @@ collect_command_use = |commands, colors, color_count, image_count| {
 				Ok(collected) => {
 					$color_counts = collected.counts
 					$path_colors = match checked_add($path_colors, collected.references) {
-						Err(error) => {
-							return Err(error)
-							$path_colors
-						}
+						Err(error) => return Err(error)
 						Ok(value) => value
 					}
 				}
@@ -335,10 +332,7 @@ collect_text_command_use = |commands, colors, initial_color_counts, initial_imag
 				Ok(collected) => {
 					$color_counts = collected.counts
 					$path_colors = match checked_add($path_colors, collected.references) {
-						Err(error) => {
-							return Err(error)
-							$path_colors
-						}
+						Err(error) => return Err(error)
 						Ok(value) => value
 					}
 				}
@@ -351,10 +345,7 @@ collect_text_command_use = |commands, colors, initial_color_counts, initial_imag
 					Ok(collected) => {
 						$color_counts = collected.counts
 						$text_colors = match checked_add($text_colors, collected.references) {
-							Err(error) => {
-								return Err(error)
-								$text_colors
-							}
+							Err(error) => return Err(error)
 							Ok(value) => value
 						}
 					}

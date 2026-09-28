@@ -74,29 +74,25 @@ validate_profiles = |store, max_bytes| {
 	var $profile_index = 0
 	var $total_bytes = 0
 	var $tag_edges = 0
-	var $error = NoError
-	while $profile_index < store.profiles.len() and $error == NoError {
+	while $profile_index < store.profiles.len() {
 		profile = list_at(store.profiles, $profile_index)
 		if profile.id.index() != $profile_index {
-			$error = Invalid(NonDenseProfileIdentity({ actual: profile.id.index(), expected: $profile_index }))
+			return Err(NonDenseProfileIdentity({ actual: profile.id.index(), expected: $profile_index }))
 		}
 		$total_bytes = match U64.plus_try($total_bytes, profile.bytes.len()) {
-			Err(Overflow) => {
-				$error = Invalid(ArithmeticOverflow)
-				$total_bytes
-			}
+			Err(Overflow) => return Err(ArithmeticOverflow)
 			Ok(total) => total
 		}
-		if $error == NoError and $total_bytes > max_bytes {
-			$error = Invalid(LimitExceeded({ attempted: $total_bytes, dimension: IccBytes, limit: max_bytes }))
-		} else if $error == NoError and profile.bytes.len() < 132 {
-			$error = Invalid(ProfileTooShort({ bytes: profile.bytes.len(), profile: $profile_index }))
-		} else if $error == NoError {
+		if $total_bytes > max_bytes {
+			return Err(LimitExceeded({ attempted: $total_bytes, dimension: IccBytes, limit: max_bytes }))
+		} else if profile.bytes.len() < 132 {
+			return Err(ProfileTooShort({ bytes: profile.bytes.len(), profile: $profile_index }))
+		} else {
 			declared_size = read_u32_be(profile.bytes, 0).to_u64()
 			if declared_size != profile.bytes.len() {
-				$error = Invalid(DeclaredSizeMismatch({ actual: profile.bytes.len(), declared: declared_size, profile: $profile_index }))
+				return Err(DeclaredSizeMismatch({ actual: profile.bytes.len(), declared: declared_size, profile: $profile_index }))
 			} else if read_u32_be(profile.bytes, 36) != 0x61637370 {
-				$error = Invalid(InvalidIccSignature({ profile: $profile_index }))
+				return Err(InvalidIccSignature({ profile: $profile_index }))
 			} else {
 				version = list_at(profile.bytes, 8)
 				version_ok = match profile.version {
@@ -108,39 +104,33 @@ validate_profiles = |store, max_bytes| {
 					Three => read_u32_be(profile.bytes, 16) == 0x52474220
 				}
 				if !version_ok {
-					$error = Invalid(UnsupportedIccVersion({ profile: $profile_index, version }))
+					return Err(UnsupportedIccVersion({ profile: $profile_index, version }))
 				} else if !device_ok {
-					$error = Invalid(ComponentMismatch({ profile: $profile_index }))
+					return Err(ComponentMismatch({ profile: $profile_index }))
 				} else {
 					tag_count = read_u32_be(profile.bytes, 128).to_u64()
 					table_bytes = match U64.times_try(tag_count, 12) {
-						Err(Overflow) => {
-							$error = Invalid(ArithmeticOverflow)
-							0
-						}
+						Err(Overflow) => return Err(ArithmeticOverflow)
 						Ok(value) => value
 					}
 					table_end = match U64.plus_try(132, table_bytes) {
-						Err(Overflow) => {
-							$error = Invalid(ArithmeticOverflow)
-							0
-						}
+						Err(Overflow) => return Err(ArithmeticOverflow)
 						Ok(value) => value
 					}
-					if $error == NoError and (tag_count != profile.tags.length() or table_end > profile.bytes.len()) {
-						$error = Invalid(TagRecordMismatch({ profile: $profile_index, tag: 0 }))
-					} else if $error == NoError {
+					if tag_count != profile.tags.length() or table_end > profile.bytes.len() {
+						return Err(TagRecordMismatch({ profile: $profile_index, tag: 0 }))
+					} else {
 						span = validate_span(profile.tags, store.tags.len(), $profile_index)
 						match span {
 							Err(error) => {
-								$error = Invalid(error)
+								return Err(error)
 							}
 							Ok(valid_span) => {
 								var $local = 0
-								while $local < tag_count and $error == NoError {
+								while $local < tag_count {
 									global = valid_span.start + $local
 									if list_at($tag_owners, global) != 0 {
-										$error = Invalid(DuplicateTagOwnership({ tag: global }))
+										return Err(DuplicateTagOwnership({ tag: global }))
 									} else {
 										$tag_owners = list_set($tag_owners, global, 1)
 										tag = list_at(store.tags, global)
@@ -148,7 +138,7 @@ validate_profiles = |store, max_bytes| {
 										offset = read_u32_be(profile.bytes, record + 4).to_u64()
 										length = read_u32_be(profile.bytes, record + 8).to_u64()
 										if tag.signature.raw() != read_u32_be(profile.bytes, record) or tag.bytes.start() != offset or tag.bytes.length() != length or offset > profile.bytes.len() or length > profile.bytes.len() - offset {
-											$error = Invalid(TagRecordMismatch({ profile: $profile_index, tag: global }))
+											return Err(TagRecordMismatch({ profile: $profile_index, tag: global }))
 										}
 									}
 									$local = $local + 1
@@ -163,12 +153,9 @@ validate_profiles = |store, max_bytes| {
 		$profile_index = $profile_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => match first_zero($tag_owners) {
-			AllMarked => Ok({ bytes_checked: $total_bytes, tag_edges_checked: $tag_edges })
-			ZeroAt(tag) => Err(OrphanTag({ tag: tag }))
-		}
+	match first_zero($tag_owners) {
+		AllMarked => Ok({ bytes_checked: $total_bytes, tag_edges_checked: $tag_edges })
+		ZeroAt(tag) => Err(OrphanTag({ tag: tag }))
 	}
 }
 
@@ -176,31 +163,30 @@ validate_spaces : Color.Store -> Try({ components : List(Color.ComponentCount) }
 validate_spaces = |store| {
 	var $components = []
 	var $index = 0
-	var $error = NoError
-	while $index < store.spaces.len() and $error == NoError {
+	while $index < store.spaces.len() {
 		record = list_at(store.spaces, $index)
 		if record.id.index() != $index {
-			$error = Invalid(NonDenseSpaceIdentity({ actual: record.id.index(), expected: $index }))
+			return Err(NonDenseSpaceIdentity({ actual: record.id.index(), expected: $index }))
 		} else {
 			match record.space {
 				CalibratedGray({ black_point, white_point }) => {
 					if white_point.x <= 0 or white_point.y != 1000000 or white_point.z <= 0 or black_point.x < 0 or black_point.y < 0 or black_point.z < 0 or black_point.x > white_point.x or black_point.y > white_point.y or black_point.z > white_point.z {
-						$error = Invalid(InvalidCalibratedGray({ space: $index }))
+						return Err(InvalidCalibratedGray({ space: $index }))
 					} else {
 						$components = $components.append(One)
 					}
 				}
 				IccBased({ components, profile }) => if profile.index() >= store.profiles.len() {
-					$error = Invalid(IndexOutOfRange({ available: store.profiles.len(), index: profile.index() }))
+					return Err(IndexOutOfRange({ available: store.profiles.len(), index: profile.index() }))
 				} else if list_at(store.profiles, profile.index()).components != components {
-					$error = Invalid(ComponentMismatch({ profile: profile.index() }))
+					return Err(ComponentMismatch({ profile: profile.index() }))
 				} else {
 					$components = $components.append(components)
 				}
 				Srgb(profile) => if profile.index() >= store.profiles.len() {
-					$error = Invalid(IndexOutOfRange({ available: store.profiles.len(), index: profile.index() }))
+					return Err(IndexOutOfRange({ available: store.profiles.len(), index: profile.index() }))
 				} else if list_at(store.profiles, profile.index()).components != Three {
-					$error = Invalid(ComponentMismatch({ profile: profile.index() }))
+					return Err(ComponentMismatch({ profile: profile.index() }))
 				} else {
 					$components = $components.append(Three)
 				}
@@ -208,10 +194,7 @@ validate_spaces = |store| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ components: $components })
-	}
+	Ok({ components: $components })
 }
 
 read_u32_be : List(U8), U64 -> U32

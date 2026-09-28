@@ -131,28 +131,27 @@ validate_entries = |entries, max_name_bytes| {
 	var $previous_rank = 0
 	var $next_identity = 0
 	var $name_bytes = 0
-	var $error = NoError
 
-	while $index < entry_count and $error == NoError {
+	while $index < entry_count {
 		entry = list_at(entries, $index)
 		rank = kind_rank(entry.kind)
 		if $has_previous and rank < $previous_rank {
-			$error = Invalid(NonMonotonicKind({ current: entry.kind, index: $index, previous: $previous_kind }))
+			return Err(NonMonotonicKind({ current: entry.kind, index: $index, previous: $previous_kind }))
 		} else {
 			expected = if $has_previous and rank == $previous_rank $next_identity else 0
 			if entry.identity != expected {
-				$error = Invalid(NonDenseIdentity({ actual: entry.identity, expected, index: $index, kind: entry.kind }))
+				return Err(NonDenseIdentity({ actual: entry.identity, expected, index: $index, kind: entry.kind }))
 			} else if entry.identity == U64.highest {
-				$error = Invalid(IdentityOverflow({ identity: entry.identity, index: $index }))
+				return Err(IdentityOverflow({ identity: entry.identity, index: $index }))
 			} else {
 				one_based = entry.identity + 1
 				name_length = prefix_length(entry.kind) + decimal_digits(one_based)
 				if U64.highest - $name_bytes < name_length {
-					$error = Invalid(NameBytesOverflow)
+					return Err(NameBytesOverflow)
 				} else {
 					attempted = $name_bytes + name_length
 					if attempted > max_name_bytes {
-						$error = Invalid(NameBytesLimitExceeded({ attempted, limit: max_name_bytes }))
+						return Err(NameBytesLimitExceeded({ attempted, limit: max_name_bytes }))
 					} else {
 						$name_bytes = attempted
 						$has_previous = True
@@ -166,10 +165,7 @@ validate_entries = |entries, max_name_bytes| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ name_bytes: $name_bytes })
-	}
+	Ok({ name_bytes: $name_bytes })
 }
 
 kind_rank : KernelResource.Kind -> U8

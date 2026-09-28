@@ -682,13 +682,12 @@ validate_value_edges = |store, items| {
 	length = items.len()
 	var $index = 0
 	var $max_depth = 0
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		value_id = list_at(items, $index)
 		value_index = KernelObject.ValueId.index(value_id)
 		match check_index(value_index, store.values.len(), ValueIndex) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(_) => {
 				depth = list_at(store.depths, value_index)
@@ -698,10 +697,7 @@ validate_value_edges = |store, items| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($max_depth)
-	}
+	Ok($max_depth)
 }
 
 validate_dictionary : KernelObject.Store, List(KernelObject.DictionaryEntry) -> Try({ key_byte_comparisons : U64, max_child_depth : U64 }, KernelObject.Error)
@@ -711,19 +707,18 @@ validate_dictionary = |store, entries| {
 	var $key_byte_comparisons = 0
 	var $max_depth = 0
 	var $previous = NoPrevious
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		entry = list_at(entries, $index)
 		name_index = KernelObject.NameId.index(entry.key)
 		value_index = KernelObject.ValueId.index(entry.value)
 
 		match check_index(name_index, store.names.len(), NameIndex) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(_) => match check_index(value_index, store.values.len(), ValueIndex) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(_) => {
 					depth = list_at(store.depths, value_index)
@@ -735,27 +730,25 @@ validate_dictionary = |store, entries| {
 							current_name = list_at(store.names, name_index)
 							match compare_bytes(KernelLex.Name.bytes(previous_name), KernelLex.Name.bytes(current_name)) {
 								Err(error) => {
-									$error = Invalid(error)
+									return Err(error)
 								}
 								Ok(comparison) => {
 									match U64.plus_try($key_byte_comparisons, comparison.byte_comparisons) {
 										Err(Overflow) => {
-											$error = Invalid(Overflow(WorkUnits))
+											return Err(Overflow(WorkUnits))
 										}
 										Ok(total) => {
 											$key_byte_comparisons = total
 										}
 									}
-									if $error == NoError {
-										match comparison.ordering {
-											Equal => {
-												$error = Invalid(DuplicateDictionaryKey(entry.key))
-											}
-											Greater => {
-												$error = Invalid(NonMonotonicDictionaryKeys({ current: entry.key, previous: previous_id }))
-											}
-											Less => {}
+									match comparison.ordering {
+										Equal => {
+											return Err(DuplicateDictionaryKey(entry.key))
 										}
+										Greater => {
+											return Err(NonMonotonicDictionaryKeys({ current: entry.key, previous: previous_id }))
+										}
+										Less => {}
 									}
 								}
 							}
@@ -768,10 +761,7 @@ validate_dictionary = |store, entries| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ key_byte_comparisons: $key_byte_comparisons, max_child_depth: $max_depth })
-	}
+	Ok({ key_byte_comparisons: $key_byte_comparisons, max_child_depth: $max_depth })
 }
 
 compare_bytes : List(U8), List(U8) -> Try({ byte_comparisons : U64, ordering : [Equal, Greater, Less] }, KernelObject.Error)
@@ -779,8 +769,7 @@ compare_bytes = |left, right| {
 	shared = U64.min(left.len(), right.len())
 	var $index = 0
 	var $ordering = Equal
-	var $error = NoError
-	while $index < shared and $ordering == Equal and $error == NoError {
+	while $index < shared and $ordering == Equal {
 		left_byte = list_at(left, $index)
 		right_byte = list_at(right, $index)
 		if left_byte < right_byte {
@@ -790,7 +779,7 @@ compare_bytes = |left, right| {
 		}
 		match U64.plus_try($index, 1) {
 			Err(Overflow) => {
-				$error = Invalid(Overflow(WorkUnits))
+				return Err(Overflow(WorkUnits))
 			}
 			Ok(next) => {
 				$index = next
@@ -808,10 +797,7 @@ compare_bytes = |left, right| {
 		Equal
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ byte_comparisons: $index, ordering })
-	}
+	Ok({ byte_comparisons: $index, ordering })
 }
 
 checked_increment : U64, U64, KernelObject.Dimension -> Try(U64, KernelObject.Error)

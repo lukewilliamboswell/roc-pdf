@@ -6,18 +6,14 @@ KernelLex :: [].{
 		from_bytes = |bytes| {
 			length = bytes.len()
 			var $index = 0
-			var $error = NoError
-			while $index < length and $error == NoError {
+			while $index < length {
 				if byte_at(bytes, $index) == 0 {
-					$error = Invalid($index)
+					return Err(NullNameByte($index))
 				}
 				$index = $index + 1
 			}
 
-			match $error {
-				Invalid(index) => Err(NullNameByte(index))
-				NoError => Ok(Name.(bytes))
-			}
+			Ok(Name.(bytes))
 		}
 
 		bytes : Name -> List(U8)

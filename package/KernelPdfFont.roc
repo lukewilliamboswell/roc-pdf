@@ -336,17 +336,16 @@ add_widths = |builder, font, plan| {
 	var $builder = builder
 	var $width_values = List.with_capacity(plan.entries.len())
 	var $index = 0
-	var $error = NoError
-	while $index < plan.entries.len() and $error == NoError {
+	while $index < plan.entries.len() {
 		entry = list_at(plan.entries, $index)
 		scaled = scale_unsigned(entry.width, font.metrics.units_per_em)
 		match scaled {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(value) => match KernelObject.add_integer($builder, value.to_i64_wrap()) {
 				Err(error) => {
-					$error = Invalid(Object(error))
+					return Err(Object(error))
 				}
 				Ok(added) => {
 					$builder = added.builder
@@ -356,15 +355,10 @@ add_widths = |builder, font, plan| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => {
-			width_array = KernelObject.add_array($builder, $width_values) ? Object
-			first_cid = KernelObject.add_integer(width_array.builder, 0) ? Object
-			outer = KernelObject.add_array(first_cid.builder, [first_cid.id, width_array.id]) ? Object
-			Ok(outer)
-		}
-	}
+	width_array = KernelObject.add_array($builder, $width_values) ? Object
+	first_cid = KernelObject.add_integer(width_array.builder, 0) ? Object
+	outer = KernelObject.add_array(first_cid.builder, [first_cid.id, width_array.id]) ? Object
+	Ok(outer)
 }
 
 add_type0 : KernelObject.Builder, Names, KernelObject.NameId, KernelObject.ObjectId, KernelObject.ObjectId -> Try({ builder : KernelObject.Builder, id : KernelObject.ObjectId }, KernelPdfFont.Error)

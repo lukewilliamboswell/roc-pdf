@@ -168,23 +168,22 @@ validate_emittable = |plan| {
 	store = plan_store(plan)
 	length = store.streams.len()
 	var $index = 0
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		stream = list_at(store.streams, $index)
 		match reserved_stream_key(store, stream.dictionary) {
 			Reserved(key) => {
-				$error = InvalidReserved(key)
+				return Err(ReservedStreamKey(key))
 			}
 			NoReserved => {}
 		}
-		if $error == NoError and stream.filter == Deflate {
+		if stream.filter == Deflate {
 			payload = list_at(store.payloads, KernelObject.PayloadId.index(stream.source))
 			if payload.kind != Generated {
-				$error = InvalidDeflateKind(stream.id)
+				return Err(DeflateRequiresGeneratedPayload(stream.id))
 			} else if payload.bytes.is_empty() == False {
 				match prepare_deflate(payload.bytes) {
 					Err(deflate_error) => {
-						$error = InvalidDeflate(deflate_error)
+						return Err(Deflate(deflate_error))
 					}
 					Ok(_) => {}
 				}
@@ -193,12 +192,7 @@ validate_emittable = |plan| {
 		$index = $index + 1
 	}
 
-	match $error {
-		InvalidReserved(key) => Err(ReservedStreamKey(key))
-		InvalidDeflate(error) => Err(Deflate(error))
-		InvalidDeflateKind(stream) => Err(DeflateRequiresGeneratedPayload(stream))
-		NoError => Ok({})
-	}
+	Ok({})
 }
 
 prepare_deflate : List(U8) -> Try(KernelDeflate.Plan, KernelDeflate.Error)
