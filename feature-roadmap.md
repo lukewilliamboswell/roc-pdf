@@ -963,6 +963,67 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
 Unsupported semantic constructs are rejected; they are never flattened into
 paragraphs or figures.
 
+### Progress status (Gate 6 in progress)
+
+Gate 6 is **not closed**. The following public authoring is executable under the
+default `Archive` profile, with exact allocation, work, and allocated-byte
+ceilings, scale pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence,
+and an independent structure checker. Each record lists its own open issues:
+
+- Reference contract: [docs/reference-documents.md](docs/reference-documents.md)
+  (`reference-documents-v6`) defines the invoice, report, and letter,
+  their adverse variants, the text-support matrix, and the layout-policy
+  vocabulary.
+- Semantic foundation, containers, `/Lang`/`/ID`/`/IDTree`/`/A`, and
+  DisplayDocTitle: `docs/performance/semantic-foundation.md`.
+- Rich inline content, nested language, and inline links:
+  `docs/performance/rich-inline.md`.
+- Bullet and numbered lists, explicit breaks, spacers, and typed required or
+  ranked keeps: `docs/performance/layout-policies.md`.
+- Ordinary tables with repeated header artifacts, column spans, scopes, and
+  `Headers`: `docs/performance/tables.md`.
+- First-page and continuation-page templates, furniture, and stabilized
+  page and total-page fields: `docs/performance/page-templates.md`.
+- Linear lowering and emission, plus the allocated-byte guard:
+  `docs/performance/lowering-uniqueness.md` and
+  `docs/performance/emission-linearity.md`. The Roc compiler defects behind
+  them are reported upstream (roc-lang/roc #11821-#11827).
+- The CIDSystemInfo ASCII-string correction and the CI Arlington lane:
+  `docs/performance/cid-system-info-ascii.md`.
+
+Exact remaining work before Gate 6 can close:
+
+1. **Flow figures and decorations.** Bounded vector, grouped, and
+   multi-command drawings in `Pdf.figure`, explicit `ScaleToFit`, a
+   `Pdf.decoration` artifact, and figure captions as `Caption` with a
+   `CaptionFor` relation (roadmap capability "Bounded image/vector flow
+   figures").
+2. **Custom-block seam and preparation report.** `Pdf.custom_block`
+   exercised by a separately authored consumer (a chart or callout), and a
+   bounded read-only report. The report exposes the layout relaxations and
+   repeated-header facts that are already recorded internally, authored
+   locations, reading order, alternatives, text coverage, and human-review
+   obligations.
+3. **Reference documents and closure.** The invoice, report, and letter as
+   `examples/` programs, plus a `tests/reference_documents` family with every
+   adverse variant. `examples/letter.roc` and `examples/prepared_invoice.roc`
+   move to templates and tables. This step also runs the combined
+   conformance, structure, and renderer sweep and records the closure
+   (optional human review).
+4. **Open issues recorded by executed slices** that the references need:
+   - furniture text under ordered font policies (`text.furniture_policy`,
+     needed by REP-A5);
+   - a selectable face per inline role (a monospace `Code`);
+   - list labels wider than the indent;
+   - separator text for `line_break` in extracted text;
+   - alignment of spanning cells;
+   - removal of the unreachable facade `ArtifactBlock` plumbing;
+   - located diagnostics for the remaining font-coverage failures.
+
+The intermittent `roc check` crash seen in harness runs is Roc #11777, fixed
+upstream by commit 329a48a04d. Advancing the pinned nightly past it is a
+separate toolchain change with its own bulk re-baseline.
+
 ## Gate 7: business-document production release and combined closure
 
 ### Capabilities
