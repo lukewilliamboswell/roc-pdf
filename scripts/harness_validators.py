@@ -192,7 +192,7 @@ PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
         "check_soft_masks.py", "check_soft_mask_renderers.py", "check_shadings.py", "check_shading_renderers.py",
         "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
         "check_navigation.py", "check_navigation_renderers.py", "extract_verapdf_rules.py",
-        "build_verapdf_corpus_subset.py",
+        "build_verapdf_corpus_subset.py", "roc_diagnostics.py",
     )
 }
 # The static PDF/A-4 self-tests read Archive and Standard snapshots, which are

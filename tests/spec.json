@@ -47,7 +47,8 @@
     "build_verapdf_corpus_subset",
     "archive_renderers",
     "structure_semantics",
-    "rich_inline"
+    "rich_inline",
+    "roc_diagnostics"
   ],
   "post_update_checks": [
     "contracts",

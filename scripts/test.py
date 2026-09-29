@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
+from roc_diagnostics import tolerated_warnings_only
 from harness_validators import (
     PREFLIGHT_CHECKS,
     run_validators,
@@ -246,6 +247,11 @@ def command(executable: str, *args: str, cwd: Path = ROOT) -> None:
     started = time.monotonic()
     result = managed_run(values, cwd=cwd, text=True, stderr=subprocess.STDOUT)
     log(result.stdout)
+    if result.returncode == 2 and executable == ROC and tolerated_warnings_only(result.stdout):
+        # The only tolerated warning: a downloaded package pins an older Roc
+        # nightly in its header (see scripts/roc_diagnostics.py).
+        detail(f"PASS command with a tolerated package version-pin warning: {' '.join(values)}")
+        return
     if result.returncode != 0:
         tail = "\n".join(result.stdout.splitlines()[-30:])
         raise SystemExit(f"command failed ({result.returncode}): {rendered}\n{tail}\nFull log: {RUN_LOG}")
