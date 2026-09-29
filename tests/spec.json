@@ -163,6 +163,10 @@
     {
       "source": "tests/tables/main.roc",
       "cases_jsonl": "tests/tables/cases.jsonl"
+    },
+    {
+      "source": "tests/page_templates/main.roc",
+      "cases_jsonl": "tests/page_templates/cases.jsonl"
     }
   ],
   "cases": [
@@ -22193,6 +22197,430 @@
           "work": {
             "rejections": 14,
             "output_bytes": 19392
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "page templates letter x6",
+      "scenario_revision": "page-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/letter_6.pdf",
+      "args": [
+        "letter",
+        "6"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "header_artifacts": 3,
+        "footer_artifacts": 1,
+        "page_number_artifacts": 2
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 49482,
+          "allocated_bytes": 18803001,
+          "work": {
+            "lines": 111,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 4,
+            "furniture_items": 5,
+            "fragments": 114,
+            "artifact_runs": 5,
+            "output_bytes": 75554
+          }
+        },
+        "x64musl": {
+          "allocations": 49482,
+          "allocated_bytes": 18803001,
+          "work": {
+            "lines": 111,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 4,
+            "furniture_items": 5,
+            "fragments": 114,
+            "artifact_runs": 5,
+            "output_bytes": 75554
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "page templates letter x20",
+      "scenario_revision": "page-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/letter_20.pdf",
+      "args": [
+        "letter",
+        "20"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "header_artifacts": 6,
+        "footer_artifacts": 1,
+        "page_number_artifacts": 5
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 116058,
+          "allocated_bytes": 46509217,
+          "work": {
+            "lines": 221,
+            "pages": 6,
+            "reference_passes": 2,
+            "field_resolutions": 10,
+            "furniture_items": 11,
+            "fragments": 224,
+            "artifact_runs": 11,
+            "output_bytes": 144921
+          }
+        },
+        "x64musl": {
+          "allocations": 116058,
+          "allocated_bytes": 46509217,
+          "work": {
+            "lines": 221,
+            "pages": 6,
+            "reference_passes": 2,
+            "field_resolutions": 10,
+            "furniture_items": 11,
+            "fragments": 224,
+            "artifact_runs": 11,
+            "output_bytes": 144921
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "page templates letter x200",
+      "scenario_revision": "page-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/letter_200.pdf",
+      "args": [
+        "letter",
+        "200"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 36,
+        "header_artifacts": 36,
+        "footer_artifacts": 1,
+        "page_number_artifacts": 35
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 967767,
+          "allocated_bytes": 384566572,
+          "work": {
+            "lines": 1638,
+            "pages": 36,
+            "reference_passes": 2,
+            "field_resolutions": 70,
+            "furniture_items": 71,
+            "fragments": 1641,
+            "artifact_runs": 71,
+            "output_bytes": 1047734
+          }
+        },
+        "x64musl": {
+          "allocations": 967767,
+          "allocated_bytes": 384566572,
+          "work": {
+            "lines": 1638,
+            "pages": 36,
+            "reference_passes": 2,
+            "field_resolutions": 70,
+            "furniture_items": 71,
+            "fragments": 1641,
+            "artifact_runs": 71,
+            "output_bytes": 1047734
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "page templates report",
+      "scenario_revision": "page-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/report.pdf",
+      "args": [
+        "report",
+        "12"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 7,
+        "header_artifacts": 12,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 7
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 174295,
+          "allocated_bytes": 58531620,
+          "work": {
+            "lines": 266,
+            "pages": 7,
+            "reference_passes": 2,
+            "field_resolutions": 14,
+            "furniture_items": 13,
+            "fragments": 268,
+            "artifact_runs": 13,
+            "output_bytes": 211120
+          }
+        },
+        "x64musl": {
+          "allocations": 174295,
+          "allocated_bytes": 58531620,
+          "work": {
+            "lines": 266,
+            "pages": 7,
+            "reference_passes": 2,
+            "field_resolutions": 14,
+            "furniture_items": 13,
+            "fragments": 268,
+            "artifact_runs": 13,
+            "output_bytes": 211120
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "page templates number styles",
+      "scenario_revision": "page-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/number_styles.pdf",
+      "args": [
+        "numbering",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5,
+        "header_artifacts": 0,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 25
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 9825,
+          "allocated_bytes": 4989954,
+          "work": {
+            "lines": 5,
+            "pages": 5,
+            "reference_passes": 2,
+            "field_resolutions": 50,
+            "furniture_items": 25,
+            "fragments": 5,
+            "artifact_runs": 25,
+            "output_bytes": 25550
+          }
+        },
+        "x64musl": {
+          "allocations": 9825,
+          "allocated_bytes": 4989954,
+          "work": {
+            "lines": 5,
+            "pages": 5,
+            "reference_passes": 2,
+            "field_resolutions": 50,
+            "furniture_items": 25,
+            "fragments": 5,
+            "artifact_runs": 25,
+            "output_bytes": 25550
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "page templates furniture drawings",
+      "scenario_revision": "page-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/drawings.pdf",
+      "args": [
+        "images",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "header_artifacts": 7,
+        "footer_artifacts": 5,
+        "page_number_artifacts": 1
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4713,
+          "allocated_bytes": 4863178,
+          "work": {
+            "lines": 3,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 2,
+            "furniture_items": 3,
+            "fragments": 3,
+            "artifact_runs": 3,
+            "output_bytes": 20763
+          }
+        },
+        "x64musl": {
+          "allocations": 4713,
+          "allocated_bytes": 4863178,
+          "work": {
+            "lines": 3,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 2,
+            "furniture_items": 3,
+            "fragments": 3,
+            "artifact_runs": 3,
+            "output_bytes": 20763
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "page templates atomic negatives",
+      "scenario_revision": "page-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/negatives.pdf",
+      "args": [
+        "atomic_negatives",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "rejections": 13,
+        "header_artifacts": 1,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 0
+      },
+      "work_counters": [
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 15938,
+          "allocated_bytes": 4655415,
+          "work": {
+            "rejections": 13,
+            "output_bytes": 16284
+          }
+        },
+        "x64musl": {
+          "allocations": 15938,
+          "allocated_bytes": 4655415,
+          "work": {
+            "rejections": 13,
+            "output_bytes": 16284
           }
         }
       },

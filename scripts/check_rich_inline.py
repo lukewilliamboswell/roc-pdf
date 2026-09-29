@@ -88,7 +88,7 @@ def page_marked_text(document: Document, page: int) -> list[tuple[int, str]]:
             at += 1
             continue
         if content.startswith(b"<<", at):
-            parser = Parser(content)
+            parser = Parser(content, canonical=False)
             parser.at = at
             operands.append(parser.value())
             at = parser.at

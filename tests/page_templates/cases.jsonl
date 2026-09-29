@@ -1,0 +1,7 @@
+{"name":"page templates letter x6","schema_version":1,"case":{"Letter":{"paragraphs":6}}}
+{"name":"page templates letter x20","schema_version":1,"case":{"Letter":{"paragraphs":20}}}
+{"name":"page templates letter x200","schema_version":1,"case":{"Letter":{"paragraphs":200}}}
+{"name":"page templates report","schema_version":1,"case":{"Report":{"sections":12}}}
+{"name":"page templates number styles","schema_version":1,"case":{"Numbering":{"context":0}}}
+{"name":"page templates furniture drawings","schema_version":1,"case":{"Images":{"context":0}}}
+{"name":"page templates atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}

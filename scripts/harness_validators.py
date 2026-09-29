@@ -159,7 +159,7 @@ VALIDATORS: dict[str, Validator] = {
     "pdfa4": _dimensioned(validate_pdfa4_pdf, "PDF/A-4 identification packet, single GTS_PDFA1 sRGB2014 intent, printable links, FontFile2 Type 0 fonts, permitted filters and images, no /Info or excluded keys, verified structurally"),
     "pdfa4_standard_twin": _dimensioned(validate_standard_twin_pdf, "PDF 2.0 file skeleton of a Standard twin with no PDF/A identification"),
     "metadata": _dimensioned(validate_metadata_pdf, "catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally"),
-    "structure_semantics": _dimensioned(validate_structure_semantics_pdf, "object-number-independent structure tree, Table 5 containment, ParentTree/MCID/OBJR exactly-once, IDTree/ID, language inheritance, typed attributes, DisplayDocTitle, MarkInfo, and Tabs verified independently"),
+    "structure_semantics": _dimensioned(validate_structure_semantics_pdf, "object-number-independent structure tree, Table 5 containment, ParentTree/MCID/OBJR exactly-once, IDTree/ID, language inheritance, typed attributes, DisplayDocTitle, MarkInfo, Tabs, and MCID-free page furniture with exact page fields verified independently"),
     "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),

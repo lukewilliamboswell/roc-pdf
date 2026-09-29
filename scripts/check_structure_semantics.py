@@ -18,7 +18,12 @@ without consulting the Roc package:
   first-or-last Caption rule against its OWN transcription of ISO/TS 32005
   Table 5 (not the Roc table). When the pinned veraPDF installation is
   provisioned, the self-test also compares that transcription with the
-  veraPDF PDFUA-2-ISO32005 profile rules.
+  veraPDF PDFUA-2-ISO32005 profile rules;
+* page furniture: every /Artifact <</Type /Pagination /Subtype
+  /Header|/Footer|/PageNum>> sequence carries no MCID (so no structure element can
+  own it), every page-number artifact's ToUnicode-decoded text that reads
+  "N of M" names its own page and the page count, and the per-subtype
+  artifact counts match the case dimensions.
 """
 from __future__ import annotations
 
@@ -51,6 +56,7 @@ SNAPSHOTS = {
     "figure": ROOT / "tests" / "pdf_facade" / "image_figure.pdf",
     "table": ROOT / "tests" / "tables" / "spans.pdf",
     "continued_table": ROOT / "tests" / "tables" / "footer_carry.pdf",
+    "templates": ROOT / "tests" / "page_templates" / "letter_6.pdf",
 }
 
 VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
@@ -136,9 +142,15 @@ WHITESPACE = b" \t\r\n\f\x00"
 
 
 class Parser:
-    def __init__(self, data: bytes):
+    """PDF value parser. Object dictionaries must use the serializer's
+    canonical (sorted) key order; content-stream property lists, which the
+    package writes as fixed literals such as `<</Type /Pagination /Subtype
+    /Header>>`, are parsed with `canonical=False`."""
+
+    def __init__(self, data: bytes, canonical: bool = True):
         self.data = data
         self.at = 0
+        self.canonical = canonical
 
     def skip(self) -> None:
         while self.at < len(self.data) and self.data[self.at] in WHITESPACE:
@@ -159,7 +171,7 @@ class Parser:
                     return result
                 key = self.value()
                 require(isinstance(key, Name), "dictionary key is not a name")
-                require(previous is None or str(previous).encode("latin-1") < str(key).encode("latin-1"), f"dictionary keys not in canonical order at /{key}")
+                require(not self.canonical or previous is None or str(previous).encode("latin-1") < str(key).encode("latin-1"), f"dictionary keys not in canonical order at /{key}")
                 require(key not in result, f"duplicate dictionary key /{key}")
                 previous = key
                 result[key] = self.value()
@@ -486,6 +498,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
                 require(target.encode("latin-1") in identifiers, f"/Headers names unknown element identifier {target}")
 
     check_tables(document, visited, identifiers, pages, page_index)
+    check_furniture(furniture_by_page(document, pages), dimensions)
 
     expected_elements = dimensions.get("structure_elements")
     if expected_elements is not None:
@@ -494,6 +507,65 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     if expected_ids is not None:
         require(len(identifiers) == expected_ids, "element identifier count differs")
     return lines
+
+
+FURNITURE = re.compile(rb"/Artifact <</Type /Pagination /Subtype /(Header|Footer|PageNum)>> BDC\n(.*?)EMC\n", re.S)
+FURNITURE_KINDS = {"Header": "header_artifacts", "Footer": "footer_artifacts", "PageNum": "page_number_artifacts"}
+
+
+def furniture_by_page(document: Document, pages: list[int]) -> list[list[tuple[str, bytes, str]]]:
+    """Each page's furniture artifacts as (subtype, marked body, decoded text)."""
+    from check_rich_inline import to_unicode  # noqa: PLC0415 (the text checker imports this module)
+
+    decoded: list[list[tuple[str, bytes, str]]] = []
+    decoders: dict[int, dict[int, str]] = {}
+    for page in pages:
+        page_value = document.get(page)
+        fonts = page_value.get("Resources", {}).get("Font", {})
+        content = document.stream(int(page_value["Contents"]))
+        items: list[tuple[str, bytes, str]] = []
+        for match in FURNITURE.finditer(content):
+            body = match.group(2)
+            text: list[str] = []
+            current: dict[int, str] | None = None
+            for token in re.finditer(rb"/([A-Za-z0-9_]+) [0-9.]+ Tf|<([0-9A-Fa-f]*)> Tj", body):
+                if token.group(1) is not None:
+                    name = token.group(1).decode("latin-1")
+                    require(name in fonts, f"furniture selects an undeclared font /{name}")
+                    number = int(fonts[name])
+                    if number not in decoders:
+                        decoders[number] = to_unicode(document, number)
+                    current = decoders[number]
+                else:
+                    require(current is not None, "furniture text is shown before a font is selected")
+                    string = bytes.fromhex(token.group(2).decode())
+                    for index in range(0, len(string), 2):
+                        cid = int.from_bytes(string[index : index + 2], "big")
+                        require(cid in current, f"furniture CID {cid} has no ToUnicode mapping")
+                        text.append(current[cid])
+            items.append((match.group(1).decode("latin-1"), body, "".join(text)))
+        decoded.append(items)
+    return decoded
+
+
+def check_furniture(pages: list[list[tuple[str, bytes, str]]], dimensions: dict[str, int]) -> None:
+    """Page furniture is artifact content: no MCID, correct page fields, and
+    the expected number of header, footer, and page-number artifacts."""
+    counts = {key: 0 for key in FURNITURE_KINDS.values()}
+    for index, items in enumerate(pages):
+        for subtype, body, text in items:
+            require(b"/MCID" not in body, f"{subtype} furniture on page {index} carries an MCID")
+            counts[FURNITURE_KINDS[subtype]] += 1
+            if subtype == "PageNum":
+                require(text, f"a page-number artifact on page {index} shows no text")
+                field = re.search(r"([0-9]+) of ([0-9]+)", text)
+                if field is not None:
+                    require(int(field.group(1)) == index + 1, f"page {index + 1} shows page number {field.group(1)}")
+                    require(int(field.group(2)) == len(pages), f"page {index + 1} shows a total of {field.group(2)}, not {len(pages)}")
+    for key, count in counts.items():
+        expected = dimensions.get(key)
+        if expected is not None:
+            require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
 
 
 def table_attributes(element: dict) -> dict:
@@ -704,12 +776,36 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
+    # Furniture twins mutate decoded page furniture: an MCID inside a
+    # pagination artifact, a wrong page number, a wrong total, and a missing
+    # page-number artifact.
+    templates = Document(SNAPSHOTS["templates"].read_bytes())
+    template_pages: list[int] = []
+    page_order(templates, int(templates.get(templates.root)["Pages"]), template_pages)
+    furniture = furniture_by_page(templates, template_pages)
+    check_furniture(furniture, {"page_number_artifacts": 2})
+
+    def page_number_twin(transform):
+        return [[transform(item) if item[0] == "PageNum" and index == 1 else item for item in items] for index, items in enumerate(furniture)]
+
+    furniture_twins = [
+        ("an MCID inside furniture", page_number_twin(lambda item: (item[0], item[1] + b"/P <</MCID 0>> BDC\n", item[2])), {}),
+        ("a wrong page number", page_number_twin(lambda item: (item[0], item[1], item[2].replace("2 of", "3 of"))), {}),
+        ("a wrong page total", page_number_twin(lambda item: (item[0], item[1], item[2].replace("of 3", "of 4"))), {}),
+        ("a missing page-number artifact", [[item for item in items if item[0] != "PageNum" or index != 1] for index, items in enumerate(furniture)], {"page_number_artifacts": 2}),
+    ]
+    for label, twin, dimensions in furniture_twins:
+        try:
+            check_furniture(twin, dimensions)
+        except ValidationError:
+            continue
+        raise SystemExit(f"structure-semantics checker accepted {label}")
     cross_check = independent_table_matches_verapdf()
     print(
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
-        "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, and "
-        f"Table 5 containment verified on {len(SNAPSHOTS)} snapshots; {len(mutations)} "
-        f"length-preserving mutation twins rejected; {cross_check}",
+        "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
+        f"Table 5 containment, and page furniture verified on {len(SNAPSHOTS)} snapshots; {len(mutations)} "
+        f"length-preserving mutation twins and {len(furniture_twins)} furniture twins rejected; {cross_check}",
         flush=True,
     )
 
