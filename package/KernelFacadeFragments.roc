@@ -234,7 +234,12 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 		if artifact {
 			$artifact_cursor = $artifact_cursor + 1
 		}
-		owner = if artifact sentinel else list_at(link_of_occurrence, run.occurrence.index())
+		owner = if artifact sentinel else {
+			match run.unicode {
+				OccurrenceText(occurrence) => list_at(link_of_occurrence, occurrence.index())
+				ArtifactText(_) => return Err(InvalidRun({ run: $run_index }))
+			}
+		}
 		if owner != sentinel {
 			placement = list_at(placements, $run_index)
 			quad = match list_at(rects, $fragment) {
@@ -505,7 +510,11 @@ build_arena = |preliminary, prepared, artifact_runs, limits| {
 		if artifact {
 			$artifact_cursor = $artifact_cursor + 1
 		} else {
-			occurrence_index = run.occurrence.index()
+			occurrence_id = match run.unicode {
+				OccurrenceText(id) => id
+				ArtifactText(_) => return Err(InvalidRun({ run: $run_index }))
+			}
+			occurrence_index = occurrence_id.index()
 			if occurrence_index >= semantic_store.occurrences.len() {
 				return Err(InvalidOccurrence({ available: semantic_store.occurrences.len(), run: $run_index }))
 			}
@@ -527,7 +536,7 @@ build_arena = |preliminary, prepared, artifact_runs, limits| {
 				content_stream: Semantics.ContentStreamId.from_index(placement.page.index()),
 				continuation_index: continuation,
 				id: Semantics.FragmentId.from_index($fragments.len()),
-				occurrence: run.occurrence,
+				occurrence: occurrence_id,
 				page: placement.page,
 				source_range: UnicodeRange(fragment_range),
 			})

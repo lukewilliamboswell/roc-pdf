@@ -9,6 +9,10 @@ KernelTextOwnership :: [].{
 	Error : [
 		ArithmeticOverflow,
 		ArtifactTextUnsupported({ group : U64, run : U64 }),
+
+		## A layout fragment paints a run whose Unicode is an artifact text
+		## source; only a page-artifact group may paint artifact text.
+		ArtifactTextInFragment({ fragment : U64, run : U64 }),
 		DuplicateRunOwnership({ run : U64 }),
 		FragmentTextCoverageMismatch({ fragment : U64 }),
 		NonDenseRunIdentity({ actual : U64, expected : U64 }),
@@ -236,8 +240,11 @@ validate_coverage = |semantics, text, owners| {
 				while $edge < end {
 					run_index = list_at($fragment_runs, $edge).index()
 					run = list_at(text.runs, run_index)
-					if run.occurrence.index() != fragment.occurrence.index() {
-						return Err(OccurrenceMismatch({ fragment: $fragment_index, run: run_index }))
+					match run.unicode {
+						OccurrenceText(run_occurrence) => if run_occurrence.index() != fragment.occurrence.index() {
+							return Err(OccurrenceMismatch({ fragment: $fragment_index, run: run_index }))
+						}
+						ArtifactText(_) => return Err(ArtifactTextInFragment({ fragment: $fragment_index, run: run_index }))
 					}
 					scalar_start = checked_add(occurrence_range.scalars.start(), run.source.scalars.start())?
 					byte_start = checked_add(occurrence_range.utf8_bytes.start(), run.source.utf8_bytes.start())?

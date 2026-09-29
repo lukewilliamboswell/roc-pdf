@@ -471,7 +471,7 @@ expect {
 expect {
 	sample = build_sample({})?
 	run = list_at(sample.shape.store.runs, 0)
-	wrong_occurrence = { ..sample.shape.store, runs: [{ ..run, occurrence: Semantics.OccurrenceId.from_index(1) }] }
+	wrong_occurrence = { ..sample.shape.store, runs: [{ ..run, unicode: OccurrenceText(Semantics.OccurrenceId.from_index(1)) }] }
 	short_source = {
 		..sample.shape.store,
 		runs: [{ ..run, source: { scalars: Semantics.Range.from_start_and_length(0, 7), utf8_bytes: Semantics.Range.from_start_and_length(0, 8) } }],

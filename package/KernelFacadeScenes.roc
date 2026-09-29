@@ -160,7 +160,7 @@ InternalArenaPrepared : {
 	pages : List(KernelFacadeText.Page),
 	placements : List(KernelFacadeText.Placement),
 	rules : List(KernelFacadePages.Rule),
-	run_occurrences : List(Semantics.OccurrenceId),
+	run_unicode : List(Text.RunUnicode),
 	styles : List(KernelFacadeShape.RunStyle),
 }
 
@@ -210,7 +210,7 @@ prepare_arena = |prepared| {
 	placements: prepared.placements,
 	rules: prepared.rules,
 	styles: prepared.styles,
-	run_occurrences: prepared.text.runs.map(|run| run.occurrence),
+	run_unicode: prepared.text.runs.map(|run| run.unicode),
 	figure_by_occurrence: [],
 }
 
@@ -224,7 +224,7 @@ build_arena = |prepared, limits| build_arena_with_intent(
 		pages: prepared.pages,
 		placements: prepared.placements,
 		rules: [],
-		run_occurrences: List.repeat(Semantics.OccurrenceId.from_index(0), prepared.text_runs),
+		run_unicode: List.repeat(OccurrenceText(Semantics.OccurrenceId.from_index(0)), prepared.text_runs),
 		styles: prepared.styles,
 	},
 	NoIntentProfile,
@@ -236,7 +236,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 	if prepared.page_size.width.raw() <= 0 or prepared.page_size.height.raw() <= 0 {
 		return Err(InvalidPageSize)
 	}
-	run_count = prepared.run_occurrences.len()
+	run_count = prepared.run_unicode.len()
 	rule_count = prepared.rules.len()
 	command_count = checked_add(checked_add(checked_times(run_count, 2)?, prepared.authoring.figures.len())?, rule_count)?
 	group_count = checked_add(run_count, rule_count)?
@@ -326,8 +326,10 @@ build_arena_with_intent = |prepared, intent, limits| {
 					}
 					_ => return Err(UnsupportedColor({ run: $placement_cursor }))
 				}
-				occurrence = list_at(prepared.run_occurrences, $placement_cursor)
-				figure = if occurrence.index() < prepared.figure_by_occurrence.len() list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
+				figure = match list_at(prepared.run_unicode, $placement_cursor) {
+					OccurrenceText(occurrence) => if occurrence.index() < prepared.figure_by_occurrence.len() list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
+					ArtifactText(_) => NoFigure
+				}
 				command_start = $commands.len()
 
 				## The image command is built before any accumulator changes, so

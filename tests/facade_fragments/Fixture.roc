@@ -394,7 +394,6 @@ prepared_text = |occurrence_count| {
 				id: run_id,
 				instance: Font.InstanceId.from_index(0),
 				language: Language("en"),
-				occurrence: Semantics.OccurrenceId.from_index($occurrence_index),
 				script: Font.Script.from_iso15924("Latn"),
 				size: Layout.Unit.from_raw(1000),
 				source: {
@@ -403,6 +402,7 @@ prepared_text = |occurrence_count| {
 				},
 				substitutions: empty_range,
 				transformations: empty_range,
+				unicode: OccurrenceText(Semantics.OccurrenceId.from_index($occurrence_index)),
 				writing_mode: Horizontal,
 			})
 			page_index = run_index / 64

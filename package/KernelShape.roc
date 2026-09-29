@@ -32,6 +32,10 @@ KernelShape :: [].{
 		SelectedFaceMissing({ instance : Font.InstanceId, run : U64 }),
 		SelectedFaceRangeMismatch({ run : U64 }),
 		OccurrenceMismatch({ actual : Semantics.OccurrenceId, expected : Semantics.OccurrenceId, run : U64 }),
+
+		## Advanced caller runs shape content occurrences; artifact text is
+		## produced only by the facade's page furniture.
+		ArtifactRunUnsupported({ run : U64 }),
 		UnreferencedGlyph({ glyph : U64, run : U64 }),
 		UnsupportedCluster({ grapheme : U64, scalars : U64 }),
 		UnsupportedDirection(Text.Direction),
@@ -290,7 +294,6 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 		id: Text.RunId.from_index(0),
 		instance: options.instance,
 		language: options.language,
-		occurrence: options.occurrence,
 		script: options.script,
 		size: Layout.Unit.from_raw(size),
 		source: {
@@ -299,6 +302,7 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 		},
 		substitutions: Semantics.Range.from_start_and_length(0, 0),
 		transformations: Semantics.Range.from_start_and_length(0, 0),
+		unicode: OccurrenceText(options.occurrence),
 		writing_mode: options.writing_mode,
 	}
 	Ok({
@@ -484,7 +488,6 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 			id: Text.RunId.from_index($request_index),
 			instance: options.instance,
 			language: options.language,
-			occurrence: request.occurrence,
 			script: options.script,
 			size: request.size,
 			source: {
@@ -493,6 +496,7 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 			},
 			substitutions: Semantics.Range.from_start_and_length(0, 0),
 			transformations: Semantics.Range.from_start_and_length(0, 0),
+			unicode: OccurrenceText(request.occurrence),
 			writing_mode: options.writing_mode,
 		})
 		$advances = $advances.append(Layout.Unit.from_raw($advance_total.to_i64_wrap()))
@@ -754,7 +758,6 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			id: Text.RunId.from_index($request_index),
 			instance: request.instance,
 			language: request.language,
-			occurrence: request.occurrence,
 			script: request.script,
 			size: request.size,
 			source: {
@@ -763,6 +766,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			},
 			substitutions: Semantics.Range.from_start_and_length(0, 0),
 			transformations: Semantics.Range.from_start_and_length(0, 0),
+			unicode: OccurrenceText(request.occurrence),
 			writing_mode: options.writing_mode,
 		})
 		$advances = $advances.append(Layout.Unit.from_raw($advance_total.to_i64_wrap()))
@@ -1063,15 +1067,23 @@ selected_font_for_run = |selection, run, run_index| match selection {
 	Single({ context, font }) => {
 		if run.instance.index() != context.instance.index() {
 			Err(InstanceMismatch({ actual: run.instance, expected: context.instance, run: run_index }))
-		} else if run.occurrence.index() != context.occurrence.index() {
-			Err(OccurrenceMismatch({ actual: run.occurrence, expected: context.occurrence, run: run_index }))
 		} else {
-			Ok(font)
+			match run.unicode {
+				OccurrenceText(occurrence) => if occurrence.index() != context.occurrence.index() {
+					Err(OccurrenceMismatch({ actual: occurrence, expected: context.occurrence, run: run_index }))
+				} else {
+					Ok(font)
+				}
+				ArtifactText(_) => Err(ArtifactRunUnsupported({ run: run_index }))
+			}
 		}
 	}
 	Selected(context) => {
-		if run.occurrence.index() != context.occurrence.index() {
-			return Err(OccurrenceMismatch({ actual: run.occurrence, expected: context.occurrence, run: run_index }))
+		match run.unicode {
+			OccurrenceText(occurrence) => if occurrence.index() != context.occurrence.index() {
+				return Err(OccurrenceMismatch({ actual: occurrence, expected: context.occurrence, run: run_index }))
+			}
+			ArtifactText(_) => return Err(ArtifactRunUnsupported({ run: run_index }))
 		}
 		var $index = 0
 		var $matching_instance = False

@@ -62,16 +62,20 @@ expect {
 		id: Text.RunId.from_index(0),
 		instance: Font.InstanceId.from_index(2),
 		language: Language("en-AU"),
-		occurrence: Semantics.OccurrenceId.from_index(4),
 		script: Font.Script.from_iso15924("Latn"),
 		size: Layout.Unit.from_raw(11000),
 		source: source_range,
 		substitutions: Semantics.Range.from_start_and_length(0, 0),
 		transformations: Semantics.Range.from_start_and_length(0, 0),
+		unicode: OccurrenceText(Semantics.OccurrenceId.from_index(4)),
 		writing_mode: Horizontal,
 	}
 
-	run.occurrence.index() == 4 and run.instance.index() == 2
+	occurrence_index = match run.unicode {
+		OccurrenceText(occurrence) => occurrence.index()
+		ArtifactText(_) => 0
+	}
+	occurrence_index == 4 and run.instance.index() == 2
 }
 
 ## Text paint admits only the initial visible rendering modes.

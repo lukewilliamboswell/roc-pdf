@@ -141,7 +141,6 @@ synthetic_input = |source_runs| {
 			id: run_id,
 			instance: Font.InstanceId.from_index(0),
 			language: Language("en"),
-			occurrence: Semantics.OccurrenceId.from_index($run_index),
 			script: Font.Script.from_iso15924("Latn"),
 			size: Layout.Unit.from_raw(1000),
 			source: {
@@ -150,6 +149,7 @@ synthetic_input = |source_runs| {
 			},
 			substitutions: Semantics.Range.from_start_and_length(0, 0),
 			transformations: Semantics.Range.from_start_and_length(0, 0),
+			unicode: OccurrenceText(Semantics.OccurrenceId.from_index($run_index)),
 			writing_mode: Horizontal,
 		})
 		$styles = $styles.append({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(1200) })

@@ -534,7 +534,6 @@ synthetic_line_input = |scalars| {
 						id: Text.RunId.from_index(0),
 						instance: Font.InstanceId.from_index(0),
 						language: Language("en"),
-						occurrence: Semantics.OccurrenceId.from_index(0),
 						script: Font.Script.from_iso15924("Latn"),
 						size: Layout.Unit.from_raw(1000),
 						source: {
@@ -543,6 +542,7 @@ synthetic_line_input = |scalars| {
 						},
 						substitutions: Semantics.Range.from_start_and_length(0, 0),
 						transformations: Semantics.Range.from_start_and_length(0, 0),
+						unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 						writing_mode: Horizontal,
 					},
 				],

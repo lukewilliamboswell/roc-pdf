@@ -1004,7 +1004,8 @@ The PDF package consumes positioned glyph runs, not unshaped strings:
 GlyphRun
 |- exact validated font instance
 |- positive layout size used to scale the selected instance
-|- content occurrence ID and exact scalar range
+|- content occurrence ID, or page-content artifact text source, and exact
+|  scalar range
 |- glyph IDs, advances, and offsets
 |- explicit range-relative Unicode-to-glyph cluster mapping
 |- script, language, direction, and writing mode
@@ -1024,6 +1025,15 @@ only the shaping and presentation evidence for that range. An `OwnedGroup`
 supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
 never a second run-local string.
+
+Page-content artifact text is the one other source. Page furniture, resolved
+after pagination, is shaped from artifact text sources appended to the same
+dense Unicode store after the semantic sources. An artifact run names its
+source rather than an occurrence, belongs to no structure element, carries no
+semantic text property, and may be painted only by a page-artifact
+`OwnedGroup`; a layout fragment that paints artifact text is an ownership
+error. Its `ToUnicode` entries come from its source exactly as an
+occurrence's do.
 
 PDF text lowering requires `ActualText` for right-to-left runs, explicit
 source-to-presentation transformations, reordered or contextual clusters, and

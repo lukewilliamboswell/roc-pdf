@@ -72,7 +72,8 @@ Text :: [].{
 	]
 
 	## `glyphs` is a range into Store.glyph_indices. `source` is relative to
-	## the owning occurrence's Unicode and can represent combining and reordering.
+	## the run's Unicode (its occurrence or artifact source) and can represent
+	## combining and reordering.
 	Cluster : {
 		glyphs : Semantics.Range,
 		kind : ClusterKind,
@@ -92,6 +93,15 @@ Text :: [].{
 	}
 
 	ActualTextEvidence : [FromOccurrence, SemanticOverride(Semantics.TextPropertyId)]
+
+	## The Unicode a run's `source` range indexes. A semantic run shapes the
+	## text of its content occurrence and is painted by that occurrence's
+	## layout fragments. An artifact run shapes an artifact text source, such
+	## as page furniture resolved after pagination: it belongs to no structure
+	## element, is painted only by a page-artifact scene group, and carries no
+	## text properties. `FromOccurrence` evidence of an artifact run reads its
+	## artifact source.
+	RunUnicode : [ArtifactText(Semantics.TextSourceId), OccurrenceText(Semantics.OccurrenceId)]
 
 	## Every field that can affect joining, substitution, placement, or extraction
 	## participates in the cache identity. Empty context ranges are explicit.
@@ -116,12 +126,12 @@ Text :: [].{
 		id : RunId,
 		instance : Font.InstanceId,
 		language : Semantics.Language,
-		occurrence : Semantics.OccurrenceId,
 		script : Font.Script,
 		size : Layout.Unit,
 		source : Semantics.TextRange,
 		substitutions : Semantics.Range,
 		transformations : Semantics.Range,
+		unicode : RunUnicode,
 		writing_mode : WritingMode,
 	}
 

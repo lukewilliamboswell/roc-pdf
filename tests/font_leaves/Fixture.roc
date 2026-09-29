@@ -413,12 +413,12 @@ build_text_store = |spec, prepared| {
 			id: Text.RunId.from_index($run_index),
 			instance: Font.InstanceId.from_index(run.font),
 			language: Language("en-AU"),
-			occurrence: Semantics.OccurrenceId.from_index($run_index),
 			script: Font.Script.from_iso15924("Latn"),
 			size: unit(11000),
 			source: { scalars: span(0, run_scalar_count), utf8_bytes: span(0, $byte_offset) },
 			substitutions: empty_range,
 			transformations: empty_range,
+			unicode: OccurrenceText(Semantics.OccurrenceId.from_index($run_index)),
 			writing_mode: Horizontal,
 		})
 		$run_index = $run_index + 1

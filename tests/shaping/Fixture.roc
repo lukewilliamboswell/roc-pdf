@@ -125,7 +125,6 @@ advanced_store = {
 			id: Text.RunId.from_index(0),
 			instance: Font.InstanceId.from_index(0),
 			language: Language("en-AU"),
-			occurrence: Semantics.OccurrenceId.from_index(1),
 			script: Font.Script.from_iso15924("Latn"),
 			size: Layout.Unit.from_raw(11000),
 			source: {
@@ -134,6 +133,7 @@ advanced_store = {
 			},
 			substitutions: Semantics.Range.from_start_and_length(0, 1),
 			transformations: Semantics.Range.from_start_and_length(0, 0),
+			unicode: OccurrenceText(Semantics.OccurrenceId.from_index(1)),
 			writing_mode: Horizontal,
 		},
 	],

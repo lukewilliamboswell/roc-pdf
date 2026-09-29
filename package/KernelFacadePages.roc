@@ -249,7 +249,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 					lead: Layout.Unit.from_raw(0),
 					leading: body_style.leading,
 					lines: Semantics.Range.from_start_and_length(visual_start, body_lines.lines.length()),
-					occurrence: body_record.occurrence,
+					occurrence: semantic_occurrence(body_record, $block_index, body_index)?,
 					policy: {
 						break_before,
 						keep_together: keeps_together(author_block.kind),
@@ -434,7 +434,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, limits, table
 							if $block == row.first_block {
 								$leading = positive_raw(style.leading)?
 								$size = positive_raw(record.size)?
-								$occurrence = record.occurrence
+								$occurrence = semantic_occurrence(record, $block, body_index)?
 							} else if positive_raw(style.leading)? != $leading or positive_raw(record.size)? != $size {
 								return Err(InvalidRun({ block: $block, run: body_index }))
 							}
@@ -761,7 +761,7 @@ table_leaf_unit = |at, block_index, buffers| {
 					lead: Layout.Unit.from_raw(0),
 					leading: body_style.leading,
 					lines: Semantics.Range.from_start_and_length(visual_start, body_lines.lines.length()),
-					occurrence: body_record.occurrence,
+					occurrence: semantic_occurrence(body_record, block_index, body_index)?,
 					policy: { break_before: False, keep_together: False, keep_with_next: NoKeep, minimum_first_lines: 1, minimum_last_lines: 1 },
 					space_after: Layout.Unit.from_raw(0),
 				},
@@ -1187,4 +1187,12 @@ expect {
 	authoring = Document.normalize(Document.from_blocks({ contents: [nested, Document.paragraph("After")], language: "en-AU", title: "Lists" }))
 	runs = [1, 2, 1, 0].map(|level| TextBlock({ body: { physical: Semantics.Range.from_start_and_length(0, 1) }, label: NoLabel, level }))
 	continues_list(authoring, runs, 0, 1) and continues_list(authoring, runs, 1, 2) and !continues_list(authoring, runs, 2, 1)
+}
+
+## The content occurrence a shaped body run paints. Body runs come from the
+## semantic shaping batch, so an artifact run here is an invalid run.
+semantic_occurrence : Text.Run, U64, U64 -> Try(Semantics.OccurrenceId, KernelFacadePages.Error)
+semantic_occurrence = |run, block, run_index| match run.unicode {
+	OccurrenceText(occurrence) => Ok(occurrence)
+	ArtifactText(_) => Err(InvalidRun({ block, run: run_index }))
 }

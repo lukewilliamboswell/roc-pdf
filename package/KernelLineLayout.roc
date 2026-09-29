@@ -181,7 +181,11 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 		shape_request = list_at(shape_requests, $run_index)
 		run = list_at(store.runs, $run_index)
 		source_index = request.source.index()
-		if source_index >= sources.len() or shape_request.source.index() != source_index or shape_request.occurrence.index() != run.occurrence.index() or shape_request.size.raw() != run.size.raw() or request.width.raw() <= 0 {
+		same_occurrence = match run.unicode {
+			OccurrenceText(occurrence) => occurrence.index() == shape_request.occurrence.index()
+			ArtifactText(_) => False
+		}
+		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size.raw() != run.size.raw() or request.width.raw() <= 0 {
 			return Err(InvalidRun({ run: $run_index }))
 		}
 		key = { instance: run.instance.index(), size: run.size.raw(), source: source_index, width: request.width.raw() }
@@ -975,12 +979,12 @@ expect {
 		id: Text.RunId.from_index(0),
 		instance: Font.InstanceId.from_index(0),
 		language: Inherited,
-		occurrence: Semantics.OccurrenceId.from_index(0),
 		script: Font.Script.from_iso15924("Latn"),
 		size: Layout.Unit.from_raw(1000),
 		source: { scalars: Semantics.Range.from_start_and_length(0, 6), utf8_bytes: Semantics.Range.from_start_and_length(0, 6) },
 		substitutions: Semantics.Range.from_start_and_length(0, 0),
 		transformations: Semantics.Range.from_start_and_length(0, 0),
+		unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 		writing_mode: Horizontal,
 	}
 	store = { ..test_store, runs: [run] }
