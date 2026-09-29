@@ -37,8 +37,15 @@
 - Keep accumulators uniquely owned. Do not thread a growing list or builder
   through a `Try` that the caller then updates, keep it live on an error path
   (`Err(e) => { $error = … }` loop state), return it beside another list, or
-  grow it with `List.reserve`/`List.concat` (both size exactly). See
-  `docs/performance/lowering-uniqueness.md`.
+  grow it with `List.reserve`/`List.concat`/`Str.concat` (all size exactly).
+  After a call that consumes an accumulator `var`, every path must reassign
+  it or leave the loop with `return`: a `Done => { $done = True }` arm keeps
+  the old value live across the call. Do not reassign an accumulator `var`
+  inside the branches of an `if` or `match` that produces a value (including
+  a function's tail expression), and do not read a record or projection
+  after the call that grows one of its lists. See
+  `docs/performance/lowering-uniqueness.md` and
+  `docs/performance/emission-linearity.md`.
 - If a proposed change alters an enduring architectural decision or roadmap
   capability boundary, update the corresponding document in the same change.
   Do not use an implementation workaround to avoid resolving the conflict.

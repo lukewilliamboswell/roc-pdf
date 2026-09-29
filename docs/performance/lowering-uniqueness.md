@@ -316,7 +316,11 @@ Review of the distribution:
 
 The guard's first run exposed super-linear allocation outside the invoice
 path. The ceilings record these values, so they cannot get worse, but they
-are not fixed here:
+are not fixed here. Slice S6c ([emission-linearity.md](emission-linearity.md))
+removed the first five (content streams, production-visual forms, rich
+inline, scenes and fragments, and `List.concat` accumulators) and found
+that the content-stream copies came from the helpers `emit_commands` calls,
+not from its loop join:
 
 - **Content streams on dense pages.** Content emission still copies the
   page stream about once per emitted token (allocation stacks through
