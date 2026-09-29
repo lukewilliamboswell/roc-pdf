@@ -253,7 +253,6 @@ build_plan = |tagged, text, forms, limits| {
 							return Err(error)
 						}
 						Ok(emitted) => {
-
 							## Every scalar is read out of the result before its
 							## stream is appended to: a record still read after
 							## the append keeps a second reference to the stream,

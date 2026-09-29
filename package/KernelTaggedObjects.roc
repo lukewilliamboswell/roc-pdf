@@ -439,7 +439,6 @@ add_structure_root = |builder, names, tagged, navigation, objects| {
 	entries = match KernelObjectPlan.Plan.id_tree(objects).first() {
 		Err(ListWasEmpty) => { builder: type_value.builder, entries: base_entries }
 		Ok(id_tree_root) => {
-
 			## ISO 32000-2 14.7.2 Table 354: the IDTree maps every element
 			## identifier to its structure element; its root is the first
 			## planned IDTree node object.
@@ -473,7 +472,6 @@ add_parent_tree = |builder, names, tagged, navigation, objects| {
 	match navigation {
 		NoNavigationLowering => {}
 		WithNavigationLowering(input) => {
-
 			## One scalar ParentTree row per annotation after the
 			## content-stream rows: the key is the annotation's
 			## `/StructParent` value and the value is one direct

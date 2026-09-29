@@ -844,7 +844,6 @@ minimal_text_store = {
 ## escapes.
 check_negatives : U64 -> Try(U64, Fixture.EvidenceError)
 check_negatives = |context| {
-
 	## The runtime context threads through the authored scenes so no
 	## rejection can be resolved at compile time.
 	base = mask_grid(context, Reuse)

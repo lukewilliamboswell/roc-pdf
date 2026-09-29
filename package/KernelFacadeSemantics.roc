@@ -1051,7 +1051,6 @@ check_breaks = |line_breaks, cursor, count, rich, block| {
 ## grammar. Returns the counts semantic planning reserves.
 check_rich : List(Document.NormalizedInline), Document.NormalizedRich, U64, U64 -> Try({ expansions : U64, links : U64 }, KernelFacadeSemantics.Error)
 check_rich = |inlines, rich, block, max_depth| {
-
 	## A page field or reserved width in body content is rejected first,
 	## with its inline path; it holds no text, so the emptiness checks
 	## below would otherwise misname it.
@@ -1296,7 +1295,6 @@ build_store = |authoring, planning, source_plan| {
 					crash "normalized table row escaped its table"
 				}
 				ListItem(ordinal) => {
-
 					## `LI` owns `[Lbl, LBody]`; `Lbl` owns the generated label
 					## occurrence, whose source-to-presentation fact names its
 					## whole label source. The label paints on the item's
@@ -1386,7 +1384,6 @@ build_store = |authoring, planning, source_plan| {
 					$index = $index + 1
 				}
 				Link(_) | InternalLink(_) => {
-
 					## A link block is a paragraph-shaped wrapper: a P node under
 					## the root containing one Link node that owns the link text.
 					## Per-page annotation occurrences join the Link node's spine
@@ -1562,7 +1559,6 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		position = owner_spine + record.position
 		match record.kind {
 			Text({ byte_length, byte_start, text: _ }) => {
-
 				## A leaf after a line break starts the next segment's source.
 				## Validated breaks separate text, so one leaf crosses at most
 				## one break.

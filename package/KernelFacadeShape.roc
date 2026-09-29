@@ -772,7 +772,6 @@ build_ordered_plan = |authoring, owners, store, source_store, artifact_count, or
 	while $policy_position < policy_faces.len() {
 		face = list_at(policy_faces, $policy_position)
 		if face_selected_anywhere($ranges_per_source, face) {
-
 			## The face's registered shaping provision is a capability fact:
 			## the built-in convenience shaper only drives faces declared for
 			## it, never a face registered for advanced caller runs only.
@@ -930,7 +929,6 @@ face_selected_anywhere = |ranges_per_source, face| {
 		ranges = list_at(ranges_per_source, $source_index)
 		var $range_index = 0
 		while $range_index < ranges.len() {
-
 			## Registered static instances share their face's dense index.
 			if list_at(ranges, $range_index).instance.index() == face.index() {
 				return Bool.True

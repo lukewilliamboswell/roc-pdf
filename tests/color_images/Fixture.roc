@@ -900,7 +900,6 @@ store_with_profile = |profile| { ..valid_single_profile_store, profiles: [profil
 ## escapes.
 check_negatives : U64 -> Try(U64, Fixture.EvidenceError)
 check_negatives = |context| {
-
 	## 1: a truncated ICC payload.
 	truncated_profile = {
 		..profile_with_bytes(KernelSrgbProfile.bytes.sublist({ len: 100, start: 0 })),

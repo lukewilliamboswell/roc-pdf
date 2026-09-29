@@ -200,7 +200,6 @@ main! = |args| {
 			{ bytes: streamed.bytes, work: [streamed.bytes.len(), streamed.chunks, identical] }
 		}
 		"figures-standard" => {
-
 			## Standard twins of single-page Archive documents; the renderer
 			## matrix requires Archive and Standard to rasterize identically
 			## because the identification is metadata only.
@@ -212,7 +211,6 @@ main! = |args| {
 			{ bytes, work: [bytes.len()] }
 		}
 		"profiles" => {
-
 			## The same document under both profiles: Archive adds exactly the
 			## PDF/A identification to the canonical packet, so the output grows
 			## by the 112 packet bytes plus any stream-length and cross-reference

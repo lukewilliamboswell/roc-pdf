@@ -141,7 +141,6 @@ KernelEmit :: [].{
 		var $encoder = start(plan, OwnResourceChunks)?
 		var $output = []
 		while Bool.True {
-
 			## Every arm either returns or reassigns `$encoder`. An arm that
 			## kept the old encoder (the `Done` arm setting a flag) made it
 			## live across `Encoder.next`, which then copied the offsets on

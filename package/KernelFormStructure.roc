@@ -424,7 +424,6 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			GroupValue(_) => KernelPageObjects.Plan.build_with_page_groups($builder, tagged, content, base, $page_values, $references, $page_groups) ? Pages
 		}
 		WithNavigationPlan(plan_input) => {
-
 			## Per-page /Annots reference arrays in keyboard order, built
 			## from the planned annotation identities before the pages
 			## reference them.

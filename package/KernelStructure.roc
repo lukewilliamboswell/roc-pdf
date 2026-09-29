@@ -324,7 +324,6 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 			Unchanged(bytes) => UnchangedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
 		}
 		FactContext(_) => {
-
 			## With document facts the plan identity is the sealed-store
 			## digest, so language, metadata, and intent facts change the file
 			## identifier deterministically.

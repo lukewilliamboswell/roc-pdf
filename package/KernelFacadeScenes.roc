@@ -413,7 +413,6 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$page_groups = $page_groups.append(group)
 				$placement_cursor = $placement_cursor + 1
 			} else if $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
-
 				## Table rules paint after the page's text, each a filled rectangle
 				## owned by a layout decoration artifact.
 				rule = list_at(prepared.rules, $rule_cursor)
@@ -431,7 +430,6 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$page_groups = $page_groups.append(group)
 				$rule_cursor = $rule_cursor + 1
 			} else {
-
 				## Furniture drawings paint last, each one page-artifact group:
 				## a transform to its bottom-left corner around its images and
 				## paths in drawing-local geometry.

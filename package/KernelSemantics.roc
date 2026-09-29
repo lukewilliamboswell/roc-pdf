@@ -774,7 +774,6 @@ valid_language_tag = |tag| {
 		}
 	}
 	$valid and $length >= 1 and $length <= 8
-
 }
 
 ## Element identifiers are dense, non-empty, and stored in strictly

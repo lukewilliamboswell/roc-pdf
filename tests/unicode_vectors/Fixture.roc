@@ -17,7 +17,6 @@ Fixture :: [].{
 
 	uax_boundary_vectors : U64 -> Try({ bytes : List(U8), work : List(U64) }, VectorError)
 	uax_boundary_vectors = |runtime_context| {
-
 		## Retain an explicit runtime context so test-application failure is a
 		## normal typed result, never a compile-time-known match.
 		if runtime_context > 1 {

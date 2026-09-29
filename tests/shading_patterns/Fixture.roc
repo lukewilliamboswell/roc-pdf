@@ -481,27 +481,21 @@ showcase_pattern_count = 3
 showcase_stops : U64 -> List(Scene.GradientStop)
 showcase_stops = |logical| {
 	if logical == 0 or logical == 4 {
-
 		## The canonical two-stop red-to-blue axis and its authored twin.
 		[rgb_stop(0, 65535, 0, 0), rgb_stop(65535, 0, 0, 65535)]
 	} else if logical == 1 {
-
 		## Asymmetric multi-stop: red, yellow at 1/4, green at 3/4, blue.
 		[rgb_stop(0, 65535, 0, 0), rgb_stop(16384, 65535, 65535, 0), rgb_stop(49152, 0, 65535, 0), rgb_stop(65535, 0, 0, 65535)]
 	} else if logical == 2 {
-
 		## The radial blue-to-white cone.
 		[rgb_stop(0, 0, 0, 65535), rgb_stop(65535, 65535, 65535, 65535)]
 	} else if logical == 3 {
-
 		## Calibrated gray black-to-white.
 		[gray_stop(0, 0), gray_stop(65535, 65535)]
 	} else if logical == 5 {
-
 		## One visual fact away from logical 0: the colors swap.
 		[rgb_stop(0, 0, 0, 65535), rgb_stop(65535, 65535, 0, 0)]
 	} else {
-
 		## The pattern cell's yellow-to-green ramp, whose segment function
 		## must deduplicate with the multi-stop gradient's middle segment.
 		[rgb_stop(0, 65535, 65535, 0), rgb_stop(65535, 0, 65535, 0)]
@@ -522,7 +516,6 @@ showcase_geometry = |logical, srgb_space| {
 	} else if logical == 6 {
 		{ extend_end: Bool.False, extend_start: Bool.False, geometry: axial(5000, 0, 10000, 0), space: srgb_space }
 	} else if logical == 1 {
-
 		## The multi-stop gradient runs diagonally across its band so axis
 		## direction errors are visible, and its unextended corners knock
 		## out exactly.
@@ -1122,7 +1115,6 @@ with_shading = |base, shading| {
 ## escapes.
 check_negatives : U64 -> Try(U64, Fixture.EvidenceError)
 check_negatives = |context| {
-
 	## The runtime context threads through the authored scenes so no
 	## rejection can be resolved at compile time.
 	base = shading_grid(context, Reuse)

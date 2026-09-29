@@ -472,7 +472,6 @@ run_scenario = |mode, scale| {
 		}
 		Ok({ bytes: built.bytes, work: work_vector(built) })
 	} else if mode == "dag" {
-
 		## Marker distinctness spans 10 columns by 15 exact eight-bit levels.
 		if scale < 1 or scale > 128 {
 			return Err(InvalidScale)
@@ -722,7 +721,6 @@ repeat_scenario = |scale| {
 
 dag_scenario : U64 -> Scenario
 dag_scenario = |scale| {
-
 	## Four shared base forms, then `scale` distinct parents that each place
 	## all four and additionally paint one parent-specific integer-position
 	## marker, so parents never deduplicate while every painted edge stays on
@@ -817,7 +815,6 @@ dag_scenario = |scale| {
 
 deep_scenario : U64 -> Scenario
 deep_scenario = |scale| {
-
 	## A legal chain: form i places form i + 1 and paints its own small step;
 	## the last form paints only. The whole chain is placed once.
 	var $arena = []

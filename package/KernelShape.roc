@@ -604,7 +604,6 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			}
 			$assignments = list_set($assignments, source_index, $updated)
 		} else {
-
 			## A repeated occurrence of this source must reuse the identical split.
 			existing = list_at($assignments, source_index)
 			var $cluster = range_start

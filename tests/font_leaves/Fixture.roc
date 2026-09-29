@@ -1034,7 +1034,6 @@ content_cid_of = |plan| {
 
 run_scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_scenario = |mode, scale| {
-
 	## Always zero at runtime, but derived from a runtime argument, so the
 	## measured pipelines cannot be evaluated at compile time.
 	guard = U64.mod_by(scale, 1)

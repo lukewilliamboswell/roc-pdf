@@ -537,13 +537,11 @@ showcase_scenario = |direction| {
 		start = $form_arena.len()
 		commands = list_at(logical_form_commands, logical)
 		if logical == 1 {
-
 			## Root owns the opacity command; its child follows.
 			$form_arena = $form_arena.append(opacity(16384, start + 1, 1))
 			$form_arena = $form_arena.append(list_at(commands, 1))
 			$forms = $forms.append({ bbox: list_at(logical_boxes, logical), commands: span(start, 1), group: list_at(logical_groups, logical), id: Scene.FormId.from_index($dense_index) })
 		} else if logical == 2 {
-
 			## Root owns the opacity command and the overlapping opaque path;
 			## the opacity child follows both top-level commands.
 			$form_arena = $form_arena.append(opacity(32768, start + 2, 1))
@@ -950,7 +948,6 @@ ambient_form_scenario = |form_commands, root, group| {
 ## escapes.
 check_negatives : U64 -> Try(U64, Fixture.EvidenceError)
 check_negatives = |context| {
-
 	## The runtime context threads through the authored scenes so no
 	## rejection can be resolved at compile time.
 	base = group_grid(context, Shared)

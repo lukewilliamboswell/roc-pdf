@@ -101,7 +101,6 @@ register_all = |specs| {
 		}
 		match $registry.register(bytes, registration, Font.ValidationLimits.make(limits)) {
 			Err(error) => {
-
 				## A rejection leaves the caller holding the registry it already
 				## had, so the loop simply continues with it. What the property
 				## checks is that the rejection is the exact one the public
@@ -439,7 +438,6 @@ work_invariants = |work, bytes, inspection|
 ## each other.
 expected_registration_failure : Font.ResourceError, RegistryTargets.Registration, List(Font.Script), LimitChoice -> Bool
 expected_registration_failure = |error, spec, scripts, limits| {
-
 	## Script validation runs before the font is even looked at, so an invalid
 	## tag outranks every other rejection and must name the exact index the
 	## contract rejects: the first malformed tag, or the second occurrence of a
@@ -777,7 +775,6 @@ plan_invariants = |configured, input| {
 		return False
 	}
 	if policy.index() >= configured.policies {
-
 		## An unknown policy is a single-element early return, never a list that
 		## also accumulates per-cluster rejections.
 		return match result {

@@ -200,7 +200,6 @@ derive_run_geometry = |text_plan| {
 	var $run_index = 0
 	while $run_index < text.runs.len() {
 		if $artifact_cursor < artifact_runs.len() and list_at(artifact_runs, $artifact_cursor) == $run_index {
-
 			## A repainted header run is a page artifact: it anchors no
 			## destination and joins no link.
 			$artifact_cursor = $artifact_cursor + 1
@@ -278,7 +277,6 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 			var $link_groups = list_at($groups, owner)
 			appended = match $link_groups.last() {
 				Ok(group) => if group.page == placement.page.index() {
-
 					## Adjacent runs of one link on one line (an inline link
 					## containing differently styled text) extend the line's
 					## quadrilateral rather than adding a second one, so each

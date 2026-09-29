@@ -1166,7 +1166,6 @@ leaf_position = |normalized, block, parent| {
 		$index = $index + 1
 	}
 	for group in normalized.groups {
-
 		## The lead region is a template region, not an authored sibling.
 		lead = match group.kind {
 			LeadRegion => True
@@ -1357,7 +1356,6 @@ container_batch = |diagnostic, feature, message, path| {
 selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)
 selected_font = |options| match options.font_source {
 	BuiltIn => {
-
 		## The packaged face has the same dense facade identity as the initial
 		## caller registry face. The shaping stage consumes only the validated
 		## inspection and typed Theme face, never a provenance flag.

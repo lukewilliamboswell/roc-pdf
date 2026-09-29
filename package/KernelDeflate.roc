@@ -143,7 +143,6 @@ KernelDeflate :: [].{
 		var $encoder = Encoder.start(plan)
 		var $bytes = []
 		while Bool.True {
-
 			## `Done` returns rather than setting a flag, so no arm keeps the
 			## old encoder live across `Encoder.next`
 			## (docs/performance/emission-linearity.md).

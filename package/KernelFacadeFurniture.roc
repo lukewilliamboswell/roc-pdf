@@ -827,7 +827,6 @@ measure_region = |static, store, input_sources, pending, cursor, region, region_
 	match overlaps {
 		NoOverlap => Ok($widths)
 		Overlap({ required, slots }) => {
-
 			## A slot holding a page field whose resolved value causes the
 			## overlap is a field overflow; otherwise the static slots
 			## overlap.

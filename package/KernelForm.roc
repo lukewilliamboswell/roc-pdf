@@ -2415,7 +2415,6 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			$sources = list_set($sources, node, { descriptor, length: $payload.len() - start, start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < counts.color_spaces + image_count + counts.fonts {
-
 			## A font leaf: the derived canonical bundle recipe from
 			## `KernelFontLeaf` — typed emitted facts plus the exact sanitized
 			## subset bytes — never the caller's whole font program, which
@@ -2455,7 +2454,6 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
 			$form_digests = $form_digests + 1
 		} else if node < bases.shading_base {
-
 			## A graphics-state recipe: every emitted fact of the canonical
 			## ExtGState, in fixed order. A constant-alpha state serializes
 			## its non-stroking and stroking alphas (equal in this slice) and
@@ -2473,7 +2471,6 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < bases.pattern_base {
-
 			## A shading recipe: the shading kind, the exact fixed-point
 			## geometry, the extend flags, the color-space identity digest,
 			## and the root function's identity digest — which transitively
@@ -2507,7 +2504,6 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: $recipe.len(), start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < functions_start {
-
 			## A pattern recipe: bounds, steps, matrix, and the canonical
 			## cell-command recipe, sharing the form recipe-byte budget.
 			cell = list_at(pattern_store.cells, node - bases.pattern_base)
@@ -2522,7 +2518,6 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
 			$form_digests = $form_digests + 1
 		} else {
-
 			## A function recipe: a segment function serializes its channel
 			## arity and the two adjacent stop colors it interpolates (the
 			## domain, encode, and exponent are constants of the emission
@@ -3297,7 +3292,6 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 					WithText(plan) => if run.index() >= KernelContent.TextPlan.run_count(plan) {
 						return Err(TextRunRecipeInvalid({ prepared: KernelContent.TextPlan.run_count(plan), run: run.index() }))
 					} else {
-
 						## The font selection serializes as the referenced font
 						## leaf's identity digest plus the exact size, mirroring
 						## the emitted `Tf` operator, so recipes never depend on

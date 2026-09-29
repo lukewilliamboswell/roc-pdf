@@ -368,7 +368,6 @@ validate_title = |title, max_bytes| {
 		if byte < 0x20 or byte == 0x7F {
 			$invalid = InvalidAt($index)
 		} else if byte == 0xEF and $index + 2 < length and list_at(bytes, $index + 1) == 0xBF and list_at(bytes, $index + 2) >= 0xBE {
-
 			## U+FFFE and U+FFFF are excluded from XML 1.0 characters.
 			$invalid = InvalidAt($index)
 		} else {
