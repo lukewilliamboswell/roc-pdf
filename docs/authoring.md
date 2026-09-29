@@ -187,6 +187,74 @@ row, or cell, such as `contents[4].table.body_rows[17].cells[1]`:
 `table.cell_empty`, `table.row_span` (row spans are Gate 8),
 `layout.table_width`, `layout.unbreakable_token`, and `layout.table_rule`.
 
+Give pages running headers, footers, and page numbers with page templates.
+The first page and every later page each have a template; each template
+reserves a header and a footer region of fixed height inside the body frame,
+separated from the body by its gap, and the first page may also reserve a
+lead region for semantic letterhead content:
+
+```roc
+page_of = Pdf.reserved_width(Layout.Unit.points(72), End, [
+    Pdf.text("Page "),
+    Pdf.page_number(Decimal),
+    Pdf.text(" of "),
+    Pdf.total_pages(Decimal),
+])
+
+letter = Pdf.with_page_templates(document, {
+    first: Pdf.first_page_template({
+        header: Pdf.region({ height: Layout.Unit.points(48), start: [], center: [], end: [Pdf.furniture_image(logo)] }),
+        lead: Pdf.lead_region(Layout.Unit.points(60), [
+            Pdf.rich_paragraph([Pdf.strong([Pdf.text("Harbour & Finch Pty Ltd")])]),
+            Pdf.paragraph("Level 3, 18 Wharf Street, Hobart TAS 7000"),
+        ]),
+        footer: Pdf.region({ height: Layout.Unit.points(16), start: [], center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])], end: [] }),
+        gap: Layout.Unit.points(12),
+    }),
+    continuation: Pdf.page_template({
+        header: Pdf.region({
+            height: Layout.Unit.points(16),
+            start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])],
+            center: [],
+            end: [Pdf.furniture_text([page_of])],
+        }),
+        footer: Pdf.no_region,
+        gap: Layout.Unit.points(12),
+    }),
+})
+```
+
+Body text flows only in what the regions leave, so the first page and later
+pages can hold different body heights. Each slot (`start`, `center`, `end`)
+stacks its furniture: a header's stack sits on the region's bottom edge and a
+footer's hangs from its top edge. `Pdf.furniture_text` is one line of text,
+page fields, and reserved widths in the body style; `Pdf.furniture_image`
+paints a drawing of images and solid paths (`Scene.rectangle`,
+`Scene.solid_fill`, `Scene.solid_stroke`) whose origin is the item's
+bottom-left corner. Furniture is a page artifact (`Header`, `Footer`, or
+`PageNum` when a line holds a page field): it repeats on every page of its
+template and never enters the structure tree or the logical text. The lead
+region's blocks are semantic: a `Div` that comes first in reading order.
+
+`Pdf.page_number` and `Pdf.total_pages` take a number style (`Decimal`,
+`LowerAlpha`, `UpperAlpha`, `LowerRoman`, or `UpperRoman`) and resolve after
+pagination: the first pass paginates the body, the second resolves every
+field with the final page count and proves it fits. Because regions have
+fixed heights, furniture never changes pagination and two passes always
+suffice. Put a field in `Pdf.reserved_width(width, align, inlines)` to keep
+its position fixed; its resolved content must fit the width on every page.
+Page fields are furniture only; in body content they report
+`document.generated_reference`. Rejections name template paths, such as
+`templates.continuation.header.end[0].inlines[0].inlines[1]`:
+`layout.template_body_space` (regions leave less than one body line),
+`layout.template_region_overflow` (furniture or lead content taller or wider
+than its region, or overlapping slots), `layout.field_overflow` (a resolved
+field that does not fit, with the first page it fails on),
+`layout.template_region_empty`, `layout.template_body_empty`,
+`layout.furniture_inline`, `layout.furniture_drawing`, and
+`semantics.inline_empty`. Furniture text is shaped through the theme's face;
+under an ordered font policy it reports `text.furniture_policy`.
+
 Documents are bounded: up to 16,384 content occurrences, structure elements,
 and text sources, and 1,024 pages. A document past a bound fails with the
 `BudgetExceeded` diagnostic `document.content_limit`, naming the table or
@@ -273,7 +341,8 @@ multi-command figures, and fixed pages remain forward API: they report
 | bulleted and numbered lists with nested blocks, `Pdf.bullets` | executable |
 | explicit line and page breaks, spacers, required and preferred keeps | executable |
 | ordinary tables with captions, header rows, column spans, footers, and repeated headers | executable |
-| page fields and a distinct face per inline role | not yet offered |
+| page templates: header, footer, and lead regions, furniture text and drawings, page and total-page fields | executable |
+| furniture text under an ordered font policy, and a distinct face per inline role | not yet offered |
 | fixed pages, columns, floats, footnotes, row spans, complex tables | representable; Gate 8 diagnostic |
 | `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
 | `AccessibleArchive` profile | representable; profile diagnostic |

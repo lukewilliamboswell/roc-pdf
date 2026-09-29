@@ -10,7 +10,7 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v5`**.
+Version: **`reference-documents-v6`**.
 
 - It is a design record. It claims no executable capability, conformance
   result, or reader behavior. Capability status remains governed by the
@@ -526,7 +526,11 @@ Page templates:
   centered text `harbourfinch.example`. Region gap 12 pt. First-page body
   height: 746 − 48 − 12 − 60 − 12 − 16 − 12 = 586 pt.
 - Continuation pages: header region 16 pt, start slot `Northstar Cooperative
-  Ltd · 21 September 2026`, end slot `Page N of M` in a 64 pt reserved width.
+  Ltd · 21 September 2026`, end slot `Page N of M` in a 72 pt reserved width
+  (amended in `reference-documents-v6`: in the packaged face at 11 pt,
+  `Page 10 of 11`, which LET-A2 requires, measures 66.7 pt and would not fit
+  the former 64 pt; `Page 9 of 9` measures 60.0 pt, so the invoice's and
+  report's 64 pt suit their one-digit totals).
   No footer. Continuation body height: 746 − 16 − 12 = 718 pt.
 
 Body contents, in order:
@@ -656,7 +660,7 @@ substitution, outlining, rasterization, or dropping text.
 | Rich inline runs (`Em`, `Strong`, `Code`, `Quote`, `Link`, `Span`) with per-run theme colors in one line, wrapping across inline boundaries | supported | — | [rich-inline.md](performance/rich-inline.md) |
 | **Required:** a distinct caller-registered face per inline role (e.g. monospace `Code`) | required | — | not selectable yet; every inline paints in its paragraph's face, size, and leading |
 | Runs whose script stays Common (or Inherited) after itemization, e.g. a cell holding only `1,284` or `+10.0%`, or the spaces in `Café 中 PDF`, under an ordered policy | supported | — | [tables.md](performance/tables.md): each cluster of such a run takes the first face in policy order that covers it, exactly as per-cluster coverage selection does for declared scripts; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
-| **Required:** furniture text (headers, footers, page fields) shaped with exact artifact ownership | required | — | today `layout.page_template` |
+| Furniture text (headers, footers, page fields) shaped with exact artifact ownership, through the single theme face | supported | — | [page-templates.md](performance/page-templates.md); under an ordered font policy furniture text reports `text.furniture_policy` (`FeatureUnavailable`) and only furniture drawings are supported |
 
 The text diagnostics above may continue to surface through the existing typed
 `InvalidFontSelection` alternatives; the dotted codes name them stably in
@@ -687,6 +691,29 @@ outcome or a structured error; there is no undocumented recovery mode.
   is exactly one line. If stacked items exceed the region height, or the slot
   contents overlap horizontally, preparation fails with
   `layout.template_region_overflow`.
+- (`reference-documents-v6`) A present region reserves a positive height and
+  holds at least one furniture item; otherwise `layout.template_region_empty`
+  (`no_region` reserves nothing and no gap). A template gap must not be
+  negative (`layout.spacer_negative`, path `templates.first.gap`). A
+  templated document needs at least one body block
+  (`layout.template_body_empty`).
+- (`reference-documents-v6`) A header's slot stacks sit on the region's
+  bottom edge and a footer's hang from its top edge, beside the body flow;
+  items stack top to bottom in authored order. Start items align to the
+  body frame's start edge, end items to its end edge, and center items are
+  centered on it. A text item is one body-style line (its height is the
+  body leading, its baseline one body size below its top); a drawing
+  item's size is its drawing's extent.
+- (`reference-documents-v6`) On each page, header furniture text paints
+  before the body text and footer furniture text after it; furniture
+  drawings paint after the page's text and table rules. A furniture line
+  holding a page field is a `PageNumber` artifact (`/Subtype /PageNum`);
+  every other item takes its region's kind (`/Header` or `/Footer`).
+- (`reference-documents-v6`) Widths are proven for every painted page with
+  its resolved field values: each reserved width must hold its content, each
+  item the body frame's width, and the slots must not overlap. A template
+  that paints on no page (the continuation template of a one-page document)
+  has only its heights, inlines, and drawings validated.
 - Every placed fragment lies inside its container (flow region, table cell, or
   template slot). Content is never clipped, scaled, or dropped to satisfy
   containment.
@@ -885,8 +912,11 @@ letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
 
 Page fields exist only in page-template furniture in v1. `Pdf.page_number` is
 the 1-based physical page index; `Pdf.total_pages` is the physical page count;
-both are decimal. Page labels authored with `Pdf.with_page_labels` are
-unaffected and are the author's responsibility to keep consistent.
+each is written in the `NumberStyle` it is given (`reference-documents-v6`;
+formerly decimal only): `Decimal`, `LowerAlpha`, `UpperAlpha`, `LowerRoman`,
+or `UpperRoman`, as list labels are, without the full stop. Page labels
+authored with `Pdf.with_page_labels` are unaffected and are the author's
+responsibility to keep consistent.
 
 Because template regions have fixed heights, furniture never changes body
 pagination. Stabilization therefore follows the architecture's state model
@@ -909,6 +939,10 @@ with an exact, fixed outcome:
    both are exercised through the `Layout.Stabilization` harness with
    synthetic reference systems until flow-affecting references
    (`document.generated_reference`, Gate 8) exist.
+6. (`reference-documents-v6`) Pass 2 recomputes its state from the pass-1
+   pagination it received. Flow frames are fixed from region heights before
+   flow and no pass can change them, so pass 2's state equals S1 by
+   construction and the driver confirms it by exact comparison.
 
 ### Diagnostic codes
 
@@ -934,6 +968,10 @@ with.
 | `layout.template_body_space` | new family | Template regions leave less than one body line of flow |
 | `layout.template_region_overflow` | new family | Lead or furniture content exceeds its region or slots overlap |
 | `layout.furniture_inline` | new family | An inline other than text, page fields, or reserved width appears in furniture |
+| `layout.template_region_empty` | new family | A region reserves no height or holds no furniture item (`reference-documents-v6`) |
+| `layout.template_body_empty` | new family | A document with page templates has no body block (`reference-documents-v6`) |
+| `layout.furniture_drawing` | `InvalidRelationship` | A furniture drawing has no command, a group, a non-positive image size, a path that paints nothing, or content below or left of its origin (`reference-documents-v6`) |
+| `text.furniture_policy` | `FeatureUnavailable` | Furniture text under an ordered font policy (`reference-documents-v6`) |
 | `layout.reference_cycle` | `LayoutCycle` | Stabilization repeated an earlier non-identical state |
 | `layout.budget_exhausted` | `BudgetExceeded` | Stabilization or layout work budget exhausted |
 | `table.grid_mismatch` | `InvalidRelationship` | Row spans do not sum to the column count |
@@ -985,9 +1023,15 @@ Placeholder codes that Gate 6 retires as its constructors become executable
 (`semantics.rich_inline` and `semantics.nested_language`, retired by the
 rich-inline slice; `semantics.containers`,
 `semantics.text_properties`, `table.simple`, `layout.page_template`) stop
-being returned for the supported subset. The facade still labels
-`layout.page_template` as Gate 8 in its roadmap message; the template slice
-corrects that to Gate 6.
+being returned for the supported subset. The template slice
+(`reference-documents-v6`) corrects the facade's roadmap label for
+`layout.page_template` to Gate 6; no supported construct returns it. A page
+field or reserved width in body content reports
+`document.generated_reference` (`FeatureUnavailable`) with its inline path,
+such as `contents[4].inlines[1]`; furniture diagnostics name template paths
+such as `templates.first`, `templates.first.lead`,
+`templates.continuation.header`, or
+`templates.continuation.footer.end[0].inlines[0].inlines[1]`.
 
 ## Planned authoring vocabulary
 
@@ -1012,9 +1056,9 @@ inline_internal_link : List(Inline), Str -> Inline # Link + /SD and /D to a dest
 in_language : Str, List(Inline) -> Inline         # Span with /Lang
 expansion : Str, Str -> Inline                    # Span with /E (text, expansion)
 line_break : Inline                               # explicit break within a paragraph
-page_number : Inline                              # furniture only
-total_pages : Inline                              # furniture only
-reserved_width : Layout.Unit, Align, List(Inline) -> Inline  # furniture only
+page_number : NumberStyle -> Inline               # furniture only
+total_pages : NumberStyle -> Inline               # furniture only
+reserved_width : Layout.Unit, Align, List(Inline) -> Inline  # furniture only; Align : [Start, End, Center]
 rich_paragraph : List(Inline) -> Document.Block
 ```
 
@@ -1030,9 +1074,12 @@ opportunities computed over the whole paragraph, across inline boundaries.
 Inline elements nest at most 8 deep. An inline link becomes one link
 annotation per page its text is painted on, with one quadrilateral per
 painted line. `line_break`, `page_number`, `total_pages`, and
-`reserved_width` are furniture-only and not yet executable. `line_break` is
+`reserved_width` are furniture-only. `line_break` is
 executable (lists-and-layout-policies slice): it splits the paragraph into
 segments, each its own interned source, and must separate text.
+`page_number`, `total_pages`, and `reserved_width` are executable in
+furniture text (page-templates slice, `reference-documents-v6`); `Pdf.Align`
+names the reserved width's alignment type.
 
 ### Blocks and grouping
 
@@ -1120,6 +1167,22 @@ item containing a page field lowers as a `PageNumber` artifact; other items
 take their region's kind. The repeated-table-header artifact kind is
 `Scene.PageArtifactKind.RepeatedHeader` (tables slice).
 
+These are executable with these names and shapes (page-templates slice,
+`reference-documents-v6`); `Pdf.FirstPageTemplate`, `Pdf.PageTemplate`,
+`Pdf.Region`, `Pdf.LeadRegion`, and `Pdf.Furniture` name the types, and the
+placeholders `Pdf.page_header` and `Pdf.page_footer` (and the compact
+builder's `add_page_header` and `add_page_footer`) are retired. A furniture
+drawing holds image commands and solid paths (`Scene.solid_fill`,
+`Scene.solid_stroke`, `Scene.rectangle`) in drawing-local coordinates
+whose origin is the item's bottom-left corner, y upward; its extent is the
+union of its commands from that origin, a stroke extending a path by half
+its width on every side. Grouped commands report `layout.furniture_drawing`.
+The lead region is a `Div` normalized before the body; its content height
+(lines and the spacing between its blocks) must fit its height. A page
+break inside it is `layout.page_break_position`, a spacer after its last
+block is suppressed with the lead's own trailing spacing, and keeps inside
+it are subsumed by its single unit.
+
 ### Figures, decorations, and extensions
 
 ```roc
@@ -1178,7 +1241,7 @@ the field; new names are introduced by the slice that implements them.
 | Report sections | 10 / 100 sections, each an `H1`, three paragraphs, one four-row table, one internal link to the next section, and one outline entry (footer reserved width sized for three digits) | `source_visits`, `candidate_visits`, `materialized_fragments`, `reference_visits` | linear |
 | | | `outline_entries`, `destinations` | linear |
 | | | destination-name resolution `comparison_work` | `n log n` |
-| Letter pages | 1 / 10 pages of body paragraphs | `source_visits`, `candidate_visits`, `materialized_fragments`, furniture items shaped | linear |
+| Letter pages | 20 / 200 body paragraphs (6 / 36 pages; amended in `reference-documents-v6` from 1 / 10 pages so the continuation template and two-digit page fields scale) | `lines`, `pages`, `fragments`, furniture items shaped, field resolutions | linear |
 | | | stabilization passes | constant (2) |
 
 ## Optional human review tasks
@@ -1203,6 +1266,20 @@ version, the task, the observed outcome, and any limitation.
   read first, and that page furniture is not read as body text.
 
 ## Change log
+
+- `reference-documents-v6`: the page-templates slice makes
+  `with_page_templates`, `first_page_template`, `page_template`, `region`,
+  `no_region`, `lead_region`, `no_lead`, `furniture_text`,
+  `furniture_image`, `page_number`, `total_pages`, and `reserved_width`
+  executable; `page_number` and `total_pages` take a `NumberStyle`; retires
+  `Pdf.page_header` and `Pdf.page_footer`; fixes slot-stack alignment, the
+  furniture text style, paint order, artifact kinds, furniture drawing
+  geometry, per-page width proofs, and the lead region's rules; adds
+  `layout.template_region_empty`, `layout.template_body_empty`,
+  `layout.furniture_drawing`, and `text.furniture_policy` and names the
+  template diagnostic paths; widens the letter's continuation reserved width
+  to 72 pt (measured widths recorded above); and amends the letter scale
+  workload to 20 / 200 body paragraphs.
 
 - `reference-documents-v5`: the tables slice makes `table`, `row`, `cell`,
   `header_cell`, and `spanning` executable with unchanged names and shapes,
