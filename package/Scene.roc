@@ -175,12 +175,16 @@ Scene :: [].{
 		trim : Layout.Rect,
 	}
 
+	## `RepeatedHeader` repaints a continued table's header rows on a later
+	## page: a pagination aid whose content is already part of the logical
+	## structure once, at the table's first page.
 	PageArtifactKind : [
 		Background,
 		Decoration,
 		Footer,
 		Header,
 		PageNumber,
+		RepeatedHeader,
 		Watermark,
 	]
 

@@ -32,6 +32,10 @@ KernelShape :: [].{
 		SelectedFaceMissing({ instance : Font.InstanceId, run : U64 }),
 		SelectedFaceRangeMismatch({ run : U64 }),
 		OccurrenceMismatch({ actual : Semantics.OccurrenceId, expected : Semantics.OccurrenceId, run : U64 }),
+
+		## Advanced caller runs shape content occurrences; artifact text is
+		## produced only by the facade's page furniture.
+		ArtifactRunUnsupported({ run : U64 }),
 		UnreferencedGlyph({ glyph : U64, run : U64 }),
 		UnsupportedCluster({ grapheme : U64, scalars : U64 }),
 		UnsupportedDirection(Text.Direction),
@@ -123,10 +127,13 @@ KernelShape :: [].{
 	## grapheme-cluster range of one interned source shaped with one dense
 	## output font. The instance index is the dense output-font identity that
 	## PDF lowering resolves to the matching plan, subset, and resource name;
-	## it is never re-derived from coverage during or after shaping.
+	## it is never re-derived from coverage during or after shaping. The
+	## request's language is the natural language of its occurrence and
+	## becomes the run's language fact.
 	SelectedBatchRequest : {
 		clusters : Semantics.Range,
 		instance : Font.InstanceId,
+		language : Semantics.Language,
 		occurrence : Semantics.OccurrenceId,
 		script : Font.Script,
 		size : Layout.Unit,
@@ -151,10 +158,11 @@ KernelShape :: [].{
 	shape_simple_batch : KernelFont.Inspection, List(SimpleSource), BatchOptions, List(SimpleRequest), Limits -> Try(Batch, Error)
 	shape_simple_batch = |font, sources, options, requests, limits| shape_simple_batch_latin(font, sources, options, requests, limits)
 
-	## The ordered multi-face facade path. Requests arrive grouped per logical
-	## occurrence; each group's cluster ranges must exactly partition its
-	## source, and every occurrence of one source must carry the identical
-	## font split. Shaping walks each unique source once, assigning the
+	## The ordered multi-face facade path. Requests arrive in groups that
+	## each exactly partition one source in cluster order: one occurrence
+	## covering its whole source, or the consecutive occurrences of a rich
+	## paragraph covering adjacent sub-ranges of their shared source. Every
+	## group over one source must carry the identical font split. Shaping walks each unique source once, assigning the
 	## planner-selected dense font per grapheme cluster; it remains the
 	## horizontal left-to-right one-scalar-per-cluster convenience boundary.
 	shape_selected_batch : List(KernelFont.Inspection), List(SimpleSource), SelectedBatchOptions, List(SelectedBatchRequest), Limits -> Try(Batch, Error)
@@ -286,7 +294,6 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 		id: Text.RunId.from_index(0),
 		instance: options.instance,
 		language: options.language,
-		occurrence: options.occurrence,
 		script: options.script,
 		size: Layout.Unit.from_raw(size),
 		source: {
@@ -295,6 +302,7 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 		},
 		substitutions: Semantics.Range.from_start_and_length(0, 0),
 		transformations: Semantics.Range.from_start_and_length(0, 0),
+		unicode: OccurrenceText(options.occurrence),
 		writing_mode: options.writing_mode,
 	}
 	Ok({
@@ -480,7 +488,6 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 			id: Text.RunId.from_index($request_index),
 			instance: options.instance,
 			language: options.language,
-			occurrence: request.occurrence,
 			script: options.script,
 			size: request.size,
 			source: {
@@ -489,6 +496,7 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 			},
 			substitutions: Semantics.Range.from_start_and_length(0, 0),
 			transformations: Semantics.Range.from_start_and_length(0, 0),
+			unicode: OccurrenceText(request.occurrence),
 			writing_mode: options.writing_mode,
 		})
 		$advances = $advances.append(Layout.Unit.from_raw($advance_total.to_i64_wrap()))
@@ -539,7 +547,6 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 	var $planned_source_bytes = 0
 	var $group_source = sources.len()
 	var $group_cursor = 0
-	var $group_occurrence = 0
 	var $group_open = Bool.False
 	var $group_writes = Bool.False
 	var $request_index = 0
@@ -564,18 +571,17 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		if cluster_count != scalar_count {
 			return Err(AnalysisMismatch(GraphemeFacts))
 		}
-		continues_group = $group_open and $group_occurrence == request.occurrence.index()
+
+		## A group stays open until its cursor reaches the end of its source;
+		## the next request must then continue it exactly where it stopped.
+		continues_group = $group_open and $group_cursor != list_at(sources, $group_source).analysis.graphemes.len()
 		if continues_group {
 			if $group_source != source_index {
 				return Err(SelectedRequestInvalid({ reason: Coverage, request: $request_index }))
 			}
 		} else {
-			if $group_open and $group_cursor != list_at(sources, $group_source).analysis.graphemes.len() {
-				return Err(SelectedRequestInvalid({ reason: Coverage, request: $request_index }))
-			}
 			$group_source = source_index
 			$group_cursor = 0
-			$group_occurrence = request.occurrence.index()
 			$group_open = Bool.True
 			$group_writes = list_at($source_seen, source_index) == Bool.False
 			$source_seen = list_set($source_seen, source_index, Bool.True)
@@ -598,7 +604,6 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			}
 			$assignments = list_set($assignments, source_index, $updated)
 		} else {
-
 			## A repeated occurrence of this source must reuse the identical split.
 			existing = list_at($assignments, source_index)
 			var $cluster = range_start
@@ -751,8 +756,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			glyphs: Semantics.Range.from_start_and_length(glyph_start, range_length),
 			id: Text.RunId.from_index($request_index),
 			instance: request.instance,
-			language: options.language,
-			occurrence: request.occurrence,
+			language: request.language,
 			script: request.script,
 			size: request.size,
 			source: {
@@ -761,6 +765,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			},
 			substitutions: Semantics.Range.from_start_and_length(0, 0),
 			transformations: Semantics.Range.from_start_and_length(0, 0),
+			unicode: OccurrenceText(request.occurrence),
 			writing_mode: options.writing_mode,
 		})
 		$advances = $advances.append(Layout.Unit.from_raw($advance_total.to_i64_wrap()))
@@ -1061,15 +1066,23 @@ selected_font_for_run = |selection, run, run_index| match selection {
 	Single({ context, font }) => {
 		if run.instance.index() != context.instance.index() {
 			Err(InstanceMismatch({ actual: run.instance, expected: context.instance, run: run_index }))
-		} else if run.occurrence.index() != context.occurrence.index() {
-			Err(OccurrenceMismatch({ actual: run.occurrence, expected: context.occurrence, run: run_index }))
 		} else {
-			Ok(font)
+			match run.unicode {
+				OccurrenceText(occurrence) => if occurrence.index() != context.occurrence.index() {
+					Err(OccurrenceMismatch({ actual: occurrence, expected: context.occurrence, run: run_index }))
+				} else {
+					Ok(font)
+				}
+				ArtifactText(_) => Err(ArtifactRunUnsupported({ run: run_index }))
+			}
 		}
 	}
 	Selected(context) => {
-		if run.occurrence.index() != context.occurrence.index() {
-			return Err(OccurrenceMismatch({ actual: run.occurrence, expected: context.occurrence, run: run_index }))
+		match run.unicode {
+			OccurrenceText(occurrence) => if occurrence.index() != context.occurrence.index() {
+				return Err(OccurrenceMismatch({ actual: occurrence, expected: context.occurrence, run: run_index }))
+			}
+			ArtifactText(_) => return Err(ArtifactRunUnsupported({ run: run_index }))
 		}
 		var $index = 0
 		var $matching_instance = False

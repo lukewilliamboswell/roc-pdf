@@ -184,8 +184,8 @@ content_limits = KernelContent.Limits.make({ max_content_bytes: 1048576, max_con
 object_limits : KernelObject.Limits
 object_limits = {
 	max_array_items: 65536,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 832,
+	max_byte_strings: 128,
 	max_dictionary_entries: 65536,
 	max_direct_depth: 8,
 	max_name_bytes: 65536,
@@ -194,8 +194,8 @@ object_limits = {
 	max_payload_bytes: 8388608,
 	max_payloads: 4096,
 	max_streams: 4096,
-	max_text_string_bytes: 65536,
-	max_text_strings: 2048,
+	max_text_string_bytes: 64704,
+	max_text_strings: 1920,
 	max_values: 262144,
 }
 
@@ -413,12 +413,12 @@ build_text_store = |spec, prepared| {
 			id: Text.RunId.from_index($run_index),
 			instance: Font.InstanceId.from_index(run.font),
 			language: Language("en-AU"),
-			occurrence: Semantics.OccurrenceId.from_index($run_index),
 			script: Font.Script.from_iso15924("Latn"),
 			size: unit(11000),
 			source: { scalars: span(0, run_scalar_count), utf8_bytes: span(0, $byte_offset) },
 			substitutions: empty_range,
 			transformations: empty_range,
+			unicode: OccurrenceText(Semantics.OccurrenceId.from_index($run_index)),
 			writing_mode: Horizontal,
 		})
 		$run_index = $run_index + 1
@@ -1034,7 +1034,6 @@ content_cid_of = |plan| {
 
 run_scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_scenario = |mode, scale| {
-
 	## Always zero at runtime, but derived from a runtime argument, so the
 	## measured pipelines cannot be evaluated at compile time.
 	guard = U64.mod_by(scale, 1)

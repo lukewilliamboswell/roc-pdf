@@ -9,6 +9,10 @@ KernelTextOwnership :: [].{
 	Error : [
 		ArithmeticOverflow,
 		ArtifactTextUnsupported({ group : U64, run : U64 }),
+
+		## A layout fragment paints a run whose Unicode is an artifact text
+		## source; only a page-artifact group may paint artifact text.
+		ArtifactTextInFragment({ fragment : U64, run : U64 }),
 		DuplicateRunOwnership({ run : U64 }),
 		FragmentTextCoverageMismatch({ fragment : U64 }),
 		NonDenseRunIdentity({ actual : U64, expected : U64 }),
@@ -30,14 +34,21 @@ KernelTextOwnership :: [].{
 
 	Plan :: { run_fragments : List(Semantics.FragmentId), tagged : KernelTagged.Plan, text : Text.Store, work : Work }.{
 		build : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store -> Try(Plan, Error)
-		build = |semantics, scene, text| build_plan(semantics, scene, text, [])
+		build = |semantics, scene, text| build_plan(semantics, scene, text, [], RejectArtifactText)
 
 		## production-visual scenes additionally assign runs painted inside Form XObjects.
 		## Each such run arrives as an explicit resolved fact (the fragment
 		## owning the form's unique placement chain); ownership rules are
 		## unchanged: every run is owned exactly once, and only by a fragment.
 		build_with_forms : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store, List({ fragment : Semantics.FragmentId, run : U64 }) -> Try(Plan, Error)
-		build_with_forms = |semantics, scene, text, form_runs| build_plan(semantics, scene, text, form_runs)
+		build_with_forms = |semantics, scene, text, form_runs| build_plan(semantics, scene, text, form_runs, RejectArtifactText)
+
+		## Text painted by a page-artifact group (a continued table's
+		## repainted header rows) is owned by that artifact and by no layout
+		## fragment. Every run is still owned exactly once; `run_fragments`
+		## names the fragment count for an artifact-owned run.
+		build_with_artifact_text : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store -> Try(Plan, Error)
+		build_with_artifact_text = |semantics, scene, text| build_plan(semantics, scene, text, [], AcceptArtifactText)
 
 		run_fragments : Plan -> List(Semantics.FragmentId)
 		run_fragments = |plan| plan.run_fragments
@@ -53,18 +64,20 @@ KernelTextOwnership :: [].{
 	}
 }
 
-RunOwner := [Owned(Semantics.FragmentId), Unowned]
+RunOwner := [ArtifactOwned, Owned(Semantics.FragmentId), Unowned]
+
+ArtifactText := [AcceptArtifactText, RejectArtifactText]
 
 Frame := { range : Semantics.Range }
 
 Collected := { command_visits : U64, group_visits : U64, owners : List(RunOwner) }
 
-build_plan : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store, List({ fragment : Semantics.FragmentId, run : U64 }) -> Try(KernelTextOwnership.Plan, KernelTextOwnership.Error)
-build_plan = |text_semantics, scene_plan, text, form_runs| {
+build_plan : KernelTextSemantics.Plan, KernelScene.Plan, Text.Store, List({ fragment : Semantics.FragmentId, run : U64 }), ArtifactText -> Try(KernelTextOwnership.Plan, KernelTextOwnership.Error)
+build_plan = |text_semantics, scene_plan, text, form_runs, artifact_text| {
 	tagged = KernelTagged.Plan.build(KernelTextSemantics.Plan.semantics(text_semantics), scene_plan) ? Tagged
 	semantics = KernelTagged.Plan.semantics(tagged)
 	scenes = KernelTagged.Plan.scenes(tagged)
-	collected = collect_owners(scenes, text)?
+	collected = collect_owners(scenes, text, artifact_text)?
 	with_forms = apply_form_runs(collected.owners, form_runs, text)?
 	validated = validate_coverage(semantics, text, with_forms)?
 	Ok(
@@ -89,19 +102,18 @@ apply_form_runs : List(RunOwner), List({ fragment : Semantics.FragmentId, run : 
 apply_form_runs = |owners, form_runs, text| {
 	var $owners = owners
 	var $index = 0
-	var $failure = NoFailure
-	while $index < form_runs.len() and $failure == NoFailure {
+	while $index < form_runs.len() {
 		assignment = list_at(form_runs, $index)
 		if assignment.run >= text.runs.len() {
-			$failure = Failed(RunIndexOutOfRange({ available: text.runs.len(), run: assignment.run }))
+			return Err(RunIndexOutOfRange({ available: text.runs.len(), run: assignment.run }))
 		} else {
 			record = list_at(text.runs, assignment.run)
 			if record.id.index() != assignment.run {
-				$failure = Failed(NonDenseRunIdentity({ actual: record.id.index(), expected: assignment.run }))
+				return Err(NonDenseRunIdentity({ actual: record.id.index(), expected: assignment.run }))
 			} else {
 				match list_at($owners, assignment.run) {
-					Owned(_) => {
-						$failure = Failed(DuplicateRunOwnership({ run: assignment.run }))
+					Owned(_) | ArtifactOwned => {
+						return Err(DuplicateRunOwnership({ run: assignment.run }))
 					}
 					Unowned => {
 						$owners = list_set($owners, assignment.run, Owned(assignment.fragment))
@@ -111,14 +123,11 @@ apply_form_runs = |owners, form_runs, text| {
 		}
 		$index = $index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok($owners)
-	}
+	Ok($owners)
 }
 
-collect_owners : Scene.Store, Text.Store -> Try(Collected, KernelTextOwnership.Error)
-collect_owners = |scenes, text| {
+collect_owners : Scene.Store, Text.Store, ArtifactText -> Try(Collected, KernelTextOwnership.Error)
+collect_owners = |scenes, text, artifact_text| {
 	var $owners = List.repeat(Unowned, text.runs.len())
 	var $group_index = 0
 	var $command_visits = 0
@@ -146,9 +155,14 @@ collect_owners = |scenes, text| {
 							return Err(NonDenseRunIdentity({ actual: record.id.index(), expected: run_index }))
 						}
 						match list_at($owners, run_index) {
-							Owned(_) => return Err(DuplicateRunOwnership({ run: run_index }))
+							Owned(_) | ArtifactOwned => return Err(DuplicateRunOwnership({ run: run_index }))
 							Unowned => match group.owner {
-								PageArtifact(_) => return Err(ArtifactTextUnsupported({ group: $group_index, run: run_index }))
+								PageArtifact(_) => match artifact_text {
+									AcceptArtifactText => {
+										$owners = list_set($owners, run_index, ArtifactOwned)
+									}
+									RejectArtifactText => return Err(ArtifactTextUnsupported({ group: $group_index, run: run_index }))
+								}
 								Fragment(fragment) => {
 									$owners = list_set($owners, run_index, Owned(fragment))
 								}
@@ -174,6 +188,7 @@ validate_coverage = |semantics, text, owners| {
 	while $run_index < owners.len() {
 		match list_at(owners, $run_index) {
 			Unowned => return Err(OrphanRun({ run: $run_index }))
+			ArtifactOwned => {}
 			Owned(fragment) => {
 				count = list_at($counts, fragment.index())
 				$counts = list_set($counts, fragment.index(), checked_add(count, 1)?)
@@ -194,14 +209,18 @@ validate_coverage = |semantics, text, owners| {
 	var $run_fragments = List.repeat(Semantics.FragmentId.from_index(0), text.runs.len())
 	$run_index = 0
 	while $run_index < owners.len() {
-		fragment = match list_at(owners, $run_index) {
-			Owned(value) => value
+		match list_at(owners, $run_index) {
+			Owned(fragment) => {
+				write_index = list_at($cursors, fragment.index())
+				$fragment_runs = list_set($fragment_runs, write_index, Text.RunId.from_index($run_index))
+				$run_fragments = list_set($run_fragments, $run_index, fragment)
+				$cursors = list_set($cursors, fragment.index(), write_index + 1)
+			}
+			ArtifactOwned => {
+				$run_fragments = list_set($run_fragments, $run_index, Semantics.FragmentId.from_index(semantics.fragments.len()))
+			}
 			Unowned => return Err(OrphanRun({ run: $run_index }))
 		}
-		write_index = list_at($cursors, fragment.index())
-		$fragment_runs = list_set($fragment_runs, write_index, Text.RunId.from_index($run_index))
-		$run_fragments = list_set($run_fragments, $run_index, fragment)
-		$cursors = list_set($cursors, fragment.index(), write_index + 1)
 		$run_index = $run_index + 1
 	}
 	var $range_checks = 0
@@ -221,8 +240,11 @@ validate_coverage = |semantics, text, owners| {
 				while $edge < end {
 					run_index = list_at($fragment_runs, $edge).index()
 					run = list_at(text.runs, run_index)
-					if run.occurrence.index() != fragment.occurrence.index() {
-						return Err(OccurrenceMismatch({ fragment: $fragment_index, run: run_index }))
+					match run.unicode {
+						OccurrenceText(run_occurrence) => if run_occurrence.index() != fragment.occurrence.index() {
+							return Err(OccurrenceMismatch({ fragment: $fragment_index, run: run_index }))
+						}
+						ArtifactText(_) => return Err(ArtifactTextInFragment({ fragment: $fragment_index, run: run_index }))
 					}
 					scalar_start = checked_add(occurrence_range.scalars.start(), run.source.scalars.start())?
 					byte_start = checked_add(occurrence_range.utf8_bytes.start(), run.source.utf8_bytes.start())?

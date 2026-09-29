@@ -38,11 +38,38 @@ in the same run. An allocation event is a call to `roc_alloc` or `roc_realloc`;
 host setup, teardown, and family-case JSON decoding are outside the
 `before_fixture_main` measurement boundary.
 
-Measure allocation baselines from a cold Roc cache, as CI does. A warm
-`~/.cache/roc` can compile identical source into binaries with different
-allocation counts (bytes and work counters stay identical), which looks like a
-feature regression but is not one. For any delta you intend to review, run the
-full suite against an empty cache directory:
+The test hosts report metrics protocol 2:
+
+```text
+ROC_METRICS protocol=2 allocations=N allocated_bytes=B work=W1,W2,...
+```
+
+`allocated_bytes` sums the size of every `roc_alloc` and the new size of every
+`roc_realloc` inside the same boundary. It is deterministic for the pinned dev
+backend. Each case records it per target beside `allocations`, and the harness
+fails a case whose allocated bytes exceed the recorded value by more than 10%
+(`ALLOCATED_BYTES_CEILING_TENTHS` in `scripts/test.py`). The ceiling exists to
+catch quadratic copying: a list copied on every append adds one allocation
+event per append, so the exact count grows linearly and can look reasonable,
+while the copied bytes grow with the square of the list. Decreases and drift
+inside the ceiling pass; a reviewed rebaseline lowers the recorded value. The
+ceiling is checked wherever allocation baselines are (`--allocation-baselines`,
+`--compare-baselines`, `--update-snapshots`), and from the same cold cache.
+`--baseline-report` lists every case whose allocations, allocated bytes, or
+work differ exactly, so a rebaseline can also lower ceilings that did not
+fail.
+
+Fixture executables are built with `roc build --no-cache`. With the cache, the
+pinned compiler reused package procedures compiled for an earlier fixture
+program in later ones, and a later program could then copy lists that it
+updates in place when built alone: a case's allocation count and allocated
+bytes depended on which fixtures were built before it and on the local cache
+(`docs/performance/lowering-uniqueness.md`). Without the cache each fixture
+compiles exactly as a standalone `roc build --no-cache --opt=dev` does, so a
+case can be reproduced outside the harness. Validation (`roc check`, `roc
+test`) still uses the cache. Still measure a delta you intend to review from a
+cold cache, as CI does, by running the full suite against an empty cache
+directory:
 
 ```sh
 XDG_CACHE_HOME="$PWD/.roc-pdf-tmp/cold-cache" ./scripts/test.py \

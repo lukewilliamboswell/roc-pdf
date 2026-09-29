@@ -100,7 +100,7 @@ ScalarCache := { starts : List(U64), values : List(U32) }
 
 ActualText := [NoActualText, UseActualText(List(U32))]
 
-RunSource := { id : Semantics.TextSourceId, occurrence : Semantics.ContentOccurrence, range : Semantics.TextRange }
+RunSource := { id : Semantics.TextSourceId, properties : Semantics.Range, range : Semantics.TextRange }
 
 build_plan : Semantics.Store, Text.Store, List(KernelFontPlan.Plan), List(KernelPdfText.Placement), KernelPdfText.Limits -> Try(KernelPdfText.Plan, KernelPdfText.Error)
 build_plan = |semantics, text, fonts, placements, limits| {
@@ -296,22 +296,44 @@ build_scalar_cache = |sources, limit| {
 	Ok({ starts: $starts, values: $values })
 }
 
-run_source : Semantics.Store, Text.Run, U64 -> Try(RunSource, KernelPdfText.Error)
-run_source = |semantics, run, run_index| {
-	if run.occurrence.index() >= semantics.occurrences.len() {
-		return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
-	}
-	occurrence = list_at(semantics.occurrences, run.occurrence.index())
-	if occurrence.id.index() != run.occurrence.index() {
-		return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
-	}
-	source = match occurrence.source {
-		Text(source_id, UnicodeRange(range)) => if source_id.index() < semantics.text_sources.len() {
-			{ id: source_id, occurrence, range }
-		} else {
-			return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
+run_source : Semantics.Store, ScalarCache, Text.Run, U64 -> Try(RunSource, KernelPdfText.Error)
+run_source = |semantics, scalars, run, run_index| {
+	source = match run.unicode {
+		OccurrenceText(occurrence_id) => {
+			if occurrence_id.index() >= semantics.occurrences.len() {
+				return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
+			}
+			occurrence = list_at(semantics.occurrences, occurrence_id.index())
+			if occurrence.id.index() != occurrence_id.index() {
+				return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
+			}
+			match occurrence.source {
+				Text(source_id, UnicodeRange(range)) => if source_id.index() < semantics.text_sources.len() {
+					{ id: source_id, properties: occurrence.text_properties, range }
+				} else {
+					return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
+				}
+				_ => return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
+			}
 		}
-		_ => return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
+
+		## An artifact run indexes its whole artifact text source and owns no
+		## text property.
+		ArtifactText(source_id) => {
+			if source_id.index() >= semantics.text_sources.len() {
+				return Err(RunInvalid({ run: run_index }))
+			}
+			unicode = list_at(semantics.text_sources, source_id.index()).unicode
+			scalar_count = list_at(scalars.starts, source_id.index() + 1) - list_at(scalars.starts, source_id.index())
+			{
+				id: source_id,
+				properties: Semantics.Range.from_start_and_length(0, 0),
+				range: {
+					scalars: Semantics.Range.from_start_and_length(0, scalar_count),
+					utf8_bytes: Semantics.Range.from_start_and_length(0, unicode.count_utf8_bytes()),
+				},
+			}
+		}
 	}
 	if !relative_text_range_fits(run.source, source.range) {
 		return Err(RunInvalid({ run: run_index }))
@@ -343,7 +365,7 @@ has_private_use = |actual_text| match actual_text {
 
 actual_text_for_run : Semantics.Store, ScalarCache, Text.Store, Text.Run, U64, U64, U64 -> Try(ActualText, KernelPdfText.Error)
 actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
-	source = run_source(semantics, run, run_index)?
+	source = run_source(semantics, scalars, run, run_index)?
 	match run.actual_text {
 		FromOccurrence => {
 			if !requires_actual_text(text, run, run_index)? {
@@ -361,8 +383,8 @@ actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
 		}
 		SemanticOverride(property_id) => {
 			property_index = property_id.index()
-			property_start = source.occurrence.text_properties.start()
-			property_length = source.occurrence.text_properties.length()
+			property_start = source.properties.start()
+			property_length = source.properties.length()
 			if property_index < property_start or property_index - property_start >= property_length or property_index >= semantics.text_properties.len() {
 				return Err(ActualTextRequired({ run: run_index }))
 			}
@@ -414,7 +436,7 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 	if run.clusters.start() > text.clusters.len() or run.clusters.length() > text.clusters.len() - run.clusters.start() {
 		return Err(RunInvalid({ run: run_index }))
 	}
-	source = run_source(semantics, run, run_index)?
+	source = run_source(semantics, scalars, run, run_index)?
 	state = list_at(states, font_index)
 	var $slots = state.mappings
 	var $conflicts = 0
@@ -427,7 +449,7 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 		}
 		mapping = match cluster.kind {
 			GeneratedDiscretionaryHyphen({ property, transformation: _ }) => {
-				if cluster.source.scalars.length() != 0 or cluster.source.utf8_bytes.length() != 0 or !generated_discretionary_property(source.occurrence, semantics.text_properties, property, cluster.source) {
+				if cluster.source.scalars.length() != 0 or cluster.source.utf8_bytes.length() != 0 or !generated_discretionary_property(source.properties, semantics.text_properties, property, cluster.source) {
 					return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
 				}
 				[0x002d]
@@ -468,10 +490,9 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 	Ok({ conflicts: $conflicts, states: list_set(states, font_index, { mappings: $slots, plan: state.plan }) })
 }
 
-generated_discretionary_property : Semantics.ContentOccurrence, List(Semantics.TextProperty), Semantics.TextPropertyId, Semantics.TextRange -> Bool
-generated_discretionary_property = |occurrence, properties, property_id, source| {
+generated_discretionary_property : Semantics.Range, List(Semantics.TextProperty), Semantics.TextPropertyId, Semantics.TextRange -> Bool
+generated_discretionary_property = |range, properties, property_id, source| {
 	index = property_id.index()
-	range = occurrence.text_properties
 	if index < range.start() or index >= properties.len() or index - range.start() >= range.length() {
 		return Bool.False
 	}
@@ -639,8 +660,8 @@ append_layout = |bytes, value, limit| append_bytes(bytes, KernelLex.append_thous
 
 append_hex_u16 : List(U8), U16, U64 -> Try(List(U8), KernelPdfText.Error)
 append_hex_u16 = |bytes, value, limit| {
-	result = reserve(bytes, 4, limit)?
-	var $out = result
+	check_room(bytes.len(), 4, limit)?
+	var $out = bytes
 	$out = $out.append(hex_digit(value.shr_wrap(12).to_u8_wrap()))
 	$out = $out.append(hex_digit(value.shr_wrap(8).bitwise_and(0xf).to_u8_wrap()))
 	$out = $out.append(hex_digit(value.shr_wrap(4).bitwise_and(0xf).to_u8_wrap()))
@@ -655,7 +676,8 @@ append_literal = |bytes, literal, limit| append_bytes(bytes, Str.to_utf8(literal
 
 append_bytes : List(U8), List(U8), U64 -> Try(List(U8), KernelPdfText.Error)
 append_bytes = |bytes, added, limit| {
-	var $out = reserve(bytes, added.len(), limit)?
+	check_room(bytes.len(), added.len(), limit)?
+	var $out = bytes
 	var $index = 0
 	while $index < added.len() {
 		$out = $out.append(list_at(added, $index))
@@ -664,16 +686,21 @@ append_bytes = |bytes, added, limit| {
 	Ok($out)
 }
 
-reserve : List(U8), U64, U64 -> Try(List(U8), KernelPdfText.Error)
-reserve = |bytes, additional, limit| {
-	if bytes.len() > limit or additional > limit - bytes.len() {
-		attempted = match U64.plus_try(bytes.len(), additional) {
+## Checks that `additional` more bytes fit the content limit. It takes only
+## the length and reserves nothing: an explicit `List.reserve` sizes the
+## allocation exactly, and a list returned through `?` and then appended to
+## was copied per token by the pinned dev backend
+## (docs/performance/lowering-uniqueness.md).
+check_room : U64, U64, U64 -> Try({}, KernelPdfText.Error)
+check_room = |length, additional, limit| {
+	if length > limit or additional > limit - length {
+		attempted = match U64.plus_try(length, additional) {
 			Err(Overflow) => U64.highest
 			Ok(value) => value
 		}
 		Err(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
 	} else {
-		Ok(List.reserve(bytes, additional))
+		Ok({})
 	}
 }
 

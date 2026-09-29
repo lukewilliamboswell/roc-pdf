@@ -1,0 +1,5 @@
+{"name":"rich inline mixed styles, links, languages, and expansions","schema_version":1,"case":{"Mixed":{"context":0}}}
+{"name":"rich inline paragraphs x10","schema_version":1,"case":{"Paragraphs":{"count":10}}}
+{"name":"rich inline paragraphs x100","schema_version":1,"case":{"Paragraphs":{"count":100}}}
+{"name":"rich inline ordered multi-face spans","schema_version":1,"case":{"Ordered":{"context":0}}}
+{"name":"rich inline atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}

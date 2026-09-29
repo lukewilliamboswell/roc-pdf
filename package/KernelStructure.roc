@@ -290,10 +290,12 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 		[zero_x.id, zero_y.id, width_value.id, height_value.id],
 	) ? Object
 	resources = KernelObject.add_dictionary(media_box.builder, []) ? Object
-	parents = add_leaf_parent_references(resources.builder, shape)?
+	shape_leaves = KernelBalanced.Shape.level_node_count(shape, KernelBalanced.Shape.leaf_level(shape))
+	parent_values = value_range(KernelObject.counts(resources.builder).values, shape_leaves)
+	with_parents = add_leaf_parent_references(resources.builder, shape)?
 
 	finished = add_pages(
-		parents.builder,
+		with_parents,
 		shape,
 		page_count,
 		content_plan,
@@ -302,7 +304,7 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 			media_box: media_box_name.id,
 			page_type: page_type.id,
 			parent: parent_name.id,
-			parent_values: parents.values,
+			parent_values,
 			resources: resources_name.id,
 			resources_value: resources.id,
 			type_name: type_name.id,
@@ -322,7 +324,6 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 			Unchanged(bytes) => UnchangedContentDigest(KernelSha256.digest(bytes) ? |_| IdentityInputTooLarge)
 		}
 		FactContext(_) => {
-
 			## With document facts the plan identity is the sealed-store
 			## digest, so language, metadata, and intent facts change the file
 			## identifier deterministically.
@@ -519,28 +520,16 @@ add_page_tree_nodes : KernelObject.Builder, KernelBalanced.Shape, PageTreeFacts 
 add_page_tree_nodes = |builder, shape, facts| {
 	var $builder = builder
 	var $level = 0
-	var $error = NoError
-	while $level < KernelBalanced.Shape.level_count(shape) and $error == NoError {
+	while $level < KernelBalanced.Shape.level_count(shape) {
 		level_nodes = KernelBalanced.Shape.level_node_count(shape, $level)
 		var $node = 0
-		while $node < level_nodes and $error == NoError {
-			match add_page_tree_node($builder, shape, facts, $level, $node) {
-				Err(error) => {
-					$error = Invalid(error)
-				}
-				Ok(next) => {
-					$builder = next
-				}
-			}
+		while $node < level_nodes {
+			$builder = add_page_tree_node($builder, shape, facts, $level, $node)?
 			$node = $node + 1
 		}
 		$level = $level + 1
 	}
-
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($builder)
-	}
+	Ok($builder)
 }
 
 add_page_tree_node : KernelObject.Builder, KernelBalanced.Shape, PageTreeFacts, U64, U64 -> Try(KernelObject.Builder, KernelStructure.Error)
@@ -559,8 +548,7 @@ add_page_tree_node = |builder, shape, facts, level, node| {
 		checked_add(2, child_start)?
 	}
 	stride = if is_leaf 3 else 1
-	children = add_object_references(builder, first_child, child_count, stride)?
-	kids = KernelObject.add_array(children.builder, children.values) ? Object
+	kids = add_object_reference_array(builder, first_child, child_count, stride)?
 	item_span = KernelBalanced.Shape.item_span(shape, level, node)
 	descendants = KernelBalanced.Span.length(item_span)
 	count = KernelObject.add_integer(kids.builder, descendants.to_i64_wrap()) ? Object
@@ -596,34 +584,37 @@ add_page_tree_node = |builder, shape, facts, level, node| {
 	Ok(object.builder)
 }
 
-add_object_references : KernelObject.Builder, U64, U64, U64 -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelStructure.Error)
+## References to `count` objects numbered from `first_number` by `stride`.
+## It returns only the builder: the reference values are the next `count`
+## value ids, which a caller that needs them derives from the value count
+## before the call. Returning the builder beside the value list made the
+## pinned dev backend copy the object store
+## (docs/performance/lowering-uniqueness.md).
+add_object_references : KernelObject.Builder, U64, U64, U64 -> Try(KernelObject.Builder, KernelStructure.Error)
 add_object_references = |builder, first_number, count, stride| {
 	var $builder = builder
-	var $values = List.with_capacity(count)
 	var $index = 0
-	var $error = NoError
-	while $index < count and $error == NoError {
+	while $index < count {
 		number = checked_linear($index, stride, first_number)?
 		object = KernelObject.ObjectId.from_number(number) ? Object
-		match KernelObject.add_reference($builder, object) {
-			Err(error) => {
-				$error = Invalid(Object(error))
-			}
-			Ok(reference) => {
-				$builder = reference.builder
-				$values = $values.append(reference.id)
-			}
-		}
+		reference = KernelObject.add_reference($builder, object) ? Object
+		$builder = reference.builder
 		$index = $index + 1
 	}
-
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ builder: $builder, values: $values })
-	}
+	Ok($builder)
 }
 
-add_leaf_parent_references : KernelObject.Builder, KernelBalanced.Shape -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelStructure.Error)
+## The references followed by the array of them.
+add_object_reference_array : KernelObject.Builder, U64, U64, U64 -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelStructure.Error)
+add_object_reference_array = |builder, first_number, count, stride| {
+	first_value = KernelObject.counts(builder).values
+	with_references = add_object_references(builder, first_number, count, stride)?
+	array = KernelObject.add_array(with_references, value_range(first_value, count)) ? Object
+	Ok(array)
+}
+
+## The leaf page-tree nodes' parent references, one value per leaf.
+add_leaf_parent_references : KernelObject.Builder, KernelBalanced.Shape -> Try(KernelObject.Builder, KernelStructure.Error)
 add_leaf_parent_references = |builder, shape| {
 	leaf_level = KernelBalanced.Shape.leaf_level(shape)
 	leaf_count = KernelBalanced.Shape.level_node_count(shape, leaf_level)
@@ -631,73 +622,58 @@ add_leaf_parent_references = |builder, shape| {
 	add_object_references(builder, first_leaf, leaf_count, 1)
 }
 
+## The `count` consecutive value ids from `first`.
+value_range : U64, U64 -> List(KernelObject.ValueId)
+value_range = |first, count| {
+	var $values = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		$values = $values.append(KernelObject.ValueId.from_index(first + $index))
+		$index = $index + 1
+	}
+	$values
+}
+
 add_pages : KernelObject.Builder, KernelBalanced.Shape, U64, ContentPlan, PageFacts -> Try(KernelObject.Builder, KernelStructure.Error)
 add_pages = |builder, shape, page_count, content_plan, facts| {
 	var $builder = builder
 	var $index = 0
-	var $error = NoError
-	while $index < page_count and $error == NoError {
+	while $index < page_count {
 		page_number = page_object_number(shape, $index)?
 		content_number = checked_add(page_number, 1)?
 		leaf_index = U64.div_by($index, KernelBalanced.Shape.fanout)
 		parent_value = list_at(facts.parent_values, leaf_index)
 
 		content_object = KernelObject.ObjectId.from_number(content_number) ? Object
-		match KernelObject.add_reference($builder, content_object) {
-			Err(error) => {
-				$error = Invalid(Object(error))
-			}
-			Ok(contents) => match KernelObject.add_dictionary(
-				contents.builder,
-				[
-					{ key: facts.contents, value: contents.id },
-					{ key: facts.media_box, value: facts.media_box_value },
-					{ key: facts.parent, value: parent_value },
-					{ key: facts.resources, value: facts.resources_value },
-					{ key: facts.type_name, value: facts.page_type },
-				],
-			) {
-				Err(error) => {
-					$error = Invalid(Object(error))
-				}
-				Ok(page) => match KernelObject.add_object(page.builder, page.id) {
-					Err(error) => {
-						$error = Invalid(Object(error))
-					}
-					Ok(page_object) => if KernelObject.ObjectId.number(page_object.id) != page_number {
-						$error = Invalid(ObjectOrder({ actual: page_object.id, expected: page_number }))
-					} else {
-						{ bytes, filter, kind } = match content_plan {
-							Deflated(source) => { bytes: source, filter: Deflate, kind: Generated }
-							EmptyGenerated => { bytes: [], filter: Deflate, kind: Generated }
-							Unchanged(source) => { bytes: source, filter: Unfiltered, kind: UnchangedResource }
-						}
-						match KernelObject.add_payload(page_object.builder, bytes, kind) {
-							Err(error) => {
-								$error = Invalid(Object(error))
-							}
-							Ok(payload) => match KernelObject.add_stream_object(payload.builder, [], filter, payload.id) {
-								Err(error) => {
-									$error = Invalid(Object(error))
-								}
-								Ok(stream) => if KernelObject.ObjectId.number(stream.id) != content_number {
-									$error = Invalid(ObjectOrder({ actual: stream.id, expected: content_number }))
-								} else {
-									$builder = stream.builder
-								}
-							}
-						}
-					}
-				}
-			}
+		contents = KernelObject.add_reference($builder, content_object) ? Object
+		page = KernelObject.add_dictionary(
+			contents.builder,
+			[
+				{ key: facts.contents, value: contents.id },
+				{ key: facts.media_box, value: facts.media_box_value },
+				{ key: facts.parent, value: parent_value },
+				{ key: facts.resources, value: facts.resources_value },
+				{ key: facts.type_name, value: facts.page_type },
+			],
+		) ? Object
+		page_object = KernelObject.add_object(page.builder, page.id) ? Object
+		if KernelObject.ObjectId.number(page_object.id) != page_number {
+			return Err(ObjectOrder({ actual: page_object.id, expected: page_number }))
 		}
+		{ bytes, filter, kind } = match content_plan {
+			Deflated(source) => { bytes: source, filter: Deflate, kind: Generated }
+			EmptyGenerated => { bytes: [], filter: Deflate, kind: Generated }
+			Unchanged(source) => { bytes: source, filter: Unfiltered, kind: UnchangedResource }
+		}
+		payload = KernelObject.add_payload(page_object.builder, bytes, kind) ? Object
+		stream = KernelObject.add_stream_object(payload.builder, [], filter, payload.id) ? Object
+		if KernelObject.ObjectId.number(stream.id) != content_number {
+			return Err(ObjectOrder({ actual: stream.id, expected: content_number }))
+		}
+		$builder = stream.builder
 		$index = $index + 1
 	}
-
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($builder)
-	}
+	Ok($builder)
 }
 
 node_object_number : KernelBalanced.Shape, U64, U64 -> Try(U64, KernelStructure.Error)

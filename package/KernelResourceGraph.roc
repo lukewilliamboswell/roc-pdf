@@ -389,24 +389,23 @@ build_identity = |input, limits| {
 	var $entries = List.with_capacity(count)
 	var $bytes_hashed = 0
 	var $index = 0
-	var $failure = NoFailure
-	while $index < count and $failure == NoFailure {
+	while $index < count {
 		source = list_at(input.resources, $index)
 		end = match U64.plus_try(source.start, source.length) {
 			Err(Overflow) => available + 1
 			Ok(value) => value
 		}
 		if end > available {
-			$failure = Failed(PayloadRangeInvalid({ available, length: source.length, resource: $index, start: source.start }))
+			return Err(PayloadRangeInvalid({ available, length: source.length, resource: $index, start: source.start }))
 		} else {
 			attempted = checked_add($bytes_hashed, source.length)
 			match attempted {
 				Err(_) => {
-					$failure = Failed(ArithmeticOverflow)
+					return Err(ArithmeticOverflow)
 				}
 				Ok(total) => {
 					if total > limits.max_hash_bytes {
-						$failure = Failed(HashByteLimitExceeded({ attempted: total, limit: limits.max_hash_bytes }))
+						return Err(HashByteLimitExceeded({ attempted: total, limit: limits.max_hash_bytes }))
 					} else {
 						digest = KernelSha256.digest_range(
 							identity_prefix(source),
@@ -416,7 +415,7 @@ build_identity = |input, limits| {
 						)
 						match digest {
 							Err(_) => {
-								$failure = Failed(DigestFailed({ resource: $index }))
+								return Err(DigestFailed({ resource: $index }))
 							}
 							Ok(bytes) => {
 								$bytes_hashed = total
@@ -435,10 +434,7 @@ build_identity = |input, limits| {
 		}
 		$index = $index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok({ bytes_hashed: $bytes_hashed, entries: $entries })
-	}
+	Ok({ bytes_hashed: $bytes_hashed, entries: $entries })
 }
 
 ## Domain, version, descriptor facts, and byte length precede the payload range,
@@ -501,10 +497,9 @@ classify = |entries, payload, limits| {
 	var $ordering_byte_visits = 0
 	var $equality_comparisons = 0
 	var $bytes_compared = 0
-	var $failure = NoFailure
 	var $index = 0
 
-	while $index < count and $failure == NoFailure {
+	while $index < count {
 		bucket_end = run_end(entries, $index, count, SameFingerprint)
 		if bucket_end - $index == 1 {
 			entry = list_at(entries, $index)
@@ -514,7 +509,7 @@ classify = |entries, payload, limits| {
 		} else {
 			$collision_entries = $collision_entries + (bucket_end - $index)
 			if $collision_entries > limits.max_collision_entries {
-				$failure = Failed(CollisionEntryLimitExceeded({ attempted: $collision_entries, limit: limits.max_collision_entries }))
+				return Err(CollisionEntryLimitExceeded({ attempted: $collision_entries, limit: limits.max_collision_entries }))
 			} else {
 				var $partition = $index
 				while $partition < bucket_end {
@@ -551,26 +546,23 @@ classify = |entries, payload, limits| {
 		}
 	}
 
-	if $failure == NoFailure and $ordering_byte_visits > limits.max_ordering_work {
-		$failure = Failed(OrderingWorkLimitExceeded({ attempted: $ordering_byte_visits, limit: limits.max_ordering_work }))
+	if $ordering_byte_visits > limits.max_ordering_work {
+		return Err(OrderingWorkLimitExceeded({ attempted: $ordering_byte_visits, limit: limits.max_ordering_work }))
 	}
-	if $failure == NoFailure and $bytes_compared > limits.max_equality_bytes {
-		$failure = Failed(EqualityByteLimitExceeded({ attempted: $bytes_compared, limit: limits.max_equality_bytes }))
+	if $bytes_compared > limits.max_equality_bytes {
+		return Err(EqualityByteLimitExceeded({ attempted: $bytes_compared, limit: limits.max_equality_bytes }))
 	}
 
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok({
-			bytes_compared: $bytes_compared,
-			canonical: $canonical,
-			canonical_of: $canonical_of,
-			collision_entries: $collision_entries,
-			descriptor_partitions: $descriptor_partitions,
-			equality_comparisons: $equality_comparisons,
-			ordering_byte_visits: $ordering_byte_visits,
-			ordering_passes: $ordering_passes,
-		})
-	}
+	Ok({
+		bytes_compared: $bytes_compared,
+		canonical: $canonical,
+		canonical_of: $canonical_of,
+		collision_entries: $collision_entries,
+		descriptor_partitions: $descriptor_partitions,
+		equality_comparisons: $equality_comparisons,
+		ordering_byte_visits: $ordering_byte_visits,
+		ordering_passes: $ordering_passes,
+	})
 }
 
 ## Maximal run of equal keys starting at `start`, never scanning past `limit`.
@@ -758,21 +750,16 @@ build_dependencies = |edges, canonical_of, resource_count, canonical_count| {
 	count = edges.len()
 	var $pairs = List.with_capacity(count)
 	var $index = 0
-	var $failure = NoFailure
-	while $index < count and $failure == NoFailure {
+	while $index < count {
 		edge = list_at(edges, $index)
 		if edge.source >= resource_count {
-			$failure = Failed(EdgeSourceOutOfRange({ count: resource_count, edge: $index, source: edge.source }))
+			return Err(EdgeSourceOutOfRange({ count: resource_count, edge: $index, source: edge.source }))
 		} else if edge.target >= resource_count {
-			$failure = Failed(EdgeTargetOutOfRange({ count: resource_count, edge: $index, target: edge.target }))
+			return Err(EdgeTargetOutOfRange({ count: resource_count, edge: $index, target: edge.target }))
 		} else {
 			$pairs = $pairs.append({ left: edge.source, right: edge.target })
 		}
 		$index = $index + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	sorted = sort_pairs($pairs)
@@ -823,21 +810,16 @@ build_roots = |root_uses, canonical_of, resource_count, root_count| {
 	count = root_uses.len()
 	var $pairs = List.with_capacity(count)
 	var $index = 0
-	var $failure = NoFailure
-	while $index < count and $failure == NoFailure {
+	while $index < count {
 		use = list_at(root_uses, $index)
 		if use.root >= root_count {
-			$failure = Failed(RootOutOfRange({ count: root_count, root: use.root, use: $index }))
+			return Err(RootOutOfRange({ count: root_count, root: use.root, use: $index }))
 		} else if use.resource >= resource_count {
-			$failure = Failed(RootResourceOutOfRange({ count: resource_count, resource: use.resource, use: $index }))
+			return Err(RootResourceOutOfRange({ count: resource_count, resource: use.resource, use: $index }))
 		} else {
 			$pairs = $pairs.append({ left: use.root, right: use.resource })
 		}
 		$index = $index + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	sorted = sort_pairs($pairs)
@@ -871,22 +853,18 @@ build_closure_seeds : List(KernelResourceGraph.RootUse), List(U64), U64, U64 -> 
 build_closure_seeds = |closure_uses, canonical_of, resource_count, root_count| {
 	var $seeds = List.with_capacity(closure_uses.len())
 	var $index = 0
-	var $failure = NoFailure
-	while $index < closure_uses.len() and $failure == NoFailure {
+	while $index < closure_uses.len() {
 		use = list_at(closure_uses, $index)
 		if use.root >= root_count {
-			$failure = Failed(ClosureRootOutOfRange({ count: root_count, root: use.root, use: $index }))
+			return Err(ClosureRootOutOfRange({ count: root_count, root: use.root, use: $index }))
 		} else if use.resource >= resource_count {
-			$failure = Failed(ClosureResourceOutOfRange({ count: resource_count, resource: use.resource, use: $index }))
+			return Err(ClosureResourceOutOfRange({ count: resource_count, resource: use.resource, use: $index }))
 		} else {
 			$seeds = $seeds.append(list_at(canonical_of, use.resource))
 		}
 		$index = $index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok($seeds)
-	}
+	Ok($seeds)
 }
 
 ## Iterative closure proof from every declared content-stream root. An explicit
@@ -1105,18 +1083,17 @@ build_placements = |placements, canonical_of, resource_count| {
 	count = placements.len()
 	var $result = List.with_capacity(count)
 	var $index = 0
-	var $failure = NoFailure
-	while $index < count and $failure == NoFailure {
+	while $index < count {
 		placement = list_at(placements, $index)
 		if placement.resource >= resource_count {
-			$failure = Failed(PlacementResourceOutOfRange({ count: resource_count, placement: $index, resource: placement.resource }))
+			return Err(PlacementResourceOutOfRange({ count: resource_count, placement: $index, resource: placement.resource }))
 		} else {
 			shareable = match placement.ownership {
 				Artifact(_) => Bool.True
 				Semantic(_) => Bool.False
 			}
 			if !shareable and placement.reuse == Reusable {
-				$failure = Failed(SemanticOwnershipMerge({ placement: $index, resource: placement.resource }))
+				return Err(SemanticOwnershipMerge({ placement: $index, resource: placement.resource }))
 			} else {
 				$result = $result.append(
 					{ ownership: placement.ownership, resource: list_at(canonical_of, placement.resource), reuse: placement.reuse },
@@ -1125,10 +1102,7 @@ build_placements = |placements, canonical_of, resource_count| {
 		}
 		$index = $index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok($result)
-	}
+	Ok($result)
 }
 
 ## Deterministic bottom-up merge sort. Worst case is `O(n log n)` on already
@@ -1411,6 +1385,19 @@ byte_at = |bytes, index| match bytes.get(index) {
 	}
 }
 
+## Appends a test payload element-wise; `List.concat` would size the arena
+## exactly on every resource.
+append_payload : List(U8), List(U8) -> List(U8)
+append_payload = |target, source| {
+	var $out = target
+	var $index = 0
+	while $index < source.len() {
+		$out = $out.append(list_at(source, $index))
+		$index = $index + 1
+	}
+	$out
+}
+
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
 	Ok(value) => value
@@ -1466,7 +1453,7 @@ test_input = |resources, edges, root_count, root_uses, placements, digest_policy
 	while $index < resources.len() {
 		resource = list_at(resources, $index)
 		start = $bytes.len()
-		$bytes = $bytes.concat(resource.payload)
+		$bytes = append_payload($bytes, resource.payload)
 		$sources = $sources.append({ descriptor: resource.descriptor, length: resource.payload.len(), start: start })
 		$index = $index + 1
 	}
@@ -2112,6 +2099,7 @@ artifact_rank = |kind| match kind {
 	Header => 4
 	PageNumber => 5
 	Watermark => 6
+	RepeatedHeader => 7
 }
 
 ## Two distinct digest buckets may each hold entries with the same descriptor

@@ -382,11 +382,10 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 	var $page_values = List.with_capacity(page_count)
 	var $references = 0
 	var $page = 0
-	var $failure = NoFailure
-	while $page < page_count and $failure == NoFailure {
+	while $page < page_count {
 		match add_resource_dictionary($builder, named.names, resource_names.names, KernelForm.Plan.page_dictionary(forms, $page), base, objects) {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(added) => {
 				$builder = added.builder
@@ -395,10 +394,6 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			}
 		}
 		$page = $page + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	## One shared transparency group value serves every transparency page: its
@@ -429,15 +424,13 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			GroupValue(_) => KernelPageObjects.Plan.build_with_page_groups($builder, tagged, content, base, $page_values, $references, $page_groups) ? Pages
 		}
 		WithNavigationPlan(plan_input) => {
-
 			## Per-page /Annots reference arrays in keyboard order, built
 			## from the planned annotation identities before the pages
 			## reference them.
 			var $annots = List.with_capacity(page_count)
 			var $annots_builder = $builder
 			var $annots_page = 0
-			var $annots_failure = NoFailure
-			while $annots_page < page_count and $annots_failure == NoFailure {
+			while $annots_page < page_count {
 				start = list_at(plan_input.store.page_annotation_offsets, $annots_page)
 				end = list_at(plan_input.store.page_annotation_offsets, $annots_page + 1)
 				if end == start {
@@ -445,10 +438,10 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 				} else {
 					var $refs = List.with_capacity(end - start)
 					var $slot = start
-					while $slot < end and $annots_failure == NoFailure {
+					while $slot < end {
 						match KernelObject.add_reference($annots_builder, list_at(plan_input.planned.ordered, $slot)) {
 							Err(error) => {
-								$annots_failure = Failed(Object(error))
+								return Err(Object(error))
 							}
 							Ok(added) => {
 								$annots_builder = added.builder
@@ -457,24 +450,17 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 						}
 						$slot = $slot + 1
 					}
-					match $annots_failure {
-						Failed(_) => {}
-						NoFailure => match KernelObject.add_array($annots_builder, $refs) {
-							Err(error) => {
-								$annots_failure = Failed(Object(error))
-							}
-							Ok(array) => {
-								$annots_builder = array.builder
-								$annots = $annots.append(WithAnnots(array.id))
-							}
+					match KernelObject.add_array($annots_builder, $refs) {
+						Err(error) => {
+							return Err(Object(error))
+						}
+						Ok(array) => {
+							$annots_builder = array.builder
+							$annots = $annots.append(WithAnnots(array.id))
 						}
 					}
 				}
 				$annots_page = $annots_page + 1
-			}
-			match $annots_failure {
-				Failed(error) => return Err(error)
-				NoFailure => {}
 			}
 			KernelPageObjects.Plan.build_with_page_navigation($annots_builder, tagged, content, base, $page_values, $references, $page_groups, $annots) ? Pages
 		}
@@ -512,7 +498,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 	var $isolated_form_groups = 0
 	var $form_bytes = 0
 	var $ordinal = 0
-	while $ordinal < canonical_forms and $failure == NoFailure {
+	while $ordinal < canonical_forms {
 		canonical = KernelForm.Plan.canonical_form(forms, $ordinal)
 		stream = KernelContent.Plan.form_stream(content, $ordinal)
 		planned = list_at(KernelFormObjects.Plan.forms(objects), $ordinal)
@@ -532,7 +518,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		}
 		match add_form_object($form_builder, named.names, resource_names.names, KernelForm.Plan.form_dictionary(forms, $ordinal), canonical.bbox, stream.bytes, base, objects, planned, form_group) {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(added) => {
 				$form_builder = added.builder
@@ -542,10 +528,6 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		}
 		$ordinal = $ordinal + 1
 	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
 
 	## Canonical graphics-state objects in canonical order: constant-alpha
 	## states carry the exact effective alphas under the Normal blend mode,
@@ -553,7 +535,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 	## canonical mask form's stream object directly.
 	var $state_builder = $form_builder
 	var $state_ordinal = 0
-	while $state_ordinal < canonical_states and $failure == NoFailure {
+	while $state_ordinal < canonical_states {
 		planned_state = list_at(KernelFormObjects.Plan.states(objects), $state_ordinal)
 		state_result = match KernelForm.Plan.state_fact(forms, $state_ordinal) {
 			Alpha(value) => add_state_object($state_builder, named.names, value, planned_state)
@@ -561,7 +543,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		}
 		match state_result {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(next) => {
 				$state_builder = next
@@ -569,22 +551,18 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		}
 		$state_ordinal = $state_ordinal + 1
 	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
 
 	## Canonical shading dictionaries in canonical order: each names its
 	## canonical color-space object, its exact coordinates, the explicit
 	## domain, its extend flags, and its canonical root function object.
 	var $paint_builder = $state_builder
 	var $shading_ordinal = 0
-	while $shading_ordinal < canonical_shadings and $failure == NoFailure {
+	while $shading_ordinal < canonical_shadings {
 		fact = KernelForm.Plan.canonical_shading_fact(forms, $shading_ordinal)
 		planned_shading = list_at(KernelFormObjects.Plan.shadings(objects), $shading_ordinal)
 		match add_shading_object($paint_builder, named.names, fact, base, objects, planned_shading) {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(next) => {
 				$paint_builder = next
@@ -592,22 +570,18 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		}
 		$shading_ordinal = $shading_ordinal + 1
 	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
 
 	## Canonical function dictionaries: exponential segment functions carry
 	## the exact stop colors of their representative shading, and stitching
 	## functions carry the exact interior stop offsets as bounds with the
 	## canonical segment references, all read from the validated store.
 	var $function_ordinal = 0
-	while $function_ordinal < canonical_functions and $failure == NoFailure {
+	while $function_ordinal < canonical_functions {
 		fact = KernelForm.Plan.canonical_function_fact(forms, $function_ordinal)
 		planned_function = list_at(KernelFormObjects.Plan.functions(objects), $function_ordinal)
 		match add_function_object($paint_builder, named.names, shading_store, fact, objects, planned_function) {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(next) => {
 				$paint_builder = next
@@ -615,23 +589,19 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		}
 		$function_ordinal = $function_ordinal + 1
 	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
 
 	## Canonical tiling-pattern stream objects, each with its complete
 	## direct dictionary, explicit bounds, steps, matrix, and the colored
 	## constant-spacing tiling policy.
 	var $pattern_bytes = 0
 	var $pattern_ordinal = 0
-	while $pattern_ordinal < canonical_patterns and $failure == NoFailure {
+	while $pattern_ordinal < canonical_patterns {
 		canonical_cell = KernelForm.Plan.canonical_pattern(forms, $pattern_ordinal)
 		pattern_stream = KernelContent.Plan.pattern_stream(content, $pattern_ordinal)
 		planned_pattern = list_at(KernelFormObjects.Plan.patterns(objects), $pattern_ordinal)
 		match add_pattern_object($paint_builder, named.names, resource_names.names, KernelForm.Plan.pattern_dictionary(forms, $pattern_ordinal), canonical_cell, pattern_stream.bytes, base, objects, planned_pattern) {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(added) => {
 				$paint_builder = added.builder
@@ -640,10 +610,6 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			}
 		}
 		$pattern_ordinal = $pattern_ordinal + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	## Type 0 font objects: exactly one physical bundle per canonical font,
@@ -658,7 +624,7 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		WithTextObjects(input) => {
 			mappings = KernelPdfText.ScenePlan.mappings(input.text)
 			var $font_ordinal = 0
-			while $font_ordinal < font_representatives.len() and $failure == NoFailure {
+			while $font_ordinal < font_representatives.len() {
 				representative = list_at(font_representatives, $font_ordinal)
 				font_input = list_at(input.fonts, representative)
 				match KernelPdfFont.Plan.build(
@@ -671,15 +637,15 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 					limits.font_limits,
 				) {
 					Err(error) => {
-						$failure = Failed(Font(error))
+						return Err(Font(error))
 					}
 					Ok(font) => {
 						emitted = KernelPdfFont.Plan.objects(font)
 						planned = list_at(planned_fonts, $font_ordinal)
 						if !KernelObject.ObjectId.is_eq(emitted.font_file, planned.first) {
-							$failure = Failed(ObjectOrder({ actual: emitted.font_file, expected: planned.first }))
+							return Err(ObjectOrder({ actual: emitted.font_file, expected: planned.first }))
 						} else if !KernelObject.ObjectId.is_eq(emitted.type0, planned.type0) {
-							$failure = Failed(ObjectOrder({ actual: emitted.type0, expected: planned.type0 }))
+							return Err(ObjectOrder({ actual: emitted.type0, expected: planned.type0 }))
 						} else {
 							$font_builder = KernelPdfFont.Plan.builder(font)
 							$font_program_bytes = $font_program_bytes + KernelPdfFont.Plan.work(font).font_program_bytes
@@ -689,10 +655,6 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 				$font_ordinal = $font_ordinal + 1
 			}
 		}
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	if $font_builder.store.objects.len() != base_object_count {
@@ -1022,11 +984,10 @@ add_indexed_names = |builder, prefix, count| {
 	var $builder = builder
 	var $ids = List.with_capacity(count)
 	var $index = 0
-	var $failure = NoFailure
-	while $index < count and $failure == NoFailure {
+	while $index < count {
 		match KernelObject.add_name($builder, KernelResourceName.bytes(prefix, $index)) {
 			Err(error) => {
-				$failure = Failed(Object(error))
+				return Err(Object(error))
 			}
 			Ok(name) => {
 				$builder = name.builder
@@ -1035,10 +996,7 @@ add_indexed_names = |builder, prefix, count| {
 		}
 		$index = $index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok({ builder: $builder, ids: $ids })
-	}
+	Ok({ builder: $builder, ids: $ids })
 }
 
 ## One exact direct resource dictionary: only the kinds a stream directly uses
@@ -1051,12 +1009,13 @@ add_resource_dictionary = |builder, names, resource_names, dictionary, base, obj
 	var $references = 0
 
 	if dictionary.color_spaces.len() > 0 {
-		collected = add_reference_entries($builder, resource_names.color_spaces, dictionary.color_spaces, color_space_targets(base, dictionary.color_spaces))?
-		$builder = collected.builder
-		value = KernelObject.add_dictionary($builder, collected.entries) ? Object
+		first = KernelObject.counts($builder).values
+		$builder = add_reference_values($builder, color_space_targets(base, dictionary.color_spaces))?
+		collected = reference_entries(resource_names.color_spaces, dictionary.color_spaces, first)
+		value = KernelObject.add_dictionary($builder, collected) ? Object
 		$builder = value.builder
 		$entries = $entries.append({ key: names.color_space, value: value.id })
-		$references = $references + collected.entries.len()
+		$references = $references + collected.len()
 	}
 	if dictionary.ext_g_states.len() > 0 {
 		state_names = match names.state_names {
@@ -1065,20 +1024,22 @@ add_resource_dictionary = |builder, names, resource_names, dictionary, base, obj
 				crash "graphics state emitted without its planned names"
 			}
 		}
-		collected = add_reference_entries($builder, resource_names.states, dictionary.ext_g_states, state_targets(objects, dictionary.ext_g_states))?
-		$builder = collected.builder
-		value = KernelObject.add_dictionary($builder, collected.entries) ? Object
+		first = KernelObject.counts($builder).values
+		$builder = add_reference_values($builder, state_targets(objects, dictionary.ext_g_states))?
+		collected = reference_entries(resource_names.states, dictionary.ext_g_states, first)
+		value = KernelObject.add_dictionary($builder, collected) ? Object
 		$builder = value.builder
 		$entries = $entries.append({ key: state_names.ext_g_state, value: value.id })
-		$references = $references + collected.entries.len()
+		$references = $references + collected.len()
 	}
 	if dictionary.fonts.len() > 0 {
-		collected = add_reference_entries($builder, resource_names.fonts, dictionary.fonts, font_targets(objects, dictionary.fonts))?
-		$builder = collected.builder
-		value = KernelObject.add_dictionary($builder, collected.entries) ? Object
+		first = KernelObject.counts($builder).values
+		$builder = add_reference_values($builder, font_targets(objects, dictionary.fonts))?
+		collected = reference_entries(resource_names.fonts, dictionary.fonts, first)
+		value = KernelObject.add_dictionary($builder, collected) ? Object
 		$builder = value.builder
 		$entries = $entries.append({ key: names.font, value: value.id })
-		$references = $references + collected.entries.len()
+		$references = $references + collected.len()
 	}
 	if dictionary.patterns.len() > 0 {
 		pattern_key_names = match names.pattern_key_names {
@@ -1087,12 +1048,13 @@ add_resource_dictionary = |builder, names, resource_names, dictionary, base, obj
 				crash "pattern dictionary emitted without its planned names"
 			}
 		}
-		collected = add_reference_entries($builder, resource_names.patterns, dictionary.patterns, pattern_targets(objects, dictionary.patterns))?
-		$builder = collected.builder
-		value = KernelObject.add_dictionary($builder, collected.entries) ? Object
+		first = KernelObject.counts($builder).values
+		$builder = add_reference_values($builder, pattern_targets(objects, dictionary.patterns))?
+		collected = reference_entries(resource_names.patterns, dictionary.patterns, first)
+		value = KernelObject.add_dictionary($builder, collected) ? Object
 		$builder = value.builder
 		$entries = $entries.append({ key: pattern_key_names.pattern, value: value.id })
-		$references = $references + collected.entries.len()
+		$references = $references + collected.len()
 	}
 	if dictionary.shadings.len() > 0 {
 		paint_names = match names.paint_names {
@@ -1101,22 +1063,25 @@ add_resource_dictionary = |builder, names, resource_names, dictionary, base, obj
 				crash "shading dictionary emitted without its planned names"
 			}
 		}
-		collected = add_reference_entries($builder, resource_names.shadings, dictionary.shadings, shading_targets(objects, dictionary.shadings))?
-		$builder = collected.builder
-		value = KernelObject.add_dictionary($builder, collected.entries) ? Object
+		first = KernelObject.counts($builder).values
+		$builder = add_reference_values($builder, shading_targets(objects, dictionary.shadings))?
+		collected = reference_entries(resource_names.shadings, dictionary.shadings, first)
+		value = KernelObject.add_dictionary($builder, collected) ? Object
 		$builder = value.builder
 		$entries = $entries.append({ key: paint_names.shading, value: value.id })
-		$references = $references + collected.entries.len()
+		$references = $references + collected.len()
 	}
 	if dictionary.images.len() > 0 or dictionary.forms.len() > 0 {
-		image_entries = add_reference_entries($builder, resource_names.images, dictionary.images, image_targets(base, dictionary.images))?
-		$builder = image_entries.builder
-		form_entries = add_reference_entries($builder, resource_names.forms, dictionary.forms, form_targets(objects, dictionary.forms))?
-		$builder = form_entries.builder
-		value = KernelObject.add_dictionary($builder, image_entries.entries.concat(form_entries.entries)) ? Object
+		first_image = KernelObject.counts($builder).values
+		$builder = add_reference_values($builder, image_targets(base, dictionary.images))?
+		image_entries = reference_entries(resource_names.images, dictionary.images, first_image)
+		first_form = KernelObject.counts($builder).values
+		$builder = add_reference_values($builder, form_targets(objects, dictionary.forms))?
+		form_entries = reference_entries(resource_names.forms, dictionary.forms, first_form)
+		value = KernelObject.add_dictionary($builder, image_entries.concat(form_entries)) ? Object
 		$builder = value.builder
 		$entries = $entries.append({ key: names.x_object, value: value.id })
-		$references = $references + image_entries.entries.len() + form_entries.entries.len()
+		$references = $references + image_entries.len() + form_entries.len()
 	}
 
 	resources = KernelObject.add_dictionary($builder, $entries) ? Object
@@ -1207,28 +1172,35 @@ form_targets = |objects, ordinals| {
 	$object_ids
 }
 
-add_reference_entries : KernelObject.Builder, List(KernelObject.NameId), List(U64), List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, entries : List(KernelObject.DictionaryEntry) }, KernelFormStructure.Error)
-add_reference_entries = |builder, names, ordinals, object_ids| {
+## Adds one reference value per object id and returns only the builder.
+## The caller derives the entries from the value count before the call
+## (`reference_entries`): returning the builder beside the entry list, as
+## `Try({ builder, entries })`, made the pinned dev backend copy the object
+## store once per resource dictionary
+## (docs/performance/lowering-uniqueness.md).
+add_reference_values : KernelObject.Builder, List(KernelObject.ObjectId) -> Try(KernelObject.Builder, KernelFormStructure.Error)
+add_reference_values = |builder, object_ids| {
 	var $builder = builder
-	var $entries = List.with_capacity(ordinals.len())
 	var $index = 0
-	var $failure = NoFailure
-	while $index < ordinals.len() and $failure == NoFailure {
-		match KernelObject.add_reference($builder, list_at(object_ids, $index)) {
-			Err(error) => {
-				$failure = Failed(Object(error))
-			}
-			Ok(reference) => {
-				$builder = reference.builder
-				$entries = $entries.append({ key: list_at(names, list_at(ordinals, $index)), value: reference.id })
-			}
-		}
+	while $index < object_ids.len() {
+		reference = KernelObject.add_reference($builder, list_at(object_ids, $index)) ? Object
+		$builder = reference.builder
 		$index = $index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok({ builder: $builder, entries: $entries })
+	Ok($builder)
+}
+
+## The dictionary entries naming the reference values that
+## `add_reference_values` added from value id `first`, in ordinal order.
+reference_entries : List(KernelObject.NameId), List(U64), U64 -> List(KernelObject.DictionaryEntry)
+reference_entries = |names, ordinals, first| {
+	var $entries = List.with_capacity(ordinals.len())
+	var $index = 0
+	while $index < ordinals.len() {
+		$entries = $entries.append({ key: list_at(names, list_at(ordinals, $index)), value: KernelObject.ValueId.from_index(first + $index) })
+		$index = $index + 1
 	}
+	$entries
 }
 
 add_form_object : KernelObject.Builder, Names, ResourceNames, KernelForm.DictionaryPlan, Layout.Rect, List(U8), KernelObjectPlan.Plan, KernelFormObjects.Plan, KernelFormObjects.StreamObjects, GroupValue -> Try({ builder : KernelObject.Builder, references : U64 }, KernelFormStructure.Error)
@@ -1543,12 +1515,11 @@ add_function_object = |builder, names, shading_store, fact, objects, planned| {
 			var $builder = builder
 			var $bound_ids = List.with_capacity(record.stops.length() - 2)
 			var $bound = 1
-			var $bound_failure = NoFailure
-			while $bound < record.stops.length() - 1 and $bound_failure == NoFailure {
+			while $bound < record.stops.length() - 1 {
 				offset = list_at(shading_store.stops, record.stops.start() + $bound).offset
 				match add_alpha_value($builder, offset.to_u64()) {
 					Err(error) => {
-						$bound_failure = Failed(error)
+						return Err(error)
 					}
 					Ok(added) => {
 						$builder = added.builder
@@ -1556,10 +1527,6 @@ add_function_object = |builder, names, shading_store, fact, objects, planned| {
 					}
 				}
 				$bound = $bound + 1
-			}
-			match $bound_failure {
-				Failed(error) => return Err(error)
-				NoFailure => {}
 			}
 			bounds = KernelObject.add_array($builder, $bound_ids) ? Object
 			domain = add_domain_array(bounds.builder)?
@@ -1577,11 +1544,10 @@ add_function_object = |builder, names, shading_store, fact, objects, planned| {
 			var $reference_builder = function_type.builder
 			var $child_ids = List.with_capacity(children.len())
 			var $child = 0
-			var $child_failure = NoFailure
-			while $child < children.len() and $child_failure == NoFailure {
+			while $child < children.len() {
 				match KernelObject.add_reference($reference_builder, list_at(KernelFormObjects.Plan.functions(objects), list_at(children, $child))) {
 					Err(error) => {
-						$child_failure = Failed(Object(error))
+						return Err(Object(error))
 					}
 					Ok(reference) => {
 						$reference_builder = reference.builder
@@ -1589,10 +1555,6 @@ add_function_object = |builder, names, shading_store, fact, objects, planned| {
 					}
 				}
 				$child = $child + 1
-			}
-			match $child_failure {
-				Failed(error) => return Err(error)
-				NoFailure => {}
 			}
 			functions = KernelObject.add_array($reference_builder, $child_ids) ? Object
 			dictionary = KernelObject.add_dictionary(

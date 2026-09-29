@@ -84,7 +84,9 @@ def key_pattern(name: bytes) -> re.Pattern[bytes]:
     return re.compile(rb"/" + re.escape(name) + DELIMITER)
 
 
-FORBIDDEN_PATTERNS = tuple((name, key_pattern(name)) for name in FORBIDDEN_KEYS)
+# A forbidden name is a key, never a structure type: `/S /TR` names the
+# table-row role, not the graphics-state transfer function `/TR`.
+FORBIDDEN_PATTERNS = tuple((name, re.compile(rb"(?<!/S )/" + re.escape(name) + DELIMITER)) for name in FORBIDDEN_KEYS)
 
 
 def dictionary_part(body: bytes) -> bytes:

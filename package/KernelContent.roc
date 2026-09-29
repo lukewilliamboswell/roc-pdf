@@ -228,44 +228,53 @@ build_plan = |tagged, text, forms, limits| {
 		var $pattern_fills = 0
 		var $shading_paints = 0
 		var $text_placements = 0
-		var $error = NoError
-		while $page_index < scenes.pages.len() and $error == NoError {
+		while $page_index < scenes.pages.len() {
 			page = list_at(scenes.pages, $page_index)
 			page_limit = limits.max_content_bytes - $total_bytes
 			var $bytes = List.with_capacity(U64.min(page_limit, initial_content_capacity))
 			var $edge = page.paint_order.start()
 			end = $edge + page.paint_order.length()
-			while $edge < end and $error == NoError {
+			while $edge < end {
 				group = list_at(scenes.groups, list_at(scenes.page_groups, $edge).index())
+				match group.owner {
+					Fragment(_) => {
+						$fragment_groups = $fragment_groups + 1
+					}
+					PageArtifact(_) => {
+						$artifact_groups = $artifact_groups + 1
+					}
+				}
 				match open_group($bytes, group.owner, marked, $page_index, page_limit) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(error)
 					}
-					Ok(opened) => {
-						$bytes = opened.bytes
-						$artifact_groups = $artifact_groups + opened.artifacts
-						$fragment_groups = $fragment_groups + opened.fragments
-						match emit_commands($bytes, group.commands, scenes.commands, scenes, text, forms, naming, page_states, page_limit) {
-							Err(error) => {
-								$error = Invalid(error)
-							}
-							Ok(emitted) => match append_literal(emitted.bytes, "EMC\n", page_limit) {
+					Ok(opened) => match emit_commands(opened, group.commands, scenes.commands, scenes, text, forms, naming, page_states, page_limit) {
+						Err(error) => {
+							return Err(error)
+						}
+						Ok(emitted) => {
+							## Every scalar is read out of the result before its
+							## stream is appended to: a record still read after
+							## the append keeps a second reference to the stream,
+							## which the append then copies.
+							{ bytes: emitted_bytes, command_visits, form_placements, graphics_state_pairs, image_placements, mask_groups, max_frame_depth, opacity_groups, path_segments, pattern_fills, shading_paints, text_placements } = emitted
+							$command_visits = $command_visits + command_visits
+							$form_placements = $form_placements + form_placements
+							$graphics_pairs = $graphics_pairs + graphics_state_pairs
+							$image_placements = $image_placements + image_placements
+							$mask_groups = $mask_groups + mask_groups
+							$max_frame_depth = U64.max($max_frame_depth, max_frame_depth)
+							$opacity_groups = $opacity_groups + opacity_groups
+							$path_segments = $path_segments + path_segments
+							$pattern_fills = $pattern_fills + pattern_fills
+							$shading_paints = $shading_paints + shading_paints
+							$text_placements = $text_placements + text_placements
+							match append_literal(emitted_bytes, "EMC\n", page_limit) {
 								Err(error) => {
-									$error = Invalid(error)
+									return Err(error)
 								}
 								Ok(closed) => {
 									$bytes = closed
-									$command_visits = $command_visits + emitted.command_visits
-									$form_placements = $form_placements + emitted.form_placements
-									$graphics_pairs = $graphics_pairs + emitted.graphics_state_pairs
-									$image_placements = $image_placements + emitted.image_placements
-									$mask_groups = $mask_groups + emitted.mask_groups
-									$max_frame_depth = U64.max($max_frame_depth, emitted.max_frame_depth)
-									$opacity_groups = $opacity_groups + emitted.opacity_groups
-									$path_segments = $path_segments + emitted.path_segments
-									$pattern_fills = $pattern_fills + emitted.pattern_fills
-									$shading_paints = $shading_paints + emitted.shading_paints
-									$text_placements = $text_placements + emitted.text_placements
 								}
 							}
 						}
@@ -274,17 +283,15 @@ build_plan = |tagged, text, forms, limits| {
 				$edge = $edge + 1
 				$group_visits = $group_visits + 1
 			}
-			if $error == NoError {
-				match checked_add($total_bytes, $bytes.len()) {
-					Err(error) => {
-						$error = Invalid(error)
-					}
-					Ok(total) => if total > limits.max_content_bytes {
-						$error = Invalid(LimitExceeded({ attempted: total, dimension: ContentBytes, limit: limits.max_content_bytes }))
-					} else {
-						$total_bytes = total
-						$streams = $streams.append({ bytes: $bytes, page: page.id, stream: Semantics.ContentStreamId.from_index($page_index) })
-					}
+			match checked_add($total_bytes, $bytes.len()) {
+				Err(error) => {
+					return Err(error)
+				}
+				Ok(total) => if total > limits.max_content_bytes {
+					return Err(LimitExceeded({ attempted: total, dimension: ContentBytes, limit: limits.max_content_bytes }))
+				} else {
+					$total_bytes = total
+					$streams = $streams.append({ bytes: $bytes, page: page.id, stream: Semantics.ContentStreamId.from_index($page_index) })
 				}
 			}
 			$page_index = $page_index + 1
@@ -301,7 +308,7 @@ build_plan = |tagged, text, forms, limits| {
 		var $form_streams = List.with_capacity(form_stream_ranges.len())
 		var $form_bytes = 0
 		var $form_index = 0
-		while $form_index < form_stream_ranges.len() and $error == NoError {
+		while $form_index < form_stream_ranges.len() {
 			range = list_at(form_stream_ranges, $form_index)
 			form_limit = limits.max_content_bytes - $total_bytes
 			arena = match forms {
@@ -314,14 +321,14 @@ build_plan = |tagged, text, forms, limits| {
 			}
 			match emit_commands(List.with_capacity(U64.min(form_limit, initial_content_capacity)), range, arena, scenes, text, forms, naming, form_states, form_limit) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(emitted) => match checked_add($total_bytes, emitted.bytes.len()) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(error)
 					}
 					Ok(total) => if total > limits.max_content_bytes {
-						$error = Invalid(LimitExceeded({ attempted: total, dimension: ContentBytes, limit: limits.max_content_bytes }))
+						return Err(LimitExceeded({ attempted: total, dimension: ContentBytes, limit: limits.max_content_bytes }))
 					} else {
 						$total_bytes = total
 						$form_bytes = $form_bytes + emitted.bytes.len()
@@ -355,7 +362,7 @@ build_plan = |tagged, text, forms, limits| {
 		var $pattern_streams = List.with_capacity(pattern_stream_ranges.len())
 		var $pattern_bytes = 0
 		var $pattern_index = 0
-		while $pattern_index < pattern_stream_ranges.len() and $error == NoError {
+		while $pattern_index < pattern_stream_ranges.len() {
 			range = list_at(pattern_stream_ranges, $pattern_index)
 			pattern_limit = limits.max_content_bytes - $total_bytes
 			pattern_arena = match forms {
@@ -364,14 +371,14 @@ build_plan = |tagged, text, forms, limits| {
 			}
 			match emit_commands(List.with_capacity(U64.min(pattern_limit, initial_content_capacity)), range, pattern_arena, scenes, text, forms, naming, [], pattern_limit) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(emitted) => match checked_add($total_bytes, emitted.bytes.len()) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(error)
 					}
 					Ok(total) => if total > limits.max_content_bytes {
-						$error = Invalid(LimitExceeded({ attempted: total, dimension: ContentBytes, limit: limits.max_content_bytes }))
+						return Err(LimitExceeded({ attempted: total, dimension: ContentBytes, limit: limits.max_content_bytes }))
 					} else {
 						$total_bytes = total
 						$pattern_bytes = $pattern_bytes + emitted.bytes.len()
@@ -389,37 +396,34 @@ build_plan = |tagged, text, forms, limits| {
 			$pattern_index = $pattern_index + 1
 		}
 
-		match $error {
-			Invalid(error) => Err(error)
-			NoError => Ok(
-				KernelContent.Plan.{
-					form_streams: $form_streams,
-					pattern_streams: $pattern_streams,
-					streams: $streams,
-					work: {
-						bytes_emitted: $total_bytes,
-						command_visits: $command_visits,
-						form_placements: $form_placements,
-						form_stream_bytes: $form_bytes,
-						form_streams: $form_streams.len(),
-						graphics_state_pairs: $graphics_pairs,
-						group_visits: $group_visits,
-						image_placements: $image_placements,
-						marked_artifact_groups: $artifact_groups,
-						marked_fragment_groups: $fragment_groups,
-						mask_groups: $mask_groups,
-						max_frame_depth: $max_frame_depth,
-						opacity_groups: $opacity_groups,
-						path_segments: $path_segments,
-						pattern_fills: $pattern_fills,
-						pattern_stream_bytes: $pattern_bytes,
-						pattern_streams: $pattern_streams.len(),
-						shading_paints: $shading_paints,
-						text_placements: $text_placements,
-					},
+		Ok(
+			KernelContent.Plan.{
+				form_streams: $form_streams,
+				pattern_streams: $pattern_streams,
+				streams: $streams,
+				work: {
+					bytes_emitted: $total_bytes,
+					command_visits: $command_visits,
+					form_placements: $form_placements,
+					form_stream_bytes: $form_bytes,
+					form_streams: $form_streams.len(),
+					graphics_state_pairs: $graphics_pairs,
+					group_visits: $group_visits,
+					image_placements: $image_placements,
+					marked_artifact_groups: $artifact_groups,
+					marked_fragment_groups: $fragment_groups,
+					mask_groups: $mask_groups,
+					max_frame_depth: $max_frame_depth,
+					opacity_groups: $opacity_groups,
+					path_segments: $path_segments,
+					pattern_fills: $pattern_fills,
+					pattern_stream_bytes: $pattern_bytes,
+					pattern_streams: $pattern_streams.len(),
+					shading_paints: $shading_paints,
+					text_placements: $text_placements,
 				},
-			)
-		}
+			},
+		)
 	}
 }
 
@@ -435,7 +439,7 @@ index_marked = |references, fragment_count| {
 	Ok($slots)
 }
 
-open_group : List(U8), Scene.GroupOwner, List(MarkedSlot), U64, U64 -> Try({ artifacts : U64, bytes : List(U8), fragments : U64 }, KernelContent.Error)
+open_group : List(U8), Scene.GroupOwner, List(MarkedSlot), U64, U64 -> Try(List(U8), KernelContent.Error)
 open_group = |bytes, owner, marked, page, limit| match owner {
 	Fragment(fragment) => match list_at(marked, fragment.index()) {
 		MissingMarked => Err(MissingMarkedFragment({ fragment: fragment.index() }))
@@ -446,8 +450,7 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 			} else {
 				with_tag = append_literal(bytes, "/P <</MCID ", limit)?
 				with_mcid = append_unsigned(with_tag, reference.mcid, limit)?
-				opened = append_literal(with_mcid, ">> BDC\n", limit)?
-				Ok({ artifacts: 0, bytes: opened, fragments: 1 })
+				append_literal(with_mcid, ">> BDC\n", limit)
 			}
 		}
 	}
@@ -458,9 +461,10 @@ open_group = |bytes, owner, marked, page, limit| match owner {
 			Footer => "/Artifact <</Type /Pagination /Subtype /Footer>> BDC\n"
 			Header => "/Artifact <</Type /Pagination /Subtype /Header>> BDC\n"
 			PageNumber => "/Artifact <</Type /Pagination /Subtype /PageNum>> BDC\n"
+			RepeatedHeader => "/Artifact <</Type /Pagination>> BDC\n"
 			Watermark => "/Artifact <</Type /Pagination /Subtype /Watermark>> BDC\n"
 		}
-		Ok({ artifacts: 1, bytes: append_literal(bytes, prefix, limit)?, fragments: 0 })
+		append_literal(bytes, prefix, limit)
 	}
 }
 
@@ -482,13 +486,12 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 	var $pattern_fills = 0
 	var $shading_paints = 0
 	var $text_placements = 0
-	var $error = NoError
-	while $done == False and $error == NoError {
+	while $done == False {
 		if $current.next >= $current.end {
 			if $current.close_graphics {
 				match append_literal($bytes, "Q\n", limit) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(error)
 					}
 					Ok(bytes) => {
 						$bytes = bytes
@@ -508,11 +511,11 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 			match command {
 				Clip({ children, path }) => match emit_clip_open($bytes, path, scenes, limit) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(error)
 					}
 					Ok(opened) => {
-						$bytes = opened.bytes
-						$path_segments = $path_segments + opened.path_segments
+						$bytes = opened
+						$path_segments = $path_segments + path_segment_count(scenes, path)
 						$frames = push_frame($frames, $active, $current)
 						$active = $active + 1
 						$current = Frame.{ close_graphics: True, end: children.start() + children.length(), next: children.start() }
@@ -528,7 +531,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 							Err(Overflow) => U64.highest
 							Ok(total) => total
 						}
-						$error = Invalid(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
+						return Err(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
 					} else {
 						$bytes = emit_image_unchecked($bytes, ordinal, placement)
 						$graphics_pairs = $graphics_pairs + 1
@@ -537,24 +540,27 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 				}
 				DrawPath({ path, style }) => match emit_draw_path($bytes, path, style, scenes, naming, command_index, limit) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(error)
 					}
 					Ok(emitted) => {
-						$bytes = emitted.bytes
-						$path_segments = $path_segments + emitted.path_segments
-						$pattern_fills = $pattern_fills + emitted.pattern_fills
+						$bytes = emitted
+						$path_segments = $path_segments + path_segment_count(scenes, path)
+						$pattern_fills = $pattern_fills + match style.fill {
+							PatternFill(_) => 1
+							NoFill | SolidFill(_) => 0
+						}
 					}
 				}
 				DrawText({ paint, run }) => match text {
 					NoText => {
-						$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+						return Err(UnsupportedValidatedCommand({ command: command_index }))
 					}
 					WithText(plan) => if run.index() >= KernelContent.TextPlan.run_count(plan) {
-						$error = Invalid(TextRunInvalid({ prepared: KernelContent.TextPlan.run_count(plan), run: run.index() }))
+						return Err(TextRunInvalid({ prepared: KernelContent.TextPlan.run_count(plan), run: run.index() }))
 					} else {
 						match emit_text($bytes, paint, KernelContent.TextPlan.run(plan, run.index()), naming, limit) {
 							Err(error) => {
-								$error = Invalid(error)
+								return Err(error)
 							}
 							Ok(bytes) => {
 								$bytes = bytes
@@ -570,7 +576,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 				## normalized state maps come from the form plan, so lowering
 				## never recomputes effective opacity.
 				Opacity({ children, opacity: _ }) => if command_index >= states.len() {
-					$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+					return Err(UnsupportedValidatedCommand({ command: command_index }))
 				} else {
 					command_state = list_at(states, command_index)
 					if command_state == no_state {
@@ -581,7 +587,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 					} else {
 						match emit_opacity_open($bytes, command_state, limit) {
 							Err(error) => {
-								$error = Invalid(error)
+								return Err(error)
 							}
 							Ok(bytes) => {
 								$bytes = bytes
@@ -602,11 +608,11 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 				## mask, so a missing entry is the same structural rejection
 				## as an unplanned command.
 				SoftMask({ children, mask: _ }) => if command_index >= states.len() or list_at(states, command_index) == no_state {
-					$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+					return Err(UnsupportedValidatedCommand({ command: command_index }))
 				} else {
 					match emit_opacity_open($bytes, list_at(states, command_index), limit) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(bytes) => {
 							$bytes = bytes
@@ -626,11 +632,11 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 				## graphics pair is opened here; authors clip explicitly.
 				PaintShading({ shading }) => match shading_ordinal(naming, shading.index()) {
 					NoPaints => {
-						$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+						return Err(UnsupportedValidatedCommand({ command: command_index }))
 					}
 					PaintOrdinal(ordinal) => match emit_paint_shading($bytes, ordinal, limit) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(bytes) => {
 							$bytes = bytes
@@ -640,14 +646,14 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 				}
 				PlaceForm({ form, transform }) => match forms {
 					NoForms => {
-						$error = Invalid(UnsupportedValidatedCommand({ command: command_index }))
+						return Err(UnsupportedValidatedCommand({ command: command_index }))
 					}
 					WithForms(context) => if form.index() >= context.form_names.len() {
-						$error = Invalid(FormPlacementInvalid({ form: form.index(), prepared: context.form_names.len() }))
+						return Err(FormPlacementInvalid({ form: form.index(), prepared: context.form_names.len() }))
 					} else {
 						match emit_place_form($bytes, transform, list_at(context.form_names, form.index()), limit) {
 							Err(error) => {
-								$error = Invalid(error)
+								return Err(error)
 							}
 							Ok(bytes) => {
 								$bytes = bytes
@@ -659,7 +665,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 				}
 				Transform({ children, matrix }) => match emit_transform_open($bytes, matrix, limit) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(error)
 					}
 					Ok(bytes) => {
 						$bytes = bytes
@@ -674,10 +680,7 @@ emit_commands = |initial, root, arena, scenes, text, forms, naming, states, limi
 			$command_visits = $command_visits + 1
 		}
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, mask_groups: $mask_groups, max_frame_depth: $max_frame_depth, opacity_groups: $opacity_groups, path_segments: $path_segments, pattern_fills: $pattern_fills, shading_paints: $shading_paints, text_placements: $text_placements })
-	}
+	Ok({ bytes: $bytes, command_visits: $command_visits, form_placements: $form_placements, graphics_state_pairs: $graphics_pairs, image_placements: $image_placements, mask_groups: $mask_groups, max_frame_depth: $max_frame_depth, opacity_groups: $opacity_groups, path_segments: $path_segments, pattern_fills: $pattern_fills, shading_paints: $shading_paints, text_placements: $text_placements })
 }
 
 ## An opacity group is always balanced: save, then select the canonical
@@ -765,12 +768,20 @@ emit_transform_open = |bytes, matrix, limit| {
 	append_literal($out, " cm\n", limit)
 }
 
-emit_clip_open : List(U8), Scene.PathId, Scene.Store, U64 -> Try({ bytes : List(U8), path_segments : U64 }, KernelContent.Error)
+## The emission helpers return the stream alone. A helper that returned the
+## stream in a record beside a count kept the record, and with it a second
+## reference to the stream, live until the count was read after the next
+## append, and that append copied the whole stream: once per path, style,
+## and group on a page. Callers derive the counts from the command instead.
+emit_clip_open : List(U8), Scene.PathId, Scene.Store, U64 -> Try(List(U8), KernelContent.Error)
 emit_clip_open = |bytes, path, scenes, limit| {
 	opened = append_literal(bytes, "q\n", limit)?
 	emitted = emit_path(opened, path, scenes, limit)?
-	Ok({ bytes: append_literal(emitted.bytes, "W n\n", limit)?, path_segments: emitted.path_segments })
+	append_literal(emitted, "W n\n", limit)
 }
+
+path_segment_count : Scene.Store, Scene.PathId -> U64
+path_segment_count = |scenes, path| list_at(scenes.paths, path.index()).segments.length()
 
 emit_image_unchecked : List(U8), U64, Layout.Rect -> List(U8)
 emit_image_unchecked = |bytes, ordinal, placement| {
@@ -840,49 +851,52 @@ append_thousandths_unchecked = |output, coefficient| {
 			$normalized = U64.div_by($normalized, 10)
 			$scale = $scale - 1
 		}
-		var $out = if coefficient < 0 output.append(45) else output
+
+		## The sign is bound once and each branch consumes it, as in
+		## `KernelLex.append_decimal`.
+		signed = if coefficient < 0 output.append(45) else output
 		if $scale == 0 {
-			var $remaining = $normalized
-			var $divisor = 1
-			while $remaining >= 10 {
-				$remaining = U64.div_by($remaining, 10)
-				$divisor = $divisor * 10
-			}
-			while $divisor > 0 {
-				digit = U64.mod_by(U64.div_by($normalized, $divisor), 10)
-				$out = $out.append((48 + digit).to_u8_wrap())
-				$divisor = U64.div_by($divisor, 10)
-			}
-			$out
+			append_whole_unchecked(signed, $normalized)
 		} else {
-			power = match $scale {
-				1 => 10
-				2 => 100
-				_ => 1000
-			}
-			whole = U64.div_by($normalized, power)
-			fraction = U64.mod_by($normalized, power)
-			var $whole_remaining = whole
-			var $whole_divisor = 1
-			while $whole_remaining >= 10 {
-				$whole_remaining = U64.div_by($whole_remaining, 10)
-				$whole_divisor = $whole_divisor * 10
-			}
-			while $whole_divisor > 0 {
-				digit = U64.mod_by(U64.div_by(whole, $whole_divisor), 10)
-				$out = $out.append((48 + digit).to_u8_wrap())
-				$whole_divisor = U64.div_by($whole_divisor, 10)
-			}
-			$out = $out.append(46)
-			var $fraction_divisor = U64.div_by(power, 10)
-			while $fraction_divisor > 0 {
-				digit = U64.mod_by(U64.div_by(fraction, $fraction_divisor), 10)
-				$out = $out.append((48 + digit).to_u8_wrap())
-				$fraction_divisor = U64.div_by($fraction_divisor, 10)
-			}
-			$out
+			append_fraction_unchecked(signed, $normalized, $scale)
 		}
 	}
+}
+
+append_whole_unchecked : List(U8), U64 -> List(U8)
+append_whole_unchecked = |output, value| {
+	var $remaining = value
+	var $divisor = 1
+	while $remaining >= 10 {
+		$remaining = U64.div_by($remaining, 10)
+		$divisor = $divisor * 10
+	}
+	var $out = output
+	while $divisor > 0 {
+		digit = U64.mod_by(U64.div_by(value, $divisor), 10)
+		$out = $out.append((48 + digit).to_u8_wrap())
+		$divisor = U64.div_by($divisor, 10)
+	}
+	$out
+}
+
+append_fraction_unchecked : List(U8), U64, U64 -> List(U8)
+append_fraction_unchecked = |output, normalized, scale| {
+	power = match scale {
+		1 => 10
+		2 => 100
+		_ => 1000
+	}
+	var $out = append_whole_unchecked(output, U64.div_by(normalized, power))
+	$out = $out.append(46)
+	fraction = U64.mod_by(normalized, power)
+	var $fraction_divisor = U64.div_by(power, 10)
+	while $fraction_divisor > 0 {
+		digit = U64.mod_by(U64.div_by(fraction, $fraction_divisor), 10)
+		$out = $out.append((48 + digit).to_u8_wrap())
+		$fraction_divisor = U64.div_by($fraction_divisor, 10)
+	}
+	$out
 }
 
 ## The hot layout writer is byte-identical to the general lexical boundary.
@@ -898,10 +912,10 @@ expect {
 	$same
 }
 
-emit_draw_path : List(U8), Scene.PathId, Scene.PathStyle, Scene.Store, Naming, U64, U64 -> Try({ bytes : List(U8), path_segments : U64, pattern_fills : U64 }, KernelContent.Error)
+emit_draw_path : List(U8), Scene.PathId, Scene.PathStyle, Scene.Store, Naming, U64, U64 -> Try(List(U8), KernelContent.Error)
 emit_draw_path = |bytes, path, style, scenes, naming, command_index, limit| {
 	styled = emit_style(bytes, style, scenes.dash_lengths, naming, command_index, limit)?
-	emitted = emit_path(styled.bytes, path, scenes, limit)?
+	emitted = emit_path(styled, path, scenes, limit)?
 	operator = match style.fill {
 		NoFill => "S\n"
 		PatternFill({ pattern: _, rule }) | SolidFill({ color: _, rule }) => match style.stroke {
@@ -915,13 +929,13 @@ emit_draw_path = |bytes, path, style, scenes, naming, command_index, limit| {
 			}
 		}
 	}
-	Ok({ bytes: append_literal(emitted.bytes, operator, limit)?, path_segments: emitted.path_segments, pattern_fills: styled.pattern_fills })
+	append_literal(emitted, operator, limit)
 }
 
-emit_style : List(U8), Scene.PathStyle, List(Layout.Unit), Naming, U64, U64 -> Try({ bytes : List(U8), pattern_fills : U64 }, KernelContent.Error)
+emit_style : List(U8), Scene.PathStyle, List(Layout.Unit), Naming, U64, U64 -> Try(List(U8), KernelContent.Error)
 emit_style = |bytes, style, dash_lengths, naming, command_index, limit| {
 	with_fill = match style.fill {
-		NoFill => Ok({ bytes, pattern_fills: 0 })
+		NoFill => Ok(bytes)
 
 		## A pattern fill selects the Pattern color space and names the
 		## canonical `Pt` ordinal as the nonstroking paint, resolved by the
@@ -931,21 +945,14 @@ emit_style = |bytes, style, dash_lengths, naming, command_index, limit| {
 			PaintOrdinal(ordinal) => {
 				var $out = append_literal(bytes, "/Pattern cs\n/Pt", limit)?
 				$out = append_resource_index($out, ordinal, limit)?
-				$out = append_literal($out, " scn\n", limit)?
-				Ok({ bytes: $out, pattern_fills: 1 })
+				append_literal($out, " scn\n", limit)
 			}
 		}
-		SolidFill({ color, rule: _ }) => {
-			colored = emit_color(bytes, color, False, naming, limit)?
-			Ok({ bytes: colored, pattern_fills: 0 })
-		}
+		SolidFill({ color, rule: _ }) => emit_color(bytes, color, False, naming, limit)
 	}?
 	match style.stroke {
 		NoStroke => Ok(with_fill)
-		SolidStroke(stroke) => {
-			stroked = emit_stroke(with_fill.bytes, stroke, dash_lengths, naming, limit)?
-			Ok({ bytes: stroked, pattern_fills: with_fill.pattern_fills })
-		}
+		SolidStroke(stroke) => emit_stroke(with_fill, stroke, dash_lengths, naming, limit)
 	}
 }
 
@@ -980,23 +987,31 @@ emit_stroke = |bytes, stroke, dash_lengths, naming, limit| {
 	$out = append_layout($out, stroke.miter_limit, limit)?
 	$out = append_literal($out, " M\n", limit)?
 	match stroke.dash {
-		SolidLine => Ok(append_literal($out, "[] 0 d\n", limit)?)
-		Dashed({ lengths, phase }) => {
-			$out = append_literal($out, "[", limit)?
-			var $index = lengths.start()
-			end = $index + lengths.length()
-			while $index < end {
-				if $index > lengths.start() {
-					$out = append_literal($out, " ", limit)?
-				}
-				$out = append_layout($out, list_at(dash_lengths, $index), limit)?
-				$index = $index + 1
-			}
-			$out = append_literal($out, "] ", limit)?
-			$out = append_layout($out, phase, limit)?
-			Ok(append_literal($out, " d\n", limit)?)
-		}
+		SolidLine => append_literal($out, "[] 0 d\n", limit)
+		Dashed({ lengths, phase }) => emit_dash($out, lengths, phase, dash_lengths, limit)
 	}
+}
+
+## The dash array lives in its own helper so that no arm of the dash `match`
+## both reassigns the stream `var` and passes it on as the arm's value. When
+## one did, the join after the `match` carried the `var` beside the arm's
+## result, the other arm's call saw a second reference, and it copied the
+## whole stream once per stroke (docs/performance/emission-linearity.md).
+emit_dash : List(U8), Semantics.Range, Layout.Unit, List(Layout.Unit), U64 -> Try(List(U8), KernelContent.Error)
+emit_dash = |bytes, lengths, phase, dash_lengths, limit| {
+	var $out = append_literal(bytes, "[", limit)?
+	var $index = lengths.start()
+	end = $index + lengths.length()
+	while $index < end {
+		if $index > lengths.start() {
+			$out = append_literal($out, " ", limit)?
+		}
+		$out = append_layout($out, list_at(dash_lengths, $index), limit)?
+		$index = $index + 1
+	}
+	$out = append_literal($out, "] ", limit)?
+	$out = append_layout($out, phase, limit)?
+	append_literal($out, " d\n", limit)
 }
 
 emit_color : List(U8), Color.Value, Bool, Naming, U64 -> Try(List(U8), KernelContent.Error)
@@ -1004,23 +1019,23 @@ emit_color = |bytes, color, stroking, naming, limit| {
 	var $out = append_literal(bytes, "/CS", limit)?
 	$out = append_resource_index($out, color_ordinal(naming, color.space.index()), limit)?
 	$out = append_literal($out, if stroking " CS\n" else " cs\n", limit)?
-	match color.channels {
-		Gray(gray) => {
-			$out = append_channel($out, gray, limit)?
-			append_literal($out, if stroking " SCN\n" else " scn\n", limit)
-		}
+
+	## The arms consume the stream without reassigning `$out`; see
+	## `emit_dash` for why an arm must not do both.
+	$out = match color.channels {
+		Gray(gray) => append_channel($out, gray, limit)?
 		Rgb({ blue, green, red }) => {
-			$out = append_channel($out, red, limit)?
-			$out = append_literal($out, " ", limit)?
-			$out = append_channel($out, green, limit)?
-			$out = append_literal($out, " ", limit)?
-			$out = append_channel($out, blue, limit)?
-			append_literal($out, if stroking " SCN\n" else " scn\n", limit)
+			with_red = append_channel($out, red, limit)?
+			with_red_space = append_literal(with_red, " ", limit)?
+			with_green = append_channel(with_red_space, green, limit)?
+			with_green_space = append_literal(with_green, " ", limit)?
+			append_channel(with_green_space, blue, limit)?
 		}
 	}
+	append_literal($out, if stroking " SCN\n" else " scn\n", limit)
 }
 
-emit_path : List(U8), Scene.PathId, Scene.Store, U64 -> Try({ bytes : List(U8), path_segments : U64 }, KernelContent.Error)
+emit_path : List(U8), Scene.PathId, Scene.Store, U64 -> Try(List(U8), KernelContent.Error)
 emit_path = |bytes, path_id, scenes, limit| {
 	path = list_at(scenes.paths, path_id.index())
 	var $out = bytes
@@ -1058,7 +1073,7 @@ emit_path = |bytes, path_id, scenes, limit| {
 		}
 		$index = $index + 1
 	}
-	Ok({ bytes: $out, path_segments: path.segments.length() })
+	Ok($out)
 }
 
 append_point : List(U8), Layout.Point, U64 -> Try(List(U8), KernelContent.Error)
@@ -1071,8 +1086,8 @@ append_point = |bytes, point, limit| {
 append_layout : List(U8), Layout.Unit, U64 -> Try(List(U8), KernelContent.Error)
 append_layout = |bytes, value, limit| {
 	coefficient = value.raw()
-	reserved = reserve_exact(bytes, decimal_length(coefficient, 3), limit)?
-	Ok(KernelLex.append_thousandths(reserved, coefficient))
+	check_room(bytes.len(), decimal_length(coefficient, 3), limit)?
+	Ok(KernelLex.append_thousandths(bytes, coefficient))
 }
 
 append_channel : List(U8), U16, U64 -> Try(List(U8), KernelContent.Error)
@@ -1080,8 +1095,8 @@ append_channel = |bytes, value, limit| {
 	numerator = value.to_u64() * 1000000000
 	coefficient = round_half_even(numerator, 65535)
 	coefficient_i64 = coefficient.to_i64_wrap()
-	reserved = reserve_exact(bytes, decimal_length(coefficient_i64, 9), limit)?
-	Ok(KernelLex.append_billionths(reserved, coefficient_i64))
+	check_room(bytes.len(), decimal_length(coefficient_i64, 9), limit)?
+	Ok(KernelLex.append_billionths(bytes, coefficient_i64))
 }
 
 round_half_even : U64, U64 -> U64
@@ -1094,14 +1109,14 @@ round_half_even = |numerator, denominator| {
 
 append_unsigned : List(U8), U64, U64 -> Try(List(U8), KernelContent.Error)
 append_unsigned = |bytes, value, limit| {
-	reserved = reserve_exact(bytes, unsigned_length(value), limit)?
-	Ok(KernelLex.append_unsigned(reserved, value))
+	check_room(bytes.len(), unsigned_length(value), limit)?
+	Ok(KernelLex.append_unsigned(bytes, value))
 }
 
 append_resource_index : List(U8), U64, U64 -> Try(List(U8), KernelContent.Error)
 append_resource_index = |bytes, value, limit| {
-	reserved = reserve_exact(bytes, KernelResourceName.suffix_length(value), limit)?
-	Ok(KernelResourceName.append(reserved, value))
+	check_room(bytes.len(), KernelResourceName.suffix_length(value), limit)?
+	Ok(KernelResourceName.append(bytes, value))
 }
 
 append_literal : List(U8), Str, U64 -> Try(List(U8), KernelContent.Error)
@@ -1109,29 +1124,30 @@ append_literal = |bytes, value, limit| append_bytes(bytes, Str.to_utf8(value), l
 
 append_bytes : List(U8), List(U8), U64 -> Try(List(U8), KernelContent.Error)
 append_bytes = |bytes, addition, limit| {
-	match reserve_exact(bytes, addition.len(), limit) {
-		Err(error) => Err(error)
-		Ok(reserved) => {
-			var $out = reserved
-			var $index = 0
-			while $index < addition.len() {
-				$out = $out.append(list_at(addition, $index))
-				$index = $index + 1
-			}
-			Ok($out)
-		}
+	check_room(bytes.len(), addition.len(), limit)?
+	var $out = bytes
+	var $index = 0
+	while $index < addition.len() {
+		$out = $out.append(list_at(addition, $index))
+		$index = $index + 1
 	}
+	Ok($out)
 }
 
-reserve_exact : List(U8), U64, U64 -> Try(List(U8), KernelContent.Error)
-reserve_exact = |bytes, additional, limit| {
-	attempted = checked_add(bytes.len(), additional)?
+## Checks that `additional` more bytes fit the stream limit. It takes only
+## the length: the stream itself never passes through a `Try`, because a list
+## returned through `?` and then appended to by a plain function was copied
+## on every token by the pinned dev backend, and it reserves nothing, because
+## an explicit `List.reserve` sizes the allocation exactly and reserving
+## before every token reallocated the whole stream once per token
+## (docs/performance/lowering-uniqueness.md).
+check_room : U64, U64, U64 -> Try({}, KernelContent.Error)
+check_room = |length, additional, limit| {
+	attempted = checked_add(length, additional)?
 	if attempted > limit {
 		Err(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
 	} else {
-		remaining = limit - bytes.len()
-		geometric_spare = U64.max(additional, attempted)
-		Ok(List.reserve(bytes, U64.min(remaining, geometric_spare)))
+		Ok({})
 	}
 }
 

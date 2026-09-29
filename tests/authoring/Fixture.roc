@@ -75,12 +75,14 @@ evidence_semantic_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -138,12 +140,14 @@ evidence_shape_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -221,12 +225,14 @@ evidence_line_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -317,12 +323,14 @@ evidence_page_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -526,7 +534,6 @@ synthetic_line_input = |scalars| {
 						id: Text.RunId.from_index(0),
 						instance: Font.InstanceId.from_index(0),
 						language: Language("en"),
-						occurrence: Semantics.OccurrenceId.from_index(0),
 						script: Font.Script.from_iso15924("Latn"),
 						size: Layout.Unit.from_raw(1000),
 						source: {
@@ -535,6 +542,7 @@ synthetic_line_input = |scalars| {
 						},
 						substitutions: Semantics.Range.from_start_and_length(0, 0),
 						transformations: Semantics.Range.from_start_and_length(0, 0),
+						unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 						writing_mode: Horizontal,
 					},
 				],
@@ -622,13 +630,14 @@ synthetic_page_input = |block_count| {
 		kept = $block_index % 5 == 0
 		$blocks = $blocks.append({
 			baseline_offset: Layout.Unit.from_raw(800),
+			lead: Layout.Unit.from_raw(0),
 			leading: Layout.Unit.from_raw(1000),
 			lines: Semantics.Range.from_start_and_length(line_start, 6),
 			occurrence: Semantics.OccurrenceId.from_index($block_index),
 			policy: {
 				break_before: $block_index > 0 and $block_index % 10 == 0,
 				keep_together: kept,
-				keep_with_next: $block_index % 10 == 5 and $block_index + 1 < block_count,
+				keep_with_next: if $block_index % 10 == 5 and $block_index + 1 < block_count Required else NoKeep,
 				minimum_first_lines: 2,
 				minimum_last_lines: 2,
 			},
@@ -738,12 +747,14 @@ evidence_ordered_facade = |repetitions| {
 		authoring,
 		KernelFacadeSemantics.Limits.make({
 			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -883,7 +894,7 @@ inspect = |store| {
 			Title => {
 				$titles = $titles + 1
 			}
-			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | InternalLink(_) | Link(_) => return Err(InvalidStore)
+			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
 		}
 		$index = $index + 1
 	}

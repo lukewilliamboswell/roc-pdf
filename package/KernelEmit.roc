@@ -97,7 +97,10 @@ KernelEmit :: [].{
 		start = |position| CountingSink.{ offsets: [], position }
 
 		mark_object : CountingSink -> CountingSink
-		mark_object = |sink| CountingSink.{ offsets: sink.offsets.append(sink.position), position: sink.position }
+		mark_object = |sink| {
+			{ offsets, position } = sink
+			CountingSink.{ offsets: offsets.append(position), position }
+		}
 
 		position : CountingSink -> U64
 		position = |sink| sink.position
@@ -137,13 +140,19 @@ KernelEmit :: [].{
 	to_bytes = |plan| {
 		var $encoder = start(plan, OwnResourceChunks)?
 		var $output = []
-		var $done = False
-		while $done == False {
-			match Encoder.next($encoder)? {
-				Done => {
-					$done = True
+		while Bool.True {
+			## Every arm either returns or reassigns `$encoder`. An arm that
+			## kept the old encoder (the `Done` arm setting a flag) made it
+			## live across `Encoder.next`, which then copied the offsets on
+			## every object (docs/performance/emission-linearity.md).
+			match Encoder.next($encoder) {
+				Err(error) => {
+					return Err(error)
 				}
-				Emit(segment, next) => {
+				Ok(Done) => {
+					return Ok($output)
+				}
+				Ok(Emit(segment, next)) => {
 					$output = append_all($output, segment.bytes)
 					$encoder = next
 				}
@@ -158,23 +167,22 @@ validate_emittable = |plan| {
 	store = plan_store(plan)
 	length = store.streams.len()
 	var $index = 0
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		stream = list_at(store.streams, $index)
 		match reserved_stream_key(store, stream.dictionary) {
 			Reserved(key) => {
-				$error = InvalidReserved(key)
+				return Err(ReservedStreamKey(key))
 			}
 			NoReserved => {}
 		}
-		if $error == NoError and stream.filter == Deflate {
+		if stream.filter == Deflate {
 			payload = list_at(store.payloads, KernelObject.PayloadId.index(stream.source))
 			if payload.kind != Generated {
-				$error = InvalidDeflateKind(stream.id)
+				return Err(DeflateRequiresGeneratedPayload(stream.id))
 			} else if payload.bytes.is_empty() == False {
 				match prepare_deflate(payload.bytes) {
 					Err(deflate_error) => {
-						$error = InvalidDeflate(deflate_error)
+						return Err(Deflate(deflate_error))
 					}
 					Ok(_) => {}
 				}
@@ -183,12 +191,7 @@ validate_emittable = |plan| {
 		$index = $index + 1
 	}
 
-	match $error {
-		InvalidReserved(key) => Err(ReservedStreamKey(key))
-		InvalidDeflate(error) => Err(Deflate(error))
-		InvalidDeflateKind(stream) => Err(DeflateRequiresGeneratedPayload(stream))
-		NoError => Ok({})
-	}
+	Ok({})
 }
 
 prepare_deflate : List(U8) -> Try(KernelDeflate.Plan, KernelDeflate.Error)
@@ -240,30 +243,37 @@ emit_object = |encoder, index| {
 		next_segment(encoder_with_phase(encoder, XrefPrefix))
 	} else {
 		object = list_at(store.objects, index)
-		offsets = encoder.offsets.append(encoder.position)
-		with_offset = encoder_with_offsets(encoder, offsets)
-		match object.content {
-			LengthOf(stream_id) => {
-				stream_index = KernelObject.StreamId.index(stream_id)
-				match encoder.stream_lengths.get(stream_index) {
-					Err(OutOfBounds) => Err(StreamLengthUnavailable(stream_id))
-					Ok(length) => {
-						var $bytes = append_object_header([], object.id)
-						$bytes = KernelLex.append_unsigned($bytes, length)
-						$bytes = append_end_object($bytes)
-						emit_generated(with_offset, $bytes, next_object_phase(encoder.plan, index + 1))
-					}
+		object_id = object.id
+
+		## The object is serialized before its offset is recorded, so no value
+		## read from `encoder`'s plan (`store`, `object`) is live when the
+		## offsets grow. A projection still read afterwards kept `encoder`
+		## alive, the compiler then passed it to `encoder_with_offset`
+		## borrowed, and the append copied the offsets once per object
+		## (docs/performance/emission-linearity.md).
+		next_phase = next_object_phase(encoder.plan, index + 1)
+		content = match object.content {
+			LengthOf(stream_id) => match encoder.stream_lengths.get(KernelObject.StreamId.index(stream_id)) {
+				Err(OutOfBounds) => return Err(StreamLengthUnavailable(stream_id))
+				Ok(length) => {
+					var $bytes = append_object_header([], object_id)
+					$bytes = KernelLex.append_unsigned($bytes, length)
+					GeneratedObject(append_end_object($bytes))
 				}
 			}
 			Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
-				Stream(stream_id) => emit_stream_prefix(with_offset, object.id, stream_id, index + 1)
+				Stream(stream_id) => StreamObject(stream_id)
 				_ => {
-					var $bytes = append_object_header([], object.id)
+					var $bytes = append_object_header([], object_id)
 					$bytes = emit_value($bytes, store, value_id)?
-					$bytes = append_end_object($bytes)
-					emit_generated(with_offset, $bytes, next_object_phase(encoder.plan, index + 1))
+					GeneratedObject(append_end_object($bytes))
 				}
 			}
+		}
+		with_offset = encoder_with_offset(encoder, encoder.position)
+		match content {
+			GeneratedObject(bytes) => emit_generated(with_offset, bytes, next_phase)
+			StreamObject(stream_id) => emit_stream_prefix(with_offset, object_id, stream_id, index + 1)
 		}
 	}
 }
@@ -300,12 +310,11 @@ emit_stored_stream_prefix = |encoder, object_id, stream, payload, next_object| {
 		} else {
 			encoder.copied_resource_bytes
 		}
-		stream_lengths = encoder.stream_lengths.append(emitted_payload.len())
 		release = payload_release(encoder.plan, stream)
 		var $prefix = append_object_header([], object_id)
 		$prefix = append_stream_dictionary($prefix, plan_store(encoder.plan), stream)?
 		$prefix = append_stream_keyword($prefix)
-		with_length = encoder_with_stream_lengths(encoder_with_copied_resource_bytes(encoder, copied_resource_bytes), stream_lengths)
+		with_length = encoder_with_stream_length(encoder_with_copied_resource_bytes(encoder, copied_resource_bytes), emitted_payload.len())
 		next = encoder_with_phase(with_length, Payload({ bytes: emitted_payload, next_object, ownership, release }))
 		emit_bytes(next, $prefix, Generated)
 	}
@@ -323,8 +332,7 @@ emit_deflate_stream_prefix = |encoder, object_id, stream, payload, next_object| 
 		$prefix = append_stream_dictionary($prefix, store, stream)?
 		$prefix = append_stream_keyword($prefix)
 		if payload.bytes.is_empty() {
-			stream_lengths = encoder.stream_lengths.append(8)
-			with_work = encoder_with_stream_lengths(encoder, stream_lengths)
+			with_work = encoder_with_stream_length(encoder, 8)
 			next = encoder_with_phase(with_work, Payload({ bytes: [120, 156, 3, 0, 0, 0, 0, 1], next_object, ownership: Generated, release: KeepPayload }))
 			emit_bytes(next, $prefix, Generated)
 		} else {
@@ -345,10 +353,9 @@ emit_deflate_payload : KernelEmit.Encoder, DeflatePhase -> Try(KernelEmit.Step, 
 emit_deflate_payload = |encoder, state| match KernelDeflate.Encoder.next(state.encoder) {
 	Err(error) => Err(Deflate(error))
 	Ok(Done(work)) => {
-		stream_lengths = encoder.stream_lengths.append(state.emitted_length)
 		deflate_work = KernelDeflate.Work.add(encoder.deflate_work, work) ? Deflate
 		next = encoder_with_deflate_work(
-			encoder_with_stream_lengths(encoder, stream_lengths),
+			encoder_with_stream_length(encoder, state.emitted_length),
 			deflate_work,
 		)
 		next_segment(encoder_with_phase(next, StreamSuffix(state.next_object)))
@@ -370,7 +377,6 @@ emit_xref_prefix : KernelEmit.Encoder -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_xref_prefix = |encoder| {
 	xref_object = KernelStructure.Plan.xref_object(encoder.plan)
 	xref_offset = encoder.position
-	offsets = encoder.offsets.append(xref_offset)
 	size = checked_add(KernelObject.ObjectId.number(xref_object), 1)?
 	stream_length = checked_times_small(size, 11)?
 	root = KernelStructure.Plan.root(encoder.plan)
@@ -378,7 +384,7 @@ emit_xref_prefix = |encoder| {
 	var $prefix = append_object_header([], xref_object)
 	$prefix = append_xref_dictionary($prefix, size, stream_length, root, encoder.file_id)
 	$prefix = append_stream_keyword($prefix)
-	next = encoder_with_phase(encoder_with_offsets(encoder, offsets), XrefEntries({ entry: 0, size, xref_offset }))
+	next = encoder_with_phase(encoder_with_offset(encoder, xref_offset), XrefEntries({ entry: 0, size, xref_offset }))
 	emit_bytes(next, $prefix, Generated)
 }
 
@@ -465,18 +471,25 @@ encoder_with_copied_resource_bytes = |encoder, copied_resource_bytes| KernelEmit
 	stream_lengths: encoder.stream_lengths,
 }
 
-encoder_with_offsets : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
-encoder_with_offsets = |encoder, offsets| KernelEmit.Encoder.{
-	copied_resource_bytes: encoder.copied_resource_bytes,
-	deflate_work: encoder.deflate_work,
-	file_id: encoder.file_id,
-	offsets,
-	output_bound: encoder.output_bound,
-	phase: encoder.phase,
-	plan: encoder.plan,
-	position: encoder.position,
-	retention: encoder.retention,
-	stream_lengths: encoder.stream_lengths,
+## Records one object offset. The encoder is taken apart before the append:
+## appending to `encoder.offsets` while the encoder was still read afterwards
+## held a second reference to the offsets, and every object copied them
+## (docs/performance/emission-linearity.md).
+encoder_with_offset : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
+encoder_with_offset = |encoder, offset| {
+	{ copied_resource_bytes, deflate_work, file_id, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
+	KernelEmit.Encoder.{
+		copied_resource_bytes,
+		deflate_work,
+		file_id,
+		offsets: offsets.append(offset),
+		output_bound,
+		phase,
+		plan,
+		position,
+		retention,
+		stream_lengths,
+	}
 }
 
 encoder_with_position : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
@@ -493,18 +506,23 @@ encoder_with_position = |encoder, position| KernelEmit.Encoder.{
 	stream_lengths: encoder.stream_lengths,
 }
 
-encoder_with_stream_lengths : KernelEmit.Encoder, List(U64) -> KernelEmit.Encoder
-encoder_with_stream_lengths = |encoder, stream_lengths| KernelEmit.Encoder.{
-	copied_resource_bytes: encoder.copied_resource_bytes,
-	deflate_work: encoder.deflate_work,
-	file_id: encoder.file_id,
-	offsets: encoder.offsets,
-	output_bound: encoder.output_bound,
-	phase: encoder.phase,
-	plan: encoder.plan,
-	position: encoder.position,
-	retention: encoder.retention,
-	stream_lengths,
+## Records one stream length, taking the encoder apart first as
+## `encoder_with_offset` does.
+encoder_with_stream_length : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
+encoder_with_stream_length = |encoder, length| {
+	{ copied_resource_bytes, deflate_work, file_id, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
+	KernelEmit.Encoder.{
+		copied_resource_bytes,
+		deflate_work,
+		file_id,
+		offsets,
+		output_bound,
+		phase,
+		plan,
+		position,
+		retention,
+		stream_lengths: stream_lengths.append(length),
+	}
 }
 
 encoder_with_deflate_work : KernelEmit.Encoder, KernelDeflate.Work -> KernelEmit.Encoder
@@ -846,10 +864,14 @@ append_xref_suffix = |output, xref_offset| {
 copy_bytes : List(U8) -> List(U8)
 copy_bytes = |source| append_all(List.with_capacity(source.len()), source)
 
+## Appends every element of `source`. It deliberately does not
+## `List.reserve` first: an explicit reserve sizes the allocation exactly, so
+## a target that keeps growing was reallocated on every call, while `append`
+## grows geometrically and keeps accumulation amortized linear.
 append_all : List(U8), List(U8) -> List(U8)
 append_all = |target, source| {
 	length = source.len()
-	var $out = List.reserve(target, length)
+	var $out = target
 	var $index = 0
 	while $index < length {
 		$out = $out.append(list_at(source, $index))

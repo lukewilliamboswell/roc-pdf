@@ -3,6 +3,8 @@ import Document
 import Image
 import KernelColor
 import KernelFacadeFragments
+import KernelFacadeFurniture
+import KernelFacadePages
 import KernelFacadeShape
 import KernelFacadeText
 import KernelScene
@@ -105,10 +107,14 @@ KernelFacadeScenes :: [].{
 		build_prepared = |semantics, prepared, limits| build_validated(
 			semantics,
 			{
+				artifact_kinds: RepeatedHeaders,
+				artifact_runs: [],
 				authoring: empty_authoring,
+				furniture: NoFurniture,
 				page_size: prepared.page_size,
 				pages: prepared.pages,
 				placements: prepared.placements,
+				rules: [],
 				styles: prepared.styles,
 				text: prepared.text,
 			},
@@ -136,36 +142,51 @@ KernelFacadeScenes :: [].{
 }
 
 InternalPrepared : {
+	artifact_kinds : KernelFacadeText.ArtifactKinds,
+	artifact_runs : List(U64),
 	authoring : Document.NormalizedAuthoring,
+	furniture : [NoFurniture, WithFurniture(KernelFacadeFurniture.Plan)],
 	page_size : Layout.Size,
 	pages : List(KernelFacadeText.Page),
 	placements : List(KernelFacadeText.Placement),
+	rules : List(KernelFacadePages.Rule),
 	styles : List(KernelFacadeShape.RunStyle),
 	text : Text.Store,
 }
 
+## `artifact_runs` (ascending) are repainted header runs, owned by a
+## `RepeatedHeader` page artifact rather than a fragment; `rules` are table
+## rules painted as `Decoration` artifacts at the end of their page.
 InternalArenaPrepared : {
+	artifact_kinds : KernelFacadeText.ArtifactKinds,
+	artifact_runs : List(U64),
 	authoring : Document.NormalizedAuthoring,
 	figure_by_occurrence : List([Figure(U64), NoFigure]),
+	furniture : [NoFurniture, WithFurniture(KernelFacadeFurniture.Plan)],
 	page_size : Layout.Size,
 	pages : List(KernelFacadeText.Page),
 	placements : List(KernelFacadeText.Placement),
-	run_occurrences : List(Semantics.OccurrenceId),
+	rules : List(KernelFacadePages.Rule),
+	run_unicode : List(Text.RunUnicode),
 	styles : List(KernelFacadeShape.RunStyle),
 }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], figures: [], language: "", metadata_title: "", outline: [], page_labels: [] }
+empty_authoring = { blocks: [], cells: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {
 	text_plan = KernelFacadeFragments.Plan.text(fragment_plan)
 	text = KernelFacadeText.Plan.text(text_plan)
 	prepared = {
+		artifact_kinds: KernelFacadeText.Plan.artifact_kinds(text_plan),
+		artifact_runs: KernelFacadeText.Plan.artifact_runs(text_plan),
 		authoring,
+		furniture: KernelFacadeText.Plan.furniture(text_plan),
 		page_size,
 		pages: KernelFacadeText.Plan.pages(text_plan),
 		placements: KernelFacadeText.Plan.placements(text_plan),
+		rules: KernelFacadeText.Plan.rules(text_plan),
 		styles: KernelFacadeText.Plan.styles(text_plan),
 		text,
 	}
@@ -185,30 +206,38 @@ build_validated = |semantics, prepared, intent, limits| {
 		KernelScene.Resources.with_text({ color_spaces: arena.colors.spaces.len(), images: arena.images.resources.len(), text_runs: text.runs.len() }),
 		limits.scene,
 	) ? Scene
-	ownership = KernelTextOwnership.Plan.build(semantics, scene, text) ? Ownership
+	ownership = (if prepared.artifact_runs.is_empty() KernelTextOwnership.Plan.build(semantics, scene, text) else KernelTextOwnership.Plan.build_with_artifact_text(semantics, scene, text)) ? Ownership
 	Ok(KernelFacadeScenes.Plan.{ colors, images: arena.images, ownership, scene, work: arena.work })
 }
 
 prepare_arena : InternalPrepared -> InternalArenaPrepared
 prepare_arena = |prepared| {
+	artifact_kinds: prepared.artifact_kinds,
+	artifact_runs: prepared.artifact_runs,
 	authoring: prepared.authoring,
+	furniture: prepared.furniture,
 	page_size: prepared.page_size,
 	pages: prepared.pages,
 	placements: prepared.placements,
+	rules: prepared.rules,
 	styles: prepared.styles,
-	run_occurrences: prepared.text.runs.map(|run| run.occurrence),
+	run_unicode: prepared.text.runs.map(|run| run.unicode),
 	figure_by_occurrence: [],
 }
 
 build_arena : KernelFacadeScenes.ArenaPrepared, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Arena, KernelFacadeScenes.Error)
 build_arena = |prepared, limits| build_arena_with_intent(
 	{
+		artifact_kinds: RepeatedHeaders,
+		artifact_runs: [],
 		authoring: empty_authoring,
 		figure_by_occurrence: [],
+		furniture: NoFurniture,
 		page_size: prepared.page_size,
 		pages: prepared.pages,
 		placements: prepared.placements,
-		run_occurrences: List.repeat(Semantics.OccurrenceId.from_index(0), prepared.text_runs),
+		rules: [],
+		run_unicode: List.repeat(OccurrenceText(Semantics.OccurrenceId.from_index(0)), prepared.text_runs),
 		styles: prepared.styles,
 	},
 	NoIntentProfile,
@@ -220,11 +249,19 @@ build_arena_with_intent = |prepared, intent, limits| {
 	if prepared.page_size.width.raw() <= 0 or prepared.page_size.height.raw() <= 0 {
 		return Err(InvalidPageSize)
 	}
-	run_count = prepared.run_occurrences.len()
-	command_count = checked_add(checked_times(run_count, 2)?, prepared.authoring.figures.len())?
+	run_count = prepared.run_unicode.len()
+	rule_count = prepared.rules.len()
+
+	## Page furniture drawings paint as page-artifact groups: one transform
+	## to the item's bottom-left corner around the drawing's commands.
+	furniture = furniture_facts(prepared.furniture)
+	paint_count = furniture.paints.len()
+	furniture_counts = drawing_counts(furniture)?
+	command_count = checked_add(checked_add(checked_add(checked_times(run_count, 2)?, prepared.authoring.figures.len())?, rule_count)?, furniture_counts.commands)?
+	group_count = checked_add(checked_add(run_count, rule_count)?, paint_count)?
 	check_limit(command_count, limits.max_commands, Commands)?
-	check_limit(run_count, limits.max_groups, Groups)?
-	check_limit(run_count, limits.max_page_group_edges, PageGroupEdges)?
+	check_limit(group_count, limits.max_groups, Groups)?
+	check_limit(group_count, limits.max_page_group_edges, PageGroupEdges)?
 	check_limit(prepared.pages.len(), limits.max_pages, Pages)?
 	if prepared.placements.len() != run_count {
 		return Err(InvalidPlacement({ placement: prepared.placements.len() }))
@@ -236,19 +273,26 @@ build_arena_with_intent = |prepared, intent, limits| {
 		origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) },
 		size: prepared.page_size,
 	}
-	has_rgb_images = prepared.authoring.figures.any(|figure| !source_is_gray(figure.image))
-	has_gray_images = prepared.authoring.figures.any(|figure| source_is_gray(figure.image))
+	has_rgb_images = prepared.authoring.figures.any(|figure| !source_is_gray(figure.image)) or furniture.images.any(|image| !source_is_gray(image))
+	has_gray_images = prepared.authoring.figures.any(|figure| source_is_gray(figure.image)) or furniture.images.any(|image| source_is_gray(image))
 	use_srgb = match intent {
 		NoIntentProfile => False
-		PackagedSrgbIntent => has_nonblack_srgb(prepared.styles) or has_rgb_images
+		PackagedSrgbIntent => has_nonblack_srgb(prepared.styles) or has_rgb_images or prepared.rules.any(|rule| nonblack(rule.color)) or furniture_counts.nonblack
 	}
 	color_checks = match intent {
 		NoIntentProfile => run_count
 		PackagedSrgbIntent => checked_add(run_count, run_count)?
 	}
 	var $commands = List.with_capacity(command_count)
-	var $groups = List.with_capacity(run_count)
-	var $page_groups = List.with_capacity(run_count)
+	var $groups = List.with_capacity(group_count)
+	var $page_groups = List.with_capacity(group_count)
+	path_count = checked_add(rule_count, furniture_counts.paths)?
+	var $paths = if path_count == 0 [] else List.with_capacity(path_count)
+	var $path_segments = if path_count == 0 [] else List.with_capacity(checked_add(rule_count, furniture_counts.segments)?)
+	var $paint_cursor = 0
+	var $artifact_cursor = 0
+	var $fragment = 0
+	var $rule_cursor = 0
 	var $pages = List.with_capacity(prepared.pages.len())
 	var $painted_figures = if prepared.authoring.figures.is_empty() [] else List.repeat(False, prepared.authoring.figures.len())
 	var $placement_cursor = 0
@@ -260,81 +304,172 @@ build_arena_with_intent = |prepared, intent, limits| {
 		}
 		paint_start = $page_groups.len()
 		page_end = checked_add(page.runs.start(), page.runs.length())?
-		while $placement_cursor < page_end {
-			placement = list_at(prepared.placements, $placement_cursor)
-			if placement.page.index() != $page_index or placement.run.index() != $placement_cursor {
-				return Err(InvalidPlacement({ placement: $placement_cursor }))
-			}
-			style = list_at(prepared.styles, $placement_cursor)
-			paint = match style.color {
-				Srgb(Rgb(channels)) => match intent {
-					NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 {
-						{
-							fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
-							mode: Fill,
-							opacity: 65535,
-							stroke: NoStroke,
+
+		## One loop per page paints the page's text placements and then its
+		## table rules. Two consecutive inner loops over the same accumulators
+		## copied `$commands`, `$groups`, and `$page_groups` once per page: the
+		## first loop's exit state reached the second loop's entry through an
+		## aggregate that still held them (docs/performance/emission-linearity.md).
+		while $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) or ($paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index) {
+			if $placement_cursor < page_end {
+				placement = list_at(prepared.placements, $placement_cursor)
+				if placement.page.index() != $page_index or placement.run.index() != $placement_cursor {
+					return Err(InvalidPlacement({ placement: $placement_cursor }))
+				}
+				style = list_at(prepared.styles, $placement_cursor)
+				paint = match style.color {
+					Srgb(Rgb(channels)) => match intent {
+						NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 {
+							{
+								fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
+								mode: Fill,
+								opacity: 65535,
+								stroke: NoStroke,
+							}
+						} else {
+							return Err(UnsupportedColor({ run: $placement_cursor }))
 						}
-					} else {
-						return Err(UnsupportedColor({ run: $placement_cursor }))
+						PackagedSrgbIntent => if use_srgb {
+							{
+								fill: { channels: Rgb(channels), space: Color.SpaceId.from_index(0) },
+								mode: Fill,
+								opacity: 65535,
+								stroke: NoStroke,
+							}
+						} else {
+							{
+								fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
+								mode: Fill,
+								opacity: 65535,
+								stroke: NoStroke,
+							}
+						}
 					}
-					PackagedSrgbIntent => if use_srgb {
-						{
-							fill: { channels: Rgb(channels), space: Color.SpaceId.from_index(0) },
-							mode: Fill,
-							opacity: 65535,
-							stroke: NoStroke,
-						}
-					} else {
-						{
-							fill: { channels: Gray(0), space: Color.SpaceId.from_index(0) },
-							mode: Fill,
-							opacity: 65535,
-							stroke: NoStroke,
-						}
+					_ => return Err(UnsupportedColor({ run: $placement_cursor }))
+				}
+				figure = match list_at(prepared.run_unicode, $placement_cursor) {
+					OccurrenceText(occurrence) => if occurrence.index() < prepared.figure_by_occurrence.len() list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
+					ArtifactText(_) => NoFigure
+				}
+				command_start = $commands.len()
+
+				## The image command is built before any accumulator changes, so
+				## the `?` exits sit outside the `match` that appends it.
+				first_figure = match figure {
+					NoFigure => NoFigure
+					Figure(figure_index) => if list_at($painted_figures, figure_index) NoFigure else Figure(figure_index)
+				}
+				image = match first_figure {
+					NoFigure => NoImage
+					Figure(figure_index) => {
+						authored = list_at(prepared.authoring.figures, figure_index)
+						image_x = checked_i64_add(placement.origin.x.raw(), authored.placement.origin.x.raw())?
+						image_top = checked_i64_minus(placement.origin.y.raw(), authored.placement.size.height.raw())?
+						image_y = checked_i64_add(image_top, authored.placement.origin.y.raw())?
+						PaintImage({ command: DrawImage({ image: Image.Id.from_index(figure_index), placement: { origin: { x: Layout.Unit.from_raw(image_x), y: Layout.Unit.from_raw(image_y) }, size: authored.placement.size } }), figure: figure_index })
 					}
 				}
-				_ => return Err(UnsupportedColor({ run: $placement_cursor }))
-			}
-			occurrence = list_at(prepared.run_occurrences, $placement_cursor)
-			figure = if occurrence.index() < prepared.figure_by_occurrence.len() list_at(prepared.figure_by_occurrence, occurrence.index()) else NoFigure
-			command_start = $commands.len()
-			group_length = match figure {
-				NoFigure => 1
-				Figure(figure_index) => if list_at($painted_figures, figure_index) {
-					1
+				match image {
+					NoImage => {}
+					PaintImage({ command, figure: figure_index }) => {
+						$commands = $commands.append(command)
+						$painted_figures = list_set($painted_figures, figure_index, True)
+					}
+				}
+				group_length = $commands.len() - command_start + 1
+				text_command = $commands.len() + 1
+				$commands = $commands.append(
+					Transform({
+						children: Semantics.Range.from_start_and_length(text_command, 1),
+						matrix: {
+							a: Layout.Unit.from_raw(1000),
+							b: Layout.Unit.from_raw(0),
+							c: Layout.Unit.from_raw(0),
+							d: Layout.Unit.from_raw(1000),
+							e: placement.origin.x,
+							f: placement.origin.y,
+						},
+					}),
+				).append(DrawText({ paint, run: placement.run }))
+				group = Scene.GroupId.from_index($groups.len())
+				artifact = $artifact_cursor < prepared.artifact_runs.len() and list_at(prepared.artifact_runs, $artifact_cursor) == $placement_cursor
+				owner = if artifact {
+					kind = match prepared.artifact_kinds {
+						RepeatedHeaders => RepeatedHeader
+						Kinds(kinds) => list_at(kinds, $artifact_cursor)
+					}
+					$artifact_cursor = $artifact_cursor + 1
+					PageArtifact(kind)
 				} else {
-					authored = list_at(prepared.authoring.figures, figure_index)
-					image_x = checked_i64_add(placement.origin.x.raw(), authored.placement.origin.x.raw())?
-					image_top = checked_i64_minus(placement.origin.y.raw(), authored.placement.size.height.raw())?
-					image_y = checked_i64_add(image_top, authored.placement.origin.y.raw())?
-					$commands = $commands.append(DrawImage({ image: Image.Id.from_index(figure_index), placement: { origin: { x: Layout.Unit.from_raw(image_x), y: Layout.Unit.from_raw(image_y) }, size: authored.placement.size } }))
-					$painted_figures = list_set($painted_figures, figure_index, True)
-					2
+					fragment = $fragment
+					$fragment = $fragment + 1
+					Fragment(Semantics.FragmentId.from_index(fragment))
 				}
+				$groups = $groups.append({
+					commands: Semantics.Range.from_start_and_length(command_start, group_length),
+					id: group,
+					owner,
+				})
+				$page_groups = $page_groups.append(group)
+				$placement_cursor = $placement_cursor + 1
+			} else if $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
+				## Table rules paint after the page's text, each a filled rectangle
+				## owned by a layout decoration artifact.
+				rule = list_at(prepared.rules, $rule_cursor)
+				fill = match paint_color(rule.color, intent, use_srgb) {
+					Ok(value) => value
+					Err(_) => return Err(UnsupportedColor({ run: $placement_cursor }))
+				}
+				path = Scene.PathId.from_index($paths.len())
+				$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), 1) })
+				$path_segments = $path_segments.append(Rectangle(rule.rect))
+				command = $commands.len()
+				$commands = $commands.append(DrawPath({ path, style: { fill: SolidFill({ color: fill, rule: Nonzero }), stroke: NoStroke } }))
+				group = Scene.GroupId.from_index($groups.len())
+				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command, 1), id: group, owner: PageArtifact(Decoration) })
+				$page_groups = $page_groups.append(group)
+				$rule_cursor = $rule_cursor + 1
+			} else {
+				## Furniture drawings paint last, each one page-artifact group:
+				## a transform to its bottom-left corner around its images and
+				## paths in drawing-local geometry.
+				paint = list_at(furniture.paints, $paint_cursor)
+				drawing = list_at(furniture.drawings, paint.drawing)
+				command_start = $commands.len()
+				$commands = $commands.append(
+					Transform({
+						children: Semantics.Range.from_start_and_length(command_start + 1, drawing.commands.len()),
+						matrix: {
+							a: Layout.Unit.from_raw(1000),
+							b: Layout.Unit.from_raw(0),
+							c: Layout.Unit.from_raw(0),
+							d: Layout.Unit.from_raw(1000),
+							e: paint.origin.x,
+							f: paint.origin.y,
+						},
+					}),
+				)
+				for drawing_command in drawing.commands {
+					match drawing_command {
+						DrawingImage({ image, placement }) => {
+							$commands = $commands.append(DrawImage({ image: Image.Id.from_index(prepared.authoring.figures.len() + image), placement }))
+						}
+						DrawingPath({ fill, segments, stroke }) => {
+							path = Scene.PathId.from_index($paths.len())
+							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
+							for segment in segments {
+								$path_segments = $path_segments.append(segment)
+							}
+							style = furniture_path_style(fill, stroke, intent, use_srgb) ? |_| UnsupportedColor({ run: $placement_cursor })
+							$commands = $commands.append(DrawPath({ path, style }))
+						}
+					}
+				}
+				group = Scene.GroupId.from_index($groups.len())
+				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(paint.kind) })
+				$page_groups = $page_groups.append(group)
+				$paint_cursor = $paint_cursor + 1
 			}
-			text_command = $commands.len() + 1
-			$commands = $commands.append(
-				Transform({
-					children: Semantics.Range.from_start_and_length(text_command, 1),
-					matrix: {
-						a: Layout.Unit.from_raw(1000),
-						b: Layout.Unit.from_raw(0),
-						c: Layout.Unit.from_raw(0),
-						d: Layout.Unit.from_raw(1000),
-						e: placement.origin.x,
-						f: placement.origin.y,
-					},
-				}),
-			).append(DrawText({ paint, run: placement.run }))
-			group = Scene.GroupId.from_index($groups.len())
-			$groups = $groups.append({
-				commands: Semantics.Range.from_start_and_length(command_start, group_length),
-				id: group,
-				owner: Fragment(Semantics.FragmentId.from_index($placement_cursor)),
-			})
-			$page_groups = $page_groups.append(group)
-			$placement_cursor = $placement_cursor + 1
 		}
 		$pages = $pages.append({
 			boxes: { art: page_box, bleed: page_box, crop: page_box, media: page_box, trim: page_box },
@@ -384,21 +519,21 @@ build_arena_with_intent = |prepared, intent, limits| {
 	Ok(
 		KernelFacadeScenes.Arena.{
 			colors,
-			images: authoring_images(prepared.authoring, Color.SpaceId.from_index(0), gray_space.id),
+			images: authoring_images(prepared.authoring, furniture.images, Color.SpaceId.from_index(0), gray_space.id),
 			scenes: {
 				commands: $commands,
 				dash_lengths: [],
 				groups: $groups,
 				page_groups: $page_groups,
 				pages: $pages,
-				path_segments: [],
-				paths: [],
+				path_segments: $path_segments,
+				paths: $paths,
 			},
 			work: {
 				color_checks,
 				command_writes: command_count,
-				group_writes: run_count,
-				page_group_writes: run_count,
+				group_writes: group_count,
+				page_group_writes: group_count,
 				page_writes: prepared.pages.len(),
 				placement_visits: run_count,
 			},
@@ -435,19 +570,80 @@ index_figures = |store, figure_count| {
 	Ok($by_occurrence)
 }
 
-authoring_images : Document.NormalizedAuthoring, Color.SpaceId, Color.SpaceId -> Image.SourceStore
-authoring_images = |authoring, rgb_space, gray_space| {
-	if authoring.figures.is_empty() {
+## Figure images, then page furniture images: furniture image `k` is image
+## `figures + k`.
+authoring_images : Document.NormalizedAuthoring, List(Image.Source), Color.SpaceId, Color.SpaceId -> Image.SourceStore
+authoring_images = |authoring, furniture_images, rgb_space, gray_space| {
+	if authoring.figures.is_empty() and furniture_images.is_empty() {
 		return { resources: [] }
 	}
-	var $resources = List.with_capacity(authoring.figures.len())
+	var $resources = List.with_capacity(authoring.figures.len() + furniture_images.len())
 	var $index = 0
 	while $index < authoring.figures.len() {
 		figure = list_at(authoring.figures, $index)
 		$resources = $resources.append(source_resource(figure.image, Image.Id.from_index($index), rgb_space, gray_space))
 		$index = $index + 1
 	}
+	for image in furniture_images {
+		$resources = $resources.append(source_resource(image, Image.Id.from_index($resources.len()), rgb_space, gray_space))
+	}
 	{ resources: $resources }
+}
+
+FurnitureFacts : { drawings : List(KernelFacadeFurniture.Drawing), images : List(Image.Source), paints : List(KernelFacadeFurniture.DrawingPaint) }
+
+furniture_facts : [NoFurniture, WithFurniture(KernelFacadeFurniture.Plan)] -> FurnitureFacts
+furniture_facts = |furniture| match furniture {
+	NoFurniture => { drawings: [], images: [], paints: [] }
+	WithFurniture(plan) => { drawings: KernelFacadeFurniture.Plan.drawings(plan), images: KernelFacadeFurniture.Plan.images(plan), paints: KernelFacadeFurniture.Plan.drawing_paints(plan) }
+}
+
+## Commands, paths, and path segments of every painted furniture drawing,
+## and whether any of their colors is not black.
+drawing_counts : FurnitureFacts -> Try({ commands : U64, nonblack : Bool, paths : U64, segments : U64 }, KernelFacadeScenes.Error)
+drawing_counts = |furniture| {
+	var $commands = 0
+	var $paths = 0
+	var $segments = 0
+	var $nonblack = False
+	for paint in furniture.paints {
+		drawing = list_at(furniture.drawings, paint.drawing)
+		$commands = checked_add($commands, checked_add(drawing.commands.len(), 1)?)?
+		for command in drawing.commands {
+			match command {
+				DrawingImage(_) => {}
+				DrawingPath({ fill, segments, stroke }) => {
+					$paths = checked_add($paths, 1)?
+					$segments = checked_add($segments, segments.len())?
+					fill_nonblack = match fill {
+						NoFill => False
+						Fill(color) => nonblack(color)
+					}
+					stroke_nonblack = match stroke {
+						NoStroke => False
+						Stroke({ color, width: _ }) => nonblack(color)
+					}
+					$nonblack = $nonblack or fill_nonblack or stroke_nonblack
+				}
+			}
+		}
+	}
+	Ok({ commands: $commands, nonblack: $nonblack, paths: $paths, segments: $segments })
+}
+
+## A furniture path's fill and stroke in the page's painting space: solid,
+## nonzero fill; butt caps, miter joins, and a miter limit of 10.
+furniture_path_style : [Fill(Color.SourceValue), NoFill], [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })], KernelFacadeScenes.IntentProfile, Bool -> Try(Scene.PathStyle, [Unsupported])
+furniture_path_style = |fill, stroke, intent, use_srgb| {
+	fill_style = match fill {
+		NoFill => NoFill
+		Fill(color) => SolidFill({ color: paint_color(color, intent, use_srgb)?, rule: Nonzero })
+	}
+	stroke_style = match stroke {
+		NoStroke => NoStroke
+		Stroke({ color, width }) => SolidStroke({ cap: ButtCap, color: paint_color(color, intent, use_srgb)?, dash: SolidLine, join: MiterJoin, miter_limit: Layout.Unit.from_raw(10000), width })
+	}
+	Ok({ fill: fill_style, stroke: stroke_style })
 }
 
 source_is_gray : Image.Source -> Bool
@@ -464,6 +660,24 @@ source_resource = |source, id, rgb_space, gray_space| {
 		PackedRgb8View({ alpha, dimensions, pixels, row_stride }) => PackedPixels({ alpha, color_space: rgb_space, dimensions, format: Rgb8, pixels, row_stride })
 	}
 	{ id, payload }
+}
+
+nonblack : Color.SourceValue -> Bool
+nonblack = |color| match color {
+	Srgb(Rgb({ blue, green, red })) => blue != 0 or green != 0 or red != 0
+	_ => False
+}
+
+## The fill of a table rule in the page's painting space: black is the
+## calibrated gray zero without an intent profile, and every color is sRGB
+## when the page paints in sRGB.
+paint_color : Color.SourceValue, KernelFacadeScenes.IntentProfile, Bool -> Try(Color.Value, [Unsupported])
+paint_color = |color, intent, use_srgb| match color {
+	Srgb(Rgb(channels)) => match intent {
+		NoIntentProfile => if channels.red == 0 and channels.green == 0 and channels.blue == 0 Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
+		PackagedSrgbIntent => if use_srgb Ok({ channels: Rgb(channels), space: Color.SpaceId.from_index(0) }) else if channels.red == 0 and channels.green == 0 and channels.blue == 0 Ok({ channels: Gray(0), space: Color.SpaceId.from_index(0) }) else Err(Unsupported)
+	}
+	_ => Err(Unsupported)
 }
 
 has_nonblack_srgb : List(KernelFacadeShape.RunStyle) -> Bool

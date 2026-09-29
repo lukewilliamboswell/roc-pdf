@@ -26,6 +26,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from roc_diagnostics import tolerated_warnings_only  # noqa: E402
+
 
 ROOT = Path(__file__).resolve().parents[1]
 ROC = os.environ.get("ROC", "roc")
@@ -69,10 +72,15 @@ TARGETS = (
 
 def run(command: list[str], *, cwd: Path = ROOT) -> None:
     printable = " ".join(str(part) for part in command)
-    try:
-        subprocess.run(command, cwd=cwd, check=True)
-    except subprocess.CalledProcessError as error:
-        raise SystemExit(f"fuzz lane failed ({error.returncode}): {printable}")
+    result = subprocess.run(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    sys.stdout.write(result.stdout)
+    if result.returncode == 0:
+        return
+    # A downloaded package that pins an older Roc nightly in its header is the
+    # only tolerated warning (see scripts/roc_diagnostics.py).
+    if result.returncode == 2 and tolerated_warnings_only(result.stdout):
+        return
+    raise SystemExit(f"fuzz lane failed ({result.returncode}): {printable}")
 
 
 def seed_font_corpus() -> Path:

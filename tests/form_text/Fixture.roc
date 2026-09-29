@@ -309,8 +309,8 @@ form_scene_limits = KernelScene.FormLimits.make({ max_form_commands: 8, max_form
 object_limits : KernelObject.Limits
 object_limits = {
 	max_array_items: 128,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 256,
 	max_direct_depth: 8,
 	max_name_bytes: 4096,
@@ -319,8 +319,8 @@ object_limits = {
 	max_payload_bytes: 262144,
 	max_payloads: 8,
 	max_streams: 8,
-	max_text_string_bytes: 64,
-	max_text_strings: 4,
+	max_text_string_bytes: 51,
+	max_text_strings: 2,
 	max_values: 1024,
 }
 

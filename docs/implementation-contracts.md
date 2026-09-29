@@ -102,11 +102,41 @@ checks. Preflight checker self-tests are likewise an ordered manifest list.
 Python registries bind those IDs to project-owned callables and scripts without
 allowing manifest data to import or execute arbitrary code.
 
-Exact allocation baselines are measured from a cold Roc cache, in the full
-harness order that CI runs. The pinned compiler can produce different
-allocation counts for identical source when a warm local cache holds artifacts
-from other command sequences, even though bytes and work counters are
-identical. A delta observed only with a warm cache is not evidence. A case's
+Exact allocation baselines and allocated-bytes ceilings are measured from a
+cold Roc cache, in the full harness order that CI runs, with fixture
+executables built by `roc build --no-cache`. The pinned compiler produces
+different code for identical source when it reuses procedures cached by other
+programs: a program built against procedures compiled for another fixture can
+copy a list that the same program built alone updates in place, even though
+bytes and work counters are identical. Building fixtures without the cache
+makes each case's allocation evidence independent of build order and cache
+state. A reproduction of the cache dependence is recorded in
+[upstream-roc-uniqueness-issue.md](performance/upstream-roc-uniqueness-issue.md)
+(B). A case's
 static PDF/A-4 claim is declared by its `pdfa4` validator; Standard-only
 snapshots must never declare PDF/A identification, and
 `scripts/check_pdfa4.py` enforces both directions.
+
+## Scope decisions (2026-09-28)
+
+The maintainer refocused the project's goals on correctness to stop gates from
+accumulating evidence that does not affect whether generated PDFs are right.
+[architecture.md](../architecture.md), the [roadmap](../feature-roadmap.md),
+and `AGENTS.md` now state that:
+
+- Performance evidence exists to catch super-linear or exponential blow-ups
+  that would make the package unusable. Exact per-case Roc allocation counts,
+  deterministic work counters, and the pinned-compiler re-baseline protocol
+  remain mandatory and unchanged; every scalable feature carries at least one
+  small/large scale pair proving linear or `n log n` work growth.
+- There are no numeric latency, peak-memory, throughput, output-size, or
+  benchmark product targets, and no controlled timing or memory jobs. Copied
+  bytes, ARC counts, retained bytes, peak RSS, and timing are recorded only
+  where existing instrumentation reports them.
+- Human reader and assistive-technology review, expert review, and assessor
+  sign-off are optional recorded protocols that do not block Gate 6, Gate 7,
+  or later closure. Human-verifiable requirements remain recorded as author
+  obligations, and the package still never claims to certify semantic quality.
+- Machine-verifiable conformance (veraPDF profiles, PDF/UA-2 and PDF/A-4
+  ledger rules, structural checks, and atomic negative twins), determinism,
+  ownership, and no-fallback invariants are unchanged.

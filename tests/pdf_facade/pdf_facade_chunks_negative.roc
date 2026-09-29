@@ -5,7 +5,7 @@ app [main!] {
 
 import pdf.Pdf
 
-## Unsupported authored content must reject before any chunk exists; the
+## Unavailable authored content must reject before any chunk exists; the
 ## blank structural carrier is the transactional test result, not a fallback.
 main! : List(Str) => { bytes : List(U8), work : List(U64) }
 main! = |args| {
@@ -15,12 +15,12 @@ main! = |args| {
 		crash "text-layout chunked facade negative runtime guard is invalid"
 	}
 	document = Pdf.document({
-		contents: [Pdf.page_footer("Not implemented")],
+		contents: [Pdf.footnote("Not implemented")],
 		language: "en-AU",
 		title,
 	})
 	rejected = match Pdf.to_chunks(document) {
-		Err(UnsupportedAuthoringContent({ blocks })) => if blocks == 1 1 else 0
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, .. }], .. })) => 1
 		_ => 0
 	}
 	if rejected != 1 {

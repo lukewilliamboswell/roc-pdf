@@ -566,7 +566,6 @@ rejected = |ordinal, result, expected| {
 ## in exactly one way, and each returns a distinct bounded diagnostic.
 check_negatives : U64 -> Try(U64, Fixture.EvidenceError)
 check_negatives = |context| {
-
 	## `context` is always 1 here, but it arrives from the runtime argument list
 	## so the whole rejection sweep is evaluated at runtime and its bounded work
 	## and allocation cost are actually measured.

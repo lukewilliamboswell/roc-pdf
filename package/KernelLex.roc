@@ -6,18 +6,14 @@ KernelLex :: [].{
 		from_bytes = |bytes| {
 			length = bytes.len()
 			var $index = 0
-			var $error = NoError
-			while $index < length and $error == NoError {
+			while $index < length {
 				if byte_at(bytes, $index) == 0 {
-					$error = Invalid($index)
+					return Err(NullNameByte($index))
 				}
 				$index = $index + 1
 			}
 
-			match $error {
-				Invalid(index) => Err(NullNameByte(index))
-				NoError => Ok(Name.(bytes))
-			}
+			Ok(Name.(bytes))
 		}
 
 		bytes : Name -> List(U8)
@@ -170,6 +166,11 @@ append_u64 = |output, value| {
 	}
 }
 
+## The sign is bound once and each branch consumes it. A `var` output that
+## one branch reassigned while the other passed it on as its value stayed live
+## across that call, and the call copied the whole output: once per integral
+## decimal, which is every whole coordinate in a content stream
+## (docs/performance/emission-linearity.md).
 append_decimal : List(U8), I64, U8 -> List(U8)
 append_decimal = |output, coefficient, scale| {
 	if coefficient == 0 {
@@ -187,25 +188,30 @@ append_decimal = |output, coefficient, scale| {
 			$scale = $scale - 1
 		}
 
-		var $out = if coefficient < 0 output.append(45) else output
+		signed = if coefficient < 0 output.append(45) else output
 		if $scale == 0 {
-			append_u64($out, $normalized)
+			append_u64(signed, $normalized)
 		} else {
-			power = power_of_ten($scale)
-			whole = U64.div_by($normalized, power)
-			fraction = U64.mod_by($normalized, power)
-			$out = append_u64($out, whole)
-			$out = $out.append(46)
-
-			var $divisor = U64.div_by(power, 10)
-			while $divisor > 0 {
-				digit = U64.mod_by(U64.div_by(fraction, $divisor), 10)
-				$out = $out.append((48 + digit).to_u8_wrap())
-				$divisor = U64.div_by($divisor, 10)
-			}
-			$out
+			append_fraction(signed, $normalized, $scale)
 		}
 	}
+}
+
+append_fraction : List(U8), U64, U64 -> List(U8)
+append_fraction = |output, normalized, scale| {
+	power = power_of_ten(scale)
+	whole = U64.div_by(normalized, power)
+	fraction = U64.mod_by(normalized, power)
+	var $out = append_u64(output, whole)
+	$out = $out.append(46)
+
+	var $divisor = U64.div_by(power, 10)
+	while $divisor > 0 {
+		digit = U64.mod_by(U64.div_by(fraction, $divisor), 10)
+		$out = $out.append((48 + digit).to_u8_wrap())
+		$divisor = U64.div_by($divisor, 10)
+	}
+	$out
 }
 
 power_of_ten : U64 -> U64

@@ -202,6 +202,8 @@ pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
 		max_artifacts: 0,
+		max_container_depth: 16,
+		max_inline_depth: 8,
 		max_content_spine: 2,
 		max_nodes: 2,
 		max_occurrences: 1,
@@ -226,8 +228,8 @@ pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 output_object_limits : KernelObject.Limits
 output_object_limits = {
 	max_array_items: 512,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 1024,
 	max_direct_depth: 8,
 	max_name_bytes: 8192,
@@ -236,7 +238,7 @@ output_object_limits = {
 	max_payload_bytes: 200000,
 	max_payloads: 256,
 	max_streams: 256,
-	max_text_string_bytes: 256,
-	max_text_strings: 8,
+	max_text_string_bytes: 243,
+	max_text_strings: 6,
 	max_values: 2048,
 }

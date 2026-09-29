@@ -37,9 +37,9 @@ keeps_metadata_cause = |language| {
 
 keeps_feature_cause : Str -> Bool
 keeps_feature_cause = |summary| {
-	document = Pdf.document({ contents: [Pdf.simple_table(summary)], language: "en-AU", title: "Archive" })
+	document = Pdf.document({ contents: [Pdf.complex_table(summary)], language: "en-AU", title: "Archive" })
 	match Pdf.to_bytes_with(document, archive) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), .. }], .. })) => code == "table.simple"
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), .. }], .. })) => code == "table.complex"
 		_ => False
 	}
 }

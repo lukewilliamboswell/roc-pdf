@@ -1,11 +1,13 @@
 import Color
 import Font
+import KernelFacadeFurniture
 import KernelFacadeLines
 import KernelFacadePages
 import KernelFacadeShape
 import KernelLineLayout
 import KernelPageLayout
 import Layout
+import Scene
 import Semantics
 import Text
 
@@ -46,6 +48,7 @@ KernelFacadeText :: [].{
 		fragment_count : U64,
 		label_rows : U64,
 		lines : List(KernelLineLayout.Line),
+		origins : KernelFacadeShape.Origins,
 		page_placements : List(KernelPageLayout.PlacedLine),
 		pages : List(KernelPageLayout.Page),
 		rows : List(KernelFacadePages.Row),
@@ -60,9 +63,24 @@ KernelFacadeText :: [].{
 		placement_visits : U64,
 		run_writes : U64,
 	}
+
+	## The artifact kind of each artifact run. Without page templates every
+	## artifact run repaints a continued table's header rows; with them,
+	## `Kinds` holds one kind per artifact run, in `artifact_runs` order.
+	ArtifactKinds : [Kinds(List(Scene.PageArtifactKind)), RepeatedHeaders]
+
+	## `artifact_runs` names, in ascending order, the final runs that paint
+	## page artifacts and belong to no layout fragment: repainted table
+	## header rows and page furniture. `rules` are the table rules to paint
+	## as decoration. `furniture` carries the resolved page furniture whose
+	## text runs are interleaved here and whose drawings scenes paint.
 	Plan :: {
+		artifact_kinds : ArtifactKinds,
+		artifact_runs : List(U64),
+		furniture : [NoFurniture, WithFurniture(KernelFacadeFurniture.Plan)],
 		pages : List(Page),
 		placements : List(Placement),
+		rules : List(KernelFacadePages.Rule),
 		styles : List(KernelFacadeShape.RunStyle),
 		text : Text.Store,
 		work : Work,
@@ -74,7 +92,26 @@ KernelFacadeText :: [].{
 		## The production facade uses `build`, which extracts it from validated
 		## preceding plans without exposing this internal module publicly.
 		build_prepared : Prepared, Limits -> Try(Plan, Error)
-		build_prepared = |prepared, limits| build_prepared_plan(prepared, limits)
+		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], limits)
+
+		## Interleave resolved page furniture into a built plan: on every
+		## page, header furniture runs precede the page's body runs and footer
+		## furniture runs follow them. Body runs keep their clusters and
+		## glyphs; furniture clusters and glyphs are appended.
+		with_furniture : Plan, KernelFacadeFurniture.Plan, Limits -> Try(Plan, Error)
+		with_furniture = |plan, furniture, limits| interleave_furniture(plan, furniture, limits)
+
+		artifact_kinds : Plan -> ArtifactKinds
+		artifact_kinds = |plan| plan.artifact_kinds
+
+		furniture : Plan -> [NoFurniture, WithFurniture(KernelFacadeFurniture.Plan)]
+		furniture = |plan| plan.furniture
+
+		artifact_runs : Plan -> List(U64)
+		artifact_runs = |plan| plan.artifact_runs
+
+		rules : Plan -> List(KernelFacadePages.Rule)
+		rules = |plan| plan.rules
 
 		pages : Plan -> List(Page)
 		pages = |plan| plan.pages
@@ -96,7 +133,7 @@ KernelFacadeText :: [].{
 ## The request remains attached to the logical run range selected before line
 ## breaking. The current materializer rejects a range wider than one physical
 ## run explicitly; it no longer relies on a bare run ID to hide that boundary.
-PaintRequest := { line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
+PaintRequest := { artifact : Bool, line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
 
 build_plan : KernelFacadeShape.Plan, KernelFacadeLines.Plan, KernelFacadePages.Plan, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
 build_plan = |shape_plan, line_plan, page_plan, limits| {
@@ -106,18 +143,25 @@ build_plan = |shape_plan, line_plan, page_plan, limits| {
 			fragment_count: KernelPageLayout.Plan.fragments(pagination).len(),
 			label_rows: KernelFacadePages.Plan.work(page_plan).label_rows,
 			lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(line_plan)),
-			page_placements: KernelPageLayout.Plan.placements(pagination),
-			pages: KernelPageLayout.Plan.pages(pagination),
+			origins: KernelFacadeShape.Plan.origins(shape_plan),
+			page_placements: KernelFacadePages.Plan.placements(page_plan),
+			pages: KernelFacadePages.Plan.pages(page_plan),
 			rows: KernelFacadePages.Plan.rows(page_plan),
 			shape: KernelFacadeShape.Plan.shape(shape_plan).store,
 			styles: KernelFacadeShape.Plan.styles(shape_plan),
 		},
+		KernelFacadePages.Plan.artifact_rows(page_plan),
+		KernelFacadePages.Plan.rules(page_plan),
 		limits,
 	)
 }
 
-build_prepared_plan : KernelFacadeText.Prepared, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
-build_prepared_plan = |prepared, limits| {
+## `artifact_rows` names the rows (ascending) that repaint header rows as
+## page artifacts. Their runs duplicate shaped clusters already painted by
+## the header's own occurrence, so the once-each coverage proof counts only
+## the other runs, and the artifact runs are reported for scene ownership.
+build_prepared_plan : KernelFacadeText.Prepared, List(U64), List(KernelFacadePages.Rule), KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+build_prepared_plan = |prepared, artifact_rows, rules, limits| {
 	shape = prepared.shape
 	styles = prepared.styles
 	lines = prepared.lines
@@ -141,6 +185,7 @@ build_prepared_plan = |prepared, limits| {
 	check_limit(run_count, limits.max_placements, Placements)?
 	check_limit(run_count, limits.max_runs, Runs)?
 	var $requests = List.with_capacity(run_count)
+	var $artifact_cursor = 0
 	var $placement_cursor = 0
 	var $page_index = 0
 	while $page_index < pages.len() {
@@ -158,7 +203,11 @@ build_prepared_plan = |prepared, limits| {
 			match row.label {
 				NoLabel => {}
 				Label(label) => {
-					$requests = $requests.append({ line: label.line, origin: placement.baseline, page: page.id, source_runs: label.runs })
+					if label.offset.raw() < 0 {
+						return Err(InvalidPlacement({ placement: $placement_cursor }))
+					}
+					label_x = checked_i64_add(placement.baseline.x.raw(), label.offset.raw())?
+					$requests = $requests.append({ artifact: False, line: label.line, origin: { x: Layout.Unit.from_raw(label_x), y: placement.baseline.y }, page: page.id, source_runs: label.runs })
 				}
 			}
 			if row.body_offset.raw() < 0 {
@@ -166,7 +215,11 @@ build_prepared_plan = |prepared, limits| {
 			}
 			body_x = checked_i64_add(placement.baseline.x.raw(), row.body_offset.raw())?
 			body_origin = { x: Layout.Unit.from_raw(body_x), y: placement.baseline.y }
-			$requests = $requests.append({ line: row.body_line, origin: body_origin, page: page.id, source_runs: row.body_runs })
+			artifact = $artifact_cursor < artifact_rows.len() and list_at(artifact_rows, $artifact_cursor) == $placement_cursor
+			if artifact {
+				$artifact_cursor = $artifact_cursor + 1
+			}
+			$requests = $requests.append({ artifact, line: row.body_line, origin: body_origin, page: page.id, source_runs: row.body_runs })
 			$placement_cursor = $placement_cursor + 1
 		}
 		$page_index = $page_index + 1
@@ -186,9 +239,17 @@ build_prepared_plan = |prepared, limits| {
 	var $page_records = List.with_capacity(pages.len())
 	var $page_cursor = 0
 	var $page_run_start = 0
+	var $artifact_runs = []
+	var $artifact_clusters = 0
+	var $artifact_glyphs = 0
+	var $artifact_references = 0
 	var $request_index = 0
 	while $request_index < $requests.len() {
 		request = list_at($requests, $request_index)
+		runs_before = $runs.len()
+		clusters_before = $clusters.len()
+		glyphs_before = $glyphs.len()
+		references_before = $glyph_indices.len()
 		while $page_cursor < request.page.index() {
 			$page_records = $page_records.append({
 				id: Semantics.PageId.from_index($page_cursor),
@@ -210,6 +271,7 @@ build_prepared_plan = |prepared, limits| {
 				shape,
 				styles,
 				lines,
+				prepared.origins,
 				request,
 				limits,
 			)?
@@ -219,6 +281,16 @@ build_prepared_plan = |prepared, limits| {
 			$placements = split.placements
 			$runs = split.runs
 			$final_styles = split.styles
+			if request.artifact {
+				var $artifact_run = runs_before
+				while $artifact_run < $runs.len() {
+					$artifact_runs = $artifact_runs.append($artifact_run)
+					$artifact_run = $artifact_run + 1
+				}
+				$artifact_clusters = $artifact_clusters + ($clusters.len() - clusters_before)
+				$artifact_glyphs = $artifact_glyphs + ($glyphs.len() - glyphs_before)
+				$artifact_references = $artifact_references + ($glyph_indices.len() - references_before)
+			}
 			$request_index = $request_index + 1
 		} else {
 			source_run_index = single_run_index(request.source_runs)?
@@ -288,6 +360,12 @@ build_prepared_plan = |prepared, limits| {
 			})
 			$placements = $placements.append({ origin: request.origin, page: request.page, run: new_run_id })
 			$final_styles = $final_styles.append(list_at(styles, source_run_index))
+			if request.artifact {
+				$artifact_runs = $artifact_runs.append(runs_before)
+				$artifact_clusters = $artifact_clusters + ($clusters.len() - clusters_before)
+				$artifact_glyphs = $artifact_glyphs + ($glyphs.len() - glyphs_before)
+				$artifact_references = $artifact_references + ($glyph_indices.len() - references_before)
+			}
 			$request_index = $request_index + 1
 		}
 	}
@@ -299,7 +377,7 @@ build_prepared_plan = |prepared, limits| {
 		$page_cursor = $page_cursor + 1
 		$page_run_start = $runs.len()
 	}
-	if $clusters.len() != shape.clusters.len() or $glyph_indices.len() != shape.glyph_indices.len() or $glyphs.len() != shape.glyphs.len() {
+	if $artifact_cursor != artifact_rows.len() or $clusters.len() - $artifact_clusters != shape.clusters.len() or $glyph_indices.len() - $artifact_references != shape.glyph_indices.len() or $glyphs.len() - $artifact_glyphs != shape.glyphs.len() {
 		return Err(InvalidRun({ run: $runs.len() }))
 	}
 	text = {
@@ -312,8 +390,12 @@ build_prepared_plan = |prepared, limits| {
 	}
 	Ok(
 		KernelFacadeText.Plan.{
+			artifact_kinds: RepeatedHeaders,
+			artifact_runs: $artifact_runs,
+			furniture: NoFurniture,
 			pages: $page_records,
 			placements: $placements,
+			rules,
 			styles: $final_styles,
 			text,
 			work: {
@@ -342,8 +424,13 @@ PaintAccumulator : {
 ## Materialize one line of a logical run that spans several physical face
 ## runs: one final run and placement per overlapped physical segment, with
 ## origins advanced by the accumulated widths of the preceding segments.
-paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), PaintRequest, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
-paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
+##
+## Shaped and line ranges are source coordinates; every final run and
+## cluster is rebased to its occurrence (a rich paragraph's occurrences begin
+## inside their shared source), the text store's occurrence-relative
+## contract.
+paint_split_logical : PaintAccumulator, Text.Store, List(KernelFacadeShape.RunStyle), List(KernelLineLayout.Line), KernelFacadeShape.Origins, PaintRequest, KernelFacadeText.Limits -> Try(PaintAccumulator, KernelFacadeText.Error)
+paint_split_logical = |accumulator, shape, styles, lines, origins, request, limits| {
 	var $clusters = accumulator.clusters
 	var $glyph_indices = accumulator.glyph_indices
 	var $glyphs = accumulator.glyphs
@@ -391,6 +478,7 @@ paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
 		segment_start = if line.clusters.start() > run.clusters.start() line.clusters.start() else run.clusters.start()
 		segment_end = if line_cluster_end < run_cluster_end line_cluster_end else run_cluster_end
 		if segment_end > segment_start {
+			origin = origin_of(origins, $physical)
 			cluster_start_new = $clusters.len()
 			glyph_start_new = $glyphs.len()
 			segment_first = list_at(shape.clusters, segment_start)
@@ -428,6 +516,7 @@ paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
 				$clusters = $clusters.append({
 					..cluster,
 					glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
+					source: rebase(cluster.source, origin, $physical)?,
 				})
 				$cluster_index = $cluster_index + 1
 			}
@@ -440,10 +529,14 @@ paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
 				clusters: Semantics.Range.from_start_and_length(cluster_start_new, $clusters.len() - cluster_start_new),
 				glyphs: Semantics.Range.from_start_and_length(glyph_start_new, $glyphs.len() - glyph_start_new),
 				id: new_run_id,
-				source: {
-					scalars: Semantics.Range.from_start_and_length(segment_scalar_start, $source_scalar - segment_scalar_start),
-					utf8_bytes: Semantics.Range.from_start_and_length(segment_byte_start, $source_byte - segment_byte_start),
-				},
+				source: rebase(
+					{
+						scalars: Semantics.Range.from_start_and_length(segment_scalar_start, $source_scalar - segment_scalar_start),
+						utf8_bytes: Semantics.Range.from_start_and_length(segment_byte_start, $source_byte - segment_byte_start),
+					},
+					origin,
+					$physical,
+				)?,
 				substitutions: Semantics.Range.from_start_and_length(0, 0),
 				transformations: Semantics.Range.from_start_and_length(0, 0),
 			})
@@ -463,6 +556,138 @@ paint_split_logical = |accumulator, shape, styles, lines, request, limits| {
 		placements: $placements,
 		runs: $runs,
 		styles: $final_styles,
+	})
+}
+
+interleave_furniture : KernelFacadeText.Plan, KernelFacadeFurniture.Plan, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+interleave_furniture = |plan, furniture, limits| {
+	body = plan.text
+	pieces = KernelFacadeFurniture.Plan.pieces(furniture)
+	source = KernelFacadeFurniture.Plan.store(furniture)
+	style = KernelFacadeFurniture.Plan.style(furniture)
+	furniture_style = { color: style.color, leading: style.leading }
+	run_count = checked_add(body.runs.len(), pieces.len())?
+	check_limit(run_count, limits.max_runs, Runs)?
+	check_limit(run_count, limits.max_placements, Placements)?
+	var $runs = List.with_capacity(run_count)
+	var $placements = List.with_capacity(run_count)
+	var $styles = List.with_capacity(run_count)
+	var $pages = List.with_capacity(plan.pages.len())
+	var $artifact_runs = List.with_capacity(checked_add(plan.artifact_runs.len(), pieces.len())?)
+	var $artifact_kinds = List.with_capacity(checked_add(plan.artifact_runs.len(), pieces.len())?)
+	var $clusters = body.clusters
+	var $glyph_indices = body.glyph_indices
+	var $glyphs = body.glyphs
+	var $artifact_cursor = 0
+	var $piece_cursor = 0
+	for page in plan.pages {
+		page_index = page.id.index()
+		page_start = $runs.len()
+		piece_start = $piece_cursor
+		while $piece_cursor < pieces.len() and list_at(pieces, $piece_cursor).page == page_index {
+			$piece_cursor = $piece_cursor + 1
+		}
+		piece_end = $piece_cursor
+
+		## Header furniture, the page's body runs, then footer furniture.
+		var $band = 0
+		while $band < 3 {
+			if $band == 1 {
+				var $body_run = page.runs.start()
+				while $body_run < page.runs.start() + page.runs.length() {
+					run = list_at(body.runs, $body_run)
+					new_id = Text.RunId.from_index($runs.len())
+					if $artifact_cursor < plan.artifact_runs.len() and list_at(plan.artifact_runs, $artifact_cursor) == $body_run {
+						$artifact_runs = $artifact_runs.append($runs.len())
+						$artifact_kinds = $artifact_kinds.append(RepeatedHeader)
+						$artifact_cursor = $artifact_cursor + 1
+					}
+					$runs = $runs.append({ ..run, id: new_id })
+					$placements = $placements.append({ ..list_at(plan.placements, $body_run), run: new_id })
+					$styles = $styles.append(list_at(plan.styles, $body_run))
+					$body_run = $body_run + 1
+				}
+			} else {
+				band = if $band == 0 Above else Below
+				var $index = piece_start
+				while $index < piece_end {
+					piece = list_at(pieces, $index)
+					if piece.band == band {
+						shaped = list_at(source.runs, piece.run)
+						cluster_start = $clusters.len()
+						glyph_start = $glyphs.len()
+						var $cluster = piece.clusters.start()
+						while $cluster < piece.clusters.start() + piece.clusters.length() {
+							record = list_at(source.clusters, $cluster)
+							reference_start = $glyph_indices.len()
+							var $reference = record.glyphs.start()
+							while $reference < record.glyphs.start() + record.glyphs.length() {
+								$glyph_indices = $glyph_indices.append($glyphs.len())
+								$glyphs = $glyphs.append(list_at(source.glyphs, list_at(source.glyph_indices, $reference)))
+								$reference = $reference + 1
+							}
+							$clusters = $clusters.append({ ..record, glyphs: Semantics.Range.from_start_and_length(reference_start, $glyph_indices.len() - reference_start) })
+							$cluster = $cluster + 1
+						}
+						check_limit($clusters.len(), limits.max_clusters, Clusters)?
+						check_limit($glyphs.len(), limits.max_glyphs, Glyphs)?
+						check_limit($glyph_indices.len(), limits.max_glyph_indices, GlyphIndices)?
+						new_id = Text.RunId.from_index($runs.len())
+						$artifact_runs = $artifact_runs.append($runs.len())
+						$artifact_kinds = $artifact_kinds.append(piece.kind)
+						$runs = $runs.append({
+							..shaped,
+							clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
+							glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
+							id: new_id,
+							source: piece.source,
+							substitutions: Semantics.Range.from_start_and_length(0, 0),
+							transformations: Semantics.Range.from_start_and_length(0, 0),
+						})
+						$placements = $placements.append({ origin: piece.origin, page: page.id, run: new_id })
+						$styles = $styles.append(furniture_style)
+					}
+					$index = $index + 1
+				}
+			}
+			$band = $band + 1
+		}
+		$pages = $pages.append({ id: page.id, runs: Semantics.Range.from_start_and_length(page_start, $runs.len() - page_start) })
+	}
+	if $piece_cursor != pieces.len() or $artifact_cursor != plan.artifact_runs.len() or $runs.len() != run_count {
+		return Err(InvalidRun({ run: $runs.len() }))
+	}
+	text = { ..body, clusters: $clusters, glyph_indices: $glyph_indices, glyphs: $glyphs, runs: $runs }
+	Ok(
+		KernelFacadeText.Plan.{
+			artifact_kinds: Kinds($artifact_kinds),
+			artifact_runs: $artifact_runs,
+			furniture: WithFurniture(furniture),
+			pages: $pages,
+			placements: $placements,
+			rules: plan.rules,
+			styles: $styles,
+			text,
+			work: { ..plan.work, cluster_visits: text.clusters.len(), glyph_index_visits: text.glyph_indices.len(), glyph_writes: text.glyphs.len(), run_writes: text.runs.len() },
+		},
+	)
+}
+
+origin_of : KernelFacadeShape.Origins, U64 -> KernelFacadeShape.Origin
+origin_of = |origins, physical| match origins {
+	WholeSources => { byte: 0, scalar: 0 }
+	Origins(values) => list_at(values, physical)
+}
+
+## A source-coordinate range expressed relative to its occurrence origin.
+rebase : Semantics.TextRange, KernelFacadeShape.Origin, U64 -> Try(Semantics.TextRange, KernelFacadeText.Error)
+rebase = |range, origin, run| {
+	if range.scalars.start() < origin.scalar or range.utf8_bytes.start() < origin.byte {
+		return Err(InvalidRun({ run: run }))
+	}
+	Ok({
+		scalars: Semantics.Range.from_start_and_length(range.scalars.start() - origin.scalar, range.scalars.length()),
+		utf8_bytes: Semantics.Range.from_start_and_length(range.utf8_bytes.start() - origin.byte, range.utf8_bytes.length()),
 	})
 }
 
@@ -546,12 +771,12 @@ test_text = {
 			id: Text.RunId.from_index(0),
 			instance: Font.InstanceId.from_index(0),
 			language: Language("en"),
-			occurrence: Semantics.OccurrenceId.from_index(0),
 			script: Font.Script.from_iso15924("Latn"),
 			size: Layout.Unit.from_raw(1000),
 			source: { scalars: Semantics.Range.from_start_and_length(0, 2), utf8_bytes: Semantics.Range.from_start_and_length(0, 2) },
 			substitutions: Semantics.Range.from_start_and_length(0, 0),
 			transformations: Semantics.Range.from_start_and_length(0, 0),
+			unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 			writing_mode: Horizontal,
 		},
 	],
@@ -584,6 +809,7 @@ test_prepared = |shape| {
 	fragment_count: 1,
 	label_rows: 1,
 	lines: test_lines,
+	origins: WholeSources,
 	page_placements: [{ baseline: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(20) }, fragment: Semantics.FragmentId.from_index(0), line: 0 }],
 	pages: [{ fragments: Semantics.Range.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.Range.from_start_and_length(0, 1) }],
 	rows: [
@@ -591,7 +817,7 @@ test_prepared = |shape| {
 			body_line: 1,
 			body_offset: Layout.Unit.from_raw(5),
 			body_runs: { physical: Semantics.Range.from_start_and_length(0, 1) },
-			label: Label({ line: 0, runs: { physical: Semantics.Range.from_start_and_length(0, 1) } }),
+			label: Label({ line: 0, offset: Layout.Unit.from_raw(0), runs: { physical: Semantics.Range.from_start_and_length(0, 1) } }),
 		},
 	],
 	shape,

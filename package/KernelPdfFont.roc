@@ -313,10 +313,12 @@ add_cid_font = |builder, names, base_font, cid_to_gid, descriptor, font, plan| {
 
 add_cid_system_info : KernelObject.Builder, Names -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPdfFont.Error)
 add_cid_system_info = |builder, names| {
-	ordering_text = KernelObject.add_text_string(builder, "Identity") ? Object
-	ordering = KernelObject.add_text_string_value(ordering_text.builder, ordering_text.id) ? Object
-	registry_text = KernelObject.add_text_string(ordering.builder, "Adobe") ? Object
-	registry = KernelObject.add_text_string_value(registry_text.builder, registry_text.id) ? Object
+	# ISO 32000-2 Table 114 types Registry and Ordering as ASCII strings, so
+	# they are opaque byte strings rather than UTF-16BE text strings.
+	ordering_bytes = KernelObject.add_byte_string(builder, Str.to_utf8("Identity")) ? Object
+	ordering = KernelObject.add_byte_string_value(ordering_bytes.builder, ordering_bytes.id) ? Object
+	registry_bytes = KernelObject.add_byte_string(ordering.builder, Str.to_utf8("Adobe")) ? Object
+	registry = KernelObject.add_byte_string_value(registry_bytes.builder, registry_bytes.id) ? Object
 	supplement = KernelObject.add_integer(registry.builder, 0) ? Object
 	dictionary = KernelObject.add_dictionary(
 		supplement.builder,
@@ -334,17 +336,16 @@ add_widths = |builder, font, plan| {
 	var $builder = builder
 	var $width_values = List.with_capacity(plan.entries.len())
 	var $index = 0
-	var $error = NoError
-	while $index < plan.entries.len() and $error == NoError {
+	while $index < plan.entries.len() {
 		entry = list_at(plan.entries, $index)
 		scaled = scale_unsigned(entry.width, font.metrics.units_per_em)
 		match scaled {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(value) => match KernelObject.add_integer($builder, value.to_i64_wrap()) {
 				Err(error) => {
-					$error = Invalid(Object(error))
+					return Err(Object(error))
 				}
 				Ok(added) => {
 					$builder = added.builder
@@ -354,15 +355,10 @@ add_widths = |builder, font, plan| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => {
-			width_array = KernelObject.add_array($builder, $width_values) ? Object
-			first_cid = KernelObject.add_integer(width_array.builder, 0) ? Object
-			outer = KernelObject.add_array(first_cid.builder, [first_cid.id, width_array.id]) ? Object
-			Ok(outer)
-		}
-	}
+	width_array = KernelObject.add_array($builder, $width_values) ? Object
+	first_cid = KernelObject.add_integer(width_array.builder, 0) ? Object
+	outer = KernelObject.add_array(first_cid.builder, [first_cid.id, width_array.id]) ? Object
+	Ok(outer)
 }
 
 add_type0 : KernelObject.Builder, Names, KernelObject.NameId, KernelObject.ObjectId, KernelObject.ObjectId -> Try({ builder : KernelObject.Builder, id : KernelObject.ObjectId }, KernelPdfFont.Error)

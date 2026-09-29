@@ -228,38 +228,32 @@ collect_shading_colors : Scene.ShadingStore, KernelColor.Plan, List(U64) -> Try(
 collect_shading_colors = |store, colors, initial_counts| {
 	var $counts = initial_counts
 	var $shading_index = 0
-	var $error = NoError
-	while $shading_index < store.shadings.len() and $error == NoError {
+	while $shading_index < store.shadings.len() {
 		shading = list_at(store.shadings, $shading_index)
 		expected = KernelColor.Plan.components(colors, shading.space)
 		var $stop_index = shading.stops.start()
 		stop_end = shading.stops.start() + shading.stops.length()
-		while $stop_index < stop_end and $error == NoError {
+		while $stop_index < stop_end {
 			actual = match list_at(store.stops, $stop_index).channels {
 				Gray(_) => One
 				Rgb(_) => Three
 			}
 			if actual != expected {
-				$error = Invalid(ShadingStopComponentMismatch({ actual, expected, shading: $shading_index, stop: $stop_index }))
+				return Err(ShadingStopComponentMismatch({ actual, expected, shading: $shading_index, stop: $stop_index }))
 			}
 			$stop_index = $stop_index + 1
 		}
-		if $error == NoError {
-			match increment($counts, shading.space.index()) {
-				Err(error) => {
-					$error = Invalid(error)
-				}
-				Ok(counts) => {
-					$counts = counts
-				}
+		match increment($counts, shading.space.index()) {
+			Err(error) => {
+				return Err(error)
+			}
+			Ok(counts) => {
+				$counts = counts
 			}
 		}
 		$shading_index = $shading_index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ color_counts: $counts, shading_colors: store.shadings.len() })
-	}
+	Ok({ color_counts: $counts, shading_colors: store.shadings.len() })
 }
 
 collect_command_use : List(Scene.Command), KernelColor.Plan, U64, U64 -> Try(CommandUse, KernelResourceUse.Error)
@@ -272,8 +266,10 @@ collect_command_use = |commands, colors, color_count, image_count| {
 
 	## Every per-resource count and the placement total are bounded by the
 	## in-memory command length, so one preflight keeps the hot loop infallible.
-	var $error = if commands.len() == U64.highest Invalid(ArithmeticOverflow) else NoError
-	while $index < commands.len() and $error == NoError {
+	if commands.len() == U64.highest {
+		return Err(ArithmeticOverflow)
+	}
+	while $index < commands.len() {
 		match list_at(commands, $index) {
 			DrawImage({ image, placement: _ }) => {
 				image_index = image.index()
@@ -288,15 +284,12 @@ collect_command_use = |commands, colors, color_count, image_count| {
 			}
 			DrawPath({ path: _, style }) => match collect_style(style, $index, colors, $color_counts) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(collected) => {
 					$color_counts = collected.counts
 					$path_colors = match checked_add($path_colors, collected.references) {
-						Err(error) => {
-							$error = Invalid(error)
-							$path_colors
-						}
+						Err(error) => return Err(error)
 						Ok(value) => value
 					}
 				}
@@ -305,10 +298,7 @@ collect_command_use = |commands, colors, color_count, image_count| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ color_counts: $color_counts, image_counts: $image_counts, image_placements: $image_placements, path_colors: $path_colors })
-	}
+	Ok({ color_counts: $color_counts, image_counts: $image_counts, image_placements: $image_placements, path_colors: $path_colors })
 }
 
 collect_text_command_use : List(Scene.Command), KernelColor.Plan, List(U64), List(U64) -> Try(TextCommandUse, KernelResourceUse.Error)
@@ -319,8 +309,10 @@ collect_text_command_use = |commands, colors, initial_color_counts, initial_imag
 	var $text_colors = 0
 	var $image_placements = 0
 	var $index = 0
-	var $error = if commands.len() == U64.highest Invalid(ArithmeticOverflow) else NoError
-	while $index < commands.len() and $error == NoError {
+	if commands.len() == U64.highest {
+		return Err(ArithmeticOverflow)
+	}
+	while $index < commands.len() {
 		match list_at(commands, $index) {
 			DrawImage({ image, placement: _ }) => {
 				image_index = image.index()
@@ -335,15 +327,12 @@ collect_text_command_use = |commands, colors, initial_color_counts, initial_imag
 			}
 			DrawPath({ path: _, style }) => match collect_style(style, $index, colors, $color_counts) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(collected) => {
 					$color_counts = collected.counts
 					$path_colors = match checked_add($path_colors, collected.references) {
-						Err(error) => {
-							$error = Invalid(error)
-							$path_colors
-						}
+						Err(error) => return Err(error)
 						Ok(value) => value
 					}
 				}
@@ -351,15 +340,12 @@ collect_text_command_use = |commands, colors, initial_color_counts, initial_imag
 			DrawText({ paint, run: _ }) => {
 				match collect_text_paint(paint, $index, colors, $color_counts) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(error)
 					}
 					Ok(collected) => {
 						$color_counts = collected.counts
 						$text_colors = match checked_add($text_colors, collected.references) {
-							Err(error) => {
-								$error = Invalid(error)
-								$text_colors
-							}
+							Err(error) => return Err(error)
 							Ok(value) => value
 						}
 					}
@@ -369,10 +355,7 @@ collect_text_command_use = |commands, colors, initial_color_counts, initial_imag
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ color_counts: $color_counts, image_counts: $image_counts, image_placements: $image_placements, path_colors: $path_colors, text_colors: $text_colors })
-	}
+	Ok({ color_counts: $color_counts, image_counts: $image_counts, image_placements: $image_placements, path_colors: $path_colors, text_colors: $text_colors })
 }
 
 collect_text_paint : Scene.TextPaint, U64, KernelColor.Plan, List(U64) -> Try({ counts : List(U64), references : U64 }, KernelResourceUse.Error)
@@ -424,8 +407,7 @@ collect_image_colors : Image.Store, List(U64) -> Try({ color_counts : List(U64),
 collect_image_colors = |store, initial_counts| {
 	var $counts = initial_counts
 	var $index = 0
-	var $error = NoError
-	while $index < store.resources.len() and $error == NoError {
+	while $index < store.resources.len() {
 		resource = list_at(store.resources, $index)
 		space = match resource.payload {
 			Jpeg(jpeg) => jpeg.color_space
@@ -433,7 +415,7 @@ collect_image_colors = |store, initial_counts| {
 		}
 		match increment($counts, space.index()) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(counts) => {
 				$counts = counts
@@ -441,10 +423,7 @@ collect_image_colors = |store, initial_counts| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ color_counts: $counts, image_colors: store.resources.len() })
-	}
+	Ok({ color_counts: $counts, image_colors: store.resources.len() })
 }
 
 ensure_used : List(U64), KernelResourceUse.IndexKind -> Try({}, KernelResourceUse.Error)

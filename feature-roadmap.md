@@ -10,6 +10,14 @@ completion criteria and dependency order; they do not prescribe task ownership
 or a calendar. Gate 7 is the first production-release destination for the
 bounded document set below. Gates 8 and 9 are independently justified expansions.
 
+The primary objective is a correct PDF library: valid, deterministic output
+that satisfies every claim it makes and fails transactionally rather than
+degrading. Performance evidence exists only to keep the package usable by
+catching super-linear or exponential blow-ups; it does not set product speed,
+memory, or throughput targets. Machine-verifiable conformance evidence is
+mandatory. Human reader and assistive-technology review is welcome and recorded
+where performed, but it is optional and never blocks gate closure.
+
 Once a capability has executable behavior, it is complete only when it:
 
 - Has a typed public representation.
@@ -20,8 +28,8 @@ Once a capability has executable behavior, it is complete only when it:
 - Is inspected structurally rather than only rendered.
 - Passes every applicable independent oracle and conformance profile.
 - Has documented author obligations where quality cannot be machine verified.
-- Meets its declared algorithmic-complexity, allocation, ARC, and retained-
-  memory contracts under the pinned dev backend.
+- Meets its declared algorithmic-complexity, exact-allocation, deterministic-
+  work, and retention contracts under the pinned dev backend.
 
 Gate 0 is different: it defines contracts and test machinery but does not claim
 that later PDF behavior exists. For a define-only capability, the applicable
@@ -31,14 +39,18 @@ traceability to pinned standards, and declared complexity/ownership/performance
 contracts. Compile checks, schema consistency checks, and harness self-tests may
 exercise those definitions. Runtime validation and diagnostics, deterministic
 serialization, positive and negative feature behavior, structural inspection,
-external conformance oracles, and measured optimized performance become
-mandatory only in the gate that implements the behavior. Gate 0 prototypes are
-not accepted as substitutes for that later evidence.
+external conformance oracles, and exact allocation and work-counter evidence
+become mandatory only in the gate that implements the behavior. Gate 0
+prototypes are not accepted as substitutes for that later evidence.
 
 No gate permits fallback output, profile downgrade, font substitution, feature
 removal, outlining, or rasterization after an error.
 
 ## First production release: complete business documents
+
+The first release is judged by correctness: complete business documents that
+author through public APIs, lay out predictably, report actionable diagnostics,
+and pass every applicable machine conformance check.
 
 Before fixing the remaining business-authoring representations, record three
 versioned reference documents and their ordinary/adverse content variants.
@@ -52,8 +64,10 @@ private fixture constructors cannot satisfy product acceptance.
 | Business letter | Letterhead and address blocks; paragraphs; controlled spacing and explicit breaks; first-page and continuation-page templates; metadata title without a required visible heading | Long recipient details; multiple pages; template content leaving insufficient body space; omission of visible title while retaining the combined profile |
 
 Each reference declares its exact supported text and layout policies, expected
-appearance and reading order, reader/assistive-technology tasks, author
-obligations, and performance workload. Adverse variants define either an
+appearance and reading order, author obligations, optional reader/assistive-
+technology review tasks, and a scale case for its growth evidence. Reference
+documents and adverse variants are correctness scenarios; workloads exist only
+as scale cases. Adverse variants define either an
 acceptable layout under an explicitly selected policy or a specific structured
 error with no bytes. A valid-looking reference with short placeholder content
 alone is insufficient.
@@ -65,29 +79,33 @@ pages, or advanced writing modes. A separately authored bounded chart or
 callout exercises the custom-block seam before that subset becomes stable.
 General custom pagination remains Gate 8.
 
-Gate 7 closes combined-profile, public-use, human-review, and performance
-evidence for these references. It is not complete merely because the private
+Gate 7 closes combined-profile, public-use, and scale-growth evidence for these
+references; human review of them is recorded where performed but is optional.
+It is not complete merely because the private
 compiler can produce conforming examples. Every additional accepted feature
 must also have its own applicable-requirement closure; the three references
 are not a substitute for the full conformance ledger.
 
-### Product performance targets
+### Performance intent
 
-The release workload record includes a small invoice, a representative report,
-and a large statement/invoice batch. Each names page and content dimensions,
-resource sizes and reuse, text coverage, output mode, unique/shared input
-policy, compiler/target configuration, and representative deployment hardware.
-Measure preparation latency, total generation time, peak memory, output size,
-and repeated-generation throughput, with repetitions and acceptance statistics
-specified. Cold resource validation and explicitly reused validated resources
-are distinct workloads rather than an undocumented cache advantage.
+Every focused case keeps its exact Roc allocation count and deterministic work
+counters under the pinned build, as described in the performance review below;
+these remain mandatory. Every case also records the bytes its Roc allocations
+request (`allocated_bytes`, the sum of every `roc_alloc` size and every
+`roc_realloc` new size), and a run fails when a case exceeds its recorded value
+by more than 10%. The ceiling catches a list copied on every append, which
+grows allocated bytes quadratically while the allocation count (one event per
+copy) still looks linear. Decreases pass; a reviewed rebaseline lowers the
+recorded value. Every scalable feature additionally carries at least one
+small/large scale pair whose work counters prove linear or `n log n` growth,
+for example a small invoice against a large statement/invoice batch. The goal
+of this evidence is to catch super-linear or exponential blow-ups that would
+make the package unusable, together with unreviewed representation changes.
 
-Set numeric acceptance thresholds from deployment needs and controlled
-baselines before the affected business slices are closed. Missing targets or
-unexplained failures block production readiness. Threshold changes require a
-recorded product/performance decision; they are not mechanically fitted to a
-regression. These controlled benchmarks supplement the mandatory exact Roc
-allocation counts and deterministic work bounds, which remain unchanged.
+There are no numeric latency, peak-memory, throughput, output-size, or
+benchmark product targets, and no controlled timing or memory jobs are
+required. Timing or memory figures that existing instrumentation happens to
+report are diagnostic context, not acceptance thresholds.
 
 ## Capability readiness and historical closure
 
@@ -103,7 +121,7 @@ path; a private compiler primitive may instead justify having no direct facade.
 | Facade | Useful end-to-end public authoring, layout, and diagnostics for the declared subset |
 | Advanced integration | A supported public boundary exercised by a separately authored consumer, where applicable |
 | Conformance | Every requested claim and combination closed for that subset |
-| Reader and AT behavior | Declared observable tasks on pinned readers and assistive technology, with human review where applicable |
+| Reader and AT behavior | Optional: declared observable tasks on pinned readers and assistive technology, recorded where performed; an unperformed review is recorded as such and does not block closure |
 
 The existing Gate 2, 3, and 4 closure records remain historical evidence for
 their stated subsets. This roadmap revision does not reopen those records,
@@ -117,14 +135,34 @@ slice records the readiness dimensions above.
 
 ## Work following the Gate 4 milestone
 
-1. Record the reference documents, text-support matrix, layout policies, product
-   benchmark targets, and early reader/AT observations before fixing remaining
-   business-authoring representations. This is release planning and exploratory
-   evidence, not a new conformance claim.
+1. Record the reference documents, text-support matrix, and layout policies
+   before fixing remaining business-authoring representations. Early reader/AT
+   observations are optional. This is release planning and exploratory
+   evidence, not a new conformance claim. The reference documents, text-support
+   matrix, and layout policies are recorded in
+   [docs/reference-documents.md](docs/reference-documents.md)
+   (now `reference-documents-v3`).
 2. Continue Gate 6 business-authoring/semantic slices from the shared Gate 4
    foundation; Gate 5 archival closure is recorded below. Deliver each public
    feature through authoring, layout, diagnostics, and applicable evidence, and
    declare its static PDF/A-4 eligibility as it joins the `Archive` whitelist.
+   The semantic-foundation slice
+   ([docs/performance/semantic-foundation.md](docs/performance/semantic-foundation.md))
+   makes `Pdf.part`, `Pdf.section`, and `Pdf.division` executable over a dense
+   nested authoring tree, widens the kernel vocabulary with an ISO/TS 32005
+   Table 5 containment checker, lowers node languages, element identifiers
+   with the IDTree, typed Table and List attributes, and node text properties,
+   and declares `/DisplayDocTitle` for every tagged facade document. It closes
+   no Gate 6 capability as a whole and makes no PDF/UA-2 claim.
+   The rich-inline slice
+   ([docs/performance/rich-inline.md](docs/performance/rich-inline.md))
+   makes `Pdf.rich_paragraph` and its inline constructors executable:
+   `Em`, `Strong`, `Code`, `Quote`, `Link`, language `Span`s with `/Lang`, and
+   expansion `Span`s with `/E`, shaped and broken as one paragraph text with
+   theme-colored runs, inline link annotations that wrap across lines, and
+   located `semantics.*` and `text.*` diagnostics. Explicit line breaks and a
+   distinct face per inline role remain open; it closes no Gate 6 capability
+   as a whole and makes no PDF/UA-2 claim.
 3. Close Gate 7 only when both branches and the business-document release
    evidence are complete. New claims and defaults follow their original
    explicit gate requirements.
@@ -190,8 +228,9 @@ each slice records:
 - Whether each traversal is a direct dense-buffer loop or a coarse `Iter`
   boundary. An `Iter` hot-path choice requires optimized evidence that its
   allocation, ARC, and dispatch behavior is equivalent or better.
-- The expected allocation shape, copied-byte behavior, ARC behavior where
-  instrumented, peak live data, cache growth, and error-path diagnostic bound.
+- The expected allocation shape, cache growth, and error-path diagnostic
+  bound, plus copied-byte, ARC, and peak-live-data behavior where existing
+  instrumentation reports them.
 - For output-facing work, whether bytes are generated into owned buffers,
   copied into the final contiguous result, or shared as seamless slices of
   individually allocated final-form resources. Retained-slice behavior is part
@@ -199,7 +238,9 @@ each slice records:
 
 Completion evidence uses focused, versioned scenarios and at least enough
 scaled inputs to distinguish fixed cost, per-document, per-page, per-resource,
-and per-item work. Relevant slices add unique one-shot and deliberately shared
+and per-item work. Every scalable feature includes at least one small/large
+scale pair whose work counters prove linear or `n log n` growth. Relevant
+slices add unique one-shot and deliberately shared
 input cases, immediate-consumption and retained-output cases, adversarial
 ordering, cache hit/miss cases, and both success and bounded-error paths.
 
@@ -209,19 +250,20 @@ authoring construction; a phase-specific case resets it at an explicitly named
 phase boundary. Python excludes its own work and external validators from that
 count. The checked-in performance record identifies the Roc compiler revision,
 target, optimization mode, scenario revision, measurement boundary, input
-dimensions, exact allocation count, and deterministic work counters. Allocated
-bytes, bytes copied, ARC increments/decrements, retained/live bytes, and peak
-RSS are also recorded where instrumentation supports them.
+dimensions, exact allocation count, allocated-bytes ceiling, and deterministic
+work counters. Bytes copied, ARC increments/decrements, retained/live bytes,
+peak RSS, and timing are recorded only where existing instrumentation reports
+them; a slice does not need to build new timing or memory instrumentation.
 
-Exact allocation equality is enforced only for the pinned compiler, target,
-and dev backend; results from other configurations are diagnostic. A count
+Exact allocation equality and the allocated-bytes ceiling are enforced only
+for the pinned compiler, target, and dev backend; results from other
+configurations are diagnostic. A count
 increase cannot be accepted by mechanically regenerating the baseline: review
 must identify its representation or ownership cause and record why the feature
 benefit requires it. Decreases are likewise reviewed and recorded deliberately.
 Selected inner kernels additionally require zero allocation and zero ARC work
 per emitted byte, glyph, path command, or object. Allocation counts do not
-replace scaling counters, copied-byte measurements, retention tests, or
-controlled timing and memory jobs.
+replace scaling work counters or retention tests.
 
 A pinned compiler or target change uses a distinct bulk re-baseline protocol:
 
@@ -229,9 +271,10 @@ A pinned compiler or target change uses a distinct bulk re-baseline protocol:
    the same controlled host, target, optimization mode, scenarios, and inputs.
 2. Compare the full distribution, investigate every outlier, and inspect a
    representative sample from each subsystem and allocation shape.
-3. Confirm deterministic work counters and compare allocated/copied bytes, ARC,
-   retained memory, and controlled timing so a toolchain-wide count shift does
-   not conceal an architectural regression.
+3. Confirm deterministic work counters, and compare allocated/copied bytes,
+   ARC, retained memory, and timing where existing instrumentation reports
+   them, so a toolchain-wide count shift does not conceal an architectural
+   regression.
 4. Record the compiler/target delta as the shared cause, list any feature-
    caused changes separately, and update `.roc-version`, toolchain metadata,
    and all accepted baselines atomically.
@@ -241,8 +284,8 @@ does not permit blanket acceptance when outliers, feature-caused changes, or
 algorithmic-counter changes remain unexplained.
 
 Gate completion aggregates the performance records of its slices. A favorable
-whole-gate benchmark cannot conceal a regression in a focused scenario, and a
-performance concern cannot be deferred merely because the capability is still
+whole-gate aggregate cannot conceal a regression in a focused scenario, and a
+super-linear blow-up cannot be deferred merely because the capability is still
 within an early correctness gate.
 
 ## Gate 0: standards, representation, and test contract
@@ -343,8 +386,9 @@ within an early correctness gate.
   reproduce exactly for the pinned compiler, dev backend, target, fixture
   revision, and measurement boundary.
 - A deliberately introduced allocation regression fails the baseline check,
-  while scaling fixtures demonstrate that deterministic work counters catch a
-  complexity regression even when allocation counts remain unchanged.
+  allocated bytes above the recorded ceiling fail it, and scaling fixtures
+  demonstrate that deterministic work counters catch a complexity regression
+  even when allocation counts remain unchanged.
 
 ## Gate 1: PDF 2.0 structural kernel
 
@@ -708,8 +752,8 @@ alternative text serialized as `/Alt`, and an optional caption owned by the
 same semantic occurrence and layout fragment. Positive packed-raster evidence,
 atomic invalid-resource/drawing evidence, deterministic bytes, structural
 image/Figure inspection, and exact allocation/work evidence are required for
-this slice. It makes no PDF/UA-2 claim; Gate 6 retains the broader semantic and
-human accessibility audit.
+this slice. It makes no PDF/UA-2 claim; Gate 6 retains the broader semantic
+audit and the optional human accessibility review.
 
 Vector, grouped, and multi-command drawings still reject atomically with
 `document.figure`; fixed pages reject with `layout.custom`. The revised Gate 6
@@ -778,10 +822,12 @@ construction and the whitelist. They remain recorded as
 `ROC-PDF-PDFA4-ISO-TEXT-CONFIRMATION`, pending confirmation against the
 licensed standard text before Gate 7's combined claim.
 
-Arlington object-model validation of font-bearing output also records a
-pre-existing `Pdf20` defect: `CIDSystemInfo` `/Registry` and `/Ordering` are
-text strings rather than ASCII strings. It must be resolved as Gate 7
-evidence. The advanced `Encode` boundary remains `Standard`-only.
+Arlington object-model validation of font-bearing output also found a
+pre-existing `Pdf20` defect: `CIDSystemInfo` `/Registry` and `/Ordering` were
+text strings rather than ASCII strings. It is resolved
+(`docs/performance/cid-system-info-ascii.md`), and Linux CI now requires every
+package snapshot and gallery example to pass the pinned Arlington checker with
+zero failures. The advanced `Encode` boundary remains `Standard`-only.
 
 ## Gate 6: business authoring and core PDF/UA-2 vocabulary
 
@@ -873,8 +919,9 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
 - The production text matrix has evidence for every required row, distinct
   facade and advanced-input claims, and atomic unsupported-case diagnostics.
   Required shaping/layout interactions meet their declared work bounds.
-- The readiness dimensions, exact allocation/work records, and controlled
-  product benchmark targets are satisfied for each required business slice.
+- The required readiness dimensions and exact allocation/work records,
+  including a small/large scale pair for each scalable slice, are satisfied
+  for each required business slice.
 - A project-owned normalized structure representation is compared independently
   of PDF object numbers.
 - Every MCID and object reference is reachable bidirectionally through the
@@ -894,18 +941,18 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
 - For every internal link, `/SD` resolves to its semantic target, `/D` resolves
   to the post-layout geometry of the declared anchor, and both identify the
   same authored destination.
-- Human-reviewed scenarios cover reading order, heading navigation, lists,
-  links, figures, simple tables, nested language, and artifact behavior.
-- Exploratory reader/AT work starts with the available Gate 4-era public
-  subset, before remaining authoring contracts are fixed, and expands as these
-  slices become executable. Tasks include locating invoice amounts through
-  table navigation, following payment links, navigating report headings, and
-  understanding figures through their alternatives. Missing capabilities and
-  reader limitations are recorded explicitly; exploratory observations do not
-  replace full gate or release evidence.
-- Human protocols pin AT/reader versions, tasks, expected observable navigation
-  outcomes, and assessor sign-off. They do not require identical synthesized
-  speech or UI output.
+- Optional and non-blocking: human-reviewed scenarios cover reading order,
+  heading navigation, lists, links, figures, simple tables, nested language,
+  and artifact behavior. An unperformed review is recorded as not performed.
+- Optional exploratory reader/AT work may use the available public subset and
+  expand as these slices become executable. Tasks include locating invoice
+  amounts through table navigation, following payment links, navigating report
+  headings, and understanding figures through their alternatives. Missing
+  capabilities and reader limitations are recorded explicitly; exploratory
+  observations do not replace machine-verifiable gate evidence.
+- Where human review is performed, its protocol pins AT/reader versions, tasks,
+  expected observable navigation outcomes, and optional assessor sign-off. It
+  does not require identical synthesized speech or UI output.
 - Negative twins cover missing or empty required alternatives, misleading
   structure relationships detectable mechanically, skipped ownership, missing
   Unicode, bad heading representation, inaccessible annotation structure,
@@ -915,6 +962,71 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
 
 Unsupported semantic constructs are rejected; they are never flattened into
 paragraphs or figures.
+
+### Progress status (Gate 6 in progress)
+
+Gate 6 is **not closed**. The following public authoring is executable under the
+default `Archive` profile, with exact allocation, work, and allocated-byte
+ceilings, scale pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence,
+and an independent structure checker. Each record lists its own open issues:
+
+- Reference contract: [docs/reference-documents.md](docs/reference-documents.md)
+  (`reference-documents-v6`) defines the invoice, report, and letter,
+  their adverse variants, the text-support matrix, and the layout-policy
+  vocabulary.
+- Semantic foundation, containers, `/Lang`/`/ID`/`/IDTree`/`/A`, and
+  DisplayDocTitle: `docs/performance/semantic-foundation.md`.
+- Rich inline content, nested language, and inline links:
+  `docs/performance/rich-inline.md`.
+- Bullet and numbered lists, explicit breaks, spacers, and typed required or
+  ranked keeps: `docs/performance/layout-policies.md`.
+- Ordinary tables with repeated header artifacts, column spans, scopes, and
+  `Headers`: `docs/performance/tables.md`.
+- First-page and continuation-page templates, furniture, and stabilized
+  page and total-page fields: `docs/performance/page-templates.md`.
+- Linear lowering and emission, plus the allocated-byte guard:
+  `docs/performance/lowering-uniqueness.md` and
+  `docs/performance/emission-linearity.md`. The Roc compiler defects behind
+  them are reported upstream (roc-lang/roc #11821-#11827).
+- The CIDSystemInfo ASCII-string correction and the CI Arlington lane:
+  `docs/performance/cid-system-info-ascii.md`.
+
+Exact remaining work before Gate 6 can close:
+
+1. **Flow figures and decorations.** Bounded vector, grouped, and
+   multi-command drawings in `Pdf.figure`, explicit `ScaleToFit`, a
+   `Pdf.decoration` artifact, and figure captions as `Caption` with a
+   `CaptionFor` relation (roadmap capability "Bounded image/vector flow
+   figures").
+2. **Custom-block seam and preparation report.** `Pdf.custom_block`
+   exercised by a separately authored consumer (a chart or callout), and a
+   bounded read-only report. The report exposes the layout relaxations and
+   repeated-header facts that are already recorded internally, authored
+   locations, reading order, alternatives, text coverage, and human-review
+   obligations.
+3. **Reference documents and closure.** The invoice, report, and letter as
+   `examples/` programs, plus a `tests/reference_documents` family with every
+   adverse variant. `examples/letter.roc` and `examples/prepared_invoice.roc`
+   move to templates and tables. This step also runs the combined
+   conformance, structure, and renderer sweep and records the closure
+   (optional human review).
+4. **Open issues recorded by executed slices** that the references need:
+   - furniture text under ordered font policies (`text.furniture_policy`,
+     needed by REP-A5);
+   - a selectable face per inline role (a monospace `Code`);
+   - list labels wider than the indent;
+   - separator text for `line_break` in extracted text;
+   - alignment of spanning cells;
+   - removal of the unreachable facade `ArtifactBlock` plumbing;
+   - located diagnostics for the remaining font-coverage failures.
+
+The intermittent `roc check` crash seen in harness runs is Roc #11777, fixed
+upstream by commit 329a48a04d. The pin advances to
+`nightly-2026-09-28-9927ba8`, which contains the fix, with its own bulk
+re-baseline ([record](docs/performance/roc-nightly-2026-09-28-9927ba8.md)).
+Before that pin merges, the fuzz targets need a roc-fuzz release pinned to
+the same nightly, and the upstream LLVM `roc build --fuzz` segfault recorded
+there must be resolved.
 
 ## Gate 7: business-document production release and combined closure
 
@@ -930,17 +1042,19 @@ paragraphs or figures.
 - Cover every applicable machine-verifiable requirement with positive and
   atomic negative tests.
 - Represent every applicable human-verifiable requirement in the author
-  assertion and accessibility-review protocols.
+  assertion and accessibility-review protocols as recorded obligations;
+  performing the human review itself is optional.
 - Validate combined `StaticPdfA4 + PdfUa2` output independently against both
   profiles.
 - Support the WTPDF accessibility declaration where its requirements and
   declaration rules are met; keep WTPDF reuse separate.
 - Make `AccessibleArchive` the enduring default used by `Pdf.to_bytes`.
-- Close public usability, supported typography/layout, reader/AT behavior,
-  authoring feedback, and product performance for the reference invoice,
-  report, and letter. Preserve their combined claims without requiring a
-  visible title on the letter. No required business-authoring item remains
-  deferred to Gate 8 or available only through private fixture construction.
+- Close public usability, supported typography/layout, authoring feedback, and
+  scale-growth evidence for the reference invoice, report, and letter;
+  reader/AT behavior is recorded where reviewed but is optional. Preserve
+  their combined claims without requiring a visible title on the letter. No
+  required business-authoring item remains deferred to Gate 8 or available
+  only through private fixture construction.
 
 ### Gate evidence
 
@@ -950,20 +1064,23 @@ paragraphs or figures.
 - Text, semantic, navigation, rendering, and metadata inspection all agree with
   the authored scenario.
 - Cross-platform generation produces identical bytes.
-- The release accessibility protocol completes expert and representative
-  assistive-technology review.
+- The release accessibility protocol records every human-verifiable obligation.
+  Expert and representative assistive-technology review is optional for the
+  claim; when performed, it is recorded against that protocol.
 - The conformance ledger contains no unexplained applicable or untested clause.
 - The published claim distinguishes package guarantees, author assertions, and
   human judgment.
 - The reference documents and their declared variants pass the combined
-  profile, complete-document visual/navigation review, public-API readiness,
-  and task-based accessibility protocol. Human-review obligations are available
-  through the supported preparation report; a successful API result alone is
-  never described as certification of semantic quality.
-- Controlled invoice/report/batch benchmarks meet the reviewed numeric product
-  targets, and every affected slice retains exact allocation, deterministic
-  work, copying, and retention evidence. Missing targets or unexplained
-  performance regressions block the production release.
+  profile, complete-document visual/navigation review, and public-API
+  readiness; the task-based accessibility protocol is optional. Human-review
+  obligations are available through the supported preparation report; a
+  successful API result alone is never described as certification of semantic
+  quality.
+- Invoice, report, and statement/invoice-batch scale pairs show linear or
+  `n log n` work growth, and every affected slice retains exact allocation,
+  deterministic work, and retention evidence. An unexplained super-linear
+  blow-up or unreviewed allocation/work change blocks the production release;
+  there are no numeric timing, memory, or throughput targets.
 
 At this gate the package may produce conforming PDF/UA-2 for its supported
 feature subset. It does not need to accept every PDF feature, annotation type,
@@ -1004,8 +1121,8 @@ wait for the broader algorithms below.
 - Custom-block fixtures fragment across columns and pages while preserving
   occurrence identity, typed continuation state, semantic ownership, and
   bounded operation/allocation evidence.
-- Human AT review covers table navigation, multi-column order, footnotes,
-  references, and mixed language/direction.
+- Optional human AT review covers table navigation, multi-column order,
+  footnotes, references, and mixed language/direction.
 - Every accepted capability preserves Gate 7's full applicable-requirements
   closure and combined-profile validation.
 
@@ -1030,8 +1147,8 @@ wait for the broader algorithms below.
   atomic negative cases.
 - Base PDF/A-4 and PDF/A-4f math cases validate the exact selected attachment
   policy; structured math is never replaced with alternate text.
-- Human AT review covers mathematics, ruby/warichu, vertical/mixed writing, and
-  new annotation interactions where implemented.
+- Optional human AT review covers mathematics, ruby/warichu, vertical/mixed
+  writing, and new annotation interactions where implemented.
 - Each new role, namespace, text system, and annotation closes all applicable
   PDF/A-4/PDF/UA-2/WTPDF requirements before joining a declared profile.
 - WTPDF reuse remains unclaimed until its independent audit has no unexplained
@@ -1163,14 +1280,16 @@ bytes.
   input/work/memory/time bounds with minimized failures retained as ordinary
   regression tests.
 - Bounded large-document, offset, subset, stream, and structure stress suites.
-- Controlled timing, peak-RSS, allocation, copied-byte, time-to-first-chunk,
-  and integrated serializer/compressor benchmarks.
+- Exact-allocation and scale-pair work-counter checks for large-document,
+  serializer, and compressor paths. Timing, peak-RSS, and copied-byte figures
+  are reported only where existing instrumentation provides them and carry no
+  acceptance thresholds.
 
 ### Release
 
 - Public reference invoice/report/letter acceptance, including adverse content,
-  supported typography/layout, authoring feedback, and controlled product
-  performance targets, as required by Gate 7.
+  supported typography/layout, authoring feedback, and scale-growth evidence,
+  as required by Gate 7.
 - Cross-platform byte-for-byte reproducibility.
 - Published performance evidence from the pinned dev backend, including
   unique and deliberately shared pipeline inputs.
@@ -1178,8 +1297,8 @@ bytes.
   scaling record, and resolved performance-review decision.
 - Full pinned validator and corpus reports.
 - Current-reader smoke tests.
-- Accessibility expert review.
-- Scripted representative assistive-technology journeys.
+- Optional accessibility expert review.
+- Optional scripted representative assistive-technology journeys.
 - Audited conformance ledger with no unexplained coverage gaps for claimed
   capabilities.
 

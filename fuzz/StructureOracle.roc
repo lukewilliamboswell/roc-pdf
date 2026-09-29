@@ -456,7 +456,6 @@ tokenize = |bytes, from, to, number| {
 		if byte == 32 {
 			$index = $index + 1
 		} else if byte == 60 {
-
 			## A dictionary opener and a hex string are told apart by peeking one
 			## byte past the `<`.
 			if $index + 1 < to and list_at(bytes, $index + 1) == 60 {
@@ -538,7 +537,6 @@ classify = |bytes, from, to, number| {
 		return Err(BadToken(number))
 	}
 	if $cursor == to {
-
 		## Only a non-negative integer can take part in a reference, so a signed
 		## whole number stays an ordinary number token.
 		if negative {

@@ -190,16 +190,15 @@ validate_byte_entries = |entries, key_byte_limit, value_count| {
 	var $key_bytes_checked = 0
 	var $ordering_steps = 0
 	var $index = 0
-	var $error = NoError
-	while $index < entries.len() and $error == NoError {
+	while $index < entries.len() {
 		entry = list_at(entries, $index)
 		key = KernelIndex.ByteEntry.key(entry)
 		key_length = key.len()
 		value = KernelIndex.ByteEntry.value(entry)
 		if key_length > key_byte_limit {
-			$error = Invalid(KeyBytesLimitExceeded({ attempted: key_length, index: $index, limit: key_byte_limit }))
+			return Err(KeyBytesLimitExceeded({ attempted: key_length, index: $index, limit: key_byte_limit }))
 		} else if KernelObject.ValueId.index(value) >= value_count {
-			$error = Invalid(ValueIndexOutOfRange({ available: value_count, index: $index, value }))
+			return Err(ValueIndexOutOfRange({ available: value_count, index: $index, value }))
 		} else {
 			$entries_checked = checked_add($entries_checked, 1)?
 			$key_bytes_checked = checked_add($key_bytes_checked, key_length)?
@@ -209,10 +208,10 @@ validate_byte_entries = |entries, key_byte_limit, value_count| {
 				$ordering_steps = checked_add($ordering_steps, comparison.steps)?
 				match comparison.ordering {
 					Equal => {
-						$error = Invalid(DuplicateByteKey({ index: $index }))
+						return Err(DuplicateByteKey({ index: $index }))
 					}
 					Greater => {
-						$error = Invalid(NonMonotonicByteKey({ index: $index }))
+						return Err(NonMonotonicByteKey({ index: $index }))
 					}
 					Less => {}
 				}
@@ -221,10 +220,7 @@ validate_byte_entries = |entries, key_byte_limit, value_count| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ entries_checked: $entries_checked, key_bytes_checked: $key_bytes_checked, ordering_steps: $ordering_steps })
-	}
+	Ok({ entries_checked: $entries_checked, key_bytes_checked: $key_bytes_checked, ordering_steps: $ordering_steps })
 }
 
 validate_number_entries : List(KernelIndex.NumberEntry), KernelIndex.NumberKind, U64 -> Try({ entries_checked : U64, key_bytes_checked : U64, ordering_steps : U64 }, KernelIndex.Error)
@@ -236,34 +232,30 @@ validate_number_entries = |entries, kind, value_count| {
 	var $entries_checked = 0
 	var $ordering_steps = 0
 	var $index = 0
-	var $error = NoError
-	while $index < entries.len() and $error == NoError {
+	while $index < entries.len() {
 		entry = list_at(entries, $index)
 		key = KernelIndex.NumberEntry.key(entry)
 		value = KernelIndex.NumberEntry.value(entry)
 		if is_parent_tree and key < 0 {
-			$error = Invalid(NegativeParentKey({ index: $index, key }))
+			return Err(NegativeParentKey({ index: $index, key }))
 		} else if KernelObject.ValueId.index(value) >= value_count {
-			$error = Invalid(ValueIndexOutOfRange({ available: value_count, index: $index, value }))
+			return Err(ValueIndexOutOfRange({ available: value_count, index: $index, value }))
 		} else {
 			$entries_checked = checked_add($entries_checked, 1)?
 			if $index > 0 {
 				$ordering_steps = checked_add($ordering_steps, 1)?
 				previous = KernelIndex.NumberEntry.key(list_at(entries, $index - 1))
 				if key == previous {
-					$error = Invalid(DuplicateNumberKey({ index: $index }))
+					return Err(DuplicateNumberKey({ index: $index }))
 				} else if key < previous {
-					$error = Invalid(NonMonotonicNumberKey({ index: $index }))
+					return Err(NonMonotonicNumberKey({ index: $index }))
 				}
 			}
 		}
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ entries_checked: $entries_checked, key_bytes_checked: 0, ordering_steps: $ordering_steps })
-	}
+	Ok({ entries_checked: $entries_checked, key_bytes_checked: 0, ordering_steps: $ordering_steps })
 }
 
 index_node : KernelBalanced.Shape, U64, U64 -> KernelIndex.Node

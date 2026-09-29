@@ -239,17 +239,25 @@ KernelObject :: [].{
 		values: builder.store.values.len(),
 	}
 
+	## Every builder operation below takes the builder record apart before it
+	## reads a store length or appends: the store lists are then reached only
+	## through local bindings, never through a field path of the still-live
+	## parameter, so each append consumes a uniquely owned list. Reading
+	## `builder.store.x.len()` and later appending to `builder.store.x` made
+	## the pinned dev backend copy the whole list on every append under some
+	## compiler-cache states (docs/performance/lowering-uniqueness.md).
 	add_name : Builder, List(U8) -> Try({ builder : Builder, id : NameId }, Error)
 	add_name = |builder, bytes| {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
 		match KernelLex.Name.from_bytes(bytes) {
 			Err(error) => Err(Lexical(error))
 			Ok(name) => {
-				match checked_increment(builder.store.names.len(), builder.limits.max_names, Names) {
+				match checked_increment(store.names.len(), limits.max_names, Names) {
 					Err(error) => Err(error)
-					Ok(_) => match checked_total(builder.total_name_bytes, bytes.len(), builder.limits.max_name_bytes, NameBytes) {
+					Ok(_) => match checked_total(total_name_bytes, bytes.len(), limits.max_name_bytes, NameBytes) {
 						Err(error) => Err(error)
-						Ok(total_name_bytes) => match add_work(
-							builder.work,
+						Ok(next_name_bytes) => match add_work(
+							work,
 							{
 								bytes_checked: bytes.len(),
 								edges_appended: 0,
@@ -258,14 +266,17 @@ KernelObject :: [].{
 							},
 						) {
 							Err(error) => Err(error)
-							Ok(work) => {
-								id = NameId.from_index(builder.store.names.len())
+							Ok(next_work) => {
+								id = NameId.from_index(store.names.len())
 								Ok({
 									builder: {
-										..builder,
-										store: { ..builder.store, names: builder.store.names.append(name) },
-										total_name_bytes,
-										work,
+										limits,
+										store: { ..store, names: store.names.append(name) },
+										total_byte_string_bytes,
+										total_name_bytes: next_name_bytes,
+										total_payload_bytes,
+										total_text_string_bytes,
+										work: next_work,
 									},
 									id,
 								})
@@ -279,17 +290,22 @@ KernelObject :: [].{
 
 	add_byte_string : Builder, List(U8) -> Try({ builder : Builder, id : ByteStringId }, Error)
 	add_byte_string = |builder, bytes| {
-		match checked_increment(builder.store.byte_strings.len(), builder.limits.max_byte_strings, ByteStrings) {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		match checked_increment(store.byte_strings.len(), limits.max_byte_strings, ByteStrings) {
 			Err(error) => Err(error)
-			Ok(_) => match checked_total(builder.total_byte_string_bytes, bytes.len(), builder.limits.max_byte_string_bytes, ByteStringBytes) {
+			Ok(_) => match checked_total(total_byte_string_bytes, bytes.len(), limits.max_byte_string_bytes, ByteStringBytes) {
 				Err(error) => Err(error)
-				Ok(total_byte_string_bytes) => {
-					id = ByteStringId.from_index(builder.store.byte_strings.len())
+				Ok(next_byte_string_bytes) => {
+					id = ByteStringId.from_index(store.byte_strings.len())
 					Ok({
 						builder: {
-							..builder,
-							store: { ..builder.store, byte_strings: builder.store.byte_strings.append(bytes) },
-							total_byte_string_bytes,
+							limits,
+							store: { ..store, byte_strings: store.byte_strings.append(bytes) },
+							total_byte_string_bytes: next_byte_string_bytes,
+							total_name_bytes,
+							total_payload_bytes,
+							total_text_string_bytes,
+							work,
 						},
 						id,
 					})
@@ -300,14 +316,15 @@ KernelObject :: [].{
 
 	add_text_string : Builder, Str -> Try({ builder : Builder, id : TextStringId }, Error)
 	add_text_string = |builder, text| {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
 		lexical_text = KernelLex.Text.from_str(text)
 		byte_length = KernelLex.Text.bytes(lexical_text).len()
-		match checked_increment(builder.store.text_strings.len(), builder.limits.max_text_strings, TextStrings) {
+		match checked_increment(store.text_strings.len(), limits.max_text_strings, TextStrings) {
 			Err(error) => Err(error)
-			Ok(_) => match checked_total(builder.total_text_string_bytes, byte_length, builder.limits.max_text_string_bytes, TextStringBytes) {
+			Ok(_) => match checked_total(total_text_string_bytes, byte_length, limits.max_text_string_bytes, TextStringBytes) {
 				Err(error) => Err(error)
-				Ok(total_text_string_bytes) => match add_work(
-					builder.work,
+				Ok(next_text_string_bytes) => match add_work(
+					work,
 					{
 						bytes_checked: byte_length,
 						edges_appended: 0,
@@ -316,14 +333,17 @@ KernelObject :: [].{
 					},
 				) {
 					Err(error) => Err(error)
-					Ok(work) => {
-						id = TextStringId.from_index(builder.store.text_strings.len())
+					Ok(next_work) => {
+						id = TextStringId.from_index(store.text_strings.len())
 						Ok({
 							builder: {
-								..builder,
-								store: { ..builder.store, text_strings: builder.store.text_strings.append(lexical_text) },
-								total_text_string_bytes,
-								work,
+								limits,
+								store: { ..store, text_strings: store.text_strings.append(lexical_text) },
+								total_byte_string_bytes,
+								total_name_bytes,
+								total_payload_bytes,
+								total_text_string_bytes: next_text_string_bytes,
+								work: next_work,
 							},
 							id,
 						})
@@ -335,18 +355,23 @@ KernelObject :: [].{
 
 	add_payload : Builder, List(U8), PayloadKind -> Try({ builder : Builder, id : PayloadId }, Error)
 	add_payload = |builder, bytes, kind| {
-		match checked_increment(builder.store.payloads.len(), builder.limits.max_payloads, Payloads) {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		match checked_increment(store.payloads.len(), limits.max_payloads, Payloads) {
 			Err(error) => Err(error)
-			Ok(_) => match checked_total(builder.total_payload_bytes, bytes.len(), builder.limits.max_payload_bytes, PayloadBytes) {
+			Ok(_) => match checked_total(total_payload_bytes, bytes.len(), limits.max_payload_bytes, PayloadBytes) {
 				Err(error) => Err(error)
-				Ok(total_payload_bytes) => {
-					id = PayloadId.from_index(builder.store.payloads.len())
+				Ok(next_payload_bytes) => {
+					id = PayloadId.from_index(store.payloads.len())
 					payload = { bytes, id, kind, last_use: Unused }
 					Ok({
 						builder: {
-							..builder,
-							store: { ..builder.store, payloads: builder.store.payloads.append(payload) },
-							total_payload_bytes,
+							limits,
+							store: { ..store, payloads: store.payloads.append(payload) },
+							total_byte_string_bytes,
+							total_name_bytes,
+							total_payload_bytes: next_payload_bytes,
+							total_text_string_bytes,
+							work,
 						},
 						id,
 					})
@@ -368,51 +393,28 @@ KernelObject :: [].{
 	add_real = |builder, value| add_value(builder, Real(value), 1)
 
 	add_name_value : Builder, NameId -> Try({ builder : Builder, id : ValueId }, Error)
-	add_name_value = |builder, name| {
-		match check_index(NameId.index(name), builder.store.names.len(), NameIndex) {
-			Err(error) => Err(error)
-			Ok(_) => match add_index_work(builder.work, 1) {
-				Err(error) => Err(error)
-				Ok(work) => add_value({ ..builder, work }, Name(name), 1)
-			}
-		}
-	}
+	add_name_value = |builder, name| add_indexed_value(builder, NameIndex, NameId.index(name), Name(name))
 
 	add_byte_string_value : Builder, ByteStringId -> Try({ builder : Builder, id : ValueId }, Error)
-	add_byte_string_value = |builder, string| {
-		match check_index(ByteStringId.index(string), builder.store.byte_strings.len(), ByteStringIndex) {
-			Err(error) => Err(error)
-			Ok(_) => match add_index_work(builder.work, 1) {
-				Err(error) => Err(error)
-				Ok(work) => add_value({ ..builder, work }, ByteString(string), 1)
-			}
-		}
-	}
+	add_byte_string_value = |builder, string| add_indexed_value(builder, ByteStringIndex, ByteStringId.index(string), ByteString(string))
 
 	add_text_string_value : Builder, TextStringId -> Try({ builder : Builder, id : ValueId }, Error)
-	add_text_string_value = |builder, string| {
-		match check_index(TextStringId.index(string), builder.store.text_strings.len(), TextStringIndex) {
-			Err(error) => Err(error)
-			Ok(_) => match add_index_work(builder.work, 1) {
-				Err(error) => Err(error)
-				Ok(work) => add_value({ ..builder, work }, TextString(string), 1)
-			}
-		}
-	}
+	add_text_string_value = |builder, string| add_indexed_value(builder, TextStringIndex, TextStringId.index(string), TextString(string))
 
 	add_reference : Builder, ObjectId -> Try({ builder : Builder, id : ValueId }, Error)
 	add_reference = |builder, object| add_value(builder, Reference(object), 1)
 
 	add_array : Builder, List(ValueId) -> Try({ builder : Builder, id : ValueId }, Error)
 	add_array = |builder, items| {
-		match validate_value_edges(builder, items) {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		match validate_value_edges(store, items) {
 			Err(error) => Err(error)
-			Ok(max_child_depth) => match checked_total(builder.store.array_items.len(), items.len(), builder.limits.max_array_items, ArrayItems) {
+			Ok(max_child_depth) => match checked_total(store.array_items.len(), items.len(), limits.max_array_items, ArrayItems) {
 				Err(error) => Err(error)
-				Ok(_) => match checked_increment(max_child_depth, builder.limits.max_direct_depth, DirectDepth) {
+				Ok(_) => match checked_increment(max_child_depth, limits.max_direct_depth, DirectDepth) {
 					Err(error) => Err(error)
 					Ok(depth) => match add_work(
-						builder.work,
+						work,
 						{
 							bytes_checked: 0,
 							edges_appended: items.len(),
@@ -421,15 +423,29 @@ KernelObject :: [].{
 						},
 					) {
 						Err(error) => Err(error)
-						Ok(work) => {
-							start = builder.store.array_items.len()
-							array_items = append_all(builder.store.array_items, items)
-							with_edges = {
-								..builder,
-								store: { ..builder.store, array_items },
-								work,
+						Ok(edge_work) => match value_work(limits, store, edge_work, depth) {
+							Err(error) => Err(error)
+							Ok(next_work) => {
+								start = store.array_items.len()
+								id = ValueId.from_index(store.values.len())
+								Ok({
+									builder: {
+										limits,
+										store: {
+											..store,
+											array_items: append_all(store.array_items, items),
+											depths: store.depths.append(depth),
+											values: store.values.append(Array({ start, length: items.len() })),
+										},
+										total_byte_string_bytes,
+										total_name_bytes,
+										total_payload_bytes,
+										total_text_string_bytes,
+										work: next_work,
+									},
+									id,
+								})
 							}
-							add_value(with_edges, Array({ start, length: items.len() }), depth)
 						}
 					}
 				}
@@ -439,23 +455,38 @@ KernelObject :: [].{
 
 	add_dictionary : Builder, List(DictionaryEntry) -> Try({ builder : Builder, id : ValueId }, Error)
 	add_dictionary = |builder, entries| {
-		match validate_dictionary(builder, entries) {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		match validate_dictionary(store, entries) {
 			Err(error) => Err(error)
-			Ok(validation) => match checked_total(builder.store.dictionary_entries.len(), entries.len(), builder.limits.max_dictionary_entries, DictionaryEntries) {
+			Ok(validation) => match checked_total(store.dictionary_entries.len(), entries.len(), limits.max_dictionary_entries, DictionaryEntries) {
 				Err(error) => Err(error)
-				Ok(_) => match checked_increment(validation.max_child_depth, builder.limits.max_direct_depth, DirectDepth) {
+				Ok(_) => match checked_increment(validation.max_child_depth, limits.max_direct_depth, DirectDepth) {
 					Err(error) => Err(error)
-					Ok(depth) => match add_dictionary_work(builder.work, entries.len(), validation.key_byte_comparisons, 0) {
+					Ok(depth) => match add_dictionary_work(work, entries.len(), validation.key_byte_comparisons, 0) {
 						Err(error) => Err(error)
-						Ok(work) => {
-							start = builder.store.dictionary_entries.len()
-							dictionary_entries = append_all(builder.store.dictionary_entries, entries)
-							with_edges = {
-								..builder,
-								store: { ..builder.store, dictionary_entries },
-								work,
+						Ok(entry_work) => match value_work(limits, store, entry_work, depth) {
+							Err(error) => Err(error)
+							Ok(next_work) => {
+								start = store.dictionary_entries.len()
+								id = ValueId.from_index(store.values.len())
+								Ok({
+									builder: {
+										limits,
+										store: {
+											..store,
+											depths: store.depths.append(depth),
+											dictionary_entries: append_all(store.dictionary_entries, entries),
+											values: store.values.append(Dictionary({ start, length: entries.len() })),
+										},
+										total_byte_string_bytes,
+										total_name_bytes,
+										total_payload_bytes,
+										total_text_string_bytes,
+										work: next_work,
+									},
+									id,
+								})
 							}
-							add_value(with_edges, Dictionary({ start, length: entries.len() }), depth)
 						}
 					}
 				}
@@ -465,60 +496,63 @@ KernelObject :: [].{
 
 	add_stream_object : Builder, List(DictionaryEntry), FilterPlan, PayloadId -> Try({ builder : Builder, id : ObjectId, length_object : ObjectId, value : ValueId }, Error)
 	add_stream_object = |builder, entries, filter, source| {
-		match check_index(PayloadId.index(source), builder.store.payloads.len(), PayloadIndex) {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		match check_index(PayloadId.index(source), store.payloads.len(), PayloadIndex) {
 			Err(error) => Err(error)
-			Ok(_) => match checked_increment(builder.store.streams.len(), builder.limits.max_streams, Streams) {
+			Ok(_) => match checked_increment(store.streams.len(), limits.max_streams, Streams) {
 				Err(error) => Err(error)
-				Ok(_) => match checked_total(builder.store.objects.len(), 2, builder.limits.max_objects, Objects) {
+				Ok(_) => match checked_total(store.objects.len(), 2, limits.max_objects, Objects) {
 					Err(error) => Err(error)
-					Ok(length_number) => match validate_dictionary(builder, entries) {
+					Ok(length_number) => match validate_dictionary(store, entries) {
 						Err(error) => Err(error)
-						Ok(validation) => match checked_total(builder.store.dictionary_entries.len(), entries.len(), builder.limits.max_dictionary_entries, DictionaryEntries) {
+						Ok(validation) => match checked_total(store.dictionary_entries.len(), entries.len(), limits.max_dictionary_entries, DictionaryEntries) {
 							Err(error) => Err(error)
-							Ok(_) => match checked_increment(validation.max_child_depth, builder.limits.max_direct_depth, DirectDepth) {
+							Ok(_) => match checked_increment(validation.max_child_depth, limits.max_direct_depth, DirectDepth) {
 								Err(error) => Err(error)
-								Ok(depth) => match add_dictionary_work(builder.work, entries.len(), validation.key_byte_comparisons, 1) {
+								Ok(depth) => match add_dictionary_work(work, entries.len(), validation.key_byte_comparisons, 1) {
 									Err(error) => Err(error)
-									Ok(work) => {
-										start = builder.store.dictionary_entries.len()
-										dictionary_entries = append_all(builder.store.dictionary_entries, entries)
-										stream_id = StreamId.from_index(builder.store.streams.len())
-										object_id = object_id_from_nonzero(builder.store.objects.len() + 1)
-										length_object = object_id_from_nonzero(length_number)
-										stream = {
-											dictionary: { start, length: entries.len() },
-											filter,
-											id: stream_id,
-											length_object,
-											object: object_id,
-											source,
-										}
-										payload_index = PayloadId.index(source)
-										payload = list_at(builder.store.payloads, payload_index)
-										payloads = list_set(builder.store.payloads, payload_index, { ..payload, last_use: LastStream(stream_id) })
-										before_value = {
-											..builder,
-											store: {
-												..builder.store,
-												dictionary_entries,
-												payloads,
-												streams: builder.store.streams.append(stream),
-											},
-											work,
-										}
-										match add_value(before_value, Stream(stream_id), depth) {
-											Err(error) => Err(error)
-											Ok(added_value) => {
-												objects = added_value.builder.store.objects
-													.append({ content: Stored(added_value.id), id: object_id })
-													.append({ content: LengthOf(stream_id), id: length_object })
-												Ok({
-													builder: { ..added_value.builder, store: { ..added_value.builder.store, objects } },
-													id: object_id,
-													length_object,
-													value: added_value.id,
-												})
+									Ok(entry_work) => match value_work(limits, store, entry_work, depth) {
+										Err(error) => Err(error)
+										Ok(next_work) => {
+											start = store.dictionary_entries.len()
+											stream_id = StreamId.from_index(store.streams.len())
+											object_id = object_id_from_nonzero(store.objects.len() + 1)
+											length_object = object_id_from_nonzero(length_number)
+											value_id = ValueId.from_index(store.values.len())
+											stream = {
+												dictionary: { start, length: entries.len() },
+												filter,
+												id: stream_id,
+												length_object,
+												object: object_id,
+												source,
 											}
+											payload_index = PayloadId.index(source)
+											payload = list_at(store.payloads, payload_index)
+											Ok({
+												builder: {
+													limits,
+													store: {
+														..store,
+														depths: store.depths.append(depth),
+														dictionary_entries: append_all(store.dictionary_entries, entries),
+														objects: store.objects
+															.append({ content: Stored(value_id), id: object_id })
+															.append({ content: LengthOf(stream_id), id: length_object }),
+														payloads: list_set(store.payloads, payload_index, { ..payload, last_use: LastStream(stream_id) }),
+														streams: store.streams.append(stream),
+														values: store.values.append(Stream(stream_id)),
+													},
+													total_byte_string_bytes,
+													total_name_bytes,
+													total_payload_bytes,
+													total_text_string_bytes,
+													work: next_work,
+												},
+												id: object_id,
+												length_object,
+												value: value_id,
+											})
 										}
 									}
 								}
@@ -532,20 +566,25 @@ KernelObject :: [].{
 
 	add_object : Builder, ValueId -> Try({ builder : Builder, id : ObjectId }, Error)
 	add_object = |builder, value| {
-		match check_index(ValueId.index(value), builder.store.values.len(), ValueIndex) {
+		{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+		match check_index(ValueId.index(value), store.values.len(), ValueIndex) {
 			Err(error) => Err(error)
-			Ok(_) => match checked_increment(builder.store.objects.len(), builder.limits.max_objects, Objects) {
+			Ok(_) => match checked_increment(store.objects.len(), limits.max_objects, Objects) {
 				Err(error) => Err(error)
-				Ok(number) => match add_index_work(builder.work, 1) {
+				Ok(number) => match add_index_work(work, 1) {
 					Err(error) => Err(error)
-					Ok(work) => {
+					Ok(next_work) => {
 						object_id = object_id_from_nonzero(number)
 						object = { content: Stored(value), id: object_id }
 						Ok({
 							builder: {
-								..builder,
-								store: { ..builder.store, objects: builder.store.objects.append(object) },
-								work,
+								limits,
+								store: { ..store, objects: store.objects.append(object) },
+								total_byte_string_bytes,
+								total_name_bytes,
+								total_payload_bytes,
+								total_text_string_bytes,
+								work: next_work,
 							},
 							id: object_id,
 						})
@@ -556,33 +595,35 @@ KernelObject :: [].{
 	}
 }
 
-add_value : KernelObject.Builder, KernelObject.Value, U64 -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
-add_value = |builder, value, depth| {
-	match checked_limit(depth, builder.limits.max_direct_depth, DirectDepth) {
+## Adds a value that references an existing name, byte string, or text
+## string, after checking the index against that store's length.
+add_indexed_value : KernelObject.Builder, KernelObject.IndexKind, U64, KernelObject.Value -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
+add_indexed_value = |builder, kind, index, value| {
+	{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+	available = match kind {
+		ByteStringIndex => store.byte_strings.len()
+		NameIndex => store.names.len()
+		PayloadIndex => store.payloads.len()
+		TextStringIndex => store.text_strings.len()
+		ValueIndex => store.values.len()
+	}
+	match check_index(index, available, kind) {
 		Err(error) => Err(error)
-		Ok(_) => match checked_increment(builder.store.values.len(), builder.limits.max_values, Values) {
+		Ok(_) => match add_index_work(work, 1) {
 			Err(error) => Err(error)
-			Ok(_) => match add_work(
-				builder.work,
-				{
-					bytes_checked: 0,
-					edges_appended: 0,
-					index_checks: 0,
-					values_appended: 1,
-				},
-			) {
+			Ok(index_work) => match value_work(limits, store, index_work, 1) {
 				Err(error) => Err(error)
-				Ok(work) => {
-					id = KernelObject.ValueId.from_index(builder.store.values.len())
+				Ok(next_work) => {
+					id = KernelObject.ValueId.from_index(store.values.len())
 					Ok({
 						builder: {
-							..builder,
-							store: {
-								..builder.store,
-								depths: builder.store.depths.append(depth),
-								values: builder.store.values.append(value),
-							},
-							work,
+							limits,
+							store: { ..store, depths: store.depths.append(1), values: store.values.append(value) },
+							total_byte_string_bytes,
+							total_name_bytes,
+							total_payload_bytes,
+							total_text_string_bytes,
+							work: next_work,
 						},
 						id,
 					})
@@ -592,85 +633,122 @@ add_value = |builder, value, depth| {
 	}
 }
 
-validate_value_edges : KernelObject.Builder, List(KernelObject.ValueId) -> Try(U64, KernelObject.Error)
-validate_value_edges = |builder, items| {
+add_value : KernelObject.Builder, KernelObject.Value, U64 -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
+add_value = |builder, value, depth| {
+	{ limits, store, total_byte_string_bytes, total_name_bytes, total_payload_bytes, total_text_string_bytes, work } = builder
+	match value_work(limits, store, work, depth) {
+		Err(error) => Err(error)
+		Ok(next_work) => {
+			id = KernelObject.ValueId.from_index(store.values.len())
+			Ok({
+				builder: {
+					limits,
+					store: { ..store, depths: store.depths.append(depth), values: store.values.append(value) },
+					total_byte_string_bytes,
+					total_name_bytes,
+					total_payload_bytes,
+					total_text_string_bytes,
+					work: next_work,
+				},
+				id,
+			})
+		}
+	}
+}
+
+## The checks and work of appending one value at `depth`, in the order every
+## value-producing operation applies them after its own checks.
+value_work : KernelObject.Limits, KernelObject.Store, KernelObject.Work, U64 -> Try(KernelObject.Work, KernelObject.Error)
+value_work = |limits, store, work, depth| {
+	match checked_limit(depth, limits.max_direct_depth, DirectDepth) {
+		Err(error) => Err(error)
+		Ok(_) => match checked_increment(store.values.len(), limits.max_values, Values) {
+			Err(error) => Err(error)
+			Ok(_) => add_work(
+				work,
+				{
+					bytes_checked: 0,
+					edges_appended: 0,
+					index_checks: 0,
+					values_appended: 1,
+				},
+			)
+		}
+	}
+}
+
+validate_value_edges : KernelObject.Store, List(KernelObject.ValueId) -> Try(U64, KernelObject.Error)
+validate_value_edges = |store, items| {
 	length = items.len()
 	var $index = 0
 	var $max_depth = 0
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		value_id = list_at(items, $index)
 		value_index = KernelObject.ValueId.index(value_id)
-		match check_index(value_index, builder.store.values.len(), ValueIndex) {
+		match check_index(value_index, store.values.len(), ValueIndex) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(_) => {
-				depth = list_at(builder.store.depths, value_index)
+				depth = list_at(store.depths, value_index)
 				$max_depth = U64.max($max_depth, depth)
 			}
 		}
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($max_depth)
-	}
+	Ok($max_depth)
 }
 
-validate_dictionary : KernelObject.Builder, List(KernelObject.DictionaryEntry) -> Try({ key_byte_comparisons : U64, max_child_depth : U64 }, KernelObject.Error)
-validate_dictionary = |builder, entries| {
+validate_dictionary : KernelObject.Store, List(KernelObject.DictionaryEntry) -> Try({ key_byte_comparisons : U64, max_child_depth : U64 }, KernelObject.Error)
+validate_dictionary = |store, entries| {
 	length = entries.len()
 	var $index = 0
 	var $key_byte_comparisons = 0
 	var $max_depth = 0
 	var $previous = NoPrevious
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		entry = list_at(entries, $index)
 		name_index = KernelObject.NameId.index(entry.key)
 		value_index = KernelObject.ValueId.index(entry.value)
 
-		match check_index(name_index, builder.store.names.len(), NameIndex) {
+		match check_index(name_index, store.names.len(), NameIndex) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
-			Ok(_) => match check_index(value_index, builder.store.values.len(), ValueIndex) {
+			Ok(_) => match check_index(value_index, store.values.len(), ValueIndex) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(_) => {
-					depth = list_at(builder.store.depths, value_index)
+					depth = list_at(store.depths, value_index)
 					$max_depth = U64.max($max_depth, depth)
 					match $previous {
 						NoPrevious => {}
 						Previous(previous_id) => {
-							previous_name = list_at(builder.store.names, KernelObject.NameId.index(previous_id))
-							current_name = list_at(builder.store.names, name_index)
+							previous_name = list_at(store.names, KernelObject.NameId.index(previous_id))
+							current_name = list_at(store.names, name_index)
 							match compare_bytes(KernelLex.Name.bytes(previous_name), KernelLex.Name.bytes(current_name)) {
 								Err(error) => {
-									$error = Invalid(error)
+									return Err(error)
 								}
 								Ok(comparison) => {
 									match U64.plus_try($key_byte_comparisons, comparison.byte_comparisons) {
 										Err(Overflow) => {
-											$error = Invalid(Overflow(WorkUnits))
+											return Err(Overflow(WorkUnits))
 										}
 										Ok(total) => {
 											$key_byte_comparisons = total
 										}
 									}
-									if $error == NoError {
-										match comparison.ordering {
-											Equal => {
-												$error = Invalid(DuplicateDictionaryKey(entry.key))
-											}
-											Greater => {
-												$error = Invalid(NonMonotonicDictionaryKeys({ current: entry.key, previous: previous_id }))
-											}
-											Less => {}
+									match comparison.ordering {
+										Equal => {
+											return Err(DuplicateDictionaryKey(entry.key))
 										}
+										Greater => {
+											return Err(NonMonotonicDictionaryKeys({ current: entry.key, previous: previous_id }))
+										}
+										Less => {}
 									}
 								}
 							}
@@ -683,10 +761,7 @@ validate_dictionary = |builder, entries| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ key_byte_comparisons: $key_byte_comparisons, max_child_depth: $max_depth })
-	}
+	Ok({ key_byte_comparisons: $key_byte_comparisons, max_child_depth: $max_depth })
 }
 
 compare_bytes : List(U8), List(U8) -> Try({ byte_comparisons : U64, ordering : [Equal, Greater, Less] }, KernelObject.Error)
@@ -694,8 +769,7 @@ compare_bytes = |left, right| {
 	shared = U64.min(left.len(), right.len())
 	var $index = 0
 	var $ordering = Equal
-	var $error = NoError
-	while $index < shared and $ordering == Equal and $error == NoError {
+	while $index < shared and $ordering == Equal {
 		left_byte = list_at(left, $index)
 		right_byte = list_at(right, $index)
 		if left_byte < right_byte {
@@ -705,7 +779,7 @@ compare_bytes = |left, right| {
 		}
 		match U64.plus_try($index, 1) {
 			Err(Overflow) => {
-				$error = Invalid(Overflow(WorkUnits))
+				return Err(Overflow(WorkUnits))
 			}
 			Ok(next) => {
 				$index = next
@@ -723,10 +797,7 @@ compare_bytes = |left, right| {
 		Equal
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ byte_comparisons: $index, ordering })
-	}
+	Ok({ byte_comparisons: $index, ordering })
 }
 
 checked_increment : U64, U64, KernelObject.Dimension -> Try(U64, KernelObject.Error)
@@ -817,10 +888,14 @@ add_dictionary_work = |work, entry_count, key_byte_comparisons, extra_index_chec
 	}
 }
 
+## Appends every element of `source`. It deliberately does not
+## `List.reserve` first: an explicit reserve sizes the allocation exactly, so
+## a target that keeps growing was reallocated on every call, while `append`
+## grows geometrically and keeps accumulation amortized linear.
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	length = source.len()
-	var $out = List.reserve(target, length)
+	var $out = target
 	var $index = 0
 	while $index < length {
 		$out = $out.append(list_at(source, $index))

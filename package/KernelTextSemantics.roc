@@ -61,6 +61,13 @@ KernelTextSemantics :: [].{
 		attach_fragments_navigation : Plan, { annotations : List(Semantics.Annotation), content_spine : List(Semantics.ContentSpineItem), nodes : List(Semantics.Node) }, List(Semantics.LayoutFragment), U64, U64, KernelSemantics.Limits -> Try(Plan, Error)
 		attach_fragments_navigation = |plan, patch, fragments, page_count, content_stream_count, semantic_limits| attach_fragment_navigation_plan(plan, patch, fragments, page_count, content_stream_count, semantic_limits)
 
+		## Append artifact text sources (page furniture resolved after
+		## pagination) to the dense Unicode store with their exact facts.
+		## They belong to no occurrence and no structure element; only
+		## artifact runs index them. Earlier sources and facts are unchanged.
+		attach_artifact_sources : Plan, List(Str), Limits -> Try(Plan, Error)
+		attach_artifact_sources = |plan, sources, limits| attach_artifact_plan(plan, sources, limits)
+
 		semantics : Plan -> KernelSemantics.Plan
 		semantics = |plan| plan.semantics
 
@@ -120,6 +127,40 @@ attach_fragment_navigation_plan = |plan, patch, fragments, page_count, content_s
 	store = { ..preliminary, annotations: patch.annotations, content_spine: patch.content_spine, fragments, nodes: patch.nodes, occurrence_fragments: [] }
 	semantics = KernelSemantics.Plan.build_text_navigation(store, plan.source_facts, page_count, content_stream_count, semantic_limits) ? Semantic
 	Ok(KernelTextSemantics.Plan.{ semantics, source_facts: plan.source_facts, work: plan.work })
+}
+
+attach_artifact_plan : KernelTextSemantics.Plan, List(Str), KernelTextSemantics.Limits -> Try(KernelTextSemantics.Plan, KernelTextSemantics.Error)
+attach_artifact_plan = |plan, sources, limits| {
+	store = KernelSemantics.Plan.store(plan.semantics)
+	total = checked_add(store.text_sources.len(), sources.len())?
+	check_limit(total, limits.max_text_sources, TextSources)?
+	var $text_sources = List.with_capacity(total)
+	for existing in store.text_sources {
+		$text_sources = $text_sources.append(existing)
+	}
+	var $facts = List.with_capacity(total)
+	for fact in plan.source_facts {
+		$facts = $facts.append(fact)
+	}
+	var $bytes = plan.work.source_bytes
+	var $scalar_total = plan.work.source_scalars
+	for source in sources {
+		byte_count = source.count_utf8_bytes()
+		$bytes = checked_add($bytes, byte_count)?
+		check_limit($bytes, limits.max_text_source_bytes, TextSourceBytes)?
+		var $offsets = [0]
+		var $scalars = 0
+		for located in Scalar.iter(source) {
+			$scalars = checked_add($scalars, 1)?
+			$offsets = $offsets.append(ByteRange.end(located.byte_range))
+		}
+		$scalar_total = checked_add($scalar_total, $scalars)?
+		check_limit($scalar_total, limits.max_text_source_scalars, TextSourceScalars)?
+		$facts = $facts.append({ byte_count, scalar_byte_offsets: $offsets, scalar_count: $scalars })
+		$text_sources = $text_sources.append({ unicode: source })
+	}
+	semantics = KernelSemantics.Plan.with_text_sources(plan.semantics, $text_sources)
+	Ok(KernelTextSemantics.Plan.{ semantics, source_facts: $facts, work: { ..plan.work, source_bytes: $bytes, source_scalars: $scalar_total, source_visits: total } })
 }
 
 prepare : Semantics.Store, KernelTextSemantics.Limits -> Try(Prepared, KernelTextSemantics.Error)
@@ -278,14 +319,17 @@ test_store = {
 	assertions: [],
 	attribute_roles: [],
 	attributes: [],
-	content_spine: [ContentOccurrence(Semantics.OccurrenceId.from_index(0))],
+	content_spine: [ChildNode(Semantics.NodeId.from_index(1)), ContentOccurrence(Semantics.OccurrenceId.from_index(0))],
 	contextual_artifacts: [],
 	document_root: Semantics.NodeId.from_index(0),
 	element_identifiers: [],
 	fragments: [{ content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: UnicodeRange(full_range) }],
 	mathml_subtrees: [],
 	namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
-	nodes: [{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range }],
+	nodes: [
+		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(0, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(0), language: Inherited, parent: DocumentRoot, role: { local_name: "Document", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(0), text_properties: empty_range },
+		{ attributes: empty_range, content: Semantics.Range.from_start_and_length(1, 1), element_identifier: NoElementIdentifier, id: Semantics.NodeId.from_index(1), language: Inherited, parent: ParentNode(Semantics.NodeId.from_index(0)), role: { local_name: "P", namespace: Semantics.NamespaceId.from_index(0) }, structure_element: Semantics.StructureElementId.from_index(1), text_properties: empty_range },
+	],
 	non_text_sources: [],
 	occurrence_fragments: [],
 	occurrences: [{ fragments: empty_range, id: Semantics.OccurrenceId.from_index(0), language: Inherited, source: Text(Semantics.TextSourceId.from_index(0), UnicodeRange(full_range)), text_properties: Semantics.Range.from_start_and_length(0, 1) }],
@@ -296,7 +340,7 @@ test_store = {
 }
 
 semantic_limits : KernelSemantics.Limits
-semantic_limits = KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 1, max_fragments: 1, max_namespaces: 1, max_nodes: 1, max_occurrences: 1, max_semantic_depth: 1 })
+semantic_limits = KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })
 
 text_limits : KernelTextSemantics.Limits
 text_limits = KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 2, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 })
@@ -340,7 +384,7 @@ expect {
 ## Text-property ownership stays unique across nodes and occurrences.
 expect {
 	node = list_at(test_store.nodes, 0)
-	bad = { ..test_store, nodes: [{ ..node, text_properties: Semantics.Range.from_start_and_length(0, 1) }] }
+	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.Range.from_start_and_length(0, 1) }) }
 	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
 		Err(DuplicateTextPropertyOwnership({ property: 0 })) => True
 		_ => False
@@ -360,7 +404,7 @@ expect {
 ## per-owner marking result.
 expect {
 	node = list_at(test_store.nodes, 0)
-	bad = { ..test_store, nodes: [{ ..node, text_properties: Semantics.Range.from_start_and_length(2, 0) }] }
+	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.Range.from_start_and_length(2, 0) }) }
 	match KernelTextSemantics.Plan.build(bad, 1, 1, semantic_limits, text_limits) {
 		Err(TextPropertySpanOutOfRange({ available: 1, length: 0, owner: 0, start: 2 })) => True
 		_ => False

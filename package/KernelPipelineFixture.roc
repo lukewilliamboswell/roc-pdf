@@ -36,6 +36,9 @@ KernelPipelineFixture :: [].{
 
 	alpha_pipeline : {} -> Try(Pipeline, Error)
 	alpha_pipeline = |_| build_pipeline(False, True)
+
+	identified_pipeline : {} -> Try(Pipeline, Error)
+	identified_pipeline = |_| build_from_tagged(KernelFixture.identified_tagged_plan(1) ? TaggedFixtureFailure, False)
 }
 
 color_store : Color.Store
@@ -82,6 +85,11 @@ alpha_image_sources = {
 build_pipeline : Bool, Bool -> Try(KernelPipelineFixture.Pipeline, KernelPipelineFixture.Error)
 build_pipeline = |contextual, alpha| {
 	tagged = (if contextual KernelFixture.contextual_tagged_plan(1) else KernelFixture.tagged_plan(1)) ? TaggedFixtureFailure
+	build_from_tagged(tagged, alpha)
+}
+
+build_from_tagged : KernelTagged.Plan, Bool -> Try(KernelPipelineFixture.Pipeline, KernelPipelineFixture.Error)
+build_from_tagged = |tagged, alpha| {
 	scenes = KernelScene.Plan.build(KernelFixture.scene, KernelScene.Resources.make({ color_spaces: 1, images: 1 }), KernelScene.Limits.make({ max_commands: 3, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 2, max_pages: 1, max_path_segments: 1, max_paths: 1 })) ? SceneFailure
 	colors = KernelColor.Plan.build(color_store, KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles: 0, max_spaces: 1, max_tags: 0 })) ? ColorFailure
 	sources = if alpha alpha_image_sources else image_sources

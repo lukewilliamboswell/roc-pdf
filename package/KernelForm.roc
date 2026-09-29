@@ -1,5 +1,6 @@
 import Color
 import Font
+import Image
 import KernelColor
 import KernelContent
 import KernelImage
@@ -750,12 +751,11 @@ walk_opacity = |arena_state, registry, root, arena, image_alpha, isolated, max_d
 	var $visits = 0
 	var $frames = [OpacityFrame.{ alpha: opaque_alpha, depth: 0, mask: Bool.False, range: root }]
 	var $frame_index = 0
-	var $failure = NoFailure
-	while $frame_index < $frames.len() and $failure == NoFailure {
+	while $frame_index < $frames.len() {
 		frame = list_at($frames, $frame_index)
 		var $command_index = frame.range.start()
 		end = frame.range.start() + frame.range.length()
-		while $command_index < end and $failure == NoFailure {
+		while $command_index < end {
 			match list_at(arena, $command_index) {
 				Clip({ children, path: _ }) | Transform({ children, matrix: _ }) => {
 					$frames = $frames.append(OpacityFrame.{ alpha: frame.alpha, depth: frame.depth, mask: frame.mask, range: children })
@@ -768,7 +768,7 @@ walk_opacity = |arena_state, registry, root, arena, image_alpha, isolated, max_d
 					} else {
 						depth = frame.depth + 1
 						if depth > max_depth {
-							$failure = Failed(OpacityDepthExceeded({ attempted: depth, limit: max_depth }))
+							return Err(OpacityDepthExceeded({ attempted: depth, limit: max_depth }))
 						} else {
 							eff = effective_alpha(frame.alpha, opacity.to_u64())
 							registered = register_value($registry, eff)
@@ -784,9 +784,9 @@ walk_opacity = |arena_state, registry, root, arena, image_alpha, isolated, max_d
 				SoftMask({ children, mask }) => {
 					$mask_commands = $mask_commands + 1
 					if frame.mask {
-						$failure = Failed(NestedSoftMask({ command: $command_index }))
+						return Err(NestedSoftMask({ command: $command_index }))
 					} else if !list_at(isolated, mask.index()) {
-						$failure = Failed(MaskFormNotIsolated({ command: $command_index, form: mask.index() }))
+						return Err(MaskFormNotIsolated({ command: $command_index, form: mask.index() }))
 					} else {
 						registered = register_mask($registry, mask.index())
 						$registry = registered.registry
@@ -812,22 +812,19 @@ walk_opacity = |arena_state, registry, root, arena, image_alpha, isolated, max_d
 		}
 		$frame_index = $frame_index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok({
-			arena: { ambient: $ambient, states: $states },
-			direct_alpha: $direct_alpha,
-			direct_mask: $direct_mask,
-			direct_opacity: $direct_opacity,
-			max_depth: $maximum_depth,
-			opacity_commands: $commands,
-			opacity_groups: $groups,
-			opaque_normalized: $opaque,
-			registry: $registry,
-			soft_mask_commands: $mask_commands,
-			visits: $visits,
-		})
-	}
+	Ok({
+		arena: { ambient: $ambient, states: $states },
+		direct_alpha: $direct_alpha,
+		direct_mask: $direct_mask,
+		direct_opacity: $direct_opacity,
+		max_depth: $maximum_depth,
+		opacity_commands: $commands,
+		opacity_groups: $groups,
+		opaque_normalized: $opaque,
+		registry: $registry,
+		soft_mask_commands: $mask_commands,
+		visits: $visits,
+	})
 }
 
 ## The opacity and soft-mask pre-pass: one walk per page group and per form
@@ -853,19 +850,18 @@ derive_opacity = |scenes, form_store, image_alpha, isolated, has_opacity, has_ma
 	var $opaque = 0
 	var $maximum_depth = 0
 	var $visits = 0
-	var $failure = NoFailure
 
 	var $page_index = 0
-	while $page_index < scenes.pages.len() and $failure == NoFailure {
+	while $page_index < scenes.pages.len() {
 		page = list_at(scenes.pages, $page_index)
 		var $direct = Bool.False
 		var $edge = page.paint_order.start()
 		end = $edge + page.paint_order.length()
-		while $edge < end and $failure == NoFailure {
+		while $edge < end {
 			group = list_at(scenes.groups, list_at(scenes.page_groups, $edge).index())
 			match walk_opacity($page_arena, $registry, group.commands, scenes.commands, image_alpha, isolated, max_depth) {
 				Err(error) => {
-					$failure = Failed(error)
+					return Err(error)
 				}
 				Ok(result) => {
 					$page_arena = result.arena
@@ -890,11 +886,11 @@ derive_opacity = |scenes, form_store, image_alpha, isolated, has_opacity, has_ma
 	var $form_direct_mask = List.with_capacity(form_store.forms.len())
 	var $form_direct_opacity = List.with_capacity(form_store.forms.len())
 	var $form_index = 0
-	while $form_index < form_store.forms.len() and $failure == NoFailure {
+	while $form_index < form_store.forms.len() {
 		form = list_at(form_store.forms, $form_index)
 		match walk_opacity($form_arena, $registry, form.commands, form_store.commands, image_alpha, isolated, max_depth) {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(result) => {
 				$form_arena = result.arena
@@ -912,21 +908,18 @@ derive_opacity = |scenes, form_store, image_alpha, isolated, has_opacity, has_ma
 		}
 		$form_index = $form_index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok({
-			form_ambient: $form_arena.ambient,
-			form_direct_alpha: $form_direct_alpha,
-			form_direct_mask: $form_direct_mask,
-			form_direct_opacity: $form_direct_opacity,
-			form_states: $form_arena.states,
-			page_ambient: $page_arena.ambient,
-			page_direct: $page_direct,
-			page_states: $page_arena.states,
-			states: $registry.states,
-			work: { max_depth: $maximum_depth, opacity_commands: $commands, opacity_groups: $groups, opaque_normalized: $opaque, soft_mask_commands: $mask_commands, visits: $visits },
-		})
-	}
+	Ok({
+		form_ambient: $form_arena.ambient,
+		form_direct_alpha: $form_direct_alpha,
+		form_direct_mask: $form_direct_mask,
+		form_direct_opacity: $form_direct_opacity,
+		form_states: $form_arena.states,
+		page_ambient: $page_arena.ambient,
+		page_direct: $page_direct,
+		page_states: $page_arena.states,
+		states: $registry.states,
+		work: { max_depth: $maximum_depth, opacity_commands: $commands, opacity_groups: $groups, opaque_normalized: $opaque, soft_mask_commands: $mask_commands, visits: $visits },
+	})
 }
 
 ## The lowest authored color space declaring the packaged ICCBased sRGB
@@ -1166,21 +1159,23 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 	var $page_placements = []
 	var $use_command_visits = 0
 	var $page_index = 0
-	var $failure = NoFailure
-	while $page_index < scenes.pages.len() and $failure == NoFailure {
+	while $page_index < scenes.pages.len() {
 		page = list_at(scenes.pages, $page_index)
 		var $state = fresh_use_state(nodes)
 		var $edge = page.paint_order.start()
 		end = $edge + page.paint_order.length()
-		while $edge < end and $failure == NoFailure {
+		while $edge < end {
 			group = list_at(scenes.groups, list_at(scenes.page_groups, $edge).index())
+
+			## Read before the call: `$state` read after the call stayed live
+			## across it, and the call copied the state's lists once per group.
+			placement_start = $state.form_occurrences.len()
 			collected = collect_range_uses($state, group.commands, scenes.commands, counts, text, derivation.page_states, bases)
 			match collected {
 				Err(error) => {
-					$failure = Failed(error)
+					return Err(error)
 				}
 				Ok(state) => {
-					placement_start = $state.form_occurrences.len()
 					$state = state
 					var $occurrence = placement_start
 					while $occurrence < $state.form_occurrences.len() {
@@ -1199,19 +1194,13 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 			}
 			$edge = $edge + 1
 		}
-		if $failure == NoFailure {
-			var $touched_index = 0
-			while $touched_index < $state.touched.len() {
-				$root_uses = $root_uses.append({ resource: list_at($state.touched, $touched_index), root: $page_index })
-				$touched_index = $touched_index + 1
-			}
-			$use_command_visits = $use_command_visits + $state.command_visits
+		var $touched_index = 0
+		while $touched_index < $state.touched.len() {
+			$root_uses = $root_uses.append({ resource: list_at($state.touched, $touched_index), root: $page_index })
+			$touched_index = $touched_index + 1
 		}
+		$use_command_visits = $use_command_visits + $state.command_visits
 		$page_index = $page_index + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	## Pass B: one walk per form over the form arena collects each form's
@@ -1223,11 +1212,11 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 	var $form_runs = []
 	var $direct_text = List.repeat(Bool.False, form_count)
 	var $form_index = 0
-	while $form_index < form_count and $failure == NoFailure {
+	while $form_index < form_count {
 		form = list_at(form_store.forms, $form_index)
 		match collect_range_uses(fresh_use_state(nodes), form.commands, form_store.commands, counts, text, derivation.form_states, bases) {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(state) => {
 				source = form_node(counts, $form_index)
@@ -1259,10 +1248,6 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 		}
 		$form_index = $form_index + 1
 	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
 
 	## Pass C: one walk per pattern cell over the pattern arena collects the
 	## cell's deduplicated direct uses, which become the pattern's direct
@@ -1272,19 +1257,19 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 	var $pattern_cell_visits = 0
 	cell_states = if counts.patterns > 0 List.repeat(state_sentinel, pattern_store.commands.len()) else []
 	var $cell_index = 0
-	while $cell_index < counts.patterns and $failure == NoFailure {
+	while $cell_index < counts.patterns {
 		cell = list_at(pattern_store.cells, $cell_index)
 		match collect_range_uses(fresh_use_state(nodes), cell.commands, pattern_store.commands, counts, text, cell_states, bases) {
 			Err(error) => {
-				$failure = Failed(error)
+				return Err(error)
 			}
 			Ok(state) => {
 				source = pattern_node(counts, form_count, states_count, $cell_index)
 				var $touched_index = 0
-				while $touched_index < state.touched.len() and $failure == NoFailure {
+				while $touched_index < state.touched.len() {
 					target = list_at(state.touched, $touched_index)
 					if target >= counts.color_spaces and target < counts.color_spaces + counts.image_color_spaces.len() and list_at(counts.image_alpha, target - counts.color_spaces) {
-						$failure = Failed(AlphaImageInPattern({ image: target - counts.color_spaces, pattern: $cell_index }))
+						return Err(AlphaImageInPattern({ image: target - counts.color_spaces, pattern: $cell_index }))
 					} else {
 						$edges = $edges.append({ source, target })
 					}
@@ -1294,10 +1279,6 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 			}
 		}
 		$cell_index = $cell_index + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	## Every image names its color space as a direct dependency, so closure
@@ -1430,17 +1411,13 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 	## mask under an ambient mask would replace rather than compose, so it is
 	## rejected symmetrically. Isolated groups reset both channels.
 	$form_index = 0
-	while $form_index < form_count and $failure == NoFailure {
+	while $form_index < form_count {
 		if list_at(derivation.form_direct_opacity, $form_index) and !list_at(isolated, $form_index) and list_at(transparency.in_ambient, $form_index) {
-			$failure = Failed(FormOpacityInAmbient({ form: $form_index }))
+			return Err(FormOpacityInAmbient({ form: $form_index }))
 		} else if list_at(derivation.form_direct_mask, $form_index) and !list_at(isolated, $form_index) and list_at(transparency.in_mask, $form_index) {
-			$failure = Failed(FormMaskInAmbient({ form: $form_index }))
+			return Err(FormMaskInAmbient({ form: $form_index }))
 		}
 		$form_index = $form_index + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	## Forms reachable inside a mask rendering (the mask forms and everything
@@ -1480,15 +1457,11 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 		{ mask_reachable: [], max_chain: 0, visits: 0 }
 	}
 	$form_index = 0
-	while $form_index < mask_facts.mask_reachable.len() and $failure == NoFailure {
+	while $form_index < mask_facts.mask_reachable.len() {
 		if list_at(mask_facts.mask_reachable, $form_index) and list_at(transitive_text, $form_index) {
-			$failure = Failed(TextInMaskForm({ form: $form_index }))
+			return Err(TextInMaskForm({ form: $form_index }))
 		}
 		$form_index = $form_index + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	## Per-page transparency: direct facts plus every placed form that is an
@@ -1538,127 +1511,112 @@ build_facts = |form_plan, colors, counts, text, limits, pattern_store, appearanc
 		{ nested_pattern: [], reachable: [], visits: 0 }
 	}
 	var $pattern_form = 0
-	while $pattern_form < pattern_facts.reachable.len() and $failure == NoFailure {
+	while $pattern_form < pattern_facts.reachable.len() {
 		if list_at(pattern_facts.reachable, $pattern_form) {
 			if list_at(transitive_text, $pattern_form) {
-				$failure = Failed(TextInPatternForm({ form: $pattern_form }))
+				return Err(TextInPatternForm({ form: $pattern_form }))
 			} else if list_at(isolated, $pattern_form) or list_at(transparency.transitive, $pattern_form) {
-				$failure = Failed(TransparencyInPattern({ form: $pattern_form }))
+				return Err(TransparencyInPattern({ form: $pattern_form }))
 			} else if list_at(pattern_facts.nested_pattern, $pattern_form) {
-				$failure = Failed(NestedPatternInvocation({ form: $pattern_form }))
+				return Err(NestedPatternInvocation({ form: $pattern_form }))
 			} else {
 				{}
 			}
 		}
 		$pattern_form = $pattern_form + 1
 	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
 
 	$appearance_scan = 0
-	while $appearance_scan < appearances.len() and $failure == NoFailure {
+	while $appearance_scan < appearances.len() {
 		appearance_form = list_at(appearances, $appearance_scan).form
 		if appearance_form < form_count and list_at(transitive_text, appearance_form) {
-			$failure = Failed(AppearanceTextUnsupported({ form: appearance_form }))
+			return Err(AppearanceTextUnsupported({ form: appearance_form }))
 		}
 		$appearance_scan = $appearance_scan + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	var $text_forms = 0
 	$form_index = 0
-	while $form_index < form_count and $failure == NoFailure {
+	while $form_index < form_count {
 		if list_at(transitive_text, $form_index) {
 			$text_forms = $text_forms + 1
 			instances = list_at(sweep.instances, $form_index)
 			if instances != 1 {
-				$failure = Failed(TextFormMultiplyPlaced({ form: $form_index, instances }))
+				return Err(TextFormMultiplyPlaced({ form: $form_index, instances }))
 			} else {
 				match list_at(sweep.owners, $form_index) {
 					FragmentOwner(_) => {}
 					_ => {
-						$failure = Failed(ArtifactTextInForm({ form: $form_index }))
+						return Err(ArtifactTextInForm({ form: $form_index }))
 					}
 				}
 			}
 		}
 		$form_index = $form_index + 1
 	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
-	}
 
 	var $run_fragments = List.with_capacity($form_runs.len())
 	var $form_run_index = 0
-	while $form_run_index < $form_runs.len() and $failure == NoFailure {
+	while $form_run_index < $form_runs.len() {
 		form_run = list_at($form_runs, $form_run_index)
 		match list_at(sweep.owners, form_run.form) {
 			FragmentOwner(fragment) => {
 				$run_fragments = $run_fragments.append({ fragment, run: form_run.run })
 			}
 			_ => {
-				$failure = Failed(ArtifactTextInForm({ form: form_run.form }))
+				return Err(ArtifactTextInForm({ form: form_run.form }))
 			}
 		}
 		$form_run_index = $form_run_index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok(
-			KernelForm.Facts.{
-				blending,
-				counts,
-				derived_states: derivation.states,
-				direct_text: $direct_text,
-				edges: $edges,
-				form_command_states: derivation.form_states,
-				form_instances: sweep.instances,
-				form_isolated: isolated,
-				form_owners: sweep.owners,
-				nested_offsets: sweep.nested_offsets,
-				nested_children: sweep.nested_children,
-				order,
-				page_command_states: derivation.page_states,
-				page_placements: $page_placements,
-				page_transparency: $page_transparency,
-				appearance_uses: appearances,
-				root_uses: $root_uses,
-				run_fragments: $run_fragments,
-				transitive_text,
-				work: {
-					blending_probe_bytes: blending_probe.probe_bytes,
-					closure_uses: $closure_uses,
-					derived_functions: function_total(counts),
-					direct_edges: $edges.len(),
-					distinct_opacity_values: states_count - mask_state_total,
-					mask_chain_sweep_visits: mask_facts.visits,
-					mask_states: mask_state_total,
-					max_mask_chain: mask_facts.max_chain,
-					max_opacity_depth: derivation.work.max_depth,
-					nested_form_placements: $nested.len(),
-					opacity_commands: derivation.work.opacity_commands,
-					opacity_groups: derivation.work.opacity_groups,
-					opaque_normalized: derivation.work.opaque_normalized,
-					ownership_sweep_visits: sweep.visits,
-					page_form_placements: $page_placements.len(),
-					pattern_cell_use_visits: $pattern_cell_visits,
-					pattern_sweep_visits: pattern_facts.visits,
-					root_uses: $root_uses.len(),
-					soft_mask_commands: derivation.work.soft_mask_commands,
-					text_forms: $text_forms,
-					transparency_pages: $transparency_pages,
-					transparency_sweep_visits: transparency.visits,
-					use_command_visits: $use_command_visits,
-				},
+	Ok(
+		KernelForm.Facts.{
+			blending,
+			counts,
+			derived_states: derivation.states,
+			direct_text: $direct_text,
+			edges: $edges,
+			form_command_states: derivation.form_states,
+			form_instances: sweep.instances,
+			form_isolated: isolated,
+			form_owners: sweep.owners,
+			nested_offsets: sweep.nested_offsets,
+			nested_children: sweep.nested_children,
+			order,
+			page_command_states: derivation.page_states,
+			page_placements: $page_placements,
+			page_transparency: $page_transparency,
+			appearance_uses: appearances,
+			root_uses: $root_uses,
+			run_fragments: $run_fragments,
+			transitive_text,
+			work: {
+				blending_probe_bytes: blending_probe.probe_bytes,
+				closure_uses: $closure_uses,
+				derived_functions: function_total(counts),
+				direct_edges: $edges.len(),
+				distinct_opacity_values: states_count - mask_state_total,
+				mask_chain_sweep_visits: mask_facts.visits,
+				mask_states: mask_state_total,
+				max_mask_chain: mask_facts.max_chain,
+				max_opacity_depth: derivation.work.max_depth,
+				nested_form_placements: $nested.len(),
+				opacity_commands: derivation.work.opacity_commands,
+				opacity_groups: derivation.work.opacity_groups,
+				opaque_normalized: derivation.work.opaque_normalized,
+				ownership_sweep_visits: sweep.visits,
+				page_form_placements: $page_placements.len(),
+				pattern_cell_use_visits: $pattern_cell_visits,
+				pattern_sweep_visits: pattern_facts.visits,
+				root_uses: $root_uses.len(),
+				soft_mask_commands: derivation.work.soft_mask_commands,
+				text_forms: $text_forms,
+				transparency_pages: $transparency_pages,
+				transparency_sweep_visits: transparency.visits,
+				use_command_visits: $use_command_visits,
 			},
-		)
-	}
+		},
+	)
 }
 
 fresh_use_state : U64 -> UseState
@@ -1738,9 +1696,8 @@ resolve_masks = |counts, form_count, order, states, nesting, edges, max_mask_dep
 
 	var $chain = List.repeat(0, node_total)
 	var $max_chain = 0
-	var $failure = NoFailure
 	var $position = 0
-	while $position < order.len() and $failure == NoFailure {
+	while $position < order.len() {
 		node = list_at(order, $position)
 		is_state = node >= state_base and node < state_end
 		value = if is_state {
@@ -1749,7 +1706,7 @@ resolve_masks = |counts, form_count, order, states, nesting, edges, max_mask_dep
 				MaskState(mask_form) => {
 					depth = list_at($chain, form_node(counts, mask_form)) + 1
 					if depth > max_mask_depth {
-						$failure = Failed(MaskDepthExceeded({ attempted: depth, limit: max_mask_depth }))
+						return Err(MaskDepthExceeded({ attempted: depth, limit: max_mask_depth }))
 					}
 					depth
 				}
@@ -1770,10 +1727,7 @@ resolve_masks = |counts, form_count, order, states, nesting, edges, max_mask_dep
 		$position = $position + 1
 		$visits = $visits + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok({ mask_reachable: $mask_reachable, max_chain: $max_chain, visits: $visits })
-	}
+	Ok({ mask_reachable: $mask_reachable, max_chain: $max_chain, visits: $visits })
 }
 
 ## Direct-dependency adjacency grouped by source through counting and prefix
@@ -1956,12 +1910,11 @@ collect_range_uses = |initial, root, arena, counts, text, command_states, bases|
 	var $state = initial
 	var $frames = [WalkFrame.{ range: root }]
 	var $frame_index = 0
-	var $failure = NoFailure
-	while $frame_index < $frames.len() and $failure == NoFailure {
+	while $frame_index < $frames.len() {
 		frame = list_at($frames, $frame_index)
 		var $command_index = frame.range.start()
 		end = frame.range.start() + frame.range.length()
-		while $command_index < end and $failure == NoFailure {
+		while $command_index < end {
 			match list_at(arena, $command_index) {
 				Clip({ children, path: _ }) | Transform({ children, matrix: _ }) => {
 					$frames = $frames.append(WalkFrame.{ range: children })
@@ -1984,7 +1937,7 @@ collect_range_uses = |initial, root, arena, counts, text, command_states, bases|
 				}
 				DrawText({ paint, run }) => match text {
 					NoTextStore => {
-						$failure = Failed(MissingTextStore({ command: $command_index }))
+						return Err(MissingTextStore({ command: $command_index }))
 					}
 					WithTextStore(store) => {
 						record = list_at(store.runs, run.index())
@@ -2007,10 +1960,7 @@ collect_range_uses = |initial, root, arena, counts, text, command_states, bases|
 		}
 		$frame_index = $frame_index + 1
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok($state)
-	}
+	Ok($state)
 }
 
 touch_style : UseState, Scene.PathStyle, NodeBases -> UseState
@@ -2204,9 +2154,8 @@ resolve_ownership = |counts, form_count, order, page_placements, nested| {
 		$nested_index = $nested_index + 1
 	}
 
-	var $failure = NoFailure
 	var $position = order.len()
-	while $position > 0 and $failure == NoFailure {
+	while $position > 0 {
 		$position = $position - 1
 		node = list_at(order, $position)
 		if node >= base and node < base + form_count {
@@ -2215,11 +2164,11 @@ resolve_ownership = |counts, form_count, order, page_placements, nested| {
 			parent_owner = if parent_instances == 1 list_at($owners, parent_form) else MixedOwner
 			var $edge = list_at($offsets, parent_form)
 			edge_end = list_at($offsets, parent_form + 1)
-			while $edge < edge_end and $failure == NoFailure {
+			while $edge < edge_end {
 				child = list_at($children, $edge)
 				match U64.plus_try(list_at($instances, child), parent_instances) {
 					Err(Overflow) => {
-						$failure = Failed(ArithmeticOverflow)
+						return Err(ArithmeticOverflow)
 					}
 					Ok(next) => {
 						$instances = list_set($instances, child, next)
@@ -2231,10 +2180,7 @@ resolve_ownership = |counts, form_count, order, page_placements, nested| {
 			}
 		}
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok({ instances: $instances, nested_children: $children, nested_edge_ambient: $edge_ambient, nested_offsets: $offsets, owners: $owners, visits: $visits })
-	}
+	Ok({ instances: $instances, nested_children: $children, nested_edge_ambient: $edge_ambient, nested_offsets: $offsets, owners: $owners, visits: $visits })
 }
 
 merge_owner : KernelForm.FormOwner, KernelForm.FormOwner -> KernelForm.FormOwner
@@ -2396,9 +2342,8 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 	var $pattern_recipe_bytes = 0
 	var $function_recipe_bytes = 0
 	var $form_digests = 0
-	var $failure = NoFailure
 	var $position = 0
-	while $position < facts.order.len() and $failure == NoFailure {
+	while $position < facts.order.len() {
 		node = list_at(facts.order, $position)
 		start = $payload.len()
 		if node < counts.color_spaces {
@@ -2416,7 +2361,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 				IccBased({ components: _, profile }) => [icc_based_recipe_tag].concat(list_at($digests, profile_node(counts, profile.index())))
 				Srgb(profile) => [icc_based_recipe_tag].concat(list_at($digests, profile_node(counts, profile.index())))
 			}
-			$payload = $payload.concat(recipe)
+			$payload = append_bytes($payload, recipe)
 			$leaf_recipe_bytes = $leaf_recipe_bytes + recipe.len()
 			descriptor = {
 				bit_depth: 0,
@@ -2433,69 +2378,55 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			image_ordinal = node - counts.color_spaces
 			resource = list_at(image_store.resources, image_ordinal)
 			space_digest = list_at($digests, color_node(list_at(counts.image_color_spaces, image_ordinal)))
-			$payload = $payload.concat(space_digest)
+			$payload = append_bytes($payload, space_digest)
 			$leaf_recipe_bytes = $leaf_recipe_bytes + space_digest.len()
 			plane_start = $payload.len()
-			descriptor = match resource.payload {
+
+			## The planes are appended by statements, not inside the `match`
+			## that yields the descriptor: a value-producing `match` whose arms
+			## reassigned `$payload` carried the payload beside the arm's value,
+			## and the next append copied it (docs/performance/emission-linearity.md).
+			descriptor = image_descriptor(resource.payload)
+			match resource.payload {
 				Jpeg(jpeg) => {
-					$payload = $payload.concat(jpeg.bytes)
+					$payload = append_bytes($payload, jpeg.bytes)
 					$copied_leaf_bytes = $copied_leaf_bytes + jpeg.bytes.len()
 					$image_ranges = list_set($image_ranges, image_ordinal, { alpha_length: 0, color_length: jpeg.bytes.len(), start: plane_start })
-					{
-						bit_depth: 8,
-						components: component_rank(jpeg.components),
-						flags: 0,
-						height: jpeg.dimensions.height.to_u64(),
-						kind: Image,
-						subtype: 1,
-						width: jpeg.dimensions.width.to_u64(),
-					}
 				}
 				Raster(raster) => {
-					components = match raster.format {
-						Gray8 => 1
-						Rgb8 => 3
-					}
-					row_bytes = raster.dimensions.width.to_u64() * components
+					row_bytes = raster.dimensions.width.to_u64() * descriptor.components
 					height = raster.dimensions.height.to_u64()
 					$payload = append_compact_rows($payload, raster.pixels, raster.row_stride, row_bytes, height)
+					match raster.alpha {
+						NoAlpha => {}
+						PackedAlpha(alpha) => {
+							$payload = append_compact_rows($payload, alpha.bytes, alpha.row_stride, raster.dimensions.width.to_u64(), height)
+						}
+					}
 					color_length = row_bytes * height
 					alpha_length = match raster.alpha {
 						NoAlpha => 0
-						PackedAlpha(alpha) => {
-							$payload = append_compact_rows($payload, alpha.bytes, alpha.row_stride, raster.dimensions.width.to_u64(), height)
-							raster.dimensions.width.to_u64() * height
-						}
+						PackedAlpha(_) => raster.dimensions.width.to_u64() * height
 					}
 					$copied_leaf_bytes = $copied_leaf_bytes + color_length + alpha_length
 					$image_ranges = list_set($image_ranges, image_ordinal, { alpha_length, color_length, start: plane_start })
-					{
-						bit_depth: 8,
-						components,
-						flags: if alpha_length > 0 1 else 0,
-						height,
-						kind: Image,
-						subtype: 0,
-						width: raster.dimensions.width.to_u64(),
-					}
 				}
 			}
 			$sources = list_set($sources, node, { descriptor, length: $payload.len() - start, start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < counts.color_spaces + image_count + counts.fonts {
-
 			## A font leaf: the derived canonical bundle recipe from
 			## `KernelFontLeaf` — typed emitted facts plus the exact sanitized
 			## subset bytes — never the caller's whole font program, which
 			## therefore no longer enters the identity arena.
 			leaf = list_at(leaves.fonts, node - counts.color_spaces - image_count)
-			$payload = $payload.concat(leaf.payload)
+			$payload = append_bytes($payload, leaf.payload)
 			$font_recipe_bytes = $font_recipe_bytes + leaf.payload.len()
 			$sources = list_set($sources, node, { descriptor: leaf.descriptor, length: leaf.payload.len(), start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < base {
 			profile = list_at(color_store.profiles, node - counts.color_spaces - image_count - counts.fonts)
-			$payload = $payload.concat(profile.bytes)
+			$payload = append_bytes($payload, profile.bytes)
 			$copied_leaf_bytes = $copied_leaf_bytes + profile.bytes.len()
 			descriptor = {
 				bit_depth: 0,
@@ -2513,24 +2444,16 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			$leaf_digests = $leaf_digests + 1
 		} else if node < base + form_count {
 			form = list_at(form_store.forms, node - base)
-			match serialize_recipe(form, form_store.commands, scenes, $digests, counts, bases, text, facts.form_command_states, facts.derived_states) {
-				Err(error) => {
-					$failure = Failed(error)
-				}
-				Ok(recipe) => {
-					attempted = U64.plus_try($recipe_bytes, recipe.len()) ? |_| ArithmeticOverflow
-					if attempted > limits.max_recipe_bytes {
-						$failure = Failed(RecipeByteLimitExceeded({ attempted, limit: limits.max_recipe_bytes }))
-					} else {
-						$recipe_bytes = attempted
-						$payload = $payload.concat(recipe)
-						$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
-						$form_digests = $form_digests + 1
-					}
-				}
+			recipe = serialize_recipe(form, form_store.commands, scenes, $digests, counts, bases, text, facts.form_command_states, facts.derived_states)?
+			attempted = U64.plus_try($recipe_bytes, recipe.len()) ? |_| ArithmeticOverflow
+			if attempted > limits.max_recipe_bytes {
+				return Err(RecipeByteLimitExceeded({ attempted, limit: limits.max_recipe_bytes }))
 			}
+			$recipe_bytes = attempted
+			$payload = append_bytes($payload, recipe)
+			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
+			$form_digests = $form_digests + 1
 		} else if node < bases.shading_base {
-
 			## A graphics-state recipe: every emitted fact of the canonical
 			## ExtGState, in fixed order. A constant-alpha state serializes
 			## its non-stroking and stroking alphas (equal in this slice) and
@@ -2543,12 +2466,11 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 				AlphaState(value) => append_u16_bytes(append_u16_bytes([ext_g_state_recipe_tag], value.to_u16_wrap()), value.to_u16_wrap()).append(blend_normal_tag)
 				MaskState(mask_form) => [mask_state_recipe_tag, alpha_mask_subtype_tag].concat(list_at($digests, form_node(counts, mask_form)))
 			}
-			$payload = $payload.concat(recipe)
+			$payload = append_bytes($payload, recipe)
 			$state_recipe_bytes = $state_recipe_bytes + recipe.len()
 			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < bases.pattern_base {
-
 			## A shading recipe: the shading kind, the exact fixed-point
 			## geometry, the extend flags, the color-space identity digest,
 			## and the root function's identity digest — which transitively
@@ -2575,36 +2497,27 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			}
 			$recipe = $recipe.append(if shading.extend_start 1 else 0)
 			$recipe = $recipe.append(if shading.extend_end 1 else 0)
-			$recipe = $recipe.concat(list_at($digests, color_node(shading.space.index())))
-			$recipe = $recipe.concat(list_at($digests, functions_start + shading_root_function(counts, node - bases.shading_base)))
-			$payload = $payload.concat($recipe)
+			$recipe = append_bytes($recipe, list_at($digests, color_node(shading.space.index())))
+			$recipe = append_bytes($recipe, list_at($digests, functions_start + shading_root_function(counts, node - bases.shading_base)))
+			$payload = append_bytes($payload, $recipe)
 			$shading_recipe_bytes = $shading_recipe_bytes + $recipe.len()
 			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: $recipe.len(), start })
 			$leaf_digests = $leaf_digests + 1
 		} else if node < functions_start {
-
 			## A pattern recipe: bounds, steps, matrix, and the canonical
 			## cell-command recipe, sharing the form recipe-byte budget.
 			cell = list_at(pattern_store.cells, node - bases.pattern_base)
-			match serialize_pattern_recipe(cell, pattern_store.commands, scenes, $digests, counts, bases, text, pattern_command_states, facts.derived_states) {
-				Err(error) => {
-					$failure = Failed(error)
-				}
-				Ok(recipe) => {
-					attempted = U64.plus_try($recipe_bytes, recipe.len()) ? |_| ArithmeticOverflow
-					if attempted > limits.max_recipe_bytes {
-						$failure = Failed(RecipeByteLimitExceeded({ attempted, limit: limits.max_recipe_bytes }))
-					} else {
-						$recipe_bytes = attempted
-						$pattern_recipe_bytes = $pattern_recipe_bytes + recipe.len()
-						$payload = $payload.concat(recipe)
-						$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
-						$form_digests = $form_digests + 1
-					}
-				}
+			recipe = serialize_pattern_recipe(cell, pattern_store.commands, scenes, $digests, counts, bases, text, pattern_command_states, facts.derived_states)?
+			attempted = U64.plus_try($recipe_bytes, recipe.len()) ? |_| ArithmeticOverflow
+			if attempted > limits.max_recipe_bytes {
+				return Err(RecipeByteLimitExceeded({ attempted, limit: limits.max_recipe_bytes }))
 			}
+			$recipe_bytes = attempted
+			$pattern_recipe_bytes = $pattern_recipe_bytes + recipe.len()
+			$payload = append_bytes($payload, recipe)
+			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
+			$form_digests = $form_digests + 1
 		} else {
-
 			## A function recipe: a segment function serializes its channel
 			## arity and the two adjacent stop colors it interpolates (the
 			## domain, encode, and exponent are constants of the emission
@@ -2621,7 +2534,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 				$stitch = append_u64_bytes($stitch, segment_count - 1)
 				var $child = 0
 				while $child < segment_count - 1 {
-					$stitch = $stitch.concat(list_at($digests, functions_start + segment_start + $child))
+					$stitch = append_bytes($stitch, list_at($digests, functions_start + segment_start + $child))
 					$child = $child + 1
 				}
 				var $bound = 1
@@ -2637,27 +2550,14 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 				$segment = append_channels($segment, first.channels)
 				append_channels($segment, second.channels)
 			}
-			$payload = $payload.concat(recipe)
+			$payload = append_bytes($payload, recipe)
 			$function_recipe_bytes = $function_recipe_bytes + recipe.len()
 			$sources = list_set($sources, node, { descriptor: node_descriptor(counts, form_count, facts.form_isolated, facts.derived_states, node), length: recipe.len(), start })
 			$leaf_digests = $leaf_digests + 1
 		}
-		if $failure == NoFailure {
-			source = list_at($sources, node)
-			match KernelResourceGraph.identity_digest(source, $payload) {
-				Err(error) => {
-					$failure = Failed(Graph(error))
-				}
-				Ok(digest) => {
-					$digests = list_set($digests, node, digest)
-				}
-			}
-		}
+		digest = KernelResourceGraph.identity_digest(list_at($sources, node), $payload) ? Graph
+		$digests = list_set($digests, node, digest)
 		$position = $position + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	## Placement-site ownership facts: page-level placements inherit their
@@ -3356,8 +3256,7 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 	var $active = 0
 	var $current = RecipeFrame.{ close: Bool.False, end: root.start() + root.length(), next: root.start() }
 	var $done = Bool.False
-	var $failure = NoFailure
-	while !$done and $failure == NoFailure {
+	while !$done {
 		if $current.next >= $current.end {
 			if $current.close {
 				$out = $out.append(2)
@@ -3380,7 +3279,7 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 				}
 				DrawImage({ image, placement }) => {
 					$out = append_rect($out.append(3), placement)
-					$out = $out.concat(list_at(digests, image_node(counts, image.index())))
+					$out = append_bytes($out, list_at(digests, image_node(counts, image.index())))
 				}
 				DrawPath({ path, style }) => {
 					$out = append_style($out.append(4), style, scenes, digests, bases)
@@ -3388,24 +3287,23 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 				}
 				DrawText({ paint, run }) => match text {
 					NoText => {
-						$failure = Failed(missing_text)
+						return Err(missing_text)
 					}
 					WithText(plan) => if run.index() >= KernelContent.TextPlan.run_count(plan) {
-						$failure = Failed(TextRunRecipeInvalid({ prepared: KernelContent.TextPlan.run_count(plan), run: run.index() }))
+						return Err(TextRunRecipeInvalid({ prepared: KernelContent.TextPlan.run_count(plan), run: run.index() }))
 					} else {
-
 						## The font selection serializes as the referenced font
 						## leaf's identity digest plus the exact size, mirroring
 						## the emitted `Tf` operator, so recipes never depend on
 						## authored font numbering.
 						$out = append_text_paint($out.append(5), paint, digests)
 						prepared = KernelContent.TextPlan.run(plan, run.index())
-						$out = $out.concat(list_at(digests, font_node(counts, prepared.font)))
+						$out = append_bytes($out, list_at(digests, font_node(counts, prepared.font)))
 						$out = append_i64_bytes($out, prepared.size.raw())
 						$out = append_u64_bytes($out, prepared.actual_text_begin.len())
-						$out = $out.concat(prepared.actual_text_begin)
+						$out = append_bytes($out, prepared.actual_text_begin)
 						$out = append_u64_bytes($out, prepared.body.len())
-						$out = $out.concat(prepared.body)
+						$out = append_bytes($out, prepared.body)
 						$out = $out.append(if prepared.close_actual_text 1 else 0)
 					}
 				}
@@ -3436,17 +3334,17 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 							crash "validated soft-mask command resolved to an alpha state"
 						}
 					}
-					$out = $out.append(9).concat(list_at(digests, form_node(counts, mask_form)))
+					$out = append_bytes($out.append(9), list_at(digests, form_node(counts, mask_form)))
 					$frames = push_recipe_frame($frames, $active, $current)
 					$active = $active + 1
 					$current = RecipeFrame.{ close: Bool.True, end: children.start() + children.length(), next: children.start() }
 				}
 				PaintShading({ shading }) => {
-					$out = $out.append(10).concat(list_at(digests, bases.shading_base + shading.index()))
+					$out = append_bytes($out.append(10), list_at(digests, bases.shading_base + shading.index()))
 				}
 				PlaceForm({ form: child, transform }) => {
 					$out = append_matrix($out.append(6), transform)
-					$out = $out.concat(list_at(digests, form_node(counts, child.index())))
+					$out = append_bytes($out, list_at(digests, form_node(counts, child.index())))
 				}
 				Transform({ children, matrix }) => {
 					$out = append_matrix($out.append(7), matrix)
@@ -3457,10 +3355,7 @@ serialize_range = |initial, missing_text, root, arena, scenes, digests, counts, 
 			}
 		}
 	}
-	match $failure {
-		Failed(error) => Err(error)
-		NoFailure => Ok($out)
-	}
+	Ok($out)
 }
 
 RecipeFrame := { close : Bool, end : U64, next : U64 }
@@ -3488,7 +3383,7 @@ append_style = |out, style, scenes, digests, bases| {
 					Nonzero => 1
 				},
 			)
-			tagged.concat(list_at(digests, bases.pattern_base + pattern.index()))
+			append_bytes(tagged, list_at(digests, bases.pattern_base + pattern.index()))
 		}
 	}
 	match style.stroke {
@@ -3547,16 +3442,16 @@ append_text_paint = |out, paint, digests| {
 	}
 }
 
+## The arms consume `with_space` without reassigning a `var`: an arm that
+## reassigned the recipe `var` and then passed it on as its value kept a
+## second reference to the recipe across that call, which copied it
+## (docs/performance/emission-linearity.md).
 append_color : List(U8), Color.Value, List(List(U8)) -> List(U8)
 append_color = |out, color, digests| {
-	var $out = out.concat(list_at(digests, color_node(color.space.index())))
+	with_space = append_bytes(out, list_at(digests, color_node(color.space.index())))
 	match color.channels {
-		Gray(gray) => append_u16_bytes($out.append(1), gray)
-		Rgb({ blue, green, red }) => {
-			$out = append_u16_bytes($out.append(3), red)
-			$out = append_u16_bytes($out, green)
-			append_u16_bytes($out, blue)
-		}
+		Gray(gray) => append_u16_bytes(with_space.append(1), gray)
+		Rgb({ blue, green, red }) => append_u16_bytes(append_u16_bytes(append_u16_bytes(with_space.append(3), red), green), blue)
 	}
 }
 
@@ -3616,6 +3511,50 @@ append_i64_bytes = |output, value| append_u64_bytes(output, value.to_u64_wrap())
 
 append_u16_bytes : List(U8), U16 -> List(U8)
 append_u16_bytes = |output, value| output.append(value.shr_wrap(8).to_u8_wrap()).append(value.to_u8_wrap())
+
+## The typed descriptor of an image leaf; its planes are appended separately.
+image_descriptor : [Jpeg(Image.ValidatedJpeg), Raster(Image.PackedRaster)] -> KernelResourceGraph.Descriptor
+image_descriptor = |payload| match payload {
+	Jpeg(jpeg) => {
+		bit_depth: 8,
+		components: component_rank(jpeg.components),
+		flags: 0,
+		height: jpeg.dimensions.height.to_u64(),
+		kind: Image,
+		subtype: 1,
+		width: jpeg.dimensions.width.to_u64(),
+	}
+	Raster(raster) => {
+		bit_depth: 8,
+		components: match raster.format {
+			Gray8 => 1
+			Rgb8 => 3
+		},
+		flags: match raster.alpha {
+			NoAlpha => 0
+			PackedAlpha(_) => if raster.dimensions.width.to_u64() * raster.dimensions.height.to_u64() > 0 1 else 0
+		},
+		height: raster.dimensions.height.to_u64(),
+		kind: Image,
+		subtype: 0,
+		width: raster.dimensions.width.to_u64(),
+	}
+}
+
+## Appends every byte of `source`. `List.concat` sizes its result exactly,
+## so an accumulator grown by `concat` was reallocated, and copied, on every
+## call; `append` grows geometrically
+## (docs/performance/emission-linearity.md).
+append_bytes : List(U8), List(U8) -> List(U8)
+append_bytes = |target, source| {
+	var $out = target
+	var $index = 0
+	while $index < source.len() {
+		$out = $out.append(list_at(source, $index))
+		$index = $index + 1
+	}
+	$out
+}
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

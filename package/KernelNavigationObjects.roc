@@ -119,6 +119,17 @@ KernelNavigationObjects :: [].{
 		quad_numbers : U64,
 	}
 
+	## The three names a byte-keyed balanced tree node uses.
+	TreeNames : { kids : KernelObject.NameId, limits : KernelObject.NameId, names : KernelObject.NameId }
+
+	## Lower a validated balanced byte-keyed tree (the named-destination name
+	## tree or the structure IDTree) onto its planned node objects in
+	## breadth-first order: intermediate nodes carry `/Kids` then `/Limits`,
+	## leaves `/Limits` then `/Names`, and a single root carries neither
+	## limits nor kids.
+	emit_name_tree : KernelObject.Builder, TreeNames, KernelIndex.ByteTree, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder }, Error)
+	emit_name_tree = |builder, names, tree, planned| emit_byte_tree(builder, names, tree, planned)
+
 	## Plan navigation object identities after `base_count` existing objects.
 	plan : U64, KernelNavigation.Store -> Try(Objects, Error)
 	plan = |base_count, store| plan_objects(base_count, store)
@@ -530,11 +541,38 @@ add_name_tree = |builder, names, store, resolved, objects, context| {
 			NameTree,
 			KernelIndex.Limits.make({ max_entries: store.destinations.len(), max_key_bytes: store.name_bytes.len(), value_count: counts.values }),
 		) ? Index
-		emit_byte_tree($builder, names, tree, objects.name_nodes)
+		emit_byte_tree($builder, { kids: names.kids, limits: names.limits, names: names.names }, tree, objects.name_nodes)
 	}
 }
 
-emit_byte_tree : KernelObject.Builder, KernelNavigationObjects.Names, KernelIndex.ByteTree, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder }, KernelNavigationObjects.Error)
+## One byte-tree node's `/Kids` or `/Names` array. The builder moves into
+## this function rather than being copied into a loop-local `var` beside the
+## still-live loop builder (docs/performance/lowering-uniqueness.md).
+add_byte_tree_children : KernelObject.Builder, KernelNavigationObjects.TreeNames, KernelIndex.ByteTree, List(KernelObject.ObjectId), KernelIndex.Node -> Try({ builder : KernelObject.Builder, key : KernelObject.NameId, value : KernelObject.ValueId }, KernelNavigationObjects.Error)
+add_byte_tree_children = |builder, names, tree, planned, node| match KernelIndex.Node.children(node) {
+	Nodes(span) => {
+		kids = add_planned_reference_array(builder, planned, KernelBalanced.Span.start(span), KernelBalanced.Span.length(span))?
+		Ok({ builder: kids.builder, key: names.kids, value: kids.id })
+	}
+	Entries(span) => {
+		var $items = List.with_capacity(KernelBalanced.Span.length(span) * 2)
+		var $inner = builder
+		var $entry = KernelBalanced.Span.start(span)
+		entry_end = KernelBalanced.Span.start(span) + KernelBalanced.Span.length(span)
+		while $entry < entry_end {
+			tree_entry = KernelIndex.ByteTree.entry(tree, $entry)
+			key_string = KernelObject.add_byte_string($inner, KernelIndex.ByteEntry.key(tree_entry)) ? Object
+			key_value = KernelObject.add_byte_string_value(key_string.builder, key_string.id) ? Object
+			$inner = key_value.builder
+			$items = $items.append(key_value.id).append(KernelIndex.ByteEntry.value(tree_entry))
+			$entry = $entry + 1
+		}
+		array = KernelObject.add_array($inner, $items) ? Object
+		Ok({ builder: array.builder, key: names.names, value: array.id })
+	}
+}
+
+emit_byte_tree : KernelObject.Builder, KernelNavigationObjects.TreeNames, KernelIndex.ByteTree, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder }, KernelNavigationObjects.Error)
 emit_byte_tree = |builder, names, tree, planned| {
 	var $builder = builder
 	var $global = 0
@@ -543,29 +581,7 @@ emit_byte_tree = |builder, names, tree, planned| {
 		var $node = 0
 		while $node < KernelIndex.ByteTree.node_count_at(tree, $level) {
 			node = KernelIndex.ByteTree.node(tree, $level, $node)
-			children = match KernelIndex.Node.children(node) {
-				Nodes(span) => {
-					kid_refs = add_planned_references($builder, planned, KernelBalanced.Span.start(span), KernelBalanced.Span.length(span))?
-					kids = KernelObject.add_array(kid_refs.builder, kid_refs.values) ? Object
-					{ builder: kids.builder, key: names.kids, value: kids.id }
-				}
-				Entries(span) => {
-					var $items = List.with_capacity(KernelBalanced.Span.length(span) * 2)
-					var $inner = $builder
-					var $entry = KernelBalanced.Span.start(span)
-					entry_end = KernelBalanced.Span.start(span) + KernelBalanced.Span.length(span)
-					while $entry < entry_end {
-						tree_entry = KernelIndex.ByteTree.entry(tree, $entry)
-						key_string = KernelObject.add_byte_string($inner, KernelIndex.ByteEntry.key(tree_entry)) ? Object
-						key_value = KernelObject.add_byte_string_value(key_string.builder, key_string.id) ? Object
-						$inner = key_value.builder
-						$items = $items.append(key_value.id).append(KernelIndex.ByteEntry.value(tree_entry))
-						$entry = $entry + 1
-					}
-					array = KernelObject.add_array($inner, $items) ? Object
-					{ builder: array.builder, key: names.names, value: array.id }
-				}
-			}
+			children = add_byte_tree_children($builder, names, tree, planned, node)?
 			limits_value = match KernelIndex.Node.limits(node) {
 				NoLimits => { builder: children.builder, value: NoValue }
 				NodeLimits({ first_index, last_index }) => {
@@ -827,6 +843,31 @@ add_label_tree = |builder, names, store, objects| {
 	}
 }
 
+## One number-tree node's `/Kids` or `/Nums` array (see
+## `add_byte_tree_children`).
+add_number_tree_children : KernelObject.Builder, KernelNavigationObjects.Names, KernelIndex.NumberTree, List(KernelObject.ObjectId), KernelIndex.Node -> Try({ builder : KernelObject.Builder, key : KernelObject.NameId, value : KernelObject.ValueId }, KernelNavigationObjects.Error)
+add_number_tree_children = |builder, names, tree, planned, node| match KernelIndex.Node.children(node) {
+	Nodes(span) => {
+		kids = add_planned_reference_array(builder, planned, KernelBalanced.Span.start(span), KernelBalanced.Span.length(span))?
+		Ok({ builder: kids.builder, key: names.kids, value: kids.id })
+	}
+	Entries(span) => {
+		var $items = List.with_capacity(KernelBalanced.Span.length(span) * 2)
+		var $inner = builder
+		var $entry = KernelBalanced.Span.start(span)
+		entry_end = KernelBalanced.Span.start(span) + KernelBalanced.Span.length(span)
+		while $entry < entry_end {
+			tree_entry = KernelIndex.NumberTree.entry(tree, $entry)
+			key_value = KernelObject.add_integer($inner, KernelIndex.NumberEntry.key(tree_entry)) ? Object
+			$inner = key_value.builder
+			$items = $items.append(key_value.id).append(KernelIndex.NumberEntry.value(tree_entry))
+			$entry = $entry + 1
+		}
+		array = KernelObject.add_array($inner, $items) ? Object
+		Ok({ builder: array.builder, key: names.nums, value: array.id })
+	}
+}
+
 emit_number_tree : KernelObject.Builder, KernelNavigationObjects.Names, KernelIndex.NumberTree, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder }, KernelNavigationObjects.Error)
 emit_number_tree = |builder, names, tree, planned| {
 	var $builder = builder
@@ -836,28 +877,7 @@ emit_number_tree = |builder, names, tree, planned| {
 		var $node = 0
 		while $node < KernelIndex.NumberTree.node_count_at(tree, $level) {
 			node = KernelIndex.NumberTree.node(tree, $level, $node)
-			children = match KernelIndex.Node.children(node) {
-				Nodes(span) => {
-					kid_refs = add_planned_references($builder, planned, KernelBalanced.Span.start(span), KernelBalanced.Span.length(span))?
-					kids = KernelObject.add_array(kid_refs.builder, kid_refs.values) ? Object
-					{ builder: kids.builder, key: names.kids, value: kids.id }
-				}
-				Entries(span) => {
-					var $items = List.with_capacity(KernelBalanced.Span.length(span) * 2)
-					var $inner = $builder
-					var $entry = KernelBalanced.Span.start(span)
-					entry_end = KernelBalanced.Span.start(span) + KernelBalanced.Span.length(span)
-					while $entry < entry_end {
-						tree_entry = KernelIndex.NumberTree.entry(tree, $entry)
-						key_value = KernelObject.add_integer($inner, KernelIndex.NumberEntry.key(tree_entry)) ? Object
-						$inner = key_value.builder
-						$items = $items.append(key_value.id).append(KernelIndex.NumberEntry.value(tree_entry))
-						$entry = $entry + 1
-					}
-					array = KernelObject.add_array($inner, $items) ? Object
-					{ builder: array.builder, key: names.nums, value: array.id }
-				}
-			}
+			children = add_number_tree_children($builder, names, tree, planned, node)?
 			limits_value = match KernelIndex.Node.limits(node) {
 				NoLimits => { builder: children.builder, value: NoValue }
 				NodeLimits({ first_index, last_index }) => {
@@ -899,8 +919,12 @@ add_style_value = |builder, name| {
 	Ok({ builder: added.builder, value: WithValue(added.id) })
 }
 
-add_planned_references : KernelObject.Builder, List(KernelObject.ObjectId), U64, U64 -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelNavigationObjects.Error)
-add_planned_references = |builder, planned, start, length| {
+## References to `length` planned objects from `start`, then their array.
+## It returns only the builder and the array's id: returning the builder
+## beside the value list made the pinned dev backend copy the store once per
+## node (docs/performance/lowering-uniqueness.md).
+add_planned_reference_array : KernelObject.Builder, List(KernelObject.ObjectId), U64, U64 -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelNavigationObjects.Error)
+add_planned_reference_array = |builder, planned, start, length| {
 	var $builder = builder
 	var $values = List.with_capacity(length)
 	var $index = 0
@@ -910,7 +934,8 @@ add_planned_references = |builder, planned, start, length| {
 		$values = $values.append(added.id)
 		$index = $index + 1
 	}
-	Ok({ builder: $builder, values: $values })
+	array = KernelObject.add_array($builder, $values) ? Object
+	Ok(array)
 }
 
 name_bytes : KernelNavigation.Store, U64 -> List(U8)

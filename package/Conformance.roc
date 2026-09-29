@@ -29,6 +29,7 @@ Conformance :: [].{
 		InvalidOwnership,
 		InvalidRelationship,
 		InvalidStructureAttribute,
+		LayoutConstraintViolated,
 		LayoutCycle,
 		ProfileRequirementViolated,
 	]

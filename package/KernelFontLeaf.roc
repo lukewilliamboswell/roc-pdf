@@ -161,15 +161,14 @@ build_leaf = |bundle| {
 	## stream, because CID = subset glyph ID is validated below.
 	$recipe = append_u64_bytes($recipe, bundle.plan.entries.len())
 	var $entry_index = 0
-	var $failure = NoFailure
-	while $entry_index < bundle.plan.entries.len() and $failure == NoFailure {
+	while $entry_index < bundle.plan.entries.len() {
 		entry = list_at(bundle.plan.entries, $entry_index)
 		if entry.cid.to_u64() != $entry_index or entry.subset_glyph != entry.cid {
-			$failure = Failed(FontPlanInvalid)
+			return Err(FontPlanInvalid)
 		} else {
 			match scaled_unsigned(entry.width, units_per_em) {
 				Err(error) => {
-					$failure = Failed(error)
+					return Err(error)
 				}
 				Ok(width) => {
 					$recipe = append_u64_bytes($recipe, width)
@@ -178,10 +177,6 @@ build_leaf = |bundle| {
 			}
 		}
 		$entry_index = $entry_index + 1
-	}
-	match $failure {
-		Failed(error) => return Err(error)
-		NoFailure => {}
 	}
 
 	## The ToUnicode facts: the exact `bfchar` content of the emitted CMap.
