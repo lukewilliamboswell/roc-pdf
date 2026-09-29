@@ -1021,8 +1021,12 @@ Exact remaining work before Gate 6 can close:
    - located diagnostics for the remaining font-coverage failures.
 
 The intermittent `roc check` crash seen in harness runs is Roc #11777, fixed
-upstream by commit 329a48a04d. Advancing the pinned nightly past it is a
-separate toolchain change with its own bulk re-baseline.
+upstream by commit 329a48a04d. The pin advances to
+`nightly-2026-09-28-9927ba8`, which contains the fix, with its own bulk
+re-baseline ([record](docs/performance/roc-nightly-2026-09-28-9927ba8.md)).
+Before that pin merges, the fuzz targets need a roc-fuzz release pinned to
+the same nightly, and the upstream LLVM `roc build --fuzz` segfault recorded
+there must be resolved.
 
 ## Gate 7: business-document production release and combined closure
 
