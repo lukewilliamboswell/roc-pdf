@@ -66,6 +66,7 @@ package
 		KernelSha256,
 		KernelShape,
 		KernelSrgbProfile,
+		KernelStabilization,
 		KernelStructure,
 		KernelTagged,
 		KernelTaggedObjects,

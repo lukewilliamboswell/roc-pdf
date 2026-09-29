@@ -32,12 +32,27 @@ KernelPageLayout :: [].{
 		InvalidGroup({ group : U64 }),
 		InvalidLine({ line : U64 }),
 		KeepConflict(Conflict),
+
+		## The lead region's blocks need `required` height but the region
+		## reserves `available`.
+		LeadOverflow({ available : U64, required : U64 }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		Oversize({ available : U64, block : U64, required : U64 }),
 	]
 
 	Margins : { bottom : Layout.Unit, left : Layout.Unit, right : Layout.Unit, top : Layout.Unit }
 	Constraints : { margins : Margins, page : Layout.Size }
+
+	## A page template's flow region on one kind of page: `top` is its offset
+	## below the top of the body frame (the page less its margins) and
+	## `height` its height. Template regions are fixed before flow, so these
+	## frames never depend on painted furniture.
+	Frame : { height : Layout.Unit, top : Layout.Unit }
+
+	## Page-template geometry: the first page's and every later page's flow
+	## region, and optionally the first page's lead region, which receives
+	## the first `blocks` blocks as one unit before the body flow begins.
+	Template : { continuation : Frame, first : Frame, lead : [Lead({ blocks : U64, frame : Frame }), NoLead] }
 
 	## Typed per-block policy. `break_before` is a mandatory explicit page
 	## break and `keep_together` a mandatory unsplittable block;
@@ -111,11 +126,18 @@ KernelPageLayout :: [].{
 	}
 	Plan :: { fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
 		build : List(Block), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, limits)
+		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, NoTemplate, limits)
 
 		## Pagination with required keep-together groups.
 		build_with_groups : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, limits)
+		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, NoTemplate, limits)
+
+		## Pagination under page templates: the first page flows in the
+		## first frame and every later page in the continuation frame, after
+		## the lead region (when present) receives its blocks on the first
+		## page. Every fit check uses its page's own flow height.
+		build_with_template : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Template, Limits -> Try(Plan, Error)
+		build_with_template = |blocks, groups, lines, constraints, template, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), limits)
 
 		fragments : Plan -> List(Fragment)
 		fragments = |plan| plan.fragments
@@ -170,8 +192,19 @@ all_satisfied = 31
 no_candidate : U64
 no_candidate = U64.highest
 
-build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
-build_plan = |blocks, groups, lines, constraints, limits| {
+## Validated per-page flow geometry: every page's scalar frame, and the
+## first page's lead region with the number of blocks it receives.
+Frames := {
+	continuation_height : U64,
+	continuation_top : U64,
+	first_height : U64,
+	first_top : U64,
+	lead : [Lead({ blocks : U64, height : U64, top : U64 }), NoLead],
+	largest : U64,
+}
+
+build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
+build_plan = |blocks, groups, lines, constraints, template, limits| {
 	if blocks.len() == 0 or lines.len() == 0 {
 		return Err(InvalidConstraints)
 	}
@@ -179,7 +212,8 @@ build_plan = |blocks, groups, lines, constraints, limits| {
 	check_limit(lines.len(), limits.max_lines, Lines)?
 	check_limit(groups.len(), limits.max_blocks, Groups)?
 	geometry = validate_geometry(constraints)?
-	validation = validate_input(blocks, groups, lines, geometry.content_height)?
+	frames = validate_frames(template, geometry, blocks.len())?
+	validation = validate_input(blocks, groups, lines, frames.largest)?
 	var $pages = []
 	var $fragments = []
 	var $placements = []
@@ -187,16 +221,61 @@ build_plan = |blocks, groups, lines, constraints, limits| {
 	var $candidate_visits = 0
 	var $block = 0
 	var $line = 0
+
+	## The lead region receives its blocks on the first page, stacked from
+	## its top with their spacing between them, as one unit.
+	match frames.lead {
+		NoLead => {}
+		Lead({ blocks: lead_blocks, height: lead_height, top: lead_top }) => {
+			lead_geometry = { ..geometry, content_height: lead_height, margin_top: checked_add(geometry.margin_top, lead_top)? }
+			var $used = 0
+			while $block < lead_blocks {
+				block = list_at(blocks, $block)
+				take = block.lines.length()
+				leading = positive_raw(block.leading)?
+				fragment_height = checked_mul(take, leading)?
+				if checked_add($used, fragment_height)? > lead_height {
+					return Err(LeadOverflow({ available: lead_height, required: lead_total(blocks, lead_blocks)? }))
+				}
+				fragment_id = Semantics.FragmentId.from_index($fragments.len())
+				fragment = make_fragment(block, lines, block.lines.start(), take, fragment_height, $used, lead_geometry, 0)?
+				check_limit(checked_add($fragments.len(), 1)?, limits.max_fragments, Fragments)?
+				$fragments = $fragments.append(fragment)
+				var $local = 0
+				while $local < take {
+					check_limit(checked_add($placements.len(), 1)?, limits.max_placements, Placements)?
+					baseline_descent = checked_add($used, checked_add(positive_raw(block.baseline_offset)?, checked_mul($local, leading)?)?)?
+					baseline_y = lead_geometry.page_height - lead_geometry.margin_top - baseline_descent
+					$placements = $placements.append({
+						baseline: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(baseline_y.to_i64_wrap()) },
+						fragment: fragment_id,
+						line: block.lines.start() + $local,
+					})
+					$local = $local + 1
+				}
+				$used = checked_add($used, fragment_height)?
+				if $block + 1 < lead_blocks {
+					$used = checked_add($used, nonnegative_raw(block.space_after)?)?
+				}
+				$block = $block + 1
+			}
+		}
+	}
+	var $page_fragment_start = 0
+	var $page_placement_start = 0
 	while $block < blocks.len() {
-		scan = scan_page(blocks, validation, geometry.content_height, $block, $line)?
+		page_index = $pages.len()
+		flow_height = if page_index == 0 frames.first_height else frames.continuation_height
+		flow_top = if page_index == 0 frames.first_top else frames.continuation_top
+		page_geometry = { ..geometry, content_height: flow_height, margin_top: checked_add(geometry.margin_top, flow_top)? }
+		scan = scan_page(blocks, validation, flow_height, $block, $line)?
 		$candidate_visits = checked_add($candidate_visits, scan.candidates)?
 		end = match scan.end {
 			AllFits => { block: blocks.len(), line: 0 }
 			Break(position) => position
 		}
-		page_index = $pages.len()
-		fragment_start = $fragments.len()
-		placement_start = $placements.len()
+		fragment_start = $page_fragment_start
+		placement_start = $page_placement_start
 
 		## Materialize the accepted page once, from the page start to the
 		## chosen break, exactly as the scan measured it.
@@ -212,14 +291,14 @@ build_plan = |blocks, groups, lines, constraints, limits| {
 			fragment_height = checked_mul(take, leading)?
 			fragment_id = Semantics.FragmentId.from_index($fragments.len())
 			line_start = block.lines.start() + $cursor_line
-			fragment = make_fragment(block, lines, line_start, take, fragment_height, $used, geometry, page_index)?
+			fragment = make_fragment(block, lines, line_start, take, fragment_height, $used, page_geometry, page_index)?
 			check_limit(checked_add($fragments.len(), 1)?, limits.max_fragments, Fragments)?
 			$fragments = $fragments.append(fragment)
 			var $local = 0
 			while $local < take {
 				check_limit(checked_add($placements.len(), 1)?, limits.max_placements, Placements)?
 				baseline_descent = checked_add($used, checked_add(positive_raw(block.baseline_offset)?, checked_mul($local, leading)?)?)?
-				baseline_y = geometry.page_height - geometry.margin_top - baseline_descent
+				baseline_y = page_geometry.page_height - page_geometry.margin_top - baseline_descent
 				$placements = $placements.append({
 					baseline: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(baseline_y.to_i64_wrap()) },
 					fragment: fragment_id,
@@ -230,7 +309,7 @@ build_plan = |blocks, groups, lines, constraints, limits| {
 			$used = checked_add($used, fragment_height)?
 			if stop == line_count {
 				spaced = checked_add($used, nonnegative_raw(block.space_after)?)?
-				$used = if spaced > geometry.content_height geometry.content_height else spaced
+				$used = if spaced > page_geometry.content_height page_geometry.content_height else spaced
 				$cursor_block = $cursor_block + 1
 				$cursor_line = 0
 			} else {
@@ -238,6 +317,8 @@ build_plan = |blocks, groups, lines, constraints, limits| {
 			}
 		}
 		$pages = append_page($pages, fragment_start, $fragments.len(), placement_start, $placements.len(), limits.max_pages)?
+		$page_fragment_start = $fragments.len()
+		$page_placement_start = $placements.len()
 		match scan.end {
 			AllFits => {}
 			Break(position) => {
@@ -472,6 +553,65 @@ validate_geometry = |constraints| {
 			page_height,
 		})
 	}
+}
+
+## Page-template frames lie inside the body frame, have positive heights,
+## and a lead region precedes the first page's flow and receives at least
+## one block but not every block. Without a template every page's frame is
+## the whole body frame.
+validate_frames : [NoTemplate, WithTemplate(KernelPageLayout.Template)], Geometry, U64 -> Try(Frames, KernelPageLayout.Error)
+validate_frames = |template, geometry, block_count| match template {
+	NoTemplate => Ok({ continuation_height: geometry.content_height, continuation_top: 0, first_height: geometry.content_height, first_top: 0, largest: geometry.content_height, lead: NoLead })
+	WithTemplate({ continuation, first, lead }) => {
+		first_frame = frame_scalars(first, geometry.content_height)?
+		continuation_frame = frame_scalars(continuation, geometry.content_height)?
+		lead_frame = match lead {
+			NoLead => NoLead
+			Lead({ blocks, frame }) => {
+				scalars = frame_scalars(frame, geometry.content_height)?
+				if blocks == 0 or blocks >= block_count or checked_add(scalars.top, scalars.height)? > first_frame.top {
+					return Err(InvalidConstraints)
+				}
+				Lead({ blocks, height: scalars.height, top: scalars.top })
+			}
+		}
+		Ok({
+			continuation_height: continuation_frame.height,
+			continuation_top: continuation_frame.top,
+			first_height: first_frame.height,
+			first_top: first_frame.top,
+			largest: U64.max(first_frame.height, continuation_frame.height),
+			lead: lead_frame,
+		})
+	}
+}
+
+frame_scalars : KernelPageLayout.Frame, U64 -> Try({ height : U64, top : U64 }, KernelPageLayout.Error)
+frame_scalars = |frame, content_height| {
+	height = positive_raw(frame.height)?
+	top = nonnegative_raw(frame.top)?
+	if checked_add(top, height)? > content_height {
+		Err(InvalidConstraints)
+	} else {
+		Ok({ height, top })
+	}
+}
+
+## The lead region's content height: its blocks' lines and the spacing
+## between them.
+lead_total : List(KernelPageLayout.Block), U64 -> Try(U64, KernelPageLayout.Error)
+lead_total = |blocks, count| {
+	var $total = 0
+	var $index = 0
+	while $index < count {
+		block = list_at(blocks, $index)
+		$total = checked_add($total, checked_mul(block.lines.length(), positive_raw(block.leading)?)?)?
+		if $index + 1 < count {
+			$total = checked_add($total, nonnegative_raw(block.space_after)?)?
+		}
+		$index = $index + 1
+	}
+	Ok($total)
 }
 
 ## Static validation before any page is scanned: block and line shape,
@@ -918,4 +1058,49 @@ expect {
 		_ => False
 	}
 	moved and oversize
+}
+
+## Page templates: the lead region receives its block on the first page at
+## its own top, the first page flows in its own frame below it, and later
+## pages flow in the continuation frame.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		base,
+		{ ..base, lines: Semantics.Range.from_start_and_length(1, 2) },
+		{ ..base, lines: Semantics.Range.from_start_and_length(3, 2) },
+	]
+	template = {
+		continuation: { height: Layout.Unit.from_raw(2000), top: Layout.Unit.from_raw(1000) },
+		first: { height: Layout.Unit.from_raw(1000), top: Layout.Unit.from_raw(2000) },
+		lead: Lead({ blocks: 1, frame: { height: Layout.Unit.from_raw(1000), top: Layout.Unit.from_raw(500) } }),
+	}
+	plan = KernelPageLayout.Plan.build_with_template(blocks, [], test_lines.take_first(5), test_constraints, template, test_limits)?
+	pages = KernelPageLayout.Plan.pages(plan)
+	placements = KernelPageLayout.Plan.placements(plan)
+	fragments = KernelPageLayout.Plan.fragments(plan)
+
+	## Frame top 4000; the lead line's baseline is 500 + 800 below it, the
+	## first page's body line 2000 + 800 below it, and a continuation page's
+	## first line 1000 + 800 below it.
+	pages.len() == 3 and list_at(placements, 0).baseline.y.raw() == 2700 and list_at(placements, 1).baseline.y.raw() == 1200 and list_at(placements, 2).baseline.y.raw() == 2200 and list_at(fragments, 0).page.index() == 0 and list_at(fragments, 1).page.index() == 0 and list_at(fragments, 2).page.index() == 1
+}
+
+## Lead content taller than its region fails with both heights; it is
+## never split into the body flow.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
+		{ ..base, lines: Semantics.Range.from_start_and_length(2, 1) },
+	]
+	template = {
+		continuation: { height: Layout.Unit.from_raw(3000), top: Layout.Unit.from_raw(0) },
+		first: { height: Layout.Unit.from_raw(1000), top: Layout.Unit.from_raw(2000) },
+		lead: Lead({ blocks: 1, frame: { height: Layout.Unit.from_raw(1000), top: Layout.Unit.from_raw(0) } }),
+	}
+	match KernelPageLayout.Plan.build_with_template(blocks, [], test_lines.take_first(3), test_constraints, template, test_limits) {
+		Err(LeadOverflow({ available: 1000, required: 2000 })) => True
+		_ => False
+	}
 }
