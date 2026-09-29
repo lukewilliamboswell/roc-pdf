@@ -20,6 +20,10 @@ KernelFacadeSemantics :: [].{
 		EmptyListItem({ group : U64 }),
 		EmptyMetadataTitle,
 		EmptyRichParagraph({ block : U64 }),
+
+		## A page field or reserved width in body content: page fields are
+		## page furniture only.
+		FurnitureInline({ block : U64, inline : U64 }),
 		InlineDepthExceeded({ attempted : U64, block : U64, inline : U64, limit : U64 }),
 		InvalidInlineLanguage({ block : U64, inline : U64 }),
 		InvalidInlineUri({ block : U64, error : Document.NavigationError, inline : U64 }),
@@ -113,6 +117,13 @@ KernelFacadeSemantics :: [].{
 		table_cells : U64,
 		tables : U64,
 	}
+
+	## A number in a generated number style: decimal digits, bijective
+	## base-26 letters (`1` is `a`), or Roman numerals up to 3999. Shared by
+	## list labels and page fields.
+	number_text : Document.NumberStyle, U64 -> Str
+	number_text = |style, value| number_digits(style, value)
+
 	Plan :: {
 		artifacts : List(Artifact),
 		authoring : Document.NormalizedAuthoring,
@@ -273,7 +284,7 @@ plan_blocks = |authoring, limits| {
 			group = list_at(groups, $next_group)
 			in_item = in_list_item(groups, group.parent)
 			match group.kind {
-				Container(_) => {
+				Container(_) | LeadRegion => {
 					if in_item {
 						return Err(ListItemGroup({ group: $next_group }))
 					}
@@ -938,16 +949,18 @@ list_label : Document.ListMarker, U64 -> Str
 list_label = |marker, ordinal| match marker {
 	Bullet => "•"
 	Numbered({ start, style }) => {
-		value = start + ordinal
-		digits = match style {
-			Decimal => value.to_str()
-			LowerAlpha => alphabetic(value, 97)
-			UpperAlpha => alphabetic(value, 65)
-			LowerRoman => roman(value, Lower)
-			UpperRoman => roman(value, Upper)
-		}
+		digits = number_digits(style, start + ordinal)
 		"${digits}."
 	}
+}
+
+number_digits : Document.NumberStyle, U64 -> Str
+number_digits = |style, value| match style {
+	Decimal => value.to_str()
+	LowerAlpha => alphabetic(value, 97)
+	UpperAlpha => alphabetic(value, 65)
+	LowerRoman => roman(value, Lower)
+	UpperRoman => roman(value, Upper)
 }
 
 ## Bijective base-26 letters: 1 is `a`, 26 is `z`, 27 is `aa`.
@@ -1038,6 +1051,18 @@ check_breaks = |line_breaks, cursor, count, rich, block| {
 ## grammar. Returns the counts semantic planning reserves.
 check_rich : List(Document.NormalizedInline), Document.NormalizedRich, U64, U64 -> Try({ expansions : U64, links : U64 }, KernelFacadeSemantics.Error)
 check_rich = |inlines, rich, block, max_depth| {
+
+	## A page field or reserved width in body content is rejected first,
+	## with its inline path; it holds no text, so the emptiness checks
+	## below would otherwise misname it.
+	var $scan = rich.inlines
+	while $scan < rich.inlines + rich.length {
+		match list_at(inlines, $scan).kind {
+			FurnitureOnly => return Err(FurnitureInline({ block, inline: $scan }))
+			_ => {}
+		}
+		$scan = $scan + 1
+	}
 	if rich.leaves == 0 {
 		return Err(EmptyRichParagraph({ block: block }))
 	}
@@ -1190,6 +1215,15 @@ build_store = |authoring, planning, source_plan| {
 					}
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited))
 				}
+
+				## The first page's lead region is a `Div` of semantic
+				## letterhead content, first in reading order.
+				LeadRegion => {
+					if children == 0 {
+						return Err(EmptyContainer({ group: $group }))
+					}
+					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Division), span, Inherited))
+				}
 				KeepTogether | KeepWithNext(_) => {}
 				ItemList(list_index) => {
 					attribute = $attributes.len()
@@ -1225,7 +1259,7 @@ build_store = |authoring, planning, source_plan| {
 		if $next_group < groups.len() and list_at(groups, $next_group).first_block <= $index {
 			group = list_at(groups, $next_group)
 			match group.kind {
-				Container(_) | ItemList(_) => {
+				Container(_) | ItemList(_) | LeadRegion => {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) => {}
@@ -1840,6 +1874,7 @@ inline_role = |kind| match kind {
 	Quote => "Quote"
 	Strong => "Strong"
 	Text(_) => "Span"
+	FurnitureOnly => crash "furniture-only inline escaped semantic validation"
 }
 
 inline_language : Document.NormalizedInlineKind -> Semantics.Language
@@ -2032,6 +2067,7 @@ test_authoring = {
 	rich_paragraphs: [],
 	spacers: [],
 	tables: [],
+	templates: NoTemplates,
 }
 
 ## Facade semantics are planned before layout, with a PDF 2.0 Title and a

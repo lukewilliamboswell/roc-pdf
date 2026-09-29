@@ -1,4 +1,5 @@
 import Document
+import KernelFacadeFurniture
 import KernelFacadeText
 import KernelNavigation
 import KernelSemantics
@@ -107,6 +108,11 @@ KernelFacadeFragments :: [].{
 	}
 }
 
+## Artifact text sources are bounded by the furniture stage (pages times
+## furniture lines); these bounds only guard the Unicode store's totals.
+artifact_source_limits : KernelTextSemantics.Limits
+artifact_source_limits = KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 16000000, max_text_source_scalars: 16000000, max_text_sources: 1000000 })
+
 no_navigation_limits : KernelNavigation.Limits
 no_navigation_limits = KernelNavigation.Limits.make({
 	max_annotations: 0,
@@ -125,6 +131,22 @@ no_navigation_limits = KernelNavigation.Limits.make({
 build_plan : KernelTextSemantics.Plan, KernelFacadeText.Plan, KernelFacadeFragments.NavigationAuthoring, KernelFacadeFragments.Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
 build_plan = |preliminary, text, navigation, limits, semantic_limits, navigation_limits| {
 	arena = build_arena(preliminary, prepare_text(text), KernelFacadeText.Plan.artifact_runs(text), limits)?
+
+	## Page furniture's artifact text sources join the Unicode store after
+	## the semantic sources, before the final store validates. The plan is
+	## handed on in each branch rather than bound by a value-producing
+	## match, so its stores stay uniquely owned.
+	match KernelFacadeText.Plan.furniture(text) {
+		NoFurniture => attach_plan(preliminary, arena, text, navigation, semantic_limits, navigation_limits)
+		WithFurniture(furniture) => {
+			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, KernelFacadeFurniture.Plan.sources(furniture), artifact_source_limits) ? TextSemantics
+			attach_plan(with_sources, arena, text, navigation, semantic_limits, navigation_limits)
+		}
+	}
+}
+
+attach_plan : KernelTextSemantics.Plan, KernelFacadeFragments.Arena, KernelFacadeText.Plan, KernelFacadeFragments.NavigationAuthoring, KernelSemantics.Limits, KernelNavigation.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
+attach_plan = |preliminary, arena, text, navigation, semantic_limits, navigation_limits| {
 	page_count = KernelFacadeText.Plan.pages(text).len()
 	match navigation {
 		NoNavigationAuthoring => {

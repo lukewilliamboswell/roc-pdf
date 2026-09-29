@@ -118,6 +118,13 @@ KernelSemantics :: [].{
 		store : Plan -> Semantics.Store
 		store = |plan| plan.store
 
+		## Replace the dense Unicode store with an extension of it: artifact
+		## text sources appended after the semantic sources. No occurrence
+		## indexes them, so every validated occurrence range is unchanged;
+		## the next `build_text_validated` revalidates the whole store.
+		with_text_sources : Plan, List(Semantics.TextSource) -> Plan
+		with_text_sources = |plan, text_sources| Plan.{ content_stream_count: plan.content_stream_count, page_count: plan.page_count, store: { ..plan.store, text_sources }, work: plan.work }
+
 		work : Plan -> Work
 		work = |plan| plan.work
 	}

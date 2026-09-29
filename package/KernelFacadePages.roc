@@ -54,6 +54,11 @@ KernelFacadePages :: [].{
 	## footer rows (their first and last row groups).
 	KeepSource : [AuthoredKeep(U64), FooterRows({ first : U64, last : U64 })]
 
+	## Page-template flow geometry: the first page's and every later page's
+	## flow frame, and the first page's lead region receiving the first
+	## `leaves` normalized leaf blocks (the lead region's group).
+	FlowTemplate : { continuation : KernelPageLayout.Frame, first : KernelPageLayout.Frame, lead : [Lead({ frame : KernelPageLayout.Frame, leaves : U64 }), NoLead] }
+
 	## A table rule: a filled rectangle on a page, painted as a layout
 	## decoration artifact in the theme's rule color.
 	Rule : { color : Color.SourceValue, page : U64, rect : Layout.Rect }
@@ -81,7 +86,13 @@ KernelFacadePages :: [].{
 		work : Work,
 	}.{
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build = |authoring, shape, lines, page, theme, limits| build_plan(authoring, shape, lines, page, theme, limits)
+		build = |authoring, shape, lines, page, theme, limits| build_plan(authoring, shape, lines, page, theme, NoFlowTemplate, limits)
+
+		## Pagination under page templates: per-page flow frames and the
+		## first page's lead region. The frames come from the templates'
+		## fixed region heights alone, never from painted furniture.
+		build_with_template : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowTemplate, Limits -> Try(Plan, Error)
+		build_with_template = |authoring, shape, lines, page, theme, template, limits| build_plan(authoring, shape, lines, page, theme, WithFlowTemplate(template), limits)
 
 		page : Plan -> KernelPageLayout.Plan
 		page = |plan| plan.page
@@ -134,10 +145,12 @@ KernelFacadePages :: [].{
 ## mandatory `break_before`; spacers add to the preceding leaf's spacing;
 ## `keep_together` groups become required atomic groups. Documents without
 ## these constructs allocate nothing for them.
-build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, KernelFacadePages.Limits -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
-build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
+FlowSelection : [NoFlowTemplate, WithFlowTemplate(KernelFacadePages.FlowTemplate)]
+
+build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowSelection, KernelFacadePages.Limits -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
+build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	match KernelFacadeLines.Plan.geometry(line_plan) {
-		WithTables(tables) => return build_table_plan(authoring, shape, line_plan, page_size, theme, limits, tables)
+		WithTables(tables) => return build_table_plan(authoring, shape, line_plan, page_size, theme, flow, limits, tables)
 		NoTables => {}
 	}
 	block_lines = KernelFacadeLines.Plan.blocks(line_plan)
@@ -151,7 +164,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 		return Err(InvalidBlock({ block: 0 }))
 	}
 	check_limit(authoring.blocks.len(), limits.max_blocks, Blocks)?
-	check_page_breaks(authoring.page_breaks, authoring.blocks.len())?
+	check_page_breaks(authoring.page_breaks, authoring.blocks.len(), lead_leaves(flow))?
 	author_keeps = authored_keeps(authoring.groups, authoring.blocks.len())
 	var $row_count = 0
 	var $block_index = 0
@@ -269,13 +282,19 @@ build_plan = |authoring, shape, line_plan, page_size, theme, limits| {
 	}
 	keep_groups = together_groups(authoring.groups)
 	constraints = { margins: Theme.page_margin(theme), page: page_size }
-	page = (
-		if keep_groups.is_empty() {
-			KernelPageLayout.Plan.build($page_blocks, $visual_lines, constraints, limits.page)
-		} else {
-			KernelPageLayout.Plan.build_with_groups($page_blocks, keep_groups, $visual_lines, constraints, limits.page)
+	page = match flow {
+		NoFlowTemplate => (
+			if keep_groups.is_empty() {
+				KernelPageLayout.Plan.build($page_blocks, $visual_lines, constraints, limits.page)
+			} else {
+				KernelPageLayout.Plan.build_with_groups($page_blocks, keep_groups, $visual_lines, constraints, limits.page)
+			}
+		) ? PageLayout
+		WithFlowTemplate(template) => {
+			leaves = lead_leaves(flow)
+			KernelPageLayout.Plan.build_with_template(lead_policies($page_blocks, leaves), flow_groups(keep_groups, leaves), $visual_lines, constraints, layout_template(template, leaves), limits.page) ? PageLayout
 		}
-	) ? PageLayout
+	}
 	Ok(
 		KernelFacadePages.Plan.{
 			artifact_rows: [],
@@ -324,8 +343,8 @@ TableRuleStyle : [NoTableRule, TableRule({ color : Color.SourceValue, width : U6
 ## the page placements are rebuilt: each cell line gets its own placement at
 ## its grid line's baseline and its cell's aligned offset, and a page that
 ## starts inside a table first repaints its header rows as artifact rows.
-build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, KernelFacadePages.Limits, KernelFacadeTables.Plan -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
-build_table_plan = |authoring, shape, line_plan, page_size, theme, limits, tables| {
+build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowSelection, KernelFacadePages.Limits, KernelFacadeTables.Plan -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
+build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits, tables| {
 	block_lines = KernelFacadeLines.Plan.blocks(line_plan)
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 	styles = KernelFacadeShape.Plan.styles(shape)
@@ -337,7 +356,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, limits, table
 		return Err(InvalidBlock({ block: 0 }))
 	}
 	check_limit(blocks.len(), limits.max_blocks, Blocks)?
-	check_page_breaks(authoring.page_breaks, blocks.len())?
+	check_page_breaks(authoring.page_breaks, blocks.len(), lead_leaves(flow))?
 	author_keeps = authored_keeps(authoring.groups, blocks.len())
 	table_style = Theme.table_style(theme)
 	gap = nonnegative_raw(table_style.row_gap)?
@@ -570,18 +589,32 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, limits, table
 	## footer groups join them in preorder.
 	merged = merge_groups(unit_groups(authoring.groups, $unit_of_block), $footer_groups, $footer_sources)
 	constraints = { margins: Theme.page_margin(theme), page: page_size }
-	page = (
-		if merged.groups.is_empty() {
-			KernelPageLayout.Plan.build($page_blocks, $visual_lines, constraints, limits.page)
-		} else {
-			KernelPageLayout.Plan.build_with_groups($page_blocks, merged.groups, $visual_lines, constraints, limits.page)
+	page = match flow {
+		NoFlowTemplate => (
+			if merged.groups.is_empty() {
+				KernelPageLayout.Plan.build($page_blocks, $visual_lines, constraints, limits.page)
+			} else {
+				KernelPageLayout.Plan.build_with_groups($page_blocks, merged.groups, $visual_lines, constraints, limits.page)
+			}
+		) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
+		WithFlowTemplate(template) => {
+			leaves = lead_leaves(flow)
+			units = if leaves == 0 0 else list_at($unit_of_block, leaves - 1) + 1
+			KernelPageLayout.Plan.build_with_template(lead_policies($page_blocks, units), flow_groups(merged.groups, units), $visual_lines, constraints, layout_template(template, units), limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
 		}
-	) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
+	}
 
 	## Rebuild the placements: one per painted cell line and leaf line, with
 	## each continued table's header rows repainted first as artifacts.
 	margins = Theme.page_margin(theme)
-	page_top = checked_sub(positive_raw(page_size.height)?, nonnegative_raw(margins.top)?)?
+	frame_top = checked_sub(positive_raw(page_size.height)?, nonnegative_raw(margins.top)?)?
+
+	## A continued table repaints its header rows at the top of a later
+	## page's flow region, which a continuation template may move down.
+	page_top = match flow {
+		NoFlowTemplate => frame_top
+		WithFlowTemplate(template) => checked_sub(frame_top, nonnegative_raw(template.continuation.top)?)?
+	}
 	margin_left = nonnegative_raw(margins.left)?
 	layout_pages = KernelPageLayout.Plan.pages(page)
 	layout_fragments = KernelPageLayout.Plan.fragments(page)
@@ -952,13 +985,15 @@ checked_mul = |left, right| match U64.times_try(left, right) {
 ## An explicit page break separates two flow blocks: one before the first
 ## leaf, after the last, or directly after another break would ask for an
 ## empty page, which is rejected rather than collapsed.
-check_page_breaks : List(Document.NormalizedPageBreak), U64 -> Try({}, KernelFacadePages.Error)
-check_page_breaks = |page_breaks, block_count| {
+## `flow_start` is the first leaf of the body flow: zero, or the leaf count
+## of the first page's lead region, which is one unit and takes no break.
+check_page_breaks : List(Document.NormalizedPageBreak), U64, U64 -> Try({}, KernelFacadePages.Error)
+check_page_breaks = |page_breaks, block_count, flow_start| {
 	var $index = 0
 	while $index < page_breaks.len() {
 		block = list_at(page_breaks, $index).block
 		repeated = $index > 0 and list_at(page_breaks, $index - 1).block == block
-		if block == 0 or block >= block_count or repeated {
+		if block <= flow_start or block >= block_count or repeated {
 			return Err(PageBreakPosition({ page_break: $index }))
 		}
 		$index = $index + 1
@@ -1195,4 +1230,45 @@ semantic_occurrence : Text.Run, U64, U64 -> Try(Semantics.OccurrenceId, KernelFa
 semantic_occurrence = |run, block, run_index| match run.unicode {
 	OccurrenceText(occurrence) => Ok(occurrence)
 	ArtifactText(_) => Err(InvalidRun({ block, run: run_index }))
+}
+
+## The number of leaf blocks the first page's lead region receives.
+lead_leaves : FlowSelection -> U64
+lead_leaves = |flow| match flow {
+	NoFlowTemplate => 0
+	WithFlowTemplate({ continuation: _, first: _, lead }) => match lead {
+		NoLead => 0
+		Lead({ frame: _, leaves }) => leaves
+	}
+}
+
+## The lead region is placed as one unit in its own region, so its blocks
+## carry no page-flow policy: no explicit break, no keep, and whole-block
+## line minimums. Only the lead's blocks are rewritten.
+lead_policies : List(KernelPageLayout.Block), U64 -> List(KernelPageLayout.Block)
+lead_policies = |blocks, count| {
+	var $blocks = blocks
+	var $index = 0
+	while $index < count {
+		block = list_at($blocks, $index)
+		lines = block.lines.length()
+		$blocks = list_set($blocks, $index, { ..block, policy: { break_before: False, keep_together: False, keep_with_next: NoKeep, minimum_first_lines: lines, minimum_last_lines: lines } })
+		$index = $index + 1
+	}
+	$blocks
+}
+
+## Keep groups inside the lead region are subsumed by the region's single
+## unit; only body-flow groups reach page layout.
+flow_groups : List(KernelPageLayout.KeepGroup), U64 -> List(KernelPageLayout.KeepGroup)
+flow_groups = |groups, lead_units| if lead_units == 0 groups else groups.keep_if(|group| group.blocks.start() >= lead_units)
+
+layout_template : KernelFacadePages.FlowTemplate, U64 -> KernelPageLayout.Template
+layout_template = |template, lead_units| {
+	continuation: template.continuation,
+	first: template.first,
+	lead: match template.lead {
+		NoLead => NoLead
+		Lead({ frame, leaves: _ }) => Lead({ blocks: lead_units, frame })
+	},
 }

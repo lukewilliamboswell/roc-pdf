@@ -1,11 +1,13 @@
 import Color
 import Font
+import KernelFacadeFurniture
 import KernelFacadeLines
 import KernelFacadePages
 import KernelFacadeShape
 import KernelLineLayout
 import KernelPageLayout
 import Layout
+import Scene
 import Semantics
 import Text
 
@@ -62,11 +64,20 @@ KernelFacadeText :: [].{
 		run_writes : U64,
 	}
 
-	## `artifact_runs` names, in ascending order, the final runs that repaint
-	## a continued table's header rows: page artifacts that belong to no
-	## layout fragment. `rules` are the table rules to paint as decoration.
+	## The artifact kind of each artifact run. Without page templates every
+	## artifact run repaints a continued table's header rows; with them,
+	## `Kinds` holds one kind per artifact run, in `artifact_runs` order.
+	ArtifactKinds : [Kinds(List(Scene.PageArtifactKind)), RepeatedHeaders]
+
+	## `artifact_runs` names, in ascending order, the final runs that paint
+	## page artifacts and belong to no layout fragment: repainted table
+	## header rows and page furniture. `rules` are the table rules to paint
+	## as decoration. `furniture` carries the resolved page furniture whose
+	## text runs are interleaved here and whose drawings scenes paint.
 	Plan :: {
+		artifact_kinds : ArtifactKinds,
 		artifact_runs : List(U64),
+		furniture : [NoFurniture, WithFurniture(KernelFacadeFurniture.Plan)],
 		pages : List(Page),
 		placements : List(Placement),
 		rules : List(KernelFacadePages.Rule),
@@ -82,6 +93,19 @@ KernelFacadeText :: [].{
 		## preceding plans without exposing this internal module publicly.
 		build_prepared : Prepared, Limits -> Try(Plan, Error)
 		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], limits)
+
+		## Interleave resolved page furniture into a built plan: on every
+		## page, header furniture runs precede the page's body runs and footer
+		## furniture runs follow them. Body runs keep their clusters and
+		## glyphs; furniture clusters and glyphs are appended.
+		with_furniture : Plan, KernelFacadeFurniture.Plan, Limits -> Try(Plan, Error)
+		with_furniture = |plan, furniture, limits| interleave_furniture(plan, furniture, limits)
+
+		artifact_kinds : Plan -> ArtifactKinds
+		artifact_kinds = |plan| plan.artifact_kinds
+
+		furniture : Plan -> [NoFurniture, WithFurniture(KernelFacadeFurniture.Plan)]
+		furniture = |plan| plan.furniture
 
 		artifact_runs : Plan -> List(U64)
 		artifact_runs = |plan| plan.artifact_runs
@@ -366,7 +390,9 @@ build_prepared_plan = |prepared, artifact_rows, rules, limits| {
 	}
 	Ok(
 		KernelFacadeText.Plan.{
+			artifact_kinds: RepeatedHeaders,
 			artifact_runs: $artifact_runs,
+			furniture: NoFurniture,
 			pages: $page_records,
 			placements: $placements,
 			rules,
@@ -531,6 +557,120 @@ paint_split_logical = |accumulator, shape, styles, lines, origins, request, limi
 		runs: $runs,
 		styles: $final_styles,
 	})
+}
+
+interleave_furniture : KernelFacadeText.Plan, KernelFacadeFurniture.Plan, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+interleave_furniture = |plan, furniture, limits| {
+	body = plan.text
+	pieces = KernelFacadeFurniture.Plan.pieces(furniture)
+	source = KernelFacadeFurniture.Plan.store(furniture)
+	style = KernelFacadeFurniture.Plan.style(furniture)
+	furniture_style = { color: style.color, leading: style.leading }
+	run_count = checked_add(body.runs.len(), pieces.len())?
+	check_limit(run_count, limits.max_runs, Runs)?
+	check_limit(run_count, limits.max_placements, Placements)?
+	var $runs = List.with_capacity(run_count)
+	var $placements = List.with_capacity(run_count)
+	var $styles = List.with_capacity(run_count)
+	var $pages = List.with_capacity(plan.pages.len())
+	var $artifact_runs = List.with_capacity(checked_add(plan.artifact_runs.len(), pieces.len())?)
+	var $artifact_kinds = List.with_capacity(checked_add(plan.artifact_runs.len(), pieces.len())?)
+	var $clusters = body.clusters
+	var $glyph_indices = body.glyph_indices
+	var $glyphs = body.glyphs
+	var $artifact_cursor = 0
+	var $piece_cursor = 0
+	for page in plan.pages {
+		page_index = page.id.index()
+		page_start = $runs.len()
+		piece_start = $piece_cursor
+		while $piece_cursor < pieces.len() and list_at(pieces, $piece_cursor).page == page_index {
+			$piece_cursor = $piece_cursor + 1
+		}
+		piece_end = $piece_cursor
+
+		## Header furniture, the page's body runs, then footer furniture.
+		var $band = 0
+		while $band < 3 {
+			if $band == 1 {
+				var $body_run = page.runs.start()
+				while $body_run < page.runs.start() + page.runs.length() {
+					run = list_at(body.runs, $body_run)
+					new_id = Text.RunId.from_index($runs.len())
+					if $artifact_cursor < plan.artifact_runs.len() and list_at(plan.artifact_runs, $artifact_cursor) == $body_run {
+						$artifact_runs = $artifact_runs.append($runs.len())
+						$artifact_kinds = $artifact_kinds.append(RepeatedHeader)
+						$artifact_cursor = $artifact_cursor + 1
+					}
+					$runs = $runs.append({ ..run, id: new_id })
+					$placements = $placements.append({ ..list_at(plan.placements, $body_run), run: new_id })
+					$styles = $styles.append(list_at(plan.styles, $body_run))
+					$body_run = $body_run + 1
+				}
+			} else {
+				band = if $band == 0 Above else Below
+				var $index = piece_start
+				while $index < piece_end {
+					piece = list_at(pieces, $index)
+					if piece.band == band {
+						shaped = list_at(source.runs, piece.run)
+						cluster_start = $clusters.len()
+						glyph_start = $glyphs.len()
+						var $cluster = piece.clusters.start()
+						while $cluster < piece.clusters.start() + piece.clusters.length() {
+							record = list_at(source.clusters, $cluster)
+							reference_start = $glyph_indices.len()
+							var $reference = record.glyphs.start()
+							while $reference < record.glyphs.start() + record.glyphs.length() {
+								$glyph_indices = $glyph_indices.append($glyphs.len())
+								$glyphs = $glyphs.append(list_at(source.glyphs, list_at(source.glyph_indices, $reference)))
+								$reference = $reference + 1
+							}
+							$clusters = $clusters.append({ ..record, glyphs: Semantics.Range.from_start_and_length(reference_start, $glyph_indices.len() - reference_start) })
+							$cluster = $cluster + 1
+						}
+						check_limit($clusters.len(), limits.max_clusters, Clusters)?
+						check_limit($glyphs.len(), limits.max_glyphs, Glyphs)?
+						check_limit($glyph_indices.len(), limits.max_glyph_indices, GlyphIndices)?
+						new_id = Text.RunId.from_index($runs.len())
+						$artifact_runs = $artifact_runs.append($runs.len())
+						$artifact_kinds = $artifact_kinds.append(piece.kind)
+						$runs = $runs.append({
+							..shaped,
+							clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
+							glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
+							id: new_id,
+							source: piece.source,
+							substitutions: Semantics.Range.from_start_and_length(0, 0),
+							transformations: Semantics.Range.from_start_and_length(0, 0),
+						})
+						$placements = $placements.append({ origin: piece.origin, page: page.id, run: new_id })
+						$styles = $styles.append(furniture_style)
+					}
+					$index = $index + 1
+				}
+			}
+			$band = $band + 1
+		}
+		$pages = $pages.append({ id: page.id, runs: Semantics.Range.from_start_and_length(page_start, $runs.len() - page_start) })
+	}
+	if $piece_cursor != pieces.len() or $artifact_cursor != plan.artifact_runs.len() or $runs.len() != run_count {
+		return Err(InvalidRun({ run: $runs.len() }))
+	}
+	text = { ..body, clusters: $clusters, glyph_indices: $glyph_indices, glyphs: $glyphs, runs: $runs }
+	Ok(
+		KernelFacadeText.Plan.{
+			artifact_kinds: Kinds($artifact_kinds),
+			artifact_runs: $artifact_runs,
+			furniture: WithFurniture(furniture),
+			pages: $pages,
+			placements: $placements,
+			rules: plan.rules,
+			styles: $styles,
+			text,
+			work: { ..plan.work, cluster_visits: text.clusters.len(), glyph_index_visits: text.glyph_indices.len(), glyph_writes: text.glyphs.len(), run_writes: text.runs.len() },
+		},
+	)
 }
 
 origin_of : KernelFacadeShape.Origins, U64 -> KernelFacadeShape.Origin

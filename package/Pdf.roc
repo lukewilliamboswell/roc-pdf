@@ -16,6 +16,7 @@ import KernelSrgbProfile
 import KernelXmp
 import Metadata
 import KernelFacadeFragments
+import KernelFacadeFurniture
 import KernelFacadeLines
 import KernelFacadeOutput
 import KernelFacadePages
@@ -80,6 +81,10 @@ Pdf :: [].{
 	## content, reduced toward its widest unbreakable word only as needed.
 	Column : Document.TableColumn
 
+	## How content aligns inside its box: table cell text in its column, or
+	## furniture content inside a reserved width.
+	Align : Document.ColumnAlign
+
 	## One table row of cells, from `row`.
 	Row : Document.Row
 
@@ -93,6 +98,24 @@ Pdf :: [].{
 	## Whether a body row may break across pages at a line boundary
 	## (`SplitRows`) or always moves whole to the next page (`KeepRows`).
 	RowSplit : Document.RowSplit
+
+	## The first page's template: header, lead, and footer regions and the
+	## gap between each present region and the body flow.
+	FirstPageTemplate : Document.FirstPageTemplate
+
+	## The template of every page after the first.
+	PageTemplate : Document.PageTemplate
+
+	## A header or footer region: a reserved height and three slots of
+	## stacked furniture, or no region.
+	Region : Document.Region
+
+	## The first page's lead region of semantic blocks, or none.
+	LeadRegion : Document.LeadRegion
+
+	## One page furniture item: a line of furniture text or a decorative
+	## drawing.
+	Furniture : Document.Furniture
 
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
@@ -392,12 +415,6 @@ Pdf :: [].{
 	custom_layout : Str -> Document.Block
 	custom_layout = |summary| Document.unavailable(CustomLayout, summary)
 
-	page_header : Str -> Document.Block
-	page_header = |value| Document.page_header(value)
-
-	page_footer : Str -> Document.Block
-	page_footer = |value| Document.page_footer(value)
-
 	## A URI link block; the whole text is the link.
 	link : Str, Str -> Document.Block
 	link = |value, uri| Document.link(value, uri)
@@ -417,6 +434,88 @@ Pdf :: [].{
 	## destination names.
 	with_outline : Document, List(Document.OutlineEntry) -> Document
 	with_outline = |doc, entries| Document.with_outline(doc, entries)
+
+	## First-page and continuation-page templates. Each template reserves a
+	## header and a footer region of fixed height inside the theme's body
+	## frame, each separated from the body flow by the template's gap; the
+	## first page may also reserve a lead region below its header. Body flow
+	## is confined to what remains, so the first page and continuation pages
+	## may hold different body heights. Region furniture paints on every
+	## page of its template as a page artifact (`Header`, `Footer`, or
+	## `PageNum` when a line holds a page field) and never joins the logical
+	## structure; the lead region's blocks are semantic (a `Div`) and come
+	## first in reading order.
+	##
+	## Page fields resolve after pagination by explicit reference states:
+	## the first pass paginates the body, the second resolves every field
+	## with the final page count and proves it fits. Regions have fixed
+	## heights, so furniture never changes pagination and two passes always
+	## suffice. Template regions that leave less than one body line are
+	## `layout.template_body_space`; furniture or lead content that exceeds
+	## its region, or slots that overlap, are
+	## `layout.template_region_overflow`; a resolved field wider than its
+	## reserved width is `layout.field_overflow`.
+	with_page_templates : Document, { continuation : PageTemplate, first : FirstPageTemplate } -> Document
+	with_page_templates = |doc, templates| Document.with_page_templates(doc, templates)
+
+	## The first page's template. `lead` is a lead region of semantic blocks
+	## (such as a letterhead) or `no_lead`.
+	first_page_template : { footer : Region, gap : Layout.Unit, header : Region, lead : LeadRegion } -> FirstPageTemplate
+	first_page_template = |record| Document.first_page_template(record)
+
+	## The template of every page after the first.
+	page_template : { footer : Region, gap : Layout.Unit, header : Region } -> PageTemplate
+	page_template = |record| Document.page_template(record)
+
+	## A header or footer region of positive `height`. Its `start`, `center`,
+	## and `end` slots each hold a vertical stack of furniture: a header's
+	## stacks sit on its bottom edge and a footer's hang from its top edge,
+	## beside the body flow. Start items align to the frame's start edge,
+	## end items to its end edge, and center items are centered.
+	region : { center : List(Furniture), end : List(Furniture), height : Layout.Unit, start : List(Furniture) } -> Region
+	region = |record| Document.region(record)
+
+	## A template without this region; it reserves no height and no gap.
+	no_region : Region
+	no_region = Document.no_region
+
+	## A lead region of `height` holding semantic blocks laid out once, as
+	## one unsplittable unit, below the first page's header. Its content
+	## becomes a `Div` before the body in reading order.
+	lead_region : Layout.Unit, List(Document.Block) -> LeadRegion
+	lead_region = |height, contents| Document.lead_region(height, contents)
+
+	## A first page without a lead region.
+	no_lead : LeadRegion
+	no_lead = Document.no_lead
+
+	## One line of furniture text: plain text, page fields, and reserved
+	## widths, in the theme's body style. It is never wrapped, clipped, or
+	## shrunk.
+	furniture_text : List(Inline) -> Furniture
+	furniture_text = |contents| Document.furniture_text(contents)
+
+	## A decorative drawing painted as page furniture: image commands and
+	## solid paths in drawing-local coordinates (origin at the item's
+	## bottom-left, y upward), whose extent is the item's size.
+	furniture_image : Scene.Drawing -> Furniture
+	furniture_image = |drawing| Document.furniture_image(drawing)
+
+	## The physical page number (1-based) in a number style. Page fields are
+	## page furniture only; in body content they report
+	## `document.generated_reference`.
+	page_number : NumberStyle -> Inline
+	page_number = |style| Document.page_number(style)
+
+	## The physical page count in a number style (furniture only).
+	total_pages : NumberStyle -> Inline
+	total_pages = |style| Document.total_pages(style)
+
+	## Furniture content laid out in an exact width and aligned inside it,
+	## such as `Page N of M` in 64 pt. Each page's resolved content must fit
+	## the width, or preparation reports `layout.field_overflow`.
+	reserved_width : Layout.Unit, Align, List(Inline) -> Inline
+	reserved_width = |width, align, contents| Document.reserved_width(width, align, contents)
 
 	## Authored page-label ranges keyed by physical page index.
 	with_page_labels : Document, List(Document.PageLabelRange) -> Document
@@ -514,6 +613,9 @@ build_plan = |doc, options| {
 		standard_metadata_limits,
 	) ? InvalidMetadata
 	xmp = KernelXmp.Packet.build_identified(validated.facts, KernelPdfA4.identification(claim), standard_xmp_bytes) ? |_| InternalGenerationFailure
+	if Document.block_count(doc) == 0 and Document.has_templates(doc) {
+		return Err(furniture_error(BodyEmpty))
+	}
 	if Document.block_count(doc) == 0 {
 		plan = KernelStructure.build_blank_with_facts(
 			1,
@@ -659,6 +761,7 @@ pipeline_error = |error, doc| match error {
 	Semantics(BlockLimitExceeded({ attempted, block, dimension, limit })) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} ${dimension_name(dimension)} but the facade accepts at most ${limit.to_str()}.", if block < Document.normalize(doc).blocks.len() [member_path(doc, Document.normalize(doc), block)] else [])
 	Lines(Tables(TableWidth({ available, group, required }))) => group_error(doc, group, LayoutConstraintViolated, "layout.table_width", "A table's fixed column widths and column minimums need ${points_text(required)} but the table has ${points_text(available)}; content is never shrunk or clipped.")
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [leaf_path(doc, block)])
+	Pages(TableLayout({ error: LeadOverflow({ available, required }), groups: _, units: _ })) => lead_overflow_error(available, required)
 	Pages(TableLayout({ error: layout_error, groups: sources, units })) => table_layout_error(doc, layout_error, sources, units)
 	Pages(TableRuleWidth({ gap, width })) => located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's table rule is ${points_text(width)} wide but the row gap it is drawn in is ${points_text(gap)}.", [])
 	Semantics(EmptyInline({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
@@ -686,7 +789,42 @@ pipeline_error = |error, doc| match error {
 	Pages(PageLayout(KeepConflict(conflict))) => keep_conflict_error(doc, conflict)
 	Pages(PageLayout(Oversize({ available, block, required }))) => oversize_error(doc, block, required, available)
 	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
+	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
+	Semantics(FurnitureInline({ block, inline })) => inline_error(doc, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page fields and reserved widths are page furniture only: they may appear in a template region's furniture text, never in body content. Generated references in the body are scheduled for Gate 8.")
+	Furniture(furniture) => furniture_error(furniture)
+	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
+	ReferenceBudget({ passes }) => located_error(doc, BudgetExceeded, "layout.budget_exhausted", "Reference stabilization did not repeat a state within its budget of ${passes.to_str()} passes; no attempted state is accepted.", [])
 	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+}
+
+lead_overflow_error : U64, U64 -> Pdf.Error
+lead_overflow_error = |available, required| InvalidDocument(located_batch(LayoutConstraintViolated, "layout.template_region_overflow", "The first page's lead region holds content ${points_text(required)} tall but reserves ${points_text(available)}; its blocks are laid out once, as one unit, and never split, shrunk, or clipped.", ["templates.first.lead"]))
+
+## Page-template and furniture rejections name their authored template
+## path, such as `templates.continuation.footer.end[0].inlines[0]`.
+furniture_error : KernelFacadeFurniture.Error -> Pdf.Error
+furniture_error = |error| {
+	located = |diagnostic, feature, message, paths| InvalidDocument(located_batch(diagnostic, feature, message, paths))
+	match error {
+		BodySpace({ footer, gap, header, lead, line, remaining, template }) => {
+			zero : I64
+			zero = 0
+			remaining_text = if remaining < zero "-${points_text((zero - remaining).to_u64_wrap())}" else points_text(remaining.to_u64_wrap())
+			lead_text = if lead == 0 "" else ", lead region ${points_text(lead)}"
+			located(LayoutConstraintViolated, "layout.template_body_space", "The template's regions (header ${points_text(header)}${lead_text}, footer ${points_text(footer)}, gap ${points_text(gap)}) leave ${remaining_text} of body flow, less than one body line of ${points_text(line)}.", [template])
+		}
+		BodyEmpty => located(LayoutConstraintViolated, "layout.template_body_empty", "A document with page templates needs at least one body block; a lead region alone does not start the body.", [])
+		RegionEmpty({ path }) => located(LayoutConstraintViolated, "layout.template_region_empty", "A template region must reserve a positive height and hold at least one furniture item; use no_region (or no_lead) for a page without that region.", [path])
+		RegionOverflow({ available, path, required }) => located(LayoutConstraintViolated, "layout.template_region_overflow", "Furniture needs ${points_text(required)} but its region or reserved width holds ${points_text(available)}; furniture is never wrapped, shrunk, or clipped.", [path])
+		SlotOverlap({ page, path, slots }) => located(LayoutConstraintViolated, "layout.template_region_overflow", "The ${slots} slots of a template region overlap on page ${page.to_str()}.", [path])
+		FieldOverflow({ page, path, reserved, value, width }) => located(LayoutConstraintViolated, "layout.field_overflow", "A page field first fails to fit on page ${page.to_str()}: its resolved value ${value} makes its content ${points_text(width)} wide but it has ${points_text(reserved)}. Field values are never approximated, abbreviated, or shrunk.", [path])
+		FurnitureInline({ path }) => located(LayoutConstraintViolated, "layout.furniture_inline", "Furniture text holds only text, page fields, and reserved widths of text and page fields.", [path])
+		InlineEmpty({ path }) => located(InvalidRelationship, "semantics.inline_empty", "Furniture text and every reserved width in it must contain text or a page field, and no text inline may be empty.", [path])
+		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
+		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
+		OrderedPolicy({ path }) => located(FeatureUnavailable, "text.furniture_policy", "Furniture text is shaped through the theme's single face; under an ordered font policy only furniture drawings are supported until a later Gate 6 slice.", [path])
+		_ => InternalGenerationFailure
+	}
 }
 
 dimension_name : KernelFacadeSemantics.Dimension -> Str
@@ -1028,7 +1166,13 @@ leaf_position = |normalized, block, parent| {
 		$index = $index + 1
 	}
 	for group in normalized.groups {
-		if group.parent == parent and group.block_end <= block {
+
+		## The lead region is a template region, not an authored sibling.
+		lead = match group.kind {
+			LeadRegion => True
+			_ => False
+		}
+		if group.parent == parent and group.block_end <= block and !lead {
 			$position = $position + 1
 		}
 	}
@@ -1156,6 +1300,7 @@ chain_path = |groups, code| {
 			Err(OutOfBounds) => crash "normalized group path escaped"
 		}
 		segment = match record.kind {
+			LeadRegion => "templates.first.lead"
 			TableRow(Header) => "table.header_rows[${record.position.to_str()}]"
 			TableRow(Body) => "table.body_rows[${record.position.to_str()}]"
 			TableRow(Footer) => "table.footer_rows[${record.position.to_str()}]"
@@ -1254,8 +1399,8 @@ unavailable_message = |feature, summary| {
 		ArchiveProfile => "Gate 5"
 		AccessibleArchiveProfile => "Gate 7"
 		Figures => "the current figure authoring slice"
-		ContextualArtifacts | SemanticTextProperties => "Gate 6"
-		ComplexTables | CustomLayout | Floats | Footnotes | GeneratedReferences | MultiColumnLayout | PageTemplates | SideContent | VerticalWriting => "Gate 8"
+		ContextualArtifacts | PageTemplates | SemanticTextProperties => "Gate 6"
+		ComplexTables | CustomLayout | Floats | Footnotes | GeneratedReferences | MultiColumnLayout | SideContent | VerticalWriting => "Gate 8"
 	}
 	"${summary} No PDF bytes were emitted. This capability remains scheduled for ${roadmap}."
 }
@@ -1550,19 +1695,45 @@ expect {
 	bytes.len() > 667
 }
 
-## Unsupported page artifacts reject atomically through the facade; no blank
-## document or partial bytes can escape a Try error.
+## Unavailable authored content rejects atomically through the facade; no
+## blank document or partial bytes can escape a Try error.
 expect {
 	document = Pdf.document({
-		contents: [Pdf.page_header("Running header")],
+		contents: [Pdf.footnote("Not implemented")],
 		language: "en-AU",
-		title: "Artifact rejection",
+		title: "Unavailable rejection",
 	})
 
 	match Pdf.to_bytes(document) {
-		Err(UnsupportedAuthoringContent({ blocks })) => blocks == 1
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(feature), .. }], .. })) => feature == "document.footnote"
 		_ => False
 	}
+}
+
+## Page templates: furniture, a lead region, and page fields prepare
+## through the public facade; a template that leaves no body line and a page
+## field in body text reject with their stable codes and paths.
+expect {
+	page_of = Pdf.reserved_width(Layout.Unit.points(72), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: Layout.Unit.points(16), start: [Pdf.furniture_text([Pdf.text("Running head")])] })
+	templates = |lead_height| {
+		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header }),
+		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header, lead: Pdf.lead_region(Layout.Unit.points(lead_height), [Pdf.paragraph("Letterhead")]) }),
+	}
+	document = |contents, lead_height| Pdf.with_page_templates(Pdf.document({ contents, language: "en-AU", title: "Templates" }), templates(lead_height))
+	accepted = match Pdf.to_bytes(document([Pdf.paragraph("First"), Pdf.page_break, Pdf.paragraph("Second")], 40)) {
+		Ok(bytes) => bytes.len() > 1000
+		Err(_) => False
+	}
+	body_space = match Pdf.to_bytes(document([Pdf.paragraph("Body")], 690)) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["templates.first"], feature: Feature(feature), .. }], .. })) => feature == "layout.template_body_space"
+		_ => False
+	}
+	body_field = match Pdf.to_bytes(Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.rich_paragraph([Pdf.text("Page "), Pdf.page_number(Decimal)])], language: "en-AU", title: "Field" })) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, details: ["contents[1].inlines[1]"], feature: Feature(feature), .. }], .. })) => feature == "document.generated_reference"
+		_ => False
+	}
+	accepted and body_space and body_field
 }
 
 ## Empty default documents emit one structural PDF 2.0 page.
@@ -1663,16 +1834,16 @@ expect {
 	collected.chunks >= 2 and collected.bytes == expected
 }
 
-## Unsupported authored content rejects atomically before any chunk exists.
+## Unavailable authored content rejects atomically before any chunk exists.
 expect {
 	document = Pdf.document({
-		contents: [Pdf.page_header("Running header")],
+		contents: [Pdf.footnote("Not implemented")],
 		language: "en-AU",
 		title: "Chunk rejection",
 	})
 
 	match Pdf.to_chunks(document) {
-		Err(UnsupportedAuthoringContent({ blocks })) => blocks == 1
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, .. }], .. })) => True
 		_ => False
 	}
 }

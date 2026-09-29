@@ -20,7 +20,6 @@ DocumentBlock :: [
 	KeepWithNext({ contents : List(DocumentBlock), keep : Keep }),
 	Link({ text : Str, uri : Str }),
 	ListBlock({ items : List(DocumentListItem), marker : ListMarker }),
-	PageArtifact({ kind : PageArtifactKind, text : Str }),
 	PageBreak,
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
@@ -91,10 +90,108 @@ DocumentInline :: [
 	InternalLink({ contents : List(DocumentInline), destination : Str }),
 	LineBreak,
 	Link({ contents : List(DocumentInline), uri : Str }),
+
+	## The physical page number of the page a furniture line is painted on,
+	## in a number style. Page fields are resolved after pagination and are
+	## page furniture only.
+	PageNumber(PageFieldStyle),
 	Quote(List(DocumentInline)),
+
+	## Furniture inline content laid out in an exact reserved width, aligned
+	## inside it, so a page field's resolved value is proven to fit.
+	ReservedWidth({ align : ReservedAlign, contents : List(DocumentInline), width : Layout.Unit }),
 	Strong(List(DocumentInline)),
 	Text(Str),
+
+	## The document's physical page count, in a number style (furniture only).
+	TotalPages(PageFieldStyle),
 ].{}
+
+## A page field's number style and a reserved width's alignment, held in
+## their own nominal types rather than as `NumberStyle` and `ColumnAlign`:
+## with a structural enumeration shared by an inline alternative, the pinned
+## compiler's code for unrelated rich paragraphs allocates once more
+## (docs/performance/page-templates.md). The constructors convert.
+PageFieldStyle := [DecimalField, LowerAlphaField, LowerRomanField, UpperAlphaField, UpperRomanField]
+
+ReservedAlign := [CenterReserved, EndReserved, StartReserved]
+
+reserved_align : ColumnAlign -> ReservedAlign
+reserved_align = |align| match align {
+	Center => CenterReserved
+	End => EndReserved
+	Start => StartReserved
+}
+
+page_field_style : NumberStyle -> PageFieldStyle
+page_field_style = |style| match style {
+	Decimal => DecimalField
+	LowerAlpha => LowerAlphaField
+	LowerRoman => LowerRomanField
+	UpperAlpha => UpperAlphaField
+	UpperRoman => UpperRomanField
+}
+
+field_number_style : PageFieldStyle -> NumberStyle
+field_number_style = |style| match style {
+	DecimalField => Decimal
+	LowerAlphaField => LowerAlpha
+	LowerRomanField => LowerRoman
+	UpperAlphaField => UpperAlpha
+	UpperRomanField => UpperRoman
+}
+
+## One page furniture item of a template region slot: one line of
+## furniture text (text, page fields, and reserved widths), or a decorative
+## drawing. Furniture is a page-content artifact: it paints on every page of
+## its template and never joins the logical structure.
+DocumentFurniture :: [FurnitureDrawing(Scene.Drawing), FurnitureText(List(DocumentInline))].{}
+
+## A header or footer region of a page template: a fixed authored height
+## reserved inside the body frame and three slots whose furniture items
+## stack vertically. `NoRegion` reserves nothing.
+DocumentRegion :: [NoRegion, Region({ center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) })].{}
+
+## The first page's lead region: semantic blocks (such as a letterhead) laid
+## out once, below the first page's header, in a reserved height. They keep
+## semantic ownership as a `Div` that precedes the body in reading order.
+DocumentLeadRegion :: [Lead({ contents : List(DocumentBlock), height : Layout.Unit }), NoLead].{}
+
+## The first page's template.
+DocumentFirstPageTemplate :: { footer : DocumentRegion, gap : Layout.Unit, header : DocumentRegion, lead : DocumentLeadRegion }.{}
+
+## The template of every page after the first.
+DocumentPageTemplate :: { footer : DocumentRegion, gap : Layout.Unit, header : DocumentRegion }.{}
+
+## A document's page templates, or none (template-free pagination).
+DocumentTemplates : [NoTemplates, Templates({ continuation : DocumentPageTemplate, first : DocumentFirstPageTemplate })]
+
+## One inline of a normalized furniture line, flattened: a reserved width
+## becomes `BoxStart`, its content, and `BoxEnd`. `position` is the
+## inline's index in its authored list and `inner` its index inside a
+## reserved width, so diagnostics name `inlines[k]` or
+## `inlines[k].inlines[j]`. `Unsupported` is any other inline (including a
+## reserved width inside a reserved width), rejected by the template stage.
+NormalizedFurnitureInline : [
+	BoxEnd,
+	BoxStart({ align : ReservedAlign, position : U64, width : Layout.Unit }),
+	Field({ field : [PageNumberField, TotalPagesField], inner : [Inner(U64), Outer], position : U64, style : PageFieldStyle }),
+	Text({ inner : [Inner(U64), Outer], position : U64, text : Str }),
+	Unsupported({ inner : [Inner(U64), Outer], position : U64 }),
+]
+
+NormalizedFurniture : [FurnitureDrawing(Scene.Drawing), FurnitureText(List(NormalizedFurnitureInline))]
+
+NormalizedRegion : [NoRegion, Region({ center : List(NormalizedFurniture), end : List(NormalizedFurniture), height : Layout.Unit, start : List(NormalizedFurniture) })]
+
+## One normalized page template: its regions and the gap between each
+## present region and the flow region.
+NormalizedPageTemplate : { footer : NormalizedRegion, gap : Layout.Unit, header : NormalizedRegion }
+
+## The normalized templates. A lead region's blocks are normalized into the
+## block and group arenas as their first `LeadRegion` group (group 0), so
+## only its reserved height is kept here.
+NormalizedTemplates : [NoTemplates, Templates({ continuation : NormalizedPageTemplate, first : NormalizedPageTemplate, lead : [Lead(Layout.Unit), NoLead] })]
 
 ## A figure may have visible caption text independently of required alternative text.
 Caption := [Caption(Str), NoCaption]
@@ -221,14 +318,22 @@ TableSection : [Body, Footer, Header]
 ## leaf and one `TableRow` group per row, whose payload names its section and
 ## whose `position` is the row's index in that section. Each cell is a rich
 ## paragraph leaf of its row group, described in `cells`.
-NormalizedGroupKind := [Container(ContainerKind), ItemList(U32), KeepTogether, KeepWithNext(Keep), ListItem(U32), Table(U32), TableRow(TableSection)]
+##
+## `LeadRegion` is the first page template's lead region: a `Div` of
+## semantic blocks laid out in its reserved region, first in reading order.
+NormalizedGroupKind := [Container(ContainerKind), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
+##
+## `FurnitureOnly` is a page field or reserved width authored in body
+## content. It holds no text and no children; semantic planning rejects it,
+## because page fields are page furniture only.
 NormalizedInlineKind := [
 	Code,
 	Emphasis,
 	Expansion(Str),
+	FurnitureOnly,
 	InLanguage(Str),
 	InternalLink(Str),
 	Link(Str),
@@ -283,6 +388,7 @@ NormalizedAuthoring := {
 	rich_paragraphs : List(NormalizedRich),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
+	templates : NormalizedTemplates,
 }
 
 ## One authored outline entry in dense preorder: the depth below the outline
@@ -477,12 +583,6 @@ DocumentBuilder :: {
 		}
 	}
 
-	add_page_header : DocumentBuilder, Str -> DocumentBuilder
-	add_page_header = |state, text| append_artifact(state, Header, text)
-
-	add_page_footer : DocumentBuilder, Str -> DocumentBuilder
-	add_page_footer = |state, text| append_artifact(state, Footer, text)
-
 	## A URI link block: the whole text is the link. The secondary string is
 	## interned beside the text; the aux slot records its index.
 	add_link : DocumentBuilder, Str, Str -> DocumentBuilder
@@ -504,7 +604,7 @@ DocumentBuilder :: {
 	}
 
 	finish : DocumentBuilder -> Document
-	finish = |state| Document.{ authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [] }
+	finish = |state| Document.{ authoring: Compact(state), created: Omitted, modified: Omitted, outline: [], page_labels: [], templates: NoTemplates }
 }
 
 DocumentAuthoring := [
@@ -513,7 +613,7 @@ DocumentAuthoring := [
 	Simple({ contents : List(DocumentBlock), language : Str, metadata_title : Str }),
 ]
 
-Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange) }.{
+Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates }.{
 	Block : DocumentBlock
 	Builder : DocumentBuilder
 	Caption : Caption
@@ -527,9 +627,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	FixedPage : FixedPage
 	FixedPageBuilder : FixedPageBuilder
 	FixedPlacement : FixedPlacement
+	FirstPageTemplate : DocumentFirstPageTemplate
+	Furniture : DocumentFurniture
 	HeaderScope : HeaderScope
 	Inline : DocumentInline
 	Keep : Keep
+	LeadRegion : DocumentLeadRegion
 	ListItem : DocumentListItem
 	ListMarker : ListMarker
 	NavigationError : NavigationError
@@ -544,20 +647,34 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedLineBreak : NormalizedLineBreak
 	NormalizedList : NormalizedList
 	NormalizedPageBreak : NormalizedPageBreak
+	NormalizedPageTemplate : NormalizedPageTemplate
+	NormalizedFurniture : NormalizedFurniture
+	NormalizedFurnitureInline : NormalizedFurnitureInline
+	NormalizedRegion : NormalizedRegion
+	PageFieldStyle : PageFieldStyle
+	ReservedAlign : ReservedAlign
+
+	## The number style a page field is written in.
+	page_field_number_style : PageFieldStyle -> NumberStyle
+	page_field_number_style = |style| field_number_style(style)
 	NormalizedRich : NormalizedRich
 	NormalizedSpacer : NormalizedSpacer
 	NormalizedTable : NormalizedTable
+	NormalizedTemplates : NormalizedTemplates
 	NormalizedAuthoring : NormalizedAuthoring
 	NumberStyle : NumberStyle
 	OutlineEntry : OutlineEntry
 	PageArtifactKind : PageArtifactKind
 	PageLabelRange : PageLabelRange
 	PageLabelStyle : PageLabelStyle
+	PageTemplate : DocumentPageTemplate
+	Region : DocumentRegion
 	Row : DocumentRow
 	RowSplit : RowSplit
 	TableColumn : TableColumn
 	TableSection : TableSection
 	TableSpec : TableSpec
+	Templates : DocumentTemplates
 
 	## Reusable resource identity is independent of the scene group that uses
 	## it. Placements carry only this scalar edge, never another payload copy.
@@ -651,6 +768,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			modified: Omitted,
 			outline: [],
 			page_labels: [],
+			templates: NoTemplates,
 		}
 
 	## Construct an explicitly framed document. Preparation rejects it with the
@@ -663,6 +781,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			modified: Omitted,
 			outline: [],
 			page_labels: [],
+			templates: NoTemplates,
 		}
 
 	## Optional explicit metadata timestamps. The package never reads a clock;
@@ -675,6 +794,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		modified: document.modified,
 		outline: document.outline,
 		page_labels: document.page_labels,
+		templates: document.templates,
 	}
 
 	with_modified : Document, Str -> Document
@@ -684,6 +804,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		modified: Explicit(timestamp),
 		outline: document.outline,
 		page_labels: document.page_labels,
+		templates: document.templates,
 	}
 
 	## The authored document outline in dense preorder. Entries reference
@@ -696,6 +817,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		modified: document.modified,
 		outline: entries,
 		page_labels: document.page_labels,
+		templates: document.templates,
 	}
 
 	## Authored page-label ranges keyed by physical page index. Ranges are
@@ -707,6 +829,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 		modified: document.modified,
 		outline: document.outline,
 		page_labels: ranges,
+		templates: document.templates,
 	}
 
 	created : Document -> Metadata.TimestampInput
@@ -720,6 +843,59 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	page_labels : Document -> List(PageLabelRange)
 	page_labels = |document| document.page_labels
+
+	## First-page and continuation-page templates: reserved header, footer,
+	## and first-page lead regions, and the furniture they paint. Without
+	## templates, pagination uses the theme's body frame on every page.
+	with_page_templates : Document, { continuation : DocumentPageTemplate, first : DocumentFirstPageTemplate } -> Document
+	with_page_templates = |document, { continuation, first }| Document.{
+		authoring: document.authoring,
+		created: document.created,
+		modified: document.modified,
+		outline: document.outline,
+		page_labels: document.page_labels,
+		templates: Templates({ continuation, first }),
+	}
+
+	## Whether the document declares page templates.
+	has_templates : Document -> Bool
+	has_templates = |document| match document.templates {
+		NoTemplates => False
+		Templates(_) => True
+	}
+
+	first_page_template : { footer : DocumentRegion, gap : Layout.Unit, header : DocumentRegion, lead : DocumentLeadRegion } -> DocumentFirstPageTemplate
+	first_page_template = |{ footer, gap, header, lead }| DocumentFirstPageTemplate.{ footer, gap, header, lead }
+
+	page_template : { footer : DocumentRegion, gap : Layout.Unit, header : DocumentRegion } -> DocumentPageTemplate
+	page_template = |{ footer, gap, header }| DocumentPageTemplate.{ footer, gap, header }
+
+	region : { center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) } -> DocumentRegion
+	region = |record| DocumentRegion.Region(record)
+
+	no_region : DocumentRegion
+	no_region = DocumentRegion.NoRegion
+
+	lead_region : Layout.Unit, List(DocumentBlock) -> DocumentLeadRegion
+	lead_region = |height, contents| DocumentLeadRegion.Lead({ contents, height })
+
+	no_lead : DocumentLeadRegion
+	no_lead = DocumentLeadRegion.NoLead
+
+	furniture_text : List(DocumentInline) -> DocumentFurniture
+	furniture_text = |contents| DocumentFurniture.FurnitureText(contents)
+
+	furniture_image : Scene.Drawing -> DocumentFurniture
+	furniture_image = |drawing_value| DocumentFurniture.FurnitureDrawing(drawing_value)
+
+	page_number : NumberStyle -> DocumentInline
+	page_number = |style| DocumentInline.PageNumber(page_field_style(style))
+
+	total_pages : NumberStyle -> DocumentInline
+	total_pages = |style| DocumentInline.TotalPages(page_field_style(style))
+
+	reserved_width : Layout.Unit, ColumnAlign, List(DocumentInline) -> DocumentInline
+	reserved_width = |width, align, contents| DocumentInline.ReservedWidth({ align: reserved_align(align), contents, width })
 
 	title : Str -> DocumentBlock
 	title = |text| DocumentBlock.Title(text)
@@ -880,12 +1056,6 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	destination_paragraph : Str, Str -> DocumentBlock
 	destination_paragraph = |name, text| DocumentBlock.DestinationParagraph({ name, text })
 
-	page_header : Str -> DocumentBlock
-	page_header = |text| DocumentBlock.PageArtifact({ kind: Header, text })
-
-	page_footer : Str -> DocumentBlock
-	page_footer = |text| DocumentBlock.PageArtifact({ kind: Footer, text })
-
 	builder : { language : Str, title : Str } -> DocumentBuilder
 	builder = |metadata| DocumentBuilder.init(metadata)
 
@@ -912,26 +1082,108 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## Return the first unsupported authored capability in deterministic order.
 	first_unavailable : Document -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
-	first_unavailable = |document| match document.authoring {
-		Fixed(_) => UnavailableFeature({ feature: CustomLayout, summary: "Fixed-page layout is represented by this API but is not executable in this release." })
-		Compact(_) => Available
-		Simple(simple) => first_unavailable_block(simple.contents)
+	first_unavailable = |document| {
+		match document.templates {
+			NoTemplates => {}
+			Templates({ continuation: _, first }) => match first.lead {
+				NoLead => {}
+				Lead({ contents, height: _ }) => match first_unavailable_block(contents) {
+					Available => {}
+					UnavailableFeature(found) => return UnavailableFeature(found)
+				}
+			}
+		}
+		match document.authoring {
+			Fixed(_) => UnavailableFeature({ feature: CustomLayout, summary: "Fixed-page layout is represented by this API but is not executable in this release." })
+			Compact(_) => Available
+			Simple(simple) => first_unavailable_block(simple.contents)
+		}
 	}
 
 	## Both authoring front ends lower once to the same flat text/block store.
 	## String payloads remain shared values; block and list identity are scalar facts.
 	normalize : Document -> NormalizedAuthoring
-	normalize = |document| {
-		normalized = normalize_authoring(document.authoring)
-		{ ..normalized, outline: document.outline, page_labels: document.page_labels }
+
+	##
+	## Page templates normalize their regions as authored values and their
+	## lead region's blocks first, as group 0 (`LeadRegion`), so the lead
+	## precedes the body in every arena and in reading order.
+	normalize = |document| match document.templates {
+		NoTemplates => {
+			normalized = normalize_authoring(document.authoring, empty_state)
+			{ ..normalized, outline: document.outline, page_labels: document.page_labels }
+		}
+		Templates({ continuation, first }) => {
+			lead = match first.lead {
+				NoLead => { height: NoLead, state: empty_state }
+				Lead({ contents, height }) => { height: Lead(height), state: append_lead(empty_state, contents) }
+			}
+			normalized = normalize_authoring(document.authoring, lead.state)
+			templates = Templates({
+				continuation: { footer: normalize_region(continuation.footer), gap: continuation.gap, header: normalize_region(continuation.header) },
+				first: { footer: normalize_region(first.footer), gap: first.gap, header: normalize_region(first.header) },
+				lead: lead.height,
+			})
+			{ ..normalized, outline: document.outline, page_labels: document.page_labels, templates }
+		}
 	}
 }
 
-normalize_authoring : DocumentAuthoring -> NormalizedAuthoring
-normalize_authoring = |authoring| match authoring {
-	Compact(compact) => normalize_compact(compact)
-	Fixed(fixed) => { blocks: [], cells: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [] }
-	Simple(simple) => normalize_simple(simple)
+normalize_region : DocumentRegion -> NormalizedRegion
+normalize_region = |region| match region {
+	NoRegion => NoRegion
+	Region({ center, end, height, start }) => Region({ center: center.map(normalize_furniture), end: end.map(normalize_furniture), height, start: start.map(normalize_furniture) })
+}
+
+normalize_furniture : DocumentFurniture -> NormalizedFurniture
+normalize_furniture = |furniture| match furniture {
+	FurnitureDrawing(drawing) => FurnitureDrawing(drawing)
+	FurnitureText(inlines) => FurnitureText(flatten_furniture(inlines))
+}
+
+## Flatten one furniture line. A reserved width's content is walked one
+## level deep; anything deeper is `Unsupported`, so no recursion follows
+## authored nesting.
+flatten_furniture : List(DocumentInline) -> List(NormalizedFurnitureInline)
+flatten_furniture = |inlines| {
+	var $flat = List.with_capacity(inlines.len())
+	var $position = 0
+	while $position < inlines.len() {
+		match list_at(inlines, $position) {
+			ReservedWidth({ align, contents, width }) => {
+				$flat = $flat.append(BoxStart({ align, position: $position, width }))
+				var $inner = 0
+				while $inner < contents.len() {
+					$flat = $flat.append(furniture_leaf(list_at(contents, $inner), $position, Inner($inner)))
+					$inner = $inner + 1
+				}
+				$flat = $flat.append(BoxEnd)
+			}
+			other => {
+				$flat = $flat.append(furniture_leaf(other, $position, Outer))
+			}
+		}
+		$position = $position + 1
+	}
+	$flat
+}
+
+furniture_leaf : DocumentInline, U64, [Inner(U64), Outer] -> NormalizedFurnitureInline
+furniture_leaf = |inline, position, inner| match inline {
+	Text(text) => Text({ inner, position, text })
+	PageNumber(style) => Field({ field: PageNumberField, inner, position, style })
+	TotalPages(style) => Field({ field: TotalPagesField, inner, position, style })
+	_ => Unsupported({ inner, position })
+}
+
+empty_state : SimpleState
+empty_state = { blocks: [], cells: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
+
+normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
+normalize_authoring = |authoring, initial| match authoring {
+	Compact(compact) => normalize_compact(compact, initial)
+	Fixed(fixed) => { blocks: [], cells: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
+	Simple(simple) => normalize_simple(simple, initial)
 }
 
 first_unavailable_block : List(DocumentBlock) -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
@@ -1036,11 +1288,13 @@ unavailable_leaf = |block| match block {
 	_ => Available
 }
 
-normalize_compact : DocumentBuilder -> NormalizedAuthoring
-normalize_compact = |compact| {
-	var $blocks = []
+## `initial` holds a lead region's normalized blocks (or nothing); compact
+## blocks follow them at the top level.
+normalize_compact : DocumentBuilder, SimpleState -> NormalizedAuthoring
+normalize_compact = |compact, initial| {
+	var $blocks = initial.blocks
 	var $block_index = 0
-	var $list_index = 0
+	var $list_index = initial.list_index
 	while $block_index < compact.block_tags.len() {
 		tag = list_at(compact.block_tags, $block_index)
 		text = list_at(compact.block_texts, $block_index)
@@ -1055,8 +1309,6 @@ normalize_compact = |compact| {
 			$list_index = $list_index + 1
 		} else if tag == heading_tag {
 			$blocks = $blocks.append({ kind: Heading(aux.to_u8_wrap()), parent: 0, text: list_at(compact.text_sources, text) })
-		} else if tag == artifact_tag {
-			$blocks = $blocks.append({ kind: PageArtifact(decode_artifact(aux)), parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == paragraph_tag {
 			$blocks = $blocks.append({ kind: Paragraph, parent: 0, text: list_at(compact.text_sources, text) })
 		} else if tag == title_tag {
@@ -1076,20 +1328,21 @@ normalize_compact = |compact| {
 	}
 	{
 		blocks: $blocks,
-		cells: [],
-		figures: [],
-		groups: [],
-		inlines: [],
+		cells: initial.cells,
+		figures: initial.figures,
+		groups: initial.groups,
+		inlines: initial.inlines,
 		language: compact.language,
-		line_breaks: [],
-		lists: [],
+		line_breaks: initial.line_breaks,
+		lists: initial.lists,
 		metadata_title: compact.metadata_title,
 		outline: [],
-		page_breaks: [],
+		page_breaks: initial.page_breaks,
 		page_labels: [],
-		rich_paragraphs: [],
-		spacers: [],
-		tables: [],
+		rich_paragraphs: initial.rich_paragraphs,
+		spacers: initial.spacers,
+		tables: initial.tables,
+		templates: NoTemplates,
 	}
 }
 
@@ -1108,9 +1361,9 @@ SimpleState : {
 	tables : List(NormalizedTable),
 }
 
-normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str } -> NormalizedAuthoring
-normalize_simple = |simple| {
-	var $state = { blocks: [], cells: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
+normalize_simple : { contents : List(DocumentBlock), language : Str, metadata_title : Str }, SimpleState -> NormalizedAuthoring
+normalize_simple = |simple, initial| {
+	var $state = initial
 	var $block_index = 0
 	while $block_index < simple.contents.len() {
 		block = list_at(simple.contents, $block_index)
@@ -1133,6 +1386,7 @@ normalize_simple = |simple| {
 		rich_paragraphs: $state.rich_paragraphs,
 		spacers: $state.spacers,
 		tables: $state.tables,
+		templates: NoTemplates,
 	}
 }
 
@@ -1154,8 +1408,22 @@ GroupFrame : { blocks : List(DocumentBlock), depth : U64, group : U64, items : L
 append_group : SimpleState, DocumentBlock, U64 -> SimpleState
 append_group = |state, block, position| {
 	opened = open_block_group(state, block, 0, 0, 0, position)
-	var $state = opened.state
-	var $frames = [opened.frame]
+	walk_group(opened.state, opened.frame)
+}
+
+## The first page's lead region: a top-level `LeadRegion` group (a `Div`)
+## at container depth one, whose blocks normalize exactly as a division's.
+append_lead : SimpleState, List(DocumentBlock) -> SimpleState
+append_lead = |state, contents| {
+	opened = open_group(state, LeadRegion, 0, 1, 0)
+	walk_group(opened, { blocks: contents, depth: 1, group: opened.groups.len(), items: [], list_depth: 0, listing: False, next: 0 })
+}
+
+## Walk an opened group's frame and its descendants to completion.
+walk_group : SimpleState, GroupFrame -> SimpleState
+walk_group = |opened_state, opened_frame| {
+	var $state = opened_state
+	var $frames = [opened_frame]
 	while !$frames.is_empty() {
 		top = list_at($frames, $frames.len() - 1)
 		limit = if top.listing top.items.len() else top.blocks.len()
@@ -1252,7 +1520,6 @@ append_leaf = |state, block, parent, position| match block {
 	}
 	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
 	Link({ text, uri }) => { ..state, blocks: state.blocks.append({ kind: Link({ uri: uri }), parent, text }) }
-	PageArtifact({ kind, text }) => { ..state, blocks: state.blocks.append({ kind: PageArtifact(kind), parent, text }) }
 	PageBreak => { ..state, page_breaks: state.page_breaks.append({ block: state.blocks.len(), parent, position }) }
 	Paragraph(text) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text }) }
 	RichParagraph(contents) => append_rich(state, contents, parent, position)
@@ -1414,6 +1681,13 @@ append_rich = |state, contents, parent, position| {
 					$frames = $frames.append({ breaks: 0, depth: top.depth + 1, items: nested, language: index + 1, next: 0, owner: index + 1 })
 					$elements = $elements + 1
 				}
+
+				## Furniture-only inlines hold no text here; semantic
+				## planning rejects them with their inline path.
+				PageNumber(_) | ReservedWidth(_) | TotalPages(_) => {
+					$inlines = $inlines.append(inline_element(top, slot, FurnitureOnly, 0, $elements, $leaves))
+					$elements = $elements + 1
+				}
 			}
 		}
 	}
@@ -1548,43 +1822,6 @@ append_with_secondary = |DocumentBuilder.{ block_aux, block_tags, block_texts, l
 	}
 }
 
-append_artifact : DocumentBuilder, PageArtifactKind, Str -> DocumentBuilder
-append_artifact = |DocumentBuilder.{ block_aux, block_tags, block_texts, language, metadata_title, text_sources }, kind, text| {
-	text_id = text_sources.len()
-
-	DocumentBuilder.{
-		block_aux: block_aux.append(encode_artifact(kind)),
-		block_tags: block_tags.append(artifact_tag),
-		block_texts: block_texts.append(text_id),
-		language,
-		metadata_title,
-		text_sources: text_sources.append(text),
-	}
-}
-
-encode_artifact : PageArtifactKind -> U64
-encode_artifact = |kind| match kind {
-	Background => 0
-	Decoration => 1
-	Footer => 2
-	Header => 3
-	PageNumber => 4
-	Watermark => 5
-}
-
-decode_artifact : U64 -> PageArtifactKind
-decode_artifact = |value| match value {
-	0 => Background
-	1 => Decoration
-	2 => Footer
-	3 => Header
-	4 => PageNumber
-	5 => Watermark
-	_ => {
-		crash "compact page artifact kind escaped"
-	}
-}
-
 fixed_block_count : List(FixedPage) -> U64
 fixed_block_count = |pages| {
 	var $count = 0
@@ -1601,9 +1838,6 @@ bullets_tag = 0
 
 heading_tag : U8
 heading_tag = 1
-
-artifact_tag : U8
-artifact_tag = 2
 
 paragraph_tag : U8
 paragraph_tag = 3
@@ -1661,7 +1895,7 @@ expect {
 		.add_heading(1, "Summary")
 		.add_paragraph("Body")
 		.add_bullets(["One", "Two"])
-		.add_page_footer("Page footer")
+		.add_paragraph("Closing")
 
 	builder.stats() == { blocks: 5, text_sources: 6 }
 }
