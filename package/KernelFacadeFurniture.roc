@@ -560,16 +560,8 @@ path_bounds = |segments| {
 ## Pass 2: resolve, shape, prove, and place.
 resolve_plan : KernelFacadeFurniture.Static, U64, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection)], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
 resolve_plan = |static, page_count, selection, language, source_base, limits| {
-	if !static.texts.is_empty() {
-		match selection {
-			PolicyFaces(_) => {}
-			SingleFace(_) => {
-				if static.style.font.index() != 0 {
-					return Err(UnsupportedThemeFace({ face: static.style.font.index() }))
-				}
-			}
-		}
-	}
+	## The single face is the theme's body face, which is the furniture
+	## style's face whatever its registry index.
 	check_limit(static.items.len(), limits.max_items, Items)?
 
 	## Resolve every text item on every page into its line string and

@@ -3537,3 +3537,23 @@ expect {
 		_ => Bool.False
 	}
 }
+
+## Furniture text shapes in the body face even when the body face is not
+## the registry's first face.
+expect {
+	first = Font.Registry.empty.register_built_in(Font.ValidationLimits.default)?
+	second = first.registry.register_built_in(Font.ValidationLimits.default)?
+	options = Pdf.Options.default.with_theme(Theme.default.with_font(second.face)).with_font_registry(second.registry)
+	footer = Pdf.region({ center: [], end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal)])], height: Layout.Unit.points(16), start: [] })
+	document = Pdf.with_page_templates(
+		Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Second face" }),
+		{
+			continuation: Pdf.page_template({ footer, gap: Layout.Unit.points(12), header: Pdf.no_region }),
+			first: Pdf.first_page_template({ footer, gap: Layout.Unit.points(12), header: Pdf.no_region, lead: Pdf.no_lead }),
+		},
+	)
+	match Pdf.to_bytes_with(document, options) {
+		Ok(_) => Bool.True
+		Err(_) => Bool.False
+	}
+}

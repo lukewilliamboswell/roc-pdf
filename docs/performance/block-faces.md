@@ -55,6 +55,14 @@ Registering a bold face before the regular face and selecting the regular
 face as the body face was therefore `UnsupportedThemeFace`. The check now
 compares with the theme's body face.
 
+The furniture stage had the same assumption: with a single face it
+rejected furniture text unless the body face had registry index 0
+(`UnsupportedThemeFace`), so a document with page templates whose body face
+was registered second could not render its headers and footers. The single
+face handed to furniture is the theme's body face by construction, so the
+check is removed; a `Pdf.roc` expect registers the built-in face twice,
+selects the second as the body face, and renders a page-number footer.
+
 ## Ownership and complexity
 
 `HeadingStyles` is a record of six `TextStyle` values inside the opaque
