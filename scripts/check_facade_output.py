@@ -21,6 +21,7 @@ from pathlib import Path
 from check_visual_renderers import read_ppm
 from check_text_renderers import InkMetrics, check_renderers, compile_pdfbox_renderer, ink_metrics
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, glyph_count, only_object, replace_once
+from text_positions import shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
@@ -58,10 +59,10 @@ def only_page_font(page: bytes) -> tuple[bytes, int]:
 
 
 def content_text(content: bytes, mappings: dict[int, tuple[int, ...]]) -> str:
-    shown_cids = [int(value, 16) for value in CID_TOKEN.findall(content)]
-    require(shown_cids, "facade content does not paint any CID text")
-    require(all(cid in mappings for cid in shown_cids), "facade content contains a CID without a ToUnicode mapping")
-    return "".join(chr(scalar) for cid in shown_cids for scalar in mappings[cid])
+    shown = shown_cids(content)
+    require(shown, "facade content does not paint any CID text")
+    require(all(cid in mappings for cid in shown), "facade content contains a CID without a ToUnicode mapping")
+    return "".join(chr(scalar) for cid in shown for scalar in mappings[cid])
 
 
 def validate_facade_output_pdf(pdf: bytes, expected_text: str) -> None:

@@ -90,6 +90,10 @@ KernelLex :: [].{
 	append_thousandths : List(U8), I64 -> List(U8)
 	append_thousandths = |output, coefficient| append_decimal(output, coefficient, 3)
 
+	## `coefficient` / 10^`digits` in canonical decimal form.
+	append_decimal_digits : List(U8), I64, U8 -> List(U8)
+	append_decimal_digits = |output, coefficient, digits| append_decimal(output, coefficient, digits)
+
 	append_billionths : List(U8), I64 -> List(U8)
 	append_billionths = |output, coefficient| append_decimal(output, coefficient, 9)
 

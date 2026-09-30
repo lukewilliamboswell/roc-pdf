@@ -11,13 +11,18 @@ import tempfile
 from pathlib import Path
 
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "actual_text" / "supplementary_text.pdf"
 EXPECTED_TEXT = "🄯\n".encode()
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -31,6 +36,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [656, 914]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_MAPPINGS = {0x0001: (0x1F12F,)}
 EXPECTED_SUBSET_SHA256 = "b3da4f6fc464d0561dd2d747649fbbe72529db8ec77443bfd68a6a67274b4317"
 
@@ -56,7 +63,7 @@ def validate_supplementary_text_pdf(pdf: bytes) -> None:
     mappings = cmap_mappings(cmap)
     require(mappings == EXPECTED_MAPPINGS, "supplementary ToUnicode mapping is not the exact source scalar")
     require(b"<0001> <D83CDD2F>" in cmap, "supplementary ToUnicode mapping is not canonical UTF-16BE surrogate-pair output")
-    shown = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", EXPECTED_CONTENT)]
+    shown = shown_cids(EXPECTED_CONTENT)
     direct = "".join(chr(scalar) for cid in shown for scalar in mappings[cid]).encode() + b"\n"
     require(direct == EXPECTED_TEXT, "supplementary CID/ToUnicode reconstruction differs from the source")
     descriptor = bodies[dictionary_ref(cid_body, b"FontDescriptor")]

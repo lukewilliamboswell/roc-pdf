@@ -17,6 +17,7 @@ from check_text import (
     only_object,
     replace_once,
 )
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import (
     ValidationError,
     dictionary_ref,
@@ -30,7 +31,11 @@ from check_pdf_structure import (
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "actual_text" / "actual_text.pdf"
 EXPECTED_TEXT = b"fa\n"
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -47,6 +52,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [656, 562, 370]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_MAPPINGS = {0x0001: (0x0061,), 0x0002: (0x0066,)}
 EXPECTED_SUBSET_SHA256 = "82a6b44a06ffea8cb1a01fafe00a8cc5c8b1bc2434e29e01feb6edd0a3aa30bc"
 
@@ -92,9 +99,9 @@ def validate_actual_text_pdf(pdf: bytes) -> None:
 
 
 def validate_actual_text_content(content: bytes, mappings: dict[int, tuple[int, ...]]) -> None:
-    shown_cids = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", content)]
-    require(all(cid in mappings for cid in shown_cids), "ActualText content shows an unmapped CID")
-    direct_text = "".join(chr(scalar) for cid in shown_cids for scalar in mappings[cid])
+    shown = shown_cids(content)
+    require(all(cid in mappings for cid in shown), "ActualText content shows an unmapped CID")
+    direct_text = "".join(chr(scalar) for cid in shown for scalar in mappings[cid])
     require(direct_text == "af", "ActualText fixture does not prove visual glyph reordering")
 
     actual_match = re.search(rb"(?m)^/Span <</ActualText <([0-9A-F]+)>>> BDC$", content)

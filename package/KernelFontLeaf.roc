@@ -400,6 +400,7 @@ test_plan = |_| {
 	original_to_subset: [0, 0xffffffff, 1],
 	prefix: [0x41, 0x42, 0x43, 0x44, 0x45, 0x46],
 	retained: [1, 0, 2],
+	units_per_em: 1000,
 	work: { component_edge_visits: 0, component_index_visits: 0, glyph_scans: 3, retained_glyphs: 2, usage_visits: 1 },
 }
 

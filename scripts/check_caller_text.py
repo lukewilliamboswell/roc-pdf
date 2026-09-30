@@ -17,6 +17,7 @@ from check_text import (
     only_object,
     replace_once,
 )
+from text_positions import shown_cids
 from check_pdf_structure import (
     ValidationError,
     dictionary_ref,
@@ -110,8 +111,8 @@ def validate_caller_text_pdf(pdf: bytes) -> None:
     require(b"/CIDToGIDMap /Identity " in cid_body, "caller CIDFont does not declare the identity CIDToGIDMap")
     _, cmap = decoded_stream(bodies, dictionary_ref(type0_body, b"ToUnicode"))
     require(cmap_mappings(cmap) == EXPECTED_MAPPINGS, "caller ToUnicode mappings differ from source Unicode")
-    shown_cids = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", EXPECTED_CONTENT)]
-    extracted = "".join(chr(scalar) for cid in shown_cids for scalar in EXPECTED_MAPPINGS[cid]).encode() + b"\n"
+    shown = shown_cids(EXPECTED_CONTENT)
+    extracted = "".join(chr(scalar) for cid in shown for scalar in EXPECTED_MAPPINGS[cid]).encode() + b"\n"
     require(extracted == EXPECTED_TEXT, "caller direct CID reconstruction differs from expected text")
 
     font_dictionary, font_bytes = decoded_stream(bodies, dictionary_ref(descriptor_body, b"FontFile2"))

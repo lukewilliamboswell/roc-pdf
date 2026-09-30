@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
@@ -35,7 +36,11 @@ EXPECTED_SUBSET_LENGTH1 = 4380
 # authoritative logical recovery is the ActualText and ToUnicode evidence.
 EXPECTED_PDFBOX_TEXT = "hg).]fe&[\u05d0\u05d1)\u05d2\u05d3\n".encode()
 
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -78,6 +83,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [472, 549, 324, 528, 568, 694, 272, 335, 335, 317, 317, 628, 552, 419, 528]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 
 
 def validate_rtl_pdf(pdf: bytes) -> None:
@@ -104,7 +111,7 @@ def validate_rtl_pdf(pdf: bytes) -> None:
 
     _, cmap = decoded_stream(bodies, dictionary_ref(type0, b"ToUnicode"))
     mappings = cmap_mappings(cmap)
-    shown = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", content)]
+    shown = shown_cids(content)
     require(len(shown) == len(LOGICAL_TEXT), f"RTL paints {len(shown)} CIDs, expected {len(LOGICAL_TEXT)}")
 
     # The painted sequence must be the normative visual order, recovered

@@ -35,6 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from text_positions import shown_cids  # noqa: E402
 from check_pdf_structure import ValidationError, require  # noqa: E402
 from check_structure_semantics import Document, Ref, page_order, text_string  # noqa: E402
 
@@ -145,7 +146,7 @@ def heading_text(document: Document, element_number: int, fonts: dict[bytes, dic
         segment = content[start:end]
         font_name = re.search(rb"/(F[0-9_]+) [0-9.]+ Tf", segment).group(1)
         mapping = fonts.setdefault(font_name, font_map(document, page, font_name))
-        text += "".join(mapping[int(glyph, 16)] for glyph in TEXT_SHOW.findall(segment))
+        text += "".join(mapping[cid] for cid in shown_cids(segment))
     return text
 
 

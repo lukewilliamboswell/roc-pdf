@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from text_positions import shown_strings  # noqa: E402
 from check_pdf_structure import ValidationError, require
 import re
 
@@ -49,7 +50,7 @@ def artifact_and_tagged_text(pdf: bytes) -> tuple[list[str], list[str]]:
             require(name in fonts, f"artifact text selects an undeclared font /{name}")
             mapping = to_unicode(document, int(fonts[name]))
             text = []
-            for shown in SHOWN.findall(block):
+            for shown in shown_strings(block):
                 raw = bytes.fromhex(shown.decode())
                 for index in range(0, len(raw), 2):
                     cid = int.from_bytes(raw[index:index + 2], "big")

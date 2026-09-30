@@ -1353,6 +1353,11 @@ Determinism is part of the public contract:
 - Names, strings, XML, and content tokens use canonical escaping.
 - Dictionary and XMP property ordering is defined.
 - Newlines and compression parameters are fixed.
+- A prepared glyph run is written as baseline segments: one `Td` to the
+  exact position of the segment's first glyph and one `TJ` array whose
+  adjustments round to a tenth of a thousandth of text space with the error
+  carried forward, so every glyph stays within 0.00005 em of its layout
+  position.
 - Font subset prefixes and glyph order are deterministic.
 - Timestamps are explicit inputs or omitted when optional.
 - Document identity is explicit or derived by a specified digest procedure.

@@ -556,7 +556,7 @@ def furniture_by_page(document: Document, pages: list[int]) -> list[list[tuple[s
             body = match.group(2)
             text: list[str] = []
             current: dict[int, str] | None = None
-            for token in re.finditer(rb"/([A-Za-z0-9_]+) [0-9.]+ Tf|<([0-9A-Fa-f]*)> Tj", body):
+            for token in re.finditer(rb"/([A-Za-z0-9_]+) [0-9.]+ Tf|<([0-9A-Fa-f]*)> Tj|\[((?:<[0-9A-Fa-f]*>|-?[0-9.]+| )*)\] TJ", body):
                 if token.group(1) is not None:
                     name = token.group(1).decode("latin-1")
                     require(name in fonts, f"furniture selects an undeclared font /{name}")
@@ -566,7 +566,8 @@ def furniture_by_page(document: Document, pages: list[int]) -> list[list[tuple[s
                     current = decoders[number]
                 else:
                     require(current is not None, "furniture text is shown before a font is selected")
-                    string = bytes.fromhex(token.group(2).decode())
+                    hex_text = token.group(2) if token.group(2) is not None else b"".join(re.findall(rb"<([0-9A-Fa-f]*)>", token.group(3)))
+                    string = bytes.fromhex(hex_text.decode())
                     for index in range(0, len(string), 2):
                         cid = int.from_bytes(string[index : index + 2], "big")
                         require(cid in current, f"furniture CID {cid} has no ToUnicode mapping")

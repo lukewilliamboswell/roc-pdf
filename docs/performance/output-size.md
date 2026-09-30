@@ -254,3 +254,117 @@ evidence is unchanged rather than newly broken.
   DEFLATE cases record streams, input bytes, and emitted bytes.
 - **Suite time**: the summed dev-backend case time rises from about 106 s to
   190 s across 323 cases (about 15 s of wall time with six workers).
+
+## 3. One `TJ` array per glyph run
+
+### What changed
+
+`KernelPdfText.emit_run_glyphs` wrote every glyph as its own
+`1 0 0 1 x y Tm` and `<cid> Tj`: the tax invoice's 3,552 glyphs used 3,552
+text-matrix operators. A prepared run is now written as baseline segments.
+Each segment opens with one `Td` to the exact layout position of its first
+glyph (relative to the previous segment's start; a zero move is omitted) and
+shows its glyphs in one `TJ` array. A glyph with a different vertical offset
+(a positioned mark) starts a new segment, so baselines stay exact.
+
+Inside a segment the reader advances by each glyph's emitted `/W` width, and
+the array carries the adjustment that brings the pen to the next glyph's exact
+layout position:
+
+```text
+n_i = round((pen_i + W_(i-1) * size - x_i * 1000) / size)   (tenths)
+pen_(i+1) = pen_i + W_(i-1) * size - n_i * size
+```
+
+in exact integer units of 1/10,000 of a layout unit. Rounding is to the
+nearest tenth of a thousandth of text space, halves up, and the pen carries
+the rounding error forward, so each glyph is within half a step (0.00005 em)
+of its layout position and the error never accumulates along a line. The
+font plan now records `units_per_em` so the text lowering scales `/W` with
+the same shared rounding the font lowering uses (`emitted_width`).
+
+`scripts/text_positions.py` is an independent Python model of the same rule.
+Every text checker keeps its authored per-glyph positions
+(`POSITIONED_CONTENT`) and derives the expected content from them with that
+model and the expected `/W` widths, so exact-content checks now also prove
+that the Roc encoder and the Python model agree byte for byte. CID
+extraction in the checkers reads both `Tj` strings and `TJ` arrays.
+
+### Choosing the precision
+
+Every precision was built and compared against the previous output with
+`mutool trace` (glyph origins in page space) and `mutool draw -r 100`:
+
+| Adjustment digits | Tax invoice bytes | Product brief bytes | Max glyph shift | Differing pixels (tax invoice / brief) |
+| ---: | ---: | ---: | ---: | ---: |
+| 0 (whole thousandths) | 78,677 | 81,338 | 0.016 pt | 1,822 / 2,366 |
+| 1 (tenths) | 79,352 | 82,168 | 0.0020 pt | 119 / 350 |
+| 2 | 79,571 | 82,440 | 0.00024 pt | 330 / 295 |
+| 3 | 79,646 | 82,492 | 0.00017 pt | 31 / 0 |
+
+No precision renders pixel-identically: at three digits the model error
+(5e-7 em) is below MuPDF's own float32 pen accumulation, and a few glyphs
+still land in a different sub-pixel rasterization bucket. The package uses one
+digit. It bounds the positional error to 0.00005 em (0.0006 pt, or 0.2 µm, at
+12 pt) for 0.9% more output than whole thousandths, which allow ten times the
+error.
+
+### Position evidence
+
+`mutool trace` over all 259 PDFs, before (the pre-work snapshots) and after:
+1,005,404 glyphs, the same glyph sequence on every page, every vertical
+position identical, and a largest horizontal shift of 0.0020 pt (0.000064 em,
+the one-digit bound plus MuPDF's float32 accumulation).
+
+### Rendering
+
+401 of 4,951 comparable pages differ at 100 dpi, by 87,014 pixels in total
+(at most 1,182 on one page, 0.12% of its pixels), with a largest channel
+difference of 66. Every difference is a whole glyph drawn at a different
+sub-pixel phase; a 4x magnified before/after/difference crop of the worst page
+(`tests/rich_inline/scoped_colors_50.pdf`, page 3) shows the "4" and "y"
+glyphs shifted within the pixel and no visible change. Nine gallery previews
+change by a single glyph each (35 to 61 pixels) and are committed so they
+match their PDFs.
+
+### Budgets
+
+| Tax invoice | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| page content streams | 14,202 | 6,996 | -7,206 |
+| other categories | 72,356 | 72,356 | +0 |
+| **Total** | **86,558** | **79,352** | **-7,206** (-8.3%) |
+
+| Product brief | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| page content streams | 19,243 | 8,927 | -10,316 |
+| other categories | 73,241 | 73,241 | +0 |
+| **Total** | **92,484** | **82,168** | **-10,316** (-11.2%) |
+
+| Quarterly report | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| page content streams | 20,625 | 7,695 | -12,930 |
+| other categories | 81,990 | 81,990 | +0 |
+| **Total** | **102,615** | **89,685** | **-12,930** (-12.6%) |
+
+| Reference letter x200 | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| page content streams | 501,759 | 120,731 | -381,028 |
+| other categories | 126,500 | 126,471 | -29 |
+| **Total** | **628,259** | **247,202** | **-381,057** (-60.7%) |
+
+The tax invoice's content streams (6,996 bytes) now match Typst's (6,959).
+
+### Allocation and work
+
+- **Allocations and allocated bytes fall** almost everywhere, because far fewer
+  content bytes are appended, prepared, hashed into form and resource
+  identities, and compressed. The letter scale pair falls by 42,847 events
+  (x20) and 371,343 events (x200), and allocated bytes by 12.4% and 21.0%.
+- Eleven single-run text cases rise by one to five events, for the checked
+  arithmetic results of the adjustment; their allocated bytes rise by at most
+  0.012%. `shared font subset x1000` allocates 0.05% more bytes and 3,792
+  fewer events.
+- **Work counters**: content-byte counters (`content_stream_bytes`,
+  `prepared_text_bytes`, `content_bytes_emitted`, form and graph byte counts,
+  and `output_bytes`) fall. The glyph and run visit counts do not change.

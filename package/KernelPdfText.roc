@@ -595,11 +595,59 @@ emit_run_body = |bytes, text, run, origin, font, limit| {
 	emit_run_glyphs($out, text, run, origin, font, limit)
 }
 
+## TJ adjustments are written with `adjustment_digits` fractional digits,
+## so one adjustment step is 10^-digits thousandths of text space. One digit
+## keeps every glyph within 0.00005 em of its layout position (0.0006 pt at
+## 12 pt); whole thousandths would allow 0.0005 em for about 1% less output
+## (docs/performance/output-size.md, step 3).
+adjustment_digits : U8
+adjustment_digits = 1
+
+## Adjustment steps per thousandth of text space: 10^`adjustment_digits`.
+adjustment_scale : I64
+adjustment_scale = pow10(adjustment_digits)
+
+pow10 : U8 -> I64
+pow10 = |digits| {
+	var $value = 1
+	var $index = 0
+	while $index < digits {
+		$value = $value * 10
+		$index = $index + 1
+	}
+	$value
+}
+
+## Writes one prepared glyph run as baseline segments.
+##
+## Each segment starts at the exact layout position of its first glyph with
+## one `Td`, relative to the previous segment's start (a run's first segment
+## is relative to the text object's origin and omits a zero move), and shows
+## the segment's glyphs in one `TJ` array. A glyph whose vertical offset
+## differs from the current segment's starts a new segment, so every glyph
+## keeps its exact baseline.
+##
+## Inside a segment the reader advances the pen by each glyph's emitted `/W`
+## width. Before every later glyph the array carries the adjustment that
+## returns the pen to that glyph's exact layout position, rounded to the
+## nearest 1/`adjustment_scale` thousandth of text space (halves round up).
+## The pen is tracked exactly in units of 1/(1000 * `adjustment_scale`)
+## layout units, so each glyph's rounding error is at most half an
+## adjustment step, 0.0005 em at scale 1, and never accumulates along the
+## segment. All arithmetic is checked `I64` integer arithmetic.
 emit_run_glyphs : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
 emit_run_glyphs = |bytes, text, run, origin, font, limit| {
+	size = run.size.raw()
+	if size <= 0 {
+		return Err(RunInvalid({ run: run.id.index() }))
+	}
 	var $out = bytes
 	var $cursor_x = 0
-	var $cursor_y = 0
+	var $segment_x = 0
+	var $segment_y = 0
+	var $pen = 0
+	var $previous_width = 0
+	var $open = False
 	var $glyph_index = run.glyphs.start()
 	glyph_end = run.glyphs.start() + run.glyphs.length()
 	while $glyph_index < glyph_end {
@@ -608,21 +656,82 @@ emit_run_glyphs = |bytes, text, run, origin, font, limit| {
 			return Err(RunInvalid({ run: run.id.index() }))
 		}
 		x = checked_i64_add(origin.x.raw(), checked_i64_add($cursor_x, glyph.offset_x.raw())?)?
-		y = checked_i64_add(origin.y.raw(), checked_i64_add($cursor_y, glyph.offset_y.raw())?)?
+		y = checked_i64_add(origin.y.raw(), glyph.offset_y.raw())?
 		cid = cid_for_glyph(font, glyph.id.raw(), run.id.index())?
-		$out = append_literal($out, "1 0 0 1 ", limit)?
-		$out = append_layout($out, Layout.Unit.from_raw(x), limit)?
-		$out = append_literal($out, " ", limit)?
-		$out = append_layout($out, Layout.Unit.from_raw(y), limit)?
-		$out = append_literal($out, " Tm\n<", limit)?
+		width = emitted_width(font, cid)?
+		if $open == False or y != $segment_y {
+			if $open {
+				$out = append_literal($out, ">] TJ\n", limit)?
+			}
+			dx = checked_i64_sub(x, $segment_x)?
+			dy = checked_i64_sub(y, $segment_y)?
+			if dx != 0 or dy != 0 {
+				$out = append_layout($out, Layout.Unit.from_raw(dx), limit)?
+				$out = append_literal($out, " ", limit)?
+				$out = append_layout($out, Layout.Unit.from_raw(dy), limit)?
+				$out = append_literal($out, " Td\n", limit)?
+			}
+			$out = append_literal($out, "[<", limit)?
+			$segment_x = x
+			$segment_y = y
+			$pen = 0
+			$open = True
+		} else {
+			advance = checked_i64_times(checked_i64_times($previous_width, adjustment_scale)?, size)?
+			nominal = checked_i64_add($pen, advance)?
+			target = checked_i64_times(checked_i64_sub(x, $segment_x)?, checked_i64_times(1000, adjustment_scale)?)?
+			steps = round_half_up(checked_i64_sub(nominal, target)?, size)?
+			$pen = checked_i64_sub(nominal, checked_i64_times(steps, size)?)?
+			if steps != 0 {
+				$out = append_literal($out, "> ", limit)?
+				$out = append_adjustment($out, steps, limit)?
+				$out = append_literal($out, " <", limit)?
+			}
+		}
 		$out = append_hex_u16($out, cid.to_u16_wrap(), limit)?
-		$out = append_literal($out, "> Tj\n", limit)?
+		$previous_width = width
 		$cursor_x = checked_i64_add($cursor_x, glyph.advance_x.raw())?
-		$cursor_y = checked_i64_add($cursor_y, glyph.advance_y.raw())?
 		$glyph_index = $glyph_index + 1
+	}
+	if $open {
+		$out = append_literal($out, ">] TJ\n", limit)?
 	}
 	Ok({ bytes: $out, glyphs: run.glyphs.length() })
 }
+
+## The `/W` value the font lowering emits for a CID: its advance scaled to
+## thousandths of an em by the same shared rounding.
+emitted_width : KernelFontPlan.Plan, U32 -> Try(I64, KernelPdfText.Error)
+emitted_width = |font, cid| {
+	entry = list_at(font.entries, cid.to_u64())
+	match KernelPdfFont.scaled_unsigned_metric(entry.width, font.units_per_em) {
+		Ok(width) => if width > I64.highest.to_u64_wrap() Err(ArithmeticOverflow) else Ok(width.to_i64_wrap())
+		Err(_) => Err(FontPlanInvalid({ font: 0 }))
+	}
+}
+
+## floor(numerator / denominator + 1/2) for a positive denominator.
+round_half_up : I64, I64 -> Try(I64, KernelPdfText.Error)
+round_half_up = |numerator, denominator| {
+	twice = checked_i64_times(numerator, 2)?
+	floor_div(checked_i64_add(twice, denominator)?, checked_i64_times(denominator, 2)?)
+}
+
+floor_div : I64, I64 -> Try(I64, KernelPdfText.Error)
+floor_div = |numerator, denominator| {
+	quotient = I64.div_trunc_by(numerator, denominator)
+	remainder = I64.rem_by(numerator, denominator)
+	if remainder != 0 and numerator < 0 {
+		checked_i64_sub(quotient, 1)
+	} else {
+		Ok(quotient)
+	}
+}
+
+## A TJ number: `steps` / `adjustment_scale` thousandths of text space, in
+## canonical decimal form.
+append_adjustment : List(U8), I64, U64 -> Try(List(U8), KernelPdfText.Error)
+append_adjustment = |bytes, steps, limit| append_bytes(bytes, KernelLex.append_decimal_digits([], steps, adjustment_digits), limit)
 
 append_actual_text_begin : List(U8), List(U32), U64, U64 -> Try(List(U8), KernelPdfText.Error)
 append_actual_text_begin = |bytes, scalars, run, limit| {
@@ -719,6 +828,18 @@ checked_i64_add = |left, right| match I64.plus_try(left, right) {
 	Ok(value) => Ok(value)
 }
 
+checked_i64_sub : I64, I64 -> Try(I64, KernelPdfText.Error)
+checked_i64_sub = |left, right| match I64.minus_try(left, right) {
+	Err(Overflow) => Err(ArithmeticOverflow)
+	Ok(value) => Ok(value)
+}
+
+checked_i64_times : I64, I64 -> Try(I64, KernelPdfText.Error)
+checked_i64_times = |left, right| match I64.times_try(left, right) {
+	Err(Overflow) => Err(ArithmeticOverflow)
+	Ok(value) => Ok(value)
+}
+
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
 	Err(OutOfBounds) => {
@@ -740,3 +861,16 @@ initial_capacity = 1024
 
 content : ScenePlan -> KernelContent.TextPlan
 content = |plan| plan.content
+
+## Adjustment rounding is floor(n / d + 1/2) for both signs.
+expect round_half_up(5, 10) == Ok(1) and
+	round_half_up(-5, 10) == Ok(0) and
+		round_half_up(-6, 10) == Ok(-1) and
+			round_half_up(14, 10) == Ok(1) and
+				round_half_up(-15, 10) == Ok(-1) and
+					round_half_up(0, 7) == Ok(0)
+
+## One-digit adjustments print as canonical decimals.
+expect append_adjustment([], -3, 16) == Ok(Str.to_utf8("-0.3")) and
+	append_adjustment([], 25, 16) == Ok(Str.to_utf8("2.5")) and
+		append_adjustment([], 40, 16) == Ok(Str.to_utf8("4"))

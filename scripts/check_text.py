@@ -12,6 +12,7 @@ import zlib
 from pathlib import Path
 
 from pdf_layout import flatten, mutate
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import (
     ValidationError,
     dictionary_ref,
@@ -42,7 +43,11 @@ LEGACY_EXPECTED_CONTENT = (
     b"1 0 0 1 114.753 700 Tm\n<0003> Tj\n"
     b"ET\n"
 )
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -63,6 +68,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [656, 730, 722, 590, 639, 562, 583, 583, 370, 0, 281]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_MAPPINGS = {
     0x0001: (0x0043,),
     0x0002: (0x0044,),
@@ -178,9 +185,9 @@ def validate_text_pdf(pdf: bytes) -> None:
 
     _, cmap = decoded_stream(bodies, to_unicode)
     require(cmap_mappings(cmap) == EXPECTED_MAPPINGS, "ToUnicode mappings differ from source Unicode")
-    shown_cids = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", EXPECTED_CONTENT)]
-    require(all(cid in EXPECTED_MAPPINGS for cid in shown_cids), "content contains a CID without extraction mapping")
-    extracted = "".join(chr(scalar) for cid in shown_cids for scalar in EXPECTED_MAPPINGS[cid]).encode() + b"\n"
+    shown = shown_cids(EXPECTED_CONTENT)
+    require(all(cid in EXPECTED_MAPPINGS for cid in shown), "content contains a CID without extraction mapping")
+    extracted = "".join(chr(scalar) for cid in shown for scalar in EXPECTED_MAPPINGS[cid]).encode() + b"\n"
     require(extracted == EXPECTED_TEXT, "direct CID/ToUnicode reconstruction differs from expected text")
 
     font_dictionary, font_bytes = decoded_stream(bodies, font_file)

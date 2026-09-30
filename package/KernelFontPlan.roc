@@ -36,6 +36,7 @@ KernelFontPlan :: [].{
 		original_to_subset : List(U32),
 		prefix : List(U8),
 		retained : List(U8),
+		units_per_em : U16,
 		work : Work,
 	}
 
@@ -77,6 +78,7 @@ plan_font = |font, usages, limits| {
 		original_to_subset: $original_to_subset,
 		prefix,
 		retained: closure.markers,
+		units_per_em: font.metrics.units_per_em,
 		work: {
 			component_edge_visits: closure.component_edge_visits,
 			component_index_visits: closure.component_index_visits,
