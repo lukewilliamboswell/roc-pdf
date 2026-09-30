@@ -344,7 +344,9 @@ Pdf :: [].{
 
 	## Keep blocks together on one page (a required constraint). The group
 	## produces no structure element; a group taller than a page body is
-	## `layout.keep_conflict`.
+	## `layout.keep_conflict`. Wrapping a table, such as
+	## `Pdf.keep_together([table])`, keeps the whole table (caption, header,
+	## body, and footer rows) on one page instead of continuing it.
 	keep_together : List(Document.Block) -> Document.Block
 	keep_together = |contents| Document.keep_together(contents)
 
@@ -502,6 +504,7 @@ Pdf :: [].{
 	## carry at least one body row. `KeepRows` moves a row that does not fit
 	## to the next page and rejects a row taller than a page body as
 	## `layout.oversize_row`; `SplitRows` breaks a row at a line boundary.
+	## `Pdf.keep_together([table])` keeps a whole table on one page.
 	## Each row's column spans must sum to the column count
 	## (`table.grid_mismatch`), a table needs a header cell
 	## (`table.header_missing`), and row spans are not yet supported

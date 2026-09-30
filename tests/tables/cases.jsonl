@@ -5,3 +5,4 @@
 {"name":"tables footer carry","schema_version":1,"case":{"FooterCarry":{"context":0}}}
 {"name":"tables ordered numeric cells","schema_version":1,"case":{"Ordered":{"context":0}}}
 {"name":"tables atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
+{"name":"tables whole-table keep","schema_version":1,"case":{"KeptWhole":{"context":0}}}

@@ -212,7 +212,9 @@ start (caption, header rows, first body row) is placed together; footer rows
 stay together after the last body row and prefer to carry at least one body
 row. `KeepRows` (the default) moves a row that does not fit to the next page
 and rejects a row taller than a page body as `layout.oversize_row`;
-`SplitRows` lets a row break at a line boundary. Table presentation is theme
+`SplitRows` lets a row break at a line boundary. Wrap a table in
+`Pdf.keep_together([table])` to keep it whole on one page instead; a kept
+table taller than a page body is `layout.keep_conflict`. Table presentation is theme
 policy: `Theme.with_table_cell_padding`, `with_table_row_gap`,
 `with_table_rule`, `with_table_header_color` (column header cells, scope
 `Column` or `Both`), and `with_table_row_header_color` (row header cells,

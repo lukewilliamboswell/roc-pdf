@@ -22793,6 +22793,91 @@
       ]
     },
     {
+      "name": "tables whole-table keep",
+      "scenario_revision": "tables-kept-whole-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/kept_whole.pdf",
+      "args": [
+        "kept_whole",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "table_rows": 13
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "tables",
+        "table_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "measurement_cache_hits",
+        "column_width_passes",
+        "row_visits",
+        "lines",
+        "pages",
+        "candidate_visits",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 45294,
+          "allocated_bytes": 8654287,
+          "work": {
+            "node_writes": 71,
+            "occurrence_writes": 53,
+            "tables": 1,
+            "table_cells": 26,
+            "header_association_edges": 24,
+            "cell_measurements": 4,
+            "measurement_cache_hits": 22,
+            "column_width_passes": 1,
+            "row_visits": 13,
+            "lines": 53,
+            "pages": 2,
+            "candidate_visits": 26,
+            "repeated_header_paints": 0,
+            "fragments": 53,
+            "artifact_runs": 0,
+            "output_bytes": 32347
+          }
+        },
+        "x64musl": {
+          "allocations": 45294,
+          "allocated_bytes": 8654287,
+          "work": {
+            "node_writes": 71,
+            "occurrence_writes": 53,
+            "tables": 1,
+            "table_cells": 26,
+            "header_association_edges": 24,
+            "cell_measurements": 4,
+            "measurement_cache_hits": 22,
+            "column_width_passes": 1,
+            "row_visits": 13,
+            "lines": 53,
+            "pages": 2,
+            "candidate_visits": 26,
+            "repeated_header_paints": 0,
+            "fragments": 53,
+            "artifact_runs": 0,
+            "output_bytes": 32347
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "tables ordered numeric cells",
       "scenario_revision": "tables-v1",
       "source": "tests/tables/main.roc",

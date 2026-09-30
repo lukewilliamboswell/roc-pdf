@@ -42,6 +42,10 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   so R3 carries that row to the next page with the totals.
 ## - `ordered`: numeric and spaced cells whose script stays Common under an
 ##   ordered Latin and Han policy, beside a Han span.
+## - `kept_whole`: a 12-row captioned table inside `Pdf.keep_together`
+##   after enough paragraphs that its caption, header, and first rows would
+##   otherwise start on page 1; the whole table moves to page 2, which the
+##   preparation report confirms for every one of its leaves.
 ## - `atomic_negatives`: every table rejection with its stable dotted code
 ##   and authored path, and no bytes.
 Fixture :: [].{
@@ -78,6 +82,18 @@ Fixture :: [].{
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
+
+	kept_whole : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	kept_whole = |context| {
+		document = kept_document(context)
+		prepared = Pdf.prepare_with_report(document, Pdf.Options.default) ? |_| EvidenceFailure
+		table_leaves = prepared.report.facts.blocks.keep_if(|block| block.path.starts_with("contents[26]"))
+		on_second = table_leaves.keep_if(|block| block.first_page == 2 and block.last_page == 2).len()
+		if table_leaves.len() != 27 or on_second != table_leaves.len() {
+			return Err(EvidenceFailure)
+		}
+		evidence(document, Theme.default, BuiltInFace)
+	}
 }
 
 Faces : [BuiltInFace, Policy({ policy : Font.PolicyId, registry : Font.Registry })]
@@ -245,6 +261,29 @@ spans_document = |context| {
 		],
 		language: "en-AU",
 		title: "Sales performance${suffix}",
+	})
+}
+
+kept_document : U64 -> Document
+kept_document = |context| {
+	suffix = if context == 0 "" else " (${context.to_str()})"
+	row = |code, name| Pdf.row([Pdf.header_cell(Row, [Pdf.text(code)]), Pdf.cell([Pdf.text(name)])])
+	filler = List.repeat(Pdf.paragraph("Each crew signs off its section of the plan before the site opens."), 26)
+	Pdf.document({
+		contents: filler.append(
+			Pdf.keep_together([
+				Pdf.table({
+					body_rows: List.repeat(row("W1", "Survey the loading dock and mark the set-down zones"), 12),
+					caption: Pdf.caption("Table 2. Fit-out plan${suffix}"),
+					columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }],
+					footer_rows: [],
+					header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Week")]), Pdf.header_cell(Column, [Pdf.text("Work")])])],
+					row_split: KeepRows,
+				}),
+			]),
+		),
+		language: "en-AU",
+		title: "Fit-out plan${suffix}",
 	})
 }
 

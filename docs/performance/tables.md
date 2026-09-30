@@ -389,6 +389,24 @@ slate. Its allocation count is unchanged (11,059); allocated bytes grow by 65
 (+0.002%) and output by 24 bytes: the row headers' fill-color operands
 are the slate value instead of the blue one. Every other table case is unchanged.
 
+### Whole-table keeps
+
+A table inside `Pdf.keep_together` already moved whole: `unit_groups` maps
+an authored keep over leaf ranges onto the table's page-layout units
+(caption, header rows, every body row, footer rows), and page layout
+places a required group on one page or rejects it as
+`layout.keep_conflict`. The gallery split tables only because the facade
+never said so. The facade and authoring guide now document the idiom. The
+existing evidence covers it: the reference invoice's `KeepItemsWithPayment`
+variant keeps its items table with the payment section, and the tables
+negatives reject a kept 60-row table as `layout.keep_conflict` at the
+group and both its members. A new positive case, `tables whole-table keep`,
+places 26 paragraphs and then a kept 12-row captioned table that would
+otherwise start near the foot of page 1: the preparation report puts all 27
+of its leaves on page 2 (45,294 allocations, 53 lines, 2 pages). Keeps do
+not scale with table size beyond the existing unit mapping, so the case has
+no scale pair. No package code or existing baseline changes.
+
 ## Open issues
 
 - ~~**Per-table copies in semantic placement.**~~ (reference-documents
