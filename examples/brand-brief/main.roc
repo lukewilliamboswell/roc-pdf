@@ -18,20 +18,23 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## Lumen brand guidelines: a branded multi-page brief set in Public Sans with a
 ## monospace face for colour and token codes. It shows running headers and
-## footers with `Page N of M`, a palette strip and section bands as
-## decorations, a separately authored "At a glance" callout, vector
+## footers with `Page N of M` over full-width header rules, a palette strip
+## and section bands as spaced decorations, separately authored "At a
+## glance" callouts measured by the package (one light, one on an indigo
+## panel), vector
 ## figures built from grouped drawings (colour swatches with tints and
-## logo placements), tables with spanning group rows, rich inline content,
+## logo placements), tables with shaded headers and group rows, rich inline content,
 ## lists, links, and an outline over named section destinations.
 main! = |_args| {
 	fonts = register_fonts({})?
 	theme = with_faces(base_theme, fonts)
-	document = Pdf.document({ contents: contents(theme), language: "en", title: "Lumen brand guidelines, edition 3" })
+	options = Pdf.Options.default.with_theme(theme).with_font_registry(fonts.registry)
+	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	document = Pdf.document({ contents: blocks, language: "en", title: "Lumen brand guidelines, edition 3" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_created("2026-09-30T00:00:00Z")
 		.with_modified("2026-09-30T00:00:00Z")
-	options = Pdf.Options.default.with_theme(theme).with_font_registry(fonts.registry)
 	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "brand-brief.pdf"
@@ -138,9 +141,11 @@ base_theme = {
 		.with_bullet_indent(points(16))
 		.with_code_color(Color.srgb8({ red: 170, green: 58, blue: 48 }))
 		.with_table_header_color(indigo)
+		.with_table_header_fill(mist)
 		.with_table_cell_padding(points(5))
 		.with_table_row_gap(points(5))
 		.with_table_rule(Rule({ color: indigo, width: Layout.Unit.millipoints(750) }))
+		.with_table_body_rule(Rule({ color: tint(indigo_rgb, 82), width: Layout.Unit.millipoints(400) }))
 		.with_link_color(indigo)
 		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1500), thickness: Layout.Unit.millipoints(600) }))
 }
@@ -173,14 +178,15 @@ mark = |size, disc, light| {
 		.path(Scene.path({}).rectangle(Layout.rect(size * 18 // 100, size * 30 // 100, size * 64 // 100, size * 6 // 100)).finish(), Scene.solid_fill(light))
 }
 
-## A 483 × 8 pt strip, raised 12 pt above the next block, of the five palette colours.
+## A 483 × 8 pt strip of the five palette colours, kept 12 pt above the
+## next block by its decoration spacing.
 palette_strip : Scene.Drawing
 palette_strip = {
 	widths = [(indigo, 193), (teal_source, 97), (coral, 97), (amber, 48), (ink, 48)]
 	var $drawing = Scene.drawing({})
 	var $x = 0
 	for (color, width) in widths {
-		$drawing = Scene.rectangle($drawing, Layout.rect($x, 12, width, 8), color)
+		$drawing = Scene.rectangle($drawing, Layout.rect($x, 0, width, 8), color)
 		$x = $x + width
 	}
 	$drawing
@@ -190,9 +196,12 @@ teal_source : Color.SourceValue
 teal_source = Color.srgb8(teal_rgb)
 
 ## A section band: a short coral bar over a hairline across the measure,
-## raised 6 pt above the heading it introduces.
-band : Scene.Drawing
-band = Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 8, 483, 1), tint(indigo_rgb, 80)), Layout.rect(0, 6, 36, 5), coral)
+## with 6 pt above it and 6 pt between it and the heading it introduces.
+band : Document.Block
+band = Pdf.spaced_decoration(
+	Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)), Layout.rect(0, 0, 36, 5), coral),
+	{ above: points(6), behind: Bool.False, below: points(6) },
+)
 
 ## One swatch card: the solid colour, named with its hex value, above
 ## three tints (75, 50, 25 percent toward white).
@@ -242,31 +251,39 @@ placements = {
 
 ## ---------------------------------------------------------------------
 ## The "At a glance" callout: a separately authored custom block (the
-## pattern of tests/custom_block/Callout.roc). Each line is one rich
-## paragraph that must fit one body line; the block measures its height
-## from the theme's public metrics and paints a tinted panel with a coral
-## edge behind its content.
+## pattern of tests/custom_block/Callout.roc). Its rich paragraphs may wrap:
+## the package measures their height at the panel's content width with
+## `Pdf.measure_custom_content`, under the same options the document is
+## prepared with, and the block paints its panel behind them.
 
 callout_inset : Layout.Unit
 callout_inset = points(12)
 
-at_a_glance : Theme, List(List(Pdf.Inline)) -> Document.Block
-at_a_glance = |theme, lines| {
-	leading = Theme.body_style(theme).leading.raw()
-	spacing = Theme.paragraph_spacing(theme).raw()
-	count = lines.len().to_i64_wrap()
-	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(483) }
-	block = Pdf.custom_block({
-		contents: lines.map(|line| Pdf.rich_paragraph(line)),
-		fragmentation: Unsplittable,
-		inset: callout_inset,
-		name: "At a glance",
-		panel: Scene.rectangle(Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size }, mist), { origin: Layout.point(0, 0), size: { height: size.height, width: points(4) } }, coral),
-		size,
-	})
+## A callout's ground: a light Mist panel with a coral edge and Indigo
+## labels, or an Indigo panel with white text and Dawn Amber labels.
+Ground : [Light, Dark]
 
-	## The callout's labels are Lumen Indigo: accents never carry words.
-	Pdf.scoped(Theme.Scope.empty.with_color(Strong, indigo), [block])
+at_a_glance : Pdf.Options, Ground, Str, List(List(Pdf.Inline)) -> Try(Document.Block, Pdf.Error)
+at_a_glance = |options, ground, name, lines| {
+	width = points(483)
+	paragraphs = lines.map(|line| Pdf.rich_paragraph(line))
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en", width: Layout.Unit.from_raw(width.raw() - 2 * callout_inset.raw()) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width }
+	box = { origin: Layout.point(0, 0), size }
+	edge = { origin: Layout.point(0, 0), size: { height: size.height, width: points(4) } }
+	panel = match ground {
+		Light => Scene.rectangle(Scene.rectangle(Scene.drawing({}), box, mist), edge, coral)
+		Dark => Scene.rectangle(Scene.rectangle(Scene.drawing({}), box, indigo), edge, amber)
+	}
+	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel, size })
+
+	## Labels are Lumen Indigo on the light ground; on the Indigo ground
+	## all text is white and links are Mist. Accents never carry words.
+	scope = match ground {
+		Light => Theme.Scope.empty.with_color(Strong, indigo)
+		Dark => Theme.Scope.empty.with_color(Text, white).with_color(Strong, white).with_color(Link, mist)
+	}
+	Ok(Pdf.scoped(scope, [block]))
 }
 
 ## ---------------------------------------------------------------------
@@ -283,29 +300,31 @@ footer = Pdf.region({
 	end: [Pdf.furniture_text([page_of])],
 })
 
+## A hairline under each header, as the region's backdrop, beside the
+## slots' furniture.
 hairline : Scene.Drawing
 hairline = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), tint(indigo_rgb, 70))
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({
-			height: points(36),
-			start: [Pdf.furniture_image(mark(36, indigo, amber))],
+		header: Pdf.with_backdrop(Pdf.region({
+			height: points(44),
+			start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 8), mark(36, indigo, amber)))],
 			center: [],
 			end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])],
-		}),
+		}), hairline),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(14),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({
+		header: Pdf.with_backdrop(Pdf.region({
 			height: points(22),
-			start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")]), Pdf.furniture_image(hairline)],
+			start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])],
 			center: [],
-			end: [],
-		}),
+			end: [Pdf.furniture_text([Pdf.text("Edition 3")])],
+		}), hairline),
 		footer,
 		gap: points(18),
 	}),
@@ -325,7 +344,7 @@ outline = [
 ## Tables.
 
 group_row : Str, U16 -> Pdf.Row
-group_row = |label, columns| Pdf.row([Pdf.spanning(columns, Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])]))])
+group_row = |label, columns| Pdf.row([Pdf.shaded(tint(indigo_rgb, 90), Pdf.spanning(columns, Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])])))])
 
 colour_row : Str, Str, Str, Str, Str -> Pdf.Row
 colour_row = |name, role, hex, rgb, contrast| Pdf.row([
@@ -403,26 +422,43 @@ voice_table = Pdf.table({
 
 ## ---------------------------------------------------------------------
 
-contents : Theme -> List(Document.Block)
-contents = |theme| [
-	Pdf.title("Lumen brand guidelines"),
-	Pdf.rich_paragraph([
-		Pdf.emphasis([Pdf.text("A practical identity for calm, precise software.")]),
-		Pdf.text(" Edition 3 replaces every earlier edition from 1 October 2026."),
-	]),
-	Pdf.decoration(palette_strip),
-	Pdf.paragraph("These guidelines describe how Lumen looks and sounds wherever people meet it: in the product, on the website, in documentation, and on the invoices and letters we send. They are short on purpose: when a case is not covered, choose the quieter option."),
-	at_a_glance(
-		theme,
+contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
+contents = |options| {
+	glance = at_a_glance(
+		options,
+		Light,
+		"At a glance",
 		[
 			[Pdf.strong([Pdf.text("Promise")]), Pdf.text("  Calm, precise tools that respect people's attention.")],
 			[Pdf.strong([Pdf.text("Colour")]), Pdf.text("  Lumen Indigo leads; Signal Coral appears at most once per view.")],
 			[Pdf.strong([Pdf.text("Type")]), Pdf.text("  Public Sans for everything people read; Source Code Pro for code.")],
 			[Pdf.strong([Pdf.text("Voice")]), Pdf.text("  Direct, never abrupt. Technical, never opaque. Warm, never ornamental.")],
 		],
-	),
+	)?
+	studio = at_a_glance(
+		options,
+		Dark,
+		"Brand Studio",
+		[
+			[Pdf.strong([Pdf.text("Brand Studio")]), Pdf.text("  Ana Okafor, Head of Brand · brand@lumen.example. Ask before you publish anything new that carries the mark.")],
+			[Pdf.strong([Pdf.text("Assets")]), Pdf.text("  Logos, tokens, and templates: "), Pdf.inline_link([Pdf.text("lumen.example/brand")], "https://lumen.example/brand")],
+		],
+	)?
+	Ok(body(glance, studio))
+}
+
+body : Document.Block, Document.Block -> List(Document.Block)
+body = |glance, studio| [
+	Pdf.title("Lumen brand guidelines"),
+	Pdf.rich_paragraph([
+		Pdf.emphasis([Pdf.text("A practical identity for calm, precise software.")]),
+		Pdf.text(" Edition 3 replaces every earlier edition from 1 October 2026."),
+	]),
+	Pdf.spaced_decoration(palette_strip, { above: points(4), behind: Bool.False, below: points(12) }),
+	Pdf.paragraph("These guidelines describe how Lumen looks and sounds wherever people meet it: in the product, on the website, in documentation, and on the invoices and letters we send. They are short on purpose: when a case is not covered, choose the quieter option."),
+	glance,
 	Pdf.section([
-		Pdf.decoration(band),
+		band,
 		Pdf.destination_heading("idea", 1, "1 The idea"),
 		Pdf.rich_paragraph([
 			Pdf.text("Lumen started as a planning tool for teams who were tired of noise. The identity keeps that promise: "),
@@ -436,7 +472,7 @@ contents = |theme| [
 		]),
 	]),
 	Pdf.section([
-		Pdf.decoration(band),
+		band,
 		Pdf.destination_heading("colour", 1, "2 Colour"),
 		Pdf.rich_paragraph([
 			Pdf.text("The palette pairs a deep indigo with a warm dawn light. Indigo, Teal, and Ink carry text and interface; Coral and Amber are "),
@@ -454,7 +490,7 @@ contents = |theme| [
 		palette_table,
 	]),
 	Pdf.section([
-		Pdf.decoration(band),
+		band,
 		Pdf.destination_heading("type", 1, "3 Typography"),
 		Pdf.rich_paragraph([
 			Pdf.text("Public Sans is our only typeface for reading. Hierarchy comes from size and colour; bold marks a key term and italics a stressed word, never a whole sentence. Code, colour values, and keyboard input use Source Code Pro, as in "),
@@ -466,7 +502,7 @@ contents = |theme| [
 		type_table,
 	]),
 	Pdf.section([
-		Pdf.decoration(band),
+		band,
 		Pdf.destination_heading("mark", 1, "4 The mark"),
 		Pdf.paragraph("The mark is a disc with a smaller light rising from its upper right over a horizon line. It always appears whole, upright, and on one of three approved grounds. Keep a clear space of one sixth of its width on every side."),
 		Pdf.figure_fit(
@@ -489,13 +525,13 @@ contents = |theme| [
 		]),
 	]),
 	Pdf.section([
-		Pdf.decoration(band),
+		band,
 		Pdf.destination_heading("voice", 1, "5 Voice"),
 		Pdf.paragraph("We write the way a thoughtful colleague speaks: specific, brief, and kind. We name the thing, give the number, and say what happens next."),
 		voice_table,
 	]),
 	Pdf.section([
-		Pdf.decoration(band),
+		band,
 		Pdf.destination_heading("checklist", 1, "6 Before you publish"),
 		Pdf.paragraph("Run through this list for anything that carries the Lumen name, from a release note to a conference banner."),
 		Pdf.bullet_list([
@@ -505,12 +541,6 @@ contents = |theme| [
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Every claim has a number, and every number has a source.")])]),
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Generated files pass "), Pdf.code("lumen lint --brand"), Pdf.text(" with no warnings.")])]),
 		]),
-		at_a_glance(
-			theme,
-			[
-				[Pdf.strong([Pdf.text("Brand Studio")]), Pdf.text("  Ana Okafor, Head of Brand · brand@lumen.example")],
-				[Pdf.strong([Pdf.text("Assets")]), Pdf.text("  Logos, tokens, and templates: "), Pdf.inline_link([Pdf.text("lumen.example/brand")], "https://lumen.example/brand")],
-			],
-		),
+		studio,
 	]),
 ]
