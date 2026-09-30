@@ -218,7 +218,7 @@ shape_simple_latin = |font, source, analysis, options, limits| {
 	if options.writing_mode != Horizontal {
 		return Err(UnsupportedWritingMode(options.writing_mode))
 	}
-	expected_script = options.script.as_str()
+	expected_script = options.script.to_str()
 	if expected_script != latin_script {
 		return Err(UnsupportedScript({ actual: expected_script, expected: latin_script, run: 0 }))
 	}
@@ -344,7 +344,7 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 	if options.writing_mode != Horizontal {
 		return Err(UnsupportedWritingMode(options.writing_mode))
 	}
-	expected_script = options.script.as_str()
+	expected_script = options.script.to_str()
 	if expected_script != latin_script {
 		return Err(UnsupportedScript({ actual: expected_script, expected: latin_script, run: 0 }))
 	}
@@ -610,7 +610,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			return Err(SelectedRequestInvalid({ reason: ClusterRange, request: $request_index }))
 		}
 		range_end_index = range_start + range_length
-		validate_selected_script(source.analysis.script_runs, range_start, range_end_index, request.script.as_str(), $request_index)?
+		validate_selected_script(source.analysis.script_runs, range_start, range_end_index, request.script.to_str(), $request_index)?
 		font_index = request.instance.index()
 		if $group_writes {
 			existing = list_at($assignments, source_index)

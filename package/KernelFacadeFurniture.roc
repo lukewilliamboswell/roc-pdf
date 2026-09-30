@@ -1320,7 +1320,7 @@ furniture_text_error = |error, path| match error {
 	UndeclaredScript({ script, source: _ }) => FurnitureText({ path, reason: Script(script) })
 	FontSelectionRejected(errors) => match errors.first() {
 		Ok(MissingCoverage(_)) => FurnitureText({ path, reason: Coverage })
-		Ok(UnsupportedBuiltInShaping({ cluster: _, script })) => FurnitureText({ path, reason: Script(script.as_str()) })
+		Ok(UnsupportedBuiltInShaping({ cluster: _, script })) => FurnitureText({ path, reason: Script(script.to_str()) })
 		_ => Selection(error)
 	}
 	_ => Selection(error)

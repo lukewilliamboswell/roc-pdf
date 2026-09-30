@@ -106,7 +106,7 @@ KernelFacadeReport :: [].{
 					if index < owners.len() {
 						block = list_at(owners, index)
 						font = run.instance.index()
-						script = run.script.as_str()
+						script = run.script.to_str()
 						scalars = run.source.scalars.length()
 						last = $coverage.len()
 						merged = if last == 0 {

@@ -190,7 +190,7 @@ policy_append_only = |before, after|
 						append_only(before, after)
 
 ## The registry's identity types are opaque, so the prefix comparisons below are
-## written out field by field: `index()` and `as_str()` are the only ways to
+## written out field by field: `index()` and `to_str()` are the only ways to
 ## observe a face, instance, policy, resource, or script identity from outside
 ## the package, and a derived structural equality is not available.
 prefix_of_spans : List(Font.ScalarSpan), List(Font.ScalarSpan) -> Bool
@@ -298,7 +298,7 @@ prefix_of_scripts = |before, after| {
 	}
 	var $index = 0
 	while $index < before.len() {
-		if list_at(before, $index).as_str() != list_at(after, $index).as_str() {
+		if list_at(before, $index).to_str() != list_at(after, $index).to_str() {
 			return False
 		}
 		$index = $index + 1
@@ -388,7 +388,7 @@ dense_identities = |store, index, registration| {
 	var $script_index = 0
 	while $script_index < registration.scripts.len() {
 		stored = list_at(store.scripts, face.scripts.start() + $script_index)
-		if stored.as_str() != list_at(registration.scripts, $script_index).as_str() {
+		if stored.to_str() != list_at(registration.scripts, $script_index).to_str() {
 			return False
 		}
 		$script_index = $script_index + 1
@@ -520,7 +520,7 @@ expected_script_rejection = |scripts| {
 	}
 	var $index = 0
 	while $index < scripts.len() {
-		tag = Str.to_utf8(list_at(scripts, $index).as_str())
+		tag = Str.to_utf8(list_at(scripts, $index).to_str())
 		if tag.len() != 4 {
 			return ScriptRejected($index)
 		}
@@ -532,7 +532,7 @@ expected_script_rejection = |scripts| {
 		}
 		var $previous = 0
 		while $previous < $index {
-			if list_at(scripts, $previous).as_str() == list_at(scripts, $index).as_str() {
+			if list_at(scripts, $previous).to_str() == list_at(scripts, $index).to_str() {
 				return ScriptRejected($index)
 			}
 			$previous = $previous + 1
@@ -915,7 +915,7 @@ declares_script : Font.Store, Font.Face, Font.Script -> Bool
 declares_script = |store, face, script| {
 	var $index = 0
 	while $index < face.scripts.length() {
-		if list_at(store.scripts, face.scripts.start() + $index).as_str() == script.as_str() {
+		if list_at(store.scripts, face.scripts.start() + $index).to_str() == script.to_str() {
 			return True
 		}
 		$index = $index + 1
@@ -988,7 +988,7 @@ same_plan_error = |left, right| match (left, right) {
 	(MissingCoverage(first), MissingCoverage(second)) => first.cluster == second.cluster and same_text_range(first.source, second.source)
 	(InvalidPolicy(first), InvalidPolicy(second)) => first == second
 	(EmbeddingProhibited(first), EmbeddingProhibited(second)) => first == second
-	(UnsupportedBuiltInShaping(first), UnsupportedBuiltInShaping(second)) => first.cluster == second.cluster and first.script.as_str() == second.script.as_str()
+	(UnsupportedBuiltInShaping(first), UnsupportedBuiltInShaping(second)) => first.cluster == second.cluster and first.script.to_str() == second.script.to_str()
 	_ => False
 }
 

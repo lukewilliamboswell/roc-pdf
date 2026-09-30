@@ -54,8 +54,17 @@ Font :: [].{
 		from_iso15924 : Str -> Script
 		from_iso15924 = |value| Script.(value)
 
-		as_str : Script -> Str
-		as_str = |Script.(value)| value
+		## A quoted literal where a `Script` is expected is an ISO 15924
+		## code, checked at compile time: `scripts: ["Latn"]`. Registration
+		## accepts exactly the codes this accepts (one uppercase and three
+		## lowercase ASCII letters), so a typo such as `"Latin"` or
+		## `"latn"` is a compile error rather than an `InvalidScript`
+		## registration error. Use `from_iso15924` for a runtime string.
+		from_quote : Str -> Try(Script, [BadQuotedBytes(Str)])
+		from_quote = |value| if script_code_valid(value) Ok(Script.(value)) else Err(BadQuotedBytes("an ISO 15924 script code is one uppercase and three lowercase ASCII letters, such as \"Latn\""))
+
+		to_str : Script -> Str
+		to_str = |Script.(value)| value
 	}
 
 	ScalarSpan : { first : U32, last : U32 }
@@ -481,7 +490,7 @@ select_instance = |store, policy, cluster, script, prior_coverage, prior_faces| 
 ## face in policy order whose coverage holds it, exactly as every other
 ## cluster is selected by coverage, with no script-specific requirement.
 common_script : Font.Script -> Bool
-common_script = |script| script.as_str() == "Zyyy" or script.as_str() == "Zinh"
+common_script = |script| script.to_str() == "Zyyy" or script.to_str() == "Zinh"
 
 face_supports_script : Font.Store, Font.Face, Font.Script -> Bool
 face_supports_script = |store, face, script| {
@@ -491,7 +500,7 @@ face_supports_script = |store, face, script| {
 		if script_index >= store.scripts.len() {
 			return False
 		}
-		if list_at(store.scripts, script_index).as_str() == script.as_str() {
+		if list_at(store.scripts, script_index).to_str() == script.to_str() {
 			return True
 		}
 		$index = $index + 1
@@ -551,13 +560,12 @@ validate_scripts = |scripts| {
 	}
 	var $index = 0
 	while $index < scripts.len() {
-		bytes = Str.to_utf8(list_at(scripts, $index).as_str())
-		if bytes.len() != 4 or !ascii_upper(list_at(bytes, 0)) or !ascii_lower(list_at(bytes, 1)) or !ascii_lower(list_at(bytes, 2)) or !ascii_lower(list_at(bytes, 3)) {
+		if !script_code_valid(list_at(scripts, $index).to_str()) {
 			return Err(InvalidScript({ index: $index }))
 		}
 		var $previous = 0
 		while $previous < $index {
-			if list_at(scripts, $previous).as_str() == list_at(scripts, $index).as_str() {
+			if list_at(scripts, $previous).to_str() == list_at(scripts, $index).to_str() {
 				return Err(InvalidScript({ index: $index }))
 			}
 			$previous = $previous + 1
@@ -578,6 +586,12 @@ map_font_error = |error| match error {
 	CmapLimitExceeded({ attempted, limit }) => LimitExceeded({ attempted, dimension: CmapMappings, limit })
 	UnsupportedFontProgram(signature) => UnsupportedFormat(signature)
 	_ => InvalidFont
+}
+
+script_code_valid : Str -> Bool
+script_code_valid = |value| {
+	bytes = Str.to_utf8(value)
+	bytes.len() == 4 and ascii_upper(list_at(bytes, 0)) and ascii_lower(list_at(bytes, 1)) and ascii_lower(list_at(bytes, 2)) and ascii_lower(list_at(bytes, 3))
 }
 
 ascii_upper : U8 -> Bool
@@ -607,4 +621,11 @@ expect Font.InstanceId.from_index(5).index() == 5
 expect Font.PolicyId.from_index(6).index() == 6
 
 # Script tags retain their exact source spelling for later validation.
-expect Font.Script.from_iso15924("Latn").as_str() == "Latn"
+expect Font.Script.from_iso15924("Latn").to_str() == "Latn"
+
+# A quoted script literal is checked like a registered script code.
+expect {
+	scripts : List(Font.Script)
+	scripts = ["Latn", "Hani"]
+	scripts.map(|script| script.to_str()) == ["Latn", "Hani"] and Font.Script.from_quote("Latin").is_err() and Font.Script.from_quote("latn").is_err()
+}

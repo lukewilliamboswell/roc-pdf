@@ -46,7 +46,8 @@ Faces : { regular : Font.FaceId, bold : Font.FaceId, mono : Font.FaceId, registr
 ## byte-for-byte from its upstream release in `fonts/` beside this file.
 register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
-	latin = [Font.Script.from_iso15924("Latn")]
+	latin : List(Font.Script)
+	latin = ["Latn"]
 	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
 	regular = add(Font.Registry.empty, regular_bytes)?
 	bold = add(regular.registry, bold_bytes)?
