@@ -70,7 +70,7 @@ runnable Roc source.
 </tr>
 <tr>
 <td><a href="examples/operations-handbook.pdf"><img src="examples/previews/operations-handbook.png" alt="Operations handbook preview"></a><br><a href="examples/operations_handbook.roc">Operations handbook source</a></td>
-<td><a href="examples/project-letter.pdf"><img src="examples/previews/project-letter.png" alt="Project letter preview"></a><br><a href="examples/letter.roc">Letter source</a></td>
+<td><a href="examples/warranty-letter.pdf"><img src="examples/previews/warranty-letter.png" alt="Reference business letter preview"></a><br><a href="examples/letter.roc">Business letter source</a></td>
 <td><a href="examples/release-notes.pdf"><img src="examples/previews/release-notes.png" alt="Release notes preview"></a><br><a href="examples/release_notes.roc">Release notes source</a></td>
 </tr>
 <tr>

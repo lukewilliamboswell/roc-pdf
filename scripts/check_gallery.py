@@ -22,7 +22,7 @@ EXAMPLES = {
     "brand_brief.roc": "brand-brief.pdf",
     "chunked_export.roc": "chunked-export.pdf",
     "field_guide.roc": "field-guide.pdf",
-    "letter.roc": "project-letter.pdf",
+    "letter.roc": "warranty-letter.pdf",
     "operations_handbook.roc": "operations-handbook.pdf",
     "prepared_invoice.roc": "tax-invoice.pdf",
     "product_brief.roc": "product-brief.pdf",

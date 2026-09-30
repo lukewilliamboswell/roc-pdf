@@ -12,7 +12,7 @@ Run one from the repository root with `roc examples/<name>.roc`.
 </tr>
 <tr>
 <td><a href="operations-handbook.pdf"><img src="previews/operations-handbook.png" alt="Operations handbook preview"></a><br><a href="operations_handbook.roc">Operations handbook source</a></td>
-<td><a href="project-letter.pdf"><img src="previews/project-letter.png" alt="Project letter preview"></a><br><a href="letter.roc">Letter source</a></td>
+<td><a href="warranty-letter.pdf"><img src="previews/warranty-letter.png" alt="Reference business letter preview"></a><br><a href="letter.roc">Business letter source</a></td>
 <td><a href="release-notes.pdf"><img src="previews/release-notes.png" alt="Release notes preview"></a><br><a href="release_notes.roc">Release notes source</a></td>
 </tr>
 <tr>
@@ -28,7 +28,7 @@ Run one from the repository root with `roc examples/<name>.roc`.
 | [Brand brief](brand_brief.roc) | display-scale type, asymmetric margins, and role-specific sRGB colors |
 | [Field guide](field_guide.roc) | a generated coastal illustration, navigation, page labels, and compact page rhythm |
 | [Operations handbook](operations_handbook.roc) | dense typography and deterministic multi-page pagination |
-| [Letter](letter.roc) | Letter paper, correspondence margins, loose leading, and metadata dates |
+| [Business letter](letter.roc) | the reference business letter: a semantic letterhead in the first-page lead region, a vector logo and centered footer, continuation headers with `Page N of M`, an unsplittable signature block, and an explicit break before the covered-items schedule; no visible title, with the metadata title displayed |
 | [Release notes](release_notes.roc) | compact builder authoring with a narrow editorial measure |
 | [Tax invoice](prepared_invoice.roc) | the reference multi-page invoice: first and continuation page templates with a vector logo and exact `Page N of M`, a key/value table, a 32-row items table with a repeated header and a totals group, and prepare-once emission |
 | [Chunked export](chunked_export.roc) | incremental output, wide measure, and explicit list indentation |
