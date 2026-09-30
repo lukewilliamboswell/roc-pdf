@@ -11,6 +11,7 @@ Theme :: {
 	headings : HeadingStyles,
 	inline_fonts : InlineFonts,
 	inline_scales : InlineScales,
+	link : LinkStyle,
 	page_margin : PageMargin,
 	paragraph_spacing : Layout.Unit,
 	quote : InlineColor,
@@ -77,6 +78,17 @@ Theme :: {
 
 	TableRule : [NoRule, Rule({ color : Color.SourceValue, width : Layout.Unit })]
 
+	## How link text is presented: its fill color (`Inherited` keeps the
+	## surrounding text's color; an inner themed role such as `Strong`
+	## still decides its own text) and an optional underline. An underline
+	## is a decoration artifact painted in the link text's color below each
+	## painted line run of the link: `offset` below the baseline to the top
+	## of the line, `thickness` thick. The link's text, semantics, and
+	## annotation are unchanged.
+	LinkStyle : { color : InlineColor, underline : LinkUnderline }
+
+	LinkUnderline : [NoUnderline, Underline({ offset : Layout.Unit, thickness : Layout.Unit })]
+
 	## The inline semantic roles whose presentation a theme can distinguish.
 	InlineRole : [Code, Emphasis, Quote, Strong]
 
@@ -123,6 +135,7 @@ Theme :: {
 			font_selection: StyleFaces,
 			inline_fonts: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited },
 			inline_scales: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited },
+			link: { color: Inherited, underline: NoUnderline },
 			headings: { h1: heading, h2: heading, h3: heading, h4: heading, h5: heading, h6: heading },
 			page_margin: {
 				bottom: Layout.Unit.from_raw(72000),
@@ -158,6 +171,7 @@ Theme :: {
 		headings: map_headings(theme.headings, |style| { ..style, font }),
 		inline_fonts: theme.inline_fonts,
 		inline_scales: theme.inline_scales,
+		link: theme.link,
 		page_margin: theme.page_margin,
 		paragraph_spacing: theme.paragraph_spacing,
 		quote: theme.quote,
@@ -185,8 +199,9 @@ Theme :: {
 	with_title_color : Theme, Color.SourceValue -> Theme
 	with_title_color = |theme, color| { ..theme, title: { ..theme.title, color } }
 
-	## Apply one color to every built-in text role. Inline roles return to
-	## `Inherited`, so they paint in the same color as the text around them.
+	## Apply one color to every built-in text role. Inline roles and links
+	## return to `Inherited`, so they paint in the same color as the text
+	## around them.
 	with_text_color : Theme, Color.SourceValue -> Theme
 	with_text_color = |theme, color| {
 		..theme,
@@ -194,6 +209,7 @@ Theme :: {
 		code: Inherited,
 		emphasis: Inherited,
 		headings: map_headings(theme.headings, |style| { ..style, color }),
+		link: { ..theme.link, color: Inherited },
 		quote: Inherited,
 		strong: Inherited,
 		title: { ..theme.title, color },
@@ -234,6 +250,21 @@ Theme :: {
 		}
 		{ ..theme, inline_fonts: updated }
 	}
+
+	## Paint link text (inline links and link blocks) in its own color.
+	with_link_color : Theme, Color.SourceValue -> Theme
+	with_link_color = |theme, color| { ..theme, link: { ..theme.link, color: Themed(color) } }
+
+	## Underline link text, or remove the underline with `NoUnderline`. The
+	## offset is at least zero and the thickness positive, and together they
+	## fit below the body text inside its leading (`text.link_underline`
+	## otherwise, when the document is prepared), so an underline never
+	## reaches the next line.
+	with_link_underline : Theme, LinkUnderline -> Theme
+	with_link_underline = |theme, underline| { ..theme, link: { ..theme.link, underline } }
+
+	link_style : Theme -> LinkStyle
+	link_style = |theme| theme.link
 
 	## Paint one inline role's text at `percent` of its paragraph's size,
 	## from 50 to 100 (`text.inline_scale` otherwise, when the document is

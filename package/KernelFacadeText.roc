@@ -114,6 +114,11 @@ KernelFacadeText :: [].{
 		rules : Plan -> List(KernelFacadePages.Rule)
 		rules = |plan| plan.rules
 
+		## Replace the decoration rules, in ascending page order; the
+		## post-layout link stage adds link underlines this way.
+		with_rules : Plan, List(KernelFacadePages.Rule) -> Plan
+		with_rules = |plan, replacement| { ..plan, rules: replacement }
+
 		## Figure scales and placed decorations from pagination.
 		flow : Plan -> KernelFacadePages.FlowPaints
 		flow = |plan| plan.flow

@@ -88,7 +88,11 @@ size, leading, and color. Under an ordered font policy a title or heading
 face reports `text.block_font_policy`. A role face often looks larger than
 the body face at the same size; `Theme.with_inline_scale(theme, Code, 85)`
 paints that role at 85% of its paragraph size (50 to 100 percent, else
-`text.inline_scale`), on the paragraph's baseline and leading.
+`text.inline_scale`), on the paragraph's baseline and leading. Links take
+their own color with `Theme.with_link_color` and an underline with
+`Theme.with_link_underline(theme, Underline({ offset, thickness }))`, a
+decoration artifact below each painted line of the link that must fit
+below the body text inside its leading (`text.link_underline`).
 
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an

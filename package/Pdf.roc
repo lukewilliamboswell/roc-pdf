@@ -1870,7 +1870,24 @@ validate_theme = |theme| {
 	check_scale(theme, Code, "code")?
 	check_scale(theme, Emphasis, "emphasis")?
 	check_scale(theme, Quote, "quote")?
-	check_scale(theme, Strong, "strong")
+	check_scale(theme, Strong, "strong")?
+	check_underline(theme)
+}
+
+## A link underline sits below the body baseline inside the leading: its
+## offset and thickness fit in the leading less the size.
+check_underline : Theme -> Try({}, Pdf.Error)
+check_underline = |theme| match Theme.link_style(theme).underline {
+	NoUnderline => Ok({})
+	Underline({ offset, thickness }) => {
+		body = Theme.body_style(theme)
+		room = body.leading.raw() - body.size.raw()
+		if offset.raw() < 0 or thickness.raw() <= 0 or offset.raw() + thickness.raw() > room {
+			Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.link_underline", "A link underline needs a non-negative offset and a positive thickness that together fit below the body text inside its leading (${points_text(room.to_u64_wrap())}); it never reaches the next line.", ["theme.link_underline"])))
+		} else {
+			Ok({})
+		}
+	}
 }
 
 check_scale : Theme, Theme.InlineRole, Str -> Try({}, Pdf.Error)

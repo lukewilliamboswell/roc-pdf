@@ -14,6 +14,7 @@ Case : [
 	SharedSource({ count : U64 }),
 	HeadingFaces({ count : U64 }),
 	ScaledCode({ count : U64 }),
+	LinkStyle({ count : U64 }),
 	AtomicNegatives({ context : U64 }),
 ]
 
@@ -50,6 +51,7 @@ main! = |args| {
 		SharedSource({ count }) => Fixture.shared_source(count)
 		HeadingFaces({ count }) => Fixture.heading_faces(count)
 		ScaledCode({ count }) => Fixture.scaled_code(count)
+		LinkStyle({ count }) => Fixture.link_style(count)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 	}
 	match result {

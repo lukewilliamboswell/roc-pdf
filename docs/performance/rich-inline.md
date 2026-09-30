@@ -255,6 +255,48 @@ Every existing case keeps its allocation count, allocated bytes, work, and
 snapshot: without a scale every request keeps the paragraph size, and the
 largest run size of a single-size logical run is that size.
 
+## Link style
+
+Links had no presentation of their own. `Theme.with_link_color(theme,
+color)` paints link text (inline links and `Pdf.link` blocks) in a color,
+and `Theme.with_link_underline(theme, Underline({ offset, thickness }))`
+underlines it (`Theme.LinkStyle`, `Theme.LinkUnderline`).
+
+- **Color** is a shaping-stage paint fact like the inline role colors: a
+  `Link` or `InternalLink` inline is one more role in the innermost-themed
+  chain, so a themed `Strong` inside a link keeps its own color, and a link
+  block's style is the body style with the link color.
+- **Underline** is a post-layout decoration. `KernelFacadeFragments`
+  already owns the exact link facts (each link's occurrences) and every
+  final run's placement, so when the theme asks for an underline it emits
+  one filled rectangle per painted line run of a link: from the run's
+  baseline start across its glyph advances, `offset` below the baseline,
+  `thickness` tall, in the run's fill color. A run that ends its line stops
+  before the U+0020 spaces it carries; each space is read through a slice
+  of the source (`Str.drop_first_bytes`), never a copy. The rectangles
+  join the text plan's decoration rules (`KernelFacadeText.Plan.with_rules`,
+  merged in page order after the table rules), and scenes paint them as
+  `Decoration` page artifacts like table rules. The underline is
+  presentation only: the `Link` element, its text, `/Contents`, annotation
+  rectangle, and quadrilaterals are unchanged, and it is not tagged content.
+- **Validation.** The offset must be non-negative, the thickness positive,
+  and together they must fit in the body leading less the body size, so an
+  underline never reaches the next line (`text.link_underline` at
+  `theme.link_underline`).
+
+Evidence, `rich inline link style x10` and `x50`: N paragraphs whose inline
+URI link (with a nested themed `Strong`) wraps across two lines, and N link
+blocks, in blue with a 0.6 pt underline 1.2 pt below the baseline. The new
+`link_underlines` checker requires every link quadrilateral on every page to
+have a `Layout` artifact rectangle inside its extent and below nothing but
+its own line; its self-test rejects the `mixed` snapshot, whose links have
+no underline. The MuPDF render shows underlines stopping at the last
+visible glyph of each line. The rejections are a negative offset, a zero
+thickness, and an underline taller than the 3 pt below the body text. The
+pair is linear: 16,961 and 76,682 allocations, 4.16 MB and 20.28 MB. No
+existing case changes: without an underline no rule is built, and a
+document whose theme has no link color resolves every color as before.
+
 ## Link annotations
 
 An inline link keeps the facade contract: one annotation per page its text

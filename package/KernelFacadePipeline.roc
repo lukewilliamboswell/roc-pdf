@@ -172,8 +172,8 @@ Upstream := {
 ## The authored navigation facts for the post-layout stage: link and
 ## destination records from the semantic stage, and the document outline and
 ## page-label ranges from normalized authoring.
-navigation_authoring : KernelFacadeSemantics.Plan, Document.NormalizedAuthoring -> KernelFacadeFragments.NavigationAuthoring
-navigation_authoring = |semantics, authoring| {
+navigation_authoring : KernelFacadeSemantics.Plan, Document.NormalizedAuthoring, Theme -> KernelFacadeFragments.NavigationAuthoring
+navigation_authoring = |semantics, authoring, theme| {
 	links = KernelFacadeSemantics.Plan.links(semantics)
 	destinations = KernelFacadeSemantics.Plan.destinations(semantics)
 	if links.is_empty() and destinations.is_empty() and authoring.outline.is_empty() and authoring.page_labels.is_empty() {
@@ -184,6 +184,10 @@ navigation_authoring = |semantics, authoring| {
 			links,
 			outline: authoring.outline,
 			page_labels: authoring.page_labels,
+			underline: match Theme.link_style(theme).underline {
+				NoUnderline => NoUnderline
+				Underline(underline) => Underline(underline)
+			},
 		})
 	}
 }
@@ -275,7 +279,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 		}
 		NoFurniture => KernelFacadeShape.Plan.fonts(shape)
 	}
-	fragments = KernelFacadeFragments.Plan.build_with_navigation(preliminary, text, navigation_authoring(semantics, authoring), limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
+	fragments = KernelFacadeFragments.Plan.build_with_navigation(preliminary, text, navigation_authoring(semantics, authoring, theme), limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
 	page_total = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len()
 	report_facts = match layout_facts {
 		NoLayoutFacts => NoFacts
@@ -459,7 +463,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 		font,
 		layout_facts: collected.layout,
 		limits,
-		navigation: navigation_authoring(semantics, authoring),
+		navigation: navigation_authoring(semantics, authoring, theme),
 		ownership: collected.ownership,
 		page_size,
 		preliminary,

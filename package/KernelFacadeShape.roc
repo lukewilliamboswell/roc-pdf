@@ -924,21 +924,19 @@ inline_color = |inlines, parent, theme, paragraph_color| {
 	var $color = Unresolved
 	while $cursor != 0 and $color == Unresolved {
 		record = list_at(inlines, $cursor - 1)
-		role = match record.kind {
-			Code => Role(Code)
-			Emphasis => Role(Emphasis)
-			Quote => Role(Quote)
-			Strong => Role(Strong)
-			_ => NoRole
+		themed = match record.kind {
+			Code => Theme.inline_color(theme, Code)
+			Emphasis => Theme.inline_color(theme, Emphasis)
+			Quote => Theme.inline_color(theme, Quote)
+			Strong => Theme.inline_color(theme, Strong)
+			Link(_) | InternalLink(_) => Theme.link_style(theme).color
+			_ => Inherited
 		}
-		match role {
-			Role(value) => match Theme.inline_color(theme, value) {
-				Themed(color) => {
-					$color = Resolved(color)
-				}
-				Inherited => {}
+		match themed {
+			Themed(color) => {
+				$color = Resolved(color)
 			}
-			NoRole => {}
+			Inherited => {}
 		}
 		$cursor = record.parent
 	}
@@ -1387,12 +1385,21 @@ ranges_equal = |left, right| {
 
 style_for : Document.NormalizedBlockKind, Theme -> Theme.TextStyle
 style_for = |kind, theme| match kind {
+
+	## A link block paints in the body style with the theme's link color.
+	Link(_) | InternalLink(_) => {
+		body = Theme.body_style(theme)
+		match Theme.link_style(theme).color {
+			Themed(color) => { ..body, color }
+			Inherited => body
+		}
+	}
 	Title => Theme.title_style(theme)
 	Heading(level) | DestinationHeading({ level, name: _ }) => Theme.heading_level_style(theme, heading_level(level))
 
 	## A figure's anchor line is shaped in the body style; pagination gives
 	## it the figure's (scaled) drawing height as its leading.
-	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | FigureCaption(_) | RichParagraph(_) => Theme.body_style(theme)
+	Bullet(_) | Paragraph | DestinationParagraph(_) | Figure(_) | FigureCaption(_) | RichParagraph(_) => Theme.body_style(theme)
 }
 
 ## Semantic planning rejects a heading level outside 1 to 6

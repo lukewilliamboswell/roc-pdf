@@ -78,6 +78,13 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ##   Scaled runs share their line's baseline and leading. Its rejections:
 ##   scales of 49% and 101% (`text.inline_scale` at the theme path); 50%
 ##   and 100% are accepted.
+## - `link_style xN`: N rich paragraphs whose inline URI link (with a
+##   nested `Strong` run in its own theme color) wraps across a line, and N
+##   link blocks, under `Theme.with_link_color` and
+##   `Theme.with_link_underline`. Every painted line run of a link gets a
+##   `Decoration` artifact underline in its fill color. Its rejections: a
+##   negative offset, a zero thickness, and an underline taller than the
+##   body leading's room (`text.link_underline`).
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
@@ -121,6 +128,9 @@ Fixture :: [].{
 
 	scaled_code : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	scaled_code = |count| run_scaled_code(count)
+
+	link_style : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	link_style = |count| run_link_style(count)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -437,6 +447,57 @@ run_scaled_code = |count| {
 			bytes.len(),
 		],
 	})
+}
+
+link_style_document : U64 -> Document
+link_style_document = |count| {
+	var $contents = List.with_capacity(2 * count + 1)
+	$contents = $contents.append(Pdf.heading(1, "Further reading"))
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		$contents = $contents.append(
+			Pdf.rich_paragraph([
+				Pdf.text("Item ${number}: the release checklist lives in "),
+				Pdf.inline_link([Pdf.text("the operations handbook, section "), Pdf.strong([Pdf.text("four")]), Pdf.text(", which lists every pre-flight step")], "https://example.org/handbook/${number}"),
+				Pdf.text(" and who signs it off."),
+			]),
+		)
+		$contents = $contents.append(Pdf.link("Status page ${number}", "https://status.example.org/${number}"))
+		$index = $index + 1
+	}
+	Pdf.document({ contents: $contents, language: "en-AU", title: "Link style" })
+}
+
+link_style_theme : Theme.LinkUnderline -> Theme
+link_style_theme = |underline|
+	Theme.default
+		.with_link_color(Color.srgb8({ blue: 180, green: 80, red: 20 }))
+		.with_strong_color(Color.srgb8({ blue: 30, green: 30, red: 150 }))
+		.with_link_underline(underline)
+
+run_link_style : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_link_style = |count| {
+	if count == 0 or count > 1000 {
+		return Err(InvalidScale)
+	}
+	underline = Underline({ offset: Layout.Unit.from_raw(1200), thickness: Layout.Unit.from_raw(600) })
+	document = link_style_document(count)
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, link_style_theme(underline))) ? |_| EvidenceFailure
+
+	## The rejected underlines: body leading 14 pt less size 11 pt leaves 3 pt.
+	rejected = |value| match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, link_style_theme(value))) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.link_underline"], feature: Feature("text.link_underline"), .. }], .. })) => 1
+		_ => 0
+	}
+	negative = rejected(Underline({ offset: Layout.Unit.from_raw(-100), thickness: Layout.Unit.from_raw(600) }))
+	thin = rejected(Underline({ offset: Layout.Unit.from_raw(1200), thickness: Layout.Unit.from_raw(0) }))
+	tall = rejected(Underline({ offset: Layout.Unit.from_raw(2500), thickness: Layout.Unit.from_raw(600) }))
+	rejections = negative + thin + tall
+	if rejections != 3 {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({ bytes, work: [count, rejections, bytes.len()] })
 }
 
 Faces : [BuiltInFace, Policy({ policy : Font.PolicyId, registry : Font.Registry })]

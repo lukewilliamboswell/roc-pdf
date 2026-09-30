@@ -40,6 +40,7 @@
     "metadata_renderers",
     "navigation",
     "navigation_renderers",
+    "link_underlines",
     "pdf_structure",
     "pdfa4_structure",
     "extract_verapdf_rules",
@@ -21412,6 +21413,100 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline link style x10",
+      "scenario_revision": "rich-inline-link-style-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/link_style_10.pdf",
+      "args": [
+        "link_style",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "links": 20
+      },
+      "work_counters": [
+        "links",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 16961,
+          "allocated_bytes": 4156453,
+          "work": {
+            "links": 10,
+            "rejections": 3,
+            "output_bytes": 39739
+          }
+        },
+        "x64musl": {
+          "allocations": 16961,
+          "allocated_bytes": 4156453,
+          "work": {
+            "links": 10,
+            "rejections": 3,
+            "output_bytes": 39739
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "link_underlines"
+      ]
+    },
+    {
+      "name": "rich inline link style x50",
+      "scenario_revision": "rich-inline-link-style-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/link_style_50.pdf",
+      "args": [
+        "link_style",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5,
+        "links": 100
+      },
+      "work_counters": [
+        "links",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 76682,
+          "allocated_bytes": 20284338,
+          "work": {
+            "links": 50,
+            "rejections": 3,
+            "output_bytes": 123959
+          }
+        },
+        "x64musl": {
+          "allocations": 76682,
+          "allocated_bytes": 20284338,
+          "work": {
+            "links": 50,
+            "rejections": 3,
+            "output_bytes": 123959
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "link_underlines"
       ]
     },
     {
