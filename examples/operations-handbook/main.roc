@@ -18,17 +18,20 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## An on-call runbook for a payments platform: running headers and footers
 ## with `Page N of M`, an outline over numbered sections, a severity matrix
-## and an escalation table, numbered procedures with nested steps and
-## inline commands, warning and note callouts and command panels authored
-## through the custom-block seam, and a vector service-topology diagram.
+## and an escalation table with shaded levels and striped rows, numbered
+## procedures with nested steps and inline commands, warning and note
+## callouts and dark console panels authored through the custom-block seam
+## and measured by the package, and a vector service-topology diagram.
 main! = |_args| {
 	fonts = register_fonts({})?
-	document = Pdf.document({ contents, language: "en-AU", title: "Payments platform on-call runbook" })
+	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
+	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Payments platform on-call runbook" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_created("2026-09-30T00:00:00Z")
 		.with_modified("2026-09-30T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "operations-handbook.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
@@ -107,8 +110,11 @@ theme = {
 		.with_bullet_indent(points(20))
 		.with_code_color(rust)
 		.with_table_header_color(teal)
+		.with_table_header_fill(Color.srgb8({ red: 232, green: 245, blue: 246 }))
+		.with_table_body_fills({ odd: NoFill, even: Fill(Color.srgb8({ red: 248, green: 249, blue: 250 })) })
+		.with_table_body_rule(Rule({ color: Color.srgb8({ red: 226, green: 230, blue: 234 }), width: Layout.Unit.millipoints(400) }))
 		.with_table_cell_padding(points(5))
-		.with_table_row_gap(points(2))
+		.with_table_row_gap(points(3))
 		.with_table_rule(Rule({ color: mist, width: Layout.Unit.millipoints(600) }))
 		.with_link_color(teal)
 		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1400), thickness: Layout.Unit.millipoints(500) }))
@@ -129,10 +135,12 @@ footer = Pdf.region({
 	end: [Pdf.furniture_text([page_of])],
 })
 
+## The continuation header's backdrop: a teal accent over its start edge
+## and a hairline along its foot, beneath the slots' text.
 header_rule : Scene.Drawing
 header_rule = Scene.rectangle(
-	Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 40, 2), teal),
-	{ origin: Layout.point(40, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure - 40) } },
+	Scene.rectangle(Scene.drawing({}), Layout.rect(0, 20, 40, 2), teal),
+	{ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } },
 	mist,
 )
 
@@ -140,12 +148,15 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({
-			height: points(24),
-			start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")]), Pdf.furniture_image(header_rule)],
-			center: [],
-			end: [],
-		}),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(22),
+				start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])],
+				center: [],
+				end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])],
+			}),
+			header_rule,
+		),
 		footer,
 		gap: points(14),
 	}),
@@ -167,11 +178,11 @@ outline = [
 
 ## ---------------------------------------------------------------------
 ## Callouts: a separately authored extension of the custom-block seam (the
-## pattern of tests/custom_block/Callout.roc). Each callout measures
-## itself from the theme's public metrics: every paragraph is one line,
-## so the height is twice the inset plus one leading per line plus the
-## paragraph spacing between them. A coloured bar runs down the start edge
-## of a tinted rounded panel.
+## pattern of tests/custom_block/Callout.roc). The package measures each
+## callout's content at the panel's content width with
+## `Pdf.measure_custom_content`, so its paragraphs may wrap. A coloured bar
+## runs down the start edge of a tinted rounded panel; console panels are
+## dark, with light code.
 
 CalloutStyle : { accent : Color.SourceValue, fill : Color.SourceValue, stroke : Color.SourceValue }
 
@@ -191,35 +202,38 @@ note_style = {
 
 console_style : CalloutStyle
 console_style = {
-	accent: charcoal,
-	fill: Color.srgb8({ red: 243, green: 244, blue: 246 }),
-	stroke: Color.srgb8({ red: 206, green: 211, blue: 217 }),
+	accent: Color.srgb8({ red: 120, green: 200, blue: 190 }),
+	fill: Color.srgb8({ red: 32, green: 38, blue: 46 }),
+	stroke: Color.srgb8({ red: 32, green: 38, blue: 46 }),
 }
 
 callout_inset : Layout.Unit
 callout_inset = points(14)
 
-## A callout whose paragraphs are each one line.
-callout : Str, CalloutStyle, List(Document.Block) -> Document.Block
-callout = |name, style, paragraphs| {
-	leading = Theme.body_style(theme).leading.raw()
-	spacing = Theme.paragraph_spacing(theme).raw()
-	count = paragraphs.len().to_i64_wrap()
-	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(measure) }
+## The measured box of a callout's paragraphs: their height at the panel's
+## content width (inside the inset and clear of the accent bar), plus the
+## inset above and below.
+measured : Pdf.Options, List(Document.Block) -> Try(Layout.Size, Pdf.Error)
+measured = |options, paragraphs| {
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(measure - 28) })?
+	Ok({ height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(measure) })
+}
+
+## A callout of paragraphs that may wrap.
+callout : Pdf.Options, Str, CalloutStyle, List(Document.Block) -> Try(Document.Block, Pdf.Error)
+callout = |options, name, style, paragraphs| {
+	size = measured(options, paragraphs)?
 	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
 
 	## Each callout's labels take its accent colour: a warning's amber, a
 	## note's teal.
-	Pdf.scoped(Theme.Scope.empty.with_color(Strong, style.accent), [block])
+	Ok(Pdf.scoped(Theme.Scope.empty.with_color(Strong, style.accent), [block]))
 }
 
-## A command panel: one rich paragraph whose lines are separated by
-## explicit line breaks, so its height is one leading per command.
-console : List(Str) -> Document.Block
-console = |commands| {
-	leading = Theme.body_style(theme).leading.raw()
-	count = commands.len().to_i64_wrap()
-	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count), width: points(measure) }
+## A dark command panel: one rich paragraph whose lines are separated by
+## explicit line breaks, its code set light on the panel.
+console : Pdf.Options, List(Str) -> Try(Document.Block, Pdf.Error)
+console = |options, commands| {
 	var $inlines = List.with_capacity(commands.len() * 2)
 	for command in commands {
 		if !$inlines.is_empty() {
@@ -227,7 +241,11 @@ console = |commands| {
 		}
 		$inlines = $inlines.append(Pdf.code(command))
 	}
-	Pdf.custom_block({ contents: [Pdf.rich_paragraph($inlines)], fragmentation: Unsplittable, inset: callout_inset, name: "Commands", panel: callout_panel(console_style, size), size })
+	paragraphs = [Pdf.rich_paragraph($inlines)]
+	size = measured(options, paragraphs)?
+	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name: "Commands", panel: callout_panel(console_style, size), size })
+	light = Color.srgb8({ red: 226, green: 232, blue: 240 })
+	Ok(Pdf.scoped(Theme.Scope.empty.with_color(Text, light).with_color(Code, light), [block]))
 }
 
 labelled : Str, List(Pdf.Inline) -> Document.Block
@@ -377,13 +395,22 @@ topology = {
 ## ---------------------------------------------------------------------
 ## Tables.
 
+## Each level's cell is tinted by its urgency.
 severity_row : Str, Str, Str, Str -> Pdf.Row
 severity_row = |level, meaning, response, example| Pdf.row([
-	Pdf.header_cell(Row, [Pdf.strong([Pdf.text(level)])]),
+	Pdf.shaded(severity_tint(level), Pdf.header_cell(Row, [Pdf.strong([Pdf.text(level)])])),
 	Pdf.cell([Pdf.text(meaning)]),
 	Pdf.cell([Pdf.text(response)]),
 	Pdf.cell([Pdf.emphasis([Pdf.text(example)])]),
 ])
+
+severity_tint : Str -> Color.SourceValue
+severity_tint = |level| match level {
+	"SEV1" => Color.srgb8({ red: 253, green: 222, blue: 222 })
+	"SEV2" => Color.srgb8({ red: 255, green: 236, blue: 214 })
+	"SEV3" => Color.srgb8({ red: 255, green: 247, blue: 214 })
+	_ => Color.srgb8({ red: 236, green: 244, blue: 236 })
+}
 
 severity_table : Document.Block
 severity_table = Pdf.table({
@@ -508,14 +535,15 @@ accent_band = Pdf.decoration(
 	),
 )
 
-contents : List(Document.Block)
-contents = [
+contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
+contents = |options| Ok([
 	accent_band,
 	Pdf.title("Payments platform on-call runbook"),
 	Pdf.rich_paragraph([
 		Pdf.emphasis([Pdf.text("Runbook PAY-OPS-004, revision 4.2 · Owner: Payments Reliability · Reviewed 30 September 2026")]),
 	]),
 	callout(
+		options,
 		"At a glance",
 		note_style,
 		[
@@ -523,7 +551,7 @@ contents = [
 			labelled("Dashboards", [Pdf.inline_link([Pdf.text("grafana.example/d/payments-overview")], "https://grafana.example/d/payments-overview")]),
 			labelled("Status page", [Pdf.text("Customer updates go out through the support duty manager only.")]),
 		],
-	),
+	)?,
 	Pdf.section([
 		Pdf.destination_heading("scope", 1, "1 Scope and on-call duties"),
 		Pdf.rich_paragraph([
@@ -597,11 +625,14 @@ contents = [
 					rich_step([Pdf.text("Declare the severity using "), Pdf.inline_internal_link([Pdf.text("Table 1")], "severity"), Pdf.text(" and page the next level if the target is at risk.")]),
 				],
 			),
-			console([
-				"$ kubectl -n payments get pods -l tier=api -o wide",
-				"$ kubectl -n payments logs deploy/payments-api --since=15m",
-				"$ payctl acquirer status --region ap-southeast-2",
-			]),
+			console(
+				options,
+				[
+					"$ kubectl -n payments get pods -l tier=api -o wide",
+					"$ kubectl -n payments logs deploy/payments-api --since=15m",
+					"$ payctl acquirer status --region ap-southeast-2",
+				],
+			)?,
 		]),
 		Pdf.section([
 			Pdf.destination_heading("rollback", 2, "4.2 Rolling back a release"),
@@ -620,13 +651,14 @@ contents = [
 				],
 			),
 			callout(
+				options,
 				"Warning",
 				warning_style,
 				[
 					labelled("Warning", [Pdf.text("Never roll back across a ledger schema migration.")]),
 					Pdf.rich_paragraph([Pdf.text("Check "), Pdf.code("payctl migrations --pending"), Pdf.text(" first. If a migration ran, escalate to the database specialist.")]),
 				],
-			),
+			)?,
 		]),
 		Pdf.section([
 			Pdf.destination_heading("failover", 2, "4.3 Database failover"),
@@ -640,18 +672,22 @@ contents = [
 					step("Fence the old primary so it cannot accept writes if it returns."),
 				],
 			),
-			console([
-				"$ ledgerctl replicas --lag",
-				"$ ledgerctl promote --replica ledger-2 --confirm",
-				"$ kubectl -n payments rollout restart deploy/payments-api",
-			]),
+			console(
+				options,
+				[
+					"$ ledgerctl replicas --lag",
+					"$ ledgerctl promote --replica ledger-2 --confirm",
+					"$ kubectl -n payments rollout restart deploy/payments-api",
+				],
+			)?,
 			callout(
+				options,
 				"Note",
 				note_style,
 				[
 					labelled("Note", [Pdf.text("A failover loses no committed payment: writes are synchronous to one replica.")]),
 				],
-			),
+			)?,
 		]),
 	]),
 	Pdf.section([
@@ -675,4 +711,4 @@ contents = [
 		Pdf.paragraph("Every command below is read-only unless it is marked as a write. Run writes only while the incident is open and announced in the channel."),
 		command_table,
 	]),
-]
+])
