@@ -392,7 +392,7 @@ topological = |plan| {
 		var $edge = 0
 		while $edge < dependencies.len() {
 			if list_at($position, list_at(dependencies, $edge)) >= list_at($position, $index) {
-				$ordered = Bool.False
+				$ordered = False
 			}
 			$edge = $edge + 1
 		}
@@ -406,7 +406,7 @@ topological = |plan| {
 ownership_survives : KernelResourceGraph.Plan -> Bool
 ownership_survives = |plan| {
 	if KernelResourceGraph.Plan.placement_count(plan) != 3 {
-		Bool.False
+		False
 	} else {
 		first = KernelResourceGraph.Plan.placement_at(plan, 0)
 		second = KernelResourceGraph.Plan.placement_at(plan, 1)
@@ -483,75 +483,75 @@ Try(KernelResourceGraph.Plan, KernelResourceGraph.Error),
 ] -> Try({}, Fixture.EvidenceError)
 rejected = |ordinal, result, expected| {
 	matched = match result {
-		Ok(_) => Bool.False
+		Ok(_) => False
 		Err(error) => match expected {
 			CollisionEntries => match error {
-				CollisionEntryLimitExceeded(_) => Bool.True
-				_ => Bool.False
+				CollisionEntryLimitExceeded(_) => True
+				_ => False
 			}
 			Cycle => match error {
-				DependencyCycle({ planned: 0, resource: 0 }) => Bool.True
-				_ => Bool.False
+				DependencyCycle({ planned: 0, resource: 0 }) => True
+				_ => False
 			}
 			DuplicateEdge => match error {
-				DuplicateEdge(_) => Bool.True
-				_ => Bool.False
+				DuplicateEdge(_) => True
+				_ => False
 			}
 			DuplicateRootUse => match error {
-				DuplicateRootUse(_) => Bool.True
-				_ => Bool.False
+				DuplicateRootUse(_) => True
+				_ => False
 			}
 			EdgeLimit => match error {
-				EdgeLimitExceeded(_) => Bool.True
-				_ => Bool.False
+				EdgeLimitExceeded(_) => True
+				_ => False
 			}
 			EdgeSource => match error {
-				EdgeSourceOutOfRange(_) => Bool.True
-				_ => Bool.False
+				EdgeSourceOutOfRange(_) => True
+				_ => False
 			}
 			EdgeTarget => match error {
-				EdgeTargetOutOfRange(_) => Bool.True
-				_ => Bool.False
+				EdgeTargetOutOfRange(_) => True
+				_ => False
 			}
 			EqualityBytes => match error {
-				EqualityByteLimitExceeded(_) => Bool.True
-				_ => Bool.False
+				EqualityByteLimitExceeded(_) => True
+				_ => False
 			}
 			HashBytes => match error {
-				HashByteLimitExceeded(_) => Bool.True
-				_ => Bool.False
+				HashByteLimitExceeded(_) => True
+				_ => False
 			}
 			OrderingWork => match error {
-				OrderingWorkLimitExceeded(_) => Bool.True
-				_ => Bool.False
+				OrderingWorkLimitExceeded(_) => True
+				_ => False
 			}
 			PayloadRange => match error {
-				PayloadRangeInvalid(_) => Bool.True
-				_ => Bool.False
+				PayloadRangeInvalid(_) => True
+				_ => False
 			}
 			PlacementRange => match error {
-				PlacementResourceOutOfRange(_) => Bool.True
-				_ => Bool.False
+				PlacementResourceOutOfRange(_) => True
+				_ => False
 			}
 			ResourceLimit => match error {
-				ResourceLimitExceeded(_) => Bool.True
-				_ => Bool.False
+				ResourceLimitExceeded(_) => True
+				_ => False
 			}
 			SelfCycle => match error {
-				SelfCycle(_) => Bool.True
-				_ => Bool.False
+				SelfCycle(_) => True
+				_ => False
 			}
 			SemanticMerge => match error {
-				SemanticOwnershipMerge(_) => Bool.True
-				_ => Bool.False
+				SemanticOwnershipMerge(_) => True
+				_ => False
 			}
 			TopologicalWork => match error {
-				TopologicalWorkLimitExceeded(_) => Bool.True
-				_ => Bool.False
+				TopologicalWorkLimitExceeded(_) => True
+				_ => False
 			}
 			Unreachable => match error {
-				UnreachableResource(_) => Bool.True
-				_ => Bool.False
+				UnreachableResource(_) => True
+				_ => False
 			}
 		}
 	}
@@ -725,20 +725,20 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-## A four-node fan plans its shared dependencies first, keeps one direct root
-## entry, and copies no payload bytes.
+# A four-node fan plans its shared dependencies first, keeps one direct root
+# entry, and copies no payload bytes.
 expect {
 	result = Fixture.resource_plan("fan", 4)?
 	result.work == [4, 3, 1, 8, 6, 13, 4, 1, 3, 4, 32, 0, 0, 0, 0, 0, 0, 4, 0, 32, 0, 3, 13, 0]
 }
 
-## A forced collision bucket merges only exactly equal payloads.
+# A forced collision bucket merges only exactly equal payloads.
 expect {
 	result = Fixture.collision_plan(4)?
 	result.work.get(11) == Ok(4) and result.work.get(17) == Ok(2) and result.work.get(18) == Ok(2)
 }
 
-## Every negative twin is rejected and no plan escapes.
+# Every negative twin is rejected and no plan escapes.
 expect {
 	result = Fixture.atomic_negatives(1)?
 	result.work.get(0) == Ok(18) and result.work.get(1) == Ok(0)

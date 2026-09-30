@@ -817,9 +817,9 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## The adversarial showcase, sharing checks, and atomic negatives hold under
-## `roc test`; the harness re-runs them as compiled scenarios with exact
-## allocation and work baselines.
+# The adversarial showcase, sharing checks, and atomic negatives hold under
+# `roc test`; the harness re-runs them as compiled scenarios with exact
+# allocation and work baselines.
 expect match Fixture.scenario("showcase", 0) {
 	Ok(result) => result.bytes.len() > 0 and list_at(result.work, 0) == 2 and list_at(result.work, 1) == 1
 	Err(_) => False
@@ -845,8 +845,8 @@ expect match Fixture.atomic_negatives(1) {
 	Err(_) => False
 }
 
-## The blank facade path carries the same facts: this pins the public
-## structural kernel boundary the facade uses for empty documents.
+# The blank facade path carries the same facts: this pins the public
+# structural kernel boundary the facade uses for empty documents.
 expect {
 	facts = {
 		condition_identifier: KernelMetadata.srgb_condition_identifier,

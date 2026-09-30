@@ -141,7 +141,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 		$ordinal = $ordinal + 1
 	}
 
-	## Resolve each table's columns once, then every cell's text box.
+	# Resolve each table's columns once, then every cell's text box.
 	var $cell_cursor = 0
 	var $group_index = 0
 	while $group_index < authoring.groups.len() {
@@ -288,7 +288,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		return Err(InvalidCell({ block: group.first_block }))
 	}
 
-	## Exact fixed columns, and each single column's own feasibility.
+	# Exact fixed columns, and each single column's own feasibility.
 	var $widths = List.repeat(0, count)
 	var $fixed = 0
 	var $required = 0
@@ -320,8 +320,8 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		return Err(TableWidth({ available, group: group_index, required: $required }))
 	}
 
-	## Content columns at their max-content width, reduced proportionally
-	## to their slack when the minima of the share columns would not fit.
+	# Content columns at their max-content width, reduced proportionally
+	# to their slack when the minima of the share columns would not fit.
 	var $content_total = 0
 	var $slack_total = 0
 	var $share_minima = 0
@@ -370,8 +370,8 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		}
 	}
 
-	## Share columns divide what remains; a share below its minimum is fixed
-	## at the minimum and the others divide the rest again.
+	# Share columns divide what remains; a share below its minimum is fixed
+	# at the minimum and the others divide the rest again.
 	var $used = sum_range($widths, 0, count)
 	var $settled = List.repeat(False, count)
 	var $settling = True

@@ -25,15 +25,15 @@ make_report = |summary| {
 	Pdf.to_bytes(document)
 }
 
-## The one-import Standard facade emits authored content without exposing
-## resources, glyphs, scenes, or PDF objects.
+# The one-import Standard facade emits authored content without exposing
+# resources, glyphs, scenes, or PDF objects.
 expect {
 	bytes = make_report("Typed facade output")?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## A vector drawing is flow figure content: one tagged `Figure` owning its
-## drawing, with its alternative text.
+# A vector drawing is flow figure content: one tagged `Figure` owning its
+# drawing, with its alternative text.
 expect {
 	drawing = Scene.drawing({}).rectangle(
 		Layout.rect(0, 0, 120, 48),
@@ -51,8 +51,8 @@ expect {
 	}
 }
 
-## A single packed raster lowers as one tagged Figure with authored alternative
-## text, while its placement remains independent of its pixel dimensions.
+# A single packed raster lowers as one tagged Figure with authored alternative
+# text, while its placement remains independent of its pixel dimensions.
 expect {
 	image = Image.Source.rgb8({
 		alpha: NoAlpha,
@@ -70,8 +70,8 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 1000
 }
 
-## Malformed packed data and missing alternative text are rejected before a
-## byte value exists; the facade never repairs, pads, or drops the image.
+# Malformed packed data and missing alternative text are rejected before a
+# byte value exists; the facade never repairs, pads, or drops the image.
 expect {
 	bad_image = Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 2, width: 2 }, pixels: [255, 0, 0], row_stride: 6 })
 	bad_drawing = Scene.drawing({}).image(bad_image, Layout.rect(0, 0, 120, 60))
@@ -88,8 +88,8 @@ expect {
 	bad_rejected and empty_rejected
 }
 
-## Navigation authoring is typed: links, named destinations, an outline, and
-## page labels flow through the same one-import facade.
+# Navigation authoring is typed: links, named destinations, an outline, and
+# page labels flow through the same one-import facade.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -110,8 +110,8 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 4717
 }
 
-## Nested profile and option modules use current package shorthand syntax;
-## the Archive profile is executable through the public options.
+# Nested profile and option modules use current package shorthand syntax;
+# the Archive profile is executable through the public options.
 expect {
 	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
@@ -120,7 +120,7 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
 }
 
-## AccessibleArchive still rejects transactionally with its own feature code.
+# AccessibleArchive still rejects transactionally with its own feature code.
 expect {
 	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })

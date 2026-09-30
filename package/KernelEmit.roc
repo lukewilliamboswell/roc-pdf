@@ -177,7 +177,7 @@ KernelEmit :: [].{
 	to_bytes = |plan| {
 		var $encoder = start(plan, OwnResourceChunks)?
 		var $output = []
-		while Bool.True {
+		while True {
 			## Every arm either returns or reassigns `$encoder`. An arm that
 			## kept the old encoder (the `Done` arm setting a flag) made it
 			## live across `Encoder.next`, which then copied the offsets on
@@ -276,7 +276,7 @@ emit_object : KernelEmit.Encoder, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_object = |encoder, index| {
 	var $encoder = encoder
 	var $index = index
-	while Bool.True {
+	while True {
 		store = plan_store($encoder.plan)
 		if $index >= store.objects.len() {
 			return next_segment(encoder_with_phase($encoder, XrefPrefix))
@@ -1179,7 +1179,7 @@ emission_test_limits = {
 	max_values: 2,
 }
 
-## Every direct lexical value crosses the flat store, sealing, and shared value emitter.
+# Every direct lexical value crosses the flat store, sealing, and shared value emitter.
 expect {
 	limits : KernelObject.Limits
 	limits = {
@@ -1245,7 +1245,7 @@ expect {
 	$actual == Str.to_utf8("null|true|-9223372036854775808|1.2|/N#20#2F#23|<00FF>|<FEFF0041D83DDE00>|1 0 R|[null true -9223372036854775808 1.2 /N#20#2F#23 <00FF> <FEFF0041D83DDE00> 1 0 R]|<< /A [null true -9223372036854775808 1.2 /N#20#2F#23 <00FF> <FEFF0041D83DDE00> 1 0 R] /B <FEFF0041D83DDE00> >>")
 }
 
-## Planned stream keys merge canonically around generated Filter and Length keys.
+# Planned stream keys merge canonically around generated Filter and Length keys.
 expect {
 	decode_parms = KernelObject.add_name(KernelObject.init(emission_test_limits), Str.to_utf8("DecodeParms"))?
 	metadata = KernelObject.add_name(decode_parms.builder, Str.to_utf8("Metadata"))?
@@ -1266,7 +1266,7 @@ expect {
 	actual == Str.to_utf8("<< /DecodeParms null /Filter /FlateDecode /Length 2 0 R /Metadata null >>")
 }
 
-## Sanitized JPEG streams retain their bytes and declare the DCT filter.
+# Sanitized JPEG streams retain their bytes and declare the DCT filter.
 expect {
 	limits = { ..emission_test_limits, max_payload_bytes: 4 }
 	payload = KernelObject.add_payload(KernelObject.init(limits), [0xff, 0xd8, 0xff, 0xd9], UnchangedResource)?
@@ -1277,7 +1277,7 @@ expect {
 	actual == Str.to_utf8("<< /Filter /DCTDecode /Length 2 0 R >>")
 }
 
-## Planned stream dictionaries cannot override generated Filter or Length entries.
+# Planned stream dictionaries cannot override generated Filter or Length entries.
 expect {
 	filter = KernelObject.add_name(KernelObject.init(emission_test_limits), Str.to_utf8("Filter"))?
 	null = KernelObject.add_null(filter.builder)?
@@ -1293,8 +1293,8 @@ expect {
 	reserved_stream_key(stream_object.builder.store, stream.dictionary) == Reserved(filter.id)
 }
 
-## Emission of the unchanged and generated stream probes stays inside their
-## object-stream layout bounds.
+# Emission of the unchanged and generated stream probes stays inside their
+# object-stream layout bounds.
 expect {
 	unchanged = KernelStructure.build_unchanged_stream_probe(Str.to_utf8("% resource\n"))?
 	generated = KernelStructure.build_deflate_stream_probe(Str.to_utf8("BT /Span BMC EMC ET\n"), 20)?
@@ -1302,7 +1302,7 @@ expect {
 		KernelEmit.to_bytes(generated)?.len() <= KernelStructure.Plan.output_bound(generated)
 }
 
-## The structural bound covers a multi-level plan before emission starts.
+# The structural bound covers a multi-level plan before emission starts.
 expect {
 	plan = KernelStructure.build_blank(4096, A4)?
 	encoder = KernelEmit.start(plan, OwnResourceChunks)?
@@ -1312,7 +1312,7 @@ expect {
 		bytes.len() <= KernelEmit.Encoder.output_bound(encoder)
 }
 
-## Nonempty generated streams compress whole and release their source before the payload is emitted.
+# Nonempty generated streams compress whole and release their source before the payload is emitted.
 expect {
 	input = Str.to_utf8("q 0 0 100 100 re f Q\nq 0 0 100 100 re f Q\n")
 	plan = KernelStructure.build_deflate_stream_probe(input, input.len())?
@@ -1351,7 +1351,7 @@ expect {
 					KernelDeflate.Work.emitted_bytes(work) > expected.bytes.len()
 }
 
-## The counting sink preserves fixed-width offsets beyond four GiB.
+# The counting sink preserves fixed-width offsets beyond four GiB.
 expect {
 	sink = KernelEmit.CountingSink.start(4294967312)
 	marked = KernelEmit.CountingSink.mark_object(sink)
@@ -1368,13 +1368,13 @@ expect {
 	actual == expected
 }
 
-## The counting sink reports overflow before accepting a segment length.
+# The counting sink reports overflow before accepting a segment length.
 expect match KernelEmit.CountingSink.write(KernelEmit.CountingSink.start(18446744073709551615), 1) {
 	Err(ArithmeticOverflow) => True
 	_ => False
 }
 
-## Shared and owned policies emit identical bytes while classifying the unchanged range.
+# Shared and owned policies emit identical bytes while classifying the unchanged range.
 expect {
 	plan = KernelStructure.build_unchanged_stream_probe(Str.to_utf8("% unchanged range\n"))?
 	var $shared_encoder = KernelEmit.start(plan, ShareResourceChunks)?
@@ -1426,7 +1426,7 @@ expect {
 						$shared_bytes == $owned_bytes
 }
 
-## Unchanged bytes participate in deterministic file identity.
+# Unchanged bytes participate in deterministic file identity.
 expect {
 	left = KernelStructure.build_unchanged_stream_probe(Str.to_utf8("% left\n"))?
 	right = KernelStructure.build_unchanged_stream_probe(Str.to_utf8("% right\n"))?
@@ -1434,7 +1434,7 @@ expect {
 	identifier_facts(left) != identifier_facts(right)
 }
 
-## Buffered emission writes a PDF 2.0 header, binary marker, and EOF marker.
+# Buffered emission writes a PDF 2.0 header, binary marker, and EOF marker.
 expect {
 	plan = KernelStructure.build_blank(1, KernelStructure.PageSize.A4)?
 	bytes = KernelEmit.to_bytes(plan)?
@@ -1443,7 +1443,7 @@ expect {
 		bytes.sublist({ start: bytes.len() - 6, len: 6 }) == [37, 37, 69, 79, 70, 10]
 }
 
-## The chunk transition concatenates byte-identically with buffered emission.
+# The chunk transition concatenates byte-identically with buffered emission.
 expect {
 	plan = KernelStructure.build_blank(33, KernelStructure.PageSize.Letter)?
 	expected = KernelEmit.to_bytes(plan)?

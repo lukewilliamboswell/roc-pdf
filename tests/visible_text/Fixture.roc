@@ -372,29 +372,29 @@ expect {
 					list_at(KernelPdfText.ScenePlan.mappings(sample.text), 0).len() == 8
 }
 
-## Placement and ActualText failures are atomic rather than guessed or omitted.
+# Placement and ActualText failures are atomic rather than guessed or omitted.
 expect {
 	sample = build_sample({})?
 	placement = { origin: { x: Layout.Unit.from_raw(72000), y: Layout.Unit.from_raw(700000) }, run: Text.RunId.from_index(0) }
 	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 64, max_content_bytes: 4096, max_mappings: 64, max_placements: 8, max_source_scalars: 64 })
 	missing_rejected = match KernelPdfText.Plan.build(semantics, sample.shape.store, [sample.font_plan], [], limits) {
-		Err(RunInvalid({ run: 0 })) => Bool.True
-		_ => Bool.False
+		Err(RunInvalid({ run: 0 })) => True
+		_ => False
 	}
 	duplicate_rejected = match KernelPdfText.Plan.build(semantics, sample.shape.store, [sample.font_plan], [placement, placement], limits) {
-		Err(PlacementInvalid({ placement: 1 })) => Bool.True
-		_ => Bool.False
+		Err(PlacementInvalid({ placement: 1 })) => True
+		_ => False
 	}
 	run = list_at(sample.shape.store.runs, 0)
 	override_store = { ..sample.shape.store, runs: [{ ..run, actual_text: SemanticOverride(Semantics.TextPropertyId.from_index(0)) }] }
 	override_rejected = match KernelPdfText.Plan.build(semantics, override_store, [sample.font_plan], [placement], limits) {
-		Err(ActualTextRequired({ run: 0 })) => Bool.True
-		_ => Bool.False
+		Err(ActualTextRequired({ run: 0 })) => True
+		_ => False
 	}
 	missing_rejected and duplicate_rejected and override_rejected
 }
 
-## Scene text lowering prepares every owned run once in local coordinates.
+# Scene text lowering prepares every owned run once in local coordinates.
 expect {
 	sample = build_sample({})?
 	plan = KernelPdfText.ScenePlan.build(
@@ -414,7 +414,7 @@ expect {
 								work.glyph_visits == 8
 }
 
-## The scene plan applies its content-byte bound cumulatively across runs.
+# The scene plan applies its content-byte bound cumulatively across runs.
 expect {
 	sample = build_sample({})?
 	accepted = KernelPdfText.ScenePlan.build(
@@ -433,7 +433,7 @@ expect {
 	}
 }
 
-## Tagged content lowering consumes scene placement, typed paint, and prepared glyph operators.
+# Tagged content lowering consumes scene placement, typed paint, and prepared glyph operators.
 expect {
 	sample = build_sample({})?
 	text = KernelPdfText.ScenePlan.build(
@@ -456,7 +456,7 @@ expect {
 					work.text_placements == 1
 }
 
-## Every shaped run must have exactly one fragment-owned scene placement.
+# Every shaped run must have exactly one fragment-owned scene placement.
 expect {
 	sample = build_sample({})?
 	run = list_at(sample.shape.store.runs, 0)
@@ -467,7 +467,7 @@ expect {
 	}
 }
 
-## Run occurrence identity and fragment source coverage are explicit join facts.
+# Run occurrence identity and fragment source coverage are explicit join facts.
 expect {
 	sample = build_sample({})?
 	run = list_at(sample.shape.store.runs, 0)
@@ -487,7 +487,7 @@ expect {
 	occurrence_rejected and coverage_rejected
 }
 
-## Duplicate run placement and artifact-owned text are rejected before lowering.
+# Duplicate run placement and artifact-owned text are rejected before lowering.
 expect {
 	sample = build_sample({})?
 	draw = list_at(text_scene.commands, 1)

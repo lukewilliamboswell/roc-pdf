@@ -653,18 +653,18 @@ run_signature = |hash, run| mix_hash(mix_hash(mix_hash(hash, run.instance.index(
 logical_key_equal : Text.Store, LogicalKey, LogicalKey -> Bool
 logical_key_equal = |store, left, right| {
 	if left.source != right.source or left.width != right.width or left.signature != right.signature or left.run_count != right.run_count {
-		return Bool.False
+		return False
 	}
 	var $index = 0
 	while $index < left.run_count.to_u64() {
 		a = list_at(store.runs, left.run_start + $index)
 		b = list_at(store.runs, right.run_start + $index)
 		if a.instance.index() != b.instance.index() or a.size.raw() != b.size.raw() or a.clusters.length() != b.clusters.length() {
-			return Bool.False
+			return False
 		}
 		$index = $index + 1
 	}
-	Bool.True
+	True
 }
 
 ## The probe hash of the base fields only, exactly as `hash_key`: splits
@@ -1066,8 +1066,8 @@ expect {
 	}
 }
 
-## An allowed scalar boundary inside one multi-scalar cluster is not silently
-## treated as a legal cluster break.
+# An allowed scalar boundary inside one multi-scalar cluster is not silently
+# treated as a legal cluster break.
 expect {
 	cluster = {
 		glyphs: Semantics.Range.from_start_and_length(0, 1),
@@ -1091,9 +1091,9 @@ expect {
 	}
 }
 
-## Width facts: the widest piece between break opportunities is the
-## min-content width with its cluster range, and the whole line the
-## max-content width.
+# Width facts: the widest piece between break opportunities is the
+# min-content width with its cluster range, and the whole line the
+# max-content width.
 expect {
 	run = {
 		actual_text: FromOccurrence,

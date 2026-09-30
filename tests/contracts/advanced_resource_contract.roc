@@ -11,7 +11,7 @@ import pdf.Semantics
 import pdf.Theme
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 
-## Prepared color values identify the exact validated color-space resource.
+# Prepared color values identify the exact validated color-space resource.
 expect {
 	color : Color.Value
 	color = {
@@ -22,8 +22,8 @@ expect {
 	color.space.index() == 1
 }
 
-## A registered caller face is selected by Theme and reaches the one-import
-## facade without exposing a resource ID or any PDF object detail.
+# A registered caller face is selected by Theme and reaches the one-import
+# facade without exposing a resource ID or any PDF object detail.
 expect {
 	registered = Font.Registry.empty.register(
 		caller_font_bytes,
@@ -42,8 +42,8 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## The facade does not substitute the packaged font if a selected caller face
-## is absent from the supplied registry. The failed Try has no PDF byte value.
+# The facade does not substitute the packaged font if a selected caller face
+# is absent from the supplied registry. The failed Try has no PDF byte value.
 expect {
 	theme = Theme.with_font(Theme.default, Font.FaceId.from_index(1))
 	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), Font.Registry.empty)
@@ -59,9 +59,9 @@ expect {
 	}
 }
 
-## Complete caller-owned bytes are validated once, assigned opaque dense
-## handles, attached to options, and selected through Theme without a font name
-## or caller-assigned resource ID.
+# Complete caller-owned bytes are validated once, assigned opaque dense
+# handles, attached to options, and selected through Theme without a font name
+# or caller-assigned resource ID.
 expect {
 	registered = Font.Registry.empty.register(
 		caller_font_bytes,
@@ -89,7 +89,7 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## ICC profile bytes are retained once and tags remain validated source ranges.
+# ICC profile bytes are retained once and tags remain validated source ranges.
 expect {
 	profile : Color.IccProfile
 	profile = {
@@ -103,7 +103,7 @@ expect {
 	profile.id.index() == 0 and profile.tags.length() == 1
 }
 
-## Raster resources use packed planes and an explicit typed color space.
+# Raster resources use packed planes and an explicit typed color space.
 expect {
 	resource : Image.Resource
 	resource = {
@@ -124,7 +124,7 @@ expect {
 	}
 }
 
-## JPEG orientation evidence is explicit before placement.
+# JPEG orientation evidence is explicit before placement.
 expect {
 	jpeg : Image.ValidatedJpeg
 	jpeg = {

@@ -11,16 +11,16 @@ facade_document = Pdf.document({
 	title: "text-layout public facade output",
 })
 
-## This is the public one-import positive boundary. Its emitted bytes are
-## checked structurally by scripts/check_facade_output.py.
+# This is the public one-import positive boundary. Its emitted bytes are
+# checked structurally by scripts/check_facade_output.py.
 expect {
 	bytes = Pdf.to_bytes(facade_document)?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## Unavailable authored content has no text-layout facade renderer. The typed
-## error carries no bytes, so the failure is atomic rather than a blank-output
-## fallback.
+# Unavailable authored content has no text-layout facade renderer. The typed
+# error carries no bytes, so the failure is atomic rather than a blank-output
+# fallback.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.footnote("Not implemented")],

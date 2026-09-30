@@ -302,8 +302,8 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 					}
 					line = list_at(lines, body_line_index)
 
-					## A line belongs to the explicit-line-break segment whose
-					## physical runs hold its first cluster.
+					# A line belongs to the explicit-line-break segment whose
+					# physical runs hold its first cluster.
 					if segmented {
 						while $segment_start + $segment_length < body_index + body_run.physical.length() and line.clusters.start() >= segment_cluster_end(shape_batch.store.runs, $segment_start, $segment_length)? {
 							$segment_start = $segment_start + $segment_length
@@ -577,8 +577,8 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 							record = list_at(shape_batch.store.runs, body_index)
 							style = list_at(styles, body_index)
 
-							## The cells of a row share one leading; the row's
-							## baseline offset is its largest cell line size.
+							# The cells of a row share one leading; the row's
+							# baseline offset is its largest cell line size.
 							if !$content_seen {
 								$leading = positive_raw(style.leading)?
 								$size = positive_raw(cell_size)?
@@ -606,10 +606,10 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					$block = $block + 1
 				}
 
-				## A row of only contentless cells is one line of the body
-				## style tall. Its unit's occurrence is never read: the
-				## placements of a table row are rebuilt from its cells'
-				## lines, and it has none.
+				# A row of only contentless cells is one line of the body
+				# style tall. Its unit's occurrence is never read: the
+				# placements of a table row are rebuilt from its cells'
+				# lines, and it has none.
 				if !$content_seen {
 					$grid = 1
 					$leading = positive_raw(Theme.body_style(theme).leading)?
@@ -1591,8 +1591,8 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 		$index = $index + 1
 	}
 
-	## A custom block with the decorations above it fits a fresh page of
-	## the largest kind, or preparation fails naming both heights.
+	# A custom block with the decorations above it fits a fresh page of
+	# the largest kind, or preparation fails naming both heights.
 	var $custom = 0
 	while $custom < authoring.customs.len() {
 		custom = list_at(authoring.customs, $custom)
@@ -1806,8 +1806,8 @@ expect {
 	continues_list(authoring, runs, 0, 1) and !continues_list(authoring, runs, 1, 1)
 }
 
-## Leaves of one nested list stack without spacing; the paragraph after the
-## outermost list does not.
+# Leaves of one nested list stack without spacing; the paragraph after the
+# outermost list does not.
 expect {
 	item = |text| Document.list_item([Document.paragraph(text)])
 	nested = Document.bullet_list([Document.list_item([Document.paragraph("One"), Document.bullet_list([item("Two")])]), item("Three")])
@@ -1865,9 +1865,9 @@ layout_template = |template, lead_units| {
 	},
 }
 
-## `ScaleToFit` scales a 600 × 900 pt drawing by the largest factor that
-## fits the body frame (in thousandths, rounding the anchor height up); a
-## floor above it and an `Exact` figure are oversize.
+# `ScaleToFit` scales a 600 × 900 pt drawing by the largest factor that
+# fits the body frame (in thousandths, rounding the anchor height up); a
+# floor above it and an `Exact` figure are oversize.
 expect {
 	drawing = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 600, 900), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	page = { height: Layout.Unit.points(842), width: Layout.Unit.points(595) }

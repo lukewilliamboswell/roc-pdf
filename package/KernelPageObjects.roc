@@ -278,7 +278,7 @@ add_resources = |builder, names, objects| {
 	color_dictionary = KernelObject.add_dictionary(images.builder, colors.entries) ? Object
 	image_dictionary = KernelObject.add_dictionary(color_dictionary.builder, images.entries) ? Object
 
-	## An empty resource category is omitted rather than written `<< >>`.
+	# An empty resource category is omitted rather than written `<< >>`.
 	var $entries = List.with_capacity(2)
 	if !colors.entries.is_empty() {
 		$entries = $entries.append({ key: names.color_space, value: color_dictionary.id })
@@ -299,7 +299,7 @@ add_resources_with_fonts = |builder, names, font_name, objects, fonts| {
 	image_dictionary = KernelObject.add_dictionary(color_dictionary.builder, images.entries) ? Object
 	font_dictionary = KernelObject.add_dictionary(image_dictionary.builder, font_references.entries) ? Object
 
-	## An empty resource category is omitted rather than written `<< >>`.
+	# An empty resource category is omitted rather than written `<< >>`.
 	var $entries = List.with_capacity(3)
 	if !colors.entries.is_empty() {
 		$entries = $entries.append({ key: names.color_space, value: color_dictionary.id })
@@ -642,7 +642,7 @@ test_limits = {
 	max_values: 512,
 }
 
-## Page lowering consumes the planned page-tree, page, stream, and length IDs.
+# Page lowering consumes the planned page-tree, page, stream, and length IDs.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	prefix = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
@@ -653,7 +653,7 @@ expect {
 	counts.objects + 1 == KernelObject.ObjectId.number(first_color) and counts.payloads == 1 and counts.streams == 1 and work.pages == 1 and work.page_tree_nodes == 1 and work.page_tree_edges == 1 and work.box_values == 5 and work.resource_references == 2
 }
 
-## The additive text-layout path references each planned Type 0 font without widening tagged-visual plans.
+# The additive text-layout path references each planned Type 0 font without widening tagged-visual plans.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	fonts = KernelFontObjects.Plan.build(pipeline.objects, 1, 24)?

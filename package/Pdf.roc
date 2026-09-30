@@ -1843,8 +1843,8 @@ leaf_position = |normalized, block, parent| {
 		Err(OutOfBounds) => crash "normalized leaf path escaped"
 	}
 
-	## Siblings in the same parent before this leaf: earlier leaves (a legacy
-	## bullet list counts once), child groups, page breaks, and spacers.
+	# Siblings in the same parent before this leaf: earlier leaves (a legacy
+	# bullet list counts once), child groups, page breaks, and spacers.
 	var $position = 0
 	var $index = 0
 	var $previous_list = U64.highest
@@ -2065,7 +2065,7 @@ has_role_face = |theme| {
 	body = Theme.body_font(theme).index()
 	differs = |font| match font {
 		Face(face) => face.index() != body
-		Inherited => Bool.False
+		Inherited => False
 	}
 	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong))
 }
@@ -2099,7 +2099,7 @@ role_faces = |theme| {
 		.keep_if(
 			|font| match font {
 				Face(face) => face.index() != body.index()
-				Inherited => Bool.False
+				Inherited => False
 			},
 		)
 		.map(
@@ -2173,9 +2173,9 @@ list_at_face = |faces, index| match faces.get(index) {
 selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)
 selected_font = |options| match options.font_source {
 	BuiltIn => {
-		## The packaged face has the same dense facade identity as the initial
-		## caller registry face. The shaping stage consumes only the validated
-		## inspection and typed Theme face, never a provenance flag.
+		# The packaged face has the same dense facade identity as the initial
+		# caller registry face. The shaping stage consumes only the validated
+		# inspection and typed Theme face, never a provenance flag.
 		if Theme.body_font(options.theme).index() != 0 {
 			Err(InvalidFontResource(UnknownFace(Theme.body_font(options.theme))))
 		} else {
@@ -2493,20 +2493,20 @@ standard_object_limits = {
 	max_values: 4000000,
 }
 
-## Public profiles map to exact claim sets without enabling orthogonal WTPDF claims.
+# Public profiles map to exact claim sets without enabling orthogonal WTPDF claims.
 expect {
 	claims = Pdf.claims_for_profile(Pdf.Profile.AccessibleArchive)
 
 	claims.pdf20 and claims.static_pdf_a4 and claims.pdf_ua2 and !claims.wtpdf_accessibility
 }
 
-## The lexical implementation remains a private package module.
+# The lexical implementation remains a private package module.
 expect KernelLex.boolean(True) == Str.to_utf8("true")
 
-## text-layout Unicode analysis is pinned to the reviewed Unicode 17 package release.
+# text-layout Unicode analysis is pinned to the reviewed Unicode 17 package release.
 expect KernelUnicode.version == "17.0.0"
 
-## Object/value/edge storage is likewise package-private.
+# Object/value/edge storage is likewise package-private.
 expect KernelObject.counts(
 	KernelObject.init({
 		max_array_items: 0,
@@ -2526,7 +2526,7 @@ expect KernelObject.counts(
 	}),
 ).objects == 0
 
-## Sealing remains private and accepts the empty construction store.
+# Sealing remains private and accepts the empty construction store.
 expect match KernelSeal.seal(
 	KernelObject.init({
 		max_array_items: 0,
@@ -2549,13 +2549,13 @@ expect match KernelSeal.seal(
 	Err(_) => False
 }
 
-## The blank-page structural lowerer is private to the package.
+# The blank-page structural lowerer is private to the package.
 expect match KernelStructure.build_blank(1, KernelStructure.PageSize.A4) {
 	Ok(plan) => KernelStructure.Plan.object_count(plan) == 5
 	Err(_) => False
 }
 
-## The private buffered and chunk transitions share one emitter.
+# The private buffered and chunk transitions share one emitter.
 expect {
 	plan = KernelStructure.build_blank(1, KernelStructure.PageSize.A4)?
 	bytes = KernelEmit.to_bytes(plan)?
@@ -2563,7 +2563,7 @@ expect {
 	bytes.len() > 0
 }
 
-## Default authored content crosses the public facade without exposing PDF internals.
+# Default authored content crosses the public facade without exposing PDF internals.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -2575,8 +2575,8 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## Preparation is a one-way public boundary and both emission paths consume
-## the same sealed plan.
+# Preparation is a one-way public boundary and both emission paths consume
+# the same sealed plan.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Prepared once")], language: "en-AU", title: "Prepared" })
 	prepared = Pdf.prepare(document, Pdf.Options.default)?
@@ -2586,8 +2586,8 @@ expect {
 	buffered == chunked.bytes
 }
 
-## Every sRGB theme color is resolved through the packaged profile rather
-## than being silently reduced to black.
+# Every sRGB theme color is resolved through the packaged profile rather
+# than being silently reduced to black.
 expect {
 	blue : Color.SourceValue
 	blue = Srgb(Rgb({ blue: 65535, green: 16000, red: 4000 }))
@@ -2599,8 +2599,8 @@ expect {
 	bytes.len() > 667
 }
 
-## Unavailable authored content rejects atomically through the facade; no
-## blank document or partial bytes can escape a Try error.
+# Unavailable authored content rejects atomically through the facade; no
+# blank document or partial bytes can escape a Try error.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.footnote("Not implemented")],
@@ -2614,9 +2614,9 @@ expect {
 	}
 }
 
-## Page templates: furniture, a lead region, and page fields prepare
-## through the public facade; a template that leaves no body line and a page
-## field in body text reject with their stable codes and paths.
+# Page templates: furniture, a lead region, and page fields prepare
+# through the public facade; a template that leaves no body line and a page
+# field in body text reject with their stable codes and paths.
 expect {
 	page_of = Pdf.reserved_width(Layout.Unit.points(72), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: Layout.Unit.points(16), start: [Pdf.furniture_text([Pdf.text("Running head")])] })
@@ -2640,7 +2640,7 @@ expect {
 	accepted and body_space and body_field
 }
 
-## Empty default documents emit one structural PDF 2.0 page.
+# Empty default documents emit one structural PDF 2.0 page.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
 	bytes = Pdf.to_bytes(document)?
@@ -2648,7 +2648,7 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
 }
 
-## The explicit Standard option takes the same authored-content path.
+# The explicit Standard option takes the same authored-content path.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.paragraph("Explicit Standard")],
@@ -2661,8 +2661,8 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## The default is exactly `to_bytes_with(document, Options.default)`, and
-## that default claims static PDF/A-4.
+# The default is exactly `to_bytes_with(document, Options.default)`, and
+# that default claims static PDF/A-4.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Default")], language: "en-AU", title: "Default" })
 	implicit = Pdf.to_bytes(document)?
@@ -2672,8 +2672,8 @@ expect {
 	implicit == explicit and implicit == archive and contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>"))
 }
 
-## Archive emits the same document with exactly the PDF/A identification
-## added to its canonical metadata; Standard never declares it.
+# Archive emits the same document with exactly the PDF/A identification
+# added to its canonical metadata; Standard never declares it.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Archive")], language: "en-AU", title: "Archive" })
 	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
@@ -2683,7 +2683,7 @@ expect {
 	archive.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(archive, marker) and !contains_bytes(standard, marker)
 }
 
-## A blank Archive document is validated on the same lowered-plan path.
+# A blank Archive document is validated on the same lowered-plan path.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
 	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
@@ -2691,7 +2691,7 @@ expect {
 	contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
 }
 
-## AccessibleArchive remains unavailable rather than dropping its UA claim.
+# AccessibleArchive remains unavailable rather than dropping its UA claim.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
 	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)
@@ -2702,7 +2702,7 @@ expect {
 	}
 }
 
-## Chunked facade output is byte-identical with buffered output.
+# Chunked facade output is byte-identical with buffered output.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
 	expected = Pdf.to_bytes(document)?
@@ -2724,8 +2724,8 @@ expect {
 	$actual == expected
 }
 
-## Authored chunked output is byte-identical to buffered output and arrives
-## in more than one plan-derived chunk.
+# Authored chunked output is byte-identical to buffered output and arrives
+# in more than one plan-derived chunk.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -2738,7 +2738,7 @@ expect {
 	collected.chunks >= 2 and collected.bytes == expected
 }
 
-## Unavailable authored content rejects atomically before any chunk exists.
+# Unavailable authored content rejects atomically before any chunk exists.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.footnote("Not implemented")],
@@ -2752,7 +2752,7 @@ expect {
 	}
 }
 
-## The owned-chunk retention mode concatenates to the identical authored bytes.
+# The owned-chunk retention mode concatenates to the identical authored bytes.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -2821,9 +2821,9 @@ append_pdf_bytes = |target, source| {
 	$out
 }
 
-## Facade navigation: URI and internal links, an authored named destination,
-## an outline, and page labels lower end to end through the standard
-## pipeline, and the navigation rejections surface as typed errors.
+# Facade navigation: URI and internal links, an authored named destination,
+# an outline, and page labels lower end to end through the standard
+# pipeline, and the navigation rejections surface as typed errors.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -2844,8 +2844,8 @@ expect {
 	bytes.len() > 4717
 }
 
-## A navigation document's chunked output is byte-identical to its buffered
-## output under both retention policies.
+# A navigation document's chunked output is byte-identical to its buffered
+# output under both retention policies.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -2864,8 +2864,8 @@ expect {
 	shared.bytes == expected and owned.bytes == expected
 }
 
-## An unknown destination name on an internal link is a typed navigation
-## rejection through the facade, and no bytes escape.
+# An unknown destination name on an internal link is a typed navigation
+# rejection through the facade, and no bytes escape.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.internal_link("Broken", "missing")],
@@ -3025,31 +3025,31 @@ archive_twin_rewrite = |key, value| |store| {
 	{ ..store, values: $values }
 }
 
-## The unmutated claimed plan is eligible.
+# The unmutated claimed plan is eligible.
 expect archive_twin_lowered(|store| store) == Accepted
 
-## Annotation flags: a hidden or unprintable link is rejected.
+# Annotation flags: a hidden or unprintable link is rejected.
 expect archive_twin_lowered(archive_twin_rewrite("F", Integer(0))) == Rejected(AnnotationFlags)
 	and archive_twin_lowered(archive_twin_rewrite("F", Integer(6))) == Rejected(AnnotationFlags)
 		and archive_twin_lowered(archive_twin_rewrite("F", Integer(4 + 32))) == Rejected(AnnotationFlags)
 
-## Actions: a non-whitelisted action type, and a URI action retyped as a
-## non-link annotation.
+# Actions: a non-whitelisted action type, and a URI action retyped as a
+# non-link annotation.
 expect archive_twin_lowered(archive_twin_rename("URI", "Launch")) == Rejected(Actions)
 	and archive_twin_lowered(archive_twin_rename("Link", "Widget")) == Rejected(AnnotationTypes)
 
-## Images: interpolation, an unsupported bit depth, and OPI data.
+# Images: interpolation, an unsupported bit depth, and OPI data.
 expect archive_twin_lowered(archive_twin_rewrite("BitsPerComponent", Integer(3))) == Rejected(ImageDictionary)
 	and archive_twin_lowered(archive_twin_rename("BitsPerComponent", "Interpolate")) == Rejected(ImageDictionary)
 		and archive_twin_lowered(archive_twin_rename("Width", "OPI")) == Rejected(ImageDictionary)
 
-## Fonts: a simple font subtype, a non-FontFile2 program, and a CIDFont
-## without CIDToGIDMap.
+# Fonts: a simple font subtype, a non-FontFile2 program, and a CIDFont
+# without CIDToGIDMap.
 expect archive_twin_lowered(archive_twin_rename("Type0", "TrueType")) == Rejected(FontDictionary)
 	and archive_twin_lowered(archive_twin_rename("FontFile2", "FontFile3")) == Rejected(FontEmbedding)
 		and archive_twin_lowered(archive_twin_rename("CIDToGIDMap", "CIDToGIDMapz")) == Rejected(CompositeFont)
 
-## Package exclusions reachable as keys anywhere in the plan.
+# Package exclusions reachable as keys anywhere in the plan.
 expect archive_twin_lowered(archive_twin_rename("Lang", "JS")) == Rejected(Actions)
 	and archive_twin_lowered(archive_twin_rename("Lang", "OC")) == Rejected(OptionalContent)
 		and archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(EmbeddedFiles)
@@ -3058,10 +3058,10 @@ expect archive_twin_lowered(archive_twin_rename("Lang", "JS")) == Rejected(Actio
 					and archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
 						and archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
 
-## Stream dictionaries must not reference external file data.
+# Stream dictionaries must not reference external file data.
 expect archive_twin_lowered(archive_twin_rename("Length1", "FFilter")) == Rejected(StreamExternal)
 
-## Profile-stage twins over the prepared text facts of the same plan.
+# Profile-stage twins over the prepared text facts of the same plan.
 expect {
 	facts = KernelFacadeOutput.Plan.text_facts(archive_twin_pipeline(archive_twin_options))
 	clean = KernelPdfA4.validate_text(StaticPdfA4Claim, facts)
@@ -3080,9 +3080,9 @@ twin_at = |items, index| match items.get(index) {
 	}
 }
 
-## Public containers lower to nested PDF 2.0 grouping elements in authored
-## order, and every tagged facade document asks readers to display its
-## metadata title.
+# Public containers lower to nested PDF 2.0 grouping elements in authored
+# order, and every tagged facade document asks readers to display its
+# metadata title.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -3100,8 +3100,8 @@ expect {
 	text.contains("/S /Part ") and text.contains("/S /Sect ") and text.contains("/S /Div ") and text.contains("/S /H1 ") and text.contains("/ViewerPreferences << /DisplayDocTitle true >>")
 }
 
-## Container depth and emptiness reject with stable feature codes and the
-## compact authored path of the offending container; no bytes are emitted.
+# Container depth and emptiness reject with stable feature codes and the
+# compact authored path of the offending container; no bytes are emitted.
 expect {
 	var $block = Pdf.paragraph("Leaf")
 	var $depth = 0
@@ -3122,9 +3122,9 @@ expect {
 	deep_rejected and empty_rejected
 }
 
-## Rich paragraphs lower each inline to its PDF 2.0 role inside one `P`,
-## with `/Lang` on language spans and `/E` on expansions, and an inline link
-## gains a link annotation owned by its `Link` element.
+# Rich paragraphs lower each inline to its PDF 2.0 role inside one `P`,
+# with `/Lang` on language spans and `/E` on expansions, and an inline link
+# gains a link annotation owned by its `Link` element.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -3157,8 +3157,8 @@ expect {
 	text.contains("/S /Sect ") and text.contains("/S /Strong ") and text.contains("/S /Em ") and text.contains("/S /Code ") and text.contains("/S /Quote ") and text.contains("/S /Link ") and text.contains("/Lang (fr)") and text.contains("/E (") and text.contains("/Subtype /Link")
 }
 
-## Inline rejections carry a stable dotted code and the inline's authored
-## path below its paragraph; no bytes are emitted.
+# Inline rejections carry a stable dotted code and the inline's authored
+# path below its paragraph; no bytes are emitted.
 expect {
 	nested = Pdf.document({
 		contents: [Pdf.paragraph("Lead"), Pdf.section([Pdf.rich_paragraph([Pdf.inline_link([Pdf.text("a "), Pdf.inline_link([Pdf.text("b")], "https://example.org")], "https://example.org")])])],
@@ -3177,10 +3177,10 @@ expect {
 	nested_rejected and empty_rejected
 }
 
-## Lists lower to `L > LI > (Lbl, LBody)` with a typed `ListNumbering` on
-## every `L`, including the legacy plain-text bullets; items hold paragraphs,
-## rich paragraphs, and nested lists; an explicit line break splits a rich
-## paragraph's lines without a painted glyph.
+# Lists lower to `L > LI > (Lbl, LBody)` with a typed `ListNumbering` on
+# every `L`, including the legacy plain-text bullets; items hold paragraphs,
+# rich paragraphs, and nested lists; an explicit line break splits a rich
+# paragraph's lines without a painted glyph.
 expect {
 	item = |text| Pdf.list_item([Pdf.paragraph(text)])
 	document = Pdf.document({
@@ -3209,7 +3209,7 @@ expect {
 	text.contains("/A << /ListNumbering /Disc /O /List >>") and text.contains("/A << /ListNumbering /LowerRoman /O /List >>") and text.contains("/S /LBody ") and text.contains("/Count 2")
 }
 
-## List, break, and keep rejections carry stable codes and authored paths.
+# List, break, and keep rejections carry stable codes and authored paths.
 expect {
 	check = |contents, expected_feature, expected_path| match Pdf.to_bytes(Pdf.document({ contents, language: "en-AU", title: "Rejected" })) {
 		Err(InvalidDocument({ diagnostics: [{ details: [path, ..], feature: Feature(feature), .. }], .. })) => feature == expected_feature and path == expected_path
@@ -3224,9 +3224,9 @@ expect {
 							and check([Pdf.numbered_list({ start: 0, style: UpperAlpha }, [Pdf.list_item([Pdf.paragraph("A")])])], "semantics.list_numbering", "contents[0]")
 }
 
-## A public table lowers `Table > THead/TBody > TR > TH/TD` with typed
-## `Scope`, `ColSpan`, identifiers, and `Headers`, and a table continued on
-## a second page repaints its header row as a pagination artifact.
+# A public table lowers `Table > THead/TBody > TR > TH/TD` with typed
+# `Scope`, `ColSpan`, identifiers, and `Headers`, and a table continued on
+# a second page repaints its header row as a pagination artifact.
 expect {
 	row = |code| Pdf.row([Pdf.header_cell(Row, [Pdf.text(code)]), Pdf.cell([Pdf.text("Standing desk frame, twin motor")]), Pdf.cell([Pdf.text("2,756.00")])])
 	document = Pdf.document({
@@ -3258,8 +3258,8 @@ expect {
 	contains("/S /THead") and contains("/S /TFoot") and contains("/ColSpan 2") and contains("/Scope /Column") and contains("/Headers [(c000002) (c000004)]") and contains("/IDTree")
 }
 
-## Table rejections are located: the row whose spans do not sum to the
-## column count, and a cell that spans rows.
+# Table rejections are located: the row whose spans do not sum to the
+# column count, and a cell that spans rows.
 expect {
 	columns = [{ align: Start, width: Content }, { align: Start, width: Share(1) }]
 	header = Pdf.row([Pdf.header_cell(Column, [Pdf.text("A")]), Pdf.header_cell(Column, [Pdf.text("B")])])
@@ -3404,7 +3404,7 @@ build_report = |normalized, collected, budget| {
 		$index = $index + 1
 	}
 
-	## Tables and custom blocks, by their group paths.
+	# Tables and custom blocks, by their group paths.
 	var $group = 0
 	for group in normalized.groups {
 		match group.kind {
@@ -3668,9 +3668,9 @@ set_at = |items, index, value| match items.set(index, value) {
 	Err(OutOfBounds) => crash "report index escaped"
 }
 
-## The report's linear leaf paths equal the diagnostic `leaf_path` of every
-## leaf across groups, lists, a legacy bullet list, a table, a captioned
-## figure, flow items, and a custom block.
+# The report's linear leaf paths equal the diagnostic `leaf_path` of every
+# leaf across groups, lists, a legacy bullet list, a table, a captioned
+# figure, flow items, and a custom block.
 expect {
 	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 20, 20), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 200, 60), Color.srgb8({ blue: 0, green: 0, red: 0 }))
@@ -3704,36 +3704,36 @@ expect {
 	leaf_paths(normalized) == $expected
 }
 
-## A crossed stage limit keeps its exact tag path and payload.
+# A crossed stage limit keeps its exact tag path and payload.
 expect {
 	described = describe_failure("Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: 8196, dimension: NameBytes, limit: 8192 })))))")
 	described.feature == "output.structure.tagged_objects.object.limit_exceeded" and described.limit and described.path == "Output.Structure.TaggedObjects.Object.LimitExceeded" and described.payload == ": ({ attempted: 8196, dimension: NameBytes, limit: 8192 })"
 }
 
-## Any other stage failure is an internal invariant with its tag path.
+# Any other stage failure is an internal invariant with its tag path.
 expect {
 	described = describe_failure("Text(InvalidRun({ run: 4 }))")
 	described.feature == "text.invalid_run" and !described.limit and described.path == "Text.InvalidRun"
 }
 
-## A payload-free tag has no payload view.
+# A payload-free tag has no payload view.
 expect {
 	described = describe_failure("Output(Subset(ArithmeticOverflow))")
 	described.feature == "output.subset.arithmetic_overflow" and described.payload == ""
 }
 
-## A heading level the document model does not have is located at the
-## heading instead of an unlocated catch-all.
+# A heading level the document model does not have is located at the
+# heading instead of an unlocated catch-all.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.heading(7, "Too deep")], language: "en-AU", title: "Levels" })
 	match Pdf.to_bytes(document) {
-		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[1]"], feature: Feature("semantics.heading_level"), .. }], .. })) => Bool.True
-		_ => Bool.False
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[1]"], feature: Feature("semantics.heading_level"), .. }], .. })) => True
+		_ => False
 	}
 }
 
-## Furniture text shapes in the body face even when the body face is not
-## the registry's first face.
+# Furniture text shapes in the body face even when the body face is not
+# the registry's first face.
 expect {
 	first = Font.Registry.empty.register_built_in(Font.ValidationLimits.default)?
 	second = first.registry.register_built_in(Font.ValidationLimits.default)?
@@ -3747,7 +3747,7 @@ expect {
 		},
 	)
 	match Pdf.to_bytes_with(document, options) {
-		Ok(_) => Bool.True
-		Err(_) => Bool.False
+		Ok(_) => True
+		Err(_) => False
 	}
 }

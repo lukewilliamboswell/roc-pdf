@@ -815,8 +815,8 @@ without_labels : Document.FlowDrawing -> Document.FlowDrawing
 without_labels = |drawing| {
 	labelled = drawing.commands.any(
 		|command| match command {
-			FlowText(_) => Bool.True
-			_ => Bool.False
+			FlowText(_) => True
+			_ => False
 		},
 	)
 	if labelled {
@@ -824,8 +824,8 @@ without_labels = |drawing| {
 			..drawing,
 			commands: drawing.commands.keep_if(
 				|command| match command {
-					FlowText(_) => Bool.False
-					_ => Bool.True
+					FlowText(_) => False
+					_ => True
 				},
 			),
 		}

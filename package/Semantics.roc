@@ -325,29 +325,29 @@ Semantics :: [].{
 	}
 }
 
-## Semantic node IDs preserve their dense index.
+# Semantic node IDs preserve their dense index.
 expect Semantics.NodeId.from_index(7).index() == 7
 
-## Content occurrence IDs preserve their dense index.
+# Content occurrence IDs preserve their dense index.
 expect Semantics.OccurrenceId.from_index(11).index() == 11
 
-## Layout fragment IDs preserve their dense index.
+# Layout fragment IDs preserve their dense index.
 expect Semantics.FragmentId.from_index(13).index() == 13
 
-## Emitted structure-element IDs remain independent of semantic node IDs.
+# Emitted structure-element IDs remain independent of semantic node IDs.
 expect Semantics.StructureElementId.from_index(19).index() == 19
 
-## IDTree element identities preserve their dense index.
+# IDTree element identities preserve their dense index.
 expect Semantics.ElementId.from_index(23).index() == 23
 
-## Ranges preserve their exact start offset.
+# Ranges preserve their exact start offset.
 expect Semantics.Range.from_start_and_length(5, 8).start() == 5
 
-## Ranges preserve their exact length.
+# Ranges preserve their exact length.
 expect Semantics.Range.from_start_and_length(5, 8).length() == 8
 
-## Nested public type modules construct opaque node IDs directly.
+# Nested public type modules construct opaque node IDs directly.
 expect Semantics.NodeId.from_index(17).index() == 17
 
-## Nested public type modules construct exact ranges directly.
+# Nested public type modules construct exact ranges directly.
 expect Semantics.Range.from_start_and_length(2, 3).length() == 3

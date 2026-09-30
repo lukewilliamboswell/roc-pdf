@@ -226,7 +226,7 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## Empty resource dictionaries need no synthetic name entries.
+# Empty resource dictionaries need no synthetic name entries.
 expect {
 	plan = KernelResource.Plan.build([], KernelResource.Limits.make({ max_entries: 0, max_name_bytes: 0 }))?
 	work = KernelResource.Plan.work(plan)
@@ -235,7 +235,7 @@ expect {
 			KernelResource.Work.entries_checked(work) == 0
 }
 
-## Kind prefixes and one-based dense identities form canonical resource names.
+# Kind prefixes and one-based dense identities form canonical resource names.
 expect {
 	entries = [
 		KernelResource.Entry.make(ColorSpace, 0),
@@ -259,7 +259,7 @@ expect {
 								KernelResource.Plan.name_at(plan, 7) == Str.to_utf8("XO1")
 }
 
-## Decimal-width transitions use the same canonical unsigned lexical policy.
+# Decimal-width transitions use the same canonical unsigned lexical policy.
 expect {
 	var $entries = List.with_capacity(10)
 	var $index = 0
@@ -271,7 +271,7 @@ expect {
 	KernelResource.Plan.name_at(plan, 8) == Str.to_utf8("F9") and KernelResource.Plan.name_at(plan, 9) == Str.to_utf8("F10")
 }
 
-## A kind-order reversal is rejected before a plan can escape.
+# A kind-order reversal is rejected before a plan can escape.
 expect match KernelResource.Plan.build(
 	[KernelResource.Entry.make(Font, 0), KernelResource.Entry.make(ColorSpace, 0)],
 	KernelResource.Limits.make({ max_entries: 2, max_name_bytes: 8 }),
@@ -280,7 +280,7 @@ expect match KernelResource.Plan.build(
 	_ => False
 }
 
-## Duplicate, skipped, and nonzero-first identities are one dense-order error.
+# Duplicate, skipped, and nonzero-first identities are one dense-order error.
 expect {
 	limits = KernelResource.Limits.make({ max_entries: 2, max_name_bytes: 8 })
 	duplicate = KernelResource.Plan.build(
@@ -305,7 +305,7 @@ expect {
 	}
 }
 
-## Entry and aggregate-name limits reject the exact attempted dimension.
+# Entry and aggregate-name limits reject the exact attempted dimension.
 expect {
 	entry = KernelResource.Entry.make(Font, 0)
 	too_many = KernelResource.Plan.build([entry], KernelResource.Limits.make({ max_entries: 0, max_name_bytes: 2 }))

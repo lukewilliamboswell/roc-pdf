@@ -201,7 +201,7 @@ teal_source = Color.srgb8(teal_rgb)
 band : Document.Block
 band = Pdf.spaced_decoration(
 	Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)), Layout.rect(0, 0, 36, 5), coral),
-	{ above: points(6), behind: Bool.False, below: points(6) },
+	{ above: points(6), behind: False, below: points(6) },
 )
 
 ## One swatch card: the solid colour, named in bold with its hex value in
@@ -469,7 +469,7 @@ body = |glance, studio| [
 		Pdf.emphasis([Pdf.text("A practical identity for calm, precise software.")]),
 		Pdf.text(" Edition 3 replaces every earlier edition from 1 October 2026."),
 	]),
-	Pdf.spaced_decoration(palette_strip, { above: points(4), behind: Bool.False, below: points(12) }),
+	Pdf.spaced_decoration(palette_strip, { above: points(4), behind: False, below: points(12) }),
 	Pdf.paragraph("These guidelines describe how Lumen looks and sounds wherever people meet it: in the product, on the website, in documentation, and on the invoices and letters we send. They are short on purpose: when a case is not covered, choose the quieter option."),
 	glance,
 	Pdf.section([

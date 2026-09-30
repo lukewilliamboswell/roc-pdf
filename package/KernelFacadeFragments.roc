@@ -434,11 +434,11 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 						Err(_) => group.quads.append(quad)
 					}
 					updated = { ..group, quads }
-					{ groups: list_set($link_groups, $link_groups.len() - 1, updated), new_group: Bool.False }
+					{ groups: list_set($link_groups, $link_groups.len() - 1, updated), new_group: False }
 				} else {
-					{ groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: Bool.True }
+					{ groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: True }
 				}
-				Err(_) => { groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: Bool.True }
+				Err(_) => { groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: True }
 			}
 			$groups = list_set($groups, owner, appended.groups)
 		}
@@ -472,7 +472,7 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 				description: NoDescription,
 				keyboard_order,
 				page: Semantics.PageId.from_index(group.page),
-				print: Bool.True,
+				print: True,
 				quads: group.quads,
 				rect,
 			})

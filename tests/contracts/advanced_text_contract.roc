@@ -16,7 +16,7 @@ source_range = {
 	utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
 }
 
-## Font planning assigns complete grapheme clusters to exact static instances.
+# Font planning assigns complete grapheme clusters to exact static instances.
 expect {
 	plan : Font.PlanResult
 	plan = Complete({
@@ -39,7 +39,7 @@ expect {
 	}
 }
 
-## Cluster evidence can explicitly represent many source scalars forming one glyph.
+# Cluster evidence can explicitly represent many source scalars forming one glyph.
 expect {
 	cluster : Text.Cluster
 	cluster = {
@@ -51,7 +51,7 @@ expect {
 	cluster.kind == ManyToOne and cluster.source.scalars.length() == 2
 }
 
-## A shaped run retains occurrence ownership and source-to-glyph evidence by ranges.
+# A shaped run retains occurrence ownership and source-to-glyph evidence by ranges.
 expect {
 	run : Text.Run
 	run = {
@@ -78,7 +78,7 @@ expect {
 	occurrence_index == 4 and run.instance.index() == 2
 }
 
-## Text paint admits only the initial visible rendering modes.
+# Text paint admits only the initial visible rendering modes.
 expect {
 	black : Color.Value
 	black = {

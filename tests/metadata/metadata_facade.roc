@@ -30,8 +30,8 @@ facade_document = |title| {
 	document.with_created("2026-01-02T03:04:05Z").with_modified("2026-08-18T09:30:00Z")
 }
 
-## Invalid metadata rejects atomically through the facade with the exact
-## typed validation fact and no bytes.
+# Invalid metadata rejects atomically through the facade with the exact
+# typed validation fact and no bytes.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-au", title: "Case" })
 

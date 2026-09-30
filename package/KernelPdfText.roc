@@ -494,11 +494,11 @@ generated_discretionary_property : Semantics.Range, List(Semantics.TextProperty)
 generated_discretionary_property = |range, properties, property_id, source| {
 	index = property_id.index()
 	if index < range.start() or index >= properties.len() or index - range.start() >= range.length() {
-		return Bool.False
+		return False
 	}
 	match list_at(properties, index) {
 		SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation, source: property_source }) => presentation == "-" and text_ranges_equal(property_source, source)
-		_ => Bool.False
+		_ => False
 	}
 }
 
@@ -862,7 +862,7 @@ initial_capacity = 1024
 content : ScenePlan -> KernelContent.TextPlan
 content = |plan| plan.content
 
-## Adjustment rounding is floor(n / d + 1/2) for both signs.
+# Adjustment rounding is floor(n / d + 1/2) for both signs.
 expect round_half_up(5, 10) == Ok(1) and
 	round_half_up(-5, 10) == Ok(0) and
 		round_half_up(-6, 10) == Ok(-1) and
@@ -870,7 +870,7 @@ expect round_half_up(5, 10) == Ok(1) and
 				round_half_up(-15, 10) == Ok(-1) and
 					round_half_up(0, 7) == Ok(0)
 
-## One-digit adjustments print as canonical decimals.
+# One-digit adjustments print as canonical decimals.
 expect append_adjustment([], -3, 16) == Ok(Str.to_utf8("-0.3")) and
 	append_adjustment([], 25, 16) == Ok(Str.to_utf8("2.5")) and
 		append_adjustment([], 40, 16) == Ok(Str.to_utf8("4"))

@@ -5,7 +5,7 @@ app [main!] {
 
 import pdf.Document
 
-## The public compact builder chains through its nested opaque Builder type.
+# The public compact builder chains through its nested opaque Builder type.
 expect {
 	builder : Document.Builder
 	builder = Document.builder({ language: "en-AU", title: "Quarterly report" })

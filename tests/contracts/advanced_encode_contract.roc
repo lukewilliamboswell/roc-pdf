@@ -6,7 +6,7 @@ app [main!] {
 import pdf.Encode
 import pdf.Metadata
 
-## Authored metadata makes timestamps and identifier derivation explicit.
+# Authored metadata makes timestamps and identifier derivation explicit.
 expect {
 	metadata : Metadata.Logical
 	metadata = {
@@ -20,7 +20,7 @@ expect {
 	metadata.created == Omitted and metadata.identifier == Derived
 }
 
-## Canonical byte policy is fixed rather than supplied through Pdf.Options.
+# Canonical byte policy is fixed rather than supplied through Pdf.Options.
 expect {
 	policy : Encode.Policy
 	policy = Encode.canonical

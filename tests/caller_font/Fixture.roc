@@ -388,14 +388,14 @@ tagged_object_limits = {
 	max_values: 256,
 }
 
-## The prohibited twin is checksum-valid but never returns usable handles.
+# The prohibited twin is checksum-valid but never returns usable handles.
 expect match Font.Registry.empty.register(
 	restricted_font_bytes,
 	{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
 	Font.ValidationLimits.default,
 ) {
-	Err(EmbeddingRightsProhibited({ fs_type: 2 })) => Bool.True
-	_ => Bool.False
+	Err(EmbeddingRightsProhibited({ fs_type: 2 })) => True
+	_ => False
 }
 
 expect {

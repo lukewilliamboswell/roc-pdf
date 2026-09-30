@@ -1,17 +1,17 @@
-## Navigation object planning and lowering: link annotation dictionaries with
-## their closed action union, the named-destination name tree, the outline
-## hierarchy objects, and the page-label number tree. Object identities are
-## planned arithmetically after an existing planned object count (fonts and
-## the metadata stream included), in the documented order: annotation
-## dictionaries in the total annotation order (page, then keyboard order),
-## name-tree nodes in breadth-first order, the outline root followed by its
-## items in authored preorder, then page-label tree nodes, then the shifted
-## xref. Every lowered object lands exactly on its planned identity.
-##
-## Every fact consumed here was validated earlier: the navigation store by
-## `KernelNavigation.validate`, the paired destination targets by
-## `KernelNavigation.resolve`, ownership by the semantic and tagging stages.
-## Nothing here re-parses names, re-derives ordering, or scans content.
+# Navigation object planning and lowering: link annotation dictionaries with
+# their closed action union, the named-destination name tree, the outline
+# hierarchy objects, and the page-label number tree. Object identities are
+# planned arithmetically after an existing planned object count (fonts and
+# the metadata stream included), in the documented order: annotation
+# dictionaries in the total annotation order (page, then keyboard order),
+# name-tree nodes in breadth-first order, the outline root followed by its
+# items in authored preorder, then page-label tree nodes, then the shifted
+# xref. Every lowered object lands exactly on its planned identity.
+#
+# Every fact consumed here was validated earlier: the navigation store by
+# `KernelNavigation.validate`, the paired destination targets by
+# `KernelNavigation.resolve`, ownership by the semantic and tagging stages.
+# Nothing here re-parses names, re-derives ordering, or scans content.
 import Document
 import KernelBalanced
 import KernelIndex
@@ -1005,9 +1005,9 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-## Planned identities follow the documented order: annotations in total
-## order, name-tree nodes, the outline root and its items, label nodes, and
-## the shifted xref.
+# Planned identities follow the documented order: annotations in total
+# order, name-tree nodes, the outline root and its items, label nodes, and
+# the shifted xref.
 expect {
 	store = {
 		annotations: List.repeat(
@@ -1017,7 +1017,7 @@ expect {
 				description: NoDescription,
 				keyboard_order: 0,
 				page: Semantics.PageId.from_index(0),
-				print: Bool.True,
+				print: True,
 				quads: Semantics.Range.from_start_and_length(0, 0),
 				rect: { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } },
 			},
@@ -1035,8 +1035,8 @@ expect {
 		name_bytes: [65],
 		name_order: [0],
 		outline_entries: [
-			{ depth: 0, destination: Semantics.DestinationId.from_index(0), open: Bool.True, title: "One" },
-			{ depth: 1, destination: Semantics.DestinationId.from_index(0), open: Bool.False, title: "Two" },
+			{ depth: 0, destination: Semantics.DestinationId.from_index(0), open: True, title: "One" },
+			{ depth: 1, destination: Semantics.DestinationId.from_index(0), open: False, title: "Two" },
 		],
 		page_annotation_offsets: [0, 2],
 		page_annotations: [1, 0],
@@ -1052,7 +1052,7 @@ expect {
 					KernelObject.ObjectId.number(list_at(objects.name_nodes, 0)) == 13 and
 						match objects.outline_root {
 							OutlineRootAt(root) => KernelObject.ObjectId.number(root) == 14
-							NoOutlineRoot => Bool.False
+							NoOutlineRoot => False
 						} and
 							KernelObject.ObjectId.number(list_at(objects.outline_items, 1)) == 16 and
 								KernelObject.ObjectId.number(list_at(objects.label_nodes, 0)) == 17 and

@@ -584,18 +584,18 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## The unfaulted base authoring seals to a file. Every entry in the fault table
-## is this document with one navigation fact changed, so this expectation is the
-## floor the whole table stands on.
+# The unfaulted base authoring seals to a file. Every entry in the fault table
+# is this document with one navigation fact changed, so this expectation is the
+# floor the whole table stands on.
 expect NavigationTargets.single_fault(0)
 
-## Stage masking, stated as a test rather than only as a comment: this document
-## carries a malformed URI, an unknown outline destination, an empty outline
-## title, and a page-label range that does not start at page zero, and the
-## annotation stage rejects it first because it runs before the outline and
-## label stages. A property that asserted "the injected outline fault is
-## reported" would be wrong here, which is why only the single-fault table
-## names variants.
+# Stage masking, stated as a test rather than only as a comment: this document
+# carries a malformed URI, an unknown outline destination, an empty outline
+# title, and a page-label range that does not start at page zero, and the
+# annotation stage rejects it first because it runs before the outline and
+# label stages. A property that asserted "the injected outline fault is
+# reported" would be wrong here, which is why only the single-fault table
+# names variants.
 expect {
 	masked = authored({
 		..base_authoring,
@@ -606,15 +606,15 @@ expect {
 
 	match Pdf.to_bytes(masked) {
 		Err(InvalidNavigation(error)) => error == UriMissingScheme({ annotation: 1 })
-		_ => Bool.False
+		_ => False
 	}
 }
 
-## The outline depth limit is exclusive, so a rung at the limit is the first
-## rejected depth. Pinning the rejected side here keeps the off-by-one honest
-## without sealing a whole file under `roc test`.
+# The outline depth limit is exclusive, so a rung at the limit is the first
+# rejected depth. Pinning the rejected side here keeps the off-by-one honest
+# without sealing a whole file under `roc test`.
 expect NavigationTargets.single_fault(15)
 
-## A depth that skips a level is rejected wherever it appears, while a descent
-## of any size is legal; both facts are checked by one authoring.
+# A depth that skips a level is rejected wherever it appears, while a descent
+# of any size is legal; both facts are checked by one authoring.
 expect NavigationTargets.single_fault(14)

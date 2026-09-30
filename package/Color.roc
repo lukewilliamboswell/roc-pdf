@@ -98,11 +98,11 @@ Color :: [].{
 	}
 }
 
-## ICC profile IDs preserve their dense index.
+# ICC profile IDs preserve their dense index.
 expect Color.ProfileId.from_index(3).index() == 3
 
-## Color-space IDs preserve their dense index.
+# Color-space IDs preserve their dense index.
 expect Color.SpaceId.from_index(5).index() == 5
 
-## ICC tag signatures remain compact opaque U32 values.
+# ICC tag signatures remain compact opaque U32 values.
 expect Color.TagSignature.from_raw(0x64657363).raw() == 0x64657363

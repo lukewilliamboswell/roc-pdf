@@ -752,7 +752,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	caption_nodes = if table.caption 2 else 0
 	sections = (if table.header_rows > 0 1 else 0) + 1 + (if table.footer_rows > 0 1 else 0)
 
-	## Fresh table-sized buffers; the caller appends them to its own.
+	# Fresh table-sized buffers; the caller appends them to its own.
 	var $group_nodes = List.with_capacity(group.group_end - group_index).append(at.node)
 	var $headers = []
 	var $links = []
@@ -781,7 +781,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	while $row_group < group.group_end {
 		row = list_at(authoring.groups, $row_group)
 
-		## A section element precedes its first row.
+		# A section element precedes its first row.
 		if ($row_ordinal == 0 and table.header_rows > 0) or $row_ordinal == table.header_rows or ($row_ordinal == table.header_rows + table.body_rows and table.footer_rows > 0) {
 			$next_node = $next_node + 1
 		}
@@ -853,8 +853,8 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
 		}
 
-		## Every row's header cells are known before its data cells'
-		## associations are derived; column headers come from earlier rows.
+		# Every row's header cells are known before its data cells'
+		# associations are derived; column headers come from earlier rows.
 		var $column = 0
 		var $index = first_cell
 		while $index < $cell {
@@ -905,8 +905,8 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 		return Err(TableHeaderMissing({ group: group_index }))
 	}
 
-	## Empty cells are legal, but a table with no content in any cell
-	## carries nothing.
+	# Empty cells are legal, but a table with no content in any cell
+	# carries nothing.
 	if $leaves == 0 {
 		return Err(TableEmpty({ group: group_index }))
 	}
@@ -1308,9 +1308,9 @@ check_breaks = |line_breaks, cursor, count, rich, block| {
 ## grammar. Returns the counts semantic planning reserves.
 check_rich : List(Document.NormalizedInline), Document.NormalizedRich, U64, U64 -> Try({ expansions : U64, links : U64 }, KernelFacadeSemantics.Error)
 check_rich = |inlines, rich, block, max_depth| {
-	## A page field or reserved width in body content is rejected first,
-	## with its inline path; it holds no text, so the emptiness checks
-	## below would otherwise misname it.
+	# A page field or reserved width in body content is rejected first,
+	# with its inline path; it holds no text, so the emptiness checks
+	# below would otherwise misname it.
 	var $scan = rich.inlines
 	while $scan < rich.inlines + rich.length {
 		match list_at(inlines, $scan).kind {
@@ -1858,9 +1858,9 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		$slot = $slot + 1
 	}
 
-	## A table cell's attributes and identifier are written with its node
-	## here, so the caller never updates a node list it received through
-	## `?` (docs/performance/lowering-uniqueness.md).
+	# A table cell's attributes and identifier are written with its node
+	# here, so the caller never updates a node list it received through
+	# `?` (docs/performance/lowering-uniqueness.md).
 	var $nodes = list_set(buffers.nodes, at.node, { ..make_node(at.node, ParentNode(at.parent), at.role, Semantics.Range.from_start_and_length(base, rich.children), Inherited), attributes: at.attributes, element_identifier: at.element_identifier })
 	var $occurrences = buffers.occurrences
 	var $properties = buffers.properties
@@ -1879,9 +1879,9 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		position = owner_spine + record.position
 		match record.kind {
 			Text({ byte_length, byte_start, text: _ }) => {
-				## A leaf after a line break starts the next segment's source.
-				## Validated breaks separate text, so one leaf crosses at most
-				## one break.
+				# A leaf after a line break starts the next segment's source.
+				# Validated breaks separate text, so one leaf crosses at most
+				# one break.
 				if $segment + 1 < at.segments and list_at(authoring.line_breaks, at.breaks + $segment).leaf <= record.first_leaf {
 					$segment = $segment + 1
 					$source_id = list_at(input_sources, at.source_input + $segment)
@@ -2419,8 +2419,8 @@ test_authoring = {
 	templates: NoTemplates,
 }
 
-## Facade semantics are planned before layout, with a PDF 2.0 Title and a
-## proper L -> LI -> (Lbl, LBody) hierarchy in explicit reading order.
+# Facade semantics are planned before layout, with a PDF 2.0 Title and a
+# proper L -> LI -> (Lbl, LBody) hierarchy in explicit reading order.
 expect {
 	plan = KernelFacadeSemantics.Plan.build(test_authoring, test_limits)?
 	text_plan = KernelFacadeSemantics.Plan.preliminary(plan)
@@ -2442,8 +2442,8 @@ expect {
 						work.node_writes == 11 and work.occurrence_writes == 7 and work.content_writes == 17 and work.lists == 1 and work.list_items == 2
 }
 
-## Generated list labels retain an explicit source-to-presentation fact, and
-## repeated bullets share one immutable Unicode source analysis.
+# Generated list labels retain an explicit source-to-presentation fact, and
+# repeated bullets share one immutable Unicode source analysis.
 expect {
 	plan = KernelFacadeSemantics.Plan.build(test_authoring, test_limits)?
 	text_plan = KernelFacadeSemantics.Plan.preliminary(plan)
@@ -2490,8 +2490,8 @@ expect {
 	}
 }
 
-## A heading may rise any number of levels but descend only one at a time;
-## destination headings take part, and the first heading has no predecessor.
+# A heading may rise any number of levels but descend only one at a time;
+# destination headings take part, and the first heading has no predecessor.
 expect {
 	skipped = [
 		{ kind: Heading(1), parent: 0, text: "Summary" },
@@ -2507,8 +2507,8 @@ expect {
 	check_heading_progression(skipped) == Err(HeadingSkip({ block: 2, previous: 0 })) and check_heading_progression(stepped) == Ok({})
 }
 
-## The first node crossing is rejected before its planned node/content buffers
-## are appended.
+# The first node crossing is rejected before its planned node/content buffers
+# are appended.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({
 		max_container_depth: 4,
@@ -2545,8 +2545,8 @@ nested_authoring = {
 	],
 }
 
-## Containers allocate their nodes in authored preorder and own contiguous
-## child spans: Document -> [Title, Sect], Sect -> [H1, P, Div], Div -> [L].
+# Containers allocate their nodes in authored preorder and own contiguous
+# child spans: Document -> [Title, Sect], Sect -> [H1, P, Div], Div -> [L].
 expect {
 	plan = KernelFacadeSemantics.Plan.build(nested_authoring, test_limits)?
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
@@ -2576,8 +2576,8 @@ expect {
 						work.container_nodes == 2 and work.node_writes == 13
 }
 
-## Nesting beyond the container depth bound and empty containers are stable
-## rejections before any store is built.
+# Nesting beyond the container depth bound and empty containers are stable
+# rejections before any store is built.
 expect {
 	deep = { ..nested_authoring, groups: nested_authoring.groups.map(|group| { ..group, depth: group.depth + 1 }) }
 	empty = {
@@ -2602,10 +2602,10 @@ expect {
 rich_authoring : List(Document.Inline) -> Document.NormalizedAuthoring
 rich_authoring = |inlines| Document.normalize(Document.from_blocks({ contents: [Document.rich_paragraph(inlines)], language: "en-AU", title: "Rich" }))
 
-## A rich paragraph plans one `P`, one node per inline element in preorder,
-## and one occurrence per text leaf over an exact sub-range of its single
-## interned source; every node owns one contiguous spine span in authored
-## order, and an inline language becomes the leaf occurrence's language.
+# A rich paragraph plans one `P`, one node per inline element in preorder,
+# and one occurrence per text leaf over an exact sub-range of its single
+# interned source; every node owns one contiguous spine span in authored
+# order, and an inline language becomes the leaf occurrence's language.
 expect {
 	authoring = rich_authoring([
 		Document.plain_text("Ab "),
@@ -2652,7 +2652,7 @@ expect {
 											})
 }
 
-## Inline rejections name the paragraph block and the inline's arena index.
+# Inline rejections name the paragraph block and the inline's arena index.
 expect {
 	empty = KernelFacadeSemantics.Plan.build(rich_authoring([Document.plain_text("a"), Document.strong([])]), test_limits)
 	nested = KernelFacadeSemantics.Plan.build(rich_authoring([Document.inline_link([Document.inline_link([Document.plain_text("b")], "https://example.org")], "https://example.org")]), test_limits)
@@ -2690,11 +2690,11 @@ table_authoring = Document.normalize(
 	}),
 )
 
-## A table plans `Table > (Caption > P, THead, TBody)` in preorder with one
-## `TR` per row and one `TH`/`TD` per cell. Every cell has an element
-## identifier in cell order, and a data cell's `Headers` are the column
-## headers above it in its columns followed by its row headers, each with a
-## `HeaderFor` relationship in the same order.
+# A table plans `Table > (Caption > P, THead, TBody)` in preorder with one
+# `TR` per row and one `TH`/`TD` per cell. Every cell has an element
+# identifier in cell order, and a data cell's `Headers` are the column
+# headers above it in its columns followed by its row headers, each with a
+# `HeaderFor` relationship in the same order.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, max_nodes: 64, max_content_spine: 64, semantics: KernelSemantics.Limits.make({ max_attributes: 32, max_content_spine: 64, max_fragments: 0, max_namespaces: 1, max_nodes: 64, max_occurrences: 12, max_semantic_depth: 16 }) })
 	plan = KernelFacadeSemantics.Plan.build(table_authoring, limits)?
@@ -2710,7 +2710,7 @@ expect {
 					and work.tables == 1 and work.table_cells == 5 and work.header_association_edges == 4
 }
 
-## Table rejections name the table, the row, or the cell.
+# Table rejections name the table, the row, or the cell.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, max_nodes: 64, max_content_spine: 64 })
 	table = |spec| Document.normalize(Document.from_blocks({ contents: [Document.table(spec)], language: "en-AU", title: "Table" }))

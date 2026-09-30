@@ -237,23 +237,23 @@ ordinary_input = {
 	title_size: 9,
 }
 
-## The ordinary theme is the control: whatever the extremes below do, the
-## everyday case still satisfies the same contracts.
+# The ordinary theme is the control: whatever the extremes below do, the
+# everyday case still satisfies the same contracts.
 expect ThemeTargets.theme_output(ordinary_input)
 
-## Zero leading on every style. A paginator that advances by leading cannot
-## make progress on a zero step, so this is the shape that either terminates
-## with a typed rejection or does not terminate at all.
+# Zero leading on every style. A paginator that advances by leading cannot
+# make progress on a zero step, so this is the shape that either terminates
+# with a typed rejection or does not terminate at all.
 expect ThemeTargets.theme_output({ ..ordinary_input, body_leading: 0, heading_leading: 0, title_leading: 0 })
 
-## Negative margins on all four sides, which place the text frame outside the
-## media box. Nothing in the public surface prevents this, so it must still
-## resolve to one stable outcome.
+# Negative margins on all four sides, which place the text frame outside the
+# media box. Nothing in the public surface prevents this, so it must still
+# resolve to one stable outcome.
 expect ThemeTargets.theme_output({ ..ordinary_input, margin_bottom: 3, margin_left: 3, margin_right: 3, margin_top: 3 })
 
-## Sizes and leadings near `I64` saturation in both directions, mixed so that
-## adding a size to a leading, or a top margin to a bottom margin, would wrap
-## if either sum were unchecked.
+# Sizes and leadings near `I64` saturation in both directions, mixed so that
+# adding a size to a leading, or a top margin to a bottom margin, would wrap
+# if either sum were unchecked.
 expect ThemeTargets.theme_output({
 	..ordinary_input,
 	body_leading: 14,

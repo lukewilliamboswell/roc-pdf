@@ -132,11 +132,11 @@ has_boundary = |boundaries, scalar_offset, byte_offset| {
 	while $index < boundaries.len() {
 		boundary = list_at(boundaries, $index)
 		if boundary.scalar_offset == scalar_offset and boundary.byte_offset == byte_offset {
-			return Bool.True
+			return True
 		}
 		$index = $index + 1
 	}
-	Bool.False
+	False
 }
 
 list_at : List(a), U64 -> a

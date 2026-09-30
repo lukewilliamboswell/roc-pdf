@@ -899,7 +899,7 @@ append_fraction_unchecked = |output, normalized, scale| {
 	$out
 }
 
-## The hot layout writer is byte-identical to the general lexical boundary.
+# The hot layout writer is byte-identical to the general lexical boundary.
 expect {
 	values = [I64.lowest, -25, 0, 1, 1200, I64.highest]
 	var $index = 0
@@ -1220,7 +1220,7 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-## Content lowering preserves paint order, nesting, marked ownership, and exact fixed-point numbers.
+# Content lowering preserves paint order, nesting, marked ownership, and exact fixed-point numbers.
 expect {
 	tagged = KernelFixture.tagged_plan(1)?
 	plan = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 1 }))?
@@ -1244,7 +1244,7 @@ expect {
 	stream.bytes == Str.to_utf8("${expected}\n")
 }
 
-## Content work counts each arena command and balanced graphics pair once.
+# Content work counts each arena command and balanced graphics pair once.
 expect {
 	tagged = KernelFixture.tagged_plan(1)?
 	plan = KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 1 }))?
@@ -1252,7 +1252,7 @@ expect {
 	work.command_visits == 3 and work.group_visits == 2 and work.graphics_state_pairs == 2 and work.image_placements == 1 and work.max_frame_depth == 2 and work.path_segments == 1 and work.marked_fragment_groups == 1 and work.marked_artifact_groups == 1 and work.bytes_emitted == KernelContent.Plan.stream(plan, Semantics.ContentStreamId.from_index(0)).bytes.len()
 }
 
-## Clip, stroke, cap, join, miter, and dash operators lower from typed values.
+# Clip, stroke, cap, join, miter, and dash operators lower from typed values.
 expect {
 	stroke : Scene.StrokeStyle
 	stroke = {
@@ -1289,9 +1289,9 @@ expect {
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.command_visits == 2 and emitted.graphics_state_pairs == 1 and emitted.path_segments == 2
 }
 
-## A non-opaque opacity group opens a balanced graphics pair and selects its
-## canonical effective state; the opaque identity lowers its children with no
-## operators; a command outside the state map stays rejected.
+# A non-opaque opacity group opens a balanced graphics pair and selects its
+# canonical effective state; the opaque identity lowers its children with no
+# operators; a command outside the state map stays rejected.
 expect {
 	scenes = {
 		..KernelFixture.scene,
@@ -1323,8 +1323,8 @@ expect {
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.opacity_groups == 1 and emitted.graphics_state_pairs == 1 and emitted.command_visits == 4 and rejected
 }
 
-## A soft-mask group opens a balanced graphics pair and selects its
-## canonical mask state through the same state map as opacity groups.
+# A soft-mask group opens a balanced graphics pair and selects its
+# canonical mask state through the same state map as opacity groups.
 expect {
 	scenes = {
 		..KernelFixture.scene,
@@ -1346,7 +1346,7 @@ expect {
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.mask_groups == 1 and emitted.opacity_groups == 0 and emitted.graphics_state_pairs == 1
 }
 
-## RGB channel order and every tagged-visual path segment have canonical operators.
+# RGB channel order and every tagged-visual path segment have canonical operators.
 expect {
 	segments = [
 		MoveTo({ x: KernelFixture.unit(0), y: KernelFixture.unit(0) }),
@@ -1372,7 +1372,7 @@ expect {
 	emitted.bytes == Str.to_utf8("${expected}\n") and emitted.command_visits == 1 and emitted.path_segments == 4
 }
 
-## tagged-visual currently requires one deterministic content stream per page.
+# tagged-visual currently requires one deterministic content stream per page.
 expect {
 	tagged = KernelFixture.tagged_plan(2)?
 	match KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 512, max_content_streams: 2 })) {
@@ -1381,7 +1381,7 @@ expect {
 	}
 }
 
-## A content limit rejects the plan instead of returning a partial stream.
+# A content limit rejects the plan instead of returning a partial stream.
 expect {
 	tagged = KernelFixture.tagged_plan(1)?
 	match KernelContent.Plan.build(tagged, KernelContent.Limits.make({ max_content_bytes: 32, max_content_streams: 1 })) {
@@ -1390,9 +1390,9 @@ expect {
 	}
 }
 
-## The font selection is emitted by lowering, not baked into prepared run
-## bodies: the authored map is the identity on the tagged-visual/3 paths and the
-## canonical map renames on the production-visual path, ahead of the same body bytes.
+# The font selection is emitted by lowering, not baked into prepared run
+# bodies: the authored map is the identity on the tagged-visual/3 paths and the
+# canonical map renames on the production-visual path, ahead of the same body bytes.
 expect {
 	run : KernelContent.TextRun
 	run = { actual_text_begin: [], body: Str.to_utf8("1 0 0 1 0 0 Tm\n<0001> Tj\n"), close_actual_text: False, font: 2, size: KernelFixture.unit(11000) }
@@ -1404,10 +1404,10 @@ expect {
 	authored == expected("2") and canonical == expected("7")
 }
 
-## A shading paint lowers to its canonical `Sh` name with the bare `sh`
-## operator, and a pattern fill to the exact `/Pattern cs` + canonical `Pt`
-## `scn` selection ahead of the path and fill operator; both resolve
-## through the canonical name maps.
+# A shading paint lowers to its canonical `Sh` name with the bare `sh`
+# operator, and a pattern fill to the exact `/Pattern cs` + canonical `Pt`
+# `scn` selection ahead of the path and fill operator; both resolve
+# through the canonical name maps.
 expect {
 	scenes = {
 		..KernelFixture.scene,

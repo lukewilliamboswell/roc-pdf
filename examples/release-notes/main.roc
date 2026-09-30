@@ -245,12 +245,12 @@ callout_panel = |style, size| {
 
 banner : Document.Block
 banner = {
-	## The band keeps 14 pt between itself and the title through its
-	## decoration spacing, not empty drawing area.
+	# The band keeps 14 pt between itself and the title through its
+	# decoration spacing, not empty drawing area.
 	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, measure, 64), night)
 	$d = Scene.rectangle($d, Layout.rect(0, 0, 6, 64), pink)
 
-	## Twelve release dots: minor releases in lilac, this major in pink.
+	# Twelve release dots: minor releases in lilac, this major in pink.
 	var $x = 300
 	var $i = 0
 	while $i < 12 {
@@ -258,7 +258,7 @@ banner = {
 		$x = $x + 15
 		$i = $i + 1
 	}
-	Pdf.spaced_decoration(Scene.rectangle($d, Layout.rect(300, 22, 173, 1), lilac), { above: points(0), behind: Bool.False, below: points(14) })
+	Pdf.spaced_decoration(Scene.rectangle($d, Layout.rect(300, 22, 173, 1), lilac), { above: points(0), behind: False, below: points(14) })
 }
 
 ## ---------------------------------------------------------------------

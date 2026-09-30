@@ -84,14 +84,14 @@ Encode :: [].{
 	}
 }
 
-## Canonical numbers normalize negative zero and never use host formatting.
+# Canonical numbers normalize negative zero and never use host formatting.
 expect Encode.canonical.numbers.negative_zero == NormalizeToZero
 
-## Canonical streams use libdeflate level 10.
+# Canonical streams use libdeflate level 10.
 expect Encode.canonical.compression.streams == LibdeflateLevel(10)
 
-## Non-stream objects go into object streams; the xref stream is compressed.
+# Non-stream objects go into object streams; the xref stream is compressed.
 expect Encode.canonical.compression.object_streams.max_objects == 400 and Encode.canonical.compression.xref == FlateUpPredictor
 
-## Document identifiers use a versioned domain-separated digest input.
+# Document identifiers use a versioned domain-separated digest input.
 expect Encode.canonical.identifiers.domain_separator == "roc-pdf:document-id:v1"

@@ -179,8 +179,8 @@ expect {
 		KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 16 }),
 	)
 	match result {
-		Err(IncompleteUnicodeMapping({ cid: 3 })) => Bool.True
-		_ => Bool.False
+		Err(IncompleteUnicodeMapping({ cid: 3 })) => True
+		_ => False
 	}
 }
 

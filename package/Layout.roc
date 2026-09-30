@@ -180,23 +180,23 @@ Layout :: [].{
 	]
 }
 
-## The fixed-point scale is exactly 1,000 units per point.
+# The fixed-point scale is exactly 1,000 units per point.
 expect Layout.Unit.units_per_point == 1000
 
-## Opaque layout units preserve signed raw values.
+# Opaque layout units preserve signed raw values.
 expect Layout.Unit.from_raw(-25).raw() == -25
 
-## Layout component IDs preserve their dense index.
+# Layout component IDs preserve their dense index.
 expect Layout.ComponentId.from_index(3).index() == 3
 
-## Reference state IDs preserve their dense index.
+# Reference state IDs preserve their dense index.
 expect Layout.ReferenceStateId.from_index(9).index() == 9
 
-## Exact layout cache identities remain compact dense IDs.
+# Exact layout cache identities remain compact dense IDs.
 expect Layout.ResourceStateId.from_index(11).index() == 11
 
-## Nested public type modules construct opaque layout units directly.
+# Nested public type modules construct opaque layout units directly.
 expect Layout.Unit.from_raw(25).raw() == 25
 
-## Nested public type modules construct opaque component IDs directly.
+# Nested public type modules construct opaque component IDs directly.
 expect Layout.ComponentId.from_index(12).index() == 12

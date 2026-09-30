@@ -142,7 +142,7 @@ cover_band = {
 	var $band = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 6, body_width, 50), navy)
 	$band = Scene.rectangle($band, Layout.rect(0, 0, body_width, 4), teal)
 
-	## Faint diagonal hatching across the band's start, for texture.
+	# Faint diagonal hatching across the band's start, for texture.
 	var $x = 4
 	while $x < 220 {
 		$band = $band.path(Scene.path({}).move_to(Layout.point($x, 8)).line_to(Layout.point($x + 28, 54)).finish(), Scene.solid_stroke(Color.srgb8({ red: 34, green: 62, blue: 98 }), points(2)))

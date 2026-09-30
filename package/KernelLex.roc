@@ -476,17 +476,17 @@ expect {
 	}
 }
 
-## Fixed kernel scales append without constructing an opaque Decimal value.
+# Fixed kernel scales append without constructing an opaque Decimal value.
 expect KernelLex.append_thousandths([], -25) == Str.to_utf8("-0.025") and KernelLex.append_billionths([], 1) == Str.to_utf8("0.000000001")
 
-## Byte strings take the shorter canonical form; ties and binary stay hex.
+# Byte strings take the shorter canonical form; ties and binary stay hex.
 expect KernelLex.byte_string(Str.to_utf8("c000008")) == Str.to_utf8("(c000008)") and
 	KernelLex.byte_string(Str.to_utf8("a(b)\\")) == Str.to_utf8("(a\\(b\\)\\\\)") and
 		KernelLex.byte_string([0, 255]) == Str.to_utf8("<00FF>") and
 			KernelLex.byte_string([65, 10]) == Str.to_utf8("<410A>") and
 				KernelLex.byte_string([]) == Str.to_utf8("<>")
 
-## Printable-ASCII text is written as PDFDocEncoding bytes; other text is UTF-16BE.
+# Printable-ASCII text is written as PDFDocEncoding bytes; other text is UTF-16BE.
 expect KernelLex.text_string("en-AU") == Str.to_utf8("(en-AU)") and
 	KernelLex.text_string("Café") == Str.to_utf8("<FEFF00430061006600E9>") and
 		KernelLex.text_string("") == Str.to_utf8("<>")

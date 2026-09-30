@@ -363,7 +363,7 @@ seal_limits = {
 	max_values: 32,
 }
 
-## Sealing preserves the compact stores and records exact linear work.
+# Sealing preserves the compact stores and records exact linear work.
 expect {
 	null = KernelObject.add_null(KernelObject.init(seal_limits))?
 	object = KernelObject.add_object(null.builder, null.id)?
@@ -380,7 +380,7 @@ expect {
 	actual == expected
 }
 
-## Forward references resolve against the complete sealed object range.
+# Forward references resolve against the complete sealed object range.
 expect {
 	target = KernelObject.ObjectId.from_number(2)?
 	reference = KernelObject.add_reference(KernelObject.init(seal_limits), target)?
@@ -392,7 +392,7 @@ expect {
 	KernelSeal.Plan.seal_work(plan).references_checked == 1
 }
 
-## A reference outside the final object range is rejected by source value ID.
+# A reference outside the final object range is rejected by source value ID.
 expect {
 	target = KernelObject.ObjectId.from_number(2)?
 	reference = KernelObject.add_reference(KernelObject.init(seal_limits), target)?
@@ -406,7 +406,7 @@ expect {
 	}
 }
 
-## Stream and indirect length objects seal as one consecutive pair.
+# Stream and indirect length objects seal as one consecutive pair.
 expect {
 	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], Generated)?
 	stream = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
@@ -415,7 +415,7 @@ expect {
 	KernelSeal.Plan.counts(plan).objects == 2 and KernelSeal.Plan.seal_work(plan).streams_checked == 1
 }
 
-## Sealing verifies and retains the final stream use for payload release.
+# Sealing verifies and retains the final stream use for payload release.
 expect {
 	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], UnchangedResource)?
 	first = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
@@ -428,7 +428,7 @@ expect {
 	}
 }
 
-## A missing final-use fact is rejected before any payload can be emitted.
+# A missing final-use fact is rejected before any payload can be emitted.
 expect {
 	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], UnchangedResource)?
 	stream = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
@@ -444,7 +444,7 @@ expect {
 	}
 }
 
-## A non-adjacent stream-length object is rejected before emission.
+# A non-adjacent stream-length object is rejected before emission.
 expect {
 	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], Generated)?
 	stream_result = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?

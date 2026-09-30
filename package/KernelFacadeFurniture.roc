@@ -520,7 +520,7 @@ validate_drawing = |drawing, path, image_base| {
 	var $height = 0
 	var $index = 0
 	while $index < commands.len() {
-		## Close every group that ends before this command.
+		# Close every group that ends before this command.
 		if !$groups.is_empty() {
 			$groups = open_groups($groups, $index)
 			$dx = stack_offset($groups, X)
@@ -777,9 +777,9 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	## style's face whatever its registry index.
 	check_limit(static.items.len(), limits.max_items, Items)?
 
-	## Resolve every text item on every page into its line string and
-	## segments. Static items resolve to the same string on every page and
-	## intern to one source.
+	# Resolve every text item on every page into its line string and
+	# segments. Static items resolve to the same string on every page and
+	# intern to one source.
 	var $inputs = []
 	var $pending = []
 	var $field_resolutions = 0
@@ -837,7 +837,7 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	run_sources = shaped.run_sources
 	store = { ..shaped.batch.store, runs: shaped.batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + (if run_sources.is_empty() run.id.index() else list_at(run_sources, run.id.index())))) }) }
 
-	## Prove fits and place every piece and drawing, page by page.
+	# Prove fits and place every piece and drawing, page by page.
 	var $pieces = []
 	var $drawing_paints = []
 	var $cursor = 0
@@ -1043,8 +1043,8 @@ measure_region = |static, store, source_runs, input_sources, pending, cursor, re
 		$item = $item + 1
 	}
 
-	## Slot extents from the frame's start edge; slots may touch but never
-	## overlap.
+	# Slot extents from the frame's start edge; slots may touch but never
+	# overlap.
 	var $start = 0
 	var $center = 0
 	var $end = 0
@@ -1172,8 +1172,8 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 						)?
 					}
 
-					## One piece per run the segment covers, in order, each at
-					## the advance of the pieces before it.
+					# One piece per run the segment covers, in order, each at
+					# the advance of the pieces before it.
 					var $piece_x = origin_x
 					var $run_index = runs.start()
 					while $run_index < runs.start() + runs.length() {

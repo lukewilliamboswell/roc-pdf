@@ -578,7 +578,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	{ builder: with_role, id: role_id } = KernelObject.add_name(with_page, Str.to_utf8(node.role.local_name)) ? Object
 	{ builder: with_type, id: s_id } = KernelObject.add_name_value(with_role, role_id) ? Object
 
-	## `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
+	# `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
 	var $base_entries = List.with_capacity(5)
 	if node_k.items.length() != 0 {
 		$base_entries = $base_entries.append({ key: names.k, value: k_id })
@@ -625,7 +625,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	while $base < base_entries.len() {
 		entry = list_at(base_entries, $base)
 
-		## `/Lang` sorts after `/K` and before `/NS`.
+		# `/Lang` sorts after `/K` and before `/NS`.
 		if KernelObject.NameId.index(entry.key) == KernelObject.NameId.index(names.ns) {
 			$entries = append_entry($entries, language.entry)
 		}
@@ -1158,7 +1158,7 @@ test_limits = {
 	max_values: 256,
 }
 
-## The tagged prefix consumes every planned object identity before the page tree.
+# The tagged prefix consumes every planned object identity before the page tree.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	plan = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
@@ -1167,7 +1167,7 @@ expect {
 	counts.objects + 1 == KernelObject.ObjectId.number(first_page_tree) and KernelTaggedObjects.Plan.work(plan) == { annotation_entries: 0, attribute_dictionaries: 0, contextual_artifacts: 0, id_tree_entries: 0, k_items: 2, language_entries: 0, namespaces: 1, parent_entries: 1, parent_rows: 1, structure_elements: 2 }
 }
 
-## Contextual Artifact structure elements remain distinct planned objects.
+# Contextual Artifact structure elements remain distinct planned objects.
 expect {
 	pipeline = KernelPipelineFixture.contextual_pipeline({})?
 	plan = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?

@@ -113,15 +113,15 @@ subset_and_reinspect = |bytes, scalars| {
 	Ok({ subset, tags: reinspected.tables.map(|table| table.tag) })
 }
 
-## An unhinted source (no cvt, fpgm, gasp, or prep table) subsets to the
-## ten required tables, and the subset is itself a valid TrueType font.
+# An unhinted source (no cvt, fpgm, gasp, or prep table) subsets to the
+# ten required tables, and the subset is itself a valid TrueType font.
 expect {
 	result = subset_and_reinspect(unhinted_font_bytes, [0x43, 0x61, 0xe9])?
 	hinting = [0x63767420, 0x6670676d, 0x67617370, 0x70726570]
 	result.subset.work.tables == 10 and result.tags.len() == 10 and !result.tags.any(|tag| hinting.contains(tag))
 }
 
-## A hinted source keeps all four hinting tables: fourteen tables.
+# A hinted source keeps all four hinting tables: fourteen tables.
 expect {
 	result = subset_and_reinspect(built_in_font_bytes, [0x41, 0xe9])?
 	hinting = [0x63767420, 0x6670676d, 0x67617370, 0x70726570]

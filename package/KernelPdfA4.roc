@@ -1,26 +1,26 @@
-## The static PDF/A-4 profile boundary. A requested claim is a typed input
-## selected by the facade from the public profile; every construct that
-## reaches a claimed file is either eligible by construction or checked here
-## against an explicit whitelist, and absence from the whitelist is rejection.
-##
-## Validation runs in two stages over facts earlier stages already produced:
-##
-## - Profile validation (`validate_text`) consumes the prepared text facts —
-##   the exact ToUnicode mappings and the first ActualText run that carries a
-##   private-use scalar — which only the text planner can state without
-##   re-reading emitted content streams.
-## - Lowered-plan validation (`validate_lowered`) consumes the sealed object
-##   store before serialization. It classifies each interned name once into a
-##   dense tag vector (the only allocation) and then checks every dictionary,
-##   stream dictionary, the catalog's metadata and output-intent facts, and
-##   the canonical XMP packet in one bounded pass.
-##
-## A plan without the claim performs only the identification agreement check:
-## an unclaimed packet that declares PDF/A identification is a false
-## conformance declaration and is rejected without scanning the store.
-##
-## The first violation in deterministic store order is returned; diagnostics
-## never rescan the rejected plan.
+# The static PDF/A-4 profile boundary. A requested claim is a typed input
+# selected by the facade from the public profile; every construct that
+# reaches a claimed file is either eligible by construction or checked here
+# against an explicit whitelist, and absence from the whitelist is rejection.
+#
+# Validation runs in two stages over facts earlier stages already produced:
+#
+# - Profile validation (`validate_text`) consumes the prepared text facts —
+#   the exact ToUnicode mappings and the first ActualText run that carries a
+#   private-use scalar — which only the text planner can state without
+#   re-reading emitted content streams.
+# - Lowered-plan validation (`validate_lowered`) consumes the sealed object
+#   store before serialization. It classifies each interned name once into a
+#   dense tag vector (the only allocation) and then checks every dictionary,
+#   stream dictionary, the catalog's metadata and output-intent facts, and
+#   the canonical XMP packet in one bounded pass.
+#
+# A plan without the claim performs only the identification agreement check:
+# an unclaimed packet that declares PDF/A identification is a false
+# conformance declaration and is rejected without scanning the store.
+#
+# The first violation in deterministic store order is returned; diagnostics
+# never rescan the rejected plan.
 import KernelLex
 import KernelMetadata
 import KernelObject
@@ -1080,8 +1080,8 @@ violation = |result| match result {
 	Err(found) => Rejected(found.requirement)
 }
 
-## A claimed blank plan carrying the identified canonical packet is eligible,
-## and the pass compares the complete packet exactly once.
+# A claimed blank plan carrying the identified canonical packet is eligible,
+# and the pass compares the complete packet exactly once.
 expect {
 	packet = test_packet(PdfA4Identification)
 	plan = test_plan(packet)
@@ -1091,35 +1091,35 @@ expect {
 	}
 }
 
-## An unclaimed plan performs only the identification agreement check.
+# An unclaimed plan performs only the identification agreement check.
 expect {
 	packet = test_packet(NoIdentification)
 	plan = test_plan(packet)
 	KernelPdfA4.validate_lowered(NoArchiveClaim, test_input(plan, packet)) == Ok({ entries_checked: 0, names_classified: 0, packet_bytes_compared: 0, streams_checked: 0, values_checked: 0 })
 }
 
-## Declaring PDF/A identification without the claim is a false declaration.
+# Declaring PDF/A identification without the claim is a false declaration.
 expect {
 	packet = test_packet(PdfA4Identification)
 	plan = test_plan(packet)
 	violation(KernelPdfA4.validate_lowered(NoArchiveClaim, test_input(plan, packet))) == Rejected(Identification)
 }
 
-## A claim without the identification schema is rejected before the scan.
+# A claim without the identification schema is rejected before the scan.
 expect {
 	packet = test_packet(NoIdentification)
 	plan = test_plan(packet)
 	violation(KernelPdfA4.validate_lowered(StaticPdfA4Claim, test_input(plan, packet))) == Rejected(Identification)
 }
 
-## The metadata stream must be exactly the claim's canonical packet.
+# The metadata stream must be exactly the claim's canonical packet.
 expect {
 	identified = test_packet(PdfA4Identification)
 	plan = test_plan(test_packet(NoIdentification))
 	violation(KernelPdfA4.validate_lowered(StaticPdfA4Claim, test_input(plan, identified))) == Rejected(Identification)
 }
 
-## A compressed metadata stream is rejected.
+# A compressed metadata stream is rejected.
 expect {
 	packet = test_packet(PdfA4Identification)
 	plan = test_plan(packet)
@@ -1127,8 +1127,8 @@ expect {
 	violation(KernelPdfA4.validate_lowered(StaticPdfA4Claim, { packet, root: KernelStructure.Plan.root(plan), sealed })) == Rejected(MetadataStream)
 }
 
-## Each forbidden key spelled into an otherwise valid plan is rejected with
-## its own requirement.
+# Each forbidden key spelled into an otherwise valid plan is rejected with
+# its own requirement.
 expect {
 	packet = test_packet(PdfA4Identification)
 	plan = test_plan(packet)
@@ -1145,8 +1145,8 @@ expect {
 										and check("Lang", "Version") == Rejected(CatalogVersion)
 }
 
-## The output intent must be a single GTS_PDFA1 intent with an embedded
-## monitor or output profile.
+# The output intent must be a single GTS_PDFA1 intent with an embedded
+# monitor or output profile.
 expect {
 	packet = test_packet(PdfA4Identification)
 	plan = test_plan(packet)
@@ -1157,8 +1157,8 @@ expect {
 				and check("Metadata", "Metadatum") == Rejected(MetadataStream)
 }
 
-## A profile whose device class is neither `mntr` nor `prtr` cannot be the
-## output intent.
+# A profile whose device class is neither `mntr` nor `prtr` cannot be the
+# output intent.
 expect {
 	packet = test_packet(PdfA4Identification)
 	plan = test_plan(packet)
@@ -1172,7 +1172,7 @@ expect {
 	violation(KernelPdfA4.validate_lowered(StaticPdfA4Claim, { packet, root: KernelStructure.Plan.root(plan), sealed })) == Rejected(OutputIntent)
 }
 
-## A name that is not valid UTF-8 is rejected.
+# A name that is not valid UTF-8 is rejected.
 expect {
 	packet = test_packet(PdfA4Identification)
 	plan = test_plan(packet)
@@ -1186,10 +1186,10 @@ expect {
 	violation(KernelPdfA4.validate_lowered(StaticPdfA4Claim, { packet, root: KernelStructure.Plan.root(plan), sealed })) == Rejected(NameEncoding)
 }
 
-## Strict UTF-8 acceptance.
+# Strict UTF-8 acceptance.
 expect valid_utf8(Str.to_utf8("Übersicht 概要 😀")) and !valid_utf8([0xC0, 0x80]) and !valid_utf8([0xED, 0xA0, 0x80]) and !valid_utf8([0xF4, 0x90, 0x80, 0x80]) and !valid_utf8([0xE2, 0x82])
 
-## Text facts: forbidden ToUnicode values and private-use ActualText.
+# Text facts: forbidden ToUnicode values and private-use ActualText.
 expect {
 	clean = { actual_text: NoPrivateUse, mappings: [[{ cid: 1, scalars: [65, 66] }], [{ cid: 2, scalars: [0x1F600] }]] }
 	bom = { actual_text: NoPrivateUse, mappings: [[{ cid: 1, scalars: [65, 0xFEFF] }]] }

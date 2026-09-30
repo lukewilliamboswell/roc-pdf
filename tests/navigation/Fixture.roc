@@ -254,8 +254,8 @@ build_stores = |page_count, specs| {
 		$spec_index = $spec_index + 1
 	}
 
-	## First pass: compute each spec's top node index so the root span can be
-	## written before the block spans.
+	# First pass: compute each spec's top node index so the root span can be
+	# written before the block spans.
 	var $top_nodes = []
 	var $node_cursor = 1
 	$spec_index = 0
@@ -282,7 +282,7 @@ build_stores = |page_count, specs| {
 		$next_occurrence = $next_occurrence + 1
 		$block_occurrences = $block_occurrences.append(Semantics.OccurrenceId.from_index(occurrence))
 
-		## Fragments and painted groups, one per listed page.
+		# Fragments and painted groups, one per listed page.
 		var $page_edge = 0
 		while $page_edge < pages.len() {
 			page = list_at(pages, $page_edge)
@@ -350,7 +350,7 @@ build_stores = |page_count, specs| {
 		$spec_index = $spec_index + 1
 	}
 
-	## Scene pages: paint order concatenates each page's group list.
+	# Scene pages: paint order concatenates each page's group list.
 	var $page_groups = []
 	var $pages = []
 	var $page_index = 0
@@ -1334,9 +1334,9 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-## The adversarial showcase, sharing checks, and atomic negatives hold under
-## `roc test`; the harness re-runs them as compiled scenarios with exact
-## allocation and work baselines.
+# The adversarial showcase, sharing checks, and atomic negatives hold under
+# `roc test`; the harness re-runs them as compiled scenarios with exact
+# allocation and work baselines.
 expect match Fixture.scenario("showcase", 0) {
 	Ok(result) => result.bytes.len() > 0 and list_at(result.work, 0) == 2 and list_at(result.work, 1) == 3 and list_at(result.work, 8) == 3
 	Err(_) => False

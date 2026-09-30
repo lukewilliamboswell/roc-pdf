@@ -262,8 +262,8 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	var $runs = List.with_capacity(run_count)
 	var $final_styles = List.with_capacity(run_count)
 
-	## Page run ranges are counted over the final materialized runs, because
-	## one paint request may split into several physical face runs.
+	# Page run ranges are counted over the final materialized runs, because
+	# one paint request may split into several physical face runs.
 	var $page_records = List.with_capacity(pages.len())
 	var $page_cursor = 0
 	var $page_run_start = 0
@@ -619,7 +619,7 @@ interleave_furniture = |plan, furniture, limits| {
 		}
 		piece_end = $piece_cursor
 
-		## Header furniture, the page's body runs, then footer furniture.
+		# Header furniture, the page's body runs, then footer furniture.
 		var $band = 0
 		while $band < 3 {
 			if $band == 1 {
@@ -953,8 +953,8 @@ test_prepared = |shape| {
 	styles: [test_style],
 }
 
-## A label and indented body sharing one visual row become dense, independently
-## owned final runs without duplicating their cluster or glyph payload.
+# A label and indented body sharing one visual row become dense, independently
+# owned final runs without duplicating their cluster or glyph payload.
 expect {
 	plan = KernelFacadeText.Plan.build_prepared(test_prepared(test_text), test_limits)?
 	text = KernelFacadeText.Plan.text(plan)
@@ -964,8 +964,8 @@ expect {
 	text.runs.len() == 2 and text.clusters.len() == 2 and text.glyph_indices == [0, 1] and text.glyphs.len() == 2 and first_run.source.scalars.start() == 0 and second_run.source.scalars.start() == 1 and list_at(placements, 1).run.index() == 1 and list_at(placements, 1).origin.x.raw() == 15
 }
 
-## The constrained facade never drops advanced substitution evidence while
-## splitting a run.
+# The constrained facade never drops advanced substitution evidence while
+# splitting a run.
 expect {
 	run = list_at(test_text.runs, 0)
 	bad = { ..test_text, runs: [{ ..run, substitutions: Semantics.Range.from_start_and_length(0, 1) }] }
@@ -975,7 +975,7 @@ expect {
 	}
 }
 
-## A cluster cannot smuggle a glyph from outside its source run.
+# A cluster cannot smuggle a glyph from outside its source run.
 expect {
 	bad = { ..test_text, glyph_indices: [9, 1] }
 	match KernelFacadeText.Plan.build_prepared(test_prepared(bad), test_limits) {
@@ -984,9 +984,9 @@ expect {
 	}
 }
 
-## The multi-face materializer accepts a widened logical range only when its
-## physical runs actually exist; a range past the shaped store is rejected
-## before it can emit a partial visual run.
+# The multi-face materializer accepts a widened logical range only when its
+# physical runs actually exist; a range past the shaped store is rejected
+# before it can emit a partial visual run.
 expect {
 	prepared = test_prepared(test_text)
 	row = list_at(prepared.rows, 0)

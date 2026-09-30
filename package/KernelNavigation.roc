@@ -1,22 +1,22 @@
-## Validated navigation facts for the production-visual navigation/annotation slice:
-## named internal destinations, URI and internal GoTo link annotations,
-## document outline entries, and page-label ranges. Authoring supplies these
-## as typed values; this boundary validates them once against the closed
-## supported subset and returns dense normalized stores that later stages
-## consume verbatim. No later stage re-parses names, re-derives ordering, or
-## recovers a fact from serialized bytes.
-##
-## The supported subset is deliberately closed. Destination names are
-## non-empty printable-ASCII byte strings with deterministic byte ordering
-## and exact-equality duplicate rejection. Link actions are exactly the URI
-## and internal GoTo forms; remote-file destinations, launch/JavaScript/named
-## actions, and every other action type have no representation here. Every
-## internal destination names both a semantic structure target and an
-## explicit layout-anchor occurrence, so lowering can emit the paired `/SD`
-## and `/D` facts required by the pinned issue-140/162 resolutions.
-## Annotation geometry uses the checked fixed-point layout unit; quadrilateral
-## spans are ranges into one flat quad buffer; keyboard order is an explicit
-## dense per-page permutation independent of logical spine order.
+# Validated navigation facts for the production-visual navigation/annotation slice:
+# named internal destinations, URI and internal GoTo link annotations,
+# document outline entries, and page-label ranges. Authoring supplies these
+# as typed values; this boundary validates them once against the closed
+# supported subset and returns dense normalized stores that later stages
+# consume verbatim. No later stage re-parses names, re-derives ordering, or
+# recovers a fact from serialized bytes.
+#
+# The supported subset is deliberately closed. Destination names are
+# non-empty printable-ASCII byte strings with deterministic byte ordering
+# and exact-equality duplicate rejection. Link actions are exactly the URI
+# and internal GoTo forms; remote-file destinations, launch/JavaScript/named
+# actions, and every other action type have no representation here. Every
+# internal destination names both a semantic structure target and an
+# explicit layout-anchor occurrence, so lowering can emit the paired `/SD`
+# and `/D` facts required by the pinned issue-140/162 resolutions.
+# Annotation geometry uses the checked fixed-point layout unit; quadrilateral
+# spans are ranges into one flat quad buffer; keyboard order is an explicit
+# dense per-page permutation independent of logical spine order.
 import Document
 import Layout
 import Scene
@@ -1006,7 +1006,7 @@ test_input = {
 	],
 }
 
-## The showcase input validates into dense stores with exact work counters.
+# The showcase input validates into dense stores with exact work counters.
 expect {
 	result = KernelNavigation.validate(test_input, test_context, test_limits)?
 	store = result.store
@@ -1024,8 +1024,8 @@ expect {
 											result.work.quads_checked == 2
 }
 
-## Name ordering is unsigned byte order independent of authoring order, and
-## actions resolve through it to dense destination identities.
+# Name ordering is unsigned byte order independent of authoring order, and
+# actions resolve through it to dense destination identities.
 expect {
 	result = KernelNavigation.validate(test_input, test_context, test_limits)?
 	store = result.store
@@ -1046,7 +1046,7 @@ expect {
 				outline_first.destination.index() == 1
 }
 
-## The total annotation order is page index then keyboard order.
+# The total annotation order is page index then keyboard order.
 expect {
 	result = KernelNavigation.validate(test_input, test_context, test_limits)?
 	store = result.store
@@ -1054,8 +1054,8 @@ expect {
 	store.page_annotations == [0, 1] and store.page_annotation_offsets == [0, 1, 2]
 }
 
-## Keyboard order within one page orders the /Annots array independently of
-## authoring order.
+# Keyboard order within one page orders the /Annots array independently of
+# authoring order.
 expect {
 	swapped = { ..test_uri_annotation, keyboard_order: 1 }
 	other = { ..test_goto_annotation, page: Semantics.PageId.from_index(0), keyboard_order: 0 }
@@ -1065,8 +1065,8 @@ expect {
 	result.store.page_annotations == [1, 0] and result.store.page_annotation_offsets == [0, 2, 2]
 }
 
-## Duplicate destination names are exact-equality rejections naming both
-## authored indices.
+# Duplicate destination names are exact-equality rejections naming both
+# authored indices.
 expect {
 	input = { ..test_input, destinations: [test_destination, test_destination], annotations: [], outline: [], page_labels: [] }
 	context = { ..test_context, semantic_annotations: 0 }
@@ -1077,7 +1077,7 @@ expect {
 	}
 }
 
-## Destination names are bounded printable ASCII with exact offsets.
+# Destination names are bounded printable ASCII with exact offsets.
 expect {
 	invalid = { ..test_destination, name: "bad name" }
 	input = { ..test_input, destinations: [invalid], annotations: [], outline: [], page_labels: [] }
@@ -1089,7 +1089,7 @@ expect {
 	}
 }
 
-## Empty and oversized destination names are distinct rejections.
+# Empty and oversized destination names are distinct rejections.
 expect {
 	empty_input = { ..test_input, destinations: [{ ..test_destination, name: "" }], annotations: [], outline: [], page_labels: [] }
 	long_input = { ..test_input, destinations: [{ ..test_destination, name: "a-very-long-destination-name-over-limit" }], annotations: [], outline: [], page_labels: [] }
@@ -1106,7 +1106,7 @@ expect {
 	empty and long
 }
 
-## Destination targets and anchors validate against the semantic counts.
+# Destination targets and anchors validate against the semantic counts.
 expect {
 	bad_target = { ..test_input, destinations: [{ ..test_destination, target: Semantics.NodeId.from_index(9) }], annotations: [], outline: [], page_labels: [] }
 	bad_anchor = { ..test_input, destinations: [{ ..test_destination, anchor: Semantics.OccurrenceId.from_index(9) }], annotations: [], outline: [], page_labels: [] }
@@ -1123,7 +1123,7 @@ expect {
 	target and anchor
 }
 
-## An unknown destination name on a link is a stable rejection.
+# An unknown destination name on a link is a stable rejection.
 expect {
 	input = { ..test_input, annotations: [{ ..test_goto_annotation, action: GoToName("missing") }, test_uri_annotation] }
 
@@ -1133,8 +1133,8 @@ expect {
 	}
 }
 
-## URI validation requires a scheme, checked percent-encoding, and the RFC
-## 3986 byte set, with exact offsets.
+# URI validation requires a scheme, checked percent-encoding, and the RFC
+# 3986 byte set, with exact offsets.
 expect {
 	no_scheme = { ..test_input, annotations: [{ ..test_uri_annotation, action: Uri("example.org/x y") }, test_goto_annotation] }
 	bad_byte = { ..test_input, annotations: [{ ..test_uri_annotation, action: Uri("https://example.org/x y") }, test_goto_annotation] }
@@ -1160,7 +1160,7 @@ expect {
 	scheme and byte and percent and missing
 }
 
-## Rects must be normalized with positive extents.
+# Rects must be normalized with positive extents.
 expect {
 	degenerate = { ..test_rect, size: { height: unit(0), width: unit(120000) } }
 	input = { ..test_input, annotations: [{ ..test_uri_annotation, rect: degenerate, quads: [test_quad] }, test_goto_annotation] }
@@ -1171,7 +1171,7 @@ expect {
 	}
 }
 
-## Malformed quads and quads escaping their rect are distinct rejections.
+# Malformed quads and quads escaping their rect are distinct rejections.
 expect {
 	inverted = { ..test_quad, x_left: unit(192000), x_right: unit(72000) }
 	outside = { ..test_quad, y_top: unit(713000) }
@@ -1189,7 +1189,7 @@ expect {
 	malformed and escape
 }
 
-## An annotation must carry at least one quad.
+# An annotation must carry at least one quad.
 expect {
 	input = { ..test_input, annotations: [{ ..test_uri_annotation, quads: [] }, test_goto_annotation] }
 
@@ -1199,7 +1199,7 @@ expect {
 	}
 }
 
-## Annotation page association validates against the page count.
+# Annotation page association validates against the page count.
 expect {
 	input = { ..test_input, annotations: [{ ..test_uri_annotation, page: Semantics.PageId.from_index(5) }, test_goto_annotation] }
 
@@ -1209,8 +1209,8 @@ expect {
 	}
 }
 
-## The navigation annotation list must be one-to-one with the semantic
-## annotation store.
+# The navigation annotation list must be one-to-one with the semantic
+# annotation store.
 expect {
 	context = { ..test_context, semantic_annotations: 3 }
 
@@ -1220,8 +1220,8 @@ expect {
 	}
 }
 
-## Keyboard order must be a dense per-page permutation: out-of-range and
-## duplicate orders are distinct rejections.
+# Keyboard order must be a dense per-page permutation: out-of-range and
+# duplicate orders are distinct rejections.
 expect {
 	out_of_range = { ..test_input, annotations: [{ ..test_uri_annotation, keyboard_order: 1 }, test_goto_annotation] }
 	both_zero = {
@@ -1243,8 +1243,8 @@ expect {
 	range and duplicate
 }
 
-## Appearance references validate against the form count; descriptions are
-## bounded and non-empty.
+# Appearance references validate against the form count; descriptions are
+# bounded and non-empty.
 expect {
 	bad_form = { ..test_input, annotations: [test_uri_annotation, { ..test_goto_annotation, appearance: NormalAppearance(Scene.FormId.from_index(3)) }] }
 	empty_description = { ..test_input, annotations: [test_uri_annotation, { ..test_goto_annotation, description: WithDescription("") }] }
@@ -1260,7 +1260,7 @@ expect {
 	form and description
 }
 
-## Outline entries validate preorder depth rules against the authored list.
+# Outline entries validate preorder depth rules against the authored list.
 expect {
 	nonzero_first = { ..test_input, outline: [{ depth: 1, destination: "intro", open: True, title: "Broken" }] }
 	jump = {
@@ -1296,8 +1296,8 @@ expect {
 	first and jumped and limited
 }
 
-## Outline titles are bounded non-empty text; unknown outline destinations
-## are stable rejections.
+# Outline titles are bounded non-empty text; unknown outline destinations
+# are stable rejections.
 expect {
 	empty_title = { ..test_input, outline: [{ depth: 0, destination: "intro", open: True, title: "" }] }
 	unknown = { ..test_input, outline: [{ depth: 0, destination: "missing", open: True, title: "X" }] }
@@ -1313,8 +1313,8 @@ expect {
 	title and destination
 }
 
-## Page-label ranges must start at page zero, ascend strictly, stay within
-## the page count, and carry positive start numbers.
+# Page-label ranges must start at page zero, ascend strictly, stay within
+# the page count, and carry positive start numbers.
 expect {
 	not_zero = { ..test_input, page_labels: [{ prefix: "", start_number: 1, start_page: 1, style: DecimalArabic }] }
 	not_ascending = {
@@ -1357,7 +1357,7 @@ expect {
 	zero and ascending and range and number and without_style
 }
 
-## Count limits reject before any store allocation.
+# Count limits reject before any store allocation.
 expect {
 	tiny = KernelNavigation.Limits.make({
 		max_annotations: 1,
@@ -1380,7 +1380,7 @@ expect {
 	destinations
 }
 
-## The per-document quad budget rejects transactionally.
+# The per-document quad budget rejects transactionally.
 expect {
 	two_quads = { ..test_uri_annotation, quads: [test_quad, test_quad] }
 	input = { ..test_input, annotations: [two_quads, test_goto_annotation] }
@@ -1404,7 +1404,7 @@ expect {
 	}
 }
 
-## Identical validated input produces identical stores and work.
+# Identical validated input produces identical stores and work.
 expect {
 	first = KernelNavigation.validate(test_input, test_context, test_limits)?
 	second = KernelNavigation.validate(test_input, test_context, test_limits)?
@@ -1479,9 +1479,9 @@ resolve_anchor_rects = [
 	AnchorAt({ origin: { x: unit(72000), y: unit(300000) }, size: { height: unit(24000), width: unit(120000) } }),
 ]
 
-## Destination resolution pairs the semantic structure element with the
-## anchor fragment's exact page and top-left geometry from one authored
-## record.
+# Destination resolution pairs the semantic structure element with the
+# anchor fragment's exact page and top-left geometry from one authored
+# record.
 expect {
 	validated = KernelNavigation.validate(test_input, test_context, test_limits)?
 	resolved = KernelNavigation.resolve(validated.store, resolve_semantics, resolve_owners, resolve_anchor_rects)?
@@ -1498,8 +1498,8 @@ expect {
 								resolved.work == { anchor_lookups: 2, destinations_resolved: 2 }
 }
 
-## A destination whose anchor occurrence is owned by a different node than
-## its semantic target is a paired-target mismatch.
+# A destination whose anchor occurrence is owned by a different node than
+# its semantic target is a paired-target mismatch.
 expect {
 	validated = KernelNavigation.validate(test_input, test_context, test_limits)?
 	owners = [Semantics.NodeId.from_index(1), Semantics.NodeId.from_index(1)]
@@ -1510,9 +1510,9 @@ expect {
 	}
 }
 
-## A destination without resolvable anchor geometry is rejected rather than
-## emitted as an /SD-only target: a missing anchor rect, a fragmentless
-## occurrence, and an out-of-range anchor list are each unresolvable.
+# A destination without resolvable anchor geometry is rejected rather than
+# emitted as an /SD-only target: a missing anchor rect, a fragmentless
+# occurrence, and an out-of-range anchor list are each unresolvable.
 expect {
 	validated = KernelNavigation.validate(test_input, test_context, test_limits)?
 	no_rect = [AnchorAt({ origin: { x: unit(0), y: unit(0) }, size: { height: unit(1), width: unit(1) } }), NoAnchor]
@@ -1536,7 +1536,7 @@ expect {
 	missing and unpainted and short_list
 }
 
-## Anchor geometry that cannot produce a finite top coordinate is rejected.
+# Anchor geometry that cannot produce a finite top coordinate is rejected.
 expect {
 	validated = KernelNavigation.validate(test_input, test_context, test_limits)?
 	overflowing = [

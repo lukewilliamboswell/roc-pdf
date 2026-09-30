@@ -498,7 +498,7 @@ tagged_plan = |_| {
 	Ok(plan)
 }
 
-## MCIDs and ParentTree rows are assigned from content-stream paint order.
+# MCIDs and ParentTree rows are assigned from content-stream paint order.
 expect {
 	plan = tagged_plan({})?
 	marked = list_at(KernelTagged.Plan.marked_fragments(plan), 0)
@@ -508,7 +508,7 @@ expect {
 	marked.mcid == 0 and marked.fragment.index() == 0 and marked.structure_element.index() == 1 and row.content_stream.index() == 0 and row.entries.start() == 0 and row.entries.length() == 1 and parent.fragment.index() == 0
 }
 
-## Mixed structure order comes from each node's semantic content spine.
+# Mixed structure order comes from each node's semantic content spine.
 expect {
 	plan = tagged_plan({})?
 	items = KernelTagged.Plan.k_items(plan)
@@ -527,7 +527,7 @@ expect {
 		} and list_at(ranges, 0).items.length() == 2 and list_at(ranges, 1).items.start() == 2
 }
 
-## Page artifacts never acquire MCIDs or semantic ownership.
+# Page artifacts never acquire MCIDs or semantic ownership.
 expect {
 	plan = tagged_plan({})?
 	work = KernelTagged.Plan.work(plan)
@@ -535,7 +535,7 @@ expect {
 	work.fragment_groups == 1 and work.artifact_groups == 1 and work.paint_edges == 2 and work.parent_writes == 1 and work.k_items == 3
 }
 
-## One semantic fragment cannot own multiple painted scene groups.
+# One semantic fragment cannot own multiple painted scene groups.
 expect {
 	second = list_at(tagged_scene.groups, 1)
 	groups = list_set(tagged_scene.groups, 1, { ..second, owner: Fragment(Semantics.FragmentId.from_index(0)) })
@@ -549,7 +549,7 @@ expect {
 	}
 }
 
-## Meaningful semantic fragments cannot disappear into page-artifact paint.
+# Meaningful semantic fragments cannot disappear into page-artifact paint.
 expect {
 	first = list_at(tagged_scene.groups, 0)
 	groups = list_set(tagged_scene.groups, 0, { ..first, owner: PageArtifact(Decoration) })
@@ -563,7 +563,7 @@ expect {
 	}
 }
 
-## Logical content cannot be accepted without at least one painted fragment.
+# Logical content cannot be accepted without at least one painted fragment.
 expect {
 	empty_semantics = { ..tagged_semantics, fragments: [] }
 	empty_limits = KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: 3, max_fragments: 0, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })
@@ -590,8 +590,8 @@ navigation_tagged_semantics = {
 	],
 }
 
-## Annotation spine occurrences become AnnotationChild K items in spine order
-## with dense owner structure elements; they never consume an MCID.
+# Annotation spine occurrences become AnnotationChild K items in spine order
+# with dense owner structure elements; they never consume an MCID.
 expect {
 	limits = KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: 4, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 })
 	semantics = KernelSemantics.Plan.build_navigation(navigation_tagged_semantics, 1, 1, limits) ? |_| TestFailure

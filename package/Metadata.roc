@@ -71,11 +71,11 @@ Metadata :: [].{
 	}
 }
 
-## Canonical metadata never obtains an implicit timestamp.
+# Canonical metadata never obtains an implicit timestamp.
 expect Metadata.canonical.timestamps == ExplicitOrOmitted
 
-## Canonical metadata orders properties independently of map iteration.
+# Canonical metadata orders properties independently of map iteration.
 expect Metadata.canonical.property_order == NamespaceUriThenLocalName
 
-## Accessible archival facade output requires a distinct visible semantic title.
+# Accessible archival facade output requires a distinct visible semantic title.
 expect Metadata.authoring.visible_title == RequiredForAccessibleArchive

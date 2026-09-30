@@ -543,28 +543,28 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		return Err(EmptySource)
 	}
 
-	## Pass one validates the request structure: per-occurrence groups whose
-	## cluster ranges exactly partition one source, one consistent font split
-	## per unique source, dense font identities, and cumulative limits.
+	# Pass one validates the request structure: per-occurrence groups whose
+	# cluster ranges exactly partition one source, one consistent font split
+	# per unique source, dense font identities, and cumulative limits.
 	var $assignments = List.repeat([], sources.len())
-	var $source_seen = List.repeat(Bool.False, sources.len())
+	var $source_seen = List.repeat(False, sources.len())
 
-	## Splits of repeated groups that differ from their source's primary
-	## split, and each request's template: 0 is its source's primary split,
-	## k > 0 is `$variants[k - 1]`. Both stay empty (unallocated) until a
-	## split first differs.
+	# Splits of repeated groups that differ from their source's primary
+	# split, and each request's template: 0 is its source's primary split,
+	# k > 0 is `$variants[k - 1]`. Both stay empty (unallocated) until a
+	# split first differs.
 	var $variants = []
 	var $request_variants = []
 	var $group_split = []
-	var $group_differs = Bool.False
+	var $group_differs = False
 	var $group_first_request = 0
 	var $planned_clusters = 0
 	var $planned_scalars = 0
 	var $planned_source_bytes = 0
 	var $group_source = sources.len()
 	var $group_cursor = 0
-	var $group_open = Bool.False
-	var $group_writes = Bool.False
+	var $group_open = False
+	var $group_writes = False
 	var $request_index = 0
 	while $request_index < requests.len() {
 		request = list_at(requests, $request_index)
@@ -598,11 +598,11 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		} else {
 			$group_source = source_index
 			$group_cursor = 0
-			$group_open = Bool.True
-			$group_writes = list_at($source_seen, source_index) == Bool.False
-			$group_differs = Bool.False
+			$group_open = True
+			$group_writes = list_at($source_seen, source_index) == False
+			$group_differs = False
 			$group_first_request = $request_index
-			$source_seen = list_set($source_seen, source_index, Bool.True)
+			$source_seen = list_set($source_seen, source_index, True)
 		}
 		range_start = request.clusters.start()
 		range_length = request.clusters.length()
@@ -622,14 +622,14 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			}
 			$assignments = list_set($assignments, source_index, $updated)
 		} else {
-			## A repeated group reuses the primary split while it agrees. At
-			## its first differing cluster it copies the primary split, whose
-			## earlier clusters it matched, and continues in that copy.
+			# A repeated group reuses the primary split while it agrees. At
+			# its first differing cluster it copies the primary split, whose
+			# earlier clusters it matched, and continues in that copy.
 			var $cluster = range_start
 			while $cluster < range_end_index {
 				if !$group_differs and list_at(list_at($assignments, source_index), $cluster) != font_index {
 					$group_split = list_at($assignments, source_index)
-					$group_differs = Bool.True
+					$group_differs = True
 				}
 				if $group_differs {
 					$group_split = list_set($group_split, $cluster, font_index)
@@ -653,7 +653,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			## variant and point every request of the group at it.
 			$variants = $variants.append({ assignment: $group_split, source: source_index })
 			$group_split = []
-			$group_differs = Bool.False
+			$group_differs = False
 			if $request_variants.is_empty() {
 				$request_variants = List.repeat(0, requests.len())
 			}
@@ -739,8 +739,8 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		$template_index = $template_index + 1
 	}
 
-	## Pass three materializes the dense store: one physical run per request,
-	## scaling the assigned font's template metrics by the request size.
+	# Pass three materializes the dense store: one physical run per request,
+	# scaling the assigned font's template metrics by the request size.
 	var $advances = List.with_capacity(requests.len())
 	var $clusters = List.with_capacity($planned_clusters)
 	var $glyph_indices = List.with_capacity($planned_scalars)
@@ -870,14 +870,14 @@ validate_script_structure = |runs, source_bytes, scalar_count| {
 validate_selected_script : List(KernelUnicode.ScriptRun), U64, U64, Str, U64 -> Try({}, KernelShape.Error)
 validate_selected_script = |runs, scalar_start, scalar_end, expected, request| {
 	var $index = 0
-	var $checked = Bool.False
+	var $checked = False
 	while $index < runs.len() {
 		run = list_at(runs, $index)
 		if run.range.scalar_start < scalar_end and run.range.scalar_end > scalar_start {
 			if !script_compatible(run.script, expected) {
 				return Err(SelectedRequestInvalid({ reason: Script, request }))
 			}
-			$checked = Bool.True
+			$checked = True
 		}
 		$index = $index + 1
 	}
@@ -944,9 +944,9 @@ validate_advanced_with_selection = |selection, source, store, limits| {
 		$glyph_index = $glyph_index + 1
 	}
 
-	## Generated discretionary clusters allocate this marker only when the new
-	## boundary is actually present. Its dense transformation index keeps
-	## validation linear and rejects an orphaned zero-width presentation fact.
+	# Generated discretionary clusters allocate this marker only when the new
+	# boundary is actually present. Its dense transformation index keeps
+	# validation linear and rejects an orphaned zero-width presentation fact.
 	var $generated_transformations = []
 
 	var $source_scalar_cursor = 0
@@ -1180,7 +1180,7 @@ validate_bidi_order = |font, store, order| {
 		run = list_at(store.runs, $run_index)
 		run_scalar_end = range_end(run.source.scalars, U64.highest) ? |_| BidiOrderInvalid({ reason: SourceRange, visual: $run_index })
 		var $overlaps = 0
-		var $containing = Bool.False
+		var $containing = False
 		var $contained_direction = paragraph_direction
 		var $visual_run = 0
 		while $visual_run < order.visual_runs.len() {
@@ -1189,7 +1189,7 @@ validate_bidi_order = |font, store, order| {
 			if run.source.scalars.start() < fact_end and run_scalar_end > fact.logical_scalars.start() {
 				$overlaps = $overlaps + 1
 				if run.source.scalars.start() >= fact.logical_scalars.start() and run_scalar_end <= fact_end {
-					$containing = Bool.True
+					$containing = True
 					$contained_direction = fact.direction
 				}
 			}
@@ -1200,9 +1200,9 @@ validate_bidi_order = |font, store, order| {
 		}
 		expected_direction = if $containing $contained_direction else paragraph_direction
 		directions_agree = match (run.direction, expected_direction) {
-			(LeftToRight, LeftToRight) => Bool.True
-			(RightToLeft, RightToLeft) => Bool.True
-			_ => Bool.False
+			(LeftToRight, LeftToRight) => True
+			(RightToLeft, RightToLeft) => True
+			_ => False
 		}
 		if !directions_agree {
 			return Err(BidiOrderInvalid({ reason: RunDirection, visual: $run_index }))
@@ -1210,9 +1210,9 @@ validate_bidi_order = |font, store, order| {
 		$run_index = $run_index + 1
 	}
 
-	## The paint sequence is read from the store's own glyph references: a
-	## cluster's painted position is where its glyphs sit in the dense glyph
-	## buffer. Visual position v must be owned by the resolved cluster.
+	# The paint sequence is read from the store's own glyph references: a
+	# cluster's painted position is where its glyphs sit in the dense glyph
+	# buffer. Visual position v must be owned by the resolved cluster.
 	var $visual_index = 0
 	while $visual_index < visual.len() {
 		logical_cluster = list_at(visual, $visual_index)
@@ -1421,6 +1421,6 @@ referenced_marker = 1
 expect scale_advance(1413, 11000, 2048)? == 7589
 
 expect match scale_advance(2, I64.highest, 1) {
-	Err(ArithmeticOverflow) => Bool.True
-	_ => Bool.False
+	Err(ArithmeticOverflow) => True
+	_ => False
 }

@@ -275,7 +275,7 @@ byte_at = |bytes, index| match bytes.get(index) {
 	}
 }
 
-## Empty input matches the NIST SHA-256 example digest.
+# Empty input matches the NIST SHA-256 example digest.
 expect KernelSha256.digest([])? == [
 	0xe3,
 	0xb0,
@@ -311,7 +311,7 @@ expect KernelSha256.digest([])? == [
 	0x55,
 ]
 
-## Multi-block input matches an independently published SHA-256 vector.
+# Multi-block input matches an independently published SHA-256 vector.
 expect KernelSha256.digest(Str.to_utf8("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"))? == [
 	0x24,
 	0x8d,
@@ -347,8 +347,8 @@ expect KernelSha256.digest(Str.to_utf8("abcdbcdecdefdefgefghfghighijhijkijkljklm
 	0xc1,
 ]
 
-## Hashing an exact range of an owned allocation with a prefix equals hashing
-## the concatenation, without materializing that concatenation.
+# Hashing an exact range of an owned allocation with a prefix equals hashing
+# the concatenation, without materializing that concatenation.
 expect {
 	prefix = Str.to_utf8("abcdbcdecdefdefgefghfghighijhijk")
 	payload = Str.to_utf8("XXXXijkljklmklmnlmnomnopnopqYYYY")

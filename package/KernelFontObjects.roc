@@ -87,7 +87,7 @@ object_id = |number| match KernelObject.ObjectId.from_number(number) {
 objects_per_font : U64
 objects_per_font = 7
 
-## Font identities append after the complete tagged-visual plan and move only xref.
+# Font identities append after the complete tagged-visual plan and move only xref.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	base = pipeline.objects

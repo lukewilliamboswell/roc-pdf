@@ -92,11 +92,11 @@ drawing_has_labels : Document.ValidatedDrawing -> Bool
 drawing_has_labels = |drawing| match drawing {
 	ValidDrawing(value) => value.commands.any(
 		|command| match command {
-			FlowText(_) => Bool.True
-			_ => Bool.False
+			FlowText(_) => True
+			_ => False
 		},
 	)
-	InvalidDrawing(_) => Bool.False
+	InvalidDrawing(_) => False
 }
 
 build_labels : Document.NormalizedAuthoring, KernelFacadeText.Plan, Semantics.Store, KernelFacadeLabels.Fonts, Semantics.Language, U64, KernelFacadeLabels.Limits -> Try([Labels(KernelFacadeLabels.Plan), NoLabels], KernelFacadeLabels.Error)
@@ -107,7 +107,7 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 	anchors = figure_anchors(authoring, text, store)?
 	flow = KernelFacadeText.Plan.flow(text)
 
-	## Every label, figures first, then panels, each in drawing order.
+	# Every label, figures first, then panels, each in drawing order.
 	var $entries = []
 	var $figure = 0
 	while $figure < authoring.figures.len() {
@@ -201,8 +201,8 @@ build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 	}
 	shaped = { ..batch.store, runs: batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + list_at(input_sources, run.id.index()).index())) }) }
 
-	## Align each run to its anchor by its exact advance, prove it lies
-	## inside its drawing, and place it on its page.
+	# Align each run to its anchor by its exact advance, prove it lies
+	# inside its drawing, and place it on its page.
 	var $pieces = List.with_capacity(entries.len())
 	$index = 0
 	while $index < entries.len() {

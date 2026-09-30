@@ -123,14 +123,14 @@ test_page = {
 	rotation: Rotate0,
 }
 
-## Resolved page boxes validate in one fixed amount of work per page.
+# Resolved page boxes validate in one fixed amount of work per page.
 expect KernelGeometry.validate_page(test_page)? == {
 	box_checks: 5,
 	containment_checks: 4,
 	coordinate_checks: 20,
 }
 
-## A page box outside its required containing box is rejected atomically.
+# A page box outside its required containing box is rejected atomically.
 expect {
 	bad = {
 		..test_page,
@@ -140,7 +140,7 @@ expect {
 	KernelGeometry.validate_page(bad) == Err(BoxOutside({ inner: ArtBox, outer: CropBox }))
 }
 
-## Non-positive page boxes are rejected before containment is considered.
+# Non-positive page boxes are rejected before containment is considered.
 expect {
 	bad = {
 		..test_page,
@@ -150,7 +150,7 @@ expect {
 	KernelGeometry.validate_page(bad) == Err(NonPositiveBox(ArtBox))
 }
 
-## Affine point transforms use checked fixed-point half-even rounding.
+# Affine point transforms use checked fixed-point half-even rounding.
 expect {
 	matrix : Scene.Matrix
 	matrix = {
@@ -167,7 +167,7 @@ expect {
 	transformed.x.raw() == 2000 and transformed.y.raw() == 9000
 }
 
-## Transform arithmetic reports overflow rather than wrapping coordinates.
+# Transform arithmetic reports overflow rather than wrapping coordinates.
 expect {
 	matrix : Scene.Matrix
 	matrix = {

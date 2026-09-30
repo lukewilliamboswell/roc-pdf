@@ -88,8 +88,8 @@ Fixture :: [].{
 			{ ..fact.fact, output: i_glyph },
 			ligature_shape_limits({}),
 		) {
-			Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 })) => Bool.True
-			_ => Bool.False
+			Err(AdvancedRunInvalid({ reason: AuxiliaryRange, run: 0 })) => True
+			_ => False
 		}
 		if !rejected {
 			return Err(EvidenceFailure)
@@ -158,8 +158,8 @@ Fixture :: [].{
 			resolved.order,
 			rtl_advanced_limits,
 		) {
-			Err(BidiOrderInvalid({ reason: PaintPosition, .. })) => Bool.True
-			_ => Bool.False
+			Err(BidiOrderInvalid({ reason: PaintPosition, .. })) => True
+			_ => False
 		}
 
 		## Painting the bracket's own glyph instead of its mirrored partner
@@ -173,8 +173,8 @@ Fixture :: [].{
 			resolved.order,
 			rtl_advanced_limits,
 		) {
-			Err(BidiOrderInvalid({ reason: MirrorGlyphMismatch, .. })) => Bool.True
-			_ => Bool.False
+			Err(BidiOrderInvalid({ reason: MirrorGlyphMismatch, .. })) => True
+			_ => False
 		}
 		if !order_rejected or !mirror_rejected {
 			return Err(EvidenceFailure)
@@ -233,8 +233,8 @@ Fixture :: [].{
 			case_source,
 			case_limits(runtime_guard, 2),
 		) {
-			Err(Unicode(LimitExceeded({ dimension: OutputScalars, .. }))) => Bool.True
-			_ => Bool.False
+			Err(Unicode(LimitExceeded({ dimension: OutputScalars, .. }))) => True
+			_ => False
 		}
 		mapping = case_mapping(runtime_guard)?
 		store = case_store(mapping.font)
@@ -247,8 +247,8 @@ Fixture :: [].{
 			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
 			case_advanced_limits,
 		) {
-			Err(AdvancedClusterInvalid({ cluster: 1, reason: Cardinality })) => Bool.True
-			_ => Bool.False
+			Err(AdvancedClusterInvalid({ cluster: 1, reason: Cardinality })) => True
+			_ => False
 		}
 		if !budget_rejected or !cardinality_rejected {
 			return Err(EvidenceFailure)
@@ -302,8 +302,8 @@ Fixture :: [].{
 			policy: Font.PolicyId.from_index(2),
 			source: Semantics.TextSourceId.from_index(0),
 		}) {
-			Rejected([MissingCoverage({ cluster: 0, source: _ })]) => Bool.True
-			_ => Bool.False
+			Rejected([MissingCoverage({ cluster: 0, source: _ })]) => True
+			_ => False
 		}
 		if !rejected {
 			return Err(EvidenceFailure)
@@ -450,7 +450,7 @@ Fixture :: [].{
 			"unselected" => unselected_soft_hyphen_rejected({}) ? |_| EvidenceFailure
 			"external-malformed" => malformed_external_hyphen_rejected({}) ? |_| EvidenceFailure
 			"external-unselected" => unselected_external_hyphen_rejected({}) ? |_| EvidenceFailure
-			_ => Bool.False
+			_ => False
 		}
 		if !rejected {
 			return Err(EvidenceFailure)
@@ -480,8 +480,8 @@ Fixture :: [].{
 			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
 			KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 1, max_source_bytes: 4, max_substitutions: 0, max_transformations: 0 }),
 		) {
-			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => Bool.True
-			_ => Bool.False
+			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => True
+			_ => False
 		}
 		if !rejected {
 			return Err(EvidenceFailure)
@@ -540,8 +540,8 @@ Fixture :: [].{
 			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
 			KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 1, max_source_bytes: 3, max_substitutions: 0, max_transformations: 0 }),
 		) {
-			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => Bool.True
-			_ => Bool.False
+			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => True
+			_ => False
 		}
 		if !rejected {
 			return Err(EvidenceFailure)
@@ -593,8 +593,8 @@ Fixture :: [].{
 			{ instance: Font.InstanceId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0) },
 			KernelShape.AdvancedLimits.make({ max_clusters: 1, max_glyph_indices: 1, max_glyphs: 1, max_runs: 1, max_scalars: 2, max_source_bytes: 3, max_substitutions: 0, max_transformations: 0 }),
 		) {
-			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => Bool.True
-			_ => Bool.False
+			Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => True
+			_ => False
 		}
 		if !rejected {
 			return Err(EvidenceFailure)
@@ -2188,8 +2188,8 @@ malformed_soft_hyphen_rejected = |_| {
 		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExplicitSoftHyphen, source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) } }],
 		[SelectVisibleHyphen],
 	) {
-		Err(InvalidExplicitSoftHyphen({ opportunity: 0 })) => Ok(Bool.True)
-		_ => Ok(Bool.False)
+		Err(InvalidExplicitSoftHyphen({ opportunity: 0 })) => Ok(True)
+		_ => Ok(False)
 	}
 }
 
@@ -2203,8 +2203,8 @@ unselected_soft_hyphen_rejected = |_| {
 		[NotSelected],
 	) ? |_| EvidenceFailure
 	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
-		Err(UnselectedOpportunity({ opportunity: 0 })) => Ok(Bool.True)
-		_ => Ok(Bool.False)
+		Err(UnselectedOpportunity({ opportunity: 0 })) => Ok(True)
+		_ => Ok(False)
 	}
 }
 
@@ -2217,8 +2217,8 @@ malformed_external_hyphen_rejected = |_| {
 		[{ id: KernelDiscretionaryHyphen.OpportunityId.from_index(0), kind: ExternalHyphenation, source: { scalars: Semantics.Range.from_start_and_length(1, 1), utf8_bytes: Semantics.Range.from_start_and_length(1, 1) } }],
 		[SelectVisibleHyphen],
 	) {
-		Err(InvalidSourceRange({ opportunity: 0 })) => Ok(Bool.True)
-		_ => Ok(Bool.False)
+		Err(InvalidSourceRange({ opportunity: 0 })) => Ok(True)
+		_ => Ok(False)
 	}
 }
 
@@ -2232,8 +2232,8 @@ unselected_external_hyphen_rejected = |_| {
 		[NotSelected],
 	) ? |_| EvidenceFailure
 	match KernelDiscretionaryHyphen.Plan.selected(plan, KernelDiscretionaryHyphen.OpportunityId.from_index(0)) {
-		Err(UnselectedOpportunity({ opportunity: 0 })) => Ok(Bool.True)
-		_ => Ok(Bool.False)
+		Err(UnselectedOpportunity({ opportunity: 0 })) => Ok(True)
+		_ => Ok(False)
 	}
 }
 
@@ -2251,8 +2251,8 @@ expect {
 						KernelObject.ObjectId.number(first.type0) == 18
 }
 
-## A many-to-many advanced cluster is accepted only with occurrence-derived
-## ActualText; every painted CID still receives a deterministic ToUnicode map.
+# A many-to-many advanced cluster is accepted only with occurrence-derived
+# ActualText; every painted CID still receives a deterministic ToUnicode map.
 expect {
 	sample = build_sample({})?
 	registered = Font.Registry.empty.register(
@@ -2301,8 +2301,8 @@ expect {
 	work.actual_text_runs == 1 and work.actual_text_scalars == 2 and work.mappings == 2
 }
 
-## An explicit semantic override is resolved only through the occurrence's
-## owned text-property range, and its scalar budget fails atomically.
+# An explicit semantic override is resolved only through the occurrence's
+# owned text-property range, and its scalar budget fails atomically.
 expect {
 	sample = build_sample({})?
 	occurrence = list_at(semantics.occurrences, 0)
@@ -2332,15 +2332,15 @@ expect {
 		[placement],
 		KernelPdfText.Limits.make({ max_actual_text_scalars: 6, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 }),
 	) {
-		Err(LimitExceeded({ attempted: 7, dimension: ActualTextScalars, limit: 6 })) => Bool.True
-		_ => Bool.False
+		Err(LimitExceeded({ attempted: 7, dimension: ActualTextScalars, limit: 6 })) => True
+		_ => False
 	}
 	accepted_work.actual_text_runs == 1 and accepted_work.actual_text_scalars == 7 and bounded
 }
 
-## A font-level CID cannot carry two occurrence mappings. The plain twin is
-## rejected; the reordered twin has exact ActualText, retains the first CMap
-## fallback deterministically, and reports the resolved conflict.
+# A font-level CID cannot carry two occurrence mappings. The plain twin is
+# rejected; the reordered twin has exact ActualText, retains the first CMap
+# fallback deterministically, and reports the resolved conflict.
 expect {
 	registered = Font.Registry.empty.register(
 		caller_font_bytes,
@@ -2398,8 +2398,8 @@ expect {
 	placement = { origin: { x: zero, y: zero }, run: Text.RunId.from_index(0) }
 	limits = KernelPdfText.Limits.make({ max_actual_text_scalars: 2, max_content_bytes: 512, max_mappings: 2, max_placements: 1, max_source_scalars: 2 })
 	plain_rejected = match KernelPdfText.Plan.build(semantics, plain.store, [font_plan], [placement], limits) {
-		Err(UnicodeMappingConflict({ cid: _, font: 0 })) => Bool.True
-		_ => Bool.False
+		Err(UnicodeMappingConflict({ cid: _, font: 0 })) => True
+		_ => False
 	}
 	reordered_clusters = List.map(base_store.clusters, |cluster| { ..cluster, kind: Reordered })
 	conflict_store = { ..base_store, clusters: reordered_clusters }

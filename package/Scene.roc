@@ -449,21 +449,21 @@ Scene :: [].{
 	no_patterns = { cells: [], commands: [] }
 }
 
-## Scene group IDs preserve their dense index.
+# Scene group IDs preserve their dense index.
 expect Scene.GroupId.from_index(2).index() == 2
 
-## Path IDs preserve their dense index.
+# Path IDs preserve their dense index.
 expect Scene.PathId.from_index(4).index() == 4
 
-## The public coordinate model matches the fixed-point layout scale.
+# The public coordinate model matches the fixed-point layout scale.
 expect Scene.coordinate_model.units_per_point == 1000
 
-## Nested public type modules construct opaque scene group IDs directly.
+# Nested public type modules construct opaque scene group IDs directly.
 expect Scene.GroupId.from_index(10).index() == 10
 
-## Form IDs preserve their dense index and the empty store carries no forms.
+# Form IDs preserve their dense index and the empty store carries no forms.
 expect Scene.FormId.from_index(3).index() == 3 and Scene.no_forms.forms.len() == 0
 
-## Shading and pattern IDs preserve their dense indices, and the empty paint
-## stores carry no resources.
+# Shading and pattern IDs preserve their dense indices, and the empty paint
+# stores carry no resources.
 expect Scene.ShadingId.from_index(5).index() == 5 and Scene.PatternId.from_index(7).index() == 7 and Scene.no_shadings.shadings.len() == 0 and Scene.no_patterns.cells.len() == 0

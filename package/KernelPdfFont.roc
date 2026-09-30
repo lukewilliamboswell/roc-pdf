@@ -727,8 +727,8 @@ expect append_hex_u16([], 0x04e9) == Str.to_utf8("04E9")
 
 expect append_scalar_utf16_hex([], 0x1f600)? == Str.to_utf8("D83DDE00")
 
-## Consecutive single-code-unit mappings share one bfrange; the rest stay
-## bfchar, and the precomputed size is exact.
+# Consecutive single-code-unit mappings share one bfrange; the rest stay
+# bfchar, and the precomputed size is exact.
 expect {
 	mappings = [
 		{ cid: 1, scalars: [0x41] },

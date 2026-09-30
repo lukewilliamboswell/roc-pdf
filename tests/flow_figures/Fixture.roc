@@ -527,8 +527,8 @@ spaced_document = |count| {
 	while $index < count {
 		number = ($index + 1).to_str()
 		$contents = $contents
-			.append(Pdf.spaced_decoration(rule, { above: points(12), behind: Bool.False, below: points(6) }))
-			.append(Pdf.spaced_decoration(band, { above: points(0), behind: Bool.True, below: points(-22) }))
+			.append(Pdf.spaced_decoration(rule, { above: points(12), behind: False, below: points(6) }))
+			.append(Pdf.spaced_decoration(band, { above: points(0), behind: True, below: points(-22) }))
 			.append(Pdf.heading(1, "  Region ${number}"))
 			.append(paragraph($index))
 		$index = $index + 1
@@ -542,8 +542,8 @@ run_spaced_decorations = |count| {
 	rule = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 100, 2), oak)
 	document = |block| Pdf.document({ contents: [Pdf.paragraph("Lead ${count.to_str()}"), block, Pdf.paragraph("Body")], language: "en-AU", title: "Spacing negatives" })
 	checks = [
-		rejects(document(Pdf.spaced_decoration(rule, { above: points(-1), behind: Bool.False, below: points(0) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
-		rejects(document(Pdf.spaced_decoration(rule, { above: points(0), behind: Bool.True, below: points(-3) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(document(Pdf.spaced_decoration(rule, { above: points(-1), behind: False, below: points(0) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(document(Pdf.spaced_decoration(rule, { above: points(0), behind: True, below: points(-3) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
 	]
 	rejections = checks.sum()
 	if rejections != checks.len() {

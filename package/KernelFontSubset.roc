@@ -382,8 +382,8 @@ collect_source_tables = |font| {
 
 assemble_sfnt : SfntTables -> Try({ bytes : List(U8), tables : U64 }, KernelFontSubset.Error)
 assemble_sfnt = |tables| {
-	## Tables in ascending tag order; an absent hinting table has no
-	## directory entry, so the directory holds 10 to 14 tables.
+	# Tables in ascending tag order; an absent hinting table has no
+	# directory entry, so the directory holds 10 to 14 tables.
 	var $ordered = List.with_capacity(subset_table_count)
 	$ordered = $ordered.append({ bytes: tables.os2, tag: tag_os2 })
 	$ordered = $ordered.append({ bytes: tables.cmap, tag: tag_cmap })
@@ -412,8 +412,8 @@ assemble_sfnt = |tables| {
 		return Err(ArithmeticOverflow)
 	}
 
-	## The binary-search fields: the largest power of two not above the
-	## table count, times 16, its log2, and the remainder.
+	# The binary-search fields: the largest power of two not above the
+	# table count, times 16, its log2, and the remainder.
 	var $entry_selector = 0
 	var $power = 1
 	while $power * 2 <= count {

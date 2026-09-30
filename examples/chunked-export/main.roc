@@ -315,8 +315,8 @@ temperature_chart = {
 	light = Color.srgb8({ red: 125, green: 180, blue: 200 })
 	right = plot_x(48)
 
-	## The safe band (2.0 to 8.0 °C), labelled gridlines every 2 °C, and
-	## hour ticks labelled every 6 hours.
+	# The safe band (2.0 to 8.0 °C), labelled gridlines every 2 °C, and
+	# hour ticks labelled every 6 hours.
 	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(plot_x(0), plot_y(20), right - plot_x(0), plot_y(80) - plot_y(20)), band)
 	for degrees in [0, 2, 4, 6, 8] {
 		$d = Scene.rectangle($d, { origin: Layout.point(plot_x(0), plot_y(degrees * 10)), size: { height: Layout.Unit.millipoints(500), width: points(right - plot_x(0)) } }, grid)
@@ -391,7 +391,7 @@ contents = |options| {
 
 body : Document.Block -> List(Document.Block)
 body = |shipment| [
-	Pdf.spaced_decoration(Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 120, 4), spruce), Layout.rect(124, 0, 24, 4), alarm), { above: points(0), behind: Bool.False, below: points(6) }),
+	Pdf.spaced_decoration(Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 120, 4), spruce), Layout.rect(124, 0, 24, 4), alarm), { above: points(0), behind: False, below: points(6) }),
 	Pdf.title("Cold-chain telemetry export"),
 	Pdf.rich_paragraph([
 		Pdf.text("Shipment "),

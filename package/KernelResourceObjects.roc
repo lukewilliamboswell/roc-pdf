@@ -600,7 +600,7 @@ test_limits = {
 	max_values: 640,
 }
 
-## Resource lowering completes every planned object and produces a sealable store.
+# Resource lowering completes every planned object and produces a sealable store.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	prefix = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
@@ -612,7 +612,7 @@ expect {
 	counts.objects == KernelObjectPlan.Plan.object_count(pipeline.objects) and counts.payloads == 2 and counts.streams == 2 and work.color_spaces == 1 and work.images == 1 and work.image_rows == 2 and work.raster_bytes == 4
 }
 
-## Padded raster and alpha rows compact into distinct image and soft-mask streams.
+# Padded raster and alpha rows compact into distinct image and soft-mask streams.
 expect {
 	pipeline = KernelPipelineFixture.alpha_pipeline({})?
 	prefix = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?

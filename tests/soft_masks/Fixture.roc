@@ -484,8 +484,8 @@ showcase_scenario = |direction| {
 		DrawPath({ path: Scene.PathId.from_index(5), style: fill_with(gray_value(24672, space(0))) }),
 	]
 
-	## The form arena in dense-ID order. Logical content is fixed; only the
-	## dense IDs (and therefore arena order and references) permute.
+	# The form arena in dense-ID order. Logical content is fixed; only the
+	# dense IDs (and therefore arena order and references) permute.
 	var $form_arena = []
 	var $forms = List.with_capacity(showcase_form_count)
 	var $dense_index = 0
@@ -851,7 +851,7 @@ check_negatives = |context| {
 	## 1: soft masks stay rejected under the tagged-visual resource constructor.
 	rejected = match KernelScene.Plan.build(base.scene, KernelScene.Resources.make({ color_spaces: 2, images: 0 }), scene_limits) {
 		Err(UnsupportedCommand({ command })) => command == context
-		_ => Bool.False
+		_ => False
 	}
 	if !rejected {
 		return Err(MissingRejection(1))
@@ -877,7 +877,7 @@ check_negatives = |context| {
 		form_scene_limits,
 	) {
 		Err(IndexOutOfRange({ available: 1, index, kind: FormIndex })) => index == context + 6
-		_ => Bool.False
+		_ => False
 	}
 	if !scene_rejected {
 		return Err(MissingRejection(2))
@@ -896,8 +896,8 @@ check_negatives = |context| {
 		plain_mask,
 		form_limits,
 		|error| match error {
-			MaskFormNotIsolated({ command: 1, form: 0 }) => Bool.True
-			_ => Bool.False
+			MaskFormNotIsolated({ command: 1, form: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -919,8 +919,8 @@ check_negatives = |context| {
 		nested,
 		form_limits,
 		|error| match error {
-			NestedSoftMask({ command: 2 }) => Bool.True
-			_ => Bool.False
+			NestedSoftMask({ command: 2 }) => True
+			_ => False
 		},
 	)?
 
@@ -948,8 +948,8 @@ check_negatives = |context| {
 		masked_form,
 		form_limits,
 		|error| match error {
-			FormMaskInAmbient({ form: 1 }) => Bool.True
-			_ => Bool.False
+			FormMaskInAmbient({ form: 1 }) => True
+			_ => False
 		},
 	)?
 
@@ -972,8 +972,8 @@ check_negatives = |context| {
 	text_colors = KernelColor.Plan.build(text_mask.colors, text_mask.color_limits) ? |_| MissingRejection(6)
 	text_images = KernelImage.Plan.build(text_mask.images, text_colors, text_mask.image_limits) ? |_| MissingRejection(6)
 	text_rejected = match KernelForm.Facts.build(text_scene, { colors: text_colors, font_count: 1, images: text_images }, WithTextStore(minimal_text_store), form_limits) {
-		Err(TextInMaskForm({ form: 0 })) => Bool.True
-		_ => Bool.False
+		Err(TextInMaskForm({ form: 0 })) => True
+		_ => False
 	}
 	if !text_rejected {
 		return Err(MissingRejection(6))
@@ -985,8 +985,8 @@ check_negatives = |context| {
 		mask_chain(3),
 		KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 2, max_opacity_depth: 64, max_recipe_bytes: 4194304 }),
 		|error| match error {
-			MaskDepthExceeded({ attempted: 3, limit: 2 }) => Bool.True
-			_ => Bool.False
+			MaskDepthExceeded({ attempted: 3, limit: 2 }) => True
+			_ => False
 		},
 	)?
 
@@ -1018,8 +1018,8 @@ check_negatives = |context| {
 		cycle,
 		form_limits,
 		|error| match error {
-			Graph(DependencyCycle(_)) => Bool.True
-			_ => Bool.False
+			Graph(DependencyCycle(_)) => True
+			_ => False
 		},
 	)?
 
@@ -1033,8 +1033,8 @@ check_negatives = |context| {
 		},
 		form_limits,
 		|error| match error {
-			MissingBlendingSpace({ page: 0 }) => Bool.True
-			_ => Bool.False
+			MissingBlendingSpace({ page: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1049,35 +1049,35 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## The showcase deduplicates the authored twin mask into one canonical mask
-## state over one canonical mask form, keeps the constant-alpha state
-## separate, and emits identical bytes for both authored orders.
+# The showcase deduplicates the authored twin mask into one canonical mask
+# state over one canonical mask form, keeps the constant-alpha state
+# separate, and emits identical bytes for both authored orders.
 expect {
 	result = Fixture.scenario("showcase", 0)?
 	result.work.get(0) == Ok(6) and result.work.get(1) == Ok(2) and result.work.get(2) == Ok(1) and result.work.get(3) == Ok(1) and result.work.get(8) == Ok(2) and result.work.get(10) == Ok(1) and result.work.get(28) == Ok(4) and result.work.get(27) == Ok(3)
 }
 
-## Repeated mask groups over one mask Form share one canonical mask state;
-## the mask Form's internal half-opacity band adds the one alpha state.
+# Repeated mask groups over one mask Form share one canonical mask state;
+# the mask Form's internal half-opacity band adds the one alpha state.
 expect {
 	result = Fixture.scenario("reuse", 5)?
 	result.work.get(0) == Ok(5) and result.work.get(2) == Ok(1) and result.work.get(15) == Ok(5) and result.work.get(12) == Ok(2)
 }
 
-## Distinct mask Forms stay distinct canonical mask states and objects,
-## while their identical internal bands share one alpha state.
+# Distinct mask Forms stay distinct canonical mask states and objects,
+# while their identical internal bands share one alpha state.
 expect {
 	result = Fixture.scenario("masks", 5)?
 	result.work.get(2) == Ok(5) and result.work.get(12) == Ok(6) and result.work.get(27) == Ok(5)
 }
 
-## A mask chain records its exact depth.
+# A mask chain records its exact depth.
 expect {
 	result = Fixture.scenario("chain", 3)?
 	result.work.get(4) == Ok(3) and result.work.get(2) == Ok(3)
 }
 
-## Every negative twin is rejected and no plan escapes.
+# Every negative twin is rejected and no plan escapes.
 expect {
 	result = Fixture.atomic_negatives(1)?
 	result.work.get(0) == Ok(9) and result.work.get(1) == Ok(0)

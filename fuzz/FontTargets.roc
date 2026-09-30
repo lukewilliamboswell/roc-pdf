@@ -345,24 +345,24 @@ tag_head = 0x68656164
 sfnt_checksum : U32
 sfnt_checksum = 0xb1b0afba
 
-## Repairing an untouched fixture reproduces it byte for byte, so the checksum
-## reimplementation above agrees with the checksums the fixture already carries.
+# Repairing an untouched fixture reproduces it byte for byte, so the checksum
+# reimplementation above agrees with the checksums the fixture already carries.
 expect repair(built_in_font, []) == Ok(built_in_font)
 
-## Edits reach the payload: the same position written with two different values
-## cannot produce the same font.
+# Edits reach the payload: the same position written with two different values
+# cannot produce the same font.
 expect
 	repair(built_in_font, [{ byte: 0, table: 0, value: 0 }])
 		!= repair(built_in_font, [{ byte: 0, table: 0, value: 255 }])
 
-## A repaired edit clears both checksum gates. This is the property that makes
-## the target worth running: raw mutation stops at these gates, so the loca,
-## glyf, cmap, OS/2, and name parsers behind them are otherwise unreachable.
+# A repaired edit clears both checksum gates. This is the property that makes
+# the target worth running: raw mutation stops at these gates, so the loca,
+# glyf, cmap, OS/2, and name parsers behind them are otherwise unreachable.
 expect match repair(built_in_font, [{ byte: 3, table: 2, value: 0x5a }]) {
-	Err(Unrepairable) => Bool.False
+	Err(Unrepairable) => False
 	Ok(bytes) => match KernelFont.inspect(bytes, inspection_limits) {
-		Err(ChecksumMismatch(_)) => Bool.False
-		Err(FontChecksumMismatch(_)) => Bool.False
-		_ => Bool.True
+		Err(ChecksumMismatch(_)) => False
+		Err(FontChecksumMismatch(_)) => False
+		_ => True
 	}
 }

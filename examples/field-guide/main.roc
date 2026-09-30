@@ -231,7 +231,7 @@ habitat_section = {
 			.path(line(x, 136, x + 5, 152), Scene.solid_stroke(rgb(96, 128, 60), points(1)))
 	}
 
-	## The high-tide line (dashed) and the low-tide line.
+	# The high-tide line (dashed) and the low-tide line.
 	var $x = 184
 	while $x < w - 6 {
 		$scene = $scene.path(line($x, 72, $x + 6, 72), Scene.solid_stroke(coastal, points(1)))
@@ -412,7 +412,7 @@ divider = Pdf.spaced_decoration(
 		.path(line(1, 7, 210, 7), Scene.solid_stroke(sand, points(1)))
 		.group(point(217, 0), wave_mark)
 		.path(line(249, 7, body_width - 1, 7), Scene.solid_stroke(sand, points(1))),
-	{ above: points(6), behind: Bool.False, below: points(0) },
+	{ above: points(6), behind: False, below: points(0) },
 )
 
 ## ---------------------------------------------------------------------

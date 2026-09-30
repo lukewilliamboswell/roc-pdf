@@ -489,8 +489,8 @@ check_text_negatives = |prelude| {
 		groups: [{ commands: Semantics.Range.from_start_and_length(0, 2), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	}
 	twice_rejected = match build_facts_for(prelude, twice) {
-		Err(TextFormMultiplyPlaced({ form: 0, instances: 2 })) => Bool.True
-		_ => Bool.False
+		Err(TextFormMultiplyPlaced({ form: 0, instances: 2 })) => True
+		_ => False
 	}
 	if !twice_rejected {
 		return Err(MissingRejection(1))
@@ -502,8 +502,8 @@ check_text_negatives = |prelude| {
 		groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) }],
 	}
 	artifact_rejected = match build_facts_for(prelude, artifact) {
-		Err(ArtifactTextInForm({ form: 0 })) => Bool.True
-		_ => Bool.False
+		Err(ArtifactTextInForm({ form: 0 })) => True
+		_ => False
 	}
 	if !artifact_rejected {
 		return Err(MissingRejection(2))
@@ -528,8 +528,8 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## Text painted inside a meaningful form keeps its run, mapping, ActualText,
-## and font behavior while the form's own dictionary carries the font.
+# Text painted inside a meaningful form keeps its run, mapping, ActualText,
+# and font behavior while the form's own dictionary carries the font.
 expect {
 	result = Fixture.text_form(0)?
 	result.work.get(0) == Ok(1) and result.work.get(1) == Ok(1) and result.work.get(2) == Ok(1) and result.work.get(4) == Ok(1) and result.work.get(12) == Ok(8) and result.work.get(19) == Ok(2)

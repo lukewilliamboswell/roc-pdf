@@ -122,5 +122,5 @@ Image :: [].{
 	}
 }
 
-## Image resource IDs preserve their dense index.
+# Image resource IDs preserve their dense index.
 expect Image.Id.from_index(7).index() == 7

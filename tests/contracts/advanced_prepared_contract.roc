@@ -19,7 +19,7 @@ prepared_counts = |prepared| {
 	semantic_nodes: prepared.semantics.nodes.len(),
 }
 
-## Layout cache identity includes exact constraints, style, source, and resources.
+# Layout cache identity includes exact constraints, style, source, and resources.
 expect {
 	key : Layout.MeasurementKey
 	key = {
@@ -39,7 +39,7 @@ expect {
 	key.resources.index() == 3 and key.style.index() == 5
 }
 
-## Prepared resource edges keep placement ownership separate from payload identity.
+# Prepared resource edges keep placement ownership separate from payload identity.
 expect {
 	resource_use : Document.ResourceUse
 	resource_use = {
@@ -53,7 +53,7 @@ expect {
 	}
 }
 
-## Rejected preparation is atomic and diagnostics carry stage and clause facts.
+# Rejected preparation is atomic and diagnostics carry stage and clause facts.
 expect {
 	diagnostic : Conformance.Diagnostic
 	diagnostic = {
@@ -76,7 +76,7 @@ expect {
 	}
 }
 
-## Phase-local layout handlers and caches expire at the prepared boundary.
+# Phase-local layout handlers and caches expire at the prepared boundary.
 expect {
 	policy = Document.lifetimes
 

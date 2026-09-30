@@ -94,17 +94,17 @@ register_all = |specs| {
 		registration = { provision: provision_for(spec.provision), scripts }
 		before = $registry.store()
 
-		## The first pre-call store is the empty registry's, observed through a
-		## loop variable so it is a measurement rather than a folded constant.
+		# The first pre-call store is the empty registry's, observed through a
+		# loop variable so it is a measurement rather than a folded constant.
 		if $index == 0 and !empty_store(before) {
 			return Err(Violation)
 		}
 		match $registry.register(bytes, registration, Font.ValidationLimits.make(limits)) {
 			Err(error) => {
-				## A rejection leaves the caller holding the registry it already
-				## had, so the loop simply continues with it. What the property
-				## checks is that the rejection is the exact one the public
-				## contract describes for this input.
+				# A rejection leaves the caller holding the registry it already
+				# had, so the loop simply continues with it. What the property
+				# checks is that the rejection is the exact one the public
+				# contract describes for this input.
 				if !expected_registration_failure(error, spec, scripts, limits) {
 					return Err(Violation)
 				}
@@ -377,8 +377,8 @@ dense_identities = |store, index, registration| {
 		return False
 	}
 
-	## Only one font program format is accepted today, and the provision is a
-	## caller declaration that registration records rather than infers.
+	# Only one font program format is accepted today, and the provision is a
+	# caller declaration that registration records rather than infers.
 	if face.format != OpenTypeTrueType or face.provision != registration.provision {
 		return False
 	}
@@ -452,10 +452,10 @@ expected_registration_failure = |error, spec, scripts, limits| {
 	generous = spec.limits % 5 == 0
 	kind = fixture_kind(spec.font)
 
-	## A packaged fixture with a valid script list and the default limits has no
-	## reason to fail, so a rejection there is a regression rather than an
-	## ordinary outcome. Each deliberately broken fixture has exactly one
-	## rejection it must reach under those same limits.
+	# A packaged fixture with a valid script list and the default limits has no
+	# reason to fail, so a rejection there is a regression rather than an
+	# ordinary outcome. Each deliberately broken fixture has exactly one
+	# rejection it must reach under those same limits.
 	if generous and kind == Healthy {
 		return False
 	}
@@ -466,7 +466,7 @@ expected_registration_failure = |error, spec, scripts, limits| {
 		return False
 	}
 
-	## Four bytes cannot hold a table directory under any limits at all.
+	# Four bytes cannot hold a table directory under any limits at all.
 	if kind == Truncated and !malformed_rejection(error) {
 		return False
 	}
@@ -580,8 +580,8 @@ add_policies = |configured, requests| {
 					return Err(Violation)
 				}
 
-				## Instance identity is dense, so the policy's instance list is
-				## the requested face list read through that identity.
+				# Instance identity is dense, so the policy's instance list is
+				# the requested face list read through that identity.
 				var $slot = 0
 				while $slot < requested.len() {
 					if list_at(record.instances, $slot).index() != list_at(requested, $slot).index() {
@@ -597,8 +597,8 @@ add_policies = |configured, requests| {
 					Ok(returned) => if !same_faces(returned, requested) return Err(Violation)
 				}
 
-				## The pre-call registry keeps working and does not learn about a
-				## policy that was constructed from it afterwards.
+				# The pre-call registry keeps working and does not learn about a
+				# policy that was constructed from it afterwards.
 				if !unknown_policy(previous, result.policy.index()) {
 					return Err(Violation)
 				}
@@ -667,8 +667,8 @@ boundary_probes = |configured, probe| {
 	store = configured.registry.store()
 	faces = configured.faces.len()
 
-	## `register` mints one implicit single-face policy per face, so the policy
-	## space is N wide before any explicit policy and N + M wide after M of them.
+	# `register` mints one implicit single-face policy per face, so the policy
+	# space is N wide before any explicit policy and N + M wide after M of them.
 	if store.faces.len() != faces or store.policies.len() != configured.policies {
 		return False
 	}
@@ -1215,8 +1215,8 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## Three registrations and two explicit policies: the policy space ends up five
-## wide, which is the implicit-policy behaviour no existing test reaches.
+# Three registrations and two explicit policies: the policy space ends up five
+# wide, which is the implicit-policy behaviour no existing test reaches.
 expect RegistryTargets.registry_boundary({
 	clusters: [{ scalars: [0], script: 0 }, { scalars: [6], script: 1 }, { scalars: [], script: 0 }],
 	facade: 0,
@@ -1230,10 +1230,10 @@ expect RegistryTargets.registry_boundary({
 	],
 })
 
-## Every registration rejection the boundary can produce, in one input: a
-## duplicated script tag, a malformed tag, a rights-restricted font, a truncated
-## font, an unsupported font program, and a byte budget too small for the font.
-## The two policy requests add `EmptyPolicy` and `UnknownPolicyFace`.
+# Every registration rejection the boundary can produce, in one input: a
+# duplicated script tag, a malformed tag, a rights-restricted font, a truncated
+# font, an unsupported font program, and a byte budget too small for the font.
+# The two policy requests add `EmptyPolicy` and `UnknownPolicyFace`.
 expect RegistryTargets.registry_boundary({
 	clusters: [],
 	facade: 1,
@@ -1250,11 +1250,11 @@ expect RegistryTargets.registry_boundary({
 	],
 })
 
-## A Latin face and a Han face ordered into one explicit policy, over clusters
-## that select the first, select the second, select the first again, miss every
-## face, and carry no scalars at all. This is the multi-error accumulation case:
-## the rejection carries both failing clusters in ascending order, which no
-## hand-written assertion in the repository reaches.
+# A Latin face and a Han face ordered into one explicit policy, over clusters
+# that select the first, select the second, select the first again, miss every
+# face, and carry no scalars at all. This is the multi-error accumulation case:
+# the rejection carries both failing clusters in ascending order, which no
+# hand-written assertion in the repository reaches.
 expect RegistryTargets.registry_boundary({
 	clusters: [
 		{ scalars: [0], script: 0 },
@@ -1273,12 +1273,12 @@ expect RegistryTargets.registry_boundary({
 	],
 })
 
-## Two faces that both declare Latin but cover overlapping subsets, ordered into
-## one policy. The clusters select the first face, then the second because only
-## it covers `i`, then the first again because it comes earlier and covers `f`,
-## then a cluster the first face also covers so that the builder coalesces it
-## into the range already open. The complete plan therefore has three ranges for
-## four clusters, with no two adjacent ranges sharing an instance.
+# Two faces that both declare Latin but cover overlapping subsets, ordered into
+# one policy. The clusters select the first face, then the second because only
+# it covers `i`, then the first again because it comes earlier and covers `f`,
+# then a cluster the first face also covers so that the builder coalesces it
+# into the range already open. The complete plan therefore has three ranges for
+# four clusters, with no two adjacent ranges sharing an instance.
 expect RegistryTargets.registry_boundary({
 	clusters: [
 		{ scalars: [0], script: 0 },

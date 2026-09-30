@@ -537,15 +537,15 @@ Theme :: {
 map_headings : Theme.HeadingStyles, (Theme.TextStyle -> Theme.TextStyle) -> Theme.HeadingStyles
 map_headings = |headings, update| { h1: update(headings.h1), h2: update(headings.h2), h3: update(headings.h3), h4: update(headings.h4), h5: update(headings.h5), h6: update(headings.h6) }
 
-## One heading level's style changes without touching the others.
+# One heading level's style changes without touching the others.
 expect {
 	large = { ..Theme.default.heading_style(), size: Layout.Unit.from_raw(20000) }
 	theme = Theme.default.with_heading_level_style(H2, large)
 	Layout.Unit.raw(theme.heading_level_style(H2).size) == 20000 and Layout.Unit.raw(theme.heading_level_style(H1).size) == 15000 and Layout.Unit.raw(theme.heading_level_style(H3).size) == 15000
 }
 
-## Nested theme font references preserve their dense resource index.
+# Nested theme font references preserve their dense resource index.
 expect Font.FaceId.from_index(3).index() == 3
 
-## The versioned default theme uses an exact 72-point left margin.
+# The versioned default theme uses an exact 72-point left margin.
 expect Layout.Unit.raw(Theme.default.page_margin.left) == 72000

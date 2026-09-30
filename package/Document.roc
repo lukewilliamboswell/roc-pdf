@@ -1200,7 +1200,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## An in-flow decorative drawing: a `Decoration` page artifact that
 	## occupies its drawing's height immediately above the next flow block.
 	decoration : Scene.Drawing -> DocumentBlock
-	decoration = |drawing_value| DocumentBlock.Decoration({ above: Layout.Unit.from_raw(0), behind: Bool.False, below: Layout.Unit.from_raw(0), drawing: drawing_value })
+	decoration = |drawing_value| DocumentBlock.Decoration({ above: Layout.Unit.from_raw(0), behind: False, below: Layout.Unit.from_raw(0), drawing: drawing_value })
 
 	## An in-flow decoration with its own spacing and paint layer.
 	spaced_decoration : Scene.Drawing, { above : Layout.Unit, behind : Bool, below : Layout.Unit } -> DocumentBlock
@@ -1792,8 +1792,8 @@ without_decoration_labels : ValidatedDrawing -> ValidatedDrawing
 without_decoration_labels = |validated| match validated {
 	ValidDrawing(drawing) => if drawing.commands.any(
 		|command| match command {
-			FlowText(_) => Bool.True
-			_ => Bool.False
+			FlowText(_) => True
+			_ => False
 		},
 	) {
 		InvalidDrawing("a decoration takes no text labels; put labels in a figure's drawing or a custom block's panel")
@@ -2400,9 +2400,9 @@ segment_texts : List(NormalizedInline), U64, List(NormalizedLineBreak), U64 -> L
 segment_texts = |inlines, base, line_breaks, first_break| {
 	var $segments = List.with_capacity(line_breaks.len() - first_break + 1)
 
-	## A segment's leaf texts are joined once when the segment ends. Growing
-	## the segment with `Str.concat` sized it exactly on every leaf, which
-	## copied the segment once per leaf.
+	# A segment's leaf texts are joined once when the segment ends. Growing
+	# the segment with `Str.concat` sized it exactly on every leaf, which
+	# copied the segment once per leaf.
 	var $current = []
 	var $next_break = first_break
 	var $leaf = 0
@@ -2520,7 +2520,7 @@ list_set = |items, index, value| match items.set(index, value) {
 	Ok(updated) => updated
 }
 
-## The compact builder stores block descriptors and text payloads in separate flat buffers.
+# The compact builder stores block descriptors and text payloads in separate flat buffers.
 expect {
 	builder = Document.builder({ language: "en-AU", title: "Report" })
 		.add_title("Report")
@@ -2532,7 +2532,7 @@ expect {
 	builder.stats() == { blocks: 5, text_sources: 6 }
 }
 
-## Simple and compact authoring normalize to identical scalar/list identities.
+# Simple and compact authoring normalize to identical scalar/list identities.
 expect {
 	simple = Document.from_blocks({
 		contents: [Document.title("Report"), Document.heading(2, "Details"), Document.bullets(["One", "Two"]), Document.paragraph("Done")],
@@ -2583,17 +2583,17 @@ expect {
 								fifth_kind and fifth.text == "Done"
 }
 
-## Finishing a builder preserves required metadata without rebuilding a block list.
+# Finishing a builder preserves required metadata without rebuilding a block list.
 expect {
 	document = Document.builder({ language: "en-AU", title: "Report" }).finish()
 
 	document.metadata_title() == "Report" and document.language() == "en-AU"
 }
 
-## Prepared documents cannot retain authoring blocks or layout handlers.
+# Prepared documents cannot retain authoring blocks or layout handlers.
 expect Document.lifetimes.custom_handlers == ReleaseAfter(LayoutStabilization)
 
-## Metadata timestamps are explicit author inputs and default to omission.
+# Metadata timestamps are explicit author inputs and default to omission.
 expect {
 	document = Document.from_blocks({ contents: [], language: "en-AU", title: "Report" })
 	stamped = document.with_created("2026-01-02T03:04:05Z").with_modified("2026-01-02T03:04:06Z")
@@ -2601,8 +2601,8 @@ expect {
 	document.created() == Omitted and document.modified() == Omitted and stamped.created() == Explicit("2026-01-02T03:04:05Z") and stamped.modified() == Explicit("2026-01-02T03:04:06Z")
 }
 
-## Outline entries and page-label ranges are explicit author inputs and
-## default to absence.
+# Outline entries and page-label ranges are explicit author inputs and
+# default to absence.
 expect {
 	document = Document.from_blocks({ contents: [], language: "en-AU", title: "Report" })
 	entries = [{ depth: 0, destination: "intro", open: True, title: "Introduction" }]
@@ -2615,8 +2615,8 @@ expect {
 				navigated.page_labels() == ranges
 }
 
-## Nested translated groups flatten: every point moves by the accumulated
-## offsets of its groups, and the extent covers the moved commands.
+# Nested translated groups flatten: every point moves by the accumulated
+# offsets of its groups, and the extent covers the moved commands.
 expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
 	inner = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 10, 5), black)
@@ -2627,8 +2627,8 @@ expect {
 	}
 }
 
-## Nine nested groups, a path moved left of the origin, a drawing without
-## a painting command, and an empty drawing are rejected with a reason.
+# Nine nested groups, a path moved left of the origin, a drawing without
+# a painting command, and an empty drawing are rejected with a reason.
 expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
 	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 4, 4), black)

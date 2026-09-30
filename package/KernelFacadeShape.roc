@@ -302,15 +302,15 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, CandidateFaces)?
 	candidates = request_candidates(authoring, preparation, styled, theme)
 
-	## Dense output fonts: the body face, then each role face some run or
-	## drawing label uses, in candidate order.
-	var $used = List.repeat(Bool.False, styled.fonts.len())
-	$used = list_set($used, 0, Bool.True)
+	# Dense output fonts: the body face, then each role face some run or
+	# drawing label uses, in candidate order.
+	var $used = List.repeat(False, styled.fonts.len())
+	$used = list_set($used, 0, True)
 	for candidate in candidates {
-		$used = list_set($used, candidate, Bool.True)
+		$used = list_set($used, candidate, True)
 	}
 	for candidate in label_candidates(authoring, styled) {
-		$used = list_set($used, candidate, Bool.True)
+		$used = list_set($used, candidate, True)
 	}
 	var $dense = List.repeat(0, styled.fonts.len())
 	var $faces = []
@@ -540,7 +540,7 @@ FaceCheck : [CandidateFaces, PolicySelectsFaces, RequireFace(U64)]
 face_rejected : FaceCheck, Theme.TextStyle -> Bool
 face_rejected = |check, style| match check {
 	RequireFace(face) => style.font.index() != face
-	CandidateFaces | PolicySelectsFaces => Bool.False
+	CandidateFaces | PolicySelectsFaces => False
 }
 
 ## Request ranges exist only when a rich paragraph does. A document without
@@ -864,8 +864,8 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				}
 				analysis = list_at(at.sources, located.id.index()).analysis
 
-				## Each explicit-line-break segment is its own source; the
-				## forward cursors restart at its origin.
+				# Each explicit-line-break segment is its own source; the
+				# forward cursors restart at its origin.
 				if located.id.index() != $source {
 					$source = located.id.index()
 					$cluster = 0
@@ -1296,9 +1296,9 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 	policy_faces = ordered.registry.policy_faces(ordered.policy) ? PolicyInvalid
 	batch_language = preparation.options.language
 
-	## Coverage selection runs once per unique interned source; every later
-	## occurrence of that source reuses the completed plan. This is the
-	## selection-plan cache realized through source identity.
+	# Coverage selection runs once per unique interned source; every later
+	# occurrence of that source reuses the completed plan. This is the
+	# selection-plan cache realized through source identity.
 	var $ranges_per_source = List.with_capacity(source_store.len())
 	var $selection_work = { coverage_span_visits: 0, face_visits: 0, grapheme_visits: 0, planned_sources: 0, selection_ranges: 0 }
 	var $source_index = 0
@@ -1323,8 +1323,8 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 		$source_index = $source_index + 1
 	}
 
-	## The dense used-font list follows policy order, so output font identity
-	## `k` deterministically names the k-th selected face's plan and subset.
+	# The dense used-font list follows policy order, so output font identity
+	# `k` deterministically names the k-th selected face's plan and subset.
 	var $used_faces = []
 	var $fonts = []
 	registry_store = ordered.registry.store()
@@ -1332,9 +1332,9 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 	while $policy_position < policy_faces.len() {
 		face = list_at(policy_faces, $policy_position)
 		if face_selected_anywhere($ranges_per_source, face) {
-			## The face's registered shaping provision is a capability fact:
-			## the built-in convenience shaper only drives faces declared for
-			## it, never a face registered for advanced caller runs only.
+			# The face's registered shaping provision is a capability fact:
+			# the built-in convenience shaper only drives faces declared for
+			# it, never a face registered for advanced caller runs only.
 			if face.index() >= registry_store.faces.len() {
 				return Err(PolicyInvalid(UnknownPolicyFace(face)))
 			}
@@ -1351,8 +1351,8 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 		$policy_position = $policy_position + 1
 	}
 
-	## Refine each source's selected face ranges at itemized script-run
-	## boundaries so every physical run carries one exact script fact.
+	# Refine each source's selected face ranges at itemized script-run
+	# boundaries so every physical run carries one exact script fact.
 	var $segments_per_source = List.with_capacity(source_store.len())
 	$source_index = 0
 	while $source_index < source_store.len() {
@@ -1365,8 +1365,8 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 		$source_index = $source_index + 1
 	}
 
-	## Expand each logical request into its physical selected runs in the
-	## exact order the preparation assigned requests.
+	# Expand each logical request into its physical selected runs in the
+	# exact order the preparation assigned requests.
 	var $expanded = { origins: [], requests: [], selected: [], styles: [] }
 	var $block_runs = List.repeat(unset_block_runs, preparation.block_runs.len())
 	var $block_index = 0
@@ -1492,15 +1492,15 @@ face_selected_anywhere = |ranges_per_source, face| {
 		ranges = list_at(ranges_per_source, $source_index)
 		var $range_index = 0
 		while $range_index < ranges.len() {
-			## Registered static instances share their face's dense index.
+			# Registered static instances share their face's dense index.
 			if list_at(ranges, $range_index).instance.index() == face.index() {
-				return Bool.True
+				return True
 			}
 			$range_index = $range_index + 1
 		}
 		$source_index = $source_index + 1
 	}
-	Bool.False
+	False
 }
 
 ordered_segments : List(Font.FaceRange), List(KernelUnicode.ScriptRun), List(Font.FaceId), U64 -> Try(List(SelectedSegment), KernelFacadeShape.Error)
@@ -1590,8 +1590,8 @@ expand_logical = |logical, preparation, segments_per_source, buffers, max_reques
 		style = list_at(preparation.styles, $request_index)
 		source_index = request.source.index()
 
-		## A logical run spans several sources only across explicit line
-		## breaks; each source's segment cursor restarts at its origin.
+		# A logical run spans several sources only across explicit line
+		# breaks; each source's segment cursor restarts at its origin.
 		if source_index != $cursor_source {
 			$cursor_source = source_index
 			$cursor = 0

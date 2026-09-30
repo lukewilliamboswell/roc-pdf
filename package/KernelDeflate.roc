@@ -235,14 +235,14 @@ inflate = |zlib| {
 	}
 }
 
-## The canonical empty stream keeps the compact fixed-block representation.
+# The canonical empty stream keeps the compact fixed-block representation.
 expect {
 	plan = KernelDeflate.Plan.prepare([], KernelDeflate.Limits.make({ max_input_bytes: 0, max_output_bytes: 8 }))?
 	result = KernelDeflate.to_bytes(plan)?
 	result.bytes == [120, 156, 3, 0, 0, 0, 0, 1] and KernelDeflate.Work.streams(result.work) == 1
 }
 
-## Limits reject input and output bounds before compression begins.
+# Limits reject input and output bounds before compression begins.
 expect {
 	input = [1, 2, 3]
 	too_much_input = KernelDeflate.Plan.prepare(input, KernelDeflate.Limits.make({ max_input_bytes: 2, max_output_bytes: 100 }))
@@ -256,7 +256,7 @@ expect {
 	}
 }
 
-## A nonempty stream is framed, checksummed, round-trips, and stays under its bound.
+# A nonempty stream is framed, checksummed, round-trips, and stays under its bound.
 expect {
 	input = Str.to_utf8("the cat, the cat, the cat, the cat, the cat, the cat, the cat")
 	bound = KernelDeflate.output_bound(input.len())?
@@ -275,7 +275,7 @@ expect {
 								KernelDeflate.Work.emitted_bytes(result.work) == result.bytes.len()
 }
 
-## Incompressible input stays inside the stored-block bound.
+# Incompressible input stays inside the stored-block bound.
 expect {
 	input = List.repeat(0, 12000).map_with_index(|_, index| ((index * 2654435761).shr_wrap(13)).to_u8_wrap())
 	bound = KernelDeflate.output_bound(input.len())?
@@ -284,7 +284,7 @@ expect {
 	result.bytes.len() <= bound and inflate(result.bytes) == input
 }
 
-## Compression is deterministic: equal input gives equal bytes.
+# Compression is deterministic: equal input gives equal bytes.
 expect {
 	input = Str.to_utf8("BT /F1 12 Tf [<0001> -3 <0002>] TJ ET\nBT /F1 12 Tf [<0001> -3 <0002>] TJ ET\n")
 	bound = KernelDeflate.output_bound(input.len())?
@@ -294,5 +294,5 @@ expect {
 	first.bytes == second.bytes
 }
 
-## Adler-32 of "Wikipedia" is the RFC 1950 worked value 0x11E60398.
+# Adler-32 of "Wikipedia" is the RFC 1950 worked value 0x11E60398.
 expect adler32(Str.to_utf8("Wikipedia")) == 0x11E60398

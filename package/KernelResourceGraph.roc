@@ -572,7 +572,7 @@ run_end : List(Entry), U64, U64, [SameDescriptor, SameFingerprint] -> U64
 run_end = |entries, start, limit, mode| {
 	first = list_at(entries, start)
 	var $index = start + 1
-	var $running = Bool.True
+	var $running = True
 	while $running and $index < limit {
 		candidate = list_at(entries, $index)
 		same = match mode {
@@ -582,7 +582,7 @@ run_end = |entries, start, limit, mode| {
 		if same {
 			$index = $index + 1
 		} else {
-			$running = Bool.False
+			$running = False
 		}
 	}
 	$index
@@ -609,14 +609,14 @@ radix_order = |entries, payload, start, end| {
 		segment = list_at($stack, $stack.len() - 1)
 		$stack = $stack.sublist({ len: $stack.len() - 1, start: 0 })
 		var $depth = segment.depth
-		var $splitting = Bool.False
+		var $splitting = False
 		while !$splitting and $depth < length {
 			first = partition_byte(entries, payload, $order, segment.start, $depth)
 			var $scan = segment.start
-			var $same = Bool.True
+			var $same = True
 			while $scan < segment.end {
 				if partition_byte(entries, payload, $order, $scan, $depth) != first {
-					$same = Bool.False
+					$same = False
 				}
 				$scan = $scan + 1
 			}
@@ -624,7 +624,7 @@ radix_order = |entries, payload, start, end| {
 			if $same {
 				$depth = $depth + 1
 			} else {
-				$splitting = Bool.True
+				$splitting = True
 			}
 		}
 		if $splitting {
@@ -716,13 +716,13 @@ confirm_equality = |entries, payload, order| {
 compare_payloads : List(U8), Entry, Entry -> { bytes : U64, equal : Bool }
 compare_payloads = |payload, left, right| {
 	if left.length != right.length or descriptor_order(left.descriptor, right.descriptor) != Equal {
-		{ bytes: 0, equal: Bool.False }
+		{ bytes: 0, equal: False }
 	} else {
 		var $offset = 0
-		var $equal = Bool.True
+		var $equal = True
 		while $equal and $offset < left.length {
 			if byte_at(payload, left.start + $offset) != byte_at(payload, right.start + $offset) {
-				$equal = Bool.False
+				$equal = False
 			}
 			$offset = $offset + 1
 		}
@@ -878,7 +878,7 @@ KernelResourceGraph.Limits -> Try(
 	KernelResourceGraph.Error,
 )
 prove_closure = |roots, closure_seeds, dependencies, canonical_count, limits| {
-	var $seen = List.repeat(Bool.False, canonical_count)
+	var $seen = List.repeat(False, canonical_count)
 	var $stack = List.with_capacity(canonical_count)
 	var $node_visits = 0
 	var $edge_visits = 0
@@ -887,7 +887,7 @@ prove_closure = |roots, closure_seeds, dependencies, canonical_count, limits| {
 	while $index < roots.heads.len() {
 		resource = list_at(roots.heads, $index)
 		if !list_at($seen, resource) {
-			$seen = list_set($seen, resource, Bool.True)
+			$seen = list_set($seen, resource, True)
 			$stack = $stack.append(resource)
 		}
 		$index = $index + 1
@@ -897,7 +897,7 @@ prove_closure = |roots, closure_seeds, dependencies, canonical_count, limits| {
 	while $index < closure_seeds.len() {
 		resource = list_at(closure_seeds, $index)
 		if !list_at($seen, resource) {
-			$seen = list_set($seen, resource, Bool.True)
+			$seen = list_set($seen, resource, True)
 			$stack = $stack.append(resource)
 		}
 		$index = $index + 1
@@ -914,7 +914,7 @@ prove_closure = |roots, closure_seeds, dependencies, canonical_count, limits| {
 			target = list_at(dependencies.heads, $edge)
 			$edge_visits = $edge_visits + 1
 			if !list_at($seen, target) {
-				$seen = list_set($seen, target, Bool.True)
+				$seen = list_set($seen, target, True)
 				$stack = $stack.append(target)
 			}
 			$edge = $edge + 1
@@ -1029,7 +1029,7 @@ heap_push = |heap, value| {
 	var $heap = heap.append(value)
 	var $position = $heap.len() - 1
 	var $operations = 1
-	var $climbing = Bool.True
+	var $climbing = True
 	while $climbing and $position > 0 {
 		parent = U64.div_by($position - 1, 2)
 		$operations = $operations + 1
@@ -1037,7 +1037,7 @@ heap_push = |heap, value| {
 			$heap = swap($heap, parent, $position)
 			$position = parent
 		} else {
-			$climbing = Bool.False
+			$climbing = False
 		}
 	}
 	{ heap: $heap, operations: $operations }
@@ -1052,7 +1052,7 @@ heap_pop = |heap| {
 	if $heap.len() > 0 {
 		$heap = list_set($heap, 0, last)
 		var $position = 0
-		var $sinking = Bool.True
+		var $sinking = True
 		while $sinking {
 			left = $position * 2 + 1
 			right = left + 1
@@ -1065,7 +1065,7 @@ heap_pop = |heap| {
 			}
 			$operations = $operations + 1
 			if $smallest == $position {
-				$sinking = Bool.False
+				$sinking = False
 			} else {
 				$heap = swap($heap, $position, $smallest)
 				$position = $smallest
@@ -1089,8 +1089,8 @@ build_placements = |placements, canonical_of, resource_count| {
 			return Err(PlacementResourceOutOfRange({ count: resource_count, placement: $index, resource: placement.resource }))
 		} else {
 			shareable = match placement.ownership {
-				Artifact(_) => Bool.True
-				Semantic(_) => Bool.False
+				Artifact(_) => True
+				Semantic(_) => False
 			}
 			if !shareable and placement.reuse == Reusable {
 				return Err(SemanticOwnershipMerge({ placement: $index, resource: placement.resource }))
@@ -1491,14 +1491,14 @@ is_topological = |plan| {
 		$position = list_set($position, list_at(order, $index), $index)
 		$index = $index + 1
 	}
-	var $ordered = Bool.True
+	var $ordered = True
 	$index = 0
 	while $index < count {
 		dependencies = KernelResourceGraph.Plan.direct_dependencies(plan, $index)
 		var $edge = 0
 		while $edge < dependencies.len() {
 			if list_at($position, list_at(dependencies, $edge)) >= list_at($position, $index) {
-				$ordered = Bool.False
+				$ordered = False
 			}
 			$edge = $edge + 1
 		}
@@ -1510,7 +1510,7 @@ is_topological = |plan| {
 leaf : U64 -> TestResource
 leaf = |tag| { descriptor: test_descriptor(Image, 0), payload: [tag.to_u8_wrap(), 0x41, 0x42, 0x43] }
 
-## An empty resource graph plans nothing and reports no work beyond zero.
+# An empty resource graph plans nothing and reports no work beyond zero.
 expect {
 	plan = KernelResourceGraph.Plan.build(test_input([], [], 0, [], [], DomainSeparatedSha256), open_limits)?
 	work = KernelResourceGraph.Plan.work(plan)
@@ -1522,9 +1522,9 @@ expect {
 						work.copied_payload_bytes == 0
 }
 
-## A leaf-only graph plans every resource and stores no direct edges. Ready
-## nodes are resolved by ascending canonical identity, which is the documented
-## total tie-break order.
+# A leaf-only graph plans every resource and stores no direct edges. Ready
+# nodes are resolved by ascending canonical identity, which is the documented
+# total tie-break order.
 expect {
 	input = test_input(
 		[leaf(1), leaf(2), leaf(3)],
@@ -1545,8 +1545,8 @@ expect {
 							work.collision_entries == 0
 }
 
-## A linear nested chain plans dependencies first and keeps each nested
-## dictionary limited to that resource's own direct dependency.
+# A linear nested chain plans dependencies first and keeps each nested
+# dictionary limited to that resource's own direct dependency.
 expect {
 	input = test_input(
 		[leaf(1), leaf(2), leaf(3)],
@@ -1567,8 +1567,8 @@ expect {
 							is_topological(plan)
 }
 
-## A branching DAG with one shared dependency stores that dependency once and
-## still lists it in both nested dictionaries.
+# A branching DAG with one shared dependency stores that dependency once and
+# still lists it in both nested dictionaries.
 expect {
 	input = test_input(
 		[leaf(1), leaf(2), leaf(3), leaf(4)],
@@ -1589,8 +1589,8 @@ expect {
 						is_topological(plan)
 }
 
-## Equivalent graphs supplied in adversarial insertion orders normalize to one
-## plan, one set of nested dictionaries, and one root dictionary.
+# Equivalent graphs supplied in adversarial insertion orders normalize to one
+# plan, one set of nested dictionaries, and one root dictionary.
 expect {
 	forward = test_input(
 		[leaf(1), leaf(2), leaf(3)],
@@ -1625,8 +1625,8 @@ expect {
 				KernelResourceGraph.Plan.work(first).sort_comparisons == KernelResourceGraph.Plan.work(third).sort_comparisons
 }
 
-## Byte-identical, descriptor-identical resources deduplicate to one payload
-## identity while both root uses collapse to one dictionary entry.
+# Byte-identical, descriptor-identical resources deduplicate to one payload
+# identity while both root uses collapse to one dictionary entry.
 expect {
 	input = test_input(
 		[leaf(1), leaf(1)],
@@ -1649,7 +1649,7 @@ expect {
 									KernelResourceGraph.Plan.root_dictionary(plan, 0).len() == 1
 }
 
-## Equal payload bytes with different descriptors are never merged.
+# Equal payload bytes with different descriptors are never merged.
 expect {
 	same_bytes = [0x01, 0x02, 0x03, 0x04]
 	input = test_input(
@@ -1674,8 +1674,8 @@ expect {
 			work.collision_entries == 0
 }
 
-## Repeated placements share one visual resource identity and retain distinct
-## placement-specific semantic ownership and artifact classification.
+# Repeated placements share one visual resource identity and retain distinct
+# placement-specific semantic ownership and artifact classification.
 expect {
 	input = test_input(
 		[leaf(1), leaf(1)],
@@ -1701,8 +1701,8 @@ expect {
 						KernelResourceGraph.Plan.placement_count(plan) == 3
 }
 
-## Multiple content-stream roots each receive a complete, exact direct
-## dictionary; a nested dependency never leaks into a root dictionary.
+# Multiple content-stream roots each receive a complete, exact direct
+# dictionary; a nested dependency never leaks into a root dictionary.
 expect {
 	input = test_input(
 		[leaf(1), leaf(2), leaf(3)],
@@ -1722,9 +1722,9 @@ expect {
 						work.roots == 2
 }
 
-## A forced digest-collision bucket holding equal and unequal payloads merges
-## only the exactly equal pair, and its ordering and equality work stays within
-## the declared entries-plus-bytes bound rather than an all-pairs comparison.
+# A forced digest-collision bucket holding equal and unequal payloads merges
+# only the exactly equal pair, and its ordering and equality work stays within
+# the declared entries-plus-bytes bound rather than an all-pairs comparison.
 expect {
 	input = test_input(
 		[leaf(1), leaf(2), leaf(1), leaf(3)],
@@ -1747,26 +1747,26 @@ expect {
 							work.ordering_byte_visits <= bucket_bytes + entries
 }
 
-## An out-of-range direct-edge source is rejected transactionally.
+# An out-of-range direct-edge source is rejected transactionally.
 expect match KernelResourceGraph.Plan.build(
 	test_input([leaf(1)], [{ source: 4, target: 0 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256),
 	open_limits,
 ) {
-	Err(EdgeSourceOutOfRange({ count: 1, edge: 0, source: 4 })) => Bool.True
-	_ => Bool.False
+	Err(EdgeSourceOutOfRange({ count: 1, edge: 0, source: 4 })) => True
+	_ => False
 }
 
-## A missing nested dependency reachable from a stream root is rejected.
+# A missing nested dependency reachable from a stream root is rejected.
 expect match KernelResourceGraph.Plan.build(
 	test_input([leaf(1), leaf(2)], [{ source: 0, target: 2 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256),
 	open_limits,
 ) {
-	Err(EdgeTargetOutOfRange({ count: 2, edge: 0, target: 2 })) => Bool.True
-	_ => Bool.False
+	Err(EdgeTargetOutOfRange({ count: 2, edge: 0, target: 2 })) => True
+	_ => False
 }
 
-## A self-cycle, a two-node cycle, and a longer cycle each fail with a stable
-## structured diagnostic and no partial plan.
+# A self-cycle, a two-node cycle, and a longer cycle each fail with a stable
+# structured diagnostic and no partial plan.
 expect {
 	self_cycle = KernelResourceGraph.Plan.build(
 		test_input([leaf(1)], [{ source: 0, target: 0 }], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256),
@@ -1797,16 +1797,16 @@ expect {
 	match self_cycle {
 		Err(SelfCycle({ resource: 0 })) => match two_node {
 			Err(DependencyCycle({ planned: 0, resource: 0 })) => match longer {
-				Err(DependencyCycle({ planned: 0, resource: 0 })) => Bool.True
-				_ => Bool.False
+				Err(DependencyCycle({ planned: 0, resource: 0 })) => True
+				_ => False
 			}
-			_ => Bool.False
+			_ => False
 		}
-		_ => Bool.False
+		_ => False
 	}
 }
 
-## Duplicate direct edges and duplicate root uses are forbidden by contract.
+# Duplicate direct edges and duplicate root uses are forbidden by contract.
 expect {
 	duplicate_edge = KernelResourceGraph.Plan.build(
 		test_input(
@@ -1825,26 +1825,26 @@ expect {
 	)
 	match duplicate_edge {
 		Err(DuplicateEdge({ source: 0, target: 1 })) => match duplicate_use {
-			Err(DuplicateRootUse({ resource: 0, root: 0 })) => Bool.True
-			_ => Bool.False
+			Err(DuplicateRootUse({ resource: 0, root: 0 })) => True
+			_ => False
 		}
-		_ => Bool.False
+		_ => False
 	}
 }
 
-## A resource that no declared content-stream root can reach fails the closure
-## proof.
+# A resource that no declared content-stream root can reach fails the closure
+# proof.
 expect match KernelResourceGraph.Plan.build(
 	test_input([leaf(1), leaf(2)], [], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256),
 	open_limits,
 ) {
-	Err(UnreachableResource(_)) => Bool.True
-	_ => Bool.False
+	Err(UnreachableResource(_)) => True
+	_ => False
 }
 
-## A closure-only use keeps its resource reachable without adding it to any
-## root dictionary, and its dependencies stay reachable through ordinary
-## direct edges. The same input without the closure use fails closure.
+# A closure-only use keeps its resource reachable without adding it to any
+# root dictionary, and its dependencies stay reachable through ordinary
+# direct edges. The same input without the closure use fails closure.
 expect {
 	input = test_input(
 		[leaf(1), leaf(2), leaf(3)],
@@ -1862,13 +1862,13 @@ expect {
 		work.closure_uses == 1 and
 			work.planned_resources == 3 and
 				match without {
-					Err(UnreachableResource(_)) => Bool.True
-					_ => Bool.False
+					Err(UnreachableResource(_)) => True
+					_ => False
 				}
 }
 
-## A closure use over an authored twin resolves through the same canonical
-## identity as the surviving twin, so deduplication still leaves one plan.
+# A closure use over an authored twin resolves through the same canonical
+# identity as the surviving twin, so deduplication still leaves one plan.
 expect {
 	input = test_input(
 		[leaf(1), leaf(1)],
@@ -1883,8 +1883,8 @@ expect {
 	KernelResourceGraph.Plan.resource_count(plan) == 1 and work.deduplicated_payloads == 1 and work.closure_uses == 1
 }
 
-## Out-of-range closure uses are rejected with their own structured errors,
-## and closure uses consume the shared root-use budget.
+# Out-of-range closure uses are rejected with their own structured errors,
+# and closure uses consume the shared root-use budget.
 expect {
 	input = test_input([leaf(1)], [], 1, [{ resource: 0, root: 0 }], [], DomainSeparatedSha256)
 	bad_root = KernelResourceGraph.Plan.build_with_closure_uses(input, [{ resource: 0, root: 4 }], open_limits)
@@ -1893,16 +1893,16 @@ expect {
 	match bad_root {
 		Err(ClosureRootOutOfRange({ count: 1, root: 4, use: 0 })) => match bad_resource {
 			Err(ClosureResourceOutOfRange({ count: 1, resource: 9, use: 0 })) => match tight {
-				Err(RootUseLimitExceeded({ attempted: 2, limit: 1 })) => Bool.True
-				_ => Bool.False
+				Err(RootUseLimitExceeded({ attempted: 2, limit: 1 })) => True
+				_ => False
 			}
-			_ => Bool.False
+			_ => False
 		}
-		_ => Bool.False
+		_ => False
 	}
 }
 
-## Out-of-range roots, root resources, and placements are rejected.
+# Out-of-range roots, root resources, and placements are rejected.
 expect {
 	bad_root = KernelResourceGraph.Plan.build(
 		test_input([leaf(1)], [], 1, [{ resource: 0, root: 3 }], [], DomainSeparatedSha256),
@@ -1926,17 +1926,17 @@ expect {
 	match bad_root {
 		Err(RootOutOfRange({ count: 1, root: 3, use: 0 })) => match bad_root_resource {
 			Err(RootResourceOutOfRange({ count: 1, resource: 5, use: 0 })) => match bad_placement {
-				Err(PlacementResourceOutOfRange({ count: 1, placement: 0, resource: 6 })) => Bool.True
-				_ => Bool.False
+				Err(PlacementResourceOutOfRange({ count: 1, placement: 0, resource: 6 })) => True
+				_ => False
 			}
-			_ => Bool.False
+			_ => False
 		}
-		_ => Bool.False
+		_ => False
 	}
 }
 
-## Sharing a placement whose ownership is a placement-specific semantic
-## association would erase that association, so it is rejected.
+# Sharing a placement whose ownership is a placement-specific semantic
+# association would erase that association, so it is rejected.
 expect match KernelResourceGraph.Plan.build(
 	test_input(
 		[leaf(1)],
@@ -1948,12 +1948,12 @@ expect match KernelResourceGraph.Plan.build(
 	),
 	open_limits,
 ) {
-	Err(SemanticOwnershipMerge({ placement: 0, resource: 0 })) => Bool.True
-	_ => Bool.False
+	Err(SemanticOwnershipMerge({ placement: 0, resource: 0 })) => True
+	_ => False
 }
 
-## An impossible payload range and an overflowing one are the same atomic
-## rejection.
+# An impossible payload range and an overflowing one are the same atomic
+# rejection.
 expect {
 	impossible = KernelResourceGraph.Plan.build(
 		{
@@ -1981,15 +1981,15 @@ expect {
 	)
 	match impossible {
 		Err(PayloadRangeInvalid({ available: 3, length: 5, resource: 0, start: 0 })) => match overflowing {
-			Err(PayloadRangeInvalid({ available: 3, length: 1, resource: 0, start: _ })) => Bool.True
-			_ => Bool.False
+			Err(PayloadRangeInvalid({ available: 3, length: 1, resource: 0, start: _ })) => True
+			_ => False
 		}
-		_ => Bool.False
+		_ => False
 	}
 }
 
-## Every dimension-specific limit rejects the exact attempted dimension before
-## any plan can escape.
+# Every dimension-specific limit rejects the exact attempted dimension before
+# any plan can escape.
 expect {
 	pair = [leaf(1), leaf(2)]
 	uses = [{ resource: 0, root: 0 }, { resource: 1, root: 0 }]
@@ -2011,27 +2011,27 @@ expect {
 						Err(HashLimitExceeded({ attempted: 2, limit: 1 })) => match hash_bytes_limited {
 							Err(HashByteLimitExceeded({ attempted: 8, limit: 5 })) => match payload_limited {
 								Err(PayloadByteLimitExceeded({ attempted: 8, limit: 7 })) => match topological_limited {
-									Err(TopologicalWorkLimitExceeded({ attempted: _, limit: 0 })) => Bool.True
-									_ => Bool.False
+									Err(TopologicalWorkLimitExceeded({ attempted: _, limit: 0 })) => True
+									_ => False
 								}
-								_ => Bool.False
+								_ => False
 							}
-							_ => Bool.False
+							_ => False
 						}
-						_ => Bool.False
+						_ => False
 					}
-					_ => Bool.False
+					_ => False
 				}
-				_ => Bool.False
+				_ => False
 			}
-			_ => Bool.False
+			_ => False
 		}
-		_ => Bool.False
+		_ => False
 	}
 }
 
-## Placement-count, collision-entry, ordering-work, and compared-byte budgets are
-## each independently enforced.
+# Placement-count, collision-entry, ordering-work, and compared-byte budgets are
+# each independently enforced.
 expect {
 	collision_input = test_input(
 		[leaf(1), leaf(2), leaf(3)],
@@ -2058,13 +2058,13 @@ expect {
 			Err(CollisionEntryLimitExceeded({ attempted: 3, limit: 2 })) => match ordering_limited {
 				Err(OrderingWorkLimitExceeded(ordering)) => match equality_limited {
 					Err(EqualityByteLimitExceeded(equality)) => ordering.limit == 0 and ordering.attempted > 0 and equality.limit == 0 and equality.attempted > 0
-					_ => Bool.False
+					_ => False
 				}
-				_ => Bool.False
+				_ => False
 			}
-			_ => Bool.False
+			_ => False
 		}
-		_ => Bool.False
+		_ => False
 	}
 }
 
@@ -2102,9 +2102,9 @@ artifact_rank = |kind| match kind {
 	RepeatedHeader => 7
 }
 
-## Two distinct digest buckets may each hold entries with the same descriptor
-## and byte length. A descriptor partition must never scan across the bucket
-## boundary, or an entry would be classified twice.
+# Two distinct digest buckets may each hold entries with the same descriptor
+# and byte length. A descriptor partition must never scan across the bucket
+# boundary, or an entry would be classified twice.
 expect {
 	payloads = [leaf(1), leaf(1), leaf(2), leaf(2), leaf(3), leaf(3)]
 	var $uses = List.with_capacity(6)
@@ -2124,17 +2124,17 @@ expect {
 				KernelResourceGraph.Plan.root_dictionary(plan, 0).len() == 3
 }
 
-## The exposed identity digest matches the descriptor-then-payload procedure:
-## equal bytes with different descriptors differ, and an impossible range is
-## the same atomic rejection the planner reports.
+# The exposed identity digest matches the descriptor-then-payload procedure:
+# equal bytes with different descriptors differ, and an impossible range is
+# the same atomic rejection the planner reports.
 expect {
 	bytes = [1, 2, 3, 4]
 	first = KernelResourceGraph.identity_digest({ descriptor: test_descriptor(Image, 0), length: 4, start: 0 }, bytes)?
 	same = KernelResourceGraph.identity_digest({ descriptor: test_descriptor(Image, 0), length: 4, start: 0 }, bytes)?
 	other = KernelResourceGraph.identity_digest({ descriptor: test_descriptor(Image, 1), length: 4, start: 0 }, bytes)?
 	out_of_range = match KernelResourceGraph.identity_digest({ descriptor: test_descriptor(Image, 0), length: 5, start: 0 }, bytes) {
-		Err(PayloadRangeInvalid(_)) => Bool.True
-		_ => Bool.False
+		Err(PayloadRangeInvalid(_)) => True
+		_ => False
 	}
 	first.len() == 32 and first == same and first != other and out_of_range
 }

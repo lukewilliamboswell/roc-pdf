@@ -166,9 +166,9 @@ expect {
 	result.work.len() == 22
 }
 
-## A declared ligature cluster cannot enter the advanced boundary on a raw
-## glyph ID alone. Its GSUB fact proves the selected `ccmp` lookup and is then
-## consumed against the exact cluster, feature, and painted glyph.
+# A declared ligature cluster cannot enter the advanced boundary on a raw
+# glyph ID alone. Its GSUB fact proves the selected `ccmp` lookup and is then
+# consumed against the exact cluster, feature, and painted glyph.
 expect {
 	font = KernelFont.inspect(
 		built_in_font_bytes,
@@ -198,8 +198,8 @@ expect {
 	validated.store.glyphs.len() == 1
 }
 
-## The same otherwise-valid cluster is rejected when the retained GSUB fact
-## names a different painted output glyph.
+# The same otherwise-valid cluster is rejected when the retained GSUB fact
+# names a different painted output glyph.
 expect {
 	font = KernelFont.inspect(
 		built_in_font_bytes,
@@ -270,26 +270,26 @@ expect {
 		max_transformations: 4,
 	})
 	duplicate_rejected = match KernelShape.validate_advanced(font, "À", duplicate_store, context, limits) {
-		Err(DuplicateGlyphReference({ glyph: 0, run: 0 })) => Bool.True
-		_ => Bool.False
+		Err(DuplicateGlyphReference({ glyph: 0, run: 0 })) => True
+		_ => False
 	}
 	notdef_rejected = match KernelShape.validate_advanced(font, "À", notdef_store, context, limits) {
-		Err(AdvancedGlyphInvalid({ glyph: 0, reason: GlyphId })) => Bool.True
-		_ => Bool.False
+		Err(AdvancedGlyphInvalid({ glyph: 0, reason: GlyphId })) => True
+		_ => False
 	}
 	source_rejected = match KernelShape.validate_advanced(font, "À", bad_source_store, context, limits) {
-		Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => Bool.True
-		_ => Bool.False
+		Err(AdvancedClusterInvalid({ cluster: 0, reason: SourceRange })) => True
+		_ => False
 	}
 	size_rejected = match KernelShape.validate_advanced(font, "À", bad_size_store, context, limits) {
-		Err(AdvancedRunInvalid({ reason: Size, run: 0 })) => Bool.True
-		_ => Bool.False
+		Err(AdvancedRunInvalid({ reason: Size, run: 0 })) => True
+		_ => False
 	}
 	duplicate_rejected and notdef_rejected and source_rejected and size_rejected
 }
 
-## Batch shaping writes dense global ranges and glyph indices without a
-## temporary Text.Store per source.
+# Batch shaping writes dense global ranges and glyph indices without a
+# temporary Text.Store per source.
 expect {
 	font = KernelFont.inspect(
 		built_in_font_bytes,
@@ -374,8 +374,8 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## The GSUB ligature inspection fixture has no evidence case of its own; this
-## expect makes the shaping test root reach it, so its expects run too.
+# The GSUB ligature inspection fixture has no evidence case of its own; this
+# expect makes the shaping test root reach it, so its expects run too.
 expect {
 	work = GsubFixture.validation_work({})?
 	work.len() == 8

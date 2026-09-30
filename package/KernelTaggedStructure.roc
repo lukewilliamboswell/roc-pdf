@@ -105,7 +105,7 @@ test_plan = |_| {
 	Ok(plan)
 }
 
-## The complete tagged-visual object graph emits one deterministic PDF 2.0 byte stream.
+# The complete tagged-visual object graph emits one deterministic PDF 2.0 byte stream.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -114,7 +114,7 @@ expect {
 	starts_with(first, Str.to_utf8("%PDF-2.0\n")) and first == second
 }
 
-## The sealed object graph proves an emission bound before encoding begins.
+# The sealed object graph proves an emission bound before encoding begins.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -122,7 +122,7 @@ expect {
 	bytes.len() <= KernelStructure.Plan.output_bound(structure)
 }
 
-## Bound construction visits each sealed object once and is linear in serialized value occurrences.
+# Bound construction visits each sealed object once and is linear in serialized value occurrences.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -130,7 +130,7 @@ expect {
 	bound_work.object_visits == KernelStructure.Plan.object_count(structure)
 }
 
-## Bound construction traverses direct values and looks up each stream payload twice.
+# Bound construction traverses direct values and looks up each stream payload twice.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -139,7 +139,7 @@ expect {
 	bound_work.payload_bound_lookups == stream_count * 2 and bound_work.value_visits > 0
 }
 
-## An xref identifier outside the sealed object sequence cannot acquire a bound.
+# An xref identifier outside the sealed object sequence cannot acquire a bound.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -149,7 +149,7 @@ expect {
 	}
 }
 
-## The file identity covers the sealed normalized plan and all payload source bytes.
+# The file identity covers the sealed normalized plan and all payload source bytes.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -186,11 +186,11 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## Node facts lower onto the structure element and the structure tree root:
-## the paragraph's element identifier becomes `/ID` and the single IDTree
-## leaf maps it back to that element; its `fr` language differs from the
-## `en-AU` Document it inherits from and becomes `/Lang`. The Document's own
-## language is the kernel path's unexpressed default and does not lower.
+# Node facts lower onto the structure element and the structure tree root:
+# the paragraph's element identifier becomes `/ID` and the single IDTree
+# leaf maps it back to that element; its `fr` language differs from the
+# `en-AU` Document it inherits from and becomes `/Lang`. The Document's own
+# language is the kernel path's unexpressed default and does not lower.
 expect {
 	pipeline = KernelPipelineFixture.identified_pipeline({})?
 	limits = { ..test_object_limits, max_byte_strings: 2, max_byte_string_bytes: 12, max_objects: 17, max_text_strings: 2, max_names: 136 }

@@ -249,18 +249,18 @@ expect {
 }
 
 expect match mark_closure(2, [], [{ glyph: 0 }], 2) {
-	Err(GlyphZeroUsed({ usage_index: 0 })) => Bool.True
-	_ => Bool.False
+	Err(GlyphZeroUsed({ usage_index: 0 })) => True
+	_ => False
 }
 
 expect match mark_closure(2, [], [{ glyph: 2 }], 2) {
-	Err(GlyphOutOfRange({ glyph: 2, glyph_count: 2, usage_index: 0 })) => Bool.True
-	_ => Bool.False
+	Err(GlyphOutOfRange({ glyph: 2, glyph_count: 2, usage_index: 0 })) => True
+	_ => False
 }
 
 expect match mark_closure(3, [{ child: 1, component_offset: 20, parent: 2 }], [{ glyph: 2 }], 2) {
-	Err(RetainedGlyphLimitExceeded({ attempted: 3, limit: 2 })) => Bool.True
-	_ => Bool.False
+	Err(RetainedGlyphLimitExceeded({ attempted: 3, limit: 2 })) => True
+	_ => False
 }
 
 expect {

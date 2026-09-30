@@ -364,13 +364,13 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 	form_isolation = KernelForm.Plan.form_isolation(forms)
 	with_groups = any_flag(page_transparency) or any_flag(form_isolation)
 	with_masks = KernelForm.Plan.work(forms).canonical_mask_states > 0
-	var $with_stitch = Bool.False
+	var $with_stitch = False
 	var $stitch_scan = 0
 	while $stitch_scan < canonical_functions {
 		match KernelForm.Plan.canonical_function_fact(forms, $stitch_scan) {
 			SegmentFact(_) => {}
 			StitchFact(_) => {
-				$with_stitch = Bool.True
+				$with_stitch = True
 			}
 		}
 		$stitch_scan = $stitch_scan + 1
@@ -424,9 +424,9 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 			GroupValue(_) => KernelPageObjects.Plan.build_with_page_groups($builder, tagged, content, base, $page_values, $references, $page_groups) ? Pages
 		}
 		WithNavigationPlan(plan_input) => {
-			## Per-page /Annots reference arrays in keyboard order, built
-			## from the planned annotation identities before the pages
-			## reference them.
+			# Per-page /Annots reference arrays in keyboard order, built
+			# from the planned annotation identities before the pages
+			# reference them.
 			var $annots = List.with_capacity(page_count)
 			var $annots_builder = $builder
 			var $annots_page = 0
@@ -486,12 +486,12 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		},
 	) ? Resources
 
-	## Canonical Form XObject stream objects in canonical order, each with its
-	## complete direct dictionary, explicit bounding box, the canonical
-	## identity matrix, and — for isolated transparency groups — the explicit
-	## `/Group` dictionary naming the canonical blending space. Deferred
-	## capabilities emit no keys at all. One shared isolated-group value
-	## serves every isolated form because they share one blending space.
+	# Canonical Form XObject stream objects in canonical order, each with its
+	# complete direct dictionary, explicit bounding box, the canonical
+	# identity matrix, and — for isolated transparency groups — the explicit
+	# `/Group` dictionary naming the canonical blending space. Deferred
+	# capabilities emit no keys at all. One shared isolated-group value
+	# serves every isolated form because they share one blending space.
 	var $form_builder = KernelResourceObjects.Plan.builder(resources)
 	isolated_group_plan = add_isolated_group_value($form_builder, named.names, forms, base, form_isolation)?
 	$form_builder = isolated_group_plan.builder
@@ -529,10 +529,10 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		$ordinal = $ordinal + 1
 	}
 
-	## Canonical graphics-state objects in canonical order: constant-alpha
-	## states carry the exact effective alphas under the Normal blend mode,
-	## and soft-mask states carry the Alpha mask dictionary referencing their
-	## canonical mask form's stream object directly.
+	# Canonical graphics-state objects in canonical order: constant-alpha
+	# states carry the exact effective alphas under the Normal blend mode,
+	# and soft-mask states carry the Alpha mask dictionary referencing their
+	# canonical mask form's stream object directly.
 	var $state_builder = $form_builder
 	var $state_ordinal = 0
 	while $state_ordinal < canonical_states {
@@ -552,9 +552,9 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		$state_ordinal = $state_ordinal + 1
 	}
 
-	## Canonical shading dictionaries in canonical order: each names its
-	## canonical color-space object, its exact coordinates, the explicit
-	## domain, its extend flags, and its canonical root function object.
+	# Canonical shading dictionaries in canonical order: each names its
+	# canonical color-space object, its exact coordinates, the explicit
+	# domain, its extend flags, and its canonical root function object.
 	var $paint_builder = $state_builder
 	var $shading_ordinal = 0
 	while $shading_ordinal < canonical_shadings {
@@ -571,10 +571,10 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		$shading_ordinal = $shading_ordinal + 1
 	}
 
-	## Canonical function dictionaries: exponential segment functions carry
-	## the exact stop colors of their representative shading, and stitching
-	## functions carry the exact interior stop offsets as bounds with the
-	## canonical segment references, all read from the validated store.
+	# Canonical function dictionaries: exponential segment functions carry
+	# the exact stop colors of their representative shading, and stitching
+	# functions carry the exact interior stop offsets as bounds with the
+	# canonical segment references, all read from the validated store.
 	var $function_ordinal = 0
 	while $function_ordinal < canonical_functions {
 		fact = KernelForm.Plan.canonical_function_fact(forms, $function_ordinal)
@@ -590,9 +590,9 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		$function_ordinal = $function_ordinal + 1
 	}
 
-	## Canonical tiling-pattern stream objects, each with its complete
-	## direct dictionary, explicit bounds, steps, matrix, and the colored
-	## constant-spacing tiling policy.
+	# Canonical tiling-pattern stream objects, each with its complete
+	# direct dictionary, explicit bounds, steps, matrix, and the colored
+	# constant-spacing tiling policy.
 	var $pattern_bytes = 0
 	var $pattern_ordinal = 0
 	while $pattern_ordinal < canonical_patterns {
@@ -612,11 +612,11 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 		$pattern_ordinal = $pattern_ordinal + 1
 	}
 
-	## Type 0 font objects: exactly one physical bundle per canonical font,
-	## in canonical order, lowered from its lowest authored representative's
-	## validated facts and that representative's collected mappings, landing
-	## exactly at the planned identities. A duplicate bundle for one
-	## canonical identity is structurally unrepresentable here.
+	# Type 0 font objects: exactly one physical bundle per canonical font,
+	# in canonical order, lowered from its lowest authored representative's
+	# validated facts and that representative's collected mappings, landing
+	# exactly at the planned identities. A duplicate bundle for one
+	# canonical identity is structurally unrepresentable here.
 	var $font_builder = $paint_builder
 	var $font_program_bytes = 0
 	match text {
@@ -1257,11 +1257,11 @@ GroupValue := [GroupValue(KernelObject.ValueId), NoGroupValue]
 ## 11.4.7), so the canonical page group omits them.
 add_page_group_value : KernelObject.Builder, Names, KernelForm.Plan, KernelObjectPlan.Plan, List(Bool) -> Try({ builder : KernelObject.Builder, value : GroupValue }, KernelFormStructure.Error)
 add_page_group_value = |builder, names, forms, base, page_transparency| {
-	var $needed = Bool.False
+	var $needed = False
 	var $page = 0
 	while $page < page_transparency.len() {
 		if list_at(page_transparency, $page) {
-			$needed = Bool.True
+			$needed = True
 		}
 		$page = $page + 1
 	}
@@ -1295,11 +1295,11 @@ add_page_group_value = |builder, names, forms, base, page_transparency| {
 ## `<< /CS ... /I true /S /Transparency >>`. Knockout stays absent (false).
 add_isolated_group_value : KernelObject.Builder, Names, KernelForm.Plan, KernelObjectPlan.Plan, List(Bool) -> Try({ builder : KernelObject.Builder, value : GroupValue }, KernelFormStructure.Error)
 add_isolated_group_value = |builder, names, forms, base, form_isolation| {
-	var $needed = Bool.False
+	var $needed = False
 	var $ordinal = 0
 	while $ordinal < form_isolation.len() {
 		if list_at(form_isolation, $ordinal) {
-			$needed = Bool.True
+			$needed = True
 		}
 		$ordinal = $ordinal + 1
 	}
@@ -1316,7 +1316,7 @@ add_isolated_group_value = |builder, names, forms, base, form_isolation| {
 				}
 			}
 			space = KernelObject.add_reference(builder, list_at(KernelObjectPlan.Plan.color_spaces(base), blending_ordinal)) ? Object
-			isolated = KernelObject.add_boolean(space.builder, Bool.True) ? Object
+			isolated = KernelObject.add_boolean(space.builder, True) ? Object
 			kind = KernelObject.add_name_value(isolated.builder, group_names.transparency) ? Object
 			value = KernelObject.add_dictionary(
 				kind.builder,
@@ -1714,10 +1714,10 @@ ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expect
 any_flag : List(Bool) -> Bool
 any_flag = |flags| {
 	var $index = 0
-	var $found = Bool.False
+	var $found = False
 	while $index < flags.len() and !$found {
 		if list_at(flags, $index) {
-			$found = Bool.True
+			$found = True
 		}
 		$index = $index + 1
 	}

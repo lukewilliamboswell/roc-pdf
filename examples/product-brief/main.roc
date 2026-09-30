@@ -241,7 +241,7 @@ line_chart = {
 		$marker_x = $marker_x + step
 	}
 
-	## The target of five days, as a dashed clay rule with its label.
+	# The target of five days, as a dashed clay rule with its label.
 	var $dash = left
 	while $dash < left + 474 {
 		$chart = Scene.rectangle($chart, Layout.rect($dash, y_of(50), 8, 1), clay)

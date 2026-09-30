@@ -254,13 +254,13 @@ register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimi
 	instance_index = state.store.instances.len()
 	policy_index = state.store.policies.len()
 
-	## Resources, faces, instances, and retained inspections advance together,
-	## one per registration, so a disagreement between them means the registry
-	## is not the value this boundary produced. Policies deliberately do not
-	## join that invariant: `with_policy` appends an explicit policy without a
-	## resource, face, or instance, so requiring the policy count to match would
-	## seal the registry against every later registration and report a
-	## registry-state precondition as a fault in the caller's font bytes.
+	# Resources, faces, instances, and retained inspections advance together,
+	# one per registration, so a disagreement between them means the registry
+	# is not the value this boundary produced. Policies deliberately do not
+	# join that invariant: `with_policy` appends an explicit policy without a
+	# resource, face, or instance, so requiring the policy count to match would
+	# seal the registry against every later registration and report a
+	# registry-state precondition as a fault in the caller's font bytes.
 	if resource_index != face_index or face_index != instance_index or state.inspections.len() != face_index {
 		return Err(InvalidFont)
 	}
@@ -579,17 +579,17 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## Font resource IDs preserve their dense index.
+# Font resource IDs preserve their dense index.
 expect Font.ResourceId.from_index(2).index() == 2
 
-## Font face IDs preserve their dense index.
+# Font face IDs preserve their dense index.
 expect Font.FaceId.from_index(3).index() == 3
 
-## Static font instance IDs preserve their dense index.
+# Static font instance IDs preserve their dense index.
 expect Font.InstanceId.from_index(5).index() == 5
 
-## Font policy IDs preserve their dense index.
+# Font policy IDs preserve their dense index.
 expect Font.PolicyId.from_index(6).index() == 6
 
-## Script tags retain their exact source spelling for later validation.
+# Script tags retain their exact source spelling for later validation.
 expect Font.Script.from_iso15924("Latn").as_str() == "Latn"

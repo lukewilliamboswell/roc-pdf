@@ -949,7 +949,7 @@ test_limits = {
 	max_values: 32,
 }
 
-## Flat stores assign dense IDs and record exact construction work.
+# Flat stores assign dense IDs and record exact construction work.
 expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_name(initial, Str.to_utf8("A")) {
@@ -995,7 +995,7 @@ expect {
 	}
 }
 
-## Duplicate dictionary keys fail without appending any edge.
+# Duplicate dictionary keys fail without appending any edge.
 expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_name(initial, Str.to_utf8("A")) {
@@ -1016,7 +1016,7 @@ expect {
 	}
 }
 
-## Dictionary keys must already be in canonical byte order.
+# Dictionary keys must already be in canonical byte order.
 expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_name(initial, Str.to_utf8("B")) {
@@ -1040,7 +1040,7 @@ expect {
 	}
 }
 
-## Array edges reject value IDs outside the dense value store.
+# Array edges reject value IDs outside the dense value store.
 expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_array(initial, [KernelObject.ValueId.from_index(99)]) {
@@ -1049,7 +1049,7 @@ expect {
 	}
 }
 
-## Count limits fail at the exact attempted value.
+# Count limits fail at the exact attempted value.
 expect {
 	limits = { ..test_limits, max_names: 0 }
 	match KernelObject.add_name(KernelObject.init(limits), Str.to_utf8("A")) {
@@ -1058,7 +1058,7 @@ expect {
 	}
 }
 
-## A lexically invalid name is rejected before assigning an ID or retaining bytes.
+# A lexically invalid name is rejected before assigning an ID or retaining bytes.
 expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_name(initial, [65, 0, 66]) {
@@ -1069,7 +1069,7 @@ expect {
 	}
 }
 
-## Aggregate byte limits reject names and both string stores without changing the builder.
+# Aggregate byte limits reject names and both string stores without changing the builder.
 expect {
 	limits = {
 		..test_limits,
@@ -1095,7 +1095,7 @@ expect {
 	} and counts.names == 0 and counts.byte_strings == 0 and counts.text_strings == 0
 }
 
-## Payload byte limits fail before retaining source bytes or assigning an ID.
+# Payload byte limits fail before retaining source bytes or assigning an ID.
 expect {
 	limits = { ..test_limits, max_payload_bytes: 2 }
 	initial = KernelObject.init(limits)
@@ -1107,7 +1107,7 @@ expect {
 	}
 }
 
-## Count and aggregate-size arithmetic report overflow instead of wrapping.
+# Count and aggregate-size arithmetic report overflow instead of wrapping.
 expect {
 	count = checked_increment(U64.highest, U64.highest, Objects)
 	total = checked_total(U64.highest, 1, U64.highest, NameBytes)
@@ -1121,7 +1121,7 @@ expect {
 	}
 }
 
-## Scalar values obey the same direct-depth limit as containers.
+# Scalar values obey the same direct-depth limit as containers.
 expect {
 	limits = { ..test_limits, max_direct_depth: 0 }
 	initial = KernelObject.init(limits)
@@ -1133,7 +1133,7 @@ expect {
 	}
 }
 
-## Byte-string value errors identify the byte-string store.
+# Byte-string value errors identify the byte-string store.
 expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_byte_string_value(initial, KernelObject.ByteStringId.from_index(0)) {
@@ -1142,7 +1142,7 @@ expect {
 	}
 }
 
-## Text-string value errors identify the text-string store.
+# Text-string value errors identify the text-string store.
 expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_text_string_value(initial, KernelObject.TextStringId.from_index(0)) {
@@ -1151,7 +1151,7 @@ expect {
 	}
 }
 
-## Streams retain a payload ID and a preassigned length-object ID.
+# Streams retain a payload ID and a preassigned length-object ID.
 expect {
 	initial = KernelObject.init(test_limits)
 	match KernelObject.add_payload(initial, [1, 2, 3], UnchangedResource) {
@@ -1184,7 +1184,7 @@ expect {
 	}
 }
 
-## PDF object number zero is never constructible.
+# PDF object number zero is never constructible.
 expect {
 	match KernelObject.ObjectId.from_number(0) {
 		Err(ObjectNumberZero) => True

@@ -92,10 +92,10 @@ build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFa
 build_plan = |authoring, shape, sources, page, theme, limits| {
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 
-	## A rich paragraph's logical run spans several physical runs; the
-	## logical batch measures such ranges. Documents whose runs are all
-	## single keep the exact one-run batch, unless a code span holds its
-	## words together, which only the logical batch applies.
+	# A rich paragraph's logical run spans several physical runs; the
+	# logical batch measures such ranges. Documents whose runs are all
+	# single keep the exact one-run batch, unless a code span holds its
+	# words together, which only the logical batch applies.
 	if has_multi_run(block_runs) or has_code_holds(authoring, shape, sources) {
 		return build_ordered_plan(authoring, shape, sources, page, theme, limits, [])
 	}
@@ -270,8 +270,8 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 					},
 				)
 
-				## Each further explicit-line-break segment of the body is its
-				## own source and its own line request.
+				# Each further explicit-line-break segment of the body is its
+				# own source and its own line request.
 				var $segment_start = body_start + segment_length(shape_requests, body_start, body_start + body.physical.length())
 				while $segment_start < body_start + body.physical.length() {
 					length = segment_length(shape_requests, $segment_start, body_start + body.physical.length())

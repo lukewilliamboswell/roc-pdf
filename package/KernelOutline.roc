@@ -487,7 +487,7 @@ test_entry = |depth, open, index| KernelOutline.Entry.make({ depth, open, target
 test_limits : KernelOutline.Limits
 test_limits = KernelOutline.Limits.make({ max_depth: 8, max_entries: 32, text_string_count: 32, value_count: 32 })
 
-## Preorder input seals exact parent, sibling, child, and visibility facts.
+# Preorder input seals exact parent, sibling, child, and visibility facts.
 expect {
 	plan = KernelOutline.Plan.build(
 		[
@@ -523,7 +523,7 @@ expect {
 														KernelOutline.Plan.root_last(plan) == KernelOutline.ItemId.from_index(5)
 }
 
-## A single leaf has root links and no item Count or sibling links.
+# A single leaf has root links and no item Count or sibling links.
 expect {
 	plan = KernelOutline.Plan.build([test_entry(0, False, 0)], test_limits)?
 	item = KernelOutline.Plan.item_at(plan, 0)
@@ -534,7 +534,7 @@ expect {
 					parent_is_root(KernelOutline.Item.parent(item))
 }
 
-## Empty, nonzero-first-depth, skipped-depth, and explicit depth-limit inputs fail atomically.
+# Empty, nonzero-first-depth, skipped-depth, and explicit depth-limit inputs fail atomically.
 expect {
 	empty = KernelOutline.Plan.build([], test_limits)
 	first = KernelOutline.Plan.build([test_entry(1, True, 0)], test_limits)
@@ -556,7 +556,7 @@ expect {
 	}
 }
 
-## Entry, title-store, and target-store bounds are named before a plan escapes.
+# Entry, title-store, and target-store bounds are named before a plan escapes.
 expect {
 	over = KernelOutline.Plan.build([test_entry(0, True, 0), test_entry(0, True, 1)], KernelOutline.Limits.make({ max_depth: 1, max_entries: 1, text_string_count: 2, value_count: 2 }))
 	bad_title = KernelOutline.Plan.build([test_entry(0, True, 1)], KernelOutline.Limits.make({ max_depth: 1, max_entries: 1, text_string_count: 1, value_count: 2 }))
@@ -574,7 +574,7 @@ expect {
 	}
 }
 
-## Targetless grouping items are valid and retain their explicit target policy.
+# Targetless grouping items are valid and retain their explicit target policy.
 expect {
 	entry = KernelOutline.Entry.make({ depth: 0, open: True, target: NoTarget, title: test_title(0) })
 	plan = KernelOutline.Plan.build([entry], test_limits)?

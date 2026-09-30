@@ -365,7 +365,7 @@ topology = {
 	data_tint = Color.srgb8({ red: 253, green: 243, blue: 230 })
 	zone = Color.srgb8({ red: 248, green: 249, blue: 250 })
 
-	## The production zone behind the application tiers, dashed by short bars.
+	# The production zone behind the application tiers, dashed by short bars.
 	var $d = Scene.drawing({})
 		.path(rounded(128, 2, 358, 172, 8), { fill: AuthorSolidFill(zone), stroke: AuthorSolidStroke({ color: mist, width: Layout.Unit.millipoints(800) }) })
 	$d = tier($d, { x: 4, y: 106, w: 100, h: 58, n: 1, name: "Edge load balancer", color: edge, tint: edge_tint })

@@ -236,8 +236,8 @@ lines_ending_inside = |document, ranges_of| {
 					next = list_at(all_lines, $line + 1).source.scalars
 					end = current.start() + current.length()
 
-					## A segment's last line is followed by a mandatory break
-					## (the next line restarts at scalar 0 of its source).
+					# A segment's last line is followed by a mandatory break
+					# (the next line restarts at scalar 0 of its source).
 					if next.start() == end {
 						if ranges.any(|range| range.start() < end and end < range.start() + range.length()) {
 							$inside = $inside + 1
@@ -752,10 +752,10 @@ run_scoped_text = |count| {
 		return Err(InvalidScale)
 	}
 	theme = Theme.default.with_table_header_color(Color.srgb8({ blue: 140, green: 70, red: 10 }))
-	document = scoped_text_document(count, Bool.True)
+	document = scoped_text_document(count, True)
 	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) ? |_| EvidenceFailure
 	scoped_plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
-	plain_plan = KernelFacadeSemantics.Plan.build(Document.normalize(scoped_text_document(count, Bool.False)), semantic_limits) ? |_| EvidenceFailure
+	plain_plan = KernelFacadeSemantics.Plan.build(Document.normalize(scoped_text_document(count, False)), semantic_limits) ? |_| EvidenceFailure
 	scoped_work = KernelFacadeSemantics.Plan.work(scoped_plan)
 	plain_work = KernelFacadeSemantics.Plan.work(plain_plan)
 	if scoped_work.node_writes != plain_work.node_writes or scoped_work.content_writes != plain_work.content_writes or scoped_work.occurrence_writes != plain_work.occurrence_writes {
@@ -771,13 +771,13 @@ run_scoped_colors = |count| {
 	}
 	theme = Theme.default.with_strong_color(Color.srgb8({ blue: 30, green: 30, red: 150 })).with_link_color(Color.srgb8({ blue: 180, green: 80, red: 20 }))
 	options = Pdf.Options.with_theme(Pdf.Options.default, theme)
-	document = scoped_colors_document(count, Bool.True)
+	document = scoped_colors_document(count, True)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 
 	## Scopes are presentation only: the same content without them plans the
 	## same semantic nodes, content items, and occurrences.
 	scoped_plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
-	plain_plan = KernelFacadeSemantics.Plan.build(Document.normalize(scoped_colors_document(count, Bool.False)), semantic_limits) ? |_| EvidenceFailure
+	plain_plan = KernelFacadeSemantics.Plan.build(Document.normalize(scoped_colors_document(count, False)), semantic_limits) ? |_| EvidenceFailure
 	scoped_work = KernelFacadeSemantics.Plan.work(scoped_plan)
 	plain_work = KernelFacadeSemantics.Plan.work(plain_plan)
 	if scoped_work.node_writes != plain_work.node_writes or scoped_work.content_writes != plain_work.content_writes or scoped_work.occurrence_writes != plain_work.occurrence_writes {

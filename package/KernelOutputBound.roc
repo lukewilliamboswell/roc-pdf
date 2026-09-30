@@ -30,11 +30,11 @@ calculate_bound = |sealed, xref_object| {
 	if KernelObject.ObjectId.number(xref_object) != expected_xref {
 		Err(XrefObjectMismatch({ actual: xref_object, expected: expected_xref }))
 	} else {
-		## Stream objects are bounded as top-level objects. Every other object
-		## is bounded as an object-stream member (a header pair of at most two
-		## 20-digit numbers and two spaces, its value, and a newline), and each
-		## object stream closed by the shared partition adds its DEFLATE bound
-		## and framing.
+		# Stream objects are bounded as top-level objects. Every other object
+		# is bounded as an object-stream member (a header pair of at most two
+		# 20-digit numbers and two spaces, its value, and a newline), and each
+		# object stream closed by the shared partition adds its DEFLATE bound
+		# and framing.
 		var $bytes = 15
 		var $batch = 0
 		var $members = 0

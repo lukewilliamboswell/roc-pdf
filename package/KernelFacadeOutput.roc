@@ -175,8 +175,8 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 	colors = KernelFacadeScenes.Plan.colors(scenes)
 	text_store = KernelTextOwnership.Plan.text(ownership)
 
-	## Glyph usage ownership is the run's exact dense instance fact; grouping
-	## never re-derives a font from coverage or glyph IDs.
+	# Glyph usage ownership is the run's exact dense instance fact; grouping
+	# never re-derives a font from coverage or glyph IDs.
 	var $usages_per_font = List.repeat([], fonts.len())
 	var $total_usages = 0
 	var $run_index = 0

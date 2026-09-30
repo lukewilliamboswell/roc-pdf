@@ -328,12 +328,12 @@ expect {
 	result.work.len() == 12
 }
 
-## Invalid caller bytes fail without returning a usable face or registry.
+# Invalid caller bytes fail without returning a usable face or registry.
 expect match Font.Registry.empty.register(
 	List.repeat(0, 12),
 	{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
 	Font.ValidationLimits.default,
 ) {
-	Err(UnsupportedFormat(0)) => Bool.True
-	_ => Bool.False
+	Err(UnsupportedFormat(0)) => True
+	_ => False
 }
