@@ -17,18 +17,21 @@ import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 ## A pocket field guide to the shorebirds of a tidal estuary: a vector
 ## habitat cross-section and bird plates built from grouped `Scene` paths,
 ## species accounts that are outline destinations and cross-reference one
-## another, identification lists, a survey checklist table, a field
-## etiquette callout through the custom-block seam, page labels, and
-## running headers and footers.
+## another, identification lists, a striped survey checklist table kept
+## on one page, callouts through the custom-block seam measured by the
+## package, page labels, and running headers and footers ruled by a
+## region backdrop.
 main! = |_args| {
 	fonts = register_fonts({})?
-	document = Pdf.document({ contents, language: "en-AU", title: "Coastal field guide: shorebirds of the Derwent estuary" })
+	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
+	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Coastal field guide: shorebirds of the Derwent estuary" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_page_labels([{ prefix: "FG-", start_number: 1, start_page: 0, style: DecimalArabic }])
 		.with_created("2026-11-02T00:00:00Z")
 		.with_modified("2026-11-02T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "field-guide.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
@@ -96,6 +99,8 @@ theme = {
 		.with_body_style({ ..base_body, color: ink, size: points(10), leading: points(14) })
 		.with_paragraph_spacing(points(7))
 		.with_table_header_color(coastal)
+		.with_table_header_fill(rgb(232, 242, 241))
+		.with_table_body_fills({ odd: NoFill, even: Fill(rgb(249, 246, 239)) })
 		.with_table_rule(Rule({ color: rgb(120, 170, 168), width: points(1) }))
 		.with_table_cell_padding(points(4))
 		.with_link_color(coastal)
@@ -132,12 +137,15 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({
-			height: points(22),
-			start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")]), Pdf.furniture_image(rule)],
-			center: [],
-			end: [],
-		}),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(18),
+				start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])],
+				center: [],
+				end: [Pdf.furniture_image(wave_mark)],
+			}),
+			rule,
+		),
 		footer,
 		gap: points(14),
 	}),
@@ -339,30 +347,29 @@ plates = Scene.drawing({})
 	.group(point(314, 0), card(curlew_plate, rgb(240, 236, 228), "Far Eastern curlew"))
 
 ## ---------------------------------------------------------------------
-## A callout following `tests/custom_block/Callout.roc`: single-line
-## paragraphs measured from the theme's public metrics over a tinted
-## rounded panel.
+## A callout following `tests/custom_block/Callout.roc`: paragraphs that
+## may wrap, measured by the package at the panel's content width, over a
+## tinted rounded panel.
 
 callout_inset : Layout.Unit
 callout_inset = points(12)
 
 ## Each line is a label and its text; the callout scopes its `Strong`
 ## labels to its accent colour.
-callout : Str, Color.SourceValue, List((Str, Str)) -> Document.Block
-callout = |name, accent, lines| {
-	leading = Theme.body_style(theme).leading.raw()
-	spacing = Theme.paragraph_spacing(theme).raw()
-	count = lines.len().to_i64_wrap()
-	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(body_width) }
+callout : Pdf.Options, Str, Color.SourceValue, List((Str, Str)) -> Try(Document.Block, Pdf.Error)
+callout = |options, name, accent, lines| {
+	paragraphs = lines.map(|(label, text)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${text}")]))
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(body_width - 24) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(body_width) }
 	block = Pdf.custom_block({
-		contents: lines.map(|(label, text)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${text}")])),
+		contents: paragraphs,
 		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name,
 		panel: callout_panel(size),
 		size,
 	})
-	Pdf.scoped(Theme.Scope.empty.with_color(Strong, accent), [block])
+	Ok(Pdf.scoped(Theme.Scope.empty.with_color(Strong, accent), [block]))
 }
 
 callout_panel : Layout.Size -> Scene.Drawing
@@ -390,13 +397,15 @@ callout_panel = |size| {
 	Scene.drawing({}).path(outline_path, { fill: AuthorSolidFill(rgb(246, 241, 228)), stroke: AuthorSolidStroke({ color: rgb(200, 170, 110), width: points(1) }) })
 }
 
-## A thin sand-coloured rule with a centred wave, set above each species account.
+## A thin sand-coloured rule with a centred wave, set 6 pt below the
+## account before it and above each species account.
 divider : Document.Block
-divider = Pdf.decoration(
+divider = Pdf.spaced_decoration(
 	Scene.drawing({})
 		.path(line(1, 7, 210, 7), Scene.solid_stroke(sand, points(1)))
 		.group(point(217, 0), wave_mark)
 		.path(line(249, 7, body_width - 1, 7), Scene.solid_stroke(sand, points(1))),
+	{ above: points(6), behind: Bool.False, below: points(0) },
 )
 
 ## ---------------------------------------------------------------------
@@ -413,12 +422,20 @@ check_row = |name, scientific, season, status| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(name)]),
 	Pdf.cell([Pdf.emphasis([Pdf.in_language("la", [Pdf.text(scientific)])])]),
 	Pdf.cell([Pdf.text(season)]),
-	Pdf.cell([Pdf.text(status)]),
+	threatened(status),
 	Pdf.cell([Pdf.text("—")]),
 ])
 
+## A threatened status is set in bold on a warm tint.
+threatened : Str -> Pdf.Cell
+threatened = |status| if status == "Endangered" or status == "Vulnerable" Pdf.shaded(rgb(250, 232, 222), Pdf.cell([Pdf.strong([Pdf.text(status)])])) else Pdf.cell([Pdf.text(status)])
+
+## The checklist is kept whole so a surveyor can print one page.
 checklist : Document.Block
-checklist = Pdf.table({
+checklist = Pdf.keep_together([table_of_species])
+
+table_of_species : Document.Block
+table_of_species = Pdf.table({
 	caption: Pdf.caption("Table 1. Shorebirds recorded on the estuary, with a column for your count"),
 	columns: [
 		{ width: Share(3), align: Start },
@@ -451,8 +468,33 @@ checklist = Pdf.table({
 	row_split: KeepRows,
 })
 
-contents : List(Document.Block)
-contents = [
+contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
+contents = |options| {
+	windows = callout(
+		options,
+		"Best counting windows",
+		coastal,
+		[
+			("Roost counts", "from two hours before to one hour after high tide, when birds pack together above the tide line."),
+			("Feeding counts", "on the falling tide, three to five hours after high water."),
+			("Wind", "avoid days above 25 km/h; birds hunker down and are hard to see."),
+		],
+	)?
+	etiquette = callout(
+		options,
+		"Field etiquette",
+		rgb(176, 72, 40),
+		[
+			("Distance", "stay at least 50 m from roosting and nesting birds, and further from a curlew roost."),
+			("Dogs", "keep them on a lead; dogs are banned from the spit all year."),
+			("Alarm", "if birds take flight or call in alarm, you are too close."),
+		],
+	)?
+	Ok(body(windows, etiquette))
+}
+
+body : Document.Block, Document.Block -> List(Document.Block)
+body = |windows, etiquette| [
 	Pdf.title("Coastal field guide"),
 	Pdf.rich_paragraph([
 		Pdf.strong([Pdf.text("Shorebirds of the Derwent estuary")]),
@@ -480,15 +522,7 @@ contents = [
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Sand flats")]), Pdf.text(": oystercatchers probing for pipis and worms.")])]),
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Soft mud and shallows")]), Pdf.text(": curlews and godwits working the channel edge.")])]),
 		]),
-		callout(
-			"Best counting windows",
-			coastal,
-			[
-				("Roost counts", "from two hours before to one hour after high tide."),
-				("Feeding counts", "on the falling tide, three to five hours after high water."),
-				("Wind", "avoid days above 25 km/h; birds hunker down and are hard to see."),
-			],
-		),
+		windows,
 	]),
 	Pdf.page_break,
 	Pdf.section([
@@ -564,15 +598,7 @@ contents = [
 				Pdf.list_item([Pdf.paragraph("Enter a zero for every species you looked for and did not find.")]),
 			],
 		),
-		callout(
-			"Field etiquette",
-			rgb(176, 72, 40),
-			[
-				("Distance", "stay at least 50 m from roosting and nesting birds."),
-				("Dogs", "keep them on a lead; dogs are banned from the spit all year."),
-				("Alarm", "if birds take flight or call in alarm, you are too close."),
-			],
-		),
+		etiquette,
 	]),
 	Pdf.section([
 		Pdf.keep_with_next(Required, Pdf.destination_heading("checklist", 1, "Survey checklist")),
