@@ -50,17 +50,24 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, mono: mono.face, registry: mono.registry })
 }
 
-## Regular for every block role (the style-face path requires one face
-## for body, heading, and title text); Bold for `Pdf.strong`;
-## the monospace face for `Pdf.code`. `Pdf.emphasis` keeps a colour: the
-## font validator rejects Noto Sans Italic's odd-length Macintosh name
-## records, so no italic face is registered.
+## Regular for body text; Bold for the title, both heading levels, and
+## `Pdf.strong`; the monospace face for `Pdf.code`, at 88% of the text
+## around it so its larger letters match the body. Level-1 headings are
+## larger than level-2 headings. `Pdf.emphasis` keeps a colour: no italic
+## face is vendored beside this example.
 with_faces : Theme, Faces -> Theme
-with_faces = |base, faces|
+with_faces = |base, faces| {
+	heading = Theme.heading_style(base)
+	title = Theme.title_style(base)
 	base
 		.with_font(faces.regular)
+		.with_title_style({ ..title, font: faces.bold })
+		.with_heading_level_style(H1, { ..heading, font: faces.bold, color: night, size: points(17), leading: points(23) })
+		.with_heading_level_style(H2, { ..heading, font: faces.bold, color: indigo, size: points(12), leading: points(18) })
 		.with_inline_font(Strong, faces.bold)
 		.with_inline_font(Code, faces.mono)
+		.with_inline_scale(Code, 88)
+}
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -87,9 +94,6 @@ lilac = Color.srgb8({ red: 199, green: 210, blue: 254 })
 haze : Color.SourceValue
 haze = Color.srgb8({ red: 212, green: 212, blue: 216 })
 
-white : Color.SourceValue
-white = Color.srgb8({ red: 255, green: 255, blue: 255 })
-
 measure : I64
 measure = 492
 
@@ -111,6 +115,8 @@ theme = {
 		.with_table_cell_padding(points(5))
 		.with_table_row_gap(points(1))
 		.with_table_rule(Rule({ color: haze, width: Layout.Unit.millipoints(700) }))
+		.with_link_color(indigo)
+		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1500), thickness: Layout.Unit.millipoints(600) }))
 }
 
 ## ---------------------------------------------------------------------
@@ -178,13 +184,15 @@ breaking_style = { accent: pink, fill: Color.srgb8({ red: 253, green: 242, blue:
 callout_inset : Layout.Unit
 callout_inset = points(14)
 
+## Each callout is scoped so its `Strong` labels take its accent colour.
 callout : Str, CalloutStyle, List(Document.Block) -> Document.Block
 callout = |name, style, paragraphs| {
 	leading = Theme.body_style(theme).leading.raw()
 	spacing = Theme.paragraph_spacing(theme).raw()
 	count = paragraphs.len().to_i64_wrap()
 	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(measure) }
-	Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
+	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
+	Pdf.scoped(Theme.Scope.empty.with_color(Strong, style.accent), [block])
 }
 
 ## A rounded panel with a 3 pt accent along its top edge.
@@ -220,69 +228,8 @@ callout_panel = |style, size| {
 }
 
 ## ---------------------------------------------------------------------
-## The version banner: a night-blue band carrying "3.0" in large
-## seven-segment vector digits and a row of release dots.
-
-digit : U64, Color.SourceValue -> Scene.Drawing
-digit = |value, color| {
-	a = (0, 32, 18, 4)
-	b = (14, 16, 4, 20)
-	c = (14, 0, 4, 20)
-	d = (0, 0, 18, 4)
-	e = (0, 0, 4, 20)
-	f = (0, 16, 4, 20)
-	g = (0, 16, 18, 4)
-	segments = match value {
-		0 => [a, b, c, d, e, f]
-		1 => [b, c]
-		2 => [a, b, g, e, d]
-		3 => [a, b, g, c, d]
-		_ => [a, b, c, d, e, f, g]
-	}
-	var $drawing = Scene.drawing({})
-	for (x, y, w, h) in segments {
-		$drawing = Scene.rectangle($drawing, Layout.rect(x, y, w, h), color)
-	}
-	$drawing
-}
-
-## A small seven-segment digit, 1 pt strokes in a 5 × 9 pt cell.
-small_digit : U64, Color.SourceValue -> Scene.Drawing
-small_digit = |value, color| {
-	a = (0, 8, 5, 1)
-	b = (4, 4, 1, 5)
-	c = (4, 0, 1, 5)
-	d = (0, 0, 5, 1)
-	e = (0, 0, 1, 5)
-	f = (0, 4, 1, 5)
-	g = (0, 4, 5, 1)
-	segments = match value {
-		0 => [a, b, c, d, e, f]
-		1 => [b, c]
-		2 => [a, b, g, e, d]
-		3 => [a, b, g, c, d]
-		4 => [f, g, b, c]
-		5 => [a, f, g, c, d]
-		6 => [a, f, g, e, c, d]
-		7 => [a, b, c]
-		8 => [a, b, c, d, e, f, g]
-		_ => [a, b, c, d, f, g]
-	}
-	var $drawing = Scene.drawing({})
-	for (x, y, w, h) in segments {
-		$drawing = Scene.rectangle($drawing, Layout.rect(x, y, w, h), color)
-	}
-	$drawing
-}
-
-## A three-digit value label starting at (x, y).
-value_label : Scene.Drawing, U64, I64, I64, Color.SourceValue -> Scene.Drawing
-value_label = |drawing, value, x, y, color| {
-	drawing
-		.group(Layout.point(x, y), small_digit(value // 100, color))
-		.group(Layout.point(x + 8, y), small_digit((value // 10) % 10, color))
-		.group(Layout.point(x + 16, y), small_digit(value % 10, color))
-}
+## The version banner: a night-blue band with a pink edge and a row of
+## release dots. It is decoration; the version is in the title below.
 
 banner : Document.Block
 banner = {
@@ -290,9 +237,6 @@ banner = {
 	## includes: the drawing leaves its lowest 14 pt empty.
 	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 14, measure, 64), night)
 	$d = Scene.rectangle($d, Layout.rect(0, 14, 6, 64), pink)
-	$d = $d.group(Layout.point(24, 28), digit(3, white))
-	$d = Scene.rectangle($d, Layout.rect(48, 28, 4, 4), white)
-	$d = $d.group(Layout.point(58, 28), digit(0, white))
 
 	## Twelve release dots: minor releases in lilac, this major in pink.
 	var $x = 300
@@ -311,24 +255,33 @@ banner = {
 
 latency_chart : Scene.Drawing
 latency_chart = {
-	## Milliseconds for 2.8, 2.9, and 3.0.
-	values = [(412, haze), (356, lilac), (188, indigo)]
+	## Milliseconds for 2.8, 2.9, and 3.0, drawn at 0.9 pt per millisecond
+	## from a 44 pt label column, with a grid line every 100 ms.
+	values = [("2.8", 412, haze), ("2.9", 356, lilac), ("3.0", 188, indigo)]
+	left = 44
+	bar = |value| value * 9 // 10
 	var $d = Scene.drawing({})
 	for step in [0, 1, 2, 3, 4] {
-		x = 20 + step * 100
-		$d = Scene.rectangle($d, { origin: Layout.point(x, 0), size: { height: points(118), width: Layout.Unit.millipoints(600) } }, haze)
+		x = left + bar(step * 100)
+		$d = Scene.rectangle($d, { origin: Layout.point(x, 16), size: { height: points(118), width: Layout.Unit.millipoints(600) } }, haze)
+		$d = $d.text({ align: Center, color: ink, origin: Layout.point(x, 4), size: points(7), text: if step == 4 "400 ms" else (step * 100).to_str() })
 	}
-	var $y = 84
-	for (value, color) in values {
-		$d = Scene.rectangle($d, Layout.rect(20, $y, value, 24), color)
-		$d = value_label($d, value.to_u64_wrap(), 28 + value, $y + 8, ink)
+	var $y = 100
+	for (release, value, color) in values {
+		$d = Scene.rectangle($d, Layout.rect(left, $y, bar(value), 24), color)
+		$d = $d.text({ align: End, color: ink, origin: Layout.point(left - 8, $y + 9), size: points(9), text: release })
+		$d = $d.text({ align: Start, color: ink, origin: Layout.point(left + bar(value) + 6, $y + 9), size: points(8), text: "${value.to_str()} ms" })
 		$y = $y - 36
 	}
 
 	## Arrow from the 2.9 bar end back to the 3.0 bar end: the improvement.
+	end_29 = left + bar(356)
+	end_30 = left + bar(188)
 	$d
-		.path(Scene.path({}).move_to(Layout.point(376, 60)).line_to(Layout.point(376, 36)).line_to(Layout.point(256, 36)).finish(), Scene.solid_stroke(pink, Layout.Unit.millipoints(1500)))
-		.path(Scene.path({}).move_to(Layout.point(248, 36)).line_to(Layout.point(256, 40)).line_to(Layout.point(256, 32)).close().finish(), Scene.solid_fill(pink))
+		.path(Scene.path({}).move_to(Layout.point(end_29, 76)).line_to(Layout.point(end_29, 52)).line_to(Layout.point(end_30 + 8, 52)).finish(), Scene.solid_stroke(pink, Layout.Unit.millipoints(1500)))
+		.path(Scene.path({}).move_to(Layout.point(end_30, 52)).line_to(Layout.point(end_30 + 8, 56)).line_to(Layout.point(end_30 + 8, 48)).close().finish(), Scene.solid_fill(pink))
+		.text({ align: Start, color: pink, origin: Layout.point(end_29 + 6, 60), size: points(8), text: "−47%" })
+		.path(Scene.path({}).move_to(Layout.point(left, 16)).line_to(Layout.point(measure - 1, 16)).finish(), Scene.solid_stroke(ink, Layout.Unit.millipoints(700)))
 }
 
 ## ---------------------------------------------------------------------
@@ -340,13 +293,12 @@ issue = |number| Pdf.inline_link([Pdf.emphasis([Pdf.text("#${number.to_str()}")]
 change : List(Pdf.Inline), U64 -> Pdf.ListItem
 change = |inlines, number| Pdf.list_item([Pdf.rich_paragraph(inlines.concat([Pdf.text(" ("), issue(number), Pdf.text(")")]))])
 
-## The new version is plain text: a `Pdf.strong` run inside a table cell
-## does not shape under a registered strong face yet.
+## The new version is strong, in the bold face.
 compat_row : Str, Str, Str, Str -> Pdf.Row
 compat_row = |target, old, new, note| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(target)]),
 	Pdf.cell([Pdf.text(old)]),
-	Pdf.cell([Pdf.text(new)]),
+	Pdf.cell([Pdf.strong([Pdf.text(new)])]),
 	Pdf.cell([Pdf.text(note)]),
 ])
 
