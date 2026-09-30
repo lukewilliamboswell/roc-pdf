@@ -55,18 +55,26 @@ file's own length and digest.
 
 | Family | Examples | Release archive | Archive SHA-256 |
 | --- | --- | --- | --- |
-| Fraunces 9pt 1.000 | brand-brief | [UnderCaseType_Fraunces_1.000.zip](https://github.com/undercasetype/Fraunces/releases/download/1.000/UnderCaseType_Fraunces_1.000.zip) (license from the `1.000` tag's `OFL.txt`) | `8d8b81dfaeb89433f5c908e1d8d0a4b202bd627bd80d4cd5ff56f311fdcad19f` |
 | Inter 4.1 | product-brief | [Inter-4.1.zip](https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip) | `9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e` |
 | Literata 3.103 | field-guide | [3.103.zip](https://github.com/googlefonts/literata/releases/download/3.103/3.103.zip) | `f7fb973cafb26cf785cbebaeaf51c18f87c15a3bcf4d82a7d4857564db5b056d` |
-| Noto Sans Mono 2.014 (unhinted) | chunked-export | [NotoSansMono-v2.014.zip](https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSansMono-v2.014/NotoSansMono-v2.014.zip) | `090cf6c5e03f337a755630ca888b1fef463e64ae7b33ee134e9309c05f978732` |
-| Public Sans 2.001 | release-notes | [public-sans-v2.001.zip](https://github.com/uswds/public-sans/releases/download/v2.001/public-sans-v2.001.zip) | `88cacdf7cd03b31af8f1f83e1f51e0eb5a6052565a6c014c90c385f1ff2d13a5` |
-| Source Code Pro 2.042 | brand-brief, operations-handbook, product-brief, release-notes | [TTF-source-code-pro-2.042R-u_1.062R-i.zip](https://github.com/adobe-fonts/source-code-pro/releases/download/2.042R-u%2F1.062R-i%2F1.026R-vf/TTF-source-code-pro-2.042R-u_1.062R-i.zip) (license from the release tag's `LICENSE.md`) | `0c85bac90d15c040b82939aa92bc8404420fccc02e37bbcb9c93a7f21abb52c6` |
+| Noto Sans 2.015 (hinted) | release-notes | [NotoSans-v2.015.zip](https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSans-v2.015/NotoSans-v2.015.zip) | `0c34df072a3fa7efbb7cbf34950e1f971a4447cffe365d3a359e2d4089b958f5` |
+| Noto Serif 2.015 (hinted) | quarterly-report | [NotoSerif-v2.015.zip](https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSerif-v2.015/NotoSerif-v2.015.zip) | `0e9a43c8a4b94ac76f55069ed1d7385bbcaf6b99527a94deb5619e032b7e76c1` |
+| Public Sans 2.001 | brand-brief | [public-sans-v2.001.zip](https://github.com/uswds/public-sans/releases/download/v2.001/public-sans-v2.001.zip) | `88cacdf7cd03b31af8f1f83e1f51e0eb5a6052565a6c014c90c385f1ff2d13a5` |
+| Source Code Pro 2.042 | brand-brief, chunked-export, operations-handbook, product-brief, release-notes | [TTF-source-code-pro-2.042R-u_1.062R-i.zip](https://github.com/adobe-fonts/source-code-pro/releases/download/2.042R-u%2F1.062R-i%2F1.026R-vf/TTF-source-code-pro-2.042R-u_1.062R-i.zip) (license from the release tag's `LICENSE.md`) | `0c85bac90d15c040b82939aa92bc8404420fccc02e37bbcb9c93a7f21abb52c6` |
 | Source Sans 3 3.052 | operations-handbook | [TTF-source-sans-3.052R.zip](https://github.com/adobe-fonts/source-sans/releases/download/3.052R/TTF-source-sans-3.052R.zip) (license from the `3.052R` tag's `LICENSE.md`) | `1b0dd1ec44b39f1dd98bbd153a1a3815f083639874ddee02c842bd601bad3d21` |
-| Source Serif 4 4.005 | quarterly-report | [source-serif-4.005_Desktop.zip](https://github.com/adobe-fonts/source-serif/releases/download/4.005R/source-serif-4.005_Desktop.zip) | `549fdb8f9a682bd06944298621404969f6de77c2e422ff3b8244a1dcd6a0c425` |
 
-IBM Plex and JetBrains Mono were considered and not retained: their name
-tables carry odd-length Macintosh-platform records, which the package's
-font validator currently rejects as `InvalidFont`.
+The package can currently embed only a subset of valid TrueType fonts, which
+narrowed this selection:
+
+- the font validator rejects a `name` table with an odd-length
+  Macintosh-platform record, which excludes IBM Plex, JetBrains Mono, and
+  Noto Sans Italic 2.015 (so the release notes keep a colour for emphasis);
+  and
+- the subsetter requires the `cvt `, `fpgm`, `gasp`, and `prep` hinting
+  tables, which excludes unhinted fonts such as Fraunces 1.000, the Source
+  Serif 4 desktop TTFs, and unhinted Noto builds. The failure surfaces from
+  `Pdf.to_bytes_with` as `UnsupportedAuthoringContent` rather than at
+  registration.
 
 Keep upstream tool archives and source font files byte-for-byte intact. To update one, review its license
 and bundled notices, download the exact immutable release, verify the upstream
