@@ -21,7 +21,9 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## and an escalation table with shaded levels and striped rows, numbered
 ## procedures with nested steps and inline commands, warning and note
 ## callouts and dark console panels authored through the custom-block seam
-## and measured by the package, and a vector service-topology diagram.
+## and measured by the package, a vector service-topology diagram, and
+## appendices of commands and procedure drills (a drill never run leaves
+## its cell empty).
 main! = |_args| {
 	fonts = register_fonts({})?
 	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
@@ -148,14 +150,17 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
 	continuation: Pdf.page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(22),
-				start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])],
-				center: [],
-				end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])],
-			}),
-			header_rule,
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(22),
+					start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])],
+					center: [],
+					end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])],
+				}),
+				header_rule,
+			),
+			points(3),
 		),
 		footer,
 		gap: points(14),
@@ -174,6 +179,7 @@ outline = [
 	{ depth: 0, destination: "escalation", open: True, title: "5 Escalation" },
 	{ depth: 0, destination: "review", open: True, title: "6 After the incident" },
 	{ depth: 0, destination: "commands", open: True, title: "Appendix A. Command reference" },
+	{ depth: 0, destination: "drills", open: True, title: "Appendix B. Procedure drills" },
 ]
 
 ## ---------------------------------------------------------------------
@@ -480,6 +486,42 @@ escalation_table = Pdf.table({
 	row_split: KeepRows,
 })
 
+## A procedure never drilled leaves its last-drill cell empty.
+drill_row : Str, Str, Str, Str -> Pdf.Row
+drill_row = |procedure, owner, last, next| Pdf.row([
+	Pdf.header_cell(Row, [Pdf.text(procedure)]),
+	Pdf.cell([Pdf.text(owner)]),
+	if last.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.text(last)]),
+	Pdf.cell([Pdf.text(next)]),
+])
+
+drill_table : Document.Block
+drill_table = Pdf.table({
+	caption: Pdf.caption("Table 4. Drill schedule"),
+	columns: [
+		{ width: Share(4), align: Start },
+		{ width: Share(3), align: Start },
+		{ width: Fixed(points(78)), align: Start },
+		{ width: Fixed(points(78)), align: Start },
+	],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Procedure")]),
+			Pdf.header_cell(Column, [Pdf.text("Owner")]),
+			Pdf.header_cell(Column, [Pdf.text("Last drill")]),
+			Pdf.header_cell(Column, [Pdf.text("Next drill")]),
+		]),
+	],
+	body_rows: [
+		drill_row("4.1 Triage", "Payments Reliability", "12 Aug 2026", "11 Nov 2026"),
+		drill_row("4.2 Rolling back a release", "Release engineering", "2 Sep 2026", "2 Dec 2026"),
+		drill_row("4.3 Database failover", "Data platform", "", "14 Oct 2026"),
+		drill_row("5 Escalation", "Duty engineering managers", "19 Aug 2026", "18 Nov 2026"),
+	],
+	footer_rows: [],
+	row_split: KeepRows,
+})
+
 command_row : Str, Str, Str -> Pdf.Row
 command_row = |command, purpose, changes| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.code(command)]),
@@ -708,7 +750,12 @@ contents = |options| Ok([
 	]),
 	Pdf.section([
 		Pdf.destination_heading("commands", 1, "Appendix A. Command reference"),
-		Pdf.paragraph("Every command below is read-only unless it is marked as a write. Run writes only while the incident is open and announced in the channel."),
+		Pdf.keep_with_next(Required, Pdf.paragraph("Every command below is read-only unless it is marked as a write. Run writes only while the incident is open and announced in the channel.")),
 		command_table,
+	]),
+	Pdf.section([
+		Pdf.destination_heading("drills", 1, "Appendix B. Procedure drills"),
+		Pdf.paragraph("Each procedure is rehearsed in the staging region on the schedule below. A procedure with no drill date has not been rehearsed since it was added; run it with its owner before you rely on it."),
+		drill_table,
 	]),
 ])
