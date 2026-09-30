@@ -17,10 +17,11 @@ import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 ## A pocket field guide to the shorebirds of a tidal estuary: a vector
 ## habitat cross-section and bird plates built from grouped `Scene` paths,
 ## species accounts that are outline destinations and cross-reference one
-## another, identification lists, a striped survey checklist table kept
-## on one page, callouts through the custom-block seam measured by the
-## package, page labels, and running headers and footers ruled by a
-## region backdrop.
+## another, identification lists, a survey sheet kept on one page (a
+## details table and a framed, column-ruled checklist whose blank cells
+## are empty `TD`s for the surveyor to fill in), callouts through the
+## custom-block seam measured by the package, page labels, and running
+## headers and footers with the header text inset above a ruled backdrop.
 main! = |_args| {
 	fonts = register_fonts({})?
 	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
@@ -102,6 +103,8 @@ theme = {
 		.with_table_header_fill(rgb(232, 242, 241))
 		.with_table_body_fills({ odd: NoFill, even: Fill(rgb(249, 246, 239)) })
 		.with_table_rule(Rule({ color: rgb(120, 170, 168), width: points(1) }))
+		.with_table_column_rule(Rule({ color: rgb(214, 226, 224), width: Layout.Unit.millipoints(600) }))
+		.with_table_frame(Rule({ color: rgb(120, 170, 168), width: Layout.Unit.millipoints(800) }))
 		.with_table_cell_padding(points(4))
 		.with_link_color(coastal)
 		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1300), thickness: Layout.Unit.millipoints(500) }))
@@ -137,14 +140,17 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
 	continuation: Pdf.page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(18),
-				start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])],
-				center: [],
-				end: [Pdf.furniture_image(wave_mark)],
-			}),
-			rule,
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(21),
+					start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])],
+					center: [],
+					end: [Pdf.furniture_image(wave_mark)],
+				}),
+				rule,
+			),
+			points(3),
 		),
 		footer,
 		gap: points(14),
@@ -154,6 +160,7 @@ templates = {
 outline : List(Document.OutlineEntry)
 outline = [
 	{ depth: 0, destination: "habitat", open: True, title: "Reading the estuary" },
+	{ depth: 0, destination: "kit", open: True, title: "Before you go" },
 	{ depth: 0, destination: "species", open: True, title: "Species accounts" },
 	{ depth: 1, destination: "oystercatcher", open: True, title: "Pied oystercatcher" },
 	{ depth: 1, destination: "plover", open: True, title: "Red-capped plover" },
@@ -235,14 +242,14 @@ habitat_section = {
 	## Feeding-zone brackets above the flats: oystercatcher (black), plover (rust), curlew (brown).
 	$scene = $scene
 		.group(point(150, 160), zone(rgb(20, 20, 20), 150))
-		.group(point(130, 172), zone(rgb(176, 72, 40), 80))
+		.group(point(104, 172), zone(rgb(176, 72, 40), 80))
 		.group(point(240, 148), zone(rgb(120, 84, 50), 200))
 
 	## Zone names above their brackets and the tide lines' names.
 	label = |x, y, align, color, text| { align, color, origin: point(x, y), size: points(7), text }
 	$scene = $scene
 		.text(label(225, 171, Center, rgb(20, 20, 20), "Oystercatcher"))
-		.text(label(130, 182, Start, rgb(176, 72, 40), "Plover"))
+		.text(label(104, 182, Start, rgb(176, 72, 40), "Plover"))
 		.text(label(w - 6, 158, End, rgb(120, 84, 50), "Curlew"))
 		.text(label(w - 6, 76, End, coastal, "High tide"))
 		.text(label(w - 6, 38, End, rgb(250, 252, 252), "Low tide"))
@@ -423,20 +430,46 @@ check_row = |name, scientific, season, status| Pdf.row([
 	Pdf.cell([Pdf.emphasis([Pdf.in_language("la", [Pdf.text(scientific)])])]),
 	Pdf.cell([Pdf.text(season)]),
 	threatened(status),
-	Pdf.cell([Pdf.text("—")]),
+	Pdf.cell([]),
 ])
 
 ## A threatened status is set in bold on a warm tint.
 threatened : Str -> Pdf.Cell
 threatened = |status| if status == "Endangered" or status == "Vulnerable" Pdf.shaded(rgb(250, 232, 222), Pdf.cell([Pdf.strong([Pdf.text(status)])])) else Pdf.cell([Pdf.text(status)])
 
-## The checklist is kept whole so a surveyor can print one page.
+## The survey sheet is kept whole so a surveyor can print one page: the
+## details to fill in, then the checklist with its blank count column and
+## two blank rows for other species.
 checklist : Document.Block
-checklist = Pdf.keep_together([table_of_species])
+checklist = Pdf.keep_together([survey_details, table_of_species])
+
+## Blank cells are what the sheet means: the surveyor writes the values in.
+survey_details : Document.Block
+survey_details = Pdf.table({
+	caption: Pdf.caption("Table 1. Survey details"),
+	columns: [
+		{ width: Fixed(points(78)), align: Start },
+		{ width: Share(1), align: Start },
+		{ width: Fixed(points(78)), align: Start },
+		{ width: Share(1), align: Start },
+	],
+	header_rows: [],
+	body_rows: [
+		Pdf.row([Pdf.header_cell(Row, [Pdf.text("Observer")]), Pdf.cell([]), Pdf.header_cell(Row, [Pdf.text("Date")]), Pdf.cell([])]),
+		Pdf.row([Pdf.header_cell(Row, [Pdf.text("Start time")]), Pdf.cell([]), Pdf.header_cell(Row, [Pdf.text("High tide")]), Pdf.cell([])]),
+		Pdf.row([Pdf.header_cell(Row, [Pdf.text("Site code")]), Pdf.cell([Pdf.code("DERW-04")]), Pdf.header_cell(Row, [Pdf.text("Weather")]), Pdf.cell([])]),
+	],
+	footer_rows: [],
+	row_split: KeepRows,
+})
+
+## A blank row for a species not on the list.
+other_row : Pdf.Row
+other_row = Pdf.row([Pdf.header_cell(Row, []), Pdf.cell([]), Pdf.cell([]), Pdf.cell([]), Pdf.cell([])])
 
 table_of_species : Document.Block
 table_of_species = Pdf.table({
-	caption: Pdf.caption("Table 1. Shorebirds recorded on the estuary, with a column for your count"),
+	caption: Pdf.caption("Table 2. Shorebirds recorded on the estuary, with a column for your count"),
 	columns: [
 		{ width: Share(3), align: Start },
 		{ width: Share(3), align: Start },
@@ -463,6 +496,8 @@ table_of_species = Pdf.table({
 		check_row("Bar-tailed godwit", "Limosa lapponica", "Sep to Apr", "Vulnerable"),
 		check_row("Red-necked stint", "Calidris ruficollis", "Sep to Apr", "Migrant"),
 		check_row("Double-banded plover", "Charadrius bicinctus", "Mar to Aug", "Migrant"),
+		other_row,
+		other_row,
 	],
 	footer_rows: [],
 	row_split: KeepRows,
@@ -523,6 +558,16 @@ body = |windows, etiquette| [
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Soft mud and shallows")]), Pdf.text(": curlews and godwits working the channel edge.")])]),
 		]),
 		windows,
+	]),
+	Pdf.section([
+		Pdf.destination_heading("kit", 1, "Before you go"),
+		Pdf.bullet_list([
+			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Tide table")]), Pdf.text(": the Hobart port times, plus about 20 minutes for the inner flats.")])]),
+			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Optics")]), Pdf.text(": 8 × 42 binoculars for the roost, and a telescope for the far channel edge.")])]),
+			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Survey sheet")]), Pdf.text(": the checklist in "), Pdf.inline_internal_link([Pdf.text("Survey checklist")], "checklist"), Pdf.text(", printed on one page, and a pencil.")])]),
+			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Clothing")]), Pdf.text(": dull colours, a hat, and boots for the wet sand.")])]),
+		]),
+		Pdf.paragraph("A count is called off when the Bureau of Meteorology issues a strong wind warning for the Derwent. The coordinator confirms every count in the group's channel by 7 am on the day."),
 	]),
 	Pdf.page_break,
 	Pdf.section([
