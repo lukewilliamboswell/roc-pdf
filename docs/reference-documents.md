@@ -10,7 +10,7 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v7`**.
+Version: **`reference-documents-v8`**.
 
 - It is a design record. It claims no executable capability, conformance
   result, or reader behavior. Capability status remains governed by the
@@ -1322,6 +1322,18 @@ version, the task, the observed outcome, and any limitation.
 
 ## Change log
 
+- `reference-documents-v8`: the open-issues slice makes furniture text
+  executable under an ordered font policy and retires
+  `text.furniture_policy`; adds `Theme.with_inline_font` (a caller face per
+  inline role under style faces) and `text.inline_font_policy`; adds
+  `Pdf.aligned` for a cell's own alignment and end-aligns the invoice
+  totals labels; widens a list's label column for its widest label and
+  narrows `layout.list_label_width` to a column that leaves no body width;
+  gives each explicit line break a U+0020 separator at the end of the text
+  before it; and locates every remaining coverage failure as
+  `text.coverage_missing`, `text.unsupported_script`, or
+  `text.unsupported_cluster` (Han is declared on both paths, so uncovered Han
+  under the packaged face is a coverage gap).
 - `reference-documents-v7`: the flow-figures slice makes vector, grouped,
   and multi-command drawings in `figure`, `figure_fit` with `FigureFit`,
   `decoration`, and `Scene.Drawing.group` executable; records the caption

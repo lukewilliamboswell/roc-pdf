@@ -971,7 +971,7 @@ ceilings, scale pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence,
 and an independent structure checker. Each record lists its own open issues:
 
 - Reference contract: [docs/reference-documents.md](docs/reference-documents.md)
-  (`reference-documents-v7`) defines the invoice, report, and letter,
+  (`reference-documents-v8`) defines the invoice, report, and letter,
   their adverse variants, the text-support matrix, and the layout-policy
   vocabulary.
 - Semantic foundation, containers, `/Lang`/`/ID`/`/IDTree`/`/A`, and
@@ -992,6 +992,19 @@ and an independent structure checker. Each record lists its own open issues:
   body-style captions, only translated groups exist, a decoration binds to
   the next flow block and never paints behind text, and `ScaleToFit` fits
   the smaller template frame.
+- The open issues the references needed (open-issues slice): furniture
+  text under ordered font policies (page-templates.md), a caller face per
+  inline role such as a monospace `Code` (rich-inline.md), list label
+  columns widened for wide labels and a U+0020 separator for explicit line
+  breaks (layout-policies.md), per-cell alignment with `Pdf.aligned`
+  (tables.md), located `text.coverage_missing`/`text.unsupported_script`/
+  `text.unsupported_cluster` for every remaining coverage failure
+  (rich-inline.md), and removal of the unreachable facade artifact-block
+  plumbing (page-templates.md). Still open from those records: spaces
+  adjacent to a Han cluster itemize as Han and need a Han face that covers
+  them (REP-A5 keeps `Café中PDF`-style text), a role face is style-faces
+  only (`text.inline_font_policy` under a policy), and figures remain
+  start-aligned with body-style captions.
 - Linear lowering and emission, plus the allocated-byte guard:
   `docs/performance/lowering-uniqueness.md` and
   `docs/performance/emission-linearity.md`. The Roc compiler defects behind
@@ -1013,15 +1026,6 @@ Exact remaining work before Gate 6 can close:
    move to templates and tables. This step also runs the combined
    conformance, structure, and renderer sweep and records the closure
    (optional human review).
-3. **Open issues recorded by executed slices** that the references need:
-   - furniture text under ordered font policies (`text.furniture_policy`,
-     needed by REP-A5);
-   - a selectable face per inline role (a monospace `Code`);
-   - list labels wider than the indent;
-   - separator text for `line_break` in extracted text;
-   - alignment of spanning cells;
-   - removal of the unreachable facade `ArtifactBlock` plumbing;
-   - located diagnostics for the remaining font-coverage failures.
 
 The intermittent `roc check` crash seen in harness runs is Roc #11777, fixed
 upstream by commit 329a48a04d. The pin advances to
