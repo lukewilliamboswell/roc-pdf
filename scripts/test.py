@@ -1133,8 +1133,12 @@ def default_jobs() -> int:
     if memory is None:
         memory_jobs = cpu_jobs
     else:
+        # Each check, test, or build root type-checks the whole package and
+        # peaks at 4 to 5.2 GB resident with the pinned compiler; on a 32 GB
+        # machine 8 and 10 workers were killed for memory, 6 were not
+        # (docs/performance/test-suite-speed.md).
         reserve = 2 * 1024**3
-        per_job = 2 * 1024**3
+        per_job = 5 * 1024**3
         memory_jobs = max(1, (max(0, memory - reserve)) // per_job)
     # Beyond sixteen simultaneous compiler/linker processes, filesystem and
     # cache contention tends to dominate even on large build machines.
