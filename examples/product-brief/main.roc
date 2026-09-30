@@ -20,10 +20,11 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## illustration of the planning board, a "Pilot results" key-figures
 ## callout and a customer quote on a forest panel, both measured by the
 ## package, a line chart of decision time with its data table, a plan
-## comparison table kept whole on one page with shaded group rows and a
-## price footer, rich inline content with monospace code, lists, links,
-## running furniture over ruled backdrops with `Page N of M`, and an
-## outline.
+## comparison table kept whole on one page with shaded group rows, empty
+## cells where a plan lacks a capability, and a price footer, a support
+## table, rich inline content with monospace code, lists, links, running
+## furniture with its header text inset above ruled backdrops and
+## `Page N of M`, and an outline.
 main! = |_args| {
 	fonts = register_fonts({})?
 	theme = with_faces(base_theme, fonts)
@@ -331,28 +332,34 @@ footer = Pdf.region({
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(40),
-				start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 8), sprout_mark))],
-				center: [],
-				end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])],
-			}),
-			green_rule,
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(40),
+					start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 5), sprout_mark))],
+					center: [],
+					end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])],
+				}),
+				green_rule,
+			),
+			points(3),
 		),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(16),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(18),
-				start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])],
-				center: [],
-				end: [Pdf.furniture_text([Pdf.text("October 2026")])],
-			}),
-			green_rule,
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(21),
+					start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])],
+					center: [],
+					end: [Pdf.furniture_text([Pdf.text("October 2026")])],
+				}),
+				green_rule,
+			),
+			points(3),
 		),
 		footer,
 		gap: points(16),
@@ -395,8 +402,12 @@ cycle_table = {
 group_row : Str -> Pdf.Row
 group_row = |label| Pdf.row([Pdf.shaded(Color.srgb8({ red: 240, green: 247, blue: 240 }), Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])])))])
 
+## A plan that does not include a capability leaves its cell empty.
 plan_row : Str, Str, Str, Str -> Pdf.Row
-plan_row = |feature, starter, team, business| Pdf.row([Pdf.header_cell(Row, [Pdf.text(feature)]), Pdf.cell([Pdf.text(starter)]), Pdf.cell([Pdf.text(team)]), Pdf.cell([Pdf.text(business)])])
+plan_row = |feature, starter, team, business| Pdf.row([Pdf.header_cell(Row, [Pdf.text(feature)]), plan_cell(starter), plan_cell(team), plan_cell(business)])
+
+plan_cell : Str -> Pdf.Cell
+plan_cell = |value| if value.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.text(value)])
 
 ## The comparison is kept whole on one page.
 plans_table : Document.Block
@@ -418,11 +429,11 @@ plans = Pdf.table({
 		group_row("Planning"),
 		plan_row("Boards and decision log", "Yes", "Yes", "Yes"),
 		plan_row("Typed owners and due dates", "Yes", "Yes", "Yes"),
-		plan_row("Dependency map", "–", "Yes", "Yes"),
+		plan_row("Dependency map", "", "Yes", "Yes"),
 		group_row("Sharing and export"),
 		plan_row("Archival PDF export", "Yes", "Yes", "Yes"),
 		plan_row("Guest reviewers", "2", "10", "Unlimited"),
-		plan_row("Single sign-on and audit log", "–", "–", "Yes"),
+		plan_row("Single sign-on and audit log", "", "", "Yes"),
 	],
 	footer_rows: [
 		Pdf.row([
@@ -432,6 +443,20 @@ plans = Pdf.table({
 			Pdf.cell([Pdf.strong([Pdf.text("$24")])]),
 		]),
 	],
+	row_split: KeepRows,
+})
+
+support_table : Document.Block
+support_table = Pdf.table({
+	caption: Pdf.caption("Table 4. Support by plan"),
+	columns: [{ width: Fixed(points(92)), align: Start }, { width: Share(3), align: Start }, { width: Share(2), align: Start }],
+	header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Plan")]), Pdf.header_cell(Column, [Pdf.text("Channels")]), Pdf.header_cell(Column, [Pdf.text("First response")])])],
+	body_rows: [
+		("Starter", "Help centre and community forum", "Best effort"),
+		("Team", "Email and in-app chat, weekdays", "One business day"),
+		("Business", "Email, chat, and phone, with a named success manager", "Four business hours"),
+	].map(|(plan, channels, response)| Pdf.row([Pdf.header_cell(Row, [Pdf.text(plan)]), Pdf.cell([Pdf.text(channels)]), Pdf.cell([Pdf.text(response)])])),
+	footer_rows: [],
 	row_split: KeepRows,
 })
 
@@ -538,6 +563,8 @@ contents = |options| Ok([
 		Pdf.destination_heading("rollout", 1, "Rollout and support"),
 		Pdf.paragraph("Sprout 2.4 reaches every workspace in three waves. Existing boards migrate automatically; nothing needs to be exported or re-imported."),
 		rollout_table,
+		Pdf.paragraph("Support stays with your plan through the rollout. Business workspaces get a migration review with their success manager before their wave switches on."),
+		support_table,
 		key_figures(
 			options,
 			Forest,
