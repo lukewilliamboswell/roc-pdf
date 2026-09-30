@@ -460,6 +460,32 @@ of its leaves on page 2 (45,294 allocations, 53 lines, 2 pages). Keeps do
 not scale with table size beyond the existing unit mapping, so the case has
 no scale pair. No package code or existing baseline changes.
 
+### Deferred: empty cells
+
+An empty `TD` is legal PDF (a data cell with no content), but
+`table.cell_empty` still rejects one, and the gallery keeps its `—`
+placeholders. Accepting it is not a semantics-only change: a table cell
+is a rich-paragraph leaf, and every stage after semantics assumes a leaf
+has text. Removing the rejection fails first in `KernelFacadeSources`
+(`EmptySource`, every leaf's source must be non-empty), and after it each
+of shaping (`block_runs` expects a physical run range), line layout (a
+leaf's lines), table pagination (a row's grid is its tallest cell and a
+zero grid is `InvalidBlock`), and structure (a leaf's element owns marked
+content) assumes at least one run. Doing it properly means a distinct
+contentless-cell fact carried from normalization, where it is created, to
+the structure stage, where it becomes a `TD` with no kids and no MCID,
+with every stage between skipping it explicitly and a row of only empty
+cells taking one line of height. That is its own slice with its own
+evidence; it is not faked here with invisible content.
+
+### Deferred: column rules and frames
+
+Rules are horizontal and span the table. Vertical rules between columns
+and an outer frame need a column gap the width algorithm does not reserve
+(cells abut, with padding inside each column), so a vertical rule would
+either paint over cell padding or require widening the columns; either is
+a change to the column-width contract.
+
 ## Open issues
 
 - ~~**Per-table copies in semantic placement.**~~ (reference-documents
