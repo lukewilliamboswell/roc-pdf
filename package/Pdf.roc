@@ -1960,7 +1960,7 @@ facade_runs = 65536
 
 standard_pipeline_limits : KernelFacadePipeline.Limits
 standard_pipeline_limits = KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine + facade_runs, max_fragments: 1000000, max_namespaces: 1, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine + facade_runs, max_fragments: 1000000, max_namespaces: 2, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 1000000, max_occurrences: facade_occurrences, max_pages: 1024 }),
 	navigation: KernelNavigation.standard_limits,
 	lines: KernelFacadeLines.Limits.make({
@@ -2008,7 +2008,7 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		max_occurrences: facade_occurrences,
 		max_properties: facade_occurrences,
 		max_source_inputs: facade_occurrences,
-		semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine, max_fragments: 0, max_namespaces: 1, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
+		semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine, max_fragments: 0, max_namespaces: 2, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
 		sources: KernelFacadeSources.Limits.make({
 			max_hash_probes: 4000000,
 			max_inputs: facade_occurrences,

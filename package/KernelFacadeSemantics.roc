@@ -1728,7 +1728,7 @@ build_store = |authoring, planning, source_plan| {
 		element_identifiers: $identifiers,
 		fragments: [],
 		mathml_subtrees: [],
-		namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
+		namespaces: if $nodes.any(|node| node.role.namespace.index() == 1) standard_namespaces_with_pdf17 else standard_namespaces,
 		nodes: $nodes,
 		non_text_sources: [],
 		occurrence_fragments: [],
@@ -2153,6 +2153,22 @@ child_spans = |entries, group_count| {
 	{ counts: $counts, ordered: $ordered }
 }
 
+standard_namespaces : List(Semantics.Namespace)
+standard_namespaces = [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }]
+
+## The PDF 1.7 standard structure namespace is declared only when a `Code`
+## or `Quote` element needs it.
+standard_namespaces_with_pdf17 : List(Semantics.Namespace)
+standard_namespaces_with_pdf17 = [
+	{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" },
+	{ id: Semantics.NamespaceId.from_index(1), kind: Pdf17, uri: "http://iso.org/pdf/ssn" },
+]
+
+## `Code` and `Quote` are PDF 1.7 standard structure types (ISO 32000-2
+## 14.8.6); every other facade role is in the PDF 2.0 namespace.
+role_namespace : Str -> Semantics.NamespaceId
+role_namespace = |role| if role == "Code" or role == "Quote" Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
+
 make_node : U64, Semantics.NodeParent, Str, Semantics.Range, Semantics.Language -> Semantics.Node
 make_node = |index, parent, role, content, language| {
 	attributes: Semantics.Range.from_start_and_length(0, 0),
@@ -2161,7 +2177,7 @@ make_node = |index, parent, role, content, language| {
 	id: Semantics.NodeId.from_index(index),
 	language,
 	parent,
-	role: { local_name: role, namespace: Semantics.NamespaceId.from_index(0) },
+	role: { local_name: role, namespace: role_namespace(role) },
 	structure_element: Semantics.StructureElementId.from_index(index),
 	text_properties: Semantics.Range.from_start_and_length(0, 0),
 }

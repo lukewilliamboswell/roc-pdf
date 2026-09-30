@@ -180,8 +180,9 @@ the pages plan's two lists, and the pipeline plan's `facts` field.
 - **Inline paths.** Each inline path segment scans the document's line
   breaks; bounded by the budget but not linear in documents with many line
   breaks and inline links.
-- **`Quote`/`Code` roles.** veraPDF PDF/UA-2 8.2.4 reports `Quote` (and in
-  `code_face`, `Code`) as outside the PDF 2.0 namespace without a role map; a
-  pre-existing rich-inline issue to resolve before any PDF/UA-2 claim.
+- ~~**`Quote`/`Code` roles.**~~ veraPDF PDF/UA-2 8.2.4 reported `Quote` (and
+  in `code_face`, `Code`) as outside the PDF 2.0 namespace without a role
+  map. Resolved in the reference-documents closure: both roles are now in
+  the PDF 1.7 standard namespace (see rich-inline.md, Namespaces).
 - **Report scope.** Coverage is by output font instance and script, not by
   caller face name; obligations are a fixed vocabulary.

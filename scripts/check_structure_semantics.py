@@ -24,6 +24,9 @@ without consulting the Roc package:
   own it), every page-number artifact's ToUnicode-decoded text that reads
   "N of M" names its own page and the page count, and the per-subtype
   artifact counts match the case dimensions.
+* namespaces: only the PDF 2.0 and PDF 1.7 standard structure namespaces
+  are declared, and each element is in the namespace that defines its role
+  (`Code` and `Quote` in PDF 1.7, every other role in PDF 2.0).
 * custom blocks: every `Div` holding only `P` children is counted, and the
   `/Artifact <</Type /Layout>>` sequences a page paints before its first
   marked content (a custom block's panel, painted behind its text) are
@@ -64,6 +67,7 @@ SNAPSHOTS = {
     "figures": ROOT / "tests" / "flow_figures" / "report.pdf",
     "figure_sections": ROOT / "tests" / "flow_figures" / "sections_10.pdf",
     "custom_blocks": ROOT / "tests" / "custom_block" / "callouts_10.pdf",
+    "inline_roles": ROOT / "tests" / "rich_inline" / "mixed.pdf",
 }
 
 VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
@@ -75,6 +79,13 @@ VERAPDF_PROFILE = "org/verapdf/pdfa/validation/PDFUA-2-ISO32005.xml"
 # checker's own table; it is compared against the Roc kernel only through
 # emitted PDFs and against veraPDF's encoding of Table 5 by the self-test.
 # ---------------------------------------------------------------------------
+PDF20_NAMESPACE = "http://iso.org/pdf2/ssn"
+PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
+# ISO 32000-2 14.8.6 defines `Code` and `Quote` only in the PDF 1.7 standard
+# structure namespace; PDF/UA-2 8.2.4 requires each element to belong to a
+# standard namespace.
+PDF17_ROLES = {"Code", "Quote"}
+
 INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
@@ -354,9 +365,15 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     require(root_element is not None, "StructTreeRoot /K is not a single Document reference")
     namespaces = [int(value) for value in tree_root["Namespaces"]]
     require(namespaces, "StructTreeRoot has no /Namespaces")
+    namespace_uris: dict[int, str] = {}
     for namespace in namespaces:
         value = document.get(namespace)
-        require(value.get("Type") == "Namespace" and text_string(value["NS"]) == "http://iso.org/pdf2/ssn", "namespace is not PDF 2.0")
+        require(value.get("Type") == "Namespace", "namespace is not a Namespace dictionary")
+        uri = text_string(value["NS"])
+        require(uri in (PDF20_NAMESPACE, PDF17_NAMESPACE), f"namespace {uri!r} is not a standard structure namespace")
+        require(uri not in namespace_uris.values(), f"namespace {uri!r} is declared twice")
+        namespace_uris[namespace] = uri
+    require(PDF20_NAMESPACE in namespace_uris.values(), "the PDF 2.0 namespace is not declared")
 
     lines: list[str] = []
     mcr_owner: dict[tuple[int, int], int] = {}
@@ -374,6 +391,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         require(int(element["P"]) == parent, f"structure element {number} /P does not name its parent")
         require(int(element["NS"]) in namespaces, "structure element namespace is not declared")
         role = str(element["S"])
+        expected_namespace = PDF17_NAMESPACE if role in PDF17_ROLES else PDF20_NAMESPACE
+        require(namespace_uris[int(element["NS"])] == expected_namespace, f"/{role} is not in the namespace that defines it ({expected_namespace})")
         row = table_role(role)
         require(row in MAY_CONTAIN, f"unsupported structure role /{role}")
         if parent_role is None:
@@ -840,6 +859,7 @@ def self_test() -> None:
     facade = SNAPSHOTS["facade"].read_bytes()
     table = SNAPSHOTS["table"].read_bytes()
     figure_sections = SNAPSHOTS["figure_sections"].read_bytes()
+    inline_roles = SNAPSHOTS["inline_roles"].read_bytes()
     check_structure_semantics(SNAPSHOTS["figures"].read_bytes(), {"figure_nodes": 4, "captioned_figures": 3, "scaled_figures": 1, "layout_artifacts": 2})
     mutations = [
         ("figure caption in a transparent Part", figure_sections, b"/S /Sect", b"/S /Part"),
@@ -861,6 +881,8 @@ def self_test() -> None:
         ("malformed nested language", lowering, b"/Lang <FEFF00660072>", b"/Lang <FEFF00360072>"),
         ("invalid Scope value", lowering, b"/A << /O /Table /Scope /Column >> /ID", b"/A << /O /Table /Scope /Colunn >> /ID"),
         ("labelled list numbered /None", nested, b"/ListNumbering /Disc", b"/ListNumbering /None"),
+        ("PDF 1.7 Quote claimed by the PDF 2.0 namespace", inline_roles, b"/NS 5 0 R /P 21 0 R /S /Quote ", b"/NS 4 0 R /P 21 0 R /S /Quote "),
+        ("PDF 2.0 P claimed by the PDF 1.7 namespace", inline_roles, b"/NS 4 0 R /P 6 0 R /S /P ", b"/NS 5 0 R /P 6 0 R /S /P "),
     ]
     for label, source, old, new in mutations:
         mutated = replace_once(source, old, new)

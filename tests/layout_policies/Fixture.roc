@@ -415,7 +415,7 @@ semantic_limits = KernelFacadeSemantics.Limits.make({
 	max_occurrences: 2048,
 	max_properties: 2048,
 	max_source_inputs: 2048,
-	semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 48 }),
+	semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 2, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 48 }),
 	sources: KernelFacadeSources.Limits.make({
 		max_hash_probes: 1000000,
 		max_inputs: 2048,
