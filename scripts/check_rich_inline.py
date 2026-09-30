@@ -35,7 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pdf_layout import flatten, mutate as layout_mutate, occurrences
-from check_pdf_structure import ValidationError, require  # noqa: E402
+from check_pdf_structure import STRING, ValidationError, require  # noqa: E402
 from check_structure_semantics import Document, Parser, Ref, page_order, text_string  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -362,7 +362,7 @@ def self_test() -> None:
     require(font_text(furniture, "NotoSCCJKFixture-Regular") == "", "body text uses the furniture-only Han face")
     breaks = render(BREAKS.read_bytes())
     require(all(line in breaks for line in BREAKS_EXPECTED), f"line-break separators changed: {breaks!r}")
-    expansion = re.search(rb"/E <[0-9A-F]+> /K \[[^\]]*\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Span ", flatten(mixed))
+    expansion = re.search(rb"/E " + STRING + rb" /K \[[^\]]*\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Span ", flatten(mixed))
     require(expansion is not None, "mixed snapshot has no expansion Span")
     twins = [
         ("structure order swapped against paint order", mutate(mutate(mutate(mixed, b"<< /MCID 6 /Pg", b"<< /MCID X /Pg"), b"<< /MCID 7 /Pg", b"<< /MCID 6 /Pg"), b"<< /MCID X /Pg", b"<< /MCID 7 /Pg"), "structure order and paint order disagree"),

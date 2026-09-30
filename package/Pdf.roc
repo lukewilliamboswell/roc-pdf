@@ -3123,7 +3123,7 @@ expect {
 	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	text = Str.from_utf8_lossy(bytes)
 
-	text.contains("/S /Sect ") and text.contains("/S /Strong ") and text.contains("/S /Em ") and text.contains("/S /Code ") and text.contains("/S /Quote ") and text.contains("/S /Link ") and text.contains("/Lang <FEFF00660072>") and text.contains("/E <FEFF") and text.contains("/Subtype /Link")
+	text.contains("/S /Sect ") and text.contains("/S /Strong ") and text.contains("/S /Em ") and text.contains("/S /Code ") and text.contains("/S /Quote ") and text.contains("/S /Link ") and text.contains("/Lang (fr)") and text.contains("/E (") and text.contains("/Subtype /Link")
 }
 
 ## Inline rejections carry a stable dotted code and the inline's authored
@@ -3224,7 +3224,7 @@ expect {
 		$found
 	}
 
-	contains("/S /THead") and contains("/S /TFoot") and contains("/ColSpan 2") and contains("/Scope /Column") and contains("/Headers [<63303030303032> <63303030303034>]") and contains("/IDTree")
+	contains("/S /THead") and contains("/S /TFoot") and contains("/ColSpan 2") and contains("/Scope /Column") and contains("/Headers [(c000002) (c000004)]") and contains("/IDTree")
 }
 
 ## Table rejections are located: the row whose spans do not sum to the

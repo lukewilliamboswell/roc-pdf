@@ -514,3 +514,42 @@ and tokenizes every object where it lives.
   a document has more than a handful of objects; the blank carrier's
   `output_bytes`/`evidence_pdf_bytes` rise from 667 to 713. The
   structural-kernel DEFLATE cases now count three compressed streams.
+
+## 5. Compact encoding
+
+### 5a. Literal strings and single-byte text strings
+
+`KernelLex` writes a byte string in whichever canonical form is shorter: a
+literal `( )` string, in which `(`, `)`, and `\` are always escaped and every
+byte outside printable ASCII is a three-digit octal escape, or uppercase hex
+(ties and binary values stay hex). A text string whose characters are all
+printable ASCII (U+0020 to U+007E) is written as those bytes, which
+PDFDocEncoding maps to the same characters; any other text stays UTF-16BE with
+a BOM. The file identifier in the cross-reference dictionary is always hex.
+Identifiers (`(c000008)` for `<63303030303038>`), `/Lang (en-AU)`,
+namespace URIs, output-intent names, CIDSystemInfo, URIs, destination names,
+and ASCII titles and alternative text all shrink.
+
+Conformance basis: ISO 32000-2 7.9.2.2 lets a text string be PDFDocEncoding,
+UTF-16BE with a BOM, or UTF-8 with a BOM, and 7.3.4 allows literal and
+hexadecimal forms for any string. Neither PDF/A-4 nor the ledger requires
+UTF-16BE or hex, and CIDSystemInfo `/Registry` and `/Ordering` remain ASCII
+byte strings as ISO 32000-2 Table 114 requires. Content-stream ActualText
+keeps its UTF-16BE hex form: it lives in compressed content and is written by
+the text lowering, not the object serializer.
+
+The Python checkers parse either form (`check_pdf_structure.STRING`,
+`string_bytes`, `text_string`), and exact-encoding checks compare against an
+independent model of the rule (`canonical_bytes`, `canonical_text`). The
+structure-semantics parser now decodes octal escapes, and the fuzz oracle's
+tokenizer accepts only the canonical literal form.
+
+| | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Tax invoice | 28,678 | 28,509 | -169 |
+| Product brief | 47,878 | 47,679 | -199 |
+| Table invoice x500 | 139,896 | 137,404 | -2,492 |
+
+Rendering is pixel-identical. Allocation counts move by a few hundred events
+either way with the compressed object-stream sizes, and allocated bytes fall
+by up to 2.7%.

@@ -316,7 +316,7 @@
     },
     {
       "id": "ROC-PDF-PDF20-LEXICAL-CANONICAL",
-      "summary": "Private PDF lexical emission uses exact canonical booleans, integers, finite fixed-decimal reals, names, byte strings, and Unicode text strings.",
+      "summary": "Private PDF lexical emission uses exact canonical booleans, integers, finite fixed-decimal reals, names, byte strings (the shorter of an escaped literal or uppercase hex), and text strings (printable ASCII as PDFDocEncoding bytes, otherwise UTF-16BE with a BOM).",
       "source_ids": [
         "iso-32000-2-2020-ec3"
       ],

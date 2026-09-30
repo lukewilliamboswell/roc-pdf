@@ -663,11 +663,11 @@ check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| 
 	}
 }
 
-## The emitted grammar is far smaller than real PDF: single-space separation, no
-## literal `( )` strings, no comments inside objects, and a newline only at
-## framing positions. Tokenizing exactly that grammar and rejecting everything
+## The emitted grammar is far smaller than real PDF: single-space separation,
+## literal `( )` strings only in their canonical escaped form, no comments
+## inside objects, and a newline only at framing positions. Tokenizing exactly that grammar and rejecting everything
 ## else makes the tokenizer itself a canonical-output check.
-Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, NameToken, NullToken, NumberToken, ReferenceToken, TrueToken]
+Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, LiteralToken, NameToken, NullToken, NumberToken, ReferenceToken, TrueToken]
 
 Token : { kind : Kind, len : U64, start : U64, value : U64 }
 
@@ -708,6 +708,39 @@ tokenize = |bytes, from, to, number| {
 			}
 			$tokens = $tokens.append({ kind: DictClose, len: 0, start: $index, value: 0 })
 			$index = $index + 2
+		} else if byte == 40 {
+			## A canonical literal string: printable ASCII, with `(`, `)`, and
+			## `\\` always escaped and every other byte a three-digit octal
+			## escape, so parentheses never nest.
+			var $scan = $index + 1
+			var $closed = Bool.False
+			while !$closed {
+				if $scan >= to {
+					return Err(BadToken(number))
+				}
+				current = list_at(bytes, $scan)
+				if current == 41 {
+					$closed = Bool.True
+				} else if current == 92 {
+					if $scan + 1 >= to {
+						return Err(BadToken(number))
+					}
+					escaped = list_at(bytes, $scan + 1)
+					if escaped == 40 or escaped == 41 or escaped == 92 {
+						$scan = $scan + 2
+					} else if $scan + 3 < to and is_octal(escaped) and is_octal(list_at(bytes, $scan + 2)) and is_octal(list_at(bytes, $scan + 3)) {
+						$scan = $scan + 4
+					} else {
+						return Err(BadToken(number))
+					}
+				} else if current < 32 or current > 126 or current == 40 {
+					return Err(BadToken(number))
+				} else {
+					$scan = $scan + 1
+				}
+			}
+			$tokens = $tokens.append({ kind: LiteralToken, len: $scan - $index - 1, start: $index + 1, value: 0 })
+			$index = $scan + 1
 		} else if byte == 91 {
 			$tokens = $tokens.append({ kind: ArrayOpen, len: 0, start: $index, value: 0 })
 			$index = $index + 1
@@ -1065,6 +1098,9 @@ compare_regions = |bytes, left_start, left_len, right_start, right_len| {
 
 is_digit : U8 -> Bool
 is_digit = |byte| byte >= 48 and byte <= 57
+
+is_octal : U8 -> Bool
+is_octal = |byte| byte >= 48 and byte <= 55
 
 is_hex_digit : U8 -> Bool
 is_hex_digit = |byte| is_digit(byte) or (byte >= 65 and byte <= 70)

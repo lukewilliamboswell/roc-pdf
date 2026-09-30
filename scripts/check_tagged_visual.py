@@ -80,10 +80,7 @@ def validate_tagged_visual_pdf(pdf: bytes) -> None:
     require(b"/ParentTreeNextKey 1" in structure_body, "ParentTreeNextKey is not exact")
 
     namespace_body = bodies[namespace]
-    expected_namespace = (
-        b"<< /NS <FEFF0068007400740070003A002F002F00690073006F002E006F00720067002F"
-        b"0070006400660032002F00730073006E> /Type /Namespace >>\nendobj\n"
-    )
+    expected_namespace = b"<< /NS (http://iso.org/pdf2/ssn) /Type /Namespace >>\nendobj\n"
     require(namespace_body == expected_namespace, "PDF 2.0 namespace is not canonical")
 
     document_body = bodies[document]

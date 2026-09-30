@@ -34,6 +34,8 @@ from pathlib import Path
 from pdf_layout import mutate as layout_mutate
 from pdf_layout import flatten
 from check_pdf_structure import (
+    canonical_text,
+    STRING,
     decode_stream,
     ValidationError,
     dictionary_int,
@@ -71,8 +73,8 @@ SHOWCASE_MODIFIED = "2026-08-18T09:30:00Z"
 
 OUTPUT_INTENT = re.compile(
     rb"/OutputIntents \[<< /DestOutputProfile ([0-9]+) 0 R"
-    rb" /OutputConditionIdentifier <([0-9A-F]+)>"
-    rb" /RegistryName <([0-9A-F]+)>"
+    rb" /OutputConditionIdentifier (" + STRING + rb")"
+    rb" /RegistryName (" + STRING + rb")"
     rb" /S /GTS_PDFA1 /Type /OutputIntent >>\]"
 )
 ICC_BASED = re.compile(rb"\[/ICCBased ([0-9]+) 0 R\]")
@@ -123,7 +125,9 @@ def canonical_xmp(
 
 
 def utf16_hex(text: str) -> bytes:
-    return (b"\xfe\xff" + text.encode("utf-16-be")).hex().upper().encode("ascii")
+    """The canonical text-string token for ``text`` (named for its original
+    UTF-16BE-only form)."""
+    return canonical_text(text)
 
 
 def check_metadata(
@@ -155,8 +159,8 @@ def check_metadata(
     require(len(catalogs) == 1, "expected exactly one catalog")
     catalog = bodies[catalogs[0]]
 
-    # /Lang: the canonical BOM-prefixed UTF-16BE text string.
-    lang = re.search(rb"/Lang <([0-9A-F]+)>", catalog)
+    # /Lang: the canonical text string.
+    lang = re.search(rb"/Lang (" + STRING + rb")", catalog)
     require(lang is not None, "catalog has no /Lang text string")
     require(lang.group(1) == utf16_hex(language), "catalog /Lang is not the validated language")
 
@@ -287,7 +291,7 @@ def self_test() -> None:
     pdf = SHOWCASE_SNAPSHOT.read_bytes()
     mutations = [
         ("altered XMP packet byte", replace_once(pdf, b"<dc:title>", b"<dc:titlf>")),
-        ("altered /Lang value", replace_once(pdf, b"/Lang <FEFF", b"/Lang <FEFE")),
+        ("altered /Lang value", replace_once(pdf, b"/Lang (", b"/Lang <")),
         ("altered intent subtype", replace_once(pdf, b"/S /GTS_PDFA1", b"/S /GTS_PDFB1")),
         ("altered profile component count", replace_once(pdf, b"/N 3", b"/N 4")),
         ("altered metadata subtype", replace_once(pdf, b"/Subtype /XML", b"/Subtype /XNL")),

@@ -199,10 +199,10 @@ expect {
 	work = KernelTaggedStructure.Plan.work(plan).tagged_objects
 	text = Str.from_utf8_lossy(bytes)
 
-	text.contains("<< /ID <706172612D31> /K [") and
-		text.contains("/Lang <FEFF00660072> /NS 4 0 R /P 5 0 R /S /P") and
+	text.contains("<< /ID (para-1) /K [") and
+		text.contains("/Lang (fr) /NS 4 0 R /P 5 0 R /S /P") and
 			text.contains("<< /IDTree 7 0 R /K 5 0 R /Namespaces") and
-				text.contains("7 0 obj\n<< /Names [<706172612D31> 6 0 R] >>") and
-					!text.contains("<FEFF0065006E002D00410055>") and
+				text.contains("7 0 obj\n<< /Names [(para-1) 6 0 R] >>") and
+					!text.contains("(en-AU)") and
 						work.id_tree_entries == 1 and work.language_entries == 1
 }

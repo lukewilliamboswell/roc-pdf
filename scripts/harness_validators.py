@@ -29,7 +29,7 @@ from check_pdfa4_structure import validate_pdfa4_pdf, validate_standard_twin_pdf
 from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
-from check_pdf_structure import dictionary_ref, object_slices, require, validate_pdf
+from check_pdf_structure import canonical_text, dictionary_ref, object_slices, require, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
 from check_rtl import validate_rtl_pdf
 from check_shadings import validate_shadings_pdf
@@ -126,8 +126,8 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
     require(content.count(b" Do\n") == 1, "facade image must be painted exactly once")
 
     figure = only_object(bodies, b"/S /Figure ", "Figure structure element")
-    expected_alt = "A four-color field palette arranged in mirrored bands".encode("utf-16-be").hex().upper().encode()
-    require(b"/Alt <FEFF" + expected_alt + b">" in bodies[figure], "Figure alternative text is missing or changed")
+    expected_alt = canonical_text("A four-color field palette arranged in mirrored bands")
+    require(b"/Alt " + expected_alt + b" " in bodies[figure], "Figure alternative text is missing or changed")
     require(b"/Type /StructElem" in bodies[figure] and b"/Type /MCR" in bodies[figure], "Figure does not own its marked-content reference")
     report("exact packed image payload, one image placement, semantic Figure ownership, and authored /Alt")
 

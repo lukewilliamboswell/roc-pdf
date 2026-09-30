@@ -27,6 +27,69 @@ def require(condition: bool, message: str) -> None:
         raise ValidationError(message)
 
 
+# A canonical string token: uppercase hex, or a literal string whose only
+# escapes are \(, \), \\, and three-digit octal (KernelLex's canonical forms).
+STRING = rb"(?:<[0-9A-F]*>|\((?:[\x20-\x27\x2A-\x5B\x5D-\x7E]|\\[()\\]|\\[0-7]{3})*\))"
+
+
+def string_bytes(token: bytes) -> bytes:
+    """The bytes of one canonical string token (hex or literal)."""
+    if token.startswith(b"<"):
+        require(token.endswith(b">") and re.fullmatch(rb"<[0-9A-F]*>", token) is not None, f"string {token!r} is not canonical hex")
+        return bytes.fromhex(token[1:-1].decode("ascii"))
+    require(re.fullmatch(STRING, token) is not None and token.startswith(b"("), f"string {token!r} is not a canonical literal")
+    out = bytearray()
+    index = 1
+    while index < len(token) - 1:
+        byte = token[index]
+        if byte == 0x5C:
+            following = token[index + 1]
+            if following in b"()\\":
+                out.append(following)
+                index += 2
+            else:
+                out.append(int(token[index + 1 : index + 4], 8))
+                index += 4
+        else:
+            out.append(byte)
+            index += 1
+    return bytes(out)
+
+
+def text_string(token: bytes) -> str:
+    """A canonical text string token: UTF-16BE with a BOM, or printable-ASCII
+    PDFDocEncoding bytes."""
+    data = string_bytes(token)
+    if data.startswith(b"\xfe\xff"):
+        return data[2:].decode("utf-16-be")
+    require(all(0x20 <= byte <= 0x7E for byte in data), f"text string {token!r} is neither UTF-16BE nor printable ASCII")
+    return data.decode("ascii")
+
+
+def canonical_bytes(data: bytes) -> bytes:
+    """The canonical token for a byte string: a literal when strictly shorter
+    than hex, otherwise uppercase hex (an independent model of KernelLex)."""
+    literal = bytearray(b"(")
+    for byte in data:
+        if byte in b"()\\":
+            literal += b"\\" + bytes([byte])
+        elif 0x20 <= byte <= 0x7E:
+            literal.append(byte)
+        else:
+            literal += b"\\" + f"{byte:03o}".encode("ascii")
+    literal += b")"
+    hexed = b"<" + data.hex().upper().encode("ascii") + b">"
+    return bytes(literal) if len(literal) < len(hexed) else hexed
+
+
+def canonical_text(text: str) -> bytes:
+    """The canonical token for a text string: printable ASCII as bytes under
+    the byte-string rule, anything else UTF-16BE with a BOM in hex."""
+    if all(0x20 <= ord(character) <= 0x7E for character in text):
+        return canonical_bytes(text.encode("ascii"))
+    return b"<" + (b"\xfe\xff" + text.encode("utf-16-be")).hex().upper().encode("ascii") + b">"
+
+
 def dictionary_int(dictionary: bytes, name: bytes) -> int:
     match = re.search(rb"/" + re.escape(name) + rb" ([0-9]+)(?:\s|$)", dictionary)
     if match is None:

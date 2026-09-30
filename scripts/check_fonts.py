@@ -137,8 +137,8 @@ class Bundle:
         require(b"/Subtype /CIDFontType2" in descendant, f"{owner}: descendant is not CIDFontType2")
         require(base.group(0) in descendant, f"{owner}: descendant BaseFont disagrees")
         require(
-            b"/CIDSystemInfo << /Ordering <4964656E74697479> "
-            b"/Registry <41646F6265> /Supplement 0 >>" in descendant,
+            b"/CIDSystemInfo << /Ordering (Identity) "
+            b"/Registry (Adobe) /Supplement 0 >>" in descendant,
             f"{owner}: CIDSystemInfo is not the canonical ASCII Adobe-Identity-0",
         )
         require(b"/DW 1000" in descendant, f"{owner}: /DW is not 1000")

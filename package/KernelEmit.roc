@@ -959,9 +959,9 @@ append_xref_dictionary = |output, facts| {
 append_ascii_id_entry : List(U8), List(U8) -> List(U8)
 append_ascii_id_entry = |output, file_id| {
 	var $out = output.append(32).append(47).append(73).append(68).append(32).append(91)
-	$out = KernelLex.append_byte_string($out, file_id)
+	$out = KernelLex.append_hex_string($out, file_id)
 	$out = $out.append(32)
-	$out = KernelLex.append_byte_string($out, file_id)
+	$out = KernelLex.append_hex_string($out, file_id)
 	$out.append(93)
 }
 

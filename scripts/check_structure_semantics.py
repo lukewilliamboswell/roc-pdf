@@ -216,8 +216,13 @@ class Parser:
             while True:
                 byte = data[self.at]
                 if byte == ord("\\"):
-                    out.append(data[self.at + 1])
-                    self.at += 2
+                    escaped = data[self.at + 1 : self.at + 4]
+                    if re.fullmatch(rb"[0-7]{3}", escaped) is not None:
+                        out.append(int(escaped, 8))
+                        self.at += 4
+                    else:
+                        out.append(data[self.at + 1])
+                        self.at += 2
                     continue
                 if byte == ord("("):
                     depth += 1
@@ -867,10 +872,10 @@ def self_test() -> None:
     check_structure_semantics(SNAPSHOTS["figures"].read_bytes(), {"figure_nodes": 4, "captioned_figures": 3, "scaled_figures": 1, "layout_artifacts": 2})
     mutations = [
         ("figure caption in a transparent Part", figure_sections, b"/S /Sect", b"/S /Part"),
-        ("Figure without /Alt", figure_sections, b"/Alt <", b"/Alz <"),
+        ("Figure without /Alt", figure_sections, b"/Alt ", b"/Alz "),
         ("irregular table grid", table, b"/ColSpan 2", b"/ColSpan 3"),
         ("row span outside the declared subset", table, b"/ColSpan 2", b"/RowSpan 2"),
-        ("/Headers names a TD", table, b"/Headers [<63303030303032> <63303030303035> <63303030303038>]", b"/Headers [<63303030303032> <63303030303035> <63303030303039>]"),
+        ("/Headers names a TD", table, b"/Headers [(c000002) (c000005) (c000008)]", b"/Headers [(c000002) (c000005) (c000009)]"),
         ("illegal containment Document > Span", nested, b"/S /Part ", b"/S /Span "),
         ("illegal containment Sect > LI", nested, b"/S /H1 ", b"/S /LI "),
         ("content item in L", nested, b"/P 5 0 R /S /P /Type", b"/P 5 0 R /S /L /Type"),
@@ -880,9 +885,9 @@ def self_test() -> None:
         ("page Tabs not /S", facade, b"/Tabs /S", b"/Tabs /R"),
         ("duplicate MCID reference", nested, b"<< /MCID 1 /Pg", b"<< /MCID 0 /Pg"),
         ("ParentTree row drift", lowering, b"/Nums [0 [10 0 R]]", b"/Nums [0 [ 9 0 R]]"),
-        ("IDTree key without /ID", lowering, b"<63656C6C2D7072696365> 9 0 R", b"<63656C6C2D7072696366> 9 0 R"),
-        ("/Headers names a missing identifier", lowering, b"/Headers [<6864722D7072696365>]", b"/Headers [<6864722D7072696366>]"),
-        ("malformed nested language", lowering, b"/Lang <FEFF00660072>", b"/Lang <FEFF00360072>"),
+        ("IDTree key without /ID", lowering, b"(cell-price) 9 0 R", b"(cell-pricf) 9 0 R"),
+        ("/Headers names a missing identifier", lowering, b"/Headers [(hdr-price)]", b"/Headers [(hdr-pricf)]"),
+        ("malformed nested language", lowering, b"/Lang (fr)", b"/Lang (6r)"),
         ("invalid Scope value", lowering, b"/A << /O /Table /Scope /Column >> /ID", b"/A << /O /Table /Scope /Colunn >> /ID"),
         ("labelled list numbered /None", nested, b"/ListNumbering /Disc", b"/ListNumbering /None"),
         ("PDF 1.7 Quote claimed by the PDF 2.0 namespace", inline_roles, b"/NS 5 0 R /P 21 0 R /S /Quote ", b"/NS 4 0 R /P 21 0 R /S /Quote "),
