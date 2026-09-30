@@ -55,17 +55,22 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
 }
 
-## Regular for every block role (the style-face path requires one face
-## for body, heading, and title text); Bold for `Pdf.strong`;
-## Italic for `Pdf.emphasis`;
-## the monospace face for `Pdf.code`.
+## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
+## Italic for `Pdf.emphasis`; the monospace face for `Pdf.code`, at 90%
+## of the text around it.
 with_faces : Theme, Faces -> Theme
-with_faces = |base, faces|
+with_faces = |base, faces| {
+	title = Theme.title_style(base)
+	heading = Theme.heading_style(base)
 	base
 		.with_font(faces.regular)
+		.with_title_style({ ..title, font: faces.bold })
+		.with_heading_style({ ..heading, font: faces.bold })
 		.with_inline_font(Strong, faces.bold)
 		.with_inline_font(Emphasis, faces.italic)
 		.with_inline_font(Code, faces.mono)
+		.with_inline_scale(Code, 90)
+}
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -136,6 +141,8 @@ base_theme = {
 		.with_table_cell_padding(points(5))
 		.with_table_row_gap(points(5))
 		.with_table_rule(Rule({ color: indigo, width: Layout.Unit.millipoints(750) }))
+		.with_link_color(indigo)
+		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1500), thickness: Layout.Unit.millipoints(600) }))
 }
 
 ## ---------------------------------------------------------------------
@@ -187,11 +194,13 @@ teal_source = Color.srgb8(teal_rgb)
 band : Scene.Drawing
 band = Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 8, 483, 1), tint(indigo_rgb, 80)), Layout.rect(0, 6, 36, 5), coral)
 
-## One swatch card: the solid colour above three tints (75, 50, 25 percent
-## toward white).
-swatch : Rgb -> Scene.Drawing
-swatch = |rgb| {
+## One swatch card: the solid colour, named with its hex value, above
+## three tints (75, 50, 25 percent toward white).
+swatch : Rgb, Str, Str, Color.SourceValue -> Scene.Drawing
+swatch = |rgb, name, hex, label| {
 	solid = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 39, 88, 52), Color.srgb8(rgb))
+		.text({ align: Start, color: label, origin: Layout.point(6, 77), size: points(8), text: name })
+		.text({ align: Start, color: label, origin: Layout.point(6, 45), size: points(7), text: hex })
 	light = Scene.rectangle(Scene.rectangle(solid, Layout.rect(0, 26, 88, 12), tint(rgb, 25)), Layout.rect(0, 13, 88, 12), tint(rgb, 50))
 	Scene.rectangle(light, Layout.rect(0, 0, 88, 12), tint(rgb, 75))
 }
@@ -200,18 +209,18 @@ swatches : Scene.Drawing
 swatches = {
 	var $drawing = Scene.drawing({})
 	var $x = 0
-	for rgb in [indigo_rgb, teal_rgb, coral_rgb, amber_rgb, ink_rgb] {
-		$drawing = $drawing.group(Layout.point($x, 0), swatch(rgb))
+	for (rgb, name, hex, label) in [(indigo_rgb, "Lumen Indigo", "#2B2D6E", white), (teal_rgb, "Harbour Teal", "#167872", white), (coral_rgb, "Signal Coral", "#F2665A", ink), (amber_rgb, "Dawn Amber", "#F5B83D", ink), (ink_rgb, "Ink", "#1E2230", white)] {
+		$drawing = $drawing.group(Layout.point($x, 0), swatch(rgb, name, hex, label))
 		$x = $x + 98
 	}
 	$drawing
 }
 
-## The mark on three approved grounds, with its clear space outlined on
-## the first panel.
+## The mark on three approved grounds, each named, with its clear space
+## outlined on the first panel.
 placements : Scene.Drawing
 placements = {
-	panel = |ground, disc, light, guides| {
+	panel = |ground, disc, light, guides, name, label| {
 		base = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 155, 124), ground)
 		framed = if guides {
 			square = Scene.path({}).rectangle(Layout.rect(35, 20, 84, 84)).finish()
@@ -221,12 +230,14 @@ placements = {
 		} else {
 			base
 		}
-		framed.group(Layout.point(45, 30), mark(64, disc, light))
+		framed
+			.group(Layout.point(45, 30), mark(64, disc, light))
+			.text({ align: Center, color: label, origin: Layout.point(77, 116), size: points(7), text: name })
 	}
 	Scene.drawing({})
-		.group(Layout.point(0, 0), panel(mist, indigo, amber, True))
-		.group(Layout.point(164, 0), panel(indigo, white, amber, False))
-		.group(Layout.point(328, 0), panel(amber, indigo, white, False))
+		.group(Layout.point(0, 0), panel(mist, indigo, amber, True, "Clear space", indigo))
+		.group(Layout.point(164, 0), panel(indigo, white, amber, False, "Reversed on Indigo", white))
+		.group(Layout.point(328, 0), panel(amber, indigo, white, False, "On Dawn Amber", indigo))
 }
 
 ## ---------------------------------------------------------------------
@@ -245,7 +256,7 @@ at_a_glance = |theme, lines| {
 	spacing = Theme.paragraph_spacing(theme).raw()
 	count = lines.len().to_i64_wrap()
 	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(483) }
-	Pdf.custom_block({
+	block = Pdf.custom_block({
 		contents: lines.map(|line| Pdf.rich_paragraph(line)),
 		fragmentation: Unsplittable,
 		inset: callout_inset,
@@ -253,6 +264,9 @@ at_a_glance = |theme, lines| {
 		panel: Scene.rectangle(Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size }, mist), { origin: Layout.point(0, 0), size: { height: size.height, width: points(4) } }, coral),
 		size,
 	})
+
+	## The callout's labels are Lumen Indigo: accents never carry words.
+	Pdf.scoped(Theme.Scope.empty.with_color(Strong, indigo), [block])
 }
 
 ## ---------------------------------------------------------------------
@@ -363,8 +377,8 @@ type_table = Pdf.table({
 	columns: [{ width: Share(2), align: Start }, { width: Fixed(points(48)), align: End }, { width: Fixed(points(58)), align: End }, { width: Share(5), align: Start }],
 	header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Role")]), Pdf.header_cell(Column, [Pdf.text("Size")]), Pdf.header_cell(Column, [Pdf.text("Leading")]), Pdf.header_cell(Column, [Pdf.text("Use")])])],
 	body_rows: [
-		type_row("Display", "34", "40", "Covers and one title per document"),
-		type_row("Heading", "16", "22", "Section openings, in Lumen Indigo"),
+		type_row("Display", "34", "40", "Covers and one bold title per document"),
+		type_row("Heading", "16", "22", "Section openings, bold, in Lumen Indigo"),
 		type_row("Body", "10.5", "15.5", "Running text and table cells, in Ink"),
 		type_row("Caption", "10.5", "15.5", "Figure and table captions"),
 	],
@@ -459,7 +473,7 @@ contents = |theme| [
 			Pdf.figure(
 				placements,
 				"The Lumen mark on three approved grounds: indigo on a pale mist ground with its clear-space boundary outlined in coral, white on indigo, and indigo on amber.",
-				Pdf.caption("Figure 2. Approved grounds, with the clear space outlined on the first"),
+				Pdf.caption("Figure 2. The three approved grounds"),
 			),
 			ScaleToFit({ minimum_percent: 80 }),
 		),
