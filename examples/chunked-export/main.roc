@@ -18,16 +18,19 @@ import "fonts/SourceCodePro-Bold.ttf" as bold_bytes : List(U8)
 ## incrementally. The document is prepared once, then drained chunk by
 ## chunk from `Pdf.to_chunks_prepared`; the chunks concatenate to exactly
 ## the bytes `Pdf.to_bytes_prepared` would return. The export itself has
-## a summary callout, a generated temperature chart with its safe band,
-## and a 48-row readings table that continues across pages with its
-## header repeated and a summary footer.
+## a summary callout measured by the package, a generated temperature
+## chart with its safe band, and a 48-row readings table with zebra rows
+## and shaded excursions that continues across pages with its header
+## repeated and a summary footer.
 main! = |_args| {
 	fonts = register_fonts({})?
-	document = Pdf.document({ contents, language: "en-AU", title: "Cold-chain telemetry export, shipment RX-40718" })
+	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
+	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Cold-chain telemetry export, shipment RX-40718" })
 		.with_page_templates(templates)
 		.with_created("2026-09-30T00:00:00Z")
 		.with_modified("2026-09-30T00:00:00Z")
-	prepared = Pdf.prepare(document, Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)).map_err(|err| PdfFailed(err))?
+	prepared = Pdf.prepare(document, options).map_err(|err| PdfFailed(err))?
 	encoder = Pdf.to_chunks_prepared(prepared, ShareUnchangedResources).map_err(|err| EmitFailed(err))?
 	collected = collect(encoder)
 	output : Path
@@ -124,8 +127,11 @@ theme = {
 		.with_emphasis_color(spruce)
 		.with_code_color(spruce)
 		.with_table_header_color(spruce)
+		.with_table_header_fill(Color.srgb8({ red: 226, green: 238, blue: 242 }))
+		.with_table_body_fills({ odd: NoFill, even: Fill(Color.srgb8({ red: 246, green: 248, blue: 250 })) })
+		.with_table_footer_fill(Color.srgb8({ red: 236, green: 241, blue: 245 }))
 		.with_table_cell_padding(points(3))
-		.with_table_row_gap(points(1))
+		.with_table_row_gap(points(2))
 		.with_table_rule(Rule({ color: frost, width: Layout.Unit.millipoints(500) }))
 }
 
@@ -147,12 +153,15 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({
-			height: points(14),
-			start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])],
-			center: [],
-			end: [],
-		}),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(14),
+				start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])],
+				center: [],
+				end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])],
+			}),
+			Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(measure) } }, frost),
+		),
 		footer,
 		gap: points(12),
 	}),
@@ -213,7 +222,7 @@ reading_row = |slot| {
 		Pdf.cell([value(b)]),
 		Pdf.cell([Pdf.text(humidity(slot).to_str())]),
 		Pdf.cell([Pdf.text(if slot >= 28 and slot <= 30 "Open" else "Closed")]),
-		Pdf.cell([if over Pdf.strong([Pdf.text("Excursion")]) else Pdf.text("In range")]),
+		if over Pdf.shaded(Color.srgb8({ red: 254, green: 226, blue: 226 }), Pdf.cell([Pdf.strong([Pdf.text("Excursion")])])) else Pdf.cell([Pdf.text("In range")]),
 	])
 }
 
@@ -335,48 +344,57 @@ temperature_chart = {
 
 ## ---------------------------------------------------------------------
 ## The summary callout: the custom-block pattern of
-## tests/custom_block/Callout.roc, measured from the theme's public
-## metrics (one line per paragraph).
+## tests/custom_block/Callout.roc, measured by the package at the panel's
+## content width under the options the export is prepared with.
 
 callout_inset : Layout.Unit
 callout_inset = points(12)
 
-summary : List(Document.Block) -> Document.Block
-summary = |paragraphs| {
-	leading = Theme.body_style(theme).leading.raw()
-	spacing = Theme.paragraph_spacing(theme).raw()
-	count = paragraphs.len().to_i64_wrap()
-	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(measure) }
+summary : Pdf.Options, List(Document.Block) -> Try(Document.Block, Pdf.Error)
+summary = |options, paragraphs| {
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(measure - 24) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(measure) }
 	panel = Scene.drawing({})
 		.path(Scene.path({}).rectangle({ origin: Layout.point(0, 0), size }).finish(), Scene.solid_fill(Color.srgb8({ red: 240, green: 247, blue: 250 })))
-	Pdf.custom_block({
-		contents: paragraphs,
-		fragmentation: Unsplittable,
-		inset: callout_inset,
-		name: "Shipment summary",
-		panel: Scene.rectangle(panel, { origin: Layout.point(0, 0), size: { height: size.height, width: points(3) } }, spruce),
-		size,
-	})
+	Ok(
+		Pdf.custom_block({
+			contents: paragraphs,
+			fragmentation: Unsplittable,
+			inset: callout_inset,
+			name: "Shipment summary",
+			panel: Scene.rectangle(panel, { origin: Layout.point(0, 0), size: { height: size.height, width: points(3) } }, spruce),
+			size,
+		}),
+	)
 }
 
 fact : Str, Str -> Document.Block
 fact = |label, value| Pdf.rich_paragraph([Pdf.emphasis([Pdf.text(label)]), Pdf.text("  ${value}")])
 
-contents : List(Document.Block)
-contents = [
-	Pdf.decoration(Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 120, 4), spruce), Layout.rect(124, 0, 24, 4), alarm)),
+contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
+contents = |options| {
+	shipment = summary(
+		options,
+		[
+			fact("Status", "Delivered 30 September 05:40 · 1 excursion, about 90 min above 8.0 °C"),
+			fact("Probe A", "min 3.6 °C · max 9.1 °C · mean 4.4 °C"),
+			fact("Probe B", "min 3.4 °C · max 8.4 °C · mean 4.1 °C"),
+			fact("Assessment", "Within the manufacturer's stability budget; quarantine not required"),
+		],
+	)?
+	Ok(body(shipment))
+}
+
+body : Document.Block -> List(Document.Block)
+body = |shipment| [
+	Pdf.spaced_decoration(Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 120, 4), spruce), Layout.rect(124, 0, 24, 4), alarm), { above: points(0), behind: Bool.False, below: points(6) }),
 	Pdf.title("Cold-chain telemetry export"),
 	Pdf.rich_paragraph([
 		Pdf.text("Shipment "),
 		Pdf.code("RX-40718"),
 		Pdf.text(" · Vaccines, 2 to 8 °C · Melbourne distribution centre to Royal Hobart Hospital pharmacy"),
 	]),
-	summary([
-		fact("Status", "Delivered 30 September 05:40 · 1 excursion, about 90 min above 8.0 °C"),
-		fact("Probe A", "min 3.6 °C · max 9.1 °C · mean 4.4 °C"),
-		fact("Probe B", "min 3.4 °C · max 8.4 °C · mean 4.1 °C"),
-		fact("Assessment", "Within the manufacturer's stability budget; quarantine not required"),
-	]),
+	shipment,
 	Pdf.section([
 		Pdf.heading(1, "Temperature over the journey"),
 		Pdf.rich_paragraph([
