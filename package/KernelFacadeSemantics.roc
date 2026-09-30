@@ -36,6 +36,7 @@ KernelFacadeSemantics :: [].{
 		DecorationPosition({ decoration : U64 }),
 		EmptyInline({ block : U64, inline : U64 }),
 		EmptyKeep({ group : U64 }),
+		EmptyScope({ group : U64 }),
 		EmptyLanguage,
 		EmptyLinkText({ block : U64, inline : U64 }),
 		EmptyList({ group : U64 }),
@@ -327,6 +328,18 @@ plan_blocks = |authoring, limits| {
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
 					$next_node = attempted_nodes
 					$content_count = attempted_content
+				}
+				Scope(_) => {
+					if in_item {
+						return Err(ListItemGroup({ group: $next_group }))
+					}
+					if group.first_block >= group.block_end {
+						return Err(EmptyScope({ group: $next_group }))
+					}
+
+					## A scope has no structure element either: it only
+					## recolors inline text inside it.
+					$group_nodes = $group_nodes.append(parent_node(group.parent, $group_nodes).index())
 				}
 				KeepTogether | KeepWithNext(_) => {
 					if in_item {
@@ -933,7 +946,7 @@ semantic_code = |groups, code| {
 	while $searching and $code != 0 {
 		group = list_at(groups, $code - 1)
 		match group.kind {
-			KeepTogether | KeepWithNext(_) => {
+			KeepTogether | KeepWithNext(_) | Scope(_) => {
 				$code = group.parent
 			}
 			_ => {
@@ -1482,7 +1495,7 @@ build_store = |authoring, planning, source_plan| {
 				FigureGroup(_) => {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Section), span, Inherited))
 				}
-				KeepTogether | KeepWithNext(_) => {}
+				KeepTogether | KeepWithNext(_) | Scope(_) => {}
 				ItemList(list_index) => {
 					attribute = $attributes.len()
 					$attributes = $attributes.append(list_numbering(list_at(authoring.lists, list_index.to_u64()).marker))
@@ -1519,7 +1532,7 @@ build_store = |authoring, planning, source_plan| {
 				Container(_) | Custom(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
-				KeepTogether | KeepWithNext(_) => {}
+				KeepTogether | KeepWithNext(_) | Scope(_) => {}
 				Table(table_index) => {
 					## The result is destructured in one pattern, so each
 					## accumulator moves out of it: projecting the fields of a
@@ -1758,7 +1771,7 @@ build_store = |authoring, planning, source_plan| {
 	}
 	while $next_group < groups.len() {
 		$next_node = match list_at(groups, $next_group).kind {
-			KeepTogether | KeepWithNext(_) | Table(_) | TableRow(_) => $next_node
+			KeepTogether | KeepWithNext(_) | Scope(_) | Table(_) | TableRow(_) => $next_node
 			ListItem(_) => checked_add($next_node, 3)?
 			_ => checked_add($next_node, 1)?
 		}
@@ -2352,6 +2365,7 @@ test_authoring = {
 	page_breaks: [],
 	page_labels: [],
 	rich_paragraphs: [],
+	scopes: [],
 	spacers: [],
 	tables: [],
 	templates: NoTemplates,

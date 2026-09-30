@@ -7,6 +7,7 @@ import Metadata
 import Scene
 import Semantics
 import Text
+import Theme
 
 DocumentBlock :: [
 	Bullets(List(Str)),
@@ -28,6 +29,10 @@ DocumentBlock :: [
 	PageBreak,
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
+
+	## Blocks whose inline colors a `Theme.Scope` overrides, boxed so the
+	## block union keeps the size of its other alternatives.
+	Scoped(Box({ contents : List(DocumentBlock), scope : Theme.Scope })),
 	Spacer(Layout.Unit),
 	Table(Box(TableSpec)),
 	Title(Str),
@@ -389,7 +394,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -458,6 +463,7 @@ NormalizedAuthoring := {
 	page_breaks : List(NormalizedPageBreak),
 	page_labels : List(PageLabelRange),
 	rich_paragraphs : List(NormalizedRich),
+	scopes : List(Theme.Scope),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
 	templates : NormalizedTemplates,
@@ -1026,6 +1032,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	keep_together : List(DocumentBlock) -> DocumentBlock
 	keep_together = |contents| DocumentBlock.KeepTogether(contents)
 
+	scoped : Theme.Scope, List(DocumentBlock) -> DocumentBlock
+	scoped = |scope, contents| DocumentBlock.Scoped(Box.box({ contents, scope }))
+
 	## Keep a block with the first placement unit of the block after it.
 	keep_with_next : Keep, DocumentBlock -> DocumentBlock
 	keep_with_next = |keep, block| DocumentBlock.KeepWithNext({ contents: [block], keep })
@@ -1284,12 +1293,12 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
+empty_state = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1307,6 +1316,10 @@ first_unavailable_block = |blocks| {
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
 			KeepTogether(contents) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			Scoped(scoped) => match first_unavailable_nested(Box.unbox(scoped).contents) {
 				Available => {}
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
@@ -1349,6 +1362,9 @@ first_unavailable_nested = |contents| {
 				}
 				KeepTogether(nested) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
+				}
+				Scoped(scoped) => {
+					$frames = $frames.append({ blocks: Box.unbox(scoped).contents, next: 0 })
 				}
 				KeepWithNext({ contents: nested, keep: _ }) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
@@ -1441,6 +1457,7 @@ normalize_compact = |compact, initial| {
 		page_breaks: initial.page_breaks,
 		page_labels: [],
 		rich_paragraphs: initial.rich_paragraphs,
+		scopes: initial.scopes,
 		spacers: initial.spacers,
 		tables: initial.tables,
 		templates: NoTemplates,
@@ -1460,6 +1477,7 @@ SimpleState : {
 	lists : List(NormalizedList),
 	page_breaks : List(NormalizedPageBreak),
 	rich_paragraphs : List(NormalizedRich),
+	scopes : List(Theme.Scope),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
 }
@@ -1489,6 +1507,7 @@ normalize_simple = |simple, initial| {
 		page_breaks: $state.page_breaks,
 		page_labels: [],
 		rich_paragraphs: $state.rich_paragraphs,
+		scopes: $state.scopes,
 		spacers: $state.spacers,
 		tables: $state.tables,
 		templates: NoTemplates,
@@ -1497,7 +1516,7 @@ normalize_simple = |simple, initial| {
 
 is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
-	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => True
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => True
 	_ => False
 }
 
@@ -1579,6 +1598,12 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 		opened = open_group(state, KeepWithNext(keep), parent, depth, position)
 		{ frame: { blocks: contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
+	Scoped(boxed) => {
+		scoped = Box.unbox(boxed)
+		index = state.scopes.len()
+		opened = open_group({ ..state, scopes: state.scopes.append(scoped.scope) }, Scope(index.to_u32_wrap()), parent, depth, position)
+		{ frame: { blocks: scoped.contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
 	ListBlock({ items, marker }) => {
 		index = state.lists.len()
 		listed = { ..state, lists: state.lists.append({ items: items.len(), marker }) }
@@ -1613,7 +1638,7 @@ append_leaf = |state, block, parent, position| match block {
 		}
 		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
 	}
-	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => {
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => {
 		crash "normalized group escaped the frame walk"
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }

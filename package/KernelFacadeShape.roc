@@ -488,12 +488,11 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 	var $request_index = 0
 	var $block_index = 0
 	while $block_index < authoring.blocks.len() {
-		block = list_at(authoring.blocks, $block_index)
 		owner = list_at(owners, $block_index)
 		match owner {
 			RichTextBlock({ label: _, level: _, occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 			TextBlock({ body, label, level }) => {
-				body_style = style_for(block.kind, theme)
+				body_style = block_style(authoring, $block_index, theme)
 				if face_rejected(face_check, body_style) {
 					return Err(UnsupportedThemeFace({ block: $block_index, face: body_style.font.index() }))
 				}
@@ -652,8 +651,7 @@ RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_ch
 ## body, each covering its whole source in the document language.
 append_plain_requests : List(KernelFacadeShape.RequestRange), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), RangedContext, Semantics.OccurrenceId, [Label(Semantics.OccurrenceId), NoLabel] -> Try(RequestBuffers, KernelFacadeShape.Error)
 append_plain_requests = |ranges, requests, styles, at, body, label| {
-	block = list_at(at.authoring.blocks, at.block)
-	body_style = style_for(block.kind, at.theme)
+	body_style = block_style(at.authoring, at.block, at.theme)
 	if face_rejected(at.face_check, body_style) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body_style.font.index() }))
 	}
@@ -779,7 +777,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
 				$cluster = cluster_end
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: inline_size(at.authoring.inlines, record.parent, at.theme, body.size), source: located.id })
-				$styles = $styles.append({ color: inline_color(at.authoring.inlines, record.parent, at.theme, paragraph_color), leading: body.leading })
+				$styles = $styles.append({ color: inline_color(at.authoring, at.block, record.parent, at.theme, paragraph_color), leading: body.leading })
 				$ranges = $ranges.append({
 					clusters: Semantics.Range.from_start_and_length(cluster_start, cluster_end - cluster_start),
 					language: occurrence.language,
@@ -918,31 +916,77 @@ inline_size = |inlines, parent, theme, size| {
 	size
 }
 
-inline_color : List(Document.NormalizedInline), U64, Theme, Color.SourceValue -> Color.SourceValue
-inline_color = |inlines, parent, theme, paragraph_color| {
+inline_color : Document.NormalizedAuthoring, U64, U64, Theme, Color.SourceValue -> Color.SourceValue
+inline_color = |authoring, block, parent, theme, paragraph_color| {
 	var $cursor = parent
 	var $color = Unresolved
 	while $cursor != 0 and $color == Unresolved {
-		record = list_at(inlines, $cursor - 1)
-		themed = match record.kind {
-			Code => Theme.inline_color(theme, Code)
-			Emphasis => Theme.inline_color(theme, Emphasis)
-			Quote => Theme.inline_color(theme, Quote)
-			Strong => Theme.inline_color(theme, Strong)
-			Link(_) | InternalLink(_) => Theme.link_style(theme).color
-			_ => Inherited
+		record = list_at(authoring.inlines, $cursor - 1)
+		role = match record.kind {
+			Code => Role(Code)
+			Emphasis => Role(Emphasis)
+			Link(_) | InternalLink(_) => Role(Link)
+			Quote => Role(Quote)
+			Strong => Role(Strong)
+			_ => NoRole
 		}
-		match themed {
-			Themed(color) => {
-				$color = Resolved(color)
+		match role {
+			Role(value) => match role_color(authoring, block, theme, value) {
+				Themed(color) => {
+					$color = Resolved(color)
+				}
+				Inherited => {}
 			}
-			Inherited => {}
+			NoRole => {}
 		}
 		$cursor = record.parent
 	}
 	match $color {
 		Resolved(color) => color
 		Unresolved => paragraph_color
+	}
+}
+
+## One role's color for a block: the innermost enclosing `Pdf.scoped`
+## group that colors the role, else the theme. A document without scopes
+## never walks its groups.
+role_color : Document.NormalizedAuthoring, U64, Theme, Theme.ScopeRole -> Theme.InlineColor
+role_color = |authoring, block, theme, role| {
+	if !authoring.scopes.is_empty() {
+		var $code = list_at(authoring.blocks, block).parent
+		while $code != 0 {
+			group = list_at(authoring.groups, $code - 1)
+			match group.kind {
+				Scope(index) => match list_at(authoring.scopes, index.to_u64()).color(role) {
+					Themed(color) => return Themed(color)
+					Inherited => {}
+				}
+				_ => {}
+			}
+			$code = group.parent
+		}
+	}
+	match role {
+		Code => Theme.inline_color(theme, Code)
+		Emphasis => Theme.inline_color(theme, Emphasis)
+		Link => Theme.link_style(theme).color
+		Quote => Theme.inline_color(theme, Quote)
+		Strong => Theme.inline_color(theme, Strong)
+	}
+}
+
+## A plain block's text style: its kind's theme style, with a link block
+## colored by the innermost scope's link color when one applies.
+block_style : Document.NormalizedAuthoring, U64, Theme -> Theme.TextStyle
+block_style = |authoring, block, theme| {
+	kind = list_at(authoring.blocks, block).kind
+	style = style_for(kind, theme)
+	match kind {
+		Link(_) | InternalLink(_) if !authoring.scopes.is_empty() => match role_color(authoring, block, theme, Link) {
+			Themed(color) => { ..style, color }
+			Inherited => style
+		}
+		_ => style
 	}
 }
 

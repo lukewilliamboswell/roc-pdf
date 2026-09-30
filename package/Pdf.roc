@@ -291,6 +291,15 @@ Pdf :: [].{
 	heading : U8, Str -> Document.Block
 	heading = |level, value| Document.heading(level, value)
 
+	## Blocks whose inline role and link colors a `Theme.Scope` overrides,
+	## for example a callout whose `Strong` label is amber. The group adds
+	## no structure element, keeps no blocks together, and changes only fill
+	## colors; the innermost scope that colors a role wins, then the theme.
+	## It holds the blocks a section can hold (not list-item content), and
+	## at least one (`semantics.scope_empty`).
+	scoped : Theme.Scope, List(Document.Block) -> Document.Block
+	scoped = |scope, contents| Document.scoped(scope, contents)
+
 	## Add a plain paragraph.
 	paragraph : Str -> Document.Block
 	paragraph = |value| Document.paragraph(value)
@@ -1040,6 +1049,7 @@ pipeline_error = |error, doc| match error {
 	Shape(InlineClusterBoundary({ block, inline })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_cluster", "An inline boundary falls inside a multi-scalar grapheme cluster, which the convenience shaper does not support.")
 	Semantics(LineBreakPosition({ block, line_break })) => line_break_error(doc, block, line_break)
 	Semantics(EmptyKeep({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.keep_empty", "A keep contains no laid-out block.")
+	Semantics(EmptyScope({ group })) => group_error(doc, group, InvalidRelationship, "semantics.scope_empty", "A scoped group contains no block; its colors would apply to nothing.")
 	Semantics(EmptyList({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_empty", "A list has no items.")
 	Semantics(EmptyListItem({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_empty", "A list item has no blocks.")
 	Semantics(ListDepthExceeded({ attempted, group, limit })) => group_error(doc, group, BudgetExceeded, "semantics.list_depth", "A list is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested lists.")

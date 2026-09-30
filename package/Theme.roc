@@ -89,6 +89,44 @@ Theme :: {
 
 	LinkUnderline : [NoUnderline, Underline({ offset : Layout.Unit, thickness : Layout.Unit })]
 
+	## Inline colors that a scoped group of blocks (`Pdf.scoped`) paints in
+	## place of the theme's: for example a warning callout's `Strong` label
+	## in amber and a note callout's in teal. A role the scope leaves
+	## `Inherited` keeps the color of the next enclosing scope, then the
+	## theme's. Scopes change only fill colors, never faces, sizes, or
+	## semantics.
+	Scope :: { code : InlineColor, emphasis : InlineColor, link : InlineColor, quote : InlineColor, strong : InlineColor }.{
+
+		## A scope that overrides nothing.
+		empty : Scope
+		empty = Scope.({ code: Inherited, emphasis: Inherited, link: Inherited, quote: Inherited, strong: Inherited })
+
+		## Paint one role's text, or link text, in `color` inside the scope.
+		with_color : Scope, ScopeRole, Color.SourceValue -> Scope
+		with_color = |Scope.(scope), role, color| Scope.(
+			match role {
+				Code => { ..scope, code: Themed(color) }
+				Emphasis => { ..scope, emphasis: Themed(color) }
+				Link => { ..scope, link: Themed(color) }
+				Quote => { ..scope, quote: Themed(color) }
+				Strong => { ..scope, strong: Themed(color) }
+			},
+		)
+
+		## The scope's color for one role.
+		color : Scope, ScopeRole -> InlineColor
+		color = |Scope.(scope), role| match role {
+			Code => scope.code
+			Emphasis => scope.emphasis
+			Link => scope.link
+			Quote => scope.quote
+			Strong => scope.strong
+		}
+	}
+
+	## The roles a scope can color: the inline roles and link text.
+	ScopeRole : [Code, Emphasis, Link, Quote, Strong]
+
 	## The inline semantic roles whose presentation a theme can distinguish.
 	InlineRole : [Code, Emphasis, Quote, Strong]
 

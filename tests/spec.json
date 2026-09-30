@@ -21510,6 +21510,110 @@
       ]
     },
     {
+      "name": "rich inline scoped colors x10",
+      "scenario_revision": "rich-inline-scoped-colors-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/scoped_colors_10.pdf",
+      "args": [
+        "scoped_colors",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "callouts": 20
+      },
+      "work_counters": [
+        "node_writes",
+        "content_writes",
+        "occurrence_writes",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 17949,
+          "allocated_bytes": 5043391,
+          "work": {
+            "node_writes": 61,
+            "content_writes": 129,
+            "occurrence_writes": 69,
+            "rejections": 2,
+            "output_bytes": 35987
+          }
+        },
+        "x64musl": {
+          "allocations": 17949,
+          "allocated_bytes": 5043391,
+          "work": {
+            "node_writes": 61,
+            "content_writes": 129,
+            "occurrence_writes": 69,
+            "rejections": 2,
+            "output_bytes": 35987
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline scoped colors x50",
+      "scenario_revision": "rich-inline-scoped-colors-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/scoped_colors_50.pdf",
+      "args": [
+        "scoped_colors",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "callouts": 100
+      },
+      "work_counters": [
+        "node_writes",
+        "content_writes",
+        "occurrence_writes",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 67493,
+          "allocated_bytes": 18330329,
+          "work": {
+            "node_writes": 261,
+            "content_writes": 569,
+            "occurrence_writes": 309,
+            "rejections": 2,
+            "output_bytes": 89789
+          }
+        },
+        "x64musl": {
+          "allocations": 67493,
+          "allocated_bytes": 18330329,
+          "work": {
+            "node_writes": 261,
+            "content_writes": 569,
+            "occurrence_writes": 309,
+            "rejections": 2,
+            "output_bytes": 89789
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "rich inline atomic negatives",
       "scenario_revision": "rich-inline-v1",
       "source": "tests/rich_inline/main.roc",

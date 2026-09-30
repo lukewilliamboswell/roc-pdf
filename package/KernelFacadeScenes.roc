@@ -178,7 +178,7 @@ no_flow : KernelFacadePages.FlowPaints
 no_flow = { decorations: [], figure_scales: [], panels: [] }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
+empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [], templates: NoTemplates }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {

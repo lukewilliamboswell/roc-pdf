@@ -12,3 +12,5 @@
 {"name":"rich inline scaled code x50","schema_version":1,"case":{"ScaledCode":{"count":50}}}
 {"name":"rich inline link style x10","schema_version":1,"case":{"LinkStyle":{"count":10}}}
 {"name":"rich inline link style x50","schema_version":1,"case":{"LinkStyle":{"count":50}}}
+{"name":"rich inline scoped colors x10","schema_version":1,"case":{"ScopedColors":{"count":10}}}
+{"name":"rich inline scoped colors x50","schema_version":1,"case":{"ScopedColors":{"count":50}}}

@@ -297,6 +297,44 @@ pair is linear: 16,961 and 76,682 allocations, 4.16 MB and 20.28 MB. No
 existing case changes: without an underline no rule is built, and a
 document whose theme has no link color resolves every color as before.
 
+## Scoped inline colors
+
+Inline role colors were theme-wide, so one document could not give a
+warning callout an amber `Strong` label and a note callout a teal one.
+`Pdf.scoped(scope, blocks)` wraps blocks in a `Theme.Scope`
+(`Theme.Scope.empty.with_color(Strong, amber).with_color(Link, amber)`;
+roles `Code`, `Emphasis`, `Link`, `Quote`, `Strong`). Inside it, the
+innermost scope that colors a role decides that role's color, then the
+theme; a role the inner scope leaves inherited keeps the outer scope's.
+
+- **Authoring.** `Document.Block` gains a boxed `Scoped` alternative, so
+  the block union keeps its size, and normalization records it as a
+  `Scope(U32)` group over `NormalizedAuthoring.scopes`, allocated only
+  when a document has a scope. A scope may hold whatever a section may,
+  including a custom block; it may not appear among list-item content
+  (`semantics.list_item_content`, like the other groups), and an empty
+  scope is `semantics.scope_empty`.
+- **Semantics and layout.** A scope is transparent: like a keep group it
+  has no structure element (its children belong to the nearest semantic
+  ancestor), and unlike one it is not a keep, so pagination never sees it.
+- **Shaping.** Color resolution takes the leaf's block: each role in the
+  inline chain, including link text, asks `role_color`, which walks the
+  block's group ancestors for a `Scope` that colors the role and otherwise
+  answers the theme. A link block asks the same for its link color. A
+  document without scopes never walks its groups, so its preparation is
+  unchanged. The walk is bounded by the container depth limit per inline
+  ancestor, a constant.
+
+Evidence, `rich inline scoped colors x10` and `x50`: N warning and N note
+callouts, each scoped (labels and links amber or teal over a dark-red
+theme `Strong` and a blue theme link), a nested scope whose inner `Strong`
+is teal while its link keeps the outer amber, and a scoped custom block
+(MuPDF render). The fixture plans the same content without scopes and
+requires equal semantic node, content, and occurrence writes, so a scope
+adds no structure. The rejections are an empty scope and a scope in a list
+item. The pair is linear: 61 and 261 node writes (5N + 11), 17,949 and
+67,493 allocations. No existing case changes.
+
 ## Link annotations
 
 An inline link keeps the facade contract: one annotation per page its text

@@ -33,6 +33,7 @@ import pdf.KernelTaggedTextStructure
 import pdf.KernelTextSemantics
 import pdf.Layout
 import pdf.Pdf
+import pdf.Scene
 import pdf.Theme
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
@@ -85,6 +86,14 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ##   `Decoration` artifact underline in its fill color. Its rejections: a
 ##   negative offset, a zero thickness, and an underline taller than the
 ##   body leading's room (`text.link_underline`).
+## - `scoped_colors xN`: N warning and note callouts, each a `Pdf.scoped`
+##   group whose `Strong` label and link take the callout's own colors
+##   (amber or teal) over the theme's, one nested scope that overrides its
+##   outer scope, and a scoped custom block. Scopes add no structure
+##   element: the scoped document's semantic node and content writes equal
+##   those of the same document without scopes. Its rejections: an empty
+##   scope (`semantics.scope_empty`) and a scope inside a list item
+##   (`semantics.list_item_content`).
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
@@ -131,6 +140,9 @@ Fixture :: [].{
 
 	link_style : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	link_style = |count| run_link_style(count)
+
+	scoped_colors : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	scoped_colors = |count| run_scoped_colors(count)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -498,6 +510,84 @@ run_link_style = |count| {
 		return Err(MissingRejection(rejections))
 	}
 	Ok({ bytes, work: [count, rejections, bytes.len()] })
+}
+
+amber : Color.SourceValue
+amber = Color.srgb8({ blue: 0, green: 110, red: 180 })
+
+teal : Color.SourceValue
+teal = Color.srgb8({ blue: 120, green: 110, red: 0 })
+
+## Each callout's blocks, wrapped in its scope when `scoped` is true, so the
+## same content can be compared with and without scopes.
+scoped_colors_document : U64, Bool -> Document
+scoped_colors_document = |count, scoped| {
+	wrap = |scope, blocks| if scoped [Pdf.scoped(scope, blocks)] else blocks
+	warning = Theme.Scope.empty.with_color(Strong, amber).with_color(Link, amber)
+	note = Theme.Scope.empty.with_color(Strong, teal).with_color(Link, teal)
+	var $contents = List.with_capacity(2 * count + 3)
+	$contents = $contents.append(Pdf.heading(1, "Callouts"))
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		for block in wrap(warning, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Warning ${number}.")]), Pdf.text(" Rotate the signing key before the release; see "), Pdf.inline_link([Pdf.text("the key policy")], "https://example.org/keys/${number}"), Pdf.text(".")])]) {
+			$contents = $contents.append(block)
+		}
+		for block in wrap(note, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Note ${number}.")]), Pdf.text(" Mirrors refresh every hour.")])]) {
+			$contents = $contents.append(block)
+		}
+		$index = $index + 1
+	}
+
+	## An inner scope overrides its outer scope; the outer still colors the
+	## role the inner leaves inherited.
+	inner = Theme.Scope.empty.with_color(Strong, teal)
+	nested = if scoped [Pdf.scoped(warning, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Outer")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("outer link")], "https://example.org/outer")]), Pdf.scoped(inner, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Inner")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("inner link")], "https://example.org/inner")])])])] else [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Outer")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("outer link")], "https://example.org/outer")]), Pdf.rich_paragraph([Pdf.strong([Pdf.text("Inner")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("inner link")], "https://example.org/inner")])]
+	for block in nested {
+		$contents = $contents.append(block)
+	}
+	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 300, 60), Color.srgb8({ blue: 220, green: 240, red: 250 }))
+	callout = Pdf.custom_block({ contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scoped callout.")]), Pdf.text(" Its label takes the scope's amber.")])], fragmentation: Unsplittable, inset: Layout.Unit.points(8), name: "Scoped callout", panel, size: { height: Layout.Unit.points(60), width: Layout.Unit.points(300) } })
+	for block in wrap(warning, [callout]) {
+		$contents = $contents.append(block)
+	}
+	Pdf.document({ contents: $contents, language: "en-AU", title: "Scoped colors" })
+}
+
+run_scoped_colors : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_scoped_colors = |count| {
+	if count == 0 or count > 1000 {
+		return Err(InvalidScale)
+	}
+	theme = Theme.default.with_strong_color(Color.srgb8({ blue: 30, green: 30, red: 150 })).with_link_color(Color.srgb8({ blue: 180, green: 80, red: 20 }))
+	options = Pdf.Options.with_theme(Pdf.Options.default, theme)
+	document = scoped_colors_document(count, Bool.True)
+	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+
+	## Scopes are presentation only: the same content without them plans the
+	## same semantic nodes, content items, and occurrences.
+	scoped_plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
+	plain_plan = KernelFacadeSemantics.Plan.build(Document.normalize(scoped_colors_document(count, Bool.False)), semantic_limits) ? |_| EvidenceFailure
+	scoped_work = KernelFacadeSemantics.Plan.work(scoped_plan)
+	plain_work = KernelFacadeSemantics.Plan.work(plain_plan)
+	if scoped_work.node_writes != plain_work.node_writes or scoped_work.content_writes != plain_work.content_writes or scoped_work.occurrence_writes != plain_work.occurrence_writes {
+		return Err(EvidenceFailure)
+	}
+
+	## Rejections: each is transactional, with no bytes.
+	empty = match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.paragraph("Lead ${count.to_str()}"), Pdf.scoped(Theme.Scope.empty, [])], language: "en-AU", title: "Empty scope" }), options) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[1]"], feature: Feature("semantics.scope_empty"), .. }], .. })) => 1
+		_ => 0
+	}
+	in_item = match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item ${count.to_str()}"), Pdf.scoped(Theme.Scope.empty, [Pdf.paragraph("Scoped")])])])], language: "en-AU", title: "Scoped item" }), options) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("semantics.list_item_content"), .. }], .. })) => 1
+		_ => 0
+	}
+	rejections = empty + in_item
+	if rejections != 2 {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({ bytes, work: [scoped_work.node_writes, scoped_work.content_writes, scoped_work.occurrence_writes, rejections, bytes.len()] })
 }
 
 Faces : [BuiltInFace, Policy({ policy : Font.PolicyId, registry : Font.Registry })]

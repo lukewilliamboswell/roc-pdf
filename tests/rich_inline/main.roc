@@ -15,6 +15,7 @@ Case : [
 	HeadingFaces({ count : U64 }),
 	ScaledCode({ count : U64 }),
 	LinkStyle({ count : U64 }),
+	ScopedColors({ count : U64 }),
 	AtomicNegatives({ context : U64 }),
 ]
 
@@ -52,6 +53,7 @@ main! = |args| {
 		HeadingFaces({ count }) => Fixture.heading_faces(count)
 		ScaledCode({ count }) => Fixture.scaled_code(count)
 		LinkStyle({ count }) => Fixture.link_style(count)
+		ScopedColors({ count }) => Fixture.scoped_colors(count)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 	}
 	match result {

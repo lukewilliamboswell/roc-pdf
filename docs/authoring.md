@@ -92,7 +92,12 @@ paints that role at 85% of its paragraph size (50 to 100 percent, else
 their own color with `Theme.with_link_color` and an underline with
 `Theme.with_link_underline(theme, Underline({ offset, thickness }))`, a
 decoration artifact below each painted line of the link that must fit
-below the body text inside its leading (`text.link_underline`).
+below the body text inside its leading (`text.link_underline`). To color
+one group of blocks differently, such as a warning callout's label in
+amber and a note's in teal, wrap them in
+`Pdf.scoped(Theme.Scope.empty.with_color(Strong, amber), blocks)`: the
+innermost scope that colors a role wins, then the theme. A scope adds no
+structure element and keeps nothing together.
 
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an
