@@ -808,16 +808,21 @@ def plan_validation(
 ) -> ValidationPlan:
     """Choose the fewest compiler invocations that keep every check and expect.
 
-    Every `roc test` re-checks the whole package (seconds and gigabytes per
-    root), so expects run through the fewest roots that reach them:
+    Every `roc check`, `roc test`, and `roc build` re-checks the whole package
+    (seconds and gigabytes per root), so each root gets at most one of them:
 
+    - `roc test` reports exactly the errors and warnings `roc check` does, with
+      the same exit codes, before running expects; a tested root is not also
+      checked.
+    - `roc build --no-cache` of a fixture source does the same, so a fixture
+      root that no `roc test` needs is checked by its evidence build.
     - `package/all.roc` runs every package-module expect (it exposes every
       module, see verify_all_package_root). An application root's `roc test`
       would re-run them all, so application roots are tested only for the
       expects in their own file and same-directory modules: every root whose
       own file has expects, then, per directory, the fewest roots whose local
       import closures cover the remaining expect-bearing modules.
-    - Every root still gets one `roc check`.
+    - Every other root gets one `roc check`.
 
     fmt is cheap and takes many files, so it runs as one batch per worker.
     """
@@ -862,9 +867,12 @@ def plan_validation(
         uncovered.difference_update(covered)
 
     for root in sorted(closures):
-        tasks.append(ValidationTask("check", (root,)))
         if root in tested:
             tasks.append(ValidationTask("test", (root,), tested[root]))
+        elif root in fixture_sources:
+            delegated.append((root, "checked by its fixture build"))
+        else:
+            tasks.append(ValidationTask("check", (root,)))
     return ValidationPlan(tuple(tasks), tuple(delegated))
 
 
