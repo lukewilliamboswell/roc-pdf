@@ -11,8 +11,10 @@ import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
-import "../../package/RocPdfSans-Regular.ttf" as sans_bytes : List(U8)
-import "../../tests/assets/NotoSansMono-Code-Fixture.ttf" as mono_bytes : List(U8)
+import "fonts/Inter-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/Inter-Bold.ttf" as bold_bytes : List(U8)
+import "fonts/Inter-Italic.ttf" as italic_bytes : List(U8)
+import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## Sprout 2.4 product brief: a US Letter launch brief with a vector hero
 ## illustration of the planning board, a "Pilot results" key-figures
@@ -22,7 +24,7 @@ import "../../tests/assets/NotoSansMono-Code-Fixture.ttf" as mono_bytes : List(U
 ## with `Page N of M`, and an outline.
 main! = |_args| {
 	fonts = register_fonts({})?
-	theme = base_theme.with_font(fonts.body).with_inline_font(Code, fonts.mono)
+	theme = with_faces(base_theme, fonts)
 	document = Pdf.document({ contents: contents(theme), language: "en-US", title: "Sprout 2.4 product brief" })
 		.with_page_templates(templates)
 		.with_outline(outline)
@@ -37,14 +39,32 @@ main! = |_args| {
 	Ok({})
 }
 
-## The package's sans face for text and Noto Sans Mono for `Pdf.code`.
-register_fonts : {} -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, [FontRejected(Font.ResourceError)])
+Faces : { regular : Font.FaceId, bold : Font.FaceId, italic : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }
+
+## Inter Regular, Bold, and Italic, and Source Code Pro Regular, each retained
+## byte-for-byte from its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin = [Font.Script.from_iso15924("Latn")]
-	body = Font.Registry.empty.register(sans_bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))?
-	mono = body.registry.register(mono_bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))?
-	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	italic = add(bold.registry, italic_bytes)?
+	mono = add(italic.registry, mono_bytes)?
+	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
 }
+
+## Regular for every block role (the style-face path requires one face
+## for body, heading, and title text); Bold for `Pdf.strong`;
+## Italic for `Pdf.emphasis`;
+## the monospace face for `Pdf.code`.
+with_faces : Theme, Faces -> Theme
+with_faces = |base, faces|
+	base
+		.with_font(faces.regular)
+		.with_inline_font(Strong, faces.bold)
+		.with_inline_font(Emphasis, faces.italic)
+		.with_inline_font(Code, faces.mono)
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -88,7 +108,6 @@ base_theme = {
 		.with_title_style({ ..title, color: forest, size: points(40), leading: points(46) })
 		.with_page_margin({ top: points(40), right: points(54), bottom: points(40), left: points(54) })
 		.with_paragraph_spacing(points(9))
-		.with_strong_color(forest)
 		.with_code_color(Color.srgb8({ red: 120, green: 64, blue: 18 }))
 		.with_table_header_color(forest)
 		.with_table_cell_padding(points(5))
