@@ -405,7 +405,12 @@ region is `document.figure_oversize` unless `Pdf.figure_fit` selects
 `ScaleToFit({ minimum_percent })`, which scales the drawing (never its
 caption) by the largest fitting factor down to the floor. `Pdf.decoration`
 paints a drawing as a `Decoration` artifact that occupies its height
-immediately above the next flow block and moves with it. Drawings are
+immediately above the next flow block and moves with it.
+`Pdf.spaced_decoration(drawing, { above, below, behind })` adds space above
+the drawing and between it and the next block, so a divider needs no empty
+drawing area; a negative `below` overlaps the next block's first lines (by
+at most the drawing's height), and `behind: Bool.True` paints the drawing
+before the page's text, such as a band behind a heading. Drawings are
 validated at their authored path (`document.figure_drawing`,
 `layout.decoration_drawing`). Fixed pages remain forward API: they report
 `layout.custom` and emit no bytes or chunks.

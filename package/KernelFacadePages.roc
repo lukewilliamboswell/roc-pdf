@@ -89,8 +89,10 @@ KernelFacadePages :: [].{
 	Rule : { color : Color.SourceValue, layer : [Behind, Front], page : U64, rect : Layout.Rect }
 
 	## One placed in-flow decoration: its index in the normalized
-	## decorations, its page, and its drawing's bottom-left corner.
-	DecorationPaint : { decoration : U64, origin : Layout.Point, page : U64 }
+	## decorations, its page, its drawing's bottom-left corner, and whether
+	## it paints behind the page's text. On each page the decorations that
+	## paint behind come first.
+	DecorationPaint : { behind : Bool, decoration : U64, origin : Layout.Point, page : U64 }
 
 	## A continued table's header rows repainted at the top of `page`:
 	## `group` is the table's normalized group and `rows` the header row
@@ -1585,11 +1587,48 @@ decoration_paints = |authoring, bands, units, margin_left| {
 		}
 		band = list_at(bands, $band)
 		bottom = checked_sub(band.top, checked_add($offset, drawing.height)?)?
-		$paints = $paints.append({ decoration: $index, origin: { x: Layout.Unit.from_raw(margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(bottom.to_i64_wrap()) }, page: band.page })
+		$paints = $paints.append({ behind: decoration.behind, decoration: $index, origin: { x: Layout.Unit.from_raw(margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(bottom.to_i64_wrap()) }, page: band.page })
 		$offset = checked_add($offset, drawing.height)?
 		$index = $index + 1
 	}
-	Ok($paints)
+	Ok(behind_decorations_first($paints))
+}
+
+## Page-ordered decoration paints with each page's behind-text decorations
+## moved before its others, keeping both orders; a list without them is
+## returned as is.
+behind_decorations_first : List(KernelFacadePages.DecorationPaint) -> List(KernelFacadePages.DecorationPaint)
+behind_decorations_first = |paints| {
+	if !paints.any(|paint| paint.behind) {
+		return paints
+	}
+	var $ordered = List.with_capacity(paints.len())
+	var $start = 0
+	while $start < paints.len() {
+		page = list_at(paints, $start).page
+		var $end = $start
+		while $end < paints.len() and list_at(paints, $end).page == page {
+			$end = $end + 1
+		}
+		var $index = $start
+		while $index < $end {
+			paint = list_at(paints, $index)
+			if paint.behind {
+				$ordered = $ordered.append(paint)
+			}
+			$index = $index + 1
+		}
+		$index = $start
+		while $index < $end {
+			paint = list_at(paints, $index)
+			if !paint.behind {
+				$ordered = $ordered.append(paint)
+			}
+			$index = $index + 1
+		}
+		$start = $end
+	}
+	$ordered
 }
 
 check_limit : U64, U64, KernelFacadePages.Dimension -> Try({}, KernelFacadePages.Error)

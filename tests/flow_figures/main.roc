@@ -11,6 +11,7 @@ Case : [
 	Sections({ sections : U64 }),
 	Labels({ count : U64 }),
 	AtomicNegatives({ context : U64 }),
+	SpacedDecorations({ sections : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -43,6 +44,7 @@ main! = |args| {
 		Sections({ sections }) => Fixture.sections(sections)
 		Labels({ count }) => Fixture.labels(count)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
+		SpacedDecorations({ sections }) => Fixture.spaced_decorations(sections)
 	}
 	match result {
 		Ok(value) => value

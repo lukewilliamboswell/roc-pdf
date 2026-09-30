@@ -19,7 +19,9 @@ DocumentBlock :: [
 	DestinationHeading({ level : U8, name : Str, text : Str }),
 	DestinationParagraph({ name : Str, text : Str }),
 	Heading({ level : U8, text : Str }),
-	Decoration(Scene.Drawing),
+
+	## An in-flow decoration (smaller than a figure, so unboxed).
+	Decoration(DecorationSpec),
 	Figure({ alternative : Str, caption : Caption, drawing : Scene.Drawing, fit : FigurePolicy }),
 	InternalLink({ destination : Str, text : Str }),
 	KeepTogether(List(DocumentBlock)),
@@ -38,6 +40,12 @@ DocumentBlock :: [
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
+
+## An in-flow decoration: its drawing, the space it keeps above the
+## drawing and between the drawing and the next block (`below`, negative
+## to overlap that block's first lines by at most the drawing's height),
+## and whether it paints behind the page's text or over it.
+DecorationSpec : { above : Layout.Unit, behind : Bool, below : Layout.Unit, drawing : Scene.Drawing }
 
 ## A custom block as the extension authored it: its semantic content
 ## (ordinary paragraphs and rich paragraphs, which become a `Div`), its
@@ -369,7 +377,9 @@ NormalizedSpacer : { amount : Layout.Unit, block : U64, parent : U64, position :
 ## count when no leaf follows): a `Decoration` page artifact that occupies
 ## its drawing's height immediately above that leaf's first line, on the
 ## same page. `parent` and `position` locate it.
-NormalizedDecoration : { block : U64, drawing : ValidatedDrawing, parent : U64, position : U64 }
+## `behind` paints the decoration before its page's text. Its drawing
+## already includes its authored spacing (`space_decoration`).
+NormalizedDecoration : { behind : Bool, block : U64, drawing : ValidatedDrawing, parent : U64, position : U64 }
 
 ## One custom block: its `Custom` group, the name the extension gave it,
 ## its measured box, the content inset, and its validated panel drawing.
@@ -1172,7 +1182,11 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## An in-flow decorative drawing: a `Decoration` page artifact that
 	## occupies its drawing's height immediately above the next flow block.
 	decoration : Scene.Drawing -> DocumentBlock
-	decoration = |drawing_value| DocumentBlock.Decoration(drawing_value)
+	decoration = |drawing_value| DocumentBlock.Decoration({ above: Layout.Unit.from_raw(0), behind: Bool.False, below: Layout.Unit.from_raw(0), drawing: drawing_value })
+
+	## An in-flow decoration with its own spacing and paint layer.
+	spaced_decoration : Scene.Drawing, { above : Layout.Unit, behind : Bool, below : Layout.Unit } -> DocumentBlock
+	spaced_decoration = |drawing_value, { above, behind, below }| DocumentBlock.Decoration({ above, behind, below, drawing: drawing_value })
 
 	## A custom block from a separately authored extension: its paragraphs
 	## become a `Div`, laid out inside its measured box, with its panel
@@ -1682,7 +1696,9 @@ append_leaf = |state, block, parent, position| match block {
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
 	DestinationParagraph({ name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationParagraph({ name: name }), parent, text }) }
 	Heading({ level, text }) => { ..state, blocks: state.blocks.append({ kind: Heading(level), parent, text }) }
-	Decoration(drawing) => { ..state, decorations: state.decorations.append({ block: state.blocks.len(), drawing: without_decoration_labels(validate_flow_drawing(drawing)), parent, position }) }
+	Decoration(spec) => {
+		{ ..state, decorations: state.decorations.append({ behind: spec.behind, block: state.blocks.len(), drawing: space_decoration(without_decoration_labels(validate_flow_drawing(spec.drawing)), spec.above, spec.below), parent, position }) }
+	}
 	Figure({ alternative, caption, drawing, fit }) => append_figure(state, { alternative, caption, drawing, fit }, parent, position)
 	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
 	Link({ text, uri }) => { ..state, blocks: state.blocks.append({ kind: Link({ uri: uri }), parent, text }) }
@@ -1767,6 +1783,55 @@ without_decoration_labels = |validated| match validated {
 		validated
 	}
 	InvalidDrawing(_) => validated
+}
+
+## A decoration's drawing with its spacing applied: the space above adds to
+## its height, and the space below lifts every command by that amount and
+## adds to its height too (a negative amount lowers the commands into the
+## next block instead). The decoration then occupies `above + height +
+## below`, exactly as an unspaced drawing occupies its height. Negative
+## space above, or an overlap deeper than the drawing, is invalid.
+space_decoration : ValidatedDrawing, Layout.Unit, Layout.Unit -> ValidatedDrawing
+space_decoration = |validated, above, below| match validated {
+	InvalidDrawing(_) => validated
+	ValidDrawing(drawing) => {
+		up = above.raw()
+		down = below.raw()
+		if up == 0 and down == 0 {
+			return validated
+		}
+		if up < 0 {
+			return InvalidDrawing("the space above a decoration is negative")
+		}
+		if !within_bound(up) or !within_bound(down) or down + drawing.height.to_i64_wrap() < 0 {
+			return InvalidDrawing("a decoration overlaps the next block by more than its own height")
+		}
+		var $moved = List.with_capacity(drawing.commands.len())
+		for command in drawing.commands {
+			$moved = $moved.append(
+				match command {
+					FlowImage({ image, placement }) => FlowImage({ image, placement: { origin: { x: placement.origin.x, y: Layout.Unit.from_raw(placement.origin.y.raw() + down) }, size: placement.size } })
+					FlowPath({ fill, segments, stroke }) => FlowPath({ fill, segments: lift_segments(segments, down), stroke })
+					FlowText(boxed) => FlowText(boxed)
+				},
+			)
+		}
+		ValidDrawing({ ..drawing, commands: $moved, height: (drawing.height.to_i64_wrap() + up + down).to_u64_wrap() })
+	}
+}
+
+lift_segments : List(Scene.PathSegment), I64 -> List(Scene.PathSegment)
+lift_segments = |segments, dy| {
+	lift = |point| { x: point.x, y: Layout.Unit.from_raw(point.y.raw() + dy) }
+	segments.map(
+		|segment| match segment {
+			Close => Close
+			CubicTo({ control_1, control_2, end }) => CubicTo({ control_1: lift(control_1), control_2: lift(control_2), end: lift(end) })
+			LineTo(point) => LineTo(lift(point))
+			MoveTo(point) => MoveTo(lift(point))
+			Rectangle(rect) => Rectangle({ origin: lift(rect.origin), size: rect.size })
+		},
+	)
 }
 
 validate_flow_drawing : Scene.Drawing -> ValidatedDrawing

@@ -57,6 +57,12 @@ import pdf.Theme
 ##   drawing, a label the face does not cover, a label in another script,
 ##   an empty label, a labelled decoration, a labelled furniture drawing,
 ##   and labels under an ordered font policy.
+## - `spaced_decorations xN`: N sections, each a divider rule with 12 pt
+##   above and 6 pt below it (no empty drawing area), and a heading over a
+##   tinted band that overlaps the heading by its full height and paints
+##   behind its text. Rejections: negative space above, and an overlap
+##   deeper than the drawing (`layout.decoration_drawing`). The 10/100 pair
+##   is the linear scale pair.
 ## - `atomic_negatives`: every figure and decoration rejection with its
 ##   stable dotted code and authored path, and no bytes.
 ##
@@ -75,6 +81,14 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		evidence(sections_document(count))
+	}
+
+	spaced_decorations : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	spaced_decorations = |count| {
+		if count == 0 or count > 100 {
+			return Err(InvalidScale)
+		}
+		run_spaced_decorations(count)
 	}
 
 	labels : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -340,6 +354,41 @@ sections_document = |count| {
 		$index = $index + 1
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Regional figures" })
+}
+
+spaced_document : U64 -> Document
+spaced_document = |count| {
+	band = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 22), Color.srgb8({ blue: 200, green: 225, red: 240 }))
+	rule = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), oak)
+	var $contents = List.with_capacity(count * 5 + 1)
+	$contents = $contents.append(Pdf.title("Spaced decorations"))
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		$contents = $contents
+			.append(Pdf.spaced_decoration(rule, { above: points(12), behind: Bool.False, below: points(6) }))
+			.append(Pdf.spaced_decoration(band, { above: points(0), behind: Bool.True, below: points(-22) }))
+			.append(Pdf.heading(1, "  Region ${number}"))
+			.append(paragraph($index))
+		$index = $index + 1
+	}
+	Pdf.document({ contents: $contents, language: "en-AU", title: "Spaced decorations" })
+}
+
+run_spaced_decorations : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_spaced_decorations = |count| {
+	evidenced = evidence(spaced_document(count))?
+	rule = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 100, 2), oak)
+	document = |block| Pdf.document({ contents: [Pdf.paragraph("Lead ${count.to_str()}"), block, Pdf.paragraph("Body")], language: "en-AU", title: "Spacing negatives" })
+	checks = [
+		rejects(document(Pdf.spaced_decoration(rule, { above: points(-1), behind: Bool.False, below: points(0) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(document(Pdf.spaced_decoration(rule, { above: points(0), behind: Bool.True, below: points(-3) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+	]
+	rejections = checks.sum()
+	if rejections != checks.len() {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({ bytes: evidenced.bytes, work: evidenced.work.append(rejections) })
 }
 
 ## Bytes come from `Pdf.to_bytes_with`; work comes from one facade pipeline

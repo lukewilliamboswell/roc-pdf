@@ -335,7 +335,11 @@ build_arena_with_intent = |prepared, intent, limits| {
 			## A template region's backdrops paint first on their page,
 			## through the furniture branch below, behind everything else.
 			backdrop_ready = $paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index and list_at(furniture.paints, $paint_cursor).behind
-			if !backdrop_ready and $panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index {
+
+			## In-flow decorations that paint behind the text come next,
+			## through the decoration branch below.
+			behind_ready = !backdrop_ready and $decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index and list_at(prepared.flow.decorations, $decoration_cursor).behind
+			if !backdrop_ready and !behind_ready and $panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index {
 				## A custom block's panel paints first on its page, behind
 				## the text it frames: one `Decoration` page-artifact group,
 				## a transform to its measured box's bottom-left corner
@@ -374,7 +378,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
 				$page_groups = $page_groups.append(group)
 				$panel_cursor = $panel_cursor + 1
-			} else if !backdrop_ready and $placement_cursor < page_end and !($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index and list_at(prepared.rules, $rule_cursor).layer == Behind) {
+			} else if !backdrop_ready and !behind_ready and $placement_cursor < page_end and !($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index and list_at(prepared.rules, $rule_cursor).layer == Behind) {
 				## Table row and cell fills (`Behind` rules, first on their
 				## page) paint through the rule branch below before any of the
 				## page's text.
@@ -522,7 +526,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				})
 				$page_groups = $page_groups.append(group)
 				$placement_cursor = $placement_cursor + 1
-			} else if !backdrop_ready and $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
+			} else if !backdrop_ready and !behind_ready and $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
 				## Table fills paint before the page's text and table rules and
 				## link underlines after it, each a filled rectangle owned by a
 				## layout decoration artifact.
@@ -542,7 +546,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$rule_cursor = $rule_cursor + 1
 			} else if !backdrop_ready and $decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index {
 				## In-flow decorations paint after the page's text and table
-				## rules, each one `Decoration` page-artifact group: a
+				## rules (those that paint behind, before them), each one `Decoration` page-artifact group: a
 				## transform to its bottom-left corner around its commands.
 				paint = list_at(prepared.flow.decorations, $decoration_cursor)
 				decoration = list_at(flow.decorations, paint.decoration)

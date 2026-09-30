@@ -336,3 +336,34 @@ Every delta comes from a cold-cache, full-order run.
 - **Anchor text.** A figure's anchor line paints one space glyph inside the
   `Figure`; it is invisible, and its text is replaced by `/Alt` for
   assistive technology.
+
+## Decoration spacing and paint layer (examples showcase)
+
+A decoration occupied exactly its drawing's height above the next block
+and painted after the page's text, so the gallery padded dividers with an
+empty drawing area and could not put a band behind a heading.
+`Pdf.spaced_decoration(drawing, { above, below, behind })` records the
+spacing and layer on the block. Normalization applies the spacing to the
+validated drawing (`Document.space_decoration`): the height grows by
+`above + below` and every command is lifted by `below`, so pagination,
+decoration stacking, and `DecorationOversize` see one ordinary drawing
+height and no later stage changes. A negative `below` lowers the commands
+into the next block; an overlap deeper than the drawing, or negative space
+above, is `layout.decoration_drawing` at the block's path. `behind` is
+carried on the normalized decoration and its paint; each page's behind
+decorations are ordered first (`behind_decorations_first`, linear, and a
+no-op without them), and the scene loop paints them before panels, fills,
+and text, after region backdrops. Decorations still take no text labels,
+so no label ordering depends on the paint order.
+
+The decoration block's payload became a record of the drawing, spacing,
+and layer, unboxed: a boxed payload cost one allocation per decoration
+(+2 on `flow figures report`), while the record still fits inside the
+block union's largest alternative. `NormalizedDecoration` gains `behind`.
+No existing allocation count changes.
+
+Evidence: `flow figures spaced decorations x10` and `x100`: each section
+has a divider with 12 pt above and 6 pt below it and a heading over a
+22 pt band that overlaps it fully and paints behind its text. Each also
+rejects negative space above and an overlap deeper than the drawing.
+x10: 28,308 allocations, 2 pages; x100: 232,986 (8.2×), 15 pages: linear.

@@ -412,6 +412,19 @@ Pdf :: [].{
 	decoration : Scene.Drawing -> Document.Block
 	decoration = |drawing| Document.decoration(drawing)
 
+	## A decoration with its own spacing and paint layer. `above` is space
+	## kept above the drawing and `below` space between the drawing and the
+	## next block, so a divider needs no empty drawing area around it; the
+	## decoration occupies `above`, its drawing's height, and `below`, and
+	## still moves with the next block's first line. A negative `below`
+	## lowers the drawing over the next block's first lines by at most its
+	## own height, such as a highlight band behind a heading; `behind`
+	## paints the decoration before the page's text instead of after it
+	## (it stays a `Decoration` artifact either way). A negative `above` or
+	## a deeper overlap is `layout.decoration_drawing`.
+	spaced_decoration : Scene.Drawing, { above : Layout.Unit, behind : Bool, below : Layout.Unit } -> Document.Block
+	spaced_decoration = |drawing, spacing| Document.spaced_decoration(drawing, spacing)
+
 	## A custom block, as a separately authored extension measured it (see
 	## `CustomBlock`).
 	custom_block : CustomBlock -> Document.Block

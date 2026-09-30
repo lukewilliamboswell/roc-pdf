@@ -24333,6 +24333,128 @@
       ]
     },
     {
+      "name": "flow figures spaced decorations x10",
+      "scenario_revision": "flow-figures-spaced-decorations-v1",
+      "source": "tests/flow_figures/main.roc",
+      "snapshot": "tests/flow_figures/spaced_decorations_10.pdf",
+      "args": [
+        "spaced_decorations",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "sections": 10
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "scene_commands",
+        "figures",
+        "decorations",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 28308,
+          "allocated_bytes": 6751116,
+          "work": {
+            "lines": 46,
+            "pages": 2,
+            "fragments": 46,
+            "scene_commands": 132,
+            "figures": 0,
+            "decorations": 20,
+            "output_bytes": 39598,
+            "rejections": 2
+          }
+        },
+        "x64musl": {
+          "allocations": 28308,
+          "allocated_bytes": 6751116,
+          "work": {
+            "lines": 46,
+            "pages": 2,
+            "fragments": 46,
+            "scene_commands": 132,
+            "figures": 0,
+            "decorations": 20,
+            "output_bytes": 39598,
+            "rejections": 2
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "flow figures spaced decorations x100",
+      "scenario_revision": "flow-figures-spaced-decorations-v1",
+      "source": "tests/flow_figures/main.roc",
+      "snapshot": "tests/flow_figures/spaced_decorations_100.pdf",
+      "args": [
+        "spaced_decorations",
+        "100"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 15,
+        "sections": 100
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "scene_commands",
+        "figures",
+        "decorations",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 232986,
+          "allocated_bytes": 45239745,
+          "work": {
+            "lines": 451,
+            "pages": 15,
+            "fragments": 451,
+            "scene_commands": 1302,
+            "figures": 0,
+            "decorations": 200,
+            "output_bytes": 197032,
+            "rejections": 2
+          }
+        },
+        "x64musl": {
+          "allocations": 232986,
+          "allocated_bytes": 45239745,
+          "work": {
+            "lines": 451,
+            "pages": 15,
+            "fragments": 451,
+            "scene_commands": 1302,
+            "figures": 0,
+            "decorations": 200,
+            "output_bytes": 197032,
+            "rejections": 2
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "flow figures atomic negatives",
       "scenario_revision": "flow-figures-v1",
       "source": "tests/flow_figures/main.roc",
