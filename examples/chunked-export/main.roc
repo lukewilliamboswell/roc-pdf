@@ -21,7 +21,8 @@ import "fonts/SourceCodePro-Bold.ttf" as bold_bytes : List(U8)
 ## a summary callout measured by the package, a generated temperature
 ## chart with its safe band, and a 48-row readings table with zebra rows
 ## and shaded excursions that continues across pages with its header
-## repeated and a summary footer.
+## repeated and a summary footer, under a running header inset above its
+## rule.
 main! = |_args| {
 	fonts = register_fonts({})?
 	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
@@ -153,14 +154,17 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
 	continuation: Pdf.page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(14),
-				start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])],
-				center: [],
-				end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])],
-			}),
-			Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(measure) } }, frost),
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(17),
+					start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])],
+					center: [],
+					end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])],
+				}),
+				Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(measure) } }, frost),
+			),
+			points(3),
 		),
 		footer,
 		gap: points(12),
