@@ -365,6 +365,36 @@ validated at their authored path (`document.figure_drawing`,
 `layout.decoration_drawing`). Fixed pages remain forward API: they report
 `layout.custom` and emit no bytes or chunks.
 
+An extension can contribute a block through `Pdf.custom_block` without any
+PDF object or operator: it supplies ordinary paragraphs, its own
+measurement of the block (`size` and a content `inset`), and a panel of
+solid paths drawn behind the content, and declares it `Unsplittable`:
+
+```roc
+callout = Pdf.custom_block({
+    contents: [Pdf.paragraph("Revenue: AUD 9.22 m (+5.0%)"), Pdf.paragraph("On-time delivery: 96.4%")],
+    fragmentation: Unsplittable,
+    inset: Layout.Unit.points(10),
+    name: "Key figures",
+    panel: Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 320, 70), tint),
+    size: { height: Layout.Unit.points(70), width: Layout.Unit.points(320) },
+})
+```
+
+The paragraphs become a `Div`; the package lays them out inside the box and
+proves they fit (`layout.custom_block_measure` otherwise), and the block
+moves whole to the next page. `tests/custom_block/Callout.roc` is a complete
+extension that measures itself from the theme's public metrics.
+
+`Pdf.prepare_with_report` returns the prepared document together with a
+bounded, read-only `Pdf.Report`: pages, leaf blocks in reading order with
+their pages, alternatives and nested languages, layout outcomes (relaxed
+preferences, figure scales, repeated table headers, continued rows, placed
+custom blocks), text coverage, and, separately, the human-review
+obligations. Every entry names the authored path diagnostics use. The
+prepared bytes are identical to `Pdf.prepare`'s, and a report over its
+budget is `report.budget_exceeded` rather than a shorter report.
+
 | Authoring surface | Status |
 | --- | --- |
 | titles, headings, paragraphs, links, destinations | executable |
@@ -372,6 +402,8 @@ validated at their authored path (`document.figure_drawing`,
 | prepared and chunked emission | executable |
 | figures of typed JPEG/packed raster images and solid vector paths, grouped and multi-command, with captions and `ScaleToFit` | executable |
 | in-flow decorations (`Pdf.decoration`) | executable |
+| extension blocks (`Pdf.custom_block`, unsplittable) | executable |
+| preparation report (`Pdf.prepare_with_report`) | executable |
 | clip, opacity, and soft-mask groups and non-solid paint in flow drawings | not yet offered |
 | parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | executable |
 | rich paragraphs: emphasis, strong, code, quote, inline links, language spans, and expansions | executable |

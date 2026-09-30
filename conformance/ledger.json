@@ -129,6 +129,37 @@
       "external_rule_ids": []
     },
     {
+      "id": "ROC-PDF-PDF20-CUSTOM-BLOCK",
+      "summary": "A custom block from a separately authored extension is data only: its paragraphs become one Div of P elements, its measured box is proven to hold the laid-out content (no clipping or shrinking), it is one unsplittable unit, and its panel is /Artifact <</Type /Layout>> content with no MCID painted before its page's marked content; the preparation report names every observation by authored path without PDF object identity and leaves the prepared bytes unchanged.",
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 14.8.2.2",
+        "ISO 32000-2:2020 14.8.4.3",
+        "docs/performance/custom-block-report.md",
+        "docs/reference-documents.md: Figures, decorations, and extensions",
+        "docs/reference-documents.md: Preparation report"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "roc_page_layout_trailing_and_leaf_path_expects; custom_block_harness_family_with_structure_semantics_paragraph_div_and_underlay_counts; report_bytes_equal_to_bytes_with; verapdf_pdfa4_zero_failures; atomic_custom_block_and_report_budget_negatives_emit_no_bytes",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "tests/custom_block/Callout.roc",
+        "tests/custom_block/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/KernelPageLayout.roc",
+        "scripts/check_structure_semantics.py",
+        "tests/custom_block/Fixture.roc"
+      ],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-EMISSION-XREF",
       "summary": "The private structural emitter writes deterministic PDF 2.0 objects, indirect stream lengths, a fixed-width unfiltered xref stream, startxref, and EOF through one buffered/chunk transition.",
       "source_ids": [

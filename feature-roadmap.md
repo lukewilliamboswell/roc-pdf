@@ -971,7 +971,7 @@ ceilings, scale pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence,
 and an independent structure checker. Each record lists its own open issues:
 
 - Reference contract: [docs/reference-documents.md](docs/reference-documents.md)
-  (`reference-documents-v8`) defines the invoice, report, and letter,
+  (`reference-documents-v9`) defines the invoice, report, and letter,
   their adverse variants, the text-support matrix, and the layout-policy
   vocabulary.
 - Semantic foundation, containers, `/Lang`/`/ID`/`/IDTree`/`/A`, and
@@ -1005,6 +1005,16 @@ and an independent structure checker. Each record lists its own open issues:
   them (REP-A5 keeps `Café中PDF`-style text), a role face is style-faces
   only (`text.inline_font_policy` under a policy), and figures remain
   start-aligned with body-style captions.
+- The custom-block seam and the preparation report (S9):
+  `Pdf.custom_block`, exercised by the separately authored "Key figures"
+  callout (`tests/custom_block/Callout.roc`), and `Pdf.prepare_with_report`
+  with separate facts and obligations, applied figure scales, relaxations,
+  repeated headers, and an explicit budget:
+  `docs/performance/custom-block-report.md`. Its open issues: extensions
+  measure from theme metrics only (no public text measurement), only
+  `Unsplittable` fragmentation, probe work stops at text, inline report
+  paths scan line breaks, and veraPDF PDF/UA-2 8.2.4 flags the pre-existing
+  `Quote`/`Code` roles as unmapped.
 - Linear lowering and emission, plus the allocated-byte guard:
   `docs/performance/lowering-uniqueness.md` and
   `docs/performance/emission-linearity.md`. The Roc compiler defects behind
@@ -1014,13 +1024,7 @@ and an independent structure checker. Each record lists its own open issues:
 
 Exact remaining work before Gate 6 can close:
 
-1. **Custom-block seam and preparation report.** `Pdf.custom_block`
-   exercised by a separately authored consumer (a chart or callout), and a
-   bounded read-only report. The report exposes the layout relaxations and
-   repeated-header facts that are already recorded internally, authored
-   locations, reading order, alternatives, text coverage, and human-review
-   obligations, including the scale each `ScaleToFit` figure received.
-2. **Reference documents and closure.** The invoice, report, and letter as
+1. **Reference documents and closure.** The invoice, report, and letter as
    `examples/` programs, plus a `tests/reference_documents` family with every
    adverse variant. `examples/letter.roc` and `examples/prepared_invoice.roc`
    move to templates and tables. This step also runs the combined

@@ -678,9 +678,11 @@ assertion, and the human-verifiable requirements described later still apply.
 ### Authoring feedback
 
 Preparation provides a bounded, read-only report alongside the opaque prepared
-result through a supported inspection surface. This is a production contract
-to be delivered with business authoring, not a claim that the current
-`Pdf.Prepared` API already exposes inspection methods. The report contains
+result through a supported inspection surface: `Pdf.prepare_with_report`
+returns the unchanged `Pdf.Prepared` beside a `Pdf.Report` whose mechanical
+facts and human-review obligations are separate fields
+([reference-documents.md](docs/reference-documents.md#preparation-report)).
+The report contains
 authoring locations, page and fragment summaries, logical reading order,
 authored alternatives and assertions, layout-policy outcomes, selected text
 coverage, and applicable human-review obligations. It exposes no PDF object
@@ -737,7 +739,12 @@ lowering does not depend on a particular layout engine.
 The roadmap declares executable and stable subsets separately. A bounded
 business block must be exercised by a separately authored public consumer
 before that subset is called stable; the conceptual shape alone does not close
-the general custom-layout capability.
+the general custom-layout capability. The first such subset is
+`Pdf.custom_block`: a data-only block whose extension supplies ordinary
+paragraphs, its own measurement of the block, and a decorative panel, with
+`Unsplittable` fragmentation; the package lays out and proves the content
+inside that measurement. A separately authored callout exercises it
+(`tests/custom_block/Callout.roc`).
 
 The advanced conceptual lifecycle uses `Try`, current Roc's fallible-result
 type:

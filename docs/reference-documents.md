@@ -10,7 +10,7 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v8`**.
+Version: **`reference-documents-v9`**.
 
 - It is a design record. It claims no executable capability, conformance
   result, or reader behavior. Capability status remains governed by the
@@ -1049,6 +1049,11 @@ with.
 | `layout.page_break_position` | new family | A page break is first or last in the flow, or directly follows another |
 | `layout.spacer_negative` | new family | A spacer has a negative height |
 | `layout.list_label_width` | new family | A list's widened label column leaves its body no width |
+| `layout.custom_block_measure` | new family | A custom block's measured box is not positive, its inset is not positive or leaves no content box, or its laid-out content is taller than its measured height less twice its inset (`reference-documents-v9`) |
+| `layout.custom_block_drawing` | `InvalidRelationship` | A custom block's panel is not a valid flow drawing, holds an image, or extends beyond the measured box (`reference-documents-v9`) |
+| `semantics.custom_block_content` | `InvalidRelationship` | A custom block holds something other than paragraphs and rich paragraphs (`details`: the block, then the child), or appears in the lead region (`reference-documents-v9`) |
+| `semantics.custom_block_name` | `InvalidRelationship` | A custom block's name is empty (`reference-documents-v9`) |
+| `report.budget_exceeded` | `BudgetExceeded` | The preparation report would exceed its entry or text-byte budget; no report and no prepared document are returned (`reference-documents-v9`) |
 
 Container diagnostics (from `reference-documents-v2`) carry their dotted code
 in the existing `FeatureReference` field and the compact block path of the
@@ -1240,26 +1245,97 @@ Scene.Drawing.group : Scene.Drawing, Layout.Point, Scene.Drawing -> Scene.Drawin
 
 `figure`, `figure_fit` (with `Pdf.FigureFit`), `decoration`, and
 `Scene.Drawing.group` are executable with these names and shapes
-(flow-figures slice, `reference-documents-v7`). A figure or decoration
+(flow-figures slice, `reference-documents-v7`); `custom_block` is executable
+with the shape below (custom-block slice, `reference-documents-v9`). A figure or decoration
 drawing holds any number of image commands and solid paths
 (`Scene.solid_fill`, `Scene.solid_stroke`, `Scene.rectangle`) and
 translated groups (`Scene.Drawing.group`, at most 8 deep) in
 drawing-local coordinates whose origin is its bottom-left corner, y
 upward, with the furniture drawing's extent rule; a decoration is a
 `Decoration` page artifact (`/Artifact <</Type /Layout>>`) painted after the
-page's text. `figure_fit` on a non-figure block is rejected. `custom_block`'s exact shape is
-fixed by the custom-block slice; it must keep the document data-only (handlers
-are supplied separately, as `Layout.Handlers` already requires), take its
-semantic content from ordinary `Pdf` blocks, paint only validated
-`Scene.Drawing` values owned by those blocks or by an explicit decoration
-artifact, and support `Unsplittable` fragmentation in v1. PDF operators and
-custom pagination are not exposed.
+page's text. `figure_fit` on a non-figure block is rejected.
+
+```roc
+CustomBlock : {
+    contents : List(Block),          # paragraphs and rich paragraphs only
+    fragmentation : [Unsplittable],  # the only v1 value
+    inset : Layout.Unit,             # content inset on every side, positive
+    name : Str,                      # names the block in diagnostics and the report
+    panel : Scene.Drawing,           # solid paths in box-local coordinates, behind the content
+    size : Layout.Size,              # the extension's measurement of the block
+}
+```
+
+The document stays data-only: a custom block is a value, with no handler,
+callback, private store, PDF object, or operator. Its contract:
+
+- **Semantics.** Its paragraphs keep their own semantics inside a `Div`
+  (`Document > … > Div > P`); the block adds no other element. The panel is a
+  `Decoration` artifact (`/Artifact <</Type /Layout>>`) owned by the block.
+- **Measurement.** The extension measures the block: `size` is its width and
+  height in the flow. The package lays the paragraphs out at `size.width`
+  less twice the inset, in the body style with paragraph spacing between
+  them, and proves that their height fits `size.height` less twice the inset;
+  otherwise `layout.custom_block_measure` reports both heights. Content is
+  never clipped or shrunk. The block occupies exactly `size.height`; its
+  content starts one inset below its top, start-aligned one inset from its
+  left edge.
+- **Fragmentation.** `Unsplittable`: the block is one keep-together unit
+  that moves whole to the next page (with any decoration above it). A block
+  wider than its flow region, or taller than the largest page flow region, is
+  `layout.oversize_block` naming the block and both sizes (REP-A10).
+- **Paint.** The panel is validated like a figure drawing but holds solid
+  paths only (no images) and must lie inside the measured box
+  (`layout.custom_block_drawing`). It paints first on its page, behind every
+  text line, with its origin at the box's bottom-left corner.
+- **Placement.** A custom block is body flow at the block level, including
+  inside parts, sections, divisions, and keeps; not in a list item
+  (`semantics.list_item_content`), a table, or the lead region
+  (`semantics.custom_block_content`). Its content holds no nested group,
+  decoration, spacer, or page break.
+
+PDF operators and custom pagination are not exposed; continuation of a
+custom block across pages is not offered in v1.
 
 ### Preparation report
 
 ```roc
 prepare_with_report : Document, Options -> Try({ prepared : Prepared, report : Report }, Error)
+prepare_with_report_budget : Document, Options, ReportBudget -> Try({ prepared : Prepared, report : Report }, Error)
+Report : { facts : ReportFacts, obligations : List(ReportObligation) }
+ReportFacts : {
+    alternatives : List({ kind : [Alternative, Expansion, Language], path : Str, text : Str }),
+    blocks : List({ first_page : U64, fragments : U64, last_page : U64, path : Str, role : Str }),
+    coverage : List({ font : U64, path : Str, scalars : U64, script : Str }),
+    language : Str,
+    outcomes : List(ReportOutcome),
+    pages : List({ fragments : U64, page : U64 }),
+    title : Str,
+}
+ReportOutcome : [
+    CustomBlockPlaced({ height : Layout.Unit, name : Str, page : U64, path : Str }),
+    FigureScale({ fit : [Exact, ScaleToFit], path : Str, scale : U64 }),
+    PreferenceRelaxed({ page : U64, path : Str, preference : [AuthorKeep, FooterCarry, HeadingKeep, Orphan, Widow] }),
+    RepeatedHeader({ page : U64, path : Str, rows : U64 }),
+    RowContinued({ page : U64, path : Str }),
+]
+ReportObligation : { obligation : [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful], path : Str }
+ReportBudget : { max_entries : U64, max_text_bytes : U64 }
 ```
+
+These are executable with these names and shapes (custom-block slice,
+`reference-documents-v9`). Mechanical facts (`facts`) and human-review
+obligations (`obligations`) are separate fields. Every observation carries
+the authored path diagnostics use; pages count from 1; `blocks` is the
+logical reading order of leaf blocks; a figure scale is in thousandths.
+`prepare_with_report` uses a budget of 65,536 entries and 4 MiB of text.
+The prepared document is the one `prepare` returns, so its bytes are
+identical. `ExpansionAccurate` joins the obligation vocabulary with this
+version; `LinkPurposeMeaningful` and `LanguageAccurate` are no longer only
+proposed. Obligations are one `ReadingOrderMeaningful` and one
+`LanguageAccurate` for the document (path `document`), one
+`ReadingOrderMeaningful` per custom block, and one per figure, table, link,
+nested language, and expansion.
 
 The report is bounded and read-only. It contains authored locations (block
 paths), per-page fragment summaries, logical reading order, authored
@@ -1321,6 +1397,17 @@ version, the task, the observed outcome, and any limitation.
   read first, and that page furniture is not read as body text.
 
 ## Change log
+
+- `reference-documents-v9`: the custom-block slice makes `custom_block`
+  (with `Pdf.CustomBlock`), `prepare_with_report`,
+  `prepare_with_report_budget`, `Report`, and `ReportBudget` executable;
+  fixes the custom block's data-only shape and its semantic, measurement,
+  fragmentation (`Unsplittable`), paint (panel behind text), and placement
+  contract; fixes the report's fields, outcome and obligation vocabulary
+  (adding `ExpansionAccurate`), and budget; and adds
+  `layout.custom_block_measure`, `layout.custom_block_drawing`,
+  `semantics.custom_block_content`, `semantics.custom_block_name`, and
+  `report.budget_exceeded`.
 
 - `reference-documents-v8`: the open-issues slice makes furniture text
   executable under an ordered font policy and retires
