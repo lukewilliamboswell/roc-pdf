@@ -306,9 +306,10 @@ outline, or rasterize PDFs.
 ## Images, figures, and forward authoring
 
 Packed grayscale, packed sRGB, and validated sRGB JPEG sources can be placed
-without leaking PDF objects or caller-assigned resource IDs. The first
-executable figure slice accepts exactly one image command, requires non-empty
-alternative text, and accepts an optional visible caption:
+without leaking PDF objects or caller-assigned resource IDs. A figure's
+drawing holds any number of images and solid paths, grouped with
+`Scene.Drawing.group`, and requires non-empty alternative text; a visible
+caption is optional:
 
 ```roc
 image = Image.Source.rgb8({
@@ -320,22 +321,43 @@ image = Image.Source.rgb8({
 drawing = Scene.drawing({}).image(image, Layout.rect(0, 0, 240, 120))
 
 figure = Pdf.figure(drawing, "A four-color information panel", Pdf.caption("Figure 1"))
+
+## A grouped vector chart: each bar pair is a group translated into place.
+bars = Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 36, 120), blue), Layout.rect(40, 0, 36, 150), orange)
+chart = Scene.drawing({})
+    .path(Scene.path({}).move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, Layout.Unit.points(1)))
+    .group(Layout.point(48, 21), bars)
+    .group(Layout.point(156, 21), bars)
+plan = Pdf.figure_fit(Pdf.figure(site_plan, "Plan of the yard", Pdf.no_caption), ScaleToFit({ minimum_percent: 50 }))
+rule = Pdf.decoration(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 6, 483, 1), ink))
 ```
 
 Image pixel dimensions and layout placement are independent. Packed planes
 must have valid dimensions, row stride, byte length, and supported alpha;
 JPEGs additionally pass the bounded marker and orientation-policy inspector.
-Invalid resources fail transactionally. Vector paths, grouped drawings,
-multi-command figures, and fixed pages remain forward API: they report
-`document.figure` or `layout.custom` and emit no bytes or chunks.
+Invalid resources fail transactionally.
+
+A figure is placed start-aligned in the flow at its authored size, as one
+unsplittable unit with its caption below it; a caption becomes a `Caption`
+beside the `Figure` in a `Sect`, so assistive technology reads it
+independently of the alternative text. A figure that does not fit the flow
+region is `document.figure_oversize` unless `Pdf.figure_fit` selects
+`ScaleToFit({ minimum_percent })`, which scales the drawing (never its
+caption) by the largest fitting factor down to the floor. `Pdf.decoration`
+paints a drawing as a `Decoration` artifact that occupies its height
+immediately above the next flow block and moves with it. Drawings are
+validated at their authored path (`document.figure_drawing`,
+`layout.decoration_drawing`). Fixed pages remain forward API: they report
+`layout.custom` and emit no bytes or chunks.
 
 | Authoring surface | Status |
 | --- | --- |
 | titles, headings, paragraphs, links, destinations | executable |
 | sRGB role styling, font selection, page size, spacing and margins | executable |
 | prepared and chunked emission | executable |
-| one-image figures using typed JPEG/packed raster sources | executable |
-| vector/grouped/multi-command drawings | representable; `document.figure` diagnostic |
+| figures of typed JPEG/packed raster images and solid vector paths, grouped and multi-command, with captions and `ScaleToFit` | executable |
+| in-flow decorations (`Pdf.decoration`) | executable |
+| clip, opacity, and soft-mask groups and non-solid paint in flow drawings | not yet offered |
 | parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | executable |
 | rich paragraphs: emphasis, strong, code, quote, inline links, language spans, and expansions | executable |
 | bulleted and numbered lists with nested blocks, `Pdf.bullets` | executable |

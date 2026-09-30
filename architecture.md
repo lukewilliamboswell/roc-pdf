@@ -603,8 +603,8 @@ constructors create their semantic structure automatically:
 - Tables require declared headers and retain a logical grid.
 - A meaningful image is constructed as a figure with author-supplied
   alternative text. A decorative image uses a separate decoration constructor
-  and becomes an artifact through the supported page-template or fixed-page
-  ownership path.
+  and becomes an artifact through the supported page-template, in-flow
+  decoration (`Pdf.decoration`), or fixed-page ownership path.
 - Future common image constructors accept inspected JPEG or typed packed
   raster planes and make color assumptions explicit in their names or inputs.
 - Links retain their text, URI or internal destination, annotation ownership,

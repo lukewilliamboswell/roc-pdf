@@ -971,7 +971,7 @@ ceilings, scale pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence,
 and an independent structure checker. Each record lists its own open issues:
 
 - Reference contract: [docs/reference-documents.md](docs/reference-documents.md)
-  (`reference-documents-v6`) defines the invoice, report, and letter,
+  (`reference-documents-v7`) defines the invoice, report, and letter,
   their adverse variants, the text-support matrix, and the layout-policy
   vocabulary.
 - Semantic foundation, containers, `/Lang`/`/ID`/`/IDTree`/`/A`, and
@@ -984,6 +984,14 @@ and an independent structure checker. Each record lists its own open issues:
   `Headers`: `docs/performance/tables.md`.
 - First-page and continuation-page templates, furniture, and stabilized
   page and total-page fields: `docs/performance/page-templates.md`.
+- Flow figures of bounded vector, raster, grouped, and multi-command
+  drawings, explicit `ScaleToFit`, `Pdf.decoration` artifacts, and captions
+  as `Sect > (Figure, Caption)` with `CaptionFor`:
+  `docs/performance/flow-figures.md`. Its open issues: applied scales are
+  not yet reported (the preparation report), figures are start-aligned with
+  body-style captions, only translated groups exist, a decoration binds to
+  the next flow block and never paints behind text, and `ScaleToFit` fits
+  the smaller template frame.
 - Linear lowering and emission, plus the allocated-byte guard:
   `docs/performance/lowering-uniqueness.md` and
   `docs/performance/emission-linearity.md`. The Roc compiler defects behind
@@ -993,24 +1001,19 @@ and an independent structure checker. Each record lists its own open issues:
 
 Exact remaining work before Gate 6 can close:
 
-1. **Flow figures and decorations.** Bounded vector, grouped, and
-   multi-command drawings in `Pdf.figure`, explicit `ScaleToFit`, a
-   `Pdf.decoration` artifact, and figure captions as `Caption` with a
-   `CaptionFor` relation (roadmap capability "Bounded image/vector flow
-   figures").
-2. **Custom-block seam and preparation report.** `Pdf.custom_block`
+1. **Custom-block seam and preparation report.** `Pdf.custom_block`
    exercised by a separately authored consumer (a chart or callout), and a
    bounded read-only report. The report exposes the layout relaxations and
    repeated-header facts that are already recorded internally, authored
    locations, reading order, alternatives, text coverage, and human-review
-   obligations.
-3. **Reference documents and closure.** The invoice, report, and letter as
+   obligations, including the scale each `ScaleToFit` figure received.
+2. **Reference documents and closure.** The invoice, report, and letter as
    `examples/` programs, plus a `tests/reference_documents` family with every
    adverse variant. `examples/letter.roc` and `examples/prepared_invoice.roc`
    move to templates and tables. This step also runs the combined
    conformance, structure, and renderer sweep and records the closure
    (optional human review).
-4. **Open issues recorded by executed slices** that the references need:
+3. **Open issues recorded by executed slices** that the references need:
    - furniture text under ordered font policies (`text.furniture_policy`,
      needed by REP-A5);
    - a selectable face per inline role (a monospace `Code`);

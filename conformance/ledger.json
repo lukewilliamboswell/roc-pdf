@@ -164,6 +164,36 @@
       ]
     },
     {
+      "id": "ROC-PDF-PDF20-FLOW-FIGURES",
+      "summary": "Flow figures own validated vector, raster, grouped, and multi-command drawings as one Figure with a non-empty /Alt and one marked-content sequence; a caption is Sect > (Figure, Caption > P) with a CaptionFor relationship, so it stays exposed independently of /Alt and is the last child of a non-transparent parent; a figure that does not fit is rejected unless ScaleToFit explicitly scales only its drawing, uniformly and above its floor; in-flow decorations are /Artifact <</Type /Layout>> content with no MCID that move with the next flow block.",
+      "source_ids": [
+        "iso-32000-2-2020-ec3"
+      ],
+      "references": [
+        "ISO 32000-2:2020 14.8.4.4",
+        "ISO 32000-2:2020 14.9.3",
+        "docs/performance/flow-figures.md",
+        "docs/reference-documents.md: Figures, decorations, and extensions"
+      ],
+      "capabilities": [
+        "Pdf20"
+      ],
+      "implementation": "implemented",
+      "applicability": "applicable",
+      "machine_verification": "roc_document_page_layout_and_pages_expects; flow_figures_harness_family_with_structure_semantics_figure_checks_for_alt_caption_placement_uniform_scale_and_layout_artifact_counts; verapdf_pdfa4_zero_failures; verapdf_pdfua2_caption_position_manual_run; atomic_figure_and_decoration_negatives_emit_no_bytes",
+      "human_verification": "not_required",
+      "positive_scenarios": [
+        "package/Pdf.roc",
+        "tests/flow_figures/main.roc"
+      ],
+      "negative_scenarios": [
+        "package/Document.roc",
+        "scripts/check_structure_semantics.py",
+        "tests/flow_figures/Fixture.roc"
+      ],
+      "external_rule_ids": []
+    },
+    {
       "id": "ROC-PDF-PDF20-GOTO-D-DESTINATION",
       "summary": "A GoTo action D entry accepts only an explicit or named destination.",
       "source_ids": [

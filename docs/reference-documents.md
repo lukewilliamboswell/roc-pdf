@@ -10,7 +10,7 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v6`**.
+Version: **`reference-documents-v7`**.
 
 - It is a design record. It claims no executable capability, conformance
   result, or reader behavior. Capability status remains governed by the
@@ -415,7 +415,7 @@ Document  Lang=en-AU
 │  │  ├─ THead ── TR ── TH Scope=Column ×4
 │  │  ├─ TBody ── TR ×4 ── TH Scope=Row, TD ×3 (Headers → column TH, row TH)
 │  │  └─ TFoot ── TR ── TH Scope=Row "Total", TD ×3
-│  └─ Figure Alt="Bar chart comparing …"   + Caption "Figure 1. …"
+│  └─ Sect ── Figure Alt="Bar chart comparing …", Caption ── P "Figure 1. …"
 ├─ Sect                                   (destination supply-chain)
 │  ├─ H1 "3 Supply chain"
 │  ├─ P
@@ -426,7 +426,7 @@ Document  Lang=en-AU
 │     ├─ H2 "3.2 Timber sourcing"
 │     ├─ P "Our partner " Span Lang=fr "Atelier Beaulieu" " … "
 │     │    Quote ── Span Lang=fr "« Le bois demande de la patience. »" " (…)"
-│     └─ Figure Alt="Stacked Tasmanian oak boards …"  + Caption "Figure 2. …"
+│     └─ Sect ── Figure Alt="Stacked Tasmanian oak boards …", Caption ── P "Figure 2. …"
 ├─ Sect                                   (destination outlook)
 │  ├─ H1 "4 Outlook"
 │  ├─ P "… " Link("our published sustainability commitments" + OBJR) "."
@@ -443,12 +443,16 @@ Document  Lang=en-AU
       └─ TBody ── TR ×40 ── TH Scope=Row, TD ×4
 ```
 
-The placement of each figure's `Caption` (as a child of `Figure`, or as a
-sibling grouped with it under a `Div` with a `CaptionFor` relationship) is
-decided by the figure slice against the ISO/TS 32005 containment matrix and
-PDF/UA-2 `Alt` semantics. Whichever form is chosen, the visible caption text
-must remain exposed to assistive technology independently of the figure's
-`/Alt`, and the choice is recorded here.
+A captioned figure is a `Sect` holding its `Figure` and then its
+`Caption ── P`, with a `CaptionFor` relationship from the caption to the
+figure (`reference-documents-v7`, flow-figures slice). The caption is not a
+child of the `Figure`, because `/Alt` replaces the figure and its children
+for assistive technology, and it is not grouped in a `Div`: veraPDF's
+PDF/UA-2 profile treats `Div` and `Part` as transparent for 8.2.5.27 (a
+`Caption` is the first or last child of its parent), which would make the
+caption a middle child of the section around the figure. An uncaptioned
+figure is a bare `Figure`. The visible caption text is therefore exposed
+independently of the figure's `/Alt`.
 
 Internal links carry both `/SD` (the heading's structure element) and `/D`
 (the post-layout geometry of that heading). Outline entries resolve to the same
@@ -809,6 +813,25 @@ grow linearly with the document; there is no backtracking across pages.
   height together with its caption. A scale below the floor is
   `document.figure_oversize`. The applied scale appears in the preparation
   report. No other content is ever scaled.
+- (`reference-documents-v7`) The factor is in thousandths, the largest `s ≤
+  1000` with `w·s/1000` within the flow width and `⌈h·s/1000⌉` within the
+  flow height less the rest of the figure's unit (the paragraph spacing and
+  caption lines, and any decoration above it). Under page templates the flow
+  height is the smaller of the first and continuation frames, so the scaled
+  unit fits a fresh page of either kind; an `Exact` figure is checked against
+  the larger frame, as every other unsplittable unit is. A floor above 100
+  is `document.figure_fit`.
+- (`reference-documents-v7`) A figure is placed start-aligned at the flow
+  edge as one unsplittable unit with its caption (a required keep), the
+  paragraph spacing between them; the caption uses the body style.
+- (`reference-documents-v7`) A decoration (`Pdf.decoration`) occupies its
+  drawing's height immediately above the next flow block and is part of
+  that block's first placement unit, so it always lands on the page where
+  that block starts and is never separated from it or clipped. It needs a
+  following flow block and may not appear in a list item or a lead region
+  (`layout.decoration_position`, `semantics.list_item_content`); a
+  decoration wider than the flow region or taller than a page's flow region
+  is `layout.oversize_block`.
 
 ### Unbreakable tokens
 
@@ -986,6 +1009,11 @@ with.
 | `text.unsupported_cluster` | `FontCoverageMissing` | A multi-scalar cluster reaches the one-scalar convenience shaper |
 | `document.figure_oversize` | new family | A figure exceeds the flow region or its fit floor |
 | `document.figure_alternative_empty` | `InvalidRelationship` | A figure's alternative text is empty |
+| `document.figure_drawing` | `InvalidRelationship` | A figure's drawing has no painting command, a non-positive image size, a path that paints nothing, content below or left of its origin, groups nested more than 8 deep, a clip, opacity, or soft-mask group, or a coordinate beyond 10^9 pt (`reference-documents-v7`) |
+| `document.figure_caption_empty` | `InvalidRelationship` | A figure's visible caption is empty (`reference-documents-v7`) |
+| `document.figure_fit` | `InvalidRelationship` | `figure_fit` on a block that is not a figure, or a `ScaleToFit` floor above 100 (`reference-documents-v7`) |
+| `layout.decoration_drawing` | `InvalidRelationship` | A decoration's drawing is not a valid flow drawing, as for `document.figure_drawing` (`reference-documents-v7`) |
+| `layout.decoration_position` | new family | A decoration has no following flow block, or appears in a lead region (`reference-documents-v7`) |
 | `semantics.heading_skip` | `InvalidRelationship` | A heading is more than one level deeper than its predecessor |
 | `semantics.nested_link` | `InvalidRelationship` | A link contains a link |
 | `semantics.link_text_empty` | `InvalidRelationship` | A link has no text content |
@@ -1190,9 +1218,19 @@ figure : Scene.Drawing, Str, Document.Caption -> Block   # existing; bounded vec
 figure_fit : Block, FigureFit -> Block    # FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
 decoration : Scene.Drawing -> Block       # in-flow Decoration artifact, occupies space
 custom_block : CustomBlock -> Block
+Scene.Drawing.group : Scene.Drawing, Layout.Point, Scene.Drawing -> Scene.Drawing
 ```
 
-`figure_fit` on a non-figure block is rejected. `custom_block`'s exact shape is
+`figure`, `figure_fit` (with `Pdf.FigureFit`), `decoration`, and
+`Scene.Drawing.group` are executable with these names and shapes
+(flow-figures slice, `reference-documents-v7`). A figure or decoration
+drawing holds any number of image commands and solid paths
+(`Scene.solid_fill`, `Scene.solid_stroke`, `Scene.rectangle`) and
+translated groups (`Scene.Drawing.group`, at most 8 deep) in
+drawing-local coordinates whose origin is its bottom-left corner, y
+upward, with the furniture drawing's extent rule; a decoration is a
+`Decoration` page artifact (`/Artifact <</Type /Layout>>`) painted after the
+page's text. `figure_fit` on a non-figure block is rejected. `custom_block`'s exact shape is
 fixed by the custom-block slice; it must keep the document data-only (handlers
 are supplied separately, as `Layout.Handlers` already requires), take its
 semantic content from ordinary `Pdf` blocks, paint only validated
@@ -1267,6 +1305,15 @@ version, the task, the observed outcome, and any limitation.
 
 ## Change log
 
+- `reference-documents-v7`: the flow-figures slice makes vector, grouped,
+  and multi-command drawings in `figure`, `figure_fit` with `FigureFit`,
+  `decoration`, and `Scene.Drawing.group` executable; records the caption
+  structure (`Sect ── Figure, Caption ── P` with `CaptionFor`) and why a
+  `Div` is not used; fixes the scale factor's precision, the frame
+  `ScaleToFit` fits (the smaller page frame), figure placement, and the
+  decoration's placement rule; and adds `document.figure_drawing`,
+  `document.figure_caption_empty`, `document.figure_fit`,
+  `layout.decoration_drawing`, and `layout.decoration_position`.
 - `reference-documents-v6`: the page-templates slice makes
   `with_page_templates`, `first_page_template`, `page_template`, `region`,
   `no_region`, `lead_region`, `no_lead`, `furniture_text`,
