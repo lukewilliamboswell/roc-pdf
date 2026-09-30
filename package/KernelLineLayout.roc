@@ -95,7 +95,21 @@ KernelLineLayout :: [].{
 	## Measure one logical request with the same boundary and advance
 	## validation as line selection, in O(clusters + boundaries).
 	measure_logical : List(KernelShape.SimpleSource), Text.Store, LogicalRunRequest, Limits -> Try({ measure : Measure, work : Work }, Error)
-	measure_logical = |sources, store, request, limits| measure_request(sources, store, request, limits)
+	measure_logical = |sources, store, request, limits| measure_request(sources, store, request, no_holds, limits)
+
+	## A hold is a scalar range of a request's source whose interior break
+	## opportunities are withheld: every `Allowed` boundary strictly inside
+	## it whose UAX #14 authority is `Tailorable` becomes `Prohibited`.
+	## Boundaries at its edges, mandatory boundaries, and non-tailorable
+	## ones are untouched. Holds are sorted by start and do not overlap.
+	## They are how the facade keeps a code span's words whole; the kernel
+	## gives them no other meaning.
+	Hold : { request : U64, scalars : Semantics.Range }
+
+	## `measure_logical` under the given holds (the `request` field of each
+	## is ignored).
+	measure_logical_held : List(KernelShape.SimpleSource), Text.Store, LogicalRunRequest, List(Hold), Limits -> Try({ measure : Measure, work : Work }, Error)
+	measure_logical_held = |sources, store, request, holds, limits| measure_request(sources, store, request, { holds, length: holds.len(), start: 0 }, limits)
 
 	BatchPlan :: { lines : List(Line), run_lines : List(Semantics.Range), work : BatchWork }.{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
@@ -109,7 +123,14 @@ KernelLineLayout :: [].{
 		## instance, size, and cluster count. A signature over that sequence
 		## narrows probes, and equal signatures are confirmed run by run.
 		build_logical : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), BatchLimits -> Try(BatchPlan, Error)
-		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, limits)
+		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, [], limits)
+
+		## `build_logical` with holds, sorted by request and then by start.
+		## A request with holds is laid out on its own: its template is
+		## neither found in nor added to the template cache, so it never
+		## shares lines with an equal request that has none.
+		build_logical_held : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), BatchLimits -> Try(BatchPlan, Error)
+		build_logical_held = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, limits)
 
 		lines : BatchPlan -> List(Line)
 		lines = |plan| plan.lines
@@ -326,8 +347,8 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 ## adjacent physical runs, proven contiguous before any measurement.
 LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, signature : U64, size : I64 }
 
-build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
-build_logical_batch = |sources, store, requests, limits| {
+build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), List(KernelLineLayout.Hold), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
+build_logical_batch = |sources, store, requests, holds, limits| {
 	if requests.len() == 0 or store.runs.len() == 0 {
 		return Err(InvalidAnalysis)
 	}
@@ -348,10 +369,18 @@ build_logical_batch = |sources, store, requests, limits| {
 	var $key_probes = 0
 	var $run_cursor = 0
 	var $previous_template = empty_slot
+	var $hold_cursor = 0
 	var $request_index = 0
 	while $request_index < requests.len() {
 		request = list_at(requests, $request_index)
 		source_index = request.source.index()
+
+		## This request's holds, if any: a held request bypasses the cache.
+		hold_start = $hold_cursor
+		while $hold_cursor < holds.len() and list_at(holds, $hold_cursor).request == $request_index {
+			$hold_cursor = $hold_cursor + 1
+		}
+		held = $hold_cursor > hold_start
 		if source_index >= sources.len() or request.width.raw() <= 0 {
 			return Err(InvalidRun({ run: $request_index }))
 		}
@@ -363,7 +392,7 @@ build_logical_batch = |sources, store, requests, limits| {
 		key = { run_count: request.runs.length().to_u32_wrap(), run_start: request.runs.start(), signature: logical.signature, source: source_index.to_u32_wrap(), width: request.width.raw() }
 		var $template_index = empty_slot
 		var $insertion_slot = empty_slot
-		if $previous_template != empty_slot {
+		if $previous_template != empty_slot and !held {
 			$key_probes = checked_add($key_probes, 1)?
 			check_limit($key_probes, limits.max_key_probes, KeyProbes)?
 			if logical_key_equal(store, key, list_at($keys, $previous_template)) {
@@ -371,7 +400,7 @@ build_logical_batch = |sources, store, requests, limits| {
 				$cache_hits = checked_add($cache_hits, 1)?
 			}
 		}
-		if $template_index == empty_slot {
+		if $template_index == empty_slot and !held {
 			hashed = hash_logical_key(key, logical.instance, logical.size)
 			var $probe = 0
 			while $probe < capacity and $template_index == empty_slot and $insertion_slot == empty_slot {
@@ -396,7 +425,7 @@ build_logical_batch = |sources, store, requests, limits| {
 			check_limit(template_count, limits.max_templates, Templates)?
 			source = list_at(sources, source_index)
 			bounds = logical.bounds
-			selected = build_range(source.analysis, store, bounds, request.width, limits.line)?
+			selected = build_range(source.analysis, store, bounds, request.width, { holds, length: $hold_cursor - hold_start, start: hold_start }, limits.line)?
 			if selected.work.glyph_index_visits != logical.glyph_length {
 				return Err(InvalidRun({ run: $request_index }))
 			}
@@ -408,7 +437,9 @@ build_logical_batch = |sources, store, requests, limits| {
 			}
 			$template_index = $templates.len()
 			$keys = $keys.append(key)
-			$slots = list_set($slots, $insertion_slot, $template_index)
+			if !held {
+				$slots = list_set($slots, $insertion_slot, $template_index)
+			}
 			$templates = $templates.append({
 				cluster_length: bounds.cluster_end - bounds.cluster_start,
 				cluster_start: bounds.cluster_start,
@@ -427,8 +458,11 @@ build_logical_batch = |sources, store, requests, limits| {
 			Err(OutOfBounds) => return Err(InvalidRun({ run: $request_index }))
 			Ok(updated) => updated
 		}
-		$previous_template = $template_index
+		$previous_template = if held empty_slot else $template_index
 		$request_index = $request_index + 1
+	}
+	if $hold_cursor != holds.len() {
+		return Err(InvalidAnalysis)
 	}
 	if $run_cursor != store.runs.len() {
 		return Err(InvalidAnalysis)
@@ -541,8 +575,8 @@ logical_bounds = |store, run_range, expected_start| {
 	})
 }
 
-measure_request : List(KernelShape.SimpleSource), Text.Store, KernelLineLayout.LogicalRunRequest, KernelLineLayout.Limits -> Try({ measure : KernelLineLayout.Measure, work : KernelLineLayout.Work }, KernelLineLayout.Error)
-measure_request = |sources, store, request, limits| {
+measure_request : List(KernelShape.SimpleSource), Text.Store, KernelLineLayout.LogicalRunRequest, HeldRange, KernelLineLayout.Limits -> Try({ measure : KernelLineLayout.Measure, work : KernelLineLayout.Work }, KernelLineLayout.Error)
+measure_request = |sources, store, request, holds, limits| {
 	source_index = request.source.index()
 	if source_index >= sources.len() {
 		return Err(InvalidRun({ run: request.runs.start() }))
@@ -572,8 +606,9 @@ measure_request = |sources, store, request, limits| {
 	var $candidate = cluster_start + 1
 	while $candidate <= cluster_end {
 		cluster = list_at(store.clusters, $candidate - 1)
-		boundary = list_at(analysis.line_boundaries, range_end(cluster.source.scalars)?)
-		match boundary.decision {
+		boundary_index = range_end(cluster.source.scalars)?
+		boundary = list_at(analysis.line_boundaries, boundary_index)
+		match held_decision(boundary, boundary_index, holds) {
 			Prohibited => {}
 			decision => {
 				piece = list_at(measure.prefix, $candidate - cluster_start) - list_at(measure.prefix, $piece_start - cluster_start)
@@ -671,7 +706,7 @@ table_capacity = |requests, limit| {
 }
 
 build_plan : KernelUnicode.UnicodeAnalysis, Text.Store, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
-build_plan = |analysis, store, width, limits| build_range(analysis, store, { cluster_end: store.clusters.len(), cluster_start: 0, glyph_end: store.glyphs.len(), glyph_start: 0 }, width, limits)
+build_plan = |analysis, store, width, limits| build_range(analysis, store, { cluster_end: store.clusters.len(), cluster_start: 0, glyph_end: store.glyphs.len(), glyph_start: 0 }, width, no_holds, limits)
 
 build_run_plan : KernelUnicode.UnicodeAnalysis, Text.Store, Text.RunId, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
 build_run_plan = |analysis, store, run_id, width, limits| {
@@ -685,7 +720,7 @@ build_run_plan = |analysis, store, run_id, width, limits| {
 	if run.id.index() != run_index or run.clusters.length() == 0 or run.glyphs.length() == 0 or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() {
 		return Err(InvalidRun({ run: run_index }))
 	}
-	plan = build_range(analysis, store, { cluster_end, cluster_start: run.clusters.start(), glyph_end, glyph_start: run.glyphs.start() }, width, limits)?
+	plan = build_range(analysis, store, { cluster_end, cluster_start: run.clusters.start(), glyph_end, glyph_start: run.glyphs.start() }, width, no_holds, limits)?
 	if plan.work.glyph_index_visits != run.glyphs.length() {
 		Err(InvalidRun({ run: run_index }))
 	} else {
@@ -693,8 +728,8 @@ build_run_plan = |analysis, store, run_id, width, limits| {
 	}
 }
 
-build_range : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
-build_range = |analysis, store, bounds, width, limits| {
+build_range : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, Layout.Unit, HeldRange, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
+build_range = |analysis, store, bounds, width, holds, limits| {
 	cluster_start = bounds.cluster_start
 	cluster_end = bounds.cluster_end
 	glyph_start = bounds.glyph_start
@@ -732,6 +767,7 @@ build_range = |analysis, store, bounds, width, limits| {
 		cluster = list_at(store.clusters, $candidate - 1)
 		boundary_index = range_end(cluster.source.scalars)?
 		boundary = list_at(analysis.line_boundaries, boundary_index)
+		decision = held_decision(boundary, boundary_index, holds)
 		line_width = list_at(measure.prefix, $candidate - cluster_start) - list_at(measure.prefix, $line_start - cluster_start)
 		if line_width > max_width {
 			if $last_break == $line_start {
@@ -742,7 +778,7 @@ build_range = |analysis, store, bounds, width, limits| {
 			$candidate = $line_start + 1
 			$last_break = $line_start
 		} else {
-			match boundary.decision {
+			match decision {
 				Allowed => {
 					$last_break = $candidate
 					$candidate = $candidate + 1
@@ -773,6 +809,42 @@ build_range = |analysis, store, bounds, width, limits| {
 		},
 	)
 }
+
+## A boundary's decision under holds: an `Allowed`, `Tailorable` boundary
+## strictly inside a hold is `Prohibited`. Holds are sorted and disjoint,
+## so the last hold starting before the boundary is the only candidate;
+## a binary search finds it in O(log holds), and no hold costs nothing.
+held_decision : KernelUnicode.LineBoundary, U64, HeldRange -> [Allowed, Mandatory, Prohibited]
+held_decision = |boundary, index, held| match (boundary.decision, boundary.authority) {
+	(Allowed, Tailorable) => if held.length == 0 {
+		Allowed
+	} else {
+		var $low = held.start
+		var $high = held.start + held.length
+		while $low < $high {
+			middle = $low + ($high - $low) // 2
+			if list_at(held.holds, middle).scalars.start() < index {
+				$low = middle + 1
+			} else {
+				$high = middle
+			}
+		}
+		if $low == held.start {
+			Allowed
+		} else {
+			hold = list_at(held.holds, $low - 1).scalars
+			if index < hold.start() + hold.length() Prohibited else Allowed
+		}
+	}
+	(decision, _) => decision
+}
+
+## One request's holds: `length` holds of `holds` from `start`, borrowed
+## rather than copied out of the batch's list.
+HeldRange : { holds : List(KernelLineLayout.Hold), length : U64, start : U64 }
+
+no_holds : HeldRange
+no_holds = { holds: [], length: 0, start: 0 }
 
 validate_boundaries : List(KernelUnicode.LineBoundary), List(Text.Cluster), U64, U64, U64 -> Try({ visits : U64 }, KernelLineLayout.Error)
 validate_boundaries = |boundaries, clusters, cluster_start, cluster_end, scalars| {

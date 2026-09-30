@@ -870,7 +870,12 @@ grow linearly with the document; there is no backtracking across pages.
 ### Unbreakable tokens
 
 Lines break only at pinned UAX #14 opportunities and explicit
-`Pdf.line_break`s. A token without an opportunity that is wider than the widest
+`Pdf.line_break`s. Inside a `code` span the one tailoring applies
+(`reference-documents-v11`): each word of the span (a run of scalars other
+than U+0020) keeps its tailorable opportunities withheld, so an identifier
+such as `--lumen-indigo` or `kubectl-rollout` never breaks at a hyphen, while
+the opportunities after the spaces between words stay. A token without an
+opportunity (a code word counts as one) that is wider than the widest
 width its container can receive is `layout.unbreakable_token`. There is no
 emergency breaking, character-level wrapping, ellipsis, or overflow in v1.
 
@@ -1430,8 +1435,10 @@ version, the task, the observed outcome, and any limitation.
 - `reference-documents-v11`: the examples-showcase slice makes a cell with
   no inlines an empty `TD` or `TH` (no marked content, no `/K`), narrows
   `table.cell_empty` to inline content that holds no text, and extends
-  `table.empty` to a table whose every cell is empty. The three reference
-  documents are unchanged.
+  `table.empty` to a table whose every cell is empty; and tailors UAX #14
+  inside `code` spans so each word of the span keeps its tailorable break
+  opportunities withheld (a code word is one unbreakable token). The three
+  reference documents are unchanged.
 
 - `reference-documents-v10`: the reference-documents closure makes the three
   references gallery programs and adds `tests/reference_documents`, which

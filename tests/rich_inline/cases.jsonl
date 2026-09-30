@@ -16,3 +16,5 @@
 {"name":"rich inline scoped colors x50","schema_version":1,"case":{"ScopedColors":{"count":50}}}
 {"name":"rich inline scoped text x10","schema_version":1,"case":{"ScopedText":{"count":10}}}
 {"name":"rich inline scoped text x50","schema_version":1,"case":{"ScopedText":{"count":50}}}
+{"name":"rich inline code holds x14","schema_version":1,"case":{"CodeHolds":{"count":14}}}
+{"name":"rich inline code holds x140","schema_version":1,"case":{"CodeHolds":{"count":140}}}

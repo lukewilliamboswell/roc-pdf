@@ -21312,8 +21312,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 34261,
-          "allocated_bytes": 31316316,
+          "allocations": 34317,
+          "allocated_bytes": 31321564,
           "work": {
             "shaped_runs": 56,
             "lines": 26,
@@ -21324,8 +21324,8 @@
           }
         },
         "x64musl": {
-          "allocations": 34261,
-          "allocated_bytes": 31316316,
+          "allocations": 34317,
+          "allocated_bytes": 31321564,
           "work": {
             "shaped_runs": 56,
             "lines": 26,
@@ -21367,8 +21367,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 120912,
-          "allocated_bytes": 102613979,
+          "allocations": 121136,
+          "allocated_bytes": 102637467,
           "work": {
             "shaped_runs": 256,
             "lines": 106,
@@ -21379,8 +21379,8 @@
           }
         },
         "x64musl": {
-          "allocations": 120912,
-          "allocated_bytes": 102613979,
+          "allocations": 121136,
+          "allocated_bytes": 102637467,
           "work": {
             "shaped_runs": 256,
             "lines": 106,
@@ -21684,6 +21684,182 @@
             "content_writes": 578,
             "occurrence_writes": 309,
             "output_bytes": 23512
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline code holds x14",
+      "scenario_revision": "rich-inline-code-holds-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/code_holds_14.pdf",
+      "args": [
+        "code_holds",
+        "14"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "paragraphs": 14
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes",
+        "code_holds",
+        "lines_ending_in_holds",
+        "control_breaks_in_identifiers",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 30515,
+          "allocated_bytes": 15834407,
+          "work": {
+            "node_writes": 46,
+            "inline_elements": 17,
+            "inline_leaves": 49,
+            "content_writes": 95,
+            "occurrence_writes": 50,
+            "node_visits": 46,
+            "containment_edges": 45,
+            "shaped_runs": 50,
+            "lines": 38,
+            "final_runs": 56,
+            "fragments": 56,
+            "pages": 1,
+            "output_bytes": 14133,
+            "code_holds": 22,
+            "lines_ending_in_holds": 0,
+            "control_breaks_in_identifiers": 10,
+            "rejections": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 30515,
+          "allocated_bytes": 15834407,
+          "work": {
+            "node_writes": 46,
+            "inline_elements": 17,
+            "inline_leaves": 49,
+            "content_writes": 95,
+            "occurrence_writes": 50,
+            "node_visits": 46,
+            "containment_edges": 45,
+            "shaped_runs": 50,
+            "lines": 38,
+            "final_runs": 56,
+            "fragments": 56,
+            "pages": 1,
+            "output_bytes": 14133,
+            "code_holds": 22,
+            "lines_ending_in_holds": 0,
+            "control_breaks_in_identifiers": 10,
+            "rejections": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline code holds x140",
+      "scenario_revision": "rich-inline-code-holds-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/code_holds_140.pdf",
+      "args": [
+        "code_holds",
+        "140"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 8,
+        "paragraphs": 140
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes",
+        "code_holds",
+        "lines_ending_in_holds",
+        "control_breaks_in_identifiers",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 170320,
+          "allocated_bytes": 69910227,
+          "work": {
+            "node_writes": 298,
+            "inline_elements": 143,
+            "inline_leaves": 427,
+            "content_writes": 725,
+            "occurrence_writes": 428,
+            "node_visits": 298,
+            "containment_edges": 297,
+            "shaped_runs": 428,
+            "lines": 290,
+            "final_runs": 470,
+            "fragments": 470,
+            "pages": 8,
+            "output_bytes": 26700,
+            "code_holds": 148,
+            "lines_ending_in_holds": 0,
+            "control_breaks_in_identifiers": 100,
+            "rejections": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 170320,
+          "allocated_bytes": 69910227,
+          "work": {
+            "node_writes": 298,
+            "inline_elements": 143,
+            "inline_leaves": 427,
+            "content_writes": 725,
+            "occurrence_writes": 428,
+            "node_visits": 298,
+            "containment_edges": 297,
+            "shaped_runs": 428,
+            "lines": 290,
+            "final_runs": 470,
+            "fragments": 470,
+            "pages": 8,
+            "output_bytes": 26700,
+            "code_holds": 148,
+            "lines_ending_in_holds": 0,
+            "control_breaks_in_identifiers": 100,
+            "rejections": 1
           }
         }
       },

@@ -99,23 +99,32 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 			ContentlessCell => Semantics.Range.from_start_and_length(0, 0)
 		}
 		var $cell = { max_content: 0, min_content: 0, token: Semantics.Range.from_start_and_length(0, 0) }
+		code = KernelFacadeShape.Plan.code_holds(shape, authoring, record.block, sources)
 		var $segment = physical.start()
 		end = physical.start() + physical.length()
 		while $segment < end {
 			length = segment_length(requests, $segment, end)
 			source = list_at(requests, $segment).source
 			size = list_at(store.runs, $segment).size.raw()
-			measured = match list_at($cache, source.index()) {
+			held = segment_holds(code, $segment, $segment + length)
+
+			## A segment whose code span holds words together measures on
+			## its own: the per-source cache holds untailored widths.
+			measured = if !held.is_empty() {
+				fresh = measure_segment(simple_sources, store, $segment, length, source, held, limits)?
+				$measurements = $measurements + 1
+				fresh
+			} else match list_at($cache, source.index()) {
 				Measured(slot) => if slot.size == size {
 					$cache_hits = $cache_hits + 1
 					slot.measure
 				} else {
-					fresh = measure_segment(simple_sources, store, $segment, length, source, limits)?
+					fresh = measure_segment(simple_sources, store, $segment, length, source, [], limits)?
 					$measurements = $measurements + 1
 					fresh
 				}
 				Unmeasured => {
-					fresh = measure_segment(simple_sources, store, $segment, length, source, limits)?
+					fresh = measure_segment(simple_sources, store, $segment, length, source, [], limits)?
 					$measurements = $measurements + 1
 					$cache = list_set($cache, source.index(), Measured({ measure: fresh, size }))
 					fresh
@@ -201,11 +210,28 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 	)
 }
 
+## The code holds whose run lies in one segment's runs, as line-layout
+## holds (their request field is unused by measurement).
+segment_holds : List(KernelFacadeShape.CodeHold), U64, U64 -> List(KernelLineLayout.Hold)
+segment_holds = |code, start, end| {
+	if code.is_empty() {
+		return []
+	}
+	var $held = []
+	for hold in code {
+		if hold.run >= start and hold.run < end {
+			$held = $held.append({ request: 0, scalars: hold.scalars })
+		}
+	}
+	$held
+}
+
 ## Measure one explicit-line-break segment: its physical runs over one
 ## whole source, as a logical request.
-measure_segment : List(KernelShape.SimpleSource), Text.Store, U64, U64, Semantics.TextSourceId, KernelLineLayout.Limits -> Try(CellMeasure, KernelFacadeTables.Error)
-measure_segment = |sources, store, start, length, source, limits| {
-	measured = KernelLineLayout.measure_logical(sources, store, { runs: Semantics.Range.from_start_and_length(start, length), source, width: Layout.Unit.from_raw(1) }, limits) ? Measure
+measure_segment : List(KernelShape.SimpleSource), Text.Store, U64, U64, Semantics.TextSourceId, List(KernelLineLayout.Hold), KernelLineLayout.Limits -> Try(CellMeasure, KernelFacadeTables.Error)
+measure_segment = |sources, store, start, length, source, holds, limits| {
+	request = { runs: Semantics.Range.from_start_and_length(start, length), source, width: Layout.Unit.from_raw(1) }
+	measured = (if holds.is_empty() KernelLineLayout.measure_logical(sources, store, request, limits) else KernelLineLayout.measure_logical_held(sources, store, request, holds, limits)) ? Measure
 	first = list_at(store.clusters, measured.measure.token.start())
 	last = list_at(store.clusters, measured.measure.token.start() + U64.max(measured.measure.token.length(), 1) - 1)
 	token_start = first.source.scalars.start()

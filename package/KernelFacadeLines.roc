@@ -94,8 +94,9 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 
 	## A rich paragraph's logical run spans several physical runs; the
 	## logical batch measures such ranges. Documents whose runs are all
-	## single keep the exact one-run batch.
-	if has_multi_run(block_runs) {
+	## single keep the exact one-run batch, unless a code span holds its
+	## words together, which only the logical batch applies.
+	if has_multi_run(block_runs) or has_code_holds(authoring, shape, sources) {
 		return build_ordered_plan(authoring, shape, sources, page, theme, limits, [])
 	}
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
@@ -220,6 +221,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 	}
 	geometries = list_geometries(authoring, block_runs, shape_batch.store, indent, content_width)?
 	var $line_requests = []
+	var $holds = []
 	var $logical_index_of_body = List.repeat(0, block_runs.len())
 	var $logical_index_of_label = List.repeat(0, block_runs.len())
 	var $next_physical = 0
@@ -253,6 +255,11 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 					}),
 				)
 				$next_physical = checked_add(body_start, body.physical.length())?
+				first_body_request = $line_requests.len() + (match label_request {
+					NoLabel => 0
+					Label(_) => 1
+				})
+				$holds = append_holds($holds, KernelFacadeShape.Plan.code_holds(shape, authoring, $block_index, sources), shape_requests, first_body_request, body_start, body_start + body.physical.length())
 				$line_requests = append_logical_requests(
 					$line_requests,
 					label_request,
@@ -283,7 +290,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 	if $next_physical != run_count {
 		return Err(RunCoverage({ actual: $next_physical, expected: run_count }))
 	}
-	line = KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) ? LineLayout
+	line = (if $holds.is_empty() KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? LineLayout
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())
 	$block_index = 0
@@ -322,6 +329,43 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 			},
 		},
 	)
+}
+
+## Whether any block's code span holds a word together. It scans each
+## block's inline records once and allocates only for a code leaf that
+## has an interior break opportunity.
+has_code_holds : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source) -> Bool
+has_code_holds = |authoring, shape, sources| {
+	var $block = 0
+	var $found = False
+	while !$found and $block < authoring.blocks.len() {
+		$found = !KernelFacadeShape.Plan.code_holds(shape, authoring, $block, sources).is_empty()
+		$block = $block + 1
+	}
+	$found
+}
+
+## A block's code holds as line-layout holds: each goes to the line
+## request of the explicit-line-break segment holding its run. The body's
+## segments are its line requests from `first_request` on, in run order.
+append_holds : List(KernelLineLayout.Hold), List(KernelFacadeShape.CodeHold), List(KernelShape.SimpleRequest), U64, U64, U64 -> List(KernelLineLayout.Hold)
+append_holds = |holds, code, requests, first_request, body_start, body_end| {
+	if code.is_empty() {
+		return holds
+	}
+	var $holds = holds
+	var $request = first_request
+	var $segment_start = body_start
+	var $segment_end = body_start + segment_length(requests, body_start, body_end)
+	for hold in code {
+		while hold.run >= $segment_end and $segment_end < body_end {
+			$segment_start = $segment_end
+			$segment_end = $segment_start + segment_length(requests, $segment_start, body_end)
+			$request = $request + 1
+		}
+		$holds = $holds.append({ request: $request, scalars: hold.scalars })
+	}
+	$holds
 }
 
 ## An ordered logical run names a non-empty adjacent physical range starting

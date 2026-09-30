@@ -357,6 +357,75 @@ with scopes equals the plan without (nodes, content items, and
 occurrences), proving scope stays presentation-only. x10: 11,140
 allocations, 1 page; x50: 39,732 allocations (3.6×), 4 pages.
 
+## Code spans keep their words whole (examples showcase)
+
+UAX #14 allows a break after a hyphen that precedes a letter (LB21 forbids
+a break before `HY`, not after it), so a callout could end a line at
+`--lumen-` and start the next with `indigo`. The package implements the
+pinned, untailored UAX #14 boundaries (`KernelUnicode` retains every
+boundary with its `Tailorable` or `NonTailorable` authority), and the
+architecture's business authoring contract makes unbreakable-token
+behavior a typed layout policy, so the tailoring is explicit and scoped
+to one semantic role rather than a change to the boundary data:
+
+- **Policy (facade).** Inside a `Code` span, each word (a maximal run of
+  scalars other than U+0020) withholds its interior tailorable
+  opportunities. Opportunities after the spaces between words stay, so a
+  long command still wraps between words. No new public constructor is
+  needed: `Pdf.code` is where identifiers are authored. A separate
+  `Pdf.no_break` inline was considered and not added, because it would
+  need a structure element (an inline element always owns one) for a
+  purely presentational fact.
+- **Facts.** `KernelFacadeShape.Plan.code_holds` derives a block's holds
+  from normalized authoring (the `Code` ancestry of each text leaf) and
+  the shaped store (each leaf's physical runs and their source scalars):
+  one `CodeHold { run, scalars }` per word that has an interior
+  opportunity. Words are found with `Str.split_first`, which slices
+  without copying, and byte offsets become scalars through the
+  boundaries' byte offsets; a block without `Code` costs one scan of its
+  inline records and allocates nothing.
+- **Kernel.** `KernelLineLayout.Hold` is a scalar range whose interior
+  `Allowed`, `Tailorable` boundaries line selection and measurement treat
+  as `Prohibited` (`held_decision`, a binary search over the request's
+  holds, borrowed as a range of the batch's list). The kernel gives holds
+  no other meaning. `BatchPlan.build_logical_held` lays out a request
+  with holds outside the template cache (neither probed nor inserted), so
+  an equal request without holds never shares its lines;
+  `measure_logical_held` measures table cells, and a cell segment with
+  holds bypasses the per-source measurement cache for the same reason.
+- **Routing.** A document whose runs are all single takes the one-run
+  batch only when no code span holds a word; otherwise it takes the
+  logical batch, which applies holds.
+
+A code word wider than its container has no opportunity left, so it is
+`layout.unbreakable_token` as any unbreakable token: nothing is squeezed
+or broken silently.
+
+Evidence: `rich inline code holds x14` and `x140` move a code identifier
+across the line end one letter at a time beside a long spaced command and
+a table of hyphenated commands. The fixture lays the document out and
+counts lines that end strictly inside a held word (0), and lays out the
+same document with every code span written as plain text, whose lines
+must end inside the identifier at least once (10 and 100 times): the
+positions do reach a hyphen break, and the holds prevent it. It rejects a
+code word wider than its 40 pt column (`layout.unbreakable_token`).
+
+| Case | Pages | Allocations | Holds | Lines |
+| --- | ---: | ---: | ---: | ---: |
+| code holds x14 | 1 | 30,515 | 22 | 38 |
+| code holds x140 | 8 | 170,320 | 148 | 290 |
+
+The pair is linear. No gallery PDF and no other snapshot changes: no
+existing document ends a line inside a code word. `rich inline scaled code`
+x10 and x50 paint `roc build --opt=size` in every paragraph, whose
+`--opt=size` holds; they gain 56 and 224 allocations (about two per
+paragraph per pipeline, and the fixture runs the pipeline twice: the
+block's hold list and the document hold list's growth), with allocated
+bytes +0.02%. Every other case keeps its allocation count. Earlier drafts
+copied each request's holds out of the batch list and materialized each
+code leaf's bytes; both were removed after they added allocations to
+documents whose code spans hold nothing.
+
 ## Link annotations
 
 An inline link keeps the facade contract: one annotation per page its text

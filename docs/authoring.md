@@ -102,6 +102,12 @@ their labels), so a callout on a dark panel can use
 `Theme.Scope.empty.with_color(Text, near_white)`. A scope adds no
 structure element and keeps nothing together.
 
+Lines break at UAX #14 opportunities across inline boundaries, with one
+tailoring: a `code` span keeps each of its words whole, so `--lumen-indigo`
+or `kubectl-rollout` never breaks at its hyphens. A span with spaces, such
+as a long command, still wraps between its words. A code word wider than
+its column is `layout.unbreakable_token`.
+
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an
 empty inline), `semantics.link_text_empty`, `semantics.nested_link`,

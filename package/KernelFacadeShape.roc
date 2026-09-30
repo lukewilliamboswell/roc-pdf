@@ -67,6 +67,17 @@ KernelFacadeShape :: [].{
 	## leading, so line breaking measures the whole paragraph at once.
 	LogicalRun : { physical : Semantics.Range }
 
+	## A code span keeps its words whole. UAX #14 allows a break after a
+	## hyphen before a letter, so `--lumen-indigo` or `kubectl-rollout`
+	## would otherwise break inside the identifier. Each word of a code
+	## leaf (a maximal run of scalars other than U+0020) that has a
+	## break opportunity inside it is one hold: a scalar range of its
+	## source, named with the first physical run of its leaf so a caller
+	## can find the line request of its segment. Line layout withholds the
+	## tailorable opportunities inside a hold; breaks after the spaces
+	## between words stay, so a long command still wraps between words.
+	CodeHold : { run : U64, scalars : Semantics.Range }
+
 	## `ContentlessCell` is a table cell with no content: it has no run, so
 	## line layout gives it no line and pagination sizes its row from its
 	## other cells.
@@ -167,6 +178,10 @@ KernelFacadeShape :: [].{
 
 		origins : Plan -> Origins
 		origins = |plan| plan.origins
+
+		## The code holds of block `block`'s body (see `CodeHold`).
+		code_holds : Plan, Document.NormalizedAuthoring, U64, List(KernelFacadeSources.Source) -> List(CodeHold)
+		code_holds = |plan, authoring, block, sources| block_code_holds(plan, authoring, block, sources)
 
 		requests : Plan -> List(KernelShape.SimpleRequest)
 		requests = |plan| plan.requests
@@ -840,6 +855,153 @@ header_cell_color = |authoring, block, theme, paragraph_color| {
 			}
 		}
 	}
+}
+
+## The code holds of one block, in run and scalar order. A block without
+## a `Code` inline returns `[]` after one scan of its inline records and
+## allocates nothing; a code leaf whose scalar range has no interior
+## opportunity adds nothing, and only a leaf with one reads its bytes to
+## find its words.
+block_code_holds : KernelFacadeShape.Plan, Document.NormalizedAuthoring, U64, List(KernelFacadeSources.Source) -> List(KernelFacadeShape.CodeHold)
+block_code_holds = |plan, authoring, block, sources| {
+	rich = match list_at(authoring.blocks, block).kind {
+		RichParagraph(paragraph) => list_at(authoring.rich_paragraphs, paragraph)
+		_ => return []
+	}
+	body = match list_at(plan.block_runs, block) {
+		TextBlock({ body: value, label: _, level: _ }) => value.physical
+		ContentlessCell => return []
+	}
+	end = rich.inlines + rich.length
+	has_code = {
+		var $scan = rich.inlines
+		var $found = False
+		while !$found and $scan < end {
+			$found = is_code(list_at(authoring.inlines, $scan).kind)
+			$scan = $scan + 1
+		}
+		$found
+	}
+	if !has_code or body.length() == 0 {
+		return []
+	}
+	store = plan.shape.store
+	first_occurrence = list_at(plan.requests, body.start()).occurrence.index()
+	var $holds = []
+	var $run = body.start()
+	var $index = rich.inlines
+	while $index < end {
+		record = list_at(authoring.inlines, $index)
+		match record.kind {
+			Text({ byte_length: _, byte_start, text }) => {
+				leaf = record.first_leaf
+				while $run < body.start() + body.length() and list_at(plan.requests, $run).occurrence.index() - first_occurrence < leaf {
+					$run = $run + 1
+				}
+				first_run = $run
+				while $run < body.start() + body.length() and list_at(plan.requests, $run).occurrence.index() - first_occurrence == leaf {
+					$run = $run + 1
+				}
+				if $run > first_run and inside_code(authoring.inlines, record.parent) {
+					first_cluster = list_at(store.runs, first_run).clusters.start()
+					last = list_at(store.runs, $run - 1).clusters
+					start = list_at(store.clusters, first_cluster).source.scalars.start()
+					last_scalars = list_at(store.clusters, last.start() + last.length() - 1).source.scalars
+					finish = last_scalars.start() + last_scalars.length()
+					boundaries = list_at(sources, list_at(plan.requests, first_run).source.index()).analysis.line_boundaries
+					if interior_opportunity(boundaries, start, finish) {
+						$holds = append_word_holds($holds, text, first_run, byte_start, boundaries)
+					}
+				}
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	$holds
+}
+
+## Whether inline `parent` (encoded `0` or `i + 1`) or one of its
+## ancestors is a code span.
+inside_code : List(Document.NormalizedInline), U64 -> Bool
+inside_code = |inlines, parent| {
+	var $cursor = parent
+	var $found = False
+	while !$found and $cursor != 0 {
+		record = list_at(inlines, $cursor - 1)
+		$found = is_code(record.kind)
+		$cursor = record.parent
+	}
+	$found
+}
+
+is_code : Document.NormalizedInlineKind -> Bool
+is_code = |kind| match kind {
+	Code => True
+	_ => False
+}
+
+## Whether a boundary strictly inside `start..finish` allows a break a
+## hold can withhold (`Allowed` and `Tailorable`).
+interior_opportunity : List(KernelUnicode.LineBoundary), U64, U64 -> Bool
+interior_opportunity = |boundaries, start, finish| {
+	var $scalar = start + 1
+	var $found = False
+	while !$found and $scalar < finish {
+		boundary = list_at(boundaries, $scalar)
+		$found = boundary.decision == Allowed and boundary.authority == Tailorable
+		$scalar = $scalar + 1
+	}
+	$found
+}
+
+## One hold per word of a code leaf's text (maximal runs of scalars other
+## than U+0020) that has a break opportunity inside it. `byte_start` is the
+## leaf's first byte in its source; words are found with `split_first`,
+## which slices the text without copying it, and each word's byte range is
+## converted to scalars through the boundaries' byte offsets.
+append_word_holds : List(KernelFacadeShape.CodeHold), Str, U64, U64, List(KernelUnicode.LineBoundary) -> List(KernelFacadeShape.CodeHold)
+append_word_holds = |holds, text, run, byte_start, boundaries| {
+	var $holds = holds
+	var $rest = text
+	var $offset = byte_start
+	var $done = False
+	while !$done {
+		word_bytes = match $rest.split_first(" ") {
+			Ok({ before, after }) => {
+				$rest = after
+				before.count_utf8_bytes()
+			}
+			Err(NotFound) => {
+				$done = True
+				$rest.count_utf8_bytes()
+			}
+		}
+		start = scalar_of_byte(boundaries, $offset)
+		finish = scalar_of_byte(boundaries, $offset + word_bytes)
+		if finish > start + 1 and interior_opportunity(boundaries, start, finish) {
+			$holds = $holds.append({ run, scalars: Semantics.Range.from_start_and_length(start, finish - start) })
+		}
+		$offset = $offset + word_bytes + 1
+	}
+	$holds
+}
+
+## The scalar at byte offset `byte` of a source: boundaries hold one entry
+## per scalar offset with its byte offset, in increasing order.
+scalar_of_byte : List(KernelUnicode.LineBoundary), U64 -> U64
+scalar_of_byte = |boundaries, byte| {
+	var $low = 0
+	var $high = boundaries.len()
+	while $low < $high {
+		middle = $low + ($high - $low) // 2
+		if list_at(boundaries, middle).byte_offset < byte {
+			$low = middle + 1
+		} else {
+			$high = middle
+		}
+	}
+	$low
 }
 
 has_rich_block : List(KernelFacadeSemantics.BlockOwnership) -> Bool

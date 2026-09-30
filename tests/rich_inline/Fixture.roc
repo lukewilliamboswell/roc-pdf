@@ -28,6 +28,7 @@ import pdf.KernelPdfText
 import pdf.KernelScene
 import pdf.KernelSemantics
 import pdf.KernelShape
+import pdf.Semantics
 import pdf.KernelSrgbProfile
 import pdf.KernelTaggedTextStructure
 import pdf.KernelTextSemantics
@@ -101,6 +102,16 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ##   those of the same document without scopes. Its rejections: an empty
 ##   scope (`semantics.scope_empty`) and a scope inside a list item
 ##   (`semantics.list_item_content`).
+## - `code_holds xN`: N paragraphs whose code span `--lumen-indigo-accent`
+##   is moved across the line end one letter at a time, a paragraph that
+##   is one long spaced command, and a table whose content column holds
+##   hyphenated commands. Line layout must never end a line inside a code
+##   word: the work counts the code holds applied and the lines that end
+##   inside one (zero), and the same document with each code span written
+##   as plain text must break inside at least one identifier, which shows
+##   the positions reach a hyphen break. Its rejection: a code word wider
+##   than its fixed column (`layout.unbreakable_token`). The 14/140 pair is
+##   the linear scale pair.
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
@@ -156,6 +167,133 @@ Fixture :: [].{
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
+
+	code_holds : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	code_holds = |count| {
+		if count == 0 or count > 1000 {
+			return Err(InvalidScale)
+		}
+		run_code_holds(count)
+	}
+}
+
+## The identifiers the code-holds document sets, as code or as plain text.
+held_identifier : Str
+held_identifier = "--lumen-indigo-accent"
+
+code_holds_document : U64, (Str -> Pdf.Inline) -> Document
+code_holds_document = |count, inline| {
+	var $contents = [Pdf.title("Code holds")]
+	var $index = 0
+	while $index < count {
+		lead = "x${Str.repeat("a", $index % 14)} Set the colour token in the stylesheet for tinted panels as "
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text(lead), inline(held_identifier), Pdf.text(" and keep the rest of the palette.")]))
+		$index = $index + 1
+	}
+	command_row = |command, purpose| Pdf.row([Pdf.header_cell(Row, [inline(command)]), Pdf.cell([Pdf.text(purpose)])])
+	$contents = $contents
+		.append(Pdf.rich_paragraph([inline("kestrel migrate scenarios/ --to toml --write --dry-run --verbose --keep-comments --in-place")]))
+		.append(
+			Pdf.table({
+				body_rows: [
+					command_row("kubectl rollout undo --to-revision=N", "Return a deployment to an earlier revision."),
+					command_row("payctl migrations --pending", "List ledger migrations applied since the last release."),
+				],
+				caption: Pdf.no_caption,
+				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }],
+				footer_rows: [],
+				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Command")]), Pdf.header_cell(Column, [Pdf.text("Purpose")])])],
+				row_split: KeepRows,
+			}),
+		)
+	Pdf.document({ contents: $contents, language: "en-AU", title: "Code holds (${count.to_str()})" })
+}
+
+## The lines of `document` that end strictly inside one of `ranges`: for
+## each leaf block, its scalar ranges (per source) and every line but the
+## last of each explicit-line-break segment.
+lines_ending_inside : Document, (Document.NormalizedAuthoring, KernelFacadeShape.Plan, U64, List(KernelFacadeSources.Source) -> List(Semantics.Range)) -> Try({ holds : U64, inside : U64 }, Fixture.EvidenceError)
+lines_ending_inside = |document, ranges_of| {
+	authoring = Document.normalize(document)
+	semantics = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? |_| EvidenceFailure
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
+	sources = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, sources, font, Theme.default, KernelFacadeShape.Limits.make({ max_requests: 65536, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) })) ? |_| EvidenceFailure
+	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, sources, page_size, Theme.default, KernelFacadeLines.Limits.make({ line: KernelLineLayout.BatchLimits.make({ line: KernelLineLayout.Limits.make({ max_boundaries: 1000001, max_candidates: 2000000, max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_lines: 1000000 }), max_key_probes: 4000000, max_lines: 1000000, max_runs: 65536, max_table_slots: 262144, max_templates: 65536 }), max_blocks: 16384, max_runs: 65536 })) ? |_| EvidenceFailure
+	all_lines = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines))
+	var $holds = 0
+	var $inside = 0
+	var $block = 0
+	for block_lines in KernelFacadeLines.Plan.blocks(lines) {
+		match block_lines {
+			TextBlock({ body, body_offset: _, label: _ }) => {
+				ranges = ranges_of(authoring, shape, $block, sources)
+				$holds = $holds + ranges.len()
+				var $line = body.lines.start()
+				while $line + 1 < body.lines.start() + body.lines.length() {
+					current = list_at(all_lines, $line).source.scalars
+					next = list_at(all_lines, $line + 1).source.scalars
+					end = current.start() + current.length()
+
+					## A segment's last line is followed by a mandatory break
+					## (the next line restarts at scalar 0 of its source).
+					if next.start() == end {
+						if ranges.any(|range| range.start() < end and end < range.start() + range.length()) {
+							$inside = $inside + 1
+						}
+					}
+					$line = $line + 1
+				}
+			}
+			ContentlessCell => {}
+		}
+		$block = $block + 1
+	}
+	Ok({ holds: $holds, inside: $inside })
+}
+
+## The scalar range of `held_identifier` in a block's source, if the block
+## holds it. The document's text is ASCII, so bytes are scalars.
+identifier_ranges : Document.NormalizedAuthoring, KernelFacadeShape.Plan, U64, List(KernelFacadeSources.Source) -> List(Semantics.Range)
+identifier_ranges = |authoring, _shape, block, _sources| {
+	bytes = list_at(authoring.blocks, block).text.to_utf8()
+	needle = held_identifier.to_utf8()
+	var $start = 0
+	while $start + needle.len() <= bytes.len() {
+		if bytes.sublist({ start: $start, len: needle.len() }) == needle {
+			return [Semantics.Range.from_start_and_length($start, needle.len())]
+		}
+		$start = $start + 1
+	}
+	[]
+}
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => crash "rich-inline evidence index escaped"
+}
+
+run_code_holds : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_code_holds = |count| {
+	document = code_holds_document(count, Pdf.code)
+	evidenced = evidence_with_limits(document, Theme.default, BuiltInFace, shared_source_limits)?
+	held = lines_ending_inside(document, |authoring, shape, block, sources| KernelFacadeShape.Plan.code_holds(shape, authoring, block, sources).map(|hold| hold.scalars))?
+	control = lines_ending_inside(code_holds_document(count, Pdf.text), identifier_ranges)?
+	if held.inside != 0 or control.inside == 0 {
+		return Err(EvidenceFailure)
+	}
+	narrow = Pdf.document({
+		contents: [Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.code("--to-revision=N")]), Pdf.cell([Pdf.text("Roll back.")])])], caption: Pdf.no_caption, columns: [{ align: Start, width: Fixed(Layout.Unit.points(40 + (count % 1).to_i64_wrap())) }, { align: Start, width: Share(1) }], footer_rows: [], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Flag")]), Pdf.header_cell(Column, [Pdf.text("Use")])])], row_split: KeepRows })],
+		language: "en-AU",
+		title: "Narrow code",
+	})
+	rejected = rejects(narrow, LayoutConstraintViolated, "layout.unbreakable_token", "contents[0].table.body_rows[0].cells[0]")
+	if rejected != 1 {
+		return Err(MissingRejection(rejected))
+	}
+	Ok({ bytes: evidenced.bytes, work: evidenced.work.append(held.holds).append(held.inside).append(control.inside).append(rejected) })
 }
 
 ## The packaged face as body face 0 and the monospace fixture as face 1.
@@ -791,7 +929,12 @@ register_faces = |context| {
 }
 
 evidence : Document, Theme, Faces -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-evidence = |document, theme, faces| {
+evidence = |document, theme, faces| evidence_with_limits(document, theme, faces, pipeline_limits)
+
+## `evidence` under explicit pipeline limits (a document with a table needs
+## scene paths for its rules).
+evidence_with_limits : Document, Theme, Faces, KernelFacadePipeline.Limits -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence_with_limits = |document, theme, faces, limits| {
 	options = match faces {
 		BuiltInFace => Pdf.Options.with_theme(Pdf.Options.default, theme)
 		Policy(policy) => Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), policy.registry)
@@ -807,9 +950,9 @@ evidence = |document, theme, faces| {
 	pipeline = match faces {
 		BuiltInFace => {
 			font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-			KernelFacadePipeline.Plan.build(authoring, font, Theme.default, page_size, descriptor, pipeline_limits) ? |_| EvidenceFailure
+			KernelFacadePipeline.Plan.build(authoring, font, Theme.default, page_size, descriptor, limits) ? |_| EvidenceFailure
 		}
-		Policy(policy) => KernelFacadePipeline.Plan.build_ordered(authoring, policy, theme, page_size, descriptor, pipeline_limits) ? |_| EvidenceFailure
+		Policy(policy) => KernelFacadePipeline.Plan.build_ordered(authoring, policy, theme, page_size, descriptor, limits) ? |_| EvidenceFailure
 	}
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 	Ok({
