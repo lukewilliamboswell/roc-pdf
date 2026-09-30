@@ -7,11 +7,33 @@ import KernelUnicode
 import Semantics
 
 KernelFacadeSemantics :: [].{
-	Dimension : [Artifacts, ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
+	Dimension : [ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
 	Error : [
 		ArithmeticOverflow,
 		ContainerDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
+
+		## A custom block holds something other than paragraphs and rich
+		## paragraphs (`child` is its authored position), or stands in the
+		## first page's lead region (`child` is `NoChild`).
+		CustomContent({ child : [Child(U64), NoChild], custom : U64 }),
+
+		## A custom block's panel is not a supported panel drawing.
+		CustomDrawing({ custom : U64, reason : Str }),
+
+		## A custom block's measured box is not positive, or its inset leaves
+		## no content box.
+		CustomMeasure({ custom : U64 }),
+
+		## A custom block's name is empty.
+		CustomName({ custom : U64 }),
 		EmptyContainer({ group : U64 }),
+
+		## A decoration's drawing is not a supported flow drawing.
+		DecorationDrawing({ decoration : U64, reason : Str }),
+
+		## A decoration with no following flow block, or inside a lead
+		## region.
+		DecorationPosition({ decoration : U64 }),
 		EmptyInline({ block : U64, inline : U64 }),
 		EmptyKeep({ group : U64 }),
 		EmptyLanguage,
@@ -20,6 +42,18 @@ KernelFacadeSemantics :: [].{
 		EmptyListItem({ group : U64 }),
 		EmptyMetadataTitle,
 		EmptyRichParagraph({ block : U64 }),
+
+		## A figure's alternative text is empty.
+		FigureAlternativeEmpty({ block : U64 }),
+
+		## A figure's visible caption is empty.
+		FigureCaptionEmpty({ block : U64 }),
+
+		## A figure's drawing is not a supported flow drawing.
+		FigureDrawing({ block : U64, reason : Str }),
+
+		## A figure's fit floor is above 100 percent.
+		FigureFitInvalid({ block : U64 }),
 
 		## A page field or reserved width in body content: page fields are
 		## page furniture only.
@@ -32,6 +66,7 @@ KernelFacadeSemantics :: [].{
 		ListDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
 		ListItemBlock({ block : U64 }),
 		ListItemBreak({ page_break : U64 }),
+		ListItemDecoration({ decoration : U64 }),
 		ListItemGroup({ group : U64 }),
 		ListItemSpacer({ spacer : U64 }),
 		ListItemStart({ group : U64 }),
@@ -52,9 +87,12 @@ KernelFacadeSemantics :: [].{
 		TableRowSpan({ block : U64 }),
 		TextSemantics(KernelTextSemantics.Error),
 		UnsupportedHeadingLevel({ block : U64, level : U8 }),
+
+		## A numbered heading more than one level deeper than the heading
+		## before it in reading order (`semantics.heading_skip`).
+		HeadingSkip({ block : U64, previous : U64 }),
 	]
 	Limits :: {
-		max_artifacts : U64,
 		max_container_depth : U64,
 		max_content_spine : U64,
 		max_inline_depth : U64,
@@ -67,7 +105,6 @@ KernelFacadeSemantics :: [].{
 		text_semantics : KernelTextSemantics.Limits,
 	}.{
 		make : {
-			max_artifacts : U64,
 			max_container_depth : U64,
 			max_content_spine : U64,
 			max_inline_depth : U64,
@@ -81,7 +118,6 @@ KernelFacadeSemantics :: [].{
 		} -> Limits
 		make = |limits| Limits.(limits)
 	}
-	Artifact : { block : U64, kind : Document.PageArtifactKind, text : Str }
 
 	## A rich paragraph owns a dense occurrence range, one occurrence per text
 	## leaf in logical order, over its one interned source or, with explicit
@@ -89,7 +125,7 @@ KernelFacadeSemantics :: [].{
 	## generated list label painted on the block's first line, and `level`
 	## the block's list nesting level (zero outside lists), which decides its
 	## indentation.
-	BlockOwnership : [ArtifactBlock(U64), RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
+	BlockOwnership : [RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
 
 	## One authored destination declaration: the block's semantic node is the
 	## structure target and its content occurrence is the explicit layout
@@ -102,7 +138,6 @@ KernelFacadeSemantics :: [].{
 	## the contiguous occurrences of the text leaves inside it.
 	LinkRecord : { node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }
 	Work : {
-		artifacts : U64,
 		container_nodes : U64,
 		content_writes : U64,
 		header_association_edges : U64,
@@ -125,7 +160,6 @@ KernelFacadeSemantics :: [].{
 	number_text = |style, value| number_digits(style, value)
 
 	Plan :: {
-		artifacts : List(Artifact),
 		authoring : Document.NormalizedAuthoring,
 		block_ownership : List(BlockOwnership),
 		destinations : List(DestinationRecord),
@@ -136,9 +170,6 @@ KernelFacadeSemantics :: [].{
 	}.{
 		build : Document.NormalizedAuthoring, Limits -> Try(Plan, Error)
 		build = |authoring, limits| build_plan(authoring, limits)
-
-		artifacts : Plan -> List(Artifact)
-		artifacts = |plan| plan.artifacts
 
 		destinations : Plan -> List(DestinationRecord)
 		destinations = |plan| plan.destinations
@@ -170,7 +201,6 @@ ListState : [ActiveList({ expected_item : U64, list : U64, node : U64 }), NoActi
 ChildEntry : { node : Semantics.NodeId, parent : U64 }
 
 Planning : {
-	artifacts : List(KernelFacadeSemantics.Artifact),
 	attribute_count : U64,
 	cell_headers : List(U64),
 	content_count : U64,
@@ -214,7 +244,6 @@ build_plan = |authoring, limits| {
 	) ? TextSemantics
 	Ok(
 		KernelFacadeSemantics.Plan.{
-			artifacts: planning.artifacts,
 			authoring,
 			block_ownership: built.block_ownership,
 			destinations: planning.destinations,
@@ -222,10 +251,9 @@ build_plan = |authoring, limits| {
 			preliminary,
 			sources,
 			work: {
-				artifacts: planning.artifacts.len(),
 				container_nodes: planning.group_nodes.len(),
 				content_writes: built.store.content_spine.len(),
-				header_association_edges: planning.relationship_count,
+				header_association_edges: planning.relationship_count - captioned_figures(authoring.figures),
 				inline_elements: planning.inline_elements,
 				inline_leaves: planning.inline_leaves,
 				list_items: planning.list_item_count,
@@ -248,8 +276,8 @@ plan_blocks : Document.NormalizedAuthoring, KernelFacadeSemantics.Limits -> Try(
 plan_blocks = |authoring, limits| {
 	blocks = authoring.blocks
 	groups = authoring.groups
+	check_heading_progression(blocks)?
 	source_bound = if blocks.len() > U64.highest / 2 U64.highest else blocks.len() * 2
-	var $artifacts = List.with_capacity(U64.min(blocks.len(), limits.max_artifacts))
 	var $destinations = []
 	var $links = []
 	var $sources = List.with_capacity(U64.min(source_bound, limits.max_source_inputs))
@@ -284,7 +312,7 @@ plan_blocks = |authoring, limits| {
 			group = list_at(groups, $next_group)
 			in_item = in_list_item(groups, group.parent)
 			match group.kind {
-				Container(_) | LeadRegion => {
+				Container(_) | Custom(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
 						return Err(ListItemGroup({ group: $next_group }))
 					}
@@ -343,9 +371,8 @@ plan_blocks = |authoring, limits| {
 						authoring,
 						$next_group,
 						table_index.to_u64(),
-						{ break_cursor: $break_cursor, cell: $cell_cursor, node: $next_node, occurrence: $next_occurrence },
+						{ break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence },
 						limits.max_inline_depth,
-						{ group_nodes: $group_nodes, headers: $cell_headers, links: $links, ranges: $header_ranges, sources: $sources },
 					)?
 					attempted_nodes = checked_add($next_node, planned.nodes)?
 					attempted_occurrences = checked_add($next_occurrence, planned.occurrences)?
@@ -355,13 +382,28 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, group.first_block)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, group.first_block)?
 					check_at(attempted_properties, limits.max_properties, Properties, group.first_block)?
-					check_at(planned.buffers.sources.len(), limits.max_source_inputs, SourceInputs, group.first_block)?
+					check_at(checked_add($sources.len(), planned.buffers.sources.len())?, limits.max_source_inputs, SourceInputs, group.first_block)?
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
-					$group_nodes = planned.buffers.group_nodes
-					$cell_headers = planned.buffers.headers
-					$links = planned.buffers.links
-					$header_ranges = planned.buffers.ranges
-					$sources = planned.buffers.sources
+
+					## The table's own buffers are appended to the document's
+					## accumulators, which stay uniquely owned here: handing
+					## them to `plan_table` and splitting them back out of its
+					## result would copy every one of them once per table.
+					for value in planned.buffers.group_nodes {
+						$group_nodes = $group_nodes.append(value)
+					}
+					for value in planned.buffers.headers {
+						$cell_headers = $cell_headers.append(value)
+					}
+					for value in planned.buffers.links {
+						$links = $links.append(value)
+					}
+					for value in planned.buffers.ranges {
+						$header_ranges = $header_ranges.append(value)
+					}
+					for value in planned.buffers.sources {
+						$sources = $sources.append(value)
+					}
 					$next_node = attempted_nodes
 					$next_occurrence = attempted_occurrences
 					$content_count = attempted_content
@@ -426,12 +468,6 @@ plan_blocks = |authoring, limits| {
 				}
 			}
 			match block.kind {
-				PageArtifact(kind) => {
-					artifact_count = checked_add($artifacts.len(), 1)?
-					check_limit(artifact_count, limits.max_artifacts, Artifacts)?
-					$artifacts = $artifacts.append({ block: $block_index, kind, text: block.text })
-					$list_state = NoActiveList
-				}
 				Bullet({ item, list }) => {
 					node_increment = if item == 0 4 else 3
 					content_increment = if item == 0 6 else 5
@@ -510,7 +546,8 @@ plan_blocks = |authoring, limits| {
 					$content_count = attempted_content
 					$list_state = NoActiveList
 				}
-				Figure(_) => {
+				Figure(figure_index) => {
+					check_figure(list_at(authoring.figures, figure_index), $block_index)?
 					attempted_nodes = checked_add($next_node, 1)?
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 2)?
@@ -527,6 +564,29 @@ plan_blocks = |authoring, limits| {
 					$next_occurrence = attempted_occurrences
 					$content_count = attempted_content
 					$property_count = attempted_properties
+					$list_state = NoActiveList
+				}
+
+				## A caption is `Caption > P` beside its figure, with one
+				## `CaptionFor` relationship from the caption to the figure.
+				FigureCaption(_) => {
+					if block.text.is_empty() {
+						return Err(FigureCaptionEmpty({ block: $block_index }))
+					}
+					attempted_nodes = checked_add($next_node, 2)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 3)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$sources = $sources.append(block.text)
+					$next_node = attempted_nodes
+					$next_occurrence = attempted_occurrences
+					$content_count = attempted_content
+					$relationship_count = checked_add($relationship_count, 1)?
 					$list_state = NoActiveList
 				}
 				DestinationHeading({ level, name }) => {
@@ -632,10 +692,12 @@ plan_blocks = |authoring, limits| {
 		}
 	}
 	check_layout_items(authoring)?
-	Ok({ artifacts: $artifacts, attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
+	check_customs(authoring)?
+	check_decorations(authoring)?
+	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
-TableCursor : { break_cursor : U64, cell : U64, node : U64, occurrence : U64 }
+TableCursor : { break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
 
 TableBuffers : { group_nodes : List(U64), headers : List(U64), links : List(KernelFacadeSemantics.LinkRecord), ranges : List(Semantics.Range), sources : List(Str) }
 
@@ -653,8 +715,8 @@ TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U6
 ## order), then the `Row`- or `Both`-scoped header cells of its own row.
 ## Header cells carry no `Headers`. Each cell's range into the flattened
 ## header list is recorded in table order, one per cell.
-plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, U64, TableBuffers -> Try(TablePlan, KernelFacadeSemantics.Error)
-plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
+plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, U64 -> Try(TablePlan, KernelFacadeSemantics.Error)
+plan_table = |authoring, group_index, table_index, at, max_depth| {
 	group = list_at(authoring.groups, group_index)
 	table = list_at(authoring.tables, table_index)
 	columns = table.columns.len()
@@ -663,11 +725,13 @@ plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
 	}
 	caption_nodes = if table.caption 2 else 0
 	sections = (if table.header_rows > 0 1 else 0) + 1 + (if table.footer_rows > 0 1 else 0)
-	var $group_nodes = buffers.group_nodes.append(at.node)
-	var $headers = buffers.headers
-	var $links = buffers.links
-	var $ranges = buffers.ranges
-	var $sources = buffers.sources
+
+	## Fresh table-sized buffers; the caller appends them to its own.
+	var $group_nodes = List.with_capacity(group.group_end - group_index).append(at.node)
+	var $headers = []
+	var $links = []
+	var $ranges = List.with_capacity(group.block_end - group.first_block)
+	var $sources = List.with_capacity(group.block_end - group.first_block)
 	var $next_node = at.node + 1 + caption_nodes
 	var $content = 1 + (if table.caption 1 else 0) + sections + caption_nodes
 	var $occurrences = 0
@@ -760,7 +824,8 @@ plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
 		var $index = first_cell
 		while $index < $cell {
 			record = list_at(authoring.cells, $index)
-			start = $headers.len()
+			local_start = $headers.len()
+			start = at.header_base + local_start
 			match record.kind {
 				DataCell => {
 					$headers = if record.column_span == 1 {
@@ -772,7 +837,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
 				}
 				HeaderCell(_) => {}
 			}
-			count = $headers.len() - start
+			count = $headers.len() - local_start
 			if count != 0 {
 				$attributes = $attributes + 1
 				$relationships = $relationships + count
@@ -916,6 +981,156 @@ check_layout_items = |authoring| {
 		$index = $index + 1
 	}
 	Ok({})
+}
+
+## The number of figures with a caption, each adding one `CaptionFor`.
+captioned_figures : List(Document.NormalizedFigure) -> U64
+captioned_figures = |figures| {
+	var $count = 0
+	for figure in figures {
+		if figure.captioned {
+			$count = $count + 1
+		}
+	}
+	$count
+}
+
+## A figure has non-empty alternative text, a valid flow drawing, and a fit
+## floor of at most 100 percent.
+check_figure : Document.NormalizedFigure, U64 -> Try({}, KernelFacadeSemantics.Error)
+check_figure = |figure, block| {
+	if figure.alternative.is_empty() {
+		return Err(FigureAlternativeEmpty({ block: block }))
+	}
+	match figure.drawing {
+		InvalidDrawing(reason) => return Err(FigureDrawing({ block, reason }))
+		ValidDrawing(_) => {}
+	}
+	match figure.fit {
+		ExactFit => Ok({})
+		ScaleFit(floor) => if floor > 100 Err(FigureFitInvalid({ block: block })) else Ok({})
+	}
+}
+
+## A custom block (v1 of the seam) holds only paragraphs and rich
+## paragraphs directly: no nested groups, decorations, spacers, or page
+## breaks, which would need layout inside the extension's measured box. It
+## is a body-flow block, never in the lead region. Its name is non-empty
+## and its panel a valid flow drawing of solid paths only (no images) that
+## lies inside its box. O(customs + leaves + flow items).
+check_customs : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
+check_customs = |authoring| {
+	if authoring.customs.is_empty() {
+		return Ok({})
+	}
+	var $index = 0
+	while $index < authoring.customs.len() {
+		custom = list_at(authoring.customs, $index)
+		group = list_at(authoring.groups, custom.group)
+		code = custom.group + 1
+		if in_lead_region(authoring.groups, group.parent) {
+			return Err(CustomContent({ child: NoChild, custom: $index }))
+		}
+		if group.group_end > custom.group + 1 {
+			return Err(CustomContent({ child: Child(list_at(authoring.groups, custom.group + 1).position), custom: $index }))
+		}
+		var $block = group.first_block
+		while $block < group.block_end {
+			match list_at(authoring.blocks, $block).kind {
+				Paragraph | RichParagraph(_) => {}
+				_ => return Err(CustomContent({ child: Child(custom_child_position(authoring, $block)), custom: $index }))
+			}
+			$block = $block + 1
+		}
+		for decoration in authoring.decorations {
+			if decoration.parent == code {
+				return Err(CustomContent({ child: Child(decoration.position), custom: $index }))
+			}
+		}
+		for spacer in authoring.spacers {
+			if spacer.parent == code {
+				return Err(CustomContent({ child: Child(spacer.position), custom: $index }))
+			}
+		}
+		for page_break in authoring.page_breaks {
+			if page_break.parent == code {
+				return Err(CustomContent({ child: Child(page_break.position), custom: $index }))
+			}
+		}
+		if custom.name.is_empty() {
+			return Err(CustomName({ custom: $index }))
+		}
+		inset = custom.inset.raw()
+		if custom.width.raw() <= 0 or custom.height.raw() <= 0 or inset <= 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
+			return Err(CustomMeasure({ custom: $index }))
+		}
+		match custom.panel {
+			InvalidDrawing(reason) => return Err(CustomDrawing({ custom: $index, reason }))
+			ValidDrawing(drawing) => {
+				if !drawing.images.is_empty() {
+					return Err(CustomDrawing({ custom: $index, reason: "a custom block panel holds solid paths only, no images" }))
+				}
+				if drawing.width > custom.width.raw().to_u64_wrap() or drawing.height > custom.height.raw().to_u64_wrap() {
+					return Err(CustomDrawing({ custom: $index, reason: "the panel extends beyond the custom block's measured box" }))
+				}
+			}
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
+## The authored position of a leaf inside its custom block: a rich
+## paragraph records it; any other leaf is located by counting the leaves
+## before it in the block, which holds no other children when it is valid.
+custom_child_position : Document.NormalizedAuthoring, U64 -> U64
+custom_child_position = |authoring, block| {
+	record = list_at(authoring.blocks, block)
+	match record.kind {
+		RichParagraph(paragraph) => list_at(authoring.rich_paragraphs, paragraph).position
+		_ => {
+			group = list_at(authoring.groups, record.parent - 1)
+			block - group.first_block
+		}
+	}
+}
+
+## A decoration is a block-level flow construct: never in a list item or a
+## lead region, always followed by a flow block, and with a valid drawing.
+check_decorations : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
+check_decorations = |authoring| {
+	var $index = 0
+	while $index < authoring.decorations.len() {
+		decoration = list_at(authoring.decorations, $index)
+		if in_list_item(authoring.groups, decoration.parent) {
+			return Err(ListItemDecoration({ decoration: $index }))
+		}
+		if decoration.block >= authoring.blocks.len() or in_lead_region(authoring.groups, decoration.parent) {
+			return Err(DecorationPosition({ decoration: $index }))
+		}
+		match decoration.drawing {
+			InvalidDrawing(reason) => return Err(DecorationDrawing({ decoration: $index, reason }))
+			ValidDrawing(_) => {}
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
+## Whether group code `code` lies inside the first page's lead region.
+in_lead_region : List(Document.NormalizedGroup), U64 -> Bool
+in_lead_region = |groups, code| {
+	var $code = code
+	while $code != 0 {
+		group = list_at(groups, $code - 1)
+		match group.kind {
+			LeadRegion => return True
+			_ => {
+				$code = group.parent
+			}
+		}
+	}
+	False
 }
 
 ## Every generated number must be representable in its style: letters and
@@ -1161,6 +1376,33 @@ append_rich_links = |links, inlines, rich, paragraph_node, first_occurrence| {
 	$links
 }
 
+## Numbered headings never skip a level downward: each heading is at most
+## one level deeper than the heading before it in reading order (the first
+## heading may have any level). Levels outside 1..6 are left to
+## `heading_role`. One pass over the normalized blocks, O(blocks).
+check_heading_progression : List(Document.NormalizedBlock) -> Try({}, KernelFacadeSemantics.Error)
+check_heading_progression = |blocks| {
+	var $previous = U64.highest
+	var $previous_level = 0
+	var $index = 0
+	for block in blocks {
+		level = match block.kind {
+			Heading(value) => value
+			DestinationHeading({ level: value, name: _ }) => value
+			_ => 0
+		}
+		if level >= 1 and level <= 6 {
+			if $previous != U64.highest and level > $previous_level + 1 {
+				return Err(HeadingSkip({ block: $index, previous: $previous }))
+			}
+			$previous = $index
+			$previous_level = level
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
 heading_role : U8, U64 -> Try(Str, KernelFacadeSemantics.Error)
 heading_role = |level, block| match level {
 	1 => Ok("H1")
@@ -1215,6 +1457,14 @@ build_store = |authoring, planning, source_plan| {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited))
 				}
 
+				## A custom block is a `Div` of its paragraphs.
+				Custom(_) => {
+					if children == 0 {
+						return Err(EmptyContainer({ group: $group }))
+					}
+					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Division), span, Inherited))
+				}
+
 				## The first page's lead region is a `Div` of semantic
 				## letterhead content, first in reading order.
 				LeadRegion => {
@@ -1222,6 +1472,15 @@ build_store = |authoring, planning, source_plan| {
 						return Err(EmptyContainer({ group: $group }))
 					}
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Division), span, Inherited))
+				}
+
+				## A captioned figure is a `Sect` of its `Figure` and its
+				## `Caption`. `Div` and `Part` are transparent grouping
+				## elements for PDF/UA-2 8.2.5.27 (a Caption is the first or
+				## last child of its parent), so inside one the caption would
+				## sit among the enclosing element's children.
+				FigureGroup(_) => {
+					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Section), span, Inherited))
 				}
 				KeepTogether | KeepWithNext(_) => {}
 				ItemList(list_index) => {
@@ -1245,8 +1504,7 @@ build_store = |authoring, planning, source_plan| {
 	var $properties = List.with_capacity(planning.property_count)
 	var $identifiers = if planning.header_ranges.is_empty() [] else List.with_capacity(planning.header_ranges.len())
 	var $relationships = if planning.relationship_count == 0 [] else List.with_capacity(planning.relationship_count)
-	var $ownership = List.repeat(ArtifactBlock(0), blocks.len())
-	var $artifact = 0
+	var $ownership = List.repeat(TextBlock({ body: Semantics.OccurrenceId.from_index(0), label: NoLabel, level: 0 }), blocks.len())
 	var $index = 0
 	var $next_node = 1
 	var $next_occurrence = 0
@@ -1258,36 +1516,38 @@ build_store = |authoring, planning, source_plan| {
 		if $next_group < groups.len() and list_at(groups, $next_group).first_block <= $index {
 			group = list_at(groups, $next_group)
 			match group.kind {
-				Container(_) | ItemList(_) | LeadRegion => {
+				Container(_) | Custom(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) => {}
 				Table(table_index) => {
-					placed = place_table(
-						{
-							attributes: $attributes,
-							buffers: { content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
-							identifiers: $identifiers,
-							ownership: $ownership,
-							relationships: $relationships,
-						},
+					## The result is destructured in one pattern, so each
+					## accumulator moves out of it: projecting the fields of a
+					## still-live `placed` record left every document-sized
+					## list shared and copied it once per table.
+					{ attributes: placed_attributes, break_cursor: placed_break_cursor, buffers: { content: placed_content, nodes: placed_nodes, occurrences: placed_occurrences, properties: placed_properties }, identifiers: placed_identifiers, node: placed_node, occurrence: placed_occurrence, ownership: placed_ownership, relationships: placed_relationships, source_input: placed_source_input } = place_table(
+						$attributes,
+						{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+						$identifiers,
+						$ownership,
+						$relationships,
 						authoring,
 						planning,
 						{ break_cursor: $break_cursor, group: $next_group, language, node: $next_node, occurrence: $next_occurrence, source_input: $source_input, table: table_index.to_u64() },
 						source_plan,
 					)?
-					$attributes = placed.attributes
-					$content = placed.buffers.content
-					$nodes = placed.buffers.nodes
-					$occurrences = placed.buffers.occurrences
-					$properties = placed.buffers.properties
-					$identifiers = placed.identifiers
-					$ownership = placed.ownership
-					$relationships = placed.relationships
-					$next_node = placed.node
-					$next_occurrence = placed.occurrence
-					$source_input = placed.source_input
-					$break_cursor = placed.break_cursor
+					$attributes = placed_attributes
+					$content = placed_content
+					$nodes = placed_nodes
+					$occurrences = placed_occurrences
+					$properties = placed_properties
+					$identifiers = placed_identifiers
+					$ownership = placed_ownership
+					$relationships = placed_relationships
+					$next_node = placed_node
+					$next_occurrence = placed_occurrence
+					$source_input = placed_source_input
+					$break_cursor = placed_break_cursor
 					$index = group.block_end
 					$next_group = group.group_end - 1
 				}
@@ -1322,11 +1582,6 @@ build_store = |authoring, planning, source_plan| {
 			block = list_at(blocks, $index)
 			list_level = block_level(groups, block.parent)
 			match block.kind {
-				PageArtifact(_) => {
-					$ownership = list_set($ownership, $index, ArtifactBlock($artifact))
-					$artifact = checked_add($artifact, 1)?
-					$index = $index + 1
-				}
 				Heading(level) => {
 					role = heading_role(level, $index)?
 					start = $content.len()
@@ -1367,6 +1622,26 @@ build_store = |authoring, planning, source_plan| {
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
 					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$source_input = checked_add($source_input, 1)?
+					$index = $index + 1
+				}
+
+				## The caption follows its figure leaf in the figure's `Sect`,
+				## so the figure's node is the one allocated just before it.
+				FigureCaption(_) => {
+					caption_node = $next_node
+					paragraph_node = checked_add(caption_node, 1)?
+					caption_start = $content.len()
+					$content = $content.append(ChildNode(Semantics.NodeId.from_index(paragraph_node)))
+					paragraph_start = $content.len()
+					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+					$nodes = list_set($nodes, caption_node, make_node(caption_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Caption", Semantics.Range.from_start_and_length(caption_start, 1), Inherited))
+					$nodes = list_set($nodes, paragraph_node, make_node(paragraph_node, ParentNode(Semantics.NodeId.from_index(caption_node)), "P", Semantics.Range.from_start_and_length(paragraph_start, 1), Inherited))
+					$relationships = $relationships.append(CaptionFor({ caption: Semantics.NodeId.from_index(caption_node), target: Semantics.NodeId.from_index(caption_node - 1) }))
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
+					$next_node = checked_add($next_node, 2)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
 					$source_input = checked_add($source_input, 1)?
 					$index = $index + 1
@@ -1490,7 +1765,7 @@ build_store = |authoring, planning, source_plan| {
 		$next_group = $next_group + 1
 	}
 	unique_sources = KernelFacadeSources.Plan.sources(source_plan).map(|source| { unicode: source.unicode })
-	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $artifact != planning.artifacts.len() or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
+	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
 		crash "facade semantic planning count escaped"
 	}
 	store = {
@@ -1504,7 +1779,7 @@ build_store = |authoring, planning, source_plan| {
 		element_identifiers: $identifiers,
 		fragments: [],
 		mathml_subtrees: [],
-		namespaces: [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }],
+		namespaces: if $nodes.any(|node| node.role.namespace.index() == 1) standard_namespaces_with_pdf17 else standard_namespaces,
 		nodes: $nodes,
 		non_text_sources: [],
 		occurrence_fragments: [],
@@ -1621,21 +1896,21 @@ TablePlaced : { attributes : List(Semantics.StructureAttribute), break_cursor : 
 ## cell with associations `Headers` and one `HeaderFor` relationship per
 ## header in the same order, and a spanning cell `ColSpan`. A cell's text is
 ## a rich paragraph owned by its `TH` or `TD` directly.
-place_table : TableStore, Document.NormalizedAuthoring, Planning, { break_cursor : U64, group : U64, language : Str, node : U64, occurrence : U64, source_input : U64, table : U64 }, KernelFacadeSources.Plan -> Try(TablePlaced, KernelFacadeSemantics.Error)
-place_table = |store, authoring, planning, at, source_plan| {
+place_table : List(Semantics.StructureAttribute), StoreBuffers, List(Semantics.ElementIdentifier), List(KernelFacadeSemantics.BlockOwnership), List(Semantics.Relationship), Document.NormalizedAuthoring, Planning, { break_cursor : U64, group : U64, language : Str, node : U64, occurrence : U64, source_input : U64, table : U64 }, KernelFacadeSources.Plan -> Try(TablePlaced, KernelFacadeSemantics.Error)
+place_table = |attributes, { content, nodes, occurrences, properties }, identifiers, ownership, relationships, authoring, planning, at, source_plan| {
 	group = list_at(authoring.groups, at.group)
 	table = list_at(authoring.tables, at.table)
 	empty = Semantics.Range.from_start_and_length(0, 0)
 	table_node = at.node
 	caption_nodes = if table.caption 2 else 0
-	var $attributes = store.attributes
-	var $content = store.buffers.content
-	var $nodes = store.buffers.nodes
-	var $occurrences = store.buffers.occurrences
-	var $properties = store.buffers.properties
-	var $identifiers = store.identifiers
-	var $ownership = store.ownership
-	var $relationships = store.relationships
+	var $attributes = attributes
+	var $content = content
+	var $nodes = nodes
+	var $occurrences = occurrences
+	var $properties = properties
+	var $identifiers = identifiers
+	var $ownership = ownership
+	var $relationships = relationships
 	var $occurrence = at.occurrence
 	var $source_input = at.source_input
 	var $break_cursor = at.break_cursor
@@ -1929,6 +2204,22 @@ child_spans = |entries, group_count| {
 	{ counts: $counts, ordered: $ordered }
 }
 
+standard_namespaces : List(Semantics.Namespace)
+standard_namespaces = [{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }]
+
+## The PDF 1.7 standard structure namespace is declared only when a `Code`
+## or `Quote` element needs it.
+standard_namespaces_with_pdf17 : List(Semantics.Namespace)
+standard_namespaces_with_pdf17 = [
+	{ id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" },
+	{ id: Semantics.NamespaceId.from_index(1), kind: Pdf17, uri: "http://iso.org/pdf/ssn" },
+]
+
+## `Code` and `Quote` are PDF 1.7 standard structure types (ISO 32000-2
+## 14.8.6); every other facade role is in the PDF 2.0 namespace.
+role_namespace : Str -> Semantics.NamespaceId
+role_namespace = |role| if role == "Code" or role == "Quote" Semantics.NamespaceId.from_index(1) else Semantics.NamespaceId.from_index(0)
+
 make_node : U64, Semantics.NodeParent, Str, Semantics.Range, Semantics.Language -> Semantics.Node
 make_node = |index, parent, role, content, language| {
 	attributes: Semantics.Range.from_start_and_length(0, 0),
@@ -1937,7 +2228,7 @@ make_node = |index, parent, role, content, language| {
 	id: Semantics.NodeId.from_index(index),
 	language,
 	parent,
-	role: { local_name: role, namespace: Semantics.NamespaceId.from_index(0) },
+	role: { local_name: role, namespace: role_namespace(role) },
 	structure_element: Semantics.StructureElementId.from_index(index),
 	text_properties: Semantics.Range.from_start_and_length(0, 0),
 }
@@ -2018,7 +2309,6 @@ test_limits : KernelFacadeSemantics.Limits
 test_limits = KernelFacadeSemantics.Limits.make(test_limits_record)
 
 test_limits_record = {
-	max_artifacts: 2,
 	max_container_depth: 2,
 	max_inline_depth: 8,
 	max_content_spine: 32,
@@ -2047,9 +2337,10 @@ test_authoring = {
 		{ kind: Paragraph, parent: 0, text: "Body" },
 		{ kind: Bullet({ item: 0, list: 0 }), parent: 0, text: "One" },
 		{ kind: Bullet({ item: 1, list: 0 }), parent: 0, text: "Two" },
-		{ kind: PageArtifact(Header), parent: 0, text: "Header" },
 	],
 	cells: [],
+	customs: [],
+	decorations: [],
 	figures: [],
 	groups: [],
 	inlines: [],
@@ -2081,7 +2372,7 @@ expect {
 	first_label = list_at(store.nodes, 6)
 	first_body = list_at(store.nodes, 7)
 
-	retained_authoring.metadata_title == "Report" and retained_authoring.language == "en-AU" and retained_authoring.blocks.len() == 6 and
+	retained_authoring.metadata_title == "Report" and retained_authoring.language == "en-AU" and retained_authoring.blocks.len() == 5 and
 		store.nodes.len() == 11 and store.occurrences.len() == 7 and store.content_spine.len() == 17 and
 			root.role.local_name == "Document" and root.content.start() == 0 and root.content.length() == 4 and
 				title.role.local_name == "Title" and list.role.local_name == "L" and list.content.start() == 7 and list.content.length() == 2 and
@@ -2111,17 +2402,6 @@ expect {
 	KernelFacadeSources.Plan.sources(source_plan).len() == 6 and store.text_properties.len() == 2 and labels_share_source and generated
 }
 
-## Page artifacts stay outside the semantic tree and retain typed ownership.
-expect {
-	plan = KernelFacadeSemantics.Plan.build(test_authoring, test_limits)?
-	artifacts = KernelFacadeSemantics.Plan.artifacts(plan)
-	owners = KernelFacadeSemantics.Plan.block_ownership(plan)
-	match (list_at(artifacts, 0), list_at(owners, 5)) {
-		({ block, kind: Header, text }, ArtifactBlock(artifact)) => block == 5 and text == "Header" and artifact == 0
-		_ => False
-	}
-}
-
 expect match KernelFacadeSemantics.Plan.build({ ..test_authoring, language: "" }, test_limits) {
 	Err(EmptyLanguage) => True
 	_ => False
@@ -2148,11 +2428,27 @@ expect {
 	}
 }
 
+## A heading may rise any number of levels but descend only one at a time;
+## destination headings take part, and the first heading has no predecessor.
+expect {
+	skipped = [
+		{ kind: Heading(1), parent: 0, text: "Summary" },
+		{ kind: Paragraph, parent: 0, text: "Body" },
+		{ kind: DestinationHeading({ level: 3, name: "detail" }), parent: 0, text: "Detail" },
+	]
+	stepped = [
+		{ kind: Heading(2), parent: 0, text: "Start" },
+		{ kind: Heading(3), parent: 0, text: "Down" },
+		{ kind: Heading(1), parent: 0, text: "Up" },
+		{ kind: DestinationHeading({ level: 2, name: "down" }), parent: 0, text: "Down" },
+	]
+	check_heading_progression(skipped) == Err(HeadingSkip({ block: 2, previous: 0 })) and check_heading_progression(stepped) == Ok({})
+}
+
 ## The first node crossing is rejected before its planned node/content buffers
 ## are appended.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({
-		max_artifacts: 2,
 		max_container_depth: 4,
 		max_content_spine: 32,
 		max_inline_depth: 8,

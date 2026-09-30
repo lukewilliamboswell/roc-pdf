@@ -41,6 +41,9 @@ ROOT = Path(__file__).resolve().parents[1]
 MIXED = ROOT / "tests" / "rich_inline" / "mixed.pdf"
 ORDERED = ROOT / "tests" / "rich_inline" / "ordered.pdf"
 PARAGRAPHS = ROOT / "tests" / "rich_inline" / "paragraphs_10.pdf"
+BREAKS = ROOT / "tests" / "layout_policies" / "breaks.pdf"
+CODE_FACE = ROOT / "tests" / "rich_inline" / "code_face.pdf"
+ORDERED_FURNITURE = ROOT / "tests" / "page_templates" / "ordered.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 
@@ -71,8 +74,13 @@ def to_unicode(document: Document, font: int) -> dict[int, str]:
     return mappings
 
 
-def page_marked_text(document: Document, page: int) -> list[tuple[int, str]]:
-    """(MCID, decoded text) for each MCID-bearing marked-content sequence in stream order."""
+def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]] | None = None, artifacts: bool = False) -> list[tuple[int, str]]:
+    """(MCID, decoded text) for each MCID-bearing marked-content sequence in stream order.
+
+    With ``by_font``, the decoded logical text is also collected per font
+    /BaseFont (subset tag removed), one entry per shown string; with
+    ``artifacts`` that collection is of page-artifact text instead.
+    """
     page_value = document.get(page)
     fonts = page_value.get("Resources", {}).get("Font", {})
     content = document.stream(int(page_value["Contents"]))
@@ -82,6 +90,7 @@ def page_marked_text(document: Document, page: int) -> list[tuple[int, str]]:
     order: list[int] = []
     operands: list[object] = []
     current: dict[int, str] | None = None
+    current_font = ""
     at = 0
     while at < len(content):
         if content[at] in b" \t\r\n":
@@ -138,6 +147,7 @@ def page_marked_text(document: Document, page: int) -> list[tuple[int, str]]:
                 if name not in decoders:
                     decoders[name] = to_unicode(document, int(fonts[name]))
                 current = decoders[name]
+                current_font = str(document.get(int(fonts[name]))["BaseFont"])[1:].split("+", 1)[-1]
             elif operator in ("Tj", "TJ"):
                 shown = operands[-1]
                 strings = [shown] if isinstance(shown, bytes) else [item for item in shown if isinstance(item, bytes)]
@@ -146,6 +156,8 @@ def page_marked_text(document: Document, page: int) -> list[tuple[int, str]]:
                 require(current is not None, "text is shown before a font is selected")
                 for string in strings:
                     require(len(string) % 2 == 0, "Identity-H string has an odd byte length")
+                    if by_font is not None and (owner is ARTIFACT) == artifacts:
+                        by_font.setdefault(current_font, []).append("".join(current.get(int.from_bytes(string[i : i + 2], "big"), "") for i in range(0, len(string), 2)))
                     for index in range(0, len(string), 2):
                         cid = int.from_bytes(string[index : index + 2], "big")
                         require(cid in current, f"CID {cid} has no ToUnicode mapping")
@@ -266,6 +278,14 @@ MIXED_EXPECTED = [
 
 ORDERED_EXPECTED = ["P: [Span Lang=fr:Café][Span Lang=zh-Hans:中][Em:PDF]"]
 
+# An explicit line break's separator: the text before each break ends in a
+# painted U+0020, so the logical text of an address block keeps its word
+# boundaries.
+BREAKS_EXPECTED = [
+    "P: Level 3, 18 Wharf Street Hobart TAS 7000 ABN 00 123 456 789 accounts@harbourfinch.example · (03) 5550 0142",
+    "P: Ms Priya Raman Operations Manager Northstar Cooperative Ltd 42 Kestrel Parade Fremantle WA 6160",
+]
+
 # Lines keep their painted trailing space before each soft break.
 PDFBOX_EXPECTED = (
     "Quarterly summary\n1 Summary\nQ1 FY2027: July to September 2026 · Prepared by the finance team.\n"
@@ -309,11 +329,36 @@ def check_pdfbox_extraction(pdf: Path) -> None:
     print("PASS rich-inline PDFBox 3.0.8 extraction: exact logical text across styled runs, spans, and wrapped links")
 
 
+def font_text(pdf: bytes, font: str, artifacts: bool = False) -> str:
+    """The logical (or page-artifact) text shown in one font, in paint order."""
+    document = Document(pdf)
+    pages: list[int] = []
+    page_order(document, int(document.get(document.root)["Pages"]), pages)
+    by_font: dict[str, list[str]] = {}
+    for page in pages:
+        page_marked_text(document, page, by_font, artifacts)
+    return "".join(by_font.get(font, []))
+
+
+def code_font_text(pdf: bytes) -> str:
+    """The logical text shown in the monospace Code fixture face."""
+    return font_text(pdf, "NotoMonoCodeFixture-Regular")
+
+
 def self_test() -> None:
     mixed = MIXED.read_bytes()
     require(render(mixed) == MIXED_EXPECTED, f"mixed rich-inline rendering changed: {render(mixed)!r}")
     require(render(ORDERED.read_bytes()) == ORDERED_EXPECTED, "ordered rich-inline rendering changed")
     render(PARAGRAPHS.read_bytes())
+    code_face = CODE_FACE.read_bytes()
+    require(render(code_face) == render(mixed), "the code-face snapshot's logical text differs from the mixed snapshot's")
+    require(code_font_text(code_face) == "WMS-7code", f"the monospace face shows {code_font_text(code_face)!r}, not exactly the Code text")
+    furniture = ORDERED_FURNITURE.read_bytes()
+    han = font_text(furniture, "NotoSCCJKFixture-Regular", artifacts=True)
+    require(han == "中" * 6, f"the ordered-policy furniture shows {han!r} in the Han face, not one 中 per continuation page")
+    require(font_text(furniture, "NotoSCCJKFixture-Regular") == "", "body text uses the furniture-only Han face")
+    breaks = render(BREAKS.read_bytes())
+    require(all(line in breaks for line in BREAKS_EXPECTED), f"line-break separators changed: {breaks!r}")
     expansion = re.search(rb"/E <[0-9A-F]+> /K \[[^\]]*\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Span ", mixed)
     require(expansion is not None, "mixed snapshot has no expansion Span")
     twins = [
@@ -333,7 +378,7 @@ def self_test() -> None:
         raise SystemExit(f"rich-inline checker accepted {label}")
     print(
         "PASS rich-inline checker self-test: ToUnicode-decoded logical text, structure/paint order agreement, "
-        f"inline roles, /E, /Lang, and link annotations pinned on 2 snapshots; {rejected} mutation twins rejected",
+        f"inline roles, /E, /Lang, link annotations, line-break separators, the Code role face, and ordered-policy furniture faces pinned on 5 snapshots; {rejected} mutation twins rejected",
         flush=True,
     )
 

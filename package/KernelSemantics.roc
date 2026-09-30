@@ -227,9 +227,14 @@ build_text_plan = |store, text_source_facts, page_count, content_stream_count, l
 	)
 }
 
+## Namespace 0 is the PDF 2.0 standard structure namespace. An optional
+## namespace 1 is the PDF 1.7 standard structure namespace, which owns the
+## PDF 1.7 roles `Code` and `Quote`: ISO 32000-2 14.8.6 does not define
+## them in the PDF 2.0 namespace, and PDF/UA-2 8.2.4 requires every element
+## to belong to (or be role mapped to) a standard namespace.
 validate_namespaces : List(Semantics.Namespace) -> Try(U64, KernelSemantics.Error)
 validate_namespaces = |namespaces| {
-	if namespaces.len() != 1 {
+	if namespaces.len() != 1 and namespaces.len() != 2 {
 		Err(InvalidPdf20Namespace)
 	} else {
 		namespace = list_at(namespaces, 0)
@@ -237,8 +242,17 @@ validate_namespaces = |namespaces| {
 			Err(NonDenseIdentity({ actual: namespace.id.index(), expected: 0, kind: NamespaceIndex }))
 		} else if namespace.kind != Pdf20 or namespace.uri != "http://iso.org/pdf2/ssn" {
 			Err(InvalidPdf20Namespace)
-		} else {
+		} else if namespaces.len() == 1 {
 			Ok(1)
+		} else {
+			legacy = list_at(namespaces, 1)
+			if legacy.id.index() != 1 {
+				Err(NonDenseIdentity({ actual: legacy.id.index(), expected: 1, kind: NamespaceIndex }))
+			} else if legacy.kind != Pdf17 or legacy.uri != "http://iso.org/pdf/ssn" {
+				Err(InvalidPdf20Namespace)
+			} else {
+				Ok(2)
+			}
 		}
 	}
 }
@@ -1218,6 +1232,17 @@ role_index = |name| {
 role_document : U64
 role_document = 0
 
+role_code : U64
+role_code = 19
+
+role_quote : U64
+role_quote = 20
+
+## The namespace index that owns a role: `Code` and `Quote` are PDF 1.7
+## standard types (namespace 1); every other accepted role is PDF 2.0.
+role_namespace : U64 -> U64
+role_namespace = |role| if role == role_code or role == role_quote 1 else 0
+
 role_hn : U64
 role_hn = 7
 
@@ -1254,10 +1279,11 @@ role_bit = |role| if role == unknown_role 0 else U64.shl_wrap(1, role.to_u8_wrap
 ## Roles are enabled per validation subset: the root is exactly `Document`
 ## (PDF/UA-2 8.2.5.2) and `Document` never nests; the tagged-visual subset
 ## admits only `P`; `Link` requires the navigation-enabled variants; the text
-## subset admits the whole vocabulary above.
+## subset admits the whole vocabulary above. Each role must be in the
+## namespace that defines it (`role_namespace`).
 role_enabled : U64, U64, Bool, Bool, Bool -> Bool
 role_enabled = |role, namespace, is_root, text_enabled, navigation| {
-	if namespace != 0 or role == unknown_role {
+	if role == unknown_role or namespace != role_namespace(role) {
 		False
 	} else if is_root {
 		role == role_document
@@ -1570,24 +1596,55 @@ expect {
 	}
 }
 
+## Role mappings are outside every supported subset, so a role-map cycle
+## (`Chapter` to `Sect` and back) is rejected before the graph walk and no
+## `/RoleMap` is ever lowered.
+expect {
+	chapter = { local_name: "Chapter", namespace: Semantics.NamespaceId.from_index(0) }
+	sect = { local_name: "Sect", namespace: Semantics.NamespaceId.from_index(0) }
+	cyclic = { ..test_store, role_mappings: [{ from: chapter, to: sect }, { from: sect, to: chapter }] }
+
+	match KernelSemantics.Plan.build(cyclic, 1, 1, test_limits) {
+		Err(UnsupportedStoreContent) => True
+		_ => False
+	}
+}
+
+## Namespace 0 is PDF 2.0 and an optional namespace 1 is exactly the PDF 1.7
+## standard namespace; any other second namespace is rejected.
+expect {
+	pdf20 = { id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }
+	pdf17 = { id: Semantics.NamespaceId.from_index(1), kind: Pdf17, uri: "http://iso.org/pdf/ssn" }
+	validate_namespaces([pdf20]) == Ok(1) and
+		validate_namespaces([pdf20, pdf17]) == Ok(2) and
+			validate_namespaces([pdf20, { ..pdf17, uri: "http://iso.org/pdf2/ssn" }]) == Err(InvalidPdf20Namespace) and
+				validate_namespaces([pdf20, { ..pdf17, kind: MathMl }]) == Err(InvalidPdf20Namespace) and
+					validate_namespaces([pdf17, pdf20]) != Ok(2) and
+						validate_namespaces([pdf20, pdf17, pdf17]) == Err(InvalidPdf20Namespace)
+}
+
 ## Text authoring adds the grouping, block, inline, list, and table roles
 ## without widening the tagged-visual subset; unknown, non-root Document, and
-## non-PDF-2.0 roles stay unsupported.
+## non-PDF-2.0 roles stay unsupported, and the PDF 1.7 roles `Code` and
+## `Quote` are valid only in the PDF 1.7 namespace.
 expect {
 	paragraph = list_at(test_store.nodes, 1)
 	with_role = |name| { ..paragraph, role: { ..paragraph.role, local_name: name } }
-	text_roles = ["Title", "H2", "LBody", "Span", "Part", "Sect", "Div", "DocumentFragment", "Caption", "Em", "Strong", "Code", "Quote", "Table", "THead", "TBody", "TFoot", "TR", "TH", "TD"]
+	text_roles = ["Title", "H2", "LBody", "Span", "Part", "Sect", "Div", "DocumentFragment", "Caption", "Em", "Strong", "Table", "THead", "TBody", "TFoot", "TR", "TH", "TD"]
 	text_enabled = text_roles.all(|name| valid_role(with_role(name), False, True, False))
 	visual_disabled = text_roles.all(|name| !valid_role(with_role(name), False, False, False))
 	foreign = { ..paragraph, role: { local_name: "Sect", namespace: Semantics.NamespaceId.from_index(1) } }
+	pdf17 = |name| { ..paragraph, role: { local_name: name, namespace: Semantics.NamespaceId.from_index(1) } }
+	legacy_enabled = ["Code", "Quote"].all(|name| valid_role(pdf17(name), False, True, False) and !valid_role(with_role(name), False, True, False))
 
 	valid_role(paragraph, False, False, False) and
 		text_enabled and
 			visual_disabled and
-				!valid_role(with_role("Formula"), False, True, False) and
-					!valid_role(with_role("H7"), False, True, False) and
-						!valid_role(with_role("Document"), False, True, False) and
-							!valid_role(foreign, False, True, False)
+				legacy_enabled and
+					!valid_role(with_role("Formula"), False, True, False) and
+						!valid_role(with_role("H7"), False, True, False) and
+							!valid_role(with_role("Document"), False, True, False) and
+								!valid_role(foreign, False, True, False)
 }
 
 ## Fragment occurrence identities are checked before prefix-sum indexing.

@@ -383,14 +383,44 @@ its rerun passed.
 - **Relaxations are not yet public.** They are recorded in
   `KernelFacadePages.Plan.relaxations` for the preparation-report slice; the
   report must also map block indexes to authored paths.
-- **Line breaks in the logical text.** The break character is not part of
-  any occurrence, so a structure-order reader sees
-  `Wharf StreetHobart` without whitespace between segments, as for
-  soft-wrapped lines. Whether PDF/UA-2 review wants a line separator or
-  `/ActualText` there is open.
-- **List labels** are start-aligned in a fixed theme indent. A label wider
-  than the indent (`100.`, `VIII.` at the default 18 pt) is rejected rather
-  than widening the list's label column.
+- ~~**Line breaks in the logical text.**~~ (open-issues slice) Each
+  explicit line break's separator is a U+0020 appended at normalization to
+  the text leaf before it (unless that text already ends in a space), so it
+  is painted, invisibly, at the end of the pre-break line inside that
+  leaf's occurrence, and structure-order text reads `Wharf Street Hobart`.
+  The separator counts toward the line's fit exactly like the trailing
+  space of a soft-wrapped line, and a link wrapped across a break covers it
+  in its quad. `check_rich_inline.py --self-test` pins the two address
+  blocks of the `breaks` snapshot. The breaks, letter, and invoice
+  snapshots gain one space glyph per break (about nine allocation events
+  each, the existing per-glyph placement and content-writer cost).
+- ~~**List labels**~~ (open-issues slice): a list whose widest generated
+  label does not fit the theme indent widens its whole label column to that
+  label's width plus half the label size, so all its items' bodies stay
+  aligned, and nested bodies indent by the sum of their lists' columns.
+  `layout.list_label_width` now reports only a column that leaves its body
+  no width. The `nested lists` case adds a list from 98 (`100.` widens its
+  column to 27.0 pt) with a nested `VIII.`/`IX.` list (25.1 pt); the
+  negative is four nested lists of `MMMDCCCLXXXVIII.` labels. The dense
+  per-block geometry costs one to six allocation events per document and
+  32 bytes per block (+1.4% bytes at most, on the x1000 facade pairs).
+- ~~**Destination headings.**~~ (reference-documents closure) R1 and the
+  unsplittable-heading rule matched only `Heading` and `Title` blocks, so a
+  `Pdf.destination_heading` (the form every report section heading takes)
+  neither kept with its next block nor counted as unsplittable: the
+  reference report's section 2 and Appendix A headings were left as the
+  last line of a page with their paragraph on the next, and no relaxation
+  was reported. `KernelFacadePages.keeps_with_next` and `keeps_together`
+  now include `DestinationHeading`. REP-A1 in `tests/reference_documents`
+  pins the fixed behavior against a control; no committed snapshot placed
+  a destination heading at a page end, so none changed.
+- ~~**Heading progression.**~~ (reference-documents closure)
+  `semantics.heading_skip` (`InvalidRelationship`) was a recorded code
+  that nothing returned. `KernelFacadeSemantics.check_heading_progression`
+  now rejects, in one O(blocks) pass before planning, a numbered heading
+  (plain or destination) more than one level deeper than the heading before
+  it, naming both headings' paths (REP-A7). The first heading may take any
+  level; levels outside 1–6 keep `heading_role`'s rejection.
 - **List item content** is limited to paragraphs, rich paragraphs, and lists,
   and must begin with a paragraph. Keeps inside items are rejected.
 - **Page-break edges.** A page break at the edge of a `keep_together` is

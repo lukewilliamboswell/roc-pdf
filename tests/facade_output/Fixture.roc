@@ -148,7 +148,7 @@ pipeline_limits = pipeline_limits_for(1)
 
 pipeline_limits_for : U64 -> KernelFacadePipeline.Limits
 pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 128, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 128, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 128, max_occurrences: 1, max_pages: 128 }),
 	navigation: KernelNavigation.Limits.make({
 		max_annotations: 0,
@@ -201,7 +201,6 @@ pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 		scene: KernelScene.Limits.make({ max_commands: 256, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 128, max_pages: 128, max_path_segments: 0, max_paths: 0 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
-		max_artifacts: 0,
 		max_container_depth: 16,
 		max_inline_depth: 8,
 		max_content_spine: 2,
@@ -209,7 +208,7 @@ pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 		max_occurrences: 1,
 		max_properties: 0,
 		max_source_inputs: 1,
-		semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 0, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 0, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		sources: KernelFacadeSources.Limits.make({
 			max_hash_probes: 16,
 			max_inputs: 1,

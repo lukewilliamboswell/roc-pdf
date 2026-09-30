@@ -15,11 +15,13 @@ import KernelPdfA4
 import KernelSrgbProfile
 import KernelXmp
 import Metadata
+import Semantics
 import KernelFacadeFragments
 import KernelFacadeFurniture
 import KernelFacadeLines
 import KernelFacadeOutput
 import KernelFacadePages
+import KernelFacadeReport
 import KernelFacadeScenes
 import KernelFacadeSemantics
 import KernelFacadeShape
@@ -116,6 +118,93 @@ Pdf :: [].{
 	## One page furniture item: a line of furniture text or a decorative
 	## drawing.
 	Furniture : Document.Furniture
+
+	## How a figure meets the flow region: `Exact` (the default) keeps its
+	## authored size and rejects a figure that does not fit;
+	## `ScaleToFit({ minimum_percent })` scales the drawing (never its
+	## caption) uniformly by the largest factor at most one that fits.
+	FigureFit : Document.FigureFit
+
+	## A custom block from a separately authored extension (the custom-block
+	## seam). The extension supplies ordinary blocks (paragraphs and rich
+	## paragraphs), which keep their semantics inside a `Div`, and the
+	## measurement it performed: the block's `size` in the flow and the
+	## `inset` of its content on every side. The package lays the content
+	## out at `size.width` less twice the inset and proves that it fits
+	## `size.height` less twice the inset (`layout.custom_block_measure`
+	## otherwise); the block then occupies exactly `size.height`. `panel` is
+	## a decorative drawing of solid paths in box-local coordinates (origin
+	## at the box's bottom-left corner, y upward), painted behind the
+	## content as a `Decoration` artifact owned by the block.
+	## `fragmentation` is `Unsplittable`, the only supported value: the
+	## block moves whole to the next page, and one taller than a page flow
+	## region is `layout.oversize_block`. No PDF operators, private stores,
+	## or pagination callbacks are part of this contract.
+	CustomBlock : { contents : List(Document.Block), fragmentation : [Unsplittable], inset : Layout.Unit, name : Str, panel : Scene.Drawing, size : Layout.Size }
+
+	## The bounded, read-only preparation report returned beside a prepared
+	## document by `prepare_with_report`. `facts` are mechanically proven
+	## observations of the preparation; `obligations` are the human-review
+	## obligations the document carries, which no preparation can discharge.
+	## Every observation names the authored location it comes from as a
+	## path such as `contents[2].contents[0]` or
+	## `contents[3].inlines[1]`, the same paths diagnostics use. Pages are
+	## numbered from 1. The report holds no PDF object identity, compiler
+	## stage, or resource payload, and building it never changes the
+	## prepared document's bytes.
+	Report : { facts : ReportFacts, obligations : List(ReportObligation) }
+
+	## - `title` and `language` are the authored metadata title and document
+	##   language (author assertions).
+	## - `pages` summarizes each final page: its number and fragment count.
+	## - `blocks` lists every leaf block in logical reading order with its
+	##   structure role and its final layout: first and last page and
+	##   fragment count.
+	## - `alternatives` lists authored alternatives and assertions: figure
+	##   alternative text, abbreviation expansions, and nested languages.
+	## - `outcomes` lists layout-policy outcomes.
+	## - `coverage` lists, per leaf block, the text each output font and
+	##   script covers (consecutive runs merged), in scalars.
+	ReportFacts : {
+		alternatives : List(ReportAlternative),
+		blocks : List(ReportBlock),
+		coverage : List(ReportCoverage),
+		language : Str,
+		outcomes : List(ReportOutcome),
+		pages : List(ReportPage),
+		title : Str,
+	}
+	ReportPage : { fragments : U64, page : U64 }
+	ReportBlock : { first_page : U64, fragments : U64, last_page : U64, path : Str, role : Str }
+	ReportAlternative : { kind : [Alternative, Expansion, Language], path : Str, text : Str }
+	ReportCoverage : { font : U64, path : Str, scalars : U64, script : Str }
+
+	## A layout-policy outcome: a ranked preference the accepted pagination
+	## relaxed (at its declaring block), each figure's applied scale in
+	## thousandths with its fit policy, each page on which a continued table
+	## repaints its header rows, each page on which a split table row
+	## continues, and the page and measured height of each custom block.
+	ReportOutcome : [
+		CustomBlockPlaced({ height : Layout.Unit, name : Str, page : U64, path : Str }),
+		FigureScale({ fit : [Exact, ScaleToFit], path : Str, scale : U64 }),
+		PreferenceRelaxed({ page : U64, path : Str, preference : [AuthorKeep, FooterCarry, HeadingKeep, Orphan, Widow] }),
+		RepeatedHeader({ page : U64, path : Str, rows : U64 }),
+		RowContinued({ page : U64, path : Str }),
+	]
+
+	## One human-review obligation at an authored location: whether a
+	## figure's alternative text conveys what it communicates, whether the
+	## reading order of the document (`document`) and of each custom block
+	## is meaningful, whether a table's header cells head their data, whether
+	## a link's text states its purpose, whether a declared language covers
+	## exactly its text, and whether an expansion is accurate.
+	ReportObligation : { obligation : [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful], path : Str }
+
+	## The report's explicit budget: its total entry count and the bytes of
+	## its materialized paths and texts. A report that would exceed either
+	## fails with `report.budget_exceeded` and no prepared document; no
+	## entry or obligation is ever silently omitted.
+	ReportBudget : { max_entries : U64, max_text_bytes : U64 }
 
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
@@ -271,11 +360,49 @@ Pdf :: [].{
 	division : List(Document.Block) -> Document.Block
 	division = |contents| Document.division(contents)
 
-	## Own a drawing as meaningful figure content with required alternative text.
-	## The executable slice accepts exactly one typed image command; unsupported
-	## vector, grouped, or multi-command drawings report `document.figure`.
+	## Own a drawing as meaningful figure content (`Figure`) with required,
+	## non-empty alternative text (`/Alt`). The drawing may hold any number
+	## of images and solid paths, grouped with `Scene.Drawing.group`, all at
+	## or beyond its bottom-left origin; its extent is the union of its
+	## commands. It is placed start-aligned in the flow at its authored size,
+	## as one unsplittable unit together with its caption. A caption becomes
+	## a visible `Caption` beside the `Figure` in a `Sect`, related to it by
+	## `CaptionFor`, so assistive technology reads it independently of the
+	## alternative text. A figure wider than the flow region, or taller with
+	## its caption than a page's flow region, is `document.figure_oversize`
+	## unless `figure_fit` selects `ScaleToFit`; nothing is clipped or
+	## silently shrunk.
 	figure : Scene.Drawing, Str, Document.Caption -> Document.Block
 	figure = |drawing, alternative, caption_value| Document.figure(drawing, alternative, caption_value)
+
+	## Select how a figure meets the flow region. `ScaleToFit({
+	## minimum_percent })` scales the drawing uniformly by the largest
+	## factor at most one (in thousandths) that fits the flow width and the
+	## smallest page flow height together with its caption; a factor below
+	## the floor is `document.figure_oversize`. Applied to any block other
+	## than a figure, or with a floor above 100, it is rejected
+	## (`document.figure_fit`).
+	figure_fit : Document.Block, FigureFit -> Document.Block
+	figure_fit = |block, fit| Document.figure_fit(block, fit)
+
+	## An in-flow decorative drawing, such as a divider rule: a `Decoration`
+	## page artifact outside the logical structure. It occupies its
+	## drawing's height immediately above the next flow block and always
+	## moves with that block's first line, so it is never clipped or split
+	## from it. A decoration needs a following flow block, and may not
+	## appear in a list item or a lead region.
+	decoration : Scene.Drawing -> Document.Block
+	decoration = |drawing| Document.decoration(drawing)
+
+	## A custom block, as a separately authored extension measured it (see
+	## `CustomBlock`).
+	custom_block : CustomBlock -> Document.Block
+	custom_block = |{ contents, fragmentation, inset, name, panel, size }| {
+		match fragmentation {
+			Unsplittable => {}
+		}
+		Document.custom_block({ contents, inset, name, panel, size })
+	}
 
 	## Add an optional visible caption to a figure.
 	caption : Str -> Document.Caption
@@ -381,6 +508,12 @@ Pdf :: [].{
 	## A cell spanning `count` columns (`ColSpan`).
 	spanning : U16, Cell -> Cell
 	spanning = |count, value| Document.spanning(count, value)
+
+	## A cell whose lines align at `align` instead of in the alignment of
+	## the first column it spans, such as an end-aligned label spanning a
+	## table's start-aligned columns.
+	aligned : Align, Cell -> Cell
+	aligned = |align, value| Document.aligned(align, value)
 
 	## A cell spanning `count` rows. Row spans are outside the supported
 	## table subset: preparation reports `table.row_span` until Gate 8.
@@ -557,6 +690,25 @@ Pdf :: [].{
 		Ok(Prepared.(plan))
 	}
 
+	## Prepare a document exactly as `prepare` does and return the bounded
+	## read-only preparation report beside it (see `Report`), under the
+	## default report budget of 65,536 entries and 4 MiB of text. The
+	## prepared document, and so its bytes, is identical to `prepare`'s.
+	prepare_with_report : Document, Options -> Try({ prepared : Prepared, report : Report }, Error)
+	prepare_with_report = |doc, options| prepare_with_report_budget(doc, options, default_report_budget)
+
+	## `prepare_with_report` under an explicit report budget.
+	prepare_with_report_budget : Document, Options, ReportBudget -> Try({ prepared : Prepared, report : Report }, Error)
+	prepare_with_report_budget = |doc, options, budget| {
+		match Document.first_unavailable(doc) {
+			Available => {}
+			UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
+		}
+		{ facts, normalized, plan } = build_reporting_plan(doc, options)?
+		report = build_report(normalized, facts, budget)?
+		Ok({ prepared: Prepared.(plan), report })
+	}
+
 	to_bytes_prepared : Prepared -> Try(List(U8), Error)
 	to_bytes_prepared = |Prepared.(plan)| {
 		bytes = KernelEmit.to_bytes(plan) ? |_| InternalGenerationFailure
@@ -649,6 +801,15 @@ build_plan = |doc, options| {
 			facts,
 			standard_pipeline_limits,
 		) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(
+			Document.normalize(doc),
+			styled,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			facts,
+			standard_pipeline_limits,
+		) ? |error| pipeline_error(error, doc)
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(
 			Document.normalize(doc),
 			ordered,
@@ -664,6 +825,90 @@ build_plan = |doc, options| {
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claim, xmp, plan)?
 	Ok(plan)
+}
+
+## `build_plan` with the preparation report's facts collected by the
+## `*_reporting` pipeline builders, which produce the identical prepared
+## plan. The document is normalized once and the normalized authoring is
+## returned for the report's path materialization.
+build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
+build_reporting_plan = |doc, options| {
+	normalized = Document.normalize(doc)
+	claim = validate_profile_request(options)?
+
+	## The authored metadata facts validate once and the canonical XMP packet
+	## serializes once, identified exactly when the requested profile claims
+	## static PDF/A-4; every later stage consumes the same validated values.
+	validated = KernelMetadata.validate(
+		{
+			created: Document.created(doc),
+			language: Document.language(doc),
+			modified: Document.modified(doc),
+			title: Document.metadata_title(doc),
+		},
+		standard_metadata_limits,
+	) ? InvalidMetadata
+	xmp = KernelXmp.Packet.build_identified(validated.facts, KernelPdfA4.identification(claim), standard_xmp_bytes) ? |_| InternalGenerationFailure
+	if Document.block_count(doc) == 0 and Document.has_templates(doc) {
+		return Err(furniture_error(BodyEmpty))
+	}
+	if Document.block_count(doc) == 0 {
+		plan = KernelStructure.build_blank_with_facts(
+			1,
+			structure_page_size(options.page_size),
+			{
+				condition_identifier: KernelMetadata.srgb_condition_identifier,
+				language: validated.facts.language,
+				profile_bytes: KernelSrgbProfile.bytes,
+				profile_components: 3,
+				registry_name: KernelMetadata.icc_registry_name,
+				xmp: KernelXmp.Packet.bytes(xmp),
+			},
+		) ? |_| InternalGenerationFailure
+		validate_lowered_plan(claim, xmp, plan)?
+		return Ok({ facts: NoFacts, normalized, plan })
+	}
+	facts = WithDocumentFacts({
+		condition_identifier: KernelMetadata.srgb_condition_identifier,
+		profile: Color.ProfileId.from_index(0),
+		registry_name: KernelMetadata.icc_registry_name,
+		language: validated.facts.language,
+		xmp: KernelXmp.Packet.bytes(xmp),
+	})
+	pipeline = match selected_fonts(options)? {
+		Single(font) => KernelFacadePipeline.Plan.build_reporting(
+			normalized,
+			font,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			facts,
+			standard_pipeline_limits,
+		) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_reporting(
+			normalized,
+			styled,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			facts,
+			standard_pipeline_limits,
+		) ? |error| pipeline_error(error, doc)
+		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_reporting(
+			normalized,
+			ordered,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			facts,
+			standard_pipeline_limits,
+		) ? |error| ordered_pipeline_error(error, ordered.policy, doc)
+	}
+	output = KernelFacadePipeline.Plan.output(pipeline)
+	_text_work = KernelPdfA4.validate_text(claim, KernelFacadeOutput.Plan.text_facts(output)) ? |violation| InvalidDocument(profile_batch(violation, ProfileValidation))
+	plan = KernelFacadeOutput.Plan.structure(output)
+	validate_lowered_plan(claim, xmp, plan)?
+	Ok({ facts: KernelFacadePipeline.Plan.facts(pipeline), normalized, plan })
 }
 
 ## Lowered-plan validation runs on every prepared plan before it is wrapped:
@@ -706,8 +951,8 @@ profile_batch = |violation, stage| {
 ## stable typed error rather than an implicit single-face fallback.
 selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_fonts = |options| match Theme.font_selection(options.theme) {
-	StyleFaces => Ok(Single(selected_font(options)?))
-	Policy(policy) => match options.font_source {
+	StyleFaces => if !has_role_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
+	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove Theme.with_inline_font or use style faces.", []))) else match options.font_source {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
 			_faces = registry.policy_faces(policy) ? |_| InvalidFontSelection([InvalidPolicy(policy)])
@@ -752,6 +997,24 @@ pipeline_error = |error, doc| match error {
 			group_path(Document.normalize(doc).groups, group),
 		),
 	)
+	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [leaf_path(doc, previous), leaf_path(doc, block)])
+	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [leaf_path(doc, block)])
+	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [leaf_path(doc, block)])
+	Semantics(FigureDrawing({ block, reason })) => located_error(doc, InvalidRelationship, "document.figure_drawing", "A figure's drawing is not a supported flow drawing: ${reason}.", [leaf_path(doc, block)])
+	Semantics(FigureFitInvalid({ block })) => located_error(doc, InvalidRelationship, "document.figure_fit", "A ScaleToFit floor is above 100 percent; a figure is never enlarged.", [leaf_path(doc, block)])
+	Semantics(DecorationDrawing({ decoration, reason })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "layout.decoration_drawing", "A decoration's drawing is not a supported flow drawing: ${reason}.")
+	Semantics(DecorationPosition({ decoration })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.decoration_position", "A decoration is placed above the next flow block and moves with it, so it needs a following flow block and cannot appear in a lead region.")
+	Semantics(ListItemDecoration({ decoration })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "semantics.list_item_content", "A decoration cannot appear inside a list item.")
+	Pages(FigureOversize({ block, frame_height, frame_width, height, width })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure's drawing is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and ${points_text(frame_height)} tall for the figure with its caption and any decoration above it; a figure is never clipped or shrunk unless figure_fit selects ScaleToFit.", [leaf_path(doc, block)])
+	Pages(FigureScaleFloor({ block, floor, scale })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure fits the flow region only at ${percent_text(scale)} of its size, below its ScaleToFit floor of ${floor.to_str()}%.", [leaf_path(doc, block)])
+	Semantics(CustomContent({ child, custom })) => custom_content_error(doc, custom, child)
+	Semantics(CustomDrawing({ custom, reason })) => custom_error(doc, custom, InvalidRelationship, "layout.custom_block_drawing", "A custom block's panel is not a supported panel drawing: ${reason}.")
+	Semantics(CustomName({ custom })) => custom_error(doc, custom, InvalidRelationship, "semantics.custom_block_name", "A custom block's name is empty; the name identifies the block in diagnostics and the preparation report.")
+	Semantics(CustomMeasure({ custom })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.custom_block_measure", "A custom block's measured width and height must be positive and its inset positive and less than half of each, so its content has a box to fill.")
+	Lines(CustomWidth({ available, custom, width })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.oversize_block", "A custom block is measured ${points_text(width)} wide, but the flow region gives it ${points_text(available)}; a custom block is never clipped or shrunk.")
+	Pages(CustomOversize({ custom, frame_height, height })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.oversize_block", "A custom block is unsplittable and needs ${points_text(height)}, but a page flow region holds at most ${points_text(frame_height)}; it is never split, clipped, or shrunk.")
+	Pages(CustomMeasureShort({ available, content, custom })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.custom_block_measure", "A custom block's content needs ${points_text(content)}, but its measured height less twice its inset leaves ${points_text(available)}; the extension must measure the block at least that tall.")
+	Pages(DecorationOversize({ decoration, frame_height, frame_width, height, width })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.oversize_block", "A decoration is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and at most ${points_text(frame_height)} tall; a decoration is never clipped or shrunk.")
 	Semantics(EmptyRichParagraph({ block })) => inline_error(doc, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
 	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell contains no text.", [leaf_path(doc, block)])
 	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column and one body row.")
@@ -784,6 +1047,7 @@ pipeline_error = |error, doc| match error {
 	Semantics(ListItemSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), InvalidRelationship, "semantics.list_item_content", "A spacer cannot appear inside a list item.")
 	Semantics(NegativeSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), LayoutConstraintViolated, "layout.spacer_negative", "A spacer has a negative height; spacing never overlaps content.")
 	Semantics(ListNumbering({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_numbering", "A generated list number cannot be written in its style: letters and Roman numerals start at 1, and Roman numerals stop at 3999.")
+	Shape(UnsupportedText({ block, inline, reason, scalars })) => unsupported_text_error(doc, block, inline, reason, scalars)
 	Lines(LabelTooWide({ available, block, width })) => label_width_error(doc, block, width, available)
 	Pages(PageBreakPosition({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), LayoutConstraintViolated, "layout.page_break_position", "A page break must separate two flow blocks; a break first, last, or directly after another would produce an empty page.")
 	Pages(PageLayout(KeepConflict(conflict))) => keep_conflict_error(doc, conflict)
@@ -795,6 +1059,47 @@ pipeline_error = |error, doc| match error {
 	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
 	ReferenceBudget({ passes }) => located_error(doc, BudgetExceeded, "layout.budget_exhausted", "Reference stabilization did not repeat a state within its budget of ${passes.to_str()} passes; no attempted state is accepted.", [])
 	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+}
+
+## Text a shaping path cannot shape, located at its paragraph or rich
+## inline with the failing cluster's scalars. A script outside the path's
+## set is reported before a multi-scalar cluster, and both before coverage,
+## so the author sees the fundamental cause; no face is substituted.
+unsupported_text_error : Document, U64, [AtInline(U64), NoInline], [Cluster, Coverage(U32), Script(Str)], Semantics.Range -> Pdf.Error
+unsupported_text_error = |doc, block, inline, reason, scalars| {
+	at = "scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()}"
+	(feature, message) = match reason {
+		Script(script) => ("text.unsupported_script", "Text at ${at} uses the script ${if script.is_empty() "Unknown" else script}, which the selected text path does not shape.")
+		Cluster => ("text.unsupported_cluster", "Text at ${at} is a multi-scalar grapheme cluster, which the convenience shaper does not support.")
+		Coverage(scalar) => ("text.coverage_missing", "No selected face covers U+${scalar_hex(scalar)} at ${at}; no face is substituted.")
+	}
+	normalized = Document.normalize(doc)
+	rich = match normalized.blocks.get(block) {
+		Ok({ kind: RichParagraph(_), .. }) => True
+		_ => False
+	}
+	if rich {
+		inline_error(doc, block, inline, FontCoverageMissing, feature, message)
+	} else {
+		located_error(doc, FontCoverageMissing, feature, message, [leaf_path(doc, block)])
+	}
+}
+
+## A scalar in at least four upper-case hexadecimal digits.
+scalar_hex : U32 -> Str
+scalar_hex = |scalar| {
+	digits = "0123456789ABCDEF".to_utf8()
+	value = scalar.to_u64()
+	var $bytes = []
+	var $place = 1048576
+	while $place > 0 {
+		digit = (value // $place) % 16
+		if digit != 0 or !$bytes.is_empty() or $place <= 4096 {
+			$bytes = $bytes.append(digits.get(digit) ?? '0')
+		}
+		$place = $place // 16
+	}
+	Str.from_utf8($bytes) ?? ""
 }
 
 lead_overflow_error : U64, U64 -> Pdf.Error
@@ -822,14 +1127,14 @@ furniture_error = |error| {
 		InlineEmpty({ path }) => located(InvalidRelationship, "semantics.inline_empty", "Furniture text and every reserved width in it must contain text or a page field, and no text inline may be empty.", [path])
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
-		OrderedPolicy({ path }) => located(FeatureUnavailable, "text.furniture_policy", "Furniture text is shaped through the theme's single face; under an ordered font policy only furniture drawings are supported until a later Gate 6 slice.", [path])
+		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
+		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if script.is_empty() "Unknown" else script}, which the convenience text path does not shape.", [path])
 		_ => InternalGenerationFailure
 	}
 }
 
 dimension_name : KernelFacadeSemantics.Dimension -> Str
 dimension_name = |dimension| match dimension {
-	Artifacts => "page artifacts"
 	ContentSpine => "content-spine items"
 	Nodes => "structure elements"
 	Occurrences => "content occurrences"
@@ -910,6 +1215,34 @@ table_layout_error = |doc, error, sources, units| {
 	}
 }
 
+## A custom-block rejection located at the block's authored path.
+custom_error : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+custom_error = |doc, custom, diagnostic, feature, message| {
+	normalized = Document.normalize(doc)
+	group = match normalized.customs.get(custom) {
+		Ok(record) => record.group
+		Err(OutOfBounds) => crash "normalized custom block path escaped"
+	}
+	located_error(doc, diagnostic, feature, message, [group_path(normalized.groups, group)])
+}
+
+## Content a custom block cannot hold, located at the block and at the
+## offending child; a custom block in the lead region names the block.
+custom_content_error : Document, U64, [Child(U64), NoChild] -> Pdf.Error
+custom_content_error = |doc, custom, child| {
+	normalized = Document.normalize(doc)
+	group = match normalized.customs.get(custom) {
+		Ok(record) => record.group
+		Err(OutOfBounds) => crash "normalized custom block path escaped"
+	}
+	path = group_path(normalized.groups, group)
+	feature = "semantics.custom_block_content"
+	match child {
+		Child(position) => located_error(doc, InvalidRelationship, feature, "A custom block holds only paragraphs and rich paragraphs, laid out inside its measured box.", [path, child_path(normalized.groups, group + 1, position)])
+		NoChild => located_error(doc, InvalidRelationship, feature, "A custom block is body flow; it cannot appear in the first page's lead region.", [path])
+	}
+}
+
 ## A layout-policy or list rejection located at authored group `group`.
 group_error : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pdf.Error
 group_error = |doc, group, diagnostic, feature, message| {
@@ -920,8 +1253,13 @@ group_error = |doc, group, diagnostic, feature, message| {
 located_error : Document, Conformance.DiagnosticCode, Str, Str, List(Str) -> Pdf.Error
 located_error = |_doc, diagnostic, feature, message, paths| InvalidDocument(located_batch(diagnostic, feature, message, paths))
 
-## A page break or spacer located by its authored parent and position.
-flow_item_error : Document, [PageBreakItem(U64), SpacerItem(U64)], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+## A scale in thousandths as a percentage, such as `80.5%`.
+percent_text : U64 -> Str
+percent_text = |scale| if scale % 10 == 0 "${(scale // 10).to_str()}%" else "${(scale // 10).to_str()}.${(scale % 10).to_str()}%"
+
+## A page break, spacer, or decoration located by its authored parent and
+## position.
+flow_item_error : Document, [DecorationItem(U64), PageBreakItem(U64), SpacerItem(U64)], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
 flow_item_error = |doc, item, diagnostic, feature, message| {
 	normalized = Document.normalize(doc)
 	path = match item {
@@ -932,6 +1270,10 @@ flow_item_error = |doc, item, diagnostic, feature, message| {
 		SpacerItem(index) => match normalized.spacers.get(index) {
 			Ok(record) => child_path(normalized.groups, record.parent, record.position)
 			Err(OutOfBounds) => crash "normalized spacer path escaped"
+		}
+		DecorationItem(index) => match normalized.decorations.get(index) {
+			Ok(record) => child_path(normalized.groups, record.parent, record.position)
+			Err(OutOfBounds) => crash "normalized decoration path escaped"
 		}
 	}
 	located_error(doc, diagnostic, feature, message, [path])
@@ -967,7 +1309,7 @@ label_width_error = |doc, block, width, available| {
 		$index = $index + 1
 	}
 	path = if $item < normalized.groups.len() group_path(normalized.groups, $item) else leaf_path(doc, block)
-	located_error(doc, LayoutConstraintViolated, "layout.list_label_width", "A generated list label is ${points_text(width)} wide but the list indent is ${points_text(available)}; labels are never shrunk or allowed to overlap their body. Widen the indent with Theme.with_bullet_indent.", [path])
+	located_error(doc, LayoutConstraintViolated, "layout.list_label_width", "A list's label column, widened to ${points_text(width)} for its widest generated label, leaves its body no width: the column may use at most ${points_text(available)}. Labels are never shrunk or allowed to overlap their body.", [path])
 }
 
 ## A mandatory keep conflict naming every participating source.
@@ -1015,7 +1357,7 @@ together_group = |groups, k| {
 	var $index = 0
 	for group in groups {
 		match group.kind {
-			KeepTogether => {
+			KeepTogether | Custom(_) => {
 				if $seen == k and $found == groups.len() {
 					$found = $index
 				}
@@ -1123,8 +1465,28 @@ leaf_path = |doc, block| {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized leaf path escaped"
 	}
-	position = leaf_position(normalized, block, record.parent)
-	child_path(normalized.groups, record.parent, position)
+
+	## A figure's leaves are named by the figure's own path, its caption
+	## as `.caption`.
+	figure_leaf = if record.parent == 0 {
+		NotFigure
+	} else {
+		match group_record(normalized.groups, record.parent).kind {
+			FigureGroup(_) => match record.kind {
+				FigureCaption(_) => CaptionLeaf
+				_ => FigureLeaf
+			}
+			_ => NotFigure
+		}
+	}
+	match figure_leaf {
+		NotFigure => {
+			position = leaf_position(normalized, block, record.parent)
+			child_path(normalized.groups, record.parent, position)
+		}
+		FigureLeaf => chain_path(normalized.groups, record.parent)
+		CaptionLeaf => "${chain_path(normalized.groups, record.parent)}.caption"
+	}
 }
 
 ## A leaf's authored index in its parent: the next leaves, groups, page
@@ -1181,6 +1543,11 @@ leaf_position = |normalized, block, parent| {
 		}
 	}
 	for record in normalized.spacers {
+		if record.parent == parent and record.block <= block {
+			$position = $position + 1
+		}
+	}
+	for record in normalized.decorations {
 		if record.parent == parent and record.block <= block {
 			$position = $position + 1
 		}
@@ -1353,6 +1720,91 @@ container_batch = |diagnostic, feature, message, path| {
 	}
 }
 
+## Whether a theme selects an inline role face other than its body face,
+## without building a list on the common path.
+has_role_face : Theme -> Bool
+has_role_face = |theme| {
+	body = Theme.body_font(theme).index()
+	differs = |font| match font {
+		Face(face) => face.index() != body
+		Inherited => Bool.False
+	}
+	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong))
+}
+
+## The inline role faces a theme selects that differ from its body face.
+role_faces : Theme -> List(Font.FaceId)
+role_faces = |theme| {
+	body = Theme.body_font(theme)
+	[Theme.inline_font(theme, Code), Theme.inline_font(theme, Emphasis), Theme.inline_font(theme, Quote), Theme.inline_font(theme, Strong)]
+		.keep_if(
+			|font| match font {
+				Face(face) => face.index() != body.index()
+				Inherited => Bool.False
+			},
+		)
+		.map(
+			|font| match font {
+				Face(face) => face
+				Inherited => body
+			},
+		)
+}
+
+## The style-face candidates with inline role faces: the body face first,
+## then each distinct role face, all prepared from the caller registry. The
+## packaged face alone has no second face, so a role face there is an
+## unknown face.
+selected_styled_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+selected_styled_fonts = |options| {
+	body_face = Theme.body_font(options.theme)
+	body = selected_font(options)?
+	registry = match options.font_source {
+		Registered(value) => value
+		BuiltIn => return Err(InvalidFontResource(UnknownFace(list_first_or(role_faces(options.theme), body_face))))
+	}
+	var $faces = [body_face]
+	var $fonts = [body]
+	for face in role_faces(options.theme) {
+		if !$faces.any(|known| known.index() == face.index()) {
+			font = registry.prepared_face(face) ? InvalidFontResource
+			$faces = $faces.append(face)
+			$fonts = $fonts.append(font)
+		}
+	}
+	candidate = |role| match Theme.inline_font(options.theme, role) {
+		Face(face) => if face.index() == body_face.index() Inherited else Candidate(index_of($faces, face))
+		Inherited => Inherited
+	}
+	Ok(Styled({ faces: $faces, fonts: $fonts, roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
+}
+
+list_first_or : List(a), a -> a
+list_first_or = |items, fallback| match items.first() {
+	Ok(value) => value
+	Err(_) => fallback
+}
+
+index_of : List(Font.FaceId), Font.FaceId -> U64
+index_of = |faces, face| {
+	var $index = 0
+	while $index < faces.len() {
+		if list_at_face(faces, $index).index() == face.index() {
+			return $index
+		}
+		$index = $index + 1
+	}
+	0
+}
+
+list_at_face : List(Font.FaceId), U64 -> Font.FaceId
+list_at_face = |faces, index| match faces.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "styled face index escaped"
+	}
+}
+
 selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)
 selected_font = |options| match options.font_source {
 	BuiltIn => {
@@ -1393,10 +1845,17 @@ validate_profile_request = |options| {
 
 unavailable_message : Document.Feature, Str -> Str
 unavailable_message = |feature, summary| {
+	misuse = match feature {
+		FigureFit => True
+		_ => False
+	}
+	if misuse {
+		return "${summary} No PDF bytes were emitted."
+	}
 	roadmap = match feature {
 		ArchiveProfile => "Gate 5"
 		AccessibleArchiveProfile => "Gate 7"
-		Figures => "the current figure authoring slice"
+		Figures | FigureFit => "Gate 6"
 		ContextualArtifacts | PageTemplates | SemanticTextProperties => "Gate 6"
 		ComplexTables | CustomLayout | Floats | Footnotes | GeneratedReferences | MultiColumnLayout | SideContent | VerticalWriting => "Gate 8"
 	}
@@ -1408,6 +1867,7 @@ feature_code = |feature| match feature {
 	ArchiveProfile => "profile.archive"
 	AccessibleArchiveProfile => "profile.accessible_archive"
 	Figures => "document.figure"
+	FigureFit => "document.figure_fit"
 	ContextualArtifacts => "semantics.contextual_artifact"
 	SemanticTextProperties => "semantics.text_properties"
 	ComplexTables => "table.complex"
@@ -1429,7 +1889,10 @@ unavailable_batch = |feature, summary| {
 		diagnostics: [
 			{
 				clause_references: [],
-				code: FeatureUnavailable,
+				code: match feature {
+					FigureFit => InvalidRelationship
+					_ => FeatureUnavailable
+				},
 				details: [],
 				feature: Feature(feature_code(feature)),
 				location: Document,
@@ -1498,7 +1961,7 @@ facade_runs = 65536
 
 standard_pipeline_limits : KernelFacadePipeline.Limits
 standard_pipeline_limits = KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine + facade_runs, max_fragments: 1000000, max_namespaces: 1, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine + facade_runs, max_fragments: 1000000, max_namespaces: 2, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 1000000, max_occurrences: facade_occurrences, max_pages: 1024 }),
 	navigation: KernelNavigation.standard_limits,
 	lines: KernelFacadeLines.Limits.make({
@@ -1539,7 +2002,6 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 1000000, max_paths: 1000000 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
-		max_artifacts: 0,
 		max_container_depth: 16,
 		max_content_spine: facade_spine,
 		max_inline_depth: 8,
@@ -1547,7 +2009,7 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		max_occurrences: facade_occurrences,
 		max_properties: facade_occurrences,
 		max_source_inputs: facade_occurrences,
-		semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine, max_fragments: 0, max_namespaces: 1, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
+		semantics: KernelSemantics.Limits.make({ max_attributes: facade_attributes, max_content_spine: facade_spine, max_fragments: 0, max_namespaces: 2, max_nodes: facade_nodes, max_occurrences: facade_occurrences, max_semantic_depth: 48 }),
 		sources: KernelFacadeSources.Limits.make({
 			max_hash_probes: 4000000,
 			max_inputs: facade_occurrences,
@@ -2361,4 +2823,432 @@ expect {
 		_ => False
 	}
 	grid and spanned
+}
+
+## The default preparation-report budget: 65,536 entries and 4 MiB of
+## materialized paths and texts.
+default_report_budget : Pdf.ReportBudget
+default_report_budget = { max_entries: 65536, max_text_bytes: 4194304 }
+
+## Materialize the preparation report from its compact facts. The entry
+## count is computed from scalar facts and checked against the budget
+## before any path or text is materialized, so materialization work is
+## bounded by the budget; the text bytes are checked once materialized.
+## Exceeding either is `report.budget_exceeded`: an explicit error, never
+## a report with fewer entries or obligations. Leaf paths are computed in
+## one linear pass; each is shared by that leaf's entries.
+build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), NoFacts], Pdf.ReportBudget -> Try(Pdf.Report, Pdf.Error)
+build_report = |normalized, collected, budget| {
+	facts = match collected {
+		Facts(value) => value
+		NoFacts => { blocks: [], coverage: [], layout: { panels: [], relaxations: [], repeats: [], scales: [], splits: [] }, pages: [1] }
+	}
+	inline_counts = count_inline_entries(normalized)
+	link_blocks = count_link_blocks(normalized)
+	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
+	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
+	outcome_count = facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len()
+	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
+	if entries > budget.max_entries {
+		return Err(report_budget_error("entries", entries, budget.max_entries))
+	}
+	paths = leaf_paths(normalized)
+	path_at = |block| match paths.get(block) {
+		Ok(value) => value
+		Err(OutOfBounds) => crash "report leaf path escaped"
+	}
+	var $pages = List.with_capacity(facts.pages.len())
+	var $page = 0
+	for fragments in facts.pages {
+		$pages = $pages.append({ fragments, page: $page + 1 })
+		$page = $page + 1
+	}
+	var $blocks = List.with_capacity(normalized.blocks.len())
+	var $cell = 0
+	var $index = 0
+	for record in normalized.blocks {
+		span = match facts.blocks.get($index) {
+			Ok(value) => value
+			Err(OutOfBounds) => { first_page: U64.highest, fragments: 0, last_page: 0 }
+		}
+		is_cell = $cell < normalized.cells.len() and (match normalized.cells.get($cell) {
+			Ok(cell) => cell.block == $index
+			Err(OutOfBounds) => False
+		})
+		role = if is_cell {
+			kind = match normalized.cells.get($cell) {
+				Ok(cell) => cell.kind
+				Err(OutOfBounds) => DataCell
+			}
+			$cell = $cell + 1
+			match kind {
+				DataCell => "TD"
+				HeaderCell(_) => "TH"
+			}
+		} else {
+			leaf_role(normalized, record)
+		}
+		first = if span.fragments == 0 0 else span.first_page + 1
+		last = if span.fragments == 0 0 else span.last_page + 1
+		$blocks = $blocks.append({ first_page: first, fragments: span.fragments, last_page: last, path: path_at($index), role })
+		$index = $index + 1
+	}
+	var $alternatives = List.with_capacity(alternative_count)
+	var $outcomes = List.with_capacity(outcome_count)
+	var $obligations = List.with_capacity(obligation_count)
+	$obligations = $obligations.append({ obligation: ReadingOrderMeaningful, path: "document" })
+	$obligations = $obligations.append({ obligation: LanguageAccurate, path: "document" })
+
+	## Figures, in figure order, with their alternative text, their fit
+	## outcome, and their alternative-text obligation.
+	$index = 0
+	for record in normalized.blocks {
+		match record.kind {
+			Figure(figure_index) => match normalized.figures.get(figure_index) {
+				Ok(figure) => {
+					path = path_at($index)
+					scale = facts.layout.scales.get(figure_index) ?? 1000
+					fit = match figure.fit {
+						ExactFit => Exact
+						ScaleFit(_) => ScaleToFit
+					}
+					$alternatives = $alternatives.append({ kind: Alternative, path, text: figure.alternative })
+					$outcomes = $outcomes.append(FigureScale({ fit, path, scale }))
+					$obligations = $obligations.append({ obligation: AlternativeTextMeaningful, path })
+				}
+				Err(OutOfBounds) => {}
+			}
+			Link(_) | InternalLink(_) => {
+				$obligations = $obligations.append({ obligation: LinkPurposeMeaningful, path: path_at($index) })
+			}
+			RichParagraph(paragraph) => match normalized.rich_paragraphs.get(paragraph) {
+				Ok(rich) => {
+					var $inline = rich.inlines
+					while $inline < rich.inlines + rich.length {
+						match normalized.inlines.get($inline) {
+							Ok(inline) => match inline.kind {
+								Link(_) | InternalLink(_) => {
+									$obligations = $obligations.append({ obligation: LinkPurposeMeaningful, path: inline_path(normalized, $index, AtInline($inline)) })
+								}
+								InLanguage(tag) => {
+									path = inline_path(normalized, $index, AtInline($inline))
+									$alternatives = $alternatives.append({ kind: Language, path, text: tag })
+									$obligations = $obligations.append({ obligation: LanguageAccurate, path })
+								}
+								Expansion(expanded) => {
+									path = inline_path(normalized, $index, AtInline($inline))
+									$alternatives = $alternatives.append({ kind: Expansion, path, text: expanded })
+									$obligations = $obligations.append({ obligation: ExpansionAccurate, path })
+								}
+								_ => {}
+							}
+							Err(OutOfBounds) => {}
+						}
+						$inline = $inline + 1
+					}
+				}
+				Err(OutOfBounds) => {}
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+
+	## Tables and custom blocks, by their group paths.
+	var $group = 0
+	for group in normalized.groups {
+		match group.kind {
+			Table(_) => {
+				$obligations = $obligations.append({ obligation: TableHeadersMeaningful, path: group_path(normalized.groups, $group) })
+			}
+			Custom(_) => {
+				$obligations = $obligations.append({ obligation: ReadingOrderMeaningful, path: group_path(normalized.groups, $group) })
+			}
+			_ => {}
+		}
+		$group = $group + 1
+	}
+	for relaxation in facts.layout.relaxations {
+		path = match relaxation.unit {
+			LeafUnit(block) => path_at(block)
+			RowUnit(group) => group_path(normalized.groups, group)
+		}
+		$outcomes = $outcomes.append(PreferenceRelaxed({ page: relaxation.page + 1, path, preference: relaxation.rank }))
+	}
+	for repeat in facts.layout.repeats {
+		$outcomes = $outcomes.append(RepeatedHeader({ page: repeat.page + 1, path: group_path(normalized.groups, repeat.group), rows: repeat.rows }))
+	}
+	for split in facts.layout.splits {
+		$outcomes = $outcomes.append(RowContinued({ page: split.page + 1, path: group_path(normalized.groups, split.group) }))
+	}
+	for panel in facts.layout.panels {
+		match normalized.customs.get(panel.custom) {
+			Ok(custom) => {
+				$outcomes = $outcomes.append(CustomBlockPlaced({ height: custom.height, name: custom.name, page: panel.page + 1, path: group_path(normalized.groups, custom.group) }))
+			}
+			Err(OutOfBounds) => {}
+		}
+	}
+	var $coverage = List.with_capacity(facts.coverage.len())
+	for covered in facts.coverage {
+		$coverage = $coverage.append({ font: covered.font, path: path_at(covered.block), scalars: covered.scalars, script: covered.script })
+	}
+	report = {
+		facts: {
+			alternatives: $alternatives,
+			blocks: $blocks,
+			coverage: $coverage,
+			language: normalized.language,
+			outcomes: $outcomes,
+			pages: $pages,
+			title: normalized.metadata_title,
+		},
+		obligations: $obligations,
+	}
+	text_bytes = report_text_bytes(report)
+	if text_bytes > budget.max_text_bytes {
+		return Err(report_budget_error("text bytes", text_bytes, budget.max_text_bytes))
+	}
+	Ok(report)
+}
+
+report_budget_error : Str, U64, U64 -> Pdf.Error
+report_budget_error = |dimension, required, limit| InvalidDocument(located_batch(BudgetExceeded, "report.budget_exceeded", "The preparation report needs ${required.to_str()} ${dimension} but its budget allows ${limit.to_str()}; no report entry or obligation is omitted to fit, so no report and no prepared document are returned.", []))
+
+## The bytes of every materialized path and text in a report.
+report_text_bytes : Pdf.Report -> U64
+report_text_bytes = |report| {
+	facts = report.facts
+	var $bytes = facts.title.count_utf8_bytes() + facts.language.count_utf8_bytes()
+	for block in facts.blocks {
+		$bytes = $bytes + block.path.count_utf8_bytes() + block.role.count_utf8_bytes()
+	}
+	for alternative in facts.alternatives {
+		$bytes = $bytes + alternative.path.count_utf8_bytes() + alternative.text.count_utf8_bytes()
+	}
+	for outcome in facts.outcomes {
+		$bytes = $bytes + match outcome {
+			CustomBlockPlaced({ height: _, name, page: _, path }) => path.count_utf8_bytes() + name.count_utf8_bytes()
+			FigureScale({ fit: _, path, scale: _ }) => path.count_utf8_bytes()
+			PreferenceRelaxed({ page: _, path, preference: _ }) => path.count_utf8_bytes()
+			RepeatedHeader({ page: _, path, rows: _ }) => path.count_utf8_bytes()
+			RowContinued({ page: _, path }) => path.count_utf8_bytes()
+		}
+	}
+	for covered in facts.coverage {
+		$bytes = $bytes + covered.path.count_utf8_bytes() + covered.script.count_utf8_bytes()
+	}
+	for obligation in report.obligations {
+		$bytes = $bytes + obligation.path.count_utf8_bytes()
+	}
+	$bytes
+}
+
+## Inline links, nested languages, and expansions across rich paragraphs.
+count_inline_entries : Document.NormalizedAuthoring -> { expansions : U64, languages : U64, links : U64 }
+count_inline_entries = |normalized| {
+	var $links = 0
+	var $languages = 0
+	var $expansions = 0
+	for inline in normalized.inlines {
+		match inline.kind {
+			Link(_) | InternalLink(_) => {
+				$links = $links + 1
+			}
+			InLanguage(_) => {
+				$languages = $languages + 1
+			}
+			Expansion(_) => {
+				$expansions = $expansions + 1
+			}
+			_ => {}
+		}
+	}
+	{ expansions: $expansions, languages: $languages, links: $links }
+}
+
+count_link_blocks : Document.NormalizedAuthoring -> U64
+count_link_blocks = |normalized| {
+	var $count = 0
+	for record in normalized.blocks {
+		match record.kind {
+			Link(_) | InternalLink(_) => {
+				$count = $count + 1
+			}
+			_ => {}
+		}
+	}
+	$count
+}
+
+## The structure role of a leaf's own element (table cells are resolved
+## from the cell arena by the caller).
+leaf_role : Document.NormalizedAuthoring, Document.NormalizedBlock -> Str
+leaf_role = |normalized, record| {
+	in_table = record.parent != 0 and (match normalized.groups.get(record.parent - 1) {
+		Ok(group) => match group.kind {
+			Table(_) => True
+			_ => False
+		}
+		Err(OutOfBounds) => False
+	})
+	match record.kind {
+		Bullet(_) => "LI"
+		DestinationHeading({ level, name: _ }) => "H${level.to_str()}"
+		DestinationParagraph(_) => "P"
+		Figure(_) => "Figure"
+		FigureCaption(_) => "Caption"
+		Heading(level) => "H${level.to_str()}"
+		InternalLink(_) | Link(_) => "Link"
+		Paragraph => if in_table "Caption" else "P"
+		RichParagraph(_) => "P"
+		Title => "Title"
+	}
+}
+
+## Every leaf's authored path in one pass, O(blocks + groups log groups +
+## flow items + path lengths): the linear form of `leaf_path`. A plain
+## leaf's position counts the earlier leaves (a legacy bullet list once)
+## and the earlier sibling groups, page breaks, spacers, and decorations of
+## its parent, taken from forward cursors over those items in block order.
+leaf_paths : Document.NormalizedAuthoring -> List(Str)
+leaf_paths = |normalized| {
+	groups = normalized.groups
+	slots = groups.len() + 1
+	var $closed = []
+	var $group_index = 0
+	for group in groups {
+		lead = match group.kind {
+			LeadRegion => True
+			_ => False
+		}
+		if !lead {
+			$closed = $closed.append({ end: group.block_end, parent: group.parent })
+		}
+		$group_index = $group_index + 1
+	}
+	ends = $closed.sort_with(|left, right| if left.end < right.end Before else if left.end > right.end After else Same)
+	var $siblings = List.repeat(0, slots)
+	var $leaves = List.repeat(0, slots)
+	var $lists = List.repeat(U64.highest, slots)
+	var $group_cursor = 0
+	var $break_cursor = 0
+	var $spacer_cursor = 0
+	var $decoration_cursor = 0
+	var $paths = List.with_capacity(normalized.blocks.len())
+	var $block = 0
+	for record in normalized.blocks {
+		while $group_cursor < ends.len() and at(ends, $group_cursor).end <= $block {
+			parent = at(ends, $group_cursor).parent
+			$siblings = set_at($siblings, parent, at($siblings, parent) + 1)
+			$group_cursor = $group_cursor + 1
+		}
+		while $break_cursor < normalized.page_breaks.len() and at(normalized.page_breaks, $break_cursor).block <= $block {
+			parent = at(normalized.page_breaks, $break_cursor).parent
+			$siblings = set_at($siblings, parent, at($siblings, parent) + 1)
+			$break_cursor = $break_cursor + 1
+		}
+		while $spacer_cursor < normalized.spacers.len() and at(normalized.spacers, $spacer_cursor).block <= $block {
+			parent = at(normalized.spacers, $spacer_cursor).parent
+			$siblings = set_at($siblings, parent, at($siblings, parent) + 1)
+			$spacer_cursor = $spacer_cursor + 1
+		}
+		while $decoration_cursor < normalized.decorations.len() and at(normalized.decorations, $decoration_cursor).block <= $block {
+			parent = at(normalized.decorations, $decoration_cursor).parent
+			$siblings = set_at($siblings, parent, at($siblings, parent) + 1)
+			$decoration_cursor = $decoration_cursor + 1
+		}
+		parent = record.parent
+		figure_leaf = if parent == 0 {
+			NotFigure
+		} else {
+			match group_record(groups, parent).kind {
+				FigureGroup(_) => match record.kind {
+					FigureCaption(_) => CaptionLeaf
+					_ => FigureLeaf
+				}
+				_ => NotFigure
+			}
+		}
+
+		## Plain leaves count toward their parent's authored positions; a
+		## legacy bullet list counts once.
+		counted = match record.kind {
+			Bullet({ item: _, list }) => if at($lists, parent) == list {
+				False
+			} else {
+				$lists = set_at($lists, parent, list)
+				True
+			}
+			_ => True
+		}
+		own = at($leaves, parent) + at($siblings, parent)
+		position = match record.kind {
+			RichParagraph(paragraph) => match normalized.rich_paragraphs.get(paragraph) {
+				Ok(rich) => rich.position
+				Err(OutOfBounds) => own
+			}
+			Bullet(_) => if counted own else own - 1
+			_ => own
+		}
+		if counted {
+			$leaves = set_at($leaves, parent, at($leaves, parent) + 1)
+		}
+		path = match figure_leaf {
+			NotFigure => child_path(groups, parent, position)
+			FigureLeaf => chain_path(groups, parent)
+			CaptionLeaf => "${chain_path(groups, parent)}.caption"
+		}
+		$paths = $paths.append(path)
+		$block = $block + 1
+	}
+	$paths
+}
+
+at : List(a), U64 -> a
+at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => crash "report index escaped"
+}
+
+set_at : List(a), U64, a -> List(a)
+set_at = |items, index, value| match items.set(index, value) {
+	Ok(updated) => updated
+	Err(OutOfBounds) => crash "report index escaped"
+}
+
+## The report's linear leaf paths equal the diagnostic `leaf_path` of every
+## leaf across groups, lists, a legacy bullet list, a table, a captioned
+## figure, flow items, and a custom block.
+expect {
+	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 20, 20), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 200, 60), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	doc = Pdf.document({
+		contents: [
+			Pdf.title("Paths"),
+			Pdf.bullets(["One", "Two"]),
+			Pdf.spacer(Layout.Unit.points(4)),
+			Pdf.section([
+				Pdf.paragraph("Lead"),
+				Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Nested")])])])]),
+				Pdf.decoration(mark),
+				Pdf.figure(mark, "A mark", Pdf.caption("Figure 1.")),
+				Pdf.page_break,
+				Pdf.rich_paragraph([Pdf.text("Rich")]),
+				Pdf.custom_block({ contents: [Pdf.paragraph("Inside"), Pdf.paragraph("Also")], fragmentation: Unsplittable, inset: Layout.Unit.points(4), name: "Box", panel, size: { height: Layout.Unit.points(60), width: Layout.Unit.points(200) } }),
+			]),
+			Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("A")]), Pdf.cell([Pdf.text("B")])])], caption: Pdf.caption("Table 1."), columns: [{ align: Start, width: Share(1) }, { align: Start, width: Share(1) }], footer_rows: [], header_rows: [], row_split: KeepRows }),
+			Pdf.paragraph("Tail"),
+		],
+		language: "en-AU",
+		title: "Paths",
+	})
+	normalized = Document.normalize(doc)
+	var $index = 0
+	var $expected = []
+	while $index < normalized.blocks.len() {
+		$expected = $expected.append(leaf_path(doc, $index))
+		$index = $index + 1
+	}
+	leaf_paths(normalized) == $expected
 }

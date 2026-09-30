@@ -24,6 +24,13 @@ without consulting the Roc package:
   own it), every page-number artifact's ToUnicode-decoded text that reads
   "N of M" names its own page and the page count, and the per-subtype
   artifact counts match the case dimensions.
+* namespaces: only the PDF 2.0 and PDF 1.7 standard structure namespaces
+  are declared, and each element is in the namespace that defines its role
+  (`Code` and `Quote` in PDF 1.7, every other role in PDF 2.0).
+* custom blocks: every `Div` holding only `P` children is counted, and the
+  `/Artifact <</Type /Layout>>` sequences a page paints before its first
+  marked content (a custom block's panel, painted behind its text) are
+  counted, and both counts match the case dimensions.
 """
 from __future__ import annotations
 
@@ -57,6 +64,10 @@ SNAPSHOTS = {
     "table": ROOT / "tests" / "tables" / "spans.pdf",
     "continued_table": ROOT / "tests" / "tables" / "footer_carry.pdf",
     "templates": ROOT / "tests" / "page_templates" / "letter_6.pdf",
+    "figures": ROOT / "tests" / "flow_figures" / "report.pdf",
+    "figure_sections": ROOT / "tests" / "flow_figures" / "sections_10.pdf",
+    "custom_blocks": ROOT / "tests" / "custom_block" / "callouts_10.pdf",
+    "inline_roles": ROOT / "tests" / "rich_inline" / "mixed.pdf",
 }
 
 VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
@@ -68,6 +79,13 @@ VERAPDF_PROFILE = "org/verapdf/pdfa/validation/PDFUA-2-ISO32005.xml"
 # checker's own table; it is compared against the Roc kernel only through
 # emitted PDFs and against veraPDF's encoding of Table 5 by the self-test.
 # ---------------------------------------------------------------------------
+PDF20_NAMESPACE = "http://iso.org/pdf2/ssn"
+PDF17_NAMESPACE = "http://iso.org/pdf/ssn"
+# ISO 32000-2 14.8.6 defines `Code` and `Quote` only in the PDF 1.7 standard
+# structure namespace; PDF/UA-2 8.2.4 requires each element to belong to a
+# standard namespace.
+PDF17_ROLES = {"Code", "Quote"}
+
 INLINE = {"Lbl", "Figure", "Link", "Span", "Em", "Strong", "Code", "Quote"}
 ALL_ROLES = {
     "Document", "DocumentFragment", "Part", "Sect", "Div", "Title", "H", "Hn", "P", "L", "LI", "Lbl",
@@ -347,9 +365,15 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     require(root_element is not None, "StructTreeRoot /K is not a single Document reference")
     namespaces = [int(value) for value in tree_root["Namespaces"]]
     require(namespaces, "StructTreeRoot has no /Namespaces")
+    namespace_uris: dict[int, str] = {}
     for namespace in namespaces:
         value = document.get(namespace)
-        require(value.get("Type") == "Namespace" and text_string(value["NS"]) == "http://iso.org/pdf2/ssn", "namespace is not PDF 2.0")
+        require(value.get("Type") == "Namespace", "namespace is not a Namespace dictionary")
+        uri = text_string(value["NS"])
+        require(uri in (PDF20_NAMESPACE, PDF17_NAMESPACE), f"namespace {uri!r} is not a standard structure namespace")
+        require(uri not in namespace_uris.values(), f"namespace {uri!r} is declared twice")
+        namespace_uris[namespace] = uri
+    require(PDF20_NAMESPACE in namespace_uris.values(), "the PDF 2.0 namespace is not declared")
 
     lines: list[str] = []
     mcr_owner: dict[tuple[int, int], int] = {}
@@ -367,6 +391,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         require(int(element["P"]) == parent, f"structure element {number} /P does not name its parent")
         require(int(element["NS"]) in namespaces, "structure element namespace is not declared")
         role = str(element["S"])
+        expected_namespace = PDF17_NAMESPACE if role in PDF17_ROLES else PDF20_NAMESPACE
+        require(namespace_uris[int(element["NS"])] == expected_namespace, f"/{role} is not in the namespace that defines it ({expected_namespace})")
         row = table_role(role)
         require(row in MAY_CONTAIN, f"unsupported structure role /{role}")
         if parent_role is None:
@@ -499,6 +525,8 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
 
     check_tables(document, visited, identifiers, pages, page_index)
     check_furniture(furniture_by_page(document, pages), dimensions)
+    check_figures(document, visited, pages, page_index, dimensions)
+    check_custom_blocks(document, visited, pages, dimensions)
 
     expected_elements = dimensions.get("structure_elements")
     if expected_elements is not None:
@@ -563,6 +591,86 @@ def check_furniture(pages: list[list[tuple[str, bytes, str]]], dimensions: dict[
                     require(int(field.group(1)) == index + 1, f"page {index + 1} shows page number {field.group(1)}")
                     require(int(field.group(2)) == len(pages), f"page {index + 1} shows a total of {field.group(2)}, not {len(pages)}")
     for key, count in counts.items():
+        expected = dimensions.get(key)
+        if expected is not None:
+            require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
+
+
+LAYOUT_ARTIFACT = re.compile(rb"/Artifact <</Type /Layout>> BDC\n")
+MARKED_FIGURE = re.compile(rb"/[A-Za-z0-9]+ <</MCID ([0-9]+)>> BDC\nq\n([-0-9.]+) 0 0 ([-0-9.]+) [-0-9.]+ [-0-9.]+ cm\n")
+
+
+def check_figures(document: Document, visited: set[int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
+    """Independent figure and decoration checks, derived from the bytes:
+
+    - every Figure has a non-empty /Alt and owns exactly one MCID;
+    - a Caption beside a Figure is the last child of a Sect whose children
+      are exactly that Figure and Caption, so the caption is exposed
+      independently of the figure's /Alt;
+    - each Figure's marked content begins with its drawing's uniform scale
+      (`s 0 0 s x y cm`), and the counts of figures, captioned figures,
+      scaled figures (s != 1), and in-flow `/Artifact <</Type /Layout>>`
+      sequences (table rules and decorations) equal the case dimensions.
+    """
+    figures = 0
+    captioned = 0
+    scaled = 0
+    for number in sorted(visited):
+        element = document.get(number)
+        role = str(element["S"])
+        children = element_children(document, element)
+        child_roles = [str(document.get(int(child))["S"]) if isinstance(child, Ref) else None for child in children]
+        if role == "Figure":
+            figures += 1
+            require(isinstance(element.get("Alt"), bytes) and text_string(element["Alt"]).strip(), "a Figure has an empty /Alt")
+            marks = [child for child in children if isinstance(child, dict) and child.get("Type") == "MCR"]
+            require(len(marks) == 1 and len(children) == 1, "a Figure does not own exactly one marked-content sequence")
+            page = int(marks[0]["Pg"])
+            content = document.stream(int(document.get(page)["Contents"]))
+            found = [match for match in MARKED_FIGURE.finditer(content) if int(match.group(1)) == int(marks[0]["MCID"])]
+            require(len(found) == 1, f"the Figure's MCID on page {page_index[page]} does not begin with its drawing's placement")
+            horizontal, vertical = found[0].group(2), found[0].group(3)
+            require(horizontal == vertical and 0 < float(horizontal) <= 1, "a Figure's drawing is not scaled uniformly by at most 1")
+            if float(horizontal) != 1:
+                scaled += 1
+        if "Caption" in child_roles and "Figure" in child_roles:
+            require(role == "Sect" and child_roles == ["Figure", "Caption"], f"a figure caption is not the last child of a Sect holding only its Figure (found /{role} {child_roles})")
+            caption = document.get(int(children[1]))
+            caption_children = [str(document.get(int(child))["S"]) for child in element_children(document, caption) if isinstance(child, Ref)]
+            require(caption_children == ["P"], "a figure Caption does not hold one P")
+            captioned += 1
+    layout = sum(len(LAYOUT_ARTIFACT.findall(document.stream(int(document.get(page)["Contents"])))) for page in pages)
+    for key, count in (("figure_nodes", figures), ("captioned_figures", captioned), ("scaled_figures", scaled), ("layout_artifacts", layout)):
+        expected = dimensions.get(key)
+        if expected is not None:
+            require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
+
+
+MCID_BDC = re.compile(rb"<</MCID \d+>> BDC")
+
+
+def check_custom_blocks(document: Document, visited: set[int], pages: list[int], dimensions: dict[str, int]) -> None:
+    """Custom-block checks, derived from the bytes: the number of `Div`
+    elements whose children are one or more `P` elements only, and the
+    number of `/Artifact <</Type /Layout>>` sequences each page paints
+    before its first marked content (an underlay: a custom block's panel
+    behind its text). Both counts must equal the case dimensions.
+    """
+    paragraph_divs = 0
+    for number in sorted(visited):
+        element = document.get(number)
+        if str(element["S"]) != "Div":
+            continue
+        children = element_children(document, element)
+        roles = [str(document.get(int(child))["S"]) if isinstance(child, Ref) else None for child in children]
+        if roles and all(role == "P" for role in roles):
+            paragraph_divs += 1
+    underlays = 0
+    for page in pages:
+        content = document.stream(int(document.get(page)["Contents"]))
+        first = MCID_BDC.search(content)
+        underlays += len(LAYOUT_ARTIFACT.findall(content[: first.start()] if first else content))
+    for key, count in (("paragraph_divs", paragraph_divs), ("underlays", underlays)):
         expected = dimensions.get(key)
         if expected is not None:
             require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
@@ -750,7 +858,12 @@ def self_test() -> None:
     lowering = SNAPSHOTS["lowering"].read_bytes()
     facade = SNAPSHOTS["facade"].read_bytes()
     table = SNAPSHOTS["table"].read_bytes()
+    figure_sections = SNAPSHOTS["figure_sections"].read_bytes()
+    inline_roles = SNAPSHOTS["inline_roles"].read_bytes()
+    check_structure_semantics(SNAPSHOTS["figures"].read_bytes(), {"figure_nodes": 4, "captioned_figures": 3, "scaled_figures": 1, "layout_artifacts": 2})
     mutations = [
+        ("figure caption in a transparent Part", figure_sections, b"/S /Sect", b"/S /Part"),
+        ("Figure without /Alt", figure_sections, b"/Alt <", b"/Alz <"),
         ("irregular table grid", table, b"/ColSpan 2", b"/ColSpan 3"),
         ("row span outside the declared subset", table, b"/ColSpan 2", b"/RowSpan 2"),
         ("/Headers names a TD", table, b"/Headers [<63303030303032> <63303030303035> <63303030303038>]", b"/Headers [<63303030303032> <63303030303035> <63303030303039>]"),
@@ -768,11 +881,29 @@ def self_test() -> None:
         ("malformed nested language", lowering, b"/Lang <FEFF00660072>", b"/Lang <FEFF00360072>"),
         ("invalid Scope value", lowering, b"/A << /O /Table /Scope /Column >> /ID", b"/A << /O /Table /Scope /Colunn >> /ID"),
         ("labelled list numbered /None", nested, b"/ListNumbering /Disc", b"/ListNumbering /None"),
+        ("PDF 1.7 Quote claimed by the PDF 2.0 namespace", inline_roles, b"/NS 5 0 R /P 21 0 R /S /Quote ", b"/NS 4 0 R /P 21 0 R /S /Quote "),
+        ("PDF 2.0 P claimed by the PDF 1.7 namespace", inline_roles, b"/NS 4 0 R /P 6 0 R /S /P ", b"/NS 5 0 R /P 6 0 R /S /P "),
     ]
     for label, source, old, new in mutations:
         mutated = replace_once(source, old, new)
         try:
             check_structure_semantics(mutated)
+        except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
+            continue
+        raise SystemExit(f"structure-semantics checker accepted {label}")
+    # Custom-block twins: a callout's Div rewritten as another role, and
+    # in-flow decorations (painted after their page's text) presented as
+    # the callouts' underlays.
+    callouts = SNAPSHOTS["custom_blocks"].read_bytes()
+    callout_dimensions = {"paragraph_divs": 10, "underlays": 10, "layout_artifacts": 10}
+    check_structure_semantics(callouts, callout_dimensions)
+    callout_twins = [
+        ("a callout Div that is not a Div", replace_once(callouts, b"/S /Div ", b"/S /Art "), callout_dimensions),
+        ("decorations painted after text counted as underlays", figure_sections, {"underlays": 10}),
+    ]
+    for label, source, dimensions in callout_twins:
+        try:
+            check_structure_semantics(source, dimensions)
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
@@ -804,8 +935,8 @@ def self_test() -> None:
     print(
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
-        f"Table 5 containment, and page furniture verified on {len(SNAPSHOTS)} snapshots; {len(mutations)} "
-        f"length-preserving mutation twins and {len(furniture_twins)} furniture twins rejected; {cross_check}",
+        f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations)} "
+        f"length-preserving mutation twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )
 

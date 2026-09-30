@@ -9,6 +9,7 @@ Theme :: {
 	emphasis : InlineColor,
 	font_selection : FontSelection,
 	heading : TextStyle,
+	inline_fonts : InlineFonts,
 	page_margin : PageMargin,
 	paragraph_spacing : Layout.Unit,
 	quote : InlineColor,
@@ -23,13 +24,21 @@ Theme :: {
 		size : Layout.Unit,
 	}
 
-	## The presentation of an inline semantic role inside rich text. An
-	## `Inherited` role paints exactly like the text around it; a `Themed`
-	## role changes only the fill color. Inline roles never change the face,
-	## size, or leading of their line: the package ships one regular face and
-	## produces no synthetic bold or oblique, and the semantic role never
-	## depends on this presentation.
+	## The color of an inline semantic role inside rich text. An `Inherited`
+	## role paints in the color of the text around it; a `Themed` role
+	## changes the fill color. Inline roles never change the size or leading
+	## of their line, the package produces no synthetic bold or oblique, and
+	## the semantic role never depends on this presentation.
 	InlineColor : [Inherited, Themed(Color.SourceValue)]
+
+	## The face of an inline semantic role: `Inherited` paints in the face of
+	## the text around it, and `Face` in a caller-registered face (for
+	## example a monospace face for `Code`). The innermost role with a face
+	## decides the face of a text run; its size and leading stay those of
+	## the paragraph.
+	InlineFont : [Face(Font.FaceId), Inherited]
+
+	InlineFonts : { code : InlineFont, emphasis : InlineFont, quote : InlineFont, strong : InlineFont }
 
 	## Table presentation. Cells paint in the body style; `header_color`
 	## changes only the fill color of header-cell text. `cell_padding` insets
@@ -83,6 +92,7 @@ Theme :: {
 			code: Inherited,
 			emphasis: Inherited,
 			font_selection: StyleFaces,
+			inline_fonts: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited },
 			heading: {
 				color: black,
 				font: Font.FaceId.from_index(0),
@@ -121,6 +131,7 @@ Theme :: {
 		emphasis: theme.emphasis,
 		font_selection: StyleFaces,
 		heading: { ..theme.heading, font },
+		inline_fonts: theme.inline_fonts,
 		page_margin: theme.page_margin,
 		paragraph_spacing: theme.paragraph_spacing,
 		quote: theme.quote,
@@ -170,8 +181,8 @@ Theme :: {
 	with_strong_color : Theme, Color.SourceValue -> Theme
 	with_strong_color = |theme, color| { ..theme, strong: Themed(color) }
 
-	## Paint `Pdf.code` text in its own color. A distinct monospace face for
-	## inline code is not selectable yet; code uses the surrounding face.
+	## Paint `Pdf.code` text in its own color; `with_inline_font` selects a
+	## face for it.
 	with_code_color : Theme, Color.SourceValue -> Theme
 	with_code_color = |theme, color| { ..theme, code: Themed(color) }
 
@@ -179,6 +190,33 @@ Theme :: {
 	## authored text.
 	with_quote_color : Theme, Color.SourceValue -> Theme
 	with_quote_color = |theme, color| { ..theme, quote: Themed(color) }
+
+	## Paint one inline role's text in a caller-registered face, such as a
+	## monospace face for `Code`. The face must be registered in the
+	## options' font registry; it applies under `StyleFaces` selection, and
+	## a theme with an ordered font policy rejects it
+	## (`text.inline_font_policy`) rather than ignoring it.
+	with_inline_font : Theme, InlineRole, Font.FaceId -> Theme
+	with_inline_font = |theme, role, face| {
+		fonts = theme.inline_fonts
+		updated = match role {
+			Code => { ..fonts, code: Face(face) }
+			Emphasis => { ..fonts, emphasis: Face(face) }
+			Quote => { ..fonts, quote: Face(face) }
+			Strong => { ..fonts, strong: Face(face) }
+		}
+		{ ..theme, inline_fonts: updated }
+	}
+
+	## The face of one inline role; the innermost role with a face around a
+	## text run decides its face.
+	inline_font : Theme, InlineRole -> InlineFont
+	inline_font = |theme, role| match role {
+		Code => theme.inline_fonts.code
+		Emphasis => theme.inline_fonts.emphasis
+		Quote => theme.inline_fonts.quote
+		Strong => theme.inline_fonts.strong
+	}
 
 	## The presentation of one inline role; the innermost themed role around
 	## a text run decides its color.

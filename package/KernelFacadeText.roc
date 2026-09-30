@@ -77,6 +77,7 @@ KernelFacadeText :: [].{
 	Plan :: {
 		artifact_kinds : ArtifactKinds,
 		artifact_runs : List(U64),
+		flow : KernelFacadePages.FlowPaints,
 		furniture : [NoFurniture, WithFurniture(KernelFacadeFurniture.Plan)],
 		pages : List(Page),
 		placements : List(Placement),
@@ -92,7 +93,7 @@ KernelFacadeText :: [].{
 		## The production facade uses `build`, which extracts it from validated
 		## preceding plans without exposing this internal module publicly.
 		build_prepared : Prepared, Limits -> Try(Plan, Error)
-		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], limits)
+		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], { decorations: [], figure_scales: [], panels: [] }, limits)
 
 		## Interleave resolved page furniture into a built plan: on every
 		## page, header furniture runs precede the page's body runs and footer
@@ -112,6 +113,10 @@ KernelFacadeText :: [].{
 
 		rules : Plan -> List(KernelFacadePages.Rule)
 		rules = |plan| plan.rules
+
+		## Figure scales and placed decorations from pagination.
+		flow : Plan -> KernelFacadePages.FlowPaints
+		flow = |plan| plan.flow
 
 		pages : Plan -> List(Page)
 		pages = |plan| plan.pages
@@ -152,6 +157,7 @@ build_plan = |shape_plan, line_plan, page_plan, limits| {
 		},
 		KernelFacadePages.Plan.artifact_rows(page_plan),
 		KernelFacadePages.Plan.rules(page_plan),
+		KernelFacadePages.Plan.flow(page_plan),
 		limits,
 	)
 }
@@ -160,8 +166,8 @@ build_plan = |shape_plan, line_plan, page_plan, limits| {
 ## page artifacts. Their runs duplicate shaped clusters already painted by
 ## the header's own occurrence, so the once-each coverage proof counts only
 ## the other runs, and the artifact runs are reported for scene ownership.
-build_prepared_plan : KernelFacadeText.Prepared, List(U64), List(KernelFacadePages.Rule), KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
-build_prepared_plan = |prepared, artifact_rows, rules, limits| {
+build_prepared_plan : KernelFacadeText.Prepared, List(U64), List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	shape = prepared.shape
 	styles = prepared.styles
 	lines = prepared.lines
@@ -392,6 +398,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, limits| {
 		KernelFacadeText.Plan.{
 			artifact_kinds: RepeatedHeaders,
 			artifact_runs: $artifact_runs,
+			flow,
 			furniture: NoFurniture,
 			pages: $page_records,
 			placements: $placements,
@@ -662,6 +669,7 @@ interleave_furniture = |plan, furniture, limits| {
 		KernelFacadeText.Plan.{
 			artifact_kinds: Kinds($artifact_kinds),
 			artifact_runs: $artifact_runs,
+			flow: plan.flow,
 			furniture: WithFurniture(furniture),
 			pages: $pages,
 			placements: $placements,

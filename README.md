@@ -52,8 +52,8 @@ record](docs/performance/static-pdfa4.md).
 
 - [Authoring guide](docs/authoring.md)
 - [Example gallery](examples/README.md)
-- [Reference business documents](docs/reference-documents.md) (the planned
-  Gate 6 contract; not yet executable)
+- [Reference business documents](docs/reference-documents.md) (the Gate 6
+  contract; the invoice, report, and letter are gallery examples below)
 - [Generated API documentation](https://lukewilliamboswell.github.io/roc-pdf/)
 - [Migrating to rc2](docs/migrating-to-rc2.md)
 
@@ -70,13 +70,16 @@ runnable Roc source.
 </tr>
 <tr>
 <td><a href="examples/operations-handbook.pdf"><img src="examples/previews/operations-handbook.png" alt="Operations handbook preview"></a><br><a href="examples/operations_handbook.roc">Operations handbook source</a></td>
-<td><a href="examples/project-letter.pdf"><img src="examples/previews/project-letter.png" alt="Project letter preview"></a><br><a href="examples/letter.roc">Letter source</a></td>
+<td><a href="examples/warranty-letter.pdf"><img src="examples/previews/warranty-letter.png" alt="Reference business letter preview"></a><br><a href="examples/letter.roc">Business letter source</a></td>
 <td><a href="examples/release-notes.pdf"><img src="examples/previews/release-notes.png" alt="Release notes preview"></a><br><a href="examples/release_notes.roc">Release notes source</a></td>
 </tr>
 <tr>
-<td><a href="examples/invoice-1048.pdf"><img src="examples/previews/invoice-1048.png" alt="Prepared invoice preview"></a><br><a href="examples/prepared_invoice.roc">Prepared invoice source</a></td>
+<td><a href="examples/tax-invoice.pdf"><img src="examples/previews/tax-invoice.png" alt="Reference tax invoice preview"></a><br><a href="examples/prepared_invoice.roc">Tax invoice source</a></td>
 <td><a href="examples/chunked-export.pdf"><img src="examples/previews/chunked-export.png" alt="Chunked export preview"></a><br><a href="examples/chunked_export.roc">Chunked export source</a></td>
 <td><a href="examples/product-brief.pdf"><img src="examples/previews/product-brief.png" alt="Product brief preview"></a><br><a href="examples/product_brief.roc">Product brief source</a></td>
+</tr>
+<tr>
+<td><a href="examples/business-report.pdf"><img src="examples/previews/business-report.png" alt="Reference business report preview"></a><br><a href="examples/business_report.roc">Business report source</a></td>
 </tr>
 </table>
 

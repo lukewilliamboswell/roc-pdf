@@ -1,6 +1,7 @@
 import pdf.Color
 import pdf.Conformance
 import pdf.Document
+import pdf.Font
 import pdf.Image
 import pdf.KernelBuiltInFont
 import pdf.KernelColor
@@ -35,6 +36,7 @@ import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
 ## Page templates, furniture, and page fields through the public `Pdf`
 ## constructors (`reference-documents-v6`).
@@ -48,6 +50,14 @@ import pdf.Theme
 ## - `report`: a first page with only a `Page N of M` footer; continuation
 ##   pages add a running title and a full-width vector rule at the bottom
 ##   of the header region.
+## - `ordered`: the report under an ordered policy of the packaged face
+##   and a Han fixture face: the body uses only the packaged face, and the
+##   continuation header `Quarterly operations report · 中 · Q1 FY2027`
+##   selects its Han cluster onto the Han face, which becomes an extra
+##   output font; pieces split at the face boundaries. Its rejections:
+##   furniture text in an undeclared script (`text.unsupported_script`)
+##   and a Han cluster no policy face covers (`text.coverage_missing`),
+##   each at its furniture item path.
 ## - `numbering`: page fields in every number style across five pages.
 ## - `images`: raster and vector furniture drawings in both templates.
 ## - `atomic_negatives`: every template rejection with its stable dotted
@@ -75,6 +85,14 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		evidence(report_document(sections), report_theme)
+	}
+
+	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	ordered = |sections| {
+		if sections == 0 or sections > 100 {
+			return Err(InvalidScale)
+		}
+		run_ordered(sections)
 	}
 
 	numbering : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -231,7 +249,10 @@ report_footer : Pdf.Region
 report_footer = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(64)])], height: points(16), start: [] })
 
 report_document : U64 -> Document
-report_document = |sections| {
+report_document = |sections| report_with_header(sections, "Quarterly operations report · Q1 FY2027")
+
+report_with_header : U64, Str -> Document
+report_with_header = |sections, running_title| {
 	var $contents = [Pdf.title("Quarterly operations report")]
 	var $index = 0
 	while $index < sections {
@@ -252,7 +273,7 @@ report_document = |sections| {
 			continuation: Pdf.page_template({
 				footer: report_footer,
 				gap: points(12),
-				header: Pdf.region({ center: [], end: [], height: points(24), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report · Q1 FY2027")]), rule] }),
+				header: Pdf.region({ center: [], end: [], height: points(24), start: [Pdf.furniture_text([Pdf.text(running_title)]), rule] }),
 			}),
 			first: Pdf.first_page_template({ footer: report_footer, gap: points(12), header: Pdf.no_region, lead: Pdf.no_lead }),
 		},
@@ -324,6 +345,60 @@ images_document = |context| {
 
 ## Bytes come from `Pdf.to_bytes_with`; work comes from one facade pipeline
 ## probe through fragments over the same normalized authoring.
+## The packaged face and the Han fixture face in one ordered policy.
+##
+## The limits depend on the runtime case so the registration is not
+## evaluated at compile time.
+ordered_faces : U64 -> Try({ policy : Font.PolicyId, registry : Font.Registry }, Fixture.EvidenceError)
+ordered_faces = |sections| {
+	limits = if sections > 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
+	latin = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+		Err(_) => return Err(EvidenceFailure)
+		Ok(value) => value
+	}
+	cjk = match latin.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits) {
+		Err(_) => return Err(EvidenceFailure)
+		Ok(value) => value
+	}
+	configured = match cjk.registry.with_policy([latin.face, cjk.face]) {
+		Err(_) => return Err(EvidenceFailure)
+		Ok(value) => value
+	}
+	Ok({ policy: configured.policy, registry: configured.registry })
+}
+
+run_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_ordered = |sections| {
+	ordered = ordered_faces(sections)?
+	theme = Theme.with_font_policy(report_theme, ordered.policy)
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), ordered.registry)
+	document = report_with_header(sections, "Quarterly operations report · Q1 FY2027 · Office中")
+	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.probe_ordered(Document.normalize(document), ordered, theme, page_size, pipeline_limits) ? |_| EvidenceFailure
+	rejected = |running_title, feature| match Pdf.to_bytes_with(report_with_header(6, running_title), options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["templates.continuation.header.start[0]"], feature: Feature(found), .. }], .. })) => if found == feature 1 else 0
+		_ => 0
+	}
+	rejections = rejected("Report שלום", "text.unsupported_script") + rejected("Report 中文", "text.coverage_missing")
+	if rejections != 2 {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({
+		bytes,
+		work: [
+			flow.lines,
+			flow.pages,
+			flow.reference_passes,
+			flow.field_resolutions,
+			flow.furniture_items,
+			flow.fragments,
+			flow.final_runs - flow.fragments,
+			rejections,
+			bytes.len(),
+		],
+	})
+}
+
 evidence : Document, Theme -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document, theme| {
 	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) ? |_| EvidenceFailure
@@ -405,7 +480,7 @@ run_negatives = |context| {
 ## The facade's standard pipeline limits (package/Pdf.roc).
 pipeline_limits : KernelFacadePipeline.Limits
 pipeline_limits = KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 65536, max_content_spine: 65536 + 65536, max_fragments: 1000000, max_namespaces: 1, max_nodes: 16384, max_occurrences: 16384, max_semantic_depth: 48 }),
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 65536, max_content_spine: 65536 + 65536, max_fragments: 1000000, max_namespaces: 2, max_nodes: 16384, max_occurrences: 16384, max_semantic_depth: 48 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 1000000, max_occurrences: 16384, max_pages: 1024 }),
 	navigation: KernelNavigation.standard_limits,
 	lines: KernelFacadeLines.Limits.make({
@@ -446,7 +521,6 @@ pipeline_limits = KernelFacadePipeline.Limits.make({
 		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 1000000, max_paths: 1000000 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
-		max_artifacts: 0,
 		max_container_depth: 16,
 		max_content_spine: 65536,
 		max_inline_depth: 8,
@@ -454,7 +528,7 @@ pipeline_limits = KernelFacadePipeline.Limits.make({
 		max_occurrences: 16384,
 		max_properties: 16384,
 		max_source_inputs: 16384,
-		semantics: KernelSemantics.Limits.make({ max_attributes: 65536, max_content_spine: 65536, max_fragments: 0, max_namespaces: 1, max_nodes: 16384, max_occurrences: 16384, max_semantic_depth: 48 }),
+		semantics: KernelSemantics.Limits.make({ max_attributes: 65536, max_content_spine: 65536, max_fragments: 0, max_namespaces: 2, max_nodes: 16384, max_occurrences: 16384, max_semantic_depth: 48 }),
 		sources: KernelFacadeSources.Limits.make({
 			max_hash_probes: 4000000,
 			max_inputs: 16384,

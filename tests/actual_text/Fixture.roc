@@ -359,7 +359,7 @@ Fixture :: [].{
 			soft_hyphen_semantics,
 			1,
 			1,
-			KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+			KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 			KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 1, max_text_source_bytes: 11, max_text_source_scalars: 10, max_text_sources: 1 }),
 		) ? |_| EvidenceFailure
 		glyphs = [
@@ -412,7 +412,7 @@ Fixture :: [].{
 			external_discretionary_hyphen_semantics,
 			1,
 			1,
-			KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+			KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 			KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 1, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
 		) ? |_| EvidenceFailure
 		glyphs = [
@@ -892,7 +892,7 @@ build_rtl_sample = |resolved| {
 		rtl_semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 18, max_text_source_scalars: 14, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	shape = KernelShape.validate_advanced_with_bidi_order(
@@ -1121,7 +1121,7 @@ build_case_sample = |mapping| {
 		case_semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 8, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	shape = KernelShape.validate_advanced(
@@ -1178,7 +1178,7 @@ build_multi_face_sample = |_| {
 		multi_face_semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 6, max_text_source_scalars: 3, max_text_sources: 1 }),
 	) ? |_| EvidenceFailure
 	scene = KernelScene.Plan.build(
@@ -1249,7 +1249,7 @@ build_sample = |_| {
 		semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	f_glyph = required_glyph(font, 0x66) ? |_| FontFailure
@@ -1268,7 +1268,7 @@ build_combining_sample = |_| {
 		combining_semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	agrave_glyph = required_glyph(font, 0x00c0) ? |_| FontFailure
@@ -1287,7 +1287,7 @@ build_ligature_sample = |_| {
 		ligature_semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 2, max_text_source_scalars: 2, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	f_glyph = required_glyph(font, 0x0066) ? |_| FontFailure
@@ -1323,7 +1323,7 @@ build_supplementary_sample = |_| {
 		supplementary_semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 4, max_text_source_scalars: 1, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	glyph = required_glyph(font, 0x1f12f) ? |_| FontFailure
@@ -1341,7 +1341,7 @@ build_cjk_sample = |_| {
 		cjk_semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 3, max_text_source_scalars: 1, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	glyph = required_glyph(font, 0x4e2d) ? |_| FontFailure

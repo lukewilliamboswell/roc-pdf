@@ -72,14 +72,23 @@ KernelPageLayout :: [].{
 	## block starts or continues: a continued table repaints its header rows
 	## there. It is zero for every other block, and every fit check of a unit
 	## starting a page subtracts its first block's lead from the page body.
+	## `decoration` is the height of in-flow decorations placed immediately
+	## above the block's first line: it is part of the block's first
+	## placement unit, so it is always on the page where the block starts.
+	## `trailing` is height reserved below the block's last line and before
+	## its spacing (a custom block's bottom inset and unused measured
+	## height). Only an unsplittable block may reserve it, so it is always
+	## on the page where the block ends and counts toward every fit check.
 	Block : {
 		baseline_offset : Layout.Unit,
+		decoration : Layout.Unit,
 		lead : Layout.Unit,
 		leading : Layout.Unit,
 		lines : Semantics.Range,
 		occurrence : Semantics.OccurrenceId,
 		policy : Policy,
 		space_after : Layout.Unit,
+		trailing : Layout.Unit,
 	}
 
 	## A required keep-together group over a contiguous block range. Groups
@@ -90,6 +99,11 @@ KernelPageLayout :: [].{
 	## One preference the chosen break left unsatisfied: its rank, the block
 	## whose policy declared it, and the page the break closed.
 	Relaxation : { block : U64, page : U64, rank : Rank }
+
+	## Where a block's decoration band was placed: its page and the absolute
+	## y coordinate of the band's top edge, which the block's first line
+	## follows after the band's height.
+	Band : { block : U64, page : U64, top : U64 }
 	Limits :: { max_blocks : U64, max_fragments : U64, max_lines : U64, max_pages : U64, max_placements : U64 }.{
 		make : { max_blocks : U64, max_fragments : U64, max_lines : U64, max_pages : U64, max_placements : U64 } -> Limits
 		make = |limits| Limits.(limits)
@@ -124,7 +138,7 @@ KernelPageLayout :: [].{
 		page_writes : U64,
 		placement_writes : U64,
 	}
-	Plan :: { fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
+	Plan :: { bands : List(Band), fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
 		build : List(Block), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
 		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, NoTemplate, limits)
 
@@ -141,6 +155,11 @@ KernelPageLayout :: [].{
 
 		fragments : Plan -> List(Fragment)
 		fragments = |plan| plan.fragments
+
+		## The placed decoration band of every block with a decoration, in
+		## block order.
+		bands : Plan -> List(Band)
+		bands = |plan| plan.bands
 
 		pages : Plan -> List(Page)
 		pages = |plan| plan.pages
@@ -164,9 +183,9 @@ Geometry := {
 	page_height : U64,
 }
 
-## `heights[b]` is block b's line height; `atomic_ends[b]` is the exclusive
-## end of the outermost keep-together group starting at b, or zero (empty
-## when no group exists).
+## `heights[b]` is block b's line height with its decoration band;
+## `atomic_ends[b]` is the exclusive end of the outermost keep-together
+## group starting at b, or zero (empty when no group exists).
 Validation := { atomic_ends : List(U64), heights : List(U64), line_visits : U64 }
 
 ## A page scan either reaches the end of the document or chooses a break at
@@ -218,6 +237,7 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 	var $fragments = []
 	var $placements = []
 	var $relaxations = []
+	var $bands = []
 	var $candidate_visits = 0
 	var $block = 0
 	var $line = 0
@@ -234,8 +254,13 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 				take = block.lines.length()
 				leading = positive_raw(block.leading)?
 				fragment_height = checked_mul(take, leading)?
-				if checked_add($used, fragment_height)? > lead_height {
+				decoration = nonnegative_raw(block.decoration)?
+				if checked_add(checked_add($used, decoration)?, fragment_height)? > lead_height {
 					return Err(LeadOverflow({ available: lead_height, required: lead_total(blocks, lead_blocks)? }))
+				}
+				if decoration > 0 {
+					$bands = $bands.append({ block: $block, page: 0, top: lead_geometry.page_height - lead_geometry.margin_top - $used })
+					$used = $used + decoration
 				}
 				fragment_id = Semantics.FragmentId.from_index($fragments.len())
 				fragment = make_fragment(block, lines, block.lines.start(), take, fragment_height, $used, lead_geometry, 0)?
@@ -253,7 +278,7 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 					})
 					$local = $local + 1
 				}
-				$used = checked_add($used, fragment_height)?
+				$used = checked_add(checked_add($used, fragment_height)?, nonnegative_raw(block.trailing)?)?
 				if $block + 1 < lead_blocks {
 					$used = checked_add($used, nonnegative_raw(block.space_after)?)?
 				}
@@ -289,6 +314,11 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 			take = stop - $cursor_line
 			leading = positive_raw(block.leading)?
 			fragment_height = checked_mul(take, leading)?
+			decoration = if $cursor_line == 0 nonnegative_raw(block.decoration)? else 0
+			if decoration > 0 {
+				$bands = $bands.append({ block: $cursor_block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - $used })
+				$used = checked_add($used, decoration)?
+			}
 			fragment_id = Semantics.FragmentId.from_index($fragments.len())
 			line_start = block.lines.start() + $cursor_line
 			fragment = make_fragment(block, lines, line_start, take, fragment_height, $used, page_geometry, page_index)?
@@ -308,6 +338,7 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 			}
 			$used = checked_add($used, fragment_height)?
 			if stop == line_count {
+				$used = checked_add($used, nonnegative_raw(block.trailing)?)?
 				spaced = checked_add($used, nonnegative_raw(block.space_after)?)?
 				$used = if spaced > page_geometry.content_height page_geometry.content_height else spaced
 				$cursor_block = $cursor_block + 1
@@ -330,6 +361,7 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 	}
 	Ok(
 		KernelPageLayout.Plan.{
+			bands: $bands,
 			fragments: $fragments,
 			pages: $pages,
 			placements: $placements,
@@ -406,7 +438,11 @@ scan_page = |blocks, validation, height, start_block, start_line| {
 			leading = positive_raw(block.leading)?
 			line_count = block.lines.length()
 			remaining = line_count - $first_line
-			fit = (height - $used) / leading
+
+			## A block starting here places its decoration band first.
+			decoration = if $first_line == 0 nonnegative_raw(block.decoration)? else 0
+			$used = checked_add($used, decoration)?
+			fit = if $used >= height 0 else (height - $used) / leading
 			take_max = if fit < remaining fit else remaining
 			starts_here = $first_line == 0
 			previous_keep = if starts_here and $index > start_block list_at(blocks, $index - 1).policy.keep_with_next else NoKeep
@@ -605,7 +641,7 @@ lead_total = |blocks, count| {
 	var $index = 0
 	while $index < count {
 		block = list_at(blocks, $index)
-		$total = checked_add($total, checked_mul(block.lines.length(), positive_raw(block.leading)?)?)?
+		$total = checked_add($total, checked_add(checked_add(nonnegative_raw(block.decoration)?, nonnegative_raw(block.trailing)?)?, checked_mul(block.lines.length(), positive_raw(block.leading)?)?)?)?
 		if $index + 1 < count {
 			$total = checked_add($total, nonnegative_raw(block.space_after)?)?
 		}
@@ -640,7 +676,12 @@ validate_input = |blocks, groups, lines, content_height| {
 			return Err(InvalidBlock({ block: $block_index }))
 		}
 		_ = nonnegative_raw(block.space_after) ? |_| InvalidBlock({ block: $block_index })
-		height = checked_mul(line_count, leading)?
+		decoration = nonnegative_raw(block.decoration) ? |_| InvalidBlock({ block: $block_index })
+		trailing = nonnegative_raw(block.trailing) ? |_| InvalidBlock({ block: $block_index })
+		if trailing > 0 and !block.policy.keep_together {
+			return Err(InvalidBlock({ block: $block_index }))
+		}
+		height = checked_add(checked_add(checked_mul(line_count, leading)?, decoration)?, trailing)?
 		lead = nonnegative_raw(block.lead) ? |_| InvalidBlock({ block: $block_index })
 		if block.policy.keep_together and checked_add(height, lead)? > content_height {
 			return Err(Oversize({ available: content_height, block: $block_index, required: checked_add(height, lead)? }))
@@ -689,7 +730,7 @@ validate_input = |blocks, groups, lines, content_height| {
 				if next.policy.break_before {
 					return Err(KeepConflict(BreakAfterRequiredKeep({ block: $reverse, next: $reverse + 1 })))
 				}
-				tail = if block.policy.keep_together list_at($heights, $reverse) else positive_raw(block.leading)?
+				tail = if block.policy.keep_together or block.lines.length() == 1 list_at($heights, $reverse) else positive_raw(block.leading)?
 				next_unit = match next.policy.keep_with_next {
 					Required => list_at($requirements, $reverse + 1)
 					_ => first_unit(next, list_at($heights, $reverse + 1), atomic_ends, $reverse + 1, blocks, $heights)?
@@ -716,7 +757,7 @@ first_unit = |block, height, atomic_ends, index, blocks, heights| {
 	} else if block.policy.keep_together {
 		Ok(height)
 	} else {
-		checked_mul(block.policy.minimum_first_lines, positive_raw(block.leading)?)
+		checked_add(checked_mul(block.policy.minimum_first_lines, positive_raw(block.leading)?)?, nonnegative_raw(block.decoration)?)
 	}
 }
 
@@ -894,12 +935,14 @@ test_limits = KernelPageLayout.Limits.make({ max_blocks: 8, max_fragments: 8, ma
 test_block : KernelPageLayout.Block
 test_block = {
 	baseline_offset: Layout.Unit.from_raw(800),
+	decoration: Layout.Unit.from_raw(0),
 	lead: Layout.Unit.from_raw(0),
 	leading: Layout.Unit.from_raw(1000),
 	lines: Semantics.Range.from_start_and_length(0, 1),
 	occurrence: Semantics.OccurrenceId.from_index(0),
 	policy: test_policy,
 	space_after: Layout.Unit.from_raw(0),
+	trailing: Layout.Unit.from_raw(0),
 }
 
 ## Five lines split three/two without violating widow/orphan minima.
@@ -924,6 +967,52 @@ expect {
 	pages = KernelPageLayout.Plan.pages(plan)
 	fragments = KernelPageLayout.Plan.fragments(plan)
 	pages.len() == 3 and list_at(fragments, 1).page.index() == 1 and list_at(fragments, 2).page.index() == 1 and KernelPageLayout.Plan.relaxations(plan).is_empty()
+}
+
+## A decoration band is part of its block's first placement unit: a block
+## whose band and first line do not fit below the previous block moves to
+## the next page with its band, which is recorded at that page's top.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
+		{ ..base, decoration: Layout.Unit.from_raw(1500), lines: Semantics.Range.from_start_and_length(2, 1) },
+	]
+	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(3), test_constraints, test_limits)?
+	placements = KernelPageLayout.Plan.placements(plan)
+	KernelPageLayout.Plan.pages(plan).len() == 2 and KernelPageLayout.Plan.bands(plan) == [{ block: 1, page: 1, top: 4000 }] and list_at(placements, 2).baseline.y.raw() == 1700
+}
+
+## Trailing height reserved below an unsplittable block's last line (a
+## custom block's bottom inset) counts toward its fit: with it the block
+## no longer fits below the first block and moves whole, and the next
+## block starts below the reservation. Only an unsplittable block may
+## reserve it.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		{ ..base, lines: Semantics.Range.from_start_and_length(0, 2) },
+		{ ..base, lines: Semantics.Range.from_start_and_length(2, 1), policy: { ..base.policy, keep_together: True }, trailing: Layout.Unit.from_raw(1000) },
+		{ ..base, lines: Semantics.Range.from_start_and_length(3, 1) },
+	]
+	plan = KernelPageLayout.Plan.build(blocks, test_lines.take_first(4), test_constraints, test_limits)?
+	placements = KernelPageLayout.Plan.placements(plan)
+	splittable = [{ ..base, lines: Semantics.Range.from_start_and_length(0, 1), trailing: Layout.Unit.from_raw(1) }]
+	rejected = match KernelPageLayout.Plan.build(splittable, test_lines.take_first(1), test_constraints, test_limits) {
+		Err(InvalidBlock({ block: 0 })) => True
+		_ => False
+	}
+	KernelPageLayout.Plan.pages(plan).len() == 2 and list_at(placements, 2).baseline.y.raw() == 3200 and list_at(placements, 3).baseline.y.raw() == 1200 and rejected
+}
+
+## A band that does not fit even on a fresh page with its line is an
+## oversize unit, never clipped.
+expect {
+	block = { ..test_block, decoration: Layout.Unit.from_raw(2500), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	match KernelPageLayout.Plan.build([block], test_lines.take_first(1), test_constraints, test_limits) {
+		Err(InvalidBlock(_)) | Err(Oversize(_)) => True
+		_ => False
+	}
 }
 
 ## Break-before starts the next block on a new page even when space remains.

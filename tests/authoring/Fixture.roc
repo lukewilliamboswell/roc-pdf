@@ -74,7 +74,6 @@ evidence_semantic_facade = |repetitions| {
 	plan = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -82,7 +81,7 @@ evidence_semantic_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -139,7 +138,6 @@ evidence_shape_facade = |repetitions| {
 	semantic_result = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -147,7 +145,7 @@ evidence_shape_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -174,7 +172,6 @@ evidence_shape_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({
@@ -224,7 +221,6 @@ evidence_line_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -232,7 +228,7 @@ evidence_line_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -255,7 +251,6 @@ evidence_line_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({
@@ -264,6 +259,7 @@ evidence_line_facade = |repetitions| {
 		}),
 	) ? |_| EvidenceFailure
 	line = KernelFacadeLines.Plan.build(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
@@ -322,7 +318,6 @@ evidence_page_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -330,7 +325,7 @@ evidence_page_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -353,13 +348,13 @@ evidence_page_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({ max_requests: occurrences, shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }) }),
 	) ? |_| EvidenceFailure
 	page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 	line = KernelFacadeLines.Plan.build(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		page_size,
@@ -630,6 +625,7 @@ synthetic_page_input = |block_count| {
 		kept = $block_index % 5 == 0
 		$blocks = $blocks.append({
 			baseline_offset: Layout.Unit.from_raw(800),
+			decoration: Layout.Unit.from_raw(0),
 			lead: Layout.Unit.from_raw(0),
 			leading: Layout.Unit.from_raw(1000),
 			lines: Semantics.Range.from_start_and_length(line_start, 6),
@@ -642,6 +638,7 @@ synthetic_page_input = |block_count| {
 				minimum_last_lines: 2,
 			},
 			space_after: Layout.Unit.from_raw(0),
+			trailing: Layout.Unit.from_raw(0),
 		})
 		$block_index = $block_index + 1
 	}
@@ -746,7 +743,6 @@ evidence_ordered_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -754,7 +750,7 @@ evidence_ordered_facade = |repetitions| {
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -778,7 +774,6 @@ evidence_ordered_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		{ policy: configured.policy, registry: configured.registry },
 		theme,
 		KernelFacadeShape.Limits.make({
@@ -791,6 +786,7 @@ evidence_ordered_facade = |repetitions| {
 		SingleFace => return Err(EvidenceFailure)
 	}
 	line = KernelFacadeLines.Plan.build_ordered(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
@@ -887,14 +883,13 @@ inspect = |store| {
 			Heading(_) => {
 				$headings = $headings + 1
 			}
-			PageArtifact(_) => return Err(InvalidStore)
 			Paragraph => {
 				$paragraphs = $paragraphs + 1
 			}
 			Title => {
 				$titles = $titles + 1
 			}
-			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
+			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | FigureCaption(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
 		}
 		$index = $index + 1
 	}

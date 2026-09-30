@@ -180,7 +180,7 @@ semantic_limits = |store| KernelSemantics.Limits.make({
 	max_attributes: 0,
 	max_content_spine: store.content_spine.len(),
 	max_fragments: store.fragments.len(),
-	max_namespaces: 1,
+	max_namespaces: 2,
 	max_nodes: store.nodes.len(),
 	max_occurrences: store.occurrences.len(),
 	max_semantic_depth: 4,

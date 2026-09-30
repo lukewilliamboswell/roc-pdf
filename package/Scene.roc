@@ -14,6 +14,10 @@ Scene :: [].{
 		AuthorImage({ image : Image.Source, placement : Layout.Rect }),
 		AuthorPath({ path : AuthorPath, style : AuthorPathStyle }),
 		AuthorGroup({ kind : AuthorGroupKind, value : U16 }),
+
+		## The next `commands` commands (counted after flattening, so nested
+		## groups are included) form one group translated by `offset`.
+		AuthorTranslate({ commands : U64, offset : Layout.Point }),
 	]
 
 	## Stable group vocabulary reserved for validated drawing composition.
@@ -41,6 +45,19 @@ Scene :: [].{
 		## Pixel dimensions remain independent of this authored display rectangle.
 		image : Drawing, Image.Source, Layout.Rect -> Drawing
 		image = |Drawing.(state), image_value, placement| Drawing.({ commands: state.commands.append(AuthorImage({ image: image_value, placement })) })
+
+		## Append another drawing's commands as one group translated by
+		## `offset` in this drawing's coordinates. Groups nest; the nesting
+		## stays flat data, and a flow figure or decoration accepts at most
+		## eight nested groups.
+		group : Drawing, Layout.Point, Drawing -> Drawing
+		group = |Drawing.(state), offset, Drawing.(child)| {
+			var $commands = state.commands.append(AuthorTranslate({ commands: child.commands.len(), offset }))
+			for command in child.commands {
+				$commands = $commands.append(command)
+			}
+			Drawing.({ commands: $commands })
+		}
 
 		command_count : Drawing -> U64
 		command_count = |Drawing.(state)| state.commands.len()

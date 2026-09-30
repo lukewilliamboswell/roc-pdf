@@ -210,6 +210,10 @@ PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 PREFLIGHT_CHECKS["structure_semantics"] = PreflightCheck("check_structure_semantics.py", True)
 # The rich-inline self-test pins the rich-inline snapshots' logical text.
 PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
+# Both reference-document self-tests read the reference and gallery
+# snapshots, which are in flux during --update-snapshots.
+PREFLIGHT_CHECKS["structure_extraction"] = PreflightCheck("check_structure_extraction.py", True)
+PREFLIGHT_CHECKS["reference_documents"] = PreflightCheck("check_reference_documents.py", True)
 
 
 def validate_registry_ids(validators: tuple[str, ...], field: str) -> None:

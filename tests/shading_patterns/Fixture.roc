@@ -309,7 +309,7 @@ semantic_limits = |nodes, spine, fragments| KernelSemantics.Limits.make({
 	max_attributes: 0,
 	max_content_spine: spine,
 	max_fragments: fragments,
-	max_namespaces: 1,
+	max_namespaces: 2,
 	max_nodes: nodes,
 	max_occurrences: nodes,
 	max_semantic_depth: 2,

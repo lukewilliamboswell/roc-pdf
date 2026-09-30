@@ -69,8 +69,14 @@ and `inline_link` or `inline_internal_link` a `Link` whose annotation covers
 its painted text, one quadrilateral per line. Quotation marks are authored
 text. Inline roles paint like the surrounding text unless the theme colors
 them (`Theme.with_emphasis_color`, `with_strong_color`, `with_code_color`,
-`with_quote_color`); the package ships one regular face and never
-synthesizes bold or italic.
+`with_quote_color`) or give them a caller-registered face with
+`Theme.with_inline_font(theme, Code, face)` (a monospace face for code, say):
+the innermost role with a face decides a run's face, at the paragraph's size
+and leading. The face must be in the options' font registry
+(`InvalidFontResource` otherwise), must cover the role's text
+(`text.coverage_missing`), and applies to style faces only: a theme with an
+ordered font policy reports `text.inline_font_policy`. The package ships one
+regular face and never synthesizes bold or italic.
 
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an
@@ -111,13 +117,17 @@ deep. Rejections name the list, item, or block path, such as
 `semantics.list_item_empty`, `semantics.list_item_content` (an item holding
 anything else, or not beginning with a paragraph), `semantics.list_depth`,
 `semantics.list_numbering` (letters or Roman numerals from 0, or Roman
-numerals past 3999), and `layout.list_label_width` (a label wider than the
-list indent).
+numerals past 3999), and `layout.list_label_width` (a list label column,
+widened for a label wider than the list indent, that leaves its body no
+width). A wide label such as `100.` widens its whole list's label column
+instead of being rejected.
 
 Control the flow explicitly:
 
-- `Pdf.line_break` ends a line inside a rich paragraph without painting a
-  glyph; it must separate text (`semantics.line_break_position`).
+- `Pdf.line_break` ends a line inside a rich paragraph; it must separate
+  text (`semantics.line_break_position`). The text before it gains a
+  trailing space (unless it already ends in one) so extracted text keeps
+  the word boundary.
 - `Pdf.page_break` starts the next block on a new page. It must separate two
   blocks, and never asks for an empty page (`layout.page_break_position`).
 - `Pdf.spacer(Layout.Unit.points(12))` adds layout-only space after the
@@ -166,7 +176,9 @@ Pdf.table({
 
 Cells hold inline content that wraps within the column; a header cell
 declares its `Scope` (`Column`, `Row`, or `Both`), and `Pdf.spanning(n, cell)`
-spans columns. Every cell gets a generated identifier, and each data cell's
+spans columns. A cell aligns like the first column it spans unless
+`Pdf.aligned(align, cell)` gives it its own alignment, such as an
+end-aligned totals label spanning start-aligned columns. Every cell gets a generated identifier, and each data cell's
 `Headers` name the column headers above it and the row headers beside it,
 derived from the declared scopes. Column widths resolve once per table:
 `Fixed` widths are exact, `Content` columns take their content's width,
@@ -252,8 +264,11 @@ than its region, or overlapping slots), `layout.field_overflow` (a resolved
 field that does not fit, with the first page it fails on),
 `layout.template_region_empty`, `layout.template_body_empty`,
 `layout.furniture_inline`, `layout.furniture_drawing`, and
-`semantics.inline_empty`. Furniture text is shaped through the theme's face;
-under an ordered font policy it reports `text.furniture_policy`.
+`semantics.inline_empty`. Furniture text is shaped through the theme's face,
+or, under an ordered font policy, selects each cluster's face exactly as body
+text does; a face only furniture uses becomes an extra font. Text no policy
+face covers is `text.coverage_missing`, and text in an undeclared script
+`text.unsupported_script`, at its furniture item path.
 
 Documents are bounded: up to 16,384 content occurrences, structure elements,
 and text sources, and 1,024 pages. A document past a bound fails with the
@@ -306,9 +321,10 @@ outline, or rasterize PDFs.
 ## Images, figures, and forward authoring
 
 Packed grayscale, packed sRGB, and validated sRGB JPEG sources can be placed
-without leaking PDF objects or caller-assigned resource IDs. The first
-executable figure slice accepts exactly one image command, requires non-empty
-alternative text, and accepts an optional visible caption:
+without leaking PDF objects or caller-assigned resource IDs. A figure's
+drawing holds any number of images and solid paths, grouped with
+`Scene.Drawing.group`, and requires non-empty alternative text; a visible
+caption is optional:
 
 ```roc
 image = Image.Source.rgb8({
@@ -320,29 +336,83 @@ image = Image.Source.rgb8({
 drawing = Scene.drawing({}).image(image, Layout.rect(0, 0, 240, 120))
 
 figure = Pdf.figure(drawing, "A four-color information panel", Pdf.caption("Figure 1"))
+
+## A grouped vector chart: each bar pair is a group translated into place.
+bars = Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 36, 120), blue), Layout.rect(40, 0, 36, 150), orange)
+chart = Scene.drawing({})
+    .path(Scene.path({}).move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, Layout.Unit.points(1)))
+    .group(Layout.point(48, 21), bars)
+    .group(Layout.point(156, 21), bars)
+plan = Pdf.figure_fit(Pdf.figure(site_plan, "Plan of the yard", Pdf.no_caption), ScaleToFit({ minimum_percent: 50 }))
+rule = Pdf.decoration(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 6, 483, 1), ink))
 ```
 
 Image pixel dimensions and layout placement are independent. Packed planes
 must have valid dimensions, row stride, byte length, and supported alpha;
 JPEGs additionally pass the bounded marker and orientation-policy inspector.
-Invalid resources fail transactionally. Vector paths, grouped drawings,
-multi-command figures, and fixed pages remain forward API: they report
-`document.figure` or `layout.custom` and emit no bytes or chunks.
+Invalid resources fail transactionally.
+
+A figure is placed start-aligned in the flow at its authored size, as one
+unsplittable unit with its caption below it; a caption becomes a `Caption`
+beside the `Figure` in a `Sect`, so assistive technology reads it
+independently of the alternative text. A figure that does not fit the flow
+region is `document.figure_oversize` unless `Pdf.figure_fit` selects
+`ScaleToFit({ minimum_percent })`, which scales the drawing (never its
+caption) by the largest fitting factor down to the floor. `Pdf.decoration`
+paints a drawing as a `Decoration` artifact that occupies its height
+immediately above the next flow block and moves with it. Drawings are
+validated at their authored path (`document.figure_drawing`,
+`layout.decoration_drawing`). Fixed pages remain forward API: they report
+`layout.custom` and emit no bytes or chunks.
+
+An extension can contribute a block through `Pdf.custom_block` without any
+PDF object or operator: it supplies ordinary paragraphs, its own
+measurement of the block (`size` and a content `inset`), and a panel of
+solid paths drawn behind the content, and declares it `Unsplittable`:
+
+```roc
+callout = Pdf.custom_block({
+    contents: [Pdf.paragraph("Revenue: AUD 9.22 m (+5.0%)"), Pdf.paragraph("On-time delivery: 96.4%")],
+    fragmentation: Unsplittable,
+    inset: Layout.Unit.points(10),
+    name: "Key figures",
+    panel: Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 320, 70), tint),
+    size: { height: Layout.Unit.points(70), width: Layout.Unit.points(320) },
+})
+```
+
+The paragraphs become a `Div`; the package lays them out inside the box and
+proves they fit (`layout.custom_block_measure` otherwise), and the block
+moves whole to the next page. `tests/custom_block/Callout.roc` is a complete
+extension that measures itself from the theme's public metrics.
+
+`Pdf.prepare_with_report` returns the prepared document together with a
+bounded, read-only `Pdf.Report`: pages, leaf blocks in reading order with
+their pages, alternatives and nested languages, layout outcomes (relaxed
+preferences, figure scales, repeated table headers, continued rows, placed
+custom blocks), text coverage, and, separately, the human-review
+obligations. Every entry names the authored path diagnostics use. The
+prepared bytes are identical to `Pdf.prepare`'s, and a report over its
+budget is `report.budget_exceeded` rather than a shorter report.
 
 | Authoring surface | Status |
 | --- | --- |
 | titles, headings, paragraphs, links, destinations | executable |
 | sRGB role styling, font selection, page size, spacing and margins | executable |
 | prepared and chunked emission | executable |
-| one-image figures using typed JPEG/packed raster sources | executable |
-| vector/grouped/multi-command drawings | representable; `document.figure` diagnostic |
+| figures of typed JPEG/packed raster images and solid vector paths, grouped and multi-command, with captions and `ScaleToFit` | executable |
+| in-flow decorations (`Pdf.decoration`) | executable |
+| extension blocks (`Pdf.custom_block`, unsplittable) | executable |
+| preparation report (`Pdf.prepare_with_report`) | executable |
+| clip, opacity, and soft-mask groups and non-solid paint in flow drawings | not yet offered |
 | parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | executable |
 | rich paragraphs: emphasis, strong, code, quote, inline links, language spans, and expansions | executable |
 | bulleted and numbered lists with nested blocks, `Pdf.bullets` | executable |
 | explicit line and page breaks, spacers, required and preferred keeps | executable |
 | ordinary tables with captions, header rows, column spans, footers, and repeated headers | executable |
 | page templates: header, footer, and lead regions, furniture text and drawings, page and total-page fields | executable |
-| furniture text under an ordered font policy, and a distinct face per inline role | not yet offered |
+| a caller-registered face per inline role (style faces) | executable |
+| furniture text under an ordered font policy | executable |
 | fixed pages, columns, floats, footnotes, row spans, complex tables | representable; Gate 8 diagnostic |
 | `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
 | `AccessibleArchive` profile | representable; profile diagnostic |

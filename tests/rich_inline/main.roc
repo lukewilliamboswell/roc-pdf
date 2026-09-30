@@ -10,6 +10,7 @@ Case : [
 	Mixed({ context : U64 }),
 	Paragraphs({ count : U64 }),
 	Ordered({ context : U64 }),
+	CodeFace({ context : U64 }),
 	AtomicNegatives({ context : U64 }),
 ]
 
@@ -42,6 +43,7 @@ main! = |args| {
 		Mixed({ context }) => Fixture.mixed(context)
 		Paragraphs({ count }) => Fixture.paragraphs(count)
 		Ordered({ context }) => Fixture.ordered(context)
+		CodeFace({ context }) => Fixture.code_face(context)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 	}
 	match result {

@@ -76,6 +76,21 @@ span of one slot per inline record, and each record is written at its
 parent's precomputed spine offset plus its authored position, so every node
 owns exactly one contiguous span in authored order without a sort.
 
+**Namespaces (reference-documents closure).** `Code` and `Quote` are PDF 1.7
+standard structure types: ISO 32000-2 14.8.6 does not define them in the
+PDF 2.0 namespace, and PDF/UA-2 8.2.4 requires every element to belong to
+(or be role mapped to) a standard namespace. veraPDF 1.30.2 PDF/UA-2
+therefore reported `http://iso.org/pdf2/ssn:/Quote` (and `Code`) as
+unmapped. Their nodes are now in a second namespace, the PDF 1.7 standard
+namespace `http://iso.org/pdf/ssn` (`Pdf17`, namespace index 1), which the
+facade declares only when a `Code` or `Quote` node exists. The kernel
+accepts that namespace only at index 1 and only for those two roles
+(`KernelSemantics.role_namespace`); every other role stays PDF 2.0, so no
+`/RoleMap` is needed. The five snapshots holding `Code` or `Quote` gain one
+`Namespace` object (+157 to +164 bytes, +8 to +13 allocations; work
+unchanged); `check_structure_semantics.py` checks each element's namespace
+against its role, with two twins.
+
 Each leaf occurrence names an exact sub-range of the paragraph source. The
 leaf's scalar range comes from the source's dense per-scalar boundary facts
 with one forward cursor per paragraph. An expansion's node owns one
@@ -297,10 +312,19 @@ this slice's seven full and two early-stopped parallel harness runs.
   painted glyph and without a cache identity collision between paragraphs
   that differ only in break positions. The invoice and letter address blocks
   that use `⏎` depend on it.
-- **A distinct face per inline role** (a monospace `Code`, an italic `Em`) is
-  not selectable; inline roles change only color. This is a required
-  text-matrix row, and it needs per-style multi-font output on the
-  single-face path.
+- ~~**A distinct face per inline role**~~ (open-issues slice):
+  `Theme.with_inline_font(theme, role, face)` selects a caller-registered
+  face for `Code`, `Em`, `Strong`, or `Quote` under style faces. The
+  `Styled` font selection shapes every run in its innermost role face (or
+  the body face) through `KernelFacadeShape.Plan.build_styled`, and the
+  faces some run uses become the output fonts, body first, through the
+  multi-font stages of the ordered path; furniture shapes in the body face.
+  Under an ordered policy a role face reports `text.inline_font_policy`:
+  selection is cached per unique source, so a role face cannot override it
+  per occurrence. The `code face` case paints `WMS-7` and `code` in a Noto
+  Sans Mono ASCII fixture (`scripts/build_mono_font_fixture.py`) beside the
+  packaged face, and its checker pins exactly that text to the monospace
+  font.
 - **Inline content elsewhere.** Headings, list items, captions, and table
   cells still take plain strings.
 - **Ordered selection language.** Coverage selection runs once per paragraph
@@ -312,10 +336,14 @@ this slice's seven full and two early-stopped parallel harness runs.
 - **Occurrence languages** are a facade construction fact. The kernel graph
   validator does not re-derive them against their owning element, and no
   marked-content `/Lang` exists.
-- **Unlocated rich-paragraph failures.** Glyph coverage on the single-face
-  path and limit failures still map to the unlocated
-  `UnsupportedAuthoringContent({ blocks })`. Only the inline-specific
-  failures above carry a path.
+- **Unlocated rich-paragraph failures.** ~~Glyph coverage~~ is located by
+  the open-issues slice: on a shaping rejection (single face) or a
+  selection or script rejection (ordered policy), `KernelFacadeShape`
+  scans each source once for failing clusters and reports the first in
+  document order as `UnsupportedText` with its block, text inline, and
+  scalars (`text.unsupported_script`, `text.unsupported_cluster`, or
+  `text.coverage_missing`). Limit failures of the shaper still map to
+  `UnsupportedAuthoringContent({ blocks })`.
 - **Diagnostic placement.** A leaf boundary inside a multi-scalar cluster is
   reported on the first leaf whose boundary falls inside it, which is the
   leaf before the split.

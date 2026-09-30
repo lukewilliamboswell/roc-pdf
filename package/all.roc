@@ -21,6 +21,7 @@ package
 		KernelFacadeOutput,
 		KernelFacadePages,
 		KernelFacadePipeline,
+		KernelFacadeReport,
 		KernelFacadeScenes,
 		KernelFacadeSemantics,
 		KernelFacadeShape,

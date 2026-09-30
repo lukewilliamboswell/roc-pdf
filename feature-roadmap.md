@@ -129,9 +129,10 @@ make pending APIs executable, or establish new conformance claims. Gate 3
 closed its declared text/facade subset; Gate 4 closed the `Standard` visual
 compiler with narrower public authoring. Gate 5 closed static PDF/A-4 and made
 `Archive` the default facade profile, with `Standard` as an explicit opt-out;
-its ISO-text confirmation remains pending as recorded below. The remaining
-business-release requirements are pending work in Gates 6-7, and each future
-slice records the readiness dimensions above.
+its ISO-text confirmation remains pending as recorded below. Gate 6 closed
+business authoring and the core PDF/UA-2 vocabulary without a PDF/UA-2
+claim. The remaining business-release requirements are pending work in
+Gate 7, and each future slice records the readiness dimensions above.
 
 ## Work following the Gate 4 milestone
 
@@ -963,15 +964,39 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
 Unsupported semantic constructs are rejected; they are never flattened into
 paragraphs or figures.
 
-### Progress status (Gate 6 in progress)
+### Closure status
 
-Gate 6 is **not closed**. The following public authoring is executable under the
-default `Archive` profile, with exact allocation, work, and allocated-byte
-ceilings, scale pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence,
-and an independent structure checker. Each record lists its own open issues:
+Gate 6 is **closed**
+([docs/performance/business-authoring-closure.md](docs/performance/business-authoring-closure.md)).
+The reference invoice, report, and letter are gallery programs through the
+public API, and `tests/reference_documents` prepares them and every adverse
+variant of `reference-documents-v10`: each accepted variant's policy outcome
+is checked through the preparation report (with a control for each placement
+variant), and each rejected variant returns its stable diagnostic and no
+bytes. The closure record reviews every gate-evidence bullet: all
+non-optional bullets are satisfied, and the optional human and
+assistive-technology review was not performed. The closure sweep ran veraPDF
+PDF/A-4 (zero failures on 83 Archive snapshots and 10 gallery PDFs), the
+Docker Arlington lane (230 files), the independent structure checkers, a
+second structure-extraction path through PDFBox, `/SD` + `/D` resolution to
+authored headings, and MuPDF and PDFium renders. It fixed four defects:
+`Code` and `Quote` now belong to the PDF 1.7 standard namespace, destination
+headings keep with their next block, `semantics.heading_skip` is returned,
+and table semantics no longer copy the document's node lists once per table.
+Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
+
+**Merge blocker (not closure evidence).** `.roc-version` names
+`nightly-2026-09-30-df1f747`, a local build of Roc commit `df1f747ebb` that
+is not a published nightly, so CI cannot provision it; see the pin record
+below.
+
+The following public authoring is executable under the default `Archive`
+profile, with exact allocation, work, and allocated-byte ceilings, scale
+pairs, zero-failure veraPDF PDF/A-4 and Arlington evidence, and an
+independent structure checker. Each record lists its own open issues:
 
 - Reference contract: [docs/reference-documents.md](docs/reference-documents.md)
-  (`reference-documents-v6`) defines the invoice, report, and letter,
+  (`reference-documents-v10`) defines the invoice, report, and letter,
   their adverse variants, the text-support matrix, and the layout-policy
   vocabulary.
 - Semantic foundation, containers, `/Lang`/`/ID`/`/IDTree`/`/A`, and
@@ -984,6 +1009,37 @@ and an independent structure checker. Each record lists its own open issues:
   `Headers`: `docs/performance/tables.md`.
 - First-page and continuation-page templates, furniture, and stabilized
   page and total-page fields: `docs/performance/page-templates.md`.
+- Flow figures of bounded vector, raster, grouped, and multi-command
+  drawings, explicit `ScaleToFit`, `Pdf.decoration` artifacts, and captions
+  as `Sect > (Figure, Caption)` with `CaptionFor`:
+  `docs/performance/flow-figures.md`. Its open issues: applied scales are
+  not yet reported (the preparation report), figures are start-aligned with
+  body-style captions, only translated groups exist, a decoration binds to
+  the next flow block and never paints behind text, and `ScaleToFit` fits
+  the smaller template frame.
+- The open issues the references needed (open-issues slice): furniture
+  text under ordered font policies (page-templates.md), a caller face per
+  inline role such as a monospace `Code` (rich-inline.md), list label
+  columns widened for wide labels and a U+0020 separator for explicit line
+  breaks (layout-policies.md), per-cell alignment with `Pdf.aligned`
+  (tables.md), located `text.coverage_missing`/`text.unsupported_script`/
+  `text.unsupported_cluster` for every remaining coverage failure
+  (rich-inline.md), and removal of the unreachable facade artifact-block
+  plumbing (page-templates.md). Still open from those records: a role face
+  is style-faces only (`text.inline_font_policy` under a policy), and
+  figures remain start-aligned with body-style captions. (The earlier note
+  that spaces beside a Han cluster itemize as Han is superseded: they are
+  Common runs on the first covering face, as REP-A5 shows.)
+- The custom-block seam and the preparation report (S9):
+  `Pdf.custom_block`, exercised by the separately authored "Key figures"
+  callout (`tests/custom_block/Callout.roc`), and `Pdf.prepare_with_report`
+  with separate facts and obligations, applied figure scales, relaxations,
+  repeated headers, and an explicit budget:
+  `docs/performance/custom-block-report.md`. Its open issues: extensions
+  measure from theme metrics only (no public text measurement), only
+  `Unsplittable` fragmentation, probe work stops at text, and inline report
+  paths scan line breaks. (The `Quote`/`Code` 8.2.4 finding is resolved by
+  the closure.)
 - Linear lowering and emission, plus the allocated-byte guard:
   `docs/performance/lowering-uniqueness.md` and
   `docs/performance/emission-linearity.md`. The Roc compiler defects behind
@@ -991,34 +1047,11 @@ and an independent structure checker. Each record lists its own open issues:
 - The CIDSystemInfo ASCII-string correction and the CI Arlington lane:
   `docs/performance/cid-system-info-ascii.md`.
 
-Exact remaining work before Gate 6 can close:
-
-1. **Flow figures and decorations.** Bounded vector, grouped, and
-   multi-command drawings in `Pdf.figure`, explicit `ScaleToFit`, a
-   `Pdf.decoration` artifact, and figure captions as `Caption` with a
-   `CaptionFor` relation (roadmap capability "Bounded image/vector flow
-   figures").
-2. **Custom-block seam and preparation report.** `Pdf.custom_block`
-   exercised by a separately authored consumer (a chart or callout), and a
-   bounded read-only report. The report exposes the layout relaxations and
-   repeated-header facts that are already recorded internally, authored
-   locations, reading order, alternatives, text coverage, and human-review
-   obligations.
-3. **Reference documents and closure.** The invoice, report, and letter as
-   `examples/` programs, plus a `tests/reference_documents` family with every
-   adverse variant. `examples/letter.roc` and `examples/prepared_invoice.roc`
-   move to templates and tables. This step also runs the combined
-   conformance, structure, and renderer sweep and records the closure
-   (optional human review).
-4. **Open issues recorded by executed slices** that the references need:
-   - furniture text under ordered font policies (`text.furniture_policy`,
-     needed by REP-A5);
-   - a selectable face per inline role (a monospace `Code`);
-   - list labels wider than the indent;
-   - separator text for `line_break` in extracted text;
-   - alignment of spanning cells;
-   - removal of the unreachable facade `ArtifactBlock` plumbing;
-   - located diagnostics for the remaining font-coverage failures.
+- Reference documents and closure (S10): the gallery programs
+  `examples/prepared_invoice.roc`, `examples/business_report.roc`, and
+  `examples/letter.roc`, the `tests/reference_documents` family, the
+  structure-extraction and reference-document checkers, and the closure
+  review: `docs/performance/business-authoring-closure.md`.
 
 The intermittent `roc check` crash seen in harness runs is Roc #11777, fixed
 upstream by commit 329a48a04d. The pin advances to
@@ -1027,6 +1060,12 @@ re-baseline ([record](docs/performance/roc-nightly-2026-09-28-9927ba8.md)).
 Before that pin merges, the fuzz targets need a roc-fuzz release pinned to
 the same nightly, and the upstream LLVM `roc build --fuzz` segfault recorded
 there must be resolved.
+Because that nightly still crashes in places, the pin then moves for now to a
+local build of Roc commit `df1f747ebb`, recorded as `nightly-2026-09-30-df1f747`
+([record](docs/performance/roc-nightly-2026-09-30-df1f747.md)). That tag is
+not a published nightly, so CI cannot provision it until a nightly containing
+the commit is published; the record also documents an upstream uniqueness
+regression that copies the compact builder's buffers once per document.
 
 ## Gate 7: business-document production release and combined closure
 

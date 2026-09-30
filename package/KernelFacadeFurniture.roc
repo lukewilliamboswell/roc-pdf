@@ -4,6 +4,7 @@ import Font
 import Image
 import KernelFacadePages
 import KernelFacadeSemantics
+import KernelFacadeShape
 import KernelFacadeSources
 import KernelFont
 import KernelPageLayout
@@ -54,15 +55,17 @@ KernelFacadeFurniture :: [].{
 		InlineEmpty({ path : Str }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 
-		## Furniture text under an ordered font policy; the ordered policy
-		## shapes only body text in this slice.
-		OrderedPolicy({ path : Str }),
+		## Furniture text that its selection cannot shape: a script
+		## outside the declared set, or a cluster no policy face covers.
+		## `path` names the furniture item.
+		FurnitureText({ path : Str, reason : [Coverage, Script(Str)] }),
 
 		## A region that reserves no height or holds no furniture.
 		RegionEmpty({ path : Str }),
 
 		## Furniture wider or taller than its region or reserved box.
 		RegionOverflow({ available : U64, path : Str, required : U64 }),
+		Selection(KernelFacadeShape.Error),
 		Shape(KernelShape.Error),
 
 		## Slots of one region overlap on `page` (one-based).
@@ -96,8 +99,10 @@ KernelFacadeFurniture :: [].{
 	DrawingPaint : { drawing : U64, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64 }
 
 	## One painted text piece: a contiguous cluster range of shaped furniture
-	## run `run` (one run per furniture source), its source range within
-	## that source, and its baseline origin.
+	## run `run`, its source range within that run's source, and its
+	## baseline origin. Through the single face a source is one run; under
+	## an ordered policy a source is one run per selected face and script
+	## segment, and a piece never crosses a run.
 	Piece : { band : Band, clusters : Semantics.Range, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64, run : U64, source : Semantics.TextRange }
 
 	Work : {
@@ -121,17 +126,23 @@ KernelFacadeFurniture :: [].{
 		images = |plan| plan.images
 	}
 
-	Plan :: { drawing_paints : List(DrawingPaint), drawings : List(Drawing), images : List(Image.Source), pieces : List(Piece), source_base : U64, sources : List(Str), store : Text.Store, style : Theme.TextStyle, work : Work }.{
+	## The ordered policy's selection context for furniture: the body's
+	## dense output faces and fonts, which furniture runs reuse, and the
+	## registry and policy that select every furniture cluster.
+	PolicyFonts : { faces : List(Font.FaceId), fonts : List(KernelFont.Inspection), policy : Font.PolicyId, registry : Font.Registry }
+
+	Plan :: { drawing_paints : List(DrawingPaint), drawings : List(Drawing), extra_fonts : List(KernelFont.Inspection), images : List(Image.Source), pieces : List(Piece), source_base : U64, sources : List(Str), store : Text.Store, style : Theme.TextStyle, work : Work }.{
 
 		## Resolve every page field with the final page count, shape each
 		## distinct furniture line, prove every fit, and place all furniture.
 		## `source_base` is the number of semantic text sources: furniture
 		## source `k` becomes text source `source_base + k`.
 		##
-		## Furniture text shapes through the single resolved face. Under an
-		## ordered font policy (`PolicyFaces`) only drawings are supported and
-		## the first furniture line reports `OrderedPolicy`.
-		resolve : Static, U64, [PolicyFaces, SingleFace(KernelFont.Inspection)], Semantics.Language, U64, Limits -> Try(Plan, Error)
+		## Furniture text shapes through the single resolved face, or, under
+		## an ordered font policy (`PolicyFaces`), selects each cluster's
+		## face exactly as body text does. A selected face the body did not
+		## use becomes an extra output font after the body's fonts.
+		resolve : Static, U64, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection)], Semantics.Language, U64, Limits -> Try(Plan, Error)
 		resolve = |static, pages, font, language, source_base, limits| resolve_plan(static, pages, font, language, source_base, limits)
 
 		drawing_paints : Plan -> List(DrawingPaint)
@@ -154,7 +165,13 @@ KernelFacadeFurniture :: [].{
 		sources : Plan -> List(Str)
 		sources = |plan| plan.sources
 
-		## The shaped furniture runs: run `k` shapes source `k` whole.
+		## Output fonts after the body's under an ordered policy, in first
+		## use order; the dense run instance of extra font `k` is the body
+		## font count plus `k`. Empty through the single face.
+		extra_fonts : Plan -> List(KernelFont.Inspection)
+		extra_fonts = |plan| plan.extra_fonts
+
+		## The shaped furniture runs.
 		store : Plan -> Text.Store
 		store = |plan| plan.store
 
@@ -496,7 +513,7 @@ validate_drawing = |drawing, path, image_base| {
 				}
 				$converted = $converted.append(DrawingPath({ fill, segments, stroke }))
 			}
-			AuthorGroup(_) => return Err(DrawingInvalid({ path, reason: "grouped drawing commands are not supported in furniture" }))
+			AuthorGroup(_) | AuthorTranslate(_) => return Err(DrawingInvalid({ path, reason: "grouped drawing commands are not supported in furniture" }))
 		}
 		$index = $index + 1
 	}
@@ -540,29 +557,16 @@ path_bounds = |segments| {
 }
 
 ## Pass 2: resolve, shape, prove, and place.
-resolve_plan : KernelFacadeFurniture.Static, U64, [PolicyFaces, SingleFace(KernelFont.Inspection)], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
+resolve_plan : KernelFacadeFurniture.Static, U64, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection)], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
 resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	if !static.texts.is_empty() {
 		match selection {
-			PolicyFaces => {
-				var $path = "templates"
-				var $index = static.items.len()
-				while $index > 0 {
-					$index = $index - 1
-					item = list_at(static.items, $index)
-					match item.content {
-						TextContent(_) => {
-							$path = item.path
-						}
-						DrawingContent(_) => {}
-					}
+			PolicyFaces(_) => {}
+			SingleFace(_) => {
+				if static.style.font.index() != 0 {
+					return Err(UnsupportedThemeFace({ face: static.style.font.index() }))
 				}
-				return Err(OrderedPolicy({ path: $path }))
 			}
-			SingleFace(_) => {}
-		}
-		if static.style.font.index() != 0 {
-			return Err(UnsupportedThemeFace({ face: static.style.font.index() }))
 		}
 	}
 	check_limit(static.items.len(), limits.max_items, Items)?
@@ -601,24 +605,31 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 		$page = $page + 1
 	}
 
-	## Every distinct line is analyzed and shaped once, whole, as one run.
+	## Every distinct line is analyzed and shaped once, whole: through the
+	## single face as one run, or under an ordered policy as one run per
+	## selected face and script segment.
 	interned = KernelFacadeSources.Plan.build($inputs, limits.sources) ? Sources
 	unique = KernelFacadeSources.Plan.sources(interned)
 	input_sources = KernelFacadeSources.Plan.input_sources(interned)
-	var $requests = List.with_capacity(unique.len())
-	while $requests.len() < unique.len() {
-		index = $requests.len()
-		$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(index), size: static.style.size, source: Semantics.TextSourceId.from_index(index) })
-	}
-	options = { direction: LeftToRight, instance: Font.InstanceId.from_index(0), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
 	shaped = match selection {
-		SingleFace(font) => if unique.is_empty() { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? Shape
-		PolicyFaces => { advances: [], store: empty_store, work: empty_shape_work }
+		SingleFace(font) => {
+			var $requests = List.with_capacity(unique.len())
+			while $requests.len() < unique.len() {
+				index = $requests.len()
+				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(index), size: static.style.size, source: Semantics.TextSourceId.from_index(index) })
+			}
+			options = { direction: LeftToRight, instance: Font.InstanceId.from_index(0), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
+			batch = if unique.is_empty() { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? Shape
+			{ batch, extra_fonts: [], run_sources: [], source_runs: [] }
+		}
+		PolicyFaces(policy) => shape_under_policy(policy, unique, static, input_sources, $pending, language, limits)?
 	}
+	source_runs = shaped.source_runs
 
 	## The batch identifies a request by an occurrence ordinal; a furniture
 	## run's Unicode is its artifact source.
-	store = { ..shaped.store, runs: shaped.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + run.id.index())) }) }
+	run_sources = shaped.run_sources
+	store = { ..shaped.batch.store, runs: shaped.batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + (if run_sources.is_empty() run.id.index() else list_at(run_sources, run.id.index())))) }) }
 
 	## Prove fits and place every piece and drawing, page by page.
 	var $pieces = []
@@ -631,8 +642,8 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 		while $region < static.regions.len() {
 			region = list_at(static.regions, $region)
 			if region.template == template {
-				measured = measure_region(static, store, input_sources, $pending, $cursor, region, $region, $page)?
-				placed = place_region(static, store, input_sources, $pending, $cursor, region, measured, $page, $pieces, $drawing_paints)?
+				measured = measure_region(static, store, source_runs, input_sources, $pending, $cursor, region, $region, $page)?
+				placed = place_region(static, store, source_runs, input_sources, $pending, $cursor, region, measured, $page, $pieces, $drawing_paints)?
 				$pieces = placed.pieces
 				$drawing_paints = placed.drawing_paints
 				$cursor = placed.cursor
@@ -646,6 +657,7 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 		KernelFacadeFurniture.Plan.{
 			drawing_paints: $drawing_paints,
 			drawings: static.drawings,
+			extra_fonts: shaped.extra_fonts,
 			images: static.images,
 			pieces: $pieces,
 			source_base,
@@ -729,8 +741,8 @@ resolve_line = |parts, page, pages| {
 
 ## The measured width of every item of one region on one page, and its
 ## slots' widths; every reserved width and the region width are proven.
-measure_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.TextSourceId), List(Pending), U64, Region, U64, U64 -> Try(List(U64), KernelFacadeFurniture.Error)
-measure_region = |static, store, input_sources, pending, cursor, region, region_index, page| {
+measure_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.Range), List(Semantics.TextSourceId), List(Pending), U64, Region, U64, U64 -> Try(List(U64), KernelFacadeFurniture.Error)
+measure_region = |static, store, source_runs, input_sources, pending, cursor, region, region_index, page| {
 	width = static.frame.width
 	var $widths = List.with_capacity(region.items.length())
 	var $cursor = cursor
@@ -751,11 +763,11 @@ measure_region = |static, store, input_sources, pending, cursor, region, region_
 					crash "furniture pending order escaped"
 				}
 				$cursor = $cursor + 1
-				run = list_at(store.runs, list_at(input_sources, entry.input).index())
+				runs = runs_of(source_runs, list_at(input_sources, entry.input).index())
 				var $total = 0
 				var $free_field = NoField
 				for segment in entry.segments {
-					segment_width = scalar_width(store, run, segment.scalars)
+					segment_width = runs_width(store, runs, segment.scalars)
 					match segment.box {
 						Free => {
 							$total = checked_add($total, segment_width)?
@@ -868,8 +880,8 @@ first_field = |static, pending, cursor, region, page| {
 ## Place one region's measured items on one page: drawings by their
 ## bottom-left corners, text pieces by their baselines. A reserved width's
 ## content aligns inside it.
-place_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.TextSourceId), List(Pending), U64, Region, List(U64), U64, List(KernelFacadeFurniture.Piece), List(KernelFacadeFurniture.DrawingPaint) -> Try({ cursor : U64, drawing_paints : List(KernelFacadeFurniture.DrawingPaint), pieces : List(KernelFacadeFurniture.Piece) }, KernelFacadeFurniture.Error)
-place_region = |static, store, input_sources, pending, cursor, region, widths, page, pieces, drawing_paints| {
+place_region : KernelFacadeFurniture.Static, Text.Store, List(Semantics.Range), List(Semantics.TextSourceId), List(Pending), U64, Region, List(U64), U64, List(KernelFacadeFurniture.Piece), List(KernelFacadeFurniture.DrawingPaint) -> Try({ cursor : U64, drawing_paints : List(KernelFacadeFurniture.DrawingPaint), pieces : List(KernelFacadeFurniture.Piece) }, KernelFacadeFurniture.Error)
+place_region = |static, store, source_runs, input_sources, pending, cursor, region, widths, page, pieces, drawing_paints| {
 	var $pieces = pieces
 	var $drawing_paints = drawing_paints
 	var $cursor = cursor
@@ -898,13 +910,11 @@ place_region = |static, store, input_sources, pending, cursor, region, widths, p
 				entry = list_at(pending, $cursor)
 				$cursor = $cursor + 1
 				kind = if list_at(static.texts, text_index).fields PageNumber else region.kind
-				run_index = list_at(input_sources, entry.input).index()
-				run = list_at(store.runs, run_index)
+				runs = runs_of(source_runs, list_at(input_sources, entry.input).index())
 				baseline = checked_sub(top_y, size)?
 				var $pen = x
 				for segment in entry.segments {
-					segment_width = scalar_width(store, run, segment.scalars)
-					clusters = cluster_range(store, run, segment.scalars)?
+					segment_width = runs_width(store, runs, segment.scalars)
 					origin_x = match segment.box {
 						Free => $pen
 						Box({ align, path: _, width: reserved }) => checked_add(
@@ -916,7 +926,25 @@ place_region = |static, store, input_sources, pending, cursor, region, widths, p
 							},
 						)?
 					}
-					$pieces = $pieces.append({ band: region.band, clusters, kind, origin: point(origin_x, baseline), page, run: run_index, source: { scalars: segment.scalars, utf8_bytes: segment.bytes } })
+
+					## One piece per run the segment covers, in order, each at
+					## the advance of the pieces before it.
+					var $piece_x = origin_x
+					var $run_index = runs.start()
+					while $run_index < runs.start() + runs.length() {
+						run = list_at(store.runs, $run_index)
+						match run_clusters(store, run, segment.scalars) {
+							Covered({ clusters, source }) => {
+								$pieces = $pieces.append({ band: region.band, clusters, kind, origin: point($piece_x, baseline), page, run: $run_index, source })
+								$piece_x = checked_add($piece_x, scalar_width(store, run, segment.scalars))?
+							}
+							Uncovered => {}
+						}
+						$run_index = $run_index + 1
+					}
+					if $piece_x != origin_x + segment_width {
+						return Err(ArithmeticOverflow)
+					}
 					advance = match segment.box {
 						Free => segment_width
 						Box({ align: _, path: _, width: reserved }) => reserved
@@ -930,7 +958,130 @@ place_region = |static, store, input_sources, pending, cursor, region, widths, p
 	Ok({ cursor: $cursor, drawing_paints: $drawing_paints, pieces: $pieces })
 }
 
-## The advance width of a scalar range of one whole-source furniture run.
+## The runs shaping one furniture source: `source_runs` is empty through
+## the single face, where source `k` is run `k`.
+runs_of : List(Semantics.Range), U64 -> Semantics.Range
+runs_of = |source_runs, source| if source_runs.is_empty() Semantics.Range.from_start_and_length(source, 1) else list_at(source_runs, source)
+
+## The advance width of a scalar range across the runs of one source.
+runs_width : Text.Store, Semantics.Range, Semantics.Range -> U64
+runs_width = |store, runs, scalars| {
+	var $total = 0
+	var $run = runs.start()
+	while $run < runs.start() + runs.length() {
+		$total = $total + scalar_width(store, list_at(store.runs, $run), scalars)
+		$run = $run + 1
+	}
+	$total
+}
+
+## The clusters of one run inside a scalar range and the source range they
+## cover, or `Uncovered` when the run holds none of it. A range boundary
+## inside a cluster is invalid.
+run_clusters : Text.Store, Text.Run, Semantics.Range -> [Covered({ clusters : Semantics.Range, source : Semantics.TextRange }), Uncovered]
+run_clusters = |store, run, scalars| {
+	var $first = 0
+	var $count = 0
+	var $scalar_start = 0
+	var $scalar_end = 0
+	var $byte_start = 0
+	var $byte_end = 0
+	var $cluster = run.clusters.start()
+	while $cluster < run.clusters.start() + run.clusters.length() {
+		record = list_at(store.clusters, $cluster)
+		start = record.source.scalars.start()
+		if start >= scalars.start() and start < scalars.start() + scalars.length() {
+			if $count == 0 {
+				$first = $cluster
+				$scalar_start = start
+				$byte_start = record.source.utf8_bytes.start()
+			}
+			$count = $count + 1
+			$scalar_end = start + record.source.scalars.length()
+			$byte_end = record.source.utf8_bytes.start() + record.source.utf8_bytes.length()
+		}
+		$cluster = $cluster + 1
+	}
+	if $count == 0 {
+		Uncovered
+	} else {
+		Covered({ clusters: Semantics.Range.from_start_and_length($first, $count), source: { scalars: span($scalar_start, $scalar_end), utf8_bytes: span($byte_start, $byte_end) } })
+	}
+}
+
+## Shape every distinct furniture line under an ordered policy: each source
+## is selected exactly as body text is, its segments become runs in order,
+## and a face the body did not use becomes an extra output font.
+shape_under_policy : KernelFacadeFurniture.PolicyFonts, List(KernelFacadeSources.Source), KernelFacadeFurniture.Static, List(Semantics.TextSourceId), List(Pending), Semantics.Language, KernelFacadeFurniture.Limits -> Try({ batch : KernelShape.Batch, extra_fonts : List(KernelFont.Inspection), run_sources : List(U64), source_runs : List(Semantics.Range) }, KernelFacadeFurniture.Error)
+shape_under_policy = |policy, unique, static, input_sources, pending, language, limits| {
+	var $faces = policy.faces
+	var $fonts = policy.fonts
+	var $selected = []
+	var $run_sources = []
+	var $source_runs = List.with_capacity(unique.len())
+	var $index = 0
+	while $index < unique.len() {
+		segments = match KernelFacadeShape.select_source(policy.registry, policy.policy, list_at(unique, $index), $index, language) {
+			Ok(value) => value
+			Err(error) => return Err(furniture_text_error(error, source_path(static, input_sources, pending, $index)))
+		}
+		start = $selected.len()
+		for segment in segments {
+			known = face_position($faces, segment.face)
+			if known == $faces.len() {
+				font = policy.registry.prepared_face(segment.face) ? |_| Selection(PolicyInvalid(UnknownPolicyFace(segment.face)))
+				$fonts = $fonts.append(font)
+				$faces = $faces.append(segment.face)
+			}
+			$selected = $selected.append({ clusters: segment.clusters, instance: Font.InstanceId.from_index(known), language, occurrence: Semantics.OccurrenceId.from_index($index), script: segment.script, size: static.style.size, source: Semantics.TextSourceId.from_index($index) })
+			$run_sources = $run_sources.append($index)
+		}
+		$source_runs = $source_runs.append(span(start, $selected.len()))
+		$index = $index + 1
+	}
+	batch = if unique.is_empty() { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_selected_batch($fonts, unique, { direction: LeftToRight, language, writing_mode: Horizontal }, $selected, limits.shape) ? Shape
+	Ok({ batch, extra_fonts: $fonts.drop_first(policy.fonts.len()), run_sources: $run_sources, source_runs: $source_runs })
+}
+
+## The dense position of a face, or the list length when it is new.
+face_position : List(Font.FaceId), Font.FaceId -> U64
+face_position = |faces, face| {
+	var $index = 0
+	while $index < faces.len() {
+		if list_at(faces, $index).index() == face.index() {
+			return $index
+		}
+		$index = $index + 1
+	}
+	faces.len()
+}
+
+## The furniture item path of the first line that interns to `source`.
+source_path : KernelFacadeFurniture.Static, List(Semantics.TextSourceId), List(Pending), U64 -> Str
+source_path = |static, input_sources, pending, source| {
+	for entry in pending {
+		if list_at(input_sources, entry.input).index() == source {
+			return list_at(static.items, entry.item).path
+		}
+	}
+	"templates"
+}
+
+## A selection rejection of a furniture line, located at its item: an
+## undeclared script, or a cluster no policy face covers (the script check
+## runs first, as for body text).
+furniture_text_error : KernelFacadeShape.Error, Str -> KernelFacadeFurniture.Error
+furniture_text_error = |error, path| match error {
+	UndeclaredScript({ script, source: _ }) => FurnitureText({ path, reason: Script(script) })
+	FontSelectionRejected(errors) => match errors.first() {
+		Ok(MissingCoverage(_)) => FurnitureText({ path, reason: Coverage })
+		Ok(UnsupportedBuiltInShaping({ cluster: _, script })) => FurnitureText({ path, reason: Script(script.as_str()) })
+		_ => Selection(error)
+	}
+	_ => Selection(error)
+}
+
+## The advance width of a scalar range of one furniture run.
 ## The convenience shaper forms one cluster of one glyph per scalar.
 scalar_width : Text.Store, Text.Run, Semantics.Range -> U64
 scalar_width = |store, run, scalars| {

@@ -22,7 +22,9 @@ import pdf.Theme
 ## - `lists`: a numbered list nested three deep (decimal, bullet, lower
 ##   alpha) whose items hold paragraphs, a rich paragraph, a continuation
 ##   paragraph, and nested lists; an upper-Roman list; and the legacy
-##   plain-text bullets, each `L` with its `ListNumbering`.
+##   plain-text bullets, each `L` with its `ListNumbering`; and a decimal
+##   list from 98 whose `100.` label widens its label column, with a nested
+##   `VIII.`/`IX.` list whose column also widens.
 ## - `breaks`: letterhead and address blocks with explicit line breaks, a
 ##   wrapping link across a line break, spacers, a signature block kept
 ##   together, and a page break before the schedule section.
@@ -112,6 +114,15 @@ lists_document = |context| Pdf.document({
 		),
 		Pdf.paragraph("The appendices follow the priorities."),
 		Pdf.numbered_list({ start: 1, style: UpperRoman }, [item("Supplier register"), item("Freight rates"), item("Audit schedule")]),
+		Pdf.paragraph("Checklist items 98 to 100 continue the register; their labels widen the list's label column."),
+		Pdf.numbered_list(
+			{ start: 98, style: Decimal },
+			[
+				item("Confirm the freight insurer."),
+				item("Renew the site lease."),
+				Pdf.list_item([Pdf.paragraph("Archive the audit files:"), Pdf.numbered_list({ start: 8, style: UpperRoman }, [item("contracts,"), item("certificates.")])]),
+			],
+		),
 		Pdf.bullets(["Plain-text bullets keep their generated disc", "and their ListNumbering attribute"]),
 	],
 	language: "en-AU",
@@ -260,8 +271,8 @@ evidence = |document, theme| {
 	semantic_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, 0, font, theme, shape_limits) ? |_| EvidenceFailure
-	lines = KernelFacadeLines.Plan.build(shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
+	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, font, theme, shape_limits) ? |_| EvidenceFailure
+	lines = KernelFacadeLines.Plan.build(authoring, shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
 	pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, page_limits) ? |_| EvidenceFailure
 	page_work = KernelFacadePages.Plan.work(pages).page
 	relaxed = KernelFacadePages.Plan.relaxations(pages)
@@ -308,6 +319,20 @@ nest_lists = |depth| {
 	$item
 }
 
+## Lists nested `depth` deep whose every label is `MMMDCCCLXXXVIII.`: each
+## widened label column is over 100 pt, so the deepest body has no width.
+roman_nest : U64 -> Document.Block
+roman_nest = |depth| {
+	wide = |items| Pdf.numbered_list({ start: 3888, style: UpperRoman }, items)
+	var $block = wide([item("Deepest")])
+	var $level = 1
+	while $level < depth {
+		$block = wide([Pdf.list_item([Pdf.paragraph("Level"), $block])])
+		$level = $level + 1
+	}
+	$block
+}
+
 ## Each document differs from a valid authoring in one list, break, or keep
 ## fact. Every rejection is transactional: a stable code, the authored path
 ## of each participating source, and no bytes.
@@ -340,7 +365,7 @@ run_negatives = |context| {
 		rejects(document([lead, Pdf.bullet_list([nest_lists(5 + offset)])]), BudgetExceeded, "semantics.list_depth", ["contents[1]${Str.repeat(".items[0].contents[1]", 4)}"]),
 		rejects(document([lead, Pdf.numbered_list({ start: 3998 + offset, style: UpperRoman }, [item("MMMCMXCVIII"), item("MMMCMXCIX"), item("Beyond")])]), InvalidRelationship, "semantics.list_numbering", ["contents[1]"]),
 		rejects(document([lead, Pdf.numbered_list({ start: 0, style: LowerAlpha }, [item("No letter zero")])]), InvalidRelationship, "semantics.list_numbering", ["contents[1]"]),
-		rejects(document([lead, Pdf.numbered_list({ start: 1000 + offset, style: Decimal }, [item("A wide label")])]), LayoutConstraintViolated, "layout.list_label_width", ["contents[1].items[0]"]),
+		rejects(document([lead, roman_nest(4 + offset)]), LayoutConstraintViolated, "layout.list_label_width", ["contents[1]${Str.repeat(".items[0].contents[1]", 3)}.items[0]"]),
 		rejects(document([lead, Pdf.rich_paragraph([Pdf.line_break, Pdf.text("Leading")])]), InvalidRelationship, "semantics.line_break_position", ["contents[1].inlines[0]"]),
 		rejects(document([lead, Pdf.rich_paragraph([Pdf.text("Trailing"), Pdf.strong([Pdf.text("text")]), Pdf.line_break])]), InvalidRelationship, "semantics.line_break_position", ["contents[1].inlines[2]"]),
 		rejects(document([lead, Pdf.rich_paragraph([Pdf.text("One"), Pdf.emphasis([Pdf.line_break, Pdf.line_break, Pdf.text("Two")])])]), InvalidRelationship, "semantics.line_break_position", ["contents[1].inlines[1].inlines[1]"]),
@@ -383,7 +408,6 @@ page_limits = KernelFacadePages.Limits.make({
 ## The facade's semantic-planning limits (package/Pdf.roc).
 semantic_limits : KernelFacadeSemantics.Limits
 semantic_limits = KernelFacadeSemantics.Limits.make({
-	max_artifacts: 0,
 	max_container_depth: 16,
 	max_content_spine: 8192,
 	max_inline_depth: 8,
@@ -391,7 +415,7 @@ semantic_limits = KernelFacadeSemantics.Limits.make({
 	max_occurrences: 2048,
 	max_properties: 2048,
 	max_source_inputs: 2048,
-	semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 1, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 48 }),
+	semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 2, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 48 }),
 	sources: KernelFacadeSources.Limits.make({
 		max_hash_probes: 1000000,
 		max_inputs: 2048,

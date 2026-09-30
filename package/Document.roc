@@ -11,10 +11,15 @@ import Text
 DocumentBlock :: [
 	Bullets(List(Str)),
 	Container({ contents : List(DocumentBlock), kind : ContainerKind }),
+
+	## A separately authored extension block (the custom-block seam),
+	## boxed so the block union keeps the size of its other alternatives.
+	Custom(Box(CustomSpec)),
 	DestinationHeading({ level : U8, name : Str, text : Str }),
 	DestinationParagraph({ name : Str, text : Str }),
 	Heading({ level : U8, text : Str }),
-	Figure({ alternative : Str, caption : Caption, drawing : Scene.Drawing }),
+	Decoration(Scene.Drawing),
+	Figure({ alternative : Str, caption : Caption, drawing : Scene.Drawing, fit : FigurePolicy }),
 	InternalLink({ destination : Str, text : Str }),
 	KeepTogether(List(DocumentBlock)),
 	KeepWithNext({ contents : List(DocumentBlock), keep : Keep }),
@@ -28,6 +33,16 @@ DocumentBlock :: [
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
+
+## A custom block as the extension authored it: its semantic content
+## (ordinary paragraphs and rich paragraphs, which become a `Div`), its
+## measured box (`size`), the inset of the content inside that box on every
+## side, a label naming it in diagnostics and the preparation report, and a
+## decorative panel drawn in box-local coordinates (origin at the box's
+## bottom-left corner, y upward) behind the content. The block is
+## unsplittable: it moves whole to the next page. No PDF operators, stores,
+## or pagination callbacks cross this boundary.
+CustomSpec : { contents : List(DocumentBlock), inset : Layout.Unit, name : Str, panel : Scene.Drawing, size : Layout.Size }
 
 ## An ordinary table: boxed, so the authored block union keeps the size of
 ## its other alternatives. An optional caption, the column declarations, and its
@@ -53,6 +68,10 @@ HeaderScope : [Both, Column, Row]
 ## Whether a body row may break across pages at a line boundary.
 RowSplit : [KeepRows, SplitRows]
 
+## How one cell's lines align: in the alignment of the first column it
+## spans, or in an explicit alignment of its own.
+CellAlign : [Aligned(ColumnAlign), FirstColumn]
+
 ## A data cell (`TD`) or a header cell (`TH`) with its declared scope.
 CellKind : [DataCell, HeaderCell(HeaderScope)]
 
@@ -62,7 +81,7 @@ DocumentRow :: [Row(List(DocumentCell))].{}
 ## One authored table cell: inline content forming one paragraph, its kind,
 ## and the columns and rows it spans. Row spans are represented so they can
 ## be rejected with a located diagnostic.
-DocumentCell :: [Cell({ column_span : U16, contents : List(DocumentInline), kind : CellKind, row_span : U16 })].{}
+DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), kind : CellKind, row_span : U16 })].{}
 
 ## One authored list item: the blocks of its `LBody`, in logical order. Its
 ## `Lbl` is generated from the enclosing list's marker.
@@ -196,6 +215,35 @@ NormalizedTemplates : [NoTemplates, Templates({ continuation : NormalizedPageTem
 ## A figure may have visible caption text independently of required alternative text.
 Caption := [Caption(Str), NoCaption]
 
+## How a flow figure meets the flow region: at its authored size, or scaled
+## uniformly by the largest factor at most one that fits the flow width and
+## the smallest page frame together with its caption, never below
+## `minimum_percent`.
+FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
+
+## A figure's fit policy, held nominally and converted by the constructors
+## (a structural enumeration inside the block union costs the pinned
+## compiler extra allocations; docs/performance/page-templates.md).
+FigurePolicy := [ExactFit, ScaleFit(U64)]
+
+## One validated flow drawing command in drawing-local geometry (origin at
+## the drawing's bottom-left, y upward). Groups are flattened: their
+## translations are applied to every point. `image` indexes the drawing's
+## own `images`.
+FlowCommand : [
+	FlowImage({ image : U64, placement : Layout.Rect }),
+	FlowPath({ fill : [Fill(Color.SourceValue), NoFill], segments : List(Scene.PathSegment), stroke : [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })] }),
+]
+
+## A validated flow drawing: its flattened commands, the image sources
+## they place in command order, and its extent from the origin.
+FlowDrawing : { commands : List(FlowCommand), height : U64, images : List(Image.Source), width : U64 }
+
+## A figure or decoration drawing after validation at normalization. An
+## invalid drawing keeps its reason so semantic planning can reject it at
+## its authored location.
+ValidatedDrawing : [InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
+
 ## The PDF 2.0 grouping element a container block becomes: `Part`, `Sect`,
 ## or `Div`. Grouping has no visual effect; children keep their own roles,
 ## so headings inside a section remain explicit `H1`..`H6`.
@@ -208,6 +256,7 @@ AuthoringFeature := [
 	ComplexTables,
 	ContextualArtifacts,
 	CustomLayout,
+	FigureFit,
 	Figures,
 	Floats,
 	Footnotes,
@@ -259,10 +308,13 @@ NormalizedBlockKind := [
 	DestinationHeading({ level : U8, name : Str }),
 	DestinationParagraph({ name : Str }),
 	Figure(U64),
+
+	## The visible caption of figure `k`: a `Caption` sibling of the
+	## `Figure` inside the figure's `Sect`, related by `CaptionFor`.
+	FigureCaption(U64),
 	Heading(U8),
 	InternalLink({ destination : Str }),
 	Link({ uri : Str }),
-	PageArtifact(PageArtifactKind),
 	Paragraph,
 	RichParagraph(U64),
 	Title,
@@ -295,6 +347,16 @@ NormalizedPageBreak : { block : U64, parent : U64, position : U64 }
 ## of a page and therefore suppressed. `parent` and `position` locate it.
 NormalizedSpacer : { amount : Layout.Unit, block : U64, parent : U64, position : U64 }
 
+## An authored in-flow decoration before leaf `block` (equal to the leaf
+## count when no leaf follows): a `Decoration` page artifact that occupies
+## its drawing's height immediately above that leaf's first line, on the
+## same page. `parent` and `position` locate it.
+NormalizedDecoration : { block : U64, drawing : ValidatedDrawing, parent : U64, position : U64 }
+
+## One custom block: its `Custom` group, the name the extension gave it,
+## its measured box, the content inset, and its validated panel drawing.
+NormalizedCustom : { group : U64, height : Layout.Unit, inset : Layout.Unit, name : Str, panel : ValidatedDrawing, width : Layout.Unit }
+
 ## One authored list: its item count and label marker.
 NormalizedList : { items : U64, marker : ListMarker }
 
@@ -303,8 +365,8 @@ NormalizedList : { items : U64, marker : ListMarker }
 NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn), footer_rows : U64, header_rows : U64, row_split : RowSplit }
 
 ## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
-## kind, and its authored column and row spans.
-NormalizedCell : { block : U64, column_span : U64, kind : CellKind, row_span : U64 }
+## kind, its authored column and row spans, and its line alignment.
+NormalizedCell : { align : CellAlign, block : U64, column_span : U64, kind : CellKind, row_span : U64 }
 
 ## The section a normalized table row belongs to.
 TableSection : [Body, Footer, Header]
@@ -321,7 +383,13 @@ TableSection : [Body, Footer, Header]
 ##
 ## `LeadRegion` is the first page template's lead region: a `Div` of
 ## semantic blocks laid out in its reserved region, first in reading order.
-NormalizedGroupKind := [Container(ContainerKind), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Table(U32), TableRow(TableSection)]
+##
+## `FigureGroup` is a captioned figure: a `Sect` holding its `Figure` leaf and
+## its `FigureCaption` leaf (payload: the figure's `figures` index).
+##
+## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
+## paragraphs for semantics and one unsplittable unit for layout.
+NormalizedGroupKind := [Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -368,13 +436,17 @@ NormalizedBlock := { kind : NormalizedBlockKind, parent : U64, text : Str }
 ## normalization.
 NormalizedGroup : { block_end : U64, depth : U64, first_block : U64, group_end : U64, kind : NormalizedGroupKind, parent : U64, position : U64 }
 
-## Dense normalized meaningful-image facts retained between semantic planning,
-## layout, resource inspection, and scene lowering.
-NormalizedFigure := { alternative : Str, caption : Caption, image : Image.Source, placement : Layout.Rect }
+## Dense normalized figure facts retained between semantic planning,
+## layout, resource inspection, and scene lowering: the alternative text,
+## whether a caption leaf follows the figure leaf, the validated drawing,
+## and the fit policy.
+NormalizedFigure := { alternative : Str, captioned : Bool, drawing : ValidatedDrawing, fit : FigurePolicy }
 
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	cells : List(NormalizedCell),
+	customs : List(NormalizedCustom),
+	decorations : List(NormalizedDecoration),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
 	inlines : List(NormalizedInline),
@@ -618,6 +690,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	Builder : DocumentBuilder
 	Caption : Caption
 	Cell : DocumentCell
+	CellAlign : CellAlign
 	CellKind : CellKind
 	ColumnAlign : ColumnAlign
 	ColumnWidth : ColumnWidth
@@ -639,7 +712,15 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedBlock : NormalizedBlock
 	NormalizedBlockKind : NormalizedBlockKind
 	NormalizedCell : NormalizedCell
+	NormalizedDecoration : NormalizedDecoration
+	NormalizedCustom : NormalizedCustom
+	CustomSpec : CustomSpec
 	NormalizedFigure : NormalizedFigure
+	FigureFit : FigureFit
+	FigurePolicy : FigurePolicy
+	FlowCommand : FlowCommand
+	FlowDrawing : FlowDrawing
+	ValidatedDrawing : ValidatedDrawing
 	NormalizedGroup : NormalizedGroup
 	NormalizedGroupKind : NormalizedGroupKind
 	NormalizedInline : NormalizedInline
@@ -963,16 +1044,23 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## A data cell (`TD`) of inline content.
 	cell : List(DocumentInline) -> DocumentCell
-	cell = |contents| DocumentCell.Cell({ column_span: 1, contents, kind: DataCell, row_span: 1 })
+	cell = |contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, kind: DataCell, row_span: 1 })
 
 	## A header cell (`TH`) with its declared scope.
 	header_cell : HeaderScope, List(DocumentInline) -> DocumentCell
-	header_cell = |scope, contents| DocumentCell.Cell({ column_span: 1, contents, kind: HeaderCell(scope), row_span: 1 })
+	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, kind: HeaderCell(scope), row_span: 1 })
 
 	## A cell spanning `count` columns.
 	spanning : U16, DocumentCell -> DocumentCell
 	spanning = |count, value| match value {
 		Cell(record) => DocumentCell.Cell({ ..record, column_span: count })
+	}
+
+	## A cell whose lines align at `align` instead of in the alignment of
+	## the first column it spans.
+	aligned : ColumnAlign, DocumentCell -> DocumentCell
+	aligned = |align, value| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, align: Aligned(align) })
 	}
 
 	## A cell spanning `count` rows; row spans are outside the supported
@@ -1024,7 +1112,26 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## Attach meaningful drawing content with required alternative text.
 	figure : Scene.Drawing, Str, Caption -> DocumentBlock
-	figure = |drawing_value, alternative, caption_value| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value })
+	figure = |drawing_value, alternative, caption_value| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: ExactFit })
+
+	## Select how a figure meets the flow region. On any block other than a
+	## figure this is rejected (`document.figure_fit`).
+	figure_fit : DocumentBlock, FigureFit -> DocumentBlock
+	figure_fit = |block, fit| match block {
+		Figure({ alternative, caption: caption_value, drawing, fit: _ }) => DocumentBlock.Figure({ alternative, caption: caption_value, drawing, fit: figure_policy(fit) })
+		_ => DocumentBlock.Unavailable({ feature: FigureFit, summary: "figure_fit applies only to a figure block." })
+	}
+
+	## An in-flow decorative drawing: a `Decoration` page artifact that
+	## occupies its drawing's height immediately above the next flow block.
+	decoration : Scene.Drawing -> DocumentBlock
+	decoration = |drawing_value| DocumentBlock.Decoration(drawing_value)
+
+	## A custom block from a separately authored extension: its paragraphs
+	## become a `Div`, laid out inside its measured box, with its panel
+	## painted behind them as a `Decoration` artifact. It is unsplittable.
+	custom_block : CustomSpec -> DocumentBlock
+	custom_block = |spec| DocumentBlock.Custom(Box.box(spec))
 
 	## Construct an optional visible figure caption.
 	caption : Str -> Caption
@@ -1177,12 +1284,12 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { blocks: [], cells: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
+empty_state = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1192,6 +1299,10 @@ first_unavailable_block = |blocks| {
 	while $index < blocks.len() {
 		match list_at(blocks, $index) {
 			Container({ contents, kind: _ }) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			Custom(spec) => match first_unavailable_nested(Box.unbox(spec).contents) {
 				Available => {}
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
@@ -1233,6 +1344,9 @@ first_unavailable_nested = |contents| {
 				Container({ contents: nested, kind: _ }) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
 				}
+				Custom(spec) => {
+					$frames = $frames.append({ blocks: Box.unbox(spec).contents, next: 0 })
+				}
 				KeepTogether(nested) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
 				}
@@ -1269,21 +1383,6 @@ item_blocks = |items| {
 
 unavailable_leaf : DocumentBlock -> [Available, UnavailableFeature({ feature : AuthoringFeature, summary : Str })]
 unavailable_leaf = |block| match block {
-	Figure({ alternative, caption: _, drawing }) => {
-		commands = drawing.commands()
-		if alternative.is_empty() or commands.len() != 1 {
-			UnavailableFeature({ feature: Figures, summary: "The executable figure slice requires non-empty alternative text and exactly one image command." })
-		} else {
-			match list_at(commands, 0) {
-				AuthorImage({ image: _, placement }) => if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 {
-					UnavailableFeature({ feature: Figures, summary: "Figure image placement must have positive width and height." })
-				} else {
-					Available
-				}
-				_ => UnavailableFeature({ feature: Figures, summary: "Vector and grouped drawings remain on the roadmap; the executable slice accepts one image command." })
-			}
-		}
-	}
 	Unavailable({ feature, summary }) => UnavailableFeature({ feature, summary })
 	_ => Available
 }
@@ -1329,6 +1428,8 @@ normalize_compact = |compact, initial| {
 	{
 		blocks: $blocks,
 		cells: initial.cells,
+		customs: initial.customs,
+		decorations: initial.decorations,
 		figures: initial.figures,
 		groups: initial.groups,
 		inlines: initial.inlines,
@@ -1349,6 +1450,8 @@ normalize_compact = |compact, initial| {
 SimpleState : {
 	blocks : List(NormalizedBlock),
 	cells : List(NormalizedCell),
+	customs : List(NormalizedCustom),
+	decorations : List(NormalizedDecoration),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
 	inlines : List(NormalizedInline),
@@ -1373,6 +1476,8 @@ normalize_simple = |simple, initial| {
 	{
 		blocks: $state.blocks,
 		cells: $state.cells,
+		customs: $state.customs,
+		decorations: $state.decorations,
 		figures: $state.figures,
 		groups: $state.groups,
 		inlines: $state.inlines,
@@ -1392,7 +1497,7 @@ normalize_simple = |simple, initial| {
 
 is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
-	Container(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => True
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => True
 	_ => False
 }
 
@@ -1459,6 +1564,13 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 		opened = open_group(state, Container(kind), parent, depth + 1, position)
 		{ frame: { blocks: contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
+	Custom(boxed) => {
+		spec = Box.unbox(boxed)
+		index = state.customs.len()
+		custom = { group: state.groups.len(), height: spec.size.height, inset: spec.inset, name: spec.name, panel: validate_flow_drawing(spec.panel), width: spec.size.width }
+		opened = open_group({ ..state, customs: state.customs.append(custom) }, Custom(index.to_u32_wrap()), parent, depth + 1, position)
+		{ frame: { blocks: spec.contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
 	KeepTogether(contents) => {
 		opened = open_group(state, KeepTogether, parent, depth, position)
 		{ frame: { blocks: contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
@@ -1501,23 +1613,14 @@ append_leaf = |state, block, parent, position| match block {
 		}
 		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
 	}
-	Container(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => {
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => {
 		crash "normalized group escaped the frame walk"
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
 	DestinationParagraph({ name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationParagraph({ name: name }), parent, text }) }
 	Heading({ level, text }) => { ..state, blocks: state.blocks.append({ kind: Heading(level), parent, text }) }
-	Figure({ alternative, caption, drawing }) => match list_at(drawing.commands(), 0) {
-		AuthorImage({ image, placement }) => {
-			figure_index = state.figures.len()
-			text = match caption {
-				Caption(value) => value
-				NoCaption => " "
-			}
-			{ ..state, blocks: state.blocks.append({ kind: Figure(figure_index), parent, text }), figures: state.figures.append({ alternative, caption, image, placement }) }
-		}
-		_ => crash "validated figure drawing escaped"
-	}
+	Decoration(drawing) => { ..state, decorations: state.decorations.append({ block: state.blocks.len(), drawing: validate_flow_drawing(drawing), parent, position }) }
+	Figure({ alternative, caption, drawing, fit }) => append_figure(state, { alternative, caption, drawing, fit }, parent, position)
 	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
 	Link({ text, uri }) => { ..state, blocks: state.blocks.append({ kind: Link({ uri: uri }), parent, text }) }
 	PageBreak => { ..state, page_breaks: state.page_breaks.append({ block: state.blocks.len(), parent, position }) }
@@ -1552,6 +1655,226 @@ append_table = |state, spec, parent, position| {
 	close_group($state, table_group)
 }
 
+## Lower one figure. An uncaptioned figure is one `Figure` leaf. A
+## captioned figure is a `FigureGroup` (a `Sect`) holding the `Figure` leaf
+## and a `FigureCaption` leaf, so the caption stays a visible `Caption`
+## beside the figure rather than hidden under the figure's `/Alt`. The
+## figure leaf's text is one space: the anchor line its drawing occupies.
+append_figure : SimpleState, { alternative : Str, caption : Caption, drawing : Scene.Drawing, fit : FigurePolicy }, U64, U64 -> SimpleState
+append_figure = |state, authored, parent, position| {
+	index = state.figures.len()
+	figure = { alternative: authored.alternative, captioned: has_caption(authored.caption), drawing: validate_flow_drawing(authored.drawing), fit: authored.fit }
+	figured = { ..state, figures: state.figures.append(figure) }
+	match authored.caption {
+		NoCaption => { ..figured, blocks: figured.blocks.append({ kind: Figure(index), parent, text: " " }) }
+		Caption(text) => {
+			group = figured.groups.len()
+			opened = open_group(figured, FigureGroup(index.to_u32_wrap()), parent, 0, position)
+			placed = { ..opened, blocks: opened.blocks.append({ kind: Figure(index), parent: group + 1, text: " " }).append({ kind: FigureCaption(index), parent: group + 1, text }) }
+			close_group(placed, group)
+		}
+	}
+}
+
+## Figure and decoration drawings nest at most this many groups deep.
+flow_group_depth : U64
+flow_group_depth = 8
+
+## Validate one figure or decoration drawing: at least one command; images
+## with a positive size and paths with a solid fill, a solid stroke of
+## positive width, or both, each beginning with a move or a rectangle; and
+## groups nested at most `flow_group_depth` deep. Each group's translation
+## is applied to the points and placements it contains, so the result is
+## flat. Every command lies at or beyond the origin; the extent is the
+## union of the commands from the origin, a stroke extending its path by
+## half its width on every side. Opacity, clip, and soft-mask groups are
+## not supported.
+validate_flow_drawing : Scene.Drawing -> ValidatedDrawing
+validate_flow_drawing = |drawing| {
+	commands = drawing.commands()
+	if commands.is_empty() {
+		return InvalidDrawing("it has no commands")
+	}
+	var $converted = List.with_capacity(commands.len())
+	var $images = []
+	var $groups = []
+	var $dx = 0
+	var $dy = 0
+	var $width = 0
+	var $height = 0
+	var $index = 0
+	while $index < commands.len() {
+		## Close every group that ends before this command.
+		while !$groups.is_empty() and list_at($groups, $groups.len() - 1).end <= $index {
+			closed = list_at($groups, $groups.len() - 1)
+			$dx = $dx - closed.x
+			$dy = $dy - closed.y
+			$groups = $groups.drop_last(1)
+		}
+		match list_at(commands, $index) {
+			AuthorImage({ image, placement }) => {
+				if !within_bound(placement.origin.x.raw()) or !within_bound(placement.origin.y.raw()) or !within_bound(placement.size.width.raw()) or !within_bound(placement.size.height.raw()) {
+					return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
+				}
+				x = placement.origin.x.raw() + $dx
+				y = placement.origin.y.raw() + $dy
+				if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 or x < 0 or y < 0 {
+					return InvalidDrawing("an image placement needs a positive size at or beyond the drawing origin")
+				}
+				$width = U64.max($width, (x + placement.size.width.raw()).to_u64_wrap())
+				$height = U64.max($height, (y + placement.size.height.raw()).to_u64_wrap())
+				$converted = $converted.append(FlowImage({ image: $images.len(), placement: { origin: { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }, size: placement.size } }))
+				$images = $images.append(image)
+			}
+			AuthorPath({ path: segments, style }) => {
+				fill = match style.fill {
+					AuthorNoFill => NoFill
+					AuthorSolidFill(color) => Fill(color)
+				}
+				stroke = match style.stroke {
+					AuthorNoStroke => NoStroke
+					AuthorSolidStroke({ color, width }) => {
+						if width.raw() <= 0 or !within_bound(width.raw()) {
+							return InvalidDrawing("a stroke needs a positive width")
+						}
+						Stroke({ color, width })
+					}
+				}
+				half = match stroke {
+					NoStroke => 0
+					Stroke({ color: _, width }) => (width.raw() + 1) // 2
+				}
+				paints = match (fill, stroke) {
+					(NoFill, NoStroke) => False
+					_ => True
+				}
+				if !paints {
+					return InvalidDrawing("a path paints nothing without a fill or a stroke")
+				}
+				moved = match translate_segments(segments, $dx, $dy) {
+					Moved(value) => value
+					OutOfRange => return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
+				}
+				match flow_path_bounds(moved) {
+					NoPoints => return InvalidDrawing("a path needs at least one segment beginning with a move or a rectangle")
+					Bounds({ max_x, max_y, min_x, min_y }) => {
+						if min_x - half < 0 or min_y - half < 0 {
+							return InvalidDrawing("a path extends below or left of the drawing origin")
+						}
+						$width = U64.max($width, (max_x + half).to_u64_wrap())
+						$height = U64.max($height, (max_y + half).to_u64_wrap())
+					}
+				}
+				$converted = $converted.append(FlowPath({ fill, segments: moved, stroke }))
+			}
+			AuthorTranslate({ commands: count, offset }) => {
+				if $groups.len() >= flow_group_depth {
+					return InvalidDrawing("groups nest more than ${flow_group_depth.to_str()} deep")
+				}
+				if count > commands.len() - $index - 1 {
+					return InvalidDrawing("a group extends past the drawing's last command")
+				}
+				if !within_bound(offset.x.raw()) or !within_bound(offset.y.raw()) {
+					return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
+				}
+				end = $index + 1 + count
+				$groups = $groups.append({ end, x: offset.x.raw(), y: offset.y.raw() })
+				$dx = $dx + offset.x.raw()
+				$dy = $dy + offset.y.raw()
+			}
+			AuthorGroup(_) => return InvalidDrawing("opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group")
+		}
+		$index = $index + 1
+	}
+	if $converted.is_empty() {
+		return InvalidDrawing("it has no painting command")
+	}
+	if $width == 0 or $height == 0 {
+		return InvalidDrawing("it has no positive extent")
+	}
+	ValidDrawing({ commands: $converted, height: $height, images: $images, width: $width })
+}
+
+## A path translated by a group offset. Every coordinate must lie within
+## `flow_coordinate_bound` of the origin before and after translation, so
+## no later arithmetic can overflow.
+translate_segments : List(Scene.PathSegment), I64, I64 -> [Moved(List(Scene.PathSegment)), OutOfRange]
+translate_segments = |segments, dx, dy| {
+	var $moved = List.with_capacity(segments.len())
+	for segment in segments {
+		points = match segment {
+			Close => []
+			CubicTo({ control_1, control_2, end }) => [control_1, control_2, end]
+			LineTo(point) => [point]
+			MoveTo(point) => [point]
+			Rectangle(rect) => [rect.origin, { x: rect.size.width, y: rect.size.height }]
+		}
+		for point in points {
+			if !within_bound(point.x.raw()) or !within_bound(point.y.raw()) {
+				return OutOfRange
+			}
+		}
+		move = |point| { x: Layout.Unit.from_raw(point.x.raw() + dx), y: Layout.Unit.from_raw(point.y.raw() + dy) }
+		$moved = $moved.append(
+			match segment {
+				Close => Close
+				CubicTo({ control_1, control_2, end }) => CubicTo({ control_1: move(control_1), control_2: move(control_2), end: move(end) })
+				LineTo(point) => LineTo(move(point))
+				MoveTo(point) => MoveTo(move(point))
+				Rectangle(rect) => Rectangle({ origin: move(rect.origin), size: rect.size })
+			},
+		)
+	}
+	Moved($moved)
+}
+
+## Authored drawing coordinates, sizes, and accumulated group offsets stay
+## within 10^9 pt of the origin.
+flow_coordinate_bound : I64
+flow_coordinate_bound = 1000000000000
+
+within_bound : I64 -> Bool
+within_bound = |value| value <= flow_coordinate_bound and value >= 0 - flow_coordinate_bound
+
+## The bounds of a path's points: control points included, so the extent
+## is conservative for curves. A path must begin with a move or rectangle.
+flow_path_bounds : List(Scene.PathSegment) -> [Bounds({ max_x : I64, max_y : I64, min_x : I64, min_y : I64 }), NoPoints]
+flow_path_bounds = |segments| {
+	valid_start = match segments.first() {
+		Ok(MoveTo(_)) | Ok(Rectangle(_)) => True
+		_ => False
+	}
+	if !valid_start {
+		return NoPoints
+	}
+	var $min_x = I64.highest
+	var $min_y = I64.highest
+	var $max_x = I64.lowest
+	var $max_y = I64.lowest
+	for segment in segments {
+		points = match segment {
+			Close => []
+			CubicTo({ control_1, control_2, end }) => [control_1, control_2, end]
+			LineTo(point) => [point]
+			MoveTo(point) => [point]
+			Rectangle(rect) => [rect.origin, { x: Layout.Unit.from_raw(rect.origin.x.raw() + rect.size.width.raw()), y: Layout.Unit.from_raw(rect.origin.y.raw() + rect.size.height.raw()) }]
+		}
+		for point in points {
+			$min_x = I64.min($min_x, point.x.raw())
+			$min_y = I64.min($min_y, point.y.raw())
+			$max_x = I64.max($max_x, point.x.raw())
+			$max_y = I64.max($max_y, point.y.raw())
+		}
+	}
+	Bounds({ max_x: $max_x, max_y: $max_y, min_x: $min_x, min_y: $min_y })
+}
+
+figure_policy : FigureFit -> FigurePolicy
+figure_policy = |fit| match fit {
+	Exact => ExactFit
+	ScaleToFit({ minimum_percent }) => ScaleFit(minimum_percent.to_u64())
+}
+
 has_caption : Caption -> Bool
 has_caption = |caption| match caption {
 	Caption(_) => True
@@ -1573,7 +1896,7 @@ append_table_rows = |state, rows, section, table_code| {
 			record = match list_at(cells, $index) {
 				Cell(value) => value
 			}
-			$state = { ..$state, cells: $state.cells.append({ block: $state.blocks.len(), column_span: record.column_span.to_u64(), kind: record.kind, row_span: record.row_span.to_u64() }) }
+			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span.to_u64(), kind: record.kind, row_span: record.row_span.to_u64() }) }
 			$state = append_rich($state, record.contents, row_group + 1, $index)
 			$index = $index + 1
 		}
@@ -1608,6 +1931,7 @@ append_rich = |state, contents, parent, position| {
 	var $leaves = 0
 	var $bytes = 0
 	var $root_breaks = 0
+	var $last_text = 0
 	var $frames = [{ breaks: 0, depth: 1, items: contents, language: 0, next: 0, owner: 0 }]
 	while !$frames.is_empty() {
 		top = list_at($frames, $frames.len() - 1)
@@ -1625,6 +1949,12 @@ append_rich = |state, contents, parent, position| {
 			slot = top.next - top.breaks
 			match list_at(top.items, top.next) {
 				LineBreak => {
+					## The break's separator: the text before it gains a
+					## trailing U+0020, painted at the end of its line, so
+					## logical text keeps a word boundary at the break. The
+					## segment's byte cursor restarts below, so no offset
+					## moves.
+					$inlines = separate_leaf($inlines, $last_text, base)
 					$line_breaks = $line_breaks.append({ leaf: $leaves, paragraph, parent: top.owner, position: top.next, text: "" })
 					$frames = list_set($frames, $frames.len() - 1, { ..top, breaks: top.breaks + 1, next: top.next + 1 })
 					$bytes = 0
@@ -1632,6 +1962,7 @@ append_rich = |state, contents, parent, position| {
 				Text(value) => {
 					length = value.count_utf8_bytes()
 					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
+					$last_text = $inlines.len()
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
 				}
@@ -1639,6 +1970,7 @@ append_rich = |state, contents, parent, position| {
 					length = value.count_utf8_bytes()
 					$inlines = $inlines.append({ ..inline_element(top, slot, Code, 1, $elements, $leaves), leaf_end: $leaves + 1 })
 					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
+					$last_text = $inlines.len()
 					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
@@ -1647,6 +1979,7 @@ append_rich = |state, contents, parent, position| {
 					length = value.count_utf8_bytes()
 					$inlines = $inlines.append({ ..inline_element(top, slot, Expansion(expanded), 1, $elements, $leaves), leaf_end: $leaves + 1 })
 					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
+					$last_text = $inlines.len()
 					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
@@ -1721,6 +2054,22 @@ append_rich = |state, contents, parent, position| {
 		$index_break = $index_break + 1
 	}
 	{ ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, rich_paragraphs: state.rich_paragraphs.append(rich) }
+}
+
+## The text leaf `last_text - 1` before a line break, ending in U+0020: the
+## break's separator. A leaf already ending in a space keeps its text; a
+## break before the paragraph's first leaf (rejected later) changes nothing.
+separate_leaf : List(NormalizedInline), U64, U64 -> List(NormalizedInline)
+separate_leaf = |inlines, last_text, base| {
+	if last_text <= base {
+		return inlines
+	}
+	index = last_text - 1
+	record = list_at(inlines, index)
+	match record.kind {
+		Text({ byte_length, byte_start, text }) => if text.ends_with(" ") inlines else list_set(inlines, index, { ..record, kind: Text({ byte_length: byte_length + 1, byte_start, text: text.concat(" ") }) })
+		_ => inlines
+	}
 }
 
 inline_element : InlineFrame, U64, NormalizedInlineKind, U64, U64, U64 -> NormalizedInline
@@ -1981,4 +2330,34 @@ expect {
 		document.page_labels() == [] and
 			navigated.outline() == entries and
 				navigated.page_labels() == ranges
+}
+
+## Nested translated groups flatten: every point moves by the accumulated
+## offsets of its groups, and the extent covers the moved commands.
+expect {
+	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
+	inner = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 10, 5), black)
+	drawing = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 1, 1), black).group(Layout.point(20, 10), Scene.drawing({}).group(Layout.point(5, 5), inner))
+	match validate_flow_drawing(drawing) {
+		ValidDrawing({ commands: [_, FlowPath({ fill: Fill(_), segments: [Rectangle(rect)], stroke: NoStroke })], height, images: [], width }) => rect.origin.x.raw() == 25000 and rect.origin.y.raw() == 15000 and width == 35000 and height == 20000
+		_ => False
+	}
+}
+
+## Nine nested groups, a path moved left of the origin, a drawing without
+## a painting command, and an empty drawing are rejected with a reason.
+expect {
+	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
+	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 4, 4), black)
+	var $deep = mark
+	var $level = 0
+	while $level < 9 {
+		$deep = Scene.drawing({}).group(Layout.point(1, 1), $deep)
+		$level = $level + 1
+	}
+	rejected = |drawing| match validate_flow_drawing(drawing) {
+		InvalidDrawing(_) => True
+		ValidDrawing(_) => False
+	}
+	rejected($deep) and rejected(Scene.drawing({}).group(Layout.point(-5, 0), mark)) and rejected(Scene.drawing({}).group(Layout.point(1, 1), Scene.drawing({}))) and rejected(Scene.drawing({}))
 }
