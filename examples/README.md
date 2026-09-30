@@ -16,7 +16,7 @@ Run one from the repository root with `roc examples/<name>.roc`.
 <td><a href="release-notes.pdf"><img src="previews/release-notes.png" alt="Release notes preview"></a><br><a href="release_notes.roc">Release notes source</a></td>
 </tr>
 <tr>
-<td><a href="invoice-1048.pdf"><img src="previews/invoice-1048.png" alt="Prepared invoice preview"></a><br><a href="prepared_invoice.roc">Prepared invoice source</a></td>
+<td><a href="tax-invoice.pdf"><img src="previews/tax-invoice.png" alt="Reference tax invoice preview"></a><br><a href="prepared_invoice.roc">Tax invoice source</a></td>
 <td><a href="chunked-export.pdf"><img src="previews/chunked-export.png" alt="Chunked export preview"></a><br><a href="chunked_export.roc">Chunked export source</a></td>
 <td><a href="product-brief.pdf"><img src="previews/product-brief.png" alt="Product brief preview"></a><br><a href="product_brief.roc">Product brief source</a></td>
 </tr>
@@ -30,7 +30,7 @@ Run one from the repository root with `roc examples/<name>.roc`.
 | [Operations handbook](operations_handbook.roc) | dense typography and deterministic multi-page pagination |
 | [Letter](letter.roc) | Letter paper, correspondence margins, loose leading, and metadata dates |
 | [Release notes](release_notes.roc) | compact builder authoring with a narrow editorial measure |
-| [Prepared invoice](prepared_invoice.roc) | prepare-once emission and a right-column invoice composition |
+| [Tax invoice](prepared_invoice.roc) | the reference multi-page invoice: first and continuation page templates with a vector logo and exact `Page N of M`, a key/value table, a 32-row items table with a repeated header and a totals group, and prepare-once emission |
 | [Chunked export](chunked_export.roc) | incremental output, wide measure, and explicit list indentation |
 | [Product brief](product_brief.roc) | a generated product illustration, oversized display type, whitespace, links, and lists |
 

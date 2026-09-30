@@ -74,7 +74,7 @@ runnable Roc source.
 <td><a href="examples/release-notes.pdf"><img src="examples/previews/release-notes.png" alt="Release notes preview"></a><br><a href="examples/release_notes.roc">Release notes source</a></td>
 </tr>
 <tr>
-<td><a href="examples/invoice-1048.pdf"><img src="examples/previews/invoice-1048.png" alt="Prepared invoice preview"></a><br><a href="examples/prepared_invoice.roc">Prepared invoice source</a></td>
+<td><a href="examples/tax-invoice.pdf"><img src="examples/previews/tax-invoice.png" alt="Reference tax invoice preview"></a><br><a href="examples/prepared_invoice.roc">Tax invoice source</a></td>
 <td><a href="examples/chunked-export.pdf"><img src="examples/previews/chunked-export.png" alt="Chunked export preview"></a><br><a href="examples/chunked_export.roc">Chunked export source</a></td>
 <td><a href="examples/product-brief.pdf"><img src="examples/previews/product-brief.png" alt="Product brief preview"></a><br><a href="examples/product_brief.roc">Product brief source</a></td>
 </tr>
