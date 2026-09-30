@@ -23,7 +23,9 @@ BlankFacts : {
 DocumentFacts : [NoBlankFacts, WithBlankFacts(BlankFacts)]
 
 KernelStructure :: [].{
-	PageSize := [A4, Letter]
+
+	## A fixed page size. `Points` is any other size in whole points.
+	PageSize := [A4, Letter, Points({ height : I64, width : I64 })]
 	PageGeometry := [Fixed(PageSize), Variable]
 	Error : [
 		Deflate(KernelDeflate.Error),
@@ -702,6 +704,7 @@ page_dimensions : KernelStructure.PageSize -> { height : I64, width : I64 }
 page_dimensions = |page_size| match page_size {
 	A4 => { height: 842, width: 595 }
 	Letter => { height: 792, width: 612 }
+	Points(dimensions) => dimensions
 }
 
 checked_linear : U64, U64, U64 -> Try(U64, KernelStructure.Error)

@@ -23242,6 +23242,67 @@
       ]
     },
     {
+      "name": "page templates landscape and custom page sizes",
+      "scenario_revision": "page-sizes-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/page_sizes.pdf",
+      "args": [
+        "page_sizes",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "table_rows": 36
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "letter_landscape_bytes",
+        "custom_bytes",
+        "custom_blank_bytes",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 115284,
+          "allocated_bytes": 32471865,
+          "work": {
+            "lines": 299,
+            "pages": 2,
+            "fragments": 299,
+            "letter_landscape_bytes": 109905,
+            "custom_bytes": 18033,
+            "custom_blank_bytes": 4840,
+            "rejections": 5,
+            "output_bytes": 109919
+          }
+        },
+        "x64musl": {
+          "allocations": 115284,
+          "allocated_bytes": 32471865,
+          "work": {
+            "lines": 299,
+            "pages": 2,
+            "fragments": 299,
+            "letter_landscape_bytes": 109905,
+            "custom_bytes": 18033,
+            "custom_blank_bytes": 4840,
+            "rejections": 5,
+            "output_bytes": 109919
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "page templates number styles",
       "scenario_revision": "page-templates-v1",
       "source": "tests/page_templates/main.roc",

@@ -60,6 +60,12 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   each at its furniture item path.
 ## - `numbering`: page fields in every number style across five pages.
 ## - `images`: raster and vector furniture drawings in both templates.
+## - `page_sizes`: a landscape A4 report (842 × 595 pt) whose templates,
+##   margins, and wide table lay out against the landscape frame, beside
+##   a US Letter landscape and a 6 × 9 in custom document that must
+##   prepare, and the `layout.page_size` rejections of custom sides that
+##   are too small, too large, fractional, or negative, and of a custom
+##   page too small for the theme's margins.
 ## - `atomic_negatives`: every template rejection with its stable dotted
 ##   code and template path, and no bytes.
 ##
@@ -103,6 +109,9 @@ Fixture :: [].{
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
+
+	page_sizes : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	page_sizes = |context| run_page_sizes(context)
 }
 
 points : I64 -> Layout.Unit
@@ -475,6 +484,91 @@ run_negatives = |context| {
 	}
 	carrier = Pdf.to_bytes_with(templated([Pdf.title("Template carrier"), Pdf.paragraph("A valid templated page.")], simple(text_header, text_header)), Pdf.Options.with_theme(Pdf.Options.default, letter_theme)) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, carrier.len()] })
+}
+
+## A landscape report with a wide ledger table. The pipeline probe runs
+## against the same landscape size the options select.
+run_page_sizes : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_page_sizes = |context| {
+	title = if context == 0 "Landscape ledger" else "guarded"
+	landscape = { height: Layout.Unit.from_raw(595000), width: Layout.Unit.from_raw(842000) }
+	options = |size| Pdf.Options.with_page_size(Pdf.Options.with_theme(Pdf.Options.default, report_theme), size)
+	heading_cell = |value| Pdf.header_cell(Column, [Pdf.text(value)])
+	var $rows = []
+	var $index = 0
+	while $index < 36 + context % 1 {
+		$rows = $rows.append(ledger_row($index))
+		$index = $index + 1
+	}
+	rows = $rows
+	header = Pdf.region({ center: [], end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])], height: points(16), start: [Pdf.furniture_text([Pdf.text(title)])] })
+	templates = {
+		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header }),
+		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header, lead: Pdf.no_lead }),
+	}
+	document = Pdf.with_page_templates(
+		Pdf.document({
+			contents: [
+				Pdf.title(title),
+				Pdf.paragraph("A wide ledger lays out against the landscape body frame: 730 pt between the margins instead of 483 pt."),
+				Pdf.table({
+					body_rows: rows,
+					caption: Pdf.caption("Settlement ledger"),
+					columns: [{ align: Start, width: Content }, { align: Start, width: Content }, { align: Start, width: Share(1) }, { align: Start, width: Share(2) }, { align: End, width: Fixed(points(72)) }, { align: End, width: Fixed(points(72)) }, { align: End, width: Fixed(points(72)) }, { align: Start, width: Content }],
+					footer_rows: [],
+					header_rows: [Pdf.row([heading_cell("Batch"), heading_cell("Date"), heading_cell("Depot"), heading_cell("Street"), heading_cell("Gross"), heading_cell("Fees"), heading_cell("Net"), heading_cell("Status")])],
+					row_split: KeepRows,
+				}),
+			],
+			language: "en-AU",
+			title,
+		}),
+		templates,
+	)
+	bytes = Pdf.to_bytes_with(document, options(A4Landscape)) ? |_| EvidenceFailure
+	letter = Pdf.to_bytes_with(document, options(LetterLandscape)) ? |_| EvidenceFailure
+	custom = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Six by nine"), Pdf.paragraph("A custom 432 × 648 pt page.")], language: "en-AU", title }), options(Custom({ height: points(648), width: points(432) }))) ? |_| EvidenceFailure
+	blank = Pdf.to_bytes_with(Pdf.document({ contents: [], language: "en-AU", title }), options(Custom({ height: points(648), width: points(432) }))) ? |_| EvidenceFailure
+	rejects_size = |size, feature, paths| match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.paragraph("Body.")], language: "en-AU", title }), options(size)) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details, feature: Feature(found), .. }], truncation: Complete, .. })) => if found == feature and details == paths 1 else 0
+		_ => 0
+	}
+	custom_side = |width_raw, height_raw| Custom({ height: Layout.Unit.from_raw(height_raw), width: Layout.Unit.from_raw(width_raw) })
+	checks = [
+		rejects_size(custom_side(2000, 648000), "layout.page_size", ["options.page_size"]),
+		rejects_size(custom_side(432000, 14401000), "layout.page_size", ["options.page_size"]),
+		rejects_size(custom_side(432500, 648000), "layout.page_size", ["options.page_size"]),
+		rejects_size(custom_side(-432000, 648000), "layout.page_size", ["options.page_size"]),
+		rejects_size(custom_side(100000, 100000), "layout.page_margin", ["theme.page_margin", "options.page_size"]),
+	]
+
+	rejections = checks.sum()
+	if rejections != checks.len() {
+		return Err(MissingRejection(rejections))
+	}
+	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.probe(Document.normalize(document), font, report_theme, landscape, descriptor, pipeline_limits, FragmentsReady) ? |_| EvidenceFailure
+	Ok({
+		bytes,
+		work: [
+			flow.lines,
+			flow.pages,
+			flow.fragments,
+			letter.len(),
+			custom.len(),
+			blank.len(),
+			rejections,
+			bytes.len(),
+		],
+	})
+}
+
+ledger_row : U64 -> Pdf.Row
+ledger_row = |index| {
+	n = (index + 1).to_str()
+	day = (index % 28 + 1).to_str()
+	cell = |value| Pdf.cell([Pdf.text(value)])
+	Pdf.row([Pdf.header_cell(Row, [Pdf.text("Batch ${n}")]), cell("2026-09-${if day.count_utf8_bytes() == 1 "0${day}" else day}"), cell("Hobart"), cell("${n} Kestrel Parade"), cell("${n}4.20"), cell("${n}1.75"), cell("${n}2.45"), cell("Settled")])
 }
 
 ## The facade's standard pipeline limits (package/Pdf.roc).

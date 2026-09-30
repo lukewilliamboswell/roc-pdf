@@ -440,7 +440,12 @@ Pdf :: [].{
         Standard,
     ]
 
-    PageSize := [A4, Letter]
+    ## One size for every page of a document: A4 or Letter in either
+    ## orientation, or a custom size in whole points (3 to 14,400 pt a
+    ## side). A size the theme's margins do not fit is rejected
+    ## (`layout.page_margin`), never shrunk. Per-page sizes and
+    ## orientations belong to fixed-page composition (Gate 8).
+    PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape]
 
     ChunkRetention := [
         ShareUnchangedResources,

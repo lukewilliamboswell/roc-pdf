@@ -369,3 +369,38 @@ investigated separately); every rerun passed, and the final cold-cache
   replaces it with the artifact source before any run leaves the stage.
 - **Gallery.** `examples/warranty-letter/main.roc` does not use templates yet; the
   reference-letter slice will.
+
+## Landscape and custom page sizes (examples showcase)
+
+`Pdf.PageSize` was `[A4, Letter]`. It now adds `A4Landscape`,
+`LetterLandscape`, and `Custom({ height, width })`. The facade already laid
+out against a `Layout.Size` and wrote each page's boxes from it, so the
+change is the size table in `Pdf.layout_page_size` plus two authoring
+checks before any stage runs:
+
+- `layout.page_size` (`options.page_size`): a custom side that is not a
+  whole number of points from 3 to 14,400 pt (the PDF user-space page
+  limits). Whole points keep the blank-document page box
+  (`KernelStructure.PageSize.Points`) an integer and give the document
+  identifier an exact width and height: a size other than A4 or Letter
+  contributes geometry code 3 and both sides to the identifier facts, so
+  two documents that differ only in page size never share an identifier.
+  A4 and Letter keep codes 0 and 1, so no existing identifier changes.
+- `layout.page_margin` (`theme.page_margin`, `options.page_size`): margins
+  that leave no positive body frame. Before this change an oversized margin
+  reached line layout as the internal `Lines.InvalidGeometry` defect; it is
+  now an author-facing rejection. Margins are never reduced to fit.
+
+Evidence (`page templates landscape and custom page sizes`): a landscape A4
+report with a running header and `Page N of M`, and a 36-row, eight-column
+ledger continuing onto a second page under its repeated header. The work
+vector also records the byte lengths of the same document on landscape
+Letter, a 432 × 648 pt custom document, and a blank custom document, and
+five rejections: 2 pt, 14,401 pt, 432.5 pt, and −432 pt sides
+(`layout.page_size`), and a 100 × 100 pt page under 56 pt margins
+(`layout.page_margin`). 115,284 allocations; 299 lines, 2 pages. Page size
+does not scale work, so the case has no scale pair. No existing baseline
+changes.
+
+Per-page sizes and orientations stay Gate 8 fixed-page composition: page
+templates and pagination assume one body frame per template.

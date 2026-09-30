@@ -58,7 +58,14 @@ Pdf :: [].{
 	## later stage branches on font provenance.
 	FontSource := [BuiltIn, Registered(Font.Registry)]
 
-	PageSize := [A4, Letter]
+	## The size of every page. `A4` is 595 × 842 pt and `Letter` 612 × 792 pt;
+	## `A4Landscape` and `LetterLandscape` swap their width and height.
+	## `Custom` is any other size in whole points from 3 to 14,400 on each
+	## side (the PDF user-space page limits); anything else is
+	## `layout.page_size`. The theme's margins and page templates apply to
+	## every size unchanged, so a size too small for them is rejected by the
+	## ordinary layout checks, never shrunk.
+	PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape]
 	ChunkRetention := [OwnChunks, ShareUnchangedResources]
 
 	## Stable roadmap feature identity carried by `FeatureUnavailable` diagnostics.
@@ -761,6 +768,8 @@ build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_plan = |doc, options| {
 	claim = validate_profile_request(options)?
 	validate_theme(options.theme)?
+	validate_page_size(options.page_size)?
+	validate_body_frame(options.page_size, options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
 	## serializes once, identified exactly when the requested profile claims
@@ -846,6 +855,8 @@ build_reporting_plan = |doc, options| {
 	normalized = Document.normalize(doc)
 	claim = validate_profile_request(options)?
 	validate_theme(options.theme)?
+	validate_page_size(options.page_size)?
+	validate_body_frame(options.page_size, options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
 	## serializes once, identified exactly when the requested profile claims
@@ -2166,13 +2177,58 @@ structure_page_size : Pdf.PageSize -> KernelStructure.PageSize
 structure_page_size = |page_size| match page_size {
 	A4 => KernelStructure.PageSize.A4
 	Letter => KernelStructure.PageSize.Letter
+	_ => {
+		size = layout_page_size(page_size)
+		KernelStructure.PageSize.Points({ height: size.height.raw() // 1000, width: size.width.raw() // 1000 })
+	}
 }
 
 layout_page_size : Pdf.PageSize -> Layout.Size
 layout_page_size = |page_size| match page_size {
 	A4 => { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
+	A4Landscape => { height: Layout.Unit.from_raw(595000), width: Layout.Unit.from_raw(842000) }
 	Letter => { height: Layout.Unit.from_raw(792000), width: Layout.Unit.from_raw(612000) }
+	LetterLandscape => { height: Layout.Unit.from_raw(612000), width: Layout.Unit.from_raw(792000) }
+	Custom(size) => size
 }
+
+## A custom page is whole points, 3 to 14,400 pt on each side. Whole points
+## keep the page box and the document identifier exact integers.
+validate_page_size : Pdf.PageSize -> Try({}, Pdf.Error)
+validate_page_size = |page_size| match page_size {
+	Custom({ height, width }) => {
+		if page_side_valid(width) and page_side_valid(height) {
+			Ok({})
+		} else {
+			Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.page_size", "A custom page is ${signed_points_text(width.raw())} wide and ${signed_points_text(height.raw())} high; each side must be a whole number of points from 3 to 14400 pt.", ["options.page_size"])))
+		}
+	}
+	_ => Ok({})
+}
+
+## The theme's margins must leave a body frame of positive width and
+## height on the selected page; margins are never reduced to fit.
+validate_body_frame : Pdf.PageSize, Theme -> Try({}, Pdf.Error)
+validate_body_frame = |page_size, theme| {
+	size = layout_page_size(page_size)
+	margin = Theme.page_margin(theme)
+	width = size.width.raw() - margin.left.raw() - margin.right.raw()
+	height = size.height.raw() - margin.top.raw() - margin.bottom.raw()
+	if width > 0 and height > 0 {
+		Ok({})
+	} else {
+		Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.page_margin", "The theme's page margins leave a body frame ${signed_points_text(width)} wide and ${signed_points_text(height)} high on a ${signed_points_text(size.width.raw())} × ${signed_points_text(size.height.raw())} page; the body frame needs a positive width and height.", ["theme.page_margin", "options.page_size"])))
+	}
+}
+
+page_side_valid : Layout.Unit -> Bool
+page_side_valid = |unit| {
+	raw = unit.raw()
+	raw >= 3000 and raw <= 14400000 and raw % 1000 == 0
+}
+
+signed_points_text : I64 -> Str
+signed_points_text = |raw| if raw < 0 "-${points_text((0 - raw).to_u64_wrap())}" else points_text(raw.to_u64_wrap())
 
 standard_metadata_limits : KernelMetadata.Limits
 standard_metadata_limits = KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })

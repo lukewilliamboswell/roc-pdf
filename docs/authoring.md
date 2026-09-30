@@ -322,6 +322,14 @@ Theme colors can use familiar 8-bit channels with
 spacing, and bullet indentation can be changed through `Theme`; every color is
 resolved through the packaged sRGB profile and output intent.
 
+`Pdf.Options.with_page_size` selects one size for every page: `A4` (the
+default), `Letter`, `A4Landscape`, `LetterLandscape`, or `Custom({ width,
+height })` in whole points from 3 to 14,400 pt a side (`layout.page_size`
+otherwise). Margins and templates apply unchanged, so the body frame of a
+landscape page is wider; margins that leave no body frame are
+`layout.page_margin`. Mixing sizes or orientations within one document is
+fixed-page composition (Gate 8).
+
 `Pdf.Options.default` selects the `Archive` profile, which claims PDF 2.0 plus
 static PDF/A-4. The canonical XMP declares `pdfaid:part` 4 and `pdfaid:rev`
 2020, the packaged sRGB output intent characterizes every color, and every

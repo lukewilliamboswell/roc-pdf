@@ -913,13 +913,33 @@ identifier_facts = |plan| {
 	$facts = $facts.append(page_count.shr_wrap(16).to_u8_wrap())
 	$facts = $facts.append(page_count.shr_wrap(8).to_u8_wrap())
 	$facts = $facts.append(page_count.to_u8_wrap())
-	$facts.append(
-		match KernelStructure.Plan.page_geometry(plan) {
-			Fixed(A4) => 0
-			Fixed(Letter) => 1
-			Variable => 2
-		},
-	)
+
+	## A fixed size other than A4 or Letter also names its whole-point
+	## width and height, so documents that differ only in page size never
+	## share an identifier.
+	geometry = match KernelStructure.Plan.page_geometry(plan) {
+		Fixed(A4) => { code: 0, dimensions: NoDimensions }
+		Fixed(Letter) => { code: 1, dimensions: NoDimensions }
+		Variable => { code: 2, dimensions: NoDimensions }
+		Fixed(Points({ height, width })) => { code: 3, dimensions: Dimensions({ height, width }) }
+	}
+	$facts = $facts.append(geometry.code)
+	match geometry.dimensions {
+		NoDimensions => $facts
+		Dimensions({ height, width }) => append_i64_be(append_i64_be($facts, width), height)
+	}
+}
+
+append_i64_be : List(U8), I64 -> List(U8)
+append_i64_be = |bytes, value| {
+	raw = value.to_u64_wrap()
+	var $out = bytes
+	var $shift = 56
+	while $shift > 0 {
+		$out = $out.append(raw.shr_wrap($shift).to_u8_wrap())
+		$shift = $shift - 8
+	}
+	$out.append(raw.to_u8_wrap())
 }
 
 list_at : List(a), U64 -> a
