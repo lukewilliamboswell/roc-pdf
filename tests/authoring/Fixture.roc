@@ -259,6 +259,7 @@ evidence_line_facade = |repetitions| {
 		}),
 	) ? |_| EvidenceFailure
 	line = KernelFacadeLines.Plan.build(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
@@ -353,6 +354,7 @@ evidence_page_facade = |repetitions| {
 	) ? |_| EvidenceFailure
 	page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 	line = KernelFacadeLines.Plan.build(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		page_size,
@@ -783,6 +785,7 @@ evidence_ordered_facade = |repetitions| {
 		SingleFace => return Err(EvidenceFailure)
 	}
 	line = KernelFacadeLines.Plan.build_ordered(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },

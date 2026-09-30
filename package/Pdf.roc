@@ -1025,7 +1025,7 @@ label_width_error = |doc, block, width, available| {
 		$index = $index + 1
 	}
 	path = if $item < normalized.groups.len() group_path(normalized.groups, $item) else leaf_path(doc, block)
-	located_error(doc, LayoutConstraintViolated, "layout.list_label_width", "A generated list label is ${points_text(width)} wide but the list indent is ${points_text(available)}; labels are never shrunk or allowed to overlap their body. Widen the indent with Theme.with_bullet_indent.", [path])
+	located_error(doc, LayoutConstraintViolated, "layout.list_label_width", "A list's label column, widened to ${points_text(width)} for its widest generated label, leaves its body no width: the column may use at most ${points_text(available)}. Labels are never shrunk or allowed to overlap their body.", [path])
 }
 
 ## A mandatory keep conflict naming every participating source.

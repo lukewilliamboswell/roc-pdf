@@ -388,9 +388,16 @@ its rerun passed.
   `Wharf StreetHobart` without whitespace between segments, as for
   soft-wrapped lines. Whether PDF/UA-2 review wants a line separator or
   `/ActualText` there is open.
-- **List labels** are start-aligned in a fixed theme indent. A label wider
-  than the indent (`100.`, `VIII.` at the default 18 pt) is rejected rather
-  than widening the list's label column.
+- ~~**List labels**~~ (open-issues slice): a list whose widest generated
+  label does not fit the theme indent widens its whole label column to that
+  label's width plus half the label size, so all its items' bodies stay
+  aligned, and nested bodies indent by the sum of their lists' columns.
+  `layout.list_label_width` now reports only a column that leaves its body
+  no width. The `nested lists` case adds a list from 98 (`100.` widens its
+  column to 27.0 pt) with a nested `VIII.`/`IX.` list (25.1 pt); the
+  negative is four nested lists of `MMMDCCCLXXXVIII.` labels. The dense
+  per-block geometry costs one to six allocation events per document and
+  32 bytes per block (+1.4% bytes at most, on the x1000 facade pairs).
 - **List item content** is limited to paragraphs, rich paragraphs, and lists,
   and must begin with a paragraph. Keeps inside items are rejected.
 - **Page-break edges.** A page break at the edge of a `keep_together` is

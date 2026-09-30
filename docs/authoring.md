@@ -111,8 +111,10 @@ deep. Rejections name the list, item, or block path, such as
 `semantics.list_item_empty`, `semantics.list_item_content` (an item holding
 anything else, or not beginning with a paragraph), `semantics.list_depth`,
 `semantics.list_numbering` (letters or Roman numerals from 0, or Roman
-numerals past 3999), and `layout.list_label_width` (a label wider than the
-list indent).
+numerals past 3999), and `layout.list_label_width` (a list label column,
+widened for a label wider than the list indent, that leaves its body no
+width). A wide label such as `100.` widens its whole list's label column
+instead of being rejected.
 
 Control the flow explicitly:
 

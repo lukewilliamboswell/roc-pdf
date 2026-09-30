@@ -849,12 +849,14 @@ line-cache identity. Every segment must hold text:
 
 ### Lists
 
-A list at nesting level *L* (1 for a top-level list) indents its items'
-blocks by *L* times the theme list indent (`Theme.bullet_indent`). Each item's
-generated label is painted start-aligned in the indent before its first
-paragraph's first line, at *L* − 1 indents. A label must fit the list indent:
-it has no break opportunity and is never shrunk or allowed to overlap its
-body (`layout.list_label_width`). An item holds paragraphs, rich paragraphs,
+Each list has a label column: the theme list indent (`Theme.bullet_indent`),
+or, when the list's widest generated label does not fit it, that label's
+width plus half the label size (`reference-documents-v8`). A list's items'
+blocks are indented by the columns of all enclosing lists, and each item's
+generated label is painted start-aligned in its own list's column before its
+first paragraph's first line. A label has no break opportunity and is never
+shrunk or allowed to overlap its body; a column that leaves its body no width
+is `layout.list_label_width`. An item holds paragraphs, rich paragraphs,
 and nested lists and begins with a paragraph; lists nest at most four deep.
 Labels are `•` for bullet lists, and for numbered lists the number in its
 style followed by a full stop (`7.`, `c.`, `iv.`, `XII.`); lower and upper
@@ -1034,7 +1036,7 @@ with.
 | `layout.keep_empty` | new family | A keep holds no laid-out block |
 | `layout.page_break_position` | new family | A page break is first or last in the flow, or directly follows another |
 | `layout.spacer_negative` | new family | A spacer has a negative height |
-| `layout.list_label_width` | new family | A generated list label is wider than the list indent |
+| `layout.list_label_width` | new family | A list's widened label column leaves its body no width |
 
 Container diagnostics (from `reference-documents-v2`) carry their dotted code
 in the existing `FeatureReference` field and the compact block path of the
