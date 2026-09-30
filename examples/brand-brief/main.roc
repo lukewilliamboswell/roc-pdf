@@ -308,23 +308,29 @@ hairline = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), tint(in
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.with_backdrop(Pdf.region({
-			height: points(44),
-			start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 8), mark(36, indigo, amber)))],
-			center: [],
-			end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])],
-		}), hairline),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(44),
+				start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 8), mark(36, indigo, amber)))],
+				center: [],
+				end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])],
+			}),
+			hairline,
+		),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(14),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.with_backdrop(Pdf.region({
-			height: points(22),
-			start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])],
-			center: [],
-			end: [Pdf.furniture_text([Pdf.text("Edition 3")])],
-		}), hairline),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(22),
+				start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])],
+				center: [],
+				end: [Pdf.furniture_text([Pdf.text("Edition 3")])],
+			}),
+			hairline,
+		),
 		footer,
 		gap: points(18),
 	}),
