@@ -206,14 +206,16 @@ readings_table = {
 			{ width: Share(1), align: Center },
 			{ width: Share(1), align: Start },
 		],
-		header_rows: [Pdf.row([
-			Pdf.header_cell(Column, [Pdf.text("Time")]),
-			Pdf.header_cell(Column, [Pdf.text("Probe A (°C)")]),
-			Pdf.header_cell(Column, [Pdf.text("Probe B (°C)")]),
-			Pdf.header_cell(Column, [Pdf.text("Humidity (%)")]),
-			Pdf.header_cell(Column, [Pdf.text("Door")]),
-			Pdf.header_cell(Column, [Pdf.text("Status")]),
-		])],
+		header_rows: [
+			Pdf.row([
+				Pdf.header_cell(Column, [Pdf.text("Time")]),
+				Pdf.header_cell(Column, [Pdf.text("Probe A (°C)")]),
+				Pdf.header_cell(Column, [Pdf.text("Probe B (°C)")]),
+				Pdf.header_cell(Column, [Pdf.text("Humidity (%)")]),
+				Pdf.header_cell(Column, [Pdf.text("Door")]),
+				Pdf.header_cell(Column, [Pdf.text("Status")]),
+			]),
+		],
 		body_rows: $rows,
 		footer_rows: [
 			Pdf.row([
@@ -286,6 +288,7 @@ temperature_chart = {
 	band = Color.srgb8({ red: 226, green: 244, blue: 236 })
 	grid = Color.srgb8({ red: 226, green: 232, blue: 240 })
 	light = Color.srgb8({ red: 125, green: 180, blue: 200 })
+
 	## The safe band (2.0 to 8.0 °C), labelled gridlines every 2 °C, and hour ticks.
 	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(20, plot_y(20), 432, plot_y(80) - plot_y(20)), band)
 	for degrees in [0, 2, 4, 6, 8] {
@@ -299,6 +302,7 @@ temperature_chart = {
 		$d = Scene.rectangle($d, { origin: Layout.point(plot_x($tick), 4), size: { height: points(if $tick % 12 == 0 8 else 4), width: Layout.Unit.millipoints(600) } }, slate)
 		$tick = $tick + 4
 	}
+
 	## The 8.0 °C limit as a solid alarm line, and the excursion window.
 	$d = Scene.rectangle($d, { origin: Layout.point(20, plot_y(80)), size: { height: Layout.Unit.millipoints(1200), width: points(432) } }, alarm)
 	$d = Scene.rectangle($d, Layout.rect(plot_x(28), plot_y(80), plot_x(32) - plot_x(28), plot_y(95) - plot_y(80)), Color.srgb8({ red: 254, green: 226, blue: 226 }))

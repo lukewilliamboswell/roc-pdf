@@ -201,6 +201,7 @@ line_chart = {
 		$chart = $chart.path(circle($marker_x, y_of(tenths), 4), { fill: AuthorSolidFill(white), stroke: AuthorSolidStroke({ color: forest, width: Layout.Unit.millipoints(1500) }) })
 		$marker_x = $marker_x + step
 	}
+
 	## The target of five days, as a dashed sun-coloured rule.
 	var $dash = left
 	while $dash < left + 472 {

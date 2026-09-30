@@ -99,12 +99,14 @@ cover_band : Scene.Drawing
 cover_band = {
 	var $band = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 6, body_width, 50), navy)
 	$band = Scene.rectangle($band, Layout.rect(0, 0, body_width, 4), teal)
+
 	## Faint diagonal hatching across the band's start, for texture.
 	var $x = 4
 	while $x < 220 {
 		$band = $band.path(Scene.path({}).move_to(Layout.point($x, 8)).line_to(Layout.point($x + 28, 54)).finish(), Scene.solid_stroke(Color.srgb8({ red: 34, green: 62, blue: 98 }), points(2)))
 		$x = $x + 14
 	}
+
 	## Furniture drawings hold no groups, so the mark is placed directly.
 	m = body_width - 76
 	bar = |x, height| Scene.path({}).move_to(Layout.point(m + x, 17)).line_to(Layout.point(m + x + 8, 17)).line_to(Layout.point(m + x + 8, 17 + height)).line_to(Layout.point(m + x, 17 + height)).close().finish()
@@ -304,6 +306,7 @@ revenue_chart = {
 		x = left + $index * slot + slot // 2
 		color = if $index < 3 slate else teal
 		$chart = Scene.rectangle($chart, Layout.rect(x - 22, base, 44, revenue_height(month.revenue)), color)
+
 		## The month number (7 to 12) under its bar.
 		$chart = number_end($chart, ($index + 7).to_u64_wrap(), x + 5, 2)
 		my = base + revenue_height(month.margin * 50 + 1000)
@@ -342,11 +345,13 @@ progress_chart = {
 		color = if percent >= 50 teal else amber
 		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(0, y, track, 14), grid), Layout.rect(0, y, filled, 14), color)
 		$chart = number_end($chart, percent, track + 26, y + 3)
+
 		## A percent sign: two dots and a slash.
 		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(track + 30, y + 9, 2, 2), ink), Layout.rect(track + 36, y + 3, 2, 2), ink)
 			.path(Scene.path({}).move_to(Layout.point(track + 30, y + 3)).line_to(Layout.point(track + 38, y + 11)).finish(), Scene.solid_stroke(ink, Layout.Unit.millipoints(900)))
 		$row = $row + 1
 	}
+
 	## The calendar marker: half of the financial year has elapsed.
 	half = track // 2
 	$chart.path(Scene.path({}).move_to(Layout.point(half, 1)).line_to(Layout.point(half, 124)).finish(), Scene.solid_stroke(navy, points(1)))
@@ -380,13 +385,15 @@ scorecard = Pdf.table({
 		{ width: Share(1), align: End },
 		{ width: Fixed(points(72)), align: Start },
 	],
-	header_rows: [Pdf.row([
-		Pdf.header_cell(Column, [Pdf.text("Measure")]),
-		Pdf.header_cell(Column, [Pdf.text("Q1")]),
-		Pdf.header_cell(Column, [Pdf.text("Q2")]),
-		Pdf.header_cell(Column, [Pdf.text("Target")]),
-		Pdf.header_cell(Column, [Pdf.text("Status")]),
-	])],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Measure")]),
+			Pdf.header_cell(Column, [Pdf.text("Q1")]),
+			Pdf.header_cell(Column, [Pdf.text("Q2")]),
+			Pdf.header_cell(Column, [Pdf.text("Target")]),
+			Pdf.header_cell(Column, [Pdf.text("Status")]),
+		]),
+	],
 	body_rows: [
 		kpi_row("Revenue (AUD m)", "7.42", "8.70", "8.40", on_track),
 		kpi_row("Gross margin", "31.3%", "34.4%", "33.0%", on_track),
@@ -419,13 +426,15 @@ segments = Pdf.table({
 		{ width: Share(2), align: End },
 		{ width: Share(2), align: End },
 	],
-	header_rows: [Pdf.row([
-		Pdf.header_cell(Column, [Pdf.text("Segment")]),
-		Pdf.header_cell(Column, [Pdf.text("Revenue")]),
-		Pdf.header_cell(Column, [Pdf.text("Share")]),
-		Pdf.header_cell(Column, [Pdf.text("Growth")]),
-		Pdf.header_cell(Column, [Pdf.text("Margin")]),
-	])],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Segment")]),
+			Pdf.header_cell(Column, [Pdf.text("Revenue")]),
+			Pdf.header_cell(Column, [Pdf.text("Share")]),
+			Pdf.header_cell(Column, [Pdf.text("Growth")]),
+			Pdf.header_cell(Column, [Pdf.text("Margin")]),
+		]),
+	],
 	body_rows: [
 		segment_row("Grain and fodder", "3,262", "37.5%", "+14.2%", "29.8%"),
 		segment_row("Farm supplies", "2,436", "28.0%", "+9.6%", "36.1%"),
@@ -433,13 +442,15 @@ segments = Pdf.table({
 		segment_row("Advisory services", "853", "9.8%", "+31.5%", "58.0%"),
 		segment_row("Online store", "444", "5.1%", "+62.0%", "41.7%"),
 	],
-	footer_rows: [Pdf.row([
-		Pdf.header_cell(Row, [Pdf.text("Total")]),
-		Pdf.cell([Pdf.strong([Pdf.text("8,700")])]),
-		Pdf.cell([Pdf.text("100.0%")]),
-		Pdf.cell([Pdf.strong([Pdf.text("+17.3%")])]),
-		Pdf.cell([Pdf.text("34.4%")]),
-	])],
+	footer_rows: [
+		Pdf.row([
+			Pdf.header_cell(Row, [Pdf.text("Total")]),
+			Pdf.cell([Pdf.strong([Pdf.text("8,700")])]),
+			Pdf.cell([Pdf.text("100.0%")]),
+			Pdf.cell([Pdf.strong([Pdf.text("+17.3%")])]),
+			Pdf.cell([Pdf.text("34.4%")]),
+		]),
+	],
 	row_split: KeepRows,
 })
 
@@ -450,11 +461,13 @@ position_table : Document.Block
 position_table = Pdf.table({
 	caption: Pdf.caption("Table 3. Summary balance sheet, AUD thousands"),
 	columns: [{ width: Share(3), align: Start }, { width: Share(1), align: End }, { width: Share(1), align: End }],
-	header_rows: [Pdf.row([
-		Pdf.header_cell(Column, [Pdf.text("Item")]),
-		Pdf.header_cell(Column, [Pdf.text("Jun 2026")]),
-		Pdf.header_cell(Column, [Pdf.text("Dec 2026")]),
-	])],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Item")]),
+			Pdf.header_cell(Column, [Pdf.text("Jun 2026")]),
+			Pdf.header_cell(Column, [Pdf.text("Dec 2026")]),
+		]),
+	],
 	body_rows: [
 		position_row("Cash and deposits", "4,180", "5,025"),
 		position_row("Trade receivables", "3,960", "4,410"),
@@ -463,11 +476,13 @@ position_table = Pdf.table({
 		position_row("Borrowings", "(3,500)", "(3,100)"),
 		position_row("Other liabilities", "(5,870)", "(6,240)"),
 	],
-	footer_rows: [Pdf.row([
-		Pdf.header_cell(Row, [Pdf.text("Members' equity")]),
-		Pdf.cell([Pdf.text("17,830")]),
-		Pdf.cell([Pdf.strong([Pdf.text("19,480")])]),
-	])],
+	footer_rows: [
+		Pdf.row([
+			Pdf.header_cell(Row, [Pdf.text("Members' equity")]),
+			Pdf.cell([Pdf.text("17,830")]),
+			Pdf.cell([Pdf.strong([Pdf.text("19,480")])]),
+		]),
+	],
 	row_split: KeepRows,
 })
 
@@ -545,11 +560,11 @@ contents = [
 		Pdf.keep_together([
 			Pdf.destination_heading("targets", 1, "3 Progress against targets"),
 			Pdf.paragraph("Half of the financial year has elapsed, marked by the navy line. Teal tracks are at or ahead of that pace; amber tracks are behind it."),
-		Pdf.figure(
-			progress_chart,
-			"Four progress bars against FY2027 targets: revenue 62%, new members 48%, advisory clients 71%, and emissions reduction 39%. A marker at 50% shows the elapsed half year.",
-			Pdf.caption("Figure 2. Progress toward FY2027 targets, from top: revenue, new members, advisory clients, emissions reduction"),
-		),
+			Pdf.figure(
+				progress_chart,
+				"Four progress bars against FY2027 targets: revenue 62%, new members 48%, advisory clients 71%, and emissions reduction 39%. A marker at 50% shows the elapsed half year.",
+				Pdf.caption("Figure 2. Progress toward FY2027 targets, from top: revenue, new members, advisory clients, emissions reduction"),
+			),
 		]),
 		Pdf.bullet_list([
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Revenue")]), Pdf.text(" is 62% of the annual target, twelve points ahead of pace.")])]),

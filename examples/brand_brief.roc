@@ -444,14 +444,16 @@ contents = |theme| [
 			),
 			ScaleToFit({ minimum_percent: 80 }),
 		),
-		Pdf.keep_together([Pdf.numbered_list(
-			{ start: 1, style: Decimal },
-			[
-				Pdf.list_item([Pdf.paragraph("Never place the mark on photography without a solid ground behind it.")]),
-				Pdf.list_item([Pdf.paragraph("Never recolour the light: it is Dawn Amber, or white on an amber ground.")]),
-				Pdf.list_item([Pdf.paragraph("Never set the mark smaller than 16 pt on paper or 24 px on screen.")]),
-			],
-		)]),
+		Pdf.keep_together([
+			Pdf.numbered_list(
+				{ start: 1, style: Decimal },
+				[
+					Pdf.list_item([Pdf.paragraph("Never place the mark on photography without a solid ground behind it.")]),
+					Pdf.list_item([Pdf.paragraph("Never recolour the light: it is Dawn Amber, or white on an amber ground.")]),
+					Pdf.list_item([Pdf.paragraph("Never set the mark smaller than 16 pt on paper or 24 px on screen.")]),
+				],
+			),
+		]),
 	]),
 	Pdf.section([
 		Pdf.decoration(band),

@@ -344,6 +344,7 @@ topology = {
 	$d = arrow_right($d, 368, 382, 135)
 	$d = arrow_down($d, 318, 106, 70)
 	$d = arrow_down($d, 430, 106, 70)
+
 	## The settlement worker reads the queue: an arrow pointing back left.
 	head = Scene.path({}).move_to(Layout.point(244, 41)).line_to(Layout.point(251, 45)).line_to(Layout.point(251, 37)).close().finish()
 	$d
@@ -371,12 +372,14 @@ severity_table = Pdf.table({
 		{ width: Share(2), align: Start },
 		{ width: Share(3), align: Start },
 	],
-	header_rows: [Pdf.row([
-		Pdf.header_cell(Column, [Pdf.text("Level")]),
-		Pdf.header_cell(Column, [Pdf.text("Meaning")]),
-		Pdf.header_cell(Column, [Pdf.text("Response")]),
-		Pdf.header_cell(Column, [Pdf.text("Example")]),
-	])],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Level")]),
+			Pdf.header_cell(Column, [Pdf.text("Meaning")]),
+			Pdf.header_cell(Column, [Pdf.text("Response")]),
+			Pdf.header_cell(Column, [Pdf.text("Example")]),
+		]),
+	],
 	body_rows: [
 		severity_row("SEV1", "Customers cannot pay, or money is at risk.", "Page now; bridge in 5 min; updates every 15 min.", "Card authorisations failing in every region."),
 		severity_row("SEV2", "A major feature is degraded for many customers.", "Page now; updates every 30 min.", "Refunds delayed by more than an hour."),
@@ -404,12 +407,14 @@ escalation_table = Pdf.table({
 		{ width: Share(3), align: Start },
 		{ width: Share(3), align: Start },
 	],
-	header_rows: [Pdf.row([
-		Pdf.header_cell(Column, [Pdf.text("After")]),
-		Pdf.header_cell(Column, [Pdf.text("Escalate to")]),
-		Pdf.header_cell(Column, [Pdf.text("Who")]),
-		Pdf.header_cell(Column, [Pdf.text("Channel")]),
-	])],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("After")]),
+			Pdf.header_cell(Column, [Pdf.text("Escalate to")]),
+			Pdf.header_cell(Column, [Pdf.text("Who")]),
+			Pdf.header_cell(Column, [Pdf.text("Channel")]),
+		]),
+	],
 	body_rows: [
 		contact_row("0 min", "Primary on-call", "Payments rota (PagerDuty)", "#inc-payments"),
 		contact_row("10 min", "Secondary on-call", "Payments rota, backup", "page: pay-secondary"),
@@ -418,9 +423,11 @@ escalation_table = Pdf.table({
 		contact_row("45 min", "Head of Payments", "Priya Raman", "+61 3 9000 4417"),
 		contact_row("60 min", "Customer comms lead", "Support duty manager", "#status-updates"),
 	],
-	footer_rows: [Pdf.row([
-		Pdf.spanning(4, Pdf.aligned(Start, Pdf.cell([Pdf.emphasis([Pdf.text("Escalate earlier whenever you are unsure. Nobody is ever blamed for paging.")])]))),
-	])],
+	footer_rows: [
+		Pdf.row([
+			Pdf.spanning(4, Pdf.aligned(Start, Pdf.cell([Pdf.emphasis([Pdf.text("Escalate earlier whenever you are unsure. Nobody is ever blamed for paging.")])]))),
+		]),
+	],
 	row_split: KeepRows,
 })
 
@@ -439,11 +446,13 @@ command_table = Pdf.table({
 		{ width: Share(1), align: Start },
 		{ width: Fixed(points(48)), align: Center },
 	],
-	header_rows: [Pdf.row([
-		Pdf.header_cell(Column, [Pdf.text("Command")]),
-		Pdf.header_cell(Column, [Pdf.text("Purpose")]),
-		Pdf.header_cell(Column, [Pdf.text("Writes")]),
-	])],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Command")]),
+			Pdf.header_cell(Column, [Pdf.text("Purpose")]),
+			Pdf.header_cell(Column, [Pdf.text("Writes")]),
+		]),
+	],
 	body_rows: [
 		command_row("/incident open payments", "Open an incident channel and start the timeline.", "Yes"),
 		command_row("kubectl get pods -l tier=api", "List API pods with their node and restart count.", "No"),

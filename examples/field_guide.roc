@@ -172,6 +172,7 @@ habitat_section = {
 		.path(water, Scene.solid_fill(rgb(150, 205, 210)))
 		.group(point(0, 0), shallows)
 		.path(dune, Scene.solid_fill(sand))
+
 	## Marram grass tufts on the dune crest.
 	for x in [30, 52, 74, 96] {
 		$scene = $scene
@@ -179,6 +180,7 @@ habitat_section = {
 			.path(line(x, 136, x, 156), Scene.solid_stroke(rgb(96, 128, 60), points(1)))
 			.path(line(x, 136, x + 5, 152), Scene.solid_stroke(rgb(96, 128, 60), points(1)))
 	}
+
 	## The high-tide line (dashed) and the low-tide line.
 	var $x = 184
 	while $x < w - 6 {
@@ -186,11 +188,13 @@ habitat_section = {
 		$x = $x + 10
 	}
 	$scene = $scene.path(line(300, 48, w - 2, 48), Scene.solid_stroke(rgb(12, 70, 80), points(1)))
+
 	## Feeding-zone brackets above the flats: oystercatcher (black), plover (rust), curlew (brown).
 	$scene = $scene
 		.group(point(150, 160), zone(rgb(20, 20, 20), 150))
 		.group(point(130, 172), zone(rgb(176, 72, 40), 80))
 		.group(point(240, 148), zone(rgb(120, 84, 50), 200))
+
 	## Small birds at work on the flats.
 	$scene
 		.group(point(220, 60), oystercatcher_small)
@@ -262,6 +266,7 @@ plover_plate : Scene.Drawing
 plover_plate = {
 	bill = Scene.path({}).move_to(point(58, 50)).line_to(point(68, 48)).line_to(point(58, 46)).close().finish()
 	base = bird({ bill, body: rgb(196, 172, 138), belly: rgb(250, 248, 242), height: 20, leg: rgb(40, 40, 40), length: 52 })
+
 	## The rufous cap and the dark shoulder patch.
 	base
 		.path(ellipse(54, 58, 7, 3), Scene.solid_fill(rgb(182, 74, 38)))
@@ -372,13 +377,15 @@ checklist = Pdf.table({
 		{ width: Share(2), align: Start },
 		{ width: Fixed(points(44)), align: End },
 	],
-	header_rows: [Pdf.row([
-		Pdf.header_cell(Column, [Pdf.text("Species")]),
-		Pdf.header_cell(Column, [Pdf.text("Scientific name")]),
-		Pdf.header_cell(Column, [Pdf.text("Season")]),
-		Pdf.header_cell(Column, [Pdf.text("Status")]),
-		Pdf.header_cell(Column, [Pdf.text("Count")]),
-	])],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Species")]),
+			Pdf.header_cell(Column, [Pdf.text("Scientific name")]),
+			Pdf.header_cell(Column, [Pdf.text("Season")]),
+			Pdf.header_cell(Column, [Pdf.text("Status")]),
+			Pdf.header_cell(Column, [Pdf.text("Count")]),
+		]),
+	],
 	body_rows: [
 		check_row("Pied oystercatcher", "Haematopus longirostris", "All year", "Resident"),
 		check_row("Sooty oystercatcher", "Haematopus fuliginosus", "All year", "Resident"),
@@ -423,11 +430,14 @@ contents = [
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Sand flats")]), Pdf.text(": oystercatchers probing for pipis and worms.")])]),
 			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Soft mud and shallows")]), Pdf.text(": curlews and godwits working the channel edge.")])]),
 		]),
-		callout("Best counting windows", [
-			"Roost counts: from two hours before to one hour after high tide.",
-			"Feeding counts: on the falling tide, three to five hours after high water.",
-			"Avoid days with wind above 25 km/h; birds hunker down and are hard to see.",
-		]),
+		callout(
+			"Best counting windows",
+			[
+				"Roost counts: from two hours before to one hour after high tide.",
+				"Feeding counts: on the falling tide, three to five hours after high water.",
+				"Avoid days with wind above 25 km/h; birds hunker down and are hard to see.",
+			],
+		),
 	]),
 	Pdf.page_break,
 	Pdf.section([
@@ -503,11 +513,14 @@ contents = [
 				Pdf.list_item([Pdf.paragraph("Enter a zero for every species you looked for and did not find.")]),
 			],
 		),
-		callout("Field etiquette", [
-			"Stay at least 50 m from roosting and nesting birds.",
-			"Keep dogs on a lead; dogs are banned from the spit all year.",
-			"If birds take flight or call in alarm, you are too close.",
-		]),
+		callout(
+			"Field etiquette",
+			[
+				"Stay at least 50 m from roosting and nesting birds.",
+				"Keep dogs on a lead; dogs are banned from the spit all year.",
+				"If birds take flight or call in alarm, you are too close.",
+			],
+		),
 	]),
 	Pdf.section([
 		Pdf.keep_with_next(Required, Pdf.destination_heading("checklist", 1, "Survey checklist")),

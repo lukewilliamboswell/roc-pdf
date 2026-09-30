@@ -263,6 +263,7 @@ banner = {
 	$d = $d.group(Layout.point(24, 28), digit(3, white))
 	$d = Scene.rectangle($d, Layout.rect(48, 28, 4, 4), white)
 	$d = $d.group(Layout.point(58, 28), digit(0, white))
+
 	## Twelve release dots: minor releases in lilac, this major in pink.
 	var $x = 300
 	var $i = 0
@@ -293,6 +294,7 @@ latency_chart = {
 		$d = value_label($d, value.to_u64_wrap(), 28 + value, $y + 8, ink)
 		$y = $y - 36
 	}
+
 	## Arrow from the 2.9 bar end back to the 3.0 bar end: the improvement.
 	$d
 		.path(Scene.path({}).move_to(Layout.point(376, 60)).line_to(Layout.point(376, 36)).line_to(Layout.point(256, 36)).finish(), Scene.solid_stroke(pink, Layout.Unit.millipoints(1500)))
@@ -325,12 +327,14 @@ compatibility_table = Pdf.table({
 		{ width: Fixed(points(64)), align: Center },
 		{ width: Share(4), align: Start },
 	],
-	header_rows: [Pdf.row([
-		Pdf.header_cell(Column, [Pdf.text("Platform")]),
-		Pdf.header_cell(Column, [Pdf.text("2.9")]),
-		Pdf.header_cell(Column, [Pdf.text("3.0")]),
-		Pdf.header_cell(Column, [Pdf.text("Notes")]),
-	])],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Platform")]),
+			Pdf.header_cell(Column, [Pdf.text("2.9")]),
+			Pdf.header_cell(Column, [Pdf.text("3.0")]),
+			Pdf.header_cell(Column, [Pdf.text("Notes")]),
+		]),
+	],
 	body_rows: [
 		compat_row("Linux x86-64 (glibc)", "2.28", "2.31", "Ubuntu 20.04, RHEL 9 and later"),
 		compat_row("Linux arm64 (glibc)", "2.28", "2.31", "Graviton and Ampere tested"),
@@ -340,9 +344,11 @@ compatibility_table = Pdf.table({
 		compat_row("Windows x86-64", "10", "10", "Server 2019 and later"),
 		compat_row("Kubernetes operator", "1.26", "1.28", "Helm chart 5.x"),
 	],
-	footer_rows: [Pdf.row([
-		Pdf.spanning(4, Pdf.aligned(Start, Pdf.cell([Pdf.text("2.9 LTS receives security fixes until 30 September 2027.")]))),
-	])],
+	footer_rows: [
+		Pdf.row([
+			Pdf.spanning(4, Pdf.aligned(Start, Pdf.cell([Pdf.text("2.9 LTS receives security fixes until 30 September 2027.")]))),
+		]),
+	],
 	row_split: KeepRows,
 })
 
@@ -425,17 +431,17 @@ contents = [
 		]),
 		Pdf.section([
 			Pdf.destination_heading("deprecated", 2, "Deprecated"),
-		Pdf.bullet_list([
-			change([Pdf.text("The "), Pdf.code("--duration"), Pdf.text(" flag; set "), Pdf.code("duration"), Pdf.text(" in the scenario file instead. Removal is planned for 4.0.")], 2215),
-			change([Pdf.text("The Graphite exporter, in favour of OpenTelemetry.")], 2144),
+			Pdf.bullet_list([
+				change([Pdf.text("The "), Pdf.code("--duration"), Pdf.text(" flag; set "), Pdf.code("duration"), Pdf.text(" in the scenario file instead. Removal is planned for 4.0.")], 2215),
+				change([Pdf.text("The Graphite exporter, in favour of OpenTelemetry.")], 2144),
+			]),
 		]),
-	]),
-	Pdf.section([
-		Pdf.destination_heading("known-issues", 2, "Known issues"),
-		Pdf.bullet_list([
-			change([Pdf.text("The live dashboard flickers in terminals narrower than 80 columns.")], 2240),
-			change([Pdf.code("kestrel migrate"), Pdf.text(" drops YAML comments; review converted files before committing them.")], 2236),
-		]),
+		Pdf.section([
+			Pdf.destination_heading("known-issues", 2, "Known issues"),
+			Pdf.bullet_list([
+				change([Pdf.text("The live dashboard flickers in terminals narrower than 80 columns.")], 2240),
+				change([Pdf.code("kestrel migrate"), Pdf.text(" drops YAML comments; review converted files before committing them.")], 2236),
+			]),
 		]),
 	]),
 	Pdf.section([
