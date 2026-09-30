@@ -101,10 +101,13 @@ KernelLineLayout :: [].{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
 		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, limits)
 
-		## The ordered multi-face batch. The template cache stays keyed by the
-		## existing `BatchKey`: one policy per build makes the physical split
-		## of a source deterministic, so source, first-instance, size, and
-		## width remain a complete cache identity.
+		## The logical (rich paragraph and multi-face) batch. One interned
+		## source can be split differently by different occurrences (plain
+		## text beside the same text inside a strong run with its own face),
+		## so the template cache key is the source and width together with
+		## the exact sequence of the logical run's physical runs: each run's
+		## instance, size, and cluster count. A signature over that sequence
+		## narrows probes, and equal signatures are confirmed run by run.
 		build_logical : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), BatchLimits -> Try(BatchPlan, Error)
 		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, limits)
 
@@ -144,6 +147,12 @@ KernelLineLayout :: [].{
 }
 
 BatchKey := { instance : U64, size : I64, source : U64, width : I64 }
+
+## The logical batch key: the source and width, the signature over the
+## physical-run sequence (which covers each run's instance and size), and
+## the first run and run count of the logical run that defines the split.
+## It stays four words, the size of `BatchKey`.
+LogicalKey := { run_count : U32, run_start : U64, signature : U64, source : U32, width : I64 }
 
 Template := { cluster_length : U64, cluster_start : U64, lines : Semantics.Range }
 
@@ -315,7 +324,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 
 ## The merged dense-store bounds and identity facts of one logical request's
 ## adjacent physical runs, proven contiguous before any measurement.
-LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, size : I64 }
+LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, signature : U64, size : I64 }
 
 build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
 build_logical_batch = |sources, store, requests, limits| {
@@ -348,19 +357,22 @@ build_logical_batch = |sources, store, requests, limits| {
 		}
 		logical = logical_bounds(store, request.runs, $run_cursor)?
 		$run_cursor = range_end(request.runs)?
-		key = { instance: logical.instance, size: logical.size, source: source_index, width: request.width.raw() }
+		if source_index > u32_max or request.runs.length() > u32_max {
+			return Err(InvalidRun({ run: $request_index }))
+		}
+		key = { run_count: request.runs.length().to_u32_wrap(), run_start: request.runs.start(), signature: logical.signature, source: source_index.to_u32_wrap(), width: request.width.raw() }
 		var $template_index = empty_slot
 		var $insertion_slot = empty_slot
 		if $previous_template != empty_slot {
 			$key_probes = checked_add($key_probes, 1)?
 			check_limit($key_probes, limits.max_key_probes, KeyProbes)?
-			if key_equal(key, list_at($keys, $previous_template)) {
+			if logical_key_equal(store, key, list_at($keys, $previous_template)) {
 				$template_index = $previous_template
 				$cache_hits = checked_add($cache_hits, 1)?
 			}
 		}
 		if $template_index == empty_slot {
-			hashed = hash_key(key)
+			hashed = hash_logical_key(key, logical.instance, logical.size)
 			var $probe = 0
 			while $probe < capacity and $template_index == empty_slot and $insertion_slot == empty_slot {
 				$key_probes = checked_add($key_probes, 1)?
@@ -369,7 +381,7 @@ build_logical_batch = |sources, store, requests, limits| {
 				candidate = list_at($slots, slot_index)
 				if candidate == empty_slot {
 					$insertion_slot = slot_index
-				} else if key_equal(key, list_at($keys, candidate)) {
+				} else if logical_key_equal(store, key, list_at($keys, candidate)) {
 					$template_index = candidate
 					$cache_hits = checked_add($cache_hits, 1)?
 				}
@@ -503,6 +515,7 @@ logical_bounds = |store, run_range, expected_start| {
 	var $cluster_end = first_cluster_end
 	var $glyph_end = first_glyph_end
 	var $glyph_length = first.glyphs.length()
+	var $signature = run_signature(14695981039346656037, first)
 	var $index = run_start + 1
 	while $index < run_end {
 		run = list_at(store.runs, $index)
@@ -514,12 +527,14 @@ logical_bounds = |store, run_range, expected_start| {
 		$cluster_end = cluster_end
 		$glyph_end = glyph_end
 		$glyph_length = checked_add($glyph_length, run.glyphs.length())?
+		$signature = run_signature($signature, run)
 		$index = $index + 1
 	}
 	Ok({
 		bounds: { cluster_end: $cluster_end, cluster_start: first.clusters.start(), glyph_end: $glyph_end, glyph_start: first.glyphs.start() },
 		glyph_length: $glyph_length,
 		instance: first.instance.index(),
+		signature: $signature,
 		size: first.size.raw(),
 	})
 }
@@ -590,6 +605,41 @@ measure_request = |sources, store, request, limits| {
 
 key_equal : BatchKey, BatchKey -> Bool
 key_equal = |left, right| left.instance == right.instance and left.size == right.size and left.source == right.source and left.width == right.width
+
+## One physical run's contribution to a logical key: the facts that decide
+## its advances (instance and size) and its extent (cluster count).
+run_signature : U64, Text.Run -> U64
+run_signature = |hash, run| mix_hash(mix_hash(mix_hash(hash, run.instance.index()), run.size.raw().to_u64_wrap()), run.clusters.length())
+
+## Equal logical keys: the scalar fields and signature, then the physical
+## runs compared one by one, so a signature collision never shares lines.
+logical_key_equal : Text.Store, LogicalKey, LogicalKey -> Bool
+logical_key_equal = |store, left, right| {
+	if left.source != right.source or left.width != right.width or left.signature != right.signature or left.run_count != right.run_count {
+		return Bool.False
+	}
+	var $index = 0
+	while $index < left.run_count.to_u64() {
+		a = list_at(store.runs, left.run_start + $index)
+		b = list_at(store.runs, right.run_start + $index)
+		if a.instance.index() != b.instance.index() or a.size.raw() != b.size.raw() or a.clusters.length() != b.clusters.length() {
+			return Bool.False
+		}
+		$index = $index + 1
+	}
+	Bool.True
+}
+
+## The probe hash of the base fields only, exactly as `hash_key`: splits
+## that agree on them share a probe sequence and are told apart by
+## `logical_key_equal`, so documents with one split per source probe as
+## before.
+## The probe hash over the same fields, in the same order, as `hash_key`
+## hashed a logical run's first instance and size: documents with one split
+## per source probe exactly as before, and differing splits are told apart
+## by `logical_key_equal`.
+hash_logical_key : LogicalKey, U64, I64 -> U64
+hash_logical_key = |key, instance, size| hash_key({ instance, size, source: key.source.to_u64(), width: key.width })
 
 hash_key : BatchKey -> U64
 hash_key = |key| {
@@ -992,3 +1042,6 @@ expect {
 	measured = KernelLineLayout.measure_logical(sources, store, { runs: Semantics.Range.from_start_and_length(0, 1), source: Semantics.TextSourceId.from_index(0), width: Layout.Unit.from_raw(1) }, test_limits)?
 	measured.measure.max_content == 6000 and measured.measure.min_content == 2000 and measured.measure.token.start() == 0 and measured.measure.token.length() == 2
 }
+
+u32_max : U64
+u32_max = 4294967295

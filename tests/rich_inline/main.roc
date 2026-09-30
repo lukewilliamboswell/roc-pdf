@@ -11,6 +11,7 @@ Case : [
 	Paragraphs({ count : U64 }),
 	Ordered({ context : U64 }),
 	CodeFace({ context : U64 }),
+	SharedSource({ count : U64 }),
 	AtomicNegatives({ context : U64 }),
 ]
 
@@ -44,6 +45,7 @@ main! = |args| {
 		Paragraphs({ count }) => Fixture.paragraphs(count)
 		Ordered({ context }) => Fixture.ordered(context)
 		CodeFace({ context }) => Fixture.code_face(context)
+		SharedSource({ count }) => Fixture.shared_source(count)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 	}
 	match result {

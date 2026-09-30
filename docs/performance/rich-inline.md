@@ -153,6 +153,68 @@ natural language, and the occurrence's origin in the source.
   occurrence-relative contract of the final text store, fragments, and
   lowering. `WholeSources` states that no rebasing is needed.
 
+## Shared sources with different face splits
+
+Identical text interns to one source (`KernelFacadeSources`), so a table
+cell `10` and a strong cell `10`, or a plain and a strong paragraph with the
+same text, share a source. Under role faces those occurrences need
+different font splits, but `KernelShape.shape_selected_batch` required every
+group over one source to carry the identical split and rejected the second
+with `SelectedRequestInvalid({ reason: SplitMismatch })`, which the facade
+reported as `UnsupportedAuthoringContent`. The release notes hit it with a
+strong `—` beside a plain `—` in the compatibility table.
+
+The shaper now treats a group's split as that group's fact. The first
+group over a source defines its primary split, as before. A later group is
+compared cluster by cluster with the primary split while it agrees; at its
+first differing cluster it copies the primary split (whose earlier clusters
+it matched) and records its own fonts from there. When such a group
+completes, its split becomes a variant with its own glyph template, built
+once from that group's clusters in pass two, and every request of the group
+reads that template in pass three. Variants are not deduplicated against
+each other: a differing group costs exactly its own cluster count in
+template work, so the total stays linear in the requested clusters instead
+of comparing every variant with every other. Identical splits (the common
+case) allocate nothing new: the variant list and the per-request variant
+index stay empty until a split first differs, so every existing case keeps
+its allocation count, allocated bytes, work, and snapshot. The pass-three
+consistency check that each template glyph's font is the request's font is
+kept as an internal invariant. The ordered-policy path is unchanged: it
+selects once per unique source, so its occurrences share one split by
+construction.
+
+The line-template cache had the same hidden assumption. `KernelLineLayout`
+keyed a logical run's template by (source, first instance, size, width),
+documented as complete because "one policy per build makes the physical
+split of a source deterministic". With per-occurrence splits it is not: a
+plain paragraph and the same text whose second half is strong both begin
+with a body-face run, so the second reused the first's line breaks and its
+wider strong text overran the right margin (seen in a MuPDF render before
+the fix). The logical key now also carries a signature over the exact
+physical-run sequence (each run's instance, size, and cluster count) and
+the defining run range, and an equal signature is confirmed run by run, so
+a collision never shares lines. The probe hash is unchanged (the same base
+fields as `hash_key`: source, first instance, size, and width), so documents
+with one split per source probe exactly as before. The key stays four words
+(source and run count as `U32`, first run, signature, width): a first
+version that added the signature and run range to the old fields made each
+key eight words, and the key list's growth then reallocated one to four more
+times in 47 existing cases (for example `rich inline mixed` went from 18,557
+to 18,559 allocations) with no change in work. At four words every existing
+case keeps its exact allocation count, allocated bytes, and work.
+
+Evidence, `rich inline shared source faces x10` and `x50`: N table rows
+with a plain `10`, a strong `10`, a strong `n/a`, and a plain `n/a`; N
+pairs of plain and strong `Revision 10` paragraphs; and one paragraph
+twice, plain and with its second half strong. The Noto Sans Mono fixture is
+the strong face. Each occurrence paints in its own face and the half-strong
+paragraph wraps inside the margin (checked in MuPDF renders); the
+rich-inline, structure-semantics, and PDF/A-4 validators pass. Strong text
+the strong face does not cover (`Café`) is `text.coverage_missing` at its
+inline path, never the body face. The pair is linear: 80 and 360 shaped
+runs (7N + 10), 81 and 361 lines, 26,965 and 90,561 allocations, and
+8.24 MB and 34.18 MB allocated.
+
 ## Link annotations
 
 An inline link keeps the facade contract: one annotation per page its text

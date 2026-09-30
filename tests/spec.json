@@ -21029,6 +21029,118 @@
       ]
     },
     {
+      "name": "rich inline shared source faces x10",
+      "scenario_revision": "rich-inline-shared-source-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/shared_source_10.pdf",
+      "args": [
+        "shared_source",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "table_rows": 10,
+        "shared_source_pairs": 10
+      },
+      "work_counters": [
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "pages",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 26965,
+          "allocated_bytes": 8235772,
+          "work": {
+            "shaped_runs": 80,
+            "lines": 81,
+            "final_runs": 87,
+            "pages": 2,
+            "rejections": 1,
+            "output_bytes": 55689
+          }
+        },
+        "x64musl": {
+          "allocations": 26965,
+          "allocated_bytes": 8235772,
+          "work": {
+            "shaped_runs": 80,
+            "lines": 81,
+            "final_runs": 87,
+            "pages": 2,
+            "rejections": 1,
+            "output_bytes": 55689
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline shared source faces x50",
+      "scenario_revision": "rich-inline-shared-source-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/shared_source_50.pdf",
+      "args": [
+        "shared_source",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5,
+        "table_rows": 50,
+        "shared_source_pairs": 50
+      },
+      "work_counters": [
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "pages",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 90561,
+          "allocated_bytes": 34178400,
+          "work": {
+            "shaped_runs": 360,
+            "lines": 361,
+            "final_runs": 367,
+            "pages": 5,
+            "rejections": 1,
+            "output_bytes": 136422
+          }
+        },
+        "x64musl": {
+          "allocations": 90561,
+          "allocated_bytes": 34178400,
+          "work": {
+            "shaped_runs": 360,
+            "lines": 361,
+            "final_runs": 367,
+            "pages": 5,
+            "rejections": 1,
+            "output_bytes": 136422
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "rich inline atomic negatives",
       "scenario_revision": "rich-inline-v1",
       "source": "tests/rich_inline/main.roc",

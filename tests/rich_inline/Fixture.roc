@@ -58,6 +58,12 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ##   ordered policy (`text.inline_font_policy`), code text the monospace
 ##   face does not cover (`text.coverage_missing` at the code inline), and
 ##   a code face without a font registry (`InvalidFontResource`).
+## - `shared_source xN`: N table rows and N paragraph pairs in which the same
+##   text occurs plainly and inside `Strong`, with a registered strong face.
+##   Identical text interns to one source, so its occurrences carry
+##   different font splits; each paints in its own face. The scale pair
+##   shows the per-split templates stay linear. Its rejection: strong text
+##   the strong face does not cover (`text.coverage_missing` at the inline).
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
@@ -92,6 +98,9 @@ Fixture :: [].{
 
 	code_face : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	code_face = |context| run_code_face(context)
+
+	shared_source : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	shared_source = |count| run_shared_source(count)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -161,6 +170,98 @@ run_code_face = |context| {
 			flow.final_runs,
 			flow.pages,
 			rejections,
+			bytes.len(),
+		],
+	})
+}
+
+## The same cell and paragraph texts plain and strong: `Revision 10` and
+## `n/a` intern to one source each, shared by plain and strong occurrences.
+shared_source_document : U64 -> Document
+shared_source_document = |count| {
+	var $rows = List.with_capacity(count)
+	var $contents = List.with_capacity(2 * count + 4)
+	$contents = $contents.append(Pdf.heading(1, "Shared sources"))
+
+	## One paragraph text twice: plain, then with its second half strong in
+	## the wider monospace face. Both begin with a body-face run, so only
+	## the exact run sequence tells their line templates apart.
+	$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("Throughput rose in every scenario of the reference suite, and the slowest percentile fell by nearly half against the previous release.")]))
+	$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("Throughput rose in every scenario of the reference suite, "), Pdf.strong([Pdf.text("and the slowest percentile fell by nearly half against the previous release.")])]))
+	var $index = 0
+	while $index < count {
+		$rows = $rows.append(
+			Pdf.row([
+				Pdf.header_cell(Row, [Pdf.text("Row ${($index + 1).to_str()}")]),
+				Pdf.cell([Pdf.text("10")]),
+				Pdf.cell([Pdf.strong([Pdf.text("10")])]),
+				Pdf.cell([Pdf.strong([Pdf.text("n/a")])]),
+				Pdf.cell([Pdf.text("n/a")]),
+			]),
+		)
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("Revision 10")]))
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.strong([Pdf.text("Revision 10")])]))
+		$index = $index + 1
+	}
+	table = Pdf.table({
+		body_rows: $rows,
+		caption: Pdf.caption("Plain and strong occurrences of shared text"),
+		columns: [
+			{ align: Start, width: Share(2) },
+			{ align: Center, width: Share(1) },
+			{ align: Center, width: Share(1) },
+			{ align: Center, width: Share(1) },
+			{ align: Center, width: Share(1) },
+		],
+		footer_rows: [],
+		header_rows: [
+			Pdf.row([
+				Pdf.header_cell(Column, [Pdf.text("Row")]),
+				Pdf.header_cell(Column, [Pdf.text("Plain")]),
+				Pdf.header_cell(Column, [Pdf.text("Strong")]),
+				Pdf.header_cell(Column, [Pdf.text("Strong n/a")]),
+				Pdf.header_cell(Column, [Pdf.text("Plain n/a")]),
+			]),
+		],
+		row_split: SplitRows,
+	})
+	Pdf.document({ contents: $contents.append(table), language: "en-AU", title: "Shared sources" })
+}
+
+run_shared_source : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_shared_source = |count| {
+	if count == 0 or count > 1000 {
+		return Err(InvalidScale)
+	}
+	faces = code_faces(0)?
+	theme = Theme.default.with_inline_font(Strong, faces.mono)
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), faces.registry)
+	document = shared_source_document(count)
+	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
+	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Candidate(1) } }
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, shared_source_limits) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.Plan.work(pipeline)
+
+	## Strong text the strong face does not cover is located at its inline;
+	## the body face is never substituted.
+	uncovered_document = Pdf.document({ contents: [Pdf.paragraph("Café"), Pdf.rich_paragraph([Pdf.strong([Pdf.text("Café")])])], language: "en-AU", title: "Strong coverage" })
+	uncovered = match Pdf.to_bytes_with(uncovered_document, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[1].inlines[0].inlines[0]"], feature: Feature("text.coverage_missing"), .. }], .. })) => 1
+		_ => 0
+	}
+	if uncovered != 1 {
+		return Err(MissingRejection(uncovered))
+	}
+	Ok({
+		bytes,
+		work: [
+			flow.shaped_runs,
+			flow.lines,
+			flow.final_runs,
+			flow.pages,
+			uncovered,
 			bytes.len(),
 		],
 	})
@@ -443,6 +544,74 @@ pipeline_limits = KernelFacadePipeline.Limits.make({
 		max_page_group_edges: 1000000,
 		max_pages: 1024,
 		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 0, max_paths: 0 }),
+	}),
+	semantics: KernelFacadeSemantics.Limits.make({
+		max_container_depth: 16,
+		max_content_spine: 8192,
+		max_inline_depth: 8,
+		max_nodes: 4096,
+		max_occurrences: 2048,
+		max_properties: 2048,
+		max_source_inputs: 2048,
+		semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 0, max_namespaces: 2, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 32 }),
+		sources: KernelFacadeSources.Limits.make({
+			max_hash_probes: 1000000,
+			max_inputs: 2048,
+			max_source_bytes: 1000000,
+			max_source_scalars: 1000000,
+			max_table_slots: 8192,
+			max_unique_sources: 2048,
+			unicode: { max_graphemes: 1000000, max_line_boundaries: 1000001, max_scalars: 1000000, max_script_runs: 2048 },
+		}),
+		text_semantics: KernelTextSemantics.Limits.make({ max_text_properties: 2048, max_text_property_bytes: 1000000, max_text_source_bytes: 1000000, max_text_source_scalars: 1000000, max_text_sources: 2048 }),
+	}),
+	shape: KernelFacadeShape.Limits.make({ max_requests: 2048, shape: KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 }) }),
+	text: KernelFacadeText.Limits.make({ max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_pages: 1024, max_placements: 1000000, max_runs: 1000000 }),
+})
+
+## The rich-inline limits with scene paths for the shared-source table's
+## rules.
+shared_source_limits : KernelFacadePipeline.Limits
+shared_source_limits = KernelFacadePipeline.Limits.make({
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 8192, max_content_spine: 8192, max_fragments: 100000, max_namespaces: 2, max_nodes: 4096, max_occurrences: 2048, max_semantic_depth: 32 }),
+	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 100000, max_occurrences: 2048, max_pages: 1024 }),
+	navigation: KernelNavigation.standard_limits,
+	lines: KernelFacadeLines.Limits.make({
+		line: KernelLineLayout.BatchLimits.make({
+			line: KernelLineLayout.Limits.make({ max_boundaries: 1000001, max_candidates: 2000000, max_clusters: 1000000, max_glyph_indices: 1000000, max_glyphs: 1000000, max_lines: 1000000 }),
+			max_key_probes: 1000000,
+			max_lines: 1000000,
+			max_runs: 2048,
+			max_table_slots: 8192,
+			max_templates: 2048,
+		}),
+		max_blocks: 2048,
+		max_runs: 2048,
+	}),
+	output: KernelFacadeOutput.Limits.make({
+		content: KernelContent.Limits.make({ max_content_bytes: 16000000, max_content_streams: 1024 }),
+		font_plan: KernelFontPlan.Limits.make({ max_retained_glyphs: 10000 }),
+		images: KernelImage.Limits.make({ max_decoded_bytes: 67108864, max_encoded_bytes: 67108864, max_height: 16384, max_markers: 4096, max_resources: 2048, max_width: 16384 }),
+		max_objects: 65536,
+		objects: KernelObjectPlan.Limits.make({ max_objects: 65527, max_pages: 1024 }),
+		structure: KernelTaggedTextStructure.Limits.make({
+			font_limits: KernelPdfFont.Limits.make({ max_to_unicode_bytes: 1000000, max_unicode_mappings: 10000, max_unicode_scalars: 1000000 }),
+			object_limits: object_limits,
+		}),
+		text: KernelPdfText.Limits.make({ max_actual_text_scalars: 1000000, max_content_bytes: 16000000, max_mappings: 10000, max_placements: 0, max_source_scalars: 1000000 }),
+	}),
+	pages: KernelFacadePages.Limits.make({
+		max_blocks: 2048,
+		max_rows: 1000000,
+		page: KernelPageLayout.Limits.make({ max_blocks: 2048, max_fragments: 1000000, max_lines: 1000000, max_pages: 1024, max_placements: 1000000 }),
+	}),
+	scenes: KernelFacadeScenes.Limits.make({
+		color: KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 2, max_tags: KernelSrgbProfile.tag_count }),
+		max_commands: 2000000,
+		max_groups: 1000000,
+		max_page_group_edges: 1000000,
+		max_pages: 1024,
+		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 1000000, max_paths: 1000000 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
 		max_container_depth: 16,

@@ -4,3 +4,5 @@
 {"name":"rich inline ordered multi-face spans","schema_version":1,"case":{"Ordered":{"context":0}}}
 {"name":"rich inline atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
 {"name":"rich inline code face","schema_version":1,"case":{"CodeFace":{"context":0}}}
+{"name":"rich inline shared source faces x10","schema_version":1,"case":{"SharedSource":{"count":10}}}
+{"name":"rich inline shared source faces x50","schema_version":1,"case":{"SharedSource":{"count":50}}}

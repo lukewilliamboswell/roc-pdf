@@ -161,10 +161,16 @@ KernelShape :: [].{
 	## The ordered multi-face facade path. Requests arrive in groups that
 	## each exactly partition one source in cluster order: one occurrence
 	## covering its whole source, or the consecutive occurrences of a rich
-	## paragraph covering adjacent sub-ranges of their shared source. Every
-	## group over one source must carry the identical font split. Shaping walks each unique source once, assigning the
-	## planner-selected dense font per grapheme cluster; it remains the
-	## horizontal left-to-right one-scalar-per-cluster convenience boundary.
+	## paragraph covering adjacent sub-ranges of their shared source. Groups
+	## over one interned source may carry different font splits: identical
+	## text can occur plainly in one place and inside a strong or code role
+	## in another. The first group's split is the source's primary split; a
+	## later group with the same split reuses its template, and a group whose
+	## split differs gets its own template, built once from that group's own
+	## clusters, so the work stays linear in the requested clusters. Shaping
+	## assigns the planner-selected dense font per grapheme cluster; it
+	## remains the horizontal left-to-right one-scalar-per-cluster
+	## convenience boundary.
 	shape_selected_batch : List(KernelFont.Inspection), List(SimpleSource), SelectedBatchOptions, List(SelectedBatchRequest), Limits -> Try(Batch, Error)
 	shape_selected_batch = |fonts, sources, options, requests, limits| shape_selected_batch_horizontal(fonts, sources, options, requests, limits)
 
@@ -542,6 +548,16 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 	## per unique source, dense font identities, and cumulative limits.
 	var $assignments = List.repeat([], sources.len())
 	var $source_seen = List.repeat(Bool.False, sources.len())
+
+	## Splits of repeated groups that differ from their source's primary
+	## split, and each request's template: 0 is its source's primary split,
+	## k > 0 is `$variants[k - 1]`. Both stay empty (unallocated) until a
+	## split first differs.
+	var $variants = []
+	var $request_variants = []
+	var $group_split = []
+	var $group_differs = Bool.False
+	var $group_first_request = 0
 	var $planned_clusters = 0
 	var $planned_scalars = 0
 	var $planned_source_bytes = 0
@@ -584,6 +600,8 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			$group_cursor = 0
 			$group_open = Bool.True
 			$group_writes = list_at($source_seen, source_index) == Bool.False
+			$group_differs = Bool.False
+			$group_first_request = $request_index
 			$source_seen = list_set($source_seen, source_index, Bool.True)
 		}
 		range_start = request.clusters.start()
@@ -604,12 +622,17 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			}
 			$assignments = list_set($assignments, source_index, $updated)
 		} else {
-			## A repeated occurrence of this source must reuse the identical split.
-			existing = list_at($assignments, source_index)
+			## A repeated group reuses the primary split while it agrees. At
+			## its first differing cluster it copies the primary split, whose
+			## earlier clusters it matched, and continues in that copy.
 			var $cluster = range_start
 			while $cluster < range_end_index {
-				if list_at(existing, $cluster) != font_index {
-					return Err(SelectedRequestInvalid({ reason: SplitMismatch, request: $request_index }))
+				if !$group_differs and list_at(list_at($assignments, source_index), $cluster) != font_index {
+					$group_split = list_at($assignments, source_index)
+					$group_differs = Bool.True
+				}
+				if $group_differs {
+					$group_split = list_set($group_split, $cluster, font_index)
 				}
 				$cluster = $cluster + 1
 			}
@@ -625,24 +648,48 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		check_limit($planned_scalars, limits.max_glyphs, Glyphs)?
 		check_limit($planned_clusters, limits.max_clusters, Clusters)?
 		$group_cursor = range_end_index
+		if $group_differs and range_end_index == cluster_count {
+			## The group is complete and its split differs: record it as a
+			## variant and point every request of the group at it.
+			$variants = $variants.append({ assignment: $group_split, source: source_index })
+			$group_split = []
+			$group_differs = Bool.False
+			if $request_variants.is_empty() {
+				$request_variants = List.repeat(0, requests.len())
+			}
+			variant = $variants.len()
+			var $member = $group_first_request
+			while $member <= $request_index {
+				$request_variants = list_set($request_variants, $member, variant)
+				$member = $member + 1
+			}
+		}
 		$request_index = $request_index + 1
 	}
 	if $group_open and $group_cursor != list_at(sources, $group_source).analysis.graphemes.len() {
 		return Err(SelectedRequestInvalid({ reason: Coverage, request: requests.len() }))
 	}
 
-	## Pass two walks each requested unique source exactly once, validating its
-	## grapheme facts and resolving the assigned font's glyph and metrics per
-	## cluster. No coverage search happens here: the assignment is the
-	## planner's completed selection fact.
-	var $source_templates = List.with_capacity(sources.len())
+	## Pass two walks each requested unique source once for its primary split,
+	## and once more for each differing split, validating its grapheme facts
+	## and resolving the assigned font's glyph and metrics per cluster. No
+	## coverage search happens here: the assignment is the planner's
+	## completed selection fact. Template `j` is source `j`'s primary split
+	## for `j < sources.len()`, else variant `j - sources.len()`.
+	template_count = sources.len() + $variants.len()
+	var $source_templates = List.with_capacity(template_count)
 	var $template_glyphs = []
 	var $metric_reads = 0
 	var $script_run_visits = 0
-	var $source_index = 0
-	while $source_index < sources.len() {
-		source_record = list_at(sources, $source_index)
-		assignment = list_at($assignments, $source_index)
+	var $template_index = 0
+	while $template_index < template_count {
+		(template_source, assignment) = if $template_index < sources.len() {
+			($template_index, list_at($assignments, $template_index))
+		} else {
+			variant = list_at($variants, $template_index - sources.len())
+			(variant.source, variant.assignment)
+		}
+		source_record = list_at(sources, template_source)
 		template_start = $template_glyphs.len()
 		if assignment.is_empty() {
 			$source_templates = $source_templates.append({ glyphs: Semantics.Range.from_start_and_length(template_start, 0) })
@@ -689,7 +736,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 			}
 			$source_templates = $source_templates.append({ glyphs: Semantics.Range.from_start_and_length(template_start, $visited) })
 		}
-		$source_index = $source_index + 1
+		$template_index = $template_index + 1
 	}
 
 	## Pass three materializes the dense store: one physical run per request,
@@ -707,7 +754,8 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 	while $request_index < requests.len() {
 		request = list_at(requests, $request_index)
 		source_index = request.source.index()
-		template = list_at($source_templates, source_index)
+		variant = if $request_variants.is_empty() 0 else list_at($request_variants, $request_index)
+		template = list_at($source_templates, if variant == 0 source_index else sources.len() + variant - 1)
 		size = request.size.raw()
 		range_start = request.clusters.start()
 		range_length = request.clusters.length()
