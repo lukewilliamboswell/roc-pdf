@@ -418,7 +418,8 @@ facts_limit_budget = |facts| match facts {
 	}
 }
 
-## The facts output bound covers the two appended stream payloads, the worst
+## The facts output bound covers the unfiltered XMP payload, the DEFLATE
+## bound of the compressed profile payload, the worst
 ## UTF-16 hex expansion of the three text strings, and a fixed allowance for
 ## the added dictionary syntax.
 facts_output_bound : DocumentFacts -> Try(U64, KernelStructure.Error)
@@ -429,7 +430,12 @@ facts_output_bound = |facts| match facts {
 			checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?,
 			Str.to_utf8(data.registry_name).len(),
 		)?
-		payload_bytes = checked_add(data.xmp.len(), data.profile_bytes.len())?
+		profile_bound = if data.profile_bytes.is_empty() {
+			8
+		} else {
+			KernelDeflate.output_bound(data.profile_bytes.len()) ? Deflate
+		}
+		payload_bytes = checked_add(data.xmp.len(), profile_bound)?
 		checked_add(checked_add(payload_bytes, checked_times(text_bytes, 4)?)?, 1024)
 	}
 }
@@ -467,8 +473,9 @@ add_fact_names = |builder| {
 	})
 }
 
-## The metadata stream is the uncompressed canonical XMP packet; the profile
-## stream is the packaged ICC payload shared as an unchanged resource.
+## The metadata stream is the uncompressed canonical XMP packet (PDF/A-4
+## requires it unfiltered); the profile stream is the packaged ICC payload,
+## compressed with FlateDecode.
 add_fact_streams : KernelObject.Builder, KernelObject.NameId, { data : BlankFacts, metadata_id : KernelObject.ObjectId, names : BlankFactNames, profile_id : KernelObject.ObjectId } -> Try(KernelObject.Builder, KernelStructure.Error)
 add_fact_streams = |builder, type_name, context| {
 	subtype_value = KernelObject.add_name_value(builder, context.names.xml) ? Object
@@ -486,11 +493,11 @@ add_fact_streams = |builder, type_name, context| {
 	ensure_object_number(stream.id, KernelObject.ObjectId.number(context.metadata_id))?
 	ensure_object_number(stream.length_object, KernelObject.ObjectId.number(context.metadata_id) + 1)?
 	n_value = KernelObject.add_integer(stream.builder, context.data.profile_components) ? Object
-	icc_payload = KernelObject.add_payload(n_value.builder, context.data.profile_bytes, UnchangedResource) ? Object
+	icc_payload = KernelObject.add_payload(n_value.builder, context.data.profile_bytes, Generated) ? Object
 	icc_stream = KernelObject.add_stream_object(
 		icc_payload.builder,
 		[{ key: context.names.n, value: n_value.id }],
-		Unfiltered,
+		Deflate,
 		icc_payload.id,
 	) ? Object
 	ensure_object_number(icc_stream.id, KernelObject.ObjectId.number(context.profile_id))?
@@ -911,7 +918,7 @@ expect {
 		KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(plan)) == 10 and
 			metadata_payload.kind == Generated and
 				metadata_payload.bytes == Str.to_utf8("<?xpacket?>") and
-					profile_payload.kind == UnchangedResource and
+					profile_payload.kind == Generated and
 						profile_payload.bytes == [0, 0, 0, 4] and
 							identity_ok
 }

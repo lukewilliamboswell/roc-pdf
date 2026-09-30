@@ -84,6 +84,31 @@ def indirect_length(bodies: dict[int, bytes], object_number: int) -> int:
     return int(match.group(1))
 
 
+def decode_stream(bodies: dict[int, bytes], object_number: int) -> tuple[bytes, bytes]:
+    """The dictionary and decoded payload of one stream object.
+
+    FlateDecode payloads are inflated with zlib as an independent oracle;
+    unfiltered payloads are returned as stored. Any other filter is refused.
+    """
+    body = bodies.get(object_number)
+    require(body is not None, f"object {object_number} does not resolve")
+    marker = body.find(b"stream\n")
+    require(marker >= 0, f"object {object_number} is not a stream")
+    dictionary = body[:marker]
+    reference = re.search(rb"/Length ([1-9][0-9]*) 0 R(?:\s|$)", dictionary)
+    direct = None if reference is not None else re.search(rb"/Length ([0-9]+)(?:\s|$)", dictionary)
+    require(reference is not None or direct is not None, f"object {object_number} has no /Length")
+    length = indirect_length(bodies, int(reference.group(1))) if reference is not None else int(direct.group(1))
+    _, data = stream_parts(body, length)
+    if b"/Filter /FlateDecode" in dictionary:
+        try:
+            return dictionary, zlib.decompress(data)
+        except zlib.error as error:
+            raise ValidationError(f"object {object_number} has invalid zlib DEFLATE: {error}") from error
+    require(b"/Filter" not in dictionary, f"object {object_number} uses an unexpected filter")
+    return dictionary, data
+
+
 def validate_xref(
     pdf: bytes,
     offsets: dict[int, int],

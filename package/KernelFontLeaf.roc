@@ -6,8 +6,9 @@ import KernelResourceGraph
 
 ## Canonical font-leaf identity.
 ##
-## One emitted Type 0 bundle (FontFile2 subset program, identity CIDToGIDMap,
-## ToUnicode CMap, descriptor, CIDFontType2 descendant, and Type 0 parent) is
+## One emitted Type 0 bundle (FontFile2 subset program, ToUnicode CMap,
+## descriptor, CIDFontType2 descendant with `/CIDToGIDMap /Identity`, and
+## Type 0 parent) is
 ## one inseparable canonical resource. Its identity payload is a typed recipe,
 ## bijective with the emitted bundle: every emitted dictionary fact serialized
 ## in its exact emitted form, followed by the exact sanitized subset-program
@@ -19,8 +20,8 @@ import KernelResourceGraph
 ## Facts that are constants of the one emission site are not serialized and
 ## cannot differ between two bundles that reach emission: Identity-H encoding,
 ## horizontal writing mode, CIDSystemInfo Adobe-Identity-0, `/DW 1000`, the
-## `/W [0 [...]]` array shape, the unfiltered FontFile2 with `/Length1`, and
-## the fixed ToUnicode header/footer/blocking. Embedding-permission and
+## `/W [0 [...]]` array shape, the FlateDecode FontFile2 with `/Length1`,
+## the `/Identity` CIDToGIDMap, and the fixed ToUnicode header/footer/blocking. Embedding-permission and
 ## hinting differences live inside the sanitized program's retained tables,
 ## so they are inside the recipe's subset bytes.
 ##
@@ -157,8 +158,8 @@ build_leaf = |bundle| {
 	$recipe = append_i64_bytes($recipe, scaled_signed(bundle.font.metrics.y_max, units_per_em)?)
 
 	## The width table: per CID the exact emitted `/W` integer and the
-	## content flag. The entry count also commits the identity CIDToGIDMap
-	## stream, because CID = subset glyph ID is validated below.
+	## content flag. The entry count also commits the `/Identity`
+	## CIDToGIDMap, because CID = subset glyph ID is validated below.
 	$recipe = append_u64_bytes($recipe, bundle.plan.entries.len())
 	var $entry_index = 0
 	while $entry_index < bundle.plan.entries.len() {

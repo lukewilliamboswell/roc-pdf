@@ -365,9 +365,9 @@ expect {
 	structure = KernelTaggedTextStructure.Plan.structure(sample.structure)
 	font_objects = KernelTaggedTextStructure.Plan.font_objects(sample.structure)
 	first = list_at(font_objects, 0)
-	KernelStructure.Plan.object_count(structure) == 20 and
+	KernelStructure.Plan.object_count(structure) == 18 and
 		KernelObject.ObjectId.number(first.font_file) == 12 and
-			KernelObject.ObjectId.number(first.type0) == 20 and
+			KernelObject.ObjectId.number(first.type0) == 18 and
 				KernelPdfText.ScenePlan.mappings(sample.text).len() == 1 and
 					list_at(KernelPdfText.ScenePlan.mappings(sample.text), 0).len() == 8
 }

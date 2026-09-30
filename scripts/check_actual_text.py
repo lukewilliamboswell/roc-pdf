@@ -142,7 +142,7 @@ def self_test() -> None:
     validate_actual_text_pdf(pdf)
     mutations = (
         replace_once(pdf, b"<0001> <0061>", b"<0001> <0062>"),
-        replace_once(pdf, b"/F1_0 20 0 R", b"/F1_0 19 0 R"),
+        replace_once(pdf, b"/F1_0 18 0 R", b"/F1_0 17 0 R"),
     )
     for index, mutation in enumerate(mutations):
         try:

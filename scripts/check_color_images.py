@@ -27,7 +27,9 @@ import zlib
 from pathlib import Path
 
 from check_forms import FormFacts, check_ownership, replace_once
+from pdf_layout import mutate as layout_mutate
 from check_pdf_structure import (
+    decode_stream,
     ValidationError,
     dictionary_ref,
     indirect_length,
@@ -97,9 +99,10 @@ class LeafFacts:
             if marker < 0:
                 continue
             dictionary = body[:marker]
-            if b"/N 3" in dictionary and b"/Subtype" not in dictionary and b"/Filter" not in dictionary:
-                _, encoded = raw_stream(self.bodies, number)
-                self.profiles[number] = encoded
+            if b"/N 3" in dictionary and b"/Subtype" not in dictionary:
+                require(b"/Filter /FlateDecode" in dictionary, f"profile stream {number} is not FlateDecode")
+                _, decoded = decode_stream(self.bodies, number)
+                self.profiles[number] = decoded
 
         self.cal_gray_spaces = {
             number for number, body in self.bodies.items() if body.strip().startswith(b"[/CalGray")
@@ -327,14 +330,12 @@ def self_test() -> None:
     )
 
     ## Length-preserving mutation twins: each must be rejected.
+    # The profile is a FlateDecode stream; the twin flips one decoded byte
+    # and re-deflates it.
     vendored = SRGB_PROFILE.read_bytes()
     profile_prefix = vendored[:64]
-    offset = showcase.find(profile_prefix)
-    require(offset >= 0, "self-test fixture does not embed the vendored profile bytes")
-    flipped_profile = (
-        showcase[: offset + 40] + bytes([showcase[offset + 40] ^ 0x01]) + showcase[offset + 41 :]
-    )
-    require(len(flipped_profile) == len(showcase), "profile mutation changed the byte length")
+    flipped_prefix = profile_prefix[:40] + bytes([profile_prefix[40] ^ 0x01]) + profile_prefix[41:]
+    flipped_profile = layout_mutate(showcase, profile_prefix, flipped_prefix, occurrences=1)
 
     mutations = (
         ("profile payload", flipped_profile),

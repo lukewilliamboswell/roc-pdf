@@ -1316,6 +1316,14 @@ It never inserts synthetic grouping items to balance sibling lists because
 those items would alter the visible document outline. Entry and depth limits
 are explicit and checked before an outline plan can escape.
 
+Every generated stream payload (page and form content, font programs,
+ToUnicode CMaps, ICC profiles, image samples, and masks) is FlateDecode through
+the package compressor seam. Validated JPEG data keeps DCTDecode unchanged.
+The XMP metadata stream stays unfiltered because PDF/A-4 requires it. A
+CIDFontType2 whose CIDs are its subset glyph IDs, which font planning
+guarantees, declares `/CIDToGIDMap /Identity` rather than carrying an identity
+map stream.
+
 The initial file representation uses PDF 2.0 xref streams. Object streams are
 an independent compression optimization and are not required by the
 architecture. Incremental revisions and linearization are outside the
@@ -1369,7 +1377,7 @@ conformance, size-bound, and safe-output-bound errors occur before sealing,
 followed by a validation failure.
 
 Generated chunks have bounded independently owned backing allocations. When a
-validated JPEG, ICC profile, or other resource range is already exactly the
+validated JPEG or other resource range is already exactly the
 bytes required by the PDF stream, the default chunk policy may instead return
 a seamless slice of that resource allocation. Such a slice is immutable and
 avoids copying, but retaining even a small slice can retain the whole source

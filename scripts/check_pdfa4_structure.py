@@ -32,6 +32,7 @@ import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
 from check_pdf_structure import (
+    decode_stream,
     ValidationError,
     dictionary_ref,
     indirect_length,
@@ -115,14 +116,7 @@ def skeleton(pdf: bytes, pages: int) -> tuple[dict[int, int], dict[int, bytes], 
 
 
 def stream_payload(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]:
-    body = bodies.get(number)
-    require(body is not None, f"object {number} does not resolve")
-    marker = body.find(b"stream\n")
-    require(marker >= 0, f"object {number} is not a stream")
-    dictionary = body[:marker]
-    length = indirect_length(bodies, dictionary_ref(dictionary, b"Length"))
-    _, payload = stream_parts(body, length)
-    return dictionary, payload
+    return decode_stream(bodies, number)
 
 
 def check_metadata(bodies: dict[int, bytes], catalog: bytes) -> bytes:

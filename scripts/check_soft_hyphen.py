@@ -118,7 +118,7 @@ def self_test() -> None:
     validate_soft_hyphen_pdf(pdf)
     for index, mutation in enumerate((
         replace_once(pdf, b"<0008> <00AD>", b"<0008> <002D>"),
-        replace_once(pdf, b"/F1_0 20 0 R", b"/F1_0 19 0 R"),
+        replace_once(pdf, b"/F1_0 18 0 R", b"/F1_0 17 0 R"),
     )):
         try:
             validate_soft_hyphen_pdf(mutation)

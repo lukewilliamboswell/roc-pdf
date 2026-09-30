@@ -1,13 +1,17 @@
 # text-layout Type 0 PDF font object slice
 
 This slice lowers earlier inspected, planned, and subset font facts into a
-sealed PDF object graph. It assigns nine consecutive indirect objects for the
-embedded `FontFile2` stream, explicit `CIDToGIDMap` stream, `ToUnicode` CMap,
+sealed PDF object graph. It assigns seven consecutive indirect objects for the
+embedded FlateDecode `FontFile2` stream, the FlateDecode `ToUnicode` CMap,
 font descriptor, CIDFontType2 descendant, and Type 0 parent. Stream length
 objects are assigned by the shared object kernel and validated by sealing.
+(Until the output-size work in [output-size.md](output-size.md) the bundle had
+nine objects: both streams were unfiltered and the identity CID map was an
+explicit `CIDToGIDMap` stream.)
 
 The lowering consumes the dense subset plan directly: CID equals the subset
-glyph ID, the explicit CID map records every retained glyph, and `/W` contains
+glyph ID, which is validated for every retained glyph so the descendant can
+declare `/CIDToGIDMap /Identity` (ISO 32000-2 Table 115), and `/W` contains
 one checked 1,000-unit width for every CID. Descriptor and width metrics are
 scaled once from the inspected units-per-em. The subset prefix and validated
 PostScript name form the PDF BaseFont name; caller-controlled whitespace,

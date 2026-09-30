@@ -5,11 +5,13 @@ import argparse
 import hashlib
 import os
 import re
+import struct
 import subprocess
 import tempfile
 import zlib
 from pathlib import Path
 
+from pdf_layout import flatten, mutate
 from check_pdf_structure import (
     ValidationError,
     dictionary_ref,
@@ -164,7 +166,7 @@ def validate_text_pdf(pdf: bytes) -> None:
         b"/W [0 [656 730 722 590 639 562 583 583 370 0 281]]" in cid_body,
         "CID widths are not the independently expected sequence",
     )
-    cid_map = dictionary_ref(cid_body, b"CIDToGIDMap")
+    require(b"/CIDToGIDMap /Identity " in cid_body, "CIDFont does not declare the identity CIDToGIDMap")
     descriptor = dictionary_ref(cid_body, b"FontDescriptor")
 
     descriptor_body = bodies[descriptor]
@@ -174,10 +176,6 @@ def validate_text_pdf(pdf: bytes) -> None:
     base_names = re.findall(rb"/(?:BaseFont|FontName) /([A-Z]{6}\+RocPdfSans-Regular)", type0_body + cid_body + descriptor_body)
     require(len(base_names) == 3 and len(set(base_names)) == 1, "subset font names are not one exact identity")
 
-    cid_dictionary, cid_bytes = decoded_stream(bodies, cid_map)
-    require(b"/Filter " not in cid_dictionary, "CIDToGIDMap unexpectedly uses a filter")
-    require(cid_bytes == b"".join(value.to_bytes(2, "big") for value in range(11)), "CIDToGIDMap is not identity for CIDs 0 through 10")
-
     _, cmap = decoded_stream(bodies, to_unicode)
     require(cmap_mappings(cmap) == EXPECTED_MAPPINGS, "ToUnicode mappings differ from source Unicode")
     shown_cids = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", EXPECTED_CONTENT)]
@@ -186,8 +184,10 @@ def validate_text_pdf(pdf: bytes) -> None:
     require(extracted == EXPECTED_TEXT, "direct CID/ToUnicode reconstruction differs from expected text")
 
     font_dictionary, font_bytes = decoded_stream(bodies, font_file)
+    require(b"/Filter /FlateDecode" in font_dictionary, "embedded FontFile2 is not FlateDecode")
     require(b"/Length1 6776" in font_dictionary, "embedded font Length1 is not exact")
     require(font_bytes.startswith(b"\x00\x01\x00\x00"), "embedded FontFile2 is not TrueType-flavoured sfnt")
+    require(glyph_count(font_bytes) == 11, "identity CIDToGIDMap does not cover exactly the eleven subset glyphs")
     require(hashlib.sha256(font_bytes).hexdigest() == EXPECTED_SUBSET_SHA256, "embedded sanitized subset digest differs")
 
 
@@ -217,9 +217,28 @@ def check_pdfbox_extraction(pdf: Path) -> None:
 
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
+    """A flat twin with the one occurrence of ``old`` replaced.
+
+    ``old`` must occur exactly once among object bodies; a target absent
+    from them must occur exactly once among decoded stream payloads
+    (for example a ToUnicode row), which are re-deflated after the edit.
+    """
     require(len(old) == len(new), "negative twin must preserve byte length")
-    require(value.count(old) == 1, f"negative twin source occurs {value.count(old)} times")
-    return value.replace(old, new, 1)
+    flat = flatten(value)
+    if old in flat:
+        require(flat.count(old) == 1, f"negative twin source occurs {flat.count(old)} times")
+        return flat.replace(old, new, 1)
+    return mutate(value, old, new, occurrences=1)
+
+
+def glyph_count(font: bytes) -> int:
+    """numGlyphs from the embedded subset's maxp table."""
+    tables = struct.unpack(">H", font[4:6])[0]
+    for index in range(tables):
+        tag, _, offset, _ = struct.unpack(">4sIII", font[12 + 16 * index : 28 + 16 * index])
+        if tag == b"maxp":
+            return struct.unpack(">H", font[offset + 4 : offset + 6])[0]
+    raise ValidationError("embedded subset has no maxp table")
 
 
 def self_test() -> None:
@@ -227,8 +246,8 @@ def self_test() -> None:
     validate_text_pdf(pdf)
     mutations = (
         replace_once(pdf, b"<0007> <00E9>", b"<0007> <00E8>"),
-        replace_once(pdf, b"/F1_0 20 0 R", b"/F1_0 19 0 R"),
-        replace_once(pdf, b"/CIDToGIDMap 14 0 R", b"/CIDToGIDMap 15 0 R"),
+        replace_once(pdf, b"/F1_0 18 0 R", b"/F1_0 17 0 R"),
+        replace_once(pdf, b"/CIDToGIDMap /Identity ", b"/CIDToGIDMap /Identitz "),
         replace_once(pdf, b"/Length1 6776", b"/Length1 6775"),
         replace_once(pdf, b"/CapHeight 728", b"/CapHeight 729"),
     )

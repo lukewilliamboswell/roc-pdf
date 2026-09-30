@@ -2246,9 +2246,9 @@ expect {
 	work.actual_text_runs == 1 and
 		work.actual_text_scalars == 2 and
 			work.mappings == 2 and
-				KernelStructure.Plan.object_count(structure) == 20 and
+				KernelStructure.Plan.object_count(structure) == 18 and
 					KernelObject.ObjectId.number(first.font_file) == 12 and
-						KernelObject.ObjectId.number(first.type0) == 20
+						KernelObject.ObjectId.number(first.type0) == 18
 }
 
 ## A many-to-many advanced cluster is accepted only with occurrence-derived

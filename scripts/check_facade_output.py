@@ -20,7 +20,7 @@ from pathlib import Path
 
 from check_visual_renderers import read_ppm
 from check_text_renderers import InkMetrics, check_renderers, compile_pdfbox_renderer, ink_metrics
-from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, glyph_count, only_object, replace_once
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
@@ -94,19 +94,13 @@ def validate_facade_output_pdf(pdf: bytes, expected_text: str) -> None:
     cid_body = bodies[descendants[0]]
     require(b"/Subtype /CIDFontType2" in cid_body, "Type 0 descendant is not CIDFontType2")
 
-    cid_map = dictionary_ref(cid_body, b"CIDToGIDMap")
-    cid_dictionary, cid_bytes = decoded_stream(bodies, cid_map)
-    require(b"/Filter " not in cid_dictionary, "CIDToGIDMap unexpectedly uses a filter")
-    require(len(cid_bytes) > 0 and len(cid_bytes) % 2 == 0, "CIDToGIDMap has no complete CID entries")
-    cid_to_gid = [int.from_bytes(cid_bytes[index : index + 2], "big") for index in range(0, len(cid_bytes), 2)]
-    require(all(cid == gid for cid, gid in enumerate(cid_to_gid)), "facade CIDToGIDMap is not the planned identity map")
+    require(b"/CIDToGIDMap /Identity " in cid_body, "facade CIDFont does not declare the identity CIDToGIDMap")
 
     cmap = dictionary_ref(type0_body, b"ToUnicode")
     _, cmap_bytes = decoded_stream(bodies, cmap)
     mappings = cmap_mappings(cmap_bytes)
     displayed = content_text(content, mappings)
     require(displayed == expected_text, f"direct CID/ToUnicode reconstruction is {displayed!r}, expected {expected_text!r}")
-    require(all(cid < len(cid_to_gid) for cid in mappings), "ToUnicode contains a CID outside CIDToGIDMap")
 
     descriptor = dictionary_ref(cid_body, b"FontDescriptor")
     descriptor_body = bodies[descriptor]
@@ -115,7 +109,9 @@ def validate_facade_output_pdf(pdf: bytes, expected_text: str) -> None:
     font_dictionary, font_bytes = decoded_stream(bodies, font_file)
     length = re.search(rb"/Length1 ([0-9]+)", font_dictionary)
     require(length is not None and int(length.group(1)) == len(font_bytes), "FontFile2 Length1 does not equal the embedded font bytes")
+    require(b"/Filter /FlateDecode" in font_dictionary, "embedded FontFile2 is not FlateDecode")
     require(font_bytes.startswith(b"\x00\x01\x00\x00"), "embedded FontFile2 is not a TrueType-flavoured sfnt")
+    require(all(cid < glyph_count(font_bytes) for cid in mappings), "ToUnicode contains a CID outside the identity-mapped subset")
     names = re.findall(rb"/(?:BaseFont|FontName) /([A-Z]{6}\+[A-Za-z0-9._-]+)", type0_body + cid_body + descriptor_body)
     require(len(names) == 3 and len(set(names)) == 1, "font dictionaries do not retain one deterministic subset identity")
 

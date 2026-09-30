@@ -31,7 +31,9 @@ import re
 import sys
 from pathlib import Path
 
+from pdf_layout import mutate as layout_mutate
 from check_pdf_structure import (
+    decode_stream,
     ValidationError,
     dictionary_int,
     dictionary_ref,
@@ -196,9 +198,8 @@ def check_metadata(
     require(profile_marker >= 0, "output intent profile is not a stream")
     profile_dictionary = profile_body[:profile_marker]
     require(dictionary_int(profile_dictionary, b"N") == 3, "profile stream does not declare three components")
-    require(b"/Filter" not in profile_dictionary, "profile stream must stay unfiltered")
-    profile_length = indirect_length(bodies, dictionary_ref(profile_dictionary, b"Length"))
-    _, profile_bytes = stream_parts(profile_body, profile_length)
+    require(b"/Filter /FlateDecode" in profile_dictionary, "profile stream must be FlateDecode")
+    _, profile_bytes = decode_stream(bodies, profile_object)
     require(profile_bytes == SRGB_PROFILE.read_bytes(), "profile stream is not the vendored sRGB2014 asset")
 
     # Exactly one embedded copy of the packaged profile, shared by every
@@ -208,8 +209,7 @@ def check_metadata(
         body_marker = body.find(b"stream\n")
         if body_marker < 0 or b"/N 3" not in body[:body_marker]:
             continue
-        body_length = indirect_length(bodies, dictionary_ref(body[:body_marker], b"Length"))
-        _, payload = stream_parts(body, body_length)
+        _, payload = decode_stream(bodies, number)
         if payload == profile_bytes:
             copies += 1
     require(copies == 1, f"expected exactly one embedded profile, found {copies}")
@@ -292,12 +292,12 @@ def self_test() -> None:
         ("altered metadata subtype", replace_once(pdf, b"/Subtype /XML", b"/Subtype /XNL")),
         ("filtered metadata stream", replace_once(pdf, b"/Subtype /XML /Type /Metadata", b"/Filterx /XML /Type /Metadata")),
     ]
+    # The profile is a FlateDecode stream; the twin flips one decoded byte
+    # and re-deflates it.
     profile_payload = SRGB_PROFILE.read_bytes()
-    corrupt_profile = bytearray(pdf)
-    profile_offset = pdf.find(profile_payload)
-    require(profile_offset >= 0, "self-test snapshot does not embed the vendored profile")
-    corrupt_profile[profile_offset + 100] ^= 0xFF
-    mutations.append(("altered ICC payload byte", bytes(corrupt_profile)))
+    window = profile_payload[96:112]
+    flipped = window[:4] + bytes([window[4] ^ 0xFF]) + window[5:]
+    mutations.append(("altered ICC payload byte", layout_mutate(pdf, window, flipped, occurrences=1)))
 
     for label, mutation in mutations:
         try:

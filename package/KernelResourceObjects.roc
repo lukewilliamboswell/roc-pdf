@@ -142,11 +142,11 @@ add_canonical_profiles = |builder, names, profiles, representatives, planned| {
 			Err(error) => {
 				return Err(Object(error))
 			}
-			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, UnchangedResource) {
+			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, Generated) {
 				Err(error) => {
 					return Err(Object(error))
 				}
-				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Unfiltered, payload.id) {
+				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Deflate, payload.id) {
 					Err(error) => {
 						return Err(Object(error))
 					}
@@ -316,11 +316,11 @@ add_profiles = |builder, names, profiles, planned| {
 			Err(error) => {
 				return Err(Object(error))
 			}
-			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, UnchangedResource) {
+			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, Generated) {
 				Err(error) => {
 					return Err(Object(error))
 				}
-				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Unfiltered, payload.id) {
+				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Deflate, payload.id) {
 					Err(error) => {
 						return Err(Object(error))
 					}

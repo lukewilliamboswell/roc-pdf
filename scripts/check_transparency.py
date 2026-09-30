@@ -31,6 +31,7 @@ from pathlib import Path
 
 from check_forms import FormFacts, check_ownership, replace_once
 from check_pdf_structure import (
+    decode_stream,
     ValidationError,
     dictionary_ref,
     object_slices,
@@ -173,10 +174,7 @@ class TransparencyFacts:
         icc = re.match(rb"\[/ICCBased ([1-9][0-9]*) 0 R\]", body.strip())
         require(icc is not None, "page /Group /CS is not the canonical ICCBased array")
         profile = int(icc.group(1))
-        profile_body = self.bodies[profile]
-        marker = profile_body.find(b"stream\n")
-        require(marker >= 0, "blending profile is not a stream")
-        payload = profile_body[marker + len(b"stream\n") : profile_body.rfind(b"\nendstream")]
+        _, payload = decode_stream(self.bodies, profile)
         require(payload == SRGB_PROFILE.read_bytes(), "blending profile is not byte-identical to the vendored sRGB2014.icc")
 
     def isolated_forms(self) -> dict[int, int]:
