@@ -20,8 +20,8 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##
 ## - The three ordinary documents are the gallery examples:
 ##   `scripts/check_reference_documents.py` proves their snapshots are
-##   byte-identical to `examples/tax-invoice.pdf`,
-##   `examples/business-report.pdf`, and `examples/warranty-letter.pdf`, and
+##   byte-identical to `examples/tax-invoice/tax-invoice.pdf`,
+##   `examples/business-report/business-report.pdf`, and `examples/warranty-letter/warranty-letter.pdf`, and
 ##   `scripts/check_gallery.py` that the example programs regenerate those.
 ## - Every accepted variant is prepared with `Pdf.prepare_with_report` and
 ##   its policy outcome is checked through the report's mechanical facts,

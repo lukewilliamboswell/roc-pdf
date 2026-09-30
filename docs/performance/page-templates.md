@@ -367,5 +367,5 @@ investigated separately); every rerun passed, and the final cold-cache
 - **Batch identity.** Furniture lines shape through the facade's shaping
   batch, whose requests name an occurrence ordinal; the furniture stage
   replaces it with the artifact source before any run leaves the stage.
-- **Gallery.** `examples/letter.roc` does not use templates yet; the
+- **Gallery.** `examples/warranty-letter/main.roc` does not use templates yet; the
   reference-letter slice will.

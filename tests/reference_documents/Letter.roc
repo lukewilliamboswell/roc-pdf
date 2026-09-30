@@ -6,7 +6,7 @@ import pdf.Scene
 import pdf.Theme
 
 ## The reference business letter (docs/reference-documents.md), authored
-## through the public `Pdf` constructors exactly as `examples/letter.roc`
+## through the public `Pdf` constructors exactly as `examples/warranty-letter/main.roc`
 ## authors it, with the knobs its adverse variants change. `ordinary`
 ## produces the gallery letter byte for byte.
 Letter :: [].{

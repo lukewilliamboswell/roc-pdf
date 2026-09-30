@@ -1048,8 +1048,8 @@ independent structure checker. Each record lists its own open issues:
   `docs/performance/cid-system-info-ascii.md`.
 
 - Reference documents and closure (S10): the gallery programs
-  `examples/prepared_invoice.roc`, `examples/business_report.roc`, and
-  `examples/letter.roc`, the `tests/reference_documents` family, the
+  `examples/tax-invoice/main.roc`, `examples/business-report/main.roc`, and
+  `examples/warranty-letter/main.roc`, the `tests/reference_documents` family, the
   structure-extraction and reference-document checkers, and the closure
   review: `docs/performance/business-authoring-closure.md`.
 

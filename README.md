@@ -64,22 +64,22 @@ runnable Roc source.
 
 <table>
 <tr>
-<td><a href="examples/quarterly-report.pdf"><img src="examples/previews/quarterly-report.png" alt="Quarterly report preview"></a><br><a href="examples/quarterly_report.roc">Quarterly report source</a></td>
-<td><a href="examples/brand-brief.pdf"><img src="examples/previews/brand-brief.png" alt="Brand brief preview"></a><br><a href="examples/brand_brief.roc">Brand brief source</a></td>
-<td><a href="examples/field-guide.pdf"><img src="examples/previews/field-guide.png" alt="Field guide preview"></a><br><a href="examples/field_guide.roc">Field guide source</a></td>
+<td><a href="examples/quarterly-report/quarterly-report.pdf"><img src="examples/quarterly-report/preview.png" alt="Quarterly report preview"></a><br><a href="examples/quarterly-report/main.roc">Quarterly report source</a></td>
+<td><a href="examples/brand-brief/brand-brief.pdf"><img src="examples/brand-brief/preview.png" alt="Brand brief preview"></a><br><a href="examples/brand-brief/main.roc">Brand brief source</a></td>
+<td><a href="examples/field-guide/field-guide.pdf"><img src="examples/field-guide/preview.png" alt="Field guide preview"></a><br><a href="examples/field-guide/main.roc">Field guide source</a></td>
 </tr>
 <tr>
-<td><a href="examples/operations-handbook.pdf"><img src="examples/previews/operations-handbook.png" alt="Operations handbook preview"></a><br><a href="examples/operations_handbook.roc">Operations handbook source</a></td>
-<td><a href="examples/warranty-letter.pdf"><img src="examples/previews/warranty-letter.png" alt="Reference business letter preview"></a><br><a href="examples/letter.roc">Business letter source</a></td>
-<td><a href="examples/release-notes.pdf"><img src="examples/previews/release-notes.png" alt="Release notes preview"></a><br><a href="examples/release_notes.roc">Release notes source</a></td>
+<td><a href="examples/operations-handbook/operations-handbook.pdf"><img src="examples/operations-handbook/preview.png" alt="Operations handbook preview"></a><br><a href="examples/operations-handbook/main.roc">Operations handbook source</a></td>
+<td><a href="examples/warranty-letter/warranty-letter.pdf"><img src="examples/warranty-letter/preview.png" alt="Reference business letter preview"></a><br><a href="examples/warranty-letter/main.roc">Business letter source</a></td>
+<td><a href="examples/release-notes/release-notes.pdf"><img src="examples/release-notes/preview.png" alt="Release notes preview"></a><br><a href="examples/release-notes/main.roc">Release notes source</a></td>
 </tr>
 <tr>
-<td><a href="examples/tax-invoice.pdf"><img src="examples/previews/tax-invoice.png" alt="Reference tax invoice preview"></a><br><a href="examples/prepared_invoice.roc">Tax invoice source</a></td>
-<td><a href="examples/chunked-export.pdf"><img src="examples/previews/chunked-export.png" alt="Chunked export preview"></a><br><a href="examples/chunked_export.roc">Chunked export source</a></td>
-<td><a href="examples/product-brief.pdf"><img src="examples/previews/product-brief.png" alt="Product brief preview"></a><br><a href="examples/product_brief.roc">Product brief source</a></td>
+<td><a href="examples/tax-invoice/tax-invoice.pdf"><img src="examples/tax-invoice/preview.png" alt="Reference tax invoice preview"></a><br><a href="examples/tax-invoice/main.roc">Tax invoice source</a></td>
+<td><a href="examples/chunked-export/chunked-export.pdf"><img src="examples/chunked-export/preview.png" alt="Chunked export preview"></a><br><a href="examples/chunked-export/main.roc">Chunked export source</a></td>
+<td><a href="examples/product-brief/product-brief.pdf"><img src="examples/product-brief/preview.png" alt="Product brief preview"></a><br><a href="examples/product-brief/main.roc">Product brief source</a></td>
 </tr>
 <tr>
-<td><a href="examples/business-report.pdf"><img src="examples/previews/business-report.png" alt="Reference business report preview"></a><br><a href="examples/business_report.roc">Business report source</a></td>
+<td><a href="examples/business-report/business-report.pdf"><img src="examples/business-report/preview.png" alt="Reference business report preview"></a><br><a href="examples/business-report/main.roc">Business report source</a></td>
 </tr>
 </table>
 

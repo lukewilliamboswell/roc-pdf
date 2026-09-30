@@ -23,11 +23,11 @@ cannot provision it (see [Open issues](#open-issues)).
 
 - **Reference programs.** The three references of
   [docs/reference-documents.md](../reference-documents.md) are gallery
-  programs through the public API only: `examples/prepared_invoice.roc`
+  programs through the public API only: `examples/tax-invoice/main.roc`
   (the multi-page tax invoice, still prepared once and then emitted;
-  `tax-invoice.pdf` replaces `invoice-1048.pdf`), `examples/letter.roc` (the
+  `tax-invoice.pdf` replaces `invoice-1048.pdf`), `examples/warranty-letter/main.roc` (the
   business letter; `warranty-letter.pdf` replaces `project-letter.pdf`), and
-  `examples/business_report.roc` (the business report, new;
+  `examples/business-report/main.roc` (the business report, new;
   `business-report.pdf`). The report's "Key figures" callout is the custom
   block extension of `tests/custom_block/Callout.roc`, copied into the
   example; Figure 2 is a caller-supplied 128 × 69 baseline sRGB JPEG held in

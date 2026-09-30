@@ -1,6 +1,6 @@
 app [main!] {
 	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.23.0/GNN5tt2gKdX4dhawg4915C4YB193woHFdcCkz31fhGxv.tar.zst",
-	pdf: "../package/main.roc",
+	pdf: "../../package/main.roc",
 }
 import pf.Path
 import pf.Stdout
@@ -11,8 +11,8 @@ import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
-import "../vendor/fonts/Inter-4.1-Regular.ttf" as inter_bytes : List(U8)
-import "../tests/assets/NotoSansMono-Code-Fixture.ttf" as mono_bytes : List(U8)
+import "../../vendor/fonts/Inter-4.1-Regular.ttf" as inter_bytes : List(U8)
+import "../../tests/assets/NotoSansMono-Code-Fixture.ttf" as mono_bytes : List(U8)
 
 ## Lumen brand guidelines: a branded multi-page brief set in Inter with a
 ## monospace face for colour and token codes. It shows running headers and

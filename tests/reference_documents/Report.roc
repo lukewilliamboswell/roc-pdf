@@ -9,7 +9,7 @@ import pdf.Theme
 
 ## The reference business report (docs/reference-documents.md), authored
 ## through the public `Pdf` constructors exactly as
-## `examples/business_report.roc` authors it (its "Key figures" callout
+## `examples/business-report/main.roc` authors it (its "Key figures" callout
 ## through the separately authored `Callout` extension), with the knobs
 ## its adverse variants change. `ordinary` produces the gallery report
 ## byte for byte.

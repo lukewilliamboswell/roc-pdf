@@ -14,8 +14,8 @@ Version: **`reference-documents-v10`**.
 
 - It began as a design record. From `reference-documents-v10` every outline,
   adverse variant, and policy below is executable: the three references are
-  the gallery programs `examples/prepared_invoice.roc`,
-  `examples/business_report.roc`, and `examples/letter.roc`, and
+  the gallery programs `examples/tax-invoice/main.roc`,
+  `examples/business-report/main.roc`, and `examples/warranty-letter/main.roc`, and
   `tests/reference_documents` prepares each of them and every adverse
   variant (see [the closure record](performance/business-authoring-closure.md)).
   Capability status remains governed by the [roadmap](../feature-roadmap.md)
@@ -270,7 +270,7 @@ rules (`Decoration`).
   ordinary variant is expected to occupy two or three pages; the exact break
   rows are recorded here from the first reviewed snapshot.
 - Reviewed break positions (`reference-documents-v10`, MuPDF 1.28.2 render
-  of `examples/tax-invoice.pdf`): three pages. Page 1 holds body rows 1–9
+  of `examples/tax-invoice/tax-invoice.pdf`): three pages. Page 1 holds body rows 1–9
   (through `HF-DSK-140/L3`); page 2 repaints the header row and holds rows
   10–28 (through `HF-CAF-ELG/L5`); page 3 repaints the header row and holds
   rows 29–32, the three totals rows, and the Payment section. No preference
@@ -493,7 +493,7 @@ custom block).
   orphan minimums unless a relaxation is reported. The exact page
   composition is recorded here from the first reviewed snapshot.
 - Reviewed composition (`reference-documents-v10`, MuPDF 1.28.2 render of
-  `examples/business-report.pdf`): five pages. Page 1 holds the title,
+  `examples/business-report/business-report.pdf`): five pages. Page 1 holds the title,
   subtitle, section 1 with its list and the callout, and section 2 through
   Table 1 (unsplit); Figure 1 with its caption does not fit below it and
   opens page 2, which continues with section 3 through the paragraph of
@@ -628,7 +628,7 @@ rules.
 - Invariants: the signature block is never split; the explicit break always
   starts the schedule on a new page; `Page N of M` is exact.
 - Reviewed composition (`reference-documents-v10`, MuPDF 1.28.2 render of
-  `examples/warranty-letter.pdf`): three pages. Page 1 holds the letterhead,
+  `examples/warranty-letter/warranty-letter.pdf`): three pages. Page 1 holds the letterhead,
   date, recipient, salutation, subject, and body paragraphs 1–4; page 2
   paragraphs 5–6, the list, the closing paragraphs, the signature block,
   and the enclosure line; page 3 the schedule. The schedule dates read

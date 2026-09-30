@@ -7,7 +7,7 @@ import pdf.Theme
 
 ## The reference multi-page tax invoice (docs/reference-documents.md),
 ## authored through the public `Pdf` constructors exactly as
-## `examples/prepared_invoice.roc` authors it, with the knobs its adverse
+## `examples/tax-invoice/main.roc` authors it, with the knobs its adverse
 ## variants change. `ordinary` produces the gallery invoice byte for byte.
 Invoice :: [].{
 	Arrangement : [Ordinary, KeepItemsWithPayment, BreakInsideKeep]

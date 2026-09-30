@@ -388,7 +388,7 @@ the next run.
   rebaselined in one reviewed change.
 - **Reference documents.** The invoice and report tables are exercised in
   this family, but the complete reference documents (templates, furniture,
-  figures) belong to later slices; `examples/prepared_invoice.roc` still
+  figures) belong to later slices; `examples/tax-invoice/main.roc` still
   lists its services as bullets.
 - **Relaxations and repeated headers are not yet public**; the preparation
   report must map page-layout units to authored paths, as the facade's

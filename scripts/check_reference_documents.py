@@ -69,9 +69,9 @@ REPORT_DESTINATIONS = {
 # the committed example PDFs must be the same bytes (scripts/check_gallery.py
 # proves each example program regenerates its PDF).
 GALLERY = {
-    "invoice": ROOT / "examples" / "tax-invoice.pdf",
-    "report": ROOT / "examples" / "business-report.pdf",
-    "letter": ROOT / "examples" / "warranty-letter.pdf",
+    "invoice": ROOT / "examples" / "tax-invoice" / "tax-invoice.pdf",
+    "report": ROOT / "examples" / "business-report" / "business-report.pdf",
+    "letter": ROOT / "examples" / "warranty-letter" / "warranty-letter.pdf",
 }
 
 HEADING_LEADING = 18.0
