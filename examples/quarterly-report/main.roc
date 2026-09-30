@@ -50,15 +50,20 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, registry: italic.registry })
 }
 
-## Regular for every block role (the style-face path requires one face
-## for body, heading, and title text); Bold for `Pdf.strong`;
-## Italic for `Pdf.emphasis`.
+## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
+## Italic for `Pdf.emphasis`. Level-2 headings are smaller and teal.
 with_faces : Theme, Faces -> Theme
-with_faces = |base, faces|
+with_faces = |base, faces| {
+	title = Theme.title_style(base)
+	heading = Theme.heading_style(base)
 	base
 		.with_font(faces.regular)
+		.with_title_style({ ..title, font: faces.bold })
+		.with_heading_level_style(H1, { ..heading, font: faces.bold })
+		.with_heading_level_style(H2, { ..heading, font: faces.bold, color: teal, size: points(12), leading: points(17) })
 		.with_inline_font(Strong, faces.bold)
 		.with_inline_font(Emphasis, faces.italic)
+}
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -103,6 +108,8 @@ theme = {
 		.with_table_rule(Rule({ color: teal, width: points(1) }))
 		.with_table_cell_padding(points(5))
 		.with_table_row_gap(points(5))
+		.with_link_color(teal)
+		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1300), thickness: Layout.Unit.millipoints(500) }))
 }
 
 ## ---------------------------------------------------------------------
@@ -187,20 +194,23 @@ outline = [
 callout_inset : Layout.Unit
 callout_inset = points(12)
 
-callout : { accent : Color.SourceValue, fill : Color.SourceValue, lines : List(Str), name : Str } -> Document.Block
+## Each line is a label and its value; the callout scopes its `Strong`
+## labels to its accent colour.
+callout : { accent : Color.SourceValue, fill : Color.SourceValue, lines : List((Str, Str)), name : Str } -> Document.Block
 callout = |{ accent, fill, lines, name }| {
 	leading = Theme.body_style(theme).leading.raw()
 	spacing = Theme.paragraph_spacing(theme).raw()
 	count = lines.len().to_i64_wrap()
 	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(body_width) }
-	Pdf.custom_block({
-		contents: lines.map(|line| Pdf.paragraph(line)),
+	block = Pdf.custom_block({
+		contents: lines.map(|(label, value)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${value}")])),
 		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name,
 		panel: callout_panel(size, fill, accent),
 		size,
 	})
+	Pdf.scoped(Theme.Scope.empty.with_color(Strong, accent), [block])
 }
 
 callout_panel : Layout.Size, Color.SourceValue, Color.SourceValue -> Scene.Drawing
@@ -229,90 +239,29 @@ callout_panel = |size, fill, accent| {
 }
 
 ## ---------------------------------------------------------------------
-## Chart lettering: seven-segment digits drawn as rectangles, 5 × 9 pt.
-
-digit : U64 -> Scene.Drawing
-digit = |value| {
-	a = (0, 8, 5, 1)
-	b = (4, 4, 1, 5)
-	c = (4, 0, 1, 5)
-	d = (0, 0, 5, 1)
-	e = (0, 0, 1, 5)
-	f = (0, 4, 1, 5)
-	g = (0, 4, 5, 1)
-	segments = if value == 0 {
-		[a, b, c, d, e, f]
-	} else if value == 1 {
-		[b, c]
-	} else if value == 2 {
-		[a, b, g, e, d]
-	} else if value == 3 {
-		[a, b, g, c, d]
-	} else if value == 4 {
-		[f, g, b, c]
-	} else if value == 5 {
-		[a, f, g, c, d]
-	} else if value == 6 {
-		[a, f, g, e, c, d]
-	} else if value == 7 {
-		[a, b, c]
-	} else if value == 8 {
-		[a, b, c, d, e, f, g]
-	} else {
-		[a, b, c, d, f, g]
-	}
-	var $drawing = Scene.drawing({})
-	for (x, y, w, h) in segments {
-		$drawing = Scene.rectangle($drawing, Layout.rect(x, y, w, h), ink)
-	}
-	$drawing
-}
-
-## The decimal digits of `value`, most significant first.
-digits_of : U64 -> List(U64)
-digits_of = |value| {
-	var $power = 1
-	while $power * 10 <= value {
-		$power = $power * 10
-	}
-	var $digits = List.with_capacity(6)
-	while $power > 0 {
-		$digits = $digits.append((value // $power) % 10)
-		$power = $power // 10
-	}
-	$digits
-}
-
-## Draws `value` with its last digit ending at `x` and its baseline at `y`.
-number_end : Scene.Drawing, U64, I64, I64 -> Scene.Drawing
-number_end = |drawing, value, x, y| {
-	digits = digits_of(value)
-	var $drawing = drawing
-	var $at = x - 7 * digits.len().to_i64_wrap() + 2
-	for d in digits {
-		$drawing = $drawing.group(Layout.point($at, y), digit(d))
-		$at = $at + 7
-	}
-	$drawing
-}
-
-## ---------------------------------------------------------------------
 ## Figure 1: monthly revenue (AUD thousands) for July to December, Q1 in
 ## slate and Q2 in teal, with gross margin as an amber line on the same
 ## plot (a margin of m% is drawn at m × 50 on the revenue scale).
 
-monthly : List({ margin : I64, revenue : I64 })
+monthly : List({ margin : I64, name : Str, revenue : I64 })
 monthly = [
-	{ revenue: 2410, margin: 31 },
-	{ revenue: 2530, margin: 32 },
-	{ revenue: 2480, margin: 31 },
-	{ revenue: 2690, margin: 33 },
-	{ revenue: 2870, margin: 34 },
-	{ revenue: 3140, margin: 36 },
+	{ name: "Jul", revenue: 2410, margin: 31 },
+	{ name: "Aug", revenue: 2530, margin: 32 },
+	{ name: "Sep", revenue: 2480, margin: 31 },
+	{ name: "Oct", revenue: 2690, margin: 33 },
+	{ name: "Nov", revenue: 2870, margin: 34 },
+	{ name: "Dec", revenue: 3140, margin: 36 },
 ]
 
 revenue_height : I64 -> I64
 revenue_height = |value| value * 170 // 4000
+
+## A legend key: a small swatch drawing and its name.
+key : Scene.Drawing, I64, I64, Scene.Drawing, Str -> Scene.Drawing
+key = |drawing, x, y, swatch, name|
+	drawing
+		.group(Layout.point(x, y), swatch)
+		.text({ align: Start, color: ink, origin: Layout.point(x + 14, y + 1), size: points(8), text: name })
 
 revenue_chart : Scene.Drawing
 revenue_chart = {
@@ -324,7 +273,7 @@ revenue_chart = {
 		$chart = Scene.rectangle($chart, { origin: Layout.point(left, base + revenue_height(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(width) } }, grid)
 	}
 	for step in [0, 1, 2, 3, 4] {
-		$chart = number_end($chart, step * 1000, left - 6, base - 4 + revenue_height(step.to_i64_wrap() * 1000))
+		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: points(8), text: if step == 0 "0" else "${step.to_str()},000" })
 	}
 	slot = width // 6
 	var $index = 0
@@ -334,8 +283,8 @@ revenue_chart = {
 		color = if $index < 3 slate else teal
 		$chart = Scene.rectangle($chart, Layout.rect(x - 22, base, 44, revenue_height(month.revenue)), color)
 
-		## The month number (7 to 12) under its bar.
-		$chart = number_end($chart, ($index + 7).to_u64_wrap(), x + 5, 2)
+		## The month under its bar and its revenue above it.
+		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(x, 3), size: points(8), text: month.name })
 		my = base + revenue_height(month.margin * 50 + 1000)
 		$line = if $index == 0 $line.move_to(Layout.point(x, my)) else $line.line_to(Layout.point(x, my))
 		$index = $index + 1
@@ -350,38 +299,49 @@ revenue_chart = {
 		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(x - 4, my - 4, 8, 8), amber), Layout.rect(x - 2, my - 2, 4, 4), white)
 		$i = $i + 1
 	}
-	$chart
+
+	## The legend, above the plot.
+	legend_y = base + revenue_height(4000) + 14
+	swatch = |color| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 10, 8), color)
+	margin_key = Scene.rectangle(Scene.drawing({}).path(Scene.path({}).move_to(Layout.point(0, 4)).line_to(Layout.point(10, 4)).finish(), Scene.solid_stroke(amber, points(2))), Layout.rect(3, 2, 4, 4), amber)
+	$chart = key($chart, left, legend_y, swatch(slate), "Q1 revenue")
+	$chart = key($chart, left + 90, legend_y, swatch(teal), "Q2 revenue")
+	key($chart, left + 180, legend_y, margin_key, "Gross margin, 31% to 36%")
 }
 
 ## ---------------------------------------------------------------------
 ## Figure 2: progress toward the four FY2027 targets as horizontal tracks,
-## each labelled with its percentage and marked at the halfway point the
-## calendar has reached.
+## each named above its track, labelled with its percentage, and marked at
+## the halfway point the calendar has reached.
 
-progress : List(U64)
-progress = [62, 48, 71, 39]
+progress : List((Str, U64))
+progress = [("Revenue", 62), ("New members", 48), ("Advisory clients", 71), ("Emissions reduction", 39)]
 
 progress_chart : Scene.Drawing
 progress_chart = {
-	track = body_width - 60
+	## Names in a 104 pt column, tracks after it, percentages at the end.
+	start = 112
+	track = body_width - start - 46
+	row_height = 28
 	var $chart = Scene.drawing({})
 	var $row = 0
-	for percent in progress {
-		y = 3 * 30 - $row * 30 + 6
+	for (name, percent) in progress {
+		y = 3 * row_height - $row * row_height + 6
 		filled = track * percent.to_i64_wrap() // 100
 		color = if percent >= 50 teal else amber
-		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(0, y, track, 14), grid), Layout.rect(0, y, filled, 14), color)
-		$chart = number_end($chart, percent, track + 26, y + 3)
-
-		## A percent sign: two dots and a slash.
-		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(track + 30, y + 9, 2, 2), ink), Layout.rect(track + 36, y + 3, 2, 2), ink)
-			.path(Scene.path({}).move_to(Layout.point(track + 30, y + 3)).line_to(Layout.point(track + 38, y + 11)).finish(), Scene.solid_stroke(ink, Layout.Unit.millipoints(900)))
+		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(start, y, track, 14), grid), Layout.rect(start, y, filled, 14), color)
+		$chart = $chart
+			.text({ align: End, color: ink, origin: Layout.point(start - 8, y + 3), size: points(9), text: name })
+			.text({ align: End, color: ink, origin: Layout.point(body_width - 2, y + 3), size: points(10), text: "${percent.to_str()}%" })
 		$row = $row + 1
 	}
 
 	## The calendar marker: half of the financial year has elapsed.
-	half = track // 2
-	$chart.path(Scene.path({}).move_to(Layout.point(half, 1)).line_to(Layout.point(half, 124)).finish(), Scene.solid_stroke(navy, points(1)))
+	half = start + track // 2
+	top = 4 * row_height + 2
+	$chart
+		.path(Scene.path({}).move_to(Layout.point(half, 1)).line_to(Layout.point(half, top)).finish(), Scene.solid_stroke(navy, points(1)))
+		.text({ align: Center, color: navy, origin: Layout.point(half, top + 4), size: points(8), text: "Half year" })
 }
 
 ## ---------------------------------------------------------------------
@@ -539,10 +499,10 @@ contents = [
 			accent: teal,
 			fill: Color.srgb8({ red: 232, green: 244, blue: 244 }),
 			lines: [
-				"Revenue: AUD 8.70 m, up 17.3% year on year",
-				"Gross margin: 34.4%, up 3.1 points on Q1",
-				"Member retention: 93.6%, the highest since 2019",
-				"Member rebate declared: AUD 1.12 m, payable 28 February 2027",
+				("Revenue", "AUD 8.70 m, up 17.3% year on year"),
+				("Gross margin", "34.4%, up 3.1 points on Q1"),
+				("Member retention", "93.6%, the highest since 2019"),
+				("Member rebate declared", "AUD 1.12 m, payable 28 February 2027"),
 			],
 			name: "Key figures",
 		}),
@@ -555,8 +515,8 @@ contents = [
 			accent: amber,
 			fill: Color.srgb8({ red: 252, green: 244, blue: 230 }),
 			lines: [
-				"Members' meeting: 12 March 2027, 10 am, Dubbo Showground pavilion",
-				"Next report: Q3 FY2027, published April 2027",
+				("Members' meeting", "12 March 2027, 10 am, Dubbo Showground pavilion"),
+				("Next report", "Q3 FY2027, published April 2027"),
 			],
 			name: "Diary dates",
 		}),
@@ -573,7 +533,7 @@ contents = [
 			Pdf.figure(
 				revenue_chart,
 				"Column chart of monthly revenue from July to December 2026, rising from AUD 2.41 million in July to AUD 3.14 million in December, with the second-quarter months highlighted. An overlaid line shows gross margin rising from 31% to 36%.",
-				Pdf.caption("Figure 1. Monthly revenue in AUD thousands for months 7 to 12 (Q1 slate, Q2 teal), with gross margin as the amber line"),
+				Pdf.caption("Figure 1. Monthly revenue in AUD thousands, July to December 2026, with gross margin"),
 			),
 			ScaleToFit({ minimum_percent: 70 }),
 		),
@@ -590,7 +550,7 @@ contents = [
 			Pdf.figure(
 				progress_chart,
 				"Four progress bars against FY2027 targets: revenue 62%, new members 48%, advisory clients 71%, and emissions reduction 39%. A marker at 50% shows the elapsed half year.",
-				Pdf.caption("Figure 2. Progress toward FY2027 targets, from top: revenue, new members, advisory clients, emissions reduction"),
+				Pdf.caption("Figure 2. Progress toward FY2027 targets"),
 			),
 		]),
 		Pdf.bullet_list([
