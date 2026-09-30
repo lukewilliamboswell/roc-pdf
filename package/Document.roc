@@ -11,6 +11,10 @@ import Text
 DocumentBlock :: [
 	Bullets(List(Str)),
 	Container({ contents : List(DocumentBlock), kind : ContainerKind }),
+
+	## A separately authored extension block (the custom-block seam),
+	## boxed so the block union keeps the size of its other alternatives.
+	Custom(Box(CustomSpec)),
 	DestinationHeading({ level : U8, name : Str, text : Str }),
 	DestinationParagraph({ name : Str, text : Str }),
 	Heading({ level : U8, text : Str }),
@@ -29,6 +33,16 @@ DocumentBlock :: [
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
+
+## A custom block as the extension authored it: its semantic content
+## (ordinary paragraphs and rich paragraphs, which become a `Div`), its
+## measured box (`size`), the inset of the content inside that box on every
+## side, a label naming it in diagnostics and the preparation report, and a
+## decorative panel drawn in box-local coordinates (origin at the box's
+## bottom-left corner, y upward) behind the content. The block is
+## unsplittable: it moves whole to the next page. No PDF operators, stores,
+## or pagination callbacks cross this boundary.
+CustomSpec : { contents : List(DocumentBlock), inset : Layout.Unit, name : Str, panel : Scene.Drawing, size : Layout.Size }
 
 ## An ordinary table: boxed, so the authored block union keeps the size of
 ## its other alternatives. An optional caption, the column declarations, and its
@@ -339,6 +353,10 @@ NormalizedSpacer : { amount : Layout.Unit, block : U64, parent : U64, position :
 ## same page. `parent` and `position` locate it.
 NormalizedDecoration : { block : U64, drawing : ValidatedDrawing, parent : U64, position : U64 }
 
+## One custom block: its `Custom` group, the name the extension gave it,
+## its measured box, the content inset, and its validated panel drawing.
+NormalizedCustom : { group : U64, height : Layout.Unit, inset : Layout.Unit, name : Str, panel : ValidatedDrawing, width : Layout.Unit }
+
 ## One authored list: its item count and label marker.
 NormalizedList : { items : U64, marker : ListMarker }
 
@@ -368,7 +386,10 @@ TableSection : [Body, Footer, Header]
 ##
 ## `FigureGroup` is a captioned figure: a `Sect` holding its `Figure` leaf and
 ## its `FigureCaption` leaf (payload: the figure's `figures` index).
-NormalizedGroupKind := [Container(ContainerKind), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Table(U32), TableRow(TableSection)]
+##
+## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
+## paragraphs for semantics and one unsplittable unit for layout.
+NormalizedGroupKind := [Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -424,6 +445,7 @@ NormalizedFigure := { alternative : Str, captioned : Bool, drawing : ValidatedDr
 NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	cells : List(NormalizedCell),
+	customs : List(NormalizedCustom),
 	decorations : List(NormalizedDecoration),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
@@ -691,6 +713,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedBlockKind : NormalizedBlockKind
 	NormalizedCell : NormalizedCell
 	NormalizedDecoration : NormalizedDecoration
+	NormalizedCustom : NormalizedCustom
+	CustomSpec : CustomSpec
 	NormalizedFigure : NormalizedFigure
 	FigureFit : FigureFit
 	FigurePolicy : FigurePolicy
@@ -1103,6 +1127,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	decoration : Scene.Drawing -> DocumentBlock
 	decoration = |drawing_value| DocumentBlock.Decoration(drawing_value)
 
+	## A custom block from a separately authored extension: its paragraphs
+	## become a `Div`, laid out inside its measured box, with its panel
+	## painted behind them as a `Decoration` artifact. It is unsplittable.
+	custom_block : CustomSpec -> DocumentBlock
+	custom_block = |spec| DocumentBlock.Custom(Box.box(spec))
+
 	## Construct an optional visible figure caption.
 	caption : Str -> Caption
 	caption = |text| Caption(text)
@@ -1254,12 +1284,12 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { blocks: [], cells: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
+empty_state = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1269,6 +1299,10 @@ first_unavailable_block = |blocks| {
 	while $index < blocks.len() {
 		match list_at(blocks, $index) {
 			Container({ contents, kind: _ }) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			Custom(spec) => match first_unavailable_nested(Box.unbox(spec).contents) {
 				Available => {}
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
@@ -1309,6 +1343,9 @@ first_unavailable_nested = |contents| {
 			match list_at(top.blocks, top.next) {
 				Container({ contents: nested, kind: _ }) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
+				}
+				Custom(spec) => {
+					$frames = $frames.append({ blocks: Box.unbox(spec).contents, next: 0 })
 				}
 				KeepTogether(nested) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
@@ -1391,6 +1428,7 @@ normalize_compact = |compact, initial| {
 	{
 		blocks: $blocks,
 		cells: initial.cells,
+		customs: initial.customs,
 		decorations: initial.decorations,
 		figures: initial.figures,
 		groups: initial.groups,
@@ -1412,6 +1450,7 @@ normalize_compact = |compact, initial| {
 SimpleState : {
 	blocks : List(NormalizedBlock),
 	cells : List(NormalizedCell),
+	customs : List(NormalizedCustom),
 	decorations : List(NormalizedDecoration),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
@@ -1437,6 +1476,7 @@ normalize_simple = |simple, initial| {
 	{
 		blocks: $state.blocks,
 		cells: $state.cells,
+		customs: $state.customs,
 		decorations: $state.decorations,
 		figures: $state.figures,
 		groups: $state.groups,
@@ -1457,7 +1497,7 @@ normalize_simple = |simple, initial| {
 
 is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
-	Container(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => True
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => True
 	_ => False
 }
 
@@ -1524,6 +1564,13 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 		opened = open_group(state, Container(kind), parent, depth + 1, position)
 		{ frame: { blocks: contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
+	Custom(boxed) => {
+		spec = Box.unbox(boxed)
+		index = state.customs.len()
+		custom = { group: state.groups.len(), height: spec.size.height, inset: spec.inset, name: spec.name, panel: validate_flow_drawing(spec.panel), width: spec.size.width }
+		opened = open_group({ ..state, customs: state.customs.append(custom) }, Custom(index.to_u32_wrap()), parent, depth + 1, position)
+		{ frame: { blocks: spec.contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
 	KeepTogether(contents) => {
 		opened = open_group(state, KeepTogether, parent, depth, position)
 		{ frame: { blocks: contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
@@ -1566,7 +1613,7 @@ append_leaf = |state, block, parent, position| match block {
 		}
 		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
 	}
-	Container(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => {
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => {
 		crash "normalized group escaped the frame walk"
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }

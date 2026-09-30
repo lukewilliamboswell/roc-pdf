@@ -93,7 +93,7 @@ KernelFacadeText :: [].{
 		## The production facade uses `build`, which extracts it from validated
 		## preceding plans without exposing this internal module publicly.
 		build_prepared : Prepared, Limits -> Try(Plan, Error)
-		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], { decorations: [], figure_scales: [] }, limits)
+		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], { decorations: [], figure_scales: [], panels: [] }, limits)
 
 		## Interleave resolved page furniture into a built plan: on every
 		## page, header furniture runs precede the page's body runs and footer

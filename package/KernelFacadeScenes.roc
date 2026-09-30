@@ -175,10 +175,10 @@ InternalArenaPrepared : {
 }
 
 no_flow : KernelFacadePages.FlowPaints
-no_flow = { decorations: [], figure_scales: [] }
+no_flow = { decorations: [], figure_scales: [], panels: [] }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], cells: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
+empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {
@@ -271,8 +271,9 @@ build_arena_with_intent = |prepared, intent, limits| {
 	## its anchor line's run, and each decoration is one page-artifact group.
 	flow = flow_facts(prepared.authoring, prepared.flow)?
 	decoration_count = prepared.flow.decorations.len()
+	panel_count = prepared.flow.panels.len()
 	command_count = checked_add(checked_add(checked_add(checked_times(run_count, 2)?, flow.commands)?, rule_count)?, furniture_counts.commands)?
-	group_count = checked_add(checked_add(checked_add(run_count, rule_count)?, paint_count)?, decoration_count)?
+	group_count = checked_add(checked_add(checked_add(checked_add(run_count, rule_count)?, paint_count)?, decoration_count)?, panel_count)?
 	check_limit(command_count, limits.max_commands, Commands)?
 	check_limit(group_count, limits.max_groups, Groups)?
 	check_limit(group_count, limits.max_page_group_edges, PageGroupEdges)?
@@ -309,6 +310,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 	var $path_segments = if path_count == 0 [] else List.with_capacity(checked_add(checked_add(rule_count, furniture_counts.segments)?, flow.segments)?)
 	var $paint_cursor = 0
 	var $decoration_cursor = 0
+	var $panel_cursor = 0
 	var $artifact_cursor = 0
 	var $fragment = 0
 	var $rule_cursor = 0
@@ -329,8 +331,46 @@ build_arena_with_intent = |prepared, intent, limits| {
 		## copied `$commands`, `$groups`, and `$page_groups` once per page: the
 		## first loop's exit state reached the second loop's entry through an
 		## aggregate that still held them (docs/performance/emission-linearity.md).
-		while $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) or ($decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index) or ($paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index) {
-			if $placement_cursor < page_end {
+		while ($panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index) or $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) or ($decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index) or ($paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index) {
+			if $panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index {
+				## A custom block's panel paints first on its page, behind
+				## the text it frames: one `Decoration` page-artifact group,
+				## a transform to its measured box's bottom-left corner
+				## around its paths.
+				paint = list_at(prepared.flow.panels, $panel_cursor)
+				panel = list_at(flow.panels, paint.custom)
+				command_start = $commands.len()
+				$commands = $commands.append(
+					Transform({
+						children: Semantics.Range.from_start_and_length(command_start + 1, panel.commands.len()),
+						matrix: {
+							a: Layout.Unit.from_raw(1000),
+							b: Layout.Unit.from_raw(0),
+							c: Layout.Unit.from_raw(0),
+							d: Layout.Unit.from_raw(1000),
+							e: paint.origin.x,
+							f: paint.origin.y,
+						},
+					}),
+				)
+				for drawing_command in panel.commands {
+					match drawing_command {
+						FlowImage(_) => {}
+						FlowPath({ fill, segments, stroke }) => {
+							path = Scene.PathId.from_index($paths.len())
+							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
+							for segment in segments {
+								$path_segments = $path_segments.append(segment)
+							}
+							$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, intent, use_srgb) }))
+						}
+					}
+				}
+				group = Scene.GroupId.from_index($groups.len())
+				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
+				$page_groups = $page_groups.append(group)
+				$panel_cursor = $panel_cursor + 1
+			} else if $placement_cursor < page_end {
 				placement = list_at(prepared.placements, $placement_cursor)
 				if placement.page.index() != $page_index or placement.run.index() != $placement_cursor {
 					return Err(InvalidPlacement({ placement: $placement_cursor }))
@@ -583,7 +623,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 	if $placement_cursor != run_count {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
-	if $painted_figures.any(|painted| !painted) or $decoration_cursor != decoration_count {
+	if $painted_figures.any(|painted| !painted) or $decoration_cursor != decoration_count or $panel_cursor != panel_count {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
 	gray_space = {
@@ -695,12 +735,13 @@ PaintedDrawing : { commands : List(Document.FlowCommand), image_base : U64 }
 ## Every figure's and decoration's drawing with its image base, their
 ## images in resource order, and the scene commands, paths, and path
 ## segments they add (a decoration once per placement).
-FlowFacts : { commands : U64, decorations : List(PaintedDrawing), figures : List(PaintedDrawing), images : List(Image.Source), nonblack : Bool, paths : U64, segments : U64 }
+## Custom block panels hold paths only, so they add no images.
+FlowFacts : { commands : U64, decorations : List(PaintedDrawing), figures : List(PaintedDrawing), images : List(Image.Source), nonblack : Bool, panels : List(PaintedDrawing), paths : U64, segments : U64 }
 
 flow_facts : Document.NormalizedAuthoring, KernelFacadePages.FlowPaints -> Try(FlowFacts, KernelFacadeScenes.Error)
 flow_facts = |authoring, paints| {
-	if authoring.figures.is_empty() and authoring.decorations.is_empty() {
-		return Ok({ commands: 0, decorations: [], figures: [], images: [], nonblack: False, paths: 0, segments: 0 })
+	if authoring.figures.is_empty() and authoring.decorations.is_empty() and authoring.customs.is_empty() {
+		return Ok({ commands: 0, decorations: [], figures: [], images: [], nonblack: False, panels: [], paths: 0, segments: 0 })
 	}
 	if paints.figure_scales.len() != authoring.figures.len() {
 		return Err(InvalidPlacement({ placement: 0 }))
@@ -736,7 +777,20 @@ flow_facts = |authoring, paints| {
 		$segments = checked_add($segments, counted.segments)?
 		$nonblack = $nonblack or counted.nonblack
 	}
-	Ok({ commands: $commands, decorations: $decorations, figures: $figures, images: $images, nonblack: $nonblack, paths: $paths, segments: $segments })
+	var $panels = List.with_capacity(authoring.customs.len())
+	for custom in authoring.customs {
+		drawing = valid_flow_drawing(custom.panel)?
+		if !drawing.images.is_empty() {
+			return Err(InvalidPlacement({ placement: 0 }))
+		}
+		$panels = $panels.append({ commands: drawing.commands, image_base: 0 })
+		counted = count_flow(drawing.commands)?
+		$commands = checked_add($commands, checked_add(counted.commands, 1)?)?
+		$paths = checked_add($paths, counted.paths)?
+		$segments = checked_add($segments, counted.segments)?
+		$nonblack = $nonblack or counted.nonblack
+	}
+	Ok({ commands: $commands, decorations: $decorations, figures: $figures, images: $images, nonblack: $nonblack, panels: $panels, paths: $paths, segments: $segments })
 }
 
 valid_flow_drawing : Document.ValidatedDrawing -> Try(Document.FlowDrawing, KernelFacadeScenes.Error)
@@ -794,6 +848,9 @@ check_flow_colors = |authoring, intent, use_srgb| {
 	}
 	for decoration in authoring.decorations {
 		check(decoration.drawing)?
+	}
+	for custom in authoring.customs {
+		check(custom.panel)?
 	}
 	Ok({})
 }

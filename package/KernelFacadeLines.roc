@@ -13,6 +13,10 @@ KernelFacadeLines :: [].{
 	Dimension : [Blocks, Runs]
 	Error : [
 		ArithmeticOverflow,
+
+		## A custom block's measured box is wider than the flow region
+		## around it.
+		CustomWidth({ available : U64, custom : U64, width : U64 }),
 		InvalidGeometry,
 		InvalidRun({ block : U64, run : U64 }),
 		LabelTooWide({ available : U64, block : U64, width : U64 }),
@@ -389,13 +393,35 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 		$block = $block + 1
 	}
 
-	## Groups are in preorder, so a parent's offset is known first.
+	## Groups are in preorder, so a parent's offset is known first. A
+	## custom block insets its content on both sides inside its measured
+	## width, so a document with custom blocks also tracks each group's end
+	## edge (only then, so other documents allocate nothing for it).
+	customs = authoring.customs
 	var $offsets = List.with_capacity(groups.len())
+	var $ends = if customs.is_empty() [] else List.with_capacity(groups.len())
 	for group in groups {
 		outer = if group.parent == 0 0 else list_at($offsets, group.parent - 1)
 		own = match group.kind {
 			ItemList(_) => list_at($group_columns, $offsets.len())
+			Custom(_) => positive_raw(list_at(customs, custom_index(group.kind)).inset)?
 			_ => 0
+		}
+		if !customs.is_empty() {
+			outer_end = if group.parent == 0 content_width else list_at($ends, group.parent - 1)
+			end = match group.kind {
+				Custom(index) => {
+					custom = list_at(customs, index.to_u64())
+					width = positive_raw(custom.width)?
+					available = if outer_end > outer outer_end - outer else 0
+					if width > available {
+						return Err(CustomWidth({ available, custom: index.to_u64(), width }))
+					}
+					outer + width - positive_raw(custom.inset)?
+				}
+				_ => outer_end
+			}
+			$ends = $ends.append(end)
 		}
 		$offsets = $offsets.append(checked_add(outer, own)?)
 	}
@@ -421,10 +447,11 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 				{ body_offset: placed.body_offset, body_width: content_width - placed.body_offset, column: placed.column, label_offset }
 			}
 			TextBlock(_) => {
-				if outer >= content_width {
+				end = if $ends.is_empty() or record.parent == 0 content_width else list_at($ends, record.parent - 1)
+				if outer >= end {
 					return Err(InvalidGeometry)
 				}
-				{ body_offset: outer, body_width: content_width - outer, column: indent, label_offset: 0 }
+				{ body_offset: outer, body_width: end - outer, column: indent, label_offset: 0 }
 			}
 		}
 		$geometries = $geometries.append(geometry)
@@ -582,4 +609,10 @@ append_logical_requests : List(KernelLineLayout.LogicalRunRequest), [NoLabel, La
 append_logical_requests = |requests, label, body| match label {
 	NoLabel => requests.append(body)
 	Label(request) => requests.append(request).append(body)
+}
+
+custom_index : Document.NormalizedGroupKind -> U64
+custom_index = |kind| match kind {
+	Custom(index) => index.to_u64()
+	_ => 0
 }

@@ -11,6 +11,21 @@ KernelFacadeSemantics :: [].{
 	Error : [
 		ArithmeticOverflow,
 		ContainerDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
+
+		## A custom block holds something other than paragraphs and rich
+		## paragraphs (`child` is its authored position), or stands in the
+		## first page's lead region (`child` is `NoChild`).
+		CustomContent({ child : [Child(U64), NoChild], custom : U64 }),
+
+		## A custom block's panel is not a supported panel drawing.
+		CustomDrawing({ custom : U64, reason : Str }),
+
+		## A custom block's measured box is not positive, or its inset leaves
+		## no content box.
+		CustomMeasure({ custom : U64 }),
+
+		## A custom block's name is empty.
+		CustomName({ custom : U64 }),
 		EmptyContainer({ group : U64 }),
 
 		## A decoration's drawing is not a supported flow drawing.
@@ -292,7 +307,7 @@ plan_blocks = |authoring, limits| {
 			group = list_at(groups, $next_group)
 			in_item = in_list_item(groups, group.parent)
 			match group.kind {
-				Container(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | Custom(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
 						return Err(ListItemGroup({ group: $next_group }))
 					}
@@ -658,6 +673,7 @@ plan_blocks = |authoring, limits| {
 		}
 	}
 	check_layout_items(authoring)?
+	check_customs(authoring)?
 	check_decorations(authoring)?
 	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
@@ -971,6 +987,89 @@ check_figure = |figure, block| {
 	match figure.fit {
 		ExactFit => Ok({})
 		ScaleFit(floor) => if floor > 100 Err(FigureFitInvalid({ block: block })) else Ok({})
+	}
+}
+
+## A custom block (v1 of the seam) holds only paragraphs and rich
+## paragraphs directly: no nested groups, decorations, spacers, or page
+## breaks, which would need layout inside the extension's measured box. It
+## is a body-flow block, never in the lead region. Its name is non-empty
+## and its panel a valid flow drawing of solid paths only (no images) that
+## lies inside its box. O(customs + leaves + flow items).
+check_customs : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
+check_customs = |authoring| {
+	if authoring.customs.is_empty() {
+		return Ok({})
+	}
+	var $index = 0
+	while $index < authoring.customs.len() {
+		custom = list_at(authoring.customs, $index)
+		group = list_at(authoring.groups, custom.group)
+		code = custom.group + 1
+		if in_lead_region(authoring.groups, group.parent) {
+			return Err(CustomContent({ child: NoChild, custom: $index }))
+		}
+		if group.group_end > custom.group + 1 {
+			return Err(CustomContent({ child: Child(list_at(authoring.groups, custom.group + 1).position), custom: $index }))
+		}
+		var $block = group.first_block
+		while $block < group.block_end {
+			match list_at(authoring.blocks, $block).kind {
+				Paragraph | RichParagraph(_) => {}
+				_ => return Err(CustomContent({ child: Child(custom_child_position(authoring, $block)), custom: $index }))
+			}
+			$block = $block + 1
+		}
+		for decoration in authoring.decorations {
+			if decoration.parent == code {
+				return Err(CustomContent({ child: Child(decoration.position), custom: $index }))
+			}
+		}
+		for spacer in authoring.spacers {
+			if spacer.parent == code {
+				return Err(CustomContent({ child: Child(spacer.position), custom: $index }))
+			}
+		}
+		for page_break in authoring.page_breaks {
+			if page_break.parent == code {
+				return Err(CustomContent({ child: Child(page_break.position), custom: $index }))
+			}
+		}
+		if custom.name.is_empty() {
+			return Err(CustomName({ custom: $index }))
+		}
+		inset = custom.inset.raw()
+		if custom.width.raw() <= 0 or custom.height.raw() <= 0 or inset <= 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
+			return Err(CustomMeasure({ custom: $index }))
+		}
+		match custom.panel {
+			InvalidDrawing(reason) => return Err(CustomDrawing({ custom: $index, reason }))
+			ValidDrawing(drawing) => {
+				if !drawing.images.is_empty() {
+					return Err(CustomDrawing({ custom: $index, reason: "a custom block panel holds solid paths only, no images" }))
+				}
+				if drawing.width > custom.width.raw().to_u64_wrap() or drawing.height > custom.height.raw().to_u64_wrap() {
+					return Err(CustomDrawing({ custom: $index, reason: "the panel extends beyond the custom block's measured box" }))
+				}
+			}
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
+## The authored position of a leaf inside its custom block: a rich
+## paragraph records it; any other leaf is located by counting the leaves
+## before it in the block, which holds no other children when it is valid.
+custom_child_position : Document.NormalizedAuthoring, U64 -> U64
+custom_child_position = |authoring, block| {
+	record = list_at(authoring.blocks, block)
+	match record.kind {
+		RichParagraph(paragraph) => list_at(authoring.rich_paragraphs, paragraph).position
+		_ => {
+			group = list_at(authoring.groups, record.parent - 1)
+			block - group.first_block
+		}
 	}
 }
 
@@ -1309,6 +1408,14 @@ build_store = |authoring, planning, source_plan| {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(kind), span, Inherited))
 				}
 
+				## A custom block is a `Div` of its paragraphs.
+				Custom(_) => {
+					if children == 0 {
+						return Err(EmptyContainer({ group: $group }))
+					}
+					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Division), span, Inherited))
+				}
+
 				## The first page's lead region is a `Div` of semantic
 				## letterhead content, first in reading order.
 				LeadRegion => {
@@ -1360,7 +1467,7 @@ build_store = |authoring, planning, source_plan| {
 		if $next_group < groups.len() and list_at(groups, $next_group).first_block <= $index {
 			group = list_at(groups, $next_group)
 			match group.kind {
-				Container(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | Custom(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) => {}
@@ -2165,6 +2272,7 @@ test_authoring = {
 		{ kind: Bullet({ item: 1, list: 0 }), parent: 0, text: "Two" },
 	],
 	cells: [],
+	customs: [],
 	decorations: [],
 	figures: [],
 	groups: [],

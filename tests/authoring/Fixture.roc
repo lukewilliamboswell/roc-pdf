@@ -638,6 +638,7 @@ synthetic_page_input = |block_count| {
 				minimum_last_lines: 2,
 			},
 			space_after: Layout.Unit.from_raw(0),
+			trailing: Layout.Unit.from_raw(0),
 		})
 		$block_index = $block_index + 1
 	}
