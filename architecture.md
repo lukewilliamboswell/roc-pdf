@@ -1036,9 +1036,19 @@ supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
 never a second run-local string.
 
-Page-content artifact text is the one other source. Page furniture, resolved
-after pagination, is shaped from artifact text sources appended to the same
-dense Unicode store after the semantic sources. An artifact run names its
+Page-content artifact text is the one other source. Page furniture and text
+labels inside drawings, both resolved after pagination, are shaped from
+artifact text sources appended to the same dense Unicode store after the
+semantic sources (furniture sources, then label sources). A drawing label
+(`Scene.Drawing.text`) is shaped whole in the body face by the same shaper as
+body text, scaled with its figure, proved to lie inside its drawing, and
+painted as `Decoration` artifact text; it is never outlined or rasterized. In
+a figure it is part of the figure's visual presentation: the `Figure`
+element's `/Alt` is what assistive technology reads, so conveying what the
+labels say is part of the author's alternative-text obligation, and the
+labels stay extractable through `ToUnicode`. Decorations take no labels (they
+paint after the page's text), and furniture drawings take none (furniture
+text is their text path). An artifact run names its
 source rather than an occurrence, belongs to no structure element, carries no
 semantic text property, and may be painted only by a page-artifact
 `OwnedGroup`; a layout fragment that paints artifact text is an ownership

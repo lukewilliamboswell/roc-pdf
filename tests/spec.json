@@ -41,6 +41,7 @@
     "navigation",
     "navigation_renderers",
     "link_underlines",
+    "drawing_labels",
     "pdf_structure",
     "pdfa4_structure",
     "extract_verapdf_rules",
@@ -23592,6 +23593,128 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline"
+      ]
+    },
+    {
+      "name": "flow figures labels x10",
+      "scenario_revision": "flow-figures-labels-v1",
+      "source": "tests/flow_figures/main.roc",
+      "snapshot": "tests/flow_figures/labels_10.pdf",
+      "args": [
+        "labels",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5,
+        "labelled_figures": 10
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "scene_commands",
+        "figures",
+        "decorations",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 49617,
+          "allocated_bytes": 14832921,
+          "work": {
+            "lines": 69,
+            "pages": 5,
+            "fragments": 69,
+            "scene_commands": 450,
+            "figures": 11,
+            "decorations": 0,
+            "output_bytes": 62910,
+            "rejections": 7
+          }
+        },
+        "x64musl": {
+          "allocations": 49617,
+          "allocated_bytes": 14832921,
+          "work": {
+            "lines": 69,
+            "pages": 5,
+            "fragments": 69,
+            "scene_commands": 450,
+            "figures": 11,
+            "decorations": 0,
+            "output_bytes": 62910,
+            "rejections": 7
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "drawing_labels"
+      ]
+    },
+    {
+      "name": "flow figures labels x50",
+      "scenario_revision": "flow-figures-labels-v1",
+      "source": "tests/flow_figures/main.roc",
+      "snapshot": "tests/flow_figures/labels_50.pdf",
+      "args": [
+        "labels",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 19,
+        "labelled_figures": 50
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "scene_commands",
+        "figures",
+        "decorations",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 190842,
+          "allocated_bytes": 54912520,
+          "work": {
+            "lines": 329,
+            "pages": 19,
+            "fragments": 329,
+            "scene_commands": 2050,
+            "figures": 51,
+            "decorations": 0,
+            "output_bytes": 213609,
+            "rejections": 7
+          }
+        },
+        "x64musl": {
+          "allocations": 190842,
+          "allocated_bytes": 54912520,
+          "work": {
+            "lines": 329,
+            "pages": 19,
+            "fragments": 329,
+            "scene_commands": 2050,
+            "figures": 51,
+            "decorations": 0,
+            "output_bytes": 213609,
+            "rejections": 7
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "drawing_labels"
       ]
     },
     {

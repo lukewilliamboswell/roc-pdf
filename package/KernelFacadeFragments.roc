@@ -142,10 +142,18 @@ build_plan = |preliminary, text, navigation, limits, semantic_limits, navigation
 	## the semantic sources, before the final store validates. The plan is
 	## handed on in each branch rather than bound by a value-producing
 	## match, so its stores stay uniquely owned.
+	## Drawing-label sources follow the furniture sources.
+	labels = KernelFacadeText.Plan.label_sources(text)
 	match KernelFacadeText.Plan.furniture(text) {
-		NoFurniture => attach_plan(preliminary, arena, text, navigation, semantic_limits, navigation_limits)
+		NoFurniture => if labels.is_empty() {
+			attach_plan(preliminary, arena, text, navigation, semantic_limits, navigation_limits)
+		} else {
+			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, labels, artifact_source_limits) ? TextSemantics
+			attach_plan(with_sources, arena, text, navigation, semantic_limits, navigation_limits)
+		}
 		WithFurniture(furniture) => {
-			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, KernelFacadeFurniture.Plan.sources(furniture), artifact_source_limits) ? TextSemantics
+			sources = if labels.is_empty() KernelFacadeFurniture.Plan.sources(furniture) else KernelFacadeFurniture.Plan.sources(furniture).concat(labels)
+			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, sources, artifact_source_limits) ? TextSemantics
 			attach_plan(with_sources, arena, text, navigation, semantic_limits, navigation_limits)
 		}
 	}

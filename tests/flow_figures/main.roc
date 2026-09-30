@@ -9,6 +9,7 @@ import pf.Metrics
 Case : [
 	Report({ context : U64 }),
 	Sections({ sections : U64 }),
+	Labels({ count : U64 }),
 	AtomicNegatives({ context : U64 }),
 ]
 
@@ -40,6 +41,7 @@ main! = |args| {
 	result = match spec.case {
 		Report({ context }) => Fixture.report(context)
 		Sections({ sections }) => Fixture.sections(sections)
+		Labels({ count }) => Fixture.labels(count)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 	}
 	match result {

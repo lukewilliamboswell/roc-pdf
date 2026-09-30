@@ -7,6 +7,7 @@ from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
 from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
 from check_link_underlines import validate_link_underlines_pdf
+from check_drawing_labels import validate_drawing_labels_pdf
 from check_caller_text import validate_caller_text_pdf
 from check_case_text import validate_case_pdf
 from check_cjk_text import EXPECTED_CONTENT as CJK_TEXT_CONTENT
@@ -150,6 +151,7 @@ VALIDATORS: dict[str, Validator] = {
     "rtl_text": _simple(validate_rtl_pdf, "resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts"),
     "multiface_facade": _simple(validate_multiface_facade_pdf, "independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts"),
     "caller_facade": _simple(validate_caller_facade_pdf, "independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts"),
+    "drawing_labels": _simple(validate_drawing_labels_pdf, "every drawing label shown as Layout artifact text decoding through ToUnicode to its exact string, and none tagged"),
     "link_underlines": _simple(validate_link_underlines_pdf, "every link line quadrilateral has a Layout artifact underline inside its extent, and underlines exist"),
     "unhinted_caller_font": _simple(validate_unhinted_caller_pdf, "caller facade facts plus an embedded subset of exactly the ten required TrueType tables, no hinting table"),
     "fonts": _dimensioned(validate_fonts_pdf, "canonical Type 0 bundles, verified embedded subsets, identity CID maps, ToUnicode facts, exact per-stream /Font dictionaries, and placement-site ownership"),
@@ -194,7 +196,7 @@ PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
         "check_color_image_renderers.py", "check_transparency.py", "check_transparency_renderers.py",
         "check_soft_masks.py", "check_soft_mask_renderers.py", "check_shadings.py", "check_shading_renderers.py",
         "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
-        "check_navigation.py", "check_navigation_renderers.py", "check_link_underlines.py", "extract_verapdf_rules.py",
+        "check_navigation.py", "check_navigation_renderers.py", "check_link_underlines.py", "check_drawing_labels.py", "extract_verapdf_rules.py",
         "build_verapdf_corpus_subset.py", "roc_diagnostics.py",
     )
 }

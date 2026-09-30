@@ -2,3 +2,5 @@
 {"name":"flow figures sections x10","schema_version":1,"case":{"Sections":{"sections":10}}}
 {"name":"flow figures sections x100","schema_version":1,"case":{"Sections":{"sections":100}}}
 {"name":"flow figures atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
+{"name":"flow figures labels x10","schema_version":1,"case":{"Labels":{"count":10}}}
+{"name":"flow figures labels x50","schema_version":1,"case":{"Labels":{"count":50}}}

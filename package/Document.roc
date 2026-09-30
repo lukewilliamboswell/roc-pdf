@@ -238,6 +238,10 @@ FigurePolicy := [ExactFit, ScaleFit(U64)]
 FlowCommand : [
 	FlowImage({ image : U64, placement : Layout.Rect }),
 	FlowPath({ fill : [Fill(Color.SourceValue), NoFill], segments : List(Scene.PathSegment), stroke : [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })] }),
+
+	## A text label, its origin translated into drawing coordinates; boxed
+	## so the command union keeps its size.
+	FlowText(Box(Scene.Label)),
 ]
 
 ## A validated flow drawing: its flattened commands, the image sources
@@ -1644,7 +1648,7 @@ append_leaf = |state, block, parent, position| match block {
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
 	DestinationParagraph({ name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationParagraph({ name: name }), parent, text }) }
 	Heading({ level, text }) => { ..state, blocks: state.blocks.append({ kind: Heading(level), parent, text }) }
-	Decoration(drawing) => { ..state, decorations: state.decorations.append({ block: state.blocks.len(), drawing: validate_flow_drawing(drawing), parent, position }) }
+	Decoration(drawing) => { ..state, decorations: state.decorations.append({ block: state.blocks.len(), drawing: without_decoration_labels(validate_flow_drawing(drawing)), parent, position }) }
 	Figure({ alternative, caption, drawing, fit }) => append_figure(state, { alternative, caption, drawing, fit }, parent, position)
 	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
 	Link({ text, uri }) => { ..state, blocks: state.blocks.append({ kind: Link({ uri: uri }), parent, text }) }
@@ -1714,6 +1718,23 @@ flow_group_depth = 8
 ## union of the commands from the origin, a stroke extending its path by
 ## half its width on every side. Opacity, clip, and soft-mask groups are
 ## not supported.
+## A decoration paints after the page's text, so a label in it would sit
+## under the decoration's own paths; decorations take no text labels.
+without_decoration_labels : ValidatedDrawing -> ValidatedDrawing
+without_decoration_labels = |validated| match validated {
+	ValidDrawing(drawing) => if drawing.commands.any(
+		|command| match command {
+			FlowText(_) => Bool.True
+			_ => Bool.False
+		},
+	) {
+		InvalidDrawing("a decoration takes no text labels; put labels in a figure's drawing or a custom block's panel")
+	} else {
+		validated
+	}
+	InvalidDrawing(_) => validated
+}
+
 validate_flow_drawing : Scene.Drawing -> ValidatedDrawing
 validate_flow_drawing = |drawing| {
 	commands = drawing.commands()
@@ -1723,6 +1744,7 @@ validate_flow_drawing = |drawing| {
 	var $converted = List.with_capacity(commands.len())
 	var $images = []
 	var $groups = []
+	var $labels = 0
 	var $dx = 0
 	var $dy = 0
 	var $width = 0
@@ -1808,10 +1830,35 @@ validate_flow_drawing = |drawing| {
 				$dy = $dy + offset.y.raw()
 			}
 			AuthorGroup(_) => return InvalidDrawing("opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group")
+			AuthorText(boxed) => {
+				label = Box.unbox(boxed)
+				if !within_bound(label.origin.x.raw()) or !within_bound(label.origin.y.raw()) or !within_bound(label.size.raw()) {
+					return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
+				}
+				x = label.origin.x.raw() + $dx
+				y = label.origin.y.raw() + $dy
+				if label.text.is_empty() {
+					return InvalidDrawing("a text label is empty")
+				}
+				if label.size.raw() <= 0 {
+					return InvalidDrawing("a text label needs a positive size")
+				}
+				if x < 0 or y < 0 {
+					return InvalidDrawing("a text label's origin lies below or left of the drawing origin")
+				}
+
+				## A label's baseline plus its size is known before shaping and
+				## joins the drawing's height; its width is proved after
+				## shaping, against the width the paths and images give.
+				$height = U64.max($height, (y + label.size.raw()).to_u64_wrap())
+				$width = U64.max($width, x.to_u64_wrap())
+				$labels = $labels + 1
+				$converted = $converted.append(FlowText(Box.box({ ..label, origin: { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) } })))
+			}
 		}
 		$index = $index + 1
 	}
-	if $converted.is_empty() {
+	if $converted.len() == $labels {
 		return InvalidDrawing("it has no painting command")
 	}
 	if $width == 0 or $height == 0 {

@@ -514,6 +514,7 @@ validate_drawing = |drawing, path, image_base| {
 				$converted = $converted.append(DrawingPath({ fill, segments, stroke }))
 			}
 			AuthorGroup(_) | AuthorTranslate(_) => return Err(DrawingInvalid({ path, reason: "grouped drawing commands are not supported in furniture" }))
+			AuthorText(_) => return Err(DrawingInvalid({ path, reason: "text labels are not supported in furniture drawings; use furniture text" }))
 		}
 		$index = $index + 1
 	}

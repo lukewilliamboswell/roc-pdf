@@ -17,6 +17,7 @@ package
 		KernelEmit,
 		KernelFacadeFragments,
 		KernelFacadeFurniture,
+		KernelFacadeLabels,
 		KernelFacadeLines,
 		KernelFacadeOutput,
 		KernelFacadePages,

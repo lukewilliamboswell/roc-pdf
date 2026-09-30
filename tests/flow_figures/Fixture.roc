@@ -1,6 +1,7 @@
 import pdf.Color
 import pdf.Conformance
 import pdf.Document
+import pdf.Font
 import pdf.Image
 import pdf.KernelBuiltInFont
 import pdf.KernelColor
@@ -47,6 +48,15 @@ import pdf.Theme
 ## - `sections xN`: N sections, each a heading, a paragraph, a decoration
 ##   rule, and a captioned grouped vector chart. The 10/100 pair is the
 ##   linear scale pair.
+## - `labels xN`: N sections whose bar chart carries text labels (region
+##   names centered under the bars, tick values right-aligned beside the
+##   axis, an axis title), a labelled 600 × 900 pt plan scaled to fit (its
+##   labels scale with it), and a custom block whose panel is labelled.
+##   Labels are `Decoration` artifact text in the body face; the 10/50 pair
+##   is the linear scale pair. Its rejections: a label wider than its
+##   drawing, a label the face does not cover, a label in another script,
+##   an empty label, a labelled decoration, a labelled furniture drawing,
+##   and labels under an ordered font policy.
 ## - `atomic_negatives`: every figure and decoration rejection with its
 ##   stable dotted code and authored path, and no bytes.
 ##
@@ -67,8 +77,111 @@ Fixture :: [].{
 		evidence(sections_document(count))
 	}
 
+	labels : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	labels = |count| run_labels(count)
+
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
+}
+
+## The region names under the labelled chart's bar pairs.
+region_names : List(Str)
+region_names = ["Hobart", "Launceston", "Moonah", "Fremantle"]
+
+## `bar_chart` with its labels: each region's name centered under its bar
+## pair, tick values right-aligned left of the axis every 50, and an axis
+## title above the axis.
+labelled_chart : I64, List((I64, I64)) -> Scene.Drawing
+labelled_chart = |height, pairs| {
+	var $chart = bar_chart(height, pairs)
+	var $index = 0
+	for name in region_names {
+		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(48 + $index * 108 + 38, 8), size: points(8), text: name })
+		$index = $index + 1
+	}
+	var $tick = 0
+	while $tick * 50 + 20 < height - 12 {
+		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(20, 18 + $tick * 50), size: points(7), text: ($tick * 50).to_str() })
+		$tick = $tick + 1
+	}
+	$chart.text({ align: Start, color: sea, origin: Layout.point(28, height - 10), size: points(8), text: "AUD thousands" })
+}
+
+## The site plan with a label in every bay, scaled with the plan.
+labelled_plan : Scene.Drawing
+labelled_plan = {
+	var $plan = site_plan
+	var $row = 0
+	while $row < 4 {
+		var $column = 0
+		while $column < 3 {
+			$plan = $plan.text({ align: Center, color: Color.srgb8({ blue: 255, green: 255, red: 255 }), origin: Layout.point(60 + $column * 180 + 60, 40 + $row * 210 + 70), size: points(24), text: "Bay ${($row * 3 + $column + 1).to_str()}" })
+			$column = $column + 1
+		}
+		$row = $row + 1
+	}
+	$plan
+}
+
+labels_document : U64 -> Document
+labels_document = |count| {
+	var $contents = List.with_capacity(count * 4 + 4)
+	$contents = $contents.append(Pdf.title("Labelled figures"))
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		shifted = regions.map(|(previous, current)| (previous // 2 + ($index % 7).to_i64_wrap(), current // 2 + ($index % 5).to_i64_wrap()))
+		$contents = $contents
+			.append(Pdf.heading(1, "Region ${number}"))
+			.append(paragraph($index))
+			.append(Pdf.figure(labelled_chart(140, shifted), "Bar chart ${number}: revenue grew in Hobart, Launceston, Moonah, and Fremantle.", Pdf.caption("Figure ${number}. Revenue by yard, AUD thousands")))
+		$index = $index + 1
+	}
+	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 300, 70), Color.srgb8({ blue: 230, green: 240, red: 245 }))
+		.text({ align: End, color: sea, origin: Layout.point(292, 58), size: points(7), text: "KEY FIGURES" })
+	callout = Pdf.custom_block({ contents: [Pdf.paragraph("Kiln capacity rose by a third.")], fragmentation: Unsplittable, inset: points(10), name: "Key figures", panel, size: { height: points(70), width: points(300) } })
+	plan = Pdf.figure_fit(Pdf.figure(labelled_plan, "Plan of the Moonah yard: twelve numbered drying bays in four rows of three.", Pdf.caption("Moonah yard plan, scaled to fit.")), ScaleToFit({ minimum_percent: 50 }))
+	Pdf.document({ contents: $contents.append(callout).append(plan), language: "en-AU", title: "Labelled figures" })
+}
+
+run_labels : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_labels = |count| {
+	if count == 0 or count > 100 {
+		return Err(InvalidScale)
+	}
+	document = labels_document(count)
+	result = evidence(document)?
+	number = count.to_str()
+	document_of = |contents| Pdf.document({ contents, language: "en-AU", title: "Label negatives ${number}" })
+	labelled = |text| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 60, 30), oak).text({ align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text })
+	figure = |drawing| Pdf.figure(drawing, "A labelled mark", Pdf.no_caption)
+	furniture = Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_image(labelled("Mark"))] })
+	checks = [
+		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("A label far wider than its drawing"))]), LayoutConstraintViolated, "layout.drawing_label_bounds", ["contents[1]"]),
+		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("中"))]), FontCoverageMissing, "text.unsupported_script", ["contents[1]"]),
+		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("ƀ"))]), FontCoverageMissing, "text.coverage_missing", ["contents[1]"]),
+		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled(""))]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
+		rejects(document_of([Pdf.paragraph("Lead"), Pdf.decoration(labelled("Mark")), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(Pdf.with_page_templates(document_of([Pdf.paragraph("Body")]), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: furniture }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: furniture, lead: Pdf.no_lead }) }), InvalidRelationship, "layout.furniture_drawing", ["templates.first.header.start[0]"]),
+	]
+	passed = checks.sum()
+	if passed != checks.len() {
+		return Err(MissingRejection(passed))
+	}
+	policy_rejected = match Font.Registry.empty.register_built_in(if count > 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
+		Err(_) => 0
+		Ok(registered) => {
+			options = Pdf.Options.default.with_theme(Theme.with_font_policy(report_theme, registered.policy)).with_font_registry(registered.registry)
+			match Pdf.to_bytes_with(document_of([Pdf.paragraph("Lead"), figure(labelled("Mark"))]), options) {
+				Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.drawing_label_policy"), .. }], .. })) => 1
+				_ => 0
+			}
+		}
+	}
+	if policy_rejected != 1 {
+		return Err(MissingRejection(passed))
+	}
+	Ok({ bytes: result.bytes, work: result.work.append(passed + policy_rejected) })
 }
 
 points : I64 -> Layout.Unit
@@ -98,13 +211,13 @@ bar_pair = |previous, current| Scene.rectangle(Scene.rectangle(Scene.drawing({})
 ## A grouped vector bar chart `height` tall and 483 pt wide: two axes and
 ## one translated group of paired bars per region.
 bar_chart : I64, List((I64, I64)) -> Scene.Drawing
-bar_chart = |height, regions| {
+bar_chart = |height, pairs| {
 	axes = Scene.drawing({})
 		.path(Scene.path({}).move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, points(1)))
 		.path(Scene.path({}).move_to(Layout.point(24, 20)).line_to(Layout.point(24, height - 1)).finish(), Scene.solid_stroke(ink, points(1)))
 	var $chart = axes
 	var $index = 0
-	for (previous, current) in regions {
+	for (previous, current) in pairs {
 		$chart = $chart.group(Layout.point(48 + $index * 108, 21), bar_pair(previous, current))
 		$index = $index + 1
 	}

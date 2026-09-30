@@ -356,6 +356,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				for drawing_command in panel.commands {
 					match drawing_command {
 						FlowImage(_) => {}
+						FlowText(_) => {}
 						FlowPath({ fill, segments, stroke }) => {
 							path = Scene.PathId.from_index($paths.len())
 							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
@@ -465,6 +466,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 								FlowImage({ image, placement: image_placement }) => {
 									$commands = $commands.append(DrawImage({ image: Image.Id.from_index(figure_drawing.image_base + image), placement: image_placement }))
 								}
+								FlowText(_) => {}
 								FlowPath({ fill, segments, stroke }) => {
 									path = Scene.PathId.from_index($paths.len())
 									$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
@@ -556,6 +558,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 						FlowImage({ image, placement: image_placement }) => {
 							$commands = $commands.append(DrawImage({ image: Image.Id.from_index(decoration.image_base + image), placement: image_placement }))
 						}
+						FlowText(_) => {}
 						FlowPath({ fill, segments, stroke }) => {
 							path = Scene.PathId.from_index($paths.len())
 							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
@@ -754,7 +757,7 @@ flow_facts = |authoring, paints| {
 	var $segments = 0
 	var $nonblack = False
 	for figure in authoring.figures {
-		drawing = valid_flow_drawing(figure.drawing)?
+		drawing = without_labels(valid_flow_drawing(figure.drawing)?)
 		$figures = $figures.append({ commands: drawing.commands, image_base: $images.len() })
 		for image in drawing.images {
 			$images = $images.append(image)
@@ -766,7 +769,7 @@ flow_facts = |authoring, paints| {
 		$nonblack = $nonblack or counted.nonblack
 	}
 	for decoration in authoring.decorations {
-		drawing = valid_flow_drawing(decoration.drawing)?
+		drawing = without_labels(valid_flow_drawing(decoration.drawing)?)
 		$decorations = $decorations.append({ commands: drawing.commands, image_base: $images.len() })
 		for image in drawing.images {
 			$images = $images.append(image)
@@ -779,7 +782,7 @@ flow_facts = |authoring, paints| {
 	}
 	var $panels = List.with_capacity(authoring.customs.len())
 	for custom in authoring.customs {
-		drawing = valid_flow_drawing(custom.panel)?
+		drawing = without_labels(valid_flow_drawing(custom.panel)?)
 		if !drawing.images.is_empty() {
 			return Err(InvalidPlacement({ placement: 0 }))
 		}
@@ -791,6 +794,32 @@ flow_facts = |authoring, paints| {
 		$nonblack = $nonblack or counted.nonblack
 	}
 	Ok({ commands: $commands, decorations: $decorations, figures: $figures, images: $images, nonblack: $nonblack, panels: $panels, paths: $paths, segments: $segments })
+}
+
+## A drawing's paths and images: its text labels are artifact text runs,
+## shaped and placed by `KernelFacadeLabels` and painted with the page's
+## text. A drawing without labels keeps its command list as is.
+without_labels : Document.FlowDrawing -> Document.FlowDrawing
+without_labels = |drawing| {
+	labelled = drawing.commands.any(
+		|command| match command {
+			FlowText(_) => Bool.True
+			_ => Bool.False
+		},
+	)
+	if labelled {
+		{
+			..drawing,
+			commands: drawing.commands.keep_if(
+				|command| match command {
+					FlowText(_) => Bool.False
+					_ => Bool.True
+				},
+			),
+		}
+	} else {
+		drawing
+	}
 }
 
 valid_flow_drawing : Document.ValidatedDrawing -> Try(Document.FlowDrawing, KernelFacadeScenes.Error)
@@ -807,6 +836,7 @@ count_flow = |commands| {
 	for command in commands {
 		match command {
 			FlowImage(_) => {}
+			FlowText(_) => {}
 			FlowPath({ fill, segments, stroke }) => {
 				$paths = checked_add($paths, 1)?
 				$segments = checked_add($segments, segments.len())?
@@ -835,6 +865,7 @@ check_flow_colors = |authoring, intent, use_srgb| {
 			for command in value.commands {
 				match command {
 					FlowImage(_) => {}
+					FlowText(_) => {}
 					FlowPath({ fill, segments: _, stroke }) => {
 						_ = furniture_path_style(fill, stroke, intent, use_srgb)?
 					}

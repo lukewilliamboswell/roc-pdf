@@ -18,6 +18,7 @@ import Metadata
 import Semantics
 import KernelFacadeFragments
 import KernelFacadeFurniture
+import KernelFacadeLabels
 import KernelFacadeLines
 import KernelFacadeOutput
 import KernelFacadePages
@@ -1077,7 +1078,62 @@ pipeline_error = |error, doc| match error {
 	Shape(ShapeFailure) => located_error(doc, FontCoverageMissing, "text.shaping_failed", "The selected faces could not shape the document's text, and no single text run was identified as the cause; no face is substituted.", [])
 	Scenes(UnsupportedColor({ run })) => located_error(doc, FeatureUnavailable, "color.unsupported", "Text run ${run.to_str()} is painted in a color the selected profile's output intent cannot represent; no color is converted.", [])
 	Output(Images(image)) => image_error(image)
+	Labels(label) => label_error(doc, label)
 	other => stage_error(other)
+}
+
+## A drawing label's rejection, located at its figure or custom block and
+## naming the label's position among the drawing's labels.
+label_error : Document, KernelFacadeLabels.Error -> Pdf.Error
+label_error = |doc, error| {
+	path = |owner| match owner {
+		FigureOwner(figure) => figure_path(doc, figure)
+		PanelOwner(custom) => custom_path(doc, custom)
+	}
+	match error {
+		LabelPolicy => located_error(doc, FeatureUnavailable, "text.drawing_label_policy", "Drawing labels shape in the body face, and a theme with an ordered font policy has no single body face; use style faces for a document with drawing labels.", [])
+		LabelBounds({ height, label, left, owner, right, top, width }) => located_error(doc, LayoutConstraintViolated, "layout.drawing_label_bounds", "Drawing label ${label.to_str()} spans ${signed_points(left)} to ${signed_points(right)} across and reaches ${signed_points(top)} up, but its drawing is ${signed_points(width)} wide and ${signed_points(height)} tall; a label is never clipped, moved, or shrunk.", [path(owner)])
+		LabelText({ label, owner, reason }) => {
+			(feature, message) = match reason {
+				Coverage(scalar) => ("text.coverage_missing", "The body face does not cover U+${scalar_hex(scalar)} in drawing label ${label.to_str()}; no face is substituted.")
+				Script(script) => ("text.unsupported_script", "Drawing label ${label.to_str()} uses the script ${script}, which the convenience text path does not shape.")
+				Cluster => ("text.unsupported_cluster", "Drawing label ${label.to_str()} holds a multi-scalar grapheme cluster, which the convenience shaper does not support.")
+			}
+			located_error(doc, FontCoverageMissing, feature, message, [path(owner)])
+		}
+		other => stage_error(Labels(other))
+	}
+}
+
+## A signed length in points, such as `-1.5 pt`.
+signed_points : I64 -> Str
+signed_points = |raw| if raw < 0 "-${points_text((0 - raw).to_u64_wrap())}" else points_text(raw.to_u64_wrap())
+
+## The authored path of figure `figure` (in authored order).
+figure_path : Document, U64 -> Str
+figure_path = |doc, figure| {
+	normalized = Document.normalize(doc)
+	var $index = 0
+	while $index < normalized.blocks.len() {
+		match normalized.blocks.get($index) {
+			Ok({ kind: Figure(value), .. }) => if value == figure {
+				return leaf_path(doc, $index)
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	"contents"
+}
+
+## The authored path of custom block `custom`.
+custom_path : Document, U64 -> Str
+custom_path = |doc, custom| {
+	normalized = Document.normalize(doc)
+	match normalized.customs.get(custom) {
+		Ok(record) => group_path(normalized.groups, record.group)
+		Err(OutOfBounds) => "contents"
+	}
 }
 
 ## An image resource whose data does not match its declaration (a packed

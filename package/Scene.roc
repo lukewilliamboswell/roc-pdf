@@ -15,10 +15,30 @@ Scene :: [].{
 		AuthorPath({ path : AuthorPath, style : AuthorPathStyle }),
 		AuthorGroup({ kind : AuthorGroupKind, value : U16 }),
 
+		## A text label, boxed so the command union keeps its size.
+		AuthorText(Box(Label)),
+
 		## The next `commands` commands (counted after flattening, so nested
 		## groups are included) form one group translated by `offset`.
 		AuthorTranslate({ commands : U64, offset : Layout.Point }),
 	]
+
+	## A single line of text inside a drawing: its Unicode text, the
+	## baseline point it is aligned to in drawing-local coordinates, its
+	## size, fill color, and how it aligns to that point (`Start` begins
+	## there, `Center` centers on it, `End` ends there). A label is shaped
+	## in the document's body face by the same pipeline as body text,
+	## never outlined or rasterized, and must lie inside its drawing.
+	##
+	## Label text is page-artifact text (`Decoration`): it is extractable
+	## and searchable through its Unicode mapping, but it belongs to no
+	## structure element. In a figure, the figure's alternative text is
+	## what assistive technology reads, so it must convey what the labels
+	## say; in a decoration or a custom block's panel the labels are
+	## decoration like the rest of the drawing.
+	Label : { align : LabelAlign, color : Color.SourceValue, origin : Layout.Point, size : Layout.Unit, text : Str }
+
+	LabelAlign : [Center, End, Start]
 
 	## Stable group vocabulary reserved for validated drawing composition.
 	AuthorGroupKind : [ClipGroup, OpacityGroup, SoftMaskGroup, TransformGroup]
@@ -58,6 +78,10 @@ Scene :: [].{
 			}
 			Drawing.({ commands: $commands })
 		}
+
+		## Add a text label (see `Label`).
+		text : Drawing, Label -> Drawing
+		text = |Drawing.(state), label| Drawing.({ commands: state.commands.append(AuthorText(Box.box(label))) })
 
 		command_count : Drawing -> U64
 		command_count = |Drawing.(state)| state.commands.len()
