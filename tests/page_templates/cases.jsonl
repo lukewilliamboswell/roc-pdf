@@ -10,3 +10,4 @@
 {"name":"page templates backdrops x3","schema_version":1,"case":{"Backdrops":{"pages":3}}}
 {"name":"page templates backdrops x30","schema_version":1,"case":{"Backdrops":{"pages":30}}}
 {"name":"page templates furniture groups","schema_version":1,"case":{"FurnitureGroups":{"context":0}}}
+{"name":"page templates slot inset","schema_version":1,"case":{"SlotInset":{"context":0}}}

@@ -287,7 +287,11 @@ template and never enters the structure tree or the logical text.
 slots, from the region's bottom-left corner across up to the full frame
 width, such as a full-width rule under a header or a tinted footer band; it
 paints before the page's other content and never takes part in the slots'
-overlap checks, so it can sit beside start- and end-slot furniture. The lead
+overlap checks, so it can sit beside start- and end-slot furniture.
+`Pdf.with_slot_inset(region, inset)` lifts a header's slot stacks `inset`
+above its bottom edge (a footer's drop `inset` below its top edge), so a
+rule along that edge clears the text's descenders; the backdrop stays put,
+and the stacks and inset must fit the region. The lead
 region's blocks are semantic: a `Div` that comes first in reading order.
 
 `Pdf.page_number` and `Pdf.total_pages` take a number style (`Decimal`,

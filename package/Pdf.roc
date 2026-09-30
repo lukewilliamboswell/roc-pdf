@@ -685,6 +685,19 @@ Pdf :: [].{
 	with_backdrop : Region, Scene.Drawing -> Region
 	with_backdrop = |value, drawing| Document.with_backdrop(value, drawing)
 
+	## A region whose slot stacks sit `inset` inside its outer edge: a
+	## header's stacks rise `inset` above its bottom edge and a footer's
+	## hang `inset` below its top edge, so a backdrop rule along that edge
+	## clears the text's descenders by more than its line box alone gives
+	## (a text item is one body line tall, its baseline one text size below
+	## its top). The backdrop does not move. The stacks and the
+	## inset together must fit the region
+	## (`layout.template_region_overflow`), a negative inset is
+	## `layout.spacer_negative`, and on `no_region` it is
+	## `layout.template_region_empty`.
+	with_slot_inset : Region, Layout.Unit -> Region
+	with_slot_inset = |value, inset| Document.with_slot_inset(value, inset)
+
 	## A template without this region; it reserves no height and no gap.
 	no_region : Region
 	no_region = Document.no_region
@@ -1451,6 +1464,7 @@ furniture_error = |error| {
 		InlineEmpty({ path }) => located(InvalidRelationship, "semantics.inline_empty", "Furniture text and every reserved width in it must contain text or a page field, and no text inline may be empty.", [path])
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
+		InsetNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template region's slot inset is negative; slot furniture never leaves its region.", [path])
 		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
 		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if script.is_empty() "Unknown" else script}, which the convenience text path does not shape.", [path])
 		other => stage_error(Furniture(other))

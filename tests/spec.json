@@ -24124,6 +24124,72 @@
       ]
     },
     {
+      "name": "page templates slot inset",
+      "scenario_revision": "page-templates-slot-inset-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/slot_inset.pdf",
+      "args": [
+        "slot_inset",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "moved_pieces",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 16372,
+          "allocated_bytes": 11414195,
+          "work": {
+            "lines": 15,
+            "pages": 2,
+            "reference_passes": 2,
+            "field_resolutions": 4,
+            "furniture_items": 6,
+            "fragments": 15,
+            "artifact_runs": 6,
+            "output_bytes": 15908,
+            "moved_pieces": 6,
+            "rejections": 3
+          }
+        },
+        "x64musl": {
+          "allocations": 16372,
+          "allocated_bytes": 11414195,
+          "work": {
+            "lines": 15,
+            "pages": 2,
+            "reference_passes": 2,
+            "field_resolutions": 4,
+            "furniture_items": 6,
+            "fragments": 15,
+            "artifact_runs": 6,
+            "output_bytes": 15908,
+            "moved_pieces": 6,
+            "rejections": 3
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "page templates furniture groups",
       "scenario_revision": "page-templates-furniture-groups-v1",
       "source": "tests/page_templates/main.roc",

@@ -7,6 +7,7 @@ import pdf.KernelBuiltInFont
 import pdf.KernelColor
 import pdf.KernelContent
 import pdf.KernelFacadeFragments
+import pdf.KernelFacadeFurniture
 import pdf.KernelFacadeLines
 import pdf.KernelFacadeOutput
 import pdf.KernelFacadePages
@@ -74,6 +75,16 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   (`layout.template_region_overflow` at `.backdrop`) and a backdrop on
 ##   `no_region` (`layout.template_region_empty`). The 3/30 pair is the
 ##   linear scale pair.
+## - `slot_inset`: a header whose start and end text sit 3 pt above a
+##   bottom rule backdrop and a footer whose text hangs 4 pt below a top
+##   rule backdrop (`Pdf.with_slot_inset`). The furniture plan of the same
+##   document without insets is resolved beside it: every header piece's
+##   baseline must rise by exactly 3 pt, every footer piece's must drop by
+##   exactly 4 pt, and every backdrop must stay where it was. Rejections:
+##   a 6 pt inset that pushes a one-line stack out of its 16 pt region
+##   (`layout.template_region_overflow` at the slot), a negative inset
+##   (`layout.spacer_negative` at `.inset`), and an inset on `no_region`
+##   (`layout.template_region_empty`).
 ## - `furniture_groups`: one mark drawing (a square, a bar, and an image)
 ##   reused three times through `Scene.Drawing.group` in a header item,
 ##   nested twice in a footer item, and grouped inside a backdrop; the
@@ -128,6 +139,9 @@ Fixture :: [].{
 
 	furniture_groups : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	furniture_groups = |context| run_furniture_groups(context)
+
+	slot_inset : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	slot_inset = |context| run_slot_inset(context)
 
 	backdrops : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	backdrops = |pages| {
@@ -663,6 +677,76 @@ run_backdrops = |pages| {
 	Ok({ bytes: evidenced.bytes, work: evidenced.work.append(rejections) })
 }
 
+## Header text over a bottom rule and footer text under a top rule, with
+## the given slot insets.
+inset_templates : Layout.Unit, Layout.Unit -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
+inset_templates = |header_inset, footer_inset| {
+	edge_rule = |y| Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, y), size: { height: Layout.Unit.from_raw(750), width: points(483) } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
+	header = Pdf.with_slot_inset(Pdf.with_backdrop(Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(24), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])] }), edge_rule(0)), header_inset)
+	footer = Pdf.with_slot_inset(Pdf.with_backdrop(Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], end: [], height: points(24), start: [] }), edge_rule(23)), footer_inset)
+	{
+		continuation: Pdf.page_template({ footer, gap: points(12), header }),
+		first: Pdf.first_page_template({ footer, gap: points(12), header, lead: Pdf.no_lead }),
+	}
+}
+
+## The resolved furniture plan of a two-page document under `templates`.
+inset_plan : Document, Theme -> Try(KernelFacadeFurniture.Plan, Fixture.EvidenceError)
+inset_plan = |document, theme| {
+	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+	static = KernelFacadeFurniture.Static.build(Document.normalize(document), theme, page_size) ? |_| EvidenceFailure
+	shape = KernelShape.Limits.make({ max_clusters: 1000000, max_glyphs: 1000000, max_scalars: 1000000, max_source_bytes: 1000000 })
+	sources = KernelFacadeSources.Limits.make({ max_hash_probes: 4000000, max_inputs: 1000000, max_source_bytes: 1000000, max_source_scalars: 1000000, max_table_slots: 2097152, max_unique_sources: 1000000, unicode: { max_graphemes: 1000000, max_line_boundaries: 1000001, max_scalars: 1000000, max_script_runs: 2048 } })
+	KernelFacadeFurniture.Plan.resolve(static, 2, SingleFace(font), Language("en-AU"), 0, KernelFacadeFurniture.Limits.make({ max_inputs: 1000000, max_items: 4096, max_pieces: 1000000, shape, sources })).map_err(|_| EvidenceFailure)
+}
+
+run_slot_inset : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_slot_inset = |context| {
+	inset_document = |templates| Pdf.with_page_templates(Pdf.document({ contents: [Pdf.title("Quarterly operations report"), body_paragraph(context), Pdf.page_break, body_paragraph(context + 1)], language: "en-AU", title: "Slot insets" }), templates)
+	document = inset_document(inset_templates(points(3), points(4)))
+	evidenced = evidence(document, report_theme)?
+	inset = inset_plan(document, report_theme)?
+	plain = inset_plan(inset_document(inset_templates(points(0), points(0))), report_theme)?
+	inset_pieces = KernelFacadeFurniture.Plan.pieces(inset)
+	plain_pieces = KernelFacadeFurniture.Plan.pieces(plain)
+	if inset_pieces.len() != plain_pieces.len() or inset_pieces.is_empty() {
+		return Err(EvidenceFailure)
+	}
+	var $moved = 0
+	var $index = 0
+	while $index < inset_pieces.len() {
+		after = list_at(inset_pieces, $index)
+		before = list_at(plain_pieces, $index)
+		shift = after.origin.y.raw() - before.origin.y.raw()
+		expected = match after.band {
+			Above => 3000
+			Below => -4000
+		}
+		if shift != expected or after.origin.x.raw() != before.origin.x.raw() {
+			return Err(EvidenceFailure)
+		}
+		$moved = $moved + 1
+		$index = $index + 1
+	}
+	origins = |plan| KernelFacadeFurniture.Plan.drawing_paints(plan).map(|paint| (paint.origin.x.raw(), paint.origin.y.raw(), paint.page))
+	if origins(inset) != origins(plain) {
+		return Err(EvidenceFailure)
+	}
+	body = [Pdf.paragraph("Body.")]
+	templated = |header| Pdf.with_page_templates(Pdf.document({ contents: body, language: "en-AU", title: "Inset negatives" }), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header, lead: Pdf.no_lead }) })
+	text_header = Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] })
+	checks = [
+		rejects(templated(Pdf.with_slot_inset(text_header, points(6))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.start"]),
+		rejects(templated(Pdf.with_slot_inset(text_header, points(-1))), LayoutConstraintViolated, "layout.spacer_negative", ["templates.first.header.inset"]),
+		rejects(templated(Pdf.with_slot_inset(Pdf.no_region, points(2))), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
+	]
+	rejections = checks.sum()
+	if rejections != checks.len() {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({ bytes: evidenced.bytes, work: evidenced.work.append($moved).append(rejections) })
+}
+
 ledger_row : U64 -> Pdf.Row
 ledger_row = |index| {
 	n = (index + 1).to_str()
@@ -754,4 +838,10 @@ object_limits = {
 	max_text_string_bytes: 1000000,
 	max_text_strings: 16384,
 	max_values: 4000000,
+}
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => crash "page-template evidence index escaped"
 }

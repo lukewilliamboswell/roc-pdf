@@ -186,8 +186,9 @@ DocumentFurniture :: [FurnitureDrawing(Scene.Drawing), FurnitureText(List(Docume
 ## A header or footer region of a page template: a fixed authored height
 ## reserved inside the body frame and three slots whose furniture items
 ## stack vertically, over an optional full-width backdrop drawing.
-## `NoRegion` reserves nothing.
-DocumentRegion :: [NoRegion, Region({ backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) })].{}
+## `inset` moves a header's stacks up from its bottom edge and a footer's
+## down from its top edge. `NoRegion` reserves nothing.
+DocumentRegion :: [NoRegion, Region({ backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(DocumentFurniture) })].{}
 
 ## A region's backdrop: a decorative drawing painted behind its slots, or
 ## none.
@@ -223,7 +224,7 @@ NormalizedFurnitureInline : [
 
 NormalizedFurniture : [FurnitureDrawing(Scene.Drawing), FurnitureText(List(NormalizedFurnitureInline))]
 
-NormalizedRegion : [NoRegion, Region({ backdrop : Backdrop, center : List(NormalizedFurniture), end : List(NormalizedFurniture), height : Layout.Unit, start : List(NormalizedFurniture) })]
+NormalizedRegion : [NoRegion, Region({ backdrop : Backdrop, center : List(NormalizedFurniture), end : List(NormalizedFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(NormalizedFurniture) })]
 
 ## One normalized page template: its regions and the gap between each
 ## present region and the flow region.
@@ -1000,13 +1001,20 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	page_template = |{ footer, gap, header }| DocumentPageTemplate.{ footer, gap, header }
 
 	region : { center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) } -> DocumentRegion
-	region = |{ center, end, height, start }| DocumentRegion.Region({ backdrop: NoBackdrop, center, end, height, start })
+	region = |{ center, end, height, start }| DocumentRegion.Region({ backdrop: NoBackdrop, center, end, height, inset: Layout.Unit.from_raw(0), start })
 
 	## A region with a backdrop drawing behind its slots.
 	with_backdrop : DocumentRegion, Scene.Drawing -> DocumentRegion
 	with_backdrop = |value, drawing| match value {
-		NoRegion => DocumentRegion.Region({ backdrop: Backdrop(drawing), center: [], end: [], height: Layout.Unit.from_raw(0), start: [] })
+		NoRegion => DocumentRegion.Region({ backdrop: Backdrop(drawing), center: [], end: [], height: Layout.Unit.from_raw(0), inset: Layout.Unit.from_raw(0), start: [] })
 		Region(record) => DocumentRegion.Region({ ..record, backdrop: Backdrop(drawing) })
+	}
+
+	## A region whose slot stacks sit `inset` inside its outer edge.
+	with_slot_inset : DocumentRegion, Layout.Unit -> DocumentRegion
+	with_slot_inset = |value, inset| match value {
+		NoRegion => DocumentRegion.Region({ backdrop: NoBackdrop, center: [], end: [], height: Layout.Unit.from_raw(0), inset, start: [] })
+		Region(record) => DocumentRegion.Region({ ..record, inset })
 	}
 
 	no_region : DocumentRegion
@@ -1307,7 +1315,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 normalize_region : DocumentRegion -> NormalizedRegion
 normalize_region = |region| match region {
 	NoRegion => NoRegion
-	Region({ backdrop, center, end, height, start }) => Region({ backdrop, center: center.map(normalize_furniture), end: end.map(normalize_furniture), height, start: start.map(normalize_furniture) })
+	Region({ backdrop, center, end, height, inset, start }) => Region({ backdrop, center: center.map(normalize_furniture), end: end.map(normalize_furniture), height, inset, start: start.map(normalize_furniture) })
 }
 
 normalize_furniture : DocumentFurniture -> NormalizedFurniture

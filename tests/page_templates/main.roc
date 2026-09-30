@@ -15,6 +15,7 @@ Case : [
 	AtomicNegatives({ context : U64 }),
 	PageSizes({ context : U64 }),
 	Backdrops({ pages : U64 }),
+	SlotInset({ context : U64 }),
 	FurnitureGroups({ context : U64 }),
 ]
 
@@ -52,6 +53,7 @@ main! = |args| {
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 		PageSizes({ context }) => Fixture.page_sizes(context)
 		Backdrops({ pages }) => Fixture.backdrops(pages)
+		SlotInset({ context }) => Fixture.slot_inset(context)
 		FurnitureGroups({ context }) => Fixture.furniture_groups(context)
 	}
 	match result {

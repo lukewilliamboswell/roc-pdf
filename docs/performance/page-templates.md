@@ -435,6 +435,34 @@ and a backdrop on `no_region`. x3: 23,412 allocations; x30: 168,863 (7.2×
 for 10× pages): linear. No existing baseline changes; the region record's
 new field leaves every allocation count unchanged.
 
+## Slot insets (examples showcase)
+
+A header's slot stacks sit on the region's bottom edge, so header text's
+descenders came within about 2 pt of a backdrop rule along that edge (a
+text item is one body line tall with its baseline one text size below its
+top, so only the leading minus the size lies under the baseline).
+`Pdf.with_slot_inset(region, inset)` gives the region an `inset`: header
+stacks rise `inset` above the bottom edge and footer stacks hang `inset`
+below the top edge. The region record gains the field (normalized
+unchanged), and `add_slot` requires the stack plus the inset to fit the
+region (`layout.template_region_overflow` at the slot otherwise) and
+offsets the stack's first item by it. A negative inset is
+`layout.spacer_negative` at `.inset`; an inset on `no_region` makes a
+zero-height region, `layout.template_region_empty`, as a backdrop does.
+The backdrop and the overlap checks are unaffected: slots move together,
+so their horizontal extents and overlaps are unchanged.
+
+Evidence: `page templates slot inset`, a two-page report whose header text
+sits 3 pt above a bottom rule and whose footer text hangs 4 pt below a top
+rule. The fixture resolves the furniture plan of the same document without
+insets beside it and requires every header piece's baseline to rise by
+exactly 3 pt, every footer piece's to drop by exactly 4 pt, every piece to
+keep its x, and every drawing paint (the backdrops) to keep its origin;
+all 6 pieces moved. It rejects a 6 pt inset under a one-line 16 pt header,
+a negative inset, and an inset on `no_region`. 16,372 allocations; the
+case does not scale with anything but pages, which the backdrop pair
+already covers. No existing allocation count or snapshot changes.
+
 ## Grouped furniture drawings (examples showcase)
 
 `layout.furniture_drawing` rejected any `Scene.Drawing.group`, so a mark

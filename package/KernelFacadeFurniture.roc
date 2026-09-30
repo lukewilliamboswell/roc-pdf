@@ -52,6 +52,9 @@ KernelFacadeFurniture :: [].{
 		## An inline other than text, a page field, or a reserved width.
 		FurnitureInline({ path : Str }),
 		GapNegative({ path : Str }),
+
+		## A region's slot inset is negative.
+		InsetNegative({ path : Str }),
 		InlineEmpty({ path : Str }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 
@@ -325,7 +328,7 @@ gap_of = |gap, path| if gap.raw() < 0 Err(GapNegative({ path: "${path}.gap" })) 
 region_height : Document.NormalizedRegion, Str -> Try(U64, KernelFacadeFurniture.Error)
 region_height = |region, path| match region {
 	NoRegion => Ok(0)
-	Region({ backdrop, center, end, height, start }) => {
+	Region({ backdrop, center, end, height, inset: _, start }) => {
 		slotless = center.is_empty() and end.is_empty() and start.is_empty()
 		bare = match backdrop {
 			NoBackdrop => slotless
@@ -338,8 +341,12 @@ region_height = |region, path| match region {
 add_region : StaticState, Document.NormalizedRegion, { band : KernelFacadeFurniture.Band, kind : Scene.PageArtifactKind, path : Str, template : TemplateKind, top : U64 }, Theme.TextStyle -> Try(StaticState, KernelFacadeFurniture.Error)
 add_region = |state, region, at, style| match region {
 	NoRegion => Ok(state)
-	Region({ backdrop, center, end, height, start }) => {
+	Region({ backdrop, center, end, height, inset, start }) => {
 		region_height_value = height.raw().to_u64_wrap()
+		if inset.raw() < 0 {
+			return Err(InsetNegative({ path: "${at.path}.inset" }))
+		}
+		slot_inset = inset.raw().to_u64_wrap()
 		first_item = state.items.len()
 		var $state = state
 		match backdrop {
@@ -348,9 +355,9 @@ add_region = |state, region, at, style| match region {
 				$state = add_backdrop($state, drawing, "${at.path}.backdrop", { height: region_height_value, top: at.top })?
 			}
 		}
-		$state = add_slot($state, start, StartSlot, "${at.path}.start", { band: at.band, height: region_height_value, top: at.top }, style)?
-		$state = add_slot($state, center, CenterSlot, "${at.path}.center", { band: at.band, height: region_height_value, top: at.top }, style)?
-		$state = add_slot($state, end, EndSlot, "${at.path}.end", { band: at.band, height: region_height_value, top: at.top }, style)?
+		$state = add_slot($state, start, StartSlot, "${at.path}.start", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
+		$state = add_slot($state, center, CenterSlot, "${at.path}.center", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
+		$state = add_slot($state, end, EndSlot, "${at.path}.end", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
 		region_record = { band: at.band, height: region_height_value, items: Semantics.Range.from_start_and_length(first_item, $state.items.len() - first_item), kind: at.kind, path: at.path, template: at.template, top: at.top }
 		Ok({ ..$state, regions: $state.regions.append(region_record) })
 	}
@@ -381,8 +388,9 @@ add_backdrop = |state, drawing, path, region| {
 
 ## One slot's stack: its items' heights must fit the region; a header's
 ## stack sits on the region's bottom edge and a footer's hangs from its top
-## edge, next to the body flow.
-add_slot : StaticState, List(Document.NormalizedFurniture), Slot, Str, { band : KernelFacadeFurniture.Band, height : U64, top : U64 }, Theme.TextStyle -> Try(StaticState, KernelFacadeFurniture.Error)
+## edge, next to the body flow, each moved `inset` inward, and the stack
+## and its inset together must fit the region.
+add_slot : StaticState, List(Document.NormalizedFurniture), Slot, Str, { band : KernelFacadeFurniture.Band, height : U64, inset : U64, top : U64 }, Theme.TextStyle -> Try(StaticState, KernelFacadeFurniture.Error)
 add_slot = |state, furniture, slot, path, region, style| {
 	if furniture.is_empty() {
 		return Ok(state)
@@ -413,12 +421,13 @@ add_slot = |state, furniture, slot, path, region, style| {
 		}
 		$index = $index + 1
 	}
-	if $stack > region.height {
-		return Err(RegionOverflow({ available: region.height, path, required: $stack }))
+	required = checked_add($stack, region.inset)?
+	if required > region.height {
+		return Err(RegionOverflow({ available: region.height, path, required }))
 	}
 	var $top = match region.band {
-		Above => checked_add(region.top, region.height - $stack)?
-		Below => region.top
+		Above => checked_add(region.top, region.height - required)?
+		Below => checked_add(region.top, region.inset)?
 	}
 	var $items = state.items
 	for content in $contents {
