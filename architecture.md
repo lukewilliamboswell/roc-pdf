@@ -548,6 +548,9 @@ returned registry retains the original immutable input allocation together with
 its once-produced inspection facts; it does not copy the font payload into a
 second byte list. `Theme.with_font` accepts the returned face handle. A caller
 cannot register a name, path, URL, partial stream, or caller-selected identity.
+`Font.Registry.register_built_in` registers the packaged face through the same
+path, so an application can combine it with caller faces in one registry
+without supplying a copy of the package's font bytes.
 
 Validated font identity and metrics are source facts. Inspection records exact
 ranges for the selected family, full, and PostScript name strings and the OS/2

@@ -10,6 +10,7 @@ import pdf.Theme
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/CallerFont-Restricted.ttf" as restricted_font_bytes : List(U8)
 import "../assets/CallerFont-Unhinted.ttf" as unhinted_font_bytes : List(U8)
+import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 
 ## This focused fixture exercises the public facade rather than a private
 ## evidence module. Its registered dev-backend work proves one retained source
@@ -23,6 +24,7 @@ main! = |args| {
 		"unique-registries" => unique_registries(args.len())
 		"restricted" => restricted(args.len())
 		"unhinted" => unhinted(args.len())
+		"built-in-registry" => built_in_registry(args.len())
 		_ => crash "text-layout caller facade mode is invalid"
 	}
 }
@@ -110,6 +112,64 @@ unhinted = |runtime_argument_count| {
 			registered.work.glyph_visits,
 			registered.work.cmap_mapping_visits,
 			document.block_count(),
+			bytes.len(),
+		],
+	}
+}
+
+## The public built-in registration puts the packaged face in a registry
+## beside a caller monospace face for `Code`. Registered, the built-in face
+## produces exactly the bytes of the unregistered default; the snapshot is
+## the code-face document over the registered built-in body face.
+built_in_registry : U64 -> { bytes : List(U8), work : List(U64) }
+built_in_registry = |runtime_argument_count| {
+	if runtime_argument_count != 2 {
+		crash "text-layout caller facade argument count is invalid"
+	}
+	body = match Font.Registry.empty.register_built_in(facade_limits(runtime_argument_count)) {
+		Err(_) => crash "built-in registration failed"
+		Ok(value) => value
+	}
+	mono = match body.registry.register(
+		mono_font_bytes,
+		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+		facade_limits(runtime_argument_count),
+	) {
+		Err(_) => crash "monospace registration failed"
+		Ok(value) => value
+	}
+	registered_options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, Theme.with_font(Theme.default, body.face)), body.registry)
+	default_options = if runtime_argument_count == 2 Pdf.Options.default else registered_options
+	default_bytes = match Pdf.to_bytes_with(caller_document({}), default_options) {
+		Err(_) => crash "default output failed"
+		Ok(value) => value
+	}
+	registered_bytes = match Pdf.to_bytes_with(caller_document({}), registered_options) {
+		Err(_) => crash "registered built-in output failed"
+		Ok(value) => value
+	}
+	if default_bytes != registered_bytes {
+		crash "the registered built-in face changed the default output"
+	}
+	theme = Theme.with_inline_font(Theme.with_font(Theme.default, body.face), Code, mono.face)
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), mono.registry)
+	document = Pdf.document({
+		contents: [Pdf.rich_paragraph([Pdf.text("Run "), Pdf.code("roc build"), Pdf.text(" before the release.")])],
+		language: "en-AU",
+		title: "Built-in registry",
+	})
+	bytes = match Pdf.to_bytes_with(document, options) {
+		Err(_) => crash "built-in code-face output failed"
+		Ok(value) => value
+	}
+	{
+		bytes,
+		work: [
+			body.face.index(),
+			mono.face.index(),
+			body.work.input_bytes,
+			body.work.copied_input_bytes,
+			registered_bytes.len(),
 			bytes.len(),
 		],
 	}

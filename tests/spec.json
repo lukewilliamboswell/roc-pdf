@@ -3841,6 +3841,60 @@
       ]
     },
     {
+      "name": "text-layout built-in face through a registry",
+      "scenario_revision": "built-in-registry-v1",
+      "source": "tests/caller_font/caller_facade.roc",
+      "snapshot": "tests/caller_font/built_in_registry.pdf",
+      "args": [
+        "built-in-registry"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "registered_faces": 2,
+        "normalized_plan_identity": 1
+      },
+      "work_counters": [
+        "body_face",
+        "code_face",
+        "input_bytes",
+        "copied_input_bytes",
+        "default_output_bytes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5207,
+          "allocated_bytes": 3109321,
+          "work": {
+            "body_face": 0,
+            "code_face": 1,
+            "input_bytes": 166300,
+            "copied_input_bytes": 0,
+            "default_output_bytes": 14474,
+            "output_bytes": 23686
+          }
+        },
+        "x64musl": {
+          "allocations": 5207,
+          "allocated_bytes": 3109321,
+          "work": {
+            "body_face": 0,
+            "code_face": 1,
+            "input_bytes": 166300,
+            "copied_input_bytes": 0,
+            "default_output_bytes": 14474,
+            "output_bytes": 23686
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "text-layout caller-font shared registry retention",
       "scenario_revision": "caller-font-shared-registry-v1",
       "source": "tests/caller_font/caller_facade.roc",

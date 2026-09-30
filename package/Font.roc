@@ -1,4 +1,5 @@
 import Semantics
+import KernelBuiltInFont
 import KernelFont
 
 Font :: [].{
@@ -200,6 +201,17 @@ Font :: [].{
 
 		register : Registry, List(U8), Registration, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
 		register = |registry, bytes, registration, limits| register_font(registry, bytes, registration, limits)
+
+		## Register the package's built-in face, the face of `Theme.default`,
+		## as an ordinary registered face for the Latin script. Use it to put
+		## the built-in face in a registry beside caller faces: for example a
+		## monospace `Code` face (`Theme.with_inline_font`) over the built-in
+		## body face. The registry retains the package's own byte list; the
+		## face is validated exactly like caller bytes and emits the same
+		## subset as the unregistered default. `limits` apply as in
+		## `register`; `ValidationLimits.default` accepts the built-in face.
+		register_built_in : Registry, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
+		register_built_in = |registry, limits| register_font(registry, KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Script.from_iso15924("Latn")] }, limits)
 
 		store : Registry -> Store
 		store = |Registry.(state)| state.store

@@ -76,7 +76,11 @@ and leading. The face must be in the options' font registry
 (`InvalidFontResource` otherwise), must cover the role's text
 (`text.coverage_missing`), and applies to style faces only: a theme with an
 ordered font policy reports `text.inline_font_policy`. The package ships one
-regular face and never synthesizes bold or italic.
+regular face and never synthesizes bold or italic. To use the packaged face
+beside a caller face, put it in the registry with
+`Font.Registry.register_built_in(registry, Font.ValidationLimits.default)`
+and select the returned face with `Theme.with_font`; it validates and embeds
+exactly as the unregistered default does.
 
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an

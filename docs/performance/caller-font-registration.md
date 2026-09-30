@@ -38,3 +38,28 @@ embedding-prohibited twin and caller-face shaping, subsetting, embedding,
 extraction, and rendering evidence. Source-allocation reference counts through
 final emission, multi-placement parse reuse, and public facade generation still
 remain required text-layout evidence rather than silent fallbacks.
+
+## The built-in face in a registry
+
+`Font.Registry.register_built_in(registry, limits)` registers the package's
+built-in face (`package/RocPdfSans-Regular.ttf`, the face of `Theme.default`)
+as an ordinary registered face for the Latin script. Before it, a document
+that wanted a caller face for one role (a monospace `Code` face) beside the
+built-in body face had to import a copy of the built-in font bytes, because
+the registry was the only path to a second face and the packaged face was
+not public. The function calls the same transactional `register` path with
+the package's own byte list, so validation, inspection, and retention are
+identical to caller bytes: the registry retains the package allocation and
+copies nothing (`copied_input_bytes` 0). It takes validation limits like
+`register`, which also keeps a caller's compile-time constant registration
+from being evaluated away.
+
+Evidence, `text-layout built-in face through a registry`: the packaged face
+registered as face 0 and the Noto Sans Mono fixture as face 1. A document
+through the registered built-in face produces exactly the bytes of the same
+document through the unregistered default (the fixture crashes otherwise),
+and the snapshot is a rich paragraph whose `Code` run paints in the
+monospace face over the registered built-in body face (5,207 allocations;
+PDF/A-4 and rich-inline validators). There is no new failure mode: the
+built-in face passes `ValidationLimits.default`, and tighter limits reject
+it exactly as they would reject caller bytes.
