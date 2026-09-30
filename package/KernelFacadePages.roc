@@ -1222,13 +1222,15 @@ assert_logical_identity = |runs, styles, logical, block| {
 
 keeps_together : Document.NormalizedBlockKind -> Bool
 keeps_together = |kind| match kind {
-	Figure(_) | FigureCaption(_) | Heading(_) | Title => True
+	DestinationHeading(_) | Figure(_) | FigureCaption(_) | Heading(_) | Title => True
 	_ => False
 }
 
+## Headings (with or without a destination) and titles keep with the next
+## block's first placement unit (R1).
 keeps_with_next : Document.NormalizedBlockKind -> Bool
 keeps_with_next = |kind| match kind {
-	Heading(_) | Title => True
+	DestinationHeading(_) | Heading(_) | Title => True
 	_ => False
 }
 

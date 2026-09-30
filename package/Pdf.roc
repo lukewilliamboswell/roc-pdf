@@ -997,6 +997,7 @@ pipeline_error = |error, doc| match error {
 			group_path(Document.normalize(doc).groups, group),
 		),
 	)
+	Semantics(HeadingSkip({ block, previous })) => located_error(doc, InvalidRelationship, "semantics.heading_skip", "A heading is more than one level deeper than the heading before it; heading levels must not skip a level.", [leaf_path(doc, previous), leaf_path(doc, block)])
 	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [leaf_path(doc, block)])
 	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [leaf_path(doc, block)])
 	Semantics(FigureDrawing({ block, reason })) => located_error(doc, InvalidRelationship, "document.figure_drawing", "A figure's drawing is not a supported flow drawing: ${reason}.", [leaf_path(doc, block)])

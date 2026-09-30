@@ -87,6 +87,10 @@ KernelFacadeSemantics :: [].{
 		TableRowSpan({ block : U64 }),
 		TextSemantics(KernelTextSemantics.Error),
 		UnsupportedHeadingLevel({ block : U64, level : U8 }),
+
+		## A numbered heading more than one level deeper than the heading
+		## before it in reading order (`semantics.heading_skip`).
+		HeadingSkip({ block : U64, previous : U64 }),
 	]
 	Limits :: {
 		max_container_depth : U64,
@@ -272,6 +276,7 @@ plan_blocks : Document.NormalizedAuthoring, KernelFacadeSemantics.Limits -> Try(
 plan_blocks = |authoring, limits| {
 	blocks = authoring.blocks
 	groups = authoring.groups
+	check_heading_progression(blocks)?
 	source_bound = if blocks.len() > U64.highest / 2 U64.highest else blocks.len() * 2
 	var $destinations = []
 	var $links = []
@@ -1354,6 +1359,33 @@ append_rich_links = |links, inlines, rich, paragraph_node, first_occurrence| {
 	$links
 }
 
+## Numbered headings never skip a level downward: each heading is at most
+## one level deeper than the heading before it in reading order (the first
+## heading may have any level). Levels outside 1..6 are left to
+## `heading_role`. One pass over the normalized blocks, O(blocks).
+check_heading_progression : List(Document.NormalizedBlock) -> Try({}, KernelFacadeSemantics.Error)
+check_heading_progression = |blocks| {
+	var $previous = U64.highest
+	var $previous_level = 0
+	var $index = 0
+	for block in blocks {
+		level = match block.kind {
+			Heading(value) => value
+			DestinationHeading({ level: value, name: _ }) => value
+			_ => 0
+		}
+		if level >= 1 and level <= 6 {
+			if $previous != U64.highest and level > $previous_level + 1 {
+				return Err(HeadingSkip({ block: $index, previous: $previous }))
+			}
+			$previous = $index
+			$previous_level = level
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
 heading_role : U8, U64 -> Try(Str, KernelFacadeSemantics.Error)
 heading_role = |level, block| match level {
 	1 => Ok("H1")
@@ -2375,6 +2407,23 @@ expect {
 		Err(UnsupportedHeadingLevel({ block: 0, level: 7 })) => True
 		_ => False
 	}
+}
+
+## A heading may rise any number of levels but descend only one at a time;
+## destination headings take part, and the first heading has no predecessor.
+expect {
+	skipped = [
+		{ kind: Heading(1), parent: 0, text: "Summary" },
+		{ kind: Paragraph, parent: 0, text: "Body" },
+		{ kind: DestinationHeading({ level: 3, name: "detail" }), parent: 0, text: "Detail" },
+	]
+	stepped = [
+		{ kind: Heading(2), parent: 0, text: "Start" },
+		{ kind: Heading(3), parent: 0, text: "Down" },
+		{ kind: Heading(1), parent: 0, text: "Up" },
+		{ kind: DestinationHeading({ level: 2, name: "down" }), parent: 0, text: "Down" },
+	]
+	check_heading_progression(skipped) == Err(HeadingSkip({ block: 2, previous: 0 })) and check_heading_progression(stepped) == Ok({})
 }
 
 ## The first node crossing is rejected before its planned node/content buffers

@@ -404,6 +404,23 @@ its rerun passed.
   negative is four nested lists of `MMMDCCCLXXXVIII.` labels. The dense
   per-block geometry costs one to six allocation events per document and
   32 bytes per block (+1.4% bytes at most, on the x1000 facade pairs).
+- ~~**Destination headings.**~~ (reference-documents closure) R1 and the
+  unsplittable-heading rule matched only `Heading` and `Title` blocks, so a
+  `Pdf.destination_heading` (the form every report section heading takes)
+  neither kept with its next block nor counted as unsplittable: the
+  reference report's section 2 and Appendix A headings were left as the
+  last line of a page with their paragraph on the next, and no relaxation
+  was reported. `KernelFacadePages.keeps_with_next` and `keeps_together`
+  now include `DestinationHeading`. REP-A1 in `tests/reference_documents`
+  pins the fixed behavior against a control; no committed snapshot placed
+  a destination heading at a page end, so none changed.
+- ~~**Heading progression.**~~ (reference-documents closure)
+  `semantics.heading_skip` (`InvalidRelationship`) was a recorded code
+  that nothing returned. `KernelFacadeSemantics.check_heading_progression`
+  now rejects, in one O(blocks) pass before planning, a numbered heading
+  (plain or destination) more than one level deeper than the heading before
+  it, naming both headings' paths (REP-A7). The first heading may take any
+  level; levels outside 1–6 keep `heading_role`'s rejection.
 - **List item content** is limited to paragraphs, rich paragraphs, and lists,
   and must begin with a paragraph. Keeps inside items are rejected.
 - **Page-break edges.** A page break at the edge of a `keep_together` is
