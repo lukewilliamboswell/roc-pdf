@@ -367,3 +367,36 @@ has a divider with 12 pt above and 6 pt below it and a heading over a
 22 pt band that overlaps it fully and paints behind its text. Each also
 rejects negative space above and an overlap deeper than the drawing.
 x10: 28,308 allocations, 2 pages; x100: 232,986 (8.2×), 15 pages: linear.
+
+## Drawing-bound diagnostics (examples showcase)
+
+A path reaching below or left of its drawing's origin was rejected with
+"a path extends below or left of the drawing origin", which did not say
+which path or why. Flow drawings (figures and decorations) and furniture
+drawings now name the command and the cause, computed only on the
+rejection path (`origin_violation`):
+
+- `command k (a path) has a point at (x, y)`: its own geometry (a move,
+  line, curve end, or rectangle corner);
+- `... has a Bézier control point at (x, y) ...; a path's extent includes
+  its control points`: every anchor is inside but a control point is not;
+- `... lies inside the drawing, but its stroke's half-width of h reaches
+  (x, y)`: only the stroke crosses the origin.
+
+Coordinates are drawing-local after group offsets, and `k` is the
+authored command index (group markers count). Labels already reported
+`layout.drawing_label_bounds`.
+
+The extent itself still uses the control-point hull, not the curve's true
+extent. The hull always contains the curve, so it never clips; the true
+extent needs the cubic's derivative roots (an integer square root with
+outward rounding in millipoints) and would change the measured size, and
+so the layout, figure scale, and decoration height, of every existing
+drawing with a curve whose control points lie outside its anchors. That is
+a layout-changing contract revision with its own snapshot review, so it is
+recorded here rather than folded into a diagnostics change.
+
+Evidence: `flow figures drawing bound diagnostics` checks each message for
+a figure, a decoration, and a furniture drawing, and that the same curve
+moved inside the origin by a group is accepted (8,104 allocations). No
+existing baseline changes: the messages are built only for rejections.

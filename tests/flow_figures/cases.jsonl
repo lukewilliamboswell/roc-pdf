@@ -6,3 +6,4 @@
 {"name":"flow figures labels x50","schema_version":1,"case":{"Labels":{"count":50}}}
 {"name":"flow figures spaced decorations x10","schema_version":1,"case":{"SpacedDecorations":{"sections":10}}}
 {"name":"flow figures spaced decorations x100","schema_version":1,"case":{"SpacedDecorations":{"sections":100}}}
+{"name":"flow figures drawing bound diagnostics","schema_version":1,"case":{"BoundDiagnostics":{"context":0}}}

@@ -24455,6 +24455,48 @@
       ]
     },
     {
+      "name": "flow figures drawing bound diagnostics",
+      "scenario_revision": "flow-figures-bound-diagnostics-v1",
+      "source": "tests/flow_figures/main.roc",
+      "snapshot": "tests/flow_figures/bound_diagnostics.pdf",
+      "args": [
+        "bound_diagnostics",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1
+      },
+      "work_counters": [
+        "checks",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 8104,
+          "allocated_bytes": 2658458,
+          "work": {
+            "checks": 7,
+            "output_bytes": 15761
+          }
+        },
+        "x64musl": {
+          "allocations": 8104,
+          "allocated_bytes": 2658458,
+          "work": {
+            "checks": 7,
+            "output_bytes": 15761
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "flow figures atomic negatives",
       "scenario_revision": "flow-figures-v1",
       "source": "tests/flow_figures/main.roc",

@@ -63,6 +63,11 @@ import pdf.Theme
 ##   behind its text. Rejections: negative space above, and an overlap
 ##   deeper than the drawing (`layout.decoration_drawing`). The 10/100 pair
 ##   is the linear scale pair.
+## - `bound_diagnostics`: a figure, a decoration, and a furniture drawing
+##   whose path reaches below or left of the origin through its own
+##   geometry, a Bézier control point, or only its stroke's half-width;
+##   each diagnostic names the command, the cause, and the coordinate. The
+##   same curve moved inside the origin by a group is accepted.
 ## - `atomic_negatives`: every figure and decoration rejection with its
 ##   stable dotted code and authored path, and no bytes.
 ##
@@ -82,6 +87,9 @@ Fixture :: [].{
 		}
 		evidence(sections_document(count))
 	}
+
+	bound_diagnostics : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	bound_diagnostics = |context| run_bound_diagnostics(context)
 
 	spaced_decorations : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	spaced_decorations = |count| {
@@ -354,6 +362,43 @@ sections_document = |count| {
 		$index = $index + 1
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Regional figures" })
+}
+
+run_bound_diagnostics : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_bound_diagnostics = |context| {
+	offset = (context % 1).to_i64_wrap()
+	solid = Scene.solid_fill(oak)
+	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 20, 20), oak)
+	below = mark.path(Scene.path({}).move_to(Layout.point(0, 0)).line_to(Layout.point(10, -2 + offset)).line_to(Layout.point(10, 10)).close().finish(), solid)
+	curve = mark.path(Scene.path({}).move_to(Layout.point(0, 0)).cubic_to({ control_1: Layout.point(-4, 5), control_2: Layout.point(-4, 15), end: Layout.point(0, 20) }).close().finish(), solid)
+	stroked = mark.path(Scene.path({}).move_to(Layout.point(0, 2)).line_to(Layout.point(20, 2)).finish(), Scene.solid_stroke(oak, points(2)))
+	grouped = Scene.drawing({}).group(Layout.point(5, 5), curve)
+	message_of = |result| match result {
+		Err(InvalidDocument({ diagnostics: [{ message, .. }], .. })) => message
+		_ => ""
+	}
+	options = Pdf.Options.with_theme(Pdf.Options.default, report_theme)
+	figure = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.figure(drawing, "A mark", Pdf.no_caption)], language: "en-AU", title: "Bounds" }), options))
+	decoration = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.decoration(drawing), Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), options))
+	furniture = |drawing| {
+		header = Pdf.region({ center: [], end: [], height: points(40), start: [Pdf.furniture_image(drawing)] })
+		message_of(Pdf.to_bytes_with(Pdf.with_page_templates(Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header, lead: Pdf.no_lead }) }), options))
+	}
+	checks = [
+		figure(below).contains("command 1 (a path) has a point at (10 pt, -2 pt)"),
+		figure(curve).contains("command 1 (a path) has a Bézier control point at (-4 pt, 5 pt)"),
+		figure(stroked).contains("its stroke's half-width of 1 pt reaches (-1 pt, 1 pt)"),
+		figure(grouped) == "",
+		decoration(curve).contains("Bézier control point at (-4 pt, 5 pt)"),
+		furniture(curve).contains("command 1 (a path) has a Bézier control point at (-4 pt, 5 pt)"),
+		furniture(stroked).contains("stroke's half-width of 1 pt"),
+	]
+	passed = checks.keep_if(|held| held).len()
+	if passed != checks.len() {
+		return Err(MissingRejection(passed))
+	}
+	bytes = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure(Scene.drawing({}).group(Layout.point(4, 0), curve), "A curved mark moved inside the origin", Pdf.no_caption)], language: "en-AU", title: "Drawing bounds" }), options) ? |_| EvidenceFailure
+	Ok({ bytes, work: [passed, bytes.len()] })
 }
 
 spaced_document : U64 -> Document

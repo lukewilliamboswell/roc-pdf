@@ -1905,7 +1905,7 @@ validate_flow_drawing = |drawing| {
 					NoPoints => return InvalidDrawing("a path needs at least one segment beginning with a move or a rectangle")
 					Bounds({ max_x, max_y, min_x, min_y }) => {
 						if min_x - half < 0 or min_y - half < 0 {
-							return InvalidDrawing("a path extends below or left of the drawing origin")
+							return InvalidDrawing(origin_violation(moved, half, $index))
 						}
 						$width = U64.max($width, (max_x + half).to_u64_wrap())
 						$height = U64.max($height, (max_y + half).to_u64_wrap())
@@ -1964,6 +1964,72 @@ validate_flow_drawing = |drawing| {
 		return InvalidDrawing("it has no positive extent")
 	}
 	ValidDrawing({ commands: $converted, height: $height, images: $images, width: $width })
+}
+
+## Why a path's extent reaches below or left of the drawing origin, and
+## where, for its diagnostic: its own geometry (a move, line, curve end,
+## or rectangle corner), a Bézier control point (the extent is the
+## control-point hull, which contains the curve), or, when every point is
+## inside, its stroke's half-width. Coordinates are drawing-local, after
+## any group offsets. Only a rejected path reaches this.
+origin_violation : List(Scene.PathSegment), I64, U64 -> Str
+origin_violation = |segments, half, command| {
+	var $geometry = NoPoint
+	var $control = NoPoint
+	var $low_x = I64.highest
+	var $low_y = I64.highest
+	for segment in segments {
+		anchors = match segment {
+			Close => []
+			CubicTo({ end, .. }) => [end]
+			LineTo(point) | MoveTo(point) => [point]
+			Rectangle(rect) => [rect.origin, { x: Layout.Unit.from_raw(rect.origin.x.raw() + rect.size.width.raw()), y: Layout.Unit.from_raw(rect.origin.y.raw() + rect.size.height.raw()) }]
+		}
+		controls = match segment {
+			CubicTo({ control_1, control_2, .. }) => [control_1, control_2]
+			_ => []
+		}
+		for point in anchors {
+			$low_x = I64.min($low_x, point.x.raw())
+			$low_y = I64.min($low_y, point.y.raw())
+			if $geometry == NoPoint and (point.x.raw() < 0 or point.y.raw() < 0) {
+				$geometry = At(point.x.raw(), point.y.raw())
+			}
+		}
+		for point in controls {
+			if $control == NoPoint and (point.x.raw() < 0 or point.y.raw() < 0) {
+				$control = At(point.x.raw(), point.y.raw())
+			}
+		}
+	}
+	prefix = "command ${command.to_str()} (a path)"
+	match ($geometry, $control) {
+		(At(x, y), _) => "${prefix} has a point at (${signed_points(x)}, ${signed_points(y)}), below or left of the drawing origin"
+		(NoPoint, At(x, y)) => "${prefix} has a Bézier control point at (${signed_points(x)}, ${signed_points(y)}), below or left of the drawing origin; a path's extent includes its control points, so move the control point or the whole path"
+		(NoPoint, NoPoint) => "${prefix} lies inside the drawing, but its stroke's half-width of ${signed_points(half)} reaches (${signed_points($low_x - half)}, ${signed_points($low_y - half)}), below or left of the drawing origin; move the path in by at least half the stroke width"
+	}
+}
+
+## A signed millipoint length as points, such as `-3 pt` or `0.375 pt`.
+signed_points : I64 -> Str
+signed_points = |raw| {
+	magnitude = if raw < 0 (0 - raw).to_u64_wrap() else raw.to_u64_wrap()
+	sign = if raw < 0 "-" else ""
+	fraction = magnitude % 1000
+	if fraction == 0 {
+		"${sign}${(magnitude // 1000).to_str()} pt"
+	} else {
+		digits = (1000 + fraction).to_str()
+		var $trimmed = Str.to_utf8(digits).drop_first(1)
+		while $trimmed.last() == Ok('0') {
+			$trimmed = $trimmed.drop_last(1)
+		}
+		text = match Str.from_utf8($trimmed) {
+			Ok(value) => value
+			Err(_) => "0"
+		}
+		"${sign}${(magnitude // 1000).to_str()}.${text} pt"
+	}
 }
 
 ## A path translated by a group offset. Every coordinate must lie within
