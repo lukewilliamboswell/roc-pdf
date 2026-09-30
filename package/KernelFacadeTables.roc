@@ -158,7 +158,11 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 						if measure.min_content > text_width {
 							return Err(UnbreakableToken({ available: text_width, block: $block, token: measure.token, width: measure.min_content }))
 						}
-						$cells = $cells.append({ align: list_at(table.columns, $column).align, block: $block, width: text_width, x: $x + padding })
+						align = match record.align {
+							Aligned(value) => value
+							FirstColumn => list_at(table.columns, $column).align
+						}
+						$cells = $cells.append({ align, block: $block, width: text_width, x: $x + padding })
 						$x = $x + cell_width
 						$column = $column + span
 						$ordinal_cursor = $ordinal_cursor + 1

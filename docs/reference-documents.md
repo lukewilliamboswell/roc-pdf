@@ -138,7 +138,8 @@ Body contents, in order:
      The product name `Cafetière « Élégance »` is authored as
      `Pdf.in_language("fr", [Pdf.text("Cafetière « Élégance »")])`.
    - Three footer rows, each a `Row`-scoped header cell spanning four columns
-     (`Pdf.spanning(4, ...)`) and one amount cell:
+     and end-aligned (`Pdf.aligned(End, Pdf.spanning(4, ...))`) and one
+     amount cell:
      `Subtotal (excl. GST)` / `40,116.40`; `GST (10%)` / `4,011.64`;
      `Total due (AUD)` / `44,128.04` (the amount wrapped in `Pdf.strong`).
 6. `Pdf.section` with `Pdf.heading(1, "Payment")` and two rich paragraphs:
@@ -174,15 +175,15 @@ items = Pdf.table({
     body_rows: item_rows,
     footer_rows: [
         Pdf.row([
-            Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("Subtotal (excl. GST)")])),
+            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("Subtotal (excl. GST)")]))),
             Pdf.cell([Pdf.text("40,116.40")]),
         ]),
         Pdf.row([
-            Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("GST (10%)")])),
+            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("GST (10%)")]))),
             Pdf.cell([Pdf.text("4,011.64")]),
         ]),
         Pdf.row([
-            Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")])),
+            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")]))),
             Pdf.cell([Pdf.strong([Pdf.text("44,128.04")])]),
         ]),
     ],
@@ -885,7 +886,8 @@ letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
   breaks included). Cells wrap within their column text width; there is no
   block flow inside cells in v1. A cell must hold text (`table.cell_empty`).
   A cell's lines align by their visible advance (trailing spaces excluded)
-  in the alignment of the first column it spans; lines start at the top of
+  in the alignment of the first column it spans, or in its own alignment
+  when authored with `Pdf.aligned(align, cell)` (`reference-documents-v8`); lines start at the top of
   the row.
 - Every row's spans must sum to the table's column count, and every span is
   at least one (`table.grid_mismatch`). Column spans are supported; a cell
@@ -1159,6 +1161,7 @@ row : List(Cell) -> Row
 cell : List(Inline) -> Cell                      # TD
 header_cell : Scope, List(Inline) -> Cell        # TH; Scope : [Column, Row, Both]
 spanning : U16, Cell -> Cell                     # column span only
+aligned : Align, Cell -> Cell                    # overrides the first spanned column's alignment
 row_spanning : U16, Cell -> Cell                 # represented; rejects as table.row_span
 ```
 

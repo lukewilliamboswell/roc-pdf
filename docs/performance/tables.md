@@ -379,8 +379,10 @@ the next run.
 - **Relaxations and repeated headers are not yet public**; the preparation
   report must map page-layout units to authored paths, as the facade's
   diagnostics already do.
-- **Spanning cells** align in their first column's alignment; a separate
-  alignment per cell is not offered.
+- ~~**Spanning cells**~~ align in their first column's alignment unless
+  `Pdf.aligned` gives the cell its own (open-issues slice): the invoice
+  totals labels are end-aligned and the spans case centers its spanning
+  data cell.
 - **SplitRows minimums** apply to the row's grid (its tallest cell), not to
   each cell; paint order of a split row interleaves its cells across pages.
 - **Rules** are fixed to the header and footer boundaries; header-row

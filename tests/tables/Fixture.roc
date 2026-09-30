@@ -26,11 +26,13 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ## - `invoice xN`: the reference invoice's key/value details table (row
 ##   headers, no header rows) and its items table (caption, one column
 ##   header row, N body rows with row-header item codes and end-aligned
-##   amounts, a French span, and three totals rows spanning four columns),
+##   amounts, a French span, and three totals rows whose labels span four
+##   columns and are end-aligned with `Pdf.aligned`),
 ##   continued across pages with the header row repainted as an artifact.
 ##   The 50/500 pair is the linear scale pair.
 ## - `spans`: a two-row header whose `Both`-scoped corner and spanning
-##   `Column` header head the cells below them, a spanning data cell, a
+##   `Column` header head the cells below them, a centered spanning data
+##   cell, a
 ##   themed header color, and U+2212 minus signs in end-aligned cells.
 ## - `split_rows`: `SplitRows` with a row taller than the rest of its page:
 ##   the row breaks at a line boundary and continues under the repainted
@@ -133,7 +135,7 @@ invoice_header = Pdf.row([
 ])
 
 total_row : Str, List(Pdf.Inline) -> Pdf.Row
-total_row = |label, amount| Pdf.row([Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text(label)])), Pdf.cell(amount)])
+total_row = |label, amount| Pdf.row([Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text(label)]))), Pdf.cell(amount)])
 
 invoice_totals : List(Pdf.Row)
 invoice_totals = [
@@ -211,7 +213,7 @@ spans_document = |context| {
 					region_row("Victoria", "2,905", "3,118", "+7.3%"),
 					region_row("New South Wales", "3,462", "3,390", "−2.1%"),
 					region_row("Queensland", "1,127", "1,301", "+15.4%"),
-					Pdf.row([Pdf.header_cell(Row, [Pdf.text("Northern Territory")]), Pdf.spanning(3, Pdf.cell([Pdf.text("Opened in October 2026; no first-quarter figures are reported.")]))]),
+					Pdf.row([Pdf.header_cell(Row, [Pdf.text("Northern Territory")]), Pdf.aligned(Center, Pdf.spanning(3, Pdf.cell([Pdf.text("Opened in October 2026; no first-quarter figures are reported.")])))]),
 				],
 				caption: Pdf.caption("Table 1. Revenue by region, AUD thousands"),
 				columns: [

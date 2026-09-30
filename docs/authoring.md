@@ -166,7 +166,9 @@ Pdf.table({
 
 Cells hold inline content that wraps within the column; a header cell
 declares its `Scope` (`Column`, `Row`, or `Both`), and `Pdf.spanning(n, cell)`
-spans columns. Every cell gets a generated identifier, and each data cell's
+spans columns. A cell aligns like the first column it spans unless
+`Pdf.aligned(align, cell)` gives it its own alignment, such as an
+end-aligned totals label spanning start-aligned columns. Every cell gets a generated identifier, and each data cell's
 `Headers` name the column headers above it and the row headers beside it,
 derived from the declared scopes. Column widths resolve once per table:
 `Fixed` widths are exact, `Content` columns take their content's width,

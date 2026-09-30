@@ -416,6 +416,12 @@ Pdf :: [].{
 	spanning : U16, Cell -> Cell
 	spanning = |count, value| Document.spanning(count, value)
 
+	## A cell whose lines align at `align` instead of in the alignment of
+	## the first column it spans, such as an end-aligned label spanning a
+	## table's start-aligned columns.
+	aligned : Align, Cell -> Cell
+	aligned = |align, value| Document.aligned(align, value)
+
 	## A cell spanning `count` rows. Row spans are outside the supported
 	## table subset: preparation reports `table.row_span` until Gate 8.
 	row_spanning : U16, Cell -> Cell

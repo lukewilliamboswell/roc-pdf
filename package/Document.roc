@@ -54,6 +54,10 @@ HeaderScope : [Both, Column, Row]
 ## Whether a body row may break across pages at a line boundary.
 RowSplit : [KeepRows, SplitRows]
 
+## How one cell's lines align: in the alignment of the first column it
+## spans, or in an explicit alignment of its own.
+CellAlign : [Aligned(ColumnAlign), FirstColumn]
+
 ## A data cell (`TD`) or a header cell (`TH`) with its declared scope.
 CellKind : [DataCell, HeaderCell(HeaderScope)]
 
@@ -63,7 +67,7 @@ DocumentRow :: [Row(List(DocumentCell))].{}
 ## One authored table cell: inline content forming one paragraph, its kind,
 ## and the columns and rows it spans. Row spans are represented so they can
 ## be rejected with a located diagnostic.
-DocumentCell :: [Cell({ column_span : U16, contents : List(DocumentInline), kind : CellKind, row_span : U16 })].{}
+DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), kind : CellKind, row_span : U16 })].{}
 
 ## One authored list item: the blocks of its `LBody`, in logical order. Its
 ## `Lbl` is generated from the enclosing list's marker.
@@ -343,8 +347,8 @@ NormalizedList : { items : U64, marker : ListMarker }
 NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn), footer_rows : U64, header_rows : U64, row_split : RowSplit }
 
 ## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
-## kind, and its authored column and row spans.
-NormalizedCell : { block : U64, column_span : U64, kind : CellKind, row_span : U64 }
+## kind, its authored column and row spans, and its line alignment.
+NormalizedCell : { align : CellAlign, block : U64, column_span : U64, kind : CellKind, row_span : U64 }
 
 ## The section a normalized table row belongs to.
 TableSection : [Body, Footer, Header]
@@ -664,6 +668,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	Builder : DocumentBuilder
 	Caption : Caption
 	Cell : DocumentCell
+	CellAlign : CellAlign
 	CellKind : CellKind
 	ColumnAlign : ColumnAlign
 	ColumnWidth : ColumnWidth
@@ -1015,16 +1020,23 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## A data cell (`TD`) of inline content.
 	cell : List(DocumentInline) -> DocumentCell
-	cell = |contents| DocumentCell.Cell({ column_span: 1, contents, kind: DataCell, row_span: 1 })
+	cell = |contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, kind: DataCell, row_span: 1 })
 
 	## A header cell (`TH`) with its declared scope.
 	header_cell : HeaderScope, List(DocumentInline) -> DocumentCell
-	header_cell = |scope, contents| DocumentCell.Cell({ column_span: 1, contents, kind: HeaderCell(scope), row_span: 1 })
+	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, kind: HeaderCell(scope), row_span: 1 })
 
 	## A cell spanning `count` columns.
 	spanning : U16, DocumentCell -> DocumentCell
 	spanning = |count, value| match value {
 		Cell(record) => DocumentCell.Cell({ ..record, column_span: count })
+	}
+
+	## A cell whose lines align at `align` instead of in the alignment of
+	## the first column it spans.
+	aligned : ColumnAlign, DocumentCell -> DocumentCell
+	aligned = |align, value| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, align: Aligned(align) })
 	}
 
 	## A cell spanning `count` rows; row spans are outside the supported
@@ -1837,7 +1849,7 @@ append_table_rows = |state, rows, section, table_code| {
 			record = match list_at(cells, $index) {
 				Cell(value) => value
 			}
-			$state = { ..$state, cells: $state.cells.append({ block: $state.blocks.len(), column_span: record.column_span.to_u64(), kind: record.kind, row_span: record.row_span.to_u64() }) }
+			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span.to_u64(), kind: record.kind, row_span: record.row_span.to_u64() }) }
 			$state = append_rich($state, record.contents, row_group + 1, $index)
 			$index = $index + 1
 		}
