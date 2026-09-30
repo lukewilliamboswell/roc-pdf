@@ -96,7 +96,10 @@ below the body text inside its leading (`text.link_underline`). To color
 one group of blocks differently, such as a warning callout's label in
 amber and a note's in teal, wrap them in
 `Pdf.scoped(Theme.Scope.empty.with_color(Strong, amber), blocks)`: the
-innermost scope that colors a role wins, then the theme. A scope adds no
+innermost scope that colors a role wins, then the theme. The `Text` role
+colors the scope's ordinary text (paragraphs, headings, list items and
+their labels), so a callout on a dark panel can use
+`Theme.Scope.empty.with_color(Text, near_white)`. A scope adds no
 structure element and keeps nothing together.
 
 Rejections name the inline's authored path below its block, such as

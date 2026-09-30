@@ -16,6 +16,7 @@ Case : [
 	ScaledCode({ count : U64 }),
 	LinkStyle({ count : U64 }),
 	ScopedColors({ count : U64 }),
+	ScopedText({ count : U64 }),
 	AtomicNegatives({ context : U64 }),
 ]
 
@@ -54,6 +55,7 @@ main! = |args| {
 		ScaledCode({ count }) => Fixture.scaled_code(count)
 		LinkStyle({ count }) => Fixture.link_style(count)
 		ScopedColors({ count }) => Fixture.scoped_colors(count)
+		ScopedText({ count }) => Fixture.scoped_text(count)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 	}
 	match result {

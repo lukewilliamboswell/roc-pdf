@@ -115,13 +115,16 @@ Theme :: {
 	## place of the theme's: for example a warning callout's `Strong` label
 	## in amber and a note callout's in teal. A role the scope leaves
 	## `Inherited` keeps the color of the next enclosing scope, then the
-	## theme's. Scopes change only fill colors, never faces, sizes, or
-	## semantics.
-	Scope :: { code : InlineColor, emphasis : InlineColor, link : InlineColor, quote : InlineColor, strong : InlineColor }.{
+	## theme's. `Text` colors the scope's ordinary text: the text of its
+	## paragraphs, headings, and list items and their generated labels,
+	## beneath any inline role color, so light text can sit on a dark
+	## custom-block panel. Table header colors still win inside a table.
+	## Scopes change only fill colors, never faces, sizes, or semantics.
+	Scope :: { code : InlineColor, emphasis : InlineColor, link : InlineColor, quote : InlineColor, strong : InlineColor, text : InlineColor }.{
 
 		## A scope that overrides nothing.
 		empty : Scope
-		empty = Scope.({ code: Inherited, emphasis: Inherited, link: Inherited, quote: Inherited, strong: Inherited })
+		empty = Scope.({ code: Inherited, emphasis: Inherited, link: Inherited, quote: Inherited, strong: Inherited, text: Inherited })
 
 		## Paint one role's text, or link text, in `color` inside the scope.
 		with_color : Scope, ScopeRole, Color.SourceValue -> Scope
@@ -132,6 +135,7 @@ Theme :: {
 				Link => { ..scope, link: Themed(color) }
 				Quote => { ..scope, quote: Themed(color) }
 				Strong => { ..scope, strong: Themed(color) }
+				Text => { ..scope, text: Themed(color) }
 			},
 		)
 
@@ -143,11 +147,13 @@ Theme :: {
 			Link => scope.link
 			Quote => scope.quote
 			Strong => scope.strong
+			Text => scope.text
 		}
 	}
 
-	## The roles a scope can color: the inline roles and link text.
-	ScopeRole : [Code, Emphasis, Link, Quote, Strong]
+	## The roles a scope can color: the inline roles, link text, and the
+	## scope's ordinary text.
+	ScopeRole : [Code, Emphasis, Link, Quote, Strong, Text]
 
 	## The inline semantic roles whose presentation a theme can distinguish.
 	InlineRole : [Code, Emphasis, Quote, Strong]

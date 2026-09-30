@@ -335,6 +335,28 @@ adds no structure. The rejections are an empty scope and a scope in a list
 item. The pair is linear: 61 and 261 node writes (5N + 11), 17,949 and
 67,493 allocations. No existing case changes.
 
+### Scoped text color (examples showcase)
+
+Scopes colored only the inline roles and links, so a callout's ordinary
+text kept the theme's body color and light text on a dark custom-block
+panel was impossible. `Theme.ScopeRole` gains `Text` and `Theme.Scope` a
+`text` color. Shaping resolves it through the same scope walk
+(`role_color`) as the other roles, as the base color beneath inline role
+colors: for plain blocks (paragraphs, headings, list items) in
+`block_style`, for rich paragraphs as the paragraph color, and for
+generated list labels. A table's themed header colors still take
+precedence inside a scoped table. A document without scopes returns
+before any walk, so no existing case changes its allocation count; the
+wider `Scope` record moves the scoped-colors pair's allocated bytes by
+under 0.04%.
+
+Evidence: `rich inline scoped text x10` and `x50`: dark-panel callouts
+whose scope paints text near-white, `Strong` amber, and links sky blue,
+after a slate-scoped heading, bullet list, and table. The semantic plan
+with scopes equals the plan without (nodes, content items, and
+occurrences), proving scope stays presentation-only. x10: 11,140
+allocations, 1 page; x50: 39,732 allocations (3.6×), 4 pages.
+
 ## Link annotations
 
 An inline link keeps the facade contract: one annotation per page its text

@@ -526,7 +526,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 						}
 						run = logical_run_single(Text.RunId.from_index($request_index))
 						$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: source_id })
-						$styles = $styles.append({ color: label_style.color, leading: label_style.leading })
+						$styles = $styles.append({ color: scoped_text_color(authoring, $block_index, theme, label_style.color), leading: label_style.leading })
 						$request_index = $request_index + 1
 						Label(run)
 					}
@@ -670,7 +670,7 @@ append_plain_requests = |ranges, requests, styles, at, body, label| {
 				return Err(GeneratedLabelEvidenceInvalid({ block: at.block, occurrence: occurrence_id.index() }))
 			}
 			$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source })
-			$styles = $styles.append({ color: label_style.color, leading: label_style.leading })
+			$styles = $styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading })
 			$ranges = $ranges.append(whole_source_range(at.sources, occurrence.source, at.language))
 		}
 	}
@@ -698,7 +698,7 @@ append_label_request = |ranges, requests, styles, at, label| match label {
 		Ok({
 			ranges: ranges.append(whole_source_range(at.sources, occurrence.source, at.language)),
 			requests: requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source }),
-			styles: styles.append({ color: label_style.color, leading: label_style.leading }),
+			styles: styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading }),
 		})
 	}
 }
@@ -732,7 +732,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 	if face_rejected(at.face_check, body) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body.font.index() }))
 	}
-	paragraph_color = header_cell_color(at.authoring, at.block, at.theme, body.color)
+	paragraph_color = header_cell_color(at.authoring, at.block, at.theme, scoped_text_color(at.authoring, at.block, at.theme, body.color))
 	var $ranges = ranges
 	var $requests = requests
 	var $styles = styles
@@ -980,6 +980,20 @@ role_color = |authoring, block, theme, role| {
 		Link => Theme.link_style(theme).color
 		Quote => Theme.inline_color(theme, Quote)
 		Strong => Theme.inline_color(theme, Strong)
+		Text => Inherited
+	}
+}
+
+## A block's ordinary text color: the innermost scope's `Text` color, else
+## `color`. A document without scopes never walks its groups.
+scoped_text_color : Document.NormalizedAuthoring, U64, Theme, Color.SourceValue -> Color.SourceValue
+scoped_text_color = |authoring, block, theme, color| {
+	if authoring.scopes.is_empty() {
+		return color
+	}
+	match role_color(authoring, block, theme, Text) {
+		Themed(scoped) => scoped
+		Inherited => color
 	}
 }
 
@@ -994,6 +1008,7 @@ block_style = |authoring, block, theme| {
 			Themed(color) => { ..style, color }
 			Inherited => style
 		}
+		_ if !authoring.scopes.is_empty() => { ..style, color: scoped_text_color(authoring, block, theme, style.color) }
 		_ => style
 	}
 }

@@ -86,6 +86,13 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ##   `Decoration` artifact underline in its fill color. Its rejections: a
 ##   negative offset, a zero thickness, and an underline taller than the
 ##   body leading's room (`text.link_underline`).
+## - `scoped_text xN`: N dark-panel callouts whose scope paints ordinary
+##   text near-white, the `Strong` label amber, and link text sky blue,
+##   beside a scoped heading and bullet list whose text and generated
+##   labels take a slate text color, and a table inside the scope whose
+##   themed header color still wins. Like `scoped_colors`, it proves the
+##   scope adds no semantic node, content item, or occurrence. The 10/50
+##   pair is the linear scale pair.
 ## - `scoped_colors xN`: N warning and note callouts, each a `Pdf.scoped`
 ##   group whose `Strong` label and link take the callout's own colors
 ##   (amber or teal) over the theme's, one nested scope that overrides its
@@ -143,6 +150,9 @@ Fixture :: [].{
 
 	scoped_colors : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	scoped_colors = |count| run_scoped_colors(count)
+
+	scoped_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	scoped_text = |count| run_scoped_text(count)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -552,6 +562,68 @@ scoped_colors_document = |count, scoped| {
 		$contents = $contents.append(block)
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Scoped colors" })
+}
+
+scoped_text_document : U64, Bool -> Document
+scoped_text_document = |count, scoped| {
+	wrap = |scope, blocks| if scoped [Pdf.scoped(scope, blocks)] else blocks
+	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
+	dark = Theme.Scope.empty.with_color(Text, near_white).with_color(Strong, amber).with_color(Link, Color.srgb8({ blue: 250, green: 205, red: 125 })).with_color(Code, near_white)
+	slate = Theme.Scope.empty.with_color(Text, Color.srgb8({ blue: 105, green: 85, red: 70 }))
+	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 420, 40), Color.srgb8({ blue: 70, green: 40, red: 20 }))
+	var $contents = List.with_capacity(count + 4)
+	for block in wrap(
+		slate,
+		[
+			Pdf.heading(1, "Release checklist"),
+			Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Tag the release")]), Pdf.list_item([Pdf.paragraph("Publish the notes")])]),
+			Pdf.table({
+				body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Owner")]), Pdf.cell([Pdf.text("Release team")])])],
+				caption: Pdf.no_caption,
+				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }],
+				footer_rows: [],
+				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Field")]), Pdf.header_cell(Column, [Pdf.text("Value")])])],
+				row_split: KeepRows,
+			}),
+		],
+	) {
+		$contents = $contents.append(block)
+	}
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		callout = Pdf.custom_block({
+			contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Step ${number}.")]), Pdf.text(" Run "), Pdf.code("make release"), Pdf.text(" and read "), Pdf.inline_link([Pdf.text("the guide")], "https://example.org/release/${number}"), Pdf.text(".")])],
+			fragmentation: Unsplittable,
+			inset: Layout.Unit.points(12),
+			name: "Dark callout",
+			panel,
+			size: { height: Layout.Unit.points(40), width: Layout.Unit.points(420) },
+		})
+		for block in wrap(dark, [callout]) {
+			$contents = $contents.append(block)
+		}
+		$index = $index + 1
+	}
+	Pdf.document({ contents: $contents, language: "en-AU", title: "Scoped text" })
+}
+
+run_scoped_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_scoped_text = |count| {
+	if count == 0 or count > 1000 {
+		return Err(InvalidScale)
+	}
+	theme = Theme.default.with_table_header_color(Color.srgb8({ blue: 140, green: 70, red: 10 }))
+	document = scoped_text_document(count, Bool.True)
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) ? |_| EvidenceFailure
+	scoped_plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
+	plain_plan = KernelFacadeSemantics.Plan.build(Document.normalize(scoped_text_document(count, Bool.False)), semantic_limits) ? |_| EvidenceFailure
+	scoped_work = KernelFacadeSemantics.Plan.work(scoped_plan)
+	plain_work = KernelFacadeSemantics.Plan.work(plain_plan)
+	if scoped_work.node_writes != plain_work.node_writes or scoped_work.content_writes != plain_work.content_writes or scoped_work.occurrence_writes != plain_work.occurrence_writes {
+		return Err(EvidenceFailure)
+	}
+	Ok({ bytes, work: [scoped_work.node_writes, scoped_work.content_writes, scoped_work.occurrence_writes, bytes.len()] })
 }
 
 run_scoped_colors : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
