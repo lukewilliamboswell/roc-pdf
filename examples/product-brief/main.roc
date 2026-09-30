@@ -54,17 +54,22 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
 }
 
-## Regular for every block role (the style-face path requires one face
-## for body, heading, and title text); Bold for `Pdf.strong`;
-## Italic for `Pdf.emphasis`;
-## the monospace face for `Pdf.code`.
+## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
+## Italic for `Pdf.emphasis`; the monospace face for `Pdf.code`, at 90%
+## of the text around it.
 with_faces : Theme, Faces -> Theme
-with_faces = |base, faces|
+with_faces = |base, faces| {
+	title = Theme.title_style(base)
+	heading = Theme.heading_style(base)
 	base
 		.with_font(faces.regular)
+		.with_title_style({ ..title, font: faces.bold })
+		.with_heading_style({ ..heading, font: faces.bold })
 		.with_inline_font(Strong, faces.bold)
 		.with_inline_font(Emphasis, faces.italic)
 		.with_inline_font(Code, faces.mono)
+		.with_inline_scale(Code, 90)
+}
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -113,6 +118,8 @@ base_theme = {
 		.with_table_cell_padding(points(5))
 		.with_table_row_gap(points(4))
 		.with_table_rule(Rule({ color: leaf, width: points(1) }))
+		.with_link_color(forest)
+		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1600), thickness: Layout.Unit.millipoints(700) }))
 }
 
 ## ---------------------------------------------------------------------
@@ -165,22 +172,22 @@ card = |edge, length| {
 ## and the decision log's progress bar, 504 × 190 pt.
 hero : Scene.Drawing
 hero = {
-	column = |cards| {
+	column = |name, cards| {
 		var $drawing = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 152, 150), sage)
-		var $y = 104
+		var $y = 90
 		for (edge, length) in cards {
 			$drawing = $drawing.group(Layout.point(8, $y), card(edge, length))
-			$y = $y - 46
+			$y = $y - 44
 		}
-		Scene.rectangle($drawing, Layout.rect(8, 140, 40, 4), forest)
+		$drawing.text({ align: Start, color: forest, origin: Layout.point(10, 136), size: points(10), text: name })
 	}
 	frame = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 504, 190), meadow)
-	progress = Scene.rectangle(Scene.rectangle(frame, Layout.rect(16, 14, 472, 8), white), Layout.rect(16, 14, 330, 8), leaf)
+	progress = Scene.rectangle(Scene.rectangle(frame, Layout.rect(16, 14, 380, 8), white), Layout.rect(16, 14, 266, 8), leaf)
 	progress
-		.group(Layout.point(16, 32), column([(clay, 96), (sun, 80), (clay, 104)]))
-		.group(Layout.point(176, 32), column([(sun, 88), (sun, 110)]))
-		.group(Layout.point(336, 32), column([(leaf, 100), (leaf, 76), (leaf, 92)]))
-		.group(Layout.point(462, 150), sprout_mark)
+		.text({ align: End, color: forest, origin: Layout.point(488, 13), size: points(8), text: "Decision log 70%" })
+		.group(Layout.point(16, 32), column("Proposed", [(clay, 96), (sun, 80), (clay, 104)]))
+		.group(Layout.point(176, 32), column("Deciding", [(sun, 88), (sun, 110)]))
+		.group(Layout.point(336, 32), column("Decided", [(leaf, 100), (leaf, 76), (leaf, 92)]))
 }
 
 ## Median days from proposal to decision over the eight pilot weeks, in
@@ -192,24 +199,30 @@ cycle_time = [95, 88, 79, 64, 56, 51, 47, 44]
 ## shaded area under the median, and a marker per week.
 line_chart : Scene.Drawing
 line_chart = {
-	left = 24
-	base = 12
-	step = 64
+	left = 30
+	base = 16
+	step = 62
 	y_of = |tenths| base + tenths * 11 // 10
 	var $chart = Scene.drawing({})
 	for day in [0, 2, 4, 6, 8, 10] {
 		color = if day == 0 charcoal else stone
-		$chart = Scene.rectangle($chart, { origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if day == 0 1000 else 500), width: points(472) } }, color)
+		$chart = Scene.rectangle($chart, { origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if day == 0 1000 else 500), width: points(474) } }, color)
+		$chart = $chart.text({ align: End, color: charcoal, origin: Layout.point(left - 6, y_of(day * 10) - 3), size: points(8), text: if day == 10 "10 d" else day.to_str() })
 	}
 	var $area = Scene.path({}).move_to(Layout.point(left + 12, base))
 	var $line = Scene.path({})
 	var $x = left + 12
 	var $first = True
+	week_one : U64
+	week_one = 1
+	var $week = week_one
 	for tenths in cycle_time {
 		$area = $area.line_to(Layout.point($x, y_of(tenths)))
 		$line = if $first $line.move_to(Layout.point($x, y_of(tenths))) else $line.line_to(Layout.point($x, y_of(tenths)))
+		$chart = $chart.text({ align: Center, color: charcoal, origin: Layout.point($x, 4), size: points(8), text: "Week ${$week.to_str()}" })
 		$first = False
 		$x = $x + step
+		$week = $week + 1
 	}
 	$area = $area.line_to(Layout.point($x - step, base)).close()
 	$chart = $chart
@@ -221,13 +234,13 @@ line_chart = {
 		$marker_x = $marker_x + step
 	}
 
-	## The target of five days, as a dashed sun-coloured rule.
+	## The target of five days, as a dashed clay rule with its label.
 	var $dash = left
-	while $dash < left + 472 {
+	while $dash < left + 474 {
 		$chart = Scene.rectangle($chart, Layout.rect($dash, y_of(50), 8, 1), clay)
 		$dash = $dash + 14
 	}
-	$chart
+	$chart.text({ align: End, color: clay, origin: Layout.point(left + 474, y_of(50) + 4), size: points(8), text: "Target: 5 days" })
 }
 
 ## ---------------------------------------------------------------------
@@ -241,11 +254,12 @@ callout_inset = points(14)
 
 key_figures : Theme, Str, List(List(Pdf.Inline)) -> Document.Block
 key_figures = |theme, name, lines| {
+	accent = Theme.Scope.empty.with_color(Strong, forest).with_color(Quote, forest)
 	leading = Theme.body_style(theme).leading.raw()
 	spacing = Theme.paragraph_spacing(theme).raw()
 	count = lines.len().to_i64_wrap()
 	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(504) }
-	Pdf.custom_block({
+	block = Pdf.custom_block({
 		contents: lines.map(|line| Pdf.rich_paragraph(line)),
 		fragmentation: Unsplittable,
 		inset: callout_inset,
@@ -253,6 +267,7 @@ key_figures = |theme, name, lines| {
 		panel: rounded_panel(size),
 		size,
 	})
+	Pdf.scoped(accent, [block])
 }
 
 rounded_panel : Layout.Size -> Scene.Drawing
@@ -471,7 +486,7 @@ contents = |theme| [
 			Pdf.figure(
 				line_chart,
 				"Line chart of median days from proposal to decision over eight pilot weeks, falling steadily from 9.5 days in week 1 to 4.4 days in week 8 and crossing the five-day target in week 6. Values are listed in Table 1.",
-				Pdf.caption("Figure 1. Median days to decide, weeks 1 to 8 (gridlines every two days)"),
+				Pdf.caption("Figure 1. Median days to decide, weeks 1 to 8"),
 			),
 			ScaleToFit({ minimum_percent: 80 }),
 		),
