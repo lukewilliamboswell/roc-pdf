@@ -49,15 +49,21 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, registry: italic.registry })
 }
 
-## Regular for every block role (the style-face path requires one face
-## for body, heading, and title text); Bold for `Pdf.strong`;
-## Italic for `Pdf.emphasis`.
+## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
+## Italic for `Pdf.emphasis`. Level-2 headings (the species accounts) are
+## smaller and set in ink.
 with_faces : Theme, Faces -> Theme
-with_faces = |base, faces|
+with_faces = |base, faces| {
+	title = Theme.title_style(base)
+	heading = Theme.heading_style(base)
 	base
 		.with_font(faces.regular)
+		.with_title_style({ ..title, font: faces.bold })
+		.with_heading_level_style(H1, { ..heading, font: faces.bold })
+		.with_heading_level_style(H2, { ..heading, font: faces.bold, color: ink, size: points(13), leading: points(18) })
 		.with_inline_font(Strong, faces.bold)
 		.with_inline_font(Emphasis, faces.italic)
+}
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -92,6 +98,8 @@ theme = {
 		.with_table_header_color(coastal)
 		.with_table_rule(Rule({ color: rgb(120, 170, 168), width: points(1) }))
 		.with_table_cell_padding(points(4))
+		.with_link_color(coastal)
+		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1300), thickness: Layout.Unit.millipoints(500) }))
 }
 
 ## ---------------------------------------------------------------------
@@ -222,6 +230,17 @@ habitat_section = {
 		.group(point(130, 172), zone(rgb(176, 72, 40), 80))
 		.group(point(240, 148), zone(rgb(120, 84, 50), 200))
 
+	## Zone names above their brackets and the tide lines' names.
+	label = |x, y, align, color, text| { align, color, origin: point(x, y), size: points(7), text }
+	$scene = $scene
+		.text(label(225, 171, Center, rgb(20, 20, 20), "Oystercatcher"))
+		.text(label(130, 182, Start, rgb(176, 72, 40), "Plover"))
+		.text(label(w - 6, 158, End, rgb(120, 84, 50), "Curlew"))
+		.text(label(w - 6, 76, End, coastal, "High tide"))
+		.text(label(w - 6, 38, End, rgb(250, 252, 252), "Low tide"))
+		.text(label(8, 20, Start, rgb(120, 96, 50), "Dune"))
+		.text(label(w - 6, 6, End, rgb(250, 252, 252), "Channel"))
+
 	## Small birds at work on the flats.
 	$scene
 		.group(point(220, 60), oystercatcher_small)
@@ -276,10 +295,11 @@ bird = |{ bill, body, belly, height, leg, length }| {
 		.path(bill, Scene.solid_fill(body))
 }
 
-card : Scene.Drawing, Color.SourceValue -> Scene.Drawing
-card = |figure, tint| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 145, 130), tint)
+card : Scene.Drawing, Color.SourceValue, Str -> Scene.Drawing
+card = |figure, tint, name| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 145, 130), tint)
 	.path(line(10, 18, 135, 18), Scene.solid_stroke(sand, points(2)))
 	.group(point(18, 16), figure)
+	.text({ align: Center, color: ink, origin: point(72, 5), size: points(8), text: name })
 
 oystercatcher_plate : Scene.Drawing
 oystercatcher_plate = {
@@ -314,9 +334,9 @@ curlew_plate = {
 
 plates : Scene.Drawing
 plates = Scene.drawing({})
-	.group(point(0, 0), card(oystercatcher_plate, rgb(236, 243, 242)))
-	.group(point(157, 0), card(plover_plate, rgb(244, 238, 230)))
-	.group(point(314, 0), card(curlew_plate, rgb(240, 236, 228)))
+	.group(point(0, 0), card(oystercatcher_plate, rgb(236, 243, 242), "Pied oystercatcher"))
+	.group(point(157, 0), card(plover_plate, rgb(244, 238, 230), "Red-capped plover"))
+	.group(point(314, 0), card(curlew_plate, rgb(240, 236, 228), "Far Eastern curlew"))
 
 ## ---------------------------------------------------------------------
 ## A callout following `tests/custom_block/Callout.roc`: single-line
@@ -326,20 +346,23 @@ plates = Scene.drawing({})
 callout_inset : Layout.Unit
 callout_inset = points(12)
 
-callout : Str, List(Str) -> Document.Block
-callout = |name, lines| {
+## Each line is a label and its text; the callout scopes its `Strong`
+## labels to its accent colour.
+callout : Str, Color.SourceValue, List((Str, Str)) -> Document.Block
+callout = |name, accent, lines| {
 	leading = Theme.body_style(theme).leading.raw()
 	spacing = Theme.paragraph_spacing(theme).raw()
 	count = lines.len().to_i64_wrap()
 	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(body_width) }
-	Pdf.custom_block({
-		contents: lines.map(|text| Pdf.paragraph(text)),
+	block = Pdf.custom_block({
+		contents: lines.map(|(label, text)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${text}")])),
 		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name,
 		panel: callout_panel(size),
 		size,
 	})
+	Pdf.scoped(Theme.Scope.empty.with_color(Strong, accent), [block])
 }
 
 callout_panel : Layout.Size -> Scene.Drawing
@@ -439,7 +462,7 @@ contents = [
 		Pdf.figure(
 			habitat_section,
 			"Cross-section of the estuary from a grassy dune crest down across sand flats to the channel, with a dashed high-tide line and a solid low-tide line. Brackets above the flats mark where oystercatchers, red-capped plovers, and curlews feed, and a small bird of each species is shown in its zone.",
-			Pdf.caption("Figure 1. From dune to channel: feeding zones for the oystercatcher (black), the red-capped plover (rust), and the curlew (brown)"),
+			Pdf.caption("Figure 1. From dune to channel: where each species feeds"),
 		),
 		ScaleToFit({ minimum_percent: 60 }),
 	),
@@ -459,10 +482,11 @@ contents = [
 		]),
 		callout(
 			"Best counting windows",
+			coastal,
 			[
-				"Roost counts: from two hours before to one hour after high tide.",
-				"Feeding counts: on the falling tide, three to five hours after high water.",
-				"Avoid days with wind above 25 km/h; birds hunker down and are hard to see.",
+				("Roost counts", "from two hours before to one hour after high tide."),
+				("Feeding counts", "on the falling tide, three to five hours after high water."),
+				("Wind", "avoid days above 25 km/h; birds hunker down and are hard to see."),
 			],
 		),
 	]),
@@ -542,10 +566,11 @@ contents = [
 		),
 		callout(
 			"Field etiquette",
+			rgb(176, 72, 40),
 			[
-				"Stay at least 50 m from roosting and nesting birds.",
-				"Keep dogs on a lead; dogs are banned from the spit all year.",
-				"If birds take flight or call in alarm, you are too close.",
+				("Distance", "stay at least 50 m from roosting and nesting birds."),
+				("Dogs", "keep them on a lead; dogs are banned from the spit all year."),
+				("Alarm", "if birds take flight or call in alarm, you are too close."),
 			],
 		),
 	]),
