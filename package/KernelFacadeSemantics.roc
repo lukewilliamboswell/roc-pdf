@@ -371,9 +371,8 @@ plan_blocks = |authoring, limits| {
 						authoring,
 						$next_group,
 						table_index.to_u64(),
-						{ break_cursor: $break_cursor, cell: $cell_cursor, node: $next_node, occurrence: $next_occurrence },
+						{ break_cursor: $break_cursor, cell: $cell_cursor, header_base: $cell_headers.len(), node: $next_node, occurrence: $next_occurrence },
 						limits.max_inline_depth,
-						{ group_nodes: $group_nodes, headers: $cell_headers, links: $links, ranges: $header_ranges, sources: $sources },
 					)?
 					attempted_nodes = checked_add($next_node, planned.nodes)?
 					attempted_occurrences = checked_add($next_occurrence, planned.occurrences)?
@@ -383,13 +382,28 @@ plan_blocks = |authoring, limits| {
 					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, group.first_block)?
 					check_at(attempted_content, limits.max_content_spine, ContentSpine, group.first_block)?
 					check_at(attempted_properties, limits.max_properties, Properties, group.first_block)?
-					check_at(planned.buffers.sources.len(), limits.max_source_inputs, SourceInputs, group.first_block)?
+					check_at(checked_add($sources.len(), planned.buffers.sources.len())?, limits.max_source_inputs, SourceInputs, group.first_block)?
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
-					$group_nodes = planned.buffers.group_nodes
-					$cell_headers = planned.buffers.headers
-					$links = planned.buffers.links
-					$header_ranges = planned.buffers.ranges
-					$sources = planned.buffers.sources
+
+					## The table's own buffers are appended to the document's
+					## accumulators, which stay uniquely owned here: handing
+					## them to `plan_table` and splitting them back out of its
+					## result would copy every one of them once per table.
+					for value in planned.buffers.group_nodes {
+						$group_nodes = $group_nodes.append(value)
+					}
+					for value in planned.buffers.headers {
+						$cell_headers = $cell_headers.append(value)
+					}
+					for value in planned.buffers.links {
+						$links = $links.append(value)
+					}
+					for value in planned.buffers.ranges {
+						$header_ranges = $header_ranges.append(value)
+					}
+					for value in planned.buffers.sources {
+						$sources = $sources.append(value)
+					}
 					$next_node = attempted_nodes
 					$next_occurrence = attempted_occurrences
 					$content_count = attempted_content
@@ -683,7 +697,7 @@ plan_blocks = |authoring, limits| {
 	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
-TableCursor : { break_cursor : U64, cell : U64, node : U64, occurrence : U64 }
+TableCursor : { break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
 
 TableBuffers : { group_nodes : List(U64), headers : List(U64), links : List(KernelFacadeSemantics.LinkRecord), ranges : List(Semantics.Range), sources : List(Str) }
 
@@ -701,8 +715,8 @@ TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U6
 ## order), then the `Row`- or `Both`-scoped header cells of its own row.
 ## Header cells carry no `Headers`. Each cell's range into the flattened
 ## header list is recorded in table order, one per cell.
-plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, U64, TableBuffers -> Try(TablePlan, KernelFacadeSemantics.Error)
-plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
+plan_table : Document.NormalizedAuthoring, U64, U64, TableCursor, U64 -> Try(TablePlan, KernelFacadeSemantics.Error)
+plan_table = |authoring, group_index, table_index, at, max_depth| {
 	group = list_at(authoring.groups, group_index)
 	table = list_at(authoring.tables, table_index)
 	columns = table.columns.len()
@@ -711,11 +725,13 @@ plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
 	}
 	caption_nodes = if table.caption 2 else 0
 	sections = (if table.header_rows > 0 1 else 0) + 1 + (if table.footer_rows > 0 1 else 0)
-	var $group_nodes = buffers.group_nodes.append(at.node)
-	var $headers = buffers.headers
-	var $links = buffers.links
-	var $ranges = buffers.ranges
-	var $sources = buffers.sources
+
+	## Fresh table-sized buffers; the caller appends them to its own.
+	var $group_nodes = List.with_capacity(group.group_end - group_index).append(at.node)
+	var $headers = []
+	var $links = []
+	var $ranges = List.with_capacity(group.block_end - group.first_block)
+	var $sources = List.with_capacity(group.block_end - group.first_block)
 	var $next_node = at.node + 1 + caption_nodes
 	var $content = 1 + (if table.caption 1 else 0) + sections + caption_nodes
 	var $occurrences = 0
@@ -808,7 +824,8 @@ plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
 		var $index = first_cell
 		while $index < $cell {
 			record = list_at(authoring.cells, $index)
-			start = $headers.len()
+			local_start = $headers.len()
+			start = at.header_base + local_start
 			match record.kind {
 				DataCell => {
 					$headers = if record.column_span == 1 {
@@ -820,7 +837,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth, buffers| {
 				}
 				HeaderCell(_) => {}
 			}
-			count = $headers.len() - start
+			count = $headers.len() - local_start
 			if count != 0 {
 				$attributes = $attributes + 1
 				$relationships = $relationships + count
@@ -1504,31 +1521,33 @@ build_store = |authoring, planning, source_plan| {
 				}
 				KeepTogether | KeepWithNext(_) => {}
 				Table(table_index) => {
-					placed = place_table(
-						{
-							attributes: $attributes,
-							buffers: { content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
-							identifiers: $identifiers,
-							ownership: $ownership,
-							relationships: $relationships,
-						},
+					## The result is destructured in one pattern, so each
+					## accumulator moves out of it: projecting the fields of a
+					## still-live `placed` record left every document-sized
+					## list shared and copied it once per table.
+					{ attributes: placed_attributes, break_cursor: placed_break_cursor, buffers: { content: placed_content, nodes: placed_nodes, occurrences: placed_occurrences, properties: placed_properties }, identifiers: placed_identifiers, node: placed_node, occurrence: placed_occurrence, ownership: placed_ownership, relationships: placed_relationships, source_input: placed_source_input } = place_table(
+						$attributes,
+						{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+						$identifiers,
+						$ownership,
+						$relationships,
 						authoring,
 						planning,
 						{ break_cursor: $break_cursor, group: $next_group, language, node: $next_node, occurrence: $next_occurrence, source_input: $source_input, table: table_index.to_u64() },
 						source_plan,
 					)?
-					$attributes = placed.attributes
-					$content = placed.buffers.content
-					$nodes = placed.buffers.nodes
-					$occurrences = placed.buffers.occurrences
-					$properties = placed.buffers.properties
-					$identifiers = placed.identifiers
-					$ownership = placed.ownership
-					$relationships = placed.relationships
-					$next_node = placed.node
-					$next_occurrence = placed.occurrence
-					$source_input = placed.source_input
-					$break_cursor = placed.break_cursor
+					$attributes = placed_attributes
+					$content = placed_content
+					$nodes = placed_nodes
+					$occurrences = placed_occurrences
+					$properties = placed_properties
+					$identifiers = placed_identifiers
+					$ownership = placed_ownership
+					$relationships = placed_relationships
+					$next_node = placed_node
+					$next_occurrence = placed_occurrence
+					$source_input = placed_source_input
+					$break_cursor = placed_break_cursor
 					$index = group.block_end
 					$next_group = group.group_end - 1
 				}
@@ -1877,21 +1896,21 @@ TablePlaced : { attributes : List(Semantics.StructureAttribute), break_cursor : 
 ## cell with associations `Headers` and one `HeaderFor` relationship per
 ## header in the same order, and a spanning cell `ColSpan`. A cell's text is
 ## a rich paragraph owned by its `TH` or `TD` directly.
-place_table : TableStore, Document.NormalizedAuthoring, Planning, { break_cursor : U64, group : U64, language : Str, node : U64, occurrence : U64, source_input : U64, table : U64 }, KernelFacadeSources.Plan -> Try(TablePlaced, KernelFacadeSemantics.Error)
-place_table = |store, authoring, planning, at, source_plan| {
+place_table : List(Semantics.StructureAttribute), StoreBuffers, List(Semantics.ElementIdentifier), List(KernelFacadeSemantics.BlockOwnership), List(Semantics.Relationship), Document.NormalizedAuthoring, Planning, { break_cursor : U64, group : U64, language : Str, node : U64, occurrence : U64, source_input : U64, table : U64 }, KernelFacadeSources.Plan -> Try(TablePlaced, KernelFacadeSemantics.Error)
+place_table = |attributes, { content, nodes, occurrences, properties }, identifiers, ownership, relationships, authoring, planning, at, source_plan| {
 	group = list_at(authoring.groups, at.group)
 	table = list_at(authoring.tables, at.table)
 	empty = Semantics.Range.from_start_and_length(0, 0)
 	table_node = at.node
 	caption_nodes = if table.caption 2 else 0
-	var $attributes = store.attributes
-	var $content = store.buffers.content
-	var $nodes = store.buffers.nodes
-	var $occurrences = store.buffers.occurrences
-	var $properties = store.buffers.properties
-	var $identifiers = store.identifiers
-	var $ownership = store.ownership
-	var $relationships = store.relationships
+	var $attributes = attributes
+	var $content = content
+	var $nodes = nodes
+	var $occurrences = occurrences
+	var $properties = properties
+	var $identifiers = identifiers
+	var $ownership = ownership
+	var $relationships = relationships
 	var $occurrence = at.occurrence
 	var $source_input = at.source_input
 	var $break_cursor = at.break_cursor

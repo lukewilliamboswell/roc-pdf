@@ -369,6 +369,20 @@ the next run.
 
 ## Open issues
 
+- ~~**Per-table copies in semantic placement.**~~ (reference-documents
+  closure) `place_table` received the document's semantic accumulators
+  inside a record parameter it only borrowed, so its first update of the
+  node list and of the occurrence list copied each of them, once per table.
+  One-table documents never showed it; the reference report-sections pair
+  (four-row tables in every section) grew its allocated bytes 14.2× for 10×
+  the sections while its allocation counts stayed linear. An
+  allocation-size trace found one 800 KB node-list copy per table at 200
+  tables. `place_table` now takes each accumulator as its own parameter,
+  and `plan_table` builds table-sized buffers that the caller appends
+  rather than threading the document's buffers through its `Try`. At 200
+  tables the semantic stage allocates 21.5 MB instead of 331 MB; the pair
+  now grows 9.3×.
+
 - ~~**Object-store copying**~~: resolved by S6b
   ([lowering-uniqueness.md](lowering-uniqueness.md)), with every case
   rebaselined in one reviewed change.
