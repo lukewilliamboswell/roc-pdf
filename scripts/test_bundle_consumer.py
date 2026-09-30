@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import functools
+import hashlib
 import http.server
+import json
 import os
 import shutil
 import subprocess
@@ -29,6 +31,12 @@ PLATFORM_DEPENDENCY = 'pf: platform "../platform/main.roc",'
 SERVER_READY_TIMEOUT_SECONDS = 5.0
 SERVER_REQUEST_TIMEOUT_SECONDS = 0.5
 SERVER_POLL_INTERVAL_SECONDS = 0.05
+PACKAGE_DIR = ROOT / "package"
+PROVENANCE = ROOT / "assets" / "provenance.json"
+# Package-private data the modules byte-import. `roc bundle` does not follow
+# byte imports (roc-lang/roc#11907), so scripts/bundle.sh names them; the
+# consumer must see every one, byte-identical to its provenance record.
+PACKAGE_DATA_FILES = ("RocPdfSans-Regular.ttf", "sRGB2014.icc")
 
 
 class TestFailure(RuntimeError):
@@ -87,6 +95,50 @@ def verify_bundle_members(bundle: Path) -> None:
         raise TestFailure("release bundle contains repository-only package/all.roc")
     if not any(Path(member).name == "main.roc" for member in members):
         raise TestFailure("release bundle does not contain package/main.roc")
+    verify_bundle_data_files(bundle, members)
+
+
+def package_byte_imports() -> set[str]:
+    imported: set[str] = set()
+    for module in PACKAGE_DIR.glob("*.roc"):
+        for line in module.read_text(encoding="utf-8").splitlines():
+            if line.startswith('import "'):
+                imported.add(line.split('"')[1])
+    return imported
+
+
+def verify_bundle_data_files(bundle: Path, members: set[str]) -> None:
+    imported = package_byte_imports()
+    if imported != set(PACKAGE_DATA_FILES):
+        raise TestFailure(
+            f"package byte imports {sorted(imported)} differ from the checked data files "
+            f"{sorted(PACKAGE_DATA_FILES)}"
+        )
+    provenance = {
+        asset["path"]: asset
+        for asset in json.loads(PROVENANCE.read_text(encoding="utf-8"))["assets"]
+    }
+    for name in PACKAGE_DATA_FILES:
+        if name not in members:
+            raise TestFailure(f"release bundle omits byte-imported package data {name}")
+        extracted = subprocess.run(
+            ["tar", "--zstd", "-xOf", str(bundle), name],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if extracted.returncode != 0:
+            raise TestFailure(f"could not extract {name} from the bundle: {extracted.stderr.decode(errors='replace')}")
+        record = provenance.get(f"package/{name}")
+        if record is None:
+            raise TestFailure(f"assets/provenance.json has no record for package/{name}")
+        digest = hashlib.sha256(extracted.stdout).hexdigest()
+        if len(extracted.stdout) != record["bytes"] or digest != record["sha256"]:
+            raise TestFailure(
+                f"bundled {name} ({len(extracted.stdout)} bytes, sha256={digest}) differs from its "
+                f"provenance record ({record['bytes']} bytes, sha256={record['sha256']})"
+            )
+        print(f"Bundle carries {name} ({len(extracted.stdout)} bytes, sha256={digest})")
 
 
 class BundleRequestHandler(http.server.SimpleHTTPRequestHandler):
