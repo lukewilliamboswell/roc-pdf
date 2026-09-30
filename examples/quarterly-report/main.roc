@@ -20,9 +20,10 @@ import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 ## tinted diary callout authored through the custom-block seam and measured
 ## by the package, a striped KPI scorecard with shaded status cells and a
 ## segment table with a totals footer, two vector charts drawn from `Scene`
-## groups (monthly revenue with a margin line, and progress against annual
-## targets), and running headers over a ruled backdrop with `Page N of M`
-## on every later page.
+## groups (monthly revenue with a margin line and its data table, and
+## progress against annual targets kept with its notes), and running
+## headers inset above a ruled backdrop with `Page N of M` on every later
+## page.
 main! = |_args| {
 	fonts = register_fonts({})?
 	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
@@ -176,14 +177,17 @@ templates = {
 		gap: points(18),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(18),
-				start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])],
-				center: [],
-				end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])],
-			}),
-			hairline,
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(21),
+					start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])],
+					center: [],
+					end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])],
+				}),
+				hairline,
+			),
+			points(3),
 		),
 		footer,
 		gap: points(14),
@@ -269,7 +273,7 @@ monthly = [
 ]
 
 revenue_height : I64 -> I64
-revenue_height = |value| value * 170 // 4000
+revenue_height = |value| value * 128 // 4000
 
 ## A legend key: a small swatch drawing and its name.
 key : Scene.Drawing, I64, I64, Scene.Drawing, Str -> Scene.Drawing
@@ -337,7 +341,7 @@ progress_chart = {
 	## Names in a 104 pt column, tracks after it, percentages at the end.
 	start = 112
 	track = body_width - start - 46
-	row_height = 28
+	row_height = 23
 	var $chart = Scene.drawing({})
 	var $row = 0
 	for (name, percent) in progress {
@@ -361,6 +365,32 @@ progress_chart = {
 
 ## ---------------------------------------------------------------------
 ## Tables.
+
+## Figure 1's values as a table: one column per month, with the revenue
+## in AUD thousands and the gross margin.
+monthly_table : Document.Block
+monthly_table = {
+	var $columns = [{ width: Share(3), align: Start }]
+	var $months = [Pdf.header_cell(Column, [Pdf.text("Month")])]
+	var $revenue = [Pdf.header_cell(Row, [Pdf.text("Revenue")])]
+	var $margin = [Pdf.header_cell(Row, [Pdf.text("Gross margin")])]
+	for month in monthly {
+		$columns = $columns.append({ width: Share(2), align: End })
+		$months = $months.append(Pdf.header_cell(Column, [Pdf.text(month.name)]))
+
+		## Every month's revenue is between 1,100 and 9,999 thousand.
+		$revenue = $revenue.append(Pdf.cell([Pdf.text("${(month.revenue // 1000).to_str()},${(month.revenue % 1000).to_str()}")]))
+		$margin = $margin.append(Pdf.cell([Pdf.text("${month.margin.to_str()}%")]))
+	}
+	Pdf.table({
+		caption: Pdf.caption("Table 2. Monthly revenue in AUD thousands and gross margin, July to December 2026"),
+		columns: $columns,
+		header_rows: [Pdf.row($months)],
+		body_rows: [Pdf.row($revenue), Pdf.row($margin)],
+		footer_rows: [],
+		row_split: KeepRows,
+	})
+}
 
 kpi_row : Str, Str, Str, Str, Pdf.Cell -> Pdf.Row
 kpi_row = |metric, q1, q2, target, status| Pdf.row([
@@ -420,7 +450,7 @@ segment_row = |segment, revenue, share, growth, margin| Pdf.row([
 
 segments : Document.Block
 segments = Pdf.table({
-	caption: Pdf.caption("Table 2. Results by segment, Q2 FY2027, revenue in AUD thousands"),
+	caption: Pdf.caption("Table 3. Results by segment, Q2 FY2027, revenue in AUD thousands"),
 	columns: [
 		{ width: Share(3), align: Start },
 		{ width: Share(2), align: End },
@@ -461,7 +491,7 @@ position_row = |item, june, december| Pdf.row([Pdf.header_cell(Row, [Pdf.text(it
 
 position_table : Document.Block
 position_table = Pdf.table({
-	caption: Pdf.caption("Table 3. Summary balance sheet, AUD thousands"),
+	caption: Pdf.caption("Table 4. Summary balance sheet, AUD thousands"),
 	columns: [{ width: Share(3), align: Start }, { width: Share(1), align: End }, { width: Share(1), align: End }],
 	header_rows: [
 		Pdf.row([
@@ -530,6 +560,11 @@ contents = |options| Ok([
 		Pdf.keep_with_next(Required, Pdf.destination_heading("scorecard", 1, "1 Scorecard")),
 		Pdf.paragraph("Five of the seven board measures are on track. Status reads On track when the quarter met or beat its target, and Watch when it fell short."),
 		scorecard,
+		Pdf.rich_paragraph([
+			Pdf.text("Both measures on Watch trail by small margins: active members are 395 short of the 19,500 target, and the net promoter score six points short of 50. "),
+			Pdf.inline_internal_link([Pdf.text("Section 4")], "priorities"),
+			Pdf.text(" sets out how the Board will close each gap before the next report."),
+		]),
 		callout(
 			options,
 			{
@@ -555,11 +590,12 @@ contents = |options| Ok([
 		Pdf.figure_fit(
 			Pdf.figure(
 				revenue_chart,
-				"Column chart of monthly revenue from July to December 2026, rising from AUD 2.41 million in July to AUD 3.14 million in December, with the second-quarter months highlighted. An overlaid line shows gross margin rising from 31% to 36%.",
+				"Column chart of monthly revenue from July to December 2026, rising from AUD 2.41 million in July to AUD 3.14 million in December, with the second-quarter months highlighted. An overlaid line shows gross margin rising from 31% to 36%. Values are listed in Table 2.",
 				Pdf.caption("Figure 1. Monthly revenue in AUD thousands, July to December 2026, with gross margin"),
 			),
 			ScaleToFit({ minimum_percent: 70 }),
 		),
+		monthly_table,
 		Pdf.section([
 			Pdf.destination_heading("segments", 2, "2.1 Segment results"),
 			Pdf.paragraph("Grain and fodder remains our largest segment. Advisory services and the online store are still small, but together they contributed a fifth of the quarter's growth at well above the average margin."),
@@ -575,12 +611,14 @@ contents = |options| Ok([
 				"Four progress bars against FY2027 targets: revenue 62%, new members 48%, advisory clients 71%, and emissions reduction 39%. A marker at 50% shows the elapsed half year.",
 				Pdf.caption("Figure 2. Progress toward FY2027 targets"),
 			),
-		]),
-		Pdf.bullet_list([
-			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Revenue")]), Pdf.text(" is 62% of the annual target, twelve points ahead of pace.")])]),
-			Pdf.list_item([Pdf.rich_paragraph([Pdf.emphasis([Pdf.text("New members")]), Pdf.text(" are at 48%; winter field days usually add 300 more.")])]),
-			Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Advisory clients")]), Pdf.text(" reached 71% after the agronomy team doubled.")])]),
-			Pdf.list_item([Pdf.rich_paragraph([Pdf.emphasis([Pdf.text("Emissions reduction")]), Pdf.text(" is at 39%; the solar array at the Dubbo depot is due in March.")])]),
+
+			## The targets' notes stay with the figure they explain.
+			Pdf.bullet_list([
+				Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Revenue")]), Pdf.text(" is 62% of the annual target, twelve points ahead of pace.")])]),
+				Pdf.list_item([Pdf.rich_paragraph([Pdf.emphasis([Pdf.text("New members")]), Pdf.text(" are at 48%; winter field days usually add 300 more.")])]),
+				Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("Advisory clients")]), Pdf.text(" reached 71% after the agronomy team doubled.")])]),
+				Pdf.list_item([Pdf.rich_paragraph([Pdf.emphasis([Pdf.text("Emissions reduction")]), Pdf.text(" is at 39%; the solar array at the Dubbo depot is due in March.")])]),
+			]),
 		]),
 	]),
 	Pdf.section([
