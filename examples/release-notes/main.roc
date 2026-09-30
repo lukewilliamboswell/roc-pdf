@@ -6,10 +6,14 @@ import pf.Path
 import pf.Stdout
 import pdf.Color
 import pdf.Document
+import pdf.Font
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "fonts/NotoSans-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/NotoSans-Bold.ttf" as bold_bytes : List(U8)
+import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## Release notes for a fictional load-testing tool, on US Letter: a
 ## decorative version banner, a highlights callout and a breaking-change
@@ -17,12 +21,13 @@ import pdf.Theme
 ## outline, change lists with inline code and issue links, a latency
 ## chart, a compatibility table, and running headers and footers.
 main! = |_args| {
+	fonts = register_fonts({})?
 	document = Pdf.document({ contents, language: "en-US", title: "Kestrel 3.0 release notes" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_created("2026-09-30T00:00:00Z")
 		.with_modified("2026-09-30T00:00:00Z")
-	options = Pdf.Options.default.with_theme(theme).with_page_size(Letter)
+	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry).with_page_size(Letter)
 	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "release-notes.pdf"
@@ -30,6 +35,32 @@ main! = |_args| {
 	Stdout.line!("Wrote release-notes.pdf").map_err(|err| OutputFailed(err))?
 	Ok({})
 }
+
+Faces : { regular : Font.FaceId, bold : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }
+
+## Noto Sans Regular and Bold, and Source Code Pro Regular, each retained
+## byte-for-byte from its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
+register_fonts = |_| {
+	latin = [Font.Script.from_iso15924("Latn")]
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	mono = add(bold.registry, mono_bytes)?
+	Ok({ regular: regular.face, bold: bold.face, mono: mono.face, registry: mono.registry })
+}
+
+## Regular for every block role (the style-face path requires one face
+## for body, heading, and title text); Bold for `Pdf.strong`;
+## the monospace face for `Pdf.code`. `Pdf.emphasis` keeps a colour: the
+## font validator rejects Noto Sans Italic's odd-length Macintosh name
+## records, so no italic face is registered.
+with_faces : Theme, Faces -> Theme
+with_faces = |base, faces|
+	base
+		.with_font(faces.regular)
+		.with_inline_font(Strong, faces.bold)
+		.with_inline_font(Code, faces.mono)
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -74,7 +105,6 @@ theme = {
 		.with_page_margin({ top: points(48), right: points(60), bottom: points(46), left: points(60) })
 		.with_paragraph_spacing(points(7))
 		.with_bullet_indent(points(18))
-		.with_strong_color(night)
 		.with_emphasis_color(indigo)
 		.with_code_color(pink)
 		.with_table_header_color(indigo)
@@ -310,11 +340,13 @@ issue = |number| Pdf.inline_link([Pdf.emphasis([Pdf.text("#${number.to_str()}")]
 change : List(Pdf.Inline), U64 -> Pdf.ListItem
 change = |inlines, number| Pdf.list_item([Pdf.rich_paragraph(inlines.concat([Pdf.text(" ("), issue(number), Pdf.text(")")]))])
 
+## The new version is plain text: a `Pdf.strong` run inside a table cell
+## does not shape under a registered strong face yet.
 compat_row : Str, Str, Str, Str -> Pdf.Row
 compat_row = |target, old, new, note| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(target)]),
 	Pdf.cell([Pdf.text(old)]),
-	Pdf.cell([Pdf.strong([Pdf.text(new)])]),
+	Pdf.cell([Pdf.text(new)]),
 	Pdf.cell([Pdf.text(note)]),
 ])
 
