@@ -18,7 +18,8 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## Lumen brand guidelines: a branded multi-page brief set in Public Sans with a
 ## monospace face for colour and token codes. It shows running headers and
-## footers with `Page N of M` over full-width header rules, a palette strip
+## footers with `Page N of M`, their header text inset above full-width
+## header rules, a palette strip
 ## and section bands as spaced decorations, separately authored "At a
 ## glance" callouts measured by the package (one light, one on an indigo
 ## panel), vector
@@ -230,18 +231,20 @@ swatches = {
 placements : Scene.Drawing
 placements = {
 	panel = |ground, disc, light, guides, name, label| {
-		base = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 155, 124), ground)
+		## A 44 pt mark, its clear space of one sixth of its width on every
+		## side (the tinted square), and the coral boundary around both.
+		base = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 155, 86), ground)
 		framed = if guides {
-			square = Scene.path({}).rectangle(Layout.rect(35, 20, 84, 84)).finish()
+			square = Scene.path({}).rectangle(Layout.rect(48, 9, 59, 59)).finish()
 			base
-				.path(Scene.path({}).rectangle(Layout.rect(25, 10, 104, 104)).finish(), Scene.solid_stroke(coral, Layout.Unit.millipoints(750)))
+				.path(Scene.path({}).rectangle(Layout.rect(41, 2, 73, 73)).finish(), Scene.solid_stroke(coral, Layout.Unit.millipoints(750)))
 				.path(square, Scene.solid_stroke(tint(coral_rgb, 40), Layout.Unit.millipoints(500)))
 		} else {
 			base
 		}
 		framed
-			.group(Layout.point(45, 30), mark(64, disc, light))
-			.text({ align: Center, color: label, origin: Layout.point(77, 116), size: points(7), text: name })
+			.group(Layout.point(56, 16), mark(44, disc, light))
+			.text({ align: Center, color: label, origin: Layout.point(77, 78), size: points(7), text: name })
 	}
 	Scene.drawing({})
 		.group(Layout.point(0, 0), panel(mist, indigo, amber, True, "Clear space", indigo))
@@ -308,31 +311,37 @@ hairline = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), tint(in
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(44),
-				start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 8), mark(36, indigo, amber)))],
-				center: [],
-				end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])],
-			}),
-			hairline,
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(44),
+					start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 5), mark(36, indigo, amber)))],
+					center: [],
+					end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])],
+				}),
+				hairline,
+			),
+			points(3),
 		),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(14),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(22),
-				start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])],
-				center: [],
-				end: [Pdf.furniture_text([Pdf.text("Edition 3")])],
-			}),
-			hairline,
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(22),
+					start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])],
+					center: [],
+					end: [Pdf.furniture_text([Pdf.text("Edition 3")])],
+				}),
+				hairline,
+			),
+			points(3),
 		),
 		footer,
-		gap: points(18),
+		gap: points(14),
 	}),
 }
 
