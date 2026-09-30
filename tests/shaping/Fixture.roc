@@ -9,6 +9,7 @@ import pdf.KernelUnicode
 import pdf.Layout
 import pdf.Semantics
 import pdf.Text
+import GsubFixture
 import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Fixture :: [].{
@@ -371,4 +372,11 @@ list_at = |items, index| match items.get(index) {
 		crash "text-layout shape evidence index escaped"
 	}
 	Ok(value) => value
+}
+
+## The GSUB ligature inspection fixture has no evidence case of its own; this
+## expect makes the shaping test root reach it, so its expects run too.
+expect {
+	work = GsubFixture.validation_work({})?
+	work.len() == 8
 }
