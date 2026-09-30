@@ -10,13 +10,16 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v9`**.
+Version: **`reference-documents-v10`**.
 
-- It is a design record. It claims no executable capability, conformance
-  result, or reader behavior. Capability status remains governed by the
-  [roadmap](../feature-roadmap.md) and the
-  [authoring guide](authoring.md); nothing below is available until the slice
-  that implements it records its evidence.
+- It began as a design record. From `reference-documents-v10` every outline,
+  adverse variant, and policy below is executable: the three references are
+  the gallery programs `examples/prepared_invoice.roc`,
+  `examples/business_report.roc`, and `examples/letter.roc`, and
+  `tests/reference_documents` prepares each of them and every adverse
+  variant (see [the closure record](performance/business-authoring-closure.md)).
+  Capability status remains governed by the [roadmap](../feature-roadmap.md)
+  and the [authoring guide](authoring.md). It claims no reader behavior.
 - Every later Gate 6 slice cites the version it implements. A slice that must
   change an outline, a policy, a diagnostic code, or a planned API name updates
   this record in the same change, increments the version (`-v2`, ...), and adds
@@ -266,23 +269,29 @@ rules (`Decoration`).
   `Page N of M` with the exact final `M`. With the reference theme the
   ordinary variant is expected to occupy two or three pages; the exact break
   rows are recorded here from the first reviewed snapshot.
+- Reviewed break positions (`reference-documents-v10`, MuPDF 1.28.2 render
+  of `examples/tax-invoice.pdf`): three pages. Page 1 holds body rows 1–9
+  (through `HF-DSK-140/L3`); page 2 repaints the header row and holds rows
+  10–28 (through `HF-CAF-ELG/L5`); page 3 repaints the header row and holds
+  rows 29–32, the three totals rows, and the Payment section. No preference
+  is relaxed.
 
 ### Adverse variants
 
 | ID | Change from ordinary | Policy | Expected outcome |
 | --- | --- | --- | --- |
 | INV-A1 | Customer name `The Northstar Regional Housing and Community Development Cooperative (Western Australia) Ltd`; every address line ~90 characters; one description 380 characters | defaults | Accepted. Lines wrap at pinned UAX #14 opportunities inside the Bill-to paragraph and the description cell; the affected row grows and, under `KeepRows`, moves whole to the next page if it does not fit. No shrinking, clipping, or truncation. |
-| INV-A2a | Code `HF-DSK-140-TASMANIAN-OAK/L2` | defaults | Accepted. The `Content` column widens to its min-content width (break after each hyphen per UAX #14); the `Share` column absorbs the difference. |
+| INV-A2a | Code `HF-DSK-140-TASMANIAN-OAK/L2` | defaults | Accepted. The `Content` column widens and the `Share` column absorbs the difference. Amended in `reference-documents-v10` to the column rule of `-v5`: the `Share` column's minimum still fits beside the code's max-content width, so the `Content` column takes that width and the code does not break at its hyphens; descriptions wrap in the narrower share (four pages). |
 | INV-A2b | Description contains a 128-hex-digit serial with no break opportunity | defaults | `layout.unbreakable_token` locating the cell and the token's scalar range, reporting the token width and the widest width the column could receive. No bytes. |
 | INV-A2c | Fixed columns widened so fixed widths plus every column's min-content exceed the table width | defaults | `layout.table_width` naming the table, the sum of minima, and the available width. No bytes. |
-| INV-A3 | 500 body rows (products cycled) | defaults | Accepted. The header row repeats as an artifact on every continuation page; the logical `THead` and `TFoot` occur once; totals obey the INV-A5 rule. |
+| INV-A3 | 500 body rows (products cycled) | defaults, with an 80 pt `Page N of M` reserved width (`reference-documents-v10`) | Accepted: 24 pages. The header row repeats as an artifact on every continuation page; the logical `THead` and `TFoot` occur once; totals obey the INV-A5 rule. With the ordinary 64 pt reserved width the two-digit total does not fit (`Page 1 of 24` measures 64.598 pt), which is `layout.field_overflow` at `templates.first.footer.end[0].inlines[0].inlines[1]` with no bytes. |
 | INV-A4a | One description of 9,000 characters (taller than a continuation page body) | `KeepRows` (default) | `layout.oversize_row` locating the row and reporting its measured height and the largest available body height. No bytes. |
 | INV-A4b | As INV-A4a | `SplitRows` | Accepted. The row fragments at line boundaries; each continuation page paints the repeated header then the row's continuation. Cells whose content completed in an earlier fragment paint nothing further; cell rules continue. One `TR`, one `TD` per cell, the long `TD` owning several fragments. |
-| INV-A5 | Rows arranged so the last body row fits on page *k* but the three totals rows do not | defaults | Accepted. The totals group is unsplittable and prefers to carry at least one body row: page *k* ends at the second-last body row; page *k+1* paints the repeated header, the last body row, and the totals. No preference is relaxed. |
+| INV-A5 | Rows arranged so the last body row fits on page *k* but the three totals rows do not (30 body rows, `reference-documents-v10`; without the totals the 30th row fits on page 2) | defaults | Accepted. The totals group is unsplittable and prefers to carry at least one body row: page *k* ends at the second-last body row; page *k+1* paints the repeated header, the last body row, and the totals. No preference is relaxed. |
 | INV-A6a | Customer name contains Arabic `شركة الشمال` | defaults | `text.unsupported_script` locating the paragraph and the Arabic scalar range; the script check precedes coverage so the author sees the fundamental cause. No bytes. |
 | INV-A6b | Address contains Han `北京` with the packaged face only | defaults | `text.coverage_missing` locating the scalars. No bytes. No face is substituted. |
-| INV-A7a | Items section and Payment section wrapped together in `Pdf.keep_together`, exceeding one page body | defaults | `layout.keep_conflict` naming the keep and its member blocks, their minimum height, and the fresh-page body height. No bytes. |
-| INV-A7b | `Pdf.page_break` inside a `Pdf.keep_together` | defaults | `layout.keep_conflict` naming the explicit break and the required keep. No bytes. |
+| INV-A7a | Items section and Payment section wrapped together in `Pdf.keep_together`, exceeding one page body | defaults | `layout.keep_conflict` naming the keep and its first and last member blocks (`details` `contents[4]`, `contents[4].contents[0].contents[0]`, `contents[4].contents[1].contents[2]`); the message gives their minimum height and the fresh-page body height. No bytes. |
+| INV-A7b | `Pdf.page_break` inside a `Pdf.keep_together` (between the Bill-to and Items sections) | defaults | `layout.keep_conflict` naming the explicit break and then the required keep. No bytes. |
 | INV-A8 | A body row with five cells plus a `Pdf.spanning(2, ...)` cell (seven grid columns in a five-column table) | defaults | `table.grid_mismatch` naming the row, the declared column count, and the spanned width. No bytes. |
 | INV-A9 | A cell declared with a row span | defaults | `table.row_span` (`FeatureUnavailable`, Gate 8). No bytes. |
 
@@ -483,18 +492,27 @@ custom block).
   not split in the ordinary variant; paragraphs respect two-line widow and
   orphan minimums unless a relaxation is reported. The exact page
   composition is recorded here from the first reviewed snapshot.
+- Reviewed composition (`reference-documents-v10`, MuPDF 1.28.2 render of
+  `examples/business-report.pdf`): five pages. Page 1 holds the title,
+  subtitle, section 1 with its list and the callout, and section 2 through
+  Table 1 (unsplit); Figure 1 with its caption does not fit below it and
+  opens page 2, which continues with section 3 through the paragraph of
+  3.2; Figure 2 with its caption opens page 3, followed by section 4 and
+  Appendix A with Table 2's caption, header, and rows 1–8; page 4 repaints
+  the header and holds rows 9–34; page 5 repaints it and holds rows 35–40.
+  No preference is relaxed.
 
 ### Adverse variants
 
 | ID | Change from ordinary | Policy | Expected outcome |
 | --- | --- | --- | --- |
-| REP-A1 | Section 2's heading falls on the last line of a page | defaults | Accepted. Heading keep-with-next (preferred, rank R1) moves the heading and at least two lines of the next paragraph to the next page. Not reported as relaxed. |
-| REP-A2 | Figure 1 lands where the figure fits but its caption does not | defaults | Accepted. Figure and caption form one unsplittable unit and move together. If a heading precedes it, the heading moves with it (R1). |
-| REP-A3 | Table 1 placed so that only two body rows fit | defaults | Accepted. The table breaks after a whole row; the next page repaints the header row (artifact) before rows 3–4 and the total row. Logical `THead` and `TFoot` occur once. |
-| REP-A4 | 100 sections (`Page N of M` reaches three digits) with a `Pdf.reserved_width` sized for `99` (14 pt) | defaults | `layout.field_overflow` naming the footer field, the page on which it first overflows, the resolved value (`100`), its shaped width, and the reserved width. No bytes. |
-| REP-A5 | Font selection switched to an ordered policy of a caller-registered Latin face and a Han face; section 3.2 adds `Pdf.in_language("zh-Hans", [Pdf.text("上海")])` | ordered policy | Accepted once the text-matrix rows below close: per-cluster face selection, one nested `zh-Hans` span, no substitution. Depends on the Common-run resolution rule in [Text support](#declared-production-text-support). |
+| REP-A1 | Section 2's heading falls on the last line of a page (`reference-documents-v10`: a page break, a one-line filler paragraph, and a 630 pt spacer before section 2 leave room for the heading but not for a body line; a control proves the heading alone fits) | defaults | Accepted. Heading keep-with-next (preferred, rank R1) moves the heading and at least two lines of the next paragraph to the next page. Not reported as relaxed. |
+| REP-A2 | Figure 1 lands where the figure fits but its caption does not (`reference-documents-v10`: a page break, a filler line, and a 430 pt spacer before Figure 1; a control proves the uncaptioned figure fits) | defaults | Accepted. Figure and caption form one unsplittable unit and move together. If a heading precedes it, the heading moves with it (R1). |
+| REP-A3 | Table 1 placed so that only two body rows fit (`reference-documents-v10`: a page break, a filler line, and a 580 pt spacer before Table 1) | defaults | Accepted. The table breaks after a whole row; the next page repaints the header row (artifact) before rows 3–4 and the total row. Logical `THead` and `TFoot` occur once. |
+| REP-A4 | 100 sections, each after an explicit break (`Page N of M` reaches three digits), with the page number alone in a `Pdf.reserved_width` sized for two digits (16 pt; amended in `reference-documents-v10`: the widest two-digit value, `40`, measures 14.045 pt, so the former 14 pt would already overflow on page 40) | defaults | `layout.field_overflow` naming the footer field (`templates.continuation.footer.end[0].inlines[0].inlines[0]`); the message names page 100, the resolved value `100`, its shaped width, and the reserved width. No bytes. |
+| REP-A5 | Font selection switched to an ordered policy of a caller-registered Latin face and a Han face; section 3.2 adds a nested `zh-Hans` span (amended in `reference-documents-v10` to `Pdf.in_language("zh-Hans", [Pdf.text("中")])` between spaces: the test-only Han fixture face covers only U+4E2D) | ordered policy | Accepted: per-cluster face selection, one nested `zh-Hans` span, no substitution. The spaces around the span itemize as Common and take the Latin face (the report's coverage facts show `Zyyy` runs on font 0 and one `Hani` scalar on font 1). |
 | REP-A6a | Figure 1's drawing is 600 × 900 pt | `Exact` (default) | `document.figure_oversize` reporting the drawing size and the body frame. No bytes. |
-| REP-A6b | As REP-A6a with `Pdf.figure_fit(..., ScaleToFit({ minimum_percent: 50 }))` | scale to fit | Accepted. Uniform scale `min(483/600, available/900)` on a fresh page, reported in the preparation report as an authored fit outcome. |
+| REP-A6b | As REP-A6a with `Pdf.figure_fit(..., ScaleToFit({ minimum_percent: 50 }))` | scale to fit | Accepted. Uniform scale `min(483/600, available/900)` on a fresh page, reported in the preparation report as an authored fit outcome: 733 thousandths, the continuation frame (682 pt) less the caption line and its spacing being 660 pt (`reference-documents-v10`). |
 | REP-A6c | As REP-A6b with `minimum_percent: 90` | scale to fit | `document.figure_oversize` reporting the required scale and the floor. No bytes. |
 | REP-A7 | `H1 "3 Supply chain"` followed directly by an `H3` | defaults | `semantics.heading_skip` naming both headings. No bytes. |
 | REP-A8 | Internal link to an undeclared destination `risks` | defaults | The existing typed `InvalidNavigation` destination error, locating the link. No bytes. |
@@ -609,6 +627,13 @@ rules.
   (explicit break); the table.
 - Invariants: the signature block is never split; the explicit break always
   starts the schedule on a new page; `Page N of M` is exact.
+- Reviewed composition (`reference-documents-v10`, MuPDF 1.28.2 render of
+  `examples/warranty-letter.pdf`): three pages. Page 1 holds the letterhead,
+  date, recipient, salutation, subject, and body paragraphs 1–4; page 2
+  paragraphs 5–6, the list, the closing paragraphs, the signature block,
+  and the enclosure line; page 3 the schedule. The schedule dates read
+  `30 Sep 2031` so that each fits the 96 pt column on one line. LET-A2 (60
+  body paragraphs) occupies exactly 11 pages.
 
 ### Adverse variants
 
@@ -617,11 +642,11 @@ rules.
 | LET-A1 | Recipient name, position, organization, and address lines of 80–110 characters each | defaults | Accepted. Each line wraps inside the recipient paragraph at UAX #14 opportunities; subsequent content moves down. |
 | LET-A2 | Ten pages of letter text (60 body paragraphs) | defaults | Accepted. Pages 2–10 use the continuation template with exact `Page N of 11` values (schedule included). |
 | LET-A3a | Lead region height 640 pt | defaults | `layout.template_body_space` naming the first-page template, each region height, and the remaining body height (less than one body line). Detected before flow. No bytes. |
-| LET-A3b | Letterhead with twelve lines in the 60 pt lead region | defaults | `layout.template_region_overflow` naming the lead region, the content height, and the reserved height. No bytes. |
+| LET-A3b | Letterhead with twelve lines in the 60 pt lead region | defaults | `layout.template_region_overflow` naming the lead region (`templates.first.lead`), with the content and reserved heights in the message. No bytes. |
 | LET-A3c | Continuation header slot texts whose combined widths exceed the region width | defaults | `layout.template_region_overflow` naming the region and slots. No bytes. |
 | LET-A4 | The ordinary letter (no visible title) under `Archive` and, from Gate 7, `AccessibleArchive` | profile | Accepted. No diagnostic requires a visible title. Gate 6 evidence checks XMP `dc:title` equals the metadata title and the catalog sets `DisplayDocTitle true`. Until Gate 7, `AccessibleArchive` still reports `profile.accessible_archive`. |
 | LET-A5 | Empty metadata title | defaults | The existing typed metadata error. No bytes. |
-| LET-A6 | Signature block taller than a continuation body (e.g. a 700 pt spacer) | defaults | `layout.keep_conflict` naming the keep group. No bytes. |
+| LET-A6 | Signature block taller than a continuation body (e.g. a 700 pt spacer) | defaults | `layout.keep_conflict` naming the keep group and its first and last members. No bytes. |
 | LET-A7 | `Pdf.page_number` used inside a body paragraph | defaults | `document.generated_reference` (`FeatureUnavailable`, Gate 8). Page fields are furniture-only in v1. No bytes. |
 
 ### Author obligations
@@ -1397,6 +1422,21 @@ version, the task, the observed outcome, and any limitation.
   read first, and that page furniture is not read as body text.
 
 ## Change log
+
+- `reference-documents-v10`: the reference-documents closure makes the three
+  references gallery programs and adds `tests/reference_documents`, which
+  prepares them and every adverse variant; records the reviewed break
+  positions of the three ordinary documents; amends INV-A2a to the `-v5`
+  column rule, INV-A3 and the invoice scale workload to an 80 pt page field
+  (the 64 pt field of two-digit totals is a `layout.field_overflow`),
+  REP-A4 to a 16 pt two-digit field, REP-A5 to the `中` scalar the Han
+  fixture covers, and records the constructions of INV-A5, REP-A1, REP-A2,
+  and REP-A3 and the exact scale of REP-A6b; puts `Code` and `Quote` in the
+  PDF 1.7 standard structure namespace; makes `semantics.heading_skip`
+  executable (`details`: the previous heading, then the skipping one); and
+  records that destination headings keep with their next block (R1) and are
+  unsplittable like every other heading. Figure 2 is a caller-supplied
+  128 × 69 baseline sRGB JPEG.
 
 - `reference-documents-v9`: the custom-block slice makes `custom_block`
   (with `Pdf.CustomBlock`), `prepare_with_report`,

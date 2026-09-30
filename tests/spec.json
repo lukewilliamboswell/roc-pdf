@@ -48,7 +48,9 @@
     "archive_renderers",
     "structure_semantics",
     "rich_inline",
-    "roc_diagnostics"
+    "roc_diagnostics",
+    "structure_extraction",
+    "reference_documents"
   ],
   "post_update_checks": [
     "contracts",
@@ -58,7 +60,9 @@
     "archive_renderers",
     "fonts",
     "structure_semantics",
-    "rich_inline"
+    "rich_inline",
+    "structure_extraction",
+    "reference_documents"
   ],
   "validation": {
     "sources": [
@@ -176,6 +180,10 @@
     {
       "source": "tests/custom_block/main.roc",
       "cases_jsonl": "tests/custom_block/cases.jsonl"
+    },
+    {
+      "source": "tests/reference_documents/main.roc",
+      "cases_jsonl": "tests/reference_documents/cases.jsonl"
     }
   ],
   "cases": [
@@ -23241,6 +23249,1357 @@
             "rejections": 17,
             "report_obligations": 3,
             "output_bytes": 20415
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference invoice",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/invoice.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 51549,
+          "allocated_bytes": 14296622,
+          "work": {
+            "pages": 3,
+            "fragments": 265,
+            "report_blocks": 189,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 199,
+            "observations": 12,
+            "output_bytes": 102418
+          }
+        },
+        "x64musl": {
+          "allocations": 51549,
+          "allocated_bytes": 14296622,
+          "work": {
+            "pages": 3,
+            "fragments": 265,
+            "report_blocks": 189,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 199,
+            "observations": 12,
+            "output_bytes": 102418
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference report",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 64837,
+          "allocated_bytes": 18726252,
+          "work": {
+            "pages": 5,
+            "fragments": 317,
+            "report_blocks": 265,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 275,
+            "observations": 17,
+            "output_bytes": 139127
+          }
+        },
+        "x64musl": {
+          "allocations": 64837,
+          "allocated_bytes": 18726252,
+          "work": {
+            "pages": 5,
+            "fragments": 317,
+            "report_blocks": 265,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 275,
+            "observations": 17,
+            "output_bytes": 139127
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference letter",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/letter.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 44518,
+          "allocated_bytes": 12082908,
+          "work": {
+            "pages": 3,
+            "fragments": 104,
+            "report_blocks": 51,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 5,
+            "report_coverage": 51,
+            "observations": 8,
+            "output_bytes": 79515
+          }
+        },
+        "x64musl": {
+          "allocations": 44518,
+          "allocated_bytes": 12082908,
+          "work": {
+            "pages": 3,
+            "fragments": 104,
+            "report_blocks": 51,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 5,
+            "report_coverage": 51,
+            "observations": 8,
+            "output_bytes": 79515
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference invoice long text (INV-A1)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/invoice_long_text.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 56020,
+          "allocated_bytes": 15400477,
+          "work": {
+            "pages": 3,
+            "fragments": 279,
+            "report_blocks": 189,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 199,
+            "observations": 3,
+            "output_bytes": 107921
+          }
+        },
+        "x64musl": {
+          "allocations": 56020,
+          "allocated_bytes": 15400477,
+          "work": {
+            "pages": 3,
+            "fragments": 279,
+            "report_blocks": 189,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 199,
+            "observations": 3,
+            "output_bytes": 107921
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference invoice wide code (INV-A2a)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/invoice_wide_code.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 54367,
+          "allocated_bytes": 14976277,
+          "work": {
+            "pages": 4,
+            "fragments": 317,
+            "report_blocks": 189,
+            "report_outcomes": 3,
+            "repeated_headers": 3,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 204,
+            "observations": 3,
+            "output_bytes": 109601
+          }
+        },
+        "x64musl": {
+          "allocations": 54367,
+          "allocated_bytes": 14976277,
+          "work": {
+            "pages": 4,
+            "fragments": 317,
+            "report_blocks": 189,
+            "report_outcomes": 3,
+            "repeated_headers": 3,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 204,
+            "observations": 3,
+            "output_bytes": 109601
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference invoice split row (INV-A4b)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/invoice_split_row.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 8
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 129095,
+          "allocated_bytes": 34576032,
+          "work": {
+            "pages": 8,
+            "fragments": 532,
+            "report_blocks": 189,
+            "report_outcomes": 13,
+            "repeated_headers": 7,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 230,
+            "observations": 3,
+            "output_bytes": 137494
+          }
+        },
+        "x64musl": {
+          "allocations": 129095,
+          "allocated_bytes": 34576032,
+          "work": {
+            "pages": 8,
+            "fragments": 532,
+            "report_blocks": 189,
+            "report_outcomes": 13,
+            "repeated_headers": 7,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 230,
+            "observations": 3,
+            "output_bytes": 137494
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics"
+      ]
+    },
+    {
+      "name": "reference invoice totals carry (INV-A5)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/invoice_totals_carry.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 95303,
+          "allocated_bytes": 23628905,
+          "work": {
+            "pages": 3,
+            "fragments": 252,
+            "report_blocks": 179,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 189,
+            "observations": 5,
+            "output_bytes": 98782
+          }
+        },
+        "x64musl": {
+          "allocations": 95303,
+          "allocated_bytes": 23628905,
+          "work": {
+            "pages": 3,
+            "fragments": 252,
+            "report_blocks": 179,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 9,
+            "report_coverage": 189,
+            "observations": 5,
+            "output_bytes": 98782
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference invoice rows x50",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/invoice_50.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 70550,
+          "allocated_bytes": 19384939,
+          "work": {
+            "pages": 4,
+            "fragments": 391,
+            "report_blocks": 279,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 11,
+            "report_coverage": 289,
+            "observations": 3,
+            "output_bytes": 135045
+          }
+        },
+        "x64musl": {
+          "allocations": 70550,
+          "allocated_bytes": 19384939,
+          "work": {
+            "pages": 4,
+            "fragments": 391,
+            "report_blocks": 279,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 11,
+            "report_coverage": 289,
+            "observations": 3,
+            "output_bytes": 135045
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference invoice rows x500 (INV-A3)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/invoice_500.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 24
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 570088,
+          "allocated_bytes": 153763848,
+          "work": {
+            "pages": 24,
+            "fragments": 3542,
+            "report_blocks": 2529,
+            "report_outcomes": 23,
+            "repeated_headers": 23,
+            "relaxations": 0,
+            "report_obligations": 68,
+            "report_coverage": 2644,
+            "observations": 3,
+            "output_bytes": 974490
+          }
+        },
+        "x64musl": {
+          "allocations": 570088,
+          "allocated_bytes": 153763848,
+          "work": {
+            "pages": 24,
+            "fragments": 3542,
+            "report_blocks": 2529,
+            "report_outcomes": 23,
+            "repeated_headers": 23,
+            "relaxations": 0,
+            "report_obligations": 68,
+            "report_coverage": 2644,
+            "observations": 3,
+            "output_bytes": 974490
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference report heading keep (REP-A1)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_heading_keep.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 65430,
+          "allocated_bytes": 19278670,
+          "work": {
+            "pages": 6,
+            "fragments": 318,
+            "report_blocks": 266,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 276,
+            "observations": 4,
+            "output_bytes": 140584
+          }
+        },
+        "x64musl": {
+          "allocations": 65430,
+          "allocated_bytes": 19278670,
+          "work": {
+            "pages": 6,
+            "fragments": 318,
+            "report_blocks": 266,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 276,
+            "observations": 4,
+            "output_bytes": 140584
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report figure and caption (REP-A2)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_figure_caption.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 65432,
+          "allocated_bytes": 19309451,
+          "work": {
+            "pages": 6,
+            "fragments": 318,
+            "report_blocks": 266,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 276,
+            "observations": 4,
+            "output_bytes": 140508
+          }
+        },
+        "x64musl": {
+          "allocations": 65432,
+          "allocated_bytes": 19309451,
+          "work": {
+            "pages": 6,
+            "fragments": 318,
+            "report_blocks": 266,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 276,
+            "observations": 4,
+            "output_bytes": 140508
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report table break (REP-A3)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_table_break.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 67386,
+          "allocated_bytes": 19483576,
+          "work": {
+            "pages": 6,
+            "fragments": 318,
+            "report_blocks": 266,
+            "report_outcomes": 6,
+            "repeated_headers": 3,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 280,
+            "observations": 6,
+            "output_bytes": 141012
+          }
+        },
+        "x64musl": {
+          "allocations": 67386,
+          "allocated_bytes": 19483576,
+          "work": {
+            "pages": 6,
+            "fragments": 318,
+            "report_blocks": 266,
+            "report_outcomes": 6,
+            "repeated_headers": 3,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 280,
+            "observations": 6,
+            "output_bytes": 141012
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report ordered faces (REP-A5)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_ordered.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 70622,
+          "allocated_bytes": 29084497,
+          "work": {
+            "pages": 5,
+            "fragments": 322,
+            "report_blocks": 265,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 15,
+            "report_coverage": 289,
+            "observations": 4,
+            "output_bytes": 142354
+          }
+        },
+        "x64musl": {
+          "allocations": 70622,
+          "allocated_bytes": 29084497,
+          "work": {
+            "pages": 5,
+            "fragments": 322,
+            "report_blocks": 265,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 15,
+            "report_coverage": 289,
+            "observations": 4,
+            "output_bytes": 142354
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report scaled figure (REP-A6b)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_scaled_figure.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 62852,
+          "allocated_bytes": 18595621,
+          "work": {
+            "pages": 5,
+            "fragments": 317,
+            "report_blocks": 265,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 270,
+            "observations": 2,
+            "output_bytes": 136691
+          }
+        },
+        "x64musl": {
+          "allocations": 62852,
+          "allocated_bytes": 18595621,
+          "work": {
+            "pages": 5,
+            "fragments": 317,
+            "report_blocks": 265,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 270,
+            "observations": 2,
+            "output_bytes": 136691
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report sections x10",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_sections_10.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 62385,
+          "allocated_bytes": 18099863,
+          "work": {
+            "pages": 4,
+            "fragments": 251,
+            "report_blocks": 201,
+            "report_outcomes": 1,
+            "repeated_headers": 1,
+            "relaxations": 0,
+            "report_obligations": 22,
+            "report_coverage": 204,
+            "observations": 3,
+            "output_bytes": 117247
+          }
+        },
+        "x64musl": {
+          "allocations": 62385,
+          "allocated_bytes": 18099863,
+          "work": {
+            "pages": 4,
+            "fragments": 251,
+            "report_blocks": 201,
+            "report_outcomes": 1,
+            "repeated_headers": 1,
+            "relaxations": 0,
+            "report_obligations": 22,
+            "report_coverage": 204,
+            "observations": 3,
+            "output_bytes": 117247
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report sections x100",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_sections_100.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 38
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 602285,
+          "allocated_bytes": 168275480,
+          "work": {
+            "pages": 38,
+            "fragments": 2501,
+            "report_blocks": 2001,
+            "report_outcomes": 13,
+            "repeated_headers": 13,
+            "relaxations": 0,
+            "report_obligations": 202,
+            "report_coverage": 2040,
+            "observations": 3,
+            "output_bytes": 981935
+          }
+        },
+        "x64musl": {
+          "allocations": 602285,
+          "allocated_bytes": 168275480,
+          "work": {
+            "pages": 38,
+            "fragments": 2501,
+            "report_blocks": 2001,
+            "report_outcomes": 13,
+            "repeated_headers": 13,
+            "relaxations": 0,
+            "report_obligations": 202,
+            "report_coverage": 2040,
+            "observations": 3,
+            "output_bytes": 981935
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference letter long recipient (LET-A1)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/letter_long_recipient.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 46555,
+          "allocated_bytes": 12438741,
+          "work": {
+            "pages": 3,
+            "fragments": 107,
+            "report_blocks": 51,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 5,
+            "report_coverage": 51,
+            "observations": 2,
+            "output_bytes": 81807
+          }
+        },
+        "x64musl": {
+          "allocations": 46555,
+          "allocated_bytes": 12438741,
+          "work": {
+            "pages": 3,
+            "fragments": 107,
+            "report_blocks": 51,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 5,
+            "report_coverage": 51,
+            "observations": 2,
+            "output_bytes": 81807
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference letter x60 (LET-A2)",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/letter_60.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 11
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 254902,
+          "allocated_bytes": 55807694,
+          "work": {
+            "pages": 11,
+            "fragments": 482,
+            "report_blocks": 105,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 105,
+            "observations": 3,
+            "output_bytes": 321152
+          }
+        },
+        "x64musl": {
+          "allocations": 254902,
+          "allocated_bytes": 55807694,
+          "work": {
+            "pages": 11,
+            "fragments": 482,
+            "report_blocks": 105,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 105,
+            "observations": 3,
+            "output_bytes": 321152
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference letter x20",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/letter_20.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 98892,
+          "allocated_bytes": 23205093,
+          "work": {
+            "pages": 5,
+            "fragments": 201,
+            "report_blocks": 65,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 7,
+            "report_coverage": 65,
+            "observations": 3,
+            "output_bytes": 141906
+          }
+        },
+        "x64musl": {
+          "allocations": 98892,
+          "allocated_bytes": 23205093,
+          "work": {
+            "pages": 5,
+            "fragments": 201,
+            "report_blocks": 65,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 7,
+            "report_coverage": 65,
+            "observations": 3,
+            "output_bytes": 141906
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference letter x200",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/letter_200.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 31
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 799819,
+          "allocated_bytes": 166815927,
+          "work": {
+            "pages": 31,
+            "fragments": 1461,
+            "report_blocks": 245,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 37,
+            "report_coverage": 245,
+            "observations": 3,
+            "output_bytes": 946360
+          }
+        },
+        "x64musl": {
+          "allocations": 799819,
+          "allocated_bytes": 166815927,
+          "work": {
+            "pages": 31,
+            "fragments": 1461,
+            "report_blocks": 245,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
+            "relaxations": 0,
+            "report_obligations": 37,
+            "report_coverage": 245,
+            "observations": 3,
+            "output_bytes": 946360
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "reference variant rejections",
+      "scenario_revision": "reference-documents-v10",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/rejections.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1
+      },
+      "work_counters": [
+        "rejections",
+        "report_obligations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 172160,
+          "allocated_bytes": 110710018,
+          "work": {
+            "rejections": 24,
+            "report_obligations": 2,
+            "output_bytes": 17558
+          }
+        },
+        "x64musl": {
+          "allocations": 172160,
+          "allocated_bytes": 110710018,
+          "work": {
+            "rejections": 24,
+            "report_obligations": 2,
+            "output_bytes": 17558
           }
         }
       },
