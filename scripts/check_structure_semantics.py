@@ -24,6 +24,10 @@ without consulting the Roc package:
   own it), every page-number artifact's ToUnicode-decoded text that reads
   "N of M" names its own page and the page count, and the per-subtype
   artifact counts match the case dimensions.
+* custom blocks: every `Div` holding only `P` children is counted, and the
+  `/Artifact <</Type /Layout>>` sequences a page paints before its first
+  marked content (a custom block's panel, painted behind its text) are
+  counted, and both counts match the case dimensions.
 """
 from __future__ import annotations
 
@@ -59,6 +63,7 @@ SNAPSHOTS = {
     "templates": ROOT / "tests" / "page_templates" / "letter_6.pdf",
     "figures": ROOT / "tests" / "flow_figures" / "report.pdf",
     "figure_sections": ROOT / "tests" / "flow_figures" / "sections_10.pdf",
+    "custom_blocks": ROOT / "tests" / "custom_block" / "callouts_10.pdf",
 }
 
 VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
@@ -502,6 +507,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
     check_tables(document, visited, identifiers, pages, page_index)
     check_furniture(furniture_by_page(document, pages), dimensions)
     check_figures(document, visited, pages, page_index, dimensions)
+    check_custom_blocks(document, visited, pages, dimensions)
 
     expected_elements = dimensions.get("structure_elements")
     if expected_elements is not None:
@@ -616,6 +622,36 @@ def check_figures(document: Document, visited: set[int], pages: list[int], page_
             captioned += 1
     layout = sum(len(LAYOUT_ARTIFACT.findall(document.stream(int(document.get(page)["Contents"])))) for page in pages)
     for key, count in (("figure_nodes", figures), ("captioned_figures", captioned), ("scaled_figures", scaled), ("layout_artifacts", layout)):
+        expected = dimensions.get(key)
+        if expected is not None:
+            require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
+
+
+MCID_BDC = re.compile(rb"<</MCID \d+>> BDC")
+
+
+def check_custom_blocks(document: Document, visited: set[int], pages: list[int], dimensions: dict[str, int]) -> None:
+    """Custom-block checks, derived from the bytes: the number of `Div`
+    elements whose children are one or more `P` elements only, and the
+    number of `/Artifact <</Type /Layout>>` sequences each page paints
+    before its first marked content (an underlay: a custom block's panel
+    behind its text). Both counts must equal the case dimensions.
+    """
+    paragraph_divs = 0
+    for number in sorted(visited):
+        element = document.get(number)
+        if str(element["S"]) != "Div":
+            continue
+        children = element_children(document, element)
+        roles = [str(document.get(int(child))["S"]) if isinstance(child, Ref) else None for child in children]
+        if roles and all(role == "P" for role in roles):
+            paragraph_divs += 1
+    underlays = 0
+    for page in pages:
+        content = document.stream(int(document.get(page)["Contents"]))
+        first = MCID_BDC.search(content)
+        underlays += len(LAYOUT_ARTIFACT.findall(content[: first.start()] if first else content))
+    for key, count in (("paragraph_divs", paragraph_divs), ("underlays", underlays)):
         expected = dimensions.get(key)
         if expected is not None:
             require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
@@ -833,6 +869,22 @@ def self_test() -> None:
         except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
             continue
         raise SystemExit(f"structure-semantics checker accepted {label}")
+    # Custom-block twins: a callout's Div rewritten as another role, and
+    # in-flow decorations (painted after their page's text) presented as
+    # the callouts' underlays.
+    callouts = SNAPSHOTS["custom_blocks"].read_bytes()
+    callout_dimensions = {"paragraph_divs": 10, "underlays": 10, "layout_artifacts": 10}
+    check_structure_semantics(callouts, callout_dimensions)
+    callout_twins = [
+        ("a callout Div that is not a Div", replace_once(callouts, b"/S /Div ", b"/S /Art "), callout_dimensions),
+        ("decorations painted after text counted as underlays", figure_sections, {"underlays": 10}),
+    ]
+    for label, source, dimensions in callout_twins:
+        try:
+            check_structure_semantics(source, dimensions)
+        except (ValidationError, KeyError, ValueError, TypeError, AttributeError, IndexError, zlib.error):
+            continue
+        raise SystemExit(f"structure-semantics checker accepted {label}")
     # Furniture twins mutate decoded page furniture: an MCID inside a
     # pagination artifact, a wrong page number, a wrong total, and a missing
     # page-number artifact.
@@ -861,8 +913,8 @@ def self_test() -> None:
     print(
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
-        f"Table 5 containment, page furniture, and figure captions and scales verified on {len(SNAPSHOTS)} snapshots; {len(mutations)} "
-        f"length-preserving mutation twins and {len(furniture_twins)} furniture twins rejected; {cross_check}",
+        f"Table 5 containment, page furniture, figure captions and scales, and custom-block Divs and underlays verified on {len(SNAPSHOTS)} snapshots; {len(mutations)} "
+        f"length-preserving mutation twins, {len(furniture_twins)} furniture twins, and {len(callout_twins)} custom-block twins rejected; {cross_check}",
         flush=True,
     )
 
