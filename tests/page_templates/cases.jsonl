@@ -7,3 +7,5 @@
 {"name":"page templates atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
 {"name":"page templates ordered policy","schema_version":1,"case":{"Ordered":{"sections":12}}}
 {"name":"page templates landscape and custom page sizes","schema_version":1,"case":{"PageSizes":{"context":0}}}
+{"name":"page templates backdrops x3","schema_version":1,"case":{"Backdrops":{"pages":3}}}
+{"name":"page templates backdrops x30","schema_version":1,"case":{"Backdrops":{"pages":30}}}

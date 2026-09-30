@@ -635,6 +635,19 @@ Pdf :: [].{
 	region : { center : List(Furniture), end : List(Furniture), height : Layout.Unit, start : List(Furniture) } -> Region
 	region = |record| Document.region(record)
 
+	## A region with a backdrop: a decorative drawing (images and solid
+	## paths, as for `furniture_image`) whose origin is the region's
+	## bottom-left corner at the body frame's start edge, painted behind
+	## the region's slots and the page's text as a page artifact of the
+	## region's kind. It spans up to the full frame width and the region's
+	## height (`layout.template_region_overflow` otherwise) and never takes
+	## part in the slots' stacking or overlap checks, so a full-width rule
+	## under a header can sit beside start-, center-, and end-slot
+	## furniture. A region may hold only a backdrop. On `no_region` it is
+	## `layout.template_region_empty`.
+	with_backdrop : Region, Scene.Drawing -> Region
+	with_backdrop = |value, drawing| Document.with_backdrop(value, drawing)
+
 	## A template without this region; it reserves no height and no gap.
 	no_region : Region
 	no_region = Document.no_region

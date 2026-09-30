@@ -177,8 +177,13 @@ DocumentFurniture :: [FurnitureDrawing(Scene.Drawing), FurnitureText(List(Docume
 
 ## A header or footer region of a page template: a fixed authored height
 ## reserved inside the body frame and three slots whose furniture items
-## stack vertically. `NoRegion` reserves nothing.
-DocumentRegion :: [NoRegion, Region({ center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) })].{}
+## stack vertically, over an optional full-width backdrop drawing.
+## `NoRegion` reserves nothing.
+DocumentRegion :: [NoRegion, Region({ backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) })].{}
+
+## A region's backdrop: a decorative drawing painted behind its slots, or
+## none.
+Backdrop : [Backdrop(Scene.Drawing), NoBackdrop]
 
 ## The first page's lead region: semantic blocks (such as a letterhead) laid
 ## out once, below the first page's header, in a reserved height. They keep
@@ -210,7 +215,7 @@ NormalizedFurnitureInline : [
 
 NormalizedFurniture : [FurnitureDrawing(Scene.Drawing), FurnitureText(List(NormalizedFurnitureInline))]
 
-NormalizedRegion : [NoRegion, Region({ center : List(NormalizedFurniture), end : List(NormalizedFurniture), height : Layout.Unit, start : List(NormalizedFurniture) })]
+NormalizedRegion : [NoRegion, Region({ backdrop : Backdrop, center : List(NormalizedFurniture), end : List(NormalizedFurniture), height : Layout.Unit, start : List(NormalizedFurniture) })]
 
 ## One normalized page template: its regions and the gap between each
 ## present region and the flow region.
@@ -775,6 +780,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	PageLabelStyle : PageLabelStyle
 	PageTemplate : DocumentPageTemplate
 	Region : DocumentRegion
+	Backdrop : Backdrop
 	Row : DocumentRow
 	RowSplit : RowSplit
 	TableColumn : TableColumn
@@ -977,7 +983,14 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	page_template = |{ footer, gap, header }| DocumentPageTemplate.{ footer, gap, header }
 
 	region : { center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) } -> DocumentRegion
-	region = |record| DocumentRegion.Region(record)
+	region = |{ center, end, height, start }| DocumentRegion.Region({ backdrop: NoBackdrop, center, end, height, start })
+
+	## A region with a backdrop drawing behind its slots.
+	with_backdrop : DocumentRegion, Scene.Drawing -> DocumentRegion
+	with_backdrop = |value, drawing| match value {
+		NoRegion => DocumentRegion.Region({ backdrop: Backdrop(drawing), center: [], end: [], height: Layout.Unit.from_raw(0), start: [] })
+		Region(record) => DocumentRegion.Region({ ..record, backdrop: Backdrop(drawing) })
+	}
 
 	no_region : DocumentRegion
 	no_region = DocumentRegion.NoRegion
@@ -1273,7 +1286,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 normalize_region : DocumentRegion -> NormalizedRegion
 normalize_region = |region| match region {
 	NoRegion => NoRegion
-	Region({ center, end, height, start }) => Region({ center: center.map(normalize_furniture), end: end.map(normalize_furniture), height, start: start.map(normalize_furniture) })
+	Region({ backdrop, center, end, height, start }) => Region({ backdrop, center: center.map(normalize_furniture), end: end.map(normalize_furniture), height, start: start.map(normalize_furniture) })
 }
 
 normalize_furniture : DocumentFurniture -> NormalizedFurniture

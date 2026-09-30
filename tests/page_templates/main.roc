@@ -14,6 +14,7 @@ Case : [
 	Images({ context : U64 }),
 	AtomicNegatives({ context : U64 }),
 	PageSizes({ context : U64 }),
+	Backdrops({ pages : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -49,6 +50,7 @@ main! = |args| {
 		Images({ context }) => Fixture.images(context)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 		PageSizes({ context }) => Fixture.page_sizes(context)
+		Backdrops({ pages }) => Fixture.backdrops(pages)
 	}
 	match result {
 		Ok(value) => value

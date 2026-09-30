@@ -404,3 +404,33 @@ changes.
 
 Per-page sizes and orientations stay Gate 8 fixed-page composition: page
 templates and pagination assume one body frame per template.
+
+## Region backdrops (examples showcase)
+
+A full-width rule in a header's start slot made any end-slot furniture a
+`layout.template_region_overflow` (the slots overlap), so the brand brief
+dropped its first-page header rule. `Pdf.with_backdrop(region, drawing)`
+adds a layer separate from the slots. A backdrop is validated exactly like
+a furniture drawing, placed as a `BackdropSlot` item on the region's
+bottom edge (it may be as tall as the region, so a drawing positions its
+marks anywhere inside it), and measured against the frame width, but it
+contributes nothing to the slot extents that the overlap check compares.
+It paints as a page artifact of the region's kind (`Header` or `Footer`)
+before everything else on its page: `DrawingPaint` gains `behind`, the
+resolved paints are reordered so each page's backdrops come first
+(`backdrops_first`, one linear pass that returns the list untouched when
+no region has a backdrop), and the scene loop routes a ready backdrop
+through the furniture branch before any panel, fill, text, or rule. A
+region may hold only a backdrop. `with_backdrop` on `no_region` produces a
+zero-height region, which is `layout.template_region_empty`, never a silent
+no-op.
+
+Evidence: `page templates backdrops x3` and `x30`. The continuation
+header has a 0.75 pt full-width rule backdrop under start-slot text and
+end-slot `Page N of M`; the footer is a tinted 20 pt band behind centered
+text; the first page's header is a backdrop only. Each rejects a backdrop
+taller than its region and one wider than the frame
+(`layout.template_region_overflow` at `templates.first.header.backdrop`),
+and a backdrop on `no_region`. x3: 23,412 allocations; x30: 168,863 (7.2×
+for 10× pages): linear. No existing baseline changes; the region record's
+new field leaves every allocation count unchanged.

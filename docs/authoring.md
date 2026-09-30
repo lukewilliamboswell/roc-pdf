@@ -277,7 +277,12 @@ paints a drawing of images and solid paths (`Scene.rectangle`,
 `Scene.solid_fill`, `Scene.solid_stroke`) whose origin is the item's
 bottom-left corner. Furniture is a page artifact (`Header`, `Footer`, or
 `PageNum` when a line holds a page field): it repeats on every page of its
-template and never enters the structure tree or the logical text. The lead
+template and never enters the structure tree or the logical text.
+`Pdf.with_backdrop(region, drawing)` adds a drawing behind a region's
+slots, from the region's bottom-left corner across up to the full frame
+width, such as a full-width rule under a header or a tinted footer band; it
+paints before the page's other content and never takes part in the slots'
+overlap checks, so it can sit beside start- and end-slot furniture. The lead
 region's blocks are semantic: a `Div` that comes first in reading order.
 
 `Pdf.page_number` and `Pdf.total_pages` take a number style (`Decimal`,

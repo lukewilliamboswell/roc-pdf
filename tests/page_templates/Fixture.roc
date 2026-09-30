@@ -66,6 +66,14 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   prepare, and the `layout.page_size` rejections of custom sides that
 ##   are too small, too large, fractional, or negative, and of a custom
 ##   page too small for the theme's margins.
+## - `backdrops xN`: N pages whose header region has a full-width rule
+##   backdrop under start-slot title text and end-slot `Page N of M`, and
+##   whose footer region is a tinted band backdrop behind centered footer
+##   text; the first page's header is a backdrop only. Rejections: a
+##   backdrop taller than its region or wider than the frame
+##   (`layout.template_region_overflow` at `.backdrop`) and a backdrop on
+##   `no_region` (`layout.template_region_empty`). The 3/30 pair is the
+##   linear scale pair.
 ## - `atomic_negatives`: every template rejection with its stable dotted
 ##   code and template path, and no bytes.
 ##
@@ -112,6 +120,14 @@ Fixture :: [].{
 
 	page_sizes : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	page_sizes = |context| run_page_sizes(context)
+
+	backdrops : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	backdrops = |pages| {
+		if pages == 0 or pages > 100 {
+			return Err(InvalidScale)
+		}
+		run_backdrops(pages)
+	}
 }
 
 points : I64 -> Layout.Unit
@@ -561,6 +577,51 @@ run_page_sizes = |context| {
 			bytes.len(),
 		],
 	})
+}
+
+backdrop_templates : Layout.Unit -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
+backdrop_templates = |rule_width| {
+	rule_mark = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.from_raw(750), width: rule_width } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
+	band = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 20), Color.srgb8({ blue: 245, green: 238, red: 232 }))
+	header = Pdf.with_backdrop(Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(20), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])] }), rule_mark)
+	footer = Pdf.with_backdrop(Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], end: [], height: points(20), start: [] }), band)
+	{
+		continuation: Pdf.page_template({ footer, gap: points(12), header }),
+		first: Pdf.first_page_template({ footer, gap: points(12), header: Pdf.with_backdrop(Pdf.region({ center: [], end: [], height: points(6), start: [] }), rule_mark), lead: Pdf.no_lead }),
+	}
+}
+
+run_backdrops : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_backdrops = |pages| {
+	var $contents = [Pdf.title("Quarterly operations report")]
+	var $page = 0
+	while $page < pages {
+		if $page > 0 {
+			$contents = $contents.append(Pdf.page_break)
+		}
+		$contents = $contents.append(body_paragraph($page))
+		$page = $page + 1
+	}
+	document = Pdf.with_page_templates(Pdf.document({ contents: $contents, language: "en-AU", title: "Backdrops (${pages.to_str()} pages)" }), backdrop_templates(points(483)))
+	evidenced = evidence(document, report_theme)?
+	body = [Pdf.paragraph("Body.")]
+	templated = |templates| Pdf.with_page_templates(Pdf.document({ contents: body, language: "en-AU", title: "Backdrop negatives" }), templates)
+	text_header = Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] })
+	simple = |first_header| {
+		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: text_header }),
+		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: first_header, lead: Pdf.no_lead }),
+	}
+	tall = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 100, 30), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	checks = [
+		rejects(templated(simple(Pdf.with_backdrop(text_header, tall))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
+		rejects(templated(backdrop_templates(points(452 + (pages % 1).to_i64_wrap()))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
+		rejects(templated(simple(Pdf.with_backdrop(Pdf.no_region, tall))), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
+	]
+	rejections = checks.sum()
+	if rejections != checks.len() {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({ bytes: evidenced.bytes, work: evidenced.work.append(rejections) })
 }
 
 ledger_row : U64 -> Pdf.Row

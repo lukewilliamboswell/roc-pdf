@@ -96,7 +96,9 @@ KernelFacadeFurniture :: [].{
 
 	## One painted drawing: its drawing, artifact kind, page, and the
 	## absolute position of its bottom-left corner.
-	DrawingPaint : { drawing : U64, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64 }
+	## `behind` marks a region backdrop, which paints before the page's
+	## other content; on each page the backdrops come first.
+	DrawingPaint : { behind : Bool, drawing : U64, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64 }
 
 	## One painted text piece: a contiguous cluster range of shaped furniture
 	## run `run`, its source range within that run's source, and its
@@ -188,7 +190,9 @@ FrameFacts : { left : U64, top : U64, width : U64 }
 
 TemplateKind : [ContinuationTemplate, FirstTemplate]
 
-Slot : [CenterSlot, EndSlot, StartSlot]
+## `BackdropSlot` is a region's backdrop: full frame width available, on
+## the region's bottom edge, outside the slots' overlap checks.
+Slot : [BackdropSlot, CenterSlot, EndSlot, StartSlot]
 
 ## One present header or footer region: its items (in slot order, each
 ## stack top to bottom), its offset below the body frame top, and height.
@@ -321,22 +325,58 @@ gap_of = |gap, path| if gap.raw() < 0 Err(GapNegative({ path: "${path}.gap" })) 
 region_height : Document.NormalizedRegion, Str -> Try(U64, KernelFacadeFurniture.Error)
 region_height = |region, path| match region {
 	NoRegion => Ok(0)
-	Region({ center, end, height, start }) => if height.raw() <= 0 or (center.is_empty() and end.is_empty() and start.is_empty()) Err(RegionEmpty({ path: path })) else Ok(height.raw().to_u64_wrap())
+	Region({ backdrop, center, end, height, start }) => {
+		slotless = center.is_empty() and end.is_empty() and start.is_empty()
+		bare = match backdrop {
+			NoBackdrop => slotless
+			Backdrop(_) => False
+		}
+		if height.raw() <= 0 or bare Err(RegionEmpty({ path: path })) else Ok(height.raw().to_u64_wrap())
+	}
 }
 
 add_region : StaticState, Document.NormalizedRegion, { band : KernelFacadeFurniture.Band, kind : Scene.PageArtifactKind, path : Str, template : TemplateKind, top : U64 }, Theme.TextStyle -> Try(StaticState, KernelFacadeFurniture.Error)
 add_region = |state, region, at, style| match region {
 	NoRegion => Ok(state)
-	Region({ center, end, height, start }) => {
+	Region({ backdrop, center, end, height, start }) => {
 		region_height_value = height.raw().to_u64_wrap()
 		first_item = state.items.len()
 		var $state = state
+		match backdrop {
+			NoBackdrop => {}
+			Backdrop(drawing) => {
+				$state = add_backdrop($state, drawing, "${at.path}.backdrop", { height: region_height_value, top: at.top })?
+			}
+		}
 		$state = add_slot($state, start, StartSlot, "${at.path}.start", { band: at.band, height: region_height_value, top: at.top }, style)?
 		$state = add_slot($state, center, CenterSlot, "${at.path}.center", { band: at.band, height: region_height_value, top: at.top }, style)?
 		$state = add_slot($state, end, EndSlot, "${at.path}.end", { band: at.band, height: region_height_value, top: at.top }, style)?
 		region_record = { band: at.band, height: region_height_value, items: Semantics.Range.from_start_and_length(first_item, $state.items.len() - first_item), kind: at.kind, path: at.path, template: at.template, top: at.top }
 		Ok({ ..$state, regions: $state.regions.append(region_record) })
 	}
+}
+
+## A region's backdrop: one drawing item on the region's bottom edge, no
+## taller than the region; its width is proven against the frame when the
+## region is measured.
+add_backdrop : StaticState, Scene.Drawing, Str, { height : U64, top : U64 } -> Try(StaticState, KernelFacadeFurniture.Error)
+add_backdrop = |state, drawing, path, region| {
+	validated = validate_drawing(drawing, path, state.images.len())?
+	height = validated.drawing.height
+	if height > region.height {
+		return Err(RegionOverflow({ available: region.height, path, required: height }))
+	}
+	var $images = state.images
+	for image in validated.images {
+		$images = $images.append(image)
+	}
+	Ok({
+		drawings: state.drawings.append(validated.drawing),
+		images: $images,
+		items: state.items.append({ content: DrawingContent(state.drawings.len()), height, path, slot: BackdropSlot, top: region.top + region.height - height }),
+		regions: state.regions,
+		texts: state.texts,
+	})
 }
 
 ## One slot's stack: its items' heights must fit the region; a header's
@@ -648,7 +688,7 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	check_limit($pieces.len(), limits.max_pieces, Pieces)?
 	Ok(
 		KernelFacadeFurniture.Plan.{
-			drawing_paints: $drawing_paints,
+			drawing_paints: backdrops_first($drawing_paints),
 			drawings: static.drawings,
 			extra_fonts: shaped.extra_fonts,
 			images: static.images,
@@ -665,6 +705,43 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 			},
 		},
 	)
+}
+
+## Page-ordered drawing paints with each page's backdrops moved before its
+## other drawings, keeping both orders; a list without backdrops is
+## returned as is.
+backdrops_first : List(KernelFacadeFurniture.DrawingPaint) -> List(KernelFacadeFurniture.DrawingPaint)
+backdrops_first = |paints| {
+	if !paints.any(|paint| paint.behind) {
+		return paints
+	}
+	var $ordered = List.with_capacity(paints.len())
+	var $start = 0
+	while $start < paints.len() {
+		page = list_at(paints, $start).page
+		var $end = $start
+		while $end < paints.len() and list_at(paints, $end).page == page {
+			$end = $end + 1
+		}
+		var $index = $start
+		while $index < $end {
+			paint = list_at(paints, $index)
+			if paint.behind {
+				$ordered = $ordered.append(paint)
+			}
+			$index = $index + 1
+		}
+		$index = $start
+		while $index < $end {
+			paint = list_at(paints, $index)
+			if !paint.behind {
+				$ordered = $ordered.append(paint)
+			}
+			$index = $index + 1
+		}
+		$start = $end
+	}
+	$ordered
 }
 
 empty_store : Text.Store
@@ -802,6 +879,7 @@ measure_region = |static, store, source_runs, input_sources, pending, cursor, re
 	while $offset < $widths.len() {
 		item_width = list_at($widths, $offset)
 		match list_at(static.items, region.items.start() + $offset).slot {
+			BackdropSlot => {}
 			StartSlot => {
 				$start = U64.max($start, item_width)
 			}
@@ -888,6 +966,7 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 		x = checked_add(
 			frame.left,
 			match record.slot {
+				BackdropSlot => 0
 				StartSlot => 0
 				CenterSlot => (frame.width - item_width) // 2
 				EndSlot => frame.width - item_width
@@ -897,7 +976,7 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 		match record.content {
 			DrawingContent(drawing) => {
 				bottom = checked_sub(top_y, record.height)?
-				$drawing_paints = $drawing_paints.append({ drawing, kind: region.kind, origin: point(x, bottom), page })
+				$drawing_paints = $drawing_paints.append({ behind: record.slot == BackdropSlot, drawing, kind: region.kind, origin: point(x, bottom), page })
 			}
 			TextContent(text_index) => {
 				entry = list_at(pending, $cursor)

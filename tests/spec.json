@@ -23668,6 +23668,132 @@
       ]
     },
     {
+      "name": "page templates backdrops x3",
+      "scenario_revision": "page-templates-backdrops-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/backdrops_3.pdf",
+      "args": [
+        "backdrops",
+        "3"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 23412,
+          "allocated_bytes": 8816602,
+          "work": {
+            "lines": 23,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 4,
+            "furniture_items": 7,
+            "fragments": 25,
+            "artifact_runs": 7,
+            "output_bytes": 41617,
+            "rejections": 3
+          }
+        },
+        "x64musl": {
+          "allocations": 23412,
+          "allocated_bytes": 8816602,
+          "work": {
+            "lines": 23,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 4,
+            "furniture_items": 7,
+            "fragments": 25,
+            "artifact_runs": 7,
+            "output_bytes": 41617,
+            "rejections": 3
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "page templates backdrops x30",
+      "scenario_revision": "page-templates-backdrops-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/backdrops_30.pdf",
+      "args": [
+        "backdrops",
+        "30"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 30
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 168863,
+          "allocated_bytes": 70408856,
+          "work": {
+            "lines": 212,
+            "pages": 30,
+            "reference_passes": 2,
+            "field_resolutions": 58,
+            "furniture_items": 88,
+            "fragments": 214,
+            "artifact_runs": 88,
+            "output_bytes": 222114,
+            "rejections": 3
+          }
+        },
+        "x64musl": {
+          "allocations": 168863,
+          "allocated_bytes": 70408856,
+          "work": {
+            "lines": 212,
+            "pages": 30,
+            "reference_passes": 2,
+            "field_resolutions": 58,
+            "furniture_items": 88,
+            "fragments": 214,
+            "artifact_runs": 88,
+            "output_bytes": 222114,
+            "rejections": 3
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "page templates number styles",
       "scenario_revision": "page-templates-v1",
       "source": "tests/page_templates/main.roc",
