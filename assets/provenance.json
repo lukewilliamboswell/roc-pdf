@@ -1384,7 +1384,7 @@
     },
     {
       "id": "icc-srgb2014-profile",
-      "path": "vendor/icc/sRGB2014.icc",
+      "path": "package/sRGB2014.icc",
       "kind": "icc_profile",
       "bytes": 3024,
       "sha256": "384b832de3412066743b52a75ee906b6fb9fb8d9e09e936fc2c43223815c6e0a",
@@ -3099,7 +3099,7 @@
     },
     {
       "id": "roc-pdf-sans-regular-font",
-      "path": "vendor/fonts/RocPdfSans-Regular.ttf",
+      "path": "package/RocPdfSans-Regular.ttf",
       "kind": "font",
       "bytes": 166300,
       "sha256": "ee0c414a79c5deaf862e22485ac633b2f3af2ad46457566318da787308cf0bd6",

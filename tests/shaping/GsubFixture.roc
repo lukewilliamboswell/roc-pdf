@@ -1,6 +1,6 @@
 import pdf.KernelFont
 import pdf.KernelGsub
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 ## This module is inspection-only. It deliberately emits no PDF: the retained
 ## `Fact` is the upstream proof required before a later output slice can create

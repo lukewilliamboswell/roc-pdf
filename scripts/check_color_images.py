@@ -44,7 +44,7 @@ DEDUP_64_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_dedup_64.pdf
 DISTINCT_8_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_distinct_8.pdf"
 DISTINCT_64_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_distinct_64.pdf"
 NEGATIVE_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_negative.pdf"
-SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
+SRGB_PROFILE = ROOT / "package" / "sRGB2014.icc"
 SRGB_SHA256 = "384b832de3412066743b52a75ee906b6fb9fb8d9e09e936fc2c43223815c6e0a"
 
 RGB_PIXELS = bytes([255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255])

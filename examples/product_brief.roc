@@ -11,7 +11,7 @@ import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
-import "../vendor/fonts/RocPdfSans-Regular.ttf" as sans_bytes : List(U8)
+import "../package/RocPdfSans-Regular.ttf" as sans_bytes : List(U8)
 import "../tests/assets/NotoSansMono-Code-Fixture.ttf" as mono_bytes : List(U8)
 
 ## Sprout 2.4 product brief: a US Letter launch brief with a vector hero

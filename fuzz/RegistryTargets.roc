@@ -3,7 +3,7 @@ import pdf.KernelFont
 import pdf.Pdf
 import pdf.Semantics
 import pdf.Theme
-import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font : List(U8)
+import "../package/RocPdfSans-Regular.ttf" as built_in_font : List(U8)
 import "../tests/assets/CallerFont-Regular.ttf" as caller_font : List(U8)
 import "../tests/assets/CallerFont-Restricted.ttf" as restricted_font : List(U8)
 import "../tests/assets/IBMPlexSansHebrew-Rtl-Fixture.ttf" as hebrew_font : List(U8)

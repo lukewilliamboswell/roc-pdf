@@ -47,7 +47,7 @@ from check_forms import replace_once
 import re as _re
 
 ROOT = Path(__file__).resolve().parents[1]
-SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
+SRGB_PROFILE = ROOT / "package" / "sRGB2014.icc"
 
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata.pdf"
 MINIMAL_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata_minimal.pdf"

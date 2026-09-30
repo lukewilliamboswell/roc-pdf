@@ -27,7 +27,7 @@ import pdf.Semantics
 import pdf.Scene
 import pdf.Text
 import pdf.Image
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Fixture :: [].{
 	visible_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])

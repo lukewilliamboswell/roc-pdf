@@ -3,7 +3,7 @@ import pdf.KernelFont
 import pdf.KernelFontPlan
 import pdf.KernelFontSubset
 import pdf.KernelStructure
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Fixture :: [].{
 	font_subset : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])

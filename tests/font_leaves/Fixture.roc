@@ -27,7 +27,7 @@ import pdf.Layout
 import pdf.Scene
 import pdf.Semantics
 import pdf.Text
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 
 ## production-visual canonical font-leaf evidence.

@@ -49,7 +49,7 @@ NEST_64_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_nest_64.pdf"
 FORMS_8_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_forms_8.pdf"
 FORMS_32_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_forms_32.pdf"
 NEGATIVE_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_negative.pdf"
-SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
+SRGB_PROFILE = ROOT / "package" / "sRGB2014.icc"
 
 STATE_OBJECT = re.compile(
     rb"^<< /BM /Normal /CA ([0-9.]+) /Type /ExtGState /ca ([0-9.]+) >>\s*endobj$"

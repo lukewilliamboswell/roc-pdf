@@ -33,7 +33,7 @@ import pdf.Text
 import pdf.Image
 import unicode.Scalar
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../../vendor/fonts/Inter-4.1-Regular.ttf" as supplementary_font_bytes : List(U8)
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 import "../assets/IBMPlexSerif-FiLigature-Fixture.ttf" as ligature_font_bytes : List(U8)

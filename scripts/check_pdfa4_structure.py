@@ -45,7 +45,7 @@ from check_pdf_structure import (
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "tests" / "archive"
-SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
+SRGB_PROFILE = ROOT / "package" / "sRGB2014.icc"
 
 SNAPSHOTS: tuple[tuple[str, int], ...] = (
     ("archive_blank.pdf", 1),
