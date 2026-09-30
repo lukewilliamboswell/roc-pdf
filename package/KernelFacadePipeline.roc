@@ -91,6 +91,12 @@ KernelFacadePipeline :: [].{
 	probe : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, Limits, Stage -> Try(Work, Error)
 	probe = |authoring, font, theme, page_size, descriptor, limits, stage| probe_plan(authoring, font, theme, page_size, descriptor, limits, stage)
 
+	## The ordered-policy pipeline through pagination, furniture, text, and
+	## fragments, without scene or PDF lowering: the work of a document
+	## whose paint facts need document facts.
+	probe_ordered : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, Limits -> Try(Work, Error)
+	probe_ordered = |authoring, ordered, theme, page_size, limits| probe_ordered_plan(authoring, ordered, theme, page_size, limits)
+
 	Plan :: { output : KernelFacadeOutput.Plan, work : Work }.{
 		build : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
 		build = |authoring, font, theme, page_size, descriptor, limits| build_plan(authoring, font, theme, page_size, descriptor, NoDocumentFacts, limits)
@@ -218,7 +224,7 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 		)
 	}) ? Shape
 	furniture_selection = match multi {
-		Policy(_) => PolicyFaces
+		Policy(ordered) => PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
 		Styled(styled) => match styled.fonts.first() {
 			Ok(body) => SingleFace(body)
 			Err(_) => {
@@ -231,9 +237,19 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
 	{ pages, text, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, furniture_selection, source_store.len(), limits)?
+
+	## Furniture under an ordered policy may add faces the body did not use;
+	## they follow the body's fonts in dense run-instance order.
+	output_fonts = match KernelFacadeText.Plan.furniture(text) {
+		WithFurniture(furniture) => {
+			extra = KernelFacadeFurniture.Plan.extra_fonts(furniture)
+			if extra.is_empty() KernelFacadeShape.Plan.fonts(shape) else KernelFacadeShape.Plan.fonts(shape).concat(extra)
+		}
+		NoFurniture => KernelFacadeShape.Plan.fonts(shape)
+	}
 	fragments = KernelFacadeFragments.Plan.build_with_navigation(preliminary, text, navigation_authoring(semantics, authoring), limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
-	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
+	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, output_fonts, descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output
 	shape_store = KernelFacadeShape.Plan.shape(shape).store
 	line_store = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines))
 	page_store = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages))
@@ -339,6 +355,44 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 	Ok({ ..line_work, pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len() })
 }
 
+probe_ordered_plan : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Work, KernelFacadePipeline.Error)
+probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
+	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
+	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
+	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
+	shape = KernelFacadeShape.Plan.build_ordered(
+		KernelFacadeSemantics.Plan.authoring(semantics),
+		KernelFacadeSemantics.Plan.block_ownership(semantics),
+		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
+		source_store,
+		ordered,
+		theme,
+		limits.shape,
+	) ? Shape
+	selection = PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
+	shaped_runs = KernelFacadeShape.Plan.shape(shape).store.runs.len()
+	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
+	line_count = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len()
+	{ pages, text, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, selection, source_store.len(), limits)?
+	page_count_value = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len()
+	final_runs = KernelFacadeText.Plan.text(text).runs.len()
+	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? Fragments
+	Ok({
+		blocks: authoring.blocks.len(),
+		field_resolutions: laid_work.field_resolutions,
+		final_runs,
+		fragments: KernelFacadeFragments.Plan.fragments(fragments).len(),
+		furniture_items: laid_work.furniture_items,
+		lines: line_count,
+		objects: 0,
+		occurrences: KernelFacadeSemantics.Plan.work(semantics).occurrence_writes,
+		pages: page_count_value,
+		reference_passes: laid_work.reference_passes,
+		scene_commands: 0,
+		shaped_runs,
+	})
+}
+
 build_upstream : Document.NormalizedAuthoring, KernelFont.Inspection, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelFacadePipeline.Limits -> Try(Upstream, KernelFacadePipeline.Error)
 build_upstream = |authoring, font, theme, page_size, descriptor, limits| {
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
@@ -398,7 +452,7 @@ LaidOut : { pages : KernelFacadePages.Plan, text : KernelFacadeText.Plan, work :
 ## the same pagination. No pass can change a flow frame, so pass 2 always
 ## repeats pass 1's state and stabilization ends after exactly two passes;
 ## the fixed budget of four passes and the cycle check still govern it.
-lay_out : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, [PolicyFaces, SingleFace(KernelFont.Inspection)], U64, KernelFacadePipeline.Limits -> Try(LaidOut, KernelFacadePipeline.Error)
+lay_out : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection)], U64, KernelFacadePipeline.Limits -> Try(LaidOut, KernelFacadePipeline.Error)
 lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, limits| match authoring.templates {
 	NoTemplates => {
 		pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages

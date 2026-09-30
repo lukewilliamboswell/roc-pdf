@@ -22522,6 +22522,72 @@
       ]
     },
     {
+      "name": "page templates ordered policy",
+      "scenario_revision": "page-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/ordered.pdf",
+      "args": [
+        "ordered",
+        "12"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 7,
+        "header_artifacts": 18,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 7
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 213303,
+          "allocated_bytes": 104954057,
+          "work": {
+            "lines": 266,
+            "pages": 7,
+            "reference_passes": 2,
+            "field_resolutions": 14,
+            "furniture_items": 13,
+            "fragments": 268,
+            "artifact_runs": 19,
+            "rejections": 2,
+            "output_bytes": 213992
+          }
+        },
+        "x64musl": {
+          "allocations": 213303,
+          "allocated_bytes": 104954057,
+          "work": {
+            "lines": 266,
+            "pages": 7,
+            "reference_passes": 2,
+            "field_resolutions": 14,
+            "furniture_items": 13,
+            "fragments": 268,
+            "artifact_runs": 19,
+            "rejections": 2,
+            "output_bytes": 213992
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "page templates number styles",
       "scenario_revision": "page-templates-v1",
       "source": "tests/page_templates/main.roc",

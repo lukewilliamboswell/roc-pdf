@@ -5,3 +5,4 @@
 {"name":"page templates number styles","schema_version":1,"case":{"Numbering":{"context":0}}}
 {"name":"page templates furniture drawings","schema_version":1,"case":{"Images":{"context":0}}}
 {"name":"page templates atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
+{"name":"page templates ordered policy","schema_version":1,"case":{"Ordered":{"sections":12}}}

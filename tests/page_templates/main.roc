@@ -9,6 +9,7 @@ import pf.Metrics
 Case : [
 	Letter({ paragraphs : U64 }),
 	Report({ sections : U64 }),
+	Ordered({ sections : U64 }),
 	Numbering({ context : U64 }),
 	Images({ context : U64 }),
 	AtomicNegatives({ context : U64 }),
@@ -42,6 +43,7 @@ main! = |args| {
 	result = match spec.case {
 		Letter({ paragraphs }) => Fixture.letter(paragraphs)
 		Report({ sections }) => Fixture.report(sections)
+		Ordered({ sections }) => Fixture.ordered(sections)
 		Numbering({ context }) => Fixture.numbering(context)
 		Images({ context }) => Fixture.images(context)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)

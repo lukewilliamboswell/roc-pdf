@@ -337,10 +337,20 @@ investigated separately); every rerun passed, and the final cold-cache
 
 ## Open issues
 
-- **Ordered font policies.** Furniture text is shaped through the single
-  theme face; under an ordered policy it reports `text.furniture_policy`.
-  Selection would reuse the body's used faces and split pieces at face
-  boundaries; the reference report's Han variant (REP-A5) needs it.
+- ~~**Ordered font policies.**~~ (open-issues slice) Under an ordered
+  policy each distinct furniture line is selected by
+  `KernelFacadeShape.select_source` exactly as body text is, becomes one run
+  per face and script segment, and reuses the body's dense output faces; a
+  face only furniture uses becomes an extra output font after the body's
+  (`KernelFacadeFurniture.Plan.extra_fonts`). Widths sum across a line's
+  runs and pieces split at run boundaries. Uncovered or undeclared-script
+  lines are `text.coverage_missing` or `text.unsupported_script` at their
+  item path; `text.furniture_policy` is retired. The `ordered policy` case
+  paints `Office中` in the report's continuation header with the Han face
+  used only by furniture (18 header artifacts: two text pieces and a rule
+  per page), and the rich-inline checker pins one `中` per continuation page
+  to that face and none in body text. The single-face path's allocations
+  are unchanged.
 - **Unused templates.** A continuation template of a one-page document has
   only its static checks; its widths are proven on no page.
 - ~~**Unreachable artifact blocks.**~~ Removed by the open-issues slice:

@@ -109,6 +109,13 @@ KernelFacadeShape :: [].{
 		SingleFace,
 	]
 
+	## One ordered-policy selection of a whole source outside the body text
+	## (a page-furniture line): its cluster segments in order, each with its
+	## selected face and itemized script, under the same declared-script,
+	## coverage, and shaping-provision rules as body text.
+	select_source : Font.Registry, Font.PolicyId, KernelFacadeSources.Source, U64, Semantics.Language -> Try(List({ clusters : Semantics.Range, face : Font.FaceId, script : Font.Script }), Error)
+	select_source = |registry, policy, source, index, language| select_source_segments(registry, policy, source, index, language)
+
 	## `ranges` is empty unless the document has a rich paragraph; then it
 	## holds one entry per request, in request order.
 	Preparation :: { block_runs : List(BlockRuns), options : KernelShape.BatchOptions, ranges : List(RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(RunStyle) }.{
@@ -861,6 +868,27 @@ inline_color = |inlines, parent, theme, paragraph_color| {
 		Resolved(color) => color
 		Unresolved => paragraph_color
 	}
+}
+
+select_source_segments : Font.Registry, Font.PolicyId, KernelFacadeSources.Source, U64, Semantics.Language -> Try(List({ clusters : Semantics.Range, face : Font.FaceId, script : Font.Script }), KernelFacadeShape.Error)
+select_source_segments = |registry, policy, source, index, language| {
+	faces = registry.policy_faces(policy) ? PolicyInvalid
+	clusters = ordered_source_clusters(source, index)?
+	selection = match registry.plan({ clusters, language, policy, source: Semantics.TextSourceId.from_index(index) }) {
+		Complete(value) => value
+		Rejected(errors) => return Err(FontSelectionRejected(errors))
+	}
+	segments = ordered_segments(selection.face_ranges, source.analysis.script_runs, faces, index)?
+	store = registry.store()
+	var $selected = List.with_capacity(segments.len())
+	for segment in segments {
+		face = list_at(faces, segment.font)
+		if face.index() >= store.faces.len() or list_at(store.faces, face.index()).provision != BuiltIn {
+			return Err(FontSelectionRejected([UnsupportedBuiltInShaping({ cluster: segment.clusters.start(), script: segment.script })]))
+		}
+		$selected = $selected.append({ clusters: segment.clusters, face, script: segment.script })
+	}
+	Ok($selected)
 }
 
 ## One selected physical segment of a source: a contiguous grapheme-cluster

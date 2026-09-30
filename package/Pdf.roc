@@ -924,7 +924,8 @@ furniture_error = |error| {
 		InlineEmpty({ path }) => located(InvalidRelationship, "semantics.inline_empty", "Furniture text and every reserved width in it must contain text or a page field, and no text inline may be empty.", [path])
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
-		OrderedPolicy({ path }) => located(FeatureUnavailable, "text.furniture_policy", "Furniture text is shaped through the theme's single face; under an ordered font policy only furniture drawings are supported until a later Gate 6 slice.", [path])
+		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
+		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if script.is_empty() "Unknown" else script}, which the convenience text path does not shape.", [path])
 		_ => InternalGenerationFailure
 	}
 }

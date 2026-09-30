@@ -264,8 +264,11 @@ than its region, or overlapping slots), `layout.field_overflow` (a resolved
 field that does not fit, with the first page it fails on),
 `layout.template_region_empty`, `layout.template_body_empty`,
 `layout.furniture_inline`, `layout.furniture_drawing`, and
-`semantics.inline_empty`. Furniture text is shaped through the theme's face;
-under an ordered font policy it reports `text.furniture_policy`.
+`semantics.inline_empty`. Furniture text is shaped through the theme's face,
+or, under an ordered font policy, selects each cluster's face exactly as body
+text does; a face only furniture uses becomes an extra font. Text no policy
+face covers is `text.coverage_missing`, and text in an undeclared script
+`text.unsupported_script`, at its furniture item path.
 
 Documents are bounded: up to 16,384 content occurrences, structure elements,
 and text sources, and 1,024 pages. A document past a bound fails with the
@@ -377,7 +380,7 @@ validated at their authored path (`document.figure_drawing`,
 | ordinary tables with captions, header rows, column spans, footers, and repeated headers | executable |
 | page templates: header, footer, and lead regions, furniture text and drawings, page and total-page fields | executable |
 | a caller-registered face per inline role (style faces) | executable |
-| furniture text under an ordered font policy | not yet offered |
+| furniture text under an ordered font policy | executable |
 | fixed pages, columns, floats, footnotes, row spans, complex tables | representable; Gate 8 diagnostic |
 | `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
 | `AccessibleArchive` profile | representable; profile diagnostic |

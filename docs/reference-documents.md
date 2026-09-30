@@ -667,7 +667,7 @@ substitution, outlining, rasterization, or dropping text.
 | Rich inline runs (`Em`, `Strong`, `Code`, `Quote`, `Link`, `Span`) with per-run theme colors in one line, wrapping across inline boundaries | supported | — | [rich-inline.md](performance/rich-inline.md) |
 | A distinct caller-registered face per inline role (e.g. monospace `Code`) under style faces | supported | — | [rich-inline.md](performance/rich-inline.md): `Theme.with_inline_font`; the innermost role with a face decides a run's face at the paragraph's size and leading; under an ordered policy `text.inline_font_policy` (`FeatureUnavailable`) |
 | Runs whose script stays Common (or Inherited) after itemization, e.g. a cell holding only `1,284` or `+10.0%`, or the spaces in `Café 中 PDF`, under an ordered policy | supported | — | [tables.md](performance/tables.md): each cluster of such a run takes the first face in policy order that covers it, exactly as per-cluster coverage selection does for declared scripts; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
-| Furniture text (headers, footers, page fields) shaped with exact artifact ownership, through the single theme face | supported | — | [page-templates.md](performance/page-templates.md); under an ordered font policy furniture text reports `text.furniture_policy` (`FeatureUnavailable`) and only furniture drawings are supported |
+| Furniture text (headers, footers, page fields) shaped with exact artifact ownership, through the single theme face or an ordered policy | supported | — | [page-templates.md](performance/page-templates.md); under an ordered policy each furniture cluster selects its face exactly as body text does, a furniture-only face becomes an extra output font, and pieces split at face boundaries (`reference-documents-v8`); uncovered or undeclared-script furniture text is `text.coverage_missing` or `text.unsupported_script` at its item path |
 
 The text diagnostics above are located (`reference-documents-v8`): each
 names the paragraph, list item, or rich inline that holds the first text in
@@ -1009,7 +1009,7 @@ with.
 | `layout.template_region_empty` | new family | A region reserves no height or holds no furniture item (`reference-documents-v6`) |
 | `layout.template_body_empty` | new family | A document with page templates has no body block (`reference-documents-v6`) |
 | `layout.furniture_drawing` | `InvalidRelationship` | A furniture drawing has no command, a group, a non-positive image size, a path that paints nothing, or content below or left of its origin (`reference-documents-v6`) |
-| `text.furniture_policy` | `FeatureUnavailable` | Furniture text under an ordered font policy (`reference-documents-v6`) |
+| ~~`text.furniture_policy`~~ | — | Retired in `reference-documents-v8`: furniture text is executable under an ordered font policy |
 | `text.inline_font_policy` | `FeatureUnavailable` | An inline role face under an ordered font policy (`reference-documents-v8`) |
 | `layout.reference_cycle` | `LayoutCycle` | Stabilization repeated an earlier non-identical state |
 | `layout.budget_exhausted` | `BudgetExceeded` | Stabilization or layout work budget exhausted |
