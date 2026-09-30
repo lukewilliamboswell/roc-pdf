@@ -38,12 +38,27 @@ over the emitted PDF bytes. Changing the dependency version or the level is a
 byte-contract change reviewed like any other; it cannot weaken these
 contracts or change emitted bytes silently.
 
-The initial xref stream is unfiltered, covers the complete contiguous object
-range, and uses `/W [1 8 2]`; its direct length is therefore 11 bytes per entry
-with checked multiplication. The encoder retains `U64` offsets proportional to
-object count. Any alternative compressed or replay/counting strategy is a
-separately specified capability. Sealing proves exact counts where possible
-and safe upper bounds for lexical output, compression, offsets, and configured
+Stream objects are written top-level in plan order. Every other object is
+serialized into the open object stream's buffer: its value followed by a
+newline, with its object number and offset recorded for the stream header.
+The object streams partition the compressible objects in plan order into
+batches of at most 400 members (`KernelFileLayout.max_objects_per_stream`).
+When a batch fills, or the last compressible object is placed, the batch is
+written as one FlateDecode object stream: `/Filter /FlateDecode /First /Length
+/N /Type /ObjStm`, numbered after the planned objects in order, with a direct
+length. The open batch is the only buffer that grows with object count between
+segments, and it is bounded by 400 serialized objects.
+
+The cross-reference stream is numbered after the object streams and covers the
+complete contiguous range from object zero. Each row is `[type, field, index]`
+with `/W [1 w 2]`, where `w` is the fewest bytes that hold the stream's own
+offset (the largest offset in the file). Type 1 rows are top-level objects;
+type 2 rows name an object stream and a member index. The rows are PNG Up
+predicted (`/DecodeParms << /Columns w+3 /Predictor 12 >>`) and FlateDecode
+compressed, and every dictionary entry, including `/Length`, is direct. The
+encoder retains one `U64` per planned object: a file offset, or a marked
+object stream ordinal and member index. Sealing proves exact counts where
+possible and safe upper bounds for lexical output, compression, offsets, and configured
 output budgets so the infallible encoder cannot discover overflow or limit
 failures.
 

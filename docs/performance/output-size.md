@@ -368,3 +368,149 @@ The tax invoice's content streams (6,996 bytes) now match Typst's (6,959).
 - **Work counters**: content-byte counters (`content_stream_bytes`,
   `prepared_text_bytes`, `content_bytes_emitted`, form and graph byte counts,
   and `output_bytes`) fall. The glyph and run visit counts do not change.
+
+## 4. Object streams and a compressed cross-reference stream
+
+### What changed
+
+Every object that is not a stream (structure elements, the ParentTree and
+IDTree, pages and the page tree, fonts, annotations, outlines, and every
+indirect length) is stored in a FlateDecode object stream, and the
+cross-reference stream is PNG Up predicted and FlateDecode compressed. The
+architecture's file representation section records the layout and the
+decision; the implementation contract records its exact form. There is no
+flat layout option: `scripts/pdf_layout.py` (and `qpdf --qdf` or `mutool
+clean -d`) expand any file for reading.
+
+- `KernelFileLayout` owns the partition: the compressible objects, in plan
+  order, fill object streams of at most 400 members, numbered after the
+  planned objects. It depends only on object order and kinds.
+- `KernelEmit` serializes each compressible object into the open batch,
+  records its type 2 cross-reference entry, and writes the batch as one
+  object stream with a direct length when it fills or the last compressible
+  object is placed. Stream objects are written top-level as before. The
+  cross-reference stream follows the object streams.
+- `KernelOutputBound` bounds the new layout with the same partition, and blank
+  plans now store that bound too (`docs/performance/output-bounds.md`).
+- `Encode.canonical` records the policy: `LibdeflateLevel(10)`, object
+  streams of 400 members, and `FlateUpPredictor` cross-reference compression.
+- `KernelEmit.object_text` renders every non-stream object flat for package
+  tests that inspect object bodies; it is not a file layout.
+
+### Conformance basis
+
+- ISO 32000-2 7.5.7 forbids storing stream objects, objects with a nonzero
+  generation, the encryption dictionary, and the object that holds an object
+  stream's `/Length` in an object stream. Streams stay top-level, every object
+  has generation zero, the package never encrypts, and object streams and the
+  cross-reference stream use direct lengths.
+- ISO 32000-2 7.5.8.2 requires every cross-reference stream dictionary entry to
+  be direct; all of them are.
+- PDF/A-4 permits object streams and compressed cross-reference streams. The
+  ledger's rules are unaffected: veraPDF finds zero failures on every Archive
+  snapshot and gallery PDF.
+
+### Choosing the object-stream size
+
+| Members per object stream | Tax invoice | Product brief | Quarterly report |
+| ---: | ---: | ---: | ---: |
+| 100 | 29,448 | 48,563 | 46,416 |
+| 200 | 28,951 | 48,087 | not measured |
+| 400 | 28,678 | 47,878 | 45,508 |
+| 1,000 | 28,678 | 47,878 | 45,508 |
+
+400 members puts each of these documents' objects in one or two object
+streams, bounds the open batch (roughly 40 to 80 KB of serialized objects for
+typical structure elements), and keeps each object stream's text inside one
+libdeflate block. Larger batches gain nothing here and would only raise the
+batch bound.
+
+### Budgets
+
+The audit's `budget.py` counts object streams and the cross-reference stream
+as "xref/overhead", so the categories whose objects moved into object streams
+drop to zero.
+
+| Tax invoice | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| structure tree | 51,301 | 0 | -51,301 |
+| page tree/resources/catalog/info | 1,650 | 0 | -1,650 |
+| annots/outlines/dests | 328 | 0 | -328 |
+| font dicts/widths/ToUnicode | 1,496 | 553 | -943 |
+| OutputIntent/ICC | 2,661 | 2,639 | -22 |
+| xref/overhead (object streams and xref) | 3,415 | 6,985 | +3,570 |
+| font programs, content, XMP | 18,501 | 18,501 | +0 |
+| **Total** | **79,352** | **28,678** | **-50,674** (-63.9%) |
+
+| Product brief | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| structure tree | 30,227 | 0 | -30,227 |
+| font dicts/widths/ToUnicode | 4,782 | 1,725 | -3,057 |
+| annots/outlines/dests | 2,355 | 0 | -2,355 |
+| page tree/resources/catalog/info | 1,967 | 0 | -1,967 |
+| OutputIntent/ICC | 2,661 | 2,639 | -22 |
+| xref/overhead (object streams and xref) | 3,030 | 6,368 | +3,338 |
+| font programs, content, XMP | 37,146 | 37,146 | +0 |
+| **Total** | **82,168** | **47,878** | **-34,290** (-41.7%) |
+
+| Quarterly report | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| structure tree, page tree, annotations | 45,503 | 0 | -45,503 |
+| font dicts/widths/ToUnicode | 3,802 | 1,394 | -2,408 |
+| xref/overhead (object streams and xref) | 3,657 | 7,413 | +3,756 |
+| other categories | 36,723 | 36,701 | -22 |
+| **Total** | **89,685** | **45,508** | **-44,177** (-49.3%) |
+
+| Table invoice x500 | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| structure tree | 682,201 | 0 | -682,201 |
+| page tree/resources/catalog/info | 10,099 | 0 | -10,099 |
+| xref/overhead (object streams and xref) | 36,552 | 63,801 | +27,249 |
+| other categories | 77,055 | 76,095 | -960 |
+| **Total** | **805,907** | **139,896** | **-666,011** (-82.6%) |
+
+The tiny blank PDF that several fixtures emit as a carrier grows from 667 to
+713 bytes: an object stream and a compressed cross-reference stream cost more
+framing than they save when there are only five objects.
+
+### Rendering and positions
+
+Object streams do not change any page content: all 4,951 comparable pages are
+pixel-identical to the previous step, and `mutool trace` finds all 1,005,404
+glyphs at identical positions.
+
+### Checkers
+
+`scripts/pdf_layout.py` parses the layout independently: it decodes the
+predicted cross-reference rows, checks every type 1 offset against the object
+it lands on and every type 2 row against the object stream header that holds
+it, and returns every object's flat body, so the existing checkers read
+objects exactly as before. `check_pdf_structure.validate_object_stream_layout`
+checks the layout itself: canonical dictionaries, the minimal offset width,
+the numbering of object streams after the planned objects, streams top-level,
+and the 400-member partition in object-number order. Negative self-tests now
+build their twins in the same layout (`pdf_layout.twin` and `mutate`), so a
+twin differs from a valid file only by its edit; `check_pdf_structure`'s
+self-test also proves that an unedited re-serialized twin still validates.
+The fuzz lane's `StructureOracle` was rewritten for the layout: it inflates
+the cross-reference and object streams with the DEFLATE dependency's
+inflater (which shares no code with its compressor), undoes the predictor,
+and tokenizes every object where it lives.
+
+### Allocation and work
+
+- **Every document pays for two more compressed streams** (one object stream
+  or more, and the cross-reference stream). Each pays the level-10 per-call
+  working set from step 2, so a five-object blank carrier rises by 459
+  allocation events and 30.2 MB of allocated bytes.
+- **Larger documents pay per object stream**: the table-invoice pair rises by
+  3,189 events and 72 MB (x50) and by 23,904 events and 537 MB (x500), in
+  proportion to its object streams, and the letter pair by 1,410 and 3,285
+  events. The added work is linear in the number of objects.
+- The serialized objects are appended to the open batch once and copied once
+  more into the object stream's input, so the object text costs two linear
+  passes.
+- **Work counters**: `output_bytes` and the other byte counters fall wherever
+  a document has more than a handful of objects; the blank carrier's
+  `output_bytes`/`evidence_pdf_bytes` rise from 667 to 713. The
+  structural-kernel DEFLATE cases now count three compressed streams.

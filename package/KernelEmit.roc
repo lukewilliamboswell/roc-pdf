@@ -1,4 +1,5 @@
 import KernelDeflate
+import KernelFileLayout
 import KernelLex
 import KernelObject
 import KernelSeal
@@ -16,10 +17,19 @@ PayloadPhase : {
 	release : [KeepPayload, ReleasePayload(KernelObject.PayloadId)],
 }
 
-XrefEntriesPhase : {
-	entry : U64,
-	size : U64,
+XrefPayloadPhase : {
+	bytes : List(U8),
 	xref_offset : U64,
+}
+
+## The open object stream: member bodies, each followed by a newline, and the
+## (object number, offset) pairs its header lists.
+ObjectStreams : {
+	batch : List(U8),
+	members : List(U64),
+	offsets : List(U64),
+	seen : U64,
+	total : U64,
 }
 
 Phase : [
@@ -28,7 +38,7 @@ Phase : [
 	Object(U64),
 	Payload(PayloadPhase),
 	StreamSuffix(U64),
-	XrefEntries(XrefEntriesPhase),
+	XrefPayload(XrefPayloadPhase),
 	XrefPrefix,
 	XrefSuffix(U64),
 ]
@@ -53,6 +63,7 @@ KernelEmit :: [].{
 		copied_resource_bytes : U64,
 		deflate_work : KernelDeflate.Work,
 		file_id : List(U8),
+		object_streams : ObjectStreams,
 		offsets : List(U64),
 		output_bound : U64,
 		phase : Phase,
@@ -118,6 +129,13 @@ KernelEmit :: [].{
 				copied_resource_bytes: 0,
 				deflate_work: KernelDeflate.Work.zero,
 				file_id,
+				object_streams: {
+					batch: [],
+					members: [],
+					offsets: [],
+					seen: 0,
+					total: KernelFileLayout.compressible_count(store),
+				},
 				offsets: List.with_capacity(store.objects.len() + 1),
 				output_bound: KernelStructure.Plan.output_bound(plan),
 				phase: Header,
@@ -127,6 +145,32 @@ KernelEmit :: [].{
 				stream_lengths: List.with_capacity(store.streams.len()),
 			},
 		)
+	}
+
+	## Every non-stream object rendered flat as `N 0 obj\n<value>\nendobj\n`,
+	## in plan order: the member bodies the object streams carry. Package
+	## tests inspect it; it is not a file layout.
+	object_text : KernelStructure.Plan -> Try(List(U8), Error)
+	object_text = |plan| {
+		store = plan_store(plan)
+		var $out = []
+		var $index = 0
+		while $index < store.objects.len() {
+			object = list_at(store.objects, $index)
+			match object.content {
+				LengthOf(_) => {}
+				Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
+					Stream(_) => {}
+					_ => {
+						$out = append_object_header($out, object.id)
+						$out = emit_value($out, store, value_id)?
+						$out = append_end_object($out)
+					}
+				}
+			}
+			$index = $index + 1
+		}
+		Ok($out)
 	}
 
 	to_bytes : KernelStructure.Plan -> Try(List(U8), Error)
@@ -220,7 +264,7 @@ next_segment = |encoder| match encoder.phase {
 		next_object_phase(encoder.plan, next_object),
 	)
 	XrefPrefix => emit_xref_prefix(encoder)
-	XrefEntries(state) => emit_xref_entries(encoder, state)
+	XrefPayload(state) => emit_bytes(encoder_with_phase(encoder, XrefSuffix(state.xref_offset)), state.bytes, Generated)
 	XrefSuffix(xref_offset) => emit_generated(
 		encoder,
 		append_xref_suffix([], xref_offset),
@@ -230,44 +274,133 @@ next_segment = |encoder| match encoder.phase {
 
 emit_object : KernelEmit.Encoder, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_object = |encoder, index| {
-	store = plan_store(encoder.plan)
-	if index >= store.objects.len() {
-		next_segment(encoder_with_phase(encoder, XrefPrefix))
-	} else {
-		object = list_at(store.objects, index)
+	var $encoder = encoder
+	var $index = index
+	while Bool.True {
+		store = plan_store($encoder.plan)
+		if $index >= store.objects.len() {
+			return next_segment(encoder_with_phase($encoder, XrefPrefix))
+		}
+		object = list_at(store.objects, $index)
 		object_id = object.id
 
-		## The object is serialized before its offset is recorded, so no value
-		## read from `encoder`'s plan (`store`, `object`) is live when the
-		## offsets grow. A projection still read afterwards kept `encoder`
-		## alive, the compiler then passed it to `encoder_with_offset`
-		## borrowed, and the append copied the offsets once per object
-		## (docs/performance/emission-linearity.md).
-		next_phase = next_object_phase(encoder.plan, index + 1)
-		content = match object.content {
-			LengthOf(stream_id) => match encoder.stream_lengths.get(KernelObject.StreamId.index(stream_id)) {
+		## A stream object is written top-level. Its offset is recorded
+		## before any value read from the plan is still live, so the append
+		## cannot copy the offsets (docs/performance/emission-linearity.md).
+		body = match object.content {
+			LengthOf(stream_id) => match $encoder.stream_lengths.get(KernelObject.StreamId.index(stream_id)) {
 				Err(OutOfBounds) => return Err(StreamLengthUnavailable(stream_id))
-				Ok(length) => {
-					var $bytes = append_object_header([], object_id)
-					$bytes = KernelLex.append_unsigned($bytes, length)
-					GeneratedObject(append_end_object($bytes))
-				}
+				Ok(length) => Member(KernelLex.append_unsigned([], length))
 			}
 			Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
-				Stream(stream_id) => StreamObject(stream_id)
-				_ => {
-					var $bytes = append_object_header([], object_id)
-					$bytes = emit_value($bytes, store, value_id)?
-					GeneratedObject(append_end_object($bytes))
+				Stream(stream_id) => TopLevel(stream_id)
+				_ => Member(emit_value([], store, value_id)?)
+			}
+		}
+		match body {
+			TopLevel(stream_id) => {
+				with_offset = encoder_with_offset($encoder, $encoder.position)
+				return emit_stream_prefix(with_offset, object_id, stream_id, $index + 1)
+			}
+			Member(bytes) => {
+				$encoder = encoder_with_member($encoder, KernelObject.ObjectId.number(object_id), bytes)
+				$index = $index + 1
+				if flush_due($encoder.object_streams) {
+					return emit_object_stream($encoder, $index)
 				}
 			}
 		}
-		with_offset = encoder_with_offset(encoder, encoder.position)
-		match content {
-			GeneratedObject(bytes) => emit_generated(with_offset, bytes, next_phase)
-			StreamObject(stream_id) => emit_stream_prefix(with_offset, object_id, stream_id, index + 1)
-		}
 	}
+	next_segment(encoder_with_phase($encoder, XrefPrefix))
+}
+
+## A full object stream, or the last compressible object, closes the batch.
+flush_due : ObjectStreams -> Bool
+flush_due = |streams| streams.members.len() >= KernelFileLayout.max_objects_per_stream * 2 or streams.seen == streams.total
+
+## Adds one serialized object to the open object stream and records its
+## cross-reference entry. The encoder and the stream state are taken apart
+## before any list grows, so every list stays unique.
+encoder_with_member : KernelEmit.Encoder, U64, List(U8) -> KernelEmit.Encoder
+encoder_with_member = |encoder, number, body| {
+	{ copied_resource_bytes, deflate_work, file_id, object_streams, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
+	{ batch, members, offsets: stream_offsets, seen, total } = object_streams
+	member = U64.div_by(members.len(), 2)
+	entry = KernelFileLayout.compressed_entry(stream_offsets.len(), member)
+	offset = batch.len()
+	KernelEmit.Encoder.{
+		copied_resource_bytes,
+		deflate_work,
+		file_id,
+		object_streams: {
+			batch: append_all(batch, body).append(10),
+			members: members.append(number).append(offset),
+			offsets: stream_offsets,
+			seen: seen + 1,
+			total,
+		},
+		offsets: offsets.append(entry),
+		output_bound,
+		phase,
+		plan,
+		position,
+		retention,
+		stream_lengths,
+	}
+}
+
+## Writes the open batch as one FlateDecode object stream with a direct
+## length, then continues with object `next_object`.
+emit_object_stream : KernelEmit.Encoder, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
+emit_object_stream = |encoder, next_object| {
+	{ copied_resource_bytes, deflate_work, file_id, object_streams, offsets, output_bound, phase: _, plan, position, retention, stream_lengths } = encoder
+	{ batch, members, offsets: stream_offsets, seen, total } = object_streams
+	var $header = []
+	var $member = 0
+	while $member < members.len() {
+		if $member > 0 {
+			$header = $header.append(32)
+		}
+		$header = KernelLex.append_unsigned($header, list_at(members, $member))
+		$member = $member + 1
+	}
+	$header = $header.append(10)
+	first = $header.len()
+	count = U64.div_by(members.len(), 2)
+	content = append_all($header, batch)
+	deflate_plan = prepare_deflate(content) ? Deflate
+	compressed = KernelDeflate.to_bytes(deflate_plan) ? Deflate
+	total_work = KernelDeflate.Work.add(deflate_work, compressed.work) ? Deflate
+	number = checked_add(KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(plan)), stream_offsets.len())?
+	var $prefix = KernelLex.append_unsigned([], number)
+	$prefix = append_ascii($prefix, " 0 obj\n<< /Filter /FlateDecode /First ")
+	$prefix = KernelLex.append_unsigned($prefix, first)
+	$prefix = append_ascii($prefix, " /Length ")
+	$prefix = KernelLex.append_unsigned($prefix, compressed.bytes.len())
+	$prefix = append_ascii($prefix, " /N ")
+	$prefix = KernelLex.append_unsigned($prefix, count)
+	$prefix = append_ascii($prefix, " /Type /ObjStm >>")
+	$prefix = append_stream_keyword($prefix)
+	next = KernelEmit.Encoder.{
+		copied_resource_bytes,
+		deflate_work: total_work,
+		file_id,
+		object_streams: {
+			batch: [],
+			members: [],
+			offsets: stream_offsets.append(position),
+			seen,
+			total,
+		},
+		offsets,
+		output_bound,
+		phase: Payload({ bytes: compressed.bytes, next_object, ownership: Generated, release: KeepPayload }),
+		plan,
+		position,
+		retention,
+		stream_lengths,
+	}
+	emit_bytes(next, $prefix, Generated)
 }
 
 emit_stream_prefix : KernelEmit.Encoder, KernelObject.ObjectId, KernelObject.StreamId, U64 -> Try(KernelEmit.Step, KernelEmit.Error)
@@ -352,45 +485,79 @@ payload_release = |plan, stream| match KernelSeal.Plan.payload_last_use(KernelSt
 	Unused => KeepPayload
 }
 
+## The cross-reference stream: after the planned objects and the object
+## streams, one row per object `[type, field 2, generation]` with `/W [1 w 2]`,
+## where `w` is the fewest bytes that hold the largest offset (the xref
+## stream's own). Rows are PNG Up predicted (`/Predictor 12`) and FlateDecode
+## compressed; every entry of this dictionary is direct, as ISO 32000-2
+## 7.5.8.2 requires.
 emit_xref_prefix : KernelEmit.Encoder -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_xref_prefix = |encoder| {
-	xref_object = KernelStructure.Plan.xref_object(encoder.plan)
+	base = KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(encoder.plan))
+	stream_offsets = encoder.object_streams.offsets
+	xref_number = checked_add(base, stream_offsets.len())?
+	xref_object = KernelObject.ObjectId.from_number(xref_number) ? |_| IndexInvariant
 	xref_offset = encoder.position
-	size = checked_add(KernelObject.ObjectId.number(xref_object), 1)?
-	stream_length = checked_times_small(size, 11)?
+	size = checked_add(xref_number, 1)?
+	width = KernelFileLayout.byte_width(xref_offset)
+	columns = width + 3
+	planned = encoder.offsets.len()
+	var $rows = List.with_capacity(checked_times_small(size, columns + 1)?)
+	var $previous = List.repeat(0, columns)
+	var $number = 0
+	while $number < size {
+		row = if $number == 0 {
+			xref_row(width, 0, 0, 65535)
+		} else if $number <= planned {
+			entry = list_at(encoder.offsets, $number - 1)
+			if KernelFileLayout.is_compressed_entry(entry) {
+				xref_row(width, 2, base + KernelFileLayout.compressed_stream(entry), KernelFileLayout.compressed_member(entry))
+			} else {
+				xref_row(width, 1, entry, 0)
+			}
+		} else if $number < xref_number {
+			xref_row(width, 1, list_at(stream_offsets, $number - planned - 1), 0)
+		} else {
+			xref_row(width, 1, xref_offset, 0)
+		}
+		$rows = $rows.append(2)
+		var $column = 0
+		while $column < columns {
+			$rows = $rows.append(U8.minus_wrap(list_at(row, $column), list_at($previous, $column)))
+			$column = $column + 1
+		}
+		$previous = row
+		$number = $number + 1
+	}
+	if planned + 1 != base {
+		return Err(IndexInvariant)
+	}
+	deflate_plan = prepare_deflate($rows) ? Deflate
+	compressed = KernelDeflate.to_bytes(deflate_plan) ? Deflate
+	deflate_work = KernelDeflate.Work.add(encoder.deflate_work, compressed.work) ? Deflate
 	root = KernelStructure.Plan.root(encoder.plan)
 
 	var $prefix = append_object_header([], xref_object)
-	$prefix = append_xref_dictionary($prefix, size, stream_length, root, encoder.file_id)
+	$prefix = append_xref_dictionary($prefix, { columns, file_id: encoder.file_id, length: compressed.bytes.len(), root, size, width })
 	$prefix = append_stream_keyword($prefix)
-	next = encoder_with_phase(encoder_with_offset(encoder, xref_offset), XrefEntries({ entry: 0, size, xref_offset }))
+	with_offset = encoder_with_offset(encoder_with_deflate_work(encoder, deflate_work), xref_offset)
+	next = encoder_with_phase(with_offset, XrefPayload({ bytes: compressed.bytes, xref_offset }))
 	emit_bytes(next, $prefix, Generated)
 }
 
-emit_xref_entries : KernelEmit.Encoder, XrefEntriesPhase -> Try(KernelEmit.Step, KernelEmit.Error)
-emit_xref_entries = |encoder, state| {
-	if state.entry >= state.size {
-		next_segment(encoder_with_phase(encoder, XrefSuffix(state.xref_offset)))
-	} else {
-		end = U64.min(state.size, state.entry + xref_entries_per_chunk)
-		var $entry = state.entry
-		var $bytes = List.with_capacity((end - state.entry) * 11)
-		while $entry < end {
-			if $entry == 0 {
-				$bytes = append_xref_entry($bytes, 0, 0, 65535)
-			} else {
-				offset = list_at(encoder.offsets, $entry - 1)
-				$bytes = append_xref_entry($bytes, 1, offset, 0)
-			}
-			$entry = $entry + 1
-		}
-		next = encoder_with_phase(encoder, XrefEntries({ ..state, entry: end }))
-		emit_bytes(next, $bytes, Generated)
+xref_row : U64, U8, U64, U64 -> List(U8)
+xref_row = |width, entry_type, field, generation| {
+	var $row = List.with_capacity(width + 3).append(entry_type)
+	var $shift = width * 8
+	while $shift > 0 {
+		$shift = $shift - 8
+		$row = $row.append(field.shr_wrap($shift.to_u8_wrap()).to_u8_wrap())
 	}
+	$row.append(generation.shr_wrap(8).to_u8_wrap()).append(generation.to_u8_wrap())
 }
 
-xref_entries_per_chunk : U64
-xref_entries_per_chunk = 256
+append_ascii : List(U8), Str -> List(U8)
+append_ascii = |output, text| append_all(output, Str.to_utf8(text))
 
 emit_generated : KernelEmit.Encoder, List(U8), Phase -> Try(KernelEmit.Step, KernelEmit.Error)
 emit_generated = |encoder, bytes, phase| {
@@ -413,6 +580,7 @@ encoder_with_phase = |encoder, phase| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
 	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
+	object_streams: encoder.object_streams,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
 	phase,
@@ -427,6 +595,7 @@ encoder_with_plan_and_phase = |encoder, plan, phase| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
 	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
+	object_streams: encoder.object_streams,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
 	phase,
@@ -441,6 +610,7 @@ encoder_with_copied_resource_bytes = |encoder, copied_resource_bytes| KernelEmit
 	copied_resource_bytes,
 	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
+	object_streams: encoder.object_streams,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
 	phase: encoder.phase,
@@ -456,11 +626,12 @@ encoder_with_copied_resource_bytes = |encoder, copied_resource_bytes| KernelEmit
 ## (docs/performance/emission-linearity.md).
 encoder_with_offset : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_offset = |encoder, offset| {
-	{ copied_resource_bytes, deflate_work, file_id, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
+	{ copied_resource_bytes, deflate_work, file_id, object_streams, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
 	KernelEmit.Encoder.{
 		copied_resource_bytes,
 		deflate_work,
 		file_id,
+		object_streams,
 		offsets: offsets.append(offset),
 		output_bound,
 		phase,
@@ -476,6 +647,7 @@ encoder_with_position = |encoder, position| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
 	deflate_work: encoder.deflate_work,
 	file_id: encoder.file_id,
+	object_streams: encoder.object_streams,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
 	phase: encoder.phase,
@@ -489,11 +661,12 @@ encoder_with_position = |encoder, position| KernelEmit.Encoder.{
 ## `encoder_with_offset` does.
 encoder_with_stream_length : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_stream_length = |encoder, length| {
-	{ copied_resource_bytes, deflate_work, file_id, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
+	{ copied_resource_bytes, deflate_work, file_id, object_streams, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder
 	KernelEmit.Encoder.{
 		copied_resource_bytes,
 		deflate_work,
 		file_id,
+		object_streams,
 		offsets,
 		output_bound,
 		phase,
@@ -509,6 +682,7 @@ encoder_with_deflate_work = |encoder, deflate_work| KernelEmit.Encoder.{
 	copied_resource_bytes: encoder.copied_resource_bytes,
 	deflate_work,
 	file_id: encoder.file_id,
+	object_streams: encoder.object_streams,
 	offsets: encoder.offsets,
 	output_bound: encoder.output_bound,
 	phase: encoder.phase,
@@ -762,16 +936,23 @@ append_stream_suffix = |output| {
 	append_end_object($out)
 }
 
-append_xref_dictionary : List(U8), U64, U64, KernelObject.ObjectId, List(U8) -> List(U8)
-append_xref_dictionary = |output, size, stream_length, root, file_id| {
+XrefDictionary : { columns : U64, file_id : List(U8), length : U64, root : KernelObject.ObjectId, size : U64, width : U64 }
+
+append_xref_dictionary : List(U8), XrefDictionary -> List(U8)
+append_xref_dictionary = |output, facts| {
 	var $out = append_dictionary_open(output)
-	$out = append_ascii_id_entry($out, file_id)
-	$out = append_ascii_index_entry($out, size)
-	$out = append_direct_length_entry($out, stream_length)
-	$out = append_ascii_root_entry($out, root)
-	$out = append_ascii_size_entry($out, size)
+	$out = append_ascii($out, " /DecodeParms << /Columns ")
+	$out = KernelLex.append_unsigned($out, facts.columns)
+	$out = append_ascii($out, " /Predictor 12 >> /Filter /FlateDecode")
+	$out = append_ascii_id_entry($out, facts.file_id)
+	$out = append_ascii_index_entry($out, facts.size)
+	$out = append_direct_length_entry($out, facts.length)
+	$out = append_ascii_root_entry($out, facts.root)
+	$out = append_ascii_size_entry($out, facts.size)
 	$out = append_ascii_type_xref_entry($out)
-	$out = append_ascii_w_entry($out)
+	$out = append_ascii($out, " /W [1 ")
+	$out = KernelLex.append_unsigned($out, facts.width)
+	$out = append_ascii($out, " 2]")
 	append_dictionary_close($out)
 }
 
@@ -812,9 +993,6 @@ append_ascii_size_entry = |output, size| {
 
 append_ascii_type_xref_entry : List(U8) -> List(U8)
 append_ascii_type_xref_entry = |output| output.append(32).append(47).append(84).append(121).append(112).append(101).append(32).append(47).append(88).append(82).append(101).append(102)
-
-append_ascii_w_entry : List(U8) -> List(U8)
-append_ascii_w_entry = |output| output.append(32).append(47).append(87).append(32).append(91).append(49).append(32).append(56).append(32).append(50).append(93)
 
 append_xref_entry : List(U8), U8, U64, U16 -> List(U8)
 append_xref_entry = |output, entry_type, offset, generation| {
@@ -1115,6 +1293,15 @@ expect {
 	reserved_stream_key(stream_object.builder.store, stream.dictionary) == Reserved(filter.id)
 }
 
+## Emission of the unchanged and generated stream probes stays inside their
+## object-stream layout bounds.
+expect {
+	unchanged = KernelStructure.build_unchanged_stream_probe(Str.to_utf8("% resource\n"))?
+	generated = KernelStructure.build_deflate_stream_probe(Str.to_utf8("BT /Span BMC EMC ET\n"), 20)?
+	KernelEmit.to_bytes(unchanged)?.len() <= KernelStructure.Plan.output_bound(unchanged) and
+		KernelEmit.to_bytes(generated)?.len() <= KernelStructure.Plan.output_bound(generated)
+}
+
 ## The structural bound covers a multi-level plan before emission starts.
 expect {
 	plan = KernelStructure.build_blank(4096, A4)?
@@ -1156,11 +1343,12 @@ expect {
 	}
 	work = KernelEmit.Encoder.deflate_work($encoder)
 
+	## The content stream, one object stream, and the xref stream.
 	$released and
 		contains_bytes($bytes, expected.bytes) and
-			KernelDeflate.Work.streams(work) == 1 and
-				KernelDeflate.Work.input_bytes(work) == input.len() and
-					KernelDeflate.Work.emitted_bytes(work) == expected.bytes.len()
+			KernelDeflate.Work.streams(work) == 3 and
+				KernelDeflate.Work.input_bytes(work) > input.len() and
+					KernelDeflate.Work.emitted_bytes(work) > expected.bytes.len()
 }
 
 ## The counting sink preserves fixed-width offsets beyond four GiB.

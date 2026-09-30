@@ -195,7 +195,7 @@ expect {
 	pipeline = KernelPipelineFixture.identified_pipeline({})?
 	limits = { ..test_object_limits, max_byte_strings: 2, max_byte_string_bytes: 12, max_objects: 17, max_text_strings: 2, max_names: 136 }
 	plan = KernelTaggedStructure.Plan.build(pipeline.tagged, pipeline.colors, pipeline.images, pipeline.content, pipeline.objects, KernelTaggedStructure.Limits.make({ object_limits: limits }))?
-	bytes = KernelEmit.to_bytes(KernelTaggedStructure.Plan.structure(plan))?
+	bytes = KernelEmit.object_text(KernelTaggedStructure.Plan.structure(plan))?
 	work = KernelTaggedStructure.Plan.work(plan).tagged_objects
 	text = Str.from_utf8_lossy(bytes)
 

@@ -3061,7 +3061,9 @@ expect {
 		language: "en-AU",
 		title: "Grouped",
 	})
-	bytes = Pdf.to_bytes(document)?
+
+	## Inspect the object bodies the object streams carry.
+	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	text = Str.from_utf8_lossy(bytes)
 
 	text.contains("/S /Part ") and text.contains("/S /Sect ") and text.contains("/S /Div ") and text.contains("/S /H1 ") and text.contains("/ViewerPreferences << /DisplayDocTitle true >>")
@@ -3116,7 +3118,9 @@ expect {
 		language: "en-AU",
 		title: "Rich",
 	})
-	bytes = Pdf.to_bytes(document)?
+
+	## Inspect the object bodies the object streams carry.
+	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	text = Str.from_utf8_lossy(bytes)
 
 	text.contains("/S /Sect ") and text.contains("/S /Strong ") and text.contains("/S /Em ") and text.contains("/S /Code ") and text.contains("/S /Quote ") and text.contains("/S /Link ") and text.contains("/Lang <FEFF00660072>") and text.contains("/E <FEFF") and text.contains("/Subtype /Link")
@@ -3166,7 +3170,9 @@ expect {
 		language: "en-AU",
 		title: "Lists",
 	})
-	bytes = Pdf.to_bytes(document)?
+
+	## Inspect the object bodies the object streams carry.
+	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	text = Str.from_utf8_lossy(bytes)
 
 	text.contains("/A << /ListNumbering /Disc /O /List >>") and text.contains("/A << /ListNumbering /LowerRoman /O /List >>") and text.contains("/S /LBody ") and text.contains("/Count 2")
@@ -3206,7 +3212,7 @@ expect {
 		language: "en-AU",
 		title: "Table",
 	})
-	bytes = Pdf.to_bytes(document)?
+	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	contains = |needle| {
 		pattern = Str.to_utf8(needle)
 		var $index = 0

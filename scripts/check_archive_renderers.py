@@ -17,6 +17,7 @@ checker's job (check_pdfa4.py, check_pdfa4_structure.py).
 """
 from __future__ import annotations
 
+import re
 import argparse
 import os
 import subprocess
@@ -26,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from pdf_layout import planned_bodies
 from check_form_renderers import compile_java, require  # noqa: E402
 from check_visual_renderers import Raster, read_ppm  # noqa: E402
 
@@ -135,7 +137,17 @@ def self_test() -> None:
         archived = archive.read_bytes()
         plain = standard.read_bytes()
         require(b"<pdfaid:part>4</pdfaid:part>" in archived and b"pdfaid" not in plain, f"{label} twins do not differ by identification")
-        require(len(archived) - len(plain) == 112, f"{label} twins differ by more than the 112-byte identification")
+        # Object and xref streams are compressed, so the twins' byte lengths
+        # also move with the shifted offsets; compare the objects instead.
+        _, archived_bodies = planned_bodies(archived)
+        _, plain_bodies = planned_bodies(plain)
+        require(sorted(archived_bodies) == sorted(plain_bodies), f"{label} twins do not have the same objects")
+        differing = [number for number in archived_bodies if archived_bodies[number] != plain_bodies[number]]
+        packets = [number for number in differing if b"/Type /Metadata" in archived_bodies[number]]
+        require(len(packets) == 1, f"{label} twins do not differ in exactly one metadata stream")
+        require(len(archived_bodies[packets[0]]) - len(plain_bodies[packets[0]]) == 112, f"{label} twins differ by more than the 112-byte identification")
+        lengths = [number for number in differing if number != packets[0]]
+        require(all(re.fullmatch(rb"[0-9]+\nendobj\n", archived_bodies[number]) for number in lengths) and len(lengths) <= 1, f"{label} twins differ outside the metadata stream and its length")
     white = Raster(A4[0], A4[1], bytes((255, 255, 255)) * (A4[0] * A4[1]))
     check_page("synthetic", "blank", white, False)
     rejected = [

@@ -7,6 +7,10 @@ import re
 import zlib
 from pathlib import Path
 
+from pdf_layout import LayoutError, OBJECTS_PER_STREAM, is_object_stream_layout, is_stream_body
+from pdf_layout import mutate as layout_mutate
+from pdf_layout import parse as parse_layout
+
 
 ROOT = Path(__file__).resolve().parents[1]
 BLANK_SNAPSHOT = ROOT / "tests" / "structural_kernel" / "blank.pdf"
@@ -50,6 +54,14 @@ def dictionary_ref_array(dictionary: bytes, name: bytes) -> list[int]:
 
 
 def object_slices(pdf: bytes) -> tuple[dict[int, int], dict[int, bytes]]:
+    """File offsets of the top-level objects and the flat body of every
+    object, including those stored in object streams."""
+    if is_object_stream_layout(pdf):
+        try:
+            parsed = parse_layout(pdf)
+        except LayoutError as error:
+            raise ValidationError(str(error)) from error
+        return dict(parsed.offsets), dict(parsed.bodies)
     matches = list(OBJECT_HEADER.finditer(pdf))
     require(bool(matches), "no indirect objects")
     offsets: dict[int, int] = {}
@@ -116,39 +128,67 @@ def validate_xref(
     xref_object: int,
     xref_offset: int,
 ) -> tuple[int, bytes]:
-    body = bodies[xref_object]
-    marker_offset = body.find(b"stream\n")
-    require(marker_offset >= 0, "xref object is not a stream")
-    dictionary = body[:marker_offset]
-    require(b"/Type /XRef" in dictionary, "startxref object is not /XRef")
-    require(b"/W [1 8 2]" in dictionary, "xref /W is not [1 8 2]")
-    identifier = re.search(rb"/ID \[<([0-9A-F]{64})> <([0-9A-F]{64})>\]", dictionary)
-    require(identifier is not None, "xref has no canonical pair of SHA-256 file identifiers")
-    require(identifier.group(1) == identifier.group(2), "initial file identifier pair differs")
-    size = dictionary_int(dictionary, b"Size")
-    length = dictionary_int(dictionary, b"Length")
-    require(length == size * 11, "xref length is not exactly 11 bytes per entry")
-    require(b"/Index [0 " + str(size).encode("ascii") + b"]" in dictionary, "xref /Index is not contiguous")
-    _, data = stream_parts(body, length)
-    require(len(data) == length, "xref stream length mismatch")
-    require(size == xref_object + 1, "xref /Size does not include object zero and xref")
-    require(set(offsets) == set(range(1, size)), "object numbers are not contiguous")
+    """/Root and the file identifier of a file in the package layout."""
+    require(is_object_stream_layout(pdf), "file does not use the object-stream layout")
+    found_xref, root, identifier = validate_object_stream_layout(pdf, xref_offset)
+    require(found_xref == xref_object, "startxref object is not the xref stream")
+    return root, identifier
 
-    for number in range(size):
-        entry = data[number * 11 : (number + 1) * 11]
-        require(len(entry) == 11, f"short xref entry {number}")
-        entry_type = entry[0]
-        entry_offset = int.from_bytes(entry[1:9], "big")
-        generation = int.from_bytes(entry[9:11], "big")
-        if number == 0:
-            require((entry_type, entry_offset, generation) == (0, 0, 65535), "bad free object-zero entry")
+
+XREF_DICTIONARY = re.compile(
+    rb"<< /DecodeParms << /Columns ([0-9]+) /Predictor 12 >> /Filter /FlateDecode "
+    rb"/ID \[<([0-9A-F]{64})> <([0-9A-F]{64})>\] /Index \[0 ([0-9]+)\] /Length ([0-9]+) "
+    rb"/Root ([1-9][0-9]*) 0 R /Size ([0-9]+) /Type /XRef /W \[1 ([0-9]+) 2\] >>\n"
+)
+OBJECT_STREAM_DICTIONARY = re.compile(rb"<< /Filter /FlateDecode /First ([0-9]+) /Length ([0-9]+) /N ([0-9]+) /Type /ObjStm >>\n")
+
+
+def validate_object_stream_layout(pdf: bytes, xref_offset: int) -> tuple[int, int, bytes]:
+    """The package layout, checked from the bytes: returns the xref object,
+    /Root, and the file identifier.
+
+    Stream objects are top-level; every other planned object is in an object
+    stream; object streams hold OBJECTS_PER_STREAM members in object-number
+    order (the last one fewer) and are numbered after the planned objects;
+    the xref stream follows them, uses the fewest offset bytes that hold its
+    own offset, and is PNG Up predicted. Entry-by-entry agreement between the
+    xref rows, the top-level offsets, and the object-stream headers is
+    checked by pdf_layout.parse.
+    """
+    try:
+        parsed = parse_layout(pdf)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
+    require(parsed.xref_offset == xref_offset, "startxref does not point to the xref stream")
+    match = XREF_DICTIONARY.fullmatch(parsed.xref_dictionary)
+    require(match is not None, "xref dictionary is not canonical")
+    columns, first_id, second_id, index_size, _length, root, size, width = match.groups()
+    require(first_id == second_id, "initial file identifier pair differs")
+    require(int(index_size) == int(size) == parsed.xref + 1, "xref /Size does not include object zero and xref")
+    require(int(width) == max(1, (xref_offset.bit_length() + 7) // 8), "xref offset width is not minimal")
+    require(int(columns) == int(width) + 3, "xref predictor columns disagree with /W")
+
+    streams = parsed.object_streams
+    planned = parsed.xref - 1 - len(streams)
+    require(streams == list(range(planned + 1, parsed.xref)), "object streams are not numbered after the planned objects")
+    members = []
+    for number in range(1, planned + 1):
+        body = parsed.bodies[number]
+        if is_stream_body(body):
+            require(number in parsed.offsets, f"stream object {number} is in an object stream")
         else:
-            require(entry_type == 1, f"object {number} is not an in-use xref entry")
-            require(generation == 0, f"object {number} generation is not zero")
-            require(entry_offset == offsets[number], f"object {number} xref offset mismatch")
-
-    require(offsets[xref_object] == xref_offset, "startxref does not point to xref object")
-    return dictionary_ref(dictionary, b"Root"), bytes.fromhex(identifier.group(1).decode("ascii"))
+            require(number in parsed.compressed, f"object {number} is not in an object stream")
+            members.append(number)
+    expected = {number: (planned + 1 + index // OBJECTS_PER_STREAM, index % OBJECTS_PER_STREAM) for index, number in enumerate(members)}
+    require(parsed.compressed == expected, "object streams do not partition the objects in order")
+    for ordinal, stream in enumerate(streams):
+        body = parsed.bodies[stream]
+        dictionary = body[: body.find(b"stream\n")]
+        found = OBJECT_STREAM_DICTIONARY.fullmatch(dictionary)
+        require(found is not None, f"object stream {stream} dictionary is not canonical")
+        count = sum(1 for value in parsed.compressed.values() if value[0] == stream)
+        require(int(found.group(3)) == count, f"object stream {stream} /N does not count its members")
+    return parsed.xref, int(root), bytes.fromhex(first_id.decode("ascii"))
 
 
 def validate_stream_lengths(
@@ -286,8 +326,8 @@ def validate_pdf(
 
     offsets, bodies = object_slices(pdf)
     require(xref_offset in offsets.values(), "startxref is not an object boundary")
-    xref_object = next(number for number, offset in offsets.items() if offset == xref_offset)
-    root, file_identifier = validate_xref(pdf, offsets, bodies, xref_object, xref_offset)
+    require(is_object_stream_layout(pdf), "file does not use the object-stream layout")
+    xref_object, root, file_identifier = validate_object_stream_layout(pdf, xref_offset)
     root_body = bodies[root]
     require(b"/Type /Catalog" in root_body, "xref /Root is not a catalog")
     pages = dictionary_ref(root_body, b"Pages")
@@ -310,8 +350,13 @@ def self_test() -> None:
     generated_content = b"q Q\n" * 65536
     validate_pdf(deflate_pdf, 1, generated_content)
     # The zlib header is CMF 0x78 with FLG 0xDA; 0xDB breaks the header check.
-    require(deflate_pdf.count(b"stream\nx\xda") == 1, "self-test DEFLATE snapshot has no zlib header")
-    corrupt_deflate = deflate_pdf.replace(b"stream\nx\xda", b"stream\nx\xdb", 1)
+    # Corrupt the content stream's header, located through the parsed layout.
+    deflate_layout = parse_layout(deflate_pdf)
+    content_number = next(number for number, body in deflate_layout.bodies.items() if b"/Contents" in body)
+    content_stream = dictionary_ref(deflate_layout.bodies[content_number], b"Contents")
+    content_start = deflate_layout.offsets[content_stream] + deflate_pdf[deflate_layout.offsets[content_stream] :].find(b"stream\n") + len(b"stream\n")
+    require(deflate_pdf[content_start : content_start + 2] == b"x\xda", "self-test DEFLATE snapshot has no zlib header")
+    corrupt_deflate = deflate_pdf[: content_start + 1] + b"\xdb" + deflate_pdf[content_start + 2 :]
     for label, candidate, content in [
         ("corrupt DEFLATE", corrupt_deflate, generated_content),
         ("wrong generated content", deflate_pdf, generated_content[:-1]),
@@ -337,11 +382,14 @@ def self_test() -> None:
     bad_identifier = pdf[:identifier_start] + replacement + pdf[identifier_start + 1 :]
     mutations = [
         pdf.replace(start_match.group(0), bad_startxref, 1),
-        pdf.replace(b"/Length 5 0 R", b"/Length 3 0 R", 1),
-        pdf.replace(b"/Parent 2 0 R", b"/Parent 1 0 R", 1),
+        layout_mutate(pdf, b"/Length 5 0 R", b"/Length 3 0 R", occurrences=1, scope="objects"),
+        layout_mutate(pdf, b"/Parent 2 0 R", b"/Parent 1 0 R", occurrences=1, scope="objects"),
         bad_identifier,
         pdf[:-1] + b"x",
     ]
+    # A re-serialized twin with no edit must still validate, so every
+    # rejected twin is rejected for its edit alone.
+    validate_pdf(layout_mutate(pdf, b"/Parent 2 0 R", b"/Parent 2 0 R", occurrences=1, scope="objects"), 1, normalized_plan_identity=True)
     for index, mutation in enumerate(mutations):
         try:
             validate_pdf(mutation, 1, normalized_plan_identity=True)

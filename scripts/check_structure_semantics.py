@@ -43,6 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from pdf_layout import LayoutError, twin as layout_twin  # noqa: E402
 from check_pdf_structure import (  # noqa: E402
     ValidationError,
     indirect_length,
@@ -826,8 +827,10 @@ LOWERING_EXPECTED = [
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "mutation twins must preserve length")
-    require(value.count(old) >= 1, f"mutation anchor {old!r} is absent")
-    return value.replace(old, new, 1)
+    try:
+        return layout_twin(value, old, new, exactly_once=False)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
 
 
 def independent_table_matches_verapdf() -> str:

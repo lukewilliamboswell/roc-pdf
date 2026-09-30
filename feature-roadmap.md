@@ -416,7 +416,8 @@ within an early correctness gate.
 - Flat object/value/edge stores, a consumption-shaped builder, and bulk lexical
   emission without one allocation or `Iter` step per token or byte.
 - A compact replayable sealed plan, preassigned indirect stream-length objects,
-  deterministic per-stream DEFLATE, fixed-width unfiltered xref streams, bounded
+  deterministic per-stream DEFLATE, compressed object streams and a
+  predicted compressed xref stream, bounded
   owned generated chunks, and optional seamless slices of validated unchanged
   resource allocations.
 - Default consume-and-release chunk sharing plus an explicit owned-chunk

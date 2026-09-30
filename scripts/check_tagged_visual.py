@@ -6,6 +6,7 @@ import re
 import zlib
 from pathlib import Path
 
+from pdf_layout import LayoutError, twin as layout_twin
 from check_pdf_structure import (
     ValidationError,
     dictionary_ref,
@@ -157,8 +158,10 @@ def validate_tagged_visual_pdf(pdf: bytes) -> None:
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "negative twin must preserve byte length")
-    require(value.count(old) == 1, f"negative twin source occurs {value.count(old)} times")
-    return value.replace(old, new, 1)
+    try:
+        return layout_twin(value, old, new, exactly_once=True)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
 
 
 def self_test() -> None:

@@ -36,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from text_positions import shown_cids  # noqa: E402
+from pdf_layout import LayoutError, mutate as layout_mutate, occurrences as layout_occurrences, twin as layout_twin  # noqa: E402
 from check_pdf_structure import ValidationError, require  # noqa: E402
 from check_structure_semantics import Document, Ref, page_order, text_string  # noqa: E402
 
@@ -229,8 +230,10 @@ def kind_of(label: str) -> str:
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "mutation twins must preserve length")
-    require(value.count(old) >= 1, f"mutation anchor {old!r} is absent")
-    return value.replace(old, new, 1)
+    try:
+        return layout_twin(value, old, new, exactly_once=False)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
 
 
 def self_test() -> None:
@@ -252,7 +255,7 @@ def self_test() -> None:
     # Both points of `summary` lifted 40 pt above its heading line.
     heading_point = f"/XYZ 56 {summary['D'][3]:g} null]".encode()
     lifted_point = f"/XYZ 56 {summary['D'][3] + 40:g} null]".encode()
-    require(len(heading_point) == len(lifted_point) and report.count(heading_point) == 2, "the summary destination point is not a length-preserving twin anchor")
+    require(len(heading_point) == len(lifted_point) and layout_occurrences(report, heading_point, "objects") == 2, "the summary destination point is not a length-preserving twin anchor")
     # The /SD of `summary` rewritten to the next element (its paragraph).
     sd_summary = f"/SD [{summary['SD'][0]} 0 R".encode()
     sd_paragraph = f"/SD [{summary['SD'][0] + 1} 0 R".encode()
@@ -263,7 +266,7 @@ def self_test() -> None:
         ("MarkInfo off", "invoice", replace_once(invoice, b"/Marked true", b"/Marked null")),
         ("a page /Tabs /R", "letter", replace_once(letter, b"/Tabs /S", b"/Tabs /R")),
         ("a /D on the wrong page", "report", replace_once(report, d_summary, d_other)),
-        ("a /D and /SD point off the heading", "report", report.replace(heading_point, lifted_point)),
+        ("a /D and /SD point off the heading", "report", layout_mutate(report, heading_point, lifted_point, occurrences=2, scope="objects")),
         ("a /SD naming a paragraph", "report", replace_once(report, sd_summary, sd_paragraph)),
     ]
     for label, kind, twin in twins:

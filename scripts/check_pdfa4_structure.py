@@ -31,6 +31,7 @@ import sys
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
+from pdf_layout import LayoutError, flatten, twin as layout_twin
 from check_pdf_structure import (
     decode_stream,
     ValidationError,
@@ -201,8 +202,10 @@ def check_resources(bodies: dict[int, bytes]) -> None:
 
 def replace_first(pdf: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "self-test mutations must preserve length")
-    require(old in pdf, f"self-test mutation target {old!r} is absent")
-    return pdf.replace(old, new, 1)
+    try:
+        return layout_twin(pdf, old, new)
+    except LayoutError as error:
+        raise ValidationError(f"self-test mutation target {old!r} is absent: {error}") from error
 
 
 def validate_archive_pdf(pdf: bytes, pages: int = 0) -> dict[str, int]:
@@ -219,7 +222,7 @@ def validate_archive_pdf(pdf: bytes, pages: int = 0) -> dict[str, int]:
 
 
 def validate_standard_pdf(pdf: bytes) -> None:
-    require(b"pdfaid" not in pdf, "Standard output must never declare PDF/A identification")
+    require(b"pdfaid" not in flatten(pdf), "Standard output must never declare PDF/A identification")
 
 
 def validate_pdfa4_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:

@@ -23,6 +23,7 @@ import re
 import zlib
 from pathlib import Path
 
+from pdf_layout import LayoutError, flatten, twin as layout_twin
 from check_pdf_structure import (
     ValidationError,
     dictionary_int,
@@ -416,8 +417,10 @@ def validate_forms_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "negative twin must preserve byte length")
-    require(value.count(old) >= 1, f"negative twin source missing: {old!r}")
-    return value.replace(old, new, 1)
+    try:
+        return layout_twin(value, old, new, exactly_once=False)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
 
 
 def self_test() -> None:
@@ -432,13 +435,15 @@ def self_test() -> None:
     validate_deep(DEEP_64_SNAPSHOT.read_bytes(), {"pages": 1, "chain_depth": 64})
     validate_text(TEXT_SNAPSHOT.read_bytes(), {"pages": 1, "form_text": 1})
 
-    nums = re.search(rb"/Nums \[0 \[([1-9][0-9]*) 0 R ([1-9][0-9]*) 0 R ", showcase)
+    nums = re.search(rb"/Nums \[0 \[([1-9][0-9]*) 0 R ([1-9][0-9]*) 0 R ", flatten(showcase))
     require(nums is not None, "self-test fixture has no ParentTree row")
     require(nums.group(1) != nums.group(2), "self-test ParentTree row is degenerate")
-    swapped_row = showcase[: nums.start()] + (
-        b"/Nums [0 [" + nums.group(2) + b" 0 R " + nums.group(1) + b" 0 R "
-    ) + showcase[nums.end() :]
-    require(len(swapped_row) == len(showcase), "ParentTree mutation changed the byte length")
+    swapped_row = layout_twin(
+        showcase,
+        nums.group(0),
+        b"/Nums [0 [" + nums.group(2) + b" 0 R " + nums.group(1) + b" 0 R ",
+        exactly_once=True,
+    )
 
     mutations = (
         ("form type", replace_once(showcase, b"/FormType 1", b"/FormType 2")),

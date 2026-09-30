@@ -2,6 +2,7 @@ import KernelBalanced
 import KernelDeflate
 import KernelIdentity
 import KernelObject
+import KernelOutputBound
 import KernelSeal
 import KernelSha256
 
@@ -29,6 +30,7 @@ KernelStructure :: [].{
 	PageGeometry := [Fixed(PageSize), Variable]
 	Error : [
 		Deflate(KernelDeflate.Error),
+		OutputBound(KernelOutputBound.Error),
 		Identity(KernelIdentity.Error),
 		IdentityInputTooLarge,
 		Object(KernelObject.Error),
@@ -336,10 +338,16 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 	xref_number = checked_add(KernelSeal.Plan.counts(sealed).objects, 1)?
 	xref_object = KernelObject.ObjectId.from_number(xref_number) ? Object
 
+	## The formula bound above rejects oversized plans before any store is
+	## allocated; the emitted file's bound is derived from the sealed objects
+	## under the object-stream layout.
+	_ = output_bound
+	layout_bound = KernelOutputBound.calculate(sealed, xref_object) ? OutputBound
+
 	Ok(
 		KernelStructure.Plan.{
 			identity,
-			output_bound,
+			output_bound: KernelOutputBound.Bound.bytes(layout_bound),
 			page_count,
 			page_geometry: Fixed(page_size),
 			root: catalog_object.id,
@@ -830,14 +838,16 @@ expect {
 	stream = list_at(store.streams, 0)
 	compressed_bound = KernelDeflate.output_bound(bytes.len())?
 
-	KernelStructure.Plan.output_bound(plan) == blank_output_bound(1)? + compressed_bound and
-		payload.bytes == bytes and
-			payload.kind == Generated and
-				stream.filter == Deflate and
-					match KernelStructure.Plan.identity(plan) {
-						GeneratedContentDigest(digest) => digest.len() == 32
-						_ => False
-					}
+	layout_bound = KernelOutputBound.calculate(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.xref_object(plan))?
+	KernelStructure.Plan.output_bound(plan) == KernelOutputBound.Bound.bytes(layout_bound) and
+		KernelStructure.Plan.output_bound(plan) > compressed_bound and
+			payload.bytes == bytes and
+				payload.kind == Generated and
+					stream.filter == Deflate and
+						match KernelStructure.Plan.identity(plan) {
+							GeneratedContentDigest(digest) => digest.len() == 32
+							_ => False
+						}
 }
 
 ## Multi-page lowering preserves deterministic three-object page slices.
@@ -946,12 +956,14 @@ expect {
 	payload = list_at(store.payloads, 0)
 	stream = list_at(store.streams, 0)
 
-	KernelStructure.Plan.output_bound(plan) == blank_output_bound(1)? + bytes.len() and
-		payload.bytes == bytes and
-			payload.kind == UnchangedResource and
-				stream.filter == Unfiltered and
-					match KernelStructure.Plan.identity(plan) {
-						UnchangedContentDigest(digest) => digest.len() == 32
-						_ => False
-					}
+	layout_bound = KernelOutputBound.calculate(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.xref_object(plan))?
+	KernelStructure.Plan.output_bound(plan) == KernelOutputBound.Bound.bytes(layout_bound) and
+		KernelStructure.Plan.output_bound(plan) > bytes.len() and
+			payload.bytes == bytes and
+				payload.kind == UnchangedResource and
+					stream.filter == Unfiltered and
+						match KernelStructure.Plan.identity(plan) {
+							UnchangedContentDigest(digest) => digest.len() == 32
+							_ => False
+						}
 }

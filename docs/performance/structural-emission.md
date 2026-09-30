@@ -1,5 +1,11 @@
 # structural-kernel structural-emission slice
 
+> **Layout superseded.** The file layout described here (top-level objects
+> and an unfiltered `[1 8 2]` xref stream) was replaced by compressed object
+> streams and a predicted compressed xref stream; see
+> [output-size.md](output-size.md), step 4, and the architecture's file
+> representation section.
+
 ## Scope and status
 
 `KernelEmit` serializes the current sealed blank-page plan as PDF 2.0. One

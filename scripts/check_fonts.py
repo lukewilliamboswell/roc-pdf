@@ -37,7 +37,7 @@ from check_forms import (
     form_objects,
     parse_resources,
 )
-from pdf_layout import flatten, mutate
+from pdf_layout import flatten, mutate, occurrences
 from check_pdf_structure import (
     decode_stream,
     ValidationError,
@@ -392,12 +392,10 @@ def validate_fonts_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
 
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
-    """A flat twin with the first occurrence of ``old`` (in any object body
-    or decoded stream) replaced."""
-    flat = flatten(value)
-    if flat.count(old) >= 1:
-        return flat.replace(old, new, 1)
-    return mutate(value, old, new, occurrences=None)
+    """A twin with the first occurrence of ``old`` (among object bodies, or
+    else among decoded stream payloads) replaced."""
+    scope = "objects" if occurrences(value, old, "objects") else "payloads"
+    return mutate(value, old, new, occurrences=None, scope=scope, first_only=True)
 
 
 def self_test() -> None:
@@ -418,9 +416,9 @@ def self_test() -> None:
         ("cid map identity", None),
         ("subset signature", None),
     ]
-    tag_match = BASE_FONT.search(showcase)
+    tag_match = BASE_FONT.search(flatten(showcase))
     lowered = tag_match.group(1).lower()
-    mutations[4] = ("subset tag casing", showcase.replace(tag_match.group(1), lowered))
+    mutations[4] = ("subset tag casing", mutate(showcase, tag_match.group(1), lowered, occurrences=None, scope="objects"))
     mutations[5] = ("cid map identity", mutate(showcase, b"/CIDToGIDMap /Identity ", b"/CIDToGIDMap /Identitz ", occurrences=None))
     signature = struct.pack(">I", 0x00010000)
     mutations[6] = ("subset signature", mutate(showcase, signature + b"\x00\x0e", struct.pack(">I", 0x4F54544F) + b"\x00\x0e", occurrences=None))

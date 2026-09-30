@@ -37,6 +37,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from pdf_layout import flatten
 from check_visual_renderers import Raster, read_ppm
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -259,7 +260,7 @@ def run_matrix(renderer: Path | None, working_directory: Path | None, mutool: Pa
 def self_test() -> None:
     for snapshot in (SHOWCASE, APPEARANCE, LABELS, FACADE):
         pdf = snapshot.read_bytes()
-        require(pdf.count(b"/Subtype /Link") >= 1 or snapshot == LABELS, "snapshot lost its links")
+        require(flatten(pdf).count(b"/Subtype /Link") >= 1 or snapshot == LABELS, "snapshot lost its links")
     require(SHOWCASE_REPORT.count("annot") == 3, "showcase report shape")
     require(FACADE_REPORT.count("annot") == 4, "facade report shape")
     require(

@@ -1330,10 +1330,35 @@ CIDFontType2 whose CIDs are its subset glyph IDs, which font planning
 guarantees, declares `/CIDToGIDMap /Identity` rather than carrying an identity
 map stream.
 
-The initial file representation uses PDF 2.0 xref streams. Object streams are
-an independent compression optimization and are not required by the
-architecture. Incremental revisions and linearization are outside the
-generation-only baseline.
+The file representation is PDF 2.0 compressed object streams with a
+compressed cross-reference stream, and it is the only one the package writes.
+Stream objects stay top-level. Every other object goes into a FlateDecode
+object stream (ISO 32000-2 7.5.7): in plan order, the compressible objects fill
+object streams of a fixed maximum number of members, which take the object
+numbers after the planned objects. The partition depends only on the plan's
+object order and kinds, so it is fixed before emission. The cross-reference
+stream follows the object streams. Its rows use the fewest offset bytes that
+hold its own offset, and it is FlateDecode with the PNG Up predictor. Object
+streams and the cross-reference stream carry direct lengths.
+
+This is an enduring decision, and the evidence behind it is recorded in
+[`docs/performance/output-size.md`](docs/performance/output-size.md). In a
+tagged business document most bytes are small dictionaries: structure
+elements, the ParentTree, annotations, and the page tree. Written as top-level
+uncompressed objects they were about half the file, and object streams remove
+most of those bytes. PDF 2.0 and PDF/A-4 both permit object streams. The rules
+of 7.5.7 are respected by construction: object streams never hold a stream
+object, a nonzero generation (none are written), an encryption dictionary
+(the package never encrypts), or an object stream's own length (object streams
+use direct lengths). Readers that predate PDF 1.5 cannot read the result; that
+is outside the PDF 2.0 destination.
+
+There is no uncompressed or flat layout option. A second layout would double
+the byte contract, the output-bound proof, and the conformance evidence for a
+debugging convenience that standard tools already provide (`qpdf --qdf`,
+`mutool clean -d`). The repository's independent reader,
+`scripts/pdf_layout.py`, expands any emitted file for inspection. Incremental
+revisions and linearization are outside the generation-only baseline.
 
 The Arlington PDF Model is a useful independent schema cross-check, but its
 documented scope excludes parts of lexical syntax, content streams, and file

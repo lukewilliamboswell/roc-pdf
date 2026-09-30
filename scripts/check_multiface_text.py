@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from pdf_layout import flatten
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
 from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
@@ -64,7 +65,7 @@ def validate_multiface_text_pdf(pdf: bytes) -> None:
     shown = ((latin, 0x0001), (cjk, 0x0001), (latin, 0x0003))
     direct = "".join(chr(scalar) for font, cid in shown for scalar in font_mappings(bodies, font)[cid]).encode() + b"\n"
     require(direct == EXPECTED_TEXT, "two-font CID/ToUnicode reconstruction differs from paint-order source text")
-    require(b"/FontFile2" in pdf and b"/Type /Font" in pdf, "multi-face PDF lacks embedded font closure")
+    require(b"/FontFile2" in flatten(pdf) and b"/Type /Font" in flatten(pdf), "multi-face PDF lacks embedded font closure")
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:

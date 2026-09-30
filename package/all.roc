@@ -29,6 +29,7 @@ package
 		KernelFacadeSources,
 		KernelFacadeTables,
 		KernelFacadeText,
+		KernelFileLayout,
 		KernelFixture,
 		KernelFont,
 		KernelFontLeaf,

@@ -11,7 +11,7 @@ import tempfile
 import zlib
 from pathlib import Path
 
-from pdf_layout import flatten, mutate
+from pdf_layout import mutate, occurrences
 from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import (
     ValidationError,
@@ -224,18 +224,16 @@ def check_pdfbox_extraction(pdf: Path) -> None:
 
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
-    """A flat twin with the one occurrence of ``old`` replaced.
+    """A twin with the one occurrence of ``old`` replaced.
 
     ``old`` must occur exactly once among object bodies; a target absent
     from them must occur exactly once among decoded stream payloads
     (for example a ToUnicode row), which are re-deflated after the edit.
     """
     require(len(old) == len(new), "negative twin must preserve byte length")
-    flat = flatten(value)
-    if old in flat:
-        require(flat.count(old) == 1, f"negative twin source occurs {flat.count(old)} times")
-        return flat.replace(old, new, 1)
-    return mutate(value, old, new, occurrences=1)
+    if occurrences(value, old, "objects"):
+        return mutate(value, old, new, occurrences=1, scope="objects")
+    return mutate(value, old, new, occurrences=1, scope="payloads")
 
 
 def glyph_count(font: bytes) -> int:

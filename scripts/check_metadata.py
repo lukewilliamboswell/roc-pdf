@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 
 from pdf_layout import mutate as layout_mutate
+from pdf_layout import flatten
 from check_pdf_structure import (
     decode_stream,
     ValidationError,
@@ -149,7 +150,7 @@ def check_metadata(
     root, _file_identifier = validate_xref(pdf, offsets, bodies, xref_object, xref_offset)
     validate_page_tree(bodies, dictionary_ref(bodies[root], b"Pages"), expected_pages)
     validate_stream_lengths(bodies, xref_object, set(), b"")
-    require(b"/DestOutputProfileRef" not in pdf, "forbidden external profile reference")
+    require(b"/DestOutputProfileRef" not in flatten(pdf), "forbidden external profile reference")
     catalogs = [number for number, body in bodies.items() if b"/Type /Catalog" in body]
     require(len(catalogs) == 1, "expected exactly one catalog")
     catalog = bodies[catalogs[0]]

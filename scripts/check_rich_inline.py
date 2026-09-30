@@ -34,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from pdf_layout import flatten, mutate as layout_mutate
+from pdf_layout import flatten, mutate as layout_mutate, occurrences
 from check_pdf_structure import ValidationError, require  # noqa: E402
 from check_structure_semantics import Document, Parser, Ref, page_order, text_string  # noqa: E402
 
@@ -303,12 +303,10 @@ PDFBOX_EXPECTED = (
 
 
 def mutate(value: bytes, old: bytes, new: bytes) -> bytes:
-    """A flat twin with the first ``old`` replaced; a target absent from the
+    """A twin with the first ``old`` replaced; a target absent from the
     object bodies is edited inside the decoded stream payloads instead."""
-    flat = flatten(value)
-    if old in flat:
-        return flat.replace(old, new, 1)
-    return layout_mutate(value, old, new, occurrences=None)
+    scope = "objects" if occurrences(value, old, "objects") else "payloads"
+    return layout_mutate(value, old, new, occurrences=None, scope=scope, first_only=True)
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:
@@ -364,7 +362,7 @@ def self_test() -> None:
     require(font_text(furniture, "NotoSCCJKFixture-Regular") == "", "body text uses the furniture-only Han face")
     breaks = render(BREAKS.read_bytes())
     require(all(line in breaks for line in BREAKS_EXPECTED), f"line-break separators changed: {breaks!r}")
-    expansion = re.search(rb"/E <[0-9A-F]+> /K \[[^\]]*\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Span ", mixed)
+    expansion = re.search(rb"/E <[0-9A-F]+> /K \[[^\]]*\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Span ", flatten(mixed))
     require(expansion is not None, "mixed snapshot has no expansion Span")
     twins = [
         ("structure order swapped against paint order", mutate(mutate(mutate(mixed, b"<< /MCID 6 /Pg", b"<< /MCID X /Pg"), b"<< /MCID 7 /Pg", b"<< /MCID 6 /Pg"), b"<< /MCID X /Pg", b"<< /MCID 7 /Pg"), "structure order and paint order disagree"),
