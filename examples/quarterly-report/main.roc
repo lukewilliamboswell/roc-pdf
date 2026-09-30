@@ -292,7 +292,7 @@ revenue_chart = {
 		$chart = Scene.rectangle($chart, { origin: Layout.point(left, base + revenue_height(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(width) } }, grid)
 	}
 	for step in [0, 1, 2, 3, 4] {
-		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: points(8), text: if step == 0 "0" else "${step.to_str()},000" })
+		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: points(8), text: if step == 0 "0" else "${step.to_i64_wrap().to_str()},000" })
 	}
 	slot = width // 6
 	var $index = 0
