@@ -83,11 +83,25 @@ Theme :: {
 	## table's width and half the row gap above and below it, so filled
 	## neighbours meet; it is a layout decoration artifact painted before
 	## the page's text, and never changes layout.
+	##
+	## Columns have no gap of their own: adjacent cells' boxes abut, and the
+	## space between two columns' text is the two cells' padding. A
+	## `column_rule` is drawn centered on every boundary between adjacent
+	## cells of a row (never through a spanning cell), from half the row
+	## gap above the row to half the row gap below it, so the rules of
+	## consecutive rows meet; it must fit in that padding (at most twice
+	## `cell_padding`). A `frame` outlines each page's part of a table's rows
+	## (repeated header rows included, the caption excluded) inside the
+	## rows' outer boxes, so it must fit in the cell padding and in half
+	## the row gap. Both are layout decoration artifacts painted after the
+	## text, like the other rules, and never change layout.
 	TableStyle : {
 		body_fills : { even : TableFill, odd : TableFill },
 		body_rule : TableRule,
 		cell_padding : Layout.Unit,
+		column_rule : TableRule,
 		footer_fill : TableFill,
+		frame : TableRule,
 		header_color : InlineColor,
 		header_fill : TableFill,
 		row_gap : Layout.Unit,
@@ -216,7 +230,9 @@ Theme :: {
 				body_fills: { even: NoFill, odd: NoFill },
 				body_rule: NoRule,
 				cell_padding: Layout.Unit.from_raw(4000),
+				column_rule: NoRule,
 				footer_fill: NoFill,
+				frame: NoRule,
 				header_color: Inherited,
 				header_fill: NoFill,
 				row_gap: Layout.Unit.from_raw(4000),
@@ -422,6 +438,18 @@ Theme :: {
 	## Rule between consecutive body rows, or `NoRule` (the default).
 	with_table_body_rule : Theme, TableRule -> Theme
 	with_table_body_rule = |theme, body_rule| { ..theme, table: { ..theme.table, body_rule } }
+
+	## Rule between adjacent cells of every row, or `NoRule` (the default).
+	## It lies in the cells' padding, so it may be at most twice the cell
+	## padding wide (`layout.table_rule`).
+	with_table_column_rule : Theme, TableRule -> Theme
+	with_table_column_rule = |theme, column_rule| { ..theme, table: { ..theme.table, column_rule } }
+
+	## Outline each page's part of a table's rows, or `NoRule` (the
+	## default). It lies inside the rows' outer boxes, so it may be at most
+	## the cell padding and half the row gap wide (`layout.table_rule`).
+	with_table_frame : Theme, TableRule -> Theme
+	with_table_frame = |theme, frame| { ..theme, table: { ..theme.table, frame } }
 
 	table_style : Theme -> TableStyle
 	table_style = |theme| theme.table

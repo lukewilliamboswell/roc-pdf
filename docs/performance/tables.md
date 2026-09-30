@@ -523,13 +523,52 @@ the all-empty table (`table.empty`) and moves `table.cell_empty` to
 `[Pdf.strong([])]`: 15 rejections, +1,045 allocations for the one added
 document, allocated bytes +0.18%. veraPDF PDF/A-4 passes both snapshots.
 
-### Deferred: column rules and frames
+### Column rules, frames, and the column-gap contract
 
-Rules are horizontal and span the table. Vertical rules between columns
-and an outer frame need a column gap the width algorithm does not reserve
-(cells abut, with padding inside each column), so a vertical rule would
-either paint over cell padding or require widening the columns; either is
-a change to the column-width contract.
+Rules were horizontal only. Vertical rules and an outer frame needed a
+decision about the space between columns, which the width algorithm never
+reserved: cells abut, and each cell's text box is its columns less the
+cell padding on both sides.
+
+**The contract: no separate column gap.** The space between two columns'
+text is the two cells' padding (2 × `cell_padding`), the horizontal
+counterpart of the row gap between two rows' lines. Widths resolve
+exactly as before, so no existing table moves. Rules live in that space:
+
+- `Theme.with_table_column_rule` draws a rule centered on every boundary
+  between adjacent cells of a row, from half the row gap below the row to
+  half the row gap above it, so the rules of consecutive rows meet. A
+  spanning cell has no interior boundary, so no rule crosses it. It must
+  be at most 2 × `cell_padding` wide (`layout.table_rule`, "table column
+  rule"), so it never reaches a text box.
+- `Theme.with_table_frame` outlines each page's contiguous run of a
+  table's rows, repeated header rows included and the caption excluded,
+  with four rectangles inside the rows' outer boxes (the fill boxes). It
+  must fit the cell padding and half the row gap (`layout.table_rule`,
+  "table frame").
+
+Both are `Front` layout decoration rectangles like the header and body
+rules: painted after the page's text as `Decoration` artifacts, never
+changing layout or structure. Header rows repainted on a continuation page
+get their column rules and open that page's frame. Pagination tracks the
+open frame segment in a tag (`Segment`) across the page's fragments and
+closes it when the page ends or a leaf or another table's row follows, so
+the frame costs O(1) per row and four rectangles per page segment, and the
+rules list stays in page order for `behind_first`.
+
+Evidence: `tables ruled grid x40` and `x400`, the styled register with a
+0.5 pt column rule and a 1 pt frame; each also rejects a 9 pt column rule
+(padding 4 pt) and a 3 pt frame (half the 4 pt row gap).
+
+| Case | Pages | Allocations | Rules |
+| --- | ---: | ---: | ---: |
+| ruled grid x40 | 2 | 34,114 | 131 (38 body and header, 85 column, 8 frame) |
+| ruled grid x400 | 12 | 238,987 | 1,261 |
+
+The pair is linear (9.6× the rules and 7.0× the allocations for 10× the
+rows). Every existing case keeps its allocation count and snapshot; the
+two new `TableStyle` fields move allocated bytes by at most 0.001%.
+veraPDF PDF/A-4 passes both snapshots.
 
 ## Open issues
 
@@ -564,9 +603,10 @@ a change to the column-width contract.
 - **SplitRows minimums** apply to the row's grid (its tallest cell), not to
   each cell; paint order of a split row interleaves its cells across pages.
 - **Rules** cover the header and footer boundaries and, optionally, the
-  gaps between body rows; vertical column rules and an outer frame are not
-  offered (they need column-gap geometry the width algorithm does not
-  reserve).
+  gaps between body rows, the boundaries between cells, and a frame. A
+  row's column rules follow that row's cells, so rows with different spans
+  have different vertical rules; there is no per-column or per-cell rule
+  selection.
 - **Cell identifiers** are document-wide ordinals; authored identifiers for
   cross-document references are not offered.
 - **Column minimums of spanning cells** are checked after resolution rather

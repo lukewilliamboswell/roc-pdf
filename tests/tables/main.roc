@@ -16,6 +16,7 @@ Case : [
 	KeptWhole({ context : U64 }),
 	Styled({ rows : U64 }),
 	EmptyCells({ rows : U64 }),
+	Ruled({ rows : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -53,6 +54,7 @@ main! = |args| {
 		KeptWhole({ context }) => Fixture.kept_whole(context)
 		Styled({ rows }) => Fixture.styled(rows)
 		EmptyCells({ rows }) => Fixture.empty_cells(rows)
+		Ruled({ rows }) => Fixture.ruled(rows)
 	}
 	match result {
 		Ok(value) => value

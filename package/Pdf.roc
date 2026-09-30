@@ -1157,8 +1157,15 @@ pipeline_error = |error, doc| match error {
 		name = match rule {
 			HeaderFooterRule => "table rule"
 			BodyRule => "table body rule"
+			ColumnRule => "table column rule"
+			FrameRule => "table frame"
 		}
-		located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's ${name} is ${points_text(width)} wide but the row gap it is drawn in is ${points_text(gap)}.", [])
+		space = match rule {
+			HeaderFooterRule | BodyRule => "the row gap it is drawn in"
+			ColumnRule => "the padding of the two cells it is drawn between"
+			FrameRule => "the smaller of the cell padding and half the row gap, which it is drawn in,"
+		}
+		located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's ${name} is ${points_text(width)} wide but ${space} is ${points_text(gap)}.", [])
 	}
 	Semantics(EmptyInline({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
 	Semantics(EmptyLinkText({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")

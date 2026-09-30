@@ -223,7 +223,9 @@ policy: `Theme.with_table_cell_padding`, `with_table_row_gap`,
 `Column` or `Both`), and `with_table_row_header_color` (row header cells,
 scope `Row`). Rows can be shaded with `with_table_header_fill`,
 `with_table_body_fills` (`{ odd, even }` for zebra stripes), and
-`with_table_footer_fill`, and separated with `with_table_body_rule`;
+`with_table_footer_fill`, and separated with `with_table_body_rule`,
+between columns with `with_table_column_rule` (drawn in the cells'
+padding), and outlined with `with_table_frame`;
 `Pdf.shaded(color, cell)` shades one cell. `Pdf.cell([])` is an empty cell
 (a `TD` with no content) for a value the table leaves blank; it keeps its
 grid position, fill, and `Headers`, and a row of only empty cells is one

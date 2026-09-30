@@ -1047,7 +1047,7 @@ with.
 | `table.row_span` | `FeatureUnavailable` | Row spans (Gate 8) |
 | `table.empty` | `InvalidRelationship` | A table declares no column or no body row, or no cell has content |
 | `table.cell_empty` | `InvalidRelationship` | A table cell's inline content holds no text |
-| `layout.table_rule` | new family | The theme's table rule is wider than the row gap it is drawn in |
+| `layout.table_rule` | new family | A theme table rule is wider than the space it is drawn in: the row gap (header, footer, and body rules), twice the cell padding (column rule), or the smaller of the padding and half the row gap (frame) |
 | `document.content_limit` | `BudgetExceeded` | The document crosses a documented facade content bound; `details` names the table or block at which planning crossed it |
 | `text.unsupported_script` | `FontCoverageMissing` | Script outside the declared facade set |
 | `text.coverage_missing` | `FontCoverageMissing` | No selected face covers a cluster |

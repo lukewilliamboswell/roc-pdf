@@ -56,6 +56,12 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   its empty corner) repainted. Empty cells are `TD`/`TH` elements with
 ##   no marked content; the work counts them. The 40/400 pair is the
 ##   linear scale pair.
+## - `ruled xN`: the styled register with a column rule between adjacent
+##   cells (never through the spanning footer label) and a frame around
+##   each page's part of the rows, repeated header included; the work
+##   counts the rules. It also rejects a column rule wider than twice the
+##   cell padding and a frame wider than half the row gap
+##   (`layout.table_rule`). The 40/400 pair is the linear scale pair.
 ## - `kept_whole`: a 12-row captioned table inside `Pdf.keep_together`
 ##   after enough paragraphs that its caption, header, and first rows would
 ##   otherwise start on page 1; the whole table moves to page 2, which the
@@ -120,6 +126,26 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		evidence_with(empty_cells_document(rows), styled_theme, BuiltInFace, EmptyCellPaints)
+	}
+
+	ruled : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	ruled = |rows| {
+		if rows == 0 or rows > 400 {
+			return Err(InvalidScale)
+		}
+		document = styled_document(rows)
+		wide_column = Theme.with_table_column_rule(ruled_theme, Rule({ color: rule_gray, width: Layout.Unit.points(9) }))
+		wide_frame = Theme.with_table_frame(ruled_theme, Rule({ color: rule_gray, width: Layout.Unit.points(3) }))
+		rejected = [(wide_column, "table column rule"), (wide_frame, "table frame")].map(
+			|(theme, name)| match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) {
+				Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if message.contains(name) 1 else 0
+				_ => 0
+			},
+		).sum()
+		if rejected != 2 {
+			return Err(MissingRejection(rejected))
+		}
+		evidence_with(document, ruled_theme, BuiltInFace, Paints)
 	}
 
 	kept_whole : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -411,6 +437,16 @@ empty_cells_document = |count| {
 		language: "en-AU",
 		title: "Survey tally (${count.to_str()} rows)",
 	})
+}
+
+## The styled theme with a slate column rule and a navy frame.
+ruled_theme : Theme
+ruled_theme = {
+	navy : Color.SourceValue
+	navy = Srgb(Rgb({ blue: 22000, green: 12000, red: 5000 }))
+	styled_theme
+		.with_table_column_rule(Rule({ color: rule_gray, width: Layout.Unit.from_raw(500) }))
+		.with_table_frame(Rule({ color: navy, width: Layout.Unit.from_raw(1000) }))
 }
 
 kept_document : U64 -> Document

@@ -51,7 +51,10 @@ KernelFacadePages :: [].{
 		TableLayout({ error : KernelPageLayout.Error, groups : List(KeepSource), units : List(Unit) }),
 
 		## A table rule wider than the row gap it is drawn in.
-		TableRuleWidth({ gap : U64, rule : [BodyRule, HeaderFooterRule], width : U64 }),
+		## `gap` is the space the rule must fit: the row gap for header,
+		## footer, and body rules, twice the cell padding for a column rule,
+		## and the smaller of the padding and half the row gap for a frame.
+		TableRuleWidth({ gap : U64, rule : [BodyRule, ColumnRule, FrameRule, HeaderFooterRule], width : U64 }),
 	]
 	Limits :: { max_blocks : U64, max_rows : U64, page : KernelPageLayout.Limits }.{
 		make : { max_blocks : U64, max_rows : U64, page : KernelPageLayout.Limits } -> Limits
@@ -468,6 +471,27 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 		}
 	}
 	padding = nonnegative_raw(table_style.cell_padding)?
+	column_rule = match table_style.column_rule {
+		NoRule => NoTableRule
+		Rule({ color, width }) => {
+			thickness = nonnegative_raw(width)?
+			if thickness > 2 * padding {
+				return Err(TableRuleWidth({ gap: 2 * padding, rule: ColumnRule, width: thickness }))
+			}
+			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+		}
+	}
+	frame = match table_style.frame {
+		NoRule => NoTableRule
+		Rule({ color, width }) => {
+			thickness = nonnegative_raw(width)?
+			room = U64.min(padding, gap / 2)
+			if thickness > room {
+				return Err(TableRuleWidth({ gap: room, rule: FrameRule, width: thickness }))
+			}
+			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+		}
+	}
 	paragraph_spacing = nonnegative_raw(Theme.paragraph_spacing(theme))?
 	flow_facts = plan_flow(authoring, block_lines, page_size, theme, flow)?
 	cell_geometry = KernelFacadeTables.Plan.cells(tables)
@@ -771,6 +795,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	var $repeated = 0
 	var $unit = 0
 	var $placement_cursor = 0
+	var $segment = NoSegment
 	for layout_page in layout_pages {
 		page_index = layout_page.id.index()
 		placement_start = $placements.len()
@@ -808,6 +833,8 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				row_bottom = checked_sub(row_top, checked_mul(header_row.grid, leading)?)?
 				$fills = append_fill($fills, header_row.fill, page_index, { bottom: row_bottom, gap, top: row_top, width: info.width, x: margin_left })
 				$fills = append_cell_fills($fills, authoring, cell_geometry, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left })
+				$rules = append_column_rules($rules, column_rule, cell_geometry, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left })
+				$segment = extend_segment($segment, header_row.table, row_top, row_bottom, gap)
 				$used = checked_add($used, checked_add(checked_mul(header_row.grid, leading)?, gap)?)?
 				$header = $header + 1
 			}
@@ -825,6 +852,8 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			taken = fragment.lines.length()
 			match list_at($units, $unit) {
 				LeafUnit(_) => {
+					$rules = close_segment($rules, frame, $segment, page_index, margin_left, $table_info)
+					$segment = NoSegment
 					var $local = 0
 					while $local < taken {
 						placed = list_at(layout_placements, $placement_cursor + $local)
@@ -857,6 +886,9 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					top = checked_add(bottom, fragment.layout.geometry.size.height.raw().to_u64_wrap())?
 					$fills = append_fill($fills, info.fill, page_index, { bottom, gap, top, width: table_width, x: margin_left })
 					$fills = append_cell_fills($fills, authoring, cell_geometry, info.cells, { bottom, gap, padding, page: page_index, top, x: margin_left })
+					$rules = append_column_rules($rules, column_rule, cell_geometry, info.cells, { bottom, gap, padding, page: page_index, top, x: margin_left })
+					$rules = close_other_segment($rules, frame, $segment, info.table, { page: page_index, tables: $table_info, x: margin_left })
+					$segment = extend_segment($segment, info.table, top, bottom, gap)
 					if info.body_rule and first_grid == 0 and $fragment > first_fragment {
 						$rules = append_rule($rules, body_rule, page_index, margin_left, table_width, checked_add(top, gap / 2)?)
 					}
@@ -871,6 +903,8 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			$placement_cursor = $placement_cursor + taken
 			$fragment = $fragment + 1
 		}
+		$rules = close_segment($rules, frame, $segment, page_index, margin_left, $table_info)
+		$segment = NoSegment
 		$pages = $pages.append({ ..layout_page, placements: Semantics.Range.from_start_and_length(placement_start, $placements.len() - placement_start) })
 	}
 	check_limit($rows.len(), limits.max_rows, Rows)?
@@ -1084,6 +1118,85 @@ append_rule = |rules, rule, page, x, width, center| match rule {
 			},
 		})
 	}
+}
+
+## The column rules of one row: one centered on each boundary between
+## adjacent cells (a cell box is its text box widened by the padding on
+## both sides), from half the row gap below the row to half above it.
+append_column_rules : List(KernelFacadePages.Rule), TableRuleStyle, List(KernelFacadeTables.CellGeometry), Semantics.Range, { bottom : U64, gap : U64, padding : U64, page : U64, top : U64, x : U64 } -> List(KernelFacadePages.Rule)
+append_column_rules = |rules, rule, geometry, range, box| match rule {
+	NoTableRule => rules
+	TableRule({ color, width: thickness }) => {
+		below = box.gap / 2
+		bottom = if box.bottom > below box.bottom - below else 0
+		height = box.top + (box.gap - below) - bottom
+		var $rules = rules
+		var $cell = range.start() + 1
+		while $cell < range.start() + range.length() {
+			edge = box.x + list_at(geometry, $cell).x - box.padding
+			left = if edge > thickness / 2 edge - thickness / 2 else 0
+			$rules = $rules.append({
+				color,
+				layer: Front,
+				page: box.page,
+				rect: {
+					origin: { x: Layout.Unit.from_raw(left.to_i64_wrap()), y: Layout.Unit.from_raw(bottom.to_i64_wrap()) },
+					size: { height: Layout.Unit.from_raw(height.to_i64_wrap()), width: Layout.Unit.from_raw(thickness.to_i64_wrap()) },
+				},
+			})
+			$cell = $cell + 1
+		}
+		$rules
+	}
+}
+
+## One page's contiguous run of a table's rows, for its frame: the table
+## and the top and bottom of the rows' outer boxes (half the row gap
+## outside the first and last row).
+Segment : [NoSegment, Segment({ bottom : U64, table : U64, top : U64 })]
+
+## Close the open segment unless it belongs to `table`.
+close_other_segment : List(KernelFacadePages.Rule), TableRuleStyle, Segment, U64, { page : U64, tables : List(TableInfo), x : U64 } -> List(KernelFacadePages.Rule)
+close_other_segment = |rules, frame, segment, table, at| match segment {
+	Segment(open) => if open.table == table rules else close_segment(rules, frame, segment, at.page, at.x, at.tables)
+	NoSegment => rules
+}
+
+## Add a row (its box from `bottom` to `top`) of table `table` to the open
+## segment, or start one.
+extend_segment : Segment, U64, U64, U64, U64 -> Segment
+extend_segment = |segment, table, top, bottom, gap| {
+	below = gap / 2
+	outer_bottom = if bottom > below bottom - below else 0
+	match segment {
+		Segment(open) => if open.table == table Segment({ ..open, bottom: outer_bottom }) else Segment({ bottom: outer_bottom, table, top: top + (gap - below) })
+		NoSegment => Segment({ bottom: outer_bottom, table, top: top + (gap - below) })
+	}
+}
+
+## Close an open segment: its frame is four rectangles inside the rows'
+## outer boxes, across the table's width.
+close_segment : List(KernelFacadePages.Rule), TableRuleStyle, Segment, U64, U64, List(TableInfo) -> List(KernelFacadePages.Rule)
+close_segment = |rules, frame, segment, page, x, tables| match (frame, segment) {
+	(TableRule({ color, width: thickness }), Segment({ bottom, table, top })) => {
+		width = list_at(tables, table).width
+		height = if top > bottom top - bottom else 0
+		rect = |left, low, w, h| {
+			color,
+			layer: Front,
+			page,
+			rect: {
+				origin: { x: Layout.Unit.from_raw(left.to_i64_wrap()), y: Layout.Unit.from_raw(low.to_i64_wrap()) },
+				size: { height: Layout.Unit.from_raw(h.to_i64_wrap()), width: Layout.Unit.from_raw(w.to_i64_wrap()) },
+			},
+		}
+		rules
+			.append(rect(x, top - thickness, width, thickness))
+			.append(rect(x, bottom, width, thickness))
+			.append(rect(x, bottom, thickness, height))
+			.append(rect(x + width - thickness, bottom, thickness, height))
+	}
+	_ => rules
 }
 
 ## A row fill: the row's box from `bottom` to `top` across the table,
