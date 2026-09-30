@@ -20,8 +20,9 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## highlights callout and a breaking-change callout through the
 ## custom-block seam, measured by the package, versioned sections in the
 ## outline, change lists with inline code and issue links, a latency
-## chart, a striped compatibility table, and running headers over a ruled
-## backdrop and footers.
+## chart, a striped compatibility table and a table of changed flags whose
+## empty cells mark a platform or flag a release does not have, and
+## running headers inset above a ruled backdrop and footers.
 main! = |_args| {
 	fonts = register_fonts({})?
 	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry).with_page_size(Letter)
@@ -145,14 +146,17 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
 	continuation: Pdf.page_template({
-		header: Pdf.with_backdrop(
-			Pdf.region({
-				height: points(16),
-				start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])],
-				center: [],
-				end: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 4), header_mark))],
-			}),
-			Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, haze),
+		header: Pdf.with_slot_inset(
+			Pdf.with_backdrop(
+				Pdf.region({
+					height: points(19),
+					start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])],
+					center: [],
+					end: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 4), header_mark))],
+				}),
+				Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, haze),
+			),
+			points(3),
 		),
 		footer,
 		gap: points(16),
@@ -301,14 +305,51 @@ issue = |number| Pdf.inline_link([Pdf.emphasis([Pdf.text("#${number.to_str()}")]
 change : List(Pdf.Inline), U64 -> Pdf.ListItem
 change = |inlines, number| Pdf.list_item([Pdf.rich_paragraph(inlines.concat([Pdf.text(" ("), issue(number), Pdf.text(")")]))])
 
-## The new version is strong, in the bold face.
+## The new version is strong, in the bold face. A release that does not
+## support a platform leaves its cell empty, and a removal is shaded.
 compat_row : Str, Str, Str, Str -> Pdf.Row
 compat_row = |target, old, new, note| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(target)]),
-	Pdf.cell([Pdf.text(old)]),
-	Pdf.cell([Pdf.strong([Pdf.text(new)])]),
-	if new == "—" Pdf.shaded(Color.srgb8({ red: 253, green: 242, blue: 248 }), Pdf.cell([Pdf.text(note)])) else Pdf.cell([Pdf.text(note)]),
+	if old.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.text(old)]),
+	if new.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.strong([Pdf.text(new)])]),
+	if new.is_empty() Pdf.shaded(Color.srgb8({ red: 253, green: 242, blue: 248 }), Pdf.cell([Pdf.text(note)])) else Pdf.cell([Pdf.text(note)]),
 ])
+
+## A 2.x flag or setting and its 3.0 form; a removal with no replacement
+## leaves the 3.0 cell empty.
+flag_row : Str, Str, List(Pdf.Inline) -> Pdf.Row
+flag_row = |old, new, note| Pdf.row([
+	Pdf.header_cell(Row, [Pdf.code(old)]),
+	if new.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.code(new)]),
+	Pdf.cell(note),
+])
+
+flags_table : Document.Block
+flags_table = Pdf.table({
+	caption: Pdf.caption("Table 2. Flags and settings changed in 3.0"),
+	columns: [
+		{ width: Content, align: Start },
+		{ width: Content, align: Start },
+		{ width: Share(1), align: Start },
+	],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("2.x")]),
+			Pdf.header_cell(Column, [Pdf.text("3.0")]),
+			Pdf.header_cell(Column, [Pdf.text("Notes")]),
+		]),
+	],
+	body_rows: [
+		flag_row("--rps 500", "--rate 500/s", [Pdf.text("Units are required; per-minute rates use "), Pdf.code("/m"), Pdf.text(".")]),
+		flag_row("--duration 10m", "duration = \"10m\"", [Pdf.text("Set in the scenario file; the flag still works until 4.0.")]),
+		flag_row("scenario.yaml", "scenario.toml", [Pdf.text("Convert with "), Pdf.code("kestrel migrate"), Pdf.text(".")]),
+		flag_row("--export statsd", "export = \"statsd\"", [Pdf.text("OpenTelemetry is the new default exporter.")]),
+		flag_row("--graphite-host", "", [Pdf.text("Removed with the Graphite exporter.")]),
+		flag_row("--no-seed", "", [Pdf.text("Removed: every run is seeded from "), Pdf.code("kestrel.lock"), Pdf.text(".")]),
+	],
+	footer_rows: [],
+	row_split: KeepRows,
+})
 
 compatibility_table : Document.Block
 compatibility_table = Pdf.table({
@@ -330,9 +371,9 @@ compatibility_table = Pdf.table({
 	body_rows: [
 		compat_row("Linux x86-64 (glibc)", "2.28", "2.31", "Ubuntu 20.04, RHEL 9 and later"),
 		compat_row("Linux arm64 (glibc)", "2.28", "2.31", "Graviton and Ampere tested"),
-		compat_row("Linux x86-64 (musl)", "—", "1.2", "New static build for containers"),
+		compat_row("Linux x86-64 (musl)", "", "1.2", "New static build for containers"),
 		compat_row("macOS arm64", "12", "13", "Ventura and later"),
-		compat_row("macOS x86-64", "12", "—", "Removed; use 2.9 LTS"),
+		compat_row("macOS x86-64", "12", "", "Removed; use 2.9 LTS"),
 		compat_row("Windows x86-64", "10", "10", "Server 2019 and later"),
 		compat_row("Kubernetes operator", "1.26", "1.28", "Helm chart 5.x"),
 	],
@@ -458,6 +499,7 @@ contents = |options| Ok([
 				],
 			),
 		]),
+		flags_table,
 		Pdf.rich_paragraph([
 			Pdf.text("Questions are welcome in "),
 			Pdf.inline_link([Pdf.emphasis([Pdf.text("the discussion forum")])], "https://github.example/kestrel/kestrel/discussions"),
