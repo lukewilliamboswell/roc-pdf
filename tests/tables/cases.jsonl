@@ -6,3 +6,5 @@
 {"name":"tables ordered numeric cells","schema_version":1,"case":{"Ordered":{"context":0}}}
 {"name":"tables atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
 {"name":"tables whole-table keep","schema_version":1,"case":{"KeptWhole":{"context":0}}}
+{"name":"tables styled x40","schema_version":1,"case":{"Styled":{"rows":40}}}
+{"name":"tables styled x400","schema_version":1,"case":{"Styled":{"rows":400}}}

@@ -810,7 +810,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			$expansions = $expansions + checked.expansions
 			$elements = $elements + rich.elements
 			$leaves = $leaves + rich.leaves
-			$spanned = $spanned + record.column_span
+			$spanned = $spanned + record.column_span.to_u64()
 			if record.column_span > 1 {
 				$attributes = $attributes + 1
 			}
@@ -844,7 +844,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 					$headers = if record.column_span == 1 {
 						append_all($headers, list_at($column_headers, $column))
 					} else {
-						append_spanned_headers($headers, $column_headers, $column, record.column_span)
+						append_spanned_headers($headers, $column_headers, $column, record.column_span.to_u64())
 					}
 					$headers = append_all($headers, $row_headers)
 				}
@@ -856,7 +856,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 				$relationships = $relationships + count
 			}
 			$ranges = $ranges.append(Semantics.Range.from_start_and_length(start, count))
-			$column = $column + record.column_span
+			$column = $column + record.column_span.to_u64()
 			$index = $index + 1
 		}
 		$column = 0
@@ -866,14 +866,14 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			match record.kind {
 				HeaderCell(scope) => if scope != Row {
 					var $spanned_column = $column
-					while $spanned_column < $column + record.column_span {
+					while $spanned_column < $column + record.column_span.to_u64() {
 						$column_headers = list_set($column_headers, $spanned_column, list_at($column_headers, $spanned_column).append($index))
 						$spanned_column = $spanned_column + 1
 					}
 				}
 				DataCell => {}
 			}
-			$column = $column + record.column_span
+			$column = $column + record.column_span.to_u64()
 			$index = $index + 1
 		}
 		$row_ordinal = $row_ordinal + 1
@@ -2000,7 +2000,7 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 				}
 				attribute_start = $attributes.len()
 				if record.column_span > 1 {
-					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("ColSpan"), owner: Table, value: Integer(record.column_span.to_i64_wrap()) })
+					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("ColSpan"), owner: Table, value: Integer(record.column_span.to_i64()) })
 				}
 				associations = list_at(planning.header_ranges, ordinal)
 				if associations.length() != 0 {

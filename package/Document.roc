@@ -77,6 +77,10 @@ RowSplit : [KeepRows, SplitRows]
 ## spans, or in an explicit alignment of its own.
 CellAlign : [Aligned(ColumnAlign), FirstColumn]
 
+## A cell's own background: none, or a solid color painted over its row's
+## fill as a layout decoration artifact.
+CellFill := [NoCellFill, CellFill(Color.SourceValue)]
+
 ## A data cell (`TD`) or a header cell (`TH`) with its declared scope.
 CellKind : [DataCell, HeaderCell(HeaderScope)]
 
@@ -86,7 +90,7 @@ DocumentRow :: [Row(List(DocumentCell))].{}
 ## One authored table cell: inline content forming one paragraph, its kind,
 ## and the columns and rows it spans. Row spans are represented so they can
 ## be rejected with a located diagnostic.
-DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), kind : CellKind, row_span : U16 })].{}
+DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{}
 
 ## One authored list item: the blocks of its `LBody`, in logical order. Its
 ## `Lbl` is generated from the enclosing list's marker.
@@ -375,7 +379,12 @@ NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn)
 
 ## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
 ## kind, its authored column and row spans, and its line alignment.
-NormalizedCell : { align : CellAlign, block : U64, column_span : U64, kind : CellKind, row_span : U64 }
+##
+## `fill` is zero, or the cell's own background packed by `pack_color`.
+## Spans keep their authored `U16` so the record stays 24 bytes: a wider
+## cell record made every document allocate more under the pinned
+## compiler (docs/performance/tables.md).
+NormalizedCell : { align : CellAlign, block : U64, column_span : U16, fill : U64, kind : CellKind, row_span : U16 }
 
 ## The section a normalized table row belongs to.
 TableSection : [Body, Footer, Header]
@@ -701,6 +710,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	Caption : Caption
 	Cell : DocumentCell
 	CellAlign : CellAlign
+	CellFill : CellFill
+
+	## A normalized cell's own fill color.
+	cell_fill : NormalizedCell -> CellFill
+	cell_fill = |cell| if cell.fill == 0 NoCellFill else CellFill(unpack_color(cell.fill))
+
 	CellKind : CellKind
 	ColumnAlign : ColumnAlign
 	ColumnWidth : ColumnWidth
@@ -1057,11 +1072,11 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## A data cell (`TD`) of inline content.
 	cell : List(DocumentInline) -> DocumentCell
-	cell = |contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, kind: DataCell, row_span: 1 })
+	cell = |contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: DataCell, row_span: 1 })
 
 	## A header cell (`TH`) with its declared scope.
 	header_cell : HeaderScope, List(DocumentInline) -> DocumentCell
-	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, kind: HeaderCell(scope), row_span: 1 })
+	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: HeaderCell(scope), row_span: 1 })
 
 	## A cell spanning `count` columns.
 	spanning : U16, DocumentCell -> DocumentCell
@@ -1074,6 +1089,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	aligned : ColumnAlign, DocumentCell -> DocumentCell
 	aligned = |align, value| match value {
 		Cell(record) => DocumentCell.Cell({ ..record, align: Aligned(align) })
+	}
+
+	## A cell with its own background color.
+	shaded : Color.SourceValue, DocumentCell -> DocumentCell
+	shaded = |color, value| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, fill: CellFill(color) })
 	}
 
 	## A cell spanning `count` rows; row spans are outside the supported
@@ -1953,6 +1974,26 @@ has_caption = |caption| match caption {
 	NoCaption => False
 }
 
+## An exact color as one integer: `1 << 48` plus the red, green, and blue
+## channels for an sRGB color, `2 << 48` plus the channel for a gray one.
+pack_color : Color.SourceValue -> U64
+pack_color = |color| match color {
+	Srgb(Rgb({ blue, green, red })) => rgb_color_kind + red.to_u64().shl_wrap(32) + green.to_u64().shl_wrap(16) + blue.to_u64()
+	Srgb(Gray(level)) => gray_color_kind + level.to_u64()
+}
+
+unpack_color : U64 -> Color.SourceValue
+unpack_color = |packed| {
+	channel = |shift| packed.shr_wrap(shift).bitwise_and(0xFFFF).to_u16_wrap()
+	if packed >= gray_color_kind Srgb(Gray(channel(0))) else Srgb(Rgb({ blue: channel(0), green: channel(16), red: channel(32) }))
+}
+
+rgb_color_kind : U64
+rgb_color_kind = 0x1_0000_0000_0000
+
+gray_color_kind : U64
+gray_color_kind = 0x2_0000_0000_0000
+
 append_table_rows : SimpleState, List(DocumentRow), TableSection, U64 -> SimpleState
 append_table_rows = |state, rows, section, table_code| {
 	var $state = state
@@ -1968,7 +2009,11 @@ append_table_rows = |state, rows, section, table_code| {
 			record = match list_at(cells, $index) {
 				Cell(value) => value
 			}
-			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span.to_u64(), kind: record.kind, row_span: record.row_span.to_u64() }) }
+			fill = match record.fill {
+				NoCellFill => 0
+				CellFill(color) => pack_color(color)
+			}
+			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span, fill, kind: record.kind, row_span: record.row_span }) }
 			$state = append_rich($state, record.contents, row_group + 1, $index)
 			$index = $index + 1
 		}

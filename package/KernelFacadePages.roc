@@ -51,7 +51,7 @@ KernelFacadePages :: [].{
 		TableLayout({ error : KernelPageLayout.Error, groups : List(KeepSource), units : List(Unit) }),
 
 		## A table rule wider than the row gap it is drawn in.
-		TableRuleWidth({ gap : U64, width : U64 }),
+		TableRuleWidth({ gap : U64, rule : [BodyRule, HeaderFooterRule], width : U64 }),
 	]
 	Limits :: { max_blocks : U64, max_rows : U64, page : KernelPageLayout.Limits }.{
 		make : { max_blocks : U64, max_rows : U64, page : KernelPageLayout.Limits } -> Limits
@@ -82,9 +82,11 @@ KernelFacadePages :: [].{
 	## `leaves` normalized leaf blocks (the lead region's group).
 	FlowTemplate : { continuation : KernelPageLayout.Frame, first : KernelPageLayout.Frame, lead : [Lead({ frame : KernelPageLayout.Frame, leaves : U64 }), NoLead] }
 
-	## A table rule: a filled rectangle on a page, painted as a layout
-	## decoration artifact in the theme's rule color.
-	Rule : { color : Color.SourceValue, page : U64, rect : Layout.Rect }
+	## A filled rectangle owned by a layout decoration artifact: a table
+	## rule or link underline painted after its page's text (`Front`), or
+	## a table row or cell fill painted before it (`Behind`). On each page
+	## the `Behind` rectangles come first.
+	Rule : { color : Color.SourceValue, layer : [Behind, Front], page : U64, rect : Layout.Rect }
 
 	## One placed in-flow decoration: its index in the normalized
 	## decorations, its page, and its drawing's bottom-left corner.
@@ -393,7 +395,10 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 ## One page-layout unit's table facts: a row unit's cell ordinals, its
 ## table, grid line count, and whether a rule follows its last line (the
 ## last header row) or precedes its first (the first footer row).
-RowInfo : { cells : Semantics.Range, grid : U64, rule_above : Bool, rule_below : Bool, table : U64 }
+##
+## `fill` is the row's theme fill and `body_rule` whether the theme's body
+## rule separates it from the body row before it.
+RowInfo : { body_rule : Bool, cells : Semantics.Range, fill : Theme.TableFill, grid : U64, rule_above : Bool, rule_below : Bool, table : U64 }
 
 ## One table's repeat facts: its header row units, the height they and the
 ## gap after them reserve on a continuation page, and its width.
@@ -440,11 +445,22 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 		Rule({ color, width }) => {
 			thickness = nonnegative_raw(width)?
 			if thickness > gap {
-				return Err(TableRuleWidth({ gap, width: thickness }))
+				return Err(TableRuleWidth({ gap, rule: HeaderFooterRule, width: thickness }))
 			}
 			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
+	body_rule = match table_style.body_rule {
+		NoRule => NoTableRule
+		Rule({ color, width }) => {
+			thickness = nonnegative_raw(width)?
+			if thickness > gap {
+				return Err(TableRuleWidth({ gap, rule: BodyRule, width: thickness }))
+			}
+			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+		}
+	}
+	padding = nonnegative_raw(table_style.cell_padding)?
 	paragraph_spacing = nonnegative_raw(Theme.paragraph_spacing(theme))?
 	flow_facts = plan_flow(authoring, block_lines, page_size, theme, flow)?
 	cell_geometry = KernelFacadeTables.Plan.cells(tables)
@@ -452,7 +468,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	table_sources = KernelFacadeTables.Plan.sources(tables)
 	synthetic = { advance: Layout.Unit.from_raw(0), clusters: Semantics.Range.from_start_and_length(0, 0), source: { scalars: Semantics.Range.from_start_and_length(0, 0), utf8_bytes: Semantics.Range.from_start_and_length(0, 0) } }
 	dummy_row = { body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.Range.from_start_and_length(0, 0) }, label: NoLabel }
-	no_row = { cells: Semantics.Range.from_start_and_length(0, 0), grid: 0, rule_above: False, rule_below: False, table: 0 }
+	no_row = { body_rule: False, cells: Semantics.Range.from_start_and_length(0, 0), fill: NoFill, grid: 0, rule_above: False, rule_below: False, table: 0 }
 	var $visual_lines = []
 	var $line_rows = []
 	var $cell_rows = []
@@ -506,6 +522,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			}
 			header_first = $units.len()
 			var $header_height = 0
+			var $body_ordinal = 0
 			var $row_group = table_group_index + 1
 			while $row_group < group.group_end {
 				row = list_at(authoring.groups, $row_group)
@@ -591,7 +608,15 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				lead = if section != Header and table.header_rows > 0 $header_height else 0
 				minimum = U64.min(2, $grid)
 				$units = $units.append(RowUnit($row_group))
-				$row_info = $row_info.append({ cells: Semantics.Range.from_start_and_length(first_cell, $cell_cursor - first_cell), grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table_cursor })
+				fill = match section {
+					Header => table_style.header_fill
+					Footer => table_style.footer_fill
+					Body => if $body_ordinal % 2 == 0 table_style.body_fills.odd else table_style.body_fills.even
+				}
+				$row_info = $row_info.append({ body_rule: section == Body and $body_ordinal > 0, cells: Semantics.Range.from_start_and_length(first_cell, $cell_cursor - first_cell), fill, grid: $grid, rule_above: first_footer, rule_below: last_header, table: $table_cursor })
+				if section == Body {
+					$body_ordinal = $body_ordinal + 1
+				}
 				$page_blocks = $page_blocks.append({
 					baseline_offset: Layout.Unit.from_raw($size.to_i64_wrap()),
 					decoration: leaf_decoration(flow_facts, row.first_block),
@@ -714,6 +739,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	var $pages = List.with_capacity(layout_pages.len())
 	var $artifact_rows = []
 	var $rules = []
+	var $fills = []
 	var $repeats = []
 	var $splits = []
 	var $repeated = 0
@@ -752,6 +778,10 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					}
 					$cell = $cell + 1
 				}
+				row_top = checked_sub(page_top, $used)?
+				row_bottom = checked_sub(row_top, checked_mul(header_row.grid, leading)?)?
+				$fills = append_fill($fills, header_row.fill, page_index, { bottom: row_bottom, gap, top: row_top, width: info.width, x: margin_left })
+				$fills = append_cell_fills($fills, authoring, cell_geometry, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left })
 				$used = checked_add($used, checked_add(checked_mul(header_row.grid, leading)?, gap)?)?
 				$header = $header + 1
 			}
@@ -798,11 +828,16 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					}
 					table_width = list_at($table_info, info.table).width
 					bottom = fragment.layout.geometry.origin.y.raw().to_u64_wrap()
+					top = checked_add(bottom, fragment.layout.geometry.size.height.raw().to_u64_wrap())?
+					$fills = append_fill($fills, info.fill, page_index, { bottom, gap, top, width: table_width, x: margin_left })
+					$fills = append_cell_fills($fills, authoring, cell_geometry, info.cells, { bottom, gap, padding, page: page_index, top, x: margin_left })
+					if info.body_rule and first_grid == 0 and $fragment > first_fragment {
+						$rules = append_rule($rules, body_rule, page_index, margin_left, table_width, checked_add(top, gap / 2)?)
+					}
 					if info.rule_below and first_grid + taken == info.grid {
 						$rules = append_rule($rules, rule, page_index, margin_left, table_width, checked_sub(bottom, gap / 2)?)
 					}
 					if info.rule_above and first_grid == 0 and $fragment > first_fragment {
-						top = checked_add(bottom, fragment.layout.geometry.size.height.raw().to_u64_wrap())?
 						$rules = append_rule($rules, rule, page_index, margin_left, table_width, checked_add(top, gap / 2)?)
 					}
 				}
@@ -823,7 +858,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			placed: Rebuilt({ pages: $pages, placements: $placements }),
 			repeats: $repeats,
 			rows: $rows,
-			rules: $rules,
+			rules: behind_first($fills, $rules),
 			splits: $splits,
 			units: $units,
 			work: {
@@ -1012,6 +1047,7 @@ append_rule = |rules, rule, page, x, width, center| match rule {
 		bottom = if center > thickness / 2 center - thickness / 2 else 0
 		rules.append({
 			color,
+			layer: Front,
 			page,
 			rect: {
 				origin: { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(bottom.to_i64_wrap()) },
@@ -1019,6 +1055,74 @@ append_rule = |rules, rule, page, x, width, center| match rule {
 			},
 		})
 	}
+}
+
+## A row fill: the row's box from `bottom` to `top` across the table,
+## extended by half the row gap above and below so filled neighbours meet.
+append_fill : List(KernelFacadePages.Rule), Theme.TableFill, U64, { bottom : U64, gap : U64, top : U64, width : U64, x : U64 } -> List(KernelFacadePages.Rule)
+append_fill = |fills, fill, page, box| match fill {
+	NoFill => fills
+	Fill(color) => fills.append(fill_rect(color, page, box))
+}
+
+## The fills of a row's own shaded cells, each across its cell box: its
+## text box widened by the cell padding on both sides.
+append_cell_fills : List(KernelFacadePages.Rule), Document.NormalizedAuthoring, List(KernelFacadeTables.CellGeometry), Semantics.Range, { bottom : U64, gap : U64, padding : U64, page : U64, top : U64, x : U64 } -> List(KernelFacadePages.Rule)
+append_cell_fills = |fills, authoring, geometry, range, box| {
+	cells = authoring.cells
+	var $fills = fills
+	var $cell = range.start()
+	while $cell < range.start() + range.length() {
+		match Document.cell_fill(list_at(cells, $cell)) {
+			NoCellFill => {}
+			CellFill(color) => {
+				cell = list_at(geometry, $cell)
+				left = if cell.x > box.padding cell.x - box.padding else 0
+				$fills = $fills.append(fill_rect(color, box.page, { bottom: box.bottom, gap: box.gap, top: box.top, width: cell.width + 2 * box.padding, x: box.x + left }))
+			}
+		}
+		$cell = $cell + 1
+	}
+	$fills
+}
+
+fill_rect : Color.SourceValue, U64, { bottom : U64, gap : U64, top : U64, width : U64, x : U64 } -> KernelFacadePages.Rule
+fill_rect = |color, page, box| {
+	below = box.gap / 2
+	bottom = if box.bottom > below box.bottom - below else 0
+	height = box.top + (box.gap - below) - bottom
+	{
+		color,
+		layer: Behind,
+		page,
+		rect: {
+			origin: { x: Layout.Unit.from_raw(box.x.to_i64_wrap()), y: Layout.Unit.from_raw(bottom.to_i64_wrap()) },
+			size: { height: Layout.Unit.from_raw(height.to_i64_wrap()), width: Layout.Unit.from_raw(box.width.to_i64_wrap()) },
+		},
+	}
+}
+
+## Page-ordered fills and rules as one list: on each page the fills come
+## first, so they paint behind the page's text and the rules after it.
+behind_first : List(KernelFacadePages.Rule), List(KernelFacadePages.Rule) -> List(KernelFacadePages.Rule)
+behind_first = |fills, rules| {
+	if fills.is_empty() {
+		return rules
+	}
+	var $merged = List.with_capacity(fills.len() + rules.len())
+	var $left = 0
+	var $right = 0
+	while $left < fills.len() or $right < rules.len() {
+		take_left = $right >= rules.len() or ($left < fills.len() and list_at(fills, $left).page <= list_at(rules, $right).page)
+		if take_left {
+			$merged = $merged.append(list_at(fills, $left))
+			$left = $left + 1
+		} else {
+			$merged = $merged.append(list_at(rules, $right))
+			$right = $right + 1
+		}
+	}
+	$merged
 }
 
 ## Authored keep-together groups, from leaf ranges to unit ranges.

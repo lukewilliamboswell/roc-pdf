@@ -389,6 +389,59 @@ slate. Its allocation count is unchanged (11,059); allocated bytes grow by 65
 (+0.002%) and output by 24 bytes: the row headers' fill-color operands
 are the slate value instead of the blue one. Every other table case is unchanged.
 
+### Row and cell fills, zebra stripes, and body rules
+
+`TableStyle` gains `header_fill`, `body_fills` (`{ odd, even }`, counted by
+the row's index in the table body so stripes are stable across pages),
+`footer_fill`, and `body_rule` (`Theme.with_table_header_fill`,
+`with_table_body_fills`, `with_table_footer_fill`, `with_table_body_rule`).
+`Pdf.shaded(color, cell)` gives one cell its own fill. All default to
+none.
+
+Ownership and paint order. A fill is presentation, not content: it is a
+filled rectangle owned by a `Decoration` layout artifact, like the header
+rule, and the cell keeps its `TH`/`TD` semantics. `KernelFacadePages.Rule`
+gains a `layer`: fills are `Behind`, rules and link underlines `Front`.
+Pagination emits every page's fills before its rules (`behind_first`, a
+linear page-ordered merge that returns the rule list untouched when a
+document has no fills), and the scene loop paints a page's `Behind`
+rectangles before its first text placement. A row fill covers the row box
+across the table and half the row gap above and below, so filled neighbours
+meet; a cell fill covers the cell's spanned columns including padding.
+Repeated headers repaint their fills with their text. Fills never move
+layout.
+
+The body rule is drawn centered in the gap above each body row that is not
+the first body row and not the first unit on its page, so it never
+duplicates the header rule on a continuation page. Like the header rule it
+must fit the row gap: a wider one is `layout.table_rule`, whose message now
+names the body rule.
+
+Normalized storage. The cell's fill is one packed `U64` in the cell arena
+(`Document.pack_color`: exact 16-bit sRGB or gray channels). A first
+attempt stored `Color.SourceValue` in `NormalizedCell`, which grew the
+record from 32 to 40 bytes; under the pinned compiler that alone added one
+to four allocations to documents with and without tables (the reference
+letter +1, the scaled-code rich-inline case +4). A `U32` field that fit the
+record's padding did not, and neither did a document- or table-level fill
+list help (a list on `SimpleState` added 60 to 100 allocations). The spans
+now keep their authored `U16` width, which keeps the record at 24 bytes
+with the packed fill. The smaller cell arena removes one to three
+allocations from table-bearing documents: `tables invoice x500` −2, the
+reference report family −1, `custom block report` −3, the page-sizes case
+−3, `reference variant rejections` −14, and `rich inline shared source
+faces x50` −2, all with allocated bytes within 0.2% (these cases are
+rebaselined). Every other case keeps its allocation count; the
+`KernelFacadePages.Rule` record's new field moves allocated bytes of
+link-underline cases by under 0.05%.
+
+Evidence: `tables styled x40` and `x400` (navy header with white column
+header text, slate row headers, zebra body, 0.25 pt body rules, a pale
+footer, and an amber total cell; continued with the header and its fill
+repainted) count fills and rules. x40: 36,247 allocations, 24 fills, 38
+rules, 2 pages. x400: 286,176 allocations (7.9×), 214 fills, 388 rules,
+12 pages: linear. Each also rejects a 5 pt body rule in a 4 pt gap.
+
 ### Whole-table keeps
 
 A table inside `Pdf.keep_together` already moved whole: `unit_groups` maps
@@ -439,8 +492,10 @@ no scale pair. No package code or existing baseline changes.
   data cell.
 - **SplitRows minimums** apply to the row's grid (its tallest cell), not to
   each cell; paint order of a split row interleaves its cells across pages.
-- **Rules** are fixed to the header and footer boundaries; header-row
-  shading and body rules are not offered.
+- **Rules** cover the header and footer boundaries and, optionally, the
+  gaps between body rows; vertical column rules and an outer frame are not
+  offered (they need column-gap geometry the width algorithm does not
+  reserve).
 - **Cell identifiers** are document-wide ordinals; authored identifiers for
   cross-document references are not offered.
 - **Column minimums of spanning cells** are checked after resolution rather

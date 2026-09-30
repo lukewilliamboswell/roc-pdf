@@ -71,16 +71,34 @@ Theme :: {
 	## consecutive rows. `rule` is drawn centered in the row gap below the
 	## header rows (and below every repeated header) and above the footer
 	## rows, across the table's width, as a layout decoration artifact; it
-	## must fit inside the row gap.
+	## must fit inside the row gap. `body_rule` is drawn the same way in the
+	## gap above every body row except the first on its page, separating
+	## consecutive body rows.
+	##
+	## Row fills shade whole rows behind their text: `header_fill` the
+	## header rows (and every repeated header), `body_fills` the body rows,
+	## alternating `odd` (the first body row) and `even` by the row's index
+	## in the table body, so stripes stay stable across pages, and
+	## `footer_fill` the footer rows. A fill covers the row's box across the
+	## table's width and half the row gap above and below it, so filled
+	## neighbours meet; it is a layout decoration artifact painted before
+	## the page's text, and never changes layout.
 	TableStyle : {
+		body_fills : { even : TableFill, odd : TableFill },
+		body_rule : TableRule,
 		cell_padding : Layout.Unit,
+		footer_fill : TableFill,
 		header_color : InlineColor,
+		header_fill : TableFill,
 		row_gap : Layout.Unit,
 		row_header_color : InlineColor,
 		rule : TableRule,
 	}
 
 	TableRule : [NoRule, Rule({ color : Color.SourceValue, width : Layout.Unit })]
+
+	## A row background: none, or a solid color.
+	TableFill : [NoFill, Fill(Color.SourceValue)]
 
 	## How link text is presented: its fill color (`Inherited` keeps the
 	## surrounding text's color; an inner themed role such as `Strong`
@@ -189,8 +207,12 @@ Theme :: {
 			quote: Inherited,
 			strong: Inherited,
 			table: {
+				body_fills: { even: NoFill, odd: NoFill },
+				body_rule: NoRule,
 				cell_padding: Layout.Unit.from_raw(4000),
+				footer_fill: NoFill,
 				header_color: Inherited,
+				header_fill: NoFill,
 				row_gap: Layout.Unit.from_raw(4000),
 				row_header_color: Inherited,
 				rule: Rule({ color: black, width: Layout.Unit.from_raw(500) }),
@@ -376,6 +398,24 @@ Theme :: {
 	## Replace the header and footer rules of tables, or remove them.
 	with_table_rule : Theme, TableRule -> Theme
 	with_table_rule = |theme, rule| { ..theme, table: { ..theme.table, rule } }
+
+	## Shade the header rows, including every repeated header.
+	with_table_header_fill : Theme, Color.SourceValue -> Theme
+	with_table_header_fill = |theme, color| { ..theme, table: { ..theme.table, header_fill: Fill(color) } }
+
+	## Shade the body rows: `odd` for the first, third, ... body row and
+	## `even` for the second, fourth, ...; the same fill in both is a solid
+	## body, different fills are zebra stripes.
+	with_table_body_fills : Theme, { even : TableFill, odd : TableFill } -> Theme
+	with_table_body_fills = |theme, body_fills| { ..theme, table: { ..theme.table, body_fills } }
+
+	## Shade the footer rows.
+	with_table_footer_fill : Theme, Color.SourceValue -> Theme
+	with_table_footer_fill = |theme, color| { ..theme, table: { ..theme.table, footer_fill: Fill(color) } }
+
+	## Rule between consecutive body rows, or `NoRule` (the default).
+	with_table_body_rule : Theme, TableRule -> Theme
+	with_table_body_rule = |theme, body_rule| { ..theme, table: { ..theme.table, body_rule } }
 
 	table_style : Theme -> TableStyle
 	table_style = |theme| theme.table

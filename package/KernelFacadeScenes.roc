@@ -371,7 +371,10 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
 				$page_groups = $page_groups.append(group)
 				$panel_cursor = $panel_cursor + 1
-			} else if $placement_cursor < page_end {
+			} else if $placement_cursor < page_end and !($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index and list_at(prepared.rules, $rule_cursor).layer == Behind) {
+				## Table row and cell fills (`Behind` rules, first on their
+				## page) paint through the rule branch below before any of the
+				## page's text.
 				placement = list_at(prepared.placements, $placement_cursor)
 				if placement.page.index() != $page_index or placement.run.index() != $placement_cursor {
 					return Err(InvalidPlacement({ placement: $placement_cursor }))
@@ -517,8 +520,9 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$page_groups = $page_groups.append(group)
 				$placement_cursor = $placement_cursor + 1
 			} else if $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
-				## Table rules paint after the page's text, each a filled rectangle
-				## owned by a layout decoration artifact.
+				## Table fills paint before the page's text and table rules and
+				## link underlines after it, each a filled rectangle owned by a
+				## layout decoration artifact.
 				rule = list_at(prepared.rules, $rule_cursor)
 				fill = match paint_color(rule.color, intent, use_srgb) {
 					Ok(value) => value

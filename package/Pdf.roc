@@ -534,6 +534,14 @@ Pdf :: [].{
 	aligned : Align, Cell -> Cell
 	aligned = |align, value| Document.aligned(align, value)
 
+	## A cell with its own background color, such as a highlighted total.
+	## It covers the cell's box (its spanned columns, padding included) and
+	## half the row gap above and below, painted over any row fill as a
+	## layout decoration artifact behind the page's text. The cell keeps
+	## its `TH` or `TD` semantics; the fill adds no structure.
+	shaded : Color.SourceValue, Cell -> Cell
+	shaded = |color, value| Document.shaded(color, value)
+
 	## A cell spanning `count` rows. Row spans are outside the supported
 	## table subset: preparation reports `table.row_span` until Gate 8.
 	row_spanning : U16, Cell -> Cell
@@ -1052,7 +1060,13 @@ pipeline_error = |error, doc| match error {
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [leaf_path(doc, block)])
 	Pages(TableLayout({ error: LeadOverflow({ available, required }), groups: _, units: _ })) => lead_overflow_error(available, required)
 	Pages(TableLayout({ error: layout_error, groups: sources, units })) => table_layout_error(doc, layout_error, sources, units)
-	Pages(TableRuleWidth({ gap, width })) => located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's table rule is ${points_text(width)} wide but the row gap it is drawn in is ${points_text(gap)}.", [])
+	Pages(TableRuleWidth({ gap, rule, width })) => {
+		name = match rule {
+			HeaderFooterRule => "table rule"
+			BodyRule => "table body rule"
+		}
+		located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's ${name} is ${points_text(width)} wide but the row gap it is drawn in is ${points_text(gap)}.", [])
+	}
 	Semantics(EmptyInline({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
 	Semantics(EmptyLinkText({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")
 	Semantics(NestedLink({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")

@@ -251,6 +251,7 @@ underline_rules = |text_plan, links, store, underline| {
 					bottom = placement.origin.y.raw() - underline.offset.raw() - underline.thickness.raw()
 					$rules = $rules.append({
 						color: list_at(styles, $run_index).color,
+						layer: Front,
 						page: placement.page.index(),
 						rect: {
 							origin: { x: placement.origin.x, y: Layout.Unit.from_raw(bottom) },

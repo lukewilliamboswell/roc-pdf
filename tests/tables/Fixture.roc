@@ -42,6 +42,13 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   so R3 carries that row to the next page with the totals.
 ## - `ordered`: numeric and spaced cells whose script stays Common under an
 ##   ordered Latin and Han policy, beside a Han span.
+## - `styled xN`: navy header rows with white column header text, slate
+##   row headers, zebra body fills, thin body rules, a pale footer fill,
+##   and a shaded total cell, continued across pages with the header and
+##   its fill repainted; the work counts the fills painted behind the text
+##   and the rules painted after it. It also rejects a body rule wider
+##   than the row gap (`layout.table_rule`). The 40/400 pair is the linear
+##   scale pair.
 ## - `kept_whole`: a 12-row captioned table inside `Pdf.keep_together`
 ##   after enough paragraphs that its caption, header, and first rows would
 ##   otherwise start on page 1; the whole table moves to page 2, which the
@@ -82,6 +89,23 @@ Fixture :: [].{
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
+
+	styled : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	styled = |rows| {
+		if rows == 0 or rows > 400 {
+			return Err(InvalidScale)
+		}
+		document = styled_document(rows)
+		thick = Theme.with_table_body_rule(styled_theme, Rule({ color: rule_gray, width: Layout.Unit.points(5) }))
+		rejected = match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, thick)) {
+			Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if message.contains("table body rule") 1 else 0
+			_ => 0
+		}
+		if rejected != 1 {
+			return Err(MissingRejection(rejected))
+		}
+		evidence_with(document, styled_theme, BuiltInFace, Paints)
+	}
 
 	kept_whole : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	kept_whole = |context| {
@@ -264,6 +288,72 @@ spans_document = |context| {
 	})
 }
 
+rule_gray : Color.SourceValue
+rule_gray = Srgb(Rgb({ blue: 48000, green: 46000, red: 44000 }))
+
+## Navy header rows with white text, slate row headers, zebra body rows
+## separated by thin rules, and a pale footer.
+styled_theme : Theme
+styled_theme = {
+	navy : Color.SourceValue
+	navy = Srgb(Rgb({ blue: 22000, green: 12000, red: 5000 }))
+	white : Color.SourceValue
+	white = Srgb(Rgb({ blue: 65535, green: 65535, red: 65535 }))
+	slate : Color.SourceValue
+	slate = Srgb(Rgb({ blue: 26000, green: 20000, red: 15000 }))
+	stripe : Color.SourceValue
+	stripe = Srgb(Rgb({ blue: 64000, green: 62000, red: 60000 }))
+	pale : Color.SourceValue
+	pale = Srgb(Rgb({ blue: 60000, green: 58000, red: 55000 }))
+	Theme.default
+		.with_table_header_color(white)
+		.with_table_header_fill(navy)
+		.with_table_row_header_color(slate)
+		.with_table_body_fills({ even: Fill(stripe), odd: NoFill })
+		.with_table_body_rule(Rule({ color: rule_gray, width: Layout.Unit.from_raw(250) }))
+		.with_table_footer_fill(pale)
+		.with_table_rule(NoRule)
+}
+
+## A styled register: N body rows under a two-column header, with a
+## shaded total cell in the footer.
+styled_document : U64 -> Document
+styled_document = |count| {
+	amber : Color.SourceValue
+	amber = Srgb(Rgb({ blue: 30000, green: 56000, red: 65000 }))
+	var $rows = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		product = match products.get($index % 8) {
+			Ok(value) => value
+			Err(OutOfBounds) => crash "styled product index escaped"
+		}
+		$rows = $rows.append(
+			Pdf.row([
+				Pdf.header_cell(Row, [Pdf.text(product.code)]),
+				Pdf.cell([Pdf.text(if product.description.is_empty() "Cafetière, 1 L" else product.description)]),
+				Pdf.cell([Pdf.text(product.amount)]),
+			]),
+		)
+		$index = $index + 1
+	}
+	Pdf.document({
+		contents: [
+			Pdf.heading(1, "Styled register"),
+			Pdf.table({
+				body_rows: $rows,
+				caption: Pdf.caption("Register of supplied items (${count.to_str()} rows)"),
+				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(Layout.Unit.points(80)) }],
+				footer_rows: [Pdf.row([Pdf.aligned(End, Pdf.spanning(2, Pdf.header_cell(Row, [Pdf.text("Total (AUD)")]))), Pdf.shaded(amber, Pdf.cell([Pdf.strong([Pdf.text("10,028.10")])]))])],
+				header_rows: [Pdf.row([Pdf.header_cell(Both, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Amount")])])],
+				row_split: KeepRows,
+			}),
+		],
+		language: "en-AU",
+		title: "Styled register (${count.to_str()} rows)",
+	})
+}
+
 kept_document : U64 -> Document
 kept_document = |context| {
 	suffix = if context == 0 "" else " (${context.to_str()})"
@@ -373,7 +463,12 @@ register_faces = |context| {
 ## planning pass and the shaping, table, line, page, and text stages over
 ## the same normalized authoring.
 evidence : Document, Theme, Faces -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-evidence = |document, theme, faces| {
+evidence = |document, theme, faces| evidence_with(document, theme, faces, NoPaints)
+
+## With `Paints`, the work also counts the table fills painted behind the
+## text and the rules painted after it.
+evidence_with : Document, Theme, Faces, [NoPaints, Paints] -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence_with = |document, theme, faces, paints| {
 	options = match faces {
 		BuiltInFace => Pdf.Options.with_theme(Pdf.Options.default, theme)
 		Policy(policy) => Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), policy.registry)
@@ -406,9 +501,16 @@ evidence = |document, theme, faces| {
 	}
 	final_runs = KernelFacadeText.Plan.text(text).runs.len()
 	artifact_runs = KernelFacadeText.Plan.artifact_runs(text).len()
-	Ok({
-		bytes,
-		work: [
+	paint_counts = match paints {
+		NoPaints => { behind: 0, front: 0 }
+		Paints => {
+			rules = KernelFacadePages.Plan.rules(pages)
+			behind = rules.keep_if(|rule| rule.layer == Behind).len()
+			{ behind, front: rules.len() - behind }
+		}
+	}
+	measured = match paints {
+		NoPaints => [
 			work.node_writes,
 			work.occurrence_writes,
 			work.tables,
@@ -425,8 +527,29 @@ evidence = |document, theme, faces| {
 			final_runs - artifact_runs,
 			artifact_runs,
 			bytes.len(),
-		],
-	})
+		]
+		Paints => [
+			work.node_writes,
+			work.occurrence_writes,
+			work.tables,
+			work.table_cells,
+			work.header_association_edges,
+			table_work.cell_measurements,
+			table_work.measurement_cache_hits,
+			table_work.column_width_passes,
+			table_work.row_visits,
+			KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(staged.lines)).len(),
+			page_work.page.page_writes,
+			page_work.page.candidate_visits,
+			page_work.repeated_header_paints,
+			final_runs - artifact_runs,
+			artifact_runs,
+			paint_counts.behind,
+			paint_counts.front,
+			bytes.len(),
+		]
+	}
+	Ok({ bytes, work: measured })
 }
 
 page_size : Layout.Size

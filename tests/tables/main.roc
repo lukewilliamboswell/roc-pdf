@@ -14,6 +14,7 @@ Case : [
 	Ordered({ context : U64 }),
 	AtomicNegatives({ context : U64 }),
 	KeptWhole({ context : U64 }),
+	Styled({ rows : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -49,6 +50,7 @@ main! = |args| {
 		Ordered({ context }) => Fixture.ordered(context)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 		KeptWhole({ context }) => Fixture.kept_whole(context)
+		Styled({ rows }) => Fixture.styled(rows)
 	}
 	match result {
 		Ok(value) => value

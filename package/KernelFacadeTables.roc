@@ -148,7 +148,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 					var $block = row_group.first_block
 					while $block < row_group.block_end {
 						record = list_at(authoring.cells, $ordinal_cursor)
-						span = record.column_span
+						span = record.column_span.to_u64()
 						cell_width = sum_range(columns, $column, span)
 						if cell_width <= 2 * padding {
 							return Err(UnbreakableToken({ available: 0, block: $block, token: list_at($measures, $ordinal_cursor).token, width: list_at($measures, $ordinal_cursor).min_content }))
@@ -244,7 +244,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 				}
 				$maxima = list_set($maxima, $column, U64.max(list_at($maxima, $column), measure.max_content + 2 * padding))
 			}
-			$column = $column + record.column_span
+			$column = $column + record.column_span.to_u64()
 			$ordinal = $ordinal + 1
 			$block = $block + 1
 		}
