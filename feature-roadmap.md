@@ -1056,6 +1056,16 @@ independent structure checker. Each record lists its own open issues:
 - The CIDSystemInfo ASCII-string correction and the CI Arlington lane:
   `docs/performance/cid-system-info-ascii.md`.
 
+- The gallery's API gaps: odd-length Macintosh `name` records and fonts
+  without TrueType hinting tables (`font-inspection.md`,
+  `font-subsetting.md`); specific located diagnostics in place of the
+  `UnsupportedAuthoringContent` catch-all (`facade-diagnostics.md`);
+  title and heading faces and per-level heading styles
+  (`block-faces.md`); shared text shaped per occurrence, inline role
+  scales, link color and underline, and scoped inline colors
+  (`rich-inline.md`); the built-in face through
+  `Font.Registry.register_built_in` (`caller-font-registration.md`); and
+  bounded text labels inside drawings (`drawing-labels.md`).
 - Reference documents and closure (S10): the gallery programs
   `examples/tax-invoice/main.roc`, `examples/business-report/main.roc`, and
   `examples/warranty-letter/main.roc`, the `tests/reference_documents` family, the
