@@ -75,13 +75,17 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, registry: bold.registry })
 }
 
-## Regular for every block role (the style-face path requires one face
-## for body, heading, and title text); Bold for `Pdf.strong`.
+## Regular for body text; Bold for the title, headings, and `Pdf.strong`.
 with_faces : Theme, Faces -> Theme
-with_faces = |base, faces|
+with_faces = |base, faces| {
+	heading = Theme.heading_style(base)
+	title = Theme.title_style(base)
 	base
 		.with_font(faces.regular)
+		.with_title_style({ ..title, font: faces.bold })
+		.with_heading_style({ ..heading, font: faces.bold })
 		.with_inline_font(Strong, faces.bold)
+}
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -264,14 +268,14 @@ readings_table = {
 
 ## ---------------------------------------------------------------------
 ## Figure 1: both probes over 24 hours against the 2 to 8 °C safe band.
-## Twenty points per degree from a baseline at y = 12; nine points per
-## half-hour slot from x = 20.
+## Twenty points per degree from a baseline at y = 24; nine points per
+## half-hour slot from x = 40, leaving a column for the axis labels.
 
 plot_y : U64 -> I64
-plot_y = |value| 12 + value.to_i64_wrap() * 2
+plot_y = |value| 24 + value.to_i64_wrap() * 2
 
 plot_x : U64 -> I64
-plot_x = |slot| 20 + slot.to_i64_wrap() * 9
+plot_x = |slot| 40 + slot.to_i64_wrap() * 9
 
 series : (U64 -> U64) -> Scene.AuthorPath
 series = |probe| {
@@ -284,57 +288,49 @@ series = |probe| {
 	$path.finish()
 }
 
-## A seven-segment digit, 1 pt strokes in a 5 × 9 pt cell, for the axis.
-digit : U64 -> Scene.Drawing
-digit = |value| {
-	a = (0, 8, 5, 1)
-	b = (4, 4, 1, 5)
-	c = (4, 0, 1, 5)
-	d = (0, 0, 5, 1)
-	e = (0, 0, 1, 5)
-	f = (0, 4, 1, 5)
-	g = (0, 4, 5, 1)
-	segments = match value {
-		2 => [a, b, g, e, d]
-		4 => [f, g, b, c]
-		6 => [a, f, g, e, c, d]
-		8 => [a, b, c, d, e, f, g]
-		_ => [a, b, c, d, e, f]
-	}
-	var $drawing = Scene.drawing({})
-	for (x, y, w, h) in segments {
-		$drawing = Scene.rectangle($drawing, Layout.rect(x, y, w, h), slate)
-	}
-	$drawing
-}
+## A legend entry: a short line in the series colour and its name.
+legend : Scene.Drawing, I64, I64, Color.SourceValue, Layout.Unit, Str -> Scene.Drawing
+legend = |drawing, x, y, color, width, name|
+	drawing
+		.path(Scene.path({}).move_to(Layout.point(x, y + 3)).line_to(Layout.point(x + 16, y + 3)).finish(), Scene.solid_stroke(color, width))
+		.text({ align: Start, color: slate, origin: Layout.point(x + 21, y), size: points(7), text: name })
 
 temperature_chart : Scene.Drawing
 temperature_chart = {
 	band = Color.srgb8({ red: 226, green: 244, blue: 236 })
 	grid = Color.srgb8({ red: 226, green: 232, blue: 240 })
 	light = Color.srgb8({ red: 125, green: 180, blue: 200 })
+	right = plot_x(48)
 
-	## The safe band (2.0 to 8.0 °C), labelled gridlines every 2 °C, and hour ticks.
-	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(20, plot_y(20), 432, plot_y(80) - plot_y(20)), band)
+	## The safe band (2.0 to 8.0 °C), labelled gridlines every 2 °C, and
+	## hour ticks labelled every 6 hours.
+	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(plot_x(0), plot_y(20), right - plot_x(0), plot_y(80) - plot_y(20)), band)
 	for degrees in [0, 2, 4, 6, 8] {
-		$d = Scene.rectangle($d, { origin: Layout.point(20, plot_y(degrees * 10)), size: { height: Layout.Unit.millipoints(500), width: points(432) } }, grid)
-		if degrees > 0 {
-			$d = $d.group(Layout.point(7, plot_y(degrees * 10) - 4), digit(degrees))
-		}
+		$d = Scene.rectangle($d, { origin: Layout.point(plot_x(0), plot_y(degrees * 10)), size: { height: Layout.Unit.millipoints(500), width: points(right - plot_x(0)) } }, grid)
+		$d = $d.text({ align: End, color: slate, origin: Layout.point(plot_x(0) - 5, plot_y(degrees * 10) - 2), size: points(7), text: "${degrees.to_str()} °C" })
 	}
 	var $tick = 0
 	while $tick <= 48 {
-		$d = Scene.rectangle($d, { origin: Layout.point(plot_x($tick), 4), size: { height: points(if $tick % 12 == 0 8 else 4), width: Layout.Unit.millipoints(600) } }, slate)
+		major = $tick % 12 == 0
+		$d = Scene.rectangle($d, { origin: Layout.point(plot_x($tick), if major 16 else 20), size: { height: points(if major 8 else 4), width: Layout.Unit.millipoints(600) } }, slate)
+		if major {
+			## The last label ends at the axis end so it stays in the chart.
+			$d = $d.text({ align: if $tick == 48 End else Center, color: slate, origin: Layout.point(plot_x($tick), 5), size: points(7), text: clock($tick) })
+		}
 		$tick = $tick + 4
 	}
 
 	## The 8.0 °C limit as a solid alarm line, and the excursion window.
-	$d = Scene.rectangle($d, { origin: Layout.point(20, plot_y(80)), size: { height: Layout.Unit.millipoints(1200), width: points(432) } }, alarm)
+	$d = Scene.rectangle($d, { origin: Layout.point(plot_x(0), plot_y(80)), size: { height: Layout.Unit.millipoints(1200), width: points(right - plot_x(0)) } }, alarm)
 	$d = Scene.rectangle($d, Layout.rect(plot_x(28), plot_y(80), plot_x(32) - plot_x(28), plot_y(95) - plot_y(80)), Color.srgb8({ red: 254, green: 226, blue: 226 }))
+	$d = $d.text({ align: End, color: alarm, origin: Layout.point(right, plot_y(80) + 4), size: points(7), text: "8.0 °C limit" })
+	$d = $d.text({ align: Center, color: alarm, origin: Layout.point((plot_x(28) + plot_x(32)) // 2, plot_y(95) + 4), size: points(7), text: "Excursion" })
+	$d = legend($d, plot_x(0), plot_y(100), spruce, points(2), "Probe A")
+	$d = legend($d, plot_x(0) + 76, plot_y(100), light, Layout.Unit.millipoints(1500), "Probe B")
 	$d
 		.path(series(probe_b), Scene.solid_stroke(light, Layout.Unit.millipoints(1500)))
 		.path(series(probe_a), Scene.solid_stroke(spruce, points(2)))
-		.path(Scene.path({}).move_to(Layout.point(20, 12)).line_to(Layout.point(452, 12)).finish(), Scene.solid_stroke(slate, Layout.Unit.millipoints(800)))
+		.path(Scene.path({}).move_to(Layout.point(plot_x(0), 24)).line_to(Layout.point(right, 24)).finish(), Scene.solid_stroke(slate, Layout.Unit.millipoints(800)))
 }
 
 ## ---------------------------------------------------------------------
@@ -391,7 +387,7 @@ contents = [
 		Pdf.figure(
 			temperature_chart,
 			"Line chart of probe temperatures over 24 hours from 06:00. Both probes hold between 3.4 and 4.6 °C, inside the 2 to 8 °C safe band, except from 20:30 to 21:30, when probe A peaks at 9.1 °C and probe B at 8.4 °C before returning to the band by 22:00.",
-			Pdf.caption("Figure 1. Probe A (dark) and probe B (light) against the 2 to 8 °C band; ticks every 2 hours from 06:00"),
+			Pdf.caption("Figure 1. Probe A and probe B against the 2 to 8 °C band; ticks every 2 hours from 06:00"),
 		),
 	]),
 	Pdf.section([
