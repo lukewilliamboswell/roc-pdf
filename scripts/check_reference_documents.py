@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from text_positions import shown_cids  # noqa: E402
 from pdf_layout import LayoutError, mutate as layout_mutate, occurrences as layout_occurrences, twin as layout_twin  # noqa: E402
-from check_pdf_structure import ValidationError, require  # noqa: E402
+from check_pdf_structure import ValidationError, require, to_unicode_mappings  # noqa: E402
 from check_structure_semantics import Document, Ref, element_children, page_order, text_string  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -153,15 +153,7 @@ def font_map(document: Document, page: int, name: bytes) -> dict[int, str]:
     resources = document.get(int(resources)) if isinstance(resources, Ref) else resources
     font = document.get(int(resources["Font"][name.decode()]))
     cmap = document.stream(int(font["ToUnicode"]))
-    mapping: dict[int, str] = {}
-    for block in re.findall(rb"beginbfchar\n(.*?)endbfchar", cmap, re.S):
-        for source, target in re.findall(rb"<([0-9A-F]+)> <([0-9A-F]+)>", block):
-            mapping[int(source, 16)] = bytes.fromhex(target.decode()).decode("utf-16-be")
-    for block in re.findall(rb"beginbfrange\n(.*?)endbfrange", cmap, re.S):
-        for low, high, target in re.findall(rb"<([0-9A-F]+)> <([0-9A-F]+)> <([0-9A-F]+)>", block):
-            base = int(target, 16)
-            for offset, code in enumerate(range(int(low, 16), int(high, 16) + 1)):
-                mapping[code] = chr(base + offset)
+    mapping = {cid: "".join(chr(scalar) for scalar in scalars) for cid, scalars in to_unicode_mappings(cmap).items()}
     return mapping
 
 

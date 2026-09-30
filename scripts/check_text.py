@@ -14,6 +14,7 @@ from pathlib import Path
 from pdf_layout import mutate, occurrences
 from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import (
+    to_unicode_mappings,
     ValidationError,
     dictionary_ref,
     dictionary_ref_array,
@@ -106,34 +107,7 @@ def decoded_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]
 
 def cmap_mappings(cmap: bytes) -> dict[int, tuple[int, ...]]:
     require(b"1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n" in cmap, "ToUnicode codespace is not exact")
-    count_match = re.search(rb"\n([0-9]+) beginbfchar\n", cmap)
-    require(count_match is not None, "ToUnicode has no bfchar block")
-    block_start = count_match.end()
-    block_end = cmap.find(b"endbfchar\n", block_start)
-    require(block_end >= 0, "ToUnicode bfchar block does not end")
-    rows = re.findall(rb"^<([0-9A-F]{4})> <([0-9A-F]{4}(?:[0-9A-F]{4})*)>$", cmap[block_start:block_end], re.MULTILINE)
-    require(len(rows) == int(count_match.group(1)), "ToUnicode bfchar count differs from its rows")
-    mappings: dict[int, tuple[int, ...]] = {}
-    for encoded_cid, encoded_unicode in rows:
-        cid = int(encoded_cid, 16)
-        require(cid not in mappings, f"ToUnicode repeats CID {cid}")
-        units = [int(encoded_unicode[index : index + 4], 16) for index in range(0, len(encoded_unicode), 4)]
-        scalars: list[int] = []
-        index = 0
-        while index < len(units):
-            unit = units[index]
-            if 0xD800 <= unit <= 0xDBFF:
-                require(index + 1 < len(units), "ToUnicode ends with a high surrogate")
-                low = units[index + 1]
-                require(0xDC00 <= low <= 0xDFFF, "ToUnicode high surrogate has no low surrogate")
-                scalars.append(0x10000 + ((unit - 0xD800) << 10) + low - 0xDC00)
-                index += 2
-            else:
-                require(not 0xDC00 <= unit <= 0xDFFF, "ToUnicode contains an unpaired low surrogate")
-                scalars.append(unit)
-                index += 1
-        mappings[cid] = tuple(scalars)
-    return mappings
+    return to_unicode_mappings(cmap)
 
 
 def validate_text_pdf(pdf: bytes) -> None:
@@ -151,7 +125,7 @@ def validate_text_pdf(pdf: bytes) -> None:
     require(b"/StructParents 0" in page_body, "page does not have the planned ParentTree key")
     require(b"/Tabs /S" in page_body, "page tab order is not structure order")
     resources = re.search(
-        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>",
         page_body,
     )
     require(resources is not None, "page does not have the exact color/font resource closure")

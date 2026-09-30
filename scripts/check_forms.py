@@ -25,6 +25,7 @@ from pathlib import Path
 
 from pdf_layout import LayoutError, flatten, twin as layout_twin
 from check_pdf_structure import (
+    dictionary_value,
     structure_kids,
     mcid_owners,
     ValidationError,
@@ -68,11 +69,9 @@ def decoded_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]
 
 def parse_resources(dictionary: bytes, owner: str) -> dict[str, int]:
     """The exact direct resource dictionary of one stream as name -> object."""
-    match = re.search(rb"/Resources << (.*?) >> /(?:Rotate|Subtype)", dictionary, re.DOTALL)
-    if match is None:
-        match = re.search(rb"/Resources << (.*) >>", dictionary, re.DOTALL)
-    require(match is not None, f"{owner}: missing /Resources dictionary")
-    body = match.group(1)
+    value = dictionary_value(dictionary, b"Resources")
+    require(value is not None, f"{owner}: missing /Resources dictionary")
+    body = value[2:-2].strip()
     entries: dict[str, int] = {}
     for sub in re.finditer(rb"/(ColorSpace|ExtGState|Font|XObject) << ([^>]*) >>", body):
         for entry in re.finditer(rb"/([A-Za-z0-9_]+) ([1-9][0-9]*) 0 R", sub.group(2)):

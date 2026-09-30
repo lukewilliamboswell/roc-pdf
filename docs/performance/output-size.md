@@ -596,3 +596,76 @@ consumer and converted each identifier to bytes per binary-search step, which
 added about 200,000 allocation events to the 500-row table; the rule is now
 computed once per tagged plan over identifier bytes converted once, which
 removed them.
+
+### 5c. Default page entries and ToUnicode ranges
+
+- **Page boxes, rotation, and empty resource categories.** A page's CropBox
+  is written only when it differs from the MediaBox, and its BleedBox,
+  TrimBox, and ArtBox only when they differ from the CropBox; `/Rotate` only
+  when it is not 0 (ISO 32000-2 Table 31 defaults). An empty `/ColorSpace`,
+  `/Font`, or `/XObject` category is left out of the resource dictionary.
+  PDF/A-4 requires none of them: the audit's concern was only that a
+  conformance rule might (PDF/X needs TrimBox; PDF/A does not), and veraPDF,
+  Arlington, and PDFBox pass without them. Every facade page carried all
+  five boxes equal to its MediaBox, `/Rotate 0`, and `/XObject << >>`.
+- **ToUnicode ranges.** A run of two or more consecutive CIDs that map to
+  consecutive single BMP code units is one `bfrange` row
+  (`<0001> <0003> <0041>`); a run never crosses a 256-code boundary in its CIDs
+  or code units, as a `bfrange` requires. Everything else stays `bfchar`, and
+  consecutive rows of one kind share blocks of at most 100. The exact size is
+  still computed before the CMap is written. The checkers parse both forms
+  through one canonical parser (`check_pdf_structure.to_unicode_mappings`),
+  which also checks block counts, ascending CIDs, and the range limits.
+
+| | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Tax invoice | 27,287 | 27,174 | -113 |
+| Product brief | 47,211 | 47,025 | -186 |
+| Quarterly report | 44,473 | 44,225 | -248 |
+| Reference letter x200 | 141,899 | 141,759 | -140 |
+
+Rendering is pixel-identical. Allocations move by a few hundred events down
+with the shorter page dictionaries and CMaps.
+
+## Result
+
+Final sizes against Typst 0.15.1 on the same content (Typst `--pdf-standard
+a-4`; both PDF 2.0, PDF/A-4, and tagged). Typst writes neither object streams
+nor a compressed cross-reference table.
+
+| Document | roc-pdf before | roc-pdf after | Typst | After vs Typst |
+| --- | ---: | ---: | ---: | ---: |
+| Tax invoice | 102,418 | 27,174 | 59,863 | -54.6% |
+| Product brief | 123,053 | 47,025 | 80,133 | -41.3% |
+| Warranty letter | 79,515 | 24,538 | 35,302 | -30.5% |
+
+The three Typst sources are in [`output-size/`](output-size/) and build with
+Typst 0.15.1 (`typst compile --ignore-system-fonts --font-path <fonts>
+--pdf-standard a-4`). The warranty-letter source was written for this record in the audit's
+style (same text, table, list, letterhead drawing, and page templates, the
+same Roc PDF Sans face, `--ignore-system-fonts`); Typst lays it out on three
+pages as roc-pdf does. The quarterly report, which has no Typst twin, falls
+from 133,287 to 44,225 bytes.
+
+The tax invoice lands below the audit's estimate of about 30 KB and the
+product brief near its estimate of about 50 KB; both are now below Typst's
+output, which the audit measured at 27,698 and 50,385 bytes even after
+`qpdf --object-streams=generate` and zlib -9 on every stream.
+
+Per step, tax invoice and product brief:
+
+| Step | Tax invoice | Product brief |
+| --- | ---: | ---: |
+| Before | 102,418 | 123,053 |
+| 1. Compressed fonts, CMaps, profiles | 95,881 | 106,362 |
+| 2. libdeflate level 10 | 86,558 | 92,484 |
+| 3. `TJ` glyph runs | 79,352 | 82,168 |
+| 4. Object streams and compressed xref | 28,678 | 47,878 |
+| 5a. Literal and single-byte strings | 28,509 | 47,679 |
+| 5b. Structure elements | 27,287 | 47,211 |
+| 5c. Page defaults and ToUnicode ranges | 27,174 | 47,025 |
+
+What remains in the tax invoice is mostly the font program (10.6 KB, which
+keeps its hinting tables by policy; the audit estimates about 5 KB more
+without them), content streams (7.0 KB), the object streams (about 6 KB), and
+the sRGB2014 profile (2.6 KB; a smaller profile is a color-policy choice).

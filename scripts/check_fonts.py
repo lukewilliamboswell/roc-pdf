@@ -39,6 +39,7 @@ from check_forms import (
 )
 from pdf_layout import flatten, mutate, occurrences
 from check_pdf_structure import (
+    to_unicode_mappings,
     mcid_owners,
     decode_stream,
     ValidationError,
@@ -172,16 +173,9 @@ class Bundle:
         require(b"begincmap" in cmap and b"endcmap" in cmap, f"{owner}: ToUnicode is not a CMap")
         require(b"/CMapName /Adobe-Identity-UCS def" in cmap, f"{owner}: ToUnicode CMap name")
         self.mappings: dict[int, str] = {}
-        previous = -1
-        blocks = re.findall(rb"beginbfchar\n(.*?)endbfchar", cmap, re.DOTALL)
-        require(blocks, f"{owner}: ToUnicode has no bfchar block")
-        for match in BFCHAR.finditer(b"".join(blocks)):
-            cid = int(match.group(1), 16)
-            require(cid > previous, f"{owner}: ToUnicode CIDs are not ascending")
+        for cid, scalars in to_unicode_mappings(cmap).items():
             require(0 < cid < self.subset.glyph_count, f"{owner}: ToUnicode CID out of subset range")
-            previous = cid
-            units = bytes.fromhex(match.group(2).decode())
-            self.mappings[cid] = units.decode("utf-16-be")
+            self.mappings[cid] = "".join(chr(scalar) for scalar in scalars)
         require(self.mappings, f"{owner}: empty ToUnicode mapping")
 
     @property

@@ -170,7 +170,7 @@ def self_test() -> None:
         # is the unmirrored-extraction bug this row exists to exclude
         replace_once(original, b"<0007> <0029>", b"<0007> <0028>"),
         # a Hebrew letter remapped, breaking the painted-order reconstruction
-        replace_once(original, b"<000B> <05D0>", b"<000B> <05D2>"),
+        replace_once(original, b"<000B> <000E> <05D0>", b"<000B> <000E> <05D2>"),
         # a changed embedded subset length
         replace_once(original, b"/Length1 4380", b"/Length1 4381"),
         # a changed encoding

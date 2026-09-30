@@ -46,7 +46,7 @@ def validate_multiface_text_pdf(pdf: bytes) -> None:
     _, bodies = object_slices(pdf)
     page = only_object(bodies, b"/Type /Page ", "page")
     page_body = bodies[page]
-    resources = re.search(rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R /F1_1 ([1-9][0-9]*) 0 R >> /XObject << >> >>", page_body)
+    resources = re.search(rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R /F1_1 ([1-9][0-9]*) 0 R >> >>", page_body)
     require(resources is not None, "multi-face page does not have the exact two-font resource closure")
     require(b"/CalGray" in bodies[int(resources.group(1))], "multi-face text color is not calibrated Gray")
     latin, cjk = int(resources.group(2)), int(resources.group(3))

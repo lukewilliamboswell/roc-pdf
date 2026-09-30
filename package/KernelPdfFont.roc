@@ -448,54 +448,109 @@ validate_identity_cid_map = |plan| {
 	Ok(plan.entries.len())
 }
 
+## The ToUnicode CMap: mappings in CID order, written as `bfrange` entries for
+## runs of two or more consecutive CIDs that map to consecutive single BMP
+## code units (a run never crosses a 256-code boundary in either the CIDs or
+## the code units, as a `bfrange` requires), and as `bfchar` entries
+## otherwise. Consecutive entries of one kind share blocks of at most 100.
 build_to_unicode : List(KernelPdfFont.UnicodeMapping), U64 -> Try(List(U8), KernelPdfFont.Error)
 build_to_unicode = |mappings, limit| {
-	expected_size = to_unicode_size(mappings)?
+	runs = to_unicode_runs(mappings)
+	expected_size = to_unicode_size(mappings, runs)?
 	if expected_size > limit {
 		return Err(UnicodeMappingLimitExceeded({ attempted: expected_size, limit }))
 	}
 	var $bytes = List.with_capacity(expected_size)
 	$bytes = append_ascii($bytes, to_unicode_header)
-	var $mapping_index = 0
-	while $mapping_index < mappings.len() {
-		remaining = mappings.len() - $mapping_index
-		block_count = if remaining < 100 remaining else 100
+	var $run_index = 0
+	while $run_index < runs.len() {
+		ranged = list_at(runs, $run_index).length > 1
+		block_count = block_length(runs, $run_index, ranged)
 		$bytes = append_u64_decimal($bytes, block_count)
-		$bytes = append_ascii($bytes, " beginbfchar\n")
+		$bytes = append_ascii($bytes, if ranged " beginbfrange\n" else " beginbfchar\n")
 		var $block_index = 0
 		while $block_index < block_count {
-			mapping = list_at(mappings, $mapping_index + $block_index)
+			run = list_at(runs, $run_index + $block_index)
+			first = list_at(mappings, run.start)
 			$bytes = $bytes.append(0x3c)
-			$bytes = append_hex_u16($bytes, mapping.cid.to_u16_wrap())
+			$bytes = append_hex_u16($bytes, first.cid.to_u16_wrap())
+			if ranged {
+				last = list_at(mappings, run.start + run.length - 1)
+				$bytes = append_ascii($bytes, "> <")
+				$bytes = append_hex_u16($bytes, last.cid.to_u16_wrap())
+			}
 			$bytes = append_ascii($bytes, "> <")
 			var $scalar_index = 0
-			while $scalar_index < mapping.scalars.len() {
-				$bytes = append_scalar_utf16_hex($bytes, list_at(mapping.scalars, $scalar_index))?
+			while $scalar_index < first.scalars.len() {
+				$bytes = append_scalar_utf16_hex($bytes, list_at(first.scalars, $scalar_index))?
 				$scalar_index = $scalar_index + 1
 			}
 			$bytes = append_ascii($bytes, ">\n")
 			$block_index = $block_index + 1
 		}
-		$bytes = append_ascii($bytes, "endbfchar\n")
-		$mapping_index = $mapping_index + block_count
+		$bytes = append_ascii($bytes, if ranged "endbfrange\n" else "endbfchar\n")
+		$run_index = $run_index + block_count
 	}
 	$bytes = append_ascii($bytes, to_unicode_footer)
 	Ok($bytes)
 }
 
-to_unicode_size : List(KernelPdfFont.UnicodeMapping) -> Try(U64, KernelPdfFont.Error)
-to_unicode_size = |mappings| {
+UnicodeRun : { length : U64, start : U64 }
+
+## Maximal runs of mappings that one `bfrange` entry can express.
+to_unicode_runs : List(KernelPdfFont.UnicodeMapping) -> List(UnicodeRun)
+to_unicode_runs = |mappings| {
+	var $runs = List.with_capacity(mappings.len())
+	var $start = 0
+	while $start < mappings.len() {
+		first = list_at(mappings, $start)
+		var $length = 1
+		if single_bmp(first) {
+			var $extending = True
+			while $extending and $start + $length < mappings.len() {
+				previous = list_at(mappings, $start + $length - 1)
+				next = list_at(mappings, $start + $length)
+				if single_bmp(next) and next.cid == previous.cid + 1 and next.cid.shr_wrap(8) == first.cid.shr_wrap(8) and list_at(next.scalars, 0) == list_at(previous.scalars, 0) + 1 and list_at(next.scalars, 0).shr_wrap(8) == list_at(first.scalars, 0).shr_wrap(8) {
+					$length = $length + 1
+				} else {
+					$extending = False
+				}
+			}
+		}
+		$runs = $runs.append({ length: $length, start: $start })
+		$start = $start + $length
+	}
+	$runs
+}
+
+single_bmp : KernelPdfFont.UnicodeMapping -> Bool
+single_bmp = |mapping| mapping.scalars.len() == 1 and list_at(mapping.scalars, 0) <= 0xffff
+
+## Entries in the block starting at `from`: consecutive runs of the same kind,
+## at most 100.
+block_length : List(UnicodeRun), U64, Bool -> U64
+block_length = |runs, from, ranged| {
+	var $count = 0
+	while $count < 100 and from + $count < runs.len() and (list_at(runs, from + $count).length > 1) == ranged {
+		$count = $count + 1
+	}
+	$count
+}
+
+to_unicode_size : List(KernelPdfFont.UnicodeMapping), List(UnicodeRun) -> Try(U64, KernelPdfFont.Error)
+to_unicode_size = |mappings, runs| {
 	var $size = checked_add(to_unicode_header.count_utf8_bytes(), to_unicode_footer.count_utf8_bytes())?
-	var $mapping_index = 0
-	while $mapping_index < mappings.len() {
-		remaining = mappings.len() - $mapping_index
-		block_count = if remaining < 100 remaining else 100
+	var $run_index = 0
+	while $run_index < runs.len() {
+		ranged = list_at(runs, $run_index).length > 1
+		block_count = block_length(runs, $run_index, ranged)
 		$size = checked_add($size, decimal_digits(block_count))?
-		$size = checked_add($size, Str.count_utf8_bytes(" beginbfchar\n"))?
-		$size = checked_add($size, Str.count_utf8_bytes("endbfchar\n"))?
+		$size = checked_add($size, Str.count_utf8_bytes(if ranged " beginbfrange\n" else " beginbfchar\n"))?
+		$size = checked_add($size, Str.count_utf8_bytes(if ranged "endbfrange\n" else "endbfchar\n"))?
 		var $block_index = 0
 		while $block_index < block_count {
-			mapping = list_at(mappings, $mapping_index + $block_index)
+			run = list_at(runs, $run_index + $block_index)
+			mapping = list_at(mappings, run.start)
 			var $utf16_units = 0
 			var $scalar_index = 0
 			while $scalar_index < mapping.scalars.len() {
@@ -503,10 +558,11 @@ to_unicode_size = |mappings| {
 				$utf16_units = checked_add($utf16_units, if scalar <= 0xffff 1 else 2)?
 				$scalar_index = $scalar_index + 1
 			}
-			$size = checked_add($size, checked_add(10, checked_times($utf16_units, 4)?)?)?
+			entry = checked_add(10, checked_times($utf16_units, 4)?)?
+			$size = checked_add($size, if ranged checked_add(entry, 7)? else entry)?
 			$block_index = $block_index + 1
 		}
-		$mapping_index = $mapping_index + block_count
+		$run_index = $run_index + block_count
 	}
 	Ok($size)
 }
@@ -670,3 +726,21 @@ to_unicode_footer = "endcmap\nCMapName currentdict /CMap defineresource pop\nend
 expect append_hex_u16([], 0x04e9) == Str.to_utf8("04E9")
 
 expect append_scalar_utf16_hex([], 0x1f600)? == Str.to_utf8("D83DDE00")
+
+## Consecutive single-code-unit mappings share one bfrange; the rest stay
+## bfchar, and the precomputed size is exact.
+expect {
+	mappings = [
+		{ cid: 1, scalars: [0x41] },
+		{ cid: 2, scalars: [0x42] },
+		{ cid: 3, scalars: [0x43] },
+		{ cid: 4, scalars: [0xe9] },
+		{ cid: 5, scalars: [0x66, 0x69] },
+		{ cid: 6, scalars: [0xff] },
+		{ cid: 7, scalars: [0x100] },
+	]
+	bytes = build_to_unicode(mappings, 10000)?
+	text = Str.from_utf8_lossy(bytes)
+	text.contains("1 beginbfrange\n<0001> <0003> <0041>\nendbfrange\n4 beginbfchar\n<0004> <00E9>\n<0005> <00660069>\n<0006> <00FF>\n<0007> <0100>\nendbfchar\n")
+		and to_unicode_size(mappings, to_unicode_runs(mappings)) == Ok(bytes.len())
+}

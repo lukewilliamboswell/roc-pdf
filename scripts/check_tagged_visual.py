@@ -95,9 +95,11 @@ def validate_tagged_visual_pdf(pdf: bytes) -> None:
     page = only_object(bodies, b"/Type /Page ", "page")
     require(pages_root in bodies, "catalog page-tree root is missing")
     page_body = bodies[page]
-    for box in (b"ArtBox", b"BleedBox", b"CropBox", b"MediaBox", b"TrimBox"):
-        require(b"/" + box + b" [0 0 10 10]" in page_body, f"/{box.decode()} is not exact")
-    require(b"/Rotate 0" in page_body, "page rotation is not exact")
+    # CropBox, BleedBox, TrimBox, and ArtBox equal their defaults (the
+    # MediaBox), so only the MediaBox is written (ISO 32000-2 Table 31).
+    require(b"/MediaBox [0 0 10 10]" in page_body, "/MediaBox is not exact")
+    for box in (b"ArtBox", b"BleedBox", b"CropBox", b"TrimBox", b"Rotate"):
+        require(b"/" + box + b" " not in page_body, f"/{box.decode()} repeats its default")
     require(b"/StructParents 0" in page_body, "page StructParents key is not zero")
     require(b"/Tabs /S" in page_body, "page tab order does not follow structure order")
 

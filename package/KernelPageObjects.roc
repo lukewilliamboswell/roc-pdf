@@ -277,13 +277,16 @@ add_resources = |builder, names, objects| {
 	images = add_image_references(colors.builder, KernelObjectPlan.Plan.images(objects))?
 	color_dictionary = KernelObject.add_dictionary(images.builder, colors.entries) ? Object
 	image_dictionary = KernelObject.add_dictionary(color_dictionary.builder, images.entries) ? Object
-	resources = KernelObject.add_dictionary(
-		image_dictionary.builder,
-		[
-			{ key: names.color_space, value: color_dictionary.id },
-			{ key: names.x_object, value: image_dictionary.id },
-		],
-	) ? Object
+
+	## An empty resource category is omitted rather than written `<< >>`.
+	var $entries = List.with_capacity(2)
+	if !colors.entries.is_empty() {
+		$entries = $entries.append({ key: names.color_space, value: color_dictionary.id })
+	}
+	if !images.entries.is_empty() {
+		$entries = $entries.append({ key: names.x_object, value: image_dictionary.id })
+	}
+	resources = KernelObject.add_dictionary(image_dictionary.builder, $entries) ? Object
 	Ok({ builder: resources.builder, references: colors.entries.len() + images.entries.len(), value: resources.id })
 }
 
@@ -295,14 +298,19 @@ add_resources_with_fonts = |builder, names, font_name, objects, fonts| {
 	color_dictionary = KernelObject.add_dictionary(font_references.builder, colors.entries) ? Object
 	image_dictionary = KernelObject.add_dictionary(color_dictionary.builder, images.entries) ? Object
 	font_dictionary = KernelObject.add_dictionary(image_dictionary.builder, font_references.entries) ? Object
-	resources = KernelObject.add_dictionary(
-		font_dictionary.builder,
-		[
-			{ key: names.color_space, value: color_dictionary.id },
-			{ key: font_name, value: font_dictionary.id },
-			{ key: names.x_object, value: image_dictionary.id },
-		],
-	) ? Object
+
+	## An empty resource category is omitted rather than written `<< >>`.
+	var $entries = List.with_capacity(3)
+	if !colors.entries.is_empty() {
+		$entries = $entries.append({ key: names.color_space, value: color_dictionary.id })
+	}
+	if !font_references.entries.is_empty() {
+		$entries = $entries.append({ key: font_name, value: font_dictionary.id })
+	}
+	if !images.entries.is_empty() {
+		$entries = $entries.append({ key: names.x_object, value: image_dictionary.id })
+	}
+	resources = KernelObject.add_dictionary(font_dictionary.builder, $entries) ? Object
 	Ok({ builder: resources.builder, references: colors.entries.len() + font_references.entries.len() + images.entries.len(), value: resources.id })
 }
 
@@ -482,15 +490,19 @@ add_pages = |builder, names, resources, tagged, content, objects, groups, annota
 
 add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.Stream, KernelObject.ObjectId, KernelObjectPlan.PageObjects, KernelPageObjects.PageGroup, KernelPageObjects.PageAnnots -> Try(KernelObject.Builder, KernelPageObjects.Error)
 add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_object, planned, group, annots| {
-	art = add_rect(builder, page.boxes.art)?
-	bleed = add_rect(art.builder, page.boxes.bleed)?
+	## ISO 32000-2 Table 31 defaults: CropBox is the MediaBox, BleedBox,
+	## TrimBox, and ArtBox are the CropBox, and Rotate is 0. A box equal to its
+	## default and a zero rotation are omitted.
+	art = add_box(builder, page.boxes.art, page.boxes.crop)?
+	bleed = add_box(art.builder, page.boxes.bleed, page.boxes.crop)?
 	contents = KernelObject.add_reference(bleed.builder, planned.content.stream) ? Object
-	crop = add_rect(contents.builder, page.boxes.crop)?
+	crop = add_box(contents.builder, page.boxes.crop, page.boxes.media)?
 	media = add_rect(crop.builder, page.boxes.media)?
 	parent = KernelObject.add_reference(media.builder, parent_object) ? Object
-	rotate = KernelObject.add_integer(parent.builder, rotation_degrees(page.rotation)) ? Object
+	degrees = rotation_degrees(page.rotation)
+	rotate = KernelObject.add_integer(parent.builder, degrees) ? Object
 	struct_parents = KernelObject.add_integer(rotate.builder, content.stream.index().to_i64_wrap()) ? Object
-	trim = add_rect(struct_parents.builder, page.boxes.trim)?
+	trim = add_box(struct_parents.builder, page.boxes.trim, page.boxes.crop)?
 	var $entries = []
 	match annots {
 		NoAnnots => {}
@@ -506,10 +518,10 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 			})
 		}
 	}
-	$entries = $entries.append({ key: names.art_box, value: art.value })
-	$entries = $entries.append({ key: names.bleed_box, value: bleed.value })
+	$entries = append_box($entries, names.art_box, art.value)
+	$entries = append_box($entries, names.bleed_box, bleed.value)
 	$entries = $entries.append({ key: names.contents, value: contents.id })
-	$entries = $entries.append({ key: names.crop_box, value: crop.value })
+	$entries = append_box($entries, names.crop_box, crop.value)
 	match group {
 		NoGroup => {}
 		WithGroup(group_value) => {
@@ -527,10 +539,12 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 	$entries = $entries.append({ key: names.media_box, value: media.value })
 	$entries = $entries.append({ key: names.parent, value: parent.id })
 	$entries = $entries.append({ key: names.resources, value: resources })
-	$entries = $entries.append({ key: names.rotate, value: rotate.id })
+	if degrees != 0 {
+		$entries = $entries.append({ key: names.rotate, value: rotate.id })
+	}
 	$entries = $entries.append({ key: names.struct_parents, value: struct_parents.id })
 	$entries = $entries.append({ key: names.tabs, value: tabs_s })
-	$entries = $entries.append({ key: names.trim_box, value: trim.value })
+	$entries = append_box($entries, names.trim_box, trim.value)
 	$entries = $entries.append({ key: names.type_name, value: page_type })
 	dictionary = KernelObject.add_dictionary(
 		trim.builder,
@@ -543,6 +557,30 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 	ensure_object(stream.id, planned.content.stream)?
 	ensure_object(stream.length_object, planned.content.length)?
 	Ok(stream.builder)
+}
+
+## A page box, or nothing when it equals the box it defaults to.
+add_box : KernelObject.Builder, Layout.Rect, Layout.Rect -> Try({ builder : KernelObject.Builder, value : [DefaultBox, Box(KernelObject.ValueId)] }, KernelPageObjects.Error)
+add_box = |builder, rect, default| {
+	if same_rect(rect, default) {
+		Ok({ builder, value: DefaultBox })
+	} else {
+		added = add_rect(builder, rect)?
+		Ok({ builder: added.builder, value: Box(added.value) })
+	}
+}
+
+same_rect : Layout.Rect, Layout.Rect -> Bool
+same_rect = |left, right|
+	left.origin.x.raw() == right.origin.x.raw()
+		and left.origin.y.raw() == right.origin.y.raw()
+			and left.size.width.raw() == right.size.width.raw()
+				and left.size.height.raw() == right.size.height.raw()
+
+append_box : List(KernelObject.DictionaryEntry), KernelObject.NameId, [DefaultBox, Box(KernelObject.ValueId)] -> List(KernelObject.DictionaryEntry)
+append_box = |entries, key, value| match value {
+	DefaultBox => entries
+	Box(id) => entries.append({ key, value: id })
 }
 
 add_rect : KernelObject.Builder, Layout.Rect -> Try({ builder : KernelObject.Builder, value : KernelObject.ValueId }, KernelPageObjects.Error)

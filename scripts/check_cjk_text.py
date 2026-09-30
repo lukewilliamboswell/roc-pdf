@@ -50,7 +50,7 @@ def validate_cjk_text_pdf(pdf: bytes) -> None:
     page = only_object(bodies, b"/Type /Page ", "page")
     page_body = bodies[page]
     require(b"/StructParents 0" in page_body and b"/Tabs /S" in page_body, "CJK page does not retain tagged reading-order facts")
-    resources = re.search(rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>", page_body)
+    resources = re.search(rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>", page_body)
     require(resources is not None, "CJK page does not have the exact color/font resource closure")
     require(b"/CalGray" in bodies[int(resources.group(1))], "CJK text color is not calibrated Gray")
     type0_body = bodies[int(resources.group(2))]

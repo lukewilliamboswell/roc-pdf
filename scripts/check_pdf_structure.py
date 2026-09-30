@@ -135,6 +135,86 @@ def mcid_owners(bodies: dict[int, bytes], page: int, mcid: int) -> list[int]:
     return owners
 
 
+def utf16_scalars(units_hex: bytes) -> tuple[int, ...]:
+    """The scalars of a UTF-16BE hex string, surrogate pairs combined."""
+    units = [int(units_hex[index : index + 4], 16) for index in range(0, len(units_hex), 4)]
+    scalars: list[int] = []
+    index = 0
+    while index < len(units):
+        unit = units[index]
+        if 0xD800 <= unit <= 0xDBFF:
+            require(index + 1 < len(units), "ToUnicode ends with a high surrogate")
+            low = units[index + 1]
+            require(0xDC00 <= low <= 0xDFFF, "ToUnicode high surrogate has no low surrogate")
+            scalars.append(0x10000 + ((unit - 0xD800) << 10) + low - 0xDC00)
+            index += 2
+        else:
+            require(not 0xDC00 <= unit <= 0xDFFF, "ToUnicode contains an unpaired low surrogate")
+            scalars.append(unit)
+            index += 1
+    return tuple(scalars)
+
+
+TO_UNICODE_BLOCK = re.compile(rb"(?<=\n)([0-9]+) begin(bfchar|bfrange)\n(.*?)end\2\n", re.S)
+BFCHAR_ROW = re.compile(rb"<([0-9A-F]{4})> <((?:[0-9A-F]{4})+)>")
+BFRANGE_ROW = re.compile(rb"<([0-9A-F]{4})> <([0-9A-F]{4})> <([0-9A-F]{4})>")
+
+
+def to_unicode_mappings(cmap: bytes) -> dict[int, tuple[int, ...]]:
+    """CID -> scalars from the package's canonical ToUnicode CMap: `bfchar`
+    rows and single-code-unit `bfrange` rows, each block counted exactly, in
+    strictly ascending CID order, a range never crossing a 256-code boundary
+    in its CIDs or code units."""
+    mappings: dict[int, tuple[int, ...]] = {}
+    previous = -1
+    blocks = TO_UNICODE_BLOCK.findall(cmap)
+    require(blocks, "ToUnicode has no bfchar or bfrange block")
+    for count, kind, body in blocks:
+        rows = body.split(b"\n")
+        require(rows[-1] == b"" and len(rows) - 1 == int(count), f"ToUnicode {kind.decode()} count differs from its rows")
+        require(int(count) <= 100, f"ToUnicode {kind.decode()} block exceeds 100 entries")
+        for row in rows[:-1]:
+            if kind == b"bfchar":
+                match = BFCHAR_ROW.fullmatch(row)
+                require(match is not None, f"ToUnicode bfchar row {row!r} is not canonical")
+                cid = int(match.group(1), 16)
+                require(cid > previous, "ToUnicode CIDs are not ascending")
+                mappings[cid] = utf16_scalars(match.group(2))
+                previous = cid
+            else:
+                match = BFRANGE_ROW.fullmatch(row)
+                require(match is not None, f"ToUnicode bfrange row {row!r} is not canonical")
+                low, high, base = (int(value, 16) for value in match.groups())
+                require(low > previous and high > low and low >> 8 == high >> 8, "ToUnicode bfrange CIDs are not an ascending run inside one 256-code block")
+                require(not 0xD800 <= base <= 0xDFFF and (base & 0xFF) + (high - low) <= 0xFF, "ToUnicode bfrange destination crosses a 256-code boundary")
+                for offset in range(high - low + 1):
+                    mappings[low + offset] = (base + offset,)
+                previous = high
+    return mappings
+
+
+def dictionary_value(body: bytes, key: bytes) -> bytes | None:
+    """The balanced `<< ... >>` value of a top-level-looking `/key` entry."""
+    start = body.find(b"/" + key + b" <<")
+    if start < 0:
+        return None
+    at = start + len(key) + 2
+    depth = 0
+    index = at
+    while index < len(body):
+        if body.startswith(b"<<", index):
+            depth += 1
+            index += 2
+        elif body.startswith(b">>", index):
+            depth -= 1
+            index += 2
+            if depth == 0:
+                return body[at:index]
+        else:
+            index += 1
+    return None
+
+
 def canonical_bytes(data: bytes) -> bytes:
     """The canonical token for a byte string: a literal when strictly shorter
     than hex, otherwise uppercase hex (an independent model of KernelLex)."""

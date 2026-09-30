@@ -89,7 +89,7 @@ def validate_caller_text_pdf(pdf: bytes) -> None:
     require(b"/StructParents 0" in page_body, "caller page does not have the planned ParentTree key")
     require(b"/Tabs /S" in page_body, "caller page tab order is not structure order")
     resources = re.search(
-        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>",
         page_body,
     )
     require(resources is not None, "caller page does not have the exact color/font resource closure")

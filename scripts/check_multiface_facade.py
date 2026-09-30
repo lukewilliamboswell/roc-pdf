@@ -89,7 +89,7 @@ def validate_multiface_facade_pdf(pdf: bytes) -> None:
     page = only_object(bodies, b"/Type /Page ", "page")
     page_body = bodies[page]
     resources = re.search(
-        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R /F1_1 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R /F1_1 ([1-9][0-9]*) 0 R >> >>",
         page_body,
     )
     require(resources is not None, "multiface facade page does not carry exactly the two dense font resources")

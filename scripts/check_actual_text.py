@@ -74,7 +74,7 @@ def validate_actual_text_pdf(pdf: bytes) -> None:
     require(b"/Tabs /S" in page_body, "ActualText page tab order is not structure order")
     _, content = decoded_stream(bodies, dictionary_ref(page_body, b"Contents"))
     resources = re.search(
-        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>",
         page_body,
     )
     require(resources is not None, "ActualText page does not have the exact color/font resource closure")
