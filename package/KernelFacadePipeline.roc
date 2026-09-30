@@ -106,10 +106,17 @@ KernelFacadePipeline :: [].{
 		## planning/subsetting compose the same downstream stages; the
 		## single-face `build` path above is untouched.
 		build_ordered : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, Limits -> Try(Plan, Error)
-		build_ordered = |authoring, ordered, theme, page_size, descriptor, limits| build_ordered_pipeline(authoring, ordered, theme, page_size, descriptor, NoDocumentFacts, limits)
+		build_ordered = |authoring, ordered, theme, page_size, descriptor, limits| build_ordered_pipeline(authoring, Policy(ordered), theme, page_size, descriptor, NoDocumentFacts, limits)
 
 		build_ordered_with_facts : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
-		build_ordered_with_facts = |authoring, ordered, theme, page_size, descriptor, facts, limits| build_ordered_pipeline(authoring, ordered, theme, page_size, descriptor, facts, limits)
+		build_ordered_with_facts = |authoring, ordered, theme, page_size, descriptor, facts, limits| build_ordered_pipeline(authoring, Policy(ordered), theme, page_size, descriptor, facts, limits)
+
+		## The style-face path with inline role faces: every run shapes in its
+		## style's or innermost role's face, and the used faces become the
+		## output fonts through the same multi-font stages as an ordered
+		## policy. Furniture shapes in the body face, output font 0.
+		build_styled_with_facts : Document.NormalizedAuthoring, KernelFacadeShape.StyledFaces, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, Limits -> Try(Plan, Error)
+		build_styled_with_facts = |authoring, styled, theme, page_size, descriptor, facts, limits| build_ordered_pipeline(authoring, Styled(styled), theme, page_size, descriptor, facts, limits)
 
 		output : Plan -> KernelFacadeOutput.Plan
 		output = |plan| plan.output
@@ -121,6 +128,10 @@ KernelFacadePipeline :: [].{
 		work = |plan| plan.work
 	}
 }
+
+## The multi-font arms: an ordered policy, or style faces with inline role
+## faces.
+MultiFace : [Policy({ policy : Font.PolicyId, registry : Font.Registry }), Styled(KernelFacadeShape.StyledFaces)]
 
 Upstream := {
 	descriptor : KernelPdfFont.Descriptor,
@@ -181,25 +192,45 @@ build_plan = |authoring, font, theme, page_size, descriptor, facts, limits| {
 	)
 }
 
-build_ordered_pipeline : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
-build_ordered_pipeline = |authoring, ordered, theme, page_size, descriptor, facts, limits| {
+build_ordered_pipeline : Document.NormalizedAuthoring, MultiFace, Theme, Layout.Size, KernelPdfFont.Descriptor, KernelMetadata.PlanFacts, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Plan, KernelFacadePipeline.Error)
+build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts, limits| {
 	semantics = KernelFacadeSemantics.Plan.build(authoring, limits.semantics) ? Semantics
 	preliminary = KernelFacadeSemantics.Plan.preliminary(semantics)
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
-	shape = KernelFacadeShape.Plan.build_ordered(
-		KernelFacadeSemantics.Plan.authoring(semantics),
-		KernelFacadeSemantics.Plan.block_ownership(semantics),
-		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
-		source_store,
-		ordered,
-		theme,
-		limits.shape,
-	) ? Shape
+	shape = (match multi {
+		Policy(ordered) => KernelFacadeShape.Plan.build_ordered(
+			KernelFacadeSemantics.Plan.authoring(semantics),
+			KernelFacadeSemantics.Plan.block_ownership(semantics),
+			KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
+			source_store,
+			ordered,
+			theme,
+			limits.shape,
+		)
+		Styled(styled) => KernelFacadeShape.Plan.build_styled(
+			KernelFacadeSemantics.Plan.authoring(semantics),
+			KernelFacadeSemantics.Plan.block_ownership(semantics),
+			KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary)),
+			source_store,
+			styled,
+			theme,
+			limits.shape,
+		)
+	}) ? Shape
+	furniture_selection = match multi {
+		Policy(_) => PolicyFaces
+		Styled(styled) => match styled.fonts.first() {
+			Ok(body) => SingleFace(body)
+			Err(_) => {
+				crash "styled font selection has no body face"
+			}
+		}
+	}
 	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
-	{ pages, text, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, PolicyFaces, source_store.len(), limits)?
+	{ pages, text, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, furniture_selection, source_store.len(), limits)?
 	fragments = KernelFacadeFragments.Plan.build_with_navigation(preliminary, text, navigation_authoring(semantics, authoring), limits.fragments, limits.fragment_semantics, limits.navigation) ? Fragments
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, intent_profile(facts), limits.scenes) ? Scenes
 	output = KernelFacadeOutput.Plan.build_multi_with_navigation(scenes, KernelFacadeShape.Plan.fonts(shape), descriptor, facts, navigation_input(fragments, limits.navigation), limits.output) ? Output

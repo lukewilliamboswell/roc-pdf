@@ -60,9 +60,11 @@ dollars (AUD) and include 10% GST where stated. The document language is
   `Em`, `Strong`, `Code`, and `Quote` are distinguished visually only by
   their theme colors (`Theme.with_emphasis_color`, `with_strong_color`,
   `with_code_color`, `with_quote_color`); an unthemed role paints exactly like
-  the text around it. A distinct caller-registered face per inline role (for
-  example a monospace face for `Code`) is not yet selectable. The semantic
-  role never depends on that presentation.
+  the text around it. A caller-registered face per inline role (for example
+  a monospace face for `Code`) is selectable with `Theme.with_inline_font`
+  under style faces (`reference-documents-v8`); under an ordered policy it
+  reports `text.inline_font_policy`. The semantic role never depends on that
+  presentation.
 - Numbers, currency amounts, and dates are caller-formatted strings. The
   package performs no arithmetic, rounding, currency formatting, or total
   verification; correctness of totals is an author obligation.
@@ -663,7 +665,7 @@ substitution, outlining, rasterization, or dropping text.
 | Vertical writing | rejected | rejected | `text.vertical_writing` (Gate 8) |
 | Nested language spans within one paragraph (`fr` in `en-AU` through the packaged face; `zh-Hans` in a Latin paragraph through an ordered policy whose faces cover it) | supported | — | [rich-inline.md](performance/rich-inline.md); an unsupported script inside a span rejects as `text.unsupported_script` with its inline path. REP-A5's spaces around a Han span take the Common-run row below |
 | Rich inline runs (`Em`, `Strong`, `Code`, `Quote`, `Link`, `Span`) with per-run theme colors in one line, wrapping across inline boundaries | supported | — | [rich-inline.md](performance/rich-inline.md) |
-| **Required:** a distinct caller-registered face per inline role (e.g. monospace `Code`) | required | — | not selectable yet; every inline paints in its paragraph's face, size, and leading |
+| A distinct caller-registered face per inline role (e.g. monospace `Code`) under style faces | supported | — | [rich-inline.md](performance/rich-inline.md): `Theme.with_inline_font`; the innermost role with a face decides a run's face at the paragraph's size and leading; under an ordered policy `text.inline_font_policy` (`FeatureUnavailable`) |
 | Runs whose script stays Common (or Inherited) after itemization, e.g. a cell holding only `1,284` or `+10.0%`, or the spaces in `Café 中 PDF`, under an ordered policy | supported | — | [tables.md](performance/tables.md): each cluster of such a run takes the first face in policy order that covers it, exactly as per-cluster coverage selection does for declared scripts; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
 | Furniture text (headers, footers, page fields) shaped with exact artifact ownership, through the single theme face | supported | — | [page-templates.md](performance/page-templates.md); under an ordered font policy furniture text reports `text.furniture_policy` (`FeatureUnavailable`) and only furniture drawings are supported |
 
@@ -1008,6 +1010,7 @@ with.
 | `layout.template_body_empty` | new family | A document with page templates has no body block (`reference-documents-v6`) |
 | `layout.furniture_drawing` | `InvalidRelationship` | A furniture drawing has no command, a group, a non-positive image size, a path that paints nothing, or content below or left of its origin (`reference-documents-v6`) |
 | `text.furniture_policy` | `FeatureUnavailable` | Furniture text under an ordered font policy (`reference-documents-v6`) |
+| `text.inline_font_policy` | `FeatureUnavailable` | An inline role face under an ordered font policy (`reference-documents-v8`) |
 | `layout.reference_cycle` | `LayoutCycle` | Stabilization repeated an earlier non-identical state |
 | `layout.budget_exhausted` | `BudgetExceeded` | Stabilization or layout work budget exhausted |
 | `table.grid_mismatch` | `InvalidRelationship` | Row spans do not sum to the column count |

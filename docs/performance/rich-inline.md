@@ -297,10 +297,19 @@ this slice's seven full and two early-stopped parallel harness runs.
   painted glyph and without a cache identity collision between paragraphs
   that differ only in break positions. The invoice and letter address blocks
   that use `⏎` depend on it.
-- **A distinct face per inline role** (a monospace `Code`, an italic `Em`) is
-  not selectable; inline roles change only color. This is a required
-  text-matrix row, and it needs per-style multi-font output on the
-  single-face path.
+- ~~**A distinct face per inline role**~~ (open-issues slice):
+  `Theme.with_inline_font(theme, role, face)` selects a caller-registered
+  face for `Code`, `Em`, `Strong`, or `Quote` under style faces. The
+  `Styled` font selection shapes every run in its innermost role face (or
+  the body face) through `KernelFacadeShape.Plan.build_styled`, and the
+  faces some run uses become the output fonts, body first, through the
+  multi-font stages of the ordered path; furniture shapes in the body face.
+  Under an ordered policy a role face reports `text.inline_font_policy`:
+  selection is cached per unique source, so a role face cannot override it
+  per occurrence. The `code face` case paints `WMS-7` and `code` in a Noto
+  Sans Mono ASCII fixture (`scripts/build_mono_font_fixture.py`) beside the
+  packaged face, and its checker pins exactly that text to the monospace
+  font.
 - **Inline content elsewhere.** Headings, list items, captions, and table
   cells still take plain strings.
 - **Ordered selection language.** Coverage selection runs once per paragraph

@@ -36,6 +36,7 @@ import pdf.Pdf
 import pdf.Theme
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
+import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 
 ## Rich inline evidence through the public `Pdf` constructors.
 ##
@@ -50,6 +51,13 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   shaping, line layout, and annotation lowering.
 ## - `ordered`: a rich paragraph through an ordered caller-font policy, with
 ##   a `zh-Hans` span selected onto the Han face and a French span.
+## - `code_face`: the mixed document with a monospace caller face for
+##   `Code` (`Theme.with_inline_font`) beside the packaged face registered
+##   as the body face; code runs, including code nested in `Strong`, paint
+##   in the second output font. Its rejections: a code face under an
+##   ordered policy (`text.inline_font_policy`), code text the monospace
+##   face does not cover (`text.coverage_missing` at the code inline), and
+##   a code face without a font registry (`InvalidFontResource`).
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
@@ -82,8 +90,80 @@ Fixture :: [].{
 		evidence(ordered_document(context), Theme.with_font_policy(Theme.default, registered.policy), Policy(registered))
 	}
 
+	code_face : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	code_face = |context| run_code_face(context)
+
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
+}
+
+## The packaged face as body face 0 and the monospace fixture as face 1.
+code_faces : U64 -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, Fixture.EvidenceError)
+code_faces = |context| {
+	limits = if context == 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
+	body = match Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+		Err(_) => return Err(EvidenceFailure)
+		Ok(value) => value
+	}
+	mono = match body.registry.register(mono_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) {
+		Err(_) => return Err(EvidenceFailure)
+		Ok(value) => value
+	}
+	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
+}
+
+run_code_face : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_code_face = |context| {
+	faces = code_faces(context)?
+	theme = Theme.default.with_code_color(Color.srgb8({ blue: 60, green: 100, red: 20 })).with_inline_font(Code, faces.mono)
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), faces.registry)
+	document = mixed_document(context)
+	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+
+	## The same fonts through the styled pipeline give the shaping and
+	## output work: two used faces, body first. Themed colors change only
+	## paint facts, so work uses the uncolored theme.
+	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
+	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, Theme.default.with_inline_font(Code, faces.mono), page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.Plan.work(pipeline)
+
+	## Rejections: each is transactional, with no bytes.
+	lead = Pdf.paragraph("Lead")
+	policy = match faces.registry.with_policy([faces.body, faces.mono]) {
+		Err(_) => return Err(EvidenceFailure)
+		Ok(value) => value
+	}
+	policy_options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, Theme.with_font_policy(theme, policy.policy)), policy.registry)
+	under_policy = match Pdf.to_bytes_with(document, policy_options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.inline_font_policy"), .. }], .. })) => 1
+		_ => 0
+	}
+	uncovered_document = Pdf.document({ contents: [lead, Pdf.rich_paragraph([Pdf.text("Run "), Pdf.code("café")])], language: "en-AU", title: "Code coverage" })
+	uncovered = match Pdf.to_bytes_with(uncovered_document, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[1].inlines[1].inlines[0]"], feature: Feature("text.coverage_missing"), .. }], .. })) => 1
+		_ => 0
+	}
+	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) {
+		Err(InvalidFontResource(UnknownFace(face))) => if face.index() == faces.mono.index() 1 else 0
+		_ => 0
+	}
+	rejections = under_policy + uncovered + unregistered
+	if rejections != 3 {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({
+		bytes,
+		work: [
+			flow.shaped_runs,
+			flow.lines,
+			flow.final_runs,
+			flow.pages,
+			rejections,
+			bytes.len(),
+		],
+	})
 }
 
 Faces : [BuiltInFace, Policy({ policy : Font.PolicyId, registry : Font.Registry })]

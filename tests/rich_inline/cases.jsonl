@@ -3,3 +3,4 @@
 {"name":"rich inline paragraphs x100","schema_version":1,"case":{"Paragraphs":{"count":100}}}
 {"name":"rich inline ordered multi-face spans","schema_version":1,"case":{"Ordered":{"context":0}}}
 {"name":"rich inline atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
+{"name":"rich inline code face","schema_version":1,"case":{"CodeFace":{"context":0}}}

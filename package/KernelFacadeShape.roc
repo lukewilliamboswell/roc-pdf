@@ -39,7 +39,16 @@ KernelFacadeShape :: [].{
 	## The facade's resolved font selection. `Single` is the existing exact
 	## one-face path; `Ordered` carries the caller registry and the
 	## Theme-selected finite policy for per-cluster coverage selection.
-	FontSelection : [Ordered({ policy : Font.PolicyId, registry : Font.Registry }), Single(KernelFont.Inspection)]
+	##
+	## `Styled` is the style-face path with inline role faces: candidate 0
+	## is the body face and `roles` names each role's candidate face.
+	FontSelection : [Ordered({ policy : Font.PolicyId, registry : Font.Registry }), Single(KernelFont.Inspection), Styled(StyledFaces)]
+
+	## The candidate faces of the style-face path with inline role faces:
+	## `faces` and `fonts` are parallel, candidate 0 is the body face, and a
+	## role's `Candidate(k)` names its face.
+	StyledFaces : { faces : List(Font.FaceId), fonts : List(KernelFont.Inspection), roles : { code : RoleFace, emphasis : RoleFace, quote : RoleFace, strong : RoleFace } }
+	RoleFace : [Candidate(U64), Inherited]
 	Limits :: { max_requests : U64, shape : KernelShape.Limits }.{
 		make : { max_requests : U64, shape : KernelShape.Limits } -> Limits
 		make = |limits| Limits.(limits)
@@ -136,6 +145,12 @@ KernelFacadeShape :: [].{
 		build_ordered : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, Limits -> Try(Plan, Error)
 		build_ordered = |authoring, owners, store, sources, ordered, theme, limits| build_ordered_plan(authoring, owners, store, sources, ordered, theme, limits)
 
+		## The style-face arm with inline role faces: each text run shapes in
+		## the face of its innermost role with a face, or in the body face,
+		## and only the faces some run uses become output fonts, body first.
+		build_styled : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), StyledFaces, Theme, Limits -> Try(Plan, Error)
+		build_styled = |authoring, owners, store, sources, styled, theme, limits| build_styled_plan(authoring, owners, store, sources, styled, theme, limits)
+
 		block_runs : Plan -> List(BlockRuns)
 		block_runs = |plan| plan.block_runs
 
@@ -195,7 +210,7 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 	}
 	shape = match shaped {
 		Err(_) => return Err(
-			match locate_text_failure(authoring, preparation, store, source_store, single_face_rules(font)) {
+			match locate_text_failure(authoring, preparation, store, source_store, [single_face_rules(font)], |_| 0) {
 				Located(located) => located
 				NotLocated => ShapeFailure
 			},
@@ -222,6 +237,126 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 			},
 		},
 	)
+}
+
+build_styled_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_styled_plan = |authoring, owners, store, source_store, styled, theme, limits| {
+	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, RequireBuiltInFace)?
+	candidates = request_candidates(authoring, preparation, styled)
+
+	## Dense output fonts: the body face, then each role face some run uses,
+	## in candidate order.
+	var $used = List.repeat(Bool.False, styled.fonts.len())
+	$used = list_set($used, 0, Bool.True)
+	for candidate in candidates {
+		$used = list_set($used, candidate, Bool.True)
+	}
+	var $dense = List.repeat(0, styled.fonts.len())
+	var $faces = []
+	var $fonts = []
+	var $candidate = 0
+	while $candidate < styled.fonts.len() {
+		if list_at($used, $candidate) {
+			$dense = list_set($dense, $candidate, $fonts.len())
+			$faces = $faces.append(list_at(styled.faces, $candidate))
+			$fonts = $fonts.append(list_at(styled.fonts, $candidate))
+		}
+		$candidate = $candidate + 1
+	}
+	latin = Font.Script.from_iso15924("Latn")
+	var $selected = List.with_capacity(preparation.requests.len())
+	var $index = 0
+	while $index < preparation.requests.len() {
+		request = list_at(preparation.requests, $index)
+		range = if preparation.ranges.is_empty() whole_source_range(source_store, request.source, preparation.options.language) else list_at(preparation.ranges, $index)
+		instance = Font.InstanceId.from_index(list_at($dense, list_at(candidates, $index)))
+		$selected = $selected.append({ clusters: range.clusters, instance, language: range.language, occurrence: request.occurrence, script: latin, size: request.size, source: request.source })
+		$index = $index + 1
+	}
+	shape = match KernelShape.shape_selected_batch($fonts, source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, $selected, limits.shape) {
+		Ok(value) => value
+		Err(_) => {
+			rules = styled.fonts.map(|font| single_face_rules(font))
+			return Err(
+				match locate_text_failure(authoring, preparation, store, source_store, rules, |request| list_at(candidates, request)) {
+					Located(located) => located
+					NotLocated => ShapeFailure
+				},
+			)
+		}
+	}
+	Ok(
+		KernelFacadeShape.Plan.{
+			block_runs: preparation.block_runs,
+			origins: request_origins(preparation.ranges),
+			requests: preparation.requests,
+			selection: OrderedFaces({ faces: $faces, fonts: $fonts, work: { coverage_span_visits: 0, face_visits: 0, grapheme_visits: 0, planned_sources: 0, selection_ranges: 0 } }),
+			shape,
+			styles: preparation.styles,
+			work: {
+				font_bytes: total_font_bytes($fonts),
+				font_tables: total_font_tables($fonts),
+				glyphs: shape.work.glyph_visits,
+				metric_reads: shape.work.metric_reads,
+				requests: preparation.requests.len(),
+				scalars: shape.work.scalar_visits,
+				script_run_visits: shape.work.script_run_visits,
+				source_bytes: shape.work.utf8_bytes,
+			},
+		},
+	)
+}
+
+## The candidate face of every request: the face of the innermost inline
+## role with a face around a rich text leaf, else the body face (candidate
+## 0). Labels and plain blocks shape in the body face.
+request_candidates : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeShape.StyledFaces -> List(U64)
+request_candidates = |authoring, preparation, styled| {
+	var $candidates = List.repeat(0, preparation.requests.len())
+	var $block = 0
+	while $block < preparation.block_runs.len() {
+		match (list_at(authoring.blocks, $block).kind, list_at(preparation.block_runs, $block)) {
+			(RichParagraph(paragraph), TextBlock({ body, label: _, level: _ })) => {
+				rich = list_at(authoring.rich_paragraphs, paragraph)
+				var $inline = rich.inlines
+				while $inline < rich.inlines + rich.length {
+					record = list_at(authoring.inlines, $inline)
+					match record.kind {
+						Text(_) => {
+							request = body.physical.start() + record.first_leaf
+							$candidates = list_set($candidates, request, role_candidate(authoring.inlines, record.parent, styled))
+						}
+						_ => {}
+					}
+					$inline = $inline + 1
+				}
+			}
+			_ => {}
+		}
+		$block = $block + 1
+	}
+	$candidates
+}
+
+role_candidate : List(Document.NormalizedInline), U64, KernelFacadeShape.StyledFaces -> U64
+role_candidate = |inlines, parent, styled| {
+	var $cursor = parent
+	while $cursor != 0 {
+		record = list_at(inlines, $cursor - 1)
+		face = match record.kind {
+			Code => styled.roles.code
+			Emphasis => styled.roles.emphasis
+			Quote => styled.roles.quote
+			Strong => styled.roles.strong
+			_ => Inherited
+		}
+		match face {
+			Candidate(index) => return index
+			Inherited => {}
+		}
+		$cursor = record.parent
+	}
+	0
 }
 
 ## Range-exact requests over the one resolved face (dense font 0), in
@@ -1184,15 +1319,18 @@ TextFailure : { cluster : U64, reason : [Cluster, Coverage(U32), Script(Str)], s
 ## script before cluster before coverage, and each request then finds its
 ## first failure by binary search, so the scan is linear in the text plus
 ## `requests * log(failures)`.
-locate_text_failure : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, Semantics.Store, List(KernelFacadeSources.Source), TextRules -> [Located(KernelFacadeShape.Error), NotLocated]
-locate_text_failure = |authoring, preparation, store, sources, rules| {
-	failures = sources.map(|source| source_failures(source, rules))
+##
+## `rules` holds one rule set per face in use and `rule_of` names the set
+## that applies to a request; each set scans every source once.
+locate_text_failure : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, Semantics.Store, List(KernelFacadeSources.Source), List(TextRules), (U64 -> U64) -> [Located(KernelFacadeShape.Error), NotLocated]
+locate_text_failure = |authoring, preparation, store, sources, rules, rule_of| {
+	failures = rules.map(|rule| sources.map(|source| source_failures(source, rule)))
 	var $block = 0
 	while $block < preparation.block_runs.len() {
 		match list_at(preparation.block_runs, $block) {
 			TextBlock({ body, label, level: _ }) => {
 				match label {
-					Label(run) => match request_failure(preparation, store, failures, run.physical.start()) {
+					Label(run) => match request_failure(preparation, store, list_at(failures, rule_of(run.physical.start())), run.physical.start()) {
 						Found(found) => return Located(UnsupportedText({ block: $block, inline: NoInline, reason: found.reason, scalars: found.scalars }))
 						None => {}
 					}
@@ -1200,7 +1338,7 @@ locate_text_failure = |authoring, preparation, store, sources, rules| {
 				}
 				var $request = body.physical.start()
 				while $request < body.physical.start() + body.physical.length() {
-					match request_failure(preparation, store, failures, $request) {
+					match request_failure(preparation, store, list_at(failures, rule_of($request)), $request) {
 						Found(found) => {
 							inline = match list_at(authoring.blocks, $block).kind {
 								RichParagraph(paragraph) => leaf_inline(authoring, list_at(authoring.rich_paragraphs, paragraph), $request - body.physical.start())
@@ -1332,7 +1470,7 @@ ordered_failure = |authoring, preparation, store, sources, registry, faces, erro
 			Err(_) => return error
 		}
 	}
-	match locate_text_failure(authoring, preparation, store, sources, policy_rules($fonts)) {
+	match locate_text_failure(authoring, preparation, store, sources, [policy_rules($fonts)], |_| 0) {
 		Located(located) => located
 		NotLocated => error
 	}

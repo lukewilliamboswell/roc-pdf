@@ -69,8 +69,14 @@ and `inline_link` or `inline_internal_link` a `Link` whose annotation covers
 its painted text, one quadrilateral per line. Quotation marks are authored
 text. Inline roles paint like the surrounding text unless the theme colors
 them (`Theme.with_emphasis_color`, `with_strong_color`, `with_code_color`,
-`with_quote_color`); the package ships one regular face and never
-synthesizes bold or italic.
+`with_quote_color`) or give them a caller-registered face with
+`Theme.with_inline_font(theme, Code, face)` (a monospace face for code, say):
+the innermost role with a face decides a run's face, at the paragraph's size
+and leading. The face must be in the options' font registry
+(`InvalidFontResource` otherwise), must cover the role's text
+(`text.coverage_missing`), and applies to style faces only: a theme with an
+ordered font policy reports `text.inline_font_policy`. The package ships one
+regular face and never synthesizes bold or italic.
 
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an
@@ -370,7 +376,8 @@ validated at their authored path (`document.figure_drawing`,
 | explicit line and page breaks, spacers, required and preferred keeps | executable |
 | ordinary tables with captions, header rows, column spans, footers, and repeated headers | executable |
 | page templates: header, footer, and lead regions, furniture text and drawings, page and total-page fields | executable |
-| furniture text under an ordered font policy, and a distinct face per inline role | not yet offered |
+| a caller-registered face per inline role (style faces) | executable |
+| furniture text under an ordered font policy | not yet offered |
 | fixed pages, columns, floats, footnotes, row spans, complex tables | representable; Gate 8 diagnostic |
 | `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
 | `AccessibleArchive` profile | representable; profile diagnostic |

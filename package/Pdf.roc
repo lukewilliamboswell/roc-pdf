@@ -690,6 +690,15 @@ build_plan = |doc, options| {
 			facts,
 			standard_pipeline_limits,
 		) ? |error| pipeline_error(error, doc)
+		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(
+			Document.normalize(doc),
+			styled,
+			options.theme,
+			layout_page_size(options.page_size),
+			standard_font_descriptor,
+			facts,
+			standard_pipeline_limits,
+		) ? |error| pipeline_error(error, doc)
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(
 			Document.normalize(doc),
 			ordered,
@@ -747,8 +756,8 @@ profile_batch = |violation, stage| {
 ## stable typed error rather than an implicit single-face fallback.
 selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_fonts = |options| match Theme.font_selection(options.theme) {
-	StyleFaces => Ok(Single(selected_font(options)?))
-	Policy(policy) => match options.font_source {
+	StyleFaces => if !has_role_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
+	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove Theme.with_inline_font or use style faces.", []))) else match options.font_source {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
 			_faces = registry.policy_faces(policy) ? |_| InvalidFontSelection([InvalidPolicy(policy)])
@@ -1476,6 +1485,91 @@ container_batch = |diagnostic, feature, message, path| {
 			},
 		],
 		truncation: Complete,
+	}
+}
+
+## Whether a theme selects an inline role face other than its body face,
+## without building a list on the common path.
+has_role_face : Theme -> Bool
+has_role_face = |theme| {
+	body = Theme.body_font(theme).index()
+	differs = |font| match font {
+		Face(face) => face.index() != body
+		Inherited => Bool.False
+	}
+	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong))
+}
+
+## The inline role faces a theme selects that differ from its body face.
+role_faces : Theme -> List(Font.FaceId)
+role_faces = |theme| {
+	body = Theme.body_font(theme)
+	[Theme.inline_font(theme, Code), Theme.inline_font(theme, Emphasis), Theme.inline_font(theme, Quote), Theme.inline_font(theme, Strong)]
+		.keep_if(
+			|font| match font {
+				Face(face) => face.index() != body.index()
+				Inherited => Bool.False
+			},
+		)
+		.map(
+			|font| match font {
+				Face(face) => face
+				Inherited => body
+			},
+		)
+}
+
+## The style-face candidates with inline role faces: the body face first,
+## then each distinct role face, all prepared from the caller registry. The
+## packaged face alone has no second face, so a role face there is an
+## unknown face.
+selected_styled_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+selected_styled_fonts = |options| {
+	body_face = Theme.body_font(options.theme)
+	body = selected_font(options)?
+	registry = match options.font_source {
+		Registered(value) => value
+		BuiltIn => return Err(InvalidFontResource(UnknownFace(list_first_or(role_faces(options.theme), body_face))))
+	}
+	var $faces = [body_face]
+	var $fonts = [body]
+	for face in role_faces(options.theme) {
+		if !$faces.any(|known| known.index() == face.index()) {
+			font = registry.prepared_face(face) ? InvalidFontResource
+			$faces = $faces.append(face)
+			$fonts = $fonts.append(font)
+		}
+	}
+	candidate = |role| match Theme.inline_font(options.theme, role) {
+		Face(face) => if face.index() == body_face.index() Inherited else Candidate(index_of($faces, face))
+		Inherited => Inherited
+	}
+	Ok(Styled({ faces: $faces, fonts: $fonts, roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
+}
+
+list_first_or : List(a), a -> a
+list_first_or = |items, fallback| match items.first() {
+	Ok(value) => value
+	Err(_) => fallback
+}
+
+index_of : List(Font.FaceId), Font.FaceId -> U64
+index_of = |faces, face| {
+	var $index = 0
+	while $index < faces.len() {
+		if list_at_face(faces, $index).index() == face.index() {
+			return $index
+		}
+		$index = $index + 1
+	}
+	0
+}
+
+list_at_face : List(Font.FaceId), U64 -> Font.FaceId
+list_at_face = |faces, index| match faces.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => {
+		crash "styled face index escaped"
 	}
 }
 
