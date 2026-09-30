@@ -80,7 +80,12 @@ regular face and never synthesizes bold or italic. To use the packaged face
 beside a caller face, put it in the registry with
 `Font.Registry.register_built_in(registry, Font.ValidationLimits.default)`
 and select the returned face with `Theme.with_font`; it validates and embeds
-exactly as the unregistered default does.
+exactly as the unregistered default does. Titles and headings take any
+registered face through their styles, for example a bold face:
+`Theme.with_title_style` and `Theme.with_heading_style` (all levels), or
+`Theme.with_heading_level_style(theme, H2, style)` for one level's face,
+size, leading, and color. Under an ordered font policy a title or heading
+face reports `text.block_font_policy`.
 
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an

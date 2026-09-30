@@ -64,6 +64,14 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ##   different font splits; each paints in its own face. The scale pair
 ##   shows the per-split templates stay linear. Its rejection: strong text
 ##   the strong face does not cover (`text.coverage_missing` at the inline).
+## - `heading_faces xN`: N sections of a level-1 and a level-2 heading and a
+##   paragraph under a title. The title and level-1 headings take the
+##   monospace face (a second registered face) at their own size and color;
+##   level-2 headings keep the body face at a smaller size. Its rejections:
+##   a heading face without a font registry (`InvalidFontResource`), a
+##   heading face under an ordered policy (`text.block_font_policy`), and
+##   heading text the heading face does not cover (`text.coverage_missing`
+##   at the heading).
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
@@ -101,6 +109,9 @@ Fixture :: [].{
 
 	shared_source : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	shared_source = |count| run_shared_source(count)
+
+	heading_faces : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	heading_faces = |count| run_heading_faces(count)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -262,6 +273,85 @@ run_shared_source = |count| {
 			flow.final_runs,
 			flow.pages,
 			uncovered,
+			bytes.len(),
+		],
+	})
+}
+
+heading_faces_theme : Font.FaceId, Font.FaceId -> Theme
+heading_faces_theme = |body, heading| {
+	base = Theme.default.with_font(body)
+	base
+		.with_title_style({ ..base.title_style(), font: heading })
+		.with_heading_level_style(H1, { ..base.heading_style(), color: Color.srgb8({ blue: 150, green: 60, red: 30 }), font: heading, leading: Layout.Unit.points(22), size: Layout.Unit.points(17) })
+		.with_heading_level_style(H2, { ..base.heading_style(), leading: Layout.Unit.points(16), size: Layout.Unit.points(12) })
+}
+
+heading_faces_document : U64 -> Document
+heading_faces_document = |count| {
+	var $contents = List.with_capacity(3 * count + 1)
+	$contents = $contents.append(Pdf.title("Operations review"))
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		$contents = $contents.append(Pdf.heading(1, "${number} Region ${number}"))
+		$contents = $contents.append(Pdf.heading(2, "${number}.1 Findings"))
+		$contents = $contents.append(Pdf.paragraph("Stock counts matched the warehouse system in every aisle, and returns were processed within two days."))
+		$index = $index + 1
+	}
+	Pdf.document({ contents: $contents, language: "en-AU", title: "Heading faces" })
+}
+
+run_heading_faces : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_heading_faces = |count| {
+	if count == 0 or count > 1000 {
+		return Err(InvalidScale)
+	}
+	faces = code_faces(0)?
+	theme = heading_faces_theme(faces.body, faces.mono)
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), faces.registry)
+	document = heading_faces_document(count)
+	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
+	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+
+	## Colors change only paint facts, so work uses the uncolored theme.
+	uncolored = Theme.with_heading_color(theme, Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, uncolored, page_size, descriptor, NoDocumentFacts, shared_source_limits) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.Plan.work(pipeline)
+
+	## Rejections: each is transactional, with no bytes.
+	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) {
+		Err(InvalidFontResource(UnknownFace(face))) => if face.index() == faces.mono.index() 1 else 0
+		_ => 0
+	}
+	policy = match faces.registry.with_policy([faces.body, faces.mono]) {
+		Err(_) => return Err(EvidenceFailure)
+		Ok(value) => value
+	}
+	policy_options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, Theme.with_font_policy(theme, policy.policy)), policy.registry)
+	under_policy = match Pdf.to_bytes_with(document, policy_options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.block_font_policy"), .. }], .. })) => 1
+		_ => 0
+	}
+	uncovered_document = Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.heading(1, "Café")], language: "en-AU", title: "Heading coverage" })
+	uncovered = match Pdf.to_bytes_with(uncovered_document, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[1]"], feature: Feature("text.coverage_missing"), .. }], .. })) => 1
+		_ => 0
+	}
+	rejections = unregistered + under_policy + uncovered
+	if rejections != 3 {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({
+		bytes,
+		work: [
+			flow.shaped_runs,
+			flow.lines,
+			flow.final_runs,
+			flow.pages,
+			rejections,
 			bytes.len(),
 		],
 	})

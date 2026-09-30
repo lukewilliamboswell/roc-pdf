@@ -120,7 +120,7 @@ KernelFacadeShape :: [].{
 	## holds one entry per request, in request order.
 	Preparation :: { block_runs : List(BlockRuns), options : KernelShape.BatchOptions, ranges : List(RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(RunStyle) }.{
 		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, Theme -> Try(Preparation, Error)
-		build = |authoring, owners, store, sources, max_requests, theme| prepare_plan(authoring, owners, store, sources, max_requests, theme, RequireBuiltInFace)
+		build = |authoring, owners, store, sources, max_requests, theme| prepare_plan(authoring, owners, store, sources, max_requests, theme, RequireFace(Theme.body_font(theme).index()))
 
 		block_runs : Preparation -> List(BlockRuns)
 		block_runs = |preparation| preparation.block_runs
@@ -204,7 +204,7 @@ logical_run_single = |run| { physical: Semantics.Range.from_start_and_length(run
 
 build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_plan = |authoring, owners, store, source_store, font, theme, limits| {
-	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, RequireBuiltInFace)?
+	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, RequireFace(Theme.body_font(theme).index()))?
 
 	## Without a rich paragraph every occurrence covers its whole source and
 	## the exact whole-source batch shaper applies. A rich paragraph's
@@ -248,8 +248,9 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 
 build_styled_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFacadeShape.StyledFaces, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
 build_styled_plan = |authoring, owners, store, source_store, styled, theme, limits| {
-	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, RequireBuiltInFace)?
-	candidates = request_candidates(authoring, preparation, styled)
+	validate_style_faces(authoring, theme, styled)?
+	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, CandidateFaces)?
+	candidates = request_candidates(authoring, preparation, styled, theme)
 
 	## Dense output fonts: the body face, then each role face some run uses,
 	## in candidate order.
@@ -317,11 +318,22 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 ## The candidate face of every request: the face of the innermost inline
 ## role with a face around a rich text leaf, else the body face (candidate
 ## 0). Labels and plain blocks shape in the body face.
-request_candidates : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeShape.StyledFaces -> List(U64)
-request_candidates = |authoring, preparation, styled| {
+request_candidates : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, KernelFacadeShape.StyledFaces, Theme -> List(U64)
+request_candidates = |authoring, preparation, styled, theme| {
 	var $candidates = List.repeat(0, preparation.requests.len())
 	var $block = 0
 	while $block < preparation.block_runs.len() {
+		match (list_at(authoring.blocks, $block).kind, list_at(preparation.block_runs, $block)) {
+			(RichParagraph(_), _) => {}
+			(kind, TextBlock({ body, label: _, level: _ })) => {
+				## A plain block's body shapes in its style's face (a title or
+				## heading face); its generated label stays in the body face.
+				face = style_for(kind, theme).font
+				if face.index() != styled_body_face(styled) {
+					$candidates = list_set($candidates, body.physical.start(), candidate_of(styled, face))
+				}
+			}
+		}
 		match (list_at(authoring.blocks, $block).kind, list_at(preparation.block_runs, $block)) {
 			(RichParagraph(paragraph), TextBlock({ body, label: _, level: _ })) => {
 				rich = list_at(authoring.rich_paragraphs, paragraph)
@@ -343,6 +355,38 @@ request_candidates = |authoring, preparation, styled| {
 		$block = $block + 1
 	}
 	$candidates
+}
+
+styled_body_face : KernelFacadeShape.StyledFaces -> U64
+styled_body_face = |styled| list_at(styled.faces, 0).index()
+
+## The candidate of a style face that `validate_style_faces` accepted.
+candidate_of : KernelFacadeShape.StyledFaces, Font.FaceId -> U64
+candidate_of = |styled, face| {
+	var $index = 0
+	while $index < styled.faces.len() {
+		if list_at(styled.faces, $index).index() == face.index() {
+			return $index
+		}
+		$index = $index + 1
+	}
+	crash "validated style face escaped its candidates"
+}
+
+## Every title and heading style face some block uses must be a candidate
+## face; the facade builds the candidates from the theme, so this is the
+## stage precondition that no block silently shapes in another face.
+validate_style_faces : Document.NormalizedAuthoring, Theme, KernelFacadeShape.StyledFaces -> Try({}, KernelFacadeShape.Error)
+validate_style_faces = |authoring, theme, styled| {
+	var $block = 0
+	while $block < authoring.blocks.len() {
+		face = style_for(list_at(authoring.blocks, $block).kind, theme).font
+		if !styled.faces.any(|known| known.index() == face.index()) {
+			return Err(UnsupportedThemeFace({ block: $block, face: face.index() }))
+		}
+		$block = $block + 1
+	}
+	Ok({})
 }
 
 role_candidate : List(Document.NormalizedInline), U64, KernelFacadeShape.StyledFaces -> U64
@@ -386,9 +430,19 @@ request_origins : List(KernelFacadeShape.RequestRange) -> KernelFacadeShape.Orig
 request_origins = |ranges| if ranges.is_empty() WholeSources else Origins(ranges.map(|range| range.origin))
 
 ## The single-face path requires every style to reference the exact resolved
-## face; the ordered-policy path resolves fonts per cluster instead, so style
-## face identities are deliberately not consulted there.
-FaceCheck : [RequireBuiltInFace, PolicySelectsFaces]
+## body face (`RequireFace` with the theme's body face index); the
+## style-face path with several faces checks every style face against its
+## candidates before preparation (`CandidateFaces`); the ordered-policy path
+## resolves fonts per cluster instead, so style face identities are
+## deliberately not consulted there.
+FaceCheck : [CandidateFaces, PolicySelectsFaces, RequireFace(U64)]
+
+## Whether a style's face breaks the single-face requirement.
+face_rejected : FaceCheck, Theme.TextStyle -> Bool
+face_rejected = |check, style| match check {
+	RequireFace(face) => style.font.index() != face
+	CandidateFaces | PolicySelectsFaces => Bool.False
+}
 
 ## Request ranges exist only when a rich paragraph does. A document without
 ## one keeps the exact whole-source preparation and its buffers; a document
@@ -440,14 +494,14 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 			RichTextBlock({ label: _, level: _, occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 			TextBlock({ body, label, level }) => {
 				body_style = style_for(block.kind, theme)
-				if face_check == RequireBuiltInFace and body_style.font.index() != 0 {
+				if face_rejected(face_check, body_style) {
 					return Err(UnsupportedThemeFace({ block: $block_index, face: body_style.font.index() }))
 				}
 				label_run = match label {
 					NoLabel => NoLabel
 					Label(occurrence_id) => {
 						label_style = Theme.body_style(theme)
-						if face_check == RequireBuiltInFace and label_style.font.index() != 0 {
+						if face_rejected(face_check, label_style) {
 							return Err(UnsupportedThemeFace({ block: $block_index, face: label_style.font.index() }))
 						}
 						if $request_index >= occurrence_count {
@@ -600,7 +654,7 @@ append_plain_requests : List(KernelFacadeShape.RequestRange), List(KernelShape.S
 append_plain_requests = |ranges, requests, styles, at, body, label| {
 	block = list_at(at.authoring.blocks, at.block)
 	body_style = style_for(block.kind, at.theme)
-	if at.face_check == RequireBuiltInFace and body_style.font.index() != 0 {
+	if face_rejected(at.face_check, body_style) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body_style.font.index() }))
 	}
 	var $ranges = ranges
@@ -610,7 +664,7 @@ append_plain_requests = |ranges, requests, styles, at, body, label| {
 		NoLabel => {}
 		Label(occurrence_id) => {
 			label_style = Theme.body_style(at.theme)
-			if at.face_check == RequireBuiltInFace and label_style.font.index() != 0 {
+			if face_rejected(at.face_check, label_style) {
 				return Err(UnsupportedThemeFace({ block: at.block, face: label_style.font.index() }))
 			}
 			occurrence = whole_occurrence(at, occurrence_id)?
@@ -636,7 +690,7 @@ append_label_request = |ranges, requests, styles, at, label| match label {
 	NoLabel => Ok({ ranges, requests, styles })
 	Label(occurrence_id) => {
 		label_style = Theme.body_style(at.theme)
-		if at.face_check == RequireBuiltInFace and label_style.font.index() != 0 {
+		if face_rejected(at.face_check, label_style) {
 			return Err(UnsupportedThemeFace({ block: at.block, face: label_style.font.index() }))
 		}
 		occurrence = whole_occurrence(at, occurrence_id)?
@@ -677,7 +731,7 @@ whole_occurrence = |at, occurrence_id| {
 append_rich_requests : List(KernelFacadeShape.RequestRange), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), RangedContext, Semantics.Range, Document.NormalizedRich -> Try(RequestBuffers, KernelFacadeShape.Error)
 append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 	body = Theme.body_style(at.theme)
-	if at.face_check == RequireBuiltInFace and body.font.index() != 0 {
+	if face_rejected(at.face_check, body) {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body.font.index() }))
 	}
 	paragraph_color = header_cell_color(at.authoring, at.block, at.theme, body.color)
@@ -1310,11 +1364,24 @@ ranges_equal = |left, right| {
 style_for : Document.NormalizedBlockKind, Theme -> Theme.TextStyle
 style_for = |kind, theme| match kind {
 	Title => Theme.title_style(theme)
-	Heading(_) | DestinationHeading(_) => Theme.heading_style(theme)
+	Heading(level) | DestinationHeading({ level, name: _ }) => Theme.heading_level_style(theme, heading_level(level))
 
 	## A figure's anchor line is shaped in the body style; pagination gives
 	## it the figure's (scaled) drawing height as its leading.
 	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | FigureCaption(_) | RichParagraph(_) => Theme.body_style(theme)
+}
+
+## Semantic planning rejects a heading level outside 1 to 6
+## (`UnsupportedHeadingLevel`) before shaping.
+heading_level : U8 -> Theme.HeadingLevel
+heading_level = |level| match level {
+	1 => H1
+	2 => H2
+	3 => H3
+	4 => H4
+	5 => H5
+	6 => H6
+	_ => crash "validated heading level escaped"
 }
 
 list_at : List(a), U64 -> a

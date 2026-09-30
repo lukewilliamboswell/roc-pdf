@@ -951,7 +951,8 @@ profile_batch = |violation, stage| {
 ## stable typed error rather than an implicit single-face fallback.
 selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_fonts = |options| match Theme.font_selection(options.theme) {
-	StyleFaces => if !has_role_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
+	StyleFaces => if !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
+	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A title or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give the title and headings the body face or use style faces.", [])))
 	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove Theme.with_inline_font or use style faces.", []))) else match options.font_source {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
@@ -1732,6 +1733,27 @@ has_role_face = |theme| {
 	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong))
 }
 
+## The title and heading style faces, in title then level order.
+block_faces : Theme -> List(Font.FaceId)
+block_faces = |theme| [
+	Theme.title_style(theme).font,
+	Theme.heading_level_style(theme, H1).font,
+	Theme.heading_level_style(theme, H2).font,
+	Theme.heading_level_style(theme, H3).font,
+	Theme.heading_level_style(theme, H4).font,
+	Theme.heading_level_style(theme, H5).font,
+	Theme.heading_level_style(theme, H6).font,
+]
+
+## Whether a title or heading style selects a face other than the body
+## face, without building a list on the common path.
+has_block_face : Theme -> Bool
+has_block_face = |theme| {
+	body = Theme.body_font(theme).index()
+	differs = |style| style.font.index() != body
+	differs(Theme.title_style(theme)) or differs(Theme.heading_level_style(theme, H1)) or differs(Theme.heading_level_style(theme, H2)) or differs(Theme.heading_level_style(theme, H3)) or differs(Theme.heading_level_style(theme, H4)) or differs(Theme.heading_level_style(theme, H5)) or differs(Theme.heading_level_style(theme, H6))
+}
+
 ## The inline role faces a theme selects that differ from its body face.
 role_faces : Theme -> List(Font.FaceId)
 role_faces = |theme| {
@@ -1751,21 +1773,27 @@ role_faces = |theme| {
 		)
 }
 
-## The style-face candidates with inline role faces: the body face first,
-## then each distinct role face, all prepared from the caller registry. The
-## packaged face alone has no second face, so a role face there is an
+## The style-face candidates with title, heading, or inline role faces:
+## the body face first, then each distinct title and heading face, then
+## each distinct role face, all prepared from the caller registry. The
+## packaged face alone has no second face, so another face there is an
 ## unknown face.
 selected_styled_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_styled_fonts = |options| {
 	body_face = Theme.body_font(options.theme)
 	body = selected_font(options)?
+	other_faces = if has_block_face(options.theme) {
+		block_faces(options.theme).keep_if(|face| face.index() != body_face.index()).concat(role_faces(options.theme))
+	} else {
+		role_faces(options.theme)
+	}
 	registry = match options.font_source {
 		Registered(value) => value
-		BuiltIn => return Err(InvalidFontResource(UnknownFace(list_first_or(role_faces(options.theme), body_face))))
+		BuiltIn => return Err(InvalidFontResource(UnknownFace(list_first_or(other_faces, body_face))))
 	}
 	var $faces = [body_face]
 	var $fonts = [body]
-	for face in role_faces(options.theme) {
+	for face in other_faces {
 		if !$faces.any(|known| known.index() == face.index()) {
 			font = registry.prepared_face(face) ? InvalidFontResource
 			$faces = $faces.append(face)

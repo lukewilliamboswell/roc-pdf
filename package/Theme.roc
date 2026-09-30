@@ -8,7 +8,7 @@ Theme :: {
 	code : InlineColor,
 	emphasis : InlineColor,
 	font_selection : FontSelection,
-	heading : TextStyle,
+	headings : HeadingStyles,
 	inline_fonts : InlineFonts,
 	page_margin : PageMargin,
 	paragraph_spacing : Layout.Unit,
@@ -23,6 +23,14 @@ Theme :: {
 		leading : Layout.Unit,
 		size : Layout.Unit,
 	}
+
+	## The text style of each heading level, `H1` to `H6`. Each level has
+	## its own face, size, leading, and color; `with_heading_style` sets all
+	## six and `with_heading_level_style` one.
+	HeadingStyles : { h1 : TextStyle, h2 : TextStyle, h3 : TextStyle, h4 : TextStyle, h5 : TextStyle, h6 : TextStyle }
+
+	## A heading level, as `Pdf.heading` numbers it: `H1` is level 1.
+	HeadingLevel : [H1, H2, H3, H4, H5, H6]
 
 	## The color of an inline semantic role inside rich text. An `Inherited`
 	## role paints in the color of the text around it; a `Themed` role
@@ -86,6 +94,14 @@ Theme :: {
 			size: Layout.Unit.from_raw(11000),
 		}
 
+		## Every heading level shares one style by default.
+		heading = {
+			color: black,
+			font: Font.FaceId.from_index(0),
+			leading: Layout.Unit.from_raw(18000),
+			size: Layout.Unit.from_raw(15000),
+		}
+
 		Theme.{
 			body,
 			bullet_indent: Layout.Unit.from_raw(18000),
@@ -93,12 +109,7 @@ Theme :: {
 			emphasis: Inherited,
 			font_selection: StyleFaces,
 			inline_fonts: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited },
-			heading: {
-				color: black,
-				font: Font.FaceId.from_index(0),
-				leading: Layout.Unit.from_raw(18000),
-				size: Layout.Unit.from_raw(15000),
-			},
+			headings: { h1: heading, h2: heading, h3: heading, h4: heading, h5: heading, h6: heading },
 			page_margin: {
 				bottom: Layout.Unit.from_raw(72000),
 				left: Layout.Unit.from_raw(72000),
@@ -130,7 +141,7 @@ Theme :: {
 		code: theme.code,
 		emphasis: theme.emphasis,
 		font_selection: StyleFaces,
-		heading: { ..theme.heading, font },
+		headings: map_headings(theme.headings, |style| { ..style, font }),
 		inline_fonts: theme.inline_fonts,
 		page_margin: theme.page_margin,
 		paragraph_spacing: theme.paragraph_spacing,
@@ -150,9 +161,10 @@ Theme :: {
 	with_body_color : Theme, Color.SourceValue -> Theme
 	with_body_color = |theme, color| { ..theme, body: { ..theme.body, color } }
 
-	## Change heading color while retaining its metrics and selected face.
+	## Change every heading level's color while retaining its metrics and
+	## selected face.
 	with_heading_color : Theme, Color.SourceValue -> Theme
-	with_heading_color = |theme, color| { ..theme, heading: { ..theme.heading, color } }
+	with_heading_color = |theme, color| { ..theme, headings: map_headings(theme.headings, |style| { ..style, color }) }
 
 	## Change title color while retaining its metrics and selected face.
 	with_title_color : Theme, Color.SourceValue -> Theme
@@ -166,7 +178,7 @@ Theme :: {
 		body: { ..theme.body, color },
 		code: Inherited,
 		emphasis: Inherited,
-		heading: { ..theme.heading, color },
+		headings: map_headings(theme.headings, |style| { ..style, color }),
 		quote: Inherited,
 		strong: Inherited,
 		title: { ..theme.title, color },
@@ -251,11 +263,30 @@ Theme :: {
 	with_body_style : Theme, TextStyle -> Theme
 	with_body_style = |theme, style| { ..theme, body: style }
 
-	## Replace the complete heading style while preserving every other theme role.
+	## Replace the complete style of every heading level while preserving
+	## every other theme role. The face may be any face of the options' font
+	## registry, such as a bold face; it must cover the heading text.
 	with_heading_style : Theme, TextStyle -> Theme
-	with_heading_style = |theme, style| { ..theme, heading: style }
+	with_heading_style = |theme, style| { ..theme, headings: { h1: style, h2: style, h3: style, h4: style, h5: style, h6: style } }
 
-	## Replace the complete title style while preserving every other theme role.
+	## Replace the complete style of one heading level, so `H1` and `H2` can
+	## differ in face, size, leading, and color.
+	with_heading_level_style : Theme, HeadingLevel, TextStyle -> Theme
+	with_heading_level_style = |theme, level, style| {
+		headings = theme.headings
+		updated = match level {
+			H1 => { ..headings, h1: style }
+			H2 => { ..headings, h2: style }
+			H3 => { ..headings, h3: style }
+			H4 => { ..headings, h4: style }
+			H5 => { ..headings, h5: style }
+			H6 => { ..headings, h6: style }
+		}
+		{ ..theme, headings: updated }
+	}
+
+	## Replace the complete title style while preserving every other theme
+	## role. Like a heading style, its face may be any registered face.
 	with_title_style : Theme, TextStyle -> Theme
 	with_title_style = |theme, style| { ..theme, title: style }
 
@@ -280,8 +311,20 @@ Theme :: {
 	body_style : Theme -> TextStyle
 	body_style = |theme| theme.body
 
+	## The style of level-1 headings.
 	heading_style : Theme -> TextStyle
-	heading_style = |theme| theme.heading
+	heading_style = |theme| theme.headings.h1
+
+	## The style of one heading level.
+	heading_level_style : Theme, HeadingLevel -> TextStyle
+	heading_level_style = |theme, level| match level {
+		H1 => theme.headings.h1
+		H2 => theme.headings.h2
+		H3 => theme.headings.h3
+		H4 => theme.headings.h4
+		H5 => theme.headings.h5
+		H6 => theme.headings.h6
+	}
 
 	title_style : Theme -> TextStyle
 	title_style = |theme| theme.title
@@ -294,6 +337,16 @@ Theme :: {
 
 	paragraph_spacing : Theme -> Layout.Unit
 	paragraph_spacing = |theme| theme.paragraph_spacing
+}
+
+map_headings : Theme.HeadingStyles, (Theme.TextStyle -> Theme.TextStyle) -> Theme.HeadingStyles
+map_headings = |headings, update| { h1: update(headings.h1), h2: update(headings.h2), h3: update(headings.h3), h4: update(headings.h4), h5: update(headings.h5), h6: update(headings.h6) }
+
+## One heading level's style changes without touching the others.
+expect {
+	large = { ..Theme.default.heading_style(), size: Layout.Unit.from_raw(20000) }
+	theme = Theme.default.with_heading_level_style(H2, large)
+	Layout.Unit.raw(theme.heading_level_style(H2).size) == 20000 and Layout.Unit.raw(theme.heading_level_style(H1).size) == 15000 and Layout.Unit.raw(theme.heading_level_style(H3).size) == 15000
 }
 
 ## Nested theme font references preserve their dense resource index.
