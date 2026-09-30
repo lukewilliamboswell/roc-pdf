@@ -32,8 +32,8 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## Forward figure authoring keeps drawing ownership and alternative text in the
-## public shape, then rejects atomically until its semantic lowering closes.
+## A vector drawing is flow figure content: one tagged `Figure` owning its
+## drawing, with its alternative text.
 expect {
 	drawing = Scene.drawing({}).rectangle(
 		Layout.rect(0, 0, 120, 48),
@@ -45,9 +45,9 @@ expect {
 		title: "Forward figure",
 	})
 
-	match Pdf.prepare(document, Pdf.Options.default) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), stage: AuthoringValidation, .. }], truncation: Complete, .. })) => code == "document.figure"
-		_ => False
+	match Pdf.to_bytes(document) {
+		Ok(bytes) => bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
+		Err(_) => False
 	}
 }
 
@@ -82,7 +82,7 @@ expect {
 		_ => False
 	}
 	empty_rejected = match Pdf.prepare(empty_alt_document, Pdf.Options.default) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("document.figure"), .. }], .. })) => True
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[0]"], feature: Feature("document.figure_alternative_empty"), .. }], .. })) => True
 		_ => False
 	}
 	bad_rejected and empty_rejected

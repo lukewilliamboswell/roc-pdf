@@ -57,6 +57,8 @@ SNAPSHOTS = {
     "table": ROOT / "tests" / "tables" / "spans.pdf",
     "continued_table": ROOT / "tests" / "tables" / "footer_carry.pdf",
     "templates": ROOT / "tests" / "page_templates" / "letter_6.pdf",
+    "figures": ROOT / "tests" / "flow_figures" / "report.pdf",
+    "figure_sections": ROOT / "tests" / "flow_figures" / "sections_10.pdf",
 }
 
 VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
@@ -499,6 +501,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
 
     check_tables(document, visited, identifiers, pages, page_index)
     check_furniture(furniture_by_page(document, pages), dimensions)
+    check_figures(document, visited, pages, page_index, dimensions)
 
     expected_elements = dimensions.get("structure_elements")
     if expected_elements is not None:
@@ -563,6 +566,56 @@ def check_furniture(pages: list[list[tuple[str, bytes, str]]], dimensions: dict[
                     require(int(field.group(1)) == index + 1, f"page {index + 1} shows page number {field.group(1)}")
                     require(int(field.group(2)) == len(pages), f"page {index + 1} shows a total of {field.group(2)}, not {len(pages)}")
     for key, count in counts.items():
+        expected = dimensions.get(key)
+        if expected is not None:
+            require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
+
+
+LAYOUT_ARTIFACT = re.compile(rb"/Artifact <</Type /Layout>> BDC\n")
+MARKED_FIGURE = re.compile(rb"/[A-Za-z0-9]+ <</MCID ([0-9]+)>> BDC\nq\n([-0-9.]+) 0 0 ([-0-9.]+) [-0-9.]+ [-0-9.]+ cm\n")
+
+
+def check_figures(document: Document, visited: set[int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
+    """Independent figure and decoration checks, derived from the bytes:
+
+    - every Figure has a non-empty /Alt and owns exactly one MCID;
+    - a Caption beside a Figure is the last child of a Sect whose children
+      are exactly that Figure and Caption, so the caption is exposed
+      independently of the figure's /Alt;
+    - each Figure's marked content begins with its drawing's uniform scale
+      (`s 0 0 s x y cm`), and the counts of figures, captioned figures,
+      scaled figures (s != 1), and in-flow `/Artifact <</Type /Layout>>`
+      sequences (table rules and decorations) equal the case dimensions.
+    """
+    figures = 0
+    captioned = 0
+    scaled = 0
+    for number in sorted(visited):
+        element = document.get(number)
+        role = str(element["S"])
+        children = element_children(document, element)
+        child_roles = [str(document.get(int(child))["S"]) if isinstance(child, Ref) else None for child in children]
+        if role == "Figure":
+            figures += 1
+            require(isinstance(element.get("Alt"), bytes) and text_string(element["Alt"]).strip(), "a Figure has an empty /Alt")
+            marks = [child for child in children if isinstance(child, dict) and child.get("Type") == "MCR"]
+            require(len(marks) == 1 and len(children) == 1, "a Figure does not own exactly one marked-content sequence")
+            page = int(marks[0]["Pg"])
+            content = document.stream(int(document.get(page)["Contents"]))
+            found = [match for match in MARKED_FIGURE.finditer(content) if int(match.group(1)) == int(marks[0]["MCID"])]
+            require(len(found) == 1, f"the Figure's MCID on page {page_index[page]} does not begin with its drawing's placement")
+            horizontal, vertical = found[0].group(2), found[0].group(3)
+            require(horizontal == vertical and 0 < float(horizontal) <= 1, "a Figure's drawing is not scaled uniformly by at most 1")
+            if float(horizontal) != 1:
+                scaled += 1
+        if "Caption" in child_roles and "Figure" in child_roles:
+            require(role == "Sect" and child_roles == ["Figure", "Caption"], f"a figure caption is not the last child of a Sect holding only its Figure (found /{role} {child_roles})")
+            caption = document.get(int(children[1]))
+            caption_children = [str(document.get(int(child))["S"]) for child in element_children(document, caption) if isinstance(child, Ref)]
+            require(caption_children == ["P"], "a figure Caption does not hold one P")
+            captioned += 1
+    layout = sum(len(LAYOUT_ARTIFACT.findall(document.stream(int(document.get(page)["Contents"])))) for page in pages)
+    for key, count in (("figure_nodes", figures), ("captioned_figures", captioned), ("scaled_figures", scaled), ("layout_artifacts", layout)):
         expected = dimensions.get(key)
         if expected is not None:
             require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
@@ -750,7 +803,11 @@ def self_test() -> None:
     lowering = SNAPSHOTS["lowering"].read_bytes()
     facade = SNAPSHOTS["facade"].read_bytes()
     table = SNAPSHOTS["table"].read_bytes()
+    figure_sections = SNAPSHOTS["figure_sections"].read_bytes()
+    check_structure_semantics(SNAPSHOTS["figures"].read_bytes(), {"figure_nodes": 4, "captioned_figures": 3, "scaled_figures": 1, "layout_artifacts": 2})
     mutations = [
+        ("figure caption in a transparent Part", figure_sections, b"/S /Sect", b"/S /Part"),
+        ("Figure without /Alt", figure_sections, b"/Alt <", b"/Alz <"),
         ("irregular table grid", table, b"/ColSpan 2", b"/ColSpan 3"),
         ("row span outside the declared subset", table, b"/ColSpan 2", b"/RowSpan 2"),
         ("/Headers names a TD", table, b"/Headers [<63303030303032> <63303030303035> <63303030303038>]", b"/Headers [<63303030303032> <63303030303035> <63303030303039>]"),
@@ -804,7 +861,7 @@ def self_test() -> None:
     print(
         "PASS structure-semantics checker self-test: normalized trees, ParentTree/MCID/OBJR "
         "exactly-once, IDTree/ID, language, attributes, DisplayDocTitle, MarkInfo, Tabs, "
-        f"Table 5 containment, and page furniture verified on {len(SNAPSHOTS)} snapshots; {len(mutations)} "
+        f"Table 5 containment, page furniture, and figure captions and scales verified on {len(SNAPSHOTS)} snapshots; {len(mutations)} "
         f"length-preserving mutation twins and {len(furniture_twins)} furniture twins rejected; {cross_check}",
         flush=True,
     )

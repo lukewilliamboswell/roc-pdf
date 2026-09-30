@@ -5,9 +5,6 @@ import pdf.KernelFacadeSources
 import pdf.KernelSemantics
 import pdf.KernelTextSemantics
 import pdf.Pdf
-import pdf.Scene
-import pdf.Layout
-import pdf.Image
 
 ## Semantic-foundation evidence through the public `Pdf` constructors.
 ##
@@ -152,7 +149,6 @@ run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Evide
 run_negatives = |context| {
 	title = if context == 0 "Container negatives" else "guarded"
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
-	blank_figure = Scene.drawing({}).image(Image.Source.gray8({ alpha: NoAlpha, dimensions: { height: 1, width: 1 }, pixels: [128], row_stride: 1 }), Layout.rect(0, 0, 10, 10))
 
 	## Every rejection depends on the runtime depth offset so none is
 	## evaluated at compile time.
@@ -162,7 +158,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), nest(Pdf.section([Pdf.paragraph("Kept"), Pdf.division([])]), offset)]), InvalidRelationship, "semantics.empty_container", "contents[1].contents[1]"),
 		rejects(document([nest(Pdf.section([]), offset), Pdf.paragraph("Body")]), InvalidRelationship, "semantics.empty_container", "contents[0]"),
 		rejects(document([nest(Pdf.section([Pdf.heading(1, "Tables"), Pdf.complex_table("A nested table placeholder.")]), offset)]), FeatureUnavailable, "table.complex", ""),
-		rejects(document([nest(Pdf.part([Pdf.division([Pdf.figure(blank_figure, "", Pdf.no_caption)])]), offset)]), FeatureUnavailable, "document.figure", ""),
+		rejects(document([nest(Pdf.part([Pdf.division([Pdf.figure_fit(Pdf.paragraph("Not a figure"), ScaleToFit({ minimum_percent: 50 }))])]), offset)]), InvalidRelationship, "document.figure_fit", ""),
 	]
 	passed = checks.sum()
 	if passed != checks.len() {
