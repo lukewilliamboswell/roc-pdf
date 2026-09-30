@@ -778,7 +778,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				cluster_start = cluster_at(analysis.graphemes, $cluster, scalar_start, at.block, $inline)?
 				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
 				$cluster = cluster_end
-				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: body.size, source: located.id })
+				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: inline_size(at.authoring.inlines, record.parent, at.theme, body.size), source: located.id })
 				$styles = $styles.append({ color: inline_color(at.authoring.inlines, record.parent, at.theme, paragraph_color), leading: body.leading })
 				$ranges = $ranges.append({
 					clusters: Semantics.Range.from_start_and_length(cluster_start, cluster_end - cluster_start),
@@ -894,6 +894,30 @@ inline_script = |runs, from, scalar_start, scalar_end, block, inline| {
 
 ## The innermost themed inline role around a leaf decides its color; with
 ## no themed role the leaf paints like its paragraph.
+## A text leaf's size: the paragraph size scaled by the innermost inline
+## role with a scale, in thousandths of a point rounded down. The facade
+## validates every scale (50 to 100 percent) before preparation.
+inline_size : List(Document.NormalizedInline), U64, Theme, Layout.Unit -> Layout.Unit
+inline_size = |inlines, parent, theme, size| {
+	var $cursor = parent
+	while $cursor != 0 {
+		record = list_at(inlines, $cursor - 1)
+		scale = match record.kind {
+			Code => Theme.inline_scale(theme, Code)
+			Emphasis => Theme.inline_scale(theme, Emphasis)
+			Quote => Theme.inline_scale(theme, Quote)
+			Strong => Theme.inline_scale(theme, Strong)
+			_ => Inherited
+		}
+		match scale {
+			Percent(percent) => return Layout.Unit.from_raw(size.raw() * percent.to_i64_wrap() // 100)
+			Inherited => {}
+		}
+		$cursor = record.parent
+	}
+	size
+}
+
 inline_color : List(Document.NormalizedInline), U64, Theme, Color.SourceValue -> Color.SourceValue
 inline_color = |inlines, parent, theme, paragraph_color| {
 	var $cursor = parent

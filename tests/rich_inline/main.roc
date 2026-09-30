@@ -13,6 +13,7 @@ Case : [
 	CodeFace({ context : U64 }),
 	SharedSource({ count : U64 }),
 	HeadingFaces({ count : U64 }),
+	ScaledCode({ count : U64 }),
 	AtomicNegatives({ context : U64 }),
 ]
 
@@ -48,6 +49,7 @@ main! = |args| {
 		CodeFace({ context }) => Fixture.code_face(context)
 		SharedSource({ count }) => Fixture.shared_source(count)
 		HeadingFaces({ count }) => Fixture.heading_faces(count)
+		ScaledCode({ count }) => Fixture.scaled_code(count)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 	}
 	match result {

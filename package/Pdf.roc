@@ -751,6 +751,7 @@ Pdf :: [].{
 build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_plan = |doc, options| {
 	claim = validate_profile_request(options)?
+	validate_theme(options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
 	## serializes once, identified exactly when the requested profile claims
@@ -835,6 +836,7 @@ build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacad
 build_reporting_plan = |doc, options| {
 	normalized = Document.normalize(doc)
 	claim = validate_profile_request(options)?
+	validate_theme(options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
 	## serializes once, identified exactly when the requested profile claims
@@ -1858,6 +1860,23 @@ selected_registered_font : Font.Registry, Font.FaceId -> Try(KernelFont.Inspecti
 selected_registered_font = |registry, face| {
 	font = registry.prepared_face(face) ? InvalidFontResource
 	Ok(font)
+}
+
+## Theme values a setter cannot reject are validated before any work: each
+## inline role scale is 50 to 100 percent of its paragraph size, since a
+## scaled run keeps its line's baseline and leading.
+validate_theme : Theme -> Try({}, Pdf.Error)
+validate_theme = |theme| {
+	check_scale(theme, Code, "code")?
+	check_scale(theme, Emphasis, "emphasis")?
+	check_scale(theme, Quote, "quote")?
+	check_scale(theme, Strong, "strong")
+}
+
+check_scale : Theme, Theme.InlineRole, Str -> Try({}, Pdf.Error)
+check_scale = |theme, role, name| match Theme.inline_scale(theme, role) {
+	Percent(percent) if percent < 50 or percent > 100 => Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.inline_scale", "An inline role is scaled to ${percent.to_str()}% of its paragraph size; a scale is 50 to 100 percent, because a scaled run keeps its line's baseline and leading.", ["theme.inline_scale.${name}"])))
+	_ => Ok({})
 }
 
 ## The requested claim is derived from the public profile's exact claim set.

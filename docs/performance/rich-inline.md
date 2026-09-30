@@ -215,6 +215,46 @@ inline path, never the body face. The pair is linear: 80 and 360 shaped
 runs (7N + 10), 81 and 361 lines, 26,965 and 90,561 allocations, and
 8.24 MB and 34.18 MB allocated.
 
+## Inline role scale
+
+A monospace face drawn at the body size looks larger than the body text, so
+`Theme.with_inline_scale(theme, role, percent)` paints one inline role at 50
+to 100 percent of its paragraph size (`Theme.InlineScale : [Inherited,
+Percent(U64)]`); the innermost role with a scale decides, as for faces and
+colors. The scaled size is a shaping fact: `KernelFacadeShape` gives the
+leaf's request the paragraph size times the percentage, rounded down to a
+thousandth of a point, so advances, glyph runs, and the PDF `Tf` size all
+carry it and no later stage rescales anything.
+
+A scaled run keeps its line's box. Pagination previously required every
+physical run of a logical run, and every cell of a table row, to carry one
+size, which it used as the baseline offset. It now requires one leading and
+takes the largest run size of the logical run (and the largest cell size
+of a row) as the baseline offset, so a paragraph or cell that is all code
+sits on a baseline at its code size and mixed text shares the paragraph's
+baseline. `KernelLineLayout.logical_bounds` no longer requires equal run
+sizes; the line-template key's run signature already includes every run's
+size, so a scaled and an unscaled occurrence of one text never share line
+breaks.
+
+A scale outside 50 to 100 percent is `text.inline_scale` at
+`theme.inline_scale.<role>`, checked before any work. Above 100 percent a
+run would need a taller line box than its paragraph's leading, which this
+slice does not lay out; below 50 percent is not a useful text size. The
+check is a top-level function rather than a closure, so it allocates
+nothing on the common path.
+
+Evidence, `rich inline scaled code x10` and `x50`: N paragraphs whose `Code`
+runs (one nested in `Strong`) paint in the Noto Sans Mono fixture at 85%, a
+paragraph that is all code, and a table row whose command cell is all code
+(MuPDF render: shared baselines, the code cell aligned with its row). The
+accepted boundaries 50% and 100% and the rejected 49% and 101% are checked
+in the same case. The pair is linear: 56 and 256 shaped runs (5N + 6), 26
+and 106 lines, 47,683 and 201,608 allocations for five preparations each.
+Every existing case keeps its allocation count, allocated bytes, work, and
+snapshot: without a scale every request keeps the paragraph size, and the
+largest run size of a single-size logical run is that size.
+
 ## Link annotations
 
 An inline link keeps the facade contract: one annotation per page its text

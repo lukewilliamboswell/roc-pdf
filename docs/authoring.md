@@ -85,7 +85,10 @@ registered face through their styles, for example a bold face:
 `Theme.with_title_style` and `Theme.with_heading_style` (all levels), or
 `Theme.with_heading_level_style(theme, H2, style)` for one level's face,
 size, leading, and color. Under an ordered font policy a title or heading
-face reports `text.block_font_policy`.
+face reports `text.block_font_policy`. A role face often looks larger than
+the body face at the same size; `Theme.with_inline_scale(theme, Code, 85)`
+paints that role at 85% of its paragraph size (50 to 100 percent, else
+`text.inline_scale`), on the paragraph's baseline and leading.
 
 Rejections name the inline's authored path below its block, such as
 `contents[2].inlines[1].inlines[0]`: `semantics.inline_empty` (no text, or an

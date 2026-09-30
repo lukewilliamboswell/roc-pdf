@@ -10,6 +10,7 @@ Theme :: {
 	font_selection : FontSelection,
 	headings : HeadingStyles,
 	inline_fonts : InlineFonts,
+	inline_scales : InlineScales,
 	page_margin : PageMargin,
 	paragraph_spacing : Layout.Unit,
 	quote : InlineColor,
@@ -34,19 +35,31 @@ Theme :: {
 
 	## The color of an inline semantic role inside rich text. An `Inherited`
 	## role paints in the color of the text around it; a `Themed` role
-	## changes the fill color. Inline roles never change the size or leading
-	## of their line, the package produces no synthetic bold or oblique, and
-	## the semantic role never depends on this presentation.
+	## changes the fill color. Inline roles never change the leading of
+	## their line (`InlineScale` may only shrink their text), the package
+	## produces no synthetic bold or oblique, and the semantic role never
+	## depends on this presentation.
 	InlineColor : [Inherited, Themed(Color.SourceValue)]
 
 	## The face of an inline semantic role: `Inherited` paints in the face of
 	## the text around it, and `Face` in a caller-registered face (for
 	## example a monospace face for `Code`). The innermost role with a face
-	## decides the face of a text run; its size and leading stay those of
-	## the paragraph.
+	## decides the face of a text run; its leading stays the paragraph's,
+	## and its size too unless the role has an `InlineScale`.
 	InlineFont : [Face(Font.FaceId), Inherited]
 
 	InlineFonts : { code : InlineFont, emphasis : InlineFont, quote : InlineFont, strong : InlineFont }
+
+	## The size of an inline role's text relative to its paragraph:
+	## `Inherited` keeps the size of the text around it, and `Percent(p)`
+	## paints it at `p` percent of the paragraph size (rounded down to a
+	## thousandth of a point), from 50 to 100. The innermost role with a
+	## scale decides. A scaled run sits on the paragraph's baseline and
+	## never changes its line's leading, so a monospace `Code` face can
+	## match the body text's apparent size.
+	InlineScale : [Inherited, Percent(U64)]
+
+	InlineScales : { code : InlineScale, emphasis : InlineScale, quote : InlineScale, strong : InlineScale }
 
 	## Table presentation. Cells paint in the body style; `header_color`
 	## changes only the fill color of header-cell text. `cell_padding` insets
@@ -109,6 +122,7 @@ Theme :: {
 			emphasis: Inherited,
 			font_selection: StyleFaces,
 			inline_fonts: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited },
+			inline_scales: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited },
 			headings: { h1: heading, h2: heading, h3: heading, h4: heading, h5: heading, h6: heading },
 			page_margin: {
 				bottom: Layout.Unit.from_raw(72000),
@@ -143,6 +157,7 @@ Theme :: {
 		font_selection: StyleFaces,
 		headings: map_headings(theme.headings, |style| { ..style, font }),
 		inline_fonts: theme.inline_fonts,
+		inline_scales: theme.inline_scales,
 		page_margin: theme.page_margin,
 		paragraph_spacing: theme.paragraph_spacing,
 		quote: theme.quote,
@@ -218,6 +233,32 @@ Theme :: {
 			Strong => { ..fonts, strong: Face(face) }
 		}
 		{ ..theme, inline_fonts: updated }
+	}
+
+	## Paint one inline role's text at `percent` of its paragraph's size,
+	## from 50 to 100 (`text.inline_scale` otherwise, when the document is
+	## prepared). Use it to balance a caller face whose letters look larger
+	## than the body face's at the same size.
+	with_inline_scale : Theme, InlineRole, U64 -> Theme
+	with_inline_scale = |theme, role, percent| {
+		scales = theme.inline_scales
+		scale = Percent(percent)
+		updated = match role {
+			Code => { ..scales, code: scale }
+			Emphasis => { ..scales, emphasis: scale }
+			Quote => { ..scales, quote: scale }
+			Strong => { ..scales, strong: scale }
+		}
+		{ ..theme, inline_scales: updated }
+	}
+
+	## The size scale of one inline role.
+	inline_scale : Theme, InlineRole -> InlineScale
+	inline_scale = |theme, role| match role {
+		Code => theme.inline_scales.code
+		Emphasis => theme.inline_scales.emphasis
+		Quote => theme.inline_scales.quote
+		Strong => theme.inline_scales.strong
 	}
 
 	## The face of one inline role; the innermost role with a face around a

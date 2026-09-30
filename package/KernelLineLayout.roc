@@ -492,11 +492,13 @@ build_logical_batch = |sources, store, requests, limits| {
 	)
 }
 
-## Validates one logical request's physical runs: dense IDs, adjacency of
-## cluster and glyph ranges, and one size over one contiguous source span.
+## Validates one logical request's physical runs: dense IDs and adjacency of
+## cluster and glyph ranges over one contiguous source span. Runs may differ
+## in size (a scaled inline role); their advances already carry it, and the
+## template key's run signature includes every run's size.
 ## A rich paragraph's adjacent runs belong to different occurrences of the
-## same source; line selection depends only on clusters, advances, and the
-## shared size, so occurrence identity is not a line-layout fact. The
+## same source; line selection depends only on clusters and advances, so
+## occurrence identity is not a line-layout fact. The
 ## returned merged bounds cover the whole logical range.
 logical_bounds : Text.Store, Semantics.Range, U64 -> Try(LogicalBounds, KernelLineLayout.Error)
 logical_bounds = |store, run_range, expected_start| {
@@ -521,7 +523,7 @@ logical_bounds = |store, run_range, expected_start| {
 		run = list_at(store.runs, $index)
 		cluster_end = range_end(run.clusters)?
 		glyph_end = range_end(run.glyphs)?
-		if run.id.index() != $index or run.clusters.length() == 0 or run.glyphs.length() == 0 or run.clusters.start() != $cluster_end or run.glyphs.start() != $glyph_end or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() or run.size.raw() != first.size.raw() {
+		if run.id.index() != $index or run.clusters.length() == 0 or run.glyphs.length() == 0 or run.clusters.start() != $cluster_end or run.glyphs.start() != $glyph_end or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() {
 			return Err(InvalidRun({ run: $index }))
 		}
 		$cluster_end = cluster_end

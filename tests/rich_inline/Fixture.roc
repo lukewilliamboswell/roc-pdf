@@ -72,6 +72,12 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ##   heading face under an ordered policy (`text.block_font_policy`), and
 ##   heading text the heading face does not cover (`text.coverage_missing`
 ##   at the heading).
+## - `scaled_code xN`: N rich paragraphs with `Code` runs in the monospace
+##   face at 85% of the paragraph size (`Theme.with_inline_scale`), a
+##   paragraph that is all code, and a table row whose one cell is all code.
+##   Scaled runs share their line's baseline and leading. Its rejections:
+##   scales of 49% and 101% (`text.inline_scale` at the theme path); 50%
+##   and 100% are accepted.
 ## - `atomic_negatives`: every inline rejection with its stable dotted code
 ##   and inline path, the eight-deep accepted boundary, and no bytes.
 ##
@@ -112,6 +118,9 @@ Fixture :: [].{
 
 	heading_faces : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	heading_faces = |count| run_heading_faces(count)
+
+	scaled_code : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	scaled_code = |count| run_scaled_code(count)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -352,6 +361,79 @@ run_heading_faces = |count| {
 			flow.final_runs,
 			flow.pages,
 			rejections,
+			bytes.len(),
+		],
+	})
+}
+
+scaled_code_document : U64 -> Document
+scaled_code_document = |count| {
+	var $contents = List.with_capacity(count + 3)
+	$contents = $contents.append(Pdf.heading(1, "Build commands"))
+	var $index = 0
+	while $index < count {
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("Step ${($index + 1).to_str()}: run "), Pdf.code("roc build --opt=size"), Pdf.text(" and then "), Pdf.strong([Pdf.code("roc test")]), Pdf.text(" before you publish the release notes for review.")]))
+		$index = $index + 1
+	}
+	$contents = $contents.append(Pdf.rich_paragraph([Pdf.code("roc check main.roc")]))
+	table = Pdf.table({
+		body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Check")]), Pdf.cell([Pdf.code("roc check")])])],
+		caption: Pdf.no_caption,
+		columns: [{ align: Start, width: Share(1) }, { align: Start, width: Share(1) }],
+		footer_rows: [],
+		header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Task")]), Pdf.header_cell(Column, [Pdf.text("Command")])])],
+		row_split: SplitRows,
+	})
+	Pdf.document({ contents: $contents.append(table), language: "en-AU", title: "Scaled code" })
+}
+
+run_scaled_code : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_scaled_code = |count| {
+	if count == 0 or count > 1000 {
+		return Err(InvalidScale)
+	}
+	faces = code_faces(0)?
+	base = Theme.default.with_inline_font(Code, faces.mono)
+	theme = base.with_inline_scale(Code, 85)
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), faces.registry)
+	document = scaled_code_document(count)
+	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
+	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
+	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, shared_source_limits) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.Plan.work(pipeline)
+
+	## The accepted boundaries, then the two rejected neighbours.
+	boundary = |percent| Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, base.with_inline_scale(Code, percent)), faces.registry)
+	lower = match Pdf.to_bytes_with(document, boundary(50)) {
+		Ok(_) => 1
+		Err(_) => 0
+	}
+	upper = match Pdf.to_bytes_with(document, boundary(100)) {
+		Ok(_) => 1
+		Err(_) => 0
+	}
+	below = match Pdf.to_bytes_with(document, boundary(49)) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.inline_scale.code"], feature: Feature("text.inline_scale"), .. }], .. })) => 1
+		_ => 0
+	}
+	above = match Pdf.to_bytes_with(document, boundary(101)) {
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.inline_scale.code"], feature: Feature("text.inline_scale"), .. }], .. })) => 1
+		_ => 0
+	}
+	checks = lower + upper + below + above
+	if checks != 4 {
+		return Err(MissingRejection(checks))
+	}
+	Ok({
+		bytes,
+		work: [
+			flow.shaped_runs,
+			flow.lines,
+			flow.final_runs,
+			flow.pages,
+			checks,
 			bytes.len(),
 		],
 	})

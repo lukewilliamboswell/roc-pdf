@@ -262,7 +262,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 		match (line_block, run_block) {
 			(TextBlock({ body: body_lines, body_offset, label: label_lines }), TextBlock({ body: body_run, label: label_run, level })) => {
 				body_index = logical_run_first(body_run, $block_index, shape_batch.store.runs.len())?
-				assert_logical_identity(shape_batch.store.runs, styles, body_run, $block_index)?
+				line_size = assert_logical_identity(shape_batch.store.runs, styles, body_run, $block_index)?
 				body_record = list_at(shape_batch.store.runs, body_index)
 				body_style = list_at(styles, body_index)
 				segmented = list_at(shape_requests, body_index).source.index() != list_at(shape_requests, body_index + body_run.physical.length() - 1).source.index()
@@ -277,7 +277,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 							(NoLabel, NoLabel) => NoLabel
 							(Label(label_range), Label(label_id)) => {
 								_label_index = logical_run_first(label_id, $block_index, shape_batch.store.runs.len())?
-								assert_logical_identity(shape_batch.store.runs, styles, label_id, $block_index)?
+								_label_size = assert_logical_identity(shape_batch.store.runs, styles, label_id, $block_index)?
 								$label_rows = checked_add($label_rows, 1)?
 								Label({ line: label_range.lines.start(), offset: label_range.offset, runs: label_id })
 							}
@@ -324,7 +324,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 						flow_facts,
 						$block_index,
 						{
-							baseline_offset: body_record.size,
+							baseline_offset: line_size,
 							decoration: Layout.Unit.from_raw(0),
 							lead: Layout.Unit.from_raw(0),
 							leading: body_style.leading,
@@ -524,15 +524,20 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					match (list_at(block_lines, $block), list_at(block_runs, $block)) {
 						(TextBlock({ body: body_lines, body_offset: _, label: _ }), TextBlock({ body: body_run, label: _, level: _ })) => {
 							body_index = logical_run_first(body_run, $block, shape_batch.store.runs.len())?
-							assert_logical_identity(shape_batch.store.runs, styles, body_run, $block)?
+							cell_size = assert_logical_identity(shape_batch.store.runs, styles, body_run, $block)?
 							record = list_at(shape_batch.store.runs, body_index)
 							style = list_at(styles, body_index)
+
+							## The cells of a row share one leading; the row's
+							## baseline offset is its largest cell line size.
 							if $block == row.first_block {
 								$leading = positive_raw(style.leading)?
-								$size = positive_raw(record.size)?
+								$size = positive_raw(cell_size)?
 								$occurrence = semantic_occurrence(record, $block, body_index)?
-							} else if positive_raw(style.leading)? != $leading or positive_raw(record.size)? != $size {
+							} else if positive_raw(style.leading)? != $leading {
 								return Err(InvalidRun({ block: $block, run: body_index }))
+							} else {
+								$size = U64.max($size, positive_raw(cell_size)?)
 							}
 							$cell_starts = $cell_starts.append($cell_rows.len())
 							$cell_rows = append_cell_rows($cell_rows, { body_lines: body_lines.lines, body_run, geometry, lines, requests: shape_requests, sources: table_sources, store: shape_batch.store }, $block)?
@@ -847,7 +852,7 @@ table_leaf_unit = |at, block_index, buffers| {
 				return Err(InvalidBlock({ block: block_index }))
 			}
 			body_index = logical_run_first(body_run, block_index, shape_batch.store.runs.len())?
-			assert_logical_identity(shape_batch.store.runs, at.styles, body_run, block_index)?
+			line_size = assert_logical_identity(shape_batch.store.runs, at.styles, body_run, block_index)?
 			body_record = list_at(shape_batch.store.runs, body_index)
 			body_style = list_at(at.styles, body_index)
 			segmented = list_at(at.shape_requests, body_index).source.index() != list_at(at.shape_requests, body_index + body_run.physical.length() - 1).source.index()
@@ -886,7 +891,7 @@ table_leaf_unit = |at, block_index, buffers| {
 			}
 			Ok({
 				block: {
-					baseline_offset: body_record.size,
+					baseline_offset: line_size,
 					decoration: Layout.Unit.from_raw(0),
 					lead: Layout.Unit.from_raw(0),
 					leading: body_style.leading,
@@ -1196,11 +1201,14 @@ logical_run_first = |logical, block, run_count| {
 	}
 }
 
-## Every physical run of one logical run must carry the identical size and
-## leading: pagination treats the logical run as one row source regardless
-## of its face or occurrence split. Fill colors may differ between the
-## occurrences of a rich paragraph; they are paint facts, not row geometry.
-assert_logical_identity : List(Text.Run), List(KernelFacadeShape.RunStyle), KernelFacadeShape.LogicalRun, U64 -> Try({}, KernelFacadePages.Error)
+## Every physical run of one logical run must carry the identical leading:
+## pagination treats the logical run as one row source regardless of its
+## face or occurrence split. Sizes may differ, since an inline role may
+## scale its text below the paragraph size (`Theme.with_inline_scale`); the
+## logical run's line size, its baseline offset, is its largest run size.
+## Fill colors may differ between the occurrences of a rich paragraph; they
+## are paint facts, not row geometry.
+assert_logical_identity : List(Text.Run), List(KernelFacadeShape.RunStyle), KernelFacadeShape.LogicalRun, U64 -> Try(Layout.Unit, KernelFacadePages.Error)
 assert_logical_identity = |runs, styles, logical, block| {
 	start = logical.physical.start()
 	length = logical.physical.length()
@@ -1209,15 +1217,17 @@ assert_logical_identity = |runs, styles, logical, block| {
 	}
 	first = list_at(runs, start)
 	first_style = list_at(styles, start)
+	var $size = first.size.raw()
 	var $index = start + 1
 	while $index < start + length {
 		run = list_at(runs, $index)
-		if run.size.raw() != first.size.raw() or list_at(styles, $index).leading.raw() != first_style.leading.raw() {
+		if list_at(styles, $index).leading.raw() != first_style.leading.raw() {
 			return Err(InvalidRun({ block, run: $index }))
 		}
+		$size = I64.max($size, run.size.raw())
 		$index = $index + 1
 	}
-	Ok({})
+	Ok(Layout.Unit.from_raw($size))
 }
 
 keeps_together : Document.NormalizedBlockKind -> Bool
