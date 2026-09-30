@@ -6,10 +6,15 @@ import pf.Path
 import pf.Stdout
 import pdf.Color
 import pdf.Document
+import pdf.Font
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "fonts/SourceSans3-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
+import "fonts/SourceSans3-It.ttf" as italic_bytes : List(U8)
+import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## An on-call runbook for a payments platform: running headers and footers
 ## with `Page N of M`, an outline over numbered sections, a severity matrix
@@ -17,18 +22,46 @@ import pdf.Theme
 ## inline commands, warning and note callouts and command panels authored
 ## through the custom-block seam, and a vector service-topology diagram.
 main! = |_args| {
+	fonts = register_fonts({})?
 	document = Pdf.document({ contents, language: "en-AU", title: "Payments platform on-call runbook" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_created("2026-09-30T00:00:00Z")
 		.with_modified("2026-09-30T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(theme)).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "operations-handbook.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Stdout.line!("Wrote operations-handbook.pdf").map_err(|err| OutputFailed(err))?
 	Ok({})
 }
+
+Faces : { regular : Font.FaceId, bold : Font.FaceId, italic : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }
+
+## Source Sans 3 Regular, Bold, and Italic, and Source Code Pro Regular, each retained
+## byte-for-byte from its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
+register_fonts = |_| {
+	latin = [Font.Script.from_iso15924("Latn")]
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	italic = add(bold.registry, italic_bytes)?
+	mono = add(italic.registry, mono_bytes)?
+	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
+}
+
+## Regular for every block role (the style-face path requires one face
+## for body, heading, and title text); Bold for `Pdf.strong`;
+## Italic for `Pdf.emphasis`;
+## the monospace face for `Pdf.code`.
+with_faces : Theme, Faces -> Theme
+with_faces = |base, faces|
+	base
+		.with_font(faces.regular)
+		.with_inline_font(Strong, faces.bold)
+		.with_inline_font(Emphasis, faces.italic)
+		.with_inline_font(Code, faces.mono)
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -66,8 +99,6 @@ theme = {
 		.with_page_margin({ top: points(44), right: points(52), bottom: points(44), left: points(52) })
 		.with_paragraph_spacing(points(7))
 		.with_bullet_indent(points(20))
-		.with_strong_color(teal)
-		.with_emphasis_color(Color.srgb8({ red: 70, green: 84, blue: 100 }))
 		.with_code_color(rust)
 		.with_table_header_color(teal)
 		.with_table_cell_padding(points(5))
