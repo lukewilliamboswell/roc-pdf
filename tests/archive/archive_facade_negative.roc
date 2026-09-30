@@ -44,11 +44,11 @@ keeps_feature_cause = |summary| {
 	}
 }
 
-keeps_content_cause : Str -> Bool
-keeps_content_cause = |text| {
+keeps_content_cause : Str, Str -> Bool
+keeps_content_cause = |text, expected| {
 	document = Pdf.document({ contents: [Pdf.paragraph(text)], language: "en-AU", title: "Archive" })
 	match Pdf.to_bytes_with(document, archive) {
-		Err(UnsupportedAuthoringContent({ blocks: 1 })) => True
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[0]"], feature: Feature(feature), .. }], .. })) => feature == expected
 		_ => False
 	}
 }
@@ -73,8 +73,8 @@ main! = |args| {
 		rejects_accessible_archive(title),
 		keeps_metadata_cause("en-au"),
 		keeps_feature_cause(title),
-		keeps_content_cause("Zero\u(FEFF)width"),
-		keeps_content_cause("Private\u(E000)use"),
+		keeps_content_cause("Zero\u(FEFF)width", "text.coverage_missing"),
+		keeps_content_cause("Private\u(E000)use", "text.unsupported_script"),
 	]
 	var $passed = 0
 	var $index = 0

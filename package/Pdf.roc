@@ -15,6 +15,7 @@ import KernelPdfA4
 import KernelSrgbProfile
 import KernelXmp
 import Metadata
+import Semantics
 import KernelFacadeFragments
 import KernelFacadeFurniture
 import KernelFacadeLines
@@ -834,6 +835,7 @@ pipeline_error = |error, doc| match error {
 	Semantics(ListItemSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), InvalidRelationship, "semantics.list_item_content", "A spacer cannot appear inside a list item.")
 	Semantics(NegativeSpacer({ spacer })) => flow_item_error(doc, SpacerItem(spacer), LayoutConstraintViolated, "layout.spacer_negative", "A spacer has a negative height; spacing never overlaps content.")
 	Semantics(ListNumbering({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_numbering", "A generated list number cannot be written in its style: letters and Roman numerals start at 1, and Roman numerals stop at 3999.")
+	Shape(UnsupportedText({ block, inline, reason, scalars })) => unsupported_text_error(doc, block, inline, reason, scalars)
 	Lines(LabelTooWide({ available, block, width })) => label_width_error(doc, block, width, available)
 	Pages(PageBreakPosition({ page_break })) => flow_item_error(doc, PageBreakItem(page_break), LayoutConstraintViolated, "layout.page_break_position", "A page break must separate two flow blocks; a break first, last, or directly after another would produce an empty page.")
 	Pages(PageLayout(KeepConflict(conflict))) => keep_conflict_error(doc, conflict)
@@ -845,6 +847,47 @@ pipeline_error = |error, doc| match error {
 	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
 	ReferenceBudget({ passes }) => located_error(doc, BudgetExceeded, "layout.budget_exhausted", "Reference stabilization did not repeat a state within its budget of ${passes.to_str()} passes; no attempted state is accepted.", [])
 	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+}
+
+## Text a shaping path cannot shape, located at its paragraph or rich
+## inline with the failing cluster's scalars. A script outside the path's
+## set is reported before a multi-scalar cluster, and both before coverage,
+## so the author sees the fundamental cause; no face is substituted.
+unsupported_text_error : Document, U64, [AtInline(U64), NoInline], [Cluster, Coverage(U32), Script(Str)], Semantics.Range -> Pdf.Error
+unsupported_text_error = |doc, block, inline, reason, scalars| {
+	at = "scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()}"
+	(feature, message) = match reason {
+		Script(script) => ("text.unsupported_script", "Text at ${at} uses the script ${if script.is_empty() "Unknown" else script}, which the selected text path does not shape.")
+		Cluster => ("text.unsupported_cluster", "Text at ${at} is a multi-scalar grapheme cluster, which the convenience shaper does not support.")
+		Coverage(scalar) => ("text.coverage_missing", "No selected face covers U+${scalar_hex(scalar)} at ${at}; no face is substituted.")
+	}
+	normalized = Document.normalize(doc)
+	rich = match normalized.blocks.get(block) {
+		Ok({ kind: RichParagraph(_), .. }) => True
+		_ => False
+	}
+	if rich {
+		inline_error(doc, block, inline, FontCoverageMissing, feature, message)
+	} else {
+		located_error(doc, FontCoverageMissing, feature, message, [leaf_path(doc, block)])
+	}
+}
+
+## A scalar in at least four upper-case hexadecimal digits.
+scalar_hex : U32 -> Str
+scalar_hex = |scalar| {
+	digits = "0123456789ABCDEF".to_utf8()
+	value = scalar.to_u64()
+	var $bytes = []
+	var $place = 1048576
+	while $place > 0 {
+		digit = (value // $place) % 16
+		if digit != 0 or !$bytes.is_empty() or $place <= 4096 {
+			$bytes = $bytes.append(digits.get(digit) ?? '0')
+		}
+		$place = $place // 16
+	}
+	Str.from_utf8($bytes) ?? ""
 }
 
 lead_overflow_error : U64, U64 -> Pdf.Error

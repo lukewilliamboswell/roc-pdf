@@ -28,6 +28,12 @@ KernelFacadeShape :: [].{
 		UndeclaredScript({ script : Str, source : U64 }),
 		UnsupportedInlineScript({ block : U64, inline : U64, script : Str }),
 		UnsupportedThemeFace({ block : U64, face : U64 }),
+
+		## Text the shaping path cannot shape, located at its block and,
+		## in a rich paragraph, its text inline: a script outside the
+		## path's set, a multi-scalar cluster, or a scalar no selected face
+		## covers. `scalars` is the failing cluster, relative to the text.
+		UnsupportedText({ block : U64, inline : [AtInline(U64), NoInline], reason : [Cluster, Coverage(U32), Script(Str)], scalars : Semantics.Range }),
 	]
 
 	## The facade's resolved font selection. `Single` is the existing exact
@@ -188,7 +194,12 @@ build_plan = |authoring, owners, store, source_store, font, theme, limits| {
 		KernelShape.shape_selected_batch([font], source_store, { direction: LeftToRight, language: preparation.options.language, writing_mode: Horizontal }, single_face_requests(preparation), limits.shape)
 	}
 	shape = match shaped {
-		Err(_) => return Err(ShapeFailure)
+		Err(_) => return Err(
+			match locate_text_failure(authoring, preparation, store, source_store, single_face_rules(font)) {
+				Located(located) => located
+				NotLocated => ShapeFailure
+			},
+		)
 		Ok(value) => value
 	}
 	Ok(
@@ -567,7 +578,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				## The convenience path accepts only the declared scripts; a
 				## span in another script rejects here, naming the authored
 				## inline, before any shaping.
-				$script_run = inline_script(analysis.script_runs, $script_run, scalar_start, scalar_end, at.face_check, at.block, $inline)?
+				$script_run = inline_script(analysis.script_runs, $script_run, scalar_start, scalar_end, at.block, $inline)?
 				cluster_start = cluster_at(analysis.graphemes, $cluster, scalar_start, at.block, $inline)?
 				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
 				$cluster = cluster_end
@@ -658,12 +669,13 @@ cluster_at = |graphemes, from, scalar, block, inline| {
 	}
 }
 
-## Every itemized script run a leaf overlaps must be one the path shapes:
-## Latin (with Common and Inherited) on the single-face path, and Latin or
-## Han on the ordered path, whose Common-run rule applies later. Returns
+## Every itemized script run a leaf overlaps must be in the facade's
+## declared set: Latin or Han, with Common and Inherited, whose Common-run
+## rule applies later. Han on the single-face path is then located by the
+## shaping rejection as a coverage gap or an unsupported script. Returns
 ## the advanced run cursor; leaves arrive in scalar order.
-inline_script : List(KernelUnicode.ScriptRun), U64, U64, U64, FaceCheck, U64, U64 -> Try(U64, KernelFacadeShape.Error)
-inline_script = |runs, from, scalar_start, scalar_end, face_check, block, inline| {
+inline_script : List(KernelUnicode.ScriptRun), U64, U64, U64, U64, U64 -> Try(U64, KernelFacadeShape.Error)
+inline_script = |runs, from, scalar_start, scalar_end, block, inline| {
 	var $cursor = from
 	while $cursor < runs.len() and list_at(runs, $cursor).range.scalar_end <= scalar_start {
 		$cursor = $cursor + 1
@@ -671,7 +683,11 @@ inline_script = |runs, from, scalar_start, scalar_end, face_check, block, inline
 	var $probe = $cursor
 	while $probe < runs.len() and list_at(runs, $probe).range.scalar_start < scalar_end {
 		script = list_at(runs, $probe).script
-		accepted = script == "Latn" or script == "Zyyy" or script == "Zinh" or (face_check == PolicySelectsFaces and script == "Hani")
+
+		## Han is declared on both paths; on the single-face path the
+		## shaping rejection then locates it as a coverage gap or an
+		## unsupported script.
+		accepted = script == "Latn" or script == "Zyyy" or script == "Zinh" or script == "Hani"
 		if !accepted {
 			return Err(UnsupportedInlineScript({ block, inline, script }))
 		}
@@ -730,10 +746,13 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 	var $source_index = 0
 	while $source_index < source_store.len() {
 		source = list_at(source_store, $source_index)
-		clusters = ordered_source_clusters(source, $source_index)?
+		clusters = match ordered_source_clusters(source, $source_index) {
+			Ok(value) => value
+			Err(error) => return Err(ordered_failure(authoring, preparation, store, source_store, ordered.registry, policy_faces, error))
+		}
 		selection = match ordered.registry.plan({ clusters, language: batch_language, policy: ordered.policy, source: Semantics.TextSourceId.from_index($source_index) }) {
 			Complete(value) => value
-			Rejected(errors) => return Err(FontSelectionRejected(errors))
+			Rejected(errors) => return Err(ordered_failure(authoring, preparation, store, source_store, ordered.registry, policy_faces, FontSelectionRejected(errors)))
 		}
 		$selection_work = {
 			coverage_span_visits: $selection_work.coverage_span_visits + selection.work.coverage_span_visits,
@@ -780,7 +799,10 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 	$source_index = 0
 	while $source_index < source_store.len() {
 		source = list_at(source_store, $source_index)
-		segments = ordered_segments(list_at($ranges_per_source, $source_index), source.analysis.script_runs, $used_faces, $source_index)?
+		segments = match ordered_segments(list_at($ranges_per_source, $source_index), source.analysis.script_runs, $used_faces, $source_index) {
+			Ok(value) => value
+			Err(error) => return Err(ordered_failure(authoring, preparation, store, source_store, ordered.registry, policy_faces, error))
+		}
 		$segments_per_source = $segments_per_source.append(segments)
 		$source_index = $source_index + 1
 	}
@@ -1146,4 +1168,198 @@ list_set = |items, index, value| match items.set(index, value) {
 		crash "validated facade shaping write escaped"
 	}
 	Ok(updated) => updated
+}
+
+## The rules a shaping path applies to one scalar: whether its itemized
+## script is outside the facade's declared set, declared but not shaped by
+## this path, or shaped; and whether a selected face covers it.
+TextRules : { covers : U32 -> Bool, script : Str -> [Declared, Shaped, Undeclared] }
+
+TextFailure : { cluster : U64, reason : [Cluster, Coverage(U32), Script(Str)], scalar : U64 }
+
+## Locate the first text a shaping path cannot shape, in document order, as
+## the block (and, in a rich paragraph, the text inline) that owns it and
+## the failing cluster's scalars relative to that text. Runs only on a
+## shaping rejection: each source is scanned once for its failing clusters,
+## script before cluster before coverage, and each request then finds its
+## first failure by binary search, so the scan is linear in the text plus
+## `requests * log(failures)`.
+locate_text_failure : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, Semantics.Store, List(KernelFacadeSources.Source), TextRules -> [Located(KernelFacadeShape.Error), NotLocated]
+locate_text_failure = |authoring, preparation, store, sources, rules| {
+	failures = sources.map(|source| source_failures(source, rules))
+	var $block = 0
+	while $block < preparation.block_runs.len() {
+		match list_at(preparation.block_runs, $block) {
+			TextBlock({ body, label, level: _ }) => {
+				match label {
+					Label(run) => match request_failure(preparation, store, failures, run.physical.start()) {
+						Found(found) => return Located(UnsupportedText({ block: $block, inline: NoInline, reason: found.reason, scalars: found.scalars }))
+						None => {}
+					}
+					NoLabel => {}
+				}
+				var $request = body.physical.start()
+				while $request < body.physical.start() + body.physical.length() {
+					match request_failure(preparation, store, failures, $request) {
+						Found(found) => {
+							inline = match list_at(authoring.blocks, $block).kind {
+								RichParagraph(paragraph) => leaf_inline(authoring, list_at(authoring.rich_paragraphs, paragraph), $request - body.physical.start())
+								_ => NoInline
+							}
+							return Located(UnsupportedText({ block: $block, inline, reason: found.reason, scalars: found.scalars }))
+						}
+						None => {}
+					}
+					$request = $request + 1
+				}
+			}
+		}
+		$block = $block + 1
+	}
+	NotLocated
+}
+
+## The first failing cluster inside one request's occurrence, relative to
+## the occurrence's first scalar.
+request_failure : KernelFacadeShape.Preparation, Semantics.Store, List(List(TextFailure)), U64 -> [Found({ reason : [Cluster, Coverage(U32), Script(Str)], scalars : Semantics.Range }), None]
+request_failure = |preparation, store, failures, request_index| {
+	request = list_at(preparation.requests, request_index)
+	occurrence = list_at(store.occurrences, request.occurrence.index())
+	match occurrence.source {
+		Text(id, UnicodeRange(range)) => {
+			if id.index() >= failures.len() {
+				return None
+			}
+			listed = list_at(failures, id.index())
+			start = range.scalars.start()
+			end = start + range.scalars.length()
+			var $low = 0
+			var $high = listed.len()
+			while $low < $high {
+				middle = $low + ($high - $low) // 2
+				if list_at(listed, middle).scalar < start {
+					$low = middle + 1
+				} else {
+					$high = middle
+				}
+			}
+			if $low < listed.len() and list_at(listed, $low).scalar < end {
+				failure = list_at(listed, $low)
+				Found({ reason: failure.reason, scalars: Semantics.Range.from_start_and_length(failure.scalar - start, failure.cluster) })
+			} else {
+				None
+			}
+		}
+		_ => None
+	}
+}
+
+## The text inline of a rich paragraph that holds leaf `leaf`.
+leaf_inline : Document.NormalizedAuthoring, Document.NormalizedRich, U64 -> [AtInline(U64), NoInline]
+leaf_inline = |authoring, rich, leaf| {
+	var $inline = rich.inlines
+	while $inline < rich.inlines + rich.length {
+		record = list_at(authoring.inlines, $inline)
+		match record.kind {
+			Text(_) => if record.first_leaf == leaf {
+				return AtInline($inline)
+			}
+			_ => {}
+		}
+		$inline = $inline + 1
+	}
+	NoInline
+}
+
+## Every cluster of one source that the rules reject, in scalar order, keyed
+## by its first scalar.
+source_failures : KernelFacadeSources.Source, TextRules -> List(TextFailure)
+source_failures = |source, rules| {
+	analysis = source.analysis
+	var $failures = []
+	var $run = 0
+	var $grapheme = 0
+	var $reported_cluster = U64.highest
+	for located in Scalar.iter(source.unicode) {
+		scalar_index = located.scalar_index
+		while $run < analysis.script_runs.len() and list_at(analysis.script_runs, $run).range.scalar_end <= scalar_index {
+			$run = $run + 1
+		}
+		while $grapheme < analysis.graphemes.len() and list_at(analysis.graphemes, $grapheme).scalar_end <= scalar_index {
+			$grapheme = $grapheme + 1
+		}
+		script = if $run < analysis.script_runs.len() list_at(analysis.script_runs, $run).script else ""
+		cluster = if $grapheme < analysis.graphemes.len() {
+			record = list_at(analysis.graphemes, $grapheme)
+			{ length: record.scalar_end - record.scalar_start, start: record.scalar_start }
+		} else {
+			{ length: 1, start: scalar_index }
+		}
+		value = Scalar.to_u32(located.scalar)
+		script_rule = (rules.script)(script)
+		reason = if script_rule == Undeclared {
+			Failed(Script(script))
+		} else if cluster.length != 1 {
+			Failed(Cluster)
+		} else if !(rules.covers)(value) {
+			Failed(Coverage(value))
+		} else if script_rule == Declared {
+			Failed(Script(script))
+		} else {
+			Passed
+		}
+		match reason {
+			Failed(why) => if cluster.start != $reported_cluster {
+				$failures = $failures.append({ cluster: cluster.length, reason: why, scalar: cluster.start })
+				$reported_cluster = cluster.start
+			}
+			Passed => {}
+		}
+	}
+	$failures
+}
+
+## An ordered-path coverage or script rejection, located when the policy's
+## faces cannot shape some text; any other rejection is kept.
+ordered_failure : Document.NormalizedAuthoring, KernelFacadeShape.Preparation, Semantics.Store, List(KernelFacadeSources.Source), Font.Registry, List(Font.FaceId), KernelFacadeShape.Error -> KernelFacadeShape.Error
+ordered_failure = |authoring, preparation, store, sources, registry, faces, error| {
+	var $fonts = List.with_capacity(faces.len())
+	for face in faces {
+		match registry.prepared_face(face) {
+			Ok(font) => {
+				$fonts = $fonts.append(font)
+			}
+			Err(_) => return error
+		}
+	}
+	match locate_text_failure(authoring, preparation, store, sources, policy_rules($fonts)) {
+		Located(located) => located
+		NotLocated => error
+	}
+}
+
+## The single-face rules: Latin with Common and Inherited, covered by the
+## one face with a glyph other than `.notdef`. Han is declared but shaped
+## only through an ordered policy, so uncovered Han is a coverage gap and
+## covered Han an unsupported script.
+single_face_rules : KernelFont.Inspection -> TextRules
+single_face_rules = |font| {
+	covers: |scalar| match KernelFont.glyph_for_scalar(font, scalar) {
+		Some(glyph) => glyph != 0
+		None => False
+	},
+	script: |alias| if alias == "Latn" or alias == "Zyyy" or alias == "Zinh" Shaped else if alias == "Hani" Declared else Undeclared,
+}
+
+## The ordered-policy rules: the declared script set, covered by any face
+## of the policy.
+policy_rules : List(KernelFont.Inspection) -> TextRules
+policy_rules = |fonts| {
+	covers: |scalar| fonts.any(
+		|font| match KernelFont.glyph_for_scalar(font, scalar) {
+			Some(glyph) => glyph != 0
+			None => False
+		},
+	),
+	script: |alias| if declared_script(alias) Shaped else Undeclared,
 }

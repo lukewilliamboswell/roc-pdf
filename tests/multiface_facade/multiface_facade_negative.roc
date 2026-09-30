@@ -87,8 +87,8 @@ rejected = |runtime_argument_count, text, expected| {
 		title: "Multiface rejection",
 	})
 	matched = match (expected, Pdf.to_bytes_with(document, options)) {
-		(MissingCoverageExpected, Err(InvalidFontSelection([MissingCoverage(_)]))) => 1
-		(UndeclaredScriptExpected, Err(InvalidFontSelection([UnsupportedBuiltInShaping(_)]))) => 1
+		(MissingCoverageExpected, Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[0]"], feature: Feature("text.coverage_missing"), .. }], .. }))) => 1
+		(UndeclaredScriptExpected, Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[0]"], feature: Feature("text.unsupported_script"), .. }], .. }))) => 1
 		_ => 0
 	}
 	if matched != 1 {

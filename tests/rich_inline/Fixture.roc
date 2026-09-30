@@ -300,6 +300,11 @@ run_negatives = |context| {
 		rejects(document([lead, Pdf.rich_paragraph([Pdf.text("Visit "), Pdf.inline_link([Pdf.text("the site")], "harbourfinch example")])]), InvalidRelationship, "semantics.link_uri", "contents[1].inlines[1]"),
 		rejects(document([lead, Pdf.rich_paragraph([Pdf.text("Greek "), Pdf.in_language("el", [Pdf.text("Ωμέγα")])])]), FontCoverageMissing, "text.unsupported_script", "contents[1].inlines[1].inlines[0]"),
 		rejects(document([lead, Pdf.rich_paragraph([Pdf.text("Cafe"), Pdf.emphasis([Pdf.text("\u(301)")])])]), FontCoverageMissing, "text.unsupported_cluster", "contents[1].inlines[0]"),
+		rejects(document([lead, Pdf.paragraph("Customer شركة الشمال")]), FontCoverageMissing, "text.unsupported_script", "contents[1]"),
+		rejects(document([lead, Pdf.paragraph("Address 北京")]), FontCoverageMissing, "text.coverage_missing", "contents[1]"),
+		rejects(document([lead, Pdf.paragraph("Cafe\u(301) crème")]), FontCoverageMissing, "text.unsupported_cluster", "contents[1]"),
+		rejects(document([lead, Pdf.rich_paragraph([Pdf.text("Ship to "), Pdf.strong([Pdf.text("北京")])])]), FontCoverageMissing, "text.coverage_missing", "contents[1].inlines[1].inlines[0]"),
+		rejects(document([lead, Pdf.bullet_list([Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Soft\u(AD)hyphen")])])])]), FontCoverageMissing, "text.coverage_missing", "contents[1].items[0].contents[0].inlines[0]"),
 		rejects(document([Pdf.section([Pdf.heading(1, "Grouped"), Pdf.rich_paragraph([Pdf.text("Empty "), Pdf.strong([])])])]), InvalidRelationship, "semantics.inline_empty", "contents[0].contents[1].inlines[1]"),
 	]
 	passed = checks.sum()

@@ -651,8 +651,8 @@ substitution, outlining, rasterization, or dropping text.
 | Pinned UAX #14 line breaking and UAX #29 grapheme segmentation | supported | supported | [line-layout.md](performance/line-layout.md), [uax-boundary-vectors.md](performance/uax-boundary-vectors.md) |
 | Precomposed Latin letters with diacritics (one scalar per cluster) | supported | supported | facade shaping records above |
 | Generated list labels | supported | supported | [generated-labels.md](performance/generated-labels.md) |
-| Scalars outside the selected faces' coverage | rejected | rejected | `text.coverage_missing` (today `InvalidFontSelection([MissingCoverage])`) |
-| Scripts outside `{Latn, Hani}` (e.g. Arabic, Hebrew, Devanagari, Thai) | rejected | per closed row | `text.unsupported_script` (today `InvalidFontSelection([UnsupportedBuiltInShaping])`) |
+| Scalars outside the selected faces' coverage | rejected | rejected | `text.coverage_missing`, located at the paragraph or inline with the cluster's scalars |
+| Scripts outside `{Latn, Hani}` (e.g. Arabic, Hebrew, Devanagari, Thai) | rejected | per closed row | `text.unsupported_script`, located likewise |
 | Right-to-left and bidirectional text | rejected | supported | facade: `text.unsupported_script`; advanced: [rtl-text.md](performance/rtl-text.md) |
 | Decomposed combining sequences (multi-scalar clusters) | rejected | supported | facade: `text.unsupported_cluster`; advanced: [combining-text.md](performance/combining-text.md) |
 | Supplementary-plane scalars | rejected | supported | facade: `text.coverage_missing` for the packaged face, `text.unsupported_script` otherwise; advanced: [supplementary-text.md](performance/supplementary-text.md) |
@@ -667,10 +667,16 @@ substitution, outlining, rasterization, or dropping text.
 | Runs whose script stays Common (or Inherited) after itemization, e.g. a cell holding only `1,284` or `+10.0%`, or the spaces in `Café 中 PDF`, under an ordered policy | supported | — | [tables.md](performance/tables.md): each cluster of such a run takes the first face in policy order that covers it, exactly as per-cluster coverage selection does for declared scripts; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
 | Furniture text (headers, footers, page fields) shaped with exact artifact ownership, through the single theme face | supported | — | [page-templates.md](performance/page-templates.md); under an ordered font policy furniture text reports `text.furniture_policy` (`FeatureUnavailable`) and only furniture drawings are supported |
 
-The text diagnostics above may continue to surface through the existing typed
-`InvalidFontSelection` alternatives; the dotted codes name them stably in
-reports and in this record. The script check runs before coverage selection
-so an unsupported script is never reported as a coverage gap.
+The text diagnostics above are located (`reference-documents-v8`): each
+names the paragraph, list item, or rich inline that holds the first text in
+document order that cannot be shaped, and the failing cluster's scalar range
+relative to that text, on both the single-face and ordered-policy paths. Per
+cluster, the declared-script check (`{Latn, Hani}` with Common and Inherited)
+runs before the cluster check and both before coverage, so an unsupported
+script is never reported as a coverage gap. On the single-face path Han is
+declared but shaped only through an ordered policy: uncovered Han is
+`text.coverage_missing` and covered Han `text.unsupported_script`.
+`InvalidFontSelection` remains only for policy construction errors.
 
 ## Layout policy vocabulary
 

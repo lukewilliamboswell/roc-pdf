@@ -6992,16 +6992,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 122,
-          "allocated_bytes": 15573,
+          "allocations": 135,
+          "allocated_bytes": 17373,
           "work": {
             "missing_coverage_rejected": 1,
             "output_bytes": 0
           }
         },
         "x64musl": {
-          "allocations": 122,
-          "allocated_bytes": 15573,
+          "allocations": 135,
+          "allocated_bytes": 17373,
           "work": {
             "missing_coverage_rejected": 1,
             "output_bytes": 0
@@ -7029,16 +7029,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 122,
-          "allocated_bytes": 15580,
+          "allocations": 133,
+          "allocated_bytes": 17275,
           "work": {
             "undeclared_script_rejected": 1,
             "output_bytes": 0
           }
         },
         "x64musl": {
-          "allocations": 122,
-          "allocated_bytes": 15580,
+          "allocations": 133,
+          "allocated_bytes": 17275,
           "work": {
             "undeclared_script_rejected": 1,
             "output_bytes": 0
@@ -20915,7 +20915,7 @@
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
         "pages": 1,
-        "rejections": 12
+        "rejections": 17
       },
       "work_counters": [
         "rejections",
@@ -20924,19 +20924,19 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 16720,
-          "allocated_bytes": 5519703,
+          "allocations": 22242,
+          "allocated_bytes": 6918482,
           "work": {
-            "rejections": 12,
+            "rejections": 17,
             "boundary_bytes": 16325,
             "output_bytes": 16120
           }
         },
         "x64musl": {
-          "allocations": 16720,
-          "allocated_bytes": 5519703,
+          "allocations": 22242,
+          "allocated_bytes": 6918482,
           "work": {
-            "rejections": 12,
+            "rejections": 17,
             "boundary_bytes": 16325,
             "output_bytes": 16120
           }

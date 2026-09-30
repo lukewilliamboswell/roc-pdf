@@ -312,10 +312,14 @@ this slice's seven full and two early-stopped parallel harness runs.
 - **Occurrence languages** are a facade construction fact. The kernel graph
   validator does not re-derive them against their owning element, and no
   marked-content `/Lang` exists.
-- **Unlocated rich-paragraph failures.** Glyph coverage on the single-face
-  path and limit failures still map to the unlocated
-  `UnsupportedAuthoringContent({ blocks })`. Only the inline-specific
-  failures above carry a path.
+- **Unlocated rich-paragraph failures.** ~~Glyph coverage~~ is located by
+  the open-issues slice: on a shaping rejection (single face) or a
+  selection or script rejection (ordered policy), `KernelFacadeShape`
+  scans each source once for failing clusters and reports the first in
+  document order as `UnsupportedText` with its block, text inline, and
+  scalars (`text.unsupported_script`, `text.unsupported_cluster`, or
+  `text.coverage_missing`). Limit failures of the shaper still map to
+  `UnsupportedAuthoringContent({ blocks })`.
 - **Diagnostic placement.** A leaf boundary inside a multi-scalar cluster is
   reported on the first leaf whose boundary falls inside it, which is the
   leaf before the split.
