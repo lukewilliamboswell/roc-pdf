@@ -191,7 +191,7 @@ hero = {
 	frame = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 504, 190), meadow)
 	progress = Scene.rectangle(Scene.rectangle(frame, Layout.rect(16, 14, 380, 8), white), Layout.rect(16, 14, 266, 8), leaf)
 	progress
-		.text({ align: End, color: forest, origin: Layout.point(488, 13), size: points(8), text: "Decision log 70%" })
+		.text_in(Strong, { align: End, color: forest, origin: Layout.point(488, 13), size: points(8), text: "Decision log 70%" })
 		.group(Layout.point(16, 32), column("Proposed", [(clay, 96), (sun, 80), (clay, 104)]))
 		.group(Layout.point(176, 32), column("Deciding", [(sun, 88), (sun, 110)]))
 		.group(Layout.point(336, 32), column("Decided", [(leaf, 100), (leaf, 76), (leaf, 92)]))

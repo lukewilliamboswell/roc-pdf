@@ -292,7 +292,7 @@ latency_chart = {
 	$d
 		.path(Scene.path({}).move_to(Layout.point(end_29, 76)).line_to(Layout.point(end_29, 52)).line_to(Layout.point(end_30 + 8, 52)).finish(), Scene.solid_stroke(pink, Layout.Unit.millipoints(1500)))
 		.path(Scene.path({}).move_to(Layout.point(end_30, 52)).line_to(Layout.point(end_30 + 8, 56)).line_to(Layout.point(end_30 + 8, 48)).close().finish(), Scene.solid_fill(pink))
-		.text({ align: Start, color: pink, origin: Layout.point(end_29 + 6, 60), size: points(8), text: "−47%" })
+		.text_in(Strong, { align: Start, color: pink, origin: Layout.point(end_29 + 6, 60), size: points(8), text: "−47%" })
 		.path(Scene.path({}).move_to(Layout.point(left, 16)).line_to(Layout.point(measure - 1, 16)).finish(), Scene.solid_stroke(ink, Layout.Unit.millipoints(700)))
 }
 

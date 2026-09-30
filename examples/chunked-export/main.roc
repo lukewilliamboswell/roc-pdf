@@ -337,7 +337,7 @@ temperature_chart = {
 	$d = Scene.rectangle($d, { origin: Layout.point(plot_x(0), plot_y(80)), size: { height: Layout.Unit.millipoints(1200), width: points(right - plot_x(0)) } }, alarm)
 	$d = Scene.rectangle($d, Layout.rect(plot_x(28), plot_y(80), plot_x(32) - plot_x(28), plot_y(95) - plot_y(80)), Color.srgb8({ red: 254, green: 226, blue: 226 }))
 	$d = $d.text({ align: End, color: alarm, origin: Layout.point(right, plot_y(80) + 4), size: points(7), text: "8.0 °C limit" })
-	$d = $d.text({ align: Center, color: alarm, origin: Layout.point((plot_x(28) + plot_x(32)) // 2, plot_y(95) + 4), size: points(7), text: "Excursion" })
+	$d = $d.text_in(Strong, { align: Center, color: alarm, origin: Layout.point((plot_x(28) + plot_x(32)) // 2, plot_y(95) + 4), size: points(7), text: "Excursion" })
 	$d = legend($d, plot_x(0), plot_y(100), spruce, points(2), "Probe A")
 	$d = legend($d, plot_x(0) + 76, plot_y(100), light, Layout.Unit.millipoints(1500), "Probe B")
 	$d

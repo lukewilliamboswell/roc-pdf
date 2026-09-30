@@ -351,7 +351,7 @@ progress_chart = {
 		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(start, y, track, 14), grid), Layout.rect(start, y, filled, 14), color)
 		$chart = $chart
 			.text({ align: End, color: ink, origin: Layout.point(start - 8, y + 3), size: points(9), text: name })
-			.text({ align: End, color: ink, origin: Layout.point(body_width - 2, y + 3), size: points(10), text: "${percent.to_str()}%" })
+			.text_in(Strong, { align: End, color: ink, origin: Layout.point(body_width - 2, y + 3), size: points(10), text: "${percent.to_str()}%" })
 		$row = $row + 1
 	}
 
@@ -360,7 +360,7 @@ progress_chart = {
 	top = 4 * row_height + 2
 	$chart
 		.path(Scene.path({}).move_to(Layout.point(half, 1)).line_to(Layout.point(half, top)).finish(), Scene.solid_stroke(navy, points(1)))
-		.text({ align: Center, color: navy, origin: Layout.point(half, top + 4), size: points(8), text: "Half year" })
+		.text_in(Strong, { align: Center, color: navy, origin: Layout.point(half, top + 4), size: points(8), text: "Half year" })
 }
 
 ## ---------------------------------------------------------------------

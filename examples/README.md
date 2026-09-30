@@ -74,7 +74,9 @@ several), and scale inline code to the body text with
 `Theme.with_inline_scale`. Links take a colour and an underline from
 `Theme.with_link_color` and `Theme.with_link_underline`. Their charts,
 illustrations, and diagrams are vector drawings built from `Scene` groups
-with real, searchable text labels (`Scene.Drawing.text`), and the business
+with real, searchable text labels (`Scene.Drawing.text`, or
+`Scene.Drawing.text_in` for a label in the bold or code face, such as the
+brand brief's swatch names and hex values), and the business
 report places a JPEG photograph as an accessible figure with authored
 alternative text and a caption. Tables are shaded and ruled through
 `Theme.with_table_header_fill`, `with_table_body_fills`,

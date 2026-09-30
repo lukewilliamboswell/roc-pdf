@@ -204,13 +204,13 @@ band = Pdf.spaced_decoration(
 	{ above: points(6), behind: Bool.False, below: points(6) },
 )
 
-## One swatch card: the solid colour, named with its hex value, above
-## three tints (75, 50, 25 percent toward white).
+## One swatch card: the solid colour, named in bold with its hex value in
+## the code face, above three tints (75, 50, 25 percent toward white).
 swatch : Rgb, Str, Str, Color.SourceValue -> Scene.Drawing
 swatch = |rgb, name, hex, label| {
 	solid = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 39, 88, 52), Color.srgb8(rgb))
-		.text({ align: Start, color: label, origin: Layout.point(6, 77), size: points(8), text: name })
-		.text({ align: Start, color: label, origin: Layout.point(6, 45), size: points(7), text: hex })
+		.text_in(Strong, { align: Start, color: label, origin: Layout.point(6, 77), size: points(8), text: name })
+		.text_in(Code, { align: Start, color: label, origin: Layout.point(6, 45), size: points(7), text: hex })
 	light = Scene.rectangle(Scene.rectangle(solid, Layout.rect(0, 26, 88, 12), tint(rgb, 25)), Layout.rect(0, 13, 88, 12), tint(rgb, 50))
 	Scene.rectangle(light, Layout.rect(0, 0, 88, 12), tint(rgb, 75))
 }

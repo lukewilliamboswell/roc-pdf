@@ -333,7 +333,7 @@ tier = |drawing, { x, y, w, h, n, name, color, tint }| {
 	base = drawing
 		.path(rounded(x, y, w, h, 6), { fill: AuthorSolidFill(tint), stroke: AuthorSolidStroke({ color, width: points(1) }) })
 		.path(rounded(x + 8, y + h - 34, 26, 26, 13), Scene.solid_fill(color))
-		.text({ align: Center, color: white, origin: Layout.point(x + 21, y + h - 25), size: points(11), text: n.to_str() })
+		.text_in(Strong, { align: Center, color: white, origin: Layout.point(x + 21, y + h - 25), size: points(11), text: n.to_str() })
 	Scene.rectangle(base, Layout.rect(x + 42, y + h - 18, w - 52, 4), color)
 		.text({ align: Center, color: charcoal, origin: Layout.point(x + w // 2, y + 9), size: points(8), text: name })
 }
