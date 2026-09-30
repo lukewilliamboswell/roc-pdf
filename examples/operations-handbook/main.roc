@@ -51,17 +51,23 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
 }
 
-## Regular for every block role (the style-face path requires one face
-## for body, heading, and title text); Bold for `Pdf.strong`;
-## Italic for `Pdf.emphasis`;
-## the monospace face for `Pdf.code`.
+## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
+## Italic for `Pdf.emphasis`; the monospace face for `Pdf.code`, at 88% of
+## the text around it. Level-2 headings are smaller and charcoal.
 with_faces : Theme, Faces -> Theme
-with_faces = |base, faces|
+with_faces = |base, faces| {
+	title = Theme.title_style(base)
+	heading = Theme.heading_style(base)
 	base
 		.with_font(faces.regular)
+		.with_title_style({ ..title, font: faces.bold })
+		.with_heading_level_style(H1, { ..heading, font: faces.bold })
+		.with_heading_level_style(H2, { ..heading, font: faces.bold, color: charcoal, size: points(12), leading: points(17) })
 		.with_inline_font(Strong, faces.bold)
 		.with_inline_font(Emphasis, faces.italic)
 		.with_inline_font(Code, faces.mono)
+		.with_inline_scale(Code, 88)
+}
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -104,6 +110,8 @@ theme = {
 		.with_table_cell_padding(points(5))
 		.with_table_row_gap(points(2))
 		.with_table_rule(Rule({ color: mist, width: Layout.Unit.millipoints(600) }))
+		.with_link_color(teal)
+		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1400), thickness: Layout.Unit.millipoints(500) }))
 }
 
 ## ---------------------------------------------------------------------
@@ -198,7 +206,11 @@ callout = |name, style, paragraphs| {
 	spacing = Theme.paragraph_spacing(theme).raw()
 	count = paragraphs.len().to_i64_wrap()
 	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(measure) }
-	Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
+	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
+
+	## Each callout's labels take its accent colour: a warning's amber, a
+	## note's teal.
+	Pdf.scoped(Theme.Scope.empty.with_color(Strong, style.accent), [block])
 }
 
 ## A command panel: one rich paragraph whose lines are separated by
@@ -261,9 +273,9 @@ callout_panel = |style, size| {
 }
 
 ## ---------------------------------------------------------------------
-## Figure 1: the service topology. Drawings carry no text, so each tier
-## is a rounded box with a numbered badge painted as seven-segment vector
-## digits; the numbered list after the figure names every tier.
+## Figure 1: the service topology. Each tier is a rounded box with a
+## numbered badge and its name; the numbered list after the figure
+## describes every tier.
 
 ## A rounded rectangle path at (x, y) of size w × h, radius r, in points.
 rounded : I64, I64, I64, I64, I64 -> Scene.AuthorPath
@@ -290,47 +302,16 @@ rounded = |x, y, w, h, r| {
 		.finish()
 }
 
-## One seven-segment digit, 2 pt strokes in a 10 × 18 pt cell.
-digit : U64, Color.SourceValue -> Scene.Drawing
-digit = |value, color| {
-	a = (0, 16, 10, 2)
-	b = (8, 8, 2, 10)
-	c = (8, 0, 2, 10)
-	d = (0, 0, 10, 2)
-	e = (0, 0, 2, 10)
-	f = (0, 8, 2, 10)
-	g = (0, 8, 10, 2)
-	segments = match value {
-		0 => [a, b, c, d, e, f]
-		1 => [b, c]
-		2 => [a, b, g, e, d]
-		3 => [a, b, g, c, d]
-		4 => [f, g, b, c]
-		5 => [a, f, g, c, d]
-		6 => [a, f, g, e, c, d]
-		7 => [a, b, c]
-		8 => [a, b, c, d, e, f, g]
-		_ => [a, b, c, d, f, g]
-	}
-	var $drawing = Scene.drawing({})
-	for (x, y, w, h) in segments {
-		$drawing = Scene.rectangle($drawing, Layout.rect(x, y, w, h), color)
-	}
-	$drawing
-}
-
 ## A tier box: tinted body, coloured header strip, a numbered badge, and
-## placeholder text bars that suggest the tier's instances.
-tier : Scene.Drawing, { x : I64, y : I64, w : I64, h : I64, n : U64, color : Color.SourceValue, tint : Color.SourceValue } -> Scene.Drawing
-tier = |drawing, { x, y, w, h, n, color, tint }| {
+## the tier's name.
+tier : Scene.Drawing, { x : I64, y : I64, w : I64, h : I64, n : U64, name : Str, color : Color.SourceValue, tint : Color.SourceValue } -> Scene.Drawing
+tier = |drawing, { x, y, w, h, n, name, color, tint }| {
 	base = drawing
 		.path(rounded(x, y, w, h, 6), { fill: AuthorSolidFill(tint), stroke: AuthorSolidStroke({ color, width: points(1) }) })
 		.path(rounded(x + 8, y + h - 34, 26, 26, 13), Scene.solid_fill(color))
-		.group(Layout.point(x + 16, y + h - 30), digit(n, white))
-	var $d = Scene.rectangle(base, Layout.rect(x + 42, y + h - 18, w - 52, 4), color)
-	$d = Scene.rectangle($d, Layout.rect(x + 42, y + h - 28, (w - 52) * 2 // 3, 3), mist)
-	$d = Scene.rectangle($d, Layout.rect(x + 10, y + 10, w - 20, 3), mist)
-	Scene.rectangle($d, Layout.rect(x + 10, y + 18, (w - 20) * 3 // 4, 3), mist)
+		.text({ align: Center, color: white, origin: Layout.point(x + 21, y + h - 25), size: points(11), text: n.to_str() })
+	Scene.rectangle(base, Layout.rect(x + 42, y + h - 18, w - 52, 4), color)
+		.text({ align: Center, color: charcoal, origin: Layout.point(x + w // 2, y + 9), size: points(8), text: name })
 }
 
 ## A horizontal arrow from x1 to x2 at height y, with a filled head.
@@ -363,24 +344,34 @@ topology = {
 	## The production zone behind the application tiers, dashed by short bars.
 	var $d = Scene.drawing({})
 		.path(rounded(128, 2, 358, 172, 8), { fill: AuthorSolidFill(zone), stroke: AuthorSolidStroke({ color: mist, width: Layout.Unit.millipoints(800) }) })
-	$d = tier($d, { x: 4, y: 106, w: 100, h: 58, n: 1, color: edge, tint: edge_tint })
-	$d = tier($d, { x: 144, y: 106, w: 100, h: 58, n: 2, color: edge, tint: edge_tint })
-	$d = tier($d, { x: 268, y: 106, w: 100, h: 58, n: 3, color: teal, tint: app_tint })
-	$d = tier($d, { x: 382, y: 106, w: 96, h: 58, n: 4, color: teal, tint: app_tint })
-	$d = tier($d, { x: 268, y: 12, w: 100, h: 58, n: 5, color: data, tint: data_tint })
-	$d = tier($d, { x: 382, y: 12, w: 96, h: 58, n: 6, color: data, tint: data_tint })
-	$d = tier($d, { x: 144, y: 12, w: 100, h: 58, n: 7, color: teal, tint: app_tint })
+	$d = tier($d, { x: 4, y: 106, w: 100, h: 58, n: 1, name: "Edge load balancer", color: edge, tint: edge_tint })
+	$d = tier($d, { x: 144, y: 106, w: 100, h: 58, n: 2, name: "API gateway", color: edge, tint: edge_tint })
+	$d = tier($d, { x: 268, y: 106, w: 100, h: 58, n: 3, name: "Payments API", color: teal, tint: app_tint })
+	$d = tier($d, { x: 382, y: 106, w: 96, h: 58, n: 4, name: "Acquirer adapters", color: teal, tint: app_tint })
+	$d = tier($d, { x: 144, y: 12, w: 100, h: 58, n: 5, name: "Ledger database", color: data, tint: data_tint })
+	$d = tier($d, { x: 382, y: 12, w: 96, h: 58, n: 6, name: "Settlement queue", color: data, tint: data_tint })
+	$d = tier($d, { x: 268, y: 12, w: 100, h: 58, n: 7, name: "Settlement worker", color: teal, tint: app_tint })
 	$d = arrow_right($d, 104, 144, 135)
 	$d = arrow_right($d, 244, 268, 135)
 	$d = arrow_right($d, 368, 382, 135)
-	$d = arrow_down($d, 318, 106, 70)
+
+	## The adapters publish to the queue below them.
 	$d = arrow_down($d, 430, 106, 70)
 
-	## The settlement worker reads the queue: an arrow pointing back left.
-	head = Scene.path({}).move_to(Layout.point(244, 41)).line_to(Layout.point(251, 45)).line_to(Layout.point(251, 37)).close().finish()
+	## The payments API writes to the ledger: down, left, and down again.
+	ledger_head = Scene.path({}).move_to(Layout.point(194, 70)).line_to(Layout.point(190, 77)).line_to(Layout.point(198, 77)).close().finish()
+	$d = $d
+		.path(Scene.path({}).move_to(Layout.point(296, 106)).line_to(Layout.point(296, 88)).line_to(Layout.point(194, 88)).line_to(Layout.point(194, 76)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(ledger_head, Scene.solid_fill(charcoal))
+
+	## The settlement worker drains the queue and reconciles against the
+	## ledger: arrows into it from both sides.
+	left_head = |x| Scene.path({}).move_to(Layout.point(x, 41)).line_to(Layout.point(x + 7, 45)).line_to(Layout.point(x + 7, 37)).close().finish()
 	$d
+		.path(Scene.path({}).move_to(Layout.point(382, 41)).line_to(Layout.point(374, 41)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(left_head(368), Scene.solid_fill(charcoal))
 		.path(Scene.path({}).move_to(Layout.point(268, 41)).line_to(Layout.point(250, 41)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
-		.path(head, Scene.solid_fill(charcoal))
+		.path(left_head(244), Scene.solid_fill(charcoal))
 }
 
 ## ---------------------------------------------------------------------
@@ -561,7 +552,7 @@ contents = [
 		Pdf.paragraph("Every payment enters through the edge, is authorised by the payments API, and is written to the ledger before any acquirer is told to capture funds. Figure 1 shows the tiers you will meet during an incident."),
 		Pdf.figure(
 			topology,
-			"Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes.",
+			"Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger.",
 			Pdf.caption("Figure 1. Request path through the production zone (shaded)"),
 		),
 		Pdf.numbered_list(
