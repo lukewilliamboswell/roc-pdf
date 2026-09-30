@@ -3785,6 +3785,62 @@
       "validators": []
     },
     {
+      "name": "text-layout caller-font unhinted facade output",
+      "scenario_revision": "caller-font-unhinted-v1",
+      "source": "tests/caller_font/caller_facade.roc",
+      "snapshot": "tests/caller_font/caller_facade_unhinted.pdf",
+      "args": [
+        "unhinted"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "caller_font_bytes": 2660,
+        "authored_placements": 3,
+        "caller_facade": 1,
+        "normalized_plan_identity": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "tables",
+        "parsed_glyphs",
+        "cmap_mappings",
+        "authored_placements",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 994,
+          "allocated_bytes": 758438,
+          "work": {
+            "input_bytes": 2660,
+            "tables": 13,
+            "parsed_glyphs": 15,
+            "cmap_mappings": 9,
+            "authored_placements": 3,
+            "output_bytes": 9486
+          }
+        },
+        "x64musl": {
+          "allocations": 994,
+          "allocated_bytes": 758438,
+          "work": {
+            "input_bytes": 2660,
+            "tables": 13,
+            "parsed_glyphs": 15,
+            "cmap_mappings": 9,
+            "authored_placements": 3,
+            "output_bytes": 9486
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "unhinted_caller_font",
+        "pdfa4"
+      ]
+    },
+    {
       "name": "text-layout caller-font shared registry retention",
       "scenario_revision": "caller-font-shared-registry-v1",
       "source": "tests/caller_font/caller_facade.roc",

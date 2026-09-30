@@ -9,6 +9,7 @@ import pdf.Pdf
 import pdf.Theme
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/CallerFont-Restricted.ttf" as restricted_font_bytes : List(U8)
+import "../assets/CallerFont-Unhinted.ttf" as unhinted_font_bytes : List(U8)
 
 ## This focused fixture exercises the public facade rather than a private
 ## evidence module. Its registered dev-backend work proves one retained source
@@ -21,6 +22,7 @@ main! = |args| {
 		"shared-registry" => shared_registry(args.len())
 		"unique-registries" => unique_registries(args.len())
 		"restricted" => restricted(args.len())
+		"unhinted" => unhinted(args.len())
 		_ => crash "text-layout caller facade mode is invalid"
 	}
 }
@@ -74,6 +76,41 @@ positive = |runtime_argument_count| {
 			store.policies.len(),
 			document.block_count(),
 			selected.bytes.len(),
+		],
+	}
+}
+
+## An unhinted caller font (no cvt, fpgm, gasp, or prep table) registers
+## and embeds: its subset carries only the ten required tables.
+unhinted : U64 -> { bytes : List(U8), work : List(U64) }
+unhinted = |runtime_argument_count| {
+	if runtime_argument_count != 2 {
+		crash "text-layout caller facade argument count is invalid"
+	}
+	registered = match Font.Registry.empty.register(
+		unhinted_font_bytes,
+		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
+		facade_limits(runtime_argument_count),
+	) {
+		Err(_) => crash "unhinted caller fixture registration failed"
+		Ok(value) => value
+	}
+	theme = Theme.with_font(Theme.default, registered.face)
+	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), registered.registry)
+	document = caller_document({})
+	bytes = match Pdf.to_bytes_with(document, options) {
+		Err(_) => crash "unhinted caller facade output failed"
+		Ok(value) => value
+	}
+	{
+		bytes,
+		work: [
+			registered.work.input_bytes,
+			registered.work.table_visits,
+			registered.work.glyph_visits,
+			registered.work.cmap_mapping_visits,
+			document.block_count(),
+			bytes.len(),
 		],
 	}
 }

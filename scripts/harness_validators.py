@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
-from check_caller_facade import validate_caller_facade_pdf
+from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
 from check_caller_text import validate_caller_text_pdf
 from check_case_text import validate_case_pdf
 from check_cjk_text import EXPECTED_CONTENT as CJK_TEXT_CONTENT
@@ -149,6 +149,7 @@ VALIDATORS: dict[str, Validator] = {
     "rtl_text": _simple(validate_rtl_pdf, "resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts"),
     "multiface_facade": _simple(validate_multiface_facade_pdf, "independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts"),
     "caller_facade": _simple(validate_caller_facade_pdf, "independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts"),
+    "unhinted_caller_font": _simple(validate_unhinted_caller_pdf, "caller facade facts plus an embedded subset of exactly the ten required TrueType tables, no hinting table"),
     "fonts": _dimensioned(validate_fonts_pdf, "canonical Type 0 bundles, verified embedded subsets, identity CID maps, ToUnicode facts, exact per-stream /Font dictionaries, and placement-site ownership"),
     "forms": _dimensioned(validate_forms_pdf, "exact Form XObject dictionaries, per-stream direct resources, Do resolution, sharing, and placement-site MCID/ParentTree ownership facts"),
     "color_images": _dimensioned(validate_color_images_pdf, "canonical ICC/color-space/image objects, exact leaf payload equality, soft-mask wiring, and deduplicated direct dictionaries"),

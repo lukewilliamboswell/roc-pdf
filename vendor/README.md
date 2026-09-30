@@ -63,18 +63,12 @@ file's own length and digest.
 | Source Code Pro 2.042 | brand-brief, chunked-export, operations-handbook, product-brief, release-notes | [TTF-source-code-pro-2.042R-u_1.062R-i.zip](https://github.com/adobe-fonts/source-code-pro/releases/download/2.042R-u%2F1.062R-i%2F1.026R-vf/TTF-source-code-pro-2.042R-u_1.062R-i.zip) (license from the release tag's `LICENSE.md`) | `0c85bac90d15c040b82939aa92bc8404420fccc02e37bbcb9c93a7f21abb52c6` |
 | Source Sans 3 3.052 | operations-handbook | [TTF-source-sans-3.052R.zip](https://github.com/adobe-fonts/source-sans/releases/download/3.052R/TTF-source-sans-3.052R.zip) (license from the `3.052R` tag's `LICENSE.md`) | `1b0dd1ec44b39f1dd98bbd153a1a3815f083639874ddee02c842bd601bad3d21` |
 
-The package can currently embed only a subset of valid TrueType fonts, which
-narrowed this selection:
-
-- the font validator rejects a `name` table with an odd-length
-  Macintosh-platform record, which excludes IBM Plex, JetBrains Mono, and
-  Noto Sans Italic 2.015 (so the release notes keep a colour for emphasis);
-  and
-- the subsetter requires the `cvt `, `fpgm`, `gasp`, and `prep` hinting
-  tables, which excludes unhinted fonts such as Fraunces 1.000, the Source
-  Serif 4 desktop TTFs, and unhinted Noto builds. The failure surfaces from
-  `Pdf.to_bytes_with` as `UnsupportedAuthoringContent` rather than at
-  registration.
+Earlier selections were narrowed by two package limits that are now lifted:
+the font validator rejected odd-length Macintosh-platform `name` records
+(IBM Plex, JetBrains Mono, Noto Sans Italic 2.015;
+`docs/performance/font-inspection.md`), and the subsetter required the
+`cvt `, `fpgm`, `gasp`, and `prep` hinting tables (Fraunces 1.000, the Source
+Serif 4 desktop TTFs, unhinted Noto; `docs/performance/font-subsetting.md`).
 
 Keep upstream tool archives and source font files byte-for-byte intact. To update one, review its license
 and bundled notices, download the exact immutable release, verify the upstream
