@@ -6,10 +6,14 @@ import pf.Path
 import pf.Stdout
 import pdf.Color
 import pdf.Document
+import pdf.Font
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "fonts/NotoSerif-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/NotoSerif-Bold.ttf" as bold_bytes : List(U8)
+import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 
 ## A members' quarterly report for a regional cooperative: a navy cover
 ## band in the first-page header, a tinted "at a glance" callout authored
@@ -18,18 +22,43 @@ import pdf.Theme
 ## revenue with a margin line, and progress against annual targets), and
 ## running headers with `Page N of M` on every later page.
 main! = |_args| {
+	fonts = register_fonts({})?
 	document = Pdf.document({ contents, language: "en-AU", title: "Northstar Cooperative quarterly report, Q2 FY2027" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_created("2027-01-18T00:00:00Z")
 		.with_modified("2027-01-18T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(theme)).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "quarterly-report.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Stdout.line!("Wrote quarterly-report.pdf").map_err(|err| OutputFailed(err))?
 	Ok({})
 }
+
+Faces : { regular : Font.FaceId, bold : Font.FaceId, italic : Font.FaceId, registry : Font.Registry }
+
+## Noto Serif Regular, Bold, and Italic, each retained
+## byte-for-byte from its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
+register_fonts = |_| {
+	latin = [Font.Script.from_iso15924("Latn")]
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	italic = add(bold.registry, italic_bytes)?
+	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, registry: italic.registry })
+}
+
+## Regular for every block role (the style-face path requires one face
+## for body, heading, and title text); Bold for `Pdf.strong`;
+## Italic for `Pdf.emphasis`.
+with_faces : Theme, Faces -> Theme
+with_faces = |base, faces|
+	base
+		.with_font(faces.regular)
+		.with_inline_font(Strong, faces.bold)
+		.with_inline_font(Emphasis, faces.italic)
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -70,8 +99,6 @@ theme = {
 		.with_heading_style({ ..base_heading, color: navy, size: points(15), leading: points(20) })
 		.with_body_style({ ..base_body, color: ink, size: points(10), leading: points(14) })
 		.with_paragraph_spacing(points(7))
-		.with_strong_color(teal)
-		.with_emphasis_color(Color.srgb8({ red: 160, green: 94, blue: 0 }))
 		.with_table_header_color(teal)
 		.with_table_rule(Rule({ color: teal, width: points(1) }))
 		.with_table_cell_padding(points(5))
