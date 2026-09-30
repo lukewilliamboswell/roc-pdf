@@ -2,6 +2,9 @@ import Color
 
 Image :: [].{
 	Id :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> Id
 		from_index = |index| Id.(index)
 

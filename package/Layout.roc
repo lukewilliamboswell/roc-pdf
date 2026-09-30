@@ -2,6 +2,8 @@ import Semantics
 
 Layout :: [].{
 	Unit :: I64.{
+		is_eq : _
+		to_hash : _
 
 		## One point is exactly 1,000 layout units. The full I64 raw range is valid;
 		## arithmetic introduced by later capabilities must report overflow explicitly.
@@ -24,6 +26,9 @@ Layout :: [].{
 	}
 
 	ComponentId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ComponentId
 		from_index = |index| ComponentId.(index)
 
@@ -32,6 +37,9 @@ Layout :: [].{
 	}
 
 	SourceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> SourceId
 		from_index = |index| SourceId.(index)
 
@@ -40,6 +48,9 @@ Layout :: [].{
 	}
 
 	ReferenceStateId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ReferenceStateId
 		from_index = |index| ReferenceStateId.(index)
 
@@ -48,6 +59,9 @@ Layout :: [].{
 	}
 
 	StyleId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> StyleId
 		from_index = |index| StyleId.(index)
 
@@ -56,6 +70,9 @@ Layout :: [].{
 	}
 
 	ResourceStateId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ResourceStateId
 		from_index = |index| ResourceStateId.(index)
 
@@ -64,6 +81,9 @@ Layout :: [].{
 	}
 
 	HyphenationDataId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> HyphenationDataId
 		from_index = |index| HyphenationDataId.(index)
 
@@ -72,6 +92,9 @@ Layout :: [].{
 	}
 
 	ReferenceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ReferenceId
 		from_index = |index| ReferenceId.(index)
 

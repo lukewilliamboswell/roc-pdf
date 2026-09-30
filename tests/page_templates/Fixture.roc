@@ -722,7 +722,7 @@ run_slot_inset = |context| {
 			Above => 3000
 			Below => -4000
 		}
-		if shift != expected or after.origin.x.raw() != before.origin.x.raw() {
+		if shift != expected or after.origin.x != before.origin.x {
 			return Err(EvidenceFailure)
 		}
 		$moved = $moved + 1

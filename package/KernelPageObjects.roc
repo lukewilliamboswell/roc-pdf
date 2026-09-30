@@ -572,10 +572,10 @@ add_box = |builder, rect, default| {
 
 same_rect : Layout.Rect, Layout.Rect -> Bool
 same_rect = |left, right|
-	left.origin.x.raw() == right.origin.x.raw()
-		and left.origin.y.raw() == right.origin.y.raw()
-			and left.size.width.raw() == right.size.width.raw()
-				and left.size.height.raw() == right.size.height.raw()
+	left.origin.x == right.origin.x
+		and left.origin.y == right.origin.y
+			and left.size.width == right.size.width
+				and left.size.height == right.size.height
 
 append_box : List(KernelObject.DictionaryEntry), KernelObject.NameId, [DefaultBox, Box(KernelObject.ValueId)] -> List(KernelObject.DictionaryEntry)
 append_box = |entries, key, value| match value {
@@ -614,7 +614,7 @@ rotation_degrees = |rotation| match rotation {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelPageObjects.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

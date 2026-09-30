@@ -987,7 +987,7 @@ object_id = |number| match KernelObject.ObjectId.from_number(number) {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelNavigationObjects.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

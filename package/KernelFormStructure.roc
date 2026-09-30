@@ -332,8 +332,8 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 						canonical = KernelForm.Plan.canonical_form(forms, list_at(appearance_names, form.index()))
 						if canonical.bbox.origin.x.raw() != 0 or
 							canonical.bbox.origin.y.raw() != 0 or
-								canonical.bbox.size.width.raw() != annotation.rect.size.width.raw() or
-									canonical.bbox.size.height.raw() != annotation.rect.size.height.raw() {
+								canonical.bbox.size.width != annotation.rect.size.width or
+									canonical.bbox.size.height != annotation.rect.size.height {
 							return Err(Navigation(AppearanceGeometryMismatch({ annotation: $appearance_check, form: form.index() })))
 						}
 					}
@@ -642,9 +642,9 @@ build_plan = |tagged, colors, images, content, forms, objects, text, shading_sto
 					Ok(font) => {
 						emitted = KernelPdfFont.Plan.objects(font)
 						planned = list_at(planned_fonts, $font_ordinal)
-						if !KernelObject.ObjectId.is_eq(emitted.font_file, planned.first) {
+						if emitted.font_file != planned.first {
 							return Err(ObjectOrder({ actual: emitted.font_file, expected: planned.first }))
-						} else if !KernelObject.ObjectId.is_eq(emitted.type0, planned.type0) {
+						} else if emitted.type0 != planned.type0 {
 							return Err(ObjectOrder({ actual: emitted.type0, expected: planned.type0 }))
 						} else {
 							$font_builder = KernelPdfFont.Plan.builder(font)
@@ -821,10 +821,10 @@ add_metadata_stream = |builder, xmp, ids| {
 		Unfiltered,
 		payload.id,
 	) ? Object
-	if !KernelObject.ObjectId.is_eq(stream.id, ids.stream) {
+	if stream.id != ids.stream {
 		return Err(ObjectOrder({ actual: stream.id, expected: ids.stream }))
 	}
-	if !KernelObject.ObjectId.is_eq(stream.length_object, ids.length) {
+	if stream.length_object != ids.length {
 		return Err(ObjectOrder({ actual: stream.length_object, expected: ids.length }))
 	}
 	Ok(stream.builder)
@@ -1709,7 +1709,7 @@ add_layout = |builder, value| {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelFormStructure.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 any_flag : List(Bool) -> Bool
 any_flag = |flags| {

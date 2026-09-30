@@ -2,72 +2,81 @@ import KernelLex
 
 KernelObject :: [].{
 	ValueId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ValueId
 		from_index = |index| ValueId.(index)
 
 		index : ValueId -> U64
 		index = |ValueId.(index)| index
 
-		is_eq : ValueId, ValueId -> Bool
-		is_eq = |ValueId.(left), ValueId.(right)| left == right
 	}
 
 	NameId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> NameId
 		from_index = |index| NameId.(index)
 
 		index : NameId -> U64
 		index = |NameId.(index)| index
 
-		is_eq : NameId, NameId -> Bool
-		is_eq = |NameId.(left), NameId.(right)| left == right
 	}
 
 	ByteStringId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ByteStringId
 		from_index = |index| ByteStringId.(index)
 
 		index : ByteStringId -> U64
 		index = |ByteStringId.(index)| index
 
-		is_eq : ByteStringId, ByteStringId -> Bool
-		is_eq = |ByteStringId.(left), ByteStringId.(right)| left == right
 	}
 
 	TextStringId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> TextStringId
 		from_index = |index| TextStringId.(index)
 
 		index : TextStringId -> U64
 		index = |TextStringId.(index)| index
 
-		is_eq : TextStringId, TextStringId -> Bool
-		is_eq = |TextStringId.(left), TextStringId.(right)| left == right
 	}
 
 	PayloadId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> PayloadId
 		from_index = |index| PayloadId.(index)
 
 		index : PayloadId -> U64
 		index = |PayloadId.(index)| index
 
-		is_eq : PayloadId, PayloadId -> Bool
-		is_eq = |PayloadId.(left), PayloadId.(right)| left == right
 	}
 
 	StreamId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> StreamId
 		from_index = |index| StreamId.(index)
 
 		index : StreamId -> U64
 		index = |StreamId.(index)| index
 
-		is_eq : StreamId, StreamId -> Bool
-		is_eq = |StreamId.(left), StreamId.(right)| left == right
 	}
 
 	ObjectId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_number : U64 -> Try(ObjectId, Error)
 		from_number = |number|
 			if number == 0 Err(ObjectNumberZero) else Ok(ObjectId.(number))
@@ -75,8 +84,6 @@ KernelObject :: [].{
 		number : ObjectId -> U64
 		number = |ObjectId.(number)| number
 
-		is_eq : ObjectId, ObjectId -> Bool
-		is_eq = |ObjectId.(left), ObjectId.(right)| left == right
 	}
 
 	Span : { length : U64, start : U64 }

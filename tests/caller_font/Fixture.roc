@@ -143,7 +143,7 @@ build_sample = |_| {
 	) ? |_| FontFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
 	theme = Theme.with_font(Theme.default, registered.face)
-	if theme.body_font().index() != registered.face.index() {
+	if theme.body_font() != registered.face {
 		return Err(FontFailure)
 	}
 	semantic = KernelTextSemantics.Plan.build(

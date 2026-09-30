@@ -389,49 +389,8 @@ range_end = |range| {
 	}
 }
 
-range_equal : Semantics.Range, Semantics.Range -> Bool
-range_equal = |left, right| left.start() == right.start() and left.length() == right.length()
-
-text_range_equal : Semantics.TextRange, Semantics.TextRange -> Bool
-text_range_equal = |left, right| range_equal(left.scalars, right.scalars) and range_equal(left.utf8_bytes, right.utf8_bytes)
-
-work_equal : KernelBidiBoundary.Work, KernelBidiBoundary.Work -> Bool
-work_equal = |left, right| left.cluster_visits == right.cluster_visits and left.mirror_visits == right.mirror_visits and left.scalar_visits == right.scalar_visits and left.visual_writes == right.visual_writes
-
-facts_equal : KernelBidiBoundary.ScalarFact, KernelBidiBoundary.ScalarFact -> Bool
-facts_equal = |left, right| {
-	levels = match (left.level, right.level) {
-		(Level(first), Level(second)) => first == second
-		(RemovedByX9, RemovedByX9) => True
-		_ => False
-	}
-	brackets = match (left.matched_bracket, right.matched_bracket) {
-		(Some(first), Some(second)) => first == second
-		(None, None) => True
-		_ => False
-	}
-	glyphs = match (left.mirroring_glyph, right.mirroring_glyph) {
-		(Some(first), Some(second)) => first == second
-		(None, None) => True
-		_ => False
-	}
-	levels and brackets and glyphs and left.needs_mirrored_glyph == right.needs_mirrored_glyph and left.non_rendering == right.non_rendering
-}
-
 paragraph_equal : KernelBidiBoundary.Paragraph, KernelBidiBoundary.Paragraph -> Bool
-paragraph_equal = |left, right| {
-	if left.base_level != right.base_level or left.entries.len() != right.entries.len() or !text_range_equal(left.logical_source, right.logical_source) or !work_equal(left.work, right.work) {
-		return False
-	}
-	var $index = 0
-	while $index < left.entries.len() {
-		if !facts_equal(list_at(left.entries, $index), list_at(right.entries, $index)) {
-			return False
-		}
-		$index = $index + 1
-	}
-	True
-}
+paragraph_equal = |left, right| left.base_level == right.base_level and left.logical_source == right.logical_source and left.work == right.work and left.entries == right.entries
 
 ## X9 removes explicit embedding and override controls from the display
 ## sequence; every other scalar keeps a resolved level and is painted.

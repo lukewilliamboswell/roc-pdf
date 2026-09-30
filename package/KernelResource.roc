@@ -13,6 +13,9 @@ KernelResource :: [].{
 	]
 
 	NameId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		index : NameId -> U64
 		index = |NameId.(index)| index
 	}

@@ -394,7 +394,7 @@ report_observations = |report| {
 		repeated_headers(report) == 2 and repeated_on(report, table_two, page_count(report)),
 		facts.outcomes.any(
 			|outcome| match outcome {
-				CustomBlockPlaced({ name, path, page, height }) => name == "Key figures" and path == "contents[2].contents[3]" and page == 1 and height.raw() == Callout.measure(Report.theme, 3, points(483)).height.raw()
+				CustomBlockPlaced({ name, path, page, height }) => name == "Key figures" and path == "contents[2].contents[3]" and page == 1 and height == Callout.measure(Report.theme, 3, points(483)).height
 				_ => False
 			},
 		),

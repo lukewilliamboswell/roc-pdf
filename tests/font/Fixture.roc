@@ -22,7 +22,7 @@ Fixture :: [].{
 		) ? |_| EvidenceFailure
 		store = registered.registry.store()
 		theme = Theme.with_font(Theme.default, registered.face)
-		if theme.body_font().index() != registered.face.index() or
+		if theme.body_font() != registered.face or
 			store.resources.len() != 1 or
 				store.faces.len() != 1 or
 					store.instances.len() != 1 or
@@ -167,9 +167,9 @@ Fixture :: [].{
 			Rejected(_) => return Err(EvidenceFailure)
 		}
 		if plan.face_ranges.len() != 3 or
-			list_at(plan.face_ranges, 0).instance.index() != caller.instance.index() or
-				list_at(plan.face_ranges, 1).instance.index() != cjk.instance.index() or
-					list_at(plan.face_ranges, 2).instance.index() != caller.instance.index() {
+			list_at(plan.face_ranges, 0).instance != caller.instance or
+				list_at(plan.face_ranges, 1).instance != cjk.instance or
+					list_at(plan.face_ranges, 2).instance != caller.instance {
 			return Err(EvidenceFailure)
 		}
 		uncovered = match configured.registry.plan(plan_request(configured.policy, [cluster(0, "Latn", [0x10ffff])])) {
@@ -181,7 +181,7 @@ Fixture :: [].{
 			_ => False
 		}
 		ambiguous = match cjk.registry.with_policy([caller.face, caller.face]) {
-			Err(AmbiguousFace(face)) => face.index() == caller.face.index()
+			Err(AmbiguousFace(face)) => face == caller.face
 			_ => False
 		}
 		invalid = match cjk.registry.with_policy([Font.FaceId.from_index(99)]) {

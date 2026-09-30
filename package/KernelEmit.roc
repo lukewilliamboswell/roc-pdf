@@ -481,7 +481,7 @@ emit_deflate_stream_prefix = |encoder, object_id, stream, payload, next_object| 
 
 payload_release : KernelStructure.Plan, KernelObject.Stream -> [KeepPayload, ReleasePayload(KernelObject.PayloadId)]
 payload_release = |plan, stream| match KernelSeal.Plan.payload_last_use(KernelStructure.Plan.sealed(plan), stream.source) {
-	LastStream(last) => if KernelObject.StreamId.is_eq(last, stream.id) ReleasePayload(stream.source) else KeepPayload
+	LastStream(last) => if last == stream.id ReleasePayload(stream.source) else KeepPayload
 	Unused => KeepPayload
 }
 

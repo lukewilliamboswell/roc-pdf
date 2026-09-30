@@ -464,7 +464,7 @@ candidate_of : KernelFacadeShape.StyledFaces, Font.FaceId -> U64
 candidate_of = |styled, face| {
 	var $index = 0
 	while $index < styled.faces.len() {
-		if list_at(styled.faces, $index).index() == face.index() {
+		if list_at(styled.faces, $index) == face {
 			return $index
 		}
 		$index = $index + 1
@@ -480,7 +480,7 @@ validate_style_faces = |authoring, theme, styled| {
 	var $block = 0
 	while $block < authoring.blocks.len() {
 		face = style_for(list_at(authoring.blocks, $block).kind, theme).font
-		if !styled.faces.any(|known| known.index() == face.index()) {
+		if !styled.faces.any(|known| known == face) {
 			return Err(UnsupportedThemeFace({ block: $block, face: face.index() }))
 		}
 		$block = $block + 1
@@ -1680,29 +1680,13 @@ generated_label_evidence_valid = |occurrence, properties, sources| {
 				False
 			} else {
 				match list_at(properties, property_range.start()) {
-					SourceToPresentation({ kind: GeneratedText, presentation, source }) => !presentation.is_empty() and presentation == list_at(sources, source_id.index()).unicode and text_ranges_equal(source, source_range)
+					SourceToPresentation({ kind: GeneratedText, presentation, source }) => !presentation.is_empty() and presentation == list_at(sources, source_id.index()).unicode and source == source_range
 					_ => False
 				}
 			}
 		}
 		_ => False
 	}
-}
-
-text_ranges_equal : Semantics.TextRange, Semantics.TextRange -> Bool
-text_ranges_equal = |left, right| {
-	scalars_equal = ranges_equal(left.scalars, right.scalars)
-	bytes_equal = ranges_equal(left.utf8_bytes, right.utf8_bytes)
-	scalars_equal and bytes_equal
-}
-
-ranges_equal : Semantics.Range, Semantics.Range -> Bool
-ranges_equal = |left, right| {
-	left_start = left.start()
-	right_start = right.start()
-	left_length = left.length()
-	right_length = right.length()
-	left_start == right_start and left_length == right_length
 }
 
 style_for : Document.NormalizedBlockKind, Theme -> Theme.TextStyle

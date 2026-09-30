@@ -1293,7 +1293,7 @@ face_position : List(Font.FaceId), Font.FaceId -> U64
 face_position = |faces, face| {
 	var $index = 0
 	while $index < faces.len() {
-		if list_at(faces, $index).index() == face.index() {
+		if list_at(faces, $index) == face {
 			return $index
 		}
 		$index = $index + 1

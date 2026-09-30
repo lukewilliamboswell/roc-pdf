@@ -2,6 +2,9 @@ import Semantics
 
 Color :: [].{
 	ProfileId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ProfileId
 		from_index = |index| ProfileId.(index)
 
@@ -10,6 +13,9 @@ Color :: [].{
 	}
 
 	SpaceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> SpaceId
 		from_index = |index| SpaceId.(index)
 
@@ -18,6 +24,9 @@ Color :: [].{
 	}
 
 	TagSignature :: U32.{
+		is_eq : _
+		to_hash : _
+
 		from_raw : U32 -> TagSignature
 		from_raw = |raw| TagSignature.(raw)
 

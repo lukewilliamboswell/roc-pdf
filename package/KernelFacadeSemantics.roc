@@ -2453,7 +2453,7 @@ expect {
 	second_label = list_at(store.occurrences, 5)
 	property = list_at(store.text_properties, 0)
 	labels_share_source = match (first_label.source, second_label.source) {
-		(Text(first_source, _), Text(second_source, _)) => first_source.index() == second_source.index()
+		(Text(first_source, _), Text(second_source, _)) => first_source == second_source
 		_ => False
 	}
 	generated = match property {

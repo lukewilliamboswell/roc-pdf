@@ -304,7 +304,7 @@ run_source = |semantics, scalars, run, run_index| {
 				return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
 			}
 			occurrence = list_at(semantics.occurrences, occurrence_id.index())
-			if occurrence.id.index() != occurrence_id.index() {
+			if occurrence.id != occurrence_id {
 				return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
 			}
 			match occurrence.source {
@@ -497,14 +497,9 @@ generated_discretionary_property = |range, properties, property_id, source| {
 		return False
 	}
 	match list_at(properties, index) {
-		SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation, source: property_source }) => presentation == "-" and text_ranges_equal(property_source, source)
+		SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation, source: property_source }) => presentation == "-" and property_source == source
 		_ => False
 	}
-}
-
-text_ranges_equal : Semantics.TextRange, Semantics.TextRange -> Bool
-text_ranges_equal = |left, right| {
-	left.scalars.start() == right.scalars.start() and left.scalars.length() == right.scalars.length() and left.utf8_bytes.start() == right.utf8_bytes.start() and left.utf8_bytes.length() == right.utf8_bytes.length()
 }
 
 source_scalars : ScalarCache, Semantics.TextSourceId, U64, U64, U64 -> Try(List(U32), KernelPdfText.Error)

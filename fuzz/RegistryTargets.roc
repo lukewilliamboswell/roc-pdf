@@ -219,8 +219,8 @@ prefix_of_faces = |before, after| {
 	while $index < before.len() {
 		left = list_at(before, $index)
 		right = list_at(after, $index)
-		if left.id.index() != right.id.index() or
-			left.resource.index() != right.resource.index() or
+		if left.id != right.id or
+			left.resource != right.resource or
 				left.coverage.start() != right.coverage.start() or
 					left.coverage.length() != right.coverage.length() or
 						left.scripts.start() != right.scripts.start() or
@@ -247,8 +247,8 @@ prefix_of_instances = |before, after| {
 	while $index < before.len() {
 		left = list_at(before, $index)
 		right = list_at(after, $index)
-		if left.id.index() != right.id.index() or
-			left.face.index() != right.face.index() or
+		if left.id != right.id or
+			left.face != right.face or
 				left.kind != right.kind {
 			return False
 		}
@@ -266,7 +266,7 @@ prefix_of_policies = |before, after| {
 	while $index < before.len() {
 		left = list_at(before, $index)
 		right = list_at(after, $index)
-		if left.id.index() != right.id.index() or !same_instances(left.instances, right.instances) {
+		if left.id != right.id or !same_instances(left.instances, right.instances) {
 			return False
 		}
 		$index = $index + 1
@@ -283,7 +283,7 @@ prefix_of_resources = |before, after| {
 	while $index < before.len() {
 		left = list_at(before, $index)
 		right = list_at(after, $index)
-		if left.id.index() != right.id.index() or left.bytes != right.bytes {
+		if left.id != right.id or left.bytes != right.bytes {
 			return False
 		}
 		$index = $index + 1
@@ -313,7 +313,7 @@ same_instances = |left, right| {
 	}
 	var $index = 0
 	while $index < left.len() {
-		if list_at(left, $index).index() != list_at(right, $index).index() {
+		if list_at(left, $index) != list_at(right, $index) {
 			return False
 		}
 		$index = $index + 1
@@ -328,7 +328,7 @@ same_faces = |left, right| {
 	}
 	var $index = 0
 	while $index < left.len() {
-		if list_at(left, $index).index() != list_at(right, $index).index() {
+		if list_at(left, $index) != list_at(right, $index) {
 			return False
 		}
 		$index = $index + 1
@@ -576,7 +576,7 @@ add_policies = |configured, requests| {
 					return Err(Violation)
 				}
 				record = list_at(after.policies, result.policy.index())
-				if record.id.index() != result.policy.index() or record.instances.len() != requested.len() {
+				if record.id != result.policy or record.instances.len() != requested.len() {
 					return Err(Violation)
 				}
 
@@ -649,7 +649,7 @@ expected_policy_rejection = |requested, face_count| {
 		}
 		var $previous = 0
 		while $previous < $index {
-			if list_at(requested, $previous).index() == face.index() {
+			if list_at(requested, $previous) == face {
 				return RejectAmbiguous(face.index())
 			}
 			$previous = $previous + 1
@@ -779,7 +779,7 @@ plan_invariants = |configured, input| {
 		## also accumulates per-cluster rejections.
 		return match result {
 			Complete(_) => False
-			Rejected([InvalidPolicy(reported)]) => reported.index() == policy.index()
+			Rejected([InvalidPolicy(reported)]) => reported == policy
 			Rejected(_) => False
 		}
 	}
@@ -957,7 +957,7 @@ same_results = |left, right| match (left, right) {
 		while $index < first.face_ranges.len() {
 			one = list_at(first.face_ranges, $index)
 			other = list_at(second.face_ranges, $index)
-			if one.instance.index() != other.instance.index() or
+			if one.instance != other.instance or
 				one.clusters.start() != other.clusters.start() or
 					one.clusters.length() != other.clusters.length() {
 				return False
@@ -986,8 +986,8 @@ same_plan_error : Font.PlanError, Font.PlanError -> Bool
 same_plan_error = |left, right| match (left, right) {
 	(EmptyCluster(first), EmptyCluster(second)) => first.cluster == second.cluster and same_text_range(first.source, second.source)
 	(MissingCoverage(first), MissingCoverage(second)) => first.cluster == second.cluster and same_text_range(first.source, second.source)
-	(InvalidPolicy(first), InvalidPolicy(second)) => first.index() == second.index()
-	(EmbeddingProhibited(first), EmbeddingProhibited(second)) => first.index() == second.index()
+	(InvalidPolicy(first), InvalidPolicy(second)) => first == second
+	(EmbeddingProhibited(first), EmbeddingProhibited(second)) => first == second
 	(UnsupportedBuiltInShaping(first), UnsupportedBuiltInShaping(second)) => first.cluster == second.cluster and first.script.as_str() == second.script.as_str()
 	_ => False
 }

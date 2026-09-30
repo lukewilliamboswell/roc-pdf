@@ -971,7 +971,7 @@ add_k_item = |builder, names, item, navigation, objects, element_page| {
 		ChildStructure(child) => KernelObject.add_reference(builder, list_at(KernelObjectPlan.Plan.structure_elements(objects), child.index())) ? Object
 		ContextualArtifactChild(artifact) => KernelObject.add_reference(builder, list_at(KernelObjectPlan.Plan.contextual_artifacts(objects), artifact.index())) ? Object
 		MarkedContent(reference) => match element_page {
-			ElementPage(page) if page.index() == reference.page.index() => KernelObject.add_integer(builder, reference.mcid.to_i64_wrap()) ? Object
+			ElementPage(page) if page == reference.page => KernelObject.add_integer(builder, reference.mcid.to_i64_wrap()) ? Object
 			_ => add_mcr(builder, names, reference, objects) ? Object
 		}
 	}
@@ -1122,7 +1122,7 @@ index_nodes_by_structure = |nodes| {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelTaggedObjects.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

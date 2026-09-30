@@ -8,6 +8,9 @@ import unicode.Scalar
 ## every range is a scalar/UTF-8 coordinate into the semantic source.
 KernelDiscretionaryHyphen :: [].{
 	OpportunityId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> OpportunityId
 		from_index = |index| OpportunityId.(index)
 

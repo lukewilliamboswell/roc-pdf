@@ -1044,7 +1044,7 @@ validate_advanced_with_selection = |selection, source, store, limits| {
 					}
 					fact = list_at(store.transformations, transformation)
 					glyph = list_at(store.glyph_indices, cluster.glyphs.start())
-					if fact.kind != InsertedDiscretionaryHyphen or fact.glyphs.start() != glyph or fact.glyphs.length() != 1 or !text_ranges_equal(fact.source, cluster.source) or fact.source.scalars.length() != 0 or fact.source.utf8_bytes.length() != 0 or list_at($generated_transformations, transformation) != zero_marker {
+					if fact.kind != InsertedDiscretionaryHyphen or fact.glyphs.start() != glyph or fact.glyphs.length() != 1 or fact.source != cluster.source or fact.source.scalars.length() != 0 or fact.source.utf8_bytes.length() != 0 or list_at($generated_transformations, transformation) != zero_marker {
 						return Err(AdvancedClusterInvalid({ cluster: $current_cluster, reason: GeneratedDiscretionary }))
 					}
 					$generated_transformations = list_set($generated_transformations, transformation, referenced_marker)
@@ -1112,11 +1112,11 @@ validate_advanced_with_selection = |selection, source, store, limits| {
 selected_font_for_run : AdvancedValidation, Text.Run, U64 -> Try(KernelFont.Inspection, KernelShape.Error)
 selected_font_for_run = |selection, run, run_index| match selection {
 	Single({ context, font }) => {
-		if run.instance.index() != context.instance.index() {
+		if run.instance != context.instance {
 			Err(InstanceMismatch({ actual: run.instance, expected: context.instance, run: run_index }))
 		} else {
 			match run.unicode {
-				OccurrenceText(occurrence) => if occurrence.index() != context.occurrence.index() {
+				OccurrenceText(occurrence) => if occurrence != context.occurrence {
 					Err(OccurrenceMismatch({ actual: occurrence, expected: context.occurrence, run: run_index }))
 				} else {
 					Ok(font)
@@ -1127,7 +1127,7 @@ selected_font_for_run = |selection, run, run_index| match selection {
 	}
 	Selected(context) => {
 		match run.unicode {
-			OccurrenceText(occurrence) => if occurrence.index() != context.occurrence.index() {
+			OccurrenceText(occurrence) => if occurrence != context.occurrence {
 				return Err(OccurrenceMismatch({ actual: occurrence, expected: context.occurrence, run: run_index }))
 			}
 			ArtifactText(_) => return Err(ArtifactRunUnsupported({ run: run_index }))
@@ -1136,9 +1136,9 @@ selected_font_for_run = |selection, run, run_index| match selection {
 		var $matching_instance = False
 		while $index < context.faces.len() {
 			selected = list_at(context.faces, $index)
-			if selected.range.instance.index() == run.instance.index() {
+			if selected.range.instance == run.instance {
 				$matching_instance = True
-				if ranges_equal(selected.range.clusters, run.clusters) {
+				if selected.range.clusters == run.clusters {
 					return Ok(selected.font)
 				}
 			}
@@ -1151,9 +1151,6 @@ selected_font_for_run = |selection, run, run_index| match selection {
 		}
 	}
 }
-
-ranges_equal : Semantics.Range, Semantics.Range -> Bool
-ranges_equal = |left, right| left.start() == right.start() and left.length() == right.length()
 
 ## Prove that one validated store paints exactly the resolved visual cluster
 ## order, that every run's declared direction is the resolved level's
@@ -1315,11 +1312,6 @@ valid_text_range = |range, boundaries, source_bytes, scalar_count| {
 	scalar_end = scalar_start + range.scalars.length()
 	byte_end = byte_start + range.utf8_bytes.length()
 	list_at(boundaries, scalar_start) == byte_start and list_at(boundaries, scalar_end) == byte_end
-}
-
-text_ranges_equal : Semantics.TextRange, Semantics.TextRange -> Bool
-text_ranges_equal = |left, right| {
-	left.scalars.start() == right.scalars.start() and left.scalars.length() == right.scalars.length() and left.utf8_bytes.start() == right.utf8_bytes.start() and left.utf8_bytes.length() == right.utf8_bytes.length()
 }
 
 text_range_within : Semantics.TextRange, Semantics.TextRange -> Bool

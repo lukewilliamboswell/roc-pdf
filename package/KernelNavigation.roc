@@ -256,7 +256,7 @@ KernelNavigation :: [].{
 				return Err(DestinationTargetOutOfRange({ attempted: destination.target.index(), destination: $index, nodes: semantics.nodes.len() }))
 			}
 			owner = list_at(occurrence_owners, anchor_index)
-			if owner.index() != destination.target.index() {
+			if owner != destination.target {
 				return Err(DestinationTargetMismatch({ anchor_owner: owner.index(), destination: $index, target: destination.target.index() }))
 			}
 			occurrence = list_at(semantics.occurrences, anchor_index)

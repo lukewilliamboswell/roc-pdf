@@ -50,7 +50,9 @@ import Scene
 import Theme
 
 Pdf :: [].{
-	Profile := [AccessibleArchive, Archive, Standard]
+	Profile := [AccessibleArchive, Archive, Standard].{
+		is_eq : _
+	}
 
 	## The facade records whether its selected theme face is the small packaged
 	## face or one of the opaque faces retained by a caller font registry. Both
@@ -65,8 +67,13 @@ Pdf :: [].{
 	## `layout.page_size`. The theme's margins and page templates apply to
 	## every size unchanged, so a size too small for them is rejected by the
 	## ordinary layout checks, never shrunk.
-	PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape]
-	ChunkRetention := [OwnChunks, ShareUnchangedResources]
+	PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape].{
+		is_eq : _
+	}
+
+	ChunkRetention := [OwnChunks, ShareUnchangedResources].{
+		is_eq : _
+	}
 
 	## Stable roadmap feature identity carried by `FeatureUnavailable` diagnostics.
 	Feature : Document.Feature
@@ -2098,7 +2105,7 @@ role_faces = |theme| {
 	[Theme.inline_font(theme, Code), Theme.inline_font(theme, Emphasis), Theme.inline_font(theme, Quote), Theme.inline_font(theme, Strong)]
 		.keep_if(
 			|font| match font {
-				Face(face) => face.index() != body.index()
+				Face(face) => face != body
 				Inherited => False
 			},
 		)
@@ -2120,7 +2127,7 @@ selected_styled_fonts = |options| {
 	body_face = Theme.body_font(options.theme)
 	body = selected_font(options)?
 	other_faces = if has_block_face(options.theme) {
-		block_faces(options.theme).keep_if(|face| face.index() != body_face.index()).concat(role_faces(options.theme))
+		block_faces(options.theme).keep_if(|face| face != body_face).concat(role_faces(options.theme))
 	} else {
 		role_faces(options.theme)
 	}
@@ -2131,14 +2138,14 @@ selected_styled_fonts = |options| {
 	var $faces = [body_face]
 	var $fonts = [body]
 	for face in other_faces {
-		if !$faces.any(|known| known.index() == face.index()) {
+		if !$faces.any(|known| known == face) {
 			font = registry.prepared_face(face) ? InvalidFontResource
 			$faces = $faces.append(face)
 			$fonts = $fonts.append(font)
 		}
 	}
 	candidate = |role| match Theme.inline_font(options.theme, role) {
-		Face(face) => if face.index() == body_face.index() Inherited else Candidate(index_of($faces, face))
+		Face(face) => if face == body_face Inherited else Candidate(index_of($faces, face))
 		Inherited => Inherited
 	}
 	Ok(Styled({ faces: $faces, fonts: $fonts, roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
@@ -2154,7 +2161,7 @@ index_of : List(Font.FaceId), Font.FaceId -> U64
 index_of = |faces, face| {
 	var $index = 0
 	while $index < faces.len() {
-		if list_at_face(faces, $index).index() == face.index() {
+		if list_at_face(faces, $index) == face {
 			return $index
 		}
 		$index = $index + 1
@@ -3750,4 +3757,17 @@ expect {
 		Ok(_) => True
 		Err(_) => False
 	}
+}
+
+# Profiles, page sizes, and chunk retention compare with `==`.
+expect {
+	letter : Pdf.PageSize
+	letter = Letter
+	custom : Pdf.PageSize
+	custom = Custom({ height: Layout.Unit.points(300), width: Layout.Unit.points(200) })
+	archive : Pdf.Profile
+	archive = Archive
+	owned : Pdf.ChunkRetention
+	owned = OwnChunks
+	letter != custom and custom == Custom({ height: Layout.Unit.points(300), width: Layout.Unit.points(200) }) and archive == Archive and owned != ShareUnchangedResources
 }

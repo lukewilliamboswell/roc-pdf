@@ -345,7 +345,7 @@ run_code_face = |context| {
 		_ => 0
 	}
 	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) {
-		Err(InvalidFontResource(UnknownFace(face))) => if face.index() == faces.mono.index() 1 else 0
+		Err(InvalidFontResource(UnknownFace(face))) => if face == faces.mono 1 else 0
 		_ => 0
 	}
 	rejections = under_policy + uncovered + unregistered
@@ -502,7 +502,7 @@ run_heading_faces = |count| {
 
 	## Rejections: each is transactional, with no bytes.
 	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) {
-		Err(InvalidFontResource(UnknownFace(face))) => if face.index() == faces.mono.index() 1 else 0
+		Err(InvalidFontResource(UnknownFace(face))) => if face == faces.mono 1 else 0
 		_ => 0
 	}
 	policy = match faces.registry.with_policy([faces.body, faces.mono]) {

@@ -244,7 +244,7 @@ underline_rules = |text_plan, links, store, underline| {
 				## A run that ends its line stops before the spaces it ends
 				## with, which the line carries but never shows.
 				next = $run_index + 1
-				ends_line = next >= text.runs.len() or list_at(placements, next).page.index() != placement.page.index() or list_at(placements, next).origin.y.raw() != placement.origin.y.raw()
+				ends_line = next >= text.runs.len() or list_at(placements, next).page != placement.page or list_at(placements, next).origin.y != placement.origin.y
 				trailing = if ends_line trailing_space_advance(text, run, store)? else 0
 				visible = $width - trailing
 				if visible > 0 {
@@ -426,7 +426,7 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 					## quadrilateral rather than adding a second one, so each
 					## painted line of a link contributes exactly one quad.
 					quads = match group.quads.last() {
-						Ok(previous) => if previous.y_bottom.raw() == quad.y_bottom.raw() and previous.y_top.raw() == quad.y_top.raw() and previous.x_right.raw() == quad.x_left.raw() {
+						Ok(previous) => if previous.y_bottom == quad.y_bottom and previous.y_top == quad.y_top and previous.x_right == quad.x_left {
 							list_set(group.quads, group.quads.len() - 1, { ..previous, x_right: quad.x_right })
 						} else {
 							group.quads.append(quad)

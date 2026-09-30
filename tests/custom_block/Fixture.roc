@@ -304,7 +304,7 @@ report_observations = |report| {
 		has_alternative(report, "contents[3].contents[2]", "Plan of the Moonah yard: twelve drying bays inside the yard boundary."),
 		facts.outcomes.any(
 			|outcome| match outcome {
-				CustomBlockPlaced({ height, name, page: _, path }) => path == "contents[2].contents[3]" and name == "Key figures" and height.raw() == Callout.measure(report_theme, 3, points(483)).height.raw()
+				CustomBlockPlaced({ height, name, page: _, path }) => path == "contents[2].contents[3]" and name == "Key figures" and height == Callout.measure(report_theme, 3, points(483)).height
 				_ => False
 			},
 		),

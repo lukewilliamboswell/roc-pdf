@@ -150,7 +150,7 @@ add_canonical_profiles = |builder, names, profiles, representatives, planned| {
 					Err(error) => {
 						return Err(Object(error))
 					}
-					Ok(stream) => if !KernelObject.ObjectId.is_eq(stream.id, objects.stream.stream) or !KernelObject.ObjectId.is_eq(stream.length_object, objects.stream.length) or !KernelObject.ObjectId.is_eq(stream.id, objects.profile) {
+					Ok(stream) => if stream.id != objects.stream.stream or stream.length_object != objects.stream.length or stream.id != objects.profile {
 						return Err(ObjectOrder({ actual: stream.id, expected: objects.profile }))
 					} else {
 						$builder = stream.builder
@@ -184,7 +184,7 @@ add_canonical_color_spaces = |builder, names, spaces, leaves, objects| {
 				Err(error) => {
 					return Err(Object(error))
 				}
-				Ok(object) => if !KernelObject.ObjectId.is_eq(object.id, list_at(planned, $ordinal)) {
+				Ok(object) => if object.id != list_at(planned, $ordinal) {
 					return Err(ObjectOrder({ actual: object.id, expected: list_at(planned, $ordinal) }))
 				} else {
 					$builder = object.builder
@@ -324,7 +324,7 @@ add_profiles = |builder, names, profiles, planned| {
 					Err(error) => {
 						return Err(Object(error))
 					}
-					Ok(stream) => if !KernelObject.ObjectId.is_eq(stream.id, objects.stream.stream) or !KernelObject.ObjectId.is_eq(stream.length_object, objects.stream.length) or !KernelObject.ObjectId.is_eq(stream.id, objects.profile) {
+					Ok(stream) => if stream.id != objects.stream.stream or stream.length_object != objects.stream.length or stream.id != objects.profile {
 						return Err(ObjectOrder({ actual: stream.id, expected: objects.profile }))
 					} else {
 						$builder = stream.builder
@@ -572,7 +572,7 @@ component_count = |components| match components {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelResourceObjects.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {

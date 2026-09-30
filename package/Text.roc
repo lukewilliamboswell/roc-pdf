@@ -4,6 +4,9 @@ import Semantics
 
 Text :: [].{
 	RunId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> RunId
 		from_index = |index| RunId.(index)
 
@@ -12,6 +15,9 @@ Text :: [].{
 	}
 
 	GlyphId :: U32.{
+		is_eq : _
+		to_hash : _
+
 		from_raw : U32 -> GlyphId
 		from_raw = |raw| GlyphId.(raw)
 
@@ -20,6 +26,9 @@ Text :: [].{
 	}
 
 	FeatureTag :: U32.{
+		is_eq : _
+		to_hash : _
+
 		from_raw : U32 -> FeatureTag
 		from_raw = |raw| FeatureTag.(raw)
 
@@ -28,6 +37,9 @@ Text :: [].{
 	}
 
 	FeaturePolicyId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> FeaturePolicyId
 		from_index = |index| FeaturePolicyId.(index)
 

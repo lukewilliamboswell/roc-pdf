@@ -167,7 +167,9 @@ KernelLineLayout :: [].{
 	}
 }
 
-BatchKey := { instance : U64, size : I64, source : U64, width : I64 }
+BatchKey := { instance : U64, size : I64, source : U64, width : I64 }.{
+	is_eq : _
+}
 
 ## The logical batch key: the source and width, the signature over the
 ## physical-run sequence (which covers each run's instance and size), and
@@ -212,10 +214,10 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 		run = list_at(store.runs, $run_index)
 		source_index = request.source.index()
 		same_occurrence = match run.unicode {
-			OccurrenceText(occurrence) => occurrence.index() == shape_request.occurrence.index()
+			OccurrenceText(occurrence) => occurrence == shape_request.occurrence
 			ArtifactText(_) => False
 		}
-		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size.raw() != run.size.raw() or request.width.raw() <= 0 {
+		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size != run.size or request.width.raw() <= 0 {
 			return Err(InvalidRun({ run: $run_index }))
 		}
 		key = { instance: run.instance.index(), size: run.size.raw(), source: source_index, width: request.width.raw() }
@@ -224,7 +226,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 		if $previous_template != empty_slot {
 			$key_probes = checked_add($key_probes, 1)?
 			check_limit($key_probes, limits.max_key_probes, KeyProbes)?
-			if key_equal(key, list_at($keys, $previous_template)) {
+			if key == list_at($keys, $previous_template) {
 				$template_index = $previous_template
 				$cache_hits = checked_add($cache_hits, 1)?
 			}
@@ -239,7 +241,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 				candidate = list_at($slots, slot_index)
 				if candidate == empty_slot {
 					$insertion_slot = slot_index
-				} else if key_equal(key, list_at($keys, candidate)) {
+				} else if key == list_at($keys, candidate) {
 					$template_index = candidate
 					$cache_hits = checked_add($cache_hits, 1)?
 				}
@@ -640,9 +642,6 @@ measure_request = |sources, store, request, holds, limits| {
 	})
 }
 
-key_equal : BatchKey, BatchKey -> Bool
-key_equal = |left, right| left.instance == right.instance and left.size == right.size and left.source == right.source and left.width == right.width
-
 ## One physical run's contribution to a logical key: the facts that decide
 ## its advances (instance and size) and its extent (cluster count).
 run_signature : U64, Text.Run -> U64
@@ -659,7 +658,7 @@ logical_key_equal = |store, left, right| {
 	while $index < left.run_count.to_u64() {
 		a = list_at(store.runs, left.run_start + $index)
 		b = list_at(store.runs, right.run_start + $index)
-		if a.instance.index() != b.instance.index() or a.size.raw() != b.size.raw() or a.clusters.length() != b.clusters.length() {
+		if a.instance != b.instance or a.size != b.size or a.clusters.length() != b.clusters.length() {
 			return False
 		}
 		$index = $index + 1

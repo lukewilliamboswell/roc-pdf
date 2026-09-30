@@ -18,14 +18,15 @@ KernelOutline :: [].{
 	]
 
 	ItemId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ItemId
 		from_index = |index| ItemId.(index)
 
 		index : ItemId -> U64
 		index = |ItemId.(index)| index
 
-		is_eq : ItemId, ItemId -> Bool
-		is_eq = |ItemId.(left), ItemId.(right)| left == right
 	}
 
 	Limits :: {

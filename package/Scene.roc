@@ -154,6 +154,9 @@ Scene :: [].{
 	path = |_| PathBuilder.start
 
 	GroupId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> GroupId
 		from_index = |index| GroupId.(index)
 
@@ -162,6 +165,9 @@ Scene :: [].{
 	}
 
 	PathId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> PathId
 		from_index = |index| PathId.(index)
 
@@ -170,6 +176,9 @@ Scene :: [].{
 	}
 
 	FormId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> FormId
 		from_index = |index| FormId.(index)
 
@@ -178,6 +187,9 @@ Scene :: [].{
 	}
 
 	ShadingId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ShadingId
 		from_index = |index| ShadingId.(index)
 
@@ -186,6 +198,9 @@ Scene :: [].{
 	}
 
 	PatternId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> PatternId
 		from_index = |index| PatternId.(index)
 

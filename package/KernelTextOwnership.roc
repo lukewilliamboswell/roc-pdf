@@ -241,7 +241,7 @@ validate_coverage = |semantics, text, owners| {
 					run_index = list_at($fragment_runs, $edge).index()
 					run = list_at(text.runs, run_index)
 					match run.unicode {
-						OccurrenceText(run_occurrence) => if run_occurrence.index() != fragment.occurrence.index() {
+						OccurrenceText(run_occurrence) => if run_occurrence != fragment.occurrence {
 							return Err(OccurrenceMismatch({ fragment: $fragment_index, run: run_index }))
 						}
 						ArtifactText(_) => return Err(ArtifactTextInFragment({ fragment: $fragment_index, run: run_index }))

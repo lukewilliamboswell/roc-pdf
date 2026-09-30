@@ -78,7 +78,7 @@ expect {
 						registered.work.copied_input_bytes == 0 and
 							list_at(store.resources, 0).bytes.len() == caller_font_bytes.len() and
 								list_at(store.faces, 0).postscript_name == Str.to_utf8("CallerFixtureSans-Regular") and
-									theme.body_font().index() == registered.face.index()
+									theme.body_font() == registered.face
 }
 
 list_at : List(a), U64 -> a

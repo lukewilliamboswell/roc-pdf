@@ -276,7 +276,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 				line_size = assert_logical_identity(shape_batch.store.runs, styles, body_run, $block_index)?
 				body_record = list_at(shape_batch.store.runs, body_index)
 				body_style = list_at(styles, body_index)
-				segmented = list_at(shape_requests, body_index).source.index() != list_at(shape_requests, body_index + body_run.physical.length() - 1).source.index()
+				segmented = list_at(shape_requests, body_index).source != list_at(shape_requests, body_index + body_run.physical.length() - 1).source
 				visual_start = $visual_lines.len()
 				var $segment_start = body_index
 				var $segment_length = if segmented segment_length(shape_requests, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
@@ -950,7 +950,7 @@ table_leaf_unit = |at, block_index, buffers| {
 			line_size = assert_logical_identity(shape_batch.store.runs, at.styles, body_run, block_index)?
 			body_record = list_at(shape_batch.store.runs, body_index)
 			body_style = list_at(at.styles, body_index)
-			segmented = list_at(at.shape_requests, body_index).source.index() != list_at(at.shape_requests, body_index + body_run.physical.length() - 1).source.index()
+			segmented = list_at(at.shape_requests, body_index).source != list_at(at.shape_requests, body_index + body_run.physical.length() - 1).source
 			visual_start = buffers.lines.len()
 			var $visual_lines = buffers.lines
 			var $rows = buffers.rows
@@ -1018,7 +1018,7 @@ append_cell_rows = |rows, at, block| {
 	body_run = at.body_run
 	body_index = body_run.physical.start()
 	body_end = body_index + body_run.physical.length()
-	segmented = list_at(at.requests, body_index).source.index() != list_at(at.requests, body_end - 1).source.index()
+	segmented = list_at(at.requests, body_index).source != list_at(at.requests, body_end - 1).source
 	var $rows = rows
 	var $segment_start = body_index
 	var $segment_length = if segmented segment_length(at.requests, body_index, body_end) else body_run.physical.length()
@@ -1467,7 +1467,7 @@ assert_logical_identity = |runs, styles, logical, block| {
 	var $index = start + 1
 	while $index < start + length {
 		run = list_at(runs, $index)
-		if list_at(styles, $index).leading.raw() != first_style.leading.raw() {
+		if list_at(styles, $index).leading != first_style.leading {
 			return Err(InvalidRun({ block, run: $index }))
 		}
 		$size = I64.max($size, run.size.raw())

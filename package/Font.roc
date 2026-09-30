@@ -4,6 +4,9 @@ import KernelFont
 
 Font :: [].{
 	ResourceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ResourceId
 		from_index = |index| ResourceId.(index)
 
@@ -12,6 +15,9 @@ Font :: [].{
 	}
 
 	FaceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> FaceId
 		from_index = |index| FaceId.(index)
 
@@ -20,6 +26,9 @@ Font :: [].{
 	}
 
 	InstanceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> InstanceId
 		from_index = |index| InstanceId.(index)
 
@@ -28,6 +37,9 @@ Font :: [].{
 	}
 
 	PolicyId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> PolicyId
 		from_index = |index| PolicyId.(index)
 
@@ -36,6 +48,9 @@ Font :: [].{
 	}
 
 	Script :: Str.{
+		is_eq : _
+		to_hash : _
+
 		from_iso15924 : Str -> Script
 		from_iso15924 = |value| Script.(value)
 
@@ -363,12 +378,12 @@ add_policy = |Font.Registry.(state), faces| {
 	var $face_index = 0
 	while $face_index < faces.len() {
 		face = list_at(faces, $face_index)
-		if face.index() >= state.store.faces.len() or list_at(state.store.faces, face.index()).id.index() != face.index() {
+		if face.index() >= state.store.faces.len() or list_at(state.store.faces, face.index()).id != face {
 			return Err(UnknownPolicyFace(face))
 		}
 		var $previous = 0
 		while $previous < $face_index {
-			if list_at(faces, $previous).index() == face.index() {
+			if list_at(faces, $previous) == face {
 				return Err(AmbiguousFace(face))
 			}
 			$previous = $previous + 1
@@ -396,7 +411,7 @@ plan_clusters = |Font.Registry.(state), request| {
 		return Rejected([InvalidPolicy(request.policy)])
 	}
 	policy = list_at(state.store.policies, policy_index)
-	if policy.id.index() != request.policy.index() or policy.instances.is_empty() {
+	if policy.id != request.policy or policy.instances.is_empty() {
 		return Rejected([InvalidPolicy(request.policy)])
 	}
 	var $ranges = []
@@ -443,13 +458,13 @@ select_instance = |store, policy, cluster, script, prior_coverage, prior_faces| 
 		}
 		instance_record = list_at(store.instances, instance.index())
 		face_index = instance_record.face.index()
-		if instance_record.id.index() != instance.index() or face_index >= store.faces.len() {
+		if instance_record.id != instance or face_index >= store.faces.len() {
 			return Err({ coverage_span_visits: $coverage_visits, face_visits: $face_visits })
 		}
 		face = list_at(store.faces, face_index)
 		$face_visits = $face_visits + 1
 
-		if face.id.index() == instance_record.face.index() and (common_script(script) or face_supports_script(store, face, script)) {
+		if face.id == instance_record.face and (common_script(script) or face_supports_script(store, face, script)) {
 			coverage = cluster_coverage(store, face, cluster.scalars, $coverage_visits)
 			$coverage_visits = coverage.visits
 			if coverage.covered {
@@ -519,7 +534,7 @@ append_face_range = |ranges, instance, cluster| {
 	}
 	last_index = ranges.len() - 1
 	last = list_at(ranges, last_index)
-	if last.instance.index() == instance.index() and last.clusters.start() + last.clusters.length() == cluster {
+	if last.instance == instance and last.clusters.start() + last.clusters.length() == cluster {
 		match ranges.set(last_index, { clusters: Semantics.Range.from_start_and_length(last.clusters.start(), last.clusters.length() + 1), instance }) {
 			Ok(updated) => updated
 			Err(OutOfBounds) => crash "validated font plan range update escaped"

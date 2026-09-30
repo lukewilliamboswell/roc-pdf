@@ -144,7 +144,7 @@ expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
 	match KernelOutputBound.calculate(KernelStructure.Plan.sealed(structure), KernelStructure.Plan.root(structure)) {
-		Err(XrefObjectMismatch({ actual, expected })) => KernelObject.ObjectId.is_eq(actual, KernelStructure.Plan.root(structure)) and expected == KernelStructure.Plan.object_count(structure) + 1
+		Err(XrefObjectMismatch({ actual, expected })) => actual == KernelStructure.Plan.root(structure) and expected == KernelStructure.Plan.object_count(structure) + 1
 		_ => False
 	}
 }

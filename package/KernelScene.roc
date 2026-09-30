@@ -415,7 +415,7 @@ validate_shadings = |store, resources, max_stops| {
 validate_shading_geometry : Scene.ShadingGeometry, U64 -> Try({}, KernelScene.Error)
 validate_shading_geometry = |geometry, shading| match geometry {
 	Axial({ end, start }) => {
-		if start.x.raw() == end.x.raw() and start.y.raw() == end.y.raw() {
+		if start.x == end.x and start.y == end.y {
 			Err(DegenerateShadingGeometry({ shading: shading }))
 		} else {
 			Ok({})
@@ -426,7 +426,7 @@ validate_shading_geometry = |geometry, shading| match geometry {
 			Err(NegativeShadingRadius({ shading: shading }))
 		} else if start_radius.raw() == 0 and end_radius.raw() == 0 {
 			Err(DegenerateShadingGeometry({ shading: shading }))
-		} else if start_center.x.raw() == end_center.x.raw() and start_center.y.raw() == end_center.y.raw() and start_radius.raw() == end_radius.raw() {
+		} else if start_center.x == end_center.x and start_center.y == end_center.y and start_radius == end_radius {
 			Err(DegenerateShadingGeometry({ shading: shading }))
 		} else {
 			Ok({})
