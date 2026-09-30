@@ -230,7 +230,38 @@ Pdf :: [].{
 		InvalidFontSelection(List(Font.PlanError)),
 		InvalidMetadata(Metadata.Error),
 		InvalidNavigation(Document.NavigationError),
-	]
+	].{
+
+		## A readable rendering for `Str.inspect` and `dbg`, so an app whose
+		## `main!` returns `Err(PdfFailed(error))` prints each diagnostic as
+		## `code at path: message`. The wording is for people and is not a
+		## stability contract: branch on the typed payload instead.
+		to_inspect : Error -> Str
+		to_inspect = |error| match error {
+			InternalGenerationFailure => "Pdf.Error.InternalGenerationFailure"
+			InvalidDocument(batch) => {
+				count = batch.diagnostics.len()
+				var $text = "Pdf.Error.InvalidDocument (${count.to_str()} ${if count == 1 "diagnostic" else "diagnostics"}"
+				$text = match batch.truncation {
+					Complete => "${$text}):"
+					Truncated => "${$text}, truncated):"
+				}
+				for diagnostic in batch.diagnostics {
+					code = match diagnostic.feature {
+						Feature(name) => name
+						NoFeature => Str.inspect(diagnostic.code)
+					}
+					at = if diagnostic.details.is_empty() "" else " at ${Str.join_with(diagnostic.details, ", ")}"
+					$text = "${$text}\n  ${code}${at}: ${diagnostic.message}"
+				}
+				$text
+			}
+			InvalidFontResource(problem) => "Pdf.Error.InvalidFontResource(${Str.inspect(problem)})"
+			InvalidFontSelection(problems) => "Pdf.Error.InvalidFontSelection(${Str.inspect(problems)})"
+			InvalidMetadata(problem) => "Pdf.Error.InvalidMetadata(${Str.inspect(problem)})"
+			InvalidNavigation(problem) => "Pdf.Error.InvalidNavigation(${Str.inspect(problem)})"
+		}
+	}
 
 	Options :: {
 		chunk_retention : ChunkRetention,
@@ -3770,4 +3801,13 @@ expect {
 	owned : Pdf.ChunkRetention
 	owned = OwnChunks
 	letter != custom and custom == Custom({ height: Layout.Unit.points(300), width: Layout.Unit.points(200) }) and archive == Archive and owned != ShareUnchangedResources
+}
+
+# A failed document renders its diagnostics readably through Str.inspect.
+expect {
+	result = Pdf.to_bytes(Pdf.document({ contents: [Pdf.section([])], language: "en-AU", title: "Empty" }))
+	match result {
+		Err(error) => Str.inspect(error).starts_with("Pdf.Error.InvalidDocument (1 diagnostic):\n  semantics.empty_container at contents[0]: ")
+		Ok(_) => False
+	}
 }
