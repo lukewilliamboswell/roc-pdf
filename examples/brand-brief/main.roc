@@ -11,10 +11,12 @@ import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
-import "../../vendor/fonts/Inter-4.1-Regular.ttf" as inter_bytes : List(U8)
-import "../../tests/assets/NotoSansMono-Code-Fixture.ttf" as mono_bytes : List(U8)
+import "fonts/PublicSans-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/PublicSans-Bold.ttf" as bold_bytes : List(U8)
+import "fonts/PublicSans-Italic.ttf" as italic_bytes : List(U8)
+import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
-## Lumen brand guidelines: a branded multi-page brief set in Inter with a
+## Lumen brand guidelines: a branded multi-page brief set in Public Sans with a
 ## monospace face for colour and token codes. It shows running headers and
 ## footers with `Page N of M`, a palette strip and section bands as
 ## decorations, a separately authored "At a glance" callout, vector
@@ -23,7 +25,7 @@ import "../../tests/assets/NotoSansMono-Code-Fixture.ttf" as mono_bytes : List(U
 ## lists, links, and an outline over named section destinations.
 main! = |_args| {
 	fonts = register_fonts({})?
-	theme = base_theme.with_font(fonts.body).with_inline_font(Code, fonts.mono)
+	theme = with_faces(base_theme, fonts)
 	document = Pdf.document({ contents: contents(theme), language: "en", title: "Lumen brand guidelines, edition 3" })
 		.with_page_templates(templates)
 		.with_outline(outline)
@@ -38,14 +40,32 @@ main! = |_args| {
 	Ok({})
 }
 
-## Inter for every text role and Noto Sans Mono for `Pdf.code`.
-register_fonts : {} -> Try({ body : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }, [FontRejected(Font.ResourceError)])
+Faces : { regular : Font.FaceId, bold : Font.FaceId, italic : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }
+
+## Public Sans Regular, Bold, and Italic, and Source Code Pro Regular, each retained
+## byte-for-byte from its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
 register_fonts = |_| {
 	latin = [Font.Script.from_iso15924("Latn")]
-	body = Font.Registry.empty.register(inter_bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))?
-	mono = body.registry.register(mono_bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))?
-	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	italic = add(bold.registry, italic_bytes)?
+	mono = add(italic.registry, mono_bytes)?
+	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
 }
+
+## Regular for every block role (the style-face path requires one face
+## for body, heading, and title text); Bold for `Pdf.strong`;
+## Italic for `Pdf.emphasis`;
+## the monospace face for `Pdf.code`.
+with_faces : Theme, Faces -> Theme
+with_faces = |base, faces|
+	base
+		.with_font(faces.regular)
+		.with_inline_font(Strong, faces.bold)
+		.with_inline_font(Emphasis, faces.italic)
+		.with_inline_font(Code, faces.mono)
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -111,7 +131,6 @@ base_theme = {
 		.with_page_margin({ top: points(40), right: points(56), bottom: points(40), left: points(56) })
 		.with_paragraph_spacing(points(9))
 		.with_bullet_indent(points(16))
-		.with_strong_color(indigo)
 		.with_code_color(Color.srgb8({ red: 170, green: 58, blue: 48 }))
 		.with_table_header_color(indigo)
 		.with_table_cell_padding(points(5))
@@ -384,7 +403,7 @@ contents = |theme| [
 		[
 			[Pdf.strong([Pdf.text("Promise")]), Pdf.text("  Calm, precise tools that respect people's attention.")],
 			[Pdf.strong([Pdf.text("Colour")]), Pdf.text("  Lumen Indigo leads; Signal Coral appears at most once per view.")],
-			[Pdf.strong([Pdf.text("Type")]), Pdf.text("  Inter for everything people read; a monospace face for code.")],
+			[Pdf.strong([Pdf.text("Type")]), Pdf.text("  Public Sans for everything people read; Source Code Pro for code.")],
 			[Pdf.strong([Pdf.text("Voice")]), Pdf.text("  Direct, never abrupt. Technical, never opaque. Warm, never ornamental.")],
 		],
 	),
@@ -424,7 +443,7 @@ contents = |theme| [
 		Pdf.decoration(band),
 		Pdf.destination_heading("type", 1, "3 Typography"),
 		Pdf.rich_paragraph([
-			Pdf.text("Inter is our only typeface for reading, set in its regular weight; hierarchy comes from size and colour, not from bold or italics. Code, colour values, and keyboard input use a monospace face, as in "),
+			Pdf.text("Public Sans is our only typeface for reading. Hierarchy comes from size and colour; bold marks a key term and italics a stressed word, never a whole sentence. Code, colour values, and keyboard input use Source Code Pro, as in "),
 			Pdf.code("--lumen-indigo: #2B2D6E"),
 			Pdf.text(" or "),
 			Pdf.code("lumen export --pdf"),
