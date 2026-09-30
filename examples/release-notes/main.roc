@@ -141,13 +141,13 @@ footer = Pdf.region({
 })
 
 header_mark : Scene.Drawing
-header_mark = Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 8, 8), indigo), Layout.rect(10, 0, 8, 8), pink)
+header_mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 8, 8), indigo).rectangle(Layout.rect(10, 0, 8, 8), pink)
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(19), start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], center: [], end: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, haze)), slot_inset: points(3) }),
+		header: Pdf.region({ height: points(19), start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], center: [], end: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, haze)), slot_inset: points(3) }),
 		footer,
 		gap: points(16),
 	}),
@@ -205,7 +205,7 @@ callout_panel = |style, size| {
 	right = size.width.raw()
 	top = size.height.raw()
 	point = |x, y| { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }
-	body = Scene.path({})
+	body = Scene.PathBuilder.start
 		.move_to(point(r, 0))
 		.line_to(point(right - r, 0))
 		.cubic_to({ control_1: point(right - r + k, 0), control_2: point(right, r - k), end: point(right, r) })
@@ -217,7 +217,7 @@ callout_panel = |style, size| {
 		.cubic_to({ control_1: point(0, r - k), control_2: point(r - k, 0), end: point(r, 0) })
 		.close()
 		.finish()
-	cap = Scene.path({})
+	cap = Scene.PathBuilder.start
 		.move_to(point(0, top - 3000))
 		.line_to(point(0, top - r))
 		.cubic_to({ control_1: point(0, top - r + k), control_2: point(r - k, top), end: point(r, top) })
@@ -226,7 +226,7 @@ callout_panel = |style, size| {
 		.line_to(point(right, top - 3000))
 		.close()
 		.finish()
-	Scene.drawing({}).path(body, Scene.solid_fill(style.fill)).path(cap, Scene.solid_fill(style.accent))
+	Scene.Drawing.empty.path(body, Scene.solid_fill(style.fill)).path(cap, Scene.solid_fill(style.accent))
 }
 
 ## ---------------------------------------------------------------------
@@ -237,18 +237,18 @@ banner : Document.Block
 banner = {
 	# The band keeps 14 pt between itself and the title through its
 	# decoration spacing, not empty drawing area.
-	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, measure, 64), night)
-	$d = Scene.rectangle($d, Layout.rect(0, 0, 6, 64), pink)
+	var $d = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, measure, 64), night)
+	$d = $d.rectangle(Layout.rect(0, 0, 6, 64), pink)
 
 	# Twelve release dots: minor releases in lilac, this major in pink.
 	var $x = 300
 	var $i = 0
 	while $i < 12 {
-		$d = Scene.rectangle($d, Layout.rect($x, 28, 8, 8), if $i == 11 pink else lilac)
+		$d = $d.rectangle(Layout.rect($x, 28, 8, 8), if $i == 11 pink else lilac)
 		$x = $x + 15
 		$i = $i + 1
 	}
-	Pdf.decoration({ drawing: Scene.rectangle($d, Layout.rect(300, 22, 173, 1), lilac), below: points(14) })
+	Pdf.decoration({ drawing: $d.rectangle(Layout.rect(300, 22, 173, 1), lilac), below: points(14) })
 }
 
 ## ---------------------------------------------------------------------
@@ -262,15 +262,15 @@ latency_chart = {
 	values = [("2.8", 412, haze), ("2.9", 356, lilac), ("3.0", 188, indigo)]
 	left = 44
 	bar = |value| value * 9 // 10
-	var $d = Scene.drawing({})
+	var $d = Scene.Drawing.empty
 	for step in [0, 1, 2, 3, 4] {
 		x = left + bar(step * 100)
-		$d = Scene.rectangle($d, { origin: Layout.point(x, 16), size: { height: points(118), width: Layout.Unit.millipoints(600) } }, haze)
+		$d = $d.rectangle({ origin: Layout.point(x, 16), size: { height: points(118), width: Layout.Unit.millipoints(600) } }, haze)
 		$d = $d.text({ align: Center, color: ink, origin: Layout.point(x, 4), size: points(7), text: if step == 4 "400 ms" else (step * 100).to_str() })
 	}
 	var $y = 100
 	for (release, value, color) in values {
-		$d = Scene.rectangle($d, Layout.rect(left, $y, bar(value), 24), color)
+		$d = $d.rectangle(Layout.rect(left, $y, bar(value), 24), color)
 		$d = $d.text({ align: End, color: ink, origin: Layout.point(left - 8, $y + 9), size: points(9), text: release })
 		$d = $d.text({ align: Start, color: ink, origin: Layout.point(left + bar(value) + 6, $y + 9), size: points(8), text: "${value.to_str()} ms" })
 		$y = $y - 36
@@ -280,10 +280,10 @@ latency_chart = {
 	end_29 = left + bar(356)
 	end_30 = left + bar(188)
 	$d
-		.path(Scene.path({}).move_to(Layout.point(end_29, 76)).line_to(Layout.point(end_29, 52)).line_to(Layout.point(end_30 + 8, 52)).finish(), Scene.solid_stroke(pink, Layout.Unit.millipoints(1500)))
-		.path(Scene.path({}).move_to(Layout.point(end_30, 52)).line_to(Layout.point(end_30 + 8, 56)).line_to(Layout.point(end_30 + 8, 48)).close().finish(), Scene.solid_fill(pink))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(end_29, 76)).line_to(Layout.point(end_29, 52)).line_to(Layout.point(end_30 + 8, 52)).finish(), Scene.solid_stroke(pink, Layout.Unit.millipoints(1500)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(end_30, 52)).line_to(Layout.point(end_30 + 8, 56)).line_to(Layout.point(end_30 + 8, 48)).close().finish(), Scene.solid_fill(pink))
 		.text_in(Strong, { align: Start, color: pink, origin: Layout.point(end_29 + 6, 60), size: points(8), text: "−47%" })
-		.path(Scene.path({}).move_to(Layout.point(left, 16)).line_to(Layout.point(measure - 1, 16)).finish(), Scene.solid_stroke(ink, Layout.Unit.millipoints(700)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(left, 16)).line_to(Layout.point(measure - 1, 16)).finish(), Scene.solid_stroke(ink, Layout.Unit.millipoints(700)))
 }
 
 ## ---------------------------------------------------------------------
@@ -302,7 +302,7 @@ compat_row = |target, old, new, note| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(target)]),
 	if old.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.text(old)]),
 	if new.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.strong([Pdf.text(new)])]),
-	if new.is_empty() Pdf.shaded(Color.srgb8({ red: 253, green: 242, blue: 248 }), Pdf.cell([Pdf.text(note)])) else Pdf.cell([Pdf.text(note)]),
+	if new.is_empty() Pdf.cell([Pdf.text(note)]).shaded(Color.srgb8({ red: 253, green: 242, blue: 248 })) else Pdf.cell([Pdf.text(note)]),
 ])
 
 ## A 2.x flag or setting and its 3.0 form; a removal with no replacement
@@ -369,7 +369,7 @@ compatibility_table = Pdf.table({
 	],
 	footer_rows: [
 		Pdf.row([
-			Pdf.spanning(4, Pdf.aligned(Start, Pdf.cell([Pdf.text("2.9 LTS receives security fixes until 30 September 2027.")]))),
+			Pdf.cell([Pdf.text("2.9 LTS receives security fixes until 30 September 2027.")]).aligned(Start).spanning(4),
 		]),
 	],
 	row_split: KeepRows,

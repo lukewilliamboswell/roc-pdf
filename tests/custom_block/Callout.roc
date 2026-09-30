@@ -116,7 +116,7 @@ panel = |style, size| {
 	right = size.width.raw() - half
 	top = size.height.raw() - half
 	point = |x, y| { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }
-	outline = Scene.path({})
+	outline = Scene.PathBuilder.start
 		.move_to(point(left + r, bottom))
 		.line_to(point(right - r, bottom))
 		.cubic_to({ control_1: point(right - r + k, bottom), control_2: point(right, bottom + r - k), end: point(right, bottom + r) })
@@ -128,6 +128,6 @@ panel = |style, size| {
 		.cubic_to({ control_1: point(left, bottom + r - k), control_2: point(left + r - k, bottom), end: point(left + r, bottom) })
 		.close()
 		.finish()
-	Scene.drawing({})
+	Scene.Drawing.empty
 		.path(outline, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: Layout.Unit.points(1) }) })
 }

@@ -140,13 +140,13 @@ footer = Pdf.region({
 ## mark (three rising bars and a star-like diamond) at its end.
 cover_band : Scene.Drawing
 cover_band = {
-	var $band = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 6, body_width, 50), navy)
-	$band = Scene.rectangle($band, Layout.rect(0, 0, body_width, 4), teal)
+	var $band = Scene.Drawing.empty.rectangle(Layout.rect(0, 6, body_width, 50), navy)
+	$band = $band.rectangle(Layout.rect(0, 0, body_width, 4), teal)
 
 	# Faint diagonal hatching across the band's start, for texture.
 	var $x = 4
 	while $x < 220 {
-		$band = $band.path(Scene.path({}).move_to(Layout.point($x, 8)).line_to(Layout.point($x + 28, 54)).finish(), Scene.solid_stroke(Color.srgb8({ red: 34, green: 62, blue: 98 }), points(2)))
+		$band = $band.path(Scene.PathBuilder.start.move_to(Layout.point($x, 8)).line_to(Layout.point($x + 28, 54)).finish(), Scene.solid_stroke(Color.srgb8({ red: 34, green: 62, blue: 98 }), points(2)))
 		$x = $x + 14
 	}
 
@@ -158,16 +158,16 @@ cover_band = {
 ## origin.
 coop_mark : Scene.Drawing
 coop_mark = {
-	bar = |x, height| Scene.path({}).move_to(Layout.point(x, 0)).line_to(Layout.point(x + 8, 0)).line_to(Layout.point(x + 8, height)).line_to(Layout.point(x, height)).close().finish()
-	Scene.drawing({})
+	bar = |x, height| Scene.PathBuilder.start.move_to(Layout.point(x, 0)).line_to(Layout.point(x + 8, 0)).line_to(Layout.point(x + 8, height)).line_to(Layout.point(x, height)).close().finish()
+	Scene.Drawing.empty
 		.path(bar(0, 12), Scene.solid_fill(slate))
 		.path(bar(12, 20), Scene.solid_fill(teal))
 		.path(bar(24, 28), Scene.solid_fill(white))
-		.path(Scene.path({}).move_to(Layout.point(44, 20)).line_to(Layout.point(50, 28)).line_to(Layout.point(56, 20)).line_to(Layout.point(50, 12)).close().finish(), Scene.solid_fill(amber))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(44, 20)).line_to(Layout.point(50, 28)).line_to(Layout.point(56, 20)).line_to(Layout.point(50, 12)).close().finish(), Scene.solid_fill(amber))
 }
 
 hairline : Scene.Drawing
-hairline = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(body_width) } }, teal)
+hairline = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(body_width) } }, teal)
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
@@ -229,7 +229,7 @@ callout_panel = |size, fill, accent| {
 	right = size.width.raw()
 	top = size.height.raw()
 	point = |x, y| { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }
-	outline_path = Scene.path({})
+	outline_path = Scene.PathBuilder.start
 		.move_to(point(r, 0))
 		.line_to(point(right - r, 0))
 		.cubic_to({ control_1: point(right - r + k, 0), control_2: point(right, r - k), end: point(right, r) })
@@ -241,8 +241,8 @@ callout_panel = |size, fill, accent| {
 		.cubic_to({ control_1: point(0, r - k), control_2: point(r - k, 0), end: point(r, 0) })
 		.close()
 		.finish()
-	bar = Scene.path({}).rectangle({ origin: point(0, r), size: { height: Layout.Unit.from_raw(top - 2 * r), width: points(4) } }).finish()
-	Scene.drawing({})
+	bar = Scene.PathBuilder.start.rectangle({ origin: point(0, r), size: { height: Layout.Unit.from_raw(top - 2 * r), width: points(4) } }).finish()
+	Scene.Drawing.empty
 		.path(outline_path, Scene.solid_fill(fill))
 		.path(bar, Scene.solid_fill(accent))
 }
@@ -277,20 +277,20 @@ revenue_chart = {
 	left = 40
 	base = 16
 	width = body_width - left
-	var $chart = Scene.drawing({})
+	var $chart = Scene.Drawing.empty
 	for step in [1, 2, 3, 4] {
-		$chart = Scene.rectangle($chart, { origin: Layout.point(left, base + revenue_height(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(width) } }, grid)
+		$chart = $chart.rectangle({ origin: Layout.point(left, base + revenue_height(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(width) } }, grid)
 	}
 	for step in [0, 1, 2, 3, 4] {
 		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: points(8), text: if step == 0 "0" else "${step.to_i64_wrap().to_str()},000" })
 	}
 	slot = width // 6
 	var $index = 0
-	var $line = Scene.path({})
+	var $line = Scene.PathBuilder.start
 	for month in monthly {
 		x = left + $index * slot + slot // 2
 		color = if $index < 3 slate else teal
-		$chart = Scene.rectangle($chart, Layout.rect(x - 22, base, 44, revenue_height(month.revenue)), color)
+		$chart = $chart.rectangle(Layout.rect(x - 22, base, 44, revenue_height(month.revenue)), color)
 
 		## The month under its bar and its revenue above it.
 		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(x, 3), size: points(8), text: month.name })
@@ -300,19 +300,19 @@ revenue_chart = {
 	}
 	$chart = $chart
 		.path($line.finish(), Scene.solid_stroke(amber, points(2)))
-		.path(Scene.path({}).move_to(Layout.point(left, base)).line_to(Layout.point(body_width, base)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(left, base)).line_to(Layout.point(body_width, base)).finish(), Scene.solid_stroke(ink, points(1)))
 	var $i = 0
 	for month in monthly {
 		x = left + $i * slot + slot // 2
 		my = base + revenue_height(month.margin * 50 + 1000)
-		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(x - 4, my - 4, 8, 8), amber), Layout.rect(x - 2, my - 2, 4, 4), white)
+		$chart = $chart.rectangle(Layout.rect(x - 4, my - 4, 8, 8), amber).rectangle(Layout.rect(x - 2, my - 2, 4, 4), white)
 		$i = $i + 1
 	}
 
 	## The legend, above the plot.
 	legend_y = base + revenue_height(4000) + 14
-	swatch = |color| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 10, 8), color)
-	margin_key = Scene.rectangle(Scene.drawing({}).path(Scene.path({}).move_to(Layout.point(0, 4)).line_to(Layout.point(10, 4)).finish(), Scene.solid_stroke(amber, points(2))), Layout.rect(3, 2, 4, 4), amber)
+	swatch = |color| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 8), color)
+	margin_key = Scene.Drawing.empty.path(Scene.PathBuilder.start.move_to(Layout.point(0, 4)).line_to(Layout.point(10, 4)).finish(), Scene.solid_stroke(amber, points(2))).rectangle(Layout.rect(3, 2, 4, 4), amber)
 	$chart = key($chart, left, legend_y, swatch(slate), "Q1 revenue")
 	$chart = key($chart, left + 90, legend_y, swatch(teal), "Q2 revenue")
 	key($chart, left + 180, legend_y, margin_key, "Gross margin, 31% to 36%")
@@ -332,13 +332,13 @@ progress_chart = {
 	start = 112
 	track = body_width - start - 46
 	row_height = 23
-	var $chart = Scene.drawing({})
+	var $chart = Scene.Drawing.empty
 	var $row = 0
 	for (name, percent) in progress {
 		y = 3 * row_height - $row * row_height + 6
 		filled = track * percent.to_i64_wrap() // 100
 		color = if percent >= 50 teal else amber
-		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect(start, y, track, 14), grid), Layout.rect(start, y, filled, 14), color)
+		$chart = $chart.rectangle(Layout.rect(start, y, track, 14), grid).rectangle(Layout.rect(start, y, filled, 14), color)
 		$chart = $chart
 			.text({ align: End, color: ink, origin: Layout.point(start - 8, y + 3), size: points(9), text: name })
 			.text_in(Strong, { align: End, color: ink, origin: Layout.point(body_width - 2, y + 3), size: points(10), text: "${percent.to_str()}%" })
@@ -349,7 +349,7 @@ progress_chart = {
 	half = start + track // 2
 	top = 4 * row_height + 2
 	$chart
-		.path(Scene.path({}).move_to(Layout.point(half, 1)).line_to(Layout.point(half, top)).finish(), Scene.solid_stroke(navy, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(half, 1)).line_to(Layout.point(half, top)).finish(), Scene.solid_stroke(navy, points(1)))
 		.text_in(Strong, { align: Center, color: navy, origin: Layout.point(half, top + 4), size: points(8), text: "Half year" })
 }
 
@@ -392,10 +392,10 @@ kpi_row = |metric, q1, q2, target, status| Pdf.row([
 ])
 
 on_track : Pdf.Cell
-on_track = Pdf.shaded(Color.srgb8({ red: 226, green: 243, blue: 234 }), Pdf.cell([Pdf.strong([Pdf.text("On track")])]))
+on_track = Pdf.cell([Pdf.strong([Pdf.text("On track")])]).shaded(Color.srgb8({ red: 226, green: 243, blue: 234 }))
 
 watch : Pdf.Cell
-watch = Pdf.shaded(Color.srgb8({ red: 252, green: 238, blue: 214 }), Pdf.cell([Pdf.emphasis([Pdf.text("Watch")])]))
+watch = Pdf.cell([Pdf.emphasis([Pdf.text("Watch")])]).shaded(Color.srgb8({ red: 252, green: 238, blue: 214 }))
 
 scorecard : Document.Block
 scorecard = Pdf.table({

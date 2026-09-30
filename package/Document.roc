@@ -98,7 +98,40 @@ DocumentRow :: [Row(List(DocumentCell))].{}
 ## One authored table cell: inline content forming one paragraph, its kind,
 ## and the columns and rows it spans. Row spans are represented so they can
 ## be rejected with a located diagnostic.
-DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{}
+DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{
+
+	## The cell spanning `count` columns (`ColSpan`):
+	## `Pdf.header_cell(Row, label).spanning(2)`.
+	spanning : DocumentCell, U16 -> DocumentCell
+	spanning = |value, count| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, column_span: count })
+	}
+
+	## The cell with its lines aligned at `align` instead of in the
+	## alignment of the first column it spans, such as an end-aligned label
+	## spanning a table's start-aligned columns.
+	aligned : DocumentCell, ColumnAlign -> DocumentCell
+	aligned = |value, align| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, align: Aligned(align) })
+	}
+
+	## The cell with its own background color, such as a highlighted total.
+	## It covers the cell's box (its spanned columns, padding included) and
+	## half the row gap above and below, painted over any row fill as a
+	## layout decoration artifact behind the page's text. The cell keeps
+	## its `TH` or `TD` semantics; the fill adds no structure.
+	shaded : DocumentCell, Color.SourceValue -> DocumentCell
+	shaded = |value, color| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, fill: CellFill(color) })
+	}
+
+	## The cell spanning `count` rows. Row spans are outside the supported
+	## table subset: preparation reports `table.row_span` until Gate 8.
+	row_spanning : DocumentCell, U16 -> DocumentCell
+	row_spanning = |value, count| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, row_span: count })
+	}
+}
 
 ## One authored list item: the blocks of its `LBody`, in logical order. Its
 ## `Lbl` is generated from the enclosing list's marker.
@@ -1118,32 +1151,6 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## A header cell (`TH`) with its declared scope.
 	header_cell : HeaderScope, List(DocumentInline) -> DocumentCell
 	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: HeaderCell(scope), row_span: 1 })
-
-	## A cell spanning `count` columns.
-	spanning : U16, DocumentCell -> DocumentCell
-	spanning = |count, value| match value {
-		Cell(record) => DocumentCell.Cell({ ..record, column_span: count })
-	}
-
-	## A cell whose lines align at `align` instead of in the alignment of
-	## the first column it spans.
-	aligned : ColumnAlign, DocumentCell -> DocumentCell
-	aligned = |align, value| match value {
-		Cell(record) => DocumentCell.Cell({ ..record, align: Aligned(align) })
-	}
-
-	## A cell with its own background color.
-	shaded : Color.SourceValue, DocumentCell -> DocumentCell
-	shaded = |color, value| match value {
-		Cell(record) => DocumentCell.Cell({ ..record, fill: CellFill(color) })
-	}
-
-	## A cell spanning `count` rows; row spans are outside the supported
-	## subset and reject at preparation.
-	row_spanning : U16, DocumentCell -> DocumentCell
-	row_spanning = |count, value| match value {
-		Cell(record) => DocumentCell.Cell({ ..record, row_span: count })
-	}
 
 	## An explicit line break inside a rich paragraph.
 	line_break : DocumentInline
@@ -2623,8 +2630,8 @@ expect {
 # offsets of its groups, and the extent covers the moved commands.
 expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
-	inner = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 10, 5), black)
-	drawing = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 1, 1), black).group(Layout.point(20, 10), Scene.drawing({}).group(Layout.point(5, 5), inner))
+	inner = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 5), black)
+	drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 1, 1), black).group(Layout.point(20, 10), Scene.Drawing.empty.group(Layout.point(5, 5), inner))
 	match validate_flow_drawing(drawing) {
 		ValidDrawing({ commands: [_, FlowPath({ fill: Fill(_), segments: [Rectangle(rect)], stroke: NoStroke })], height, images: [], width }) => rect.origin.x.raw() == 25000 and rect.origin.y.raw() == 15000 and width == 35000 and height == 20000
 		_ => False
@@ -2635,16 +2642,16 @@ expect {
 # a painting command, and an empty drawing are rejected with a reason.
 expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
-	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 4, 4), black)
+	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 4, 4), black)
 	var $deep = mark
 	var $level = 0
 	while $level < 9 {
-		$deep = Scene.drawing({}).group(Layout.point(1, 1), $deep)
+		$deep = Scene.Drawing.empty.group(Layout.point(1, 1), $deep)
 		$level = $level + 1
 	}
 	rejected = |drawing| match validate_flow_drawing(drawing) {
 		InvalidDrawing(_) => True
 		ValidDrawing(_) => False
 	}
-	rejected($deep) and rejected(Scene.drawing({}).group(Layout.point(-5, 0), mark)) and rejected(Scene.drawing({}).group(Layout.point(1, 1), Scene.drawing({}))) and rejected(Scene.drawing({}))
+	rejected($deep) and rejected(Scene.Drawing.empty.group(Layout.point(-5, 0), mark)) and rejected(Scene.Drawing.empty.group(Layout.point(1, 1), Scene.Drawing.empty)) and rejected(Scene.Drawing.empty)
 }

@@ -694,7 +694,7 @@ scoped_colors_document = |count, scoped| {
 	for block in nested {
 		$contents = $contents.append(block)
 	}
-	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 300, 60), Color.srgb8({ blue: 220, green: 240, red: 250 }))
+	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 60), Color.srgb8({ blue: 220, green: 240, red: 250 }))
 	callout = Pdf.custom_block({ contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scoped callout.")]), Pdf.text(" Its label takes the scope's amber.")])], fragmentation: Unsplittable, inset: Layout.Unit.points(8), name: "Scoped callout", panel, size: { height: Layout.Unit.points(60), width: Layout.Unit.points(300) } })
 	for block in wrap(warning, [callout]) {
 		$contents = $contents.append(block)
@@ -708,7 +708,7 @@ scoped_text_document = |count, scoped| {
 	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
 	dark = Theme.Scope.empty.with_color(Text, near_white).with_color(Strong, amber).with_color(Link, Color.srgb8({ blue: 250, green: 205, red: 125 })).with_color(Code, near_white)
 	slate = Theme.Scope.empty.with_color(Text, Color.srgb8({ blue: 105, green: 85, red: 70 }))
-	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 420, 40), Color.srgb8({ blue: 70, green: 40, red: 20 }))
+	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 420, 40), Color.srgb8({ blue: 70, green: 40, red: 20 }))
 	var $contents = List.with_capacity(count + 4)
 	for block in wrap(
 		slate,

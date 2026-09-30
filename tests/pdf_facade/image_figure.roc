@@ -115,7 +115,7 @@ figure_document = {
 		pixels: image_pixels,
 		row_stride: 24,
 	})
-	drawing = Scene.drawing({}).image(image, Layout.rect(0, 0, 320, 160))
+	drawing = Scene.Drawing.empty.image(image, Layout.rect(0, 0, 320, 160))
 	Pdf.document({
 		contents: [
 			Pdf.title("Field palette"),

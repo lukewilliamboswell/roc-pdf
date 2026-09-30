@@ -1869,7 +1869,7 @@ layout_template = |template, lead_units| {
 # fits the body frame (in thousandths, rounding the anchor height up); a
 # floor above it and an `Exact` figure are oversize.
 expect {
-	drawing = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 600, 900), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 600, 900), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	page = { height: Layout.Unit.points(842), width: Layout.Unit.points(595) }
 	theme = Theme.with_page_margin(Theme.default, { bottom: Layout.Unit.points(48), left: Layout.Unit.points(56), right: Layout.Unit.points(56), top: Layout.Unit.points(48) })
 	authoring = |fit| Document.normalize(Document.from_blocks({ contents: [Document.figure_fit(Document.figure(drawing, "A plan", NoCaption), fit)], language: "en-AU", title: "Fit" }))

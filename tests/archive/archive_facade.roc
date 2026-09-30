@@ -76,10 +76,10 @@ figure_document = |_| {
 	Pdf.document({
 		contents: [
 			Pdf.title("Archived figures"),
-			Pdf.figure({ drawing: Scene.drawing({}).image(opaque, Layout.rect(0, 0, 320, 160)), alt: "Teal diagonal stripes on an opaque raster", caption: Pdf.caption("An opaque packed sRGB raster.") }),
-			Pdf.figure({ drawing: Scene.drawing({}).image(translucent, Layout.rect(0, 0, 320, 160)), alt: "The same stripes fading from transparent to opaque", caption: Pdf.caption("A packed raster with an alpha plane.") }),
-			Pdf.figure({ drawing: Scene.drawing({}).image(gray, Layout.rect(0, 0, 320, 80)), alt: "A left-to-right gray ramp", caption: Pdf.no_caption }),
-			Pdf.figure({ drawing: Scene.drawing({}).image(jpeg, Layout.rect(0, 0, 160, 160)), alt: "A small sRGB JPEG test pattern", caption: Pdf.caption("A baseline sRGB JPEG.") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(opaque, Layout.rect(0, 0, 320, 160)), alt: "Teal diagonal stripes on an opaque raster", caption: Pdf.caption("An opaque packed sRGB raster.") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(translucent, Layout.rect(0, 0, 320, 160)), alt: "The same stripes fading from transparent to opaque", caption: Pdf.caption("A packed raster with an alpha plane.") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(gray, Layout.rect(0, 0, 320, 80)), alt: "A left-to-right gray ramp", caption: Pdf.no_caption }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(jpeg, Layout.rect(0, 0, 160, 160)), alt: "A small sRGB JPEG test pattern", caption: Pdf.caption("A baseline sRGB JPEG.") }),
 		],
 		language: "en-AU",
 		title: "Archived figures",

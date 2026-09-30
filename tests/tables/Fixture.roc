@@ -219,7 +219,7 @@ invoice_header = Pdf.row([
 ])
 
 total_row : Str, List(Pdf.Inline) -> Pdf.Row
-total_row = |label, amount| Pdf.row([Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text(label)]))), Pdf.cell(amount)])
+total_row = |label, amount| Pdf.row([Pdf.header_cell(Row, [Pdf.text(label)]).spanning(4).aligned(End), Pdf.cell(amount)])
 
 invoice_totals : List(Pdf.Row)
 invoice_totals = [
@@ -297,7 +297,7 @@ spans_document = |context| {
 					region_row("Victoria", "2,905", "3,118", "+7.3%"),
 					region_row("New South Wales", "3,462", "3,390", "−2.1%"),
 					region_row("Queensland", "1,127", "1,301", "+15.4%"),
-					Pdf.row([Pdf.header_cell(Row, [Pdf.text("Northern Territory")]), Pdf.aligned(Center, Pdf.spanning(3, Pdf.cell([Pdf.text("Opened in October 2026; no first-quarter figures are reported.")])))]),
+					Pdf.row([Pdf.header_cell(Row, [Pdf.text("Northern Territory")]), Pdf.cell([Pdf.text("Opened in October 2026; no first-quarter figures are reported.")]).spanning(3).aligned(Center)]),
 				],
 				caption: Pdf.caption("Table 1. Revenue by region, AUD thousands"),
 				columns: [
@@ -310,7 +310,7 @@ spans_document = |context| {
 				header_rows: [
 					Pdf.row([
 						Pdf.header_cell(Both, [Pdf.text("Region")]),
-						Pdf.spanning(2, Pdf.header_cell(Column, [Pdf.text("Revenue")])),
+						Pdf.header_cell(Column, [Pdf.text("Revenue")]).spanning(2),
 						Pdf.header_cell(Column, [Pdf.text("Change")]),
 					]),
 					Pdf.row([
@@ -385,7 +385,7 @@ styled_document = |count| {
 				body_rows: $rows,
 				caption: Pdf.caption("Register of supplied items (${count.to_str()} rows)"),
 				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(Layout.Unit.points(80)) }],
-				footer_rows: [Pdf.row([Pdf.aligned(End, Pdf.spanning(2, Pdf.header_cell(Row, [Pdf.text("Total (AUD)")]))), Pdf.shaded(amber, Pdf.cell([Pdf.strong([Pdf.text("10,028.10")])]))])],
+				footer_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Total (AUD)")]).spanning(2).aligned(End), Pdf.cell([Pdf.strong([Pdf.text("10,028.10")])]).shaded(amber)])],
 				header_rows: [Pdf.row([Pdf.header_cell(Both, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Amount")])])],
 				row_split: KeepRows,
 			}),
@@ -413,7 +413,7 @@ empty_cells_document = |count| {
 		row = if $index % 5 == 4 {
 			Pdf.row([Pdf.header_cell(Row, []), Pdf.cell([]), Pdf.cell([]), Pdf.cell([])])
 		} else if $index % 5 == 1 {
-			Pdf.row([Pdf.header_cell(Row, [Pdf.text(name)]), Pdf.shaded(amber, Pdf.cell([])), Pdf.cell([Pdf.text("12")]), Pdf.cell([Pdf.text("Roosting on the spit at high tide")])])
+			Pdf.row([Pdf.header_cell(Row, [Pdf.text(name)]), Pdf.cell([]).shaded(amber), Pdf.cell([Pdf.text("12")]), Pdf.cell([Pdf.text("Roosting on the spit at high tide")])])
 		} else if $index % 5 == 2 {
 			Pdf.row([Pdf.header_cell(Row, [Pdf.text(name)]), Pdf.cell([Pdf.text("3")]), Pdf.cell([]), Pdf.cell([])])
 		} else {
@@ -689,10 +689,10 @@ run_negatives = |context| {
 	sentence = "A long description that keeps going and going. "
 	checks = [
 		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.cell([Pdf.text("a")]), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], caption: Pdf.no_caption, columns, footer_rows: [], header_rows: [], row_split: KeepRows })]), InvalidRelationship, "table.header_missing", ["contents[1]"]),
-		rejects(document([lead, table([body("b"), Pdf.row([Pdf.header_cell(Row, [Pdf.text("A2")]), Pdf.cell([Pdf.text("b")]), Pdf.spanning(2, Pdf.cell([Pdf.text("c")]))])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[1]"]),
+		rejects(document([lead, table([body("b"), Pdf.row([Pdf.header_cell(Row, [Pdf.text("A2")]), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")]).spanning(2)])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[1]"]),
 		rejects(document([lead, table([Pdf.row([])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[0]"]),
-		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.spanning(0, Pdf.cell([Pdf.text("b")])), Pdf.spanning(2, Pdf.cell([Pdf.text("c")]))])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[0]"]),
-		rejects(document([lead, table([Pdf.row([Pdf.row_spanning(2, Pdf.header_cell(Row, [Pdf.text("A1")])), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), FeatureUnavailable, "table.row_span", ["contents[1].table.body_rows[0].cells[0]"]),
+		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([Pdf.text("b")]).spanning(0), Pdf.cell([Pdf.text("c")]).spanning(2)])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[0]"]),
+		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]).row_spanning(2), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), FeatureUnavailable, "table.row_span", ["contents[1].table.body_rows[0].cells[0]"]),
 		rejects(document([lead, table([], KeepRows)]), InvalidRelationship, "table.empty", ["contents[1]"]),
 		rejects(document([lead, Pdf.table({ body_rows: [], caption: Pdf.no_caption, columns: [], footer_rows: [], header_rows: [], row_split: KeepRows })]), InvalidRelationship, "table.empty", ["contents[1]"]),
 		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([Pdf.strong([])]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), InvalidRelationship, "table.cell_empty", ["contents[1].table.body_rows[0].cells[1]"]),

@@ -65,7 +65,7 @@ footer = Pdf.region({ height: points(16), start: [], center: [], end: [Pdf.furni
 
 ## A full-width 0.5 pt rule under the running header.
 rule : Scene.Drawing
-rule = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(483) } }, slate)
+rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(483) } }, slate)
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
@@ -126,7 +126,7 @@ callout_panel = |size| {
 	right = size.width.raw() - half
 	top = size.height.raw() - half
 	point = |x, y| { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }
-	outline_path = Scene.path({})
+	outline_path = Scene.PathBuilder.start
 		.move_to(point(left + r, bottom))
 		.line_to(point(right - r, bottom))
 		.cubic_to({ control_1: point(right - r + k, bottom), control_2: point(right, bottom + r - k), end: point(right, bottom + r) })
@@ -140,7 +140,7 @@ callout_panel = |size| {
 		.finish()
 	fill = Color.srgb8({ red: 236, green: 244, blue: 250 })
 	stroke = Color.srgb8({ red: 150, green: 170, blue: 190 })
-	Scene.drawing({}).path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: stroke, width: points(1) }) })
+	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: stroke, width: points(1) }) })
 }
 
 ## ---------------------------------------------------------------------
@@ -161,9 +161,9 @@ digit = |value| {
 	} else {
 		[(0, 4, 1, 5), (0, 4, 5, 1), (4, 4, 1, 5), (4, 0, 1, 5)]
 	}
-	var $drawing = Scene.drawing({})
+	var $drawing = Scene.Drawing.empty
 	for (x, y, w, h) in segments {
-		$drawing = Scene.rectangle($drawing, Layout.rect(x, y, w, h), ink)
+		$drawing = $drawing.rectangle(Layout.rect(x, y, w, h), ink)
 	}
 	$drawing
 }
@@ -193,24 +193,24 @@ bar_chart : Scene.Drawing
 bar_chart = {
 	base : I64
 	base = 24
-	var $chart = Scene.drawing({})
+	var $chart = Scene.Drawing.empty
 	for step in [1, 2, 3, 4] {
-		$chart = Scene.rectangle($chart, { origin: Layout.point(40, base + plotted(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(440) } }, slate)
+		$chart = $chart.rectangle({ origin: Layout.point(40, base + plotted(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(440) } }, slate)
 	}
 	$chart = $chart
-		.path(Scene.path({}).move_to(Layout.point(40, base)).line_to(Layout.point(480, base)).finish(), Scene.solid_stroke(ink, points(1)))
-		.path(Scene.path({}).move_to(Layout.point(40, base)).line_to(Layout.point(40, base + 196)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(40, base)).line_to(Layout.point(480, base)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(40, base)).line_to(Layout.point(40, base + 196)).finish(), Scene.solid_stroke(ink, points(1)))
 	for lead in [0, 1, 2, 3, 4] {
 		$chart = tick_label($chart, lead, 34, base - 4 + plotted(lead.to_i64_wrap() * 1000))
 	}
 	var $x = 72
 	for (before, after) in revenue {
-		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect($x, base, 36, plotted(before)), slate), Layout.rect($x + 40, base, 36, plotted(after)), oak)
+		$chart = $chart.rectangle(Layout.rect($x, base, 36, plotted(before)), slate).rectangle(Layout.rect($x + 40, base, 36, plotted(after)), oak)
 		$x = $x + 108
 	}
 
 	## A legend under the axis: the earlier quarter in slate, the later in oak.
-	Scene.rectangle(Scene.rectangle($chart, Layout.rect(380, 4, 12, 8), slate), Layout.rect(420, 4, 12, 8), oak)
+	$chart.rectangle(Layout.rect(380, 4, 12, 8), slate).rectangle(Layout.rect(420, 4, 12, 8), oak)
 }
 
 ## ---------------------------------------------------------------------
@@ -438,7 +438,7 @@ contents = [
 				Pdf.quote([Pdf.in_language("fr", [Pdf.text("« Le bois demande de la patience. »")])]),
 				Pdf.text(" (“Timber asks for patience.”)"),
 			]),
-			Pdf.figure({ drawing: Scene.drawing({}).image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)), alt: "Stacked Tasmanian oak boards air-drying under cover at the Moonah yard.", caption: Pdf.caption("Figure 2. Air drying at the Moonah yard") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)), alt: "Stacked Tasmanian oak boards air-drying under cover at the Moonah yard.", caption: Pdf.caption("Figure 2. Air drying at the Moonah yard") }),
 		]),
 	]),
 	Pdf.section([

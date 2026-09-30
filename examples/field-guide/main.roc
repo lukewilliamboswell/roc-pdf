@@ -116,18 +116,18 @@ theme = {
 
 wave_mark : Scene.Drawing
 wave_mark = {
-	wave = |y| Scene.path({})
+	wave = |y| Scene.PathBuilder.start
 		.move_to(Layout.point(1, y))
 		.cubic_to({ control_1: Layout.point(5, y + 5), control_2: Layout.point(9, y + 5), end: Layout.point(13, y) })
 		.cubic_to({ control_1: Layout.point(17, y - 5), control_2: Layout.point(21, y - 5), end: Layout.point(25, y) })
 		.finish()
-	Scene.drawing({})
+	Scene.Drawing.empty
 		.path(wave(6), Scene.solid_stroke(coastal, Layout.Unit.millipoints(1500)))
 		.path(wave(12), Scene.solid_stroke(rgb(120, 170, 168), Layout.Unit.millipoints(1500)))
 }
 
 rule : Scene.Drawing
-rule = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(body_width) } }, rgb(120, 170, 168))
+rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(body_width) } }, rgb(120, 170, 168))
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -170,7 +170,7 @@ ellipse : I64, I64, I64, I64 -> Scene.AuthorPath
 ellipse = |cx, cy, rx, ry| {
 	kx = rx * 552 // 1000
 	ky = ry * 552 // 1000
-	Scene.path({})
+	Scene.PathBuilder.start
 		.move_to(point(cx + rx, cy))
 		.cubic_to({ control_1: point(cx + rx, cy + ky), control_2: point(cx + kx, cy + ry), end: point(cx, cy + ry) })
 		.cubic_to({ control_1: point(cx - kx, cy + ry), control_2: point(cx - rx, cy + ky), end: point(cx - rx, cy) })
@@ -181,7 +181,7 @@ ellipse = |cx, cy, rx, ry| {
 }
 
 line : I64, I64, I64, I64 -> Scene.AuthorPath
-line = |x1, y1, x2, y2| Scene.path({}).move_to(point(x1, y1)).line_to(point(x2, y2)).finish()
+line = |x1, y1, x2, y2| Scene.PathBuilder.start.move_to(point(x1, y1)).line_to(point(x2, y2)).finish()
 
 ## ---------------------------------------------------------------------
 ## Figure 1: a cross-section of the estuary from dune crest to channel,
@@ -190,8 +190,8 @@ line = |x1, y1, x2, y2| Scene.path({}).move_to(point(x1, y1)).line_to(point(x2, 
 habitat_section : Scene.Drawing
 habitat_section = {
 	w = body_width
-	sky = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, w, 190), rgb(226, 240, 244))
-	dune = Scene.path({})
+	sky = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, w, 190), rgb(226, 240, 244))
+	dune = Scene.PathBuilder.start
 		.move_to(point(0, 0))
 		.line_to(point(0, 120))
 		.cubic_to({ control_1: point(40, 150), control_2: point(90, 150), end: point(130, 110) })
@@ -200,14 +200,14 @@ habitat_section = {
 		.line_to(point(w, 0))
 		.close()
 		.finish()
-	water = Scene.path({})
+	water = Scene.PathBuilder.start
 		.move_to(point(180, 0))
 		.line_to(point(180, 72))
 		.line_to(point(w, 72))
 		.line_to(point(w, 0))
 		.close()
 		.finish()
-	shallows = Scene.rectangle(Scene.drawing({}), Layout.rect(300, 0, w - 300, 48), rgb(70, 150, 160))
+	shallows = Scene.Drawing.empty.rectangle(Layout.rect(300, 0, w - 300, 48), rgb(70, 150, 160))
 	var $scene = sky
 		.path(water, Scene.solid_fill(rgb(150, 205, 210)))
 		.group(point(0, 0), shallows)
@@ -254,11 +254,11 @@ habitat_section = {
 }
 
 zone : Color.SourceValue, I64 -> Scene.Drawing
-zone = |color, width| Scene.drawing({})
-	.path(Scene.path({}).move_to(point(1, 0)).line_to(point(1, 6)).line_to(point(width - 1, 6)).line_to(point(width - 1, 0)).finish(), Scene.solid_stroke(color, Layout.Unit.millipoints(1500)))
+zone = |color, width| Scene.Drawing.empty
+	.path(Scene.PathBuilder.start.move_to(point(1, 0)).line_to(point(1, 6)).line_to(point(width - 1, 6)).line_to(point(width - 1, 0)).finish(), Scene.solid_stroke(color, Layout.Unit.millipoints(1500)))
 
 oystercatcher_small : Scene.Drawing
-oystercatcher_small = Scene.drawing({})
+oystercatcher_small = Scene.Drawing.empty
 	.path(line(10, 1, 10, 10), Scene.solid_stroke(rgb(230, 130, 140), points(1)))
 	.path(line(14, 1, 14, 10), Scene.solid_stroke(rgb(230, 130, 140), points(1)))
 	.path(ellipse(12, 14, 9, 5), Scene.solid_fill(rgb(20, 20, 20)))
@@ -266,18 +266,18 @@ oystercatcher_small = Scene.drawing({})
 	.path(line(24, 19, 32, 16), Scene.solid_stroke(rgb(214, 70, 40), Layout.Unit.millipoints(1500)))
 
 plover_small : Scene.Drawing
-plover_small = Scene.drawing({})
+plover_small = Scene.Drawing.empty
 	.path(line(7, 1, 7, 5), Scene.solid_stroke(ink, Layout.Unit.millipoints(800)))
 	.path(ellipse(8, 8, 6, 3), Scene.solid_fill(rgb(200, 180, 150)))
 	.path(ellipse(14, 11, 2, 2), Scene.solid_fill(rgb(176, 72, 40)))
 
 curlew_small : Scene.Drawing
-curlew_small = Scene.drawing({})
+curlew_small = Scene.Drawing.empty
 	.path(line(12, 1, 12, 12), Scene.solid_stroke(ink, points(1)))
 	.path(line(16, 1, 16, 12), Scene.solid_stroke(ink, points(1)))
 	.path(ellipse(14, 17, 11, 6), Scene.solid_fill(rgb(150, 112, 72)))
 	.path(ellipse(26, 23, 3, 3), Scene.solid_fill(rgb(150, 112, 72)))
-	.path(Scene.path({}).move_to(point(28, 23)).cubic_to({ control_1: point(34, 22), control_2: point(38, 18), end: point(40, 12) }).finish(), Scene.solid_stroke(ink, points(1)))
+	.path(Scene.PathBuilder.start.move_to(point(28, 23)).cubic_to({ control_1: point(34, 22), control_2: point(38, 18), end: point(40, 12) }).finish(), Scene.solid_stroke(ink, points(1)))
 
 ## ---------------------------------------------------------------------
 ## Species plates: a large, labelled-by-caption silhouette on a tinted card.
@@ -289,7 +289,7 @@ bird = |{ bill, body, belly, height, leg, length }| {
 	rx = length // 2
 	ry = length // 4
 	head = length // 7
-	legs = Scene.drawing({})
+	legs = Scene.Drawing.empty
 		.path(line(cx - 4, 2, cx - 2, cy - ry + 4), Scene.solid_stroke(leg, points(2)))
 		.path(line(cx + 5, 2, cx + 3, cy - ry + 4), Scene.solid_stroke(leg, points(2)))
 	legs
@@ -301,7 +301,7 @@ bird = |{ bill, body, belly, height, leg, length }| {
 }
 
 card : Scene.Drawing, Color.SourceValue, Str -> Scene.Drawing
-card = |figure, tint, name| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 145, 130), tint)
+card = |figure, tint, name| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 145, 130), tint)
 	.path(line(10, 18, 135, 18), Scene.solid_stroke(sand, points(2)))
 	.group(point(18, 16), figure)
 	.text({ align: Center, color: ink, origin: point(72, 5), size: points(8), text: name })
@@ -309,14 +309,14 @@ card = |figure, tint, name| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0,
 oystercatcher_plate : Scene.Drawing
 oystercatcher_plate = {
 	## Body 80 pt long; the bill leaves the head at (95, 76).
-	bill = Scene.path({}).move_to(point(88, 78)).line_to(point(116, 74)).line_to(point(88, 72)).close().finish()
+	bill = Scene.PathBuilder.start.move_to(point(88, 78)).line_to(point(116, 74)).line_to(point(88, 72)).close().finish()
 	base = bird({ bill, body: rgb(22, 22, 24), belly: rgb(246, 246, 244), height: 36, leg: rgb(228, 128, 138), length: 80 })
-	base.path(Scene.path({}).move_to(point(88, 78)).line_to(point(116, 74)).line_to(point(88, 72)).close().finish(), Scene.solid_fill(rgb(222, 72, 36)))
+	base.path(Scene.PathBuilder.start.move_to(point(88, 78)).line_to(point(116, 74)).line_to(point(88, 72)).close().finish(), Scene.solid_fill(rgb(222, 72, 36)))
 }
 
 plover_plate : Scene.Drawing
 plover_plate = {
-	bill = Scene.path({}).move_to(point(58, 50)).line_to(point(68, 48)).line_to(point(58, 46)).close().finish()
+	bill = Scene.PathBuilder.start.move_to(point(58, 50)).line_to(point(68, 48)).line_to(point(58, 46)).close().finish()
 	base = bird({ bill, body: rgb(196, 172, 138), belly: rgb(250, 248, 242), height: 20, leg: rgb(40, 40, 40), length: 52 })
 
 	## The rufous cap and the dark shoulder patch.
@@ -327,7 +327,7 @@ plover_plate = {
 
 curlew_plate : Scene.Drawing
 curlew_plate = {
-	bill = Scene.path({})
+	bill = Scene.PathBuilder.start
 		.move_to(point(90, 72))
 		.cubic_to({ control_1: point(104, 72), control_2: point(112, 62), end: point(116, 46) })
 		.line_to(point(114, 46))
@@ -338,7 +338,7 @@ curlew_plate = {
 }
 
 plates : Scene.Drawing
-plates = Scene.drawing({})
+plates = Scene.Drawing.empty
 	.group(point(0, 0), card(oystercatcher_plate, rgb(236, 243, 242), "Pied oystercatcher"))
 	.group(point(157, 0), card(plover_plate, rgb(244, 238, 230), "Red-capped plover"))
 	.group(point(314, 0), card(curlew_plate, rgb(240, 236, 228), "Far Eastern curlew"))
@@ -379,7 +379,7 @@ callout_panel = |size| {
 	right = size.width.raw() - half
 	top = size.height.raw() - half
 	at = |x, y| { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }
-	outline_path = Scene.path({})
+	outline_path = Scene.PathBuilder.start
 		.move_to(at(left + r, bottom))
 		.line_to(at(right - r, bottom))
 		.cubic_to({ control_1: at(right - r + k, bottom), control_2: at(right, bottom + r - k), end: at(right, bottom + r) })
@@ -391,14 +391,14 @@ callout_panel = |size| {
 		.cubic_to({ control_1: at(left, bottom + r - k), control_2: at(left + r - k, bottom), end: at(left + r, bottom) })
 		.close()
 		.finish()
-	Scene.drawing({}).path(outline_path, { fill: AuthorSolidFill(rgb(246, 241, 228)), stroke: AuthorSolidStroke({ color: rgb(200, 170, 110), width: points(1) }) })
+	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(rgb(246, 241, 228)), stroke: AuthorSolidStroke({ color: rgb(200, 170, 110), width: points(1) }) })
 }
 
 ## A thin sand-coloured rule with a centred wave, set 6 pt below the
 ## account before it and above each species account.
 divider : Document.Block
 divider = Pdf.decoration({
-	drawing: Scene.drawing({})
+	drawing: Scene.Drawing.empty
 		.path(line(1, 7, 210, 7), Scene.solid_stroke(sand, points(1)))
 		.group(point(217, 0), wave_mark)
 		.path(line(249, 7, body_width - 1, 7), Scene.solid_stroke(sand, points(1))),
@@ -425,7 +425,7 @@ check_row = |name, scientific, season, status| Pdf.row([
 
 ## A threatened status is set in bold on a warm tint.
 threatened : Str -> Pdf.Cell
-threatened = |status| if status == "Endangered" or status == "Vulnerable" Pdf.shaded(rgb(250, 232, 222), Pdf.cell([Pdf.strong([Pdf.text(status)])])) else Pdf.cell([Pdf.text(status)])
+threatened = |status| if status == "Endangered" or status == "Vulnerable" Pdf.cell([Pdf.strong([Pdf.text(status)])]).shaded(rgb(250, 232, 222)) else Pdf.cell([Pdf.text(status)])
 
 ## The survey sheet is kept whole so a surveyor can print one page: the
 ## details to fill in, then the checklist with its blank count column and

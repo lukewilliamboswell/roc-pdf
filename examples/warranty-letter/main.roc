@@ -50,15 +50,15 @@ theme = Theme.default
 ## tile holding a brass finch's wing, aligned to the page's end edge.
 logo : Scene.Drawing
 logo = {
-	wing = Scene.path({})
+	wing = Scene.PathBuilder.start
 		.move_to(Layout.point(100, 12))
 		.cubic_to({ control_1: Layout.point(108, 36), control_2: Layout.point(124, 42), end: Layout.point(132, 40) })
 		.cubic_to({ control_1: Layout.point(124, 32), control_2: Layout.point(114, 22), end: Layout.point(100, 12) })
 		.close()
 		.finish()
-	tile = Scene.rectangle(Scene.drawing({}), Layout.rect(92, 0, 48, 48), navy).path(wing, Scene.solid_fill(brass))
-	bars = Scene.rectangle(Scene.rectangle(tile, Layout.rect(0, 32, 82, 8), navy), Layout.rect(22, 20, 60, 6), navy)
-	Scene.rectangle(bars, Layout.rect(42, 10, 40, 4), brass)
+	tile = Scene.Drawing.empty.rectangle(Layout.rect(92, 0, 48, 48), navy).path(wing, Scene.solid_fill(brass))
+	bars = tile.rectangle(Layout.rect(0, 32, 82, 8), navy).rectangle(Layout.rect(22, 20, 60, 6), navy)
+	bars.rectangle(Layout.rect(42, 10, 40, 4), brass)
 }
 
 page_of : Pdf.Inline

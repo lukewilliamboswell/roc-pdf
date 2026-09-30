@@ -206,9 +206,9 @@ tall_figure : U8 -> Document.Block
 tall_figure = |floor| {
 	ink = Color.srgb8({ red: 40, green: 40, blue: 40 })
 	slate = Color.srgb8({ red: 128, green: 146, blue: 166 })
-	plan = Scene.drawing({})
-		.path(Scene.path({}).rectangle(Layout.rect(2, 2, 596, 896)).finish(), Scene.solid_stroke(ink, points(4)))
-	figure = Pdf.figure({ drawing: Scene.rectangle(plan, Layout.rect(60, 60, 480, 780), slate), alt: "Bar chart of revenue by region, drawn at poster size.", caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands") })
+	plan = Scene.Drawing.empty
+		.path(Scene.PathBuilder.start.rectangle(Layout.rect(2, 2, 596, 896)).finish(), Scene.solid_stroke(ink, points(4)))
+	figure = Pdf.figure({ drawing: plan.rectangle(Layout.rect(60, 60, 480, 780), slate), alt: "Bar chart of revenue by region, drawn at poster size.", caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands") })
 	if floor == 0 figure else Pdf.figure_fit(figure, ScaleToFit({ minimum_percent: floor }))
 }
 
@@ -646,10 +646,10 @@ run_negatives = |{}| {
 		(invoice_with({ ..Invoice.ordinary, arrangement: BreakInsideKeep }), Invoice.options, Code(LayoutConstraintViolated, "layout.keep_conflict", ["contents[3].contents[1]", "contents[3]"])),
 
 		## INV-A8: a row of five cells and a two-column span.
-		(invoice_with({ ..Invoice.ordinary, row: row_override(6, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]), Pdf.cell([Pdf.text("Installation")]), Pdf.cell([Pdf.text("12")]), Pdf.cell([Pdf.text("95.00")]), Pdf.cell([Pdf.text("1,140.00")]), Pdf.spanning(2, Pdf.cell([Pdf.text("extra")]))])) }), Invoice.options, Code(InvalidRelationship, "table.grid_mismatch", ["${items}.table.body_rows[6]"])),
+		(invoice_with({ ..Invoice.ordinary, row: row_override(6, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]), Pdf.cell([Pdf.text("Installation")]), Pdf.cell([Pdf.text("12")]), Pdf.cell([Pdf.text("95.00")]), Pdf.cell([Pdf.text("1,140.00")]), Pdf.cell([Pdf.text("extra")]).spanning(2)])) }), Invoice.options, Code(InvalidRelationship, "table.grid_mismatch", ["${items}.table.body_rows[6]"])),
 
 		## INV-A9: a row span.
-		(invoice_with({ ..Invoice.ordinary, row: row_override(7, |index| Pdf.row([Pdf.row_spanning(2, Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))])), Pdf.cell([Pdf.text("Delivery")]), Pdf.cell([Pdf.text("1")]), Pdf.cell([Pdf.text("180.00")]), Pdf.cell([Pdf.text("180.00")])])) }), Invoice.options, Code(FeatureUnavailable, "table.row_span", ["${items}.table.body_rows[7].cells[0]"])),
+		(invoice_with({ ..Invoice.ordinary, row: row_override(7, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]).row_spanning(2), Pdf.cell([Pdf.text("Delivery")]), Pdf.cell([Pdf.text("1")]), Pdf.cell([Pdf.text("180.00")]), Pdf.cell([Pdf.text("180.00")])])) }), Invoice.options, Code(FeatureUnavailable, "table.row_span", ["${items}.table.body_rows[7].cells[0]"])),
 
 		## REP-A4: a three-digit page number in a reserved width sized for
 		## two digits (16 pt; the widest two-digit value, `40`, is 14.045 pt).

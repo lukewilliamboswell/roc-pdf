@@ -141,11 +141,7 @@ footer = Pdf.region({
 ## The continuation header's backdrop: a teal accent over its start edge
 ## and a hairline along its foot, beneath the slots' text.
 header_rule : Scene.Drawing
-header_rule = Scene.rectangle(
-	Scene.rectangle(Scene.drawing({}), Layout.rect(0, 20, 40, 2), teal),
-	{ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } },
-	mist,
-)
+header_rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 20, 40, 2), teal).rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, mist)
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
@@ -259,7 +255,7 @@ callout_panel = |style, size| {
 	right = size.width.raw() - half
 	top = size.height.raw() - half
 	point = |x, y| { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }
-	outline_path = Scene.path({})
+	outline_path = Scene.PathBuilder.start
 		.move_to(point(left + r, bottom))
 		.line_to(point(right - r, bottom))
 		.cubic_to({ control_1: point(right - r + k, bottom), control_2: point(right, bottom + r - k), end: point(right, bottom + r) })
@@ -271,7 +267,7 @@ callout_panel = |style, size| {
 		.cubic_to({ control_1: point(left, bottom + r - k), control_2: point(left + r - k, bottom), end: point(left + r, bottom) })
 		.close()
 		.finish()
-	bar = Scene.path({})
+	bar = Scene.PathBuilder.start
 		.move_to(point(left + r, bottom))
 		.line_to(point(left + 4000, bottom))
 		.line_to(point(left + 4000, top))
@@ -281,7 +277,7 @@ callout_panel = |style, size| {
 		.cubic_to({ control_1: point(left, bottom + r - k), control_2: point(left + r - k, bottom), end: point(left + r, bottom) })
 		.close()
 		.finish()
-	Scene.drawing({})
+	Scene.Drawing.empty
 		.path(outline_path, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: points(1) }) })
 		.path(bar, Scene.solid_fill(style.accent))
 }
@@ -302,7 +298,7 @@ rounded = |x, y, w, h, r| {
 	t = (y + h) * 1000
 	rr = r * 1000
 	kk = k * 1000
-	Scene.path({})
+	Scene.PathBuilder.start
 		.move_to(p(l + rr, b))
 		.line_to(p(rt - rr, b))
 		.cubic_to({ control_1: p(rt - rr + kk, b), control_2: p(rt, b + rr - kk), end: p(rt, b + rr) })
@@ -324,25 +320,25 @@ tier = |drawing, { x, y, w, h, n, name, color, tint }| {
 		.path(rounded(x, y, w, h, 6), { fill: AuthorSolidFill(tint), stroke: AuthorSolidStroke({ color, width: points(1) }) })
 		.path(rounded(x + 8, y + h - 34, 26, 26, 13), Scene.solid_fill(color))
 		.text_in(Strong, { align: Center, color: white, origin: Layout.point(x + 21, y + h - 25), size: points(11), text: n.to_str() })
-	Scene.rectangle(base, Layout.rect(x + 42, y + h - 18, w - 52, 4), color)
+	base.rectangle(Layout.rect(x + 42, y + h - 18, w - 52, 4), color)
 		.text({ align: Center, color: charcoal, origin: Layout.point(x + w // 2, y + 9), size: points(8), text: name })
 }
 
 ## A horizontal arrow from x1 to x2 at height y, with a filled head.
 arrow_right : Scene.Drawing, I64, I64, I64 -> Scene.Drawing
 arrow_right = |drawing, x1, x2, y| {
-	head = Scene.path({}).move_to(Layout.point(x2, y)).line_to(Layout.point(x2 - 7, y + 4)).line_to(Layout.point(x2 - 7, y - 4)).close().finish()
+	head = Scene.PathBuilder.start.move_to(Layout.point(x2, y)).line_to(Layout.point(x2 - 7, y + 4)).line_to(Layout.point(x2 - 7, y - 4)).close().finish()
 	drawing
-		.path(Scene.path({}).move_to(Layout.point(x1, y)).line_to(Layout.point(x2 - 6, y)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(x1, y)).line_to(Layout.point(x2 - 6, y)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
 		.path(head, Scene.solid_fill(charcoal))
 }
 
 ## A vertical arrow from y1 down to y2 at x.
 arrow_down : Scene.Drawing, I64, I64, I64 -> Scene.Drawing
 arrow_down = |drawing, x, y1, y2| {
-	head = Scene.path({}).move_to(Layout.point(x, y2)).line_to(Layout.point(x - 4, y2 + 7)).line_to(Layout.point(x + 4, y2 + 7)).close().finish()
+	head = Scene.PathBuilder.start.move_to(Layout.point(x, y2)).line_to(Layout.point(x - 4, y2 + 7)).line_to(Layout.point(x + 4, y2 + 7)).close().finish()
 	drawing
-		.path(Scene.path({}).move_to(Layout.point(x, y1)).line_to(Layout.point(x, y2 + 6)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(x, y1)).line_to(Layout.point(x, y2 + 6)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
 		.path(head, Scene.solid_fill(charcoal))
 }
 
@@ -356,7 +352,7 @@ topology = {
 	zone = Color.srgb8({ red: 248, green: 249, blue: 250 })
 
 	# The production zone behind the application tiers, dashed by short bars.
-	var $d = Scene.drawing({})
+	var $d = Scene.Drawing.empty
 		.path(rounded(128, 2, 358, 172, 8), { fill: AuthorSolidFill(zone), stroke: AuthorSolidStroke({ color: mist, width: Layout.Unit.millipoints(800) }) })
 	$d = tier($d, { x: 4, y: 106, w: 100, h: 58, n: 1, name: "Edge load balancer", color: edge, tint: edge_tint })
 	$d = tier($d, { x: 144, y: 106, w: 100, h: 58, n: 2, name: "API gateway", color: edge, tint: edge_tint })
@@ -373,18 +369,18 @@ topology = {
 	$d = arrow_down($d, 430, 106, 70)
 
 	## The payments API writes to the ledger: down, left, and down again.
-	ledger_head = Scene.path({}).move_to(Layout.point(194, 70)).line_to(Layout.point(190, 77)).line_to(Layout.point(198, 77)).close().finish()
+	ledger_head = Scene.PathBuilder.start.move_to(Layout.point(194, 70)).line_to(Layout.point(190, 77)).line_to(Layout.point(198, 77)).close().finish()
 	$d = $d
-		.path(Scene.path({}).move_to(Layout.point(296, 106)).line_to(Layout.point(296, 88)).line_to(Layout.point(194, 88)).line_to(Layout.point(194, 76)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(296, 106)).line_to(Layout.point(296, 88)).line_to(Layout.point(194, 88)).line_to(Layout.point(194, 76)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
 		.path(ledger_head, Scene.solid_fill(charcoal))
 
 	## The settlement worker drains the queue and reconciles against the
 	## ledger: arrows into it from both sides.
-	left_head = |x| Scene.path({}).move_to(Layout.point(x, 41)).line_to(Layout.point(x + 7, 45)).line_to(Layout.point(x + 7, 37)).close().finish()
+	left_head = |x| Scene.PathBuilder.start.move_to(Layout.point(x, 41)).line_to(Layout.point(x + 7, 45)).line_to(Layout.point(x + 7, 37)).close().finish()
 	$d
-		.path(Scene.path({}).move_to(Layout.point(382, 41)).line_to(Layout.point(374, 41)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(382, 41)).line_to(Layout.point(374, 41)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
 		.path(left_head(368), Scene.solid_fill(charcoal))
-		.path(Scene.path({}).move_to(Layout.point(268, 41)).line_to(Layout.point(250, 41)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(268, 41)).line_to(Layout.point(250, 41)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
 		.path(left_head(244), Scene.solid_fill(charcoal))
 }
 
@@ -394,7 +390,7 @@ topology = {
 ## Each level's cell is tinted by its urgency.
 severity_row : Str, Str, Str, Str -> Pdf.Row
 severity_row = |level, meaning, response, example| Pdf.row([
-	Pdf.shaded(severity_tint(level), Pdf.header_cell(Row, [Pdf.strong([Pdf.text(level)])])),
+	Pdf.header_cell(Row, [Pdf.strong([Pdf.text(level)])]).shaded(severity_tint(level)),
 	Pdf.cell([Pdf.text(meaning)]),
 	Pdf.cell([Pdf.text(response)]),
 	Pdf.cell([Pdf.emphasis([Pdf.text(example)])]),
@@ -470,7 +466,7 @@ escalation_table = Pdf.table({
 	],
 	footer_rows: [
 		Pdf.row([
-			Pdf.spanning(4, Pdf.aligned(Start, Pdf.cell([Pdf.emphasis([Pdf.text("Escalate earlier whenever you are unsure. Nobody is ever blamed for paging.")])]))),
+			Pdf.cell([Pdf.emphasis([Pdf.text("Escalate earlier whenever you are unsure. Nobody is ever blamed for paging.")])]).aligned(Start).spanning(4),
 		]),
 	],
 	row_split: KeepRows,
@@ -560,11 +556,7 @@ rich_step = |inlines| Pdf.list_item([Pdf.rich_paragraph(inlines)])
 
 accent_band : Document.Block
 accent_band = Pdf.decoration({
-	drawing: Scene.rectangle(
-		Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 10, 56, 6), teal), Layout.rect(60, 10, 18, 6), rust),
-		{ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } },
-		mist,
-	),
+	drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 10, 56, 6), teal).rectangle(Layout.rect(60, 10, 18, 6), rust).rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, mist),
 })
 
 contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)

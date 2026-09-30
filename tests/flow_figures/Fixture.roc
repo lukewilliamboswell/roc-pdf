@@ -175,7 +175,7 @@ labels_document = |count| {
 			.append(Pdf.figure({ drawing: labelled_chart(140, shifted), alt: "Bar chart ${number}: revenue grew in Hobart, Launceston, Moonah, and Fremantle.", caption: Pdf.caption("Figure ${number}. Revenue by yard, AUD thousands") }))
 		$index = $index + 1
 	}
-	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 300, 70), Color.srgb8({ blue: 230, green: 240, red: 245 }))
+	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 70), Color.srgb8({ blue: 230, green: 240, red: 245 }))
 		.text({ align: End, color: sea, origin: Layout.point(292, 58), size: points(7), text: "KEY FIGURES" })
 	callout = Pdf.custom_block({ contents: [Pdf.paragraph("Kiln capacity rose by a third.")], fragmentation: Unsplittable, inset: points(10), name: "Key figures", panel, size: { height: points(70), width: points(300) } })
 	plan = Pdf.figure({ drawing: labelled_plan, alt: "Plan of the Moonah yard: twelve numbered drying bays in four rows of three.", caption: Pdf.caption("Moonah yard plan, scaled to fit."), fit: ScaleToFit({ minimum_percent: 50 }) })
@@ -191,7 +191,7 @@ run_labels = |count| {
 	result = evidence(document)?
 	number = count.to_str()
 	document_of = |contents| Pdf.document({ contents, language: "en-AU", title: "Label negatives ${number}" })
-	labelled = |text| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 60, 30), oak).text({ align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text })
+	labelled = |text| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 60, 30), oak).text({ align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text })
 	figure = |drawing| Pdf.figure({ drawing: drawing, alt: "A labelled mark", caption: Pdf.no_caption })
 	furniture = Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_image(labelled("Mark"))] })
 	checks = [
@@ -308,7 +308,7 @@ run_label_faces = |count| {
 	flow = KernelFacadePipeline.probe(Document.normalize(document), font, report_theme, page_size, descriptor, pipeline_limits, ScenesReady) ? |_| EvidenceFailure
 	counts = face_counts(document)
 	uncovered = Pdf.document({
-		contents: [Pdf.paragraph("Lead"), Pdf.figure({ drawing: Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 60, 30), oak).text_in(Code, { align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text: "é${count.to_str()}" }), alt: "A labelled mark", caption: Pdf.no_caption })],
+		contents: [Pdf.paragraph("Lead"), Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 60, 30), oak).text_in(Code, { align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text: "é${count.to_str()}" }), alt: "A labelled mark", caption: Pdf.no_caption })],
 		language: "en-AU",
 		title: "Uncovered code label",
 	})
@@ -340,19 +340,19 @@ sea = Color.srgb8({ blue: 140, green: 90, red: 20 })
 
 ## A full-width divider: a 0.75 pt rule 6 pt above the next block.
 divider : Scene.Drawing
-divider = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 6), size: { height: Layout.Unit.millipoints(750), width: points(483) } }, sea)
+divider = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 6), size: { height: Layout.Unit.millipoints(750), width: points(483) } }, sea)
 
 ## One region's paired bars, drawn from the group's own origin.
 bar_pair : I64, I64 -> Scene.Drawing
-bar_pair = |previous, current| Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 36, previous), sea), Layout.rect(40, 0, 36, current), oak)
+bar_pair = |previous, current| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 36, previous), sea).rectangle(Layout.rect(40, 0, 36, current), oak)
 
 ## A grouped vector bar chart `height` tall and 483 pt wide: two axes and
 ## one translated group of paired bars per region.
 bar_chart : I64, List((I64, I64)) -> Scene.Drawing
 bar_chart = |height, pairs| {
-	axes = Scene.drawing({})
-		.path(Scene.path({}).move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, points(1)))
-		.path(Scene.path({}).move_to(Layout.point(24, 20)).line_to(Layout.point(24, height - 1)).finish(), Scene.solid_stroke(ink, points(1)))
+	axes = Scene.Drawing.empty
+		.path(Scene.PathBuilder.start.move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(24, 20)).line_to(Layout.point(24, height - 1)).finish(), Scene.solid_stroke(ink, points(1)))
 	var $chart = axes
 	var $index = 0
 	for (previous, current) in pairs {
@@ -372,18 +372,18 @@ photo_image = {
 
 ## A small vector mark: a filled square with a stroked diagonal.
 leaf_mark : Scene.Drawing
-leaf_mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 48, 48), oak)
-	.path(Scene.path({}).move_to(Layout.point(8, 8)).line_to(Layout.point(40, 40)).finish(), Scene.solid_stroke(ink, points(2)))
+leaf_mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 48, 48), oak)
+	.path(Scene.PathBuilder.start.move_to(Layout.point(8, 8)).line_to(Layout.point(40, 40)).finish(), Scene.solid_stroke(ink, points(2)))
 
 ## A 600 × 900 pt plan drawing: a frame and a grouped grid of cells.
 site_plan : Scene.Drawing
 site_plan = {
-	cell = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 120, 160), sea)
-	var $plan = Scene.drawing({}).path(Scene.path({}).rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, points(4)))
+	cell = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 120, 160), sea)
+	var $plan = Scene.Drawing.empty.path(Scene.PathBuilder.start.rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, points(4)))
 	var $row = 0
 	while $row < 4 {
 		var $column = 0
-		var $cells = Scene.drawing({})
+		var $cells = Scene.Drawing.empty
 		while $column < 3 {
 			$cells = $cells.group(Layout.point($column * 180, 0), cell)
 			$column = $column + 1
@@ -424,7 +424,7 @@ regions = [(120, 150), (90, 118), (60, 84), (140, 176)]
 report_document : U64 -> Document
 report_document = |context| {
 	title = if context == 0 "Annual timber report" else "Annual timber report!"
-	photo = Scene.drawing({}).image(photo_image, Layout.rect(0, 0, 320, 160))
+	photo = Scene.Drawing.empty.image(photo_image, Layout.rect(0, 0, 320, 160))
 	contents = [
 		Pdf.title(title),
 		paragraph(0),
@@ -484,11 +484,11 @@ run_bound_diagnostics : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixtu
 run_bound_diagnostics = |context| {
 	offset = (context % 1).to_i64_wrap()
 	solid = Scene.solid_fill(oak)
-	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 20, 20), oak)
-	below = mark.path(Scene.path({}).move_to(Layout.point(0, 0)).line_to(Layout.point(10, -2 + offset)).line_to(Layout.point(10, 10)).close().finish(), solid)
-	curve = mark.path(Scene.path({}).move_to(Layout.point(0, 0)).cubic_to({ control_1: Layout.point(-4, 5), control_2: Layout.point(-4, 15), end: Layout.point(0, 20) }).close().finish(), solid)
-	stroked = mark.path(Scene.path({}).move_to(Layout.point(0, 2)).line_to(Layout.point(20, 2)).finish(), Scene.solid_stroke(oak, points(2)))
-	grouped = Scene.drawing({}).group(Layout.point(5, 5), curve)
+	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 20, 20), oak)
+	below = mark.path(Scene.PathBuilder.start.move_to(Layout.point(0, 0)).line_to(Layout.point(10, -2 + offset)).line_to(Layout.point(10, 10)).close().finish(), solid)
+	curve = mark.path(Scene.PathBuilder.start.move_to(Layout.point(0, 0)).cubic_to({ control_1: Layout.point(-4, 5), control_2: Layout.point(-4, 15), end: Layout.point(0, 20) }).close().finish(), solid)
+	stroked = mark.path(Scene.PathBuilder.start.move_to(Layout.point(0, 2)).line_to(Layout.point(20, 2)).finish(), Scene.solid_stroke(oak, points(2)))
+	grouped = Scene.Drawing.empty.group(Layout.point(5, 5), curve)
 	message_of = |result| match result {
 		Err(InvalidDocument({ diagnostics: [{ message, .. }], .. })) => message
 		_ => ""
@@ -513,14 +513,14 @@ run_bound_diagnostics = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	bytes = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure({ drawing: Scene.drawing({}).group(Layout.point(4, 0), curve), alt: "A curved mark moved inside the origin", caption: Pdf.no_caption })], language: "en-AU", title: "Drawing bounds" }), options) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure({ drawing: Scene.Drawing.empty.group(Layout.point(4, 0), curve), alt: "A curved mark moved inside the origin", caption: Pdf.no_caption })], language: "en-AU", title: "Drawing bounds" }), options) ? |_| EvidenceFailure
 	Ok({ bytes, work: [passed, bytes.len()] })
 }
 
 spaced_document : U64 -> Document
 spaced_document = |count| {
-	band = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 22), Color.srgb8({ blue: 200, green: 225, red: 240 }))
-	rule = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), oak)
+	band = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 22), Color.srgb8({ blue: 200, green: 225, red: 240 }))
+	rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 1), oak)
 	var $contents = List.with_capacity(count * 5 + 1)
 	$contents = $contents.append(Pdf.title("Spaced decorations"))
 	var $index = 0
@@ -539,7 +539,7 @@ spaced_document = |count| {
 run_spaced_decorations : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_spaced_decorations = |count| {
 	evidenced = evidence(spaced_document(count))?
-	rule = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 100, 2), oak)
+	rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 100, 2), oak)
 	document = |block| Pdf.document({ contents: [Pdf.paragraph("Lead ${count.to_str()}"), block, Pdf.paragraph("Body")], language: "en-AU", title: "Spacing negatives" })
 	checks = [
 		rejects(document(Pdf.decoration({ drawing: rule, above: points(-1) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
@@ -596,13 +596,13 @@ run_negatives = |context| {
 	title = if context == 0 "Figure negatives" else "guarded"
 	offset = (context % 1).to_i64_wrap()
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
-	tall = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 600, 900 + offset), oak)
-	wide = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 500 + offset, 40), oak)
+	tall = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 600, 900 + offset), oak)
+	wide = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 500 + offset, 40), oak)
 	nested = |depth| {
 		var $drawing = leaf_mark
 		var $level = 0
 		while $level < depth {
-			$drawing = Scene.drawing({}).group(Layout.point(1, 1), $drawing)
+			$drawing = Scene.Drawing.empty.group(Layout.point(1, 1), $drawing)
 			$level = $level + 1
 		}
 		$drawing
@@ -617,14 +617,14 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure_fit(figure(tall, Pdf.caption("Figure 1.")), ScaleToFit({ minimum_percent: 90 }))]), LayoutConstraintViolated, "document.figure_oversize", ["contents[1]"]),
 		rejects(document([Pdf.section([Pdf.paragraph("Lead"), figure(wide, Pdf.no_caption)])]), LayoutConstraintViolated, "document.figure_oversize", ["contents[0].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "", caption: Pdf.caption("Figure 2.") })]), InvalidRelationship, "document.figure_alternative_empty", ["contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), figure(Scene.drawing({}), Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), figure(Scene.Drawing.empty, Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(nested(9), Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(leaf_mark, Pdf.caption(""))]), InvalidRelationship, "document.figure_caption_empty", ["contents[1].caption"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure_fit(figure(leaf_mark, Pdf.no_caption), ScaleToFit({ minimum_percent: 101 }))]), InvalidRelationship, "document.figure_fit", ["contents[1]"]),
 		rejects(document([Pdf.figure_fit(Pdf.paragraph("Not a figure"), ScaleToFit({ minimum_percent: 50 }))]), InvalidRelationship, "document.figure_fit", []),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: divider })]), LayoutConstraintViolated, "layout.decoration_position", ["contents[1]"]),
 		rejects(Pdf.with_page_templates(document([Pdf.paragraph("Body")]), lead_templates), LayoutConstraintViolated, "layout.decoration_position", ["templates.first.lead.contents[1]"]),
-		rejects(document([Pdf.decoration({ drawing: Scene.drawing({}) }), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[0]"]),
+		rejects(document([Pdf.decoration({ drawing: Scene.Drawing.empty }), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[0]"]),
 		rejects(document([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), Pdf.decoration({ drawing: divider })])]), Pdf.paragraph("Body")]), InvalidRelationship, "semantics.list_item_content", ["contents[0].items[0].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: tall }), Pdf.paragraph("Body")]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),
 	]

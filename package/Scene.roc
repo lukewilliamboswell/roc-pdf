@@ -74,6 +74,8 @@ Scene :: [].{
 	## An opaque persistent drawing. It acquires semantic or artifact ownership
 	## only when attached to a document.
 	Drawing :: { commands : List(AuthorCommand) }.{
+
+		## The empty drawing every drawing starts from.
 		empty : Drawing
 		empty = Drawing.({ commands: [] })
 
@@ -109,6 +111,13 @@ Scene :: [].{
 		text_in : Drawing, [Code, Emphasis, Quote, Strong], Label -> Drawing
 		text_in = |Drawing.(state), role, label| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: RoleFace(role), label }))) })
 
+		## Append a solid filled rectangle: `Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 40, 2), ink)`.
+		rectangle : Drawing, Layout.Rect, Color.SourceValue -> Drawing
+		rectangle = |drawing_value, bounds, color| {
+			path_value = PathBuilder.start.rectangle(bounds).finish()
+			drawing_value.path(path_value, { fill: AuthorSolidFill(color), stroke: AuthorNoStroke })
+		}
+
 		command_count : Drawing -> U64
 		command_count = |Drawing.(state)| state.commands.len()
 
@@ -119,6 +128,8 @@ Scene :: [].{
 
 	## Persistent builder for an ordered path in PDF user-space coordinates.
 	PathBuilder :: { segments : List(PathSegment) }.{
+
+		## The empty path every path starts from.
 		start : PathBuilder
 		start = PathBuilder.({ segments: [] })
 
@@ -141,10 +152,6 @@ Scene :: [].{
 		finish = |PathBuilder.(state)| state.segments
 	}
 
-	## Start an empty authoring drawing.
-	drawing : {} -> Drawing
-	drawing = |_| Drawing.empty
-
 	## Paint a path fill with an explicit source color and no stroke.
 	solid_fill : Color.SourceValue -> AuthorPathStyle
 	solid_fill = |color| { fill: AuthorSolidFill(color), stroke: AuthorNoStroke }
@@ -152,17 +159,6 @@ Scene :: [].{
 	## Paint a path stroke with an explicit width and no fill.
 	solid_stroke : Color.SourceValue, Layout.Unit -> AuthorPathStyle
 	solid_stroke = |color, width| { fill: AuthorNoFill, stroke: AuthorSolidStroke({ color, width }) }
-
-	## Append a solid filled rectangle to a drawing.
-	rectangle : Drawing, Layout.Rect, Color.SourceValue -> Drawing
-	rectangle = |drawing_value, bounds, color| {
-		path_value = PathBuilder.start.rectangle(bounds).finish()
-		drawing_value.path(path_value, solid_fill(color))
-	}
-
-	## Start an empty path builder.
-	path : {} -> PathBuilder
-	path = |_| PathBuilder.start
 
 	GroupId :: U64.{
 		is_eq : _

@@ -140,7 +140,7 @@ page_field = |width| if width >= 64 {
 }
 
 rule : Scene.Drawing
-rule = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(483) } }, slate)
+rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(483) } }, slate)
 
 templates : I64 -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = |field_width| {
@@ -186,9 +186,9 @@ digit = |value| {
 	} else {
 		[(0, 4, 1, 5), (0, 4, 5, 1), (4, 4, 1, 5), (4, 0, 1, 5)]
 	}
-	var $drawing = Scene.drawing({})
+	var $drawing = Scene.Drawing.empty
 	for (x, y, w, h) in segments {
-		$drawing = Scene.rectangle($drawing, Layout.rect(x, y, w, h), ink)
+		$drawing = $drawing.rectangle(Layout.rect(x, y, w, h), ink)
 	}
 	$drawing
 }
@@ -218,24 +218,24 @@ bar_chart : Scene.Drawing
 bar_chart = {
 	base : I64
 	base = 24
-	var $chart = Scene.drawing({})
+	var $chart = Scene.Drawing.empty
 	for step in [1, 2, 3, 4] {
-		$chart = Scene.rectangle($chart, { origin: Layout.point(40, base + plotted(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(440) } }, slate)
+		$chart = $chart.rectangle({ origin: Layout.point(40, base + plotted(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(440) } }, slate)
 	}
 	$chart = $chart
-		.path(Scene.path({}).move_to(Layout.point(40, base)).line_to(Layout.point(480, base)).finish(), Scene.solid_stroke(ink, points(1)))
-		.path(Scene.path({}).move_to(Layout.point(40, base)).line_to(Layout.point(40, base + 196)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(40, base)).line_to(Layout.point(480, base)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(40, base)).line_to(Layout.point(40, base + 196)).finish(), Scene.solid_stroke(ink, points(1)))
 	for lead in [0, 1, 2, 3, 4] {
 		$chart = tick_label($chart, lead, 34, base - 4 + plotted(lead.to_i64_wrap() * 1000))
 	}
 	var $x = 72
 	for (before, after) in revenue {
-		$chart = Scene.rectangle(Scene.rectangle($chart, Layout.rect($x, base, 36, plotted(before)), slate), Layout.rect($x + 40, base, 36, plotted(after)), oak)
+		$chart = $chart.rectangle(Layout.rect($x, base, 36, plotted(before)), slate).rectangle(Layout.rect($x + 40, base, 36, plotted(after)), oak)
 		$x = $x + 108
 	}
 
 	## A legend under the axis: the earlier quarter in slate, the later in oak.
-	Scene.rectangle(Scene.rectangle($chart, Layout.rect(380, 4, 12, 8), slate), Layout.rect(420, 4, 12, 8), oak)
+	$chart.rectangle(Layout.rect(380, 4, 12, 8), slate).rectangle(Layout.rect(420, 4, 12, 8), oak)
 }
 
 drying_photo : List(U8)
@@ -484,7 +484,7 @@ contents = |config| [
 						Pdf.text(" (“Timber asks for patience.”)"),
 					].concat(config.timber_extra),
 				),
-				Pdf.figure({ drawing: Scene.drawing({}).image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)), alt: config.figure2_alternative, caption: Pdf.caption("Figure 2. Air drying at the Moonah yard") }),
+				Pdf.figure({ drawing: Scene.Drawing.empty.image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)), alt: config.figure2_alternative, caption: Pdf.caption("Figure 2. Air drying at the Moonah yard") }),
 			]),
 		]),
 		Pdf.section([

@@ -159,7 +159,7 @@ base_theme = {
 circle : I64, I64, I64 -> Scene.AuthorPath
 circle = |cx, cy, r| {
 	k = r * 552 // 1000
-	Scene.path({})
+	Scene.PathBuilder.start
 		.move_to(Layout.point(cx + r, cy))
 		.cubic_to({ control_1: Layout.point(cx + r, cy + k), control_2: Layout.point(cx + k, cy + r), end: Layout.point(cx, cy + r) })
 		.cubic_to({ control_1: Layout.point(cx - k, cy + r), control_2: Layout.point(cx - r, cy + k), end: Layout.point(cx - r, cy) })
@@ -174,10 +174,10 @@ circle = |cx, cy, r| {
 mark : I64, Color.SourceValue, Color.SourceValue -> Scene.Drawing
 mark = |size, disc, light| {
 	half = size // 2
-	Scene.drawing({})
+	Scene.Drawing.empty
 		.path(circle(half, half, half), Scene.solid_fill(disc))
 		.path(circle(size * 64 // 100, size * 64 // 100, size * 18 // 100), Scene.solid_fill(light))
-		.path(Scene.path({}).rectangle(Layout.rect(size * 18 // 100, size * 30 // 100, size * 64 // 100, size * 6 // 100)).finish(), Scene.solid_fill(light))
+		.path(Scene.PathBuilder.start.rectangle(Layout.rect(size * 18 // 100, size * 30 // 100, size * 64 // 100, size * 6 // 100)).finish(), Scene.solid_fill(light))
 }
 
 ## A 483 × 8 pt strip of the five palette colours, kept 12 pt above the
@@ -185,10 +185,10 @@ mark = |size, disc, light| {
 palette_strip : Scene.Drawing
 palette_strip = {
 	widths = [(indigo, 193), (teal_source, 97), (coral, 97), (amber, 48), (ink, 48)]
-	var $drawing = Scene.drawing({})
+	var $drawing = Scene.Drawing.empty
 	var $x = 0
 	for (color, width) in widths {
-		$drawing = Scene.rectangle($drawing, Layout.rect($x, 0, width, 8), color)
+		$drawing = $drawing.rectangle(Layout.rect($x, 0, width, 8), color)
 		$x = $x + width
 	}
 	$drawing
@@ -200,22 +200,22 @@ teal_source = Color.srgb8(teal_rgb)
 ## A section band: a short coral bar over a hairline across the measure,
 ## with 6 pt above it and 6 pt between it and the heading it introduces.
 band : Document.Block
-band = Pdf.decoration({ drawing: Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)), Layout.rect(0, 0, 36, 5), coral), above: points(6), below: points(6) })
+band = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)).rectangle(Layout.rect(0, 0, 36, 5), coral), above: points(6), below: points(6) })
 
 ## One swatch card: the solid colour, named in bold with its hex value in
 ## the code face, above three tints (75, 50, 25 percent toward white).
 swatch : Rgb, Str, Str, Color.SourceValue -> Scene.Drawing
 swatch = |rgb, name, hex, label| {
-	solid = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 39, 88, 52), Color.srgb8(rgb))
+	solid = Scene.Drawing.empty.rectangle(Layout.rect(0, 39, 88, 52), Color.srgb8(rgb))
 		.text_in(Strong, { align: Start, color: label, origin: Layout.point(6, 77), size: points(8), text: name })
 		.text_in(Code, { align: Start, color: label, origin: Layout.point(6, 45), size: points(7), text: hex })
-	light = Scene.rectangle(Scene.rectangle(solid, Layout.rect(0, 26, 88, 12), tint(rgb, 25)), Layout.rect(0, 13, 88, 12), tint(rgb, 50))
-	Scene.rectangle(light, Layout.rect(0, 0, 88, 12), tint(rgb, 75))
+	light = solid.rectangle(Layout.rect(0, 26, 88, 12), tint(rgb, 25)).rectangle(Layout.rect(0, 13, 88, 12), tint(rgb, 50))
+	light.rectangle(Layout.rect(0, 0, 88, 12), tint(rgb, 75))
 }
 
 swatches : Scene.Drawing
 swatches = {
-	var $drawing = Scene.drawing({})
+	var $drawing = Scene.Drawing.empty
 	var $x = 0
 	for (rgb, name, hex, label) in [(indigo_rgb, "Lumen Indigo", "#2B2D6E", white), (teal_rgb, "Harbour Teal", "#167872", white), (coral_rgb, "Signal Coral", "#F2665A", ink), (amber_rgb, "Dawn Amber", "#F5B83D", ink), (ink_rgb, "Ink", "#1E2230", white)] {
 		$drawing = $drawing.group(Layout.point($x, 0), swatch(rgb, name, hex, label))
@@ -231,11 +231,11 @@ placements = {
 	panel = |ground, disc, light, guides, name, label| {
 		## A 44 pt mark, its clear space of one sixth of its width on every
 		## side (the tinted square), and the coral boundary around both.
-		base = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 155, 86), ground)
+		base = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 155, 86), ground)
 		framed = if guides {
-			square = Scene.path({}).rectangle(Layout.rect(48, 9, 59, 59)).finish()
+			square = Scene.PathBuilder.start.rectangle(Layout.rect(48, 9, 59, 59)).finish()
 			base
-				.path(Scene.path({}).rectangle(Layout.rect(41, 2, 73, 73)).finish(), Scene.solid_stroke(coral, Layout.Unit.millipoints(750)))
+				.path(Scene.PathBuilder.start.rectangle(Layout.rect(41, 2, 73, 73)).finish(), Scene.solid_stroke(coral, Layout.Unit.millipoints(750)))
 				.path(square, Scene.solid_stroke(tint(coral_rgb, 40), Layout.Unit.millipoints(500)))
 		} else {
 			base
@@ -244,7 +244,7 @@ placements = {
 			.group(Layout.point(56, 16), mark(44, disc, light))
 			.text({ align: Center, color: label, origin: Layout.point(77, 78), size: points(7), text: name })
 	}
-	Scene.drawing({})
+	Scene.Drawing.empty
 		.group(Layout.point(0, 0), panel(mist, indigo, amber, True, "Clear space", indigo))
 		.group(Layout.point(164, 0), panel(indigo, white, amber, False, "Reversed on Indigo", white))
 		.group(Layout.point(328, 0), panel(amber, indigo, white, False, "On Dawn Amber", indigo))
@@ -273,8 +273,8 @@ at_a_glance = |options, ground, name, lines| {
 	box = { origin: Layout.point(0, 0), size }
 	edge = { origin: Layout.point(0, 0), size: { height: size.height, width: points(4) } }
 	panel = match ground {
-		Light => Scene.rectangle(Scene.rectangle(Scene.drawing({}), box, mist), edge, coral)
-		Dark => Scene.rectangle(Scene.rectangle(Scene.drawing({}), box, indigo), edge, amber)
+		Light => Scene.Drawing.empty.rectangle(box, mist).rectangle(edge, coral)
+		Dark => Scene.Drawing.empty.rectangle(box, indigo).rectangle(edge, amber)
 	}
 	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel, size })
 
@@ -304,12 +304,12 @@ footer = Pdf.region({
 ## A hairline under each header, as the region's backdrop, beside the
 ## slots' furniture.
 hairline : Scene.Drawing
-hairline = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), tint(indigo_rgb, 70))
+hairline = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 1), tint(indigo_rgb, 70))
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: points(44), start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 5), mark(36, indigo, amber)))], center: [], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: points(3) }),
+		header: Pdf.region({ height: points(44), start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), mark(36, indigo, amber)))], center: [], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: points(3) }),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(14),
@@ -335,7 +335,7 @@ outline = [
 ## Tables.
 
 group_row : Str, U16 -> Pdf.Row
-group_row = |label, columns| Pdf.row([Pdf.shaded(tint(indigo_rgb, 90), Pdf.spanning(columns, Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])])))])
+group_row = |label, columns| Pdf.row([Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])]).spanning(columns).shaded(tint(indigo_rgb, 90))])
 
 colour_row : Str, Str, Str, Str, Str -> Pdf.Row
 colour_row = |name, role, hex, rgb, contrast| Pdf.row([

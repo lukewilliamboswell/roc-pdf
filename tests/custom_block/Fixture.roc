@@ -117,8 +117,8 @@ key_figures = Callout.key_figures(report_theme, { lines: ["Revenue: AUD 9.22 m (
 
 ## A 600 x 900 pt plan drawing (REP-A6b), scaled to fit.
 site_plan : Scene.Drawing
-site_plan = Scene.drawing({}).path(Scene.path({}).rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, points(4)))
-	.path(Scene.path({}).rectangle(Layout.rect(60, 40, 480, 820)).finish(), Scene.solid_fill(sea))
+site_plan = Scene.Drawing.empty.path(Scene.PathBuilder.start.rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, points(4)))
+	.path(Scene.PathBuilder.start.rectangle(Layout.rect(60, 40, 480, 820)).finish(), Scene.solid_fill(sea))
 
 supplier_row : U64 -> Pdf.Row
 supplier_row = |index| {
@@ -377,8 +377,8 @@ run_negatives = |context| {
 	lines = ["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%"]
 	sized = |height, width| Callout.with_height(report_theme, { height: points(height + offset), lines, name: "Key figures", width: points(width) })
 	custom = |contents, inset, name, panel| Pdf.custom_block({ contents, fragmentation: Unsplittable, inset: points(inset), name, panel, size: { height: points(80), width: points(300) } })
-	square = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 300, 80), sea)
-	image = Scene.drawing({}).image(Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 1, width: 1 }, pixels: [200, 200, 200], row_stride: 3 }), Layout.rect(0, 0, 10, 10))
+	square = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 80), sea)
+	image = Scene.Drawing.empty.image(Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 1, width: 1 }, pixels: [200, 200, 200], row_stride: 3 }), Layout.rect(0, 0, 10, 10))
 	lead_templates = {
 		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.no_region }),
 		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.no_region, lead: Pdf.lead_region(points(120), [Pdf.paragraph("Letterhead"), key_figures]) }),
@@ -399,7 +399,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body"), Pdf.spacer(points(4)), Pdf.paragraph("More")], 10, "Key figures", square)]), InvalidRelationship, "semantics.custom_block_content", ["contents[1]", "contents[1].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "", square)]), InvalidRelationship, "semantics.custom_block_name", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", image)]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 320, 80), sea))]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 320, 80), sea))]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([], 10, "Key figures", square)]), InvalidRelationship, "semantics.empty_container", ["contents[1]"]),
 		rejects(Pdf.with_page_templates(document([Pdf.paragraph("Body")]), lead_templates), InvalidRelationship, "semantics.custom_block_content", ["templates.first.lead.contents[1]"]),
 		rejects(document([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), valid])])]), InvalidRelationship, "semantics.list_item_content", ["contents[0].items[0].contents[1]"]),

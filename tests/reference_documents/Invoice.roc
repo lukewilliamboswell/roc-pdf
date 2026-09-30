@@ -108,15 +108,15 @@ invoice_theme = Theme.default
 
 logo : Scene.Drawing
 logo = {
-	wing = Scene.path({})
+	wing = Scene.PathBuilder.start
 		.move_to(Layout.point(8, 12))
 		.cubic_to({ control_1: Layout.point(16, 34), control_2: Layout.point(30, 38), end: Layout.point(38, 36) })
 		.cubic_to({ control_1: Layout.point(30, 30), control_2: Layout.point(22, 20), end: Layout.point(8, 12) })
 		.close()
 		.finish()
-	tile = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 44, 44), navy).path(wing, Scene.solid_fill(brass))
-	bars = Scene.rectangle(Scene.rectangle(tile, Layout.rect(54, 28, 78, 8), navy), Layout.rect(54, 16, 60, 6), navy)
-	Scene.rectangle(bars, Layout.rect(54, 6, 40, 4), brass)
+	tile = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 44, 44), navy).path(wing, Scene.solid_fill(brass))
+	bars = tile.rectangle(Layout.rect(54, 28, 78, 8), navy).rectangle(Layout.rect(54, 16, 60, 6), navy)
+	bars.rectangle(Layout.rect(54, 6, 40, 4), brass)
 }
 
 ## `Page N of M` end-aligned in `width` points: 64 pt holds one-digit
@@ -179,7 +179,7 @@ item_columns = [
 ]
 
 total_row : Str, List(Pdf.Inline) -> Pdf.Row
-total_row = |label, amount| Pdf.row([Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text(label)]))), Pdf.cell(amount)])
+total_row = |label, amount| Pdf.row([Pdf.header_cell(Row, [Pdf.text(label)]).spanning(4).aligned(End), Pdf.cell(amount)])
 
 detail_row : Str, Str -> Pdf.Row
 detail_row = |label, value| Pdf.row([Pdf.header_cell(Row, [Pdf.text(label)]), Pdf.cell([Pdf.text(value)])])

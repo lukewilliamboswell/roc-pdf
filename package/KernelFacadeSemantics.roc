@@ -2676,7 +2676,7 @@ table_authoring = Document.normalize(
 			Document.table({
 				body_rows: [
 					Document.row([Document.header_cell(Row, [Document.plain_text("A")]), Document.cell([Document.plain_text("1")])]),
-					Document.row([Document.spanning(2, Document.cell([Document.plain_text("Wide")]))]),
+					Document.row([Document.cell([Document.plain_text("Wide")]).spanning(2)]),
 				],
 				caption: Document.caption("Cap"),
 				columns: [{ align: Start, width: Content }, { align: End, width: Share(1) }],
@@ -2719,7 +2719,7 @@ expect {
 	empty = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [] }), limits)
 	grid = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.cell([Document.plain_text("x")]), Document.cell([Document.plain_text("y")])])] }), limits)
 	missing = KernelFacadeSemantics.Plan.build(table({ ..base, header_rows: [] }), limits)
-	spanned = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.row_spanning(2, Document.cell([Document.plain_text("x")]))])] }), limits)
+	spanned = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.cell([Document.plain_text("x")]).row_spanning(2)])] }), limits)
 	match (empty, grid, missing, spanned) {
 		(Err(TableEmpty({ group: 0 })), Err(TableGridMismatch({ columns: 1, group: 2, spanned: 2 })), Err(TableHeaderMissing({ group: 0 })), Err(TableRowSpan({ block: 1 }))) => True
 		_ => False

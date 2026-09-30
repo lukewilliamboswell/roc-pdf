@@ -137,7 +137,7 @@ base_theme = {
 circle : I64, I64, I64 -> Scene.AuthorPath
 circle = |cx, cy, r| {
 	k = r * 552 // 1000
-	Scene.path({})
+	Scene.PathBuilder.start
 		.move_to(Layout.point(cx + r, cy))
 		.cubic_to({ control_1: Layout.point(cx + r, cy + k), control_2: Layout.point(cx + k, cy + r), end: Layout.point(cx, cy + r) })
 		.cubic_to({ control_1: Layout.point(cx - k, cy + r), control_2: Layout.point(cx - r, cy + k), end: Layout.point(cx - r, cy) })
@@ -150,19 +150,19 @@ circle = |cx, cy, r| {
 ## The Sprout mark in a 32 pt square: a stem and two leaves.
 sprout_mark : Scene.Drawing
 sprout_mark = {
-	left_leaf = Scene.path({})
+	left_leaf = Scene.PathBuilder.start
 		.move_to(Layout.point(16, 14))
 		.cubic_to({ control_1: Layout.point(10, 26), control_2: Layout.point(2, 26), end: Layout.point(1, 22) })
 		.cubic_to({ control_1: Layout.point(2, 14), control_2: Layout.point(10, 12), end: Layout.point(16, 14) })
 		.close()
 		.finish()
-	right_leaf = Scene.path({})
+	right_leaf = Scene.PathBuilder.start
 		.move_to(Layout.point(16, 18))
 		.cubic_to({ control_1: Layout.point(20, 30), control_2: Layout.point(28, 32), end: Layout.point(31, 30) })
 		.cubic_to({ control_1: Layout.point(30, 22), control_2: Layout.point(24, 16), end: Layout.point(16, 18) })
 		.close()
 		.finish()
-	Scene.rectangle(Scene.drawing({}), Layout.rect(15, 0, 2, 20), forest)
+	Scene.Drawing.empty.rectangle(Layout.rect(15, 0, 2, 20), forest)
 		.path(left_leaf, Scene.solid_fill(leaf))
 		.path(right_leaf, Scene.solid_fill(forest))
 }
@@ -171,8 +171,8 @@ sprout_mark = {
 ## and an owner dot.
 card : Color.SourceValue, I64 -> Scene.Drawing
 card = |edge, length| {
-	base = Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 136, 38), white), Layout.rect(0, 0, 4, 38), edge)
-	lines = Scene.rectangle(Scene.rectangle(base, Layout.rect(12, 24, length, 5), stone), Layout.rect(12, 14, length * 6 // 10, 5), stone)
+	base = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 136, 38), white).rectangle(Layout.rect(0, 0, 4, 38), edge)
+	lines = base.rectangle(Layout.rect(12, 24, length, 5), stone).rectangle(Layout.rect(12, 14, length * 6 // 10, 5), stone)
 	lines.path(circle(124, 12, 5), Scene.solid_fill(edge))
 }
 
@@ -181,7 +181,7 @@ card = |edge, length| {
 hero : Scene.Drawing
 hero = {
 	column = |name, cards| {
-		var $drawing = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 152, 150), sage)
+		var $drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 152, 150), sage)
 		var $y = 90
 		for (edge, length) in cards {
 			$drawing = $drawing.group(Layout.point(8, $y), card(edge, length))
@@ -189,8 +189,8 @@ hero = {
 		}
 		$drawing.text({ align: Start, color: forest, origin: Layout.point(10, 136), size: points(10), text: name })
 	}
-	frame = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 504, 190), meadow)
-	progress = Scene.rectangle(Scene.rectangle(frame, Layout.rect(16, 14, 380, 8), white), Layout.rect(16, 14, 266, 8), leaf)
+	frame = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 504, 190), meadow)
+	progress = frame.rectangle(Layout.rect(16, 14, 380, 8), white).rectangle(Layout.rect(16, 14, 266, 8), leaf)
 	progress
 		.text_in(Strong, { align: End, color: forest, origin: Layout.point(488, 13), size: points(8), text: "Decision log 70%" })
 		.group(Layout.point(16, 32), column("Proposed", [(clay, 96), (sun, 80), (clay, 104)]))
@@ -211,14 +211,14 @@ line_chart = {
 	base = 16
 	step = 62
 	y_of = |tenths| base + tenths * 11 // 10
-	var $chart = Scene.drawing({})
+	var $chart = Scene.Drawing.empty
 	for day in [0, 2, 4, 6, 8, 10] {
 		color = if day == 0 charcoal else stone
-		$chart = Scene.rectangle($chart, { origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if day == 0 1000 else 500), width: points(474) } }, color)
+		$chart = $chart.rectangle({ origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if day == 0 1000 else 500), width: points(474) } }, color)
 		$chart = $chart.text({ align: End, color: charcoal, origin: Layout.point(left - 6, y_of(day * 10) - 3), size: points(8), text: if day == 10 "10 d" else day.to_str() })
 	}
-	var $area = Scene.path({}).move_to(Layout.point(left + 12, base))
-	var $line = Scene.path({})
+	var $area = Scene.PathBuilder.start.move_to(Layout.point(left + 12, base))
+	var $line = Scene.PathBuilder.start
 	var $x = left + 12
 	var $first = True
 	week_one : U64
@@ -245,7 +245,7 @@ line_chart = {
 	# The target of five days, as a dashed clay rule with its label.
 	var $dash = left
 	while $dash < left + 474 {
-		$chart = Scene.rectangle($chart, Layout.rect($dash, y_of(50), 8, 1), clay)
+		$chart = $chart.rectangle(Layout.rect($dash, y_of(50), 8, 1), clay)
 		$dash = $dash + 14
 	}
 	$chart.text({ align: End, color: clay, origin: Layout.point(left + 474, y_of(50) + 4), size: points(8), text: "Target: 5 days" })
@@ -293,7 +293,7 @@ rounded_panel = |ground, size| {
 	right = size.width.raw() - half
 	top = size.height.raw() - half
 	point = |x, y| { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }
-	outline_path = Scene.path({})
+	outline_path = Scene.PathBuilder.start
 		.move_to(point(left + r, bottom))
 		.line_to(point(right - r, bottom))
 		.cubic_to({ control_1: point(right - r + k, bottom), control_2: point(right, bottom + r - k), end: point(right, bottom + r) })
@@ -309,7 +309,7 @@ rounded_panel = |ground, size| {
 		Meadow => meadow
 		Forest => forest
 	}
-	Scene.drawing({}).path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: leaf, width: Layout.Unit.millipoints(1500) }) })
+	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: leaf, width: Layout.Unit.millipoints(1500) }) })
 }
 
 ## ---------------------------------------------------------------------
@@ -320,7 +320,7 @@ page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_numbe
 
 ## A leaf-green hairline across the measure, under each header.
 green_rule : Scene.Drawing
-green_rule = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(1000), width: points(504) } }, leaf)
+green_rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(1000), width: points(504) } }, leaf)
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -333,7 +333,7 @@ footer = Pdf.region({
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: points(40), start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 5), sprout_mark))], center: [], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: points(3) }),
+		header: Pdf.region({ height: points(40), start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), sprout_mark))], center: [], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: points(3) }),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(16),
@@ -379,7 +379,7 @@ cycle_table = {
 }
 
 group_row : Str -> Pdf.Row
-group_row = |label| Pdf.row([Pdf.shaded(Color.srgb8({ red: 240, green: 247, blue: 240 }), Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])])))])
+group_row = |label| Pdf.row([Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])]).spanning(4).shaded(Color.srgb8({ red: 240, green: 247, blue: 240 }))])
 
 ## A plan that does not include a capability leaves its cell empty.
 plan_row : Str, Str, Str, Str -> Pdf.Row
@@ -416,7 +416,7 @@ plans = Pdf.table({
 	],
 	footer_rows: [
 		Pdf.row([
-			Pdf.aligned(End, Pdf.header_cell(Row, [Pdf.text("USD per editor, monthly")])),
+			Pdf.header_cell(Row, [Pdf.text("USD per editor, monthly")]).aligned(End),
 			Pdf.cell([Pdf.strong([Pdf.text("Free")])]),
 			Pdf.cell([Pdf.strong([Pdf.text("$12")])]),
 			Pdf.cell([Pdf.strong([Pdf.text("$24")])]),

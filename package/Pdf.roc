@@ -691,29 +691,6 @@ Pdf :: [].{
 	header_cell : Scope, List(Inline) -> Cell
 	header_cell = |scope, contents| Document.header_cell(scope, contents)
 
-	## A cell spanning `count` columns (`ColSpan`).
-	spanning : U16, Cell -> Cell
-	spanning = |count, value| Document.spanning(count, value)
-
-	## A cell whose lines align at `align` instead of in the alignment of
-	## the first column it spans, such as an end-aligned label spanning a
-	## table's start-aligned columns.
-	aligned : Align, Cell -> Cell
-	aligned = |align, value| Document.aligned(align, value)
-
-	## A cell with its own background color, such as a highlighted total.
-	## It covers the cell's box (its spanned columns, padding included) and
-	## half the row gap above and below, painted over any row fill as a
-	## layout decoration artifact behind the page's text. The cell keeps
-	## its `TH` or `TD` semantics; the fill adds no structure.
-	shaded : Color.SourceValue, Cell -> Cell
-	shaded = |color, value| Document.shaded(color, value)
-
-	## A cell spanning `count` rows. Row spans are outside the supported
-	## table subset: preparation reports `table.row_span` until Gate 8.
-	row_spanning : U16, Cell -> Cell
-	row_spanning = |count, value| Document.row_spanning(count, value)
-
 	## Gate 6-8 authoring shapes are stable before their lowering is enabled.
 	## These constructors retain the authored intent and reject transactionally
 	## at preparation with a feature-specific explanation.
@@ -1062,7 +1039,7 @@ measure_content = |options, contents, language, width| {
 	}
 	inset = Layout.Unit.from_raw(1)
 	probe = Pdf.document({
-		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.rectangle(Scene.drawing({}), { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, Color.srgb8({ blue: 0, green: 0, red: 0 })), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
+		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.Drawing.empty.rectangle({ origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, Color.srgb8({ blue: 0, green: 0, red: 0 })), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
 		language,
 		title: "Custom-block measurement",
 	})
@@ -3024,7 +3001,7 @@ archive_twin_document = {
 	Pdf.document({
 		contents: [
 			Pdf.destination_heading("start", 1, "Archive twins"),
-			Pdf.figure({ drawing: Scene.drawing({}).image(image, Layout.rect(0, 0, 120, 120)), alt: "A two by two translucent raster", caption: Pdf.no_caption }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(image, Layout.rect(0, 0, 120, 120)), alt: "A two by two translucent raster", caption: Pdf.no_caption }),
 			Pdf.link("Specification", "https://example.com/pdfa"),
 			Pdf.internal_link("Back to start", "start"),
 		],
@@ -3365,7 +3342,7 @@ expect {
 				body_rows: List.repeat(row("HF-DSK-140"), 60),
 				caption: Pdf.caption("Items"),
 				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(Layout.Unit.points(80)) }],
-				footer_rows: [Pdf.row([Pdf.spanning(2, Pdf.header_cell(Row, [Pdf.text("Total")])), Pdf.cell([Pdf.text("165,360.00")])])],
+				footer_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Total")]).spanning(2), Pdf.cell([Pdf.text("165,360.00")])])],
 				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Amount")])])],
 				row_split: KeepRows,
 			}),
@@ -3398,7 +3375,7 @@ expect {
 		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[0].table.body_rows[0]"], feature: Feature("table.grid_mismatch"), .. }], .. })) => True
 		_ => False
 	}
-	spanned = match Pdf.to_bytes(table([Pdf.row([Pdf.row_spanning(2, Pdf.cell([Pdf.text("x")])), Pdf.cell([Pdf.text("y")])])])) {
+	spanned = match Pdf.to_bytes(table([Pdf.row([Pdf.cell([Pdf.text("x")]).row_spanning(2), Pdf.cell([Pdf.text("y")])])])) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, details: ["contents[0].table.body_rows[0].cells[0]"], feature: Feature("table.row_span"), .. }], .. })) => True
 		_ => False
 	}
@@ -3802,8 +3779,8 @@ set_at = |items, index, value| match items.set(index, value) {
 # leaf across groups, lists, a legacy bullet list, a table, a captioned
 # figure, flow items, and a custom block.
 expect {
-	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 20, 20), Color.srgb8({ blue: 0, green: 0, red: 0 }))
-	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 200, 60), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 20, 20), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 200, 60), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	doc = Pdf.document({
 		contents: [
 			Pdf.title("Paths"),

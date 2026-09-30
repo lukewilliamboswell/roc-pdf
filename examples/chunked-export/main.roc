@@ -155,7 +155,7 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(17), start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])], center: [], end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])], backdrop: Backdrop(Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(measure) } }, frost)), slot_inset: points(3) }),
+		header: Pdf.region({ height: points(17), start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])], center: [], end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(measure) } }, frost)), slot_inset: points(3) }),
 		footer,
 		gap: points(12),
 	}),
@@ -216,7 +216,7 @@ reading_row = |slot| {
 		Pdf.cell([value(b)]),
 		Pdf.cell([Pdf.text(humidity(slot).to_str())]),
 		Pdf.cell([Pdf.text(if slot >= 28 and slot <= 30 "Open" else "Closed")]),
-		if over Pdf.shaded(Color.srgb8({ red: 254, green: 226, blue: 226 }), Pdf.cell([Pdf.strong([Pdf.text("Excursion")])])) else Pdf.cell([Pdf.text("In range")]),
+		if over Pdf.cell([Pdf.strong([Pdf.text("Excursion")])]).shaded(Color.srgb8({ red: 254, green: 226, blue: 226 })) else Pdf.cell([Pdf.text("In range")]),
 	])
 }
 
@@ -255,14 +255,14 @@ readings_table = {
 				Pdf.cell([Pdf.text("3.6")]),
 				Pdf.cell([Pdf.text("3.4")]),
 				Pdf.cell([Pdf.text("82")]),
-				Pdf.spanning(2, Pdf.cell([Pdf.text("Door open 90 min")])),
+				Pdf.cell([Pdf.text("Door open 90 min")]).spanning(2),
 			]),
 			Pdf.row([
 				Pdf.header_cell(Row, [Pdf.text("Maximum")]),
 				Pdf.cell([Pdf.strong([Pdf.text("9.1")])]),
 				Pdf.cell([Pdf.strong([Pdf.text("8.4")])]),
 				Pdf.cell([Pdf.text("90")]),
-				Pdf.spanning(2, Pdf.cell([Pdf.text("3 samples over limit")])),
+				Pdf.cell([Pdf.text("3 samples over limit")]).spanning(2),
 			]),
 		],
 		row_split: KeepRows,
@@ -282,7 +282,7 @@ plot_x = |slot| 40 + slot.to_i64_wrap() * 9
 
 series : (U64 -> U64) -> Scene.AuthorPath
 series = |probe| {
-	var $path = Scene.path({}).move_to(Layout.point(plot_x(0), plot_y(probe(0))))
+	var $path = Scene.PathBuilder.start.move_to(Layout.point(plot_x(0), plot_y(probe(0))))
 	var $slot = 1
 	while $slot < 48 {
 		$path = $path.line_to(Layout.point(plot_x($slot), plot_y(probe($slot))))
@@ -295,7 +295,7 @@ series = |probe| {
 legend : Scene.Drawing, I64, I64, Color.SourceValue, Layout.Unit, Str -> Scene.Drawing
 legend = |drawing, x, y, color, width, name|
 	drawing
-		.path(Scene.path({}).move_to(Layout.point(x, y + 3)).line_to(Layout.point(x + 16, y + 3)).finish(), Scene.solid_stroke(color, width))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(x, y + 3)).line_to(Layout.point(x + 16, y + 3)).finish(), Scene.solid_stroke(color, width))
 		.text({ align: Start, color: slate, origin: Layout.point(x + 21, y), size: points(7), text: name })
 
 temperature_chart : Scene.Drawing
@@ -307,15 +307,15 @@ temperature_chart = {
 
 	# The safe band (2.0 to 8.0 °C), labelled gridlines every 2 °C, and
 	# hour ticks labelled every 6 hours.
-	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(plot_x(0), plot_y(20), right - plot_x(0), plot_y(80) - plot_y(20)), band)
+	var $d = Scene.Drawing.empty.rectangle(Layout.rect(plot_x(0), plot_y(20), right - plot_x(0), plot_y(80) - plot_y(20)), band)
 	for degrees in [0, 2, 4, 6, 8] {
-		$d = Scene.rectangle($d, { origin: Layout.point(plot_x(0), plot_y(degrees * 10)), size: { height: Layout.Unit.millipoints(500), width: points(right - plot_x(0)) } }, grid)
+		$d = $d.rectangle({ origin: Layout.point(plot_x(0), plot_y(degrees * 10)), size: { height: Layout.Unit.millipoints(500), width: points(right - plot_x(0)) } }, grid)
 		$d = $d.text({ align: End, color: slate, origin: Layout.point(plot_x(0) - 5, plot_y(degrees * 10) - 2), size: points(7), text: "${degrees.to_str()} °C" })
 	}
 	var $tick = 0
 	while $tick <= 48 {
 		major = $tick % 12 == 0
-		$d = Scene.rectangle($d, { origin: Layout.point(plot_x($tick), if major 16 else 20), size: { height: points(if major 8 else 4), width: Layout.Unit.millipoints(600) } }, slate)
+		$d = $d.rectangle({ origin: Layout.point(plot_x($tick), if major 16 else 20), size: { height: points(if major 8 else 4), width: Layout.Unit.millipoints(600) } }, slate)
 		if major {
 			## The last label ends at the axis end so it stays in the chart.
 			$d = $d.text({ align: if $tick == 48 End else Center, color: slate, origin: Layout.point(plot_x($tick), 5), size: points(7), text: clock($tick) })
@@ -324,8 +324,8 @@ temperature_chart = {
 	}
 
 	## The 8.0 °C limit as a solid alarm line, and the excursion window.
-	$d = Scene.rectangle($d, { origin: Layout.point(plot_x(0), plot_y(80)), size: { height: Layout.Unit.millipoints(1200), width: points(right - plot_x(0)) } }, alarm)
-	$d = Scene.rectangle($d, Layout.rect(plot_x(28), plot_y(80), plot_x(32) - plot_x(28), plot_y(95) - plot_y(80)), Color.srgb8({ red: 254, green: 226, blue: 226 }))
+	$d = $d.rectangle({ origin: Layout.point(plot_x(0), plot_y(80)), size: { height: Layout.Unit.millipoints(1200), width: points(right - plot_x(0)) } }, alarm)
+	$d = $d.rectangle(Layout.rect(plot_x(28), plot_y(80), plot_x(32) - plot_x(28), plot_y(95) - plot_y(80)), Color.srgb8({ red: 254, green: 226, blue: 226 }))
 	$d = $d.text({ align: End, color: alarm, origin: Layout.point(right, plot_y(80) + 4), size: points(7), text: "8.0 °C limit" })
 	$d = $d.text_in(Strong, { align: Center, color: alarm, origin: Layout.point((plot_x(28) + plot_x(32)) // 2, plot_y(95) + 4), size: points(7), text: "Excursion" })
 	$d = legend($d, plot_x(0), plot_y(100), spruce, points(2), "Probe A")
@@ -333,7 +333,7 @@ temperature_chart = {
 	$d
 		.path(series(probe_b), Scene.solid_stroke(light, Layout.Unit.millipoints(1500)))
 		.path(series(probe_a), Scene.solid_stroke(spruce, points(2)))
-		.path(Scene.path({}).move_to(Layout.point(plot_x(0), 24)).line_to(Layout.point(right, 24)).finish(), Scene.solid_stroke(slate, Layout.Unit.millipoints(800)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(plot_x(0), 24)).line_to(Layout.point(right, 24)).finish(), Scene.solid_stroke(slate, Layout.Unit.millipoints(800)))
 }
 
 ## ---------------------------------------------------------------------
@@ -348,15 +348,15 @@ summary : Pdf.Options, List(Document.Block) -> Try(Document.Block, Pdf.Error)
 summary = |options, paragraphs| {
 	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(measure - 24) })?
 	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(measure) }
-	panel = Scene.drawing({})
-		.path(Scene.path({}).rectangle({ origin: Layout.point(0, 0), size }).finish(), Scene.solid_fill(Color.srgb8({ red: 240, green: 247, blue: 250 })))
+	panel = Scene.Drawing.empty
+		.path(Scene.PathBuilder.start.rectangle({ origin: Layout.point(0, 0), size }).finish(), Scene.solid_fill(Color.srgb8({ red: 240, green: 247, blue: 250 })))
 	Ok(
 		Pdf.custom_block({
 			contents: paragraphs,
 			fragmentation: Unsplittable,
 			inset: callout_inset,
 			name: "Shipment summary",
-			panel: Scene.rectangle(panel, { origin: Layout.point(0, 0), size: { height: size.height, width: points(3) } }, spruce),
+			panel: panel.rectangle({ origin: Layout.point(0, 0), size: { height: size.height, width: points(3) } }, spruce),
 			size,
 		}),
 	)
@@ -381,7 +381,7 @@ contents = |options| {
 
 body : Document.Block -> List(Document.Block)
 body = |shipment| [
-	Pdf.decoration({ drawing: Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 120, 4), spruce), Layout.rect(124, 0, 24, 4), alarm), below: points(6) }),
+	Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 120, 4), spruce).rectangle(Layout.rect(124, 0, 24, 4), alarm), below: points(6) }),
 	Pdf.title("Cold-chain telemetry export"),
 	Pdf.rich_paragraph([
 		Pdf.text("Shipment "),
