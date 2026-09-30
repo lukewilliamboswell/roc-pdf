@@ -16,18 +16,21 @@ import "fonts/NotoSans-Bold.ttf" as bold_bytes : List(U8)
 import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## Release notes for a fictional load-testing tool, on US Letter: a
-## decorative version banner, a highlights callout and a breaking-change
-## callout through the custom-block seam, versioned sections in the
+## decorative version banner spaced from the title, a night-blue
+## highlights callout and a breaking-change callout through the
+## custom-block seam, measured by the package, versioned sections in the
 ## outline, change lists with inline code and issue links, a latency
-## chart, a compatibility table, and running headers and footers.
+## chart, a striped compatibility table, and running headers over a ruled
+## backdrop and footers.
 main! = |_args| {
 	fonts = register_fonts({})?
-	document = Pdf.document({ contents, language: "en-US", title: "Kestrel 3.0 release notes" })
+	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry).with_page_size(Letter)
+	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	document = Pdf.document({ contents: blocks, language: "en-US", title: "Kestrel 3.0 release notes" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_created("2026-09-30T00:00:00Z")
 		.with_modified("2026-09-30T00:00:00Z")
-	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry).with_page_size(Letter)
 	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "release-notes.pdf"
@@ -112,8 +115,10 @@ theme = {
 		.with_emphasis_color(indigo)
 		.with_code_color(pink)
 		.with_table_header_color(indigo)
+		.with_table_header_fill(Color.srgb8({ red: 238, green: 242, blue: 255 }))
+		.with_table_body_fills({ odd: NoFill, even: Fill(Color.srgb8({ red: 248, green: 248, blue: 250 })) })
 		.with_table_cell_padding(points(5))
-		.with_table_row_gap(points(1))
+		.with_table_row_gap(points(2))
 		.with_table_rule(Rule({ color: haze, width: Layout.Unit.millipoints(700) }))
 		.with_link_color(indigo)
 		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1500), thickness: Layout.Unit.millipoints(600) }))
@@ -140,12 +145,15 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({
-			height: points(16),
-			start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])],
-			center: [],
-			end: [Pdf.furniture_image(header_mark)],
-		}),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(16),
+				start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])],
+				center: [],
+				end: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 4), header_mark))],
+			}),
+			Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, haze),
+		),
 		footer,
 		gap: points(16),
 	}),
@@ -169,30 +177,30 @@ outline = [
 
 ## ---------------------------------------------------------------------
 ## Callouts: the custom-block pattern of tests/custom_block/Callout.roc.
-## Every paragraph is one line, so the extension measures its height as
-## twice the inset, one leading per line, and the paragraph spacing
-## between lines. The panel is a rounded tint with a thicker top rule.
+## The package measures each callout's paragraphs at the panel's content
+## width, so they may wrap. The panel is a rounded tint with a thicker top
+## rule; the highlights sit in white on the banner's night blue.
 
-CalloutStyle : { accent : Color.SourceValue, fill : Color.SourceValue }
+CalloutStyle : { accent : Color.SourceValue, fill : Color.SourceValue, label : Color.SourceValue, text : Color.SourceValue }
 
 highlight_style : CalloutStyle
-highlight_style = { accent: indigo, fill: Color.srgb8({ red: 238, green: 242, blue: 255 }) }
+highlight_style = { accent: pink, fill: night, label: lilac, text: Color.srgb8({ red: 255, green: 255, blue: 255 }) }
 
 breaking_style : CalloutStyle
-breaking_style = { accent: pink, fill: Color.srgb8({ red: 253, green: 242, blue: 248 }) }
+breaking_style = { accent: pink, fill: Color.srgb8({ red: 253, green: 242, blue: 248 }), label: pink, text: ink }
 
 callout_inset : Layout.Unit
 callout_inset = points(14)
 
-## Each callout is scoped so its `Strong` labels take its accent colour.
-callout : Str, CalloutStyle, List(Document.Block) -> Document.Block
-callout = |name, style, paragraphs| {
-	leading = Theme.body_style(theme).leading.raw()
-	spacing = Theme.paragraph_spacing(theme).raw()
-	count = paragraphs.len().to_i64_wrap()
-	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(measure) }
+## Each callout is scoped so its `Strong` labels take its label colour
+## and its text and code its text colour.
+callout : Pdf.Options, Str, CalloutStyle, List(Document.Block) -> Try(Document.Block, Pdf.Error)
+callout = |options, name, style, paragraphs| {
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-US", width: points(measure - 28) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(measure) }
 	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
-	Pdf.scoped(Theme.Scope.empty.with_color(Strong, style.accent), [block])
+	scope = Theme.Scope.empty.with_color(Strong, style.label).with_color(Text, style.text)
+	Ok(Pdf.scoped(if style.text == ink scope else scope.with_color(Code, style.label), [block]))
 }
 
 ## A rounded panel with a 3 pt accent along its top edge.
@@ -233,20 +241,20 @@ callout_panel = |style, size| {
 
 banner : Document.Block
 banner = {
-	## The band sits 14 pt above the title, which the decoration's height
-	## includes: the drawing leaves its lowest 14 pt empty.
-	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 14, measure, 64), night)
-	$d = Scene.rectangle($d, Layout.rect(0, 14, 6, 64), pink)
+	## The band keeps 14 pt between itself and the title through its
+	## decoration spacing, not empty drawing area.
+	var $d = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, measure, 64), night)
+	$d = Scene.rectangle($d, Layout.rect(0, 0, 6, 64), pink)
 
 	## Twelve release dots: minor releases in lilac, this major in pink.
 	var $x = 300
 	var $i = 0
 	while $i < 12 {
-		$d = Scene.rectangle($d, Layout.rect($x, 42, 8, 8), if $i == 11 pink else lilac)
+		$d = Scene.rectangle($d, Layout.rect($x, 28, 8, 8), if $i == 11 pink else lilac)
 		$x = $x + 15
 		$i = $i + 1
 	}
-	Pdf.decoration(Scene.rectangle($d, Layout.rect(300, 36, 173, 1), lilac))
+	Pdf.spaced_decoration(Scene.rectangle($d, Layout.rect(300, 22, 173, 1), lilac), { above: points(0), behind: Bool.False, below: points(14) })
 }
 
 ## ---------------------------------------------------------------------
@@ -299,7 +307,7 @@ compat_row = |target, old, new, note| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(target)]),
 	Pdf.cell([Pdf.text(old)]),
 	Pdf.cell([Pdf.strong([Pdf.text(new)])]),
-	Pdf.cell([Pdf.text(note)]),
+	if new == "—" Pdf.shaded(Color.srgb8({ red: 253, green: 242, blue: 248 }), Pdf.cell([Pdf.text(note)])) else Pdf.cell([Pdf.text(note)]),
 ])
 
 compatibility_table : Document.Block
@@ -336,8 +344,8 @@ compatibility_table = Pdf.table({
 	row_split: KeepRows,
 })
 
-contents : List(Document.Block)
-contents = [
+contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
+contents = |options| Ok([
 	banner,
 	Pdf.title("Kestrel 3.0 release notes"),
 	Pdf.rich_paragraph([
@@ -356,6 +364,7 @@ contents = [
 			Pdf.text(" file."),
 		]),
 		callout(
+			options,
 			"Highlights",
 			highlight_style,
 			[
@@ -363,7 +372,7 @@ contents = [
 				Pdf.rich_paragraph([Pdf.strong([Pdf.text("Reproducible runs")]), Pdf.text(": seeds, versions, and targets are pinned in "), Pdf.code("kestrel.lock"), Pdf.text(".")]),
 				Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scenario files in TOML")]), Pdf.text(", checked by "), Pdf.code("kestrel check"), Pdf.text(" before a run starts.")]),
 			],
-		),
+		)?,
 		Pdf.figure(
 			latency_chart,
 			"Horizontal bar chart of p99 latency in the reference scenario: 412 ms in 2.8, 356 ms in 2.9, and 188 ms in 3.0. An arrow marks the 47% reduction from 2.9 to 3.0.",
@@ -375,13 +384,14 @@ contents = [
 		Pdf.section([
 			Pdf.destination_heading("breaking", 2, "Breaking changes"),
 			callout(
+				options,
 				"Breaking changes",
 				breaking_style,
 				[
 					Pdf.rich_paragraph([Pdf.strong([Pdf.text("Action required.")]), Pdf.text(" YAML scenarios no longer load. Convert them before upgrading:")]),
 					Pdf.rich_paragraph([Pdf.code("kestrel migrate scenarios/ --to toml --write")]),
 				],
-			),
+			)?,
 			Pdf.bullet_list([
 				change([Pdf.text("Scenario files are TOML; "), Pdf.code("kestrel migrate"), Pdf.text(" converts YAML files in place.")], 2210),
 				change([Pdf.text("The "), Pdf.code("--rps"), Pdf.text(" flag is now "), Pdf.code("--rate"), Pdf.text(" and accepts units such as "), Pdf.code("500/s"), Pdf.text(".")], 2187),
@@ -482,4 +492,4 @@ contents = [
 			Pdf.text("."),
 		]),
 	]),
-]
+])
