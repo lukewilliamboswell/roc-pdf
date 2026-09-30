@@ -33,7 +33,8 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ## - `spans`: a two-row header whose `Both`-scoped corner and spanning
 ##   `Column` header head the cells below them, a centered spanning data
 ##   cell, a
-##   themed header color, and U+2212 minus signs in end-aligned cells.
+##   themed column header color with a separate row header color (the
+##   `Both` corner takes the column color), and U+2212 minus signs in end-aligned cells.
 ## - `split_rows`: `SplitRows` with a row taller than the rest of its page:
 ##   the row breaks at a line boundary and continues under the repainted
 ##   header.
@@ -58,7 +59,9 @@ Fixture :: [].{
 	spans = |context| {
 		blue : Color.SourceValue
 		blue = Srgb(Rgb({ blue: 36000, green: 18000, red: 4000 }))
-		evidence(spans_document(context), Theme.with_table_header_color(Theme.default, blue), BuiltInFace)
+		slate : Color.SourceValue
+		slate = Srgb(Rgb({ blue: 20000, green: 16000, red: 12000 }))
+		evidence(spans_document(context), Theme.with_table_row_header_color(Theme.with_table_header_color(Theme.default, blue), slate), BuiltInFace)
 	}
 
 	split_rows : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)

@@ -791,8 +791,10 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 	Ok({ ranges: $ranges, requests: $requests, styles: $styles })
 }
 
-## Header-cell text paints in the theme's table header color when one is
-## set; every other rich block paints in its paragraph color.
+## Column header cells (scope `Column` or `Both`) paint in the theme's
+## table header color and row header cells (scope `Row`) in its row header
+## color, each when set; every other rich block paints in its paragraph
+## color.
 header_cell_color : Document.NormalizedAuthoring, U64, Theme, Color.SourceValue -> Color.SourceValue
 header_cell_color = |authoring, block, theme, paragraph_color| {
 	parent = list_at(authoring.blocks, block).parent
@@ -803,9 +805,10 @@ header_cell_color = |authoring, block, theme, paragraph_color| {
 	if !in_row {
 		return paragraph_color
 	}
-	match Theme.table_style(theme).header_color {
-		Inherited => paragraph_color
-		Themed(color) => {
+	style = Theme.table_style(theme)
+	match (style.header_color, style.row_header_color) {
+		(Inherited, Inherited) => paragraph_color
+		(column_color, row_color) => {
 			var $low = 0
 			var $high = authoring.cells.len()
 			while $low < $high {
@@ -816,9 +819,14 @@ header_cell_color = |authoring, block, theme, paragraph_color| {
 					$high = middle
 				}
 			}
-			match list_at(authoring.cells, $low).kind {
-				HeaderCell(_) => color
-				DataCell => paragraph_color
+			selected = match list_at(authoring.cells, $low).kind {
+				HeaderCell(Row) => row_color
+				HeaderCell(_) => column_color
+				DataCell => Inherited
+			}
+			match selected {
+				Themed(color) => color
+				Inherited => paragraph_color
 			}
 		}
 	}

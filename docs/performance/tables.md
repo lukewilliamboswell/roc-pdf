@@ -367,6 +367,28 @@ the next run.
 | Conformance | `ROC-PDF-PDF20-TABLE-SEMANTICS`, `ROC-PDF-PDFUA2-8-2-5-26-TABLE-HEADERS`, and `ROC-PDF-PDFUA2-8-2-5-26-TABLE-REGULARITY` are `implemented`; `PdfUa2` stays `defined_only` |
 | Reader and AT behavior | Not performed (optional) |
 
+## Table styling follow-ups (examples showcase)
+
+These slices close layout gaps found while rewriting the gallery. Each keeps
+the stage contracts above: presentation is `Theme` or table policy, cells
+keep their `TH`/`TD` semantics, and paint the package adds is an artifact.
+
+### Row header color
+
+`Theme.with_table_header_color` colored every header cell, so a first column
+of `Row`-scoped headers took the column header color. `TableStyle` now has a
+separate `row_header_color` (`Theme.with_table_row_header_color`): scope
+`Row` paints in it, scopes `Column` and `Both` (a corner heads both
+directions and sits in a header row) in `header_color`. Both default to
+`Inherited`, so a theme that sets neither never searches the cell arena.
+The shaping lookup is unchanged: one binary search over the cells per rich
+block inside a table row, now taken when either color is set.
+
+Evidence: the spans case themes the column headers blue and the row headers
+slate. Its allocation count is unchanged (11,059); allocated bytes grow by 65
+(+0.002%) and output by 24 bytes: the row headers' fill-color operands
+are the slate value instead of the blue one. Every other table case is unchanged.
+
 ## Open issues
 
 - ~~**Per-table copies in semantic placement.**~~ (reference-documents

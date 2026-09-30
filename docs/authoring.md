@@ -214,7 +214,9 @@ row. `KeepRows` (the default) moves a row that does not fit to the next page
 and rejects a row taller than a page body as `layout.oversize_row`;
 `SplitRows` lets a row break at a line boundary. Table presentation is theme
 policy: `Theme.with_table_cell_padding`, `with_table_row_gap`,
-`with_table_rule`, and `with_table_header_color`. Rejections name the table,
+`with_table_rule`, `with_table_header_color` (column header cells, scope
+`Column` or `Both`), and `with_table_row_header_color` (row header cells,
+scope `Row`). Rejections name the table,
 row, or cell, such as `contents[4].table.body_rows[17].cells[1]`:
 `table.grid_mismatch`, `table.header_missing`, `table.empty`,
 `table.cell_empty`, `table.row_span` (row spans are Gate 8),

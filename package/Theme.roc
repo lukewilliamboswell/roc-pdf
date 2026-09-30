@@ -63,7 +63,10 @@ Theme :: {
 	InlineScales : { code : InlineScale, emphasis : InlineScale, quote : InlineScale, strong : InlineScale }
 
 	## Table presentation. Cells paint in the body style; `header_color`
-	## changes only the fill color of header-cell text. `cell_padding` insets
+	## changes only the fill color of column header cells (scope `Column` or
+	## `Both`), and `row_header_color` that of row header cells (scope
+	## `Row`), so a first column of row headers need not take the column
+	## header color. `cell_padding` insets
 	## cell text from each side of its column; `row_gap` separates
 	## consecutive rows. `rule` is drawn centered in the row gap below the
 	## header rows (and below every repeated header) and above the footer
@@ -73,6 +76,7 @@ Theme :: {
 		cell_padding : Layout.Unit,
 		header_color : InlineColor,
 		row_gap : Layout.Unit,
+		row_header_color : InlineColor,
 		rule : TableRule,
 	}
 
@@ -188,6 +192,7 @@ Theme :: {
 				cell_padding: Layout.Unit.from_raw(4000),
 				header_color: Inherited,
 				row_gap: Layout.Unit.from_raw(4000),
+				row_header_color: Inherited,
 				rule: Rule({ color: black, width: Layout.Unit.from_raw(500) }),
 			},
 			title: {
@@ -350,9 +355,15 @@ Theme :: {
 		Strong => theme.strong
 	}
 
-	## Paint table header-cell text in its own color.
+	## Paint column header-cell text (scope `Column` or `Both`) in its own
+	## color.
 	with_table_header_color : Theme, Color.SourceValue -> Theme
 	with_table_header_color = |theme, color| { ..theme, table: { ..theme.table, header_color: Themed(color) } }
+
+	## Paint row header-cell text (scope `Row`) in its own color, separately
+	## from the column header color.
+	with_table_row_header_color : Theme, Color.SourceValue -> Theme
+	with_table_row_header_color = |theme, color| { ..theme, table: { ..theme.table, row_header_color: Themed(color) } }
 
 	## Replace the horizontal inset of cell text on each side of its column.
 	with_table_cell_padding : Theme, Layout.Unit -> Theme

@@ -22571,7 +22571,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 11059,
-          "allocated_bytes": 3220958,
+          "allocated_bytes": 3221023,
           "work": {
             "node_writes": 47,
             "occurrence_writes": 33,
@@ -22588,12 +22588,12 @@
             "repeated_header_paints": 0,
             "fragments": 33,
             "artifact_runs": 0,
-            "output_bytes": 34794
+            "output_bytes": 34818
           }
         },
         "x64musl": {
           "allocations": 11059,
-          "allocated_bytes": 3220958,
+          "allocated_bytes": 3221023,
           "work": {
             "node_writes": 47,
             "occurrence_writes": 33,
@@ -22610,7 +22610,7 @@
             "repeated_header_paints": 0,
             "fragments": 33,
             "artifact_runs": 0,
-            "output_bytes": 34794
+            "output_bytes": 34818
           }
         }
       },
