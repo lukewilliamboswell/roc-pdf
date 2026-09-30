@@ -1,7 +1,7 @@
 app [target] {
 	fuzz: platform "https://github.com/lukewilliamboswell/roc-fuzz/releases/download/0.4.1/FfSwkD2HdA63fcar5Z4EQpTBSGy4LcvEGenqzgiy9Mix.tar.zst",
 	pdf: "../package/all.roc",
-	deflate: "https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc1/37rMmhRWo734ZZRyGJ6WPx3U29PXG3XG35BKFy9dGvD5.tar.zst",
+	deflate: "https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc2/BE186Swhzh5dYZjaECgLSQFb17wiLtq4UkxTmiFAPWze.tar.zst",
 }
 
 import fuzz.Fuzz

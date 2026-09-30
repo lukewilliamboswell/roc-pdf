@@ -23,13 +23,17 @@ satisfy the pin. `package/main.roc` and `package/all.roc` declare both.
 | Package | Version | Release bundle | Archive SHA-256 | License | Use |
 | --- | --- | --- | --- | --- | --- |
 | `roc-lang/unicode` | 4.2.0 | [4W8SHzvwet9hH9qZewJ1J1CVQoH7YKA6zyijWFTB3y1w.tar.zst](https://github.com/roc-lang/unicode/releases/download/4.2.0/4W8SHzvwet9hH9qZewJ1J1CVQoH7YKA6zyijWFTB3y1w.tar.zst) | `dfd0524fb84363d18fd5c77acb68fa1eb7ac185bd781db9c2b1eda813cae3a29` | UPL-1.0 | Scalar, segmentation, bidirectional, and case analysis |
-| `lukewilliamboswell/roc-deflate` | 0.4.0-rc1 | [37rMmhRWo734ZZRyGJ6WPx3U29PXG3XG35BKFy9dGvD5.tar.zst](https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc1/37rMmhRWo734ZZRyGJ6WPx3U29PXG3XG35BKFy9dGvD5.tar.zst) | `15b47b38bb3fc4c0595c93dfeb3c545eb5799cb9357abaad866d80481879d3ec` | Apache-2.0 | DEFLATE compression behind `package/KernelDeflate.roc` |
+| `lukewilliamboswell/roc-deflate` | 0.4.0-rc2 | [BE186Swhzh5dYZjaECgLSQFb17wiLtq4UkxTmiFAPWze.tar.zst](https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc2/BE186Swhzh5dYZjaECgLSQFb17wiLtq4UkxTmiFAPWze.tar.zst) | `559780e20ca2d4740c37766be2c007784fcafea6ccf3746835296ef01dd47fa7` | Apache-2.0 | DEFLATE compression behind `package/KernelDeflate.roc` |
 
-`roc-deflate` 0.4.0-rc1 is a fork of `niclas-ahden/roc-deflate` carrying
-Richard Feldman's pure-Roc port of libdeflate (upstream
-`rtfeldman/roc-deflate@1b39584`), which is byte-identical to libdeflate at
-levels 0 to 12. The package calls it from exactly one place,
-`KernelDeflate.compress_raw`, at the fixed level `KernelDeflate.level`.
+`roc-deflate` 0.4.0-rc2 (fork commit `770df0e`) is a fork of
+`niclas-ahden/roc-deflate` carrying Richard Feldman's pure-Roc port of
+libdeflate (upstream `rtfeldman/roc-deflate@1b39584`), which is
+byte-identical to libdeflate at levels 0 to 12. rc2's compressed output is
+byte-identical to rc1's; it sizes the level 10 to 12 matchfinder buffers
+to the input instead of libdeflate's fixed maximum, and works around
+roc-lang/roc#11933 and roc-lang/roc#11934. The package calls it from
+exactly one place, `KernelDeflate.compress_raw`, at the fixed level
+`KernelDeflate.level`.
 
 Upgrade policy: move to an upstream `niclas-ahden/roc-deflate` release as soon
 as one includes the libdeflate port, and treat any version or level change as

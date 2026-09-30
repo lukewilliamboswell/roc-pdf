@@ -138,8 +138,8 @@ preview is byte-identical after re-rendering.
 `KernelDeflate` no longer implements LZ77 and Huffman coding. It is the
 package's single DEFLATE seam: zlib framing, limits, a checked output bound,
 and one call (`compress_raw`) into the pinned pure-Roc `roc-deflate`
-0.4.0-rc1, a port of libdeflate that is byte-identical to libdeflate at every
-level (`vendor/README.md` records its provenance and upgrade policy). The
+(0.4.0-rc1 when this step landed, now 0.4.0-rc2; see below), a port of
+libdeflate that is byte-identical to libdeflate at every level (`vendor/README.md` records its provenance and upgrade policy). The
 emitter compresses each generated payload whole at its stream's transition and
 emits the compressed bytes as one owned segment; the payload was already held
 whole in the sealed plan, so no new uncompressed copy exists. The zlib header
@@ -254,6 +254,38 @@ evidence is unchanged rather than newly broken.
   DEFLATE cases record streams, input bytes, and emitted bytes.
 - **Suite time**: the summed dev-backend case time rises from about 106 s to
   190 s across 323 cases (about 15 s of wall time with six workers).
+
+### 0.4.0-rc2: matchfinder buffers sized to the input
+
+`roc-deflate` 0.4.0-rc2 (fork commit `770df0e`) sizes the level 10 to 12
+match caches, optimum-node arrays, and binary-tree matchfinder to the
+input instead of libdeflate's fixed maximum, which removes most of the
+fixed per-call working set described above, and works around
+roc-lang/roc#11933 and roc-lang/roc#11934. Its compressed output is
+byte-identical to rc1's, and the level stays 10.
+
+Evidence, from a cold-cache `--compare-baselines` run over all 325 cases
+and a gallery regeneration:
+
+- **Bytes.** No snapshot and no gallery PDF changed; every work counter,
+  `output_bytes` included, is identical.
+- **Allocated bytes** fall in every case that compresses a stream, from
+  about 15 MB per stream to about 0.7 to 4 MB: over the 316 cases that
+  moved, from 56.7 GB to 10.8 GB (-81%). The reference invoice falls from
+  150.2 MB to 33.5 MB, the reference letter from 135.6 MB to 20.1 MB, the
+  one-profile blank archive from 45.4 MB to 2.1 MB, and the distinct
+  font-subset pair from 583.9 MB to 32.0 MB (x8) and from 4.07 GB to
+  265.5 MB (x64), which stays linear in the number of streams.
+- **Allocation events** fall by 1.5% over the moved cases, since fewer
+  and smaller working arrays are built per call: 41,160 to 40,638 for the
+  reference invoice, 876 to 790 for the blank archive, and 98,971 to
+  89,271 for the x64 subsets.
+- Two cases that compress nothing (the multi-face missing-coverage and
+  undeclared-script negatives) keep their allocation counts; their
+  allocated bytes (8 bytes above their records since the empty-cell slice,
+  within tolerance) are not rebaselined here.
+- **Nothing rises**: no allocation count or allocated-bytes value in the
+  run is above its record because of this change.
 
 ## 3. One `TJ` array per glyph run
 
