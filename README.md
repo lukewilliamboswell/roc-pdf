@@ -52,8 +52,8 @@ record](docs/performance/static-pdfa4.md).
 
 - [Authoring guide](docs/authoring.md)
 - [Example gallery](examples/README.md)
-- [Reference business documents](docs/reference-documents.md) (the planned
-  Gate 6 contract; not yet executable)
+- [Reference business documents](docs/reference-documents.md) (the Gate 6
+  contract; the invoice, report, and letter are gallery examples below)
 - [Generated API documentation](https://lukewilliamboswell.github.io/roc-pdf/)
 - [Migrating to rc2](docs/migrating-to-rc2.md)
 

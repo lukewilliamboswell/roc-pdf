@@ -284,13 +284,14 @@
     },
     {
       "id": "ROC-PDF-PDF20-INLINE-SEMANTICS",
-      "summary": "Rich paragraph inlines lower in authored order to PDF 2.0 Em, Strong, Code, Quote, Link, and Span structure elements inside one P; language spans carry /Lang, abbreviations carry /E, links never nest, and every inline link owns one OBJR-referenced link annotation per page its text is painted on, with one quadrilateral per painted line.",
+      "summary": "Rich paragraph inlines lower in authored order to Em, Strong, Link, and Span structure elements of the PDF 2.0 namespace and Code and Quote elements of the PDF 1.7 standard namespace, declared only when used, inside one P; language spans carry /Lang, abbreviations carry /E, links never nest, and every inline link owns one OBJR-referenced link annotation per page its text is painted on, with one quadrilateral per painted line.",
       "source_ids": [
         "iso-32000-2-2020-ec3"
       ],
       "references": [
         "ISO 32000-2:2020 12.5.6.5",
         "ISO 32000-2:2020 14.8.4.7.2",
+        "ISO 32000-2:2020 14.8.6",
         "ISO 32000-2:2020 14.9.2",
         "ISO 32000-2:2020 14.9.5",
         "docs/performance/rich-inline.md"
@@ -2570,7 +2571,7 @@
       ],
       "implementation": "partial",
       "applicability": "applicable",
-      "machine_verification": "schema_and_roc_contract; typed_Table_and_List_attribute_validation_and_A_lowering_with_negative_expects; role mappings, attribute role lists, Layout and namespace-owned attributes remain rejected",
+      "machine_verification": "schema_and_roc_contract; typed_Table_and_List_attribute_validation_and_A_lowering_with_negative_expects; PDF_2_0_and_PDF_1_7_standard_namespaces_with_each_role_checked_against_its_namespace_by_the_kernel_and_the_structure_checker_with_twins; role mappings (including cycles), attribute role lists, Layout and namespace-owned attributes remain rejected",
       "human_verification": "not_required",
       "positive_scenarios": [
         "package/KernelSemantics.roc",
