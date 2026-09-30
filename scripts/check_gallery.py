@@ -20,6 +20,7 @@ ROC = os.environ.get("ROC", "roc")
 PACKAGE_DEPENDENCY = 'pdf: "../package/main.roc",'
 EXAMPLES = {
     "brand_brief.roc": "brand-brief.pdf",
+    "business_report.roc": "business-report.pdf",
     "chunked_export.roc": "chunked-export.pdf",
     "field_guide.roc": "field-guide.pdf",
     "letter.roc": "warranty-letter.pdf",

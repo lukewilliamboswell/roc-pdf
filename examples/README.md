@@ -20,6 +20,9 @@ Run one from the repository root with `roc examples/<name>.roc`.
 <td><a href="chunked-export.pdf"><img src="previews/chunked-export.png" alt="Chunked export preview"></a><br><a href="chunked_export.roc">Chunked export source</a></td>
 <td><a href="product-brief.pdf"><img src="previews/product-brief.png" alt="Product brief preview"></a><br><a href="product_brief.roc">Product brief source</a></td>
 </tr>
+<tr>
+<td><a href="business-report.pdf"><img src="previews/business-report.png" alt="Reference business report preview"></a><br><a href="business_report.roc">Business report source</a></td>
+</tr>
 </table>
 
 | Application | What it demonstrates |
@@ -30,12 +33,18 @@ Run one from the repository root with `roc examples/<name>.roc`.
 | [Operations handbook](operations_handbook.roc) | dense typography and deterministic multi-page pagination |
 | [Business letter](letter.roc) | the reference business letter: a semantic letterhead in the first-page lead region, a vector logo and centered footer, continuation headers with `Page N of M`, an unsplittable signature block, and an explicit break before the covered-items schedule; no visible title, with the metadata title displayed |
 | [Release notes](release_notes.roc) | compact builder authoring with a narrow editorial measure |
+| [Business report](business_report.roc) | the reference business report: outline and link destinations for numbered sections, rich inline content with expansions, code, and a French quotation, nested lists, a separately authored "Key figures" callout through the custom-block seam, a vector bar chart and a JPEG photograph as captioned figures, and a 40-row register that continues with its header repeated |
 | [Tax invoice](prepared_invoice.roc) | the reference multi-page invoice: first and continuation page templates with a vector logo and exact `Page N of M`, a key/value table, a 32-row items table with a repeated header and a totals group, and prepare-once emission |
 | [Chunked export](chunked_export.roc) | incremental output, wide measure, and explicit list indentation |
 | [Product brief](product_brief.roc) | a generated product illustration, oversized display type, whitespace, links, and lists |
 
 The applications vary information architecture, lifecycle, navigation, page
-format, and visual theme. Three applications create packed raster artwork in
-pure Roc and place it as an accessible figure with authored alternative text
-and a caption. Broader vector/grouped drawings and fixed layouts remain
-forward API and return feature-specific diagnostics instead of degrading.
+format, and visual theme. The business report, business letter, and tax
+invoice are the reference documents of
+[docs/reference-documents.md](../docs/reference-documents.md); the
+`tests/reference_documents` family prepares the same documents and checks
+that their bytes equal the committed PDFs here. Three other applications
+create packed raster artwork in pure Roc and place it as an accessible figure
+with authored alternative text and a caption. Fixed-position layouts and
+general composition remain forward API and return feature-specific
+diagnostics instead of degrading.

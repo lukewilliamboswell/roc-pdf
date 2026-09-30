@@ -78,6 +78,9 @@ runnable Roc source.
 <td><a href="examples/chunked-export.pdf"><img src="examples/previews/chunked-export.png" alt="Chunked export preview"></a><br><a href="examples/chunked_export.roc">Chunked export source</a></td>
 <td><a href="examples/product-brief.pdf"><img src="examples/previews/product-brief.png" alt="Product brief preview"></a><br><a href="examples/product_brief.roc">Product brief source</a></td>
 </tr>
+<tr>
+<td><a href="examples/business-report.pdf"><img src="examples/previews/business-report.png" alt="Reference business report preview"></a><br><a href="examples/business_report.roc">Business report source</a></td>
+</tr>
 </table>
 
 [See what each application demonstrates and how to run it.](examples/README.md)
