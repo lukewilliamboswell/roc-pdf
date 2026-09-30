@@ -16,19 +16,23 @@ import "fonts/NotoSerif-Bold.ttf" as bold_bytes : List(U8)
 import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 
 ## A members' quarterly report for a regional cooperative: a navy cover
-## band in the first-page header, a tinted "at a glance" callout authored
-## through the custom-block seam, a KPI scorecard and a segment table with
-## a totals footer, two vector charts drawn from `Scene` groups (monthly
-## revenue with a margin line, and progress against annual targets), and
-## running headers with `Page N of M` on every later page.
+## band in the first-page header, a navy "key figures" callout and a
+## tinted diary callout authored through the custom-block seam and measured
+## by the package, a striped KPI scorecard with shaded status cells and a
+## segment table with a totals footer, two vector charts drawn from `Scene`
+## groups (monthly revenue with a margin line, and progress against annual
+## targets), and running headers over a ruled backdrop with `Page N of M`
+## on every later page.
 main! = |_args| {
 	fonts = register_fonts({})?
-	document = Pdf.document({ contents, language: "en-AU", title: "Northstar Cooperative quarterly report, Q2 FY2027" })
+	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
+	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Northstar Cooperative quarterly report, Q2 FY2027" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_created("2027-01-18T00:00:00Z")
 		.with_modified("2027-01-18T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "quarterly-report.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
@@ -105,6 +109,9 @@ theme = {
 		.with_body_style({ ..base_body, color: ink, size: points(10), leading: points(14) })
 		.with_paragraph_spacing(points(7))
 		.with_table_header_color(teal)
+		.with_table_header_fill(Color.srgb8({ red: 232, green: 244, blue: 244 }))
+		.with_table_body_fills({ odd: NoFill, even: Fill(Color.srgb8({ red: 246, green: 248, blue: 250 })) })
+		.with_table_footer_fill(Color.srgb8({ red: 236, green: 241, blue: 247 }))
 		.with_table_rule(Rule({ color: teal, width: points(1) }))
 		.with_table_cell_padding(points(5))
 		.with_table_row_gap(points(5))
@@ -141,14 +148,20 @@ cover_band = {
 		$x = $x + 14
 	}
 
-	## Furniture drawings hold no groups, so the mark is placed directly.
-	m = body_width - 76
-	bar = |x, height| Scene.path({}).move_to(Layout.point(m + x, 17)).line_to(Layout.point(m + x + 8, 17)).line_to(Layout.point(m + x + 8, 17 + height)).line_to(Layout.point(m + x, 17 + height)).close().finish()
-	$band
+	## The mark is its own drawing, grouped at the band's end.
+	$band.group(Layout.point(body_width - 76, 17), coop_mark)
+}
+
+## The cooperative's mark: three rising bars and a diamond, from its own
+## origin.
+coop_mark : Scene.Drawing
+coop_mark = {
+	bar = |x, height| Scene.path({}).move_to(Layout.point(x, 0)).line_to(Layout.point(x + 8, 0)).line_to(Layout.point(x + 8, height)).line_to(Layout.point(x, height)).close().finish()
+	Scene.drawing({})
 		.path(bar(0, 12), Scene.solid_fill(slate))
 		.path(bar(12, 20), Scene.solid_fill(teal))
 		.path(bar(24, 28), Scene.solid_fill(white))
-		.path(Scene.path({}).move_to(Layout.point(m + 44, 37)).line_to(Layout.point(m + 50, 45)).line_to(Layout.point(m + 56, 37)).line_to(Layout.point(m + 50, 29)).close().finish(), Scene.solid_fill(amber))
+		.path(Scene.path({}).move_to(Layout.point(44, 20)).line_to(Layout.point(50, 28)).line_to(Layout.point(56, 20)).line_to(Layout.point(50, 12)).close().finish(), Scene.solid_fill(amber))
 }
 
 hairline : Scene.Drawing
@@ -163,12 +176,15 @@ templates = {
 		gap: points(18),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({
-			height: points(22),
-			start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")]), Pdf.furniture_image(hairline)],
-			center: [],
-			end: [],
-		}),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(18),
+				start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])],
+				center: [],
+				end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])],
+			}),
+			hairline,
+		),
 		footer,
 		gap: points(14),
 	}),
@@ -187,30 +203,29 @@ outline = [
 
 ## ---------------------------------------------------------------------
 ## A key-figures callout, following `tests/custom_block/Callout.roc`: one
-## single-line paragraph per figure, measured from the theme's public body
-## leading and paragraph spacing, painted over a tinted rounded panel with
-## an accent bar at its start edge.
+## paragraph per figure, measured by the package at the panel's content
+## width, painted over a rounded panel with an accent bar at its start
+## edge. `text` colours the callout's ordinary text, for a dark panel.
 
 callout_inset : Layout.Unit
 callout_inset = points(12)
 
 ## Each line is a label and its value; the callout scopes its `Strong`
 ## labels to its accent colour.
-callout : { accent : Color.SourceValue, fill : Color.SourceValue, lines : List((Str, Str)), name : Str } -> Document.Block
-callout = |{ accent, fill, lines, name }| {
-	leading = Theme.body_style(theme).leading.raw()
-	spacing = Theme.paragraph_spacing(theme).raw()
-	count = lines.len().to_i64_wrap()
-	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(body_width) }
+callout : Pdf.Options, { accent : Color.SourceValue, fill : Color.SourceValue, lines : List((Str, Str)), name : Str, text : Color.SourceValue } -> Try(Document.Block, Pdf.Error)
+callout = |options, { accent, fill, lines, name, text }| {
+	paragraphs = lines.map(|(label, value)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${value}")]))
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(body_width - 24) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(body_width) }
 	block = Pdf.custom_block({
-		contents: lines.map(|(label, value)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${value}")])),
+		contents: paragraphs,
 		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name,
 		panel: callout_panel(size, fill, accent),
 		size,
 	})
-	Pdf.scoped(Theme.Scope.empty.with_color(Strong, accent), [block])
+	Ok(Pdf.scoped(Theme.Scope.empty.with_color(Strong, accent).with_color(Text, text), [block]))
 }
 
 callout_panel : Layout.Size, Color.SourceValue, Color.SourceValue -> Scene.Drawing
@@ -347,20 +362,20 @@ progress_chart = {
 ## ---------------------------------------------------------------------
 ## Tables.
 
-kpi_row : Str, Str, Str, Str, Pdf.Inline -> Pdf.Row
+kpi_row : Str, Str, Str, Str, Pdf.Cell -> Pdf.Row
 kpi_row = |metric, q1, q2, target, status| Pdf.row([
 	Pdf.header_cell(Row, [Pdf.text(metric)]),
 	Pdf.cell([Pdf.text(q1)]),
 	Pdf.cell([Pdf.text(q2)]),
 	Pdf.cell([Pdf.text(target)]),
-	Pdf.cell([status]),
+	status,
 ])
 
-on_track : Pdf.Inline
-on_track = Pdf.strong([Pdf.text("On track")])
+on_track : Pdf.Cell
+on_track = Pdf.shaded(Color.srgb8({ red: 226, green: 243, blue: 234 }), Pdf.cell([Pdf.strong([Pdf.text("On track")])]))
 
-watch : Pdf.Inline
-watch = Pdf.emphasis([Pdf.text("Watch")])
+watch : Pdf.Cell
+watch = Pdf.shaded(Color.srgb8({ red: 252, green: 238, blue: 214 }), Pdf.cell([Pdf.emphasis([Pdf.text("Watch")])]))
 
 scorecard : Document.Block
 scorecard = Pdf.table({
@@ -475,8 +490,8 @@ position_table = Pdf.table({
 
 ## ---------------------------------------------------------------------
 
-contents : List(Document.Block)
-contents = [
+contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
+contents = |options| Ok([
 	Pdf.title("Quarterly report"),
 	Pdf.rich_paragraph([
 		Pdf.strong([Pdf.text("Q2 FY2027")]),
@@ -495,31 +510,39 @@ contents = [
 			Pdf.inline_internal_link([Pdf.text("section 4")], "priorities"),
 			Pdf.text(" sets out how we will close the gap."),
 		]),
-		callout({
-			accent: teal,
-			fill: Color.srgb8({ red: 232, green: 244, blue: 244 }),
-			lines: [
-				("Revenue", "AUD 8.70 m, up 17.3% year on year"),
-				("Gross margin", "34.4%, up 3.1 points on Q1"),
-				("Member retention", "93.6%, the highest since 2019"),
-				("Member rebate declared", "AUD 1.12 m, payable 28 February 2027"),
-			],
-			name: "Key figures",
-		}),
+		callout(
+			options,
+			{
+				accent: Color.srgb8({ red: 120, green: 210, blue: 214 }),
+				fill: navy,
+				lines: [
+					("Revenue", "AUD 8.70 m, up 17.3% year on year"),
+					("Gross margin", "34.4%, up 3.1 points on Q1"),
+					("Member retention", "93.6%, the highest since 2019"),
+					("Member rebate declared", "AUD 1.12 m, payable 28 February 2027"),
+				],
+				name: "Key figures",
+				text: white,
+			},
+		)?,
 	]),
 	Pdf.section([
 		Pdf.keep_with_next(Required, Pdf.destination_heading("scorecard", 1, "1 Scorecard")),
 		Pdf.paragraph("Five of the seven board measures are on track. Status reads On track when the quarter met or beat its target, and Watch when it fell short."),
 		scorecard,
-		callout({
-			accent: amber,
-			fill: Color.srgb8({ red: 252, green: 244, blue: 230 }),
-			lines: [
-				("Members' meeting", "12 March 2027, 10 am, Dubbo Showground pavilion"),
-				("Next report", "Q3 FY2027, published April 2027"),
-			],
-			name: "Diary dates",
-		}),
+		callout(
+			options,
+			{
+				accent: amber,
+				fill: Color.srgb8({ red: 252, green: 244, blue: 230 }),
+				lines: [
+					("Members' meeting", "12 March 2027, 10 am, Dubbo Showground pavilion"),
+					("Next report", "Q3 FY2027, published April 2027"),
+				],
+				name: "Diary dates",
+				text: ink,
+			},
+		)?,
 	]),
 	Pdf.page_break,
 	Pdf.section([
@@ -595,4 +618,4 @@ contents = [
 		]),
 		position_table,
 	]),
-]
+])
