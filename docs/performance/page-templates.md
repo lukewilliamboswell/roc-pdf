@@ -434,3 +434,34 @@ taller than its region and one wider than the frame
 and a backdrop on `no_region`. x3: 23,412 allocations; x30: 168,863 (7.2×
 for 10× pages): linear. No existing baseline changes; the region record's
 new field leaves every allocation count unchanged.
+
+## Grouped furniture drawings (examples showcase)
+
+`layout.furniture_drawing` rejected any `Scene.Drawing.group`, so a mark
+could not be reused in furniture. The furniture validator now applies
+translation groups as the flow-figure validator does: a stack of open
+groups with their end command and offset, at most eight deep, within the
+same 10^9 pt coordinate bound. Offsets are applied once at validation, so
+every later stage sees the same flat drawing commands as before. Opacity,
+clip, soft-mask, and transform groups stay rejected.
+
+Two shapes of this change added allocations to every document with
+furniture drawings under the pinned compiler, and were replaced:
+
+- closing ended groups with an inner `while` inside the validation loop
+  added 28 allocations to `flow figures report` and 600 to `flow figures
+  sections x100`: the inner loop's join carried the loop's accumulators
+  (`docs/performance/emission-linearity.md`). The stack is now trimmed by
+  `open_groups` and the offsets summed by `stack_offset`, called only when
+  a group is open;
+- a pre-pass over the commands (either `List.any` or an indexed scan) to
+  detect groups cost the same 28 allocations, one per command read;
+- calling the flow validator's `translate_segments` from this module also
+  changed its lowering; the furniture stage has its own `offset_segments`,
+  which checks bounds per segment without building a point list.
+
+Evidence: `page templates furniture groups`: a mark (two rectangles and an
+image) reused three times in a header item, nested two deep in a footer
+item, and grouped inside a backdrop; nine nested groups are
+`layout.furniture_drawing`. 14,721 allocations. Validation stays linear in
+commands with a stack of at most eight. No existing baseline changes.

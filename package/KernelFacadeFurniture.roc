@@ -491,8 +491,11 @@ furniture_path = |path, position, inner| match inner {
 
 ## A decorative drawing: at least one command; images with positive size
 ## and paths with a solid fill, a solid stroke of positive width, or both,
-## all at or beyond the drawing origin. Groups are not supported in
-## furniture. The drawing's extent is its commands' union from the origin.
+## all at or beyond the drawing origin. Groups from `Scene.Drawing.group`
+## are flattened here by their offsets, at most eight deep, exactly as in
+## a flow figure, so a mark can be reused; opacity, clip, soft-mask, and
+## transform groups are not supported. The drawing's extent is its
+## commands' union from the origin.
 validate_drawing : Scene.Drawing, Str, U64 -> Try({ drawing : KernelFacadeFurniture.Drawing, images : List(Image.Source) }, KernelFacadeFurniture.Error)
 validate_drawing = |drawing, path, image_base| {
 	commands = drawing.commands()
@@ -501,12 +504,25 @@ validate_drawing = |drawing, path, image_base| {
 	}
 	var $converted = List.with_capacity(commands.len())
 	var $images = []
+	var $groups = []
+	var $dx = 0
+	var $dy = 0
 	var $width = 0
 	var $height = 0
 	var $index = 0
 	while $index < commands.len() {
+		## Close every group that ends before this command.
+		if !$groups.is_empty() {
+			$groups = open_groups($groups, $index)
+			$dx = stack_offset($groups, X)
+			$dy = stack_offset($groups, Y)
+		}
 		match list_at(commands, $index) {
-			AuthorImage({ image, placement }) => {
+			AuthorImage({ image, placement: authored }) => {
+				if !within_bound(authored.origin.x.raw()) or !within_bound(authored.origin.y.raw()) or !within_bound(authored.size.width.raw()) or !within_bound(authored.size.height.raw()) {
+					return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
+				}
+				placement = { origin: { x: Layout.Unit.from_raw(authored.origin.x.raw() + $dx), y: Layout.Unit.from_raw(authored.origin.y.raw() + $dy) }, size: authored.size }
 				if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 or placement.origin.x.raw() < 0 or placement.origin.y.raw() < 0 {
 					return Err(DrawingInvalid({ path, reason: "an image placement needs a positive size at or beyond the drawing origin" }))
 				}
@@ -515,7 +531,15 @@ validate_drawing = |drawing, path, image_base| {
 				$converted = $converted.append(DrawingImage({ image: image_base + $images.len(), placement }))
 				$images = $images.append(image)
 			}
-			AuthorPath({ path: segments, style }) => {
+			AuthorPath({ path: authored, style }) => {
+				segments = if $dx == 0 and $dy == 0 {
+					authored
+				} else {
+					match offset_segments(authored, $dx, $dy) {
+						Moved(moved) => moved
+						OutOfRange => return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
+					}
+				}
 				fill = match style.fill {
 					AuthorNoFill => NoFill
 					AuthorSolidFill(color) => Fill(color)
@@ -553,7 +577,21 @@ validate_drawing = |drawing, path, image_base| {
 				}
 				$converted = $converted.append(DrawingPath({ fill, segments, stroke }))
 			}
-			AuthorGroup(_) | AuthorTranslate(_) => return Err(DrawingInvalid({ path, reason: "grouped drawing commands are not supported in furniture" }))
+			AuthorTranslate({ commands: count, offset }) => {
+				if $groups.len() >= 8 {
+					return Err(DrawingInvalid({ path, reason: "groups nest more than 8 deep" }))
+				}
+				if count > commands.len() - $index - 1 {
+					return Err(DrawingInvalid({ path, reason: "a group extends past the drawing's last command" }))
+				}
+				if !within_bound(offset.x.raw()) or !within_bound(offset.y.raw()) {
+					return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
+				}
+				$groups = $groups.append({ end: $index + 1 + count, x: offset.x.raw(), y: offset.y.raw() })
+				$dx = $dx + offset.x.raw()
+				$dy = $dy + offset.y.raw()
+			}
+			AuthorGroup(_) => return Err(DrawingInvalid({ path, reason: "opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group" }))
 			AuthorText(_) => return Err(DrawingInvalid({ path, reason: "text labels are not supported in furniture drawings; use furniture text" }))
 		}
 		$index = $index + 1
@@ -563,6 +601,66 @@ validate_drawing = |drawing, path, image_base| {
 	}
 	Ok({ drawing: { commands: $converted, height: $height, width: $width }, images: $images })
 }
+
+## The group stack without the groups that end at or before `index`.
+open_groups : List({ end : U64, x : I64, y : I64 }), U64 -> List({ end : U64, x : I64, y : I64 })
+open_groups = |groups, index| {
+	var $open = groups.len()
+	while $open > 0 and list_at(groups, $open - 1).end <= index {
+		$open = $open - 1
+	}
+	groups.take_first($open)
+}
+
+## The accumulated offset of the open groups along one axis.
+stack_offset : List({ end : U64, x : I64, y : I64 }), [X, Y] -> I64
+stack_offset = |groups, axis| {
+	var $total = 0
+	for group in groups {
+		$total = $total + (if axis == X group.x else group.y)
+	}
+	$total
+}
+
+## A furniture path moved by an accumulated group offset. Every authored
+## coordinate must lie within 10^9 pt of the origin, as in a flow figure,
+## so no later arithmetic can overflow.
+offset_segments : List(Scene.PathSegment), I64, I64 -> [Moved(List(Scene.PathSegment)), OutOfRange]
+offset_segments = |segments, dx, dy| {
+	var $moved = List.with_capacity(segments.len())
+	for segment in segments {
+		in_range = match segment {
+			Close => True
+			CubicTo({ control_1, control_2, end }) => point_in_bound(control_1) and point_in_bound(control_2) and point_in_bound(end)
+			LineTo(point) | MoveTo(point) => point_in_bound(point)
+			Rectangle(rect) => point_in_bound(rect.origin) and within_bound(rect.size.width.raw()) and within_bound(rect.size.height.raw())
+		}
+		if !in_range {
+			return OutOfRange
+		}
+		$moved = $moved.append(
+			match segment {
+				Close => Close
+				CubicTo({ control_1, control_2, end }) => CubicTo({ control_1: shift_point(control_1, dx, dy), control_2: shift_point(control_2, dx, dy), end: shift_point(end, dx, dy) })
+				LineTo(point) => LineTo(shift_point(point, dx, dy))
+				MoveTo(point) => MoveTo(shift_point(point, dx, dy))
+				Rectangle(rect) => Rectangle({ origin: shift_point(rect.origin, dx, dy), size: rect.size })
+			},
+		)
+	}
+	Moved($moved)
+}
+
+point_in_bound : Layout.Point -> Bool
+point_in_bound = |point| within_bound(point.x.raw()) and within_bound(point.y.raw())
+
+shift_point : Layout.Point, I64, I64 -> Layout.Point
+shift_point = |point, dx, dy| { x: Layout.Unit.from_raw(point.x.raw() + dx), y: Layout.Unit.from_raw(point.y.raw() + dy) }
+
+## Drawing coordinates, sizes, and accumulated group offsets stay within
+## 10^9 pt of the origin (the flow figures' bound).
+within_bound : I64 -> Bool
+within_bound = |value| value <= 1000000000000 and value >= -1000000000000
 
 ## The bounds of a path's points: control points included, so the extent
 ## is conservative for curves. A path must begin with a move or rectangle.

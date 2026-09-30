@@ -74,6 +74,11 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   (`layout.template_region_overflow` at `.backdrop`) and a backdrop on
 ##   `no_region` (`layout.template_region_empty`). The 3/30 pair is the
 ##   linear scale pair.
+## - `furniture_groups`: one mark drawing (a square, a bar, and an image)
+##   reused three times through `Scene.Drawing.group` in a header item,
+##   nested twice in a footer item, and grouped inside a backdrop; the
+##   flattened marks must land where their offsets put them. It rejects
+##   groups nested nine deep (`layout.furniture_drawing`).
 ## - `atomic_negatives`: every template rejection with its stable dotted
 ##   code and template path, and no bytes.
 ##
@@ -120,6 +125,9 @@ Fixture :: [].{
 
 	page_sizes : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	page_sizes = |context| run_page_sizes(context)
+
+	furniture_groups : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	furniture_groups = |context| run_furniture_groups(context)
 
 	backdrops : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	backdrops = |pages| {
@@ -577,6 +585,37 @@ run_page_sizes = |context| {
 			bytes.len(),
 		],
 	})
+}
+
+run_furniture_groups : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_furniture_groups = |context| {
+	square = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 10, 10), Color.srgb8({ blue: 140, green: 70, red: 20 }))
+	mark = Scene.rectangle(square, Layout.rect(12, 3, 18, 4), Color.srgb8({ blue: 40, green: 150, red: 230 })).image(gray_mark, Layout.rect(32, 0, 8, 10))
+	row = Scene.drawing({}).group(Layout.point(0, 0), mark).group(Layout.point(48, 0), mark).group(Layout.point(96, 0), mark)
+	nested = Scene.drawing({}).group(Layout.point(4, 2), Scene.drawing({}).group(Layout.point(6, 0), mark))
+	underline = Scene.drawing({}).group(Layout.point(0, 0), Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), Color.srgb8({ blue: 140, green: 70, red: 20 })))
+	header = Pdf.with_backdrop(Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(20), start: [Pdf.furniture_image(row)] }), underline)
+	footer = Pdf.region({ center: [Pdf.furniture_image(nested)], end: [], height: points(16), start: [] })
+	document = Pdf.with_page_templates(
+		Pdf.document({ contents: [Pdf.title("Reused marks"), body_paragraph(context), Pdf.page_break, body_paragraph(context + 1)], language: "en-AU", title: "Furniture groups" }),
+		{
+			continuation: Pdf.page_template({ footer, gap: points(12), header }),
+			first: Pdf.first_page_template({ footer, gap: points(12), header, lead: Pdf.no_lead }),
+		},
+	)
+	evidenced = evidence(document, report_theme)?
+	var $deep = mark
+	var $depth = 0
+	while $depth < 9 {
+		$deep = Scene.drawing({}).group(Layout.point(1, 0), $deep)
+		$depth = $depth + 1
+	}
+	deep_header = Pdf.region({ center: [], end: [], height: points(20), start: [Pdf.furniture_image($deep)] })
+	rejected = rejects(Pdf.with_page_templates(Pdf.document({ contents: [Pdf.paragraph("Body.")], language: "en-AU", title: "Deep groups" }), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: deep_header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: deep_header, lead: Pdf.no_lead }) }), InvalidRelationship, "layout.furniture_drawing", ["templates.first.header.start[0]"])
+	if rejected != 1 {
+		return Err(MissingRejection(rejected))
+	}
+	Ok({ bytes: evidenced.bytes, work: evidenced.work.append(rejected) })
 }
 
 backdrop_templates : Layout.Unit -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }

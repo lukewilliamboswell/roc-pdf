@@ -23794,6 +23794,69 @@
       ]
     },
     {
+      "name": "page templates furniture groups",
+      "scenario_revision": "page-templates-furniture-groups-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/furniture_groups.pdf",
+      "args": [
+        "furniture_groups",
+        "0"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 14721,
+          "allocated_bytes": 9732925,
+          "work": {
+            "lines": 15,
+            "pages": 2,
+            "reference_passes": 2,
+            "field_resolutions": 4,
+            "furniture_items": 2,
+            "fragments": 15,
+            "artifact_runs": 2,
+            "output_bytes": 35087,
+            "rejections": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 14721,
+          "allocated_bytes": 9732925,
+          "work": {
+            "lines": 15,
+            "pages": 2,
+            "reference_passes": 2,
+            "field_resolutions": 4,
+            "furniture_items": 2,
+            "fragments": 15,
+            "artifact_runs": 2,
+            "output_bytes": 35087,
+            "rejections": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "page templates number styles",
       "scenario_revision": "page-templates-v1",
       "source": "tests/page_templates/main.roc",

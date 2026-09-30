@@ -275,7 +275,7 @@ footer's hangs from its top edge. `Pdf.furniture_text` is one line of text,
 page fields, and reserved widths in the body style; `Pdf.furniture_image`
 paints a drawing of images and solid paths (`Scene.rectangle`,
 `Scene.solid_fill`, `Scene.solid_stroke`) whose origin is the item's
-bottom-left corner. Furniture is a page artifact (`Header`, `Footer`, or
+bottom-left corner; `Scene.Drawing.group` reuses a mark at an offset. Furniture is a page artifact (`Header`, `Footer`, or
 `PageNum` when a line holds a page field): it repeats on every page of its
 template and never enters the structure tree or the logical text.
 `Pdf.with_backdrop(region, drawing)` adds a drawing behind a region's
