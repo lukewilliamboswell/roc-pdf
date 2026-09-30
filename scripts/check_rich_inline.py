@@ -41,6 +41,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIXED = ROOT / "tests" / "rich_inline" / "mixed.pdf"
 ORDERED = ROOT / "tests" / "rich_inline" / "ordered.pdf"
 PARAGRAPHS = ROOT / "tests" / "rich_inline" / "paragraphs_10.pdf"
+BREAKS = ROOT / "tests" / "layout_policies" / "breaks.pdf"
 PDFBOX_JAR = ROOT / "vendor" / "pdfbox" / "pdfbox-app-3.0.8.jar"
 PDFBOX_SOURCE = ROOT / "scripts" / "PdfBoxTextExtract.java"
 
@@ -266,6 +267,14 @@ MIXED_EXPECTED = [
 
 ORDERED_EXPECTED = ["P: [Span Lang=fr:Café][Span Lang=zh-Hans:中][Em:PDF]"]
 
+# An explicit line break's separator: the text before each break ends in a
+# painted U+0020, so the logical text of an address block keeps its word
+# boundaries.
+BREAKS_EXPECTED = [
+    "P: Level 3, 18 Wharf Street Hobart TAS 7000 ABN 00 123 456 789 accounts@harbourfinch.example · (03) 5550 0142",
+    "P: Ms Priya Raman Operations Manager Northstar Cooperative Ltd 42 Kestrel Parade Fremantle WA 6160",
+]
+
 # Lines keep their painted trailing space before each soft break.
 PDFBOX_EXPECTED = (
     "Quarterly summary\n1 Summary\nQ1 FY2027: July to September 2026 · Prepared by the finance team.\n"
@@ -314,6 +323,8 @@ def self_test() -> None:
     require(render(mixed) == MIXED_EXPECTED, f"mixed rich-inline rendering changed: {render(mixed)!r}")
     require(render(ORDERED.read_bytes()) == ORDERED_EXPECTED, "ordered rich-inline rendering changed")
     render(PARAGRAPHS.read_bytes())
+    breaks = render(BREAKS.read_bytes())
+    require(all(line in breaks for line in BREAKS_EXPECTED), f"line-break separators changed: {breaks!r}")
     expansion = re.search(rb"/E <[0-9A-F]+> /K \[[^\]]*\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Span ", mixed)
     require(expansion is not None, "mixed snapshot has no expansion Span")
     twins = [
@@ -333,7 +344,7 @@ def self_test() -> None:
         raise SystemExit(f"rich-inline checker accepted {label}")
     print(
         "PASS rich-inline checker self-test: ToUnicode-decoded logical text, structure/paint order agreement, "
-        f"inline roles, /E, /Lang, and link annotations pinned on 2 snapshots; {rejected} mutation twins rejected",
+        f"inline roles, /E, /Lang, link annotations, and line-break separators pinned on 3 snapshots; {rejected} mutation twins rejected",
         flush=True,
     )
 

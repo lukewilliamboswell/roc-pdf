@@ -118,8 +118,10 @@ instead of being rejected.
 
 Control the flow explicitly:
 
-- `Pdf.line_break` ends a line inside a rich paragraph without painting a
-  glyph; it must separate text (`semantics.line_break_position`).
+- `Pdf.line_break` ends a line inside a rich paragraph; it must separate
+  text (`semantics.line_break_position`). The text before it gains a
+  trailing space (unless it already ends in one) so extracted text keeps
+  the word boundary.
 - `Pdf.page_break` starts the next block on a new page. It must separate two
   blocks, and never asks for an empty page (`layout.page_break_position`).
 - `Pdf.spacer(Layout.Unit.points(12))` adds layout-only space after the

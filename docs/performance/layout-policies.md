@@ -383,11 +383,17 @@ its rerun passed.
 - **Relaxations are not yet public.** They are recorded in
   `KernelFacadePages.Plan.relaxations` for the preparation-report slice; the
   report must also map block indexes to authored paths.
-- **Line breaks in the logical text.** The break character is not part of
-  any occurrence, so a structure-order reader sees
-  `Wharf StreetHobart` without whitespace between segments, as for
-  soft-wrapped lines. Whether PDF/UA-2 review wants a line separator or
-  `/ActualText` there is open.
+- ~~**Line breaks in the logical text.**~~ (open-issues slice) Each
+  explicit line break's separator is a U+0020 appended at normalization to
+  the text leaf before it (unless that text already ends in a space), so it
+  is painted, invisibly, at the end of the pre-break line inside that
+  leaf's occurrence, and structure-order text reads `Wharf Street Hobart`.
+  The separator counts toward the line's fit exactly like the trailing
+  space of a soft-wrapped line, and a link wrapped across a break covers it
+  in its quad. `check_rich_inline.py --self-test` pins the two address
+  blocks of the `breaks` snapshot. The breaks, letter, and invoice
+  snapshots gain one space glyph per break (about nine allocation events
+  each, the existing per-glyph placement and content-writer cost).
 - ~~**List labels**~~ (open-issues slice): a list whose widest generated
   label does not fit the theme indent widens its whole label column to that
   label's width plus half the label size, so all its items' bodies stay

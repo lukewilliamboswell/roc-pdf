@@ -842,8 +842,11 @@ width its container can receive is `layout.unbreakable_token`. There is no
 emergency breaking, character-level wrapping, ellipsis, or overflow in v1.
 
 An explicit line break splits its paragraph into segments, each its own
-interned source, so the break is a mandatory line boundary with no painted
-glyph, and two paragraphs that differ only in break positions never share a
+interned source, so the break is a mandatory line boundary. Its separator is
+a U+0020 at the end of the text before it (`reference-documents-v8`), painted
+invisibly at the end of the line so extracted and structure-order text keep
+the word boundary; text already ending in a space gains none. Otherwise the
+break paints no glyph, and two paragraphs that differ only in break positions never share a
 line-cache identity. Every segment must hold text:
 `semantics.line_break_position` otherwise.
 

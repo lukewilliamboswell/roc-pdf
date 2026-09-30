@@ -21064,8 +21064,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11497,
-          "allocated_bytes": 3803309,
+          "allocations": 11572,
+          "allocated_bytes": 3813028,
           "work": {
             "node_writes": 19,
             "lists": 0,
@@ -21081,12 +21081,12 @@
             "author_relaxations": 0,
             "orphan_relaxations": 0,
             "widow_relaxations": 0,
-            "output_bytes": 34357
+            "output_bytes": 34406
           }
         },
         "x64musl": {
-          "allocations": 11497,
-          "allocated_bytes": 3803309,
+          "allocations": 11572,
+          "allocated_bytes": 3813028,
           "work": {
             "node_writes": 19,
             "lists": 0,
@@ -21102,7 +21102,7 @@
             "author_relaxations": 0,
             "orphan_relaxations": 0,
             "widow_relaxations": 0,
-            "output_bytes": 34357
+            "output_bytes": 34406
           }
         }
       },
@@ -21687,8 +21687,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 69845,
-          "allocated_bytes": 21280705,
+          "allocations": 69886,
+          "allocated_bytes": 21289775,
           "work": {
             "node_writes": 356,
             "occurrence_writes": 288,
@@ -21705,12 +21705,12 @@
             "repeated_header_paints": 3,
             "fragments": 347,
             "artifact_runs": 21,
-            "output_bytes": 127420
+            "output_bytes": 127442
           }
         },
         "x64musl": {
-          "allocations": 69845,
-          "allocated_bytes": 21280705,
+          "allocations": 69886,
+          "allocated_bytes": 21289775,
           "work": {
             "node_writes": 356,
             "occurrence_writes": 288,
@@ -21727,7 +21727,7 @@
             "repeated_header_paints": 3,
             "fragments": 347,
             "artifact_runs": 21,
-            "output_bytes": 127420
+            "output_bytes": 127442
           }
         }
       },
@@ -21773,8 +21773,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 543676,
-          "allocated_bytes": 160459247,
+          "allocations": 543717,
+          "allocated_bytes": 160468349,
           "work": {
             "node_writes": 3113,
             "occurrence_writes": 2595,
@@ -21791,12 +21791,12 @@
             "repeated_header_paints": 26,
             "fragments": 3161,
             "artifact_runs": 182,
-            "output_bytes": 934267
+            "output_bytes": 934289
           }
         },
         "x64musl": {
-          "allocations": 543676,
-          "allocated_bytes": 160459247,
+          "allocations": 543717,
+          "allocated_bytes": 160468349,
           "work": {
             "node_writes": 3113,
             "occurrence_writes": 2595,
@@ -21813,7 +21813,7 @@
             "repeated_header_paints": 26,
             "fragments": 3161,
             "artifact_runs": 182,
-            "output_bytes": 934267
+            "output_bytes": 934289
           }
         }
       },
@@ -22240,8 +22240,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 49201,
-          "allocated_bytes": 18829233,
+          "allocations": 49247,
+          "allocated_bytes": 18838345,
           "work": {
             "lines": 111,
             "pages": 3,
@@ -22250,12 +22250,12 @@
             "furniture_items": 5,
             "fragments": 114,
             "artifact_runs": 5,
-            "output_bytes": 75554
+            "output_bytes": 75603
           }
         },
         "x64musl": {
-          "allocations": 49201,
-          "allocated_bytes": 18829233,
+          "allocations": 49247,
+          "allocated_bytes": 18838345,
           "work": {
             "lines": 111,
             "pages": 3,
@@ -22264,7 +22264,7 @@
             "furniture_items": 5,
             "fragments": 114,
             "artifact_runs": 5,
-            "output_bytes": 75554
+            "output_bytes": 75603
           }
         }
       },
@@ -22303,8 +22303,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 115721,
-          "allocated_bytes": 46549625,
+          "allocations": 115767,
+          "allocated_bytes": 46558721,
           "work": {
             "lines": 221,
             "pages": 6,
@@ -22313,12 +22313,12 @@
             "furniture_items": 11,
             "fragments": 224,
             "artifact_runs": 11,
-            "output_bytes": 144921
+            "output_bytes": 144970
           }
         },
         "x64musl": {
-          "allocations": 115721,
-          "allocated_bytes": 46549625,
+          "allocations": 115767,
+          "allocated_bytes": 46558721,
           "work": {
             "lines": 221,
             "pages": 6,
@@ -22327,7 +22327,7 @@
             "furniture_items": 11,
             "fragments": 224,
             "artifact_runs": 11,
-            "output_bytes": 144921
+            "output_bytes": 144970
           }
         }
       },
@@ -22366,8 +22366,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 966709,
-          "allocated_bytes": 384424156,
+          "allocations": 966755,
+          "allocated_bytes": 384433300,
           "work": {
             "lines": 1638,
             "pages": 36,
@@ -22376,12 +22376,12 @@
             "furniture_items": 71,
             "fragments": 1641,
             "artifact_runs": 71,
-            "output_bytes": 1047734
+            "output_bytes": 1047783
           }
         },
         "x64musl": {
-          "allocations": 966709,
-          "allocated_bytes": 384424156,
+          "allocations": 966755,
+          "allocated_bytes": 384433300,
           "work": {
             "lines": 1638,
             "pages": 36,
@@ -22390,7 +22390,7 @@
             "furniture_items": 71,
             "fragments": 1641,
             "artifact_runs": 71,
-            "output_bytes": 1047734
+            "output_bytes": 1047783
           }
         }
       },

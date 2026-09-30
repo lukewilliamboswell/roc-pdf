@@ -1884,6 +1884,7 @@ append_rich = |state, contents, parent, position| {
 	var $leaves = 0
 	var $bytes = 0
 	var $root_breaks = 0
+	var $last_text = 0
 	var $frames = [{ breaks: 0, depth: 1, items: contents, language: 0, next: 0, owner: 0 }]
 	while !$frames.is_empty() {
 		top = list_at($frames, $frames.len() - 1)
@@ -1901,6 +1902,12 @@ append_rich = |state, contents, parent, position| {
 			slot = top.next - top.breaks
 			match list_at(top.items, top.next) {
 				LineBreak => {
+					## The break's separator: the text before it gains a
+					## trailing U+0020, painted at the end of its line, so
+					## logical text keeps a word boundary at the break. The
+					## segment's byte cursor restarts below, so no offset
+					## moves.
+					$inlines = separate_leaf($inlines, $last_text, base)
 					$line_breaks = $line_breaks.append({ leaf: $leaves, paragraph, parent: top.owner, position: top.next, text: "" })
 					$frames = list_set($frames, $frames.len() - 1, { ..top, breaks: top.breaks + 1, next: top.next + 1 })
 					$bytes = 0
@@ -1908,6 +1915,7 @@ append_rich = |state, contents, parent, position| {
 				Text(value) => {
 					length = value.count_utf8_bytes()
 					$inlines = $inlines.append({ children: 0, depth: top.depth, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: top.owner, position: slot, spine: 0 })
+					$last_text = $inlines.len()
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
 				}
@@ -1915,6 +1923,7 @@ append_rich = |state, contents, parent, position| {
 					length = value.count_utf8_bytes()
 					$inlines = $inlines.append({ ..inline_element(top, slot, Code, 1, $elements, $leaves), leaf_end: $leaves + 1 })
 					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
+					$last_text = $inlines.len()
 					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
@@ -1923,6 +1932,7 @@ append_rich = |state, contents, parent, position| {
 					length = value.count_utf8_bytes()
 					$inlines = $inlines.append({ ..inline_element(top, slot, Expansion(expanded), 1, $elements, $leaves), leaf_end: $leaves + 1 })
 					$inlines = $inlines.append({ children: 0, depth: top.depth + 1, element: 0, first_leaf: $leaves, kind: Text({ byte_length: length, byte_start: $bytes, text: value }), language: top.language, leaf_end: $leaves + 1, parent: index + 1, position: 0, spine: 0 })
+					$last_text = $inlines.len()
 					$elements = $elements + 1
 					$leaves = $leaves + 1
 					$bytes = $bytes + length
@@ -1997,6 +2007,22 @@ append_rich = |state, contents, parent, position| {
 		$index_break = $index_break + 1
 	}
 	{ ..state, blocks: state.blocks.append({ kind: RichParagraph(paragraph), parent, text: list_at(segments, 0) }), inlines: $inlines, line_breaks: $line_breaks, rich_paragraphs: state.rich_paragraphs.append(rich) }
+}
+
+## The text leaf `last_text - 1` before a line break, ending in U+0020: the
+## break's separator. A leaf already ending in a space keeps its text; a
+## break before the paragraph's first leaf (rejected later) changes nothing.
+separate_leaf : List(NormalizedInline), U64, U64 -> List(NormalizedInline)
+separate_leaf = |inlines, last_text, base| {
+	if last_text <= base {
+		return inlines
+	}
+	index = last_text - 1
+	record = list_at(inlines, index)
+	match record.kind {
+		Text({ byte_length, byte_start, text }) => if text.ends_with(" ") inlines else list_set(inlines, index, { ..record, kind: Text({ byte_length: byte_length + 1, byte_start, text: text.concat(" ") }) })
+		_ => inlines
+	}
 }
 
 inline_element : InlineFrame, U64, NormalizedInlineKind, U64, U64, U64 -> NormalizedInline
