@@ -18,19 +18,22 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 
 ## Sprout 2.4 product brief: a US Letter launch brief with a vector hero
 ## illustration of the planning board, a "Pilot results" key-figures
-## callout, a line chart of decision time with its data table, a plan
-## comparison table with spanning group rows and a price footer, rich
-## inline content with monospace code, lists, links, running furniture
-## with `Page N of M`, and an outline.
+## callout and a customer quote on a forest panel, both measured by the
+## package, a line chart of decision time with its data table, a plan
+## comparison table kept whole on one page with shaded group rows and a
+## price footer, rich inline content with monospace code, lists, links,
+## running furniture over ruled backdrops with `Page N of M`, and an
+## outline.
 main! = |_args| {
 	fonts = register_fonts({})?
 	theme = with_faces(base_theme, fonts)
-	document = Pdf.document({ contents: contents(theme), language: "en-US", title: "Sprout 2.4 product brief" })
+	options = Pdf.Options.default.with_theme(theme).with_page_size(Letter).with_font_registry(fonts.registry)
+	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	document = Pdf.document({ contents: blocks, language: "en-US", title: "Sprout 2.4 product brief" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_created("2026-09-30T00:00:00Z")
 		.with_modified("2026-09-30T00:00:00Z")
-	options = Pdf.Options.default.with_theme(theme).with_page_size(Letter).with_font_registry(fonts.registry)
 	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "product-brief.pdf"
@@ -115,6 +118,9 @@ base_theme = {
 		.with_paragraph_spacing(points(9))
 		.with_code_color(Color.srgb8({ red: 120, green: 64, blue: 18 }))
 		.with_table_header_color(forest)
+		.with_table_header_fill(meadow)
+		.with_table_footer_fill(meadow)
+		.with_table_body_rule(Rule({ color: Color.srgb8({ red: 214, green: 230, blue: 214 }), width: Layout.Unit.millipoints(500) }))
 		.with_table_cell_padding(points(5))
 		.with_table_row_gap(points(4))
 		.with_table_rule(Rule({ color: leaf, width: points(1) }))
@@ -245,33 +251,38 @@ line_chart = {
 
 ## ---------------------------------------------------------------------
 ## The "Pilot results" callout: a separately authored custom block (the
-## pattern of tests/custom_block/Callout.roc). One rich paragraph per line,
-## each fitting one body line, measured from the theme's public metrics,
-## on a rounded forest panel edged in leaf green.
+## pattern of tests/custom_block/Callout.roc). Rich paragraphs that may
+## wrap, measured by the package at the panel's content width, on a
+## rounded meadow panel edged in leaf green, or on a forest panel with
+## white text.
 
 callout_inset : Layout.Unit
 callout_inset = points(14)
 
-key_figures : Theme, Str, List(List(Pdf.Inline)) -> Document.Block
-key_figures = |theme, name, lines| {
-	accent = Theme.Scope.empty.with_color(Strong, forest).with_color(Quote, forest)
-	leading = Theme.body_style(theme).leading.raw()
-	spacing = Theme.paragraph_spacing(theme).raw()
-	count = lines.len().to_i64_wrap()
-	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width: points(504) }
+Panel : [Meadow, Forest]
+
+key_figures : Pdf.Options, Panel, Str, List(List(Pdf.Inline)) -> Try(Document.Block, Pdf.Error)
+key_figures = |options, ground, name, lines| {
+	accent = match ground {
+		Meadow => Theme.Scope.empty.with_color(Strong, forest).with_color(Quote, forest)
+		Forest => Theme.Scope.empty.with_color(Text, Color.srgb8({ red: 255, green: 255, blue: 255 })).with_color(Strong, meadow).with_color(Quote, meadow)
+	}
+	paragraphs = lines.map(|line| Pdf.rich_paragraph(line))
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-US", width: points(504 - 28) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(504) }
 	block = Pdf.custom_block({
-		contents: lines.map(|line| Pdf.rich_paragraph(line)),
+		contents: paragraphs,
 		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name,
-		panel: rounded_panel(size),
+		panel: rounded_panel(ground, size),
 		size,
 	})
-	Pdf.scoped(accent, [block])
+	Ok(Pdf.scoped(accent, [block]))
 }
 
-rounded_panel : Layout.Size -> Scene.Drawing
-rounded_panel = |size| {
+rounded_panel : Panel, Layout.Size -> Scene.Drawing
+rounded_panel = |ground, size| {
 	half = 750
 	r = 8000
 	k = r * 552 // 1000
@@ -292,7 +303,11 @@ rounded_panel = |size| {
 		.cubic_to({ control_1: point(left, bottom + r - k), control_2: point(left + r - k, bottom), end: point(left + r, bottom) })
 		.close()
 		.finish()
-	Scene.drawing({}).path(outline_path, { fill: AuthorSolidFill(meadow), stroke: AuthorSolidStroke({ color: leaf, width: Layout.Unit.millipoints(1500) }) })
+	fill = match ground {
+		Meadow => meadow
+		Forest => forest
+	}
+	Scene.drawing({}).path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: leaf, width: Layout.Unit.millipoints(1500) }) })
 }
 
 ## ---------------------------------------------------------------------
@@ -301,9 +316,9 @@ rounded_panel = |size| {
 page_of : Pdf.Inline
 page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
-## A leaf-green rule across the measure, 2 pt tall.
+## A leaf-green hairline across the measure, under each header.
 green_rule : Scene.Drawing
-green_rule = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 504, 2), leaf)
+green_rule = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(1000), width: points(504) } }, leaf)
 
 footer : Pdf.Region
 footer = Pdf.region({
@@ -316,23 +331,29 @@ footer = Pdf.region({
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({
-			height: points(32),
-			start: [Pdf.furniture_image(sprout_mark)],
-			center: [],
-			end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])],
-		}),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(40),
+				start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 8), sprout_mark))],
+				center: [],
+				end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])],
+			}),
+			green_rule,
+		),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(16),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({
-			height: points(22),
-			start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")]), Pdf.furniture_image(green_rule)],
-			center: [],
-			end: [],
-		}),
+		header: Pdf.with_backdrop(
+			Pdf.region({
+				height: points(18),
+				start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])],
+				center: [],
+				end: [Pdf.furniture_text([Pdf.text("October 2026")])],
+			}),
+			green_rule,
+		),
 		footer,
 		gap: points(16),
 	}),
@@ -372,13 +393,17 @@ cycle_table = {
 }
 
 group_row : Str -> Pdf.Row
-group_row = |label| Pdf.row([Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])]))])
+group_row = |label| Pdf.row([Pdf.shaded(Color.srgb8({ red: 240, green: 247, blue: 240 }), Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.strong([Pdf.text(label)])])))])
 
 plan_row : Str, Str, Str, Str -> Pdf.Row
 plan_row = |feature, starter, team, business| Pdf.row([Pdf.header_cell(Row, [Pdf.text(feature)]), Pdf.cell([Pdf.text(starter)]), Pdf.cell([Pdf.text(team)]), Pdf.cell([Pdf.text(business)])])
 
+## The comparison is kept whole on one page.
 plans_table : Document.Block
-plans_table = Pdf.table({
+plans_table = Pdf.keep_together([plans])
+
+plans : Document.Block
+plans = Pdf.table({
 	caption: Pdf.caption("Table 2. Plans compared"),
 	columns: [{ width: Share(5), align: Start }, { width: Share(2), align: Center }, { width: Share(2), align: Center }, { width: Share(2), align: Center }],
 	header_rows: [
@@ -435,8 +460,8 @@ feature = |label, rest| {
 	Pdf.list_item([Pdf.rich_paragraph($inlines)])
 }
 
-contents : Theme -> List(Document.Block)
-contents = |theme| [
+contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
+contents = |options| Ok([
 	Pdf.title("Sprout 2.4"),
 	Pdf.rich_paragraph([
 		Pdf.text("Planning software for small teams that prefer "),
@@ -452,14 +477,15 @@ contents = |theme| [
 		ScaleToFit({ minimum_percent: 80 }),
 	),
 	key_figures(
-		theme,
+		options,
+		Meadow,
 		"Pilot results",
 		[
 			[Pdf.strong([Pdf.text("54% faster decisions.")]), Pdf.text(" Median time to decide fell from 9.5 to 4.4 days over eight weeks.")],
 			[Pdf.strong([Pdf.text("3 fewer meetings a week.")]), Pdf.text(" Status meetings gave way to the shared decision log.")],
 			[Pdf.strong([Pdf.text("41 teams, 612 people.")]), Pdf.text(" The pilot ran from June to August 2026 across four companies.")],
 		],
-	),
+	)?,
 	Pdf.section([
 		Pdf.destination_heading("problem", 1, "The problem"),
 		Pdf.rich_paragraph([
@@ -513,13 +539,14 @@ contents = |theme| [
 		Pdf.paragraph("Sprout 2.4 reaches every workspace in three waves. Existing boards migrate automatically; nothing needs to be exported or re-imported."),
 		rollout_table,
 		key_figures(
-			theme,
+			options,
+			Forest,
 			"Customer voice",
 			[
 				[Pdf.quote([Pdf.text("“We stopped re-deciding things. The log settles arguments before they start.”")])],
 				[Pdf.text("Maya Lindqvist, Head of Operations, Fjordline Studio (pilot customer)")],
 			],
-		),
+		)?,
 		Pdf.rich_paragraph([
 			Pdf.text("Start a free Starter workspace at "),
 			Pdf.inline_link([Pdf.text("sprout.example/start")], "https://sprout.example/start"),
@@ -530,4 +557,4 @@ contents = |theme| [
 			Pdf.text(" to book a walkthrough."),
 		]),
 	]),
-]
+])
