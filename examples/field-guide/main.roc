@@ -5,10 +5,14 @@ app [main!] {
 import pf.Path
 import pdf.Color
 import pdf.Document
+import pdf.Font
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "fonts/Literata-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/Literata-Bold.ttf" as bold_bytes : List(U8)
+import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 
 ## A pocket field guide to the shorebirds of a tidal estuary: a vector
 ## habitat cross-section and bird plates built from grouped `Scene` paths,
@@ -17,18 +21,43 @@ import pdf.Theme
 ## etiquette callout through the custom-block seam, page labels, and
 ## running headers and footers.
 main! = |_args| {
+	fonts = register_fonts({})?
 	document = Pdf.document({ contents, language: "en-AU", title: "Coastal field guide: shorebirds of the Derwent estuary" })
 		.with_page_templates(templates)
 		.with_outline(outline)
 		.with_page_labels([{ prefix: "FG-", start_number: 1, start_page: 0, style: DecimalArabic }])
 		.with_created("2026-11-02T00:00:00Z")
 		.with_modified("2026-11-02T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(theme)).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "field-guide.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Ok({})
 }
+
+Faces : { regular : Font.FaceId, bold : Font.FaceId, italic : Font.FaceId, registry : Font.Registry }
+
+## Literata Regular, Bold, and Italic, each retained
+## byte-for-byte from its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
+register_fonts = |_| {
+	latin = [Font.Script.from_iso15924("Latn")]
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	italic = add(bold.registry, italic_bytes)?
+	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, registry: italic.registry })
+}
+
+## Regular for every block role (the style-face path requires one face
+## for body, heading, and title text); Bold for `Pdf.strong`;
+## Italic for `Pdf.emphasis`.
+with_faces : Theme, Faces -> Theme
+with_faces = |base, faces|
+	base
+		.with_font(faces.regular)
+		.with_inline_font(Strong, faces.bold)
+		.with_inline_font(Emphasis, faces.italic)
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
@@ -60,8 +89,6 @@ theme = {
 		.with_heading_style({ ..base_heading, color: coastal, size: points(16), leading: points(21) })
 		.with_body_style({ ..base_body, color: ink, size: points(10), leading: points(14) })
 		.with_paragraph_spacing(points(7))
-		.with_emphasis_color(rgb(150, 70, 20))
-		.with_strong_color(coastal)
 		.with_table_header_color(coastal)
 		.with_table_rule(Rule({ color: rgb(120, 170, 168), width: points(1) }))
 		.with_table_cell_padding(points(4))
