@@ -78,7 +78,7 @@ expect {
 	bad_document = Pdf.document({ contents: [Pdf.figure(bad_drawing, "Malformed raster", Pdf.no_caption)], language: "en", title: "Bad raster" })
 	empty_alt_document = Pdf.document({ contents: [Pdf.figure(bad_drawing, "", Pdf.no_caption)], language: "en", title: "Missing alternative" })
 	bad_rejected = match Pdf.to_bytes(bad_document) {
-		Err(UnsupportedAuthoringContent({ blocks: 1 })) => True
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["DecodedLengthMismatch"], feature: Feature("image.invalid"), .. }], .. })) => True
 		_ => False
 	}
 	empty_rejected = match Pdf.prepare(empty_alt_document, Pdf.Options.default) {

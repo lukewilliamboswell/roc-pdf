@@ -29,6 +29,11 @@ Conformance :: [].{
 		InvalidOwnership,
 		InvalidRelationship,
 		InvalidStructureAttribute,
+
+		## A compiler stage rejected one of its own preconditions: a package
+		## defect rather than an authoring error, reported with the stage's
+		## exact failure instead of an unlocated catch-all.
+		InternalInvariant,
 		LayoutConstraintViolated,
 		LayoutCycle,
 		ProfileRequirementViolated,

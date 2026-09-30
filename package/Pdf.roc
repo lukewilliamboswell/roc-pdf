@@ -215,7 +215,6 @@ Pdf :: [].{
 		InvalidFontSelection(List(Font.PlanError)),
 		InvalidMetadata(Metadata.Error),
 		InvalidNavigation(Document.NavigationError),
-		UnsupportedAuthoringContent({ blocks : U64 }),
 	]
 
 	Options :: {
@@ -1071,8 +1070,136 @@ pipeline_error = |error, doc| match error {
 	Furniture(furniture) => furniture_error(furniture)
 	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
 	ReferenceBudget({ passes }) => located_error(doc, BudgetExceeded, "layout.budget_exhausted", "Reference stabilization did not repeat a state within its budget of ${passes.to_str()} passes; no attempted state is accepted.", [])
-	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+	Semantics(UnsupportedHeadingLevel({ block, level })) => located_error(doc, InvalidRelationship, "semantics.heading_level", "A heading has level ${level.to_str()}; headings have levels 1 to 6 (H1 to H6).", [leaf_path(doc, block)])
+	Semantics(EmptyLanguage) => located_error(doc, InvalidLanguage, "document.language_empty", "The document language is empty; it must be a BCP 47 language tag.", [])
+	Semantics(EmptyMetadataTitle) => located_error(doc, InvalidRelationship, "document.title_empty", "The document's metadata title is empty.", [])
+	Shape(UnsupportedThemeFace({ block, face })) => located_error(doc, FeatureUnavailable, "text.theme_face", "A block's style selects face ${face.to_str()}, which is not one of the faces this document's font selection prepared.", [leaf_path(doc, block)])
+	Shape(ShapeFailure) => located_error(doc, FontCoverageMissing, "text.shaping_failed", "The selected faces could not shape the document's text, and no single text run was identified as the cause; no face is substituted.", [])
+	Scenes(UnsupportedColor({ run })) => located_error(doc, FeatureUnavailable, "color.unsupported", "Text run ${run.to_str()} is painted in a color the selected profile's output intent cannot represent; no color is converted.", [])
+	Output(Images(image)) => image_error(image)
+	other => stage_error(other)
 }
+
+## An image resource whose data does not match its declaration (a packed
+## plane of the wrong length or row stride, dimensions out of range, a JPEG
+## the package does not accept) is an authoring error: the author supplied
+## the bytes. Its exact failure and the image's dense resource index (in
+## first-paint order) are kept; a crossed image limit is a budget error.
+image_error : KernelImage.Error -> Pdf.Error
+image_error = |image| match image {
+	LimitExceeded(_) | MarkerLimitExceeded(_) => stage_error(Output(Images(image)))
+	ArithmeticOverflow | NonDenseIdentity(_) => stage_error(Output(Images(image)))
+	_ => {
+		described = describe_failure(Str.inspect(image))
+		InvalidDocument(located_batch(InvalidRelationship, "image.invalid", "An image's data does not match what it declares (${described.path}${described.payload}); no image is repaired, padded, or dropped.", [described.path]))
+	}
+}
+
+## Every pipeline failure without an authoring cause of its own keeps its
+## exact stage and failure: its tag path, such as
+## `Output.Structure.TaggedObjects.Object.LimitExceeded`, becomes the stable
+## feature `pipeline.output.structure.tagged_objects.object.limit_exceeded`.
+## A crossed limit is a `BudgetExceeded` with the attempted value and the
+## limit in the message; any other failure is an `InternalInvariant`, a
+## package defect reported instead of an unlocated catch-all.
+stage_error : KernelFacadePipeline.Error -> Pdf.Error
+stage_error = |error| {
+	described = describe_failure(Str.inspect(error))
+	feature = "pipeline.${described.feature}"
+	if described.limit {
+		InvalidDocument(located_batch(BudgetExceeded, feature, "A preparation limit was crossed (${described.path}${described.payload}); no partial document is accepted.", [described.path]))
+	} else {
+		InvalidDocument(located_batch(InternalInvariant, feature, "A compiler stage rejected an internal precondition (${described.path}${described.payload}). This is a package defect, not an authoring error; please report it with the document.", [described.path]))
+	}
+}
+
+## The nested tag path of an inspected failure, its snake-case feature
+## code, whether it is a crossed limit, and a bounded view of the innermost
+## payload. Only the leading tags are read, one byte at a time.
+describe_failure : Str -> { feature : Str, limit : Bool, path : Str, payload : Str }
+describe_failure = |inspected| {
+	bytes = inspected.to_utf8()
+	var $path = []
+	var $feature = []
+	var $last = []
+	var $index = 0
+	var $reading = True
+	while $reading and $index < bytes.len() {
+		## One tag name: an upper-case letter then letters and digits.
+		start = $index
+		var $end = $index
+		while $end < bytes.len() and is_tag_byte(list_at_byte(bytes, $end), $end == start) {
+			$end = $end + 1
+		}
+		if $end == start {
+			$reading = False
+		} else {
+			if !$path.is_empty() {
+				$path = $path.append('.')
+				$feature = $feature.append('.')
+			}
+			$last = []
+			var $cursor = start
+			while $cursor < $end {
+				byte = list_at_byte(bytes, $cursor)
+				$path = $path.append(byte)
+				$last = $last.append(byte)
+				if byte >= 'A' and byte <= 'Z' {
+					if $cursor != start {
+						$feature = $feature.append('_')
+					}
+					$feature = $feature.append(byte + 32)
+				} else {
+					$feature = $feature.append(byte)
+				}
+				$cursor = $cursor + 1
+			}
+			$index = $end
+
+			## A nested tag follows `(`; anything else is the payload.
+			$reading = $index + 1 < bytes.len() and list_at_byte(bytes, $index) == '(' and is_tag_byte(list_at_byte(bytes, $index + 1), True)
+			if $reading {
+				$index = $index + 1
+			}
+		}
+	}
+
+	## The innermost payload up to its matching parenthesis, at most 160
+	## bytes, so a failure carrying a long list never floods the message.
+	payload = if $index < bytes.len() and list_at_byte(bytes, $index) == '(' {
+		limit = U64.min(bytes.len(), $index + 160)
+		var $depth = 0
+		var $end = $index
+		var $open = True
+		while $open and $end < limit {
+			byte = list_at_byte(bytes, $end)
+			if byte == '(' {
+				$depth = $depth + 1
+			} else if byte == ')' {
+				$depth = $depth - 1
+				if $depth == 0 {
+					$open = False
+				}
+			}
+			$end = $end + 1
+		}
+		": ${Str.from_utf8(bytes.sublist({ start: $index, len: $end - $index })) ?? ""}${if $open "…" else ""}"
+	} else {
+		""
+	}
+	{
+		feature: Str.from_utf8($feature) ?? "unknown",
+		limit: $last == "LimitExceeded".to_utf8() or $last == "CmapLimitExceeded".to_utf8() or $last == "MarkerLimitExceeded".to_utf8(),
+		path: Str.from_utf8($path) ?? "Unknown",
+		payload,
+	}
+}
+
+is_tag_byte : U8, Bool -> Bool
+is_tag_byte = |byte, first| if first byte >= 'A' and byte <= 'Z' else (byte >= 'A' and byte <= 'Z') or (byte >= 'a' and byte <= 'z') or (byte >= '0' and byte <= '9')
+
+list_at_byte : List(U8), U64 -> U8
+list_at_byte = |bytes, index| bytes.get(index) ?? 0
 
 ## Text a shaping path cannot shape, located at its paragraph or rich
 ## inline with the failing cluster's scalars. A script outside the path's
@@ -1142,7 +1269,7 @@ furniture_error = |error| {
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
 		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
 		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if script.is_empty() "Unknown" else script}, which the convenience text path does not shape.", [path])
-		_ => InternalGenerationFailure
+		other => stage_error(Furniture(other))
 	}
 }
 
@@ -1224,7 +1351,7 @@ table_layout_error = |doc, error, sources, units| {
 			RequiredKeepAtEnd({ block }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next has no following block.", [required_keep_path(doc, normalized, leaf_of(block))])
 		}
 		LimitExceeded({ attempted, dimension: Pages, limit }) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
-		_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+		other => stage_error(Pages(PageLayout(other)))
 	}
 }
 
@@ -3325,4 +3452,32 @@ expect {
 		$index = $index + 1
 	}
 	leaf_paths(normalized) == $expected
+}
+
+## A crossed stage limit keeps its exact tag path and payload.
+expect {
+	described = describe_failure("Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: 8196, dimension: NameBytes, limit: 8192 })))))")
+	described.feature == "output.structure.tagged_objects.object.limit_exceeded" and described.limit and described.path == "Output.Structure.TaggedObjects.Object.LimitExceeded" and described.payload == ": ({ attempted: 8196, dimension: NameBytes, limit: 8192 })"
+}
+
+## Any other stage failure is an internal invariant with its tag path.
+expect {
+	described = describe_failure("Text(InvalidRun({ run: 4 }))")
+	described.feature == "text.invalid_run" and !described.limit and described.path == "Text.InvalidRun"
+}
+
+## A payload-free tag has no payload view.
+expect {
+	described = describe_failure("Output(Subset(ArithmeticOverflow))")
+	described.feature == "output.subset.arithmetic_overflow" and described.payload == ""
+}
+
+## A heading level the document model does not have is located at the
+## heading instead of an unlocated catch-all.
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.heading(7, "Too deep")], language: "en-AU", title: "Levels" })
+	match Pdf.to_bytes(document) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[1]"], feature: Feature("semantics.heading_level"), .. }], .. })) => Bool.True
+		_ => Bool.False
+	}
 }
