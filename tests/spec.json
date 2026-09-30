@@ -202,8 +202,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1549,
-          "allocated_bytes": 965566,
+          "allocations": 1545,
+          "allocated_bytes": 965022,
           "work": {
             "font_bytes": 166300,
             "opportunities": 1,
@@ -217,8 +217,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1549,
-          "allocated_bytes": 965566,
+          "allocations": 1545,
+          "allocated_bytes": 965022,
           "work": {
             "font_bytes": 166300,
             "opportunities": 1,
@@ -302,8 +302,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29679,
-          "allocated_bytes": 11261917,
+          "allocations": 29677,
+          "allocated_bytes": 11316693,
           "work": {
             "pages": 4096,
             "tree_nodes": 133,
@@ -317,8 +317,8 @@
           }
         },
         "x64musl": {
-          "allocations": 29679,
-          "allocated_bytes": 11261917,
+          "allocations": 29677,
+          "allocated_bytes": 11316693,
           "work": {
             "pages": 4096,
             "tree_nodes": 133,
@@ -365,8 +365,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 33798,
-          "allocated_bytes": 11508357,
+          "allocations": 33796,
+          "allocated_bytes": 11563133,
           "work": {
             "entries": 16384,
             "nodes": 532,
@@ -380,8 +380,8 @@
           }
         },
         "x64musl": {
-          "allocations": 33798,
-          "allocated_bytes": 11508357,
+          "allocations": 33796,
+          "allocated_bytes": 11563133,
           "work": {
             "entries": 16384,
             "nodes": 532,
@@ -433,8 +433,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29683,
-          "allocated_bytes": 11950253,
+          "allocations": 29681,
+          "allocated_bytes": 12005029,
           "work": {
             "entries": 4096,
             "root_count": 2112,
@@ -453,8 +453,8 @@
           }
         },
         "x64musl": {
-          "allocations": 29683,
-          "allocated_bytes": 11950253,
+          "allocations": 29681,
+          "allocated_bytes": 12005029,
           "work": {
             "entries": 4096,
             "root_count": 2112,
@@ -505,8 +505,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29683,
-          "allocated_bytes": 11412466,
+          "allocations": 29681,
+          "allocated_bytes": 11467242,
           "work": {
             "resource_entries": 4096,
             "planned_names": 4096,
@@ -520,8 +520,8 @@
           }
         },
         "x64musl": {
-          "allocations": 29683,
-          "allocated_bytes": 11412466,
+          "allocations": 29681,
+          "allocated_bytes": 11467242,
           "work": {
             "resource_entries": 4096,
             "planned_names": 4096,
@@ -565,8 +565,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29683,
-          "allocated_bytes": 11468860,
+          "allocations": 29681,
+          "allocated_bytes": 11523636,
           "work": {
             "bundles": 2048,
             "tokens": 18432,
@@ -578,8 +578,8 @@
           }
         },
         "x64musl": {
-          "allocations": 29683,
-          "allocated_bytes": 11468860,
+          "allocations": 29681,
+          "allocated_bytes": 11523636,
           "work": {
             "bundles": 2048,
             "tokens": 18432,
@@ -621,8 +621,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29683,
-          "allocated_bytes": 11675708,
+          "allocations": 29681,
+          "allocated_bytes": 11730484,
           "work": {
             "bundles": 4096,
             "tokens": 36864,
@@ -634,8 +634,8 @@
           }
         },
         "x64musl": {
-          "allocations": 29683,
-          "allocated_bytes": 11675708,
+          "allocations": 29681,
+          "allocated_bytes": 11730484,
           "work": {
             "bundles": 4096,
             "tokens": 36864,
@@ -682,8 +682,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 78,
-          "allocated_bytes": 677842,
+          "allocations": 77,
+          "allocated_bytes": 678442,
           "work": {
             "input_bytes": 65535,
             "blocks": 1,
@@ -698,8 +698,8 @@
           }
         },
         "x64musl": {
-          "allocations": 78,
-          "allocated_bytes": 677842,
+          "allocations": 77,
+          "allocated_bytes": 678442,
           "work": {
             "input_bytes": 65535,
             "blocks": 1,
@@ -749,8 +749,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 90,
-          "allocated_bytes": 3205912,
+          "allocations": 89,
+          "allocated_bytes": 3206512,
           "work": {
             "input_bytes": 262144,
             "blocks": 5,
@@ -765,8 +765,8 @@
           }
         },
         "x64musl": {
-          "allocations": 90,
-          "allocated_bytes": 3205912,
+          "allocations": 89,
+          "allocated_bytes": 3206512,
           "work": {
             "input_bytes": 262144,
             "blocks": 5,
@@ -880,16 +880,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 379,
-          "allocated_bytes": 1132275,
+          "allocations": 375,
+          "allocated_bytes": 1131731,
           "work": {
             "passes": 1,
             "byte_visits": 2059
           }
         },
         "x64musl": {
-          "allocations": 379,
-          "allocated_bytes": 1132275,
+          "allocations": 375,
+          "allocated_bytes": 1131731,
           "work": {
             "passes": 1,
             "byte_visits": 2059
@@ -935,8 +935,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 115,
-          "allocated_bytes": 208781268,
+          "allocations": 114,
+          "allocated_bytes": 208781868,
           "work": {
             "commands": 1000000,
             "scene_command_visits": 1000000,
@@ -955,8 +955,8 @@
           }
         },
         "x64musl": {
-          "allocations": 115,
-          "allocated_bytes": 208781268,
+          "allocations": 114,
+          "allocated_bytes": 208781868,
           "work": {
             "commands": 1000000,
             "scene_command_visits": 1000000,
@@ -1009,8 +1009,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 85,
-          "allocated_bytes": 522642,
+          "allocations": 84,
+          "allocated_bytes": 523242,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -1024,8 +1024,8 @@
           }
         },
         "x64musl": {
-          "allocations": 85,
-          "allocated_bytes": 522642,
+          "allocations": 84,
+          "allocated_bytes": 523242,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -1073,8 +1073,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 114,
-          "allocated_bytes": 410223,
+          "allocations": 118,
+          "allocated_bytes": 488122,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -1088,8 +1088,8 @@
           }
         },
         "x64musl": {
-          "allocations": 114,
-          "allocated_bytes": 410223,
+          "allocations": 118,
+          "allocated_bytes": 488122,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -1137,8 +1137,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 94,
-          "allocated_bytes": 5466018,
+          "allocations": 93,
+          "allocated_bytes": 5466618,
           "work": {
             "authoring_blocks": 10003,
             "normalized_blocks": 10004,
@@ -1152,8 +1152,8 @@
           }
         },
         "x64musl": {
-          "allocations": 94,
-          "allocated_bytes": 5466018,
+          "allocations": 93,
+          "allocated_bytes": 5466618,
           "work": {
             "authoring_blocks": 10003,
             "normalized_blocks": 10004,
@@ -1201,8 +1201,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 140,
-          "allocated_bytes": 4791375,
+          "allocations": 144,
+          "allocated_bytes": 5682298,
           "work": {
             "authoring_blocks": 10003,
             "normalized_blocks": 10004,
@@ -1216,8 +1216,8 @@
           }
         },
         "x64musl": {
-          "allocations": 140,
-          "allocated_bytes": 4791375,
+          "allocations": 144,
+          "allocated_bytes": 5682298,
           "work": {
             "authoring_blocks": 10003,
             "normalized_blocks": 10004,
@@ -1268,8 +1268,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 94,
-          "allocated_bytes": 1814002,
+          "allocations": 93,
+          "allocated_bytes": 1814602,
           "work": {
             "paragraph_units": 1000,
             "scalars": 6000,
@@ -1283,8 +1283,8 @@
           }
         },
         "x64musl": {
-          "allocations": 94,
-          "allocated_bytes": 1814002,
+          "allocations": 93,
+          "allocated_bytes": 1814602,
           "work": {
             "paragraph_units": 1000,
             "scalars": 6000,
@@ -1335,8 +1335,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 102,
-          "allocated_bytes": 18037370,
+          "allocations": 101,
+          "allocated_bytes": 18037970,
           "work": {
             "paragraph_units": 10000,
             "scalars": 60000,
@@ -1350,8 +1350,8 @@
           }
         },
         "x64musl": {
-          "allocations": 102,
-          "allocated_bytes": 18037370,
+          "allocations": 101,
+          "allocated_bytes": 18037970,
           "work": {
             "paragraph_units": 10000,
             "scalars": 60000,
@@ -1401,8 +1401,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 105,
-          "allocated_bytes": 1801082,
+          "allocations": 104,
+          "allocated_bytes": 1801682,
           "work": {
             "blocks": 1000,
             "input_lines": 6000,
@@ -1416,8 +1416,8 @@
           }
         },
         "x64musl": {
-          "allocations": 105,
-          "allocated_bytes": 1801082,
+          "allocations": 104,
+          "allocated_bytes": 1801682,
           "work": {
             "blocks": 1000,
             "input_lines": 6000,
@@ -1465,8 +1465,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 117,
-          "allocated_bytes": 15797610,
+          "allocations": 116,
+          "allocated_bytes": 15798210,
           "work": {
             "blocks": 10000,
             "input_lines": 60000,
@@ -1480,8 +1480,8 @@
           }
         },
         "x64musl": {
-          "allocations": 117,
-          "allocated_bytes": 15797610,
+          "allocations": 116,
+          "allocated_bytes": 15798210,
           "work": {
             "blocks": 10000,
             "input_lines": 60000,
@@ -1529,8 +1529,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 73,
-          "allocated_bytes": 57022,
+          "allocations": 72,
+          "allocated_bytes": 57622,
           "work": {
             "inputs": 1000,
             "unique_sources": 1,
@@ -1546,8 +1546,8 @@
           }
         },
         "x64musl": {
-          "allocations": 73,
-          "allocated_bytes": 57022,
+          "allocations": 72,
+          "allocated_bytes": 57622,
           "work": {
             "inputs": 1000,
             "unique_sources": 1,
@@ -1597,8 +1597,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 73,
-          "allocated_bytes": 590782,
+          "allocations": 72,
+          "allocated_bytes": 591382,
           "work": {
             "inputs": 10000,
             "unique_sources": 1,
@@ -1614,8 +1614,8 @@
           }
         },
         "x64musl": {
-          "allocations": 73,
-          "allocated_bytes": 590782,
+          "allocations": 72,
+          "allocated_bytes": 591382,
           "work": {
             "inputs": 10000,
             "unique_sources": 1,
@@ -1665,8 +1665,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 15975,
-          "allocated_bytes": 2081478,
+          "allocations": 15974,
+          "allocated_bytes": 2082078,
           "work": {
             "inputs": 1000,
             "unique_sources": 1000,
@@ -1682,8 +1682,8 @@
           }
         },
         "x64musl": {
-          "allocations": 15975,
-          "allocated_bytes": 2081478,
+          "allocations": 15974,
+          "allocated_bytes": 2082078,
           "work": {
             "inputs": 1000,
             "unique_sources": 1000,
@@ -1733,8 +1733,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 177979,
-          "allocated_bytes": 28824022,
+          "allocations": 177978,
+          "allocated_bytes": 28824622,
           "work": {
             "inputs": 10000,
             "unique_sources": 10000,
@@ -1750,8 +1750,8 @@
           }
         },
         "x64musl": {
-          "allocations": 177979,
-          "allocated_bytes": 28824022,
+          "allocations": 177978,
+          "allocated_bytes": 28824622,
           "work": {
             "inputs": 10000,
             "unique_sources": 10000,
@@ -1810,8 +1810,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 253,
-          "allocated_bytes": 1155098,
+          "allocations": 257,
+          "allocated_bytes": 1232997,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -1833,8 +1833,8 @@
           }
         },
         "x64musl": {
-          "allocations": 253,
-          "allocated_bytes": 1155098,
+          "allocations": 257,
+          "allocated_bytes": 1232997,
           "work": {
             "authoring_blocks": 1003,
             "normalized_blocks": 1004,
@@ -1901,8 +1901,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 284,
-          "allocated_bytes": 12279554,
+          "allocations": 288,
+          "allocated_bytes": 13170477,
           "work": {
             "authoring_blocks": 10003,
             "normalized_blocks": 10004,
@@ -1924,8 +1924,8 @@
           }
         },
         "x64musl": {
-          "allocations": 284,
-          "allocated_bytes": 12279554,
+          "allocations": 288,
+          "allocated_bytes": 13170477,
           "work": {
             "authoring_blocks": 10003,
             "normalized_blocks": 10004,
@@ -1990,8 +1990,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1252,
-          "allocated_bytes": 2225076,
+          "allocations": 1256,
+          "allocated_bytes": 2302975,
           "work": {
             "paragraphs": 1000,
             "shape_requests": 1006,
@@ -2010,8 +2010,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1252,
-          "allocated_bytes": 2225076,
+          "allocations": 1256,
+          "allocated_bytes": 2302975,
           "work": {
             "paragraphs": 1000,
             "shape_requests": 1006,
@@ -2073,8 +2073,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1283,
-          "allocated_bytes": 20549532,
+          "allocations": 1287,
+          "allocated_bytes": 21440455,
           "work": {
             "paragraphs": 10000,
             "shape_requests": 10006,
@@ -2093,8 +2093,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1283,
-          "allocated_bytes": 20549532,
+          "allocations": 1287,
+          "allocated_bytes": 21440455,
           "work": {
             "paragraphs": 10000,
             "shape_requests": 10006,
@@ -2156,8 +2156,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1280,
-          "allocated_bytes": 2429092,
+          "allocations": 1284,
+          "allocated_bytes": 2506991,
           "work": {
             "paragraphs": 1000,
             "blocks": 1004,
@@ -2179,8 +2179,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1280,
-          "allocated_bytes": 2429092,
+          "allocations": 1284,
+          "allocated_bytes": 2506991,
           "work": {
             "paragraphs": 1000,
             "blocks": 1004,
@@ -2245,8 +2245,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1311,
-          "allocated_bytes": 22655308,
+          "allocations": 1315,
+          "allocated_bytes": 23546231,
           "work": {
             "paragraphs": 10000,
             "blocks": 10004,
@@ -2268,8 +2268,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1311,
-          "allocated_bytes": 22655308,
+          "allocations": 1315,
+          "allocated_bytes": 23546231,
           "work": {
             "paragraphs": 10000,
             "blocks": 10004,
@@ -2330,8 +2330,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1318,
-          "allocated_bytes": 3127044,
+          "allocations": 1322,
+          "allocated_bytes": 3204943,
           "work": {
             "paragraphs": 1000,
             "block_planning_visits": 1004,
@@ -2348,8 +2348,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1318,
-          "allocated_bytes": 3127044,
+          "allocations": 1322,
+          "allocated_bytes": 3204943,
           "work": {
             "paragraphs": 1000,
             "block_planning_visits": 1004,
@@ -2405,8 +2405,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1363,
-          "allocated_bytes": 29250996,
+          "allocations": 1367,
+          "allocated_bytes": 30141919,
           "work": {
             "paragraphs": 10000,
             "block_planning_visits": 10004,
@@ -2423,8 +2423,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1363,
-          "allocated_bytes": 29250996,
+          "allocations": 1367,
+          "allocated_bytes": 30141919,
           "work": {
             "paragraphs": 10000,
             "block_planning_visits": 10004,
@@ -2477,8 +2477,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1036,
-          "allocated_bytes": 271098,
+          "allocations": 1035,
+          "allocated_bytes": 271698,
           "work": {
             "font_bytes": 166300,
             "tables": 17,
@@ -2495,8 +2495,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1036,
-          "allocated_bytes": 271098,
+          "allocations": 1035,
+          "allocated_bytes": 271698,
           "work": {
             "font_bytes": 166300,
             "tables": 17,
@@ -2551,8 +2551,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 90,
-          "allocated_bytes": 12375,
+          "allocations": 89,
+          "allocated_bytes": 12975,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -2573,8 +2573,8 @@
           }
         },
         "x64musl": {
-          "allocations": 90,
-          "allocated_bytes": 12375,
+          "allocations": 89,
+          "allocated_bytes": 12975,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -2622,8 +2622,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 122,
-          "allocated_bytes": 2121490,
+          "allocations": 121,
+          "allocated_bytes": 2122090,
           "work": {
             "repetitions": 1000,
             "source_bytes": 9000,
@@ -2634,8 +2634,8 @@
           }
         },
         "x64musl": {
-          "allocations": 122,
-          "allocated_bytes": 2121490,
+          "allocations": 121,
+          "allocated_bytes": 2122090,
           "work": {
             "repetitions": 1000,
             "source_bytes": 9000,
@@ -2685,8 +2685,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 101,
-          "allocated_bytes": 9976,
+          "allocations": 100,
+          "allocated_bytes": 10576,
           "work": {
             "official_vectors": 4,
             "source_bytes": 26,
@@ -2708,8 +2708,8 @@
           }
         },
         "x64musl": {
-          "allocations": 101,
-          "allocated_bytes": 9976,
+          "allocations": 100,
+          "allocated_bytes": 10576,
           "work": {
             "official_vectors": 4,
             "source_bytes": 26,
@@ -2755,15 +2755,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 63,
-          "allocated_bytes": 7849,
+          "allocations": 62,
+          "allocated_bytes": 8449,
           "work": {
             "atomic_negative_rejections": 2
           }
         },
         "x64musl": {
-          "allocations": 63,
-          "allocated_bytes": 7849,
+          "allocations": 62,
+          "allocated_bytes": 8449,
           "work": {
             "atomic_negative_rejections": 2
           }
@@ -2799,8 +2799,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 762,
-          "allocated_bytes": 139611,
+          "allocations": 761,
+          "allocated_bytes": 140211,
           "work": {
             "vectors": 7,
             "scalar_visits": 108,
@@ -2814,8 +2814,8 @@
           }
         },
         "x64musl": {
-          "allocations": 762,
-          "allocated_bytes": 139611,
+          "allocations": 761,
+          "allocated_bytes": 140211,
           "work": {
             "vectors": 7,
             "scalar_visits": 108,
@@ -2865,8 +2865,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1046,
-          "allocated_bytes": 300560,
+          "allocations": 1045,
+          "allocated_bytes": 301160,
           "work": {
             "font_bytes": 166300,
             "usage_visits": 3,
@@ -2883,8 +2883,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1046,
-          "allocated_bytes": 300560,
+          "allocations": 1045,
+          "allocated_bytes": 301160,
           "work": {
             "font_bytes": 166300,
             "usage_visits": 3,
@@ -2937,8 +2937,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 125,
-          "allocated_bytes": 16659,
+          "allocations": 124,
+          "allocated_bytes": 17259,
           "work": {
             "caller_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -2957,8 +2957,8 @@
           }
         },
         "x64musl": {
-          "allocations": 125,
-          "allocated_bytes": 16659,
+          "allocations": 124,
+          "allocated_bytes": 17259,
           "work": {
             "caller_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -3004,8 +3004,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 137,
-          "allocated_bytes": 19210834,
+          "allocations": 136,
+          "allocated_bytes": 19211434,
           "work": {
             "repetitions": 10000,
             "source_bytes": 90000,
@@ -3016,8 +3016,8 @@
           }
         },
         "x64musl": {
-          "allocations": 137,
-          "allocated_bytes": 19210834,
+          "allocations": 136,
+          "allocated_bytes": 19211434,
           "work": {
             "repetitions": 10000,
             "source_bytes": 90000,
@@ -3062,8 +3062,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1068,
-          "allocated_bytes": 318440,
+          "allocations": 1067,
+          "allocated_bytes": 319040,
           "work": {
             "font_bytes": 166300,
             "usage_visits": 3,
@@ -3081,8 +3081,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1068,
-          "allocated_bytes": 318440,
+          "allocations": 1067,
+          "allocated_bytes": 319040,
           "work": {
             "font_bytes": 166300,
             "usage_visits": 3,
@@ -3144,8 +3144,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1059,
-          "allocated_bytes": 274147,
+          "allocations": 1058,
+          "allocated_bytes": 274747,
           "work": {
             "font_bytes": 166300,
             "simple_source_bytes": 9,
@@ -3172,8 +3172,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1059,
-          "allocated_bytes": 274147,
+          "allocations": 1058,
+          "allocated_bytes": 274747,
           "work": {
             "font_bytes": 166300,
             "simple_source_bytes": 9,
@@ -3244,8 +3244,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1119,
-          "allocated_bytes": 328150,
+          "allocations": 1118,
+          "allocated_bytes": 328750,
           "work": {
             "font_bytes": 166300,
             "subset_bytes": 5864,
@@ -3272,8 +3272,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1119,
-          "allocated_bytes": 328150,
+          "allocations": 1118,
+          "allocated_bytes": 328750,
           "work": {
             "font_bytes": 166300,
             "subset_bytes": 5864,
@@ -3387,8 +3387,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1596,
-          "allocated_bytes": 987968,
+          "allocations": 1592,
+          "allocated_bytes": 987424,
           "work": {
             "font_bytes": 166300,
             "runs": 1,
@@ -3449,8 +3449,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1596,
-          "allocated_bytes": 987968,
+          "allocations": 1592,
+          "allocated_bytes": 987424,
           "work": {
             "font_bytes": 166300,
             "runs": 1,
@@ -3559,8 +3559,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1864,
-          "allocated_bytes": 1025463,
+          "allocations": 1860,
+          "allocated_bytes": 1024919,
           "work": {
             "authored_blocks": 1,
             "semantic_occurrences": 1,
@@ -3581,8 +3581,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1864,
-          "allocated_bytes": 1025463,
+          "allocations": 1860,
+          "allocated_bytes": 1024919,
           "work": {
             "authored_blocks": 1,
             "semantic_occurrences": 1,
@@ -3629,16 +3629,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1096,
-          "allocated_bytes": 286638,
+          "allocations": 1095,
+          "allocated_bytes": 287238,
           "work": {
             "line_run_limit_rejected": 1,
             "evidence_pdf_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 1096,
-          "allocated_bytes": 286638,
+          "allocations": 1095,
+          "allocated_bytes": 287238,
           "work": {
             "line_run_limit_rejected": 1,
             "evidence_pdf_bytes": 667
@@ -3687,8 +3687,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1003,
-          "allocated_bytes": 789493,
+          "allocations": 1000,
+          "allocated_bytes": 789981,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -3706,8 +3706,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1003,
-          "allocated_bytes": 789493,
+          "allocations": 1000,
+          "allocated_bytes": 789981,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -3805,8 +3805,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1973,
-          "allocated_bytes": 1574285,
+          "allocations": 1967,
+          "allocated_bytes": 1575261,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -3826,8 +3826,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1973,
-          "allocated_bytes": 1574285,
+          "allocations": 1967,
+          "allocated_bytes": 1575261,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -3893,8 +3893,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2005,
-          "allocated_bytes": 1578906,
+          "allocations": 1999,
+          "allocated_bytes": 1579882,
           "work": {
             "input_allocations": 2,
             "input_bytes": 15632,
@@ -3916,8 +3916,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2005,
-          "allocated_bytes": 1578906,
+          "allocations": 1999,
+          "allocated_bytes": 1579882,
           "work": {
             "input_allocations": 2,
             "input_bytes": 15632,
@@ -3966,15 +3966,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1957,
-          "allocated_bytes": 1088877,
+          "allocations": 1952,
+          "allocated_bytes": 1085253,
           "work": {
             "output_bytes": 16602
           }
         },
         "x64musl": {
-          "allocations": 1957,
-          "allocated_bytes": 1088877,
+          "allocations": 1952,
+          "allocated_bytes": 1085253,
           "work": {
             "output_bytes": 16602
           }
@@ -4010,16 +4010,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2747,
-          "allocated_bytes": 1731539,
+          "allocations": 2744,
+          "allocated_bytes": 1732027,
           "work": {
             "packed_pixel_bytes": 96,
             "output_bytes": 18897
           }
         },
         "x64musl": {
-          "allocations": 2747,
-          "allocated_bytes": 1731539,
+          "allocations": 2744,
+          "allocated_bytes": 1732027,
           "work": {
             "packed_pixel_bytes": 96,
             "output_bytes": 18897
@@ -4057,8 +4057,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2016,
-          "allocated_bytes": 1384027,
+          "allocations": 2011,
+          "allocated_bytes": 1380403,
           "work": {
             "chunks": 40,
             "max_chunk_bytes": 8692,
@@ -4068,8 +4068,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2016,
-          "allocated_bytes": 1384027,
+          "allocations": 2011,
+          "allocated_bytes": 1380403,
           "work": {
             "chunks": 40,
             "max_chunk_bytes": 8692,
@@ -4110,8 +4110,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2017,
-          "allocated_bytes": 1387059,
+          "allocations": 2012,
+          "allocated_bytes": 1383435,
           "work": {
             "chunks": 40,
             "max_chunk_bytes": 8692,
@@ -4121,8 +4121,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2017,
-          "allocated_bytes": 1387059,
+          "allocations": 2012,
+          "allocated_bytes": 1383435,
           "work": {
             "chunks": 40,
             "max_chunk_bytes": 8692,
@@ -4199,15 +4199,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2008,
-          "allocated_bytes": 1110384,
+          "allocations": 2003,
+          "allocated_bytes": 1104712,
           "work": {
             "output_bytes": 15708
           }
         },
         "x64musl": {
-          "allocations": 2008,
-          "allocated_bytes": 1110384,
+          "allocations": 2003,
+          "allocated_bytes": 1104712,
           "work": {
             "output_bytes": 15708
           }
@@ -4238,16 +4238,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 124,
-          "allocated_bytes": 13474,
+          "allocations": 123,
+          "allocated_bytes": 14074,
           "work": {
             "generated_label_property_rejected": 1,
             "evidence_pdf_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 124,
-          "allocated_bytes": 13474,
+          "allocations": 123,
+          "allocated_bytes": 14074,
           "work": {
             "generated_label_property_rejected": 1,
             "evidence_pdf_bytes": 667
@@ -4346,8 +4346,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 650,
-          "allocated_bytes": 695280,
+          "allocations": 646,
+          "allocated_bytes": 694736,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -4415,8 +4415,8 @@
           }
         },
         "x64musl": {
-          "allocations": 650,
-          "allocated_bytes": 695280,
+          "allocations": 646,
+          "allocated_bytes": 694736,
           "work": {
             "input_bytes": 7816,
             "retained_input_bytes": 7816,
@@ -4577,8 +4577,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 579,
-          "allocated_bytes": 671548,
+          "allocations": 575,
+          "allocated_bytes": 671004,
           "work": {
             "font_bytes": 7816,
             "runs": 1,
@@ -4644,8 +4644,8 @@
           }
         },
         "x64musl": {
-          "allocations": 579,
-          "allocated_bytes": 671548,
+          "allocations": 575,
+          "allocated_bytes": 671004,
           "work": {
             "font_bytes": 7816,
             "runs": 1,
@@ -4747,8 +4747,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1624,
-          "allocated_bytes": 988452,
+          "allocations": 1620,
+          "allocated_bytes": 987908,
           "work": {
             "font_bytes": 166300,
             "opportunities": 1,
@@ -4762,8 +4762,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1624,
-          "allocated_bytes": 988452,
+          "allocations": 1620,
+          "allocated_bytes": 987908,
           "work": {
             "font_bytes": 166300,
             "opportunities": 1,
@@ -4802,16 +4802,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 66,
-          "allocated_bytes": 7935,
+          "allocations": 65,
+          "allocated_bytes": 8535,
           "work": {
             "soft_hyphen_rejected": 1,
             "evidence_pdf_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 66,
-          "allocated_bytes": 7935,
+          "allocations": 65,
+          "allocated_bytes": 8535,
           "work": {
             "soft_hyphen_rejected": 1,
             "evidence_pdf_bytes": 667
@@ -4842,16 +4842,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 75,
-          "allocated_bytes": 10011,
+          "allocations": 74,
+          "allocated_bytes": 10611,
           "work": {
             "soft_hyphen_rejected": 1,
             "evidence_pdf_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 75,
-          "allocated_bytes": 10011,
+          "allocations": 74,
+          "allocated_bytes": 10611,
           "work": {
             "soft_hyphen_rejected": 1,
             "evidence_pdf_bytes": 667
@@ -4882,16 +4882,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 66,
-          "allocated_bytes": 8034,
+          "allocations": 65,
+          "allocated_bytes": 8634,
           "work": {
             "soft_hyphen_rejected": 1,
             "evidence_pdf_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 66,
-          "allocated_bytes": 8034,
+          "allocations": 65,
+          "allocated_bytes": 8634,
           "work": {
             "soft_hyphen_rejected": 1,
             "evidence_pdf_bytes": 667
@@ -4922,16 +4922,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 66,
-          "allocated_bytes": 8034,
+          "allocations": 65,
+          "allocated_bytes": 8634,
           "work": {
             "soft_hyphen_rejected": 1,
             "evidence_pdf_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 66,
-          "allocated_bytes": 8034,
+          "allocations": 65,
+          "allocated_bytes": 8634,
           "work": {
             "soft_hyphen_rejected": 1,
             "evidence_pdf_bytes": 667
@@ -4975,8 +4975,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2462,
-          "allocated_bytes": 1394697,
+          "allocations": 2458,
+          "allocated_bytes": 1394153,
           "work": {
             "font_bytes": 411640,
             "runs": 1,
@@ -4993,8 +4993,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2462,
-          "allocated_bytes": 1394697,
+          "allocations": 2458,
+          "allocated_bytes": 1394153,
           "work": {
             "font_bytes": 411640,
             "runs": 1,
@@ -5035,16 +5035,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1995,
-          "allocated_bytes": 642658,
+          "allocations": 1994,
+          "allocated_bytes": 643258,
           "work": {
             "supplementary_source_range_rejected": 1,
             "output_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 1995,
-          "allocated_bytes": 642658,
+          "allocations": 1994,
+          "allocated_bytes": 643258,
           "work": {
             "supplementary_source_range_rejected": 1,
             "output_bytes": 667
@@ -5088,8 +5088,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 544,
-          "allocated_bytes": 642416,
+          "allocations": 540,
+          "allocated_bytes": 641872,
           "work": {
             "font_bytes": 2104,
             "runs": 1,
@@ -5106,8 +5106,8 @@
           }
         },
         "x64musl": {
-          "allocations": 544,
-          "allocated_bytes": 642416,
+          "allocations": 540,
+          "allocated_bytes": 641872,
           "work": {
             "font_bytes": 2104,
             "runs": 1,
@@ -5168,8 +5168,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 789,
-          "allocated_bytes": 746598,
+          "allocations": 785,
+          "allocated_bytes": 746054,
           "work": {
             "graphemes": 3,
             "face_visits": 4,
@@ -5191,8 +5191,8 @@
           }
         },
         "x64musl": {
-          "allocations": 789,
-          "allocated_bytes": 746598,
+          "allocations": 785,
+          "allocated_bytes": 746054,
           "work": {
             "graphemes": 3,
             "face_visits": 4,
@@ -5238,8 +5238,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 120,
-          "allocated_bytes": 16291,
+          "allocations": 119,
+          "allocated_bytes": 16891,
           "work": {
             "script_mismatch_rejected": 1,
             "emitted_pdf_bytes": 0,
@@ -5247,8 +5247,8 @@
           }
         },
         "x64musl": {
-          "allocations": 120,
-          "allocated_bytes": 16291,
+          "allocations": 119,
+          "allocated_bytes": 16891,
           "work": {
             "script_mismatch_rejected": 1,
             "emitted_pdf_bytes": 0,
@@ -5277,16 +5277,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 80,
-          "allocated_bytes": 10589,
+          "allocations": 79,
+          "allocated_bytes": 11189,
           "work": {
             "cjk_source_range_rejected": 1,
             "output_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 80,
-          "allocated_bytes": 10589,
+          "allocations": 79,
+          "allocated_bytes": 11189,
           "work": {
             "cjk_source_range_rejected": 1,
             "output_bytes": 667
@@ -5331,8 +5331,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1511,
-          "allocated_bytes": 962397,
+          "allocations": 1507,
+          "allocated_bytes": 961853,
           "work": {
             "font_bytes": 166300,
             "runs": 1,
@@ -5349,8 +5349,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1511,
-          "allocated_bytes": 962397,
+          "allocations": 1507,
+          "allocated_bytes": 961853,
           "work": {
             "font_bytes": 166300,
             "runs": 1,
@@ -5390,16 +5390,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1498,
-          "allocated_bytes": 414098,
+          "allocations": 1493,
+          "allocated_bytes": 414154,
           "work": {
             "combining_source_range_rejected": 1,
             "output_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 1498,
-          "allocated_bytes": 414098,
+          "allocations": 1493,
+          "allocated_bytes": 414154,
           "work": {
             "combining_source_range_rejected": 1,
             "output_bytes": 667
@@ -5444,8 +5444,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 71,
-          "allocated_bytes": 1282330,
+          "allocations": 70,
+          "allocated_bytes": 1282930,
           "work": {
             "repetitions": 1000,
             "source_runs": 1000,
@@ -5461,8 +5461,8 @@
           }
         },
         "x64musl": {
-          "allocations": 71,
-          "allocated_bytes": 1282330,
+          "allocations": 70,
+          "allocated_bytes": 1282930,
           "work": {
             "repetitions": 1000,
             "source_runs": 1000,
@@ -5520,8 +5520,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 79,
-          "allocated_bytes": 2643202,
+          "allocations": 78,
+          "allocated_bytes": 2643802,
           "work": {
             "repetitions": 1000,
             "source_runs": 1000,
@@ -5541,8 +5541,8 @@
           }
         },
         "x64musl": {
-          "allocations": 79,
-          "allocated_bytes": 2643202,
+          "allocations": 78,
+          "allocated_bytes": 2643802,
           "work": {
             "repetitions": 1000,
             "source_runs": 1000,
@@ -5600,8 +5600,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 76,
-          "allocated_bytes": 12774530,
+          "allocations": 75,
+          "allocated_bytes": 12775130,
           "work": {
             "repetitions": 10000,
             "source_runs": 10000,
@@ -5617,8 +5617,8 @@
           }
         },
         "x64musl": {
-          "allocations": 76,
-          "allocated_bytes": 12774530,
+          "allocations": 75,
+          "allocated_bytes": 12775130,
           "work": {
             "repetitions": 10000,
             "source_runs": 10000,
@@ -5676,8 +5676,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 84,
-          "allocated_bytes": 26382146,
+          "allocations": 83,
+          "allocated_bytes": 26382746,
           "work": {
             "repetitions": 10000,
             "source_runs": 10000,
@@ -5697,8 +5697,8 @@
           }
         },
         "x64musl": {
-          "allocations": 84,
-          "allocated_bytes": 26382146,
+          "allocations": 83,
+          "allocated_bytes": 26382746,
           "work": {
             "repetitions": 10000,
             "source_runs": 10000,
@@ -5753,8 +5753,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 99,
-          "allocated_bytes": 1558355,
+          "allocations": 98,
+          "allocated_bytes": 1558955,
           "work": {
             "occurrences": 1000,
             "planned_pages": 32,
@@ -5767,8 +5767,8 @@
           }
         },
         "x64musl": {
-          "allocations": 99,
-          "allocated_bytes": 1558355,
+          "allocations": 98,
+          "allocated_bytes": 1558955,
           "work": {
             "occurrences": 1000,
             "planned_pages": 32,
@@ -5818,8 +5818,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 101,
-          "allocated_bytes": 1726387,
+          "allocations": 100,
+          "allocated_bytes": 1726987,
           "work": {
             "occurrences": 1000,
             "planned_pages": 32,
@@ -5834,8 +5834,8 @@
           }
         },
         "x64musl": {
-          "allocations": 101,
-          "allocated_bytes": 1726387,
+          "allocations": 100,
+          "allocated_bytes": 1726987,
           "work": {
             "occurrences": 1000,
             "planned_pages": 32,
@@ -5885,8 +5885,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 109,
-          "allocated_bytes": 15713539,
+          "allocations": 108,
+          "allocated_bytes": 15714139,
           "work": {
             "occurrences": 10000,
             "planned_pages": 313,
@@ -5899,8 +5899,8 @@
           }
         },
         "x64musl": {
-          "allocations": 109,
-          "allocated_bytes": 15713539,
+          "allocations": 108,
+          "allocated_bytes": 15714139,
           "work": {
             "occurrences": 10000,
             "planned_pages": 313,
@@ -5950,8 +5950,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 111,
-          "allocated_bytes": 17393571,
+          "allocations": 110,
+          "allocated_bytes": 17394171,
           "work": {
             "occurrences": 10000,
             "planned_pages": 313,
@@ -5966,8 +5966,8 @@
           }
         },
         "x64musl": {
-          "allocations": 111,
-          "allocated_bytes": 17393571,
+          "allocations": 110,
+          "allocated_bytes": 17394171,
           "work": {
             "occurrences": 10000,
             "planned_pages": 313,
@@ -6017,8 +6017,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 98,
-          "allocated_bytes": 14554,
+          "allocations": 97,
+          "allocated_bytes": 15154,
           "work": {
             "occurrences": 3,
             "fragments": 6,
@@ -6031,8 +6031,8 @@
           }
         },
         "x64musl": {
-          "allocations": 98,
-          "allocated_bytes": 14554,
+          "allocations": 97,
+          "allocated_bytes": 15154,
           "work": {
             "occurrences": 3,
             "fragments": 6,
@@ -6077,8 +6077,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 102,
-          "allocated_bytes": 14070,
+          "allocations": 101,
+          "allocated_bytes": 14670,
           "work": {
             "invalid_page_rejected": 1,
             "invalid_source_range_rejected": 1,
@@ -6088,8 +6088,8 @@
           }
         },
         "x64musl": {
-          "allocations": 102,
-          "allocated_bytes": 14070,
+          "allocations": 101,
+          "allocated_bytes": 14670,
           "work": {
             "invalid_page_rejected": 1,
             "invalid_source_range_rejected": 1,
@@ -6142,8 +6142,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 153,
-          "allocated_bytes": 20084,
+          "allocations": 152,
+          "allocated_bytes": 20684,
           "work": {
             "occurrences": 3,
             "runs": 6,
@@ -6162,8 +6162,8 @@
           }
         },
         "x64musl": {
-          "allocations": 153,
-          "allocated_bytes": 20084,
+          "allocations": 152,
+          "allocated_bytes": 20684,
           "work": {
             "occurrences": 3,
             "runs": 6,
@@ -6214,8 +6214,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 64,
-          "allocated_bytes": 105194,
+          "allocations": 63,
+          "allocated_bytes": 105794,
           "work": {
             "occurrences": 1000,
             "planned_pages": 32,
@@ -6226,8 +6226,8 @@
           }
         },
         "x64musl": {
-          "allocations": 64,
-          "allocated_bytes": 105194,
+          "allocations": 63,
+          "allocated_bytes": 105794,
           "work": {
             "occurrences": 1000,
             "planned_pages": 32,
@@ -6279,8 +6279,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 70,
-          "allocated_bytes": 751506,
+          "allocations": 69,
+          "allocated_bytes": 752106,
           "work": {
             "occurrences": 1000,
             "page_writes": 32,
@@ -6298,8 +6298,8 @@
           }
         },
         "x64musl": {
-          "allocations": 70,
-          "allocated_bytes": 751506,
+          "allocations": 69,
+          "allocated_bytes": 752106,
           "work": {
             "occurrences": 1000,
             "page_writes": 32,
@@ -6349,8 +6349,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 68,
-          "allocated_bytes": 989194,
+          "allocations": 67,
+          "allocated_bytes": 989794,
           "work": {
             "occurrences": 10000,
             "planned_pages": 313,
@@ -6361,8 +6361,8 @@
           }
         },
         "x64musl": {
-          "allocations": 68,
-          "allocated_bytes": 989194,
+          "allocations": 67,
+          "allocated_bytes": 989794,
           "work": {
             "occurrences": 10000,
             "planned_pages": 313,
@@ -6414,8 +6414,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 74,
-          "allocated_bytes": 7449458,
+          "allocations": 73,
+          "allocated_bytes": 7450058,
           "work": {
             "occurrences": 10000,
             "page_writes": 313,
@@ -6433,8 +6433,8 @@
           }
         },
         "x64musl": {
-          "allocations": 74,
-          "allocated_bytes": 7449458,
+          "allocations": 73,
+          "allocated_bytes": 7450058,
           "work": {
             "occurrences": 10000,
             "page_writes": 313,
@@ -6484,8 +6484,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 74,
-          "allocated_bytes": 11282,
+          "allocations": 73,
+          "allocated_bytes": 11882,
           "work": {
             "unsupported_color_rejected": 1,
             "invalid_page_size_rejected": 1,
@@ -6495,8 +6495,8 @@
           }
         },
         "x64musl": {
-          "allocations": 74,
-          "allocated_bytes": 11282,
+          "allocations": 73,
+          "allocated_bytes": 11882,
           "work": {
             "unsupported_color_rejected": 1,
             "invalid_page_size_rejected": 1,
@@ -6545,8 +6545,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 552,
-          "allocated_bytes": 651292,
+          "allocations": 548,
+          "allocated_bytes": 650748,
           "work": {
             "font_bytes": 3424,
             "runs": 1,
@@ -6563,8 +6563,8 @@
           }
         },
         "x64musl": {
-          "allocations": 552,
-          "allocated_bytes": 651292,
+          "allocations": 548,
+          "allocated_bytes": 650748,
           "work": {
             "font_bytes": 3424,
             "runs": 1,
@@ -6605,16 +6605,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 79,
-          "allocated_bytes": 10500,
+          "allocations": 78,
+          "allocated_bytes": 11100,
           "work": {
             "gsub_output_mismatch_rejected": 1,
             "evidence_pdf_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 79,
-          "allocated_bytes": 10500,
+          "allocations": 78,
+          "allocated_bytes": 11100,
           "work": {
             "gsub_output_mismatch_rejected": 1,
             "evidence_pdf_bytes": 667
@@ -6662,8 +6662,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 780,
-          "allocated_bytes": 699693,
+          "allocations": 776,
+          "allocated_bytes": 699149,
           "work": {
             "font_bytes": 5084,
             "paragraph_level": 1,
@@ -6684,8 +6684,8 @@
           }
         },
         "x64musl": {
-          "allocations": 780,
-          "allocated_bytes": 699693,
+          "allocations": 776,
+          "allocated_bytes": 699149,
           "work": {
             "font_bytes": 5084,
             "paragraph_level": 1,
@@ -6729,16 +6729,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 184,
-          "allocated_bytes": 33584,
+          "allocations": 183,
+          "allocated_bytes": 34184,
           "work": {
             "bidi_fact_rejected": 2,
             "output_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 184,
-          "allocated_bytes": 33584,
+          "allocations": 183,
+          "allocated_bytes": 34184,
           "work": {
             "bidi_fact_rejected": 2,
             "output_bytes": 667
@@ -6783,8 +6783,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1032,
-          "allocated_bytes": 808364,
+          "allocations": 1027,
+          "allocated_bytes": 804740,
           "work": {
             "latin_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -6801,8 +6801,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1032,
-          "allocated_bytes": 808364,
+          "allocations": 1027,
+          "allocated_bytes": 804740,
           "work": {
             "latin_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -6856,8 +6856,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2000,
-          "allocated_bytes": 1608007,
+          "allocations": 1990,
+          "allocated_bytes": 1600759,
           "work": {
             "input_bytes": 9920,
             "retained_input_bytes": 9920,
@@ -6873,8 +6873,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2000,
-          "allocated_bytes": 1608007,
+          "allocations": 1990,
+          "allocated_bytes": 1600759,
           "work": {
             "input_bytes": 9920,
             "retained_input_bytes": 9920,
@@ -6928,8 +6928,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2061,
-          "allocated_bytes": 1616576,
+          "allocations": 2051,
+          "allocated_bytes": 1609328,
           "work": {
             "registries": 2,
             "input_bytes": 19840,
@@ -6946,8 +6946,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2061,
-          "allocated_bytes": 1616576,
+          "allocations": 2051,
+          "allocated_bytes": 1609328,
           "work": {
             "registries": 2,
             "input_bytes": 19840,
@@ -7143,8 +7143,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1133,
-          "allocated_bytes": 195515,
+          "allocations": 1132,
+          "allocated_bytes": 196115,
           "work": {
             "clusters": 1000,
             "grapheme_visits": 1000,
@@ -7155,8 +7155,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1133,
-          "allocated_bytes": 195515,
+          "allocations": 1132,
+          "allocated_bytes": 196115,
           "work": {
             "clusters": 1000,
             "grapheme_visits": 1000,
@@ -7197,8 +7197,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10138,
-          "allocated_bytes": 1717563,
+          "allocations": 10137,
+          "allocated_bytes": 1718163,
           "work": {
             "clusters": 10000,
             "grapheme_visits": 10000,
@@ -7209,8 +7209,8 @@
           }
         },
         "x64musl": {
-          "allocations": 10138,
-          "allocated_bytes": 1717563,
+          "allocations": 10137,
+          "allocated_bytes": 1718163,
           "work": {
             "clusters": 10000,
             "grapheme_visits": 10000,
@@ -7260,8 +7260,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 290,
-          "allocated_bytes": 3955684,
+          "allocations": 289,
+          "allocated_bytes": 3956284,
           "work": {
             "paragraphs": 1000,
             "unique_sources": 1,
@@ -7281,8 +7281,8 @@
           }
         },
         "x64musl": {
-          "allocations": 290,
-          "allocated_bytes": 3955684,
+          "allocations": 289,
+          "allocated_bytes": 3956284,
           "work": {
             "paragraphs": 1000,
             "unique_sources": 1,
@@ -7341,8 +7341,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 317,
-          "allocated_bytes": 41912692,
+          "allocations": 316,
+          "allocated_bytes": 41913292,
           "work": {
             "paragraphs": 10000,
             "unique_sources": 1,
@@ -7362,8 +7362,8 @@
           }
         },
         "x64musl": {
-          "allocations": 317,
-          "allocated_bytes": 41912692,
+          "allocations": 316,
+          "allocated_bytes": 41913292,
           "work": {
             "paragraphs": 10000,
             "unique_sources": 1,
@@ -7426,8 +7426,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1537,
-          "allocated_bytes": 964293,
+          "allocations": 1533,
+          "allocated_bytes": 963749,
           "work": {
             "font_bytes": 166300,
             "mapping_facts": 2,
@@ -7448,8 +7448,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1537,
-          "allocated_bytes": 964293,
+          "allocations": 1533,
+          "allocated_bytes": 963749,
           "work": {
             "font_bytes": 166300,
             "mapping_facts": 2,
@@ -7493,16 +7493,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1049,
-          "allocated_bytes": 272352,
+          "allocations": 1048,
+          "allocated_bytes": 272952,
           "work": {
             "case_transform_rejected": 2,
             "output_bytes": 667
           }
         },
         "x64musl": {
-          "allocations": 1049,
-          "allocated_bytes": 272352,
+          "allocations": 1048,
+          "allocated_bytes": 272952,
           "work": {
             "case_transform_rejected": 2,
             "output_bytes": 667
@@ -7540,8 +7540,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 141,
-          "allocated_bytes": 28856,
+          "allocations": 140,
+          "allocated_bytes": 29456,
           "work": {
             "buffered_bytes": 703,
             "shared_bytes": 703,
@@ -7554,8 +7554,8 @@
           }
         },
         "x64musl": {
-          "allocations": 141,
-          "allocated_bytes": 28856,
+          "allocations": 140,
+          "allocated_bytes": 29456,
           "work": {
             "buffered_bytes": 703,
             "shared_bytes": 703,
@@ -7624,8 +7624,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1378,
-          "allocated_bytes": 442418,
+          "allocations": 1377,
+          "allocated_bytes": 443018,
           "work": {
             "resources": 100,
             "direct_edges": 99,
@@ -7654,8 +7654,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1378,
-          "allocated_bytes": 442418,
+          "allocations": 1377,
+          "allocated_bytes": 443018,
           "work": {
             "resources": 100,
             "direct_edges": 99,
@@ -7736,8 +7736,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12202,
-          "allocated_bytes": 5155322,
+          "allocations": 12201,
+          "allocated_bytes": 5155922,
           "work": {
             "resources": 1000,
             "direct_edges": 999,
@@ -7766,8 +7766,8 @@
           }
         },
         "x64musl": {
-          "allocations": 12202,
-          "allocated_bytes": 5155322,
+          "allocations": 12201,
+          "allocated_bytes": 5155922,
           "work": {
             "resources": 1000,
             "direct_edges": 999,
@@ -7848,8 +7848,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1378,
-          "allocated_bytes": 442418,
+          "allocations": 1377,
+          "allocated_bytes": 443018,
           "work": {
             "resources": 100,
             "direct_edges": 99,
@@ -7878,8 +7878,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1378,
-          "allocated_bytes": 442418,
+          "allocations": 1377,
+          "allocated_bytes": 443018,
           "work": {
             "resources": 100,
             "direct_edges": 99,
@@ -7960,8 +7960,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12202,
-          "allocated_bytes": 5155322,
+          "allocations": 12201,
+          "allocated_bytes": 5155922,
           "work": {
             "resources": 1000,
             "direct_edges": 999,
@@ -7990,8 +7990,8 @@
           }
         },
         "x64musl": {
-          "allocations": 12202,
-          "allocated_bytes": 5155322,
+          "allocations": 12201,
+          "allocated_bytes": 5155922,
           "work": {
             "resources": 1000,
             "direct_edges": 999,
@@ -8072,8 +8072,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1394,
-          "allocated_bytes": 814194,
+          "allocations": 1393,
+          "allocated_bytes": 814794,
           "work": {
             "resources": 100,
             "direct_edges": 390,
@@ -8102,8 +8102,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1394,
-          "allocated_bytes": 814194,
+          "allocations": 1393,
+          "allocated_bytes": 814794,
           "work": {
             "resources": 100,
             "direct_edges": 390,
@@ -8184,8 +8184,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12218,
-          "allocated_bytes": 9812106,
+          "allocations": 12217,
+          "allocated_bytes": 9812706,
           "work": {
             "resources": 1000,
             "direct_edges": 3990,
@@ -8214,8 +8214,8 @@
           }
         },
         "x64musl": {
-          "allocations": 12218,
-          "allocated_bytes": 9812106,
+          "allocations": 12217,
+          "allocated_bytes": 9812706,
           "work": {
             "resources": 1000,
             "direct_edges": 3990,
@@ -8296,8 +8296,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 711,
-          "allocated_bytes": 199916,
+          "allocations": 710,
+          "allocated_bytes": 200516,
           "work": {
             "resources": 100,
             "direct_edges": 0,
@@ -8326,8 +8326,8 @@
           }
         },
         "x64musl": {
-          "allocations": 711,
-          "allocated_bytes": 199916,
+          "allocations": 710,
+          "allocated_bytes": 200516,
           "work": {
             "resources": 100,
             "direct_edges": 0,
@@ -8408,8 +8408,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6128,
-          "allocated_bytes": 2245510,
+          "allocations": 6127,
+          "allocated_bytes": 2246110,
           "work": {
             "resources": 1000,
             "direct_edges": 0,
@@ -8438,8 +8438,8 @@
           }
         },
         "x64musl": {
-          "allocations": 6128,
-          "allocated_bytes": 2245510,
+          "allocations": 6127,
+          "allocated_bytes": 2246110,
           "work": {
             "resources": 1000,
             "direct_edges": 0,
@@ -8520,8 +8520,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 715,
-          "allocated_bytes": 212550,
+          "allocations": 714,
+          "allocated_bytes": 213150,
           "work": {
             "resources": 100,
             "direct_edges": 99,
@@ -8550,8 +8550,8 @@
           }
         },
         "x64musl": {
-          "allocations": 715,
-          "allocated_bytes": 212550,
+          "allocations": 714,
+          "allocated_bytes": 213150,
           "work": {
             "resources": 100,
             "direct_edges": 99,
@@ -8632,8 +8632,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1372,
-          "allocated_bytes": 427034,
+          "allocations": 1371,
+          "allocated_bytes": 427634,
           "work": {
             "resources": 100,
             "direct_edges": 99,
@@ -8662,8 +8662,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1372,
-          "allocated_bytes": 427034,
+          "allocations": 1371,
+          "allocated_bytes": 427634,
           "work": {
             "resources": 100,
             "direct_edges": 99,
@@ -8716,8 +8716,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 445,
-          "allocated_bytes": 49062,
+          "allocations": 444,
+          "allocated_bytes": 49662,
           "work": {
             "rejected_scenarios": 18,
             "escaped_plans": 0,
@@ -8725,8 +8725,8 @@
           }
         },
         "x64musl": {
-          "allocations": 445,
-          "allocated_bytes": 49062,
+          "allocations": 444,
+          "allocated_bytes": 49662,
           "work": {
             "rejected_scenarios": 18,
             "escaped_plans": 0,
@@ -8794,8 +8794,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2717,
-          "allocated_bytes": 8209408,
+          "allocations": 2601,
+          "allocated_bytes": 7878672,
           "work": {
             "authored_forms": 9,
             "canonical_forms": 5,
@@ -8835,8 +8835,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2717,
-          "allocated_bytes": 8209408,
+          "allocations": 2601,
+          "allocated_bytes": 7878672,
           "work": {
             "authored_forms": 9,
             "canonical_forms": 5,
@@ -8936,8 +8936,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1359,
-          "allocated_bytes": 4104880,
+          "allocations": 1301,
+          "allocated_bytes": 3939512,
           "work": {
             "authored_forms": 9,
             "canonical_forms": 5,
@@ -8977,8 +8977,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1359,
-          "allocated_bytes": 4104880,
+          "allocations": 1301,
+          "allocated_bytes": 3939512,
           "work": {
             "authored_forms": 9,
             "canonical_forms": 5,
@@ -9078,8 +9078,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2686,
-          "allocated_bytes": 8198696,
+          "allocations": 2570,
+          "allocated_bytes": 7867960,
           "work": {
             "authored_forms": 9,
             "canonical_forms": 5,
@@ -9119,8 +9119,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2686,
-          "allocated_bytes": 8198696,
+          "allocations": 2570,
+          "allocated_bytes": 7867960,
           "work": {
             "authored_forms": 9,
             "canonical_forms": 5,
@@ -9219,8 +9219,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1428,
-          "allocated_bytes": 1258024,
+          "allocations": 1409,
+          "allocated_bytes": 1241808,
           "work": {
             "authored_forms": 1,
             "canonical_forms": 1,
@@ -9260,8 +9260,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1428,
-          "allocated_bytes": 1258024,
+          "allocations": 1409,
+          "allocated_bytes": 1241808,
           "work": {
             "authored_forms": 1,
             "canonical_forms": 1,
@@ -9360,8 +9360,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8650,
-          "allocated_bytes": 2180569,
+          "allocations": 8631,
+          "allocated_bytes": 2164353,
           "work": {
             "authored_forms": 1,
             "canonical_forms": 1,
@@ -9401,8 +9401,8 @@
           }
         },
         "x64musl": {
-          "allocations": 8650,
-          "allocated_bytes": 2180569,
+          "allocations": 8631,
+          "allocated_bytes": 2164353,
           "work": {
             "authored_forms": 1,
             "canonical_forms": 1,
@@ -9501,8 +9501,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2076,
-          "allocated_bytes": 7683829,
+          "allocations": 1938,
+          "allocated_bytes": 7226525,
           "work": {
             "authored_forms": 12,
             "canonical_forms": 12,
@@ -9542,8 +9542,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2076,
-          "allocated_bytes": 7683829,
+          "allocations": 1938,
+          "allocated_bytes": 7226525,
           "work": {
             "authored_forms": 12,
             "canonical_forms": 12,
@@ -9642,8 +9642,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5479,
-          "allocated_bytes": 24132276,
+          "allocations": 5034,
+          "allocated_bytes": 20751796,
           "work": {
             "authored_forms": 36,
             "canonical_forms": 36,
@@ -9683,8 +9683,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5479,
-          "allocated_bytes": 24132276,
+          "allocations": 5034,
+          "allocated_bytes": 20751796,
           "work": {
             "authored_forms": 36,
             "canonical_forms": 36,
@@ -9783,8 +9783,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 7046,
-          "allocated_bytes": 43598768,
+          "allocations": 6284,
+          "allocated_bytes": 35916664,
           "work": {
             "authored_forms": 64,
             "canonical_forms": 64,
@@ -9824,8 +9824,8 @@
           }
         },
         "x64musl": {
-          "allocations": 7046,
-          "allocated_bytes": 43598768,
+          "allocations": 6284,
+          "allocated_bytes": 35916664,
           "work": {
             "authored_forms": 64,
             "canonical_forms": 64,
@@ -9908,8 +9908,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1066,
-          "allocated_bytes": 1348698,
+          "allocations": 1047,
+          "allocated_bytes": 1327474,
           "work": {
             "authored_forms": 1,
             "canonical_forms": 1,
@@ -9935,8 +9935,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1066,
-          "allocated_bytes": 1348698,
+          "allocations": 1047,
+          "allocated_bytes": 1327474,
           "work": {
             "authored_forms": 1,
             "canonical_forms": 1,
@@ -9990,8 +9990,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1665,
-          "allocated_bytes": 1254261,
+          "allocations": 1646,
+          "allocated_bytes": 1238045,
           "work": {
             "rejections": 22,
             "escaped_plans": 0,
@@ -9999,8 +9999,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1665,
-          "allocated_bytes": 1254261,
+          "allocations": 1646,
+          "allocated_bytes": 1238045,
           "work": {
             "rejections": 22,
             "escaped_plans": 0,
@@ -10076,8 +10076,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2309,
-          "allocated_bytes": 5851486,
+          "allocations": 2251,
+          "allocated_bytes": 5739310,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -10121,8 +10121,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2309,
-          "allocated_bytes": 5851486,
+          "allocations": 2251,
+          "allocated_bytes": 5739310,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -10234,8 +10234,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1155,
-          "allocated_bytes": 2925903,
+          "allocations": 1126,
+          "allocated_bytes": 2869815,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -10279,8 +10279,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1155,
-          "allocated_bytes": 2925903,
+          "allocations": 1126,
+          "allocated_bytes": 2869815,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -10392,8 +10392,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2288,
-          "allocated_bytes": 5846886,
+          "allocations": 2230,
+          "allocated_bytes": 5734710,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -10437,8 +10437,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2288,
-          "allocated_bytes": 5846886,
+          "allocations": 2230,
+          "allocated_bytes": 5734710,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -10546,8 +10546,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 745,
-          "allocated_bytes": 1199155,
+          "allocations": 732,
+          "allocated_bytes": 1194459,
           "work": {
             "authored_profiles": 0,
             "canonical_profiles": 0,
@@ -10591,8 +10591,8 @@
           }
         },
         "x64musl": {
-          "allocations": 745,
-          "allocated_bytes": 1199155,
+          "allocations": 732,
+          "allocated_bytes": 1194459,
           "work": {
             "authored_profiles": 0,
             "canonical_profiles": 0,
@@ -10700,8 +10700,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1861,
-          "allocated_bytes": 1546526,
+          "allocations": 1848,
+          "allocated_bytes": 1541830,
           "work": {
             "authored_profiles": 0,
             "canonical_profiles": 0,
@@ -10745,8 +10745,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1861,
-          "allocated_bytes": 1546526,
+          "allocations": 1848,
+          "allocated_bytes": 1541830,
           "work": {
             "authored_profiles": 0,
             "canonical_profiles": 0,
@@ -10854,8 +10854,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1022,
-          "allocated_bytes": 4912339,
+          "allocations": 1008,
+          "allocated_bytes": 4905731,
           "work": {
             "authored_profiles": 0,
             "canonical_profiles": 0,
@@ -10899,8 +10899,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1022,
-          "allocated_bytes": 4912339,
+          "allocations": 1008,
+          "allocated_bytes": 4905731,
           "work": {
             "authored_profiles": 0,
             "canonical_profiles": 0,
@@ -11008,8 +11008,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4298,
-          "allocated_bytes": 35233665,
+          "allocations": 4282,
+          "allocated_bytes": 35213665,
           "work": {
             "authored_profiles": 0,
             "canonical_profiles": 0,
@@ -11053,8 +11053,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4298,
-          "allocated_bytes": 35233665,
+          "allocations": 4282,
+          "allocated_bytes": 35213665,
           "work": {
             "authored_profiles": 0,
             "canonical_profiles": 0,
@@ -11127,8 +11127,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 847,
-          "allocated_bytes": 1185817,
+          "allocations": 834,
+          "allocated_bytes": 1181121,
           "work": {
             "rejections": 24,
             "escaped_plans": 0,
@@ -11136,8 +11136,8 @@
           }
         },
         "x64musl": {
-          "allocations": 847,
-          "allocated_bytes": 1185817,
+          "allocations": 834,
+          "allocated_bytes": 1181121,
           "work": {
             "rejections": 24,
             "escaped_plans": 0,
@@ -11204,8 +11204,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2827,
-          "allocated_bytes": 8168572,
+          "allocations": 2719,
+          "allocated_bytes": 7902828,
           "work": {
             "opacity_commands": 10,
             "opacity_groups": 9,
@@ -11241,8 +11241,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2827,
-          "allocated_bytes": 8168572,
+          "allocations": 2719,
+          "allocated_bytes": 7902828,
           "work": {
             "opacity_commands": 10,
             "opacity_groups": 9,
@@ -11337,8 +11337,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1414,
-          "allocated_bytes": 4084414,
+          "allocations": 1360,
+          "allocated_bytes": 3951542,
           "work": {
             "opacity_commands": 10,
             "opacity_groups": 9,
@@ -11374,8 +11374,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1414,
-          "allocated_bytes": 4084414,
+          "allocations": 1360,
+          "allocated_bytes": 3951542,
           "work": {
             "opacity_commands": 10,
             "opacity_groups": 9,
@@ -11470,8 +11470,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2800,
-          "allocated_bytes": 8160020,
+          "allocations": 2692,
+          "allocated_bytes": 7894276,
           "work": {
             "opacity_commands": 10,
             "opacity_groups": 9,
@@ -11507,8 +11507,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2800,
-          "allocated_bytes": 8160020,
+          "allocations": 2692,
+          "allocated_bytes": 7894276,
           "work": {
             "opacity_commands": 10,
             "opacity_groups": 9,
@@ -11600,8 +11600,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1762,
-          "allocated_bytes": 1340255,
+          "allocations": 1749,
+          "allocated_bytes": 1335559,
           "work": {
             "opacity_commands": 100,
             "opacity_groups": 100,
@@ -11637,8 +11637,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1762,
-          "allocated_bytes": 1340255,
+          "allocations": 1749,
+          "allocated_bytes": 1335559,
           "work": {
             "opacity_commands": 100,
             "opacity_groups": 100,
@@ -11730,8 +11730,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11689,
-          "allocated_bytes": 2717427,
+          "allocations": 11676,
+          "allocated_bytes": 2712731,
           "work": {
             "opacity_commands": 1000,
             "opacity_groups": 1000,
@@ -11767,8 +11767,8 @@
           }
         },
         "x64musl": {
-          "allocations": 11689,
-          "allocated_bytes": 2717427,
+          "allocations": 11676,
+          "allocated_bytes": 2712731,
           "work": {
             "opacity_commands": 1000,
             "opacity_groups": 1000,
@@ -11860,8 +11860,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4997,
-          "allocated_bytes": 2232244,
+          "allocations": 4983,
+          "allocated_bytes": 2216932,
           "work": {
             "opacity_commands": 100,
             "opacity_groups": 100,
@@ -11897,8 +11897,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4997,
-          "allocated_bytes": 2232244,
+          "allocations": 4983,
+          "allocated_bytes": 2216932,
           "work": {
             "opacity_commands": 100,
             "opacity_groups": 100,
@@ -11990,8 +11990,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 43798,
-          "allocated_bytes": 23562408,
+          "allocations": 43783,
+          "allocated_bytes": 23463776,
           "work": {
             "opacity_commands": 1000,
             "opacity_groups": 1000,
@@ -12027,8 +12027,8 @@
           }
         },
         "x64musl": {
-          "allocations": 43798,
-          "allocated_bytes": 23562408,
+          "allocations": 43783,
+          "allocated_bytes": 23463776,
           "work": {
             "opacity_commands": 1000,
             "opacity_groups": 1000,
@@ -12119,8 +12119,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1223,
-          "allocated_bytes": 1333999,
+          "allocations": 1210,
+          "allocated_bytes": 1327975,
           "work": {
             "opacity_commands": 16,
             "opacity_groups": 16,
@@ -12156,8 +12156,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1223,
-          "allocated_bytes": 1333999,
+          "allocations": 1210,
+          "allocated_bytes": 1327975,
           "work": {
             "opacity_commands": 16,
             "opacity_groups": 16,
@@ -12248,8 +12248,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2940,
-          "allocated_bytes": 1783915,
+          "allocations": 2925,
+          "allocated_bytes": 1767379,
           "work": {
             "opacity_commands": 64,
             "opacity_groups": 64,
@@ -12285,8 +12285,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2940,
-          "allocated_bytes": 1783915,
+          "allocations": 2925,
+          "allocated_bytes": 1767379,
           "work": {
             "opacity_commands": 64,
             "opacity_groups": 64,
@@ -12377,8 +12377,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1600,
-          "allocated_bytes": 5852120,
+          "allocations": 1494,
+          "allocated_bytes": 5568072,
           "work": {
             "opacity_commands": 8,
             "opacity_groups": 8,
@@ -12414,8 +12414,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1600,
-          "allocated_bytes": 5852120,
+          "allocations": 1494,
+          "allocated_bytes": 5568072,
           "work": {
             "opacity_commands": 8,
             "opacity_groups": 8,
@@ -12506,8 +12506,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4225,
-          "allocated_bytes": 21295317,
+          "allocations": 3834,
+          "allocated_bytes": 18781725,
           "work": {
             "opacity_commands": 32,
             "opacity_groups": 32,
@@ -12543,8 +12543,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4225,
-          "allocated_bytes": 21295317,
+          "allocations": 3834,
+          "allocated_bytes": 18781725,
           "work": {
             "opacity_commands": 32,
             "opacity_groups": 32,
@@ -12607,8 +12607,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1459,
-          "allocated_bytes": 5468136,
+          "allocations": 1446,
+          "allocated_bytes": 5463440,
           "work": {
             "rejections": 12,
             "escaped_plans": 0,
@@ -12616,8 +12616,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1459,
-          "allocated_bytes": 5468136,
+          "allocations": 1446,
+          "allocated_bytes": 5463440,
           "work": {
             "rejections": 12,
             "escaped_plans": 0,
@@ -12688,8 +12688,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2592,
-          "allocated_bytes": 6033778,
+          "allocations": 2484,
+          "allocated_bytes": 5783842,
           "work": {
             "soft_mask_commands": 6,
             "mask_states": 2,
@@ -12728,8 +12728,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2592,
-          "allocated_bytes": 6033778,
+          "allocations": 2484,
+          "allocated_bytes": 5783842,
           "work": {
             "soft_mask_commands": 6,
             "mask_states": 2,
@@ -12831,8 +12831,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1295,
-          "allocated_bytes": 3016761,
+          "allocations": 1241,
+          "allocated_bytes": 2891793,
           "work": {
             "soft_mask_commands": 6,
             "mask_states": 2,
@@ -12871,8 +12871,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1295,
-          "allocated_bytes": 3016761,
+          "allocations": 1241,
+          "allocated_bytes": 2891793,
           "work": {
             "soft_mask_commands": 6,
             "mask_states": 2,
@@ -12974,8 +12974,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2567,
-          "allocated_bytes": 6024882,
+          "allocations": 2459,
+          "allocated_bytes": 5774946,
           "work": {
             "soft_mask_commands": 6,
             "mask_states": 2,
@@ -13014,8 +13014,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2567,
-          "allocated_bytes": 6024882,
+          "allocations": 2459,
+          "allocated_bytes": 5774946,
           "work": {
             "soft_mask_commands": 6,
             "mask_states": 2,
@@ -13113,8 +13113,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1963,
-          "allocated_bytes": 1915095,
+          "allocations": 1938,
+          "allocated_bytes": 1885903,
           "work": {
             "soft_mask_commands": 100,
             "mask_states": 1,
@@ -13153,8 +13153,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1963,
-          "allocated_bytes": 1915095,
+          "allocations": 1938,
+          "allocated_bytes": 1885903,
           "work": {
             "soft_mask_commands": 100,
             "mask_states": 1,
@@ -13252,8 +13252,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11890,
-          "allocated_bytes": 3292267,
+          "allocations": 11865,
+          "allocated_bytes": 3263075,
           "work": {
             "soft_mask_commands": 1000,
             "mask_states": 1,
@@ -13292,8 +13292,8 @@
           }
         },
         "x64musl": {
-          "allocations": 11890,
-          "allocated_bytes": 3292267,
+          "allocations": 11865,
+          "allocated_bytes": 3263075,
           "work": {
             "soft_mask_commands": 1000,
             "mask_states": 1,
@@ -13391,8 +13391,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1938,
-          "allocated_bytes": 5954300,
+          "allocations": 1833,
+          "allocated_bytes": 5671108,
           "work": {
             "soft_mask_commands": 8,
             "mask_states": 8,
@@ -13431,8 +13431,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1938,
-          "allocated_bytes": 5954300,
+          "allocations": 1833,
+          "allocated_bytes": 5671108,
           "work": {
             "soft_mask_commands": 8,
             "mask_states": 8,
@@ -13530,8 +13530,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10207,
-          "allocated_bytes": 46505092,
+          "allocations": 9437,
+          "allocated_bytes": 37736548,
           "work": {
             "soft_mask_commands": 64,
             "mask_states": 64,
@@ -13570,8 +13570,8 @@
           }
         },
         "x64musl": {
-          "allocations": 10207,
-          "allocated_bytes": 46505092,
+          "allocations": 9437,
+          "allocated_bytes": 37736548,
           "work": {
             "soft_mask_commands": 64,
             "mask_states": 64,
@@ -13668,8 +13668,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 989,
-          "allocated_bytes": 2352243,
+          "allocations": 952,
+          "allocated_bytes": 2294587,
           "work": {
             "soft_mask_commands": 2,
             "mask_states": 2,
@@ -13708,8 +13708,8 @@
           }
         },
         "x64musl": {
-          "allocations": 989,
-          "allocated_bytes": 2352243,
+          "allocations": 952,
+          "allocated_bytes": 2294587,
           "work": {
             "soft_mask_commands": 2,
             "mask_states": 2,
@@ -13806,8 +13806,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1271,
-          "allocated_bytes": 3536259,
+          "allocations": 1213,
+          "allocated_bytes": 3421771,
           "work": {
             "soft_mask_commands": 4,
             "mask_states": 4,
@@ -13846,8 +13846,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1271,
-          "allocated_bytes": 3536259,
+          "allocations": 1213,
+          "allocated_bytes": 3421771,
           "work": {
             "soft_mask_commands": 4,
             "mask_states": 4,
@@ -13913,8 +13913,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1654,
-          "allocated_bytes": 4998124,
+          "allocations": 1629,
+          "allocated_bytes": 4968932,
           "work": {
             "rejections": 9,
             "escaped_plans": 0,
@@ -13922,8 +13922,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1654,
-          "allocated_bytes": 4998124,
+          "allocations": 1629,
+          "allocated_bytes": 4968932,
           "work": {
             "rejections": 9,
             "escaped_plans": 0,
@@ -13999,8 +13999,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3955,
-          "allocated_bytes": 6668028,
+          "allocations": 3817,
+          "allocated_bytes": 6127436,
           "work": {
             "shading_visits": 7,
             "shading_stop_visits": 16,
@@ -14042,8 +14042,8 @@
           }
         },
         "x64musl": {
-          "allocations": 3955,
-          "allocated_bytes": 6668028,
+          "allocations": 3817,
+          "allocated_bytes": 6127436,
           "work": {
             "shading_visits": 7,
             "shading_stop_visits": 16,
@@ -14153,8 +14153,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1978,
-          "allocated_bytes": 3334206,
+          "allocations": 1909,
+          "allocated_bytes": 3063910,
           "work": {
             "shading_visits": 7,
             "shading_stop_visits": 16,
@@ -14196,8 +14196,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1978,
-          "allocated_bytes": 3334206,
+          "allocations": 1909,
+          "allocated_bytes": 3063910,
           "work": {
             "shading_visits": 7,
             "shading_stop_visits": 16,
@@ -14307,8 +14307,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3916,
-          "allocated_bytes": 6655728,
+          "allocations": 3778,
+          "allocated_bytes": 6115136,
           "work": {
             "shading_visits": 7,
             "shading_stop_visits": 16,
@@ -14350,8 +14350,8 @@
           }
         },
         "x64musl": {
-          "allocations": 3916,
-          "allocated_bytes": 6655728,
+          "allocations": 3778,
+          "allocated_bytes": 6115136,
           "work": {
             "shading_visits": 7,
             "shading_stop_visits": 16,
@@ -14455,8 +14455,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1612,
-          "allocated_bytes": 809831,
+          "allocations": 1599,
+          "allocated_bytes": 805135,
           "work": {
             "shading_visits": 1,
             "shading_stop_visits": 2,
@@ -14498,8 +14498,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1612,
-          "allocated_bytes": 809831,
+          "allocations": 1599,
+          "allocated_bytes": 805135,
           "work": {
             "shading_visits": 1,
             "shading_stop_visits": 2,
@@ -14603,8 +14603,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9739,
-          "allocated_bytes": 2079069,
+          "allocations": 9726,
+          "allocated_bytes": 2074373,
           "work": {
             "shading_visits": 1,
             "shading_stop_visits": 2,
@@ -14646,8 +14646,8 @@
           }
         },
         "x64musl": {
-          "allocations": 9739,
-          "allocated_bytes": 2079069,
+          "allocations": 9726,
+          "allocated_bytes": 2074373,
           "work": {
             "shading_visits": 1,
             "shading_stop_visits": 2,
@@ -14750,8 +14750,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1299,
-          "allocated_bytes": 830725,
+          "allocations": 1285,
+          "allocated_bytes": 824117,
           "work": {
             "shading_visits": 8,
             "shading_stop_visits": 16,
@@ -14793,8 +14793,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1299,
-          "allocated_bytes": 830725,
+          "allocations": 1285,
+          "allocated_bytes": 824117,
           "work": {
             "shading_visits": 8,
             "shading_stop_visits": 16,
@@ -14897,8 +14897,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5711,
-          "allocated_bytes": 2203966,
+          "allocations": 5695,
+          "allocated_bytes": 2183966,
           "work": {
             "shading_visits": 64,
             "shading_stop_visits": 128,
@@ -14940,8 +14940,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5711,
-          "allocated_bytes": 2203966,
+          "allocations": 5695,
+          "allocated_bytes": 2183966,
           "work": {
             "shading_visits": 64,
             "shading_stop_visits": 128,
@@ -15045,8 +15045,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1199,
-          "allocated_bytes": 827176,
+          "allocations": 1186,
+          "allocated_bytes": 822480,
           "work": {
             "shading_visits": 1,
             "shading_stop_visits": 16,
@@ -15088,8 +15088,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1199,
-          "allocated_bytes": 827176,
+          "allocations": 1186,
+          "allocated_bytes": 822480,
           "work": {
             "shading_visits": 1,
             "shading_stop_visits": 16,
@@ -15193,8 +15193,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2681,
-          "allocated_bytes": 1391880,
+          "allocations": 2668,
+          "allocated_bytes": 1387184,
           "work": {
             "shading_visits": 1,
             "shading_stop_visits": 64,
@@ -15236,8 +15236,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2681,
-          "allocated_bytes": 1391880,
+          "allocations": 2668,
+          "allocated_bytes": 1387184,
           "work": {
             "shading_visits": 1,
             "shading_stop_visits": 64,
@@ -15341,8 +15341,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1314,
-          "allocated_bytes": 1252547,
+          "allocations": 1295,
+          "allocated_bytes": 1236331,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15384,8 +15384,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1314,
-          "allocated_bytes": 1252547,
+          "allocations": 1295,
+          "allocated_bytes": 1236331,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15489,8 +15489,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 7625,
-          "allocated_bytes": 1940006,
+          "allocations": 7606,
+          "allocated_bytes": 1923790,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15532,8 +15532,8 @@
           }
         },
         "x64musl": {
-          "allocations": 7625,
-          "allocated_bytes": 1940006,
+          "allocations": 7606,
+          "allocated_bytes": 1923790,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15636,8 +15636,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1336,
-          "allocated_bytes": 5150966,
+          "allocations": 1278,
+          "allocated_bytes": 5003222,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15679,8 +15679,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1336,
-          "allocated_bytes": 5150966,
+          "allocations": 1278,
+          "allocated_bytes": 5003222,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15783,8 +15783,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6686,
-          "allocated_bytes": 41340142,
+          "allocations": 6298,
+          "allocated_bytes": 35949598,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15826,8 +15826,8 @@
           }
         },
         "x64musl": {
-          "allocations": 6686,
-          "allocated_bytes": 41340142,
+          "allocations": 6298,
+          "allocated_bytes": 35949598,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15931,8 +15931,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 738,
-          "allocated_bytes": 1205261,
+          "allocations": 719,
+          "allocated_bytes": 1189045,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -15974,8 +15974,8 @@
           }
         },
         "x64musl": {
-          "allocations": 738,
-          "allocated_bytes": 1205261,
+          "allocations": 719,
+          "allocated_bytes": 1189045,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -16079,8 +16079,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1126,
-          "allocated_bytes": 1239102,
+          "allocations": 1107,
+          "allocated_bytes": 1222886,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -16122,8 +16122,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1126,
-          "allocated_bytes": 1239102,
+          "allocations": 1107,
+          "allocated_bytes": 1222886,
           "work": {
             "shading_visits": 0,
             "shading_stop_visits": 0,
@@ -16192,8 +16192,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1365,
-          "allocated_bytes": 1259342,
+          "allocations": 1352,
+          "allocated_bytes": 1254646,
           "work": {
             "rejections": 27,
             "escaped_plans": 0,
@@ -16201,8 +16201,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1365,
-          "allocated_bytes": 1259342,
+          "allocations": 1352,
+          "allocated_bytes": 1254646,
           "work": {
             "rejections": 27,
             "escaped_plans": 0,
@@ -16263,8 +16263,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5107,
-          "allocated_bytes": 5189392,
+          "allocations": 5013,
+          "allocated_bytes": 4994784,
           "work": {
             "authored_fonts": 4,
             "canonical_fonts": 3,
@@ -16296,8 +16296,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5107,
-          "allocated_bytes": 5189392,
+          "allocations": 5013,
+          "allocated_bytes": 4994784,
           "work": {
             "authored_fonts": 4,
             "canonical_fonts": 3,
@@ -16382,8 +16382,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2637,
-          "allocated_bytes": 1594059,
+          "allocations": 2621,
+          "allocated_bytes": 1571867,
           "work": {
             "authored_fonts": 5,
             "canonical_fonts": 5,
@@ -16415,8 +16415,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2637,
-          "allocated_bytes": 1594059,
+          "allocations": 2621,
+          "allocated_bytes": 1571867,
           "work": {
             "authored_fonts": 5,
             "canonical_fonts": 5,
@@ -16499,8 +16499,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2554,
-          "allocated_bytes": 2594808,
+          "allocations": 2507,
+          "allocated_bytes": 2497504,
           "work": {
             "authored_fonts": 4,
             "canonical_fonts": 3,
@@ -16532,8 +16532,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2554,
-          "allocated_bytes": 2594808,
+          "allocations": 2507,
+          "allocated_bytes": 2497504,
           "work": {
             "authored_fonts": 4,
             "canonical_fonts": 3,
@@ -16616,8 +16616,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5095,
-          "allocated_bytes": 5188568,
+          "allocations": 5001,
+          "allocated_bytes": 4993960,
           "work": {
             "authored_fonts": 4,
             "canonical_fonts": 3,
@@ -16649,8 +16649,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5095,
-          "allocated_bytes": 5188568,
+          "allocations": 5001,
+          "allocated_bytes": 4993960,
           "work": {
             "authored_fonts": 4,
             "canonical_fonts": 3,
@@ -16733,8 +16733,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6451,
-          "allocated_bytes": 2456292,
+          "allocations": 6437,
+          "allocated_bytes": 2226796,
           "work": {
             "authored_fonts": 1,
             "canonical_fonts": 1,
@@ -16766,8 +16766,8 @@
           }
         },
         "x64musl": {
-          "allocations": 6451,
-          "allocated_bytes": 2456292,
+          "allocations": 6437,
+          "allocated_bytes": 2226796,
           "work": {
             "authored_fonts": 1,
             "canonical_fonts": 1,
@@ -16850,8 +16850,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 48864,
-          "allocated_bytes": 20563893,
+          "allocations": 48849,
+          "allocated_bytes": 17897341,
           "work": {
             "authored_fonts": 1,
             "canonical_fonts": 1,
@@ -16883,8 +16883,8 @@
           }
         },
         "x64musl": {
-          "allocations": 48864,
-          "allocated_bytes": 20563893,
+          "allocations": 48849,
+          "allocated_bytes": 17897341,
           "work": {
             "authored_fonts": 1,
             "canonical_fonts": 1,
@@ -16967,8 +16967,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2461,
-          "allocated_bytes": 1654344,
+          "allocations": 2445,
+          "allocated_bytes": 1622360,
           "work": {
             "authored_fonts": 8,
             "canonical_fonts": 1,
@@ -17000,8 +17000,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2461,
-          "allocated_bytes": 1654344,
+          "allocations": 2445,
+          "allocated_bytes": 1622360,
           "work": {
             "authored_fonts": 8,
             "canonical_fonts": 1,
@@ -17084,8 +17084,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8262,
-          "allocated_bytes": 6998208,
+          "allocations": 8248,
+          "allocated_bytes": 6850024,
           "work": {
             "authored_fonts": 64,
             "canonical_fonts": 1,
@@ -17117,8 +17117,8 @@
           }
         },
         "x64musl": {
-          "allocations": 8262,
-          "allocated_bytes": 6998208,
+          "allocations": 8248,
+          "allocated_bytes": 6850024,
           "work": {
             "authored_fonts": 64,
             "canonical_fonts": 1,
@@ -17201,8 +17201,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6591,
-          "allocated_bytes": 4162800,
+          "allocations": 6557,
+          "allocated_bytes": 4091424,
           "work": {
             "authored_fonts": 8,
             "canonical_fonts": 8,
@@ -17234,8 +17234,8 @@
           }
         },
         "x64musl": {
-          "allocations": 6591,
-          "allocated_bytes": 4162800,
+          "allocations": 6557,
+          "allocated_bytes": 4091424,
           "work": {
             "authored_fonts": 8,
             "canonical_fonts": 8,
@@ -17318,8 +17318,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 31361,
-          "allocated_bytes": 25540764,
+          "allocations": 31331,
+          "allocated_bytes": 25203772,
           "work": {
             "authored_fonts": 64,
             "canonical_fonts": 64,
@@ -17351,8 +17351,8 @@
           }
         },
         "x64musl": {
-          "allocations": 31361,
-          "allocated_bytes": 25540764,
+          "allocations": 31331,
+          "allocated_bytes": 25203772,
           "work": {
             "authored_fonts": 64,
             "canonical_fonts": 64,
@@ -17418,8 +17418,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3052,
-          "allocated_bytes": 1919985,
+          "allocations": 3039,
+          "allocated_bytes": 1915289,
           "work": {
             "entries": 8,
             "canonical_resources": 5,
@@ -17435,8 +17435,8 @@
           }
         },
         "x64musl": {
-          "allocations": 3052,
-          "allocated_bytes": 1919985,
+          "allocations": 3039,
+          "allocated_bytes": 1915289,
           "work": {
             "entries": 8,
             "canonical_resources": 5,
@@ -17486,8 +17486,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5564,
-          "allocated_bytes": 16787359,
+          "allocations": 5551,
+          "allocated_bytes": 16782663,
           "work": {
             "entries": 64,
             "canonical_resources": 33,
@@ -17503,8 +17503,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5564,
-          "allocated_bytes": 16787359,
+          "allocations": 5551,
+          "allocated_bytes": 16782663,
           "work": {
             "entries": 64,
             "canonical_resources": 33,
@@ -17546,8 +17546,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5109,
-          "allocated_bytes": 2053977,
+          "allocations": 5096,
+          "allocated_bytes": 2049281,
           "work": {
             "rejections": 11,
             "escaped_plans": 0,
@@ -17555,8 +17555,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5109,
-          "allocated_bytes": 2053977,
+          "allocations": 5096,
+          "allocated_bytes": 2049281,
           "work": {
             "rejections": 11,
             "escaped_plans": 0,
@@ -17609,8 +17609,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1475,
-          "allocated_bytes": 1502102,
+          "allocations": 1453,
+          "allocated_bytes": 1477766,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -17633,8 +17633,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1475,
-          "allocated_bytes": 1502102,
+          "allocations": 1453,
+          "allocated_bytes": 1477766,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -17701,8 +17701,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 721,
-          "allocated_bytes": 737975,
+          "allocations": 710,
+          "allocated_bytes": 725807,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -17725,8 +17725,8 @@
           }
         },
         "x64musl": {
-          "allocations": 721,
-          "allocated_bytes": 737975,
+          "allocations": 710,
+          "allocated_bytes": 725807,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -17792,8 +17792,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 738,
-          "allocated_bytes": 751127,
+          "allocations": 727,
+          "allocated_bytes": 738959,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -17816,8 +17816,8 @@
           }
         },
         "x64musl": {
-          "allocations": 738,
-          "allocated_bytes": 751127,
+          "allocations": 727,
+          "allocated_bytes": 738959,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -17883,8 +17883,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1474,
-          "allocated_bytes": 1501902,
+          "allocations": 1452,
+          "allocated_bytes": 1477566,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -17907,8 +17907,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1474,
-          "allocated_bytes": 1501902,
+          "allocations": 1452,
+          "allocated_bytes": 1477566,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -17975,8 +17975,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1648,
-          "allocated_bytes": 1247938,
+          "allocations": 1638,
+          "allocated_bytes": 1218386,
           "work": {
             "authored_profiles": 16,
             "canonical_profiles": 1,
@@ -17999,8 +17999,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1648,
-          "allocated_bytes": 1247938,
+          "allocations": 1638,
+          "allocated_bytes": 1218386,
           "work": {
             "authored_profiles": 16,
             "canonical_profiles": 1,
@@ -18067,8 +18067,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4731,
-          "allocated_bytes": 3597025,
+          "allocations": 4722,
+          "allocated_bytes": 3514825,
           "work": {
             "authored_profiles": 64,
             "canonical_profiles": 1,
@@ -18091,8 +18091,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4731,
-          "allocated_bytes": 3597025,
+          "allocations": 4722,
+          "allocated_bytes": 3514825,
           "work": {
             "authored_profiles": 64,
             "canonical_profiles": 1,
@@ -18158,8 +18158,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 739,
-          "allocated_bytes": 751601,
+          "allocations": 728,
+          "allocated_bytes": 739433,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -18182,8 +18182,8 @@
           }
         },
         "x64musl": {
-          "allocations": 739,
-          "allocated_bytes": 751601,
+          "allocations": 728,
+          "allocated_bytes": 739433,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -18249,8 +18249,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 741,
-          "allocated_bytes": 757514,
+          "allocations": 730,
+          "allocated_bytes": 745346,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -18273,8 +18273,8 @@
           }
         },
         "x64musl": {
-          "allocations": 741,
-          "allocated_bytes": 757514,
+          "allocations": 730,
+          "allocated_bytes": 745346,
           "work": {
             "authored_profiles": 2,
             "canonical_profiles": 1,
@@ -18323,8 +18323,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 753,
-          "allocated_bytes": 754222,
+          "allocations": 742,
+          "allocated_bytes": 742054,
           "work": {
             "rejections": 18,
             "escaped_plans": 0,
@@ -18332,8 +18332,8 @@
           }
         },
         "x64musl": {
-          "allocations": 753,
-          "allocated_bytes": 754222,
+          "allocations": 742,
+          "allocated_bytes": 742054,
           "work": {
             "rejections": 18,
             "escaped_plans": 0,
@@ -18366,15 +18366,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 34061,
-          "allocated_bytes": 7330676,
+          "allocations": 34057,
+          "allocated_bytes": 7321844,
           "work": {
             "output_bytes": 46548
           }
         },
         "x64musl": {
-          "allocations": 34061,
-          "allocated_bytes": 7330676,
+          "allocations": 34057,
+          "allocated_bytes": 7321844,
           "work": {
             "output_bytes": 46548
           }
@@ -18407,16 +18407,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 68121,
-          "allocated_bytes": 14661344,
+          "allocations": 68113,
+          "allocated_bytes": 14643680,
           "work": {
             "byte_identical": 1,
             "output_bytes": 46548
           }
         },
         "x64musl": {
-          "allocations": 68121,
-          "allocated_bytes": 14661344,
+          "allocations": 68113,
+          "allocated_bytes": 14643680,
           "work": {
             "byte_identical": 1,
             "output_bytes": 46548
@@ -18449,16 +18449,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1734,
-          "allocated_bytes": 1031811,
+          "allocations": 1729,
+          "allocated_bytes": 1028187,
           "work": {
             "metadata_rejections": 9,
             "output_bytes": 13475
           }
         },
         "x64musl": {
-          "allocations": 1734,
-          "allocated_bytes": 1031811,
+          "allocations": 1729,
+          "allocated_bytes": 1028187,
           "work": {
             "metadata_rejections": 9,
             "output_bytes": 13475
@@ -18510,8 +18510,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2107,
-          "allocated_bytes": 3886122,
+          "allocations": 2071,
+          "allocated_bytes": 3788458,
           "work": {
             "destinations_checked": 2,
             "annotations_checked": 3,
@@ -18532,8 +18532,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2107,
-          "allocated_bytes": 3886122,
+          "allocations": 2071,
+          "allocated_bytes": 3788458,
           "work": {
             "destinations_checked": 2,
             "annotations_checked": 3,
@@ -18595,8 +18595,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1023,
-          "allocated_bytes": 911704,
+          "allocations": 1013,
+          "allocated_bytes": 883512,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 8,
@@ -18617,8 +18617,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1023,
-          "allocated_bytes": 911704,
+          "allocations": 1013,
+          "allocated_bytes": 883512,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 8,
@@ -18680,8 +18680,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3825,
-          "allocated_bytes": 2869912,
+          "allocations": 3816,
+          "allocated_bytes": 2691368,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 64,
@@ -18702,8 +18702,8 @@
           }
         },
         "x64musl": {
-          "allocations": 3825,
-          "allocated_bytes": 2869912,
+          "allocations": 3816,
+          "allocated_bytes": 2691368,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 64,
@@ -18765,8 +18765,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1178,
-          "allocated_bytes": 901793,
+          "allocations": 1169,
+          "allocated_bytes": 882313,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 1,
@@ -18787,8 +18787,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1178,
-          "allocated_bytes": 901793,
+          "allocations": 1169,
+          "allocated_bytes": 882313,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 1,
@@ -18851,8 +18851,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2302,
-          "allocated_bytes": 1914396,
+          "allocations": 2294,
+          "allocated_bytes": 1820052,
           "work": {
             "destinations_checked": 1,
             "annotations_checked": 32,
@@ -18873,8 +18873,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2302,
-          "allocated_bytes": 1914396,
+          "allocations": 2294,
+          "allocated_bytes": 1820052,
           "work": {
             "destinations_checked": 1,
             "annotations_checked": 32,
@@ -18936,8 +18936,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1634,
-          "allocated_bytes": 1824800,
+          "allocations": 1620,
+          "allocated_bytes": 1740272,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 16,
@@ -18958,8 +18958,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1634,
-          "allocated_bytes": 1824800,
+          "allocations": 1620,
+          "allocated_bytes": 1740272,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 16,
@@ -19022,8 +19022,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 814,
-          "allocated_bytes": 746102,
+          "allocations": 806,
+          "allocated_bytes": 740534,
           "work": {
             "destinations_checked": 1,
             "annotations_checked": 0,
@@ -19044,8 +19044,8 @@
           }
         },
         "x64musl": {
-          "allocations": 814,
-          "allocated_bytes": 746102,
+          "allocations": 806,
+          "allocated_bytes": 740534,
           "work": {
             "destinations_checked": 1,
             "annotations_checked": 0,
@@ -19108,8 +19108,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1450,
-          "allocated_bytes": 952582,
+          "allocations": 1442,
+          "allocated_bytes": 947014,
           "work": {
             "destinations_checked": 1,
             "annotations_checked": 0,
@@ -19130,8 +19130,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1450,
-          "allocated_bytes": 952582,
+          "allocations": 1442,
+          "allocated_bytes": 947014,
           "work": {
             "destinations_checked": 1,
             "annotations_checked": 0,
@@ -19193,8 +19193,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 877,
-          "allocated_bytes": 796635,
+          "allocations": 867,
+          "allocated_bytes": 775115,
           "work": {
             "destinations_checked": 8,
             "annotations_checked": 0,
@@ -19215,8 +19215,8 @@
           }
         },
         "x64musl": {
-          "allocations": 877,
-          "allocated_bytes": 796635,
+          "allocations": 867,
+          "allocated_bytes": 775115,
           "work": {
             "destinations_checked": 8,
             "annotations_checked": 0,
@@ -19278,8 +19278,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1976,
-          "allocated_bytes": 1379672,
+          "allocations": 1967,
+          "allocated_bytes": 1325544,
           "work": {
             "destinations_checked": 40,
             "annotations_checked": 0,
@@ -19300,8 +19300,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1976,
-          "allocated_bytes": 1379672,
+          "allocations": 1967,
+          "allocated_bytes": 1325544,
           "work": {
             "destinations_checked": 40,
             "annotations_checked": 0,
@@ -19363,8 +19363,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1124,
-          "allocated_bytes": 4768849,
+          "allocations": 1076,
+          "allocated_bytes": 4639969,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 0,
@@ -19385,8 +19385,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1124,
-          "allocated_bytes": 4768849,
+          "allocations": 1076,
+          "allocated_bytes": 4639969,
           "work": {
             "destinations_checked": 0,
             "annotations_checked": 0,
@@ -19449,8 +19449,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1054,
-          "allocated_bytes": 1943129,
+          "allocations": 1036,
+          "allocated_bytes": 1894297,
           "work": {
             "destinations_checked": 2,
             "annotations_checked": 3,
@@ -19471,8 +19471,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1054,
-          "allocated_bytes": 1943129,
+          "allocations": 1036,
+          "allocated_bytes": 1894297,
           "work": {
             "destinations_checked": 2,
             "annotations_checked": 3,
@@ -19535,8 +19535,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2105,
-          "allocated_bytes": 3885530,
+          "allocations": 2069,
+          "allocated_bytes": 3787866,
           "work": {
             "destinations_checked": 2,
             "annotations_checked": 3,
@@ -19557,8 +19557,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2105,
-          "allocated_bytes": 3885530,
+          "allocations": 2069,
+          "allocated_bytes": 3787866,
           "work": {
             "destinations_checked": 2,
             "annotations_checked": 3,
@@ -19605,8 +19605,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3465,
-          "allocated_bytes": 2347847,
+          "allocations": 3447,
+          "allocated_bytes": 2299015,
           "work": {
             "rejections": 32,
             "escaped_plans": 0,
@@ -19614,8 +19614,8 @@
           }
         },
         "x64musl": {
-          "allocations": 3465,
-          "allocated_bytes": 2347847,
+          "allocations": 3447,
+          "allocated_bytes": 2299015,
           "work": {
             "rejections": 32,
             "escaped_plans": 0,
@@ -19651,15 +19651,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 37730,
-          "allocated_bytes": 7882788,
+          "allocations": 37728,
+          "allocated_bytes": 7908964,
           "work": {
             "output_bytes": 39111
           }
         },
         "x64musl": {
-          "allocations": 37730,
-          "allocated_bytes": 7882788,
+          "allocations": 37728,
+          "allocated_bytes": 7908964,
           "work": {
             "output_bytes": 39111
           }
@@ -19695,16 +19695,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 75459,
-          "allocated_bytes": 15765568,
+          "allocations": 75455,
+          "allocated_bytes": 15817920,
           "work": {
             "byte_identical": 1,
             "output_bytes": 39111
           }
         },
         "x64musl": {
-          "allocations": 75459,
-          "allocated_bytes": 15765568,
+          "allocations": 75455,
+          "allocated_bytes": 15817920,
           "work": {
             "byte_identical": 1,
             "output_bytes": 39111
@@ -19738,8 +19738,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 12229,
-          "allocated_bytes": 3661127,
+          "allocations": 12225,
+          "allocated_bytes": 3660423,
           "work": {
             "rejections": 9,
             "escaped_plans": 0,
@@ -19747,8 +19747,8 @@
           }
         },
         "x64musl": {
-          "allocations": 12229,
-          "allocated_bytes": 3661127,
+          "allocations": 12225,
+          "allocated_bytes": 3660423,
           "work": {
             "rejections": 9,
             "escaped_plans": 0,
@@ -19781,15 +19781,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 188,
-          "allocated_bytes": 50587,
+          "allocations": 187,
+          "allocated_bytes": 51955,
           "work": {
             "output_bytes": 4838
           }
         },
         "x64musl": {
-          "allocations": 188,
-          "allocated_bytes": 50587,
+          "allocations": 187,
+          "allocated_bytes": 51955,
           "work": {
             "output_bytes": 4838
           }
@@ -19820,15 +19820,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 59688,
-          "allocated_bytes": 13541717,
+          "allocations": 59684,
+          "allocated_bytes": 13528997,
           "work": {
             "output_bytes": 61996
           }
         },
         "x64musl": {
-          "allocations": 59688,
-          "allocated_bytes": 13541717,
+          "allocations": 59684,
+          "allocated_bytes": 13528997,
           "work": {
             "output_bytes": 61996
           }
@@ -19859,15 +19859,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 571088,
-          "allocated_bytes": 120137324,
+          "allocations": 571084,
+          "allocated_bytes": 120037676,
           "work": {
             "output_bytes": 404940
           }
         },
         "x64musl": {
-          "allocations": 571088,
-          "allocated_bytes": 120137324,
+          "allocations": 571084,
+          "allocated_bytes": 120037676,
           "work": {
             "output_bytes": 404940
           }
@@ -19898,15 +19898,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3052,
-          "allocated_bytes": 3410426,
+          "allocations": 3047,
+          "allocated_bytes": 3404754,
           "work": {
             "output_bytes": 22542
           }
         },
         "x64musl": {
-          "allocations": 3052,
-          "allocated_bytes": 3410426,
+          "allocations": 3047,
+          "allocated_bytes": 3404754,
           "work": {
             "output_bytes": 22542
           }
@@ -19937,15 +19937,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4851,
-          "allocated_bytes": 1711198,
+          "allocations": 4847,
+          "allocated_bytes": 1710974,
           "work": {
             "output_bytes": 26915
           }
         },
         "x64musl": {
-          "allocations": 4851,
-          "allocated_bytes": 1711198,
+          "allocations": 4847,
+          "allocated_bytes": 1710974,
           "work": {
             "output_bytes": 26915
           }
@@ -19976,15 +19976,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 14851,
-          "allocated_bytes": 5369961,
+          "allocations": 14846,
+          "allocated_bytes": 5305177,
           "work": {
             "output_bytes": 61468
           }
         },
         "x64musl": {
-          "allocations": 14851,
-          "allocated_bytes": 5369961,
+          "allocations": 14846,
+          "allocated_bytes": 5305177,
           "work": {
             "output_bytes": 61468
           }
@@ -20014,15 +20014,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 909,
-          "allocated_bytes": 777763,
+          "allocations": 904,
+          "allocated_bytes": 774139,
           "work": {
             "output_bytes": 14399
           }
         },
         "x64musl": {
-          "allocations": 909,
-          "allocated_bytes": 777763,
+          "allocations": 904,
+          "allocated_bytes": 774139,
           "work": {
             "output_bytes": 14399
           }
@@ -20055,8 +20055,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 119524,
-          "allocated_bytes": 29421171,
+          "allocations": 119516,
+          "allocated_bytes": 29395731,
           "work": {
             "output_bytes": 61996,
             "chunks": 110,
@@ -20064,8 +20064,8 @@
           }
         },
         "x64musl": {
-          "allocations": 119524,
-          "allocated_bytes": 29421171,
+          "allocations": 119516,
+          "allocated_bytes": 29395731,
           "work": {
             "output_bytes": 61996,
             "chunks": 110,
@@ -20100,8 +20100,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 119523,
-          "allocated_bytes": 29418139,
+          "allocations": 119515,
+          "allocated_bytes": 29392699,
           "work": {
             "output_bytes": 61996,
             "chunks": 110,
@@ -20109,8 +20109,8 @@
           }
         },
         "x64musl": {
-          "allocations": 119523,
-          "allocated_bytes": 29418139,
+          "allocations": 119515,
+          "allocated_bytes": 29392699,
           "work": {
             "output_bytes": 61996,
             "chunks": 110,
@@ -20145,8 +20145,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 119331,
-          "allocated_bytes": 27070510,
+          "allocations": 119323,
+          "allocated_bytes": 27045070,
           "work": {
             "archive_bytes": 61996,
             "standard_bytes": 61884,
@@ -20154,8 +20154,8 @@
           }
         },
         "x64musl": {
-          "allocations": 119331,
-          "allocated_bytes": 27070510,
+          "allocations": 119323,
+          "allocated_bytes": 27045070,
           "work": {
             "archive_bytes": 61996,
             "standard_bytes": 61884,
@@ -20188,16 +20188,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1852,
-          "allocated_bytes": 1072562,
+          "allocations": 1847,
+          "allocated_bytes": 1068938,
           "work": {
             "negatives_rejected": 5,
             "output_bytes": 15155
           }
         },
         "x64musl": {
-          "allocations": 1852,
-          "allocated_bytes": 1072562,
+          "allocations": 1847,
+          "allocated_bytes": 1068938,
           "work": {
             "negatives_rejected": 5,
             "output_bytes": 15155
@@ -20229,15 +20229,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3050,
-          "allocated_bytes": 3409571,
+          "allocations": 3045,
+          "allocated_bytes": 3403899,
           "work": {
             "output_bytes": 22430
           }
         },
         "x64musl": {
-          "allocations": 3050,
-          "allocated_bytes": 3409571,
+          "allocations": 3045,
+          "allocated_bytes": 3403899,
           "work": {
             "output_bytes": 22430
           }
@@ -20268,15 +20268,15 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4849,
-          "allocated_bytes": 1710291,
+          "allocations": 4845,
+          "allocated_bytes": 1710067,
           "work": {
             "output_bytes": 26803
           }
         },
         "x64musl": {
-          "allocations": 4849,
-          "allocated_bytes": 1710291,
+          "allocations": 4845,
+          "allocated_bytes": 1710067,
           "work": {
             "output_bytes": 26803
           }
@@ -20314,8 +20314,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 6222,
-          "allocated_bytes": 1966094,
+          "allocations": 6217,
+          "allocated_bytes": 1957414,
           "work": {
             "node_writes": 28,
             "container_nodes": 6,
@@ -20328,8 +20328,8 @@
           }
         },
         "x64musl": {
-          "allocations": 6222,
-          "allocated_bytes": 1966094,
+          "allocations": 6217,
+          "allocated_bytes": 1957414,
           "work": {
             "node_writes": 28,
             "container_nodes": 6,
@@ -20375,8 +20375,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 13416,
-          "allocated_bytes": 3867309,
+          "allocations": 13411,
+          "allocated_bytes": 3854917,
           "work": {
             "node_writes": 42,
             "container_nodes": 10,
@@ -20389,8 +20389,8 @@
           }
         },
         "x64musl": {
-          "allocations": 13416,
-          "allocated_bytes": 3867309,
+          "allocations": 13411,
+          "allocated_bytes": 3854917,
           "work": {
             "node_writes": 42,
             "container_nodes": 10,
@@ -20436,8 +20436,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 117527,
-          "allocated_bytes": 29518684,
+          "allocations": 117523,
+          "allocated_bytes": 29478220,
           "work": {
             "node_writes": 402,
             "container_nodes": 100,
@@ -20450,8 +20450,8 @@
           }
         },
         "x64musl": {
-          "allocations": 117527,
-          "allocated_bytes": 29518684,
+          "allocations": 117523,
+          "allocated_bytes": 29478220,
           "work": {
             "node_writes": 402,
             "container_nodes": 100,
@@ -20492,8 +20492,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 7451,
-          "allocated_bytes": 3107290,
+          "allocations": 7445,
+          "allocated_bytes": 3110314,
           "work": {
             "rejections": 5,
             "boundary_bytes": 16506,
@@ -20501,8 +20501,8 @@
           }
         },
         "x64musl": {
-          "allocations": 7451,
-          "allocated_bytes": 3107290,
+          "allocations": 7445,
+          "allocated_bytes": 3110314,
           "work": {
             "rejections": 5,
             "boundary_bytes": 16506,
@@ -20546,8 +20546,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 1787,
-          "allocated_bytes": 1047574,
+          "allocations": 1783,
+          "allocated_bytes": 1046806,
           "work": {
             "node_visits": 6,
             "containment_edges": 5,
@@ -20563,8 +20563,8 @@
           }
         },
         "x64musl": {
-          "allocations": 1787,
-          "allocated_bytes": 1047574,
+          "allocations": 1783,
+          "allocated_bytes": 1046806,
           "work": {
             "node_visits": 6,
             "containment_edges": 5,
@@ -20618,8 +20618,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 18549,
-          "allocated_bytes": 4666716,
+          "allocations": 18539,
+          "allocated_bytes": 4641916,
           "work": {
             "node_writes": 34,
             "inline_elements": 16,
@@ -20637,8 +20637,8 @@
           }
         },
         "x64musl": {
-          "allocations": 18549,
-          "allocated_bytes": 4666716,
+          "allocations": 18539,
+          "allocated_bytes": 4641916,
           "work": {
             "node_writes": 34,
             "inline_elements": 16,
@@ -20697,8 +20697,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 38674,
-          "allocated_bytes": 9590202,
+          "allocations": 38666,
+          "allocated_bytes": 9540202,
           "work": {
             "node_writes": 92,
             "inline_elements": 80,
@@ -20716,8 +20716,8 @@
           }
         },
         "x64musl": {
-          "allocations": 38674,
-          "allocated_bytes": 9590202,
+          "allocations": 38666,
+          "allocated_bytes": 9540202,
           "work": {
             "node_writes": 92,
             "inline_elements": 80,
@@ -20776,8 +20776,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 353763,
-          "allocated_bytes": 87539928,
+          "allocations": 353755,
+          "allocated_bytes": 87013896,
           "work": {
             "node_writes": 902,
             "inline_elements": 800,
@@ -20795,8 +20795,8 @@
           }
         },
         "x64musl": {
-          "allocations": 353763,
-          "allocated_bytes": 87539928,
+          "allocations": 353755,
+          "allocated_bytes": 87013896,
           "work": {
             "node_writes": 902,
             "inline_elements": 800,
@@ -20854,8 +20854,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2095,
-          "allocated_bytes": 1044722,
+          "allocations": 2088,
+          "allocated_bytes": 1044922,
           "work": {
             "node_writes": 5,
             "inline_elements": 3,
@@ -20873,8 +20873,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2095,
-          "allocated_bytes": 1044722,
+          "allocations": 2088,
+          "allocated_bytes": 1044922,
           "work": {
             "node_writes": 5,
             "inline_elements": 3,
@@ -20920,8 +20920,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 16725,
-          "allocated_bytes": 5524255,
+          "allocations": 16717,
+          "allocated_bytes": 5519071,
           "work": {
             "rejections": 12,
             "boundary_bytes": 16325,
@@ -20929,8 +20929,8 @@
           }
         },
         "x64musl": {
-          "allocations": 16725,
-          "allocated_bytes": 5524255,
+          "allocations": 16717,
+          "allocated_bytes": 5519071,
           "work": {
             "rejections": 12,
             "boundary_bytes": 16325,
@@ -20978,8 +20978,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11311,
-          "allocated_bytes": 3338607,
+          "allocations": 11307,
+          "allocated_bytes": 3329775,
           "work": {
             "node_writes": 66,
             "lists": 5,
@@ -20999,8 +20999,8 @@
           }
         },
         "x64musl": {
-          "allocations": 11311,
-          "allocated_bytes": 3338607,
+          "allocations": 11307,
+          "allocated_bytes": 3329775,
           "work": {
             "node_writes": 66,
             "lists": 5,
@@ -21060,8 +21060,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11495,
-          "allocated_bytes": 3806541,
+          "allocations": 11491,
+          "allocated_bytes": 3802029,
           "work": {
             "node_writes": 19,
             "lists": 0,
@@ -21081,8 +21081,8 @@
           }
         },
         "x64musl": {
-          "allocations": 11495,
-          "allocated_bytes": 3806541,
+          "allocations": 11491,
+          "allocated_bytes": 3802029,
           "work": {
             "node_writes": 19,
             "lists": 0,
@@ -21142,8 +21142,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8329,
-          "allocated_bytes": 4561652,
+          "allocations": 8324,
+          "allocated_bytes": 4554188,
           "work": {
             "node_writes": 16,
             "lists": 0,
@@ -21163,8 +21163,8 @@
           }
         },
         "x64musl": {
-          "allocations": 8329,
-          "allocated_bytes": 4561652,
+          "allocations": 8324,
+          "allocated_bytes": 4554188,
           "work": {
             "node_writes": 16,
             "lists": 0,
@@ -21224,8 +21224,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4638,
-          "allocated_bytes": 3317592,
+          "allocations": 4635,
+          "allocated_bytes": 3318080,
           "work": {
             "node_writes": 3,
             "lists": 0,
@@ -21245,8 +21245,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4638,
-          "allocated_bytes": 3317592,
+          "allocations": 4635,
+          "allocated_bytes": 3318080,
           "work": {
             "node_writes": 3,
             "lists": 0,
@@ -21306,8 +21306,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 47807,
-          "allocated_bytes": 13844836,
+          "allocations": 47803,
+          "allocated_bytes": 13804372,
           "work": {
             "node_writes": 352,
             "lists": 50,
@@ -21327,8 +21327,8 @@
           }
         },
         "x64musl": {
-          "allocations": 47807,
-          "allocated_bytes": 13844836,
+          "allocations": 47803,
+          "allocated_bytes": 13804372,
           "work": {
             "node_writes": 352,
             "lists": 50,
@@ -21388,8 +21388,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 462348,
-          "allocated_bytes": 129267858,
+          "allocations": 462344,
+          "allocated_bytes": 128931474,
           "work": {
             "node_writes": 3502,
             "lists": 500,
@@ -21409,8 +21409,8 @@
           }
         },
         "x64musl": {
-          "allocations": 462348,
-          "allocated_bytes": 129267858,
+          "allocations": 462344,
+          "allocated_bytes": 128931474,
           "work": {
             "node_writes": 3502,
             "lists": 500,
@@ -21470,8 +21470,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11339,
-          "allocated_bytes": 3504343,
+          "allocations": 11335,
+          "allocated_bytes": 3495511,
           "work": {
             "node_writes": 52,
             "lists": 0,
@@ -21491,8 +21491,8 @@
           }
         },
         "x64musl": {
-          "allocations": 11339,
-          "allocated_bytes": 3504343,
+          "allocations": 11335,
+          "allocated_bytes": 3495511,
           "work": {
             "node_writes": 52,
             "lists": 0,
@@ -21552,8 +21552,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 88142,
-          "allocated_bytes": 28591801,
+          "allocations": 88138,
+          "allocated_bytes": 28531609,
           "work": {
             "node_writes": 502,
             "lists": 0,
@@ -21573,8 +21573,8 @@
           }
         },
         "x64musl": {
-          "allocations": 88142,
-          "allocated_bytes": 28591801,
+          "allocations": 88138,
+          "allocated_bytes": 28531609,
           "work": {
             "node_writes": 502,
             "lists": 0,
@@ -21623,8 +21623,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 31438,
-          "allocated_bytes": 12814194,
+          "allocations": 31428,
+          "allocated_bytes": 12801058,
           "work": {
             "rejections": 25,
             "boundary_bytes": 18254,
@@ -21632,8 +21632,8 @@
           }
         },
         "x64musl": {
-          "allocations": 31438,
-          "allocated_bytes": 12814194,
+          "allocations": 31428,
+          "allocated_bytes": 12801058,
           "work": {
             "rejections": 25,
             "boundary_bytes": 18254,
@@ -21683,8 +21683,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 69843,
-          "allocated_bytes": 21352339,
+          "allocations": 69839,
+          "allocated_bytes": 21261411,
           "work": {
             "node_writes": 356,
             "occurrence_writes": 288,
@@ -21705,8 +21705,8 @@
           }
         },
         "x64musl": {
-          "allocations": 69843,
-          "allocated_bytes": 21352339,
+          "allocations": 69839,
+          "allocated_bytes": 21261411,
           "work": {
             "node_writes": 356,
             "occurrence_writes": 288,
@@ -21769,8 +21769,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 543673,
-          "allocated_bytes": 158290115,
+          "allocations": 543670,
+          "allocated_bytes": 160287179,
           "work": {
             "node_writes": 3113,
             "occurrence_writes": 2595,
@@ -21791,8 +21791,8 @@
           }
         },
         "x64musl": {
-          "allocations": 543673,
-          "allocated_bytes": 158290115,
+          "allocations": 543670,
+          "allocated_bytes": 160287179,
           "work": {
             "node_writes": 3113,
             "occurrence_writes": 2595,
@@ -21855,8 +21855,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11067,
-          "allocated_bytes": 3271659,
+          "allocations": 11063,
+          "allocated_bytes": 3259611,
           "work": {
             "node_writes": 47,
             "occurrence_writes": 33,
@@ -21877,8 +21877,8 @@
           }
         },
         "x64musl": {
-          "allocations": 11067,
-          "allocated_bytes": 3271659,
+          "allocations": 11063,
+          "allocated_bytes": 3259611,
           "work": {
             "node_writes": 47,
             "occurrence_writes": 33,
@@ -21941,8 +21941,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 103482,
-          "allocated_bytes": 38515446,
+          "allocations": 103478,
+          "allocated_bytes": 38488998,
           "work": {
             "node_writes": 23,
             "occurrence_writes": 14,
@@ -21963,8 +21963,8 @@
           }
         },
         "x64musl": {
-          "allocations": 103482,
-          "allocated_bytes": 38515446,
+          "allocations": 103478,
+          "allocated_bytes": 38488998,
           "work": {
             "node_writes": 23,
             "occurrence_writes": 14,
@@ -22026,8 +22026,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29239,
-          "allocated_bytes": 9282194,
+          "allocations": 29235,
+          "allocated_bytes": 9223346,
           "work": {
             "node_writes": 216,
             "occurrence_writes": 173,
@@ -22048,8 +22048,8 @@
           }
         },
         "x64musl": {
-          "allocations": 29239,
-          "allocated_bytes": 9282194,
+          "allocations": 29235,
+          "allocated_bytes": 9223346,
           "work": {
             "node_writes": 216,
             "occurrence_writes": 173,
@@ -22112,8 +22112,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4365,
-          "allocated_bytes": 1653560,
+          "allocations": 4361,
+          "allocated_bytes": 1647720,
           "work": {
             "node_writes": 19,
             "occurrence_writes": 12,
@@ -22134,8 +22134,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4365,
-          "allocated_bytes": 1653560,
+          "allocations": 4361,
+          "allocated_bytes": 1647720,
           "work": {
             "node_writes": 19,
             "occurrence_writes": 12,
@@ -22185,16 +22185,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 70612,
-          "allocated_bytes": 60093876,
+          "allocations": 70609,
+          "allocated_bytes": 60095932,
           "work": {
             "rejections": 14,
             "output_bytes": 19392
           }
         },
         "x64musl": {
-          "allocations": 70612,
-          "allocated_bytes": 60093876,
+          "allocations": 70609,
+          "allocated_bytes": 60095932,
           "work": {
             "rejections": 14,
             "output_bytes": 19392
@@ -22236,8 +22236,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 49198,
-          "allocated_bytes": 18794233,
+          "allocations": 49195,
+          "allocated_bytes": 18822513,
           "work": {
             "lines": 111,
             "pages": 3,
@@ -22250,8 +22250,8 @@
           }
         },
         "x64musl": {
-          "allocations": 49198,
-          "allocated_bytes": 18794233,
+          "allocations": 49195,
+          "allocated_bytes": 18822513,
           "work": {
             "lines": 111,
             "pages": 3,
@@ -22299,8 +22299,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 115718,
-          "allocated_bytes": 46498657,
+          "allocations": 115715,
+          "allocated_bytes": 46541337,
           "work": {
             "lines": 221,
             "pages": 6,
@@ -22313,8 +22313,8 @@
           }
         },
         "x64musl": {
-          "allocations": 115718,
-          "allocated_bytes": 46498657,
+          "allocations": 115715,
+          "allocated_bytes": 46541337,
           "work": {
             "lines": 221,
             "pages": 6,
@@ -22362,8 +22362,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 966707,
-          "allocated_bytes": 384532972,
+          "allocations": 966703,
+          "allocated_bytes": 384383228,
           "work": {
             "lines": 1638,
             "pages": 36,
@@ -22376,8 +22376,8 @@
           }
         },
         "x64musl": {
-          "allocations": 966707,
-          "allocated_bytes": 384532972,
+          "allocations": 966703,
+          "allocated_bytes": 384383228,
           "work": {
             "lines": 1638,
             "pages": 36,
@@ -22425,8 +22425,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 174175,
-          "allocated_bytes": 58527780,
+          "allocations": 174171,
+          "allocated_bytes": 58509228,
           "work": {
             "lines": 266,
             "pages": 7,
@@ -22439,8 +22439,8 @@
           }
         },
         "x64musl": {
-          "allocations": 174175,
-          "allocated_bytes": 58527780,
+          "allocations": 174171,
+          "allocated_bytes": 58509228,
           "work": {
             "lines": 266,
             "pages": 7,
@@ -22488,8 +22488,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9805,
-          "allocated_bytes": 4989314,
+          "allocations": 9800,
+          "allocated_bytes": 4983642,
           "work": {
             "lines": 5,
             "pages": 5,
@@ -22502,8 +22502,8 @@
           }
         },
         "x64musl": {
-          "allocations": 9805,
-          "allocated_bytes": 4989314,
+          "allocations": 9800,
+          "allocated_bytes": 4983642,
           "work": {
             "lines": 5,
             "pages": 5,
@@ -22551,8 +22551,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 4701,
-          "allocated_bytes": 4862794,
+          "allocations": 4698,
+          "allocated_bytes": 4863282,
           "work": {
             "lines": 3,
             "pages": 3,
@@ -22565,8 +22565,8 @@
           }
         },
         "x64musl": {
-          "allocations": 4701,
-          "allocated_bytes": 4862794,
+          "allocations": 4698,
+          "allocated_bytes": 4863282,
           "work": {
             "lines": 3,
             "pages": 3,
@@ -22609,16 +22609,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 15900,
-          "allocated_bytes": 4654199,
+          "allocations": 15895,
+          "allocated_bytes": 4650575,
           "work": {
             "rejections": 13,
             "output_bytes": 16284
           }
         },
         "x64musl": {
-          "allocations": 15900,
-          "allocated_bytes": 4654199,
+          "allocations": 15895,
+          "allocated_bytes": 4650575,
           "work": {
             "rejections": 13,
             "output_bytes": 16284

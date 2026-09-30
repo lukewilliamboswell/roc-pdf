@@ -1027,6 +1027,12 @@ re-baseline ([record](docs/performance/roc-nightly-2026-09-28-9927ba8.md)).
 Before that pin merges, the fuzz targets need a roc-fuzz release pinned to
 the same nightly, and the upstream LLVM `roc build --fuzz` segfault recorded
 there must be resolved.
+Because that nightly still crashes in places, the pin then moves for now to a
+local build of Roc commit `df1f747ebb`, recorded as `nightly-2026-09-30-df1f747`
+([record](docs/performance/roc-nightly-2026-09-30-df1f747.md)). That tag is
+not a published nightly, so CI cannot provision it until a nightly containing
+the commit is published; the record also documents an upstream uniqueness
+regression that copies the compact builder's buffers once per document.
 
 ## Gate 7: business-document production release and combined closure
 
