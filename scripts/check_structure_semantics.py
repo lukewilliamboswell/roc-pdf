@@ -393,7 +393,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         require(number not in visited, f"structure element {number} is reachable twice")
         visited.add(number)
         element = document.get(number)
-        require(element.get("Type") == "StructElem", f"object {number} is not a StructElem")
+        require(element.get("Type", "StructElem") == "StructElem" and "S" in element, f"object {number} is not a StructElem")
         require(int(element["P"]) == parent, f"structure element {number} /P does not name its parent")
         require(int(element["NS"]) in namespaces, "structure element namespace is not declared")
         role = str(element["S"])
@@ -427,9 +427,9 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
             facts.append(f"ID={identifier.decode('latin-1')}")
         if "A" in element:
             facts.append("A=" + normalize_attributes(element["A"], role))
-        children = element.get("K", [])
-        if not isinstance(children, list):
-            children = [children]
+        if "Pg" in element:
+            require(int(element["Pg"]) in page_index, "structure element /Pg is not a page")
+        children = element_children(document, element)
         leaves: list[str] = []
         limited_seen: set[str] = set()
         child_roles: list[str] = []
@@ -692,8 +692,19 @@ def table_attributes(element: dict) -> dict:
 
 
 def element_children(document: Document, element: dict) -> list:
+    """The element's /K kids with every bare integer MCID expanded to the
+    marked-content reference it abbreviates: an MCR on the element's /Pg
+    (ISO 32000-2 14.7.5.2)."""
     children = element.get("K", [])
-    return children if isinstance(children, list) else [children]
+    children = children if isinstance(children, list) else [children]
+    expanded = []
+    for child in children:
+        if isinstance(child, int) and not isinstance(child, (bool, Ref)):
+            require("Pg" in element, "a bare MCID kid needs the element's /Pg")
+            expanded.append({"MCID": child, "Pg": element["Pg"], "Type": "MCR"})
+        else:
+            expanded.append(child)
+    return expanded
 
 
 def mcr_pages(document: Document, number: int) -> set[int]:
@@ -825,7 +836,7 @@ NESTED_EXPECTED = [
 
 LOWERING_EXPECTED = [
     "Document [Table Alt='A one-row price table' A={O=Table Summary='One priced item with its column header.'} "
-    "[TR [TH ID=hdr-price A={O=Table Scope=Column}, TD Lang=fr ID=cell-price A={Headers=[hdr-price] O=Table} "
+    "[TR [TH ID=hdr-price A={O=Table Scope=Column}, TD Lang=fr A={Headers=[hdr-price] O=Table} "
     "[Span Lang=fr-FR E='Café Portable Document Format' ActualText='Café PDF' [mcid p0:0]]]]]"
 ]
 
@@ -878,20 +889,20 @@ def self_test() -> None:
         ("/Headers names a TD", table, b"/Headers [(c000002) (c000005) (c000008)]", b"/Headers [(c000002) (c000005) (c000009)]"),
         ("illegal containment Document > Span", nested, b"/S /Part ", b"/S /Span "),
         ("illegal containment Sect > LI", nested, b"/S /H1 ", b"/S /LI "),
-        ("content item in L", nested, b"/P 5 0 R /S /P /Type", b"/P 5 0 R /S /L /Type"),
+        ("content item in L", nested, b"/P 5 0 R /Pg 34 0 R /S /P >>", b"/P 5 0 R /Pg 34 0 R /S /L >>"),
         ("DisplayDocTitle false", nested, b"/DisplayDocTitle true", b"/DisplayDocTitle null"),
         ("DisplayDocTitle removed", facade, b"/ViewerPreferences", b"/ViewerPreferencez"),
         ("MarkInfo not marked", facade, b"/Marked true", b"/Marked null"),
         ("page Tabs not /S", facade, b"/Tabs /S", b"/Tabs /R"),
-        ("duplicate MCID reference", nested, b"<< /MCID 1 /Pg", b"<< /MCID 0 /Pg"),
+        ("duplicate MCID reference", nested, b"<< /K [1] /NS", b"<< /K [0] /NS"),
         ("ParentTree row drift", lowering, b"/Nums [0 [10 0 R]]", b"/Nums [0 [ 9 0 R]]"),
-        ("IDTree key without /ID", lowering, b"(cell-price) 9 0 R", b"(cell-pricf) 9 0 R"),
+        ("IDTree key without /ID", lowering, b"(hdr-price) 8 0 R", b"(hdr-pricf) 8 0 R"),
         ("/Headers names a missing identifier", lowering, b"/Headers [(hdr-price)]", b"/Headers [(hdr-pricf)]"),
         ("malformed nested language", lowering, b"/Lang (fr)", b"/Lang (6r)"),
         ("invalid Scope value", lowering, b"/A << /O /Table /Scope /Column >> /ID", b"/A << /O /Table /Scope /Colunn >> /ID"),
         ("labelled list numbered /None", nested, b"/ListNumbering /Disc", b"/ListNumbering /None"),
         ("PDF 1.7 Quote claimed by the PDF 2.0 namespace", inline_roles, b"/NS 5 0 R /P 21 0 R /S /Quote ", b"/NS 4 0 R /P 21 0 R /S /Quote "),
-        ("PDF 2.0 P claimed by the PDF 1.7 namespace", inline_roles, b"/NS 4 0 R /P 6 0 R /S /P ", b"/NS 5 0 R /P 6 0 R /S /P "),
+        ("PDF 2.0 P claimed by the PDF 1.7 namespace", inline_roles, b"/NS 4 0 R /P 6 0 R /Pg 41 0 R /S /P >>", b"/NS 5 0 R /P 6 0 R /Pg 41 0 R /S /P >>"),
     ]
     for label, source, old, new in mutations:
         mutated = replace_once(source, old, new)

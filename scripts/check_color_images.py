@@ -29,6 +29,7 @@ from pathlib import Path
 from check_forms import FormFacts, check_ownership, replace_once
 from pdf_layout import mutate as layout_mutate
 from check_pdf_structure import (
+    structure_kids,
     decode_stream,
     ValidationError,
     dictionary_ref,
@@ -247,7 +248,7 @@ def validate_color_image_showcase(pdf: bytes, dimensions: dict[str, int]) -> Non
     require(document_k is not None, "document /K missing")
     children = [int(match.group(1)) for match in re.finditer(rb"([1-9][0-9]*) 0 R", document_k.group(1))]
     require(len(children) == 3, "document does not hold the three paragraphs")
-    first_child_mcids = [int(m.group(1)) for m in re.finditer(rb"<< /MCID ([0-9]+) /Pg", facts.bodies[children[0]])]
+    first_child_mcids = [mcid for kind, mcid, _ in structure_kids(facts.bodies[children[0]]) if kind == "mcr"]
     require(first_child_mcids == [1], "logical reading order does not lead with the second painted paragraph")
 
 

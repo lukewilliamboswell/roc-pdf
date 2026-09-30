@@ -39,6 +39,7 @@ from check_forms import (
 )
 from pdf_layout import flatten, mutate, occurrences
 from check_pdf_structure import (
+    mcid_owners,
     decode_stream,
     ValidationError,
     dictionary_int,
@@ -294,10 +295,9 @@ class FontFacts:
             require(key in rows, f"page {page}: /StructParents key missing from ParentTree")
             require(len(rows[key]) == len(mcids), f"page {page}: ParentTree row length disagrees with painted MCIDs")
             for mcid, parent in enumerate(rows[key]):
-                pattern = rb"<< /MCID " + str(mcid).encode() + rb" /Pg " + str(page).encode() + rb" 0 R /Type /MCR >>"
-                matches = sum(len(re.findall(pattern, body)) for body in self.bodies.values())
-                require(matches == 1, f"page {page}: MCID {mcid} referenced {matches} times")
-                require(re.search(pattern, self.bodies[parent]) is not None, f"page {page}: MCID {mcid} owner disagrees")
+                owners = mcid_owners(self.bodies, page, mcid)
+                require(len(owners) == 1, f"page {page}: MCID {mcid} referenced {len(owners)} times")
+                require(owners[0] == parent, f"page {page}: MCID {mcid} owner disagrees")
 
 
 def font_entries(resources: dict[str, int]) -> dict[str, int]:

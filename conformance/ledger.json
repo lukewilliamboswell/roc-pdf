@@ -541,7 +541,7 @@
     },
     {
       "id": "ROC-PDF-PDF20-TABLE-SEMANTICS",
-      "summary": "Facade tables lower to Table > (Caption > P, THead, TBody, TFoot) > TR > TH/TD in authored order with typed Table attributes: TH declares Scope, spanning cells ColSpan, every cell a generated element identifier in the IDTree, and each data cell's Headers are derived from declared scopes; header rows are logical once, and header rows repainted on continuation pages are Pagination artifacts with no structure.",
+      "summary": "Facade tables lower to Table > (Caption > P, THead, TBody, TFoot) > TR > TH/TD in authored order with typed Table attributes: TH declares Scope, spanning cells ColSpan, every cell a generated element identifier, lowered as /ID and an IDTree entry when a Headers attribute names it, and each data cell's Headers are derived from declared scopes; header rows are logical once, and header rows repainted on continuation pages are Pagination artifacts with no structure.",
       "source_ids": [
         "iso-32000-2-2020-ec3"
       ],
@@ -2224,7 +2224,7 @@
     },
     {
       "id": "ROC-PDF-PDFUA2-IDTREE-INTEGRITY",
-      "summary": "Element identifiers are non-empty, unique, stored in ascending byte order, and owned by exactly one structure element; each lowers as /ID and the balanced StructTreeRoot /IDTree maps every identifier back to exactly that element. /Headers targets name existing identifiers.",
+      "summary": "Element identifiers are non-empty, unique, stored in ascending byte order, and owned by exactly one structure element; each lowers as /ID and the balanced StructTreeRoot /IDTree maps every lowered identifier back to exactly that element, except that a TH or TD identifier that no /Headers attribute names does not lower, because nothing in the file resolves it. /Headers targets name existing identifiers.",
       "source_ids": [
         "iso-14289-2-2024",
         "iso-32000-2-2020-ec3"

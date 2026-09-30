@@ -553,3 +553,46 @@ tokenizer accepts only the canonical literal form.
 Rendering is pixel-identical. Allocation counts move by a few hundred events
 either way with the compressed object-stream sizes, and allocated bytes fall
 by up to 2.7%.
+
+### 5b. Structure elements: optional /Type, bare MCIDs, and referenced cell IDs
+
+- **`/Type /StructElem` is omitted.** ISO 32000-2 Table 355 makes it optional;
+  neither PDF/A-4 nor the ledger requires it, and PDFBox, MuPDF, veraPDF, and
+  Arlington all identify structure elements without it. `/StructTreeRoot`,
+  `/MCR`, `/OBJR`, and `/Namespace` keep their types.
+- **Marked content is a bare MCID on the element's page.** A structure element
+  with marked-content kids now carries `/Pg` (the page of its first
+  marked-content kid), and every kid on that page is written as its MCID
+  integer, as ISO 32000-2 14.7.5.2 allows. A kid on another page keeps its
+  `<< /MCID n /Pg p 0 R /Type /MCR >>` dictionary, so a heading or paragraph
+  that crosses a page stays exact.
+- **A table cell's `/ID` lowers only when a `/Headers` names it.** Every cell
+  still carries a generated element identifier in the semantic model (its
+  `HeaderFor` relationships need it), but `KernelTagged` computes once which
+  identifiers lower: a `TH` or `TD` identifier that no `/Headers` attribute
+  names gets no `/ID` and no IDTree entry, because nothing in the file
+  resolves it. Identifiers on other elements, which an author supplies, always
+  lower. The ledger's table and identifier requirements (18 and 73) say so. On
+  the tax invoice 43 of 179 cell identifiers remain; on the 500-row table
+  invoice 511 of 2,519.
+
+The checkers expand a bare MCID to the MCR it abbreviates (`element_children`,
+`structure_kids`), recognize structure elements without `/Type`
+(`is_structure_element`), and count ownership through `mcid_owners`. PDFBox's
+structure extraction still agrees with the byte-level checker on every
+reference and gallery document.
+
+| | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Tax invoice | 28,509 | 27,287 | -1,222 |
+| Product brief | 47,679 | 47,211 | -468 |
+| Quarterly report | 45,230 | 44,473 | -757 |
+| Table invoice x500 | 137,404 | 122,768 | -14,636 |
+
+Rendering is pixel-identical. Allocations fall with the smaller object text
+(the 500-row table invoice by 19,012 events and 11.3% of its allocated bytes).
+The first version of the identifier rule recomputed its lookup in every
+consumer and converted each identifier to bytes per binary-search step, which
+added about 200,000 allocation events to the 500-row table; the rule is now
+computed once per tagged plan over identifier bytes converted once, which
+removed them.

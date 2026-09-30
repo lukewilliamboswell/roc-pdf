@@ -25,6 +25,8 @@ from pathlib import Path
 
 from pdf_layout import LayoutError, flatten, twin as layout_twin
 from check_pdf_structure import (
+    structure_kids,
+    mcid_owners,
     ValidationError,
     dictionary_int,
     dictionary_ref,
@@ -258,11 +260,9 @@ def check_ownership(facts: FormFacts, page: int, expected_mcids: int) -> dict[in
     ## Every marked-content item is owned exactly once: its parent structure
     ## element's /K holds exactly one MCR with this page and MCID.
     for mcid, parent in enumerate(parents):
-        parent_body = facts.bodies[parent]
-        pattern = rb"<< /MCID " + str(mcid).encode() + rb" /Pg " + str(page).encode() + rb" 0 R /Type /MCR >>"
-        matches = sum(len(re.findall(pattern, body)) for body in facts.bodies.values())
-        require(matches == 1, f"MCID {mcid} is referenced {matches} times; exactly one owner required")
-        require(re.search(pattern, parent_body) is not None, f"MCID {mcid} owner disagrees with ParentTree")
+        owners = mcid_owners(facts.bodies, page, mcid)
+        require(len(owners) == 1, f"MCID {mcid} is referenced {len(owners)} times; exactly one owner required")
+        require(owners[0] == parent, f"MCID {mcid} owner disagrees with ParentTree")
     return sequences
 
 
@@ -321,9 +321,9 @@ def validate_showcase(pdf: bytes, dimensions: dict[str, int]) -> None:
     require(document_k is not None, "document /K missing")
     children = [int(match.group(1)) for match in re.finditer(rb"([1-9][0-9]*) 0 R", document_k.group(1))]
     require(len(children) == 4, "document does not hold the four paragraphs")
-    first_child_mcids = [int(m.group(1)) for m in re.finditer(rb"<< /MCID ([0-9]+) /Pg", facts.bodies[children[0]])]
+    first_child_mcids = [mcid for kind, mcid, _ in structure_kids(facts.bodies[children[0]]) if kind == "mcr"]
     require(first_child_mcids == [1], "logical reading order does not lead with the second painted paragraph")
-    last_child_mcids = [int(m.group(1)) for m in re.finditer(rb"<< /MCID ([0-9]+) /Pg", facts.bodies[children[3]])]
+    last_child_mcids = [mcid for kind, mcid, _ in structure_kids(facts.bodies[children[3]]) if kind == "mcr"]
     require(last_child_mcids == [3, 4], "the split occurrence does not own its two placements in order")
 
 

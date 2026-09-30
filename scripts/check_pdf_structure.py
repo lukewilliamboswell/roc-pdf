@@ -66,6 +66,75 @@ def text_string(token: bytes) -> str:
     return data.decode("ascii")
 
 
+KID = re.compile(
+    rb"\s*(?:([1-9][0-9]*) 0 R"
+    rb"|<< /MCID ([0-9]+) /Pg ([1-9][0-9]*) 0 R /Type /MCR >>"
+    rb"|<< /Obj ([1-9][0-9]*) 0 R /Pg ([1-9][0-9]*) 0 R /Type /OBJR >>"
+    rb"|([0-9]+))"
+)
+
+
+def structure_kids(body: bytes) -> list[tuple[str, int, int]]:
+    """The /K kids of one structure element body, as ("element", object, 0),
+    ("mcr", mcid, page), or ("objr", annotation, page). A bare integer MCID
+    names marked content on the element's own /Pg (ISO 32000-2 14.7.5.2)."""
+    start = body.find(b"/K ")
+    if start < 0:
+        return []
+    at = start + 3
+    single = not body.startswith(b"[", at)
+    if not single:
+        at += 1
+    kids: list[tuple[str, int, int]] = []
+    bare: list[int] = []
+    while True:
+        if not single and body.startswith(b"]", at):
+            at += 1
+            break
+        match = KID.match(body, at)
+        require(match is not None, "structure element /K has an unsupported kid")
+        reference, mcid, mcr_page, obj, obj_page, integer = match.groups()
+        if reference is not None:
+            kids.append(("element", int(reference), 0))
+        elif mcid is not None:
+            kids.append(("mcr", int(mcid), int(mcr_page)))
+        elif obj is not None:
+            kids.append(("objr", int(obj), int(obj_page)))
+        else:
+            kids.append(("mcr", int(integer), -1))
+            bare.append(len(kids) - 1)
+        at = match.end()
+        if single:
+            break
+        if body.startswith(b" ", at) and not body.startswith(b" ]", at):
+            at += 1
+    if bare:
+        page = re.compile(rb" /Pg ([1-9][0-9]*) 0 R").search(body, at)
+        require(page is not None, "a bare MCID kid needs the element's /Pg")
+        for index in bare:
+            kids[index] = ("mcr", kids[index][1], int(page.group(1)))
+    return kids
+
+
+def is_structure_element(body: bytes) -> bool:
+    """A structure element dictionary as the package writes it: a /P parent
+    and /S as its last key (/Type /StructElem is optional and omitted)."""
+    return b" /P " in body and re.search(rb" /S /[^\s/<>\[\]()]+ >>(?:\nendobj\n)?$", body) is not None
+
+
+def mcid_owners(bodies: dict[int, bytes], page: int, mcid: int) -> list[int]:
+    """Every structure element whose /K references marked content `mcid` on
+    `page`, by an MCR or a bare MCID."""
+    owners = []
+    for number, body in bodies.items():
+        if b" /S /" not in body or b"stream\n" in body:
+            continue
+        for kind, first, second in structure_kids(body):
+            if kind == "mcr" and first == mcid and second == page:
+                owners.append(number)
+    return owners
+
+
 def canonical_bytes(data: bytes) -> bytes:
     """The canonical token for a byte string: a literal when strictly shorter
     than hex, otherwise uppercase hex (an independent model of KernelLex)."""

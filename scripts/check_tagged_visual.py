@@ -8,6 +8,7 @@ from pathlib import Path
 
 from pdf_layout import LayoutError, twin as layout_twin
 from check_pdf_structure import (
+    structure_kids,
     ValidationError,
     dictionary_ref,
     dictionary_ref_array,
@@ -104,13 +105,11 @@ def validate_tagged_visual_pdf(pdf: bytes) -> None:
     require(b"/S /P" in paragraph_body, "structure child is not P")
     require(dictionary_ref(paragraph_body, b"P") == document, "P has wrong structure parent")
     require(dictionary_ref(paragraph_body, b"NS") == namespace, "P has wrong namespace")
-    mixed = re.search(
-        rb"/K \[([1-9][0-9]*) 0 R << /MCID 0 /Pg ([1-9][0-9]*) 0 R /Type /MCR >>\]",
-        paragraph_body,
-    )
-    require(mixed is not None, "P /K is not exact contextual-Artifact then MCR order")
-    contextual_artifact = int(mixed.group(1))
-    require(int(mixed.group(2)) == page, "MCR /Pg does not name its painted page")
+    kids = structure_kids(paragraph_body)
+    require(len(kids) == 2 and kids[0][0] == "element" and kids[1][:2] == ("mcr", 0), "P /K is not exact contextual-Artifact then MCR order")
+    require(re.search(rb"/K \[[1-9][0-9]* 0 R 0\]", paragraph_body) is not None, "P /K does not write its MCID bare on its own page")
+    contextual_artifact = kids[0][1]
+    require(kids[1][2] == page, "MCR /Pg does not name its painted page")
 
     artifact_body = bodies[contextual_artifact]
     require(b"/S /Artifact" in artifact_body, "contextual child is not an Artifact structure element")
@@ -172,14 +171,14 @@ def self_test() -> None:
 
     p_ref = f"{paragraph} 0 R".encode("ascii")
     a_ref = f"{artifact} 0 R".encode("ascii")
-    page_ref = f"{page} 0 R".encode("ascii")
-    mixed = a_ref + b" << /MCID 0 /Pg " + page_ref + b" /Type /MCR >>"
-    reordered = b"<< /MCID 0 /Pg " + page_ref + b" /Type /MCR >> " + a_ref
+    # The paragraph writes its MCID bare on its own /Pg.
+    mixed = b"/K [" + a_ref + b" 0]"
+    reordered = b"/K [0 " + a_ref + b"]"
     parent_ref = f"{parent_tree} 0 R".encode("ascii")
     mutations = (
         replace_once(pdf, mixed, reordered),
         replace_once(pdf, b"/Nums [0 [" + p_ref + b"]]", b"/Nums [0 [" + a_ref + b"]]"),
-        replace_once(pdf, b"/MCID 0 /Pg " + page_ref, b"/MCID 1 /Pg " + page_ref),
+        replace_once(pdf, mixed, b"/K [" + a_ref + b" 1]"),
         replace_once(pdf, b"/StructParents 0", b"/StructParents 1"),
         replace_once(pdf, b"/P " + p_ref + b" /S /Artifact", b"/P " + parent_ref + b" /S /Artifact"),
     )

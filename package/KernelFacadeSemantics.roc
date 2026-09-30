@@ -1905,7 +1905,8 @@ TablePlaced : { attributes : List(Semantics.StructureAttribute), break_cursor : 
 ## caption's `Caption > P` spans, and for each section its `TR` span followed
 ## by each row's cell span and each cell's rich span. Every cell carries its
 ## generated element identifier (`c` and its six-digit cell ordinal, so
-## identifier order is byte order); a header cell carries `Scope`, a data
+## identifier order is byte order); only identifiers a `/Headers` names lower
+## to `/ID` (`KernelTagged.lowered_identifiers`); a header cell carries `Scope`, a data
 ## cell with associations `Headers` and one `HeaderFor` relationship per
 ## header in the same order, and a spanning cell `ColSpan`. A cell's text is
 ## a rich paragraph owned by its `TH` or `TD` directly.

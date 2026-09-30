@@ -38,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from text_positions import shown_cids  # noqa: E402
 from pdf_layout import LayoutError, mutate as layout_mutate, occurrences as layout_occurrences, twin as layout_twin  # noqa: E402
 from check_pdf_structure import ValidationError, require  # noqa: E402
-from check_structure_semantics import Document, Ref, page_order, text_string  # noqa: E402
+from check_structure_semantics import Document, Ref, element_children, page_order, text_string  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -102,9 +102,7 @@ def heading_line(document: Document, element_number: int, page_index: dict[int, 
     """The page, x, and baseline y of a heading's first marked line."""
     element = document.get(element_number)
     require(re.fullmatch(r"H[1-6]", str(element["S"])) is not None, f"/SD names a /{element['S']}, not a numbered heading")
-    kids = element.get("K", [])
-    kids = kids if isinstance(kids, list) else [kids]
-    references = [kid for kid in kids if isinstance(kid, dict) and kid.get("Type") == "MCR"]
+    references = [kid for kid in element_children(document, element) if isinstance(kid, dict) and kid.get("Type") == "MCR"]
     require(references, "the heading owns no marked content")
     first = references[0]
     page = int(first["Pg"])
@@ -136,8 +134,7 @@ def resolve(document: Document, target: list, page_index: dict[int, int], kind: 
 def heading_text(document: Document, element_number: int, fonts: dict[bytes, dict[int, str]]) -> str:
     """The heading's text, decoded through the page font's ToUnicode map."""
     element = document.get(element_number)
-    kids = element.get("K", [])
-    kids = kids if isinstance(kids, list) else [kids]
+    kids = element_children(document, element)
     text = ""
     for kid in kids:
         page = int(kid["Pg"])

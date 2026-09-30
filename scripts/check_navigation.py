@@ -47,6 +47,7 @@ import sys
 from pathlib import Path
 
 from check_pdf_structure import (
+    is_structure_element,
     text_string,
     string_bytes,
     canonical_text,
@@ -228,7 +229,7 @@ def check_annotation(bodies, pages, structure_elements, number: int, page: int):
         )
         require(d_target in pages, "/D does not reference a page object")
         require(
-            b"/Type /StructElem" in bodies.get(sd_target, b""),
+            is_structure_element(bodies.get(sd_target, b"")),
             "/SD does not reference a structure element",
         )
         require(
@@ -272,7 +273,7 @@ def check_parent_tree(bodies, root, annotation_pages, struct_parents):
         require(key in scalar, f"annotation StructParent {key} missing from ParentTree")
         element = scalar[key]
         element_body = bodies[element]
-        require(b"/Type /StructElem" in element_body, "ParentTree row is not a StructElem")
+        require(is_structure_element(element_body), "ParentTree row is not a StructElem")
         objr = re.findall(
             rb"<< /Obj (\d+) 0 R /Pg (\d+) 0 R /Type /OBJR >>", element_body
         )
@@ -325,7 +326,7 @@ def check_name_tree(bodies, root, pages):
         require(sd_match is not None, "named destination missing /SD")
         require(int(d_match.group(1)) in pages, "named /D does not reference a page")
         require(
-            b"/Type /StructElem" in bodies.get(int(sd_match.group(1)), b""),
+            is_structure_element(bodies.get(int(sd_match.group(1)), b"")),
             "named /SD does not reference a structure element",
         )
         require(

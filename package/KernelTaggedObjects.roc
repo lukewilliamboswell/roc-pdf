@@ -103,7 +103,6 @@ Names := {
 	parent_tree_next_key : KernelObject.NameId,
 	pg : KernelObject.NameId,
 	s : KernelObject.NameId,
-	struct_elem : KernelObject.NameId,
 	struct_tree_root : KernelObject.NameId,
 	type_name : KernelObject.NameId,
 }
@@ -147,7 +146,7 @@ build_plan = |tagged, objects, facts, navigation, limits| {
 	with_namespaces = add_namespaces(with_parent_tree, added_names.names, semantics, objects)?
 	with_structure = add_structure_elements(with_namespaces, added_names.names, tagged, lowering.value, objects, catalog_language)?
 	with_contextual = add_contextual_artifacts(with_structure.builder, added_names.names, semantics, objects)?
-	with_artifacts = add_id_tree(with_contextual, semantics, objects)?
+	with_artifacts = add_id_tree(with_contextual, tagged, objects)?
 	annotation_entries = match lowering.value {
 		NoNavigationLowering => 0
 		WithNavigationLowering(input) => input.ordered_annotations.len()
@@ -163,7 +162,7 @@ build_plan = |tagged, objects, facts, navigation, limits| {
 				annotation_entries,
 				attribute_dictionaries: with_structure.attribute_dictionaries,
 				contextual_artifacts: semantics.contextual_artifacts.len(),
-				id_tree_entries: semantics.element_identifiers.len(),
+				id_tree_entries: KernelTagged.Plan.lowered_identifier_count(tagged),
 				k_items: KernelTagged.Plan.k_items(tagged).len(),
 				language_entries: with_structure.language_entries,
 				namespaces: semantics.namespaces.len(),
@@ -197,8 +196,7 @@ add_names = |builder| {
 	parent_tree_next_key = KernelObject.add_name(parent_tree.builder, Str.to_utf8("ParentTreeNextKey")) ? Object
 	pg = KernelObject.add_name(parent_tree_next_key.builder, Str.to_utf8("Pg")) ? Object
 	s = KernelObject.add_name(pg.builder, Str.to_utf8("S")) ? Object
-	struct_elem = KernelObject.add_name(s.builder, Str.to_utf8("StructElem")) ? Object
-	struct_tree_root = KernelObject.add_name(struct_elem.builder, Str.to_utf8("StructTreeRoot")) ? Object
+	struct_tree_root = KernelObject.add_name(s.builder, Str.to_utf8("StructTreeRoot")) ? Object
 	type_name = KernelObject.add_name(struct_tree_root.builder, Str.to_utf8("Type")) ? Object
 	Ok({
 		builder: type_name.builder,
@@ -223,7 +221,6 @@ add_names = |builder| {
 			parent_tree_next_key: parent_tree_next_key.id,
 			pg: pg.id,
 			s: s.id,
-			struct_elem: struct_elem.id,
 			struct_tree_root: struct_tree_root.id,
 			type_name: type_name.id,
 		},
@@ -530,6 +527,7 @@ add_structure_elements : KernelObject.Builder, Names, KernelTagged.Plan, Navigat
 add_structure_elements = |builder, names, tagged, navigation, objects, catalog_language| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	nodes_by_structure = index_nodes_by_structure(semantics.nodes)
+	lowered = KernelTagged.Plan.lowered_identifiers(tagged)
 	ids = KernelObjectPlan.Plan.structure_elements(objects)
 	var $builder = builder
 	var $attribute_dictionaries = 0
@@ -537,7 +535,7 @@ add_structure_elements = |builder, names, tagged, navigation, objects, catalog_l
 	var $structure_index = 0
 	while $structure_index < ids.len() {
 		node = list_at(semantics.nodes, list_at(nodes_by_structure, $structure_index).index())
-		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, node, list_at(ids, $structure_index))?
+		{ attribute_dictionaries, builder: next_builder, language_entries } = add_structure_element($builder, names, tagged, navigation, objects, catalog_language, lowered, node, list_at(ids, $structure_index))?
 		$builder = next_builder
 		$attribute_dictionaries = $attribute_dictionaries + attribute_dictionaries
 		$language_entries = $language_entries + language_entries
@@ -551,11 +549,16 @@ add_structure_elements = |builder, names, tagged, navigation, objects, catalog_l
 ## `/Alt`, and `/E` from node text properties, `/ID` from the element
 ## identifier, and `/Lang` where the node's explicit language differs from the
 ## language it inherits. Entries are emitted in canonical key order.
-add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan, CatalogLanguage, Semantics.Node, KernelObject.ObjectId -> Try({ attribute_dictionaries : U64, builder : KernelObject.Builder, language_entries : U64 }, KernelTaggedObjects.Error)
-add_structure_element = |builder, names, tagged, navigation, objects, catalog_language, node, expected| {
+add_structure_element : KernelObject.Builder, Names, KernelTagged.Plan, NavigationLowering, KernelObjectPlan.Plan, CatalogLanguage, List(Bool), Semantics.Node, KernelObject.ObjectId -> Try({ attribute_dictionaries : U64, builder : KernelObject.Builder, language_entries : U64 }, KernelTaggedObjects.Error)
+add_structure_element = |builder, names, tagged, navigation, objects, catalog_language, lowered, node, expected| {
 	semantics = KernelTagged.Plan.semantics(tagged)
 	node_k = list_at(KernelTagged.Plan.node_k(tagged), node.id.index())
-	{ builder: with_k, id: k_id } = add_k_array(builder, names, KernelTagged.Plan.k_items(tagged), node_k.items, navigation, objects)?
+	k_items = KernelTagged.Plan.k_items(tagged)
+
+	## The element's `/Pg` is the page of its first marked-content kid; kids on
+	## that page lower as bare MCIDs, and any on another page keep an MCR.
+	element_page = first_marked_page(k_items, node_k.items)
+	{ builder: with_k, id: k_id } = add_k_array(builder, names, k_items, node_k.items, navigation, objects, element_page)?
 	{ builder: with_ns, id: ns_id } = KernelObject.add_reference(with_k, list_at(KernelObjectPlan.Plan.namespaces(objects), node.role.namespace.index())) ? Object
 	parent_object = match node.parent {
 		DocumentRoot => KernelObjectPlan.Plan.struct_tree_root(objects)
@@ -565,25 +568,26 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 		}
 	}
 	{ builder: with_p, id: p_id } = KernelObject.add_reference(with_ns, parent_object) ? Object
-	{ builder: with_role, id: role_id } = KernelObject.add_name(with_p, Str.to_utf8(node.role.local_name)) ? Object
-	{ builder: with_s, id: s_id } = KernelObject.add_name_value(with_role, role_id) ? Object
-	{ builder: with_type, id: type_id } = add_name_value(with_s, names.struct_elem)?
-	base_entries = if node_k.items.length() == 0 {
-		[
-			{ key: names.ns, value: ns_id },
-			{ key: names.p, value: p_id },
-			{ key: names.s, value: s_id },
-			{ key: names.type_name, value: type_id },
-		]
-	} else {
-		[
-			{ key: names.k, value: k_id },
-			{ key: names.ns, value: ns_id },
-			{ key: names.p, value: p_id },
-			{ key: names.s, value: s_id },
-			{ key: names.type_name, value: type_id },
-		]
+	{ builder: with_page, page_entry } = match element_page {
+		NoElementPage => { builder: with_p, page_entry: NoEntry }
+		ElementPage(page) => {
+			reference = KernelObject.add_reference(with_p, list_at(KernelObjectPlan.Plan.pages(objects), page.index()).page) ? Object
+			{ builder: reference.builder, page_entry: WithEntry({ key: names.pg, value: reference.id }) }
+		}
 	}
+	{ builder: with_role, id: role_id } = KernelObject.add_name(with_page, Str.to_utf8(node.role.local_name)) ? Object
+	{ builder: with_type, id: s_id } = KernelObject.add_name_value(with_role, role_id) ? Object
+
+	## `/Type /StructElem` is optional (ISO 32000-2 Table 355) and omitted.
+	var $base_entries = List.with_capacity(5)
+	if node_k.items.length() != 0 {
+		$base_entries = $base_entries.append({ key: names.k, value: k_id })
+	}
+	$base_entries = $base_entries.append({ key: names.ns, value: ns_id })
+	$base_entries = $base_entries.append({ key: names.p, value: p_id })
+	$base_entries = append_entry($base_entries, page_entry)
+	$base_entries = $base_entries.append({ key: names.s, value: s_id })
+	base_entries = $base_entries
 	properties = node_properties(semantics, node)
 	if node.role.local_name == "Figure" and properties.alternative == NoProperty {
 		return Err(InvalidFigureAlternative({ node: node.id.index() }))
@@ -602,6 +606,7 @@ add_structure_element = |builder, names, tagged, navigation, objects, catalog_la
 	expansion = add_text_entry(alternative.builder, "E", properties.expansion)?
 	identifier = match node.element_identifier {
 		NoElementIdentifier => { builder: expansion.builder, entry: NoEntry }
+		HasElementIdentifier(element) if !(lowered.get(element.index()) ?? True) => { builder: expansion.builder, entry: NoEntry }
 		HasElementIdentifier(element) => {
 			id_name = KernelObject.add_name(expansion.builder, Str.to_utf8("ID")) ? Object
 			id_string = KernelObject.add_byte_string(id_name.builder, Str.to_utf8(list_at(semantics.element_identifiers, element.index()).value)) ? Object
@@ -872,18 +877,21 @@ add_attribute_scalar = |builder, value| match value {
 ## The IDTree lowers after contextual Artifact elements onto its planned
 ## node objects: entries in the store's validated ascending identifier order,
 ## each mapping the identifier bytes to its owning structure element.
-add_id_tree : KernelObject.Builder, Semantics.Store, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
-add_id_tree = |builder, semantics, objects| {
+add_id_tree : KernelObject.Builder, KernelTagged.Plan, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelTaggedObjects.Error)
+add_id_tree = |builder, tagged, objects| {
+	semantics = KernelTagged.Plan.semantics(tagged)
 	planned = KernelObjectPlan.Plan.id_tree(objects)
 	identifiers = semantics.element_identifiers
-	if identifiers.is_empty() {
+	lowered = KernelTagged.Plan.lowered_identifiers(tagged)
+	lowered_count = KernelTagged.Plan.lowered_identifier_count(tagged)
+	if lowered_count == 0 {
 		if !planned.is_empty() {
 			return Err(IdTreeUnplanned({ identifiers: 0, planned: planned.len() }))
 		}
 		return Ok(builder)
 	}
 	if planned.is_empty() {
-		return Err(IdTreeUnplanned({ identifiers: identifiers.len(), planned: 0 }))
+		return Err(IdTreeUnplanned({ identifiers: lowered_count, planned: 0 }))
 	}
 	structure = KernelObjectPlan.Plan.structure_elements(objects)
 	var $owners = List.repeat(0, identifiers.len())
@@ -899,21 +907,23 @@ add_id_tree = |builder, semantics, objects| {
 		$node_index = $node_index + 1
 	}
 	var $builder = builder
-	var $entries = List.with_capacity(identifiers.len())
+	var $entries = List.with_capacity(lowered_count)
 	var $key_bytes = 0
 	var $index = 0
 	while $index < identifiers.len() {
-		key = Str.to_utf8(list_at(identifiers, $index).value)
-		reference = KernelObject.add_reference($builder, list_at(structure, list_at($owners, $index))) ? Object
-		$builder = reference.builder
-		$entries = $entries.append(KernelIndex.ByteEntry.make(key, reference.id))
-		$key_bytes = U64.max($key_bytes, key.len())
+		if list_at(lowered, $index) {
+			key = Str.to_utf8(list_at(identifiers, $index).value)
+			reference = KernelObject.add_reference($builder, list_at(structure, list_at($owners, $index))) ? Object
+			$builder = reference.builder
+			$entries = $entries.append(KernelIndex.ByteEntry.make(key, reference.id))
+			$key_bytes = U64.max($key_bytes, key.len())
+		}
 		$index = $index + 1
 	}
 	tree = KernelIndex.ByteTree.build(
 		$entries,
 		IDTree,
-		KernelIndex.Limits.make({ max_entries: identifiers.len(), max_key_bytes: $key_bytes, value_count: KernelObject.counts($builder).values }),
+		KernelIndex.Limits.make({ max_entries: lowered_count, max_key_bytes: $key_bytes, value_count: KernelObject.counts($builder).values }),
 	) ? IdTreeIndex
 	if KernelIndex.ByteTree.node_count(tree) != planned.len() {
 		return Err(IdTreeUnplanned({ identifiers: identifiers.len(), planned: planned.len() }))
@@ -933,14 +943,14 @@ add_id_tree = |builder, semantics, objects| {
 ## backend treat the builder's store lists as shared once the caller passed
 ## both on, so the next append copied every list once per element
 ## (docs/performance/lowering-uniqueness.md).
-add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
-add_k_array = |builder, names, items, range, navigation, objects| {
+add_k_array : KernelObject.Builder, Names, List(KernelTagged.KItem), Semantics.Range, NavigationLowering, KernelObjectPlan.Plan, ElementPage -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
+add_k_array = |builder, names, items, range, navigation, objects, element_page| {
 	var $builder = builder
 	var $values = List.with_capacity(range.length())
 	var $index = range.start()
 	end = range.start() + range.length()
 	while $index < end {
-		value = add_k_item($builder, names, list_at(items, $index), navigation, objects)?
+		value = add_k_item($builder, names, list_at(items, $index), navigation, objects, element_page)?
 		$builder = value.builder
 		$values = $values.append(value.id)
 		$index = $index + 1
@@ -951,8 +961,8 @@ add_k_array = |builder, names, items, range, navigation, objects| {
 
 ## One `/K` kid: a structure element or artifact reference, an MCR, or an
 ## OBJR. The builder moves straight into the chosen operation.
-add_k_item : KernelObject.Builder, Names, KernelTagged.KItem, NavigationLowering, KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
-add_k_item = |builder, names, item, navigation, objects| {
+add_k_item : KernelObject.Builder, Names, KernelTagged.KItem, NavigationLowering, KernelObjectPlan.Plan, ElementPage -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelTaggedObjects.Error)
+add_k_item = |builder, names, item, navigation, objects, element_page| {
 	added = match item {
 		AnnotationChild(annotation) => match navigation {
 			NoNavigationLowering => return Err(AnnotationObjectUnplanned({ annotation: annotation.index() }))
@@ -960,9 +970,30 @@ add_k_item = |builder, names, item, navigation, objects| {
 		}
 		ChildStructure(child) => KernelObject.add_reference(builder, list_at(KernelObjectPlan.Plan.structure_elements(objects), child.index())) ? Object
 		ContextualArtifactChild(artifact) => KernelObject.add_reference(builder, list_at(KernelObjectPlan.Plan.contextual_artifacts(objects), artifact.index())) ? Object
-		MarkedContent(reference) => add_mcr(builder, names, reference, objects) ? Object
+		MarkedContent(reference) => match element_page {
+			ElementPage(page) if page.index() == reference.page.index() => KernelObject.add_integer(builder, reference.mcid.to_i64_wrap()) ? Object
+			_ => add_mcr(builder, names, reference, objects) ? Object
+		}
 	}
 	Ok(added)
+}
+
+ElementPage : [ElementPage(Semantics.PageId), NoElementPage]
+
+first_marked_page : List(KernelTagged.KItem), Semantics.Range -> ElementPage
+first_marked_page = |items, range| {
+	var $index = range.start()
+	end = range.start() + range.length()
+	while $index < end {
+		match list_at(items, $index) {
+			MarkedContent(reference) => {
+				return ElementPage(reference.page)
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	NoElementPage
 }
 
 add_mcr : KernelObject.Builder, Names, KernelTagged.MarkedContentReference, KernelObjectPlan.Plan -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelObject.Error)
@@ -1028,14 +1059,12 @@ add_contextual_artifact = |builder, names, parent_object, expected| {
 	) ? Object
 	parent = KernelObject.add_reference(attributes.builder, parent_object) ? Object
 	s = add_name_value(parent.builder, names.artifact)?
-	type_value = add_name_value(s.builder, names.struct_elem)?
 	dictionary = KernelObject.add_dictionary(
-		type_value.builder,
+		s.builder,
 		[
 			{ key: names.a, value: attributes.id },
 			{ key: names.p, value: parent.id },
 			{ key: names.s, value: s.id },
-			{ key: names.type_name, value: type_value.id },
 		],
 	) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object

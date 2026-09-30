@@ -167,7 +167,7 @@ build_plan = |tagged, colors, images, resource_use, content, limits| {
 			{
 				color_spaces: color_count,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
-				element_identifiers: semantic_store.element_identifiers.len(),
+				element_identifiers: KernelTagged.Plan.lowered_identifier_count(tagged),
 				image_alpha: alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -199,7 +199,7 @@ build_text_plan = |tagged, colors, images, resource_use, content, limits| {
 			{
 				color_spaces: color_count,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
-				element_identifiers: semantic_store.element_identifiers.len(),
+				element_identifiers: KernelTagged.Plan.lowered_identifier_count(tagged),
 				image_alpha: alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -230,7 +230,7 @@ build_canonical_plan = |tagged, colors, images, resource_use, content, leaves, l
 			{
 				color_spaces: leaves.color_spaces,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
-				element_identifiers: semantic_store.element_identifiers.len(),
+				element_identifiers: KernelTagged.Plan.lowered_identifier_count(tagged),
 				image_alpha: leaves.image_alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),

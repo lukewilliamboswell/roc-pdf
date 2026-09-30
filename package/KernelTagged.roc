@@ -6,6 +6,7 @@ import Scene
 import Semantics
 
 KernelTagged :: [].{
+
 	IndexKind : [ContentStreamIndex, FragmentIndex, OccurrenceIndex]
 	Error : [
 		ArithmeticOverflow,
@@ -54,6 +55,8 @@ KernelTagged :: [].{
 		annotation_owners : List(Semantics.StructureElementId),
 		occurrence_owners : List(Semantics.NodeId),
 		k_items : List(KItem),
+		lowered_identifier_count : U64,
+		lowered_identifiers : List(Bool),
 		marked_fragments : List(MarkedContentReference),
 		node_k : List(NodeK),
 		parent_entries : List(MarkedContentReference),
@@ -79,6 +82,17 @@ KernelTagged :: [].{
 
 		k_items : Plan -> List(KItem)
 		k_items = |plan| plan.k_items
+
+		## Which element identifiers lower as `/ID` and IDTree entries,
+		## indexed like `element_identifiers`. A table cell's (`TH` or `TD`)
+		## identifier lowers only when a `/Headers` attribute names it, because
+		## nothing else in PDF resolves it; every other element's identifier
+		## always lowers. Computed once when the plan is built.
+		lowered_identifiers : Plan -> List(Bool)
+		lowered_identifiers = |plan| plan.lowered_identifiers
+
+		lowered_identifier_count : Plan -> U64
+		lowered_identifier_count = |plan| plan.lowered_identifier_count
 
 		marked_fragments : Plan -> List(MarkedContentReference)
 		marked_fragments = |plan| plan.marked_fragments
@@ -131,12 +145,16 @@ build_plan = |semantic_plan, scene_plan| {
 		parents = build_parent_tree(semantics, paint.fragment_order, occurrence_nodes, KernelSemantics.Plan.content_stream_count(semantic_plan))?
 		k = build_k_order(semantics, parents.marked)?
 		annotation_owners = build_annotation_owners(semantics)
+		lowered_identifiers = lowered_identifier_flags(semantics)
+		lowered_identifier_count = count_true(lowered_identifiers)
 
 		Ok(
 			KernelTagged.Plan.{
 				annotation_owners,
 				occurrence_owners: occurrence_nodes,
 				k_items: k.items,
+				lowered_identifier_count,
+				lowered_identifiers,
 				marked_fragments: parents.marked,
 				node_k: k.node_k,
 				parent_entries: parents.parent_entries,
@@ -593,4 +611,101 @@ expect {
 				work.annotation_items == 1 and
 					work.k_items == 4 and
 						marked.mcid == 0
+}
+
+lowered_identifier_flags : Semantics.Store -> List(Bool)
+lowered_identifier_flags = |store| {
+	count = store.element_identifiers.len()
+	var $keys = List.with_capacity(count)
+	var $key = 0
+	while $key < count {
+		$keys = $keys.append(Str.to_utf8(list_at(store.element_identifiers, $key).value))
+		$key = $key + 1
+	}
+	var $referenced = List.repeat(False, count)
+	var $attribute = 0
+	while $attribute < store.attributes.len() {
+		match list_at(store.attributes, $attribute) {
+			{ name: Standard("Headers"), value: Names(values), .. } => {
+				var $value = 0
+				while $value < values.len() {
+					match identifier_position($keys, Str.to_utf8(list_at(values, $value))) {
+						Found(position) => {
+							$referenced = list_set($referenced, position, True)
+						}
+						Missing => {}
+					}
+					$value = $value + 1
+				}
+			}
+			_ => {}
+		}
+		$attribute = $attribute + 1
+	}
+	var $lowered = List.repeat(True, count)
+	var $node = 0
+	while $node < store.nodes.len() {
+		node = list_at(store.nodes, $node)
+		match node.element_identifier {
+			HasElementIdentifier(element) => {
+				cell = node.role.local_name == "TH" or node.role.local_name == "TD"
+				if cell and !list_at($referenced, element.index()) {
+					$lowered = list_set($lowered, element.index(), False)
+				}
+			}
+			NoElementIdentifier => {}
+		}
+		$node = $node + 1
+	}
+	$lowered
+}
+
+## Element identifiers are validated unique and in ascending byte order, so a
+## `/Headers` name is found by binary search over their bytes.
+identifier_position : List(List(U8)), List(U8) -> [Found(U64), Missing]
+identifier_position = |keys, target| {
+	var $low = 0
+	var $high = keys.len()
+	while $low < $high {
+		middle = $low + U64.div_by($high - $low, 2)
+		order = compare_bytes(list_at(keys, middle), target)
+		if order == Equal {
+			return Found(middle)
+		} else if order == Less {
+			$low = middle + 1
+		} else {
+			$high = middle
+		}
+	}
+	Missing
+}
+
+compare_bytes : List(U8), List(U8) -> [Equal, Greater, Less]
+compare_bytes = |left, right| {
+	shared = U64.min(left.len(), right.len())
+	var $index = 0
+	while $index < shared {
+		l = left.get($index) ?? 0
+		r = right.get($index) ?? 0
+		if l < r {
+			return Less
+		} else if l > r {
+			return Greater
+		}
+		$index = $index + 1
+	}
+	if left.len() < right.len() Less else if left.len() > right.len() Greater else Equal
+}
+
+count_true : List(Bool) -> U64
+count_true = |flags| {
+	var $count = 0
+	var $index = 0
+	while $index < flags.len() {
+		if list_at(flags, $index) {
+			$count = $count + 1
+		}
+		$index = $index + 1
+	}
+	$count
 }
