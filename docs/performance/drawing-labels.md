@@ -102,10 +102,57 @@ ordered policy. The pair is linear: 450 and 2,050 scene commands (40 per
 labelled chart plus the plan and callout), 49,617 and 190,842 allocations,
 14.83 MB and 54.91 MB. veraPDF PDF/A-4 reports no failure.
 
+## Label faces (examples showcase)
+
+`Scene.Drawing.text_in(drawing, role, label)` sets a label in the face the
+theme gives an inline role (`Code`, `Emphasis`, `Quote`, or `Strong`), such
+as a bold chart title or a hex value in the code face; `Scene.Drawing.text`
+keeps the body face. A role without a face in the theme sets the label in
+the body face, as it does inline text.
+
+- **Normalization.** The author command carries the label's face
+  (`Scene.LabelFace : [BodyFace, RoleFace(role)]`), and `FlowText` keeps it
+  in its boxed record, so the command union's size is unchanged.
+- **Face selection is a shaping fact.** Under style faces, output fonts
+  are the body face and every role face some run uses. Before this change a
+  label face no body run used would have had no output font. Now
+  `build_styled_plan` also marks the candidate of every label face
+  (`label_candidates`, one scan of the figure and panel commands that
+  allocates only for a role-face label), and
+  `KernelFacadeShape.Plan.label_instances` gives each role's dense output
+  font. Nothing later infers a face.
+- **Labels.** `KernelFacadeLabels.Fonts` is the one body font (the
+  single-face path, unchanged: every label shapes through
+  `shape_simple_batch`) or the style faces' output fonts with each role's
+  instance. Under style faces each label is one selected request over its
+  whole source in its face's font (`shape_selected_batch`), so identical
+  text in two faces is two groups over one interned source with different
+  font splits, which the selected batch already supports. Coverage, script,
+  and cluster checks run per source and face in the label's own font; a
+  gap is `text.coverage_missing` naming the label, with no substitution.
+  Runs keep their instance through `KernelFacadeText.Plan.with_labels`, so
+  the output fonts subset exactly the glyphs the labels paint.
+- **Ordered policies** still report `text.drawing_label_policy`: there is
+  no role face to select.
+
+Evidence: `flow figures label faces x10` and `x50`, N charts whose title is
+in the `Strong` face (the caller fixture face, which covers only
+`CDFPafé`, so the title is "Café"), tick values in the `Code` face (the
+monospace fixture), and region names and a small repeat of the title in the
+packaged body face. No body text uses either role face. The new
+`drawing_label_faces` checker decodes artifact text per font and requires
+the names in one font, the title in that font and one other, the ticks in a
+third, and neither role font in any tagged text, so both role faces entered
+the output through the labels. Its self-test rejects the single-face
+`labels x10` snapshot. The case also rejects a `Code` label with `é`,
+which the monospace fixture does not cover. x10: 29,118 allocations, 50
+body, 10 strong, and 30 code labels, 4 pages; x50: 118,727 allocations, 250,
+50, and 150 labels, 17 pages (4.1× for 5×): linear. Every existing case
+keeps its allocation count; the labels pair's allocated bytes move by
+0.004%. veraPDF PDF/A-4 passes both snapshots.
+
 ## Deferred
 
-- Labels in faces other than the body face (a bold chart title), which
-  needs label faces among the output fonts.
 - Labels under an ordered font policy, which needs the furniture path's
   per-cluster selection and extra-font numbering for label sources.
 - Labels in decorations, which needs decorations that paint before text.

@@ -1056,7 +1056,9 @@ Page-content artifact text is the one other source. Page furniture and text
 labels inside drawings, both resolved after pagination, are shaped from
 artifact text sources appended to the same dense Unicode store after the
 semantic sources (furniture sources, then label sources). A drawing label
-(`Scene.Drawing.text`) is shaped whole in the body face by the same shaper as
+(`Scene.Drawing.text`) is shaped whole in the body face, or in an inline
+role's style face (`Scene.Drawing.text_in`, whose face joins the output fonts
+through shaping's face selection like any run's), by the same shaper as
 body text, scaled with its figure, proved to lie inside its drawing, and
 painted as `Decoration` artifact text; it is never outlined or rasterized. In
 a figure it is part of the figure's visual presentation: the `Figure`

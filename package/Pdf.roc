@@ -1232,11 +1232,11 @@ label_error = |doc, error| {
 		PanelOwner(custom) => custom_path(doc, custom)
 	}
 	match error {
-		LabelPolicy => located_error(doc, FeatureUnavailable, "text.drawing_label_policy", "Drawing labels shape in the body face, and a theme with an ordered font policy has no single body face; use style faces for a document with drawing labels.", [])
+		LabelPolicy => located_error(doc, FeatureUnavailable, "text.drawing_label_policy", "Drawing labels shape in the body face or an inline role's face, and a theme with an ordered font policy has neither; use style faces for a document with drawing labels.", [])
 		LabelBounds({ height, label, left, owner, right, top, width }) => located_error(doc, LayoutConstraintViolated, "layout.drawing_label_bounds", "Drawing label ${label.to_str()} spans ${signed_points(left)} to ${signed_points(right)} across and reaches ${signed_points(top)} up, but its drawing is ${signed_points(width)} wide and ${signed_points(height)} tall; a label is never clipped, moved, or shrunk.", [path(owner)])
 		LabelText({ label, owner, reason }) => {
 			(feature, message) = match reason {
-				Coverage(scalar) => ("text.coverage_missing", "The body face does not cover U+${scalar_hex(scalar)} in drawing label ${label.to_str()}; no face is substituted.")
+				Coverage(scalar) => ("text.coverage_missing", "The face of drawing label ${label.to_str()} does not cover U+${scalar_hex(scalar)}; no face is substituted.")
 				Script(script) => ("text.unsupported_script", "Drawing label ${label.to_str()} uses the script ${script}, which the convenience text path does not shape.")
 				Cluster => ("text.unsupported_cluster", "Drawing label ${label.to_str()} holds a multi-scalar grapheme cluster, which the convenience shaper does not support.")
 			}

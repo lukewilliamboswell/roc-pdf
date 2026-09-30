@@ -24905,6 +24905,134 @@
       ]
     },
     {
+      "name": "flow figures label faces x10",
+      "scenario_revision": "flow-figures-label-faces-v1",
+      "source": "tests/flow_figures/main.roc",
+      "snapshot": "tests/flow_figures/label_faces_10.pdf",
+      "args": [
+        "label_faces",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "labelled_figures": 10
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "scene_commands",
+        "body_labels",
+        "strong_labels",
+        "code_labels",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 29118,
+          "allocated_bytes": 24991115,
+          "work": {
+            "lines": 56,
+            "pages": 4,
+            "fragments": 56,
+            "scene_commands": 402,
+            "body_labels": 50,
+            "strong_labels": 10,
+            "code_labels": 30,
+            "output_bytes": 28447,
+            "rejections": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 29118,
+          "allocated_bytes": 24991115,
+          "work": {
+            "lines": 56,
+            "pages": 4,
+            "fragments": 56,
+            "scene_commands": 402,
+            "body_labels": 50,
+            "strong_labels": 10,
+            "code_labels": 30,
+            "output_bytes": 28447,
+            "rejections": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "drawing_label_faces"
+      ]
+    },
+    {
+      "name": "flow figures label faces x50",
+      "scenario_revision": "flow-figures-label-faces-v1",
+      "source": "tests/flow_figures/main.roc",
+      "snapshot": "tests/flow_figures/label_faces_50.pdf",
+      "args": [
+        "label_faces",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 17,
+        "labelled_figures": 50
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "scene_commands",
+        "body_labels",
+        "strong_labels",
+        "code_labels",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 118727,
+          "allocated_bytes": 130872390,
+          "work": {
+            "lines": 276,
+            "pages": 17,
+            "fragments": 276,
+            "scene_commands": 2002,
+            "body_labels": 250,
+            "strong_labels": 50,
+            "code_labels": 150,
+            "output_bytes": 54623,
+            "rejections": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 118727,
+          "allocated_bytes": 130872390,
+          "work": {
+            "lines": 276,
+            "pages": 17,
+            "fragments": 276,
+            "scene_commands": 2002,
+            "body_labels": 250,
+            "strong_labels": 50,
+            "code_labels": 150,
+            "output_bytes": 54623,
+            "rejections": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "drawing_label_faces"
+      ]
+    },
+    {
       "name": "flow figures spaced decorations x10",
       "scenario_revision": "flow-figures-spaced-decorations-v1",
       "source": "tests/flow_figures/main.roc",

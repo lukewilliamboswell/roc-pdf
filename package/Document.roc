@@ -257,10 +257,13 @@ FlowCommand : [
 	FlowImage({ image : U64, placement : Layout.Rect }),
 	FlowPath({ fill : [Fill(Color.SourceValue), NoFill], segments : List(Scene.PathSegment), stroke : [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })] }),
 
-	## A text label, its origin translated into drawing coordinates; boxed
-	## so the command union keeps its size.
-	FlowText(Box(Scene.Label)),
+	## A text label, its origin translated into drawing coordinates, with
+	## the face it is set in; boxed so the command union keeps its size.
+	FlowText(Box(FlowLabel)),
 ]
+
+## A label of a flow drawing: `Scene.Label` with its face.
+FlowLabel : { align : Scene.LabelAlign, color : Color.SourceValue, face : Scene.LabelFace, origin : Layout.Point, size : Layout.Unit, text : Str }
 
 ## A validated flow drawing: its flattened commands, the image sources
 ## they place in command order, and its extent from the origin.
@@ -1945,7 +1948,7 @@ validate_flow_drawing = |drawing| {
 			}
 			AuthorGroup(_) => return InvalidDrawing("opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group")
 			AuthorText(boxed) => {
-				label = Box.unbox(boxed)
+				{ face, label } = Box.unbox(boxed)
 				if !within_bound(label.origin.x.raw()) or !within_bound(label.origin.y.raw()) or !within_bound(label.size.raw()) {
 					return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
 				}
@@ -1967,7 +1970,7 @@ validate_flow_drawing = |drawing| {
 				$height = U64.max($height, (y + label.size.raw()).to_u64_wrap())
 				$width = U64.max($width, x.to_u64_wrap())
 				$labels = $labels + 1
-				$converted = $converted.append(FlowText(Box.box({ ..label, origin: { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) } })))
+				$converted = $converted.append(FlowText(Box.box({ align: label.align, color: label.color, face, origin: { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }, size: label.size, text: label.text })))
 			}
 		}
 		$index = $index + 1

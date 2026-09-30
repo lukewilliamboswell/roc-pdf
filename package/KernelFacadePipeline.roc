@@ -267,7 +267,11 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
 	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, furniture_selection, source_store.len(), limits)?
-	text = label_text(authoring, unlabelled, preliminary, furniture_selection, source_store.len(), limits)?
+	label_fonts = match multi {
+		Policy(_) => PolicyLabels
+		Styled(styled) => LabelFonts(StyledFonts({ fonts: KernelFacadeShape.Plan.fonts(shape), instances: KernelFacadeShape.Plan.label_instances(shape, styled) }))
+	}
+	text = label_text(authoring, unlabelled, preliminary, label_fonts, source_store.len(), limits)?
 	layout_facts = match request {
 		Collect => LayoutFacts(KernelFacadeReport.layout(pages))
 		NoCollect => NoLayoutFacts
@@ -415,7 +419,7 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 	line_count = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len()
 	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, selection, source_store.len(), limits)?
-	text = label_text(authoring, unlabelled, preliminary, selection, source_store.len(), limits)?
+	text = label_text(authoring, unlabelled, preliminary, PolicyLabels, source_store.len(), limits)?
 	page_count_value = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len()
 	final_runs = KernelFacadeText.Plan.text(text).runs.len()
 	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? Fragments
@@ -454,7 +458,7 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
 	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, SingleFace(font), source_store.len(), limits)?
-	text = label_text(authoring, unlabelled, preliminary, SingleFace(font), source_store.len(), limits)?
+	text = label_text(authoring, unlabelled, preliminary, LabelFonts(SingleFont(font)), source_store.len(), limits)?
 	collected = match request {
 		Collect => { layout: LayoutFacts(KernelFacadeReport.layout(pages)), ownership: KernelFacadeSemantics.Plan.block_ownership(semantics) }
 		NoCollect => { layout: NoLayoutFacts, ownership: [] }
@@ -544,21 +548,21 @@ lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, li
 ## Drawing labels are shaped once the final text plan places their
 ## drawings: after the furniture, with sources after the furniture's. A
 ## document without labels returns its plan untouched.
-label_text : Document.NormalizedAuthoring, KernelFacadeText.Plan, KernelTextSemantics.Plan, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection)], U64, KernelFacadePipeline.Limits -> Try(KernelFacadeText.Plan, KernelFacadePipeline.Error)
+label_text : Document.NormalizedAuthoring, KernelFacadeText.Plan, KernelTextSemantics.Plan, [LabelFonts(KernelFacadeLabels.Fonts), PolicyLabels], U64, KernelFacadePipeline.Limits -> Try(KernelFacadeText.Plan, KernelFacadePipeline.Error)
 label_text = |authoring, text, preliminary, selection, source_count, limits| {
 	if !KernelFacadeLabels.has_labels(authoring) {
 		return Ok(text)
 	}
-	font = match selection {
-		SingleFace(value) => value
-		PolicyFaces(_) => return Err(Labels(LabelPolicy))
+	fonts = match selection {
+		LabelFonts(value) => value
+		PolicyLabels => return Err(Labels(LabelPolicy))
 	}
 	furniture_sources = match KernelFacadeText.Plan.furniture(text) {
 		NoFurniture => 0
 		WithFurniture(furniture) => KernelFacadeFurniture.Plan.sources(furniture).len()
 	}
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
-	built = KernelFacadeLabels.build(authoring, text, store, font, Language(authoring.language), source_count + furniture_sources, label_limits) ? Labels
+	built = KernelFacadeLabels.build(authoring, text, store, fonts, Language(authoring.language), source_count + furniture_sources, label_limits) ? Labels
 	match built {
 		NoLabels => Ok(text)
 		Labels(plan) => Ok(KernelFacadeText.Plan.with_labels(text, plan.pieces, plan.store, plan.sources, limits.text) ? Text)

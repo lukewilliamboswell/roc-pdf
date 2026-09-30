@@ -36,6 +36,8 @@ import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
+import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 
 ## Flow figures and decorations through the public `Pdf` constructors
 ## (`reference-documents-v7`).
@@ -48,6 +50,17 @@ import pdf.Theme
 ## - `sections xN`: N sections, each a heading, a paragraph, a decoration
 ##   rule, and a captioned grouped vector chart. The 10/100 pair is the
 ##   linear scale pair.
+## - `label_faces xN`: N charts whose title is set in the theme's `Strong`
+##   face, tick values in its `Code` face, and region names in the body
+##   face (`Scene.Drawing.text_in`), under style faces: the packaged face
+##   for the body, the caller fixture face for `Strong`, and the monospace
+##   fixture for `Code`. No body text uses either role face, so the label
+##   faces must join the output fonts on their own. The title's text also
+##   appears as a body-face label, so one interned source is shaped in two
+##   faces (the fixture `Strong` face covers only `CDFPafé`, so the title
+##   is "Café"). It rejects a `Code` label the monospace face does not cover
+##   (`text.coverage_missing` at the figure). The 10/50 pair is the linear
+##   scale pair.
 ## - `labels xN`: N sections whose bar chart carries text labels (region
 ##   names centered under the bars, tick values right-aligned beside the
 ##   axis, an axis title), a labelled 600 × 900 pt plan scaled to fit (its
@@ -101,6 +114,9 @@ Fixture :: [].{
 
 	labels : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	labels = |count| run_labels(count)
+
+	label_faces : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	label_faces = |count| run_label_faces(count)
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
@@ -204,6 +220,106 @@ run_labels = |count| {
 		return Err(MissingRejection(passed))
 	}
 	Ok({ bytes: result.bytes, work: result.work.append(passed + policy_rejected) })
+}
+
+## The body face (packaged), a `Strong` face, and a `Code` face.
+label_face_options : U64 -> Try(Pdf.Options, Fixture.EvidenceError)
+label_face_options = |context| {
+	limits = if context > 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })
+	body = Font.Registry.empty.register_built_in(limits) ? |_| EvidenceFailure
+	strong = body.registry.register(caller_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
+	code = strong.registry.register(mono_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
+	theme = report_theme.with_font(body.face).with_inline_font(Strong, strong.face).with_inline_font(Code, code.face)
+	Ok(Pdf.Options.default.with_theme(theme).with_font_registry(code.registry))
+}
+
+## A chart titled in the `Strong` face, with tick values in the `Code`
+## face and region names (and a repeat of the title) in the body face.
+faced_chart : I64, List((I64, I64)) -> Scene.Drawing
+faced_chart = |height, pairs| {
+	var $chart = bar_chart(height, pairs)
+	var $index = 0
+	for name in region_names {
+		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(48 + $index * 108 + 38, 8), size: points(8), text: name })
+		$index = $index + 1
+	}
+	var $tick = 0
+	while $tick * 50 + 20 < height - 22 {
+		$chart = $chart.text_in(Code, { align: End, color: ink, origin: Layout.point(20, 18 + $tick * 50), size: points(7), text: ($tick * 50).to_str() })
+		$tick = $tick + 1
+	}
+	$chart
+		.text_in(Strong, { align: Start, color: sea, origin: Layout.point(28, height - 12), size: points(9), text: "Café" })
+		.text({ align: End, color: sea, origin: Layout.point(475, height - 12), size: points(7), text: "Café" })
+}
+
+label_faces_document : U64 -> Document
+label_faces_document = |count| {
+	var $contents = List.with_capacity(count * 3 + 1)
+	$contents = $contents.append(Pdf.title("Labels in their faces"))
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		shifted = regions.map(|(previous, current)| (previous // 2 + ($index % 7).to_i64_wrap(), current // 2 + ($index % 5).to_i64_wrap()))
+		$contents = $contents
+			.append(paragraph($index))
+			.append(Pdf.figure(faced_chart(150, shifted), "Bar chart ${number}: yard revenue grew in Hobart, Launceston, Moonah, and Fremantle.", Pdf.caption("Figure ${number}. Yard revenue, AUD thousands")))
+		$index = $index + 1
+	}
+	Pdf.document({ contents: $contents, language: "en-AU", title: "Labels in their faces" })
+}
+
+## Labels per face across the document's figures: body, `Strong`, `Code`.
+face_counts : Document -> { body : U64, code : U64, strong : U64 }
+face_counts = |document| {
+	var $counts = { body: 0, code: 0, strong: 0 }
+	for figure in Document.normalize(document).figures {
+		match figure.drawing {
+			ValidDrawing(value) => {
+				for command in value.commands {
+					match command {
+						FlowText(boxed) => {
+							$counts = match Box.unbox(boxed).face {
+								BodyFace => { ..$counts, body: $counts.body + 1 }
+								RoleFace(Code) => { ..$counts, code: $counts.code + 1 }
+								RoleFace(Strong) => { ..$counts, strong: $counts.strong + 1 }
+								RoleFace(_) => $counts
+							}
+						}
+						_ => {}
+					}
+				}
+			}
+			InvalidDrawing(_) => {}
+		}
+	}
+	$counts
+}
+
+run_label_faces : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_label_faces = |count| {
+	if count == 0 or count > 100 {
+		return Err(InvalidScale)
+	}
+	options = label_face_options(count)?
+	document = label_faces_document(count)
+	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.probe(Document.normalize(document), font, report_theme, page_size, descriptor, pipeline_limits, ScenesReady) ? |_| EvidenceFailure
+	counts = face_counts(document)
+	uncovered = Pdf.document({
+		contents: [Pdf.paragraph("Lead"), Pdf.figure(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 60, 30), oak).text_in(Code, { align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text: "é${count.to_str()}" }), "A labelled mark", Pdf.no_caption)],
+		language: "en-AU",
+		title: "Uncovered code label",
+	})
+	rejected = match Pdf.to_bytes_with(uncovered, options) {
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[1]"], feature: Feature("text.coverage_missing"), .. }], truncation: Complete, .. })) => 1
+		_ => 0
+	}
+	if rejected != 1 {
+		return Err(MissingRejection(rejected))
+	}
+	Ok({ bytes, work: [flow.lines, flow.pages, flow.fragments, flow.scene_commands, counts.body, counts.strong, counts.code, bytes.len(), rejected] })
 }
 
 points : I64 -> Layout.Unit

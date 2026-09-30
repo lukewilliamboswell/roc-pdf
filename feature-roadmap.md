@@ -862,14 +862,15 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   seam. Its supported measurement and fragmentation contract is explicit;
   neither PDF operators nor arbitrary custom pagination become public.
   Bounded text labels inside those drawings (`Scene.Drawing.text`: one
-  shaped line in the body face per label, aligned to an anchor, scaled
+  shaped line per label in the body face, or with `Scene.Drawing.text_in`
+  in the style face of an inline role, aligned to an anchor, scaled
   with its figure, proved inside its drawing, and painted as `Decoration`
   artifact text) are part of this subset. They were moved forward from
   Gate 8's vector-scene integration because the gallery's charts and
   diagrams need real axis, tick, and legend text, and they reuse the
   closed artifact-text path of page furniture without any new composition,
-  fragmentation, or structure; labels in decorations, under ordered font
-  policies, and in faces other than the body face remain outside it.
+  fragmentation, or structure; labels in decorations and under ordered
+  font policies remain outside it.
 - Typed mandatory layout constraints and ranked preferences, including
   oversize-content and unbreakable-token behavior, supported wrapping and
   splitting, required/preferred keeps, deterministic tie breaks, and bounded

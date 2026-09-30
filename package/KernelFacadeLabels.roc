@@ -1,6 +1,7 @@
 import Color
 import Document
 import Font
+import KernelFacadeShape
 import KernelFacadeSources
 import KernelFacadeText
 import KernelFont
@@ -16,8 +17,9 @@ import unicode.Scalar
 ## Labels are shaped after pagination, once the drawings' final positions
 ## and figure scales are facts: a figure's drawing is anchored at its first
 ## painted line and scaled by its applied fit scale, and a custom block's
-## panel sits at its measured box. Each label is shaped whole in the body
-## face at its size (scaled with its figure), aligned to its anchor by its
+## panel sits at its measured box. Each label is shaped whole in its face
+## (the body face, or under style faces the output font of its inline
+## role's face) at its size (scaled with its figure), aligned to its anchor by its
 ## exact advance, proved to lie inside its drawing, and placed as one
 ## `Decoration` artifact run. Label text is artifact text: its Unicode
 ## sources follow the furniture sources, and it belongs to no structure
@@ -62,10 +64,15 @@ KernelFacadeLabels :: [].{
 	## source base; and the label sources in text-source order.
 	Plan : { labels : U64, pieces : List(KernelFacadeText.LabelPiece), sources : List(Str), store : Text.Store }
 
+	## The faces labels are set in: the one body font, or the dense output
+	## fonts of style faces with the output font of each inline role's face
+	## (the body font, 0, for a role without one).
+	Fonts : [SingleFont(KernelFont.Inspection), StyledFonts({ fonts : List(KernelFont.Inspection), instances : KernelFacadeShape.LabelInstances })]
+
 	## `source_base` is the number of text sources before the labels'
 	## (semantic sources, then furniture sources).
-	build : Document.NormalizedAuthoring, KernelFacadeText.Plan, Semantics.Store, KernelFont.Inspection, Semantics.Language, U64, Limits -> Try([Labels(Plan), NoLabels], Error)
-	build = |authoring, text, store, font, language, source_base, limits| build_labels(authoring, text, store, font, language, source_base, limits)
+	build : Document.NormalizedAuthoring, KernelFacadeText.Plan, Semantics.Store, Fonts, Semantics.Language, U64, Limits -> Try([Labels(Plan), NoLabels], Error)
+	build = |authoring, text, store, fonts, language, source_base, limits| build_labels(authoring, text, store, fonts, language, source_base, limits)
 
 	## Whether any figure or panel drawing holds a label. Documents without
 	## one skip the stage and allocate nothing for it.
@@ -75,7 +82,7 @@ KernelFacadeLabels :: [].{
 
 ## One label before shaping: its owner and ordinal, text, local baseline
 ## anchor and alignment, paint, and its drawing's placement.
-Entry : { align : Scene.LabelAlign, anchor : Layout.Point, color : Color.SourceValue, height : I64, label : U64, local : Layout.Point, owner : KernelFacadeLabels.Owner, page : U64, scale : I64, size : Layout.Unit, text : Str, width : I64 }
+Entry : { align : Scene.LabelAlign, anchor : Layout.Point, color : Color.SourceValue, face : Scene.LabelFace, height : I64, label : U64, local : Layout.Point, owner : KernelFacadeLabels.Owner, page : U64, scale : I64, size : Layout.Unit, text : Str, width : I64 }
 
 ## A drawing's anchor on a page: its bottom-left corner and scale in
 ## thousandths.
@@ -92,8 +99,8 @@ drawing_has_labels = |drawing| match drawing {
 	InvalidDrawing(_) => Bool.False
 }
 
-build_labels : Document.NormalizedAuthoring, KernelFacadeText.Plan, Semantics.Store, KernelFont.Inspection, Semantics.Language, U64, KernelFacadeLabels.Limits -> Try([Labels(KernelFacadeLabels.Plan), NoLabels], KernelFacadeLabels.Error)
-build_labels = |authoring, text, store, font, language, source_base, limits| {
+build_labels : Document.NormalizedAuthoring, KernelFacadeText.Plan, Semantics.Store, KernelFacadeLabels.Fonts, Semantics.Language, U64, KernelFacadeLabels.Limits -> Try([Labels(KernelFacadeLabels.Plan), NoLabels], KernelFacadeLabels.Error)
+build_labels = |authoring, text, store, fonts, language, source_base, limits| {
 	if !KernelFacadeLabels.has_labels(authoring) {
 		return Ok(NoLabels)
 	}
@@ -134,36 +141,64 @@ build_labels = |authoring, text, store, font, language, source_base, limits| {
 	}
 	entries = $entries
 
-	## Intern every label text once and prove the body face can shape it
-	## before shaping, so a failure names its label.
+	## Intern every label text once and prove its face can shape it before
+	## shaping, so a failure names its label. A source is checked once per
+	## face it is set in (`checked` holds the last output font it was
+	## checked in, plus one).
 	interned = KernelFacadeSources.Plan.build(entries.map(|entry| entry.text), limits.sources) ? Sources
 	unique = KernelFacadeSources.Plan.sources(interned)
 	input_sources = KernelFacadeSources.Plan.input_sources(interned)
-	var $checked = List.repeat(Bool.False, unique.len())
+	var $checked = List.repeat(0, unique.len())
 	var $index = 0
 	while $index < entries.len() {
 		source_index = list_at(input_sources, $index).index()
-		if !list_at($checked, source_index) {
-			entry = list_at(entries, $index)
-			match shapeable(font, list_at(unique, source_index)) {
+		entry = list_at(entries, $index)
+		instance = face_instance(fonts, entry.face)
+		if list_at($checked, source_index) != instance + 1 {
+			match shapeable(face_font(fonts, instance), list_at(unique, source_index)) {
 				Shapeable => {}
 				NotShapeable(reason) => return Err(LabelText({ label: entry.label, owner: entry.owner, reason }))
 			}
-			$checked = list_set($checked, source_index, Bool.True)
+			$checked = list_set($checked, source_index, instance + 1)
 		}
 		$index = $index + 1
 	}
 
-	## One run per label, at its scaled size, in entry order.
-	var $requests = List.with_capacity(entries.len())
-	$index = 0
-	while $index < entries.len() {
-		entry = list_at(entries, $index)
-		$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index($index), size: scaled(entry.size, entry.scale), source: list_at(input_sources, $index) })
-		$index = $index + 1
+	## One run per label, at its scaled size, in entry order: through the
+	## one body font, or, under style faces, each in its face's output font.
+	batch = match fonts {
+		SingleFont(font) => {
+			var $requests = List.with_capacity(entries.len())
+			$index = 0
+			while $index < entries.len() {
+				entry = list_at(entries, $index)
+				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index($index), size: scaled(entry.size, entry.scale), source: list_at(input_sources, $index) })
+				$index = $index + 1
+			}
+			options = { direction: LeftToRight, instance: Font.InstanceId.from_index(0), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
+			KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? Shape
+		}
+		StyledFonts(styled) => {
+			latin = Font.Script.from_iso15924("Latn")
+			var $selected = List.with_capacity(entries.len())
+			$index = 0
+			while $index < entries.len() {
+				entry = list_at(entries, $index)
+				source = list_at(input_sources, $index)
+				$selected = $selected.append({
+					clusters: Semantics.Range.from_start_and_length(0, list_at(unique, source.index()).analysis.graphemes.len()),
+					instance: Font.InstanceId.from_index(face_instance(fonts, entry.face)),
+					language,
+					occurrence: Semantics.OccurrenceId.from_index($index),
+					script: latin,
+					size: scaled(entry.size, entry.scale),
+					source,
+				})
+				$index = $index + 1
+			}
+			KernelShape.shape_selected_batch(styled.fonts, unique, { direction: LeftToRight, language, writing_mode: Horizontal }, $selected, limits.shape) ? Shape
+		}
 	}
-	options = { direction: LeftToRight, instance: Font.InstanceId.from_index(0), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
-	batch = KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? Shape
 	shaped = { ..batch.store, runs: batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + list_at(input_sources, run.id.index()).index())) }) }
 
 	## Align each run to its anchor by its exact advance, prove it lies
@@ -214,7 +249,7 @@ append_entries = |entries, drawing, owner, placed, scale| match drawing {
 			match command {
 				FlowText(boxed) => {
 					label = Box.unbox(boxed)
-					$entries = $entries.append({ align: label.align, anchor: placed.origin, color: label.color, height: value.height.to_i64_wrap(), label: $label, local: label.origin, owner, page: placed.page, scale, size: label.size, text: label.text, width: value.width.to_i64_wrap() })
+					$entries = $entries.append({ align: label.align, anchor: placed.origin, color: label.color, face: label.face, height: value.height.to_i64_wrap(), label: $label, local: label.origin, owner, page: placed.page, scale, size: label.size, text: label.text, width: value.width.to_i64_wrap() })
 					$label = $label + 1
 				}
 				_ => {}
@@ -288,6 +323,23 @@ shapeable = |font, source| {
 		}
 	}
 	Shapeable
+}
+
+## The output font a label face is set in: always the body font through
+## one font; under style faces, its role's face's output font.
+face_instance : KernelFacadeLabels.Fonts, Scene.LabelFace -> U64
+face_instance = |fonts, face| match (fonts, face) {
+	(SingleFont(_), _) | (_, BodyFace) => 0
+	(StyledFonts(styled), RoleFace(Code)) => styled.instances.code
+	(StyledFonts(styled), RoleFace(Emphasis)) => styled.instances.emphasis
+	(StyledFonts(styled), RoleFace(Quote)) => styled.instances.quote
+	(StyledFonts(styled), RoleFace(Strong)) => styled.instances.strong
+}
+
+face_font : KernelFacadeLabels.Fonts, U64 -> KernelFont.Inspection
+face_font = |fonts, instance| match fonts {
+	SingleFont(font) => font
+	StyledFonts(styled) => list_at(styled.fonts, instance)
 }
 
 scaled : Layout.Unit, I64 -> Layout.Unit

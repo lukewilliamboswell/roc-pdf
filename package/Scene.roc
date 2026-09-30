@@ -15,8 +15,9 @@ Scene :: [].{
 		AuthorPath({ path : AuthorPath, style : AuthorPathStyle }),
 		AuthorGroup({ kind : AuthorGroupKind, value : U16 }),
 
-		## A text label, boxed so the command union keeps its size.
-		AuthorText(Box(Label)),
+		## A text label and the face it is set in, boxed so the command
+		## union keeps its size.
+		AuthorText(Box({ face : LabelFace, label : Label })),
 
 		## The next `commands` commands (counted after flattening, so nested
 		## groups are included) form one group translated by `offset`.
@@ -27,8 +28,9 @@ Scene :: [].{
 	## baseline point it is aligned to in drawing-local coordinates, its
 	## size, fill color, and how it aligns to that point (`Start` begins
 	## there, `Center` centers on it, `End` ends there). A label is shaped
-	## in the document's body face by the same pipeline as body text,
-	## never outlined or rasterized, and must lie inside its drawing.
+	## in the document's body face, or with `Drawing.text_in` in the face
+	## of an inline role, by the same pipeline as body text, never outlined
+	## or rasterized, and must lie inside its drawing.
 	##
 	## Label text is page-artifact text (`Decoration`): it is extractable
 	## and searchable through its Unicode mapping, but it belongs to no
@@ -39,6 +41,12 @@ Scene :: [].{
 	Label : { align : LabelAlign, color : Color.SourceValue, origin : Layout.Point, size : Layout.Unit, text : Str }
 
 	LabelAlign : [Center, End, Start]
+
+	## The face a label is set in: the body face, or the face the theme
+	## gives an inline role (`Theme.with_inline_font`), such as a bold face
+	## for `Strong`. A role without a face in the theme sets the label in
+	## the body face, as it does inline text.
+	LabelFace : [BodyFace, RoleFace([Code, Emphasis, Quote, Strong])]
 
 	## Stable group vocabulary reserved for validated drawing composition.
 	AuthorGroupKind : [ClipGroup, OpacityGroup, SoftMaskGroup, TransformGroup]
@@ -79,9 +87,16 @@ Scene :: [].{
 			Drawing.({ commands: $commands })
 		}
 
-		## Add a text label (see `Label`).
+		## Add a text label (see `Label`) in the body face.
 		text : Drawing, Label -> Drawing
-		text = |Drawing.(state), label| Drawing.({ commands: state.commands.append(AuthorText(Box.box(label))) })
+		text = |Drawing.(state), label| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: BodyFace, label }))) })
+
+		## Add a text label in the theme's face for an inline role, such as
+		## a chart title in the `Strong` face: `drawing.text_in(Strong,
+		## label)`. The label's face joins the document's output fonts even
+		## when no body text uses it.
+		text_in : Drawing, [Code, Emphasis, Quote, Strong], Label -> Drawing
+		text_in = |Drawing.(state), role, label| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: RoleFace(role), label }))) })
 
 		command_count : Drawing -> U64
 		command_count = |Drawing.(state)| state.commands.len()

@@ -7,6 +7,7 @@ import KernelFont
 import KernelUnicode
 import KernelShape
 import Layout
+import Scene
 import Semantics
 import Text
 import Theme
@@ -77,6 +78,9 @@ KernelFacadeShape :: [].{
 	## tailorable opportunities inside a hold; breaks after the spaces
 	## between words stay, so a long command still wraps between words.
 	CodeHold : { run : U64, scalars : Semantics.Range }
+
+	## The dense output font each inline role's face has for drawing labels.
+	LabelInstances : { code : U64, emphasis : U64, quote : U64, strong : U64 }
 
 	## `ContentlessCell` is a table cell with no content: it has no run, so
 	## line layout gives it no line and pagination sizes its row from its
@@ -179,6 +183,33 @@ KernelFacadeShape :: [].{
 		origins : Plan -> Origins
 		origins = |plan| plan.origins
 
+		## The dense output font of each inline role's face for drawing
+		## labels under style faces: the body font (0) for a role without a
+		## face. `styled` is the style faces the plan was built with.
+		label_instances : Plan, StyledFaces -> LabelInstances
+		label_instances = |plan, styled| {
+			selected = match plan.selection {
+				OrderedFaces(ordered) => ordered.faces
+				SingleFace => []
+			}
+			dense = |role| match role {
+				Inherited => 0
+				Candidate(candidate) => {
+					face = list_at(styled.faces, candidate).index()
+					var $index = 0
+					var $found = 0
+					while $index < selected.len() {
+						if list_at(selected, $index).index() == face {
+							$found = $index
+						}
+						$index = $index + 1
+					}
+					$found
+				}
+			}
+			{ code: dense(styled.roles.code), emphasis: dense(styled.roles.emphasis), quote: dense(styled.roles.quote), strong: dense(styled.roles.strong) }
+		}
+
 		## The code holds of block `block`'s body (see `CodeHold`).
 		code_holds : Plan, Document.NormalizedAuthoring, U64, List(KernelFacadeSources.Source) -> List(CodeHold)
 		code_holds = |plan, authoring, block, sources| block_code_holds(plan, authoring, block, sources)
@@ -271,11 +302,14 @@ build_styled_plan = |authoring, owners, store, source_store, styled, theme, limi
 	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, CandidateFaces)?
 	candidates = request_candidates(authoring, preparation, styled, theme)
 
-	## Dense output fonts: the body face, then each role face some run uses,
-	## in candidate order.
+	## Dense output fonts: the body face, then each role face some run or
+	## drawing label uses, in candidate order.
 	var $used = List.repeat(Bool.False, styled.fonts.len())
 	$used = list_set($used, 0, Bool.True)
 	for candidate in candidates {
+		$used = list_set($used, candidate, Bool.True)
+	}
+	for candidate in label_candidates(authoring, styled) {
 		$used = list_set($used, candidate, Bool.True)
 	}
 	var $dense = List.repeat(0, styled.fonts.len())
@@ -374,6 +408,52 @@ request_candidates = |authoring, preparation, styled, theme| {
 		$block = $block + 1
 	}
 	$candidates
+}
+
+## The candidate faces drawing labels are set in, besides the body face,
+## in drawing order. A document whose labels all use the body face scans
+## its drawings and allocates nothing.
+label_candidates : Document.NormalizedAuthoring, KernelFacadeShape.StyledFaces -> List(U64)
+label_candidates = |authoring, styled| {
+	var $candidates = []
+	for figure in authoring.figures {
+		$candidates = append_label_candidates($candidates, figure.drawing, styled)
+	}
+	for custom in authoring.customs {
+		$candidates = append_label_candidates($candidates, custom.panel, styled)
+	}
+	$candidates
+}
+
+append_label_candidates : List(U64), Document.ValidatedDrawing, KernelFacadeShape.StyledFaces -> List(U64)
+append_label_candidates = |candidates, drawing, styled| match drawing {
+	InvalidDrawing(_) => candidates
+	ValidDrawing(value) => {
+		var $candidates = candidates
+		for command in value.commands {
+			match command {
+				FlowText(boxed) => match label_role_face(Box.unbox(boxed).face, styled) {
+					Candidate(candidate) => {
+						$candidates = $candidates.append(candidate)
+					}
+					Inherited => {}
+				}
+				_ => {}
+			}
+		}
+		$candidates
+	}
+}
+
+## A label face's candidate: its role's face, or none for the body face or
+## a role the theme gives no face.
+label_role_face : Scene.LabelFace, KernelFacadeShape.StyledFaces -> KernelFacadeShape.RoleFace
+label_role_face = |face, styled| match face {
+	BodyFace => Inherited
+	RoleFace(Code) => styled.roles.code
+	RoleFace(Emphasis) => styled.roles.emphasis
+	RoleFace(Quote) => styled.roles.quote
+	RoleFace(Strong) => styled.roles.strong
 }
 
 styled_body_face : KernelFacadeShape.StyledFaces -> U64
