@@ -1596,6 +1596,33 @@ expect {
 	}
 }
 
+## Role mappings are outside every supported subset, so a role-map cycle
+## (`Chapter` to `Sect` and back) is rejected before the graph walk and no
+## `/RoleMap` is ever lowered.
+expect {
+	chapter = { local_name: "Chapter", namespace: Semantics.NamespaceId.from_index(0) }
+	sect = { local_name: "Sect", namespace: Semantics.NamespaceId.from_index(0) }
+	cyclic = { ..test_store, role_mappings: [{ from: chapter, to: sect }, { from: sect, to: chapter }] }
+
+	match KernelSemantics.Plan.build(cyclic, 1, 1, test_limits) {
+		Err(UnsupportedStoreContent) => True
+		_ => False
+	}
+}
+
+## Namespace 0 is PDF 2.0 and an optional namespace 1 is exactly the PDF 1.7
+## standard namespace; any other second namespace is rejected.
+expect {
+	pdf20 = { id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }
+	pdf17 = { id: Semantics.NamespaceId.from_index(1), kind: Pdf17, uri: "http://iso.org/pdf/ssn" }
+	validate_namespaces([pdf20]) == Ok(1) and
+		validate_namespaces([pdf20, pdf17]) == Ok(2) and
+			validate_namespaces([pdf20, { ..pdf17, uri: "http://iso.org/pdf2/ssn" }]) == Err(InvalidPdf20Namespace) and
+				validate_namespaces([pdf20, { ..pdf17, kind: MathMl }]) == Err(InvalidPdf20Namespace) and
+					validate_namespaces([pdf17, pdf20]) != Ok(2) and
+						validate_namespaces([pdf20, pdf17, pdf17]) == Err(InvalidPdf20Namespace)
+}
+
 ## Text authoring adds the grouping, block, inline, list, and table roles
 ## without widening the tagged-visual subset; unknown, non-root Document, and
 ## non-PDF-2.0 roles stay unsupported, and the PDF 1.7 roles `Code` and
