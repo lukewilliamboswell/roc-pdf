@@ -6,10 +6,13 @@ import pf.Path
 import pf.Stdout
 import pdf.Color
 import pdf.Document
+import pdf.Font
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "fonts/SourceCodePro-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/SourceCodePro-Bold.ttf" as bold_bytes : List(U8)
 
 ## A cold-chain telemetry export for one refrigerated shipment, emitted
 ## incrementally. The document is prepared once, then drained chunk by
@@ -19,11 +22,12 @@ import pdf.Theme
 ## and a 48-row readings table that continues across pages with its
 ## header repeated and a summary footer.
 main! = |_args| {
+	fonts = register_fonts({})?
 	document = Pdf.document({ contents, language: "en-AU", title: "Cold-chain telemetry export, shipment RX-40718" })
 		.with_page_templates(templates)
 		.with_created("2026-09-30T00:00:00Z")
 		.with_modified("2026-09-30T00:00:00Z")
-	prepared = Pdf.prepare(document, Pdf.Options.default.with_theme(theme)).map_err(|err| PdfFailed(err))?
+	prepared = Pdf.prepare(document, Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)).map_err(|err| PdfFailed(err))?
 	encoder = Pdf.to_chunks_prepared(prepared, ShareUnchangedResources).map_err(|err| EmitFailed(err))?
 	collected = collect(encoder)
 	output : Path
@@ -57,6 +61,27 @@ collect = |encoder| {
 	}
 	{ bytes: $bytes, chunks: $chunks }
 }
+
+Faces : { regular : Font.FaceId, bold : Font.FaceId, registry : Font.Registry }
+
+## Source Code Pro Regular and Bold, each retained
+## byte-for-byte from its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
+register_fonts = |_| {
+	latin = [Font.Script.from_iso15924("Latn")]
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	Ok({ regular: regular.face, bold: bold.face, registry: bold.registry })
+}
+
+## Regular for every block role (the style-face path requires one face
+## for body, heading, and title text); Bold for `Pdf.strong`.
+with_faces : Theme, Faces -> Theme
+with_faces = |base, faces|
+	base
+		.with_font(faces.regular)
+		.with_inline_font(Strong, faces.bold)
 
 points : I64 -> Layout.Unit
 points = |value| Layout.Unit.points(value)
