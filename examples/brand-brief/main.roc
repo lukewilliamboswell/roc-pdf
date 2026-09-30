@@ -200,10 +200,7 @@ teal_source = Color.srgb8(teal_rgb)
 ## A section band: a short coral bar over a hairline across the measure,
 ## with 6 pt above it and 6 pt between it and the heading it introduces.
 band : Document.Block
-band = Pdf.spaced_decoration(
-	Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)), Layout.rect(0, 0, 36, 5), coral),
-	{ above: points(6), behind: False, below: points(6) },
-)
+band = Pdf.decoration({ drawing: Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)), Layout.rect(0, 0, 36, 5), coral), above: points(6), below: points(6) })
 
 ## One swatch card: the solid colour, named in bold with its hex value in
 ## the code face, above three tints (75, 50, 25 percent toward white).
@@ -312,35 +309,13 @@ hairline = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), tint(in
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(44),
-					start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 5), mark(36, indigo, amber)))],
-					center: [],
-					end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])],
-				}),
-				hairline,
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(44), start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 5), mark(36, indigo, amber)))], center: [], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: points(3) }),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(14),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(22),
-					start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])],
-					center: [],
-					end: [Pdf.furniture_text([Pdf.text("Edition 3")])],
-				}),
-				hairline,
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(22), start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])], center: [], end: [Pdf.furniture_text([Pdf.text("Edition 3")])], backdrop: Backdrop(hairline), slot_inset: points(3) }),
 		footer,
 		gap: points(14),
 	}),
@@ -470,7 +445,7 @@ body = |glance, studio| [
 		Pdf.emphasis([Pdf.text("A practical identity for calm, precise software.")]),
 		Pdf.text(" Edition 3 replaces every earlier edition from 1 October 2026."),
 	]),
-	Pdf.spaced_decoration(palette_strip, { above: points(4), behind: False, below: points(12) }),
+	Pdf.decoration({ drawing: palette_strip, above: points(4), below: points(12) }),
 	Pdf.paragraph("These guidelines describe how Lumen looks and sounds wherever people meet it: in the product, on the website, in documentation, and on the invoices and letters we send. They are short on purpose: when a case is not covered, choose the quieter option."),
 	glance,
 	Pdf.section([
@@ -495,14 +470,7 @@ body = |glance, studio| [
 			Pdf.emphasis([Pdf.text("accents")]),
 			Pdf.text(" and never set body text, because neither reaches 4.5:1 contrast on white. Tints serve backgrounds and data series."),
 		]),
-		Pdf.figure_fit(
-			Pdf.figure(
-				swatches,
-				"Five colour swatches with three lighter tints each: Lumen Indigo, Harbour Teal, Signal Coral, Dawn Amber, and Ink. Values are listed in Table 1.",
-				Pdf.caption("Figure 1. The palette with 25, 50, and 75 percent tints"),
-			),
-			ScaleToFit({ minimum_percent: 80 }),
-		),
+		Pdf.figure({ drawing: swatches, alt: "Five colour swatches with three lighter tints each: Lumen Indigo, Harbour Teal, Signal Coral, Dawn Amber, and Ink. Values are listed in Table 1.", caption: Pdf.caption("Figure 1. The palette with 25, 50, and 75 percent tints"), fit: ScaleToFit({ minimum_percent: 80 }) }),
 		palette_table,
 	]),
 	Pdf.section([
@@ -521,14 +489,7 @@ body = |glance, studio| [
 		band,
 		Pdf.destination_heading("mark", 1, "4 The mark"),
 		Pdf.paragraph("The mark is a disc with a smaller light rising from its upper right over a horizon line. It always appears whole, upright, and on one of three approved grounds. Keep a clear space of one sixth of its width on every side."),
-		Pdf.figure_fit(
-			Pdf.figure(
-				placements,
-				"The Lumen mark on three approved grounds: indigo on a pale mist ground with its clear-space boundary outlined in coral, white on indigo, and indigo on amber.",
-				Pdf.caption("Figure 2. The three approved grounds"),
-			),
-			ScaleToFit({ minimum_percent: 80 }),
-		),
+		Pdf.figure({ drawing: placements, alt: "The Lumen mark on three approved grounds: indigo on a pale mist ground with its clear-space boundary outlined in coral, white on indigo, and indigo on amber.", caption: Pdf.caption("Figure 2. The three approved grounds"), fit: ScaleToFit({ minimum_percent: 80 }) }),
 		Pdf.keep_together([
 			Pdf.numbered_list(
 				{ start: 1, style: Decimal },

@@ -155,18 +155,7 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
 	continuation: Pdf.page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(17),
-					start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])],
-					center: [],
-					end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])],
-				}),
-				Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(measure) } }, frost),
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(17), start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])], center: [], end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])], backdrop: Backdrop(Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(measure) } }, frost)), slot_inset: points(3) }),
 		footer,
 		gap: points(12),
 	}),
@@ -392,7 +381,7 @@ contents = |options| {
 
 body : Document.Block -> List(Document.Block)
 body = |shipment| [
-	Pdf.spaced_decoration(Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 120, 4), spruce), Layout.rect(124, 0, 24, 4), alarm), { above: points(0), behind: False, below: points(6) }),
+	Pdf.decoration({ drawing: Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 120, 4), spruce), Layout.rect(124, 0, 24, 4), alarm), below: points(6) }),
 	Pdf.title("Cold-chain telemetry export"),
 	Pdf.rich_paragraph([
 		Pdf.text("Shipment "),
@@ -407,11 +396,7 @@ body = |shipment| [
 			Pdf.code("TEMP_HIGH"),
 			Pdf.text(" at 20:30 and cleared it at 22:00."),
 		]),
-		Pdf.figure(
-			temperature_chart,
-			"Line chart of probe temperatures over 24 hours from 06:00. Both probes hold between 3.4 and 4.6 °C, inside the 2 to 8 °C safe band, except from 20:30 to 21:30, when probe A peaks at 9.1 °C and probe B at 8.4 °C before returning to the band by 22:00.",
-			Pdf.caption("Figure 1. Probe A and probe B against the 2 to 8 °C band; ticks every 2 hours from 06:00"),
-		),
+		Pdf.figure({ drawing: temperature_chart, alt: "Line chart of probe temperatures over 24 hours from 06:00. Both probes hold between 3.4 and 4.6 °C, inside the 2 to 8 °C safe band, except from 20:30 to 21:30, when probe A peaks at 9.1 °C and probe B at 8.4 °C before returning to the band by 22:00.", caption: Pdf.caption("Figure 1. Probe A and probe B against the 2 to 8 °C band; ticks every 2 hours from 06:00") }),
 	]),
 	Pdf.section([
 		Pdf.heading(1, "Excursion record"),

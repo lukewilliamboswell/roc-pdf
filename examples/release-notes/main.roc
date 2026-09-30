@@ -147,18 +147,7 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
 	continuation: Pdf.page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(19),
-					start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])],
-					center: [],
-					end: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 4), header_mark))],
-				}),
-				Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, haze),
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(19), start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], center: [], end: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, haze)), slot_inset: points(3) }),
 		footer,
 		gap: points(16),
 	}),
@@ -259,7 +248,7 @@ banner = {
 		$x = $x + 15
 		$i = $i + 1
 	}
-	Pdf.spaced_decoration(Scene.rectangle($d, Layout.rect(300, 22, 173, 1), lilac), { above: points(0), behind: False, below: points(14) })
+	Pdf.decoration({ drawing: Scene.rectangle($d, Layout.rect(300, 22, 173, 1), lilac), below: points(14) })
 }
 
 ## ---------------------------------------------------------------------
@@ -415,11 +404,7 @@ contents = |options| Ok([
 				Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scenario files in TOML")]), Pdf.text(", checked by "), Pdf.code("kestrel check"), Pdf.text(" before a run starts.")]),
 			],
 		)?,
-		Pdf.figure(
-			latency_chart,
-			"Horizontal bar chart of p99 latency in the reference scenario: 412 ms in 2.8, 356 ms in 2.9, and 188 ms in 3.0. An arrow marks the 47% reduction from 2.9 to 3.0.",
-			Pdf.caption("Figure 1. p99 latency in the reference scenario for 2.8, 2.9, and 3.0 (shorter is better)"),
-		),
+		Pdf.figure({ drawing: latency_chart, alt: "Horizontal bar chart of p99 latency in the reference scenario: 412 ms in 2.8, 356 ms in 2.9, and 188 ms in 3.0. An arrow marks the 47% reduction from 2.9 to 3.0.", caption: Pdf.caption("Figure 1. p99 latency in the reference scenario for 2.8, 2.9, and 3.0 (shorter is better)") }),
 	]),
 	Pdf.section([
 		Pdf.destination_heading("v3-0-0", 1, "3.0.0 · 30 September 2026"),

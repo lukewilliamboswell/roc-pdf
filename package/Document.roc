@@ -1003,8 +1003,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	page_template : { footer : DocumentRegion, gap : Layout.Unit, header : DocumentRegion } -> DocumentPageTemplate
 	page_template = |{ footer, gap, header }| DocumentPageTemplate.{ footer, gap, header }
 
-	region : { center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) } -> DocumentRegion
-	region = |{ center, end, height, start }| DocumentRegion.Region({ backdrop: NoBackdrop, center, end, height, inset: Layout.Unit.from_raw(0), start })
+	region : { backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(DocumentFurniture) } -> DocumentRegion
+	region = |record| DocumentRegion.Region(record)
 
 	## A region with a backdrop drawing behind its slots.
 	with_backdrop : DocumentRegion, Scene.Drawing -> DocumentRegion
@@ -1188,6 +1188,10 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	## Attach meaningful drawing content with required alternative text.
 	figure : Scene.Drawing, Str, Caption -> DocumentBlock
 	figure = |drawing_value, alternative, caption_value| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: ExactFit })
+
+	## A figure that meets the flow region by `fit`.
+	fitted_figure : Scene.Drawing, Str, Caption, FigureFit -> DocumentBlock
+	fitted_figure = |drawing_value, alternative, caption_value, fit| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: figure_policy(fit) })
 
 	## Select how a figure meets the flow region. On any block other than a
 	## figure this is rejected (`document.figure_fit`).

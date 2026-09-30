@@ -333,35 +333,13 @@ footer = Pdf.region({
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(40),
-					start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 5), sprout_mark))],
-					center: [],
-					end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])],
-				}),
-				green_rule,
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(40), start: [Pdf.furniture_image(Scene.drawing({}).group(Layout.point(0, 5), sprout_mark))], center: [], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: points(3) }),
 		lead: Pdf.no_lead,
 		footer,
 		gap: points(16),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(21),
-					start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])],
-					center: [],
-					end: [Pdf.furniture_text([Pdf.text("October 2026")])],
-				}),
-				green_rule,
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(21), start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])], center: [], end: [Pdf.furniture_text([Pdf.text("October 2026")])], backdrop: Backdrop(green_rule), slot_inset: points(3) }),
 		footer,
 		gap: points(16),
 	}),
@@ -494,14 +472,7 @@ contents = |options| Ok([
 		Pdf.strong([Pdf.text("clarity over ceremony")]),
 		Pdf.text(". Version 2.4 turns every decision into a record your team can find, trust, and print."),
 	]),
-	Pdf.figure_fit(
-		Pdf.figure(
-			hero,
-			"The Sprout board: three columns labelled Proposed, Deciding, and Decided holding colour-coded cards, with a progress bar along the bottom showing the decision log about two thirds complete.",
-			Pdf.caption("The Sprout board moves each decision from proposed to decided in one visible place."),
-		),
-		ScaleToFit({ minimum_percent: 80 }),
-	),
+	Pdf.figure({ drawing: hero, alt: "The Sprout board: three columns labelled Proposed, Deciding, and Decided holding colour-coded cards, with a progress bar along the bottom showing the decision log about two thirds complete.", caption: Pdf.caption("The Sprout board moves each decision from proposed to decided in one visible place."), fit: ScaleToFit({ minimum_percent: 80 }) }),
 	key_figures(
 		options,
 		Meadow,
@@ -534,14 +505,7 @@ contents = |options| Ok([
 	Pdf.section([
 		Pdf.destination_heading("pilot", 1, "Pilot results"),
 		Pdf.paragraph("Median time to decide halved and crossed the five-day target (dashed) in week 6."),
-		Pdf.figure_fit(
-			Pdf.figure(
-				line_chart,
-				"Line chart of median days from proposal to decision over eight pilot weeks, falling steadily from 9.5 days in week 1 to 4.4 days in week 8 and crossing the five-day target in week 6. Values are listed in Table 1.",
-				Pdf.caption("Figure 1. Median days to decide, weeks 1 to 8"),
-			),
-			ScaleToFit({ minimum_percent: 80 }),
-		),
+		Pdf.figure({ drawing: line_chart, alt: "Line chart of median days from proposal to decision over eight pilot weeks, falling steadily from 9.5 days in week 1 to 4.4 days in week 8 and crossing the five-day target in week 6. Values are listed in Table 1.", caption: Pdf.caption("Figure 1. Median days to decide, weeks 1 to 8"), fit: ScaleToFit({ minimum_percent: 80 }) }),
 		cycle_table,
 	]),
 	Pdf.section([

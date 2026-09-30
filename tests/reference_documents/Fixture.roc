@@ -103,7 +103,7 @@ Fixture :: [].{
 	report_figure_caption : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	report_figure_caption = |_context| {
 		prefix = fresh_page(figure_space)
-		uncaptioned = Pdf.figure(Report.chart, "Bar chart comparing revenue by region.", Pdf.no_caption)
+		uncaptioned = Pdf.figure({ drawing: Report.chart, alt: "Bar chart comparing revenue by region.", caption: Pdf.no_caption })
 		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(uncaptioned)), Report.options) ? |_| EvidenceFailure("figure control")
 		evidence(Report.document({ ..Report.ordinary, before_figure1: prefix }), Report.options, |observed| figure_caption_observations(observed, control.report))
 	}
@@ -208,7 +208,7 @@ tall_figure = |floor| {
 	slate = Color.srgb8({ red: 128, green: 146, blue: 166 })
 	plan = Scene.drawing({})
 		.path(Scene.path({}).rectangle(Layout.rect(2, 2, 596, 896)).finish(), Scene.solid_stroke(ink, points(4)))
-	figure = Pdf.figure(Scene.rectangle(plan, Layout.rect(60, 60, 480, 780), slate), "Bar chart of revenue by region, drawn at poster size.", Pdf.caption("Figure 1. Revenue by region, AUD thousands"))
+	figure = Pdf.figure({ drawing: Scene.rectangle(plan, Layout.rect(60, 60, 480, 780), slate), alt: "Bar chart of revenue by region, drawn at poster size.", caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands") })
 	if floor == 0 figure else Pdf.figure_fit(figure, ScaleToFit({ minimum_percent: floor }))
 }
 

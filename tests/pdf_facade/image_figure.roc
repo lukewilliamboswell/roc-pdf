@@ -119,7 +119,7 @@ figure_document = {
 	Pdf.document({
 		contents: [
 			Pdf.title("Field palette"),
-			Pdf.figure(drawing, "A four-color field palette arranged in mirrored bands", Pdf.caption("Figure 1 — Field palette")),
+			Pdf.figure({ drawing: drawing, alt: "A four-color field palette arranged in mirrored bands", caption: Pdf.caption("Figure 1 — Field palette") }),
 			Pdf.paragraph("The image, caption, and alternative text travel through the public facade."),
 		],
 		language: "en",

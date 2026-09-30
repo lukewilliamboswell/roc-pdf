@@ -38,7 +38,15 @@ Scene :: [].{
 	## what assistive technology reads, so it must convey what the labels
 	## say; in a decoration or a custom block's panel the labels are
 	## decoration like the rest of the drawing.
-	Label : { align : LabelAlign, color : Color.SourceValue, origin : Layout.Point, size : Layout.Unit, text : Str }
+	##
+	## `align` is `Start` and `color` black unless given.
+	Label := {
+		align : LabelAlign ?? Start,
+		color : Color.SourceValue ?? Srgb(Rgb({ blue: 0, green: 0, red: 0 })),
+		origin : Layout.Point,
+		size : Layout.Unit,
+		text : Str,
+	}
 
 	LabelAlign : [Center, End, Start]
 
@@ -51,10 +59,13 @@ Scene :: [].{
 	## Stable group vocabulary reserved for validated drawing composition.
 	AuthorGroupKind : [ClipGroup, OpacityGroup, SoftMaskGroup, TransformGroup]
 
-	## Explicit fill and stroke paint for an authored path.
-	AuthorPathStyle : {
-		fill : [AuthorNoFill, AuthorSolidFill(Color.SourceValue)],
-		stroke : [AuthorNoStroke, AuthorSolidStroke({ color : Color.SourceValue, width : Layout.Unit })],
+	## Explicit fill and stroke paint for an authored path: no fill and no
+	## stroke unless given (a path with neither is rejected when the
+	## document is prepared), so `{ fill: AuthorSolidFill(color) }` is a
+	## filled path.
+	AuthorPathStyle := {
+		fill : [AuthorNoFill, AuthorSolidFill(Color.SourceValue)] ?? AuthorNoFill,
+		stroke : [AuthorNoStroke, AuthorSolidStroke({ color : Color.SourceValue, width : Layout.Unit })] ?? AuthorNoStroke,
 	}
 
 	## Ordered path segments produced by `PathBuilder.finish`.

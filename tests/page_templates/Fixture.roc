@@ -608,7 +608,7 @@ run_furniture_groups = |context| {
 	row = Scene.drawing({}).group(Layout.point(0, 0), mark).group(Layout.point(48, 0), mark).group(Layout.point(96, 0), mark)
 	nested = Scene.drawing({}).group(Layout.point(4, 2), Scene.drawing({}).group(Layout.point(6, 0), mark))
 	underline = Scene.drawing({}).group(Layout.point(0, 0), Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 1), Color.srgb8({ blue: 140, green: 70, red: 20 })))
-	header = Pdf.with_backdrop(Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(20), start: [Pdf.furniture_image(row)] }), underline)
+	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(20), start: [Pdf.furniture_image(row)], backdrop: Backdrop(underline) })
 	footer = Pdf.region({ center: [Pdf.furniture_image(nested)], end: [], height: points(16), start: [] })
 	document = Pdf.with_page_templates(
 		Pdf.document({ contents: [Pdf.title("Reused marks"), body_paragraph(context), Pdf.page_break, body_paragraph(context + 1)], language: "en-AU", title: "Furniture groups" }),
@@ -636,11 +636,11 @@ backdrop_templates : Layout.Unit -> { continuation : Pdf.PageTemplate, first : P
 backdrop_templates = |rule_width| {
 	rule_mark = Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, 0), size: { height: Layout.Unit.from_raw(750), width: rule_width } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
 	band = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 483, 20), Color.srgb8({ blue: 245, green: 238, red: 232 }))
-	header = Pdf.with_backdrop(Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(20), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])] }), rule_mark)
-	footer = Pdf.with_backdrop(Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], end: [], height: points(20), start: [] }), band)
+	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(20), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])], backdrop: Backdrop(rule_mark) })
+	footer = Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], end: [], height: points(20), start: [], backdrop: Backdrop(band) })
 	{
 		continuation: Pdf.page_template({ footer, gap: points(12), header }),
-		first: Pdf.first_page_template({ footer, gap: points(12), header: Pdf.with_backdrop(Pdf.region({ center: [], end: [], height: points(6), start: [] }), rule_mark), lead: Pdf.no_lead }),
+		first: Pdf.first_page_template({ footer, gap: points(12), header: Pdf.region({ center: [], end: [], height: points(6), start: [], backdrop: Backdrop(rule_mark) }), lead: Pdf.no_lead }),
 	}
 }
 
@@ -682,8 +682,8 @@ run_backdrops = |pages| {
 inset_templates : Layout.Unit, Layout.Unit -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 inset_templates = |header_inset, footer_inset| {
 	edge_rule = |y| Scene.rectangle(Scene.drawing({}), { origin: Layout.point(0, y), size: { height: Layout.Unit.from_raw(750), width: points(483) } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
-	header = Pdf.with_slot_inset(Pdf.with_backdrop(Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(24), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])] }), edge_rule(0)), header_inset)
-	footer = Pdf.with_slot_inset(Pdf.with_backdrop(Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], end: [], height: points(24), start: [] }), edge_rule(23)), footer_inset)
+	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(24), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])], backdrop: Backdrop(edge_rule(0)), slot_inset: header_inset })
+	footer = Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], end: [], height: points(24), start: [], backdrop: Backdrop(edge_rule(23)), slot_inset: footer_inset })
 	{
 		continuation: Pdf.page_template({ footer, gap: points(12), header }),
 		first: Pdf.first_page_template({ footer, gap: points(12), header, lead: Pdf.no_lead }),

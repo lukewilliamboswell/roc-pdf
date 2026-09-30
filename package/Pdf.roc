@@ -155,7 +155,89 @@ Pdf :: [].{
 	## block moves whole to the next page, and one taller than a page flow
 	## region is `layout.oversize_block`. No PDF operators, private stores,
 	## or pagination callbacks are part of this contract.
-	CustomBlock : { contents : List(Document.Block), fragmentation : [Unsplittable], inset : Layout.Unit, name : Str, panel : Scene.Drawing, size : Layout.Size }
+	CustomBlock := {
+		contents : List(Document.Block),
+		fragmentation : [Unsplittable] ?? Unsplittable,
+		inset : Layout.Unit ?? 0,
+		name : Str,
+		panel : Scene.Drawing ?? Scene.Drawing.empty,
+		size : Layout.Size,
+	}
+
+	## How a numbered list labels its items: from `start` (1 unless
+	## given) in `style` (`Decimal` unless given).
+	NumberedList := { start : U64 ?? 1, style : NumberStyle ?? Decimal }
+
+	## A table: its caption (`Pdf.caption(...)` or `Pdf.no_caption`), its
+	## column declarations, and its header, body, and footer rows in
+	## logical order. Header and footer rows default to none (a table
+	## still needs a header cell somewhere), and rows are kept whole
+	## (`KeepRows`) unless `row_split` is `SplitRows`.
+	TableProps := {
+		body_rows : List(Row),
+		caption : Document.Caption,
+		columns : List(Column),
+		footer_rows : List(Row) ?? [],
+		header_rows : List(Row) ?? [],
+		row_split : RowSplit ?? KeepRows,
+	}
+
+	## A header or footer region of positive `height`: its `start`,
+	## `center`, and `end` slot stacks (empty unless given), an optional
+	## `backdrop` drawing behind them, and a `slot_inset` that moves the
+	## stacks inside the region's outer edge (zero unless given).
+	RegionProps := {
+		backdrop : Backdrop ?? NoBackdrop,
+		center : List(Furniture) ?? [],
+		end : List(Furniture) ?? [],
+		height : Layout.Unit,
+		slot_inset : Layout.Unit ?? 0,
+		start : List(Furniture) ?? [],
+	}
+
+	## A region's backdrop: none, or a decorative drawing.
+	Backdrop : Document.Backdrop
+
+	## The first page's template: header and footer regions (none unless
+	## given), the gap between them and the body (zero unless given), and a
+	## lead region of semantic blocks below the header (none unless given).
+	FirstPageTemplateProps := {
+		footer : Region ?? Pdf.no_region,
+		gap : Layout.Unit ?? 0,
+		header : Region ?? Pdf.no_region,
+		lead : LeadRegion ?? Pdf.no_lead,
+	}
+
+	## The template of every page after the first.
+	PageTemplateProps := {
+		footer : Region ?? Pdf.no_region,
+		gap : Layout.Unit ?? 0,
+		header : Region ?? Pdf.no_region,
+	}
+
+	## An in-flow decoration: its drawing, the space kept `above` it and
+	## `below` it before the next block (zero unless given; a negative
+	## `below` overlaps the next block), and whether it paints in `Front`
+	## of the page's text (the default) or `Behind` it.
+	DecorationProps := {
+		above : Layout.Unit ?? 0,
+		below : Layout.Unit ?? 0,
+		drawing : Scene.Drawing,
+		layer : DecorationLayer ?? Front,
+	}
+
+	## Whether a decoration paints after the page's text or before it.
+	DecorationLayer : [Behind, Front]
+
+	## A figure: its drawing, its required alternative text, its caption
+	## (`Pdf.caption(...)` or `Pdf.no_caption`), and how it meets the flow
+	## region (`Exact` unless given).
+	FigureProps := {
+		alt : Str,
+		caption : Document.Caption,
+		drawing : Scene.Drawing,
+		fit : FigureFit ?? Exact,
+	}
 
 	## The bounded, read-only preparation report returned beside a prepared
 	## document by `prepare_with_report`. `facts` are mechanically proven
@@ -263,26 +345,33 @@ Pdf :: [].{
 		}
 	}
 
-	Options :: {
-		chunk_retention : ChunkRetention,
-		font_source : FontSource,
-		page_size : PageSize,
-		profile : Profile,
-		theme : Theme,
+	## How a document is prepared: its conformance profile, page size,
+	## theme, fonts, and chunk retention. A transparent record whose
+	## fields all default, so `{}` (or `Pdf.Options.default`) is the
+	## production default and a caller names only what it changes:
+	## `Pdf.to_bytes_with(document, { page_size: Letter, theme, fonts:
+	## Registered(registry) })`.
+	##
+	## The production default selects the most complete public profile whose
+	## claim set is implemented and validated: `Archive` (PDF 2.0 plus static
+	## PDF/A-4). `AccessibleArchive` becomes the default only when its combined
+	## claim closes; `Standard` is an explicit opt-out, never a fallback.
+	## `fonts` is the complete public caller-resource boundary: a
+	## `Registered` registry carries the original immutable font bytes and
+	## the once-produced inspection facts, and the theme selects only the
+	## registry's opaque faces. Changing a default is a reviewed
+	## package-version change.
+	Options := {
+		chunk_retention : ChunkRetention ?? ShareUnchangedResources,
+		fonts : FontSource ?? BuiltIn,
+		page_size : PageSize ?? A4,
+		profile : Profile ?? Archive,
+		theme : Theme ?? {},
 	}.{
 
-		## The production default selects the most complete public profile whose
-		## claim set is implemented and validated: `Archive` (PDF 2.0 plus static
-		## PDF/A-4). `AccessibleArchive` becomes the default only when its combined
-		## claim closes; `Standard` is an explicit opt-out, never a fallback.
+		## Every option at its default.
 		default : Options
-		default = Options.{
-			chunk_retention: ShareUnchangedResources,
-			font_source: BuiltIn,
-			page_size: A4,
-			profile: Archive,
-			theme: Theme.default,
-		}
+		default = Options.{}
 
 		with_profile : Options, Profile -> Options
 		with_profile = |options, profile| { ..options, profile }
@@ -293,11 +382,8 @@ Pdf :: [].{
 		with_theme : Options, Theme -> Options
 		with_theme = |options, theme| { ..options, theme }
 
-		## A registry is the complete public caller-resource boundary. It carries
-		## the original immutable font bytes and the once-produced inspection
-		## facts; callers still select only the returned opaque face through Theme.
 		with_font_registry : Options, Font.Registry -> Options
-		with_font_registry = |options, registry| { ..options, font_source: Registered(registry) }
+		with_font_registry = |options, registry| { ..options, fonts: Registered(registry) }
 
 		with_chunk_retention : Options, ChunkRetention -> Options
 		with_chunk_retention = |options, chunk_retention| { ..options, chunk_retention }
@@ -367,8 +453,8 @@ Pdf :: [].{
 	## style becomes the list's `ListNumbering`. A label must fit the list
 	## indent, letters and Roman numerals start at 1, and Roman numerals stop
 	## at 3999.
-	numbered_list : { start : U64, style : NumberStyle }, List(ListItem) -> Document.Block
-	numbered_list = |numbering, items| Document.numbered_list(numbering, items)
+	numbered_list : NumberedList, List(ListItem) -> Document.Block
+	numbered_list = |numbering, items| Document.numbered_list({ start: numbering.start, style: numbering.style }, items)
 
 	## One list item holding its body blocks in logical order.
 	list_item : List(Document.Block) -> ListItem
@@ -428,8 +514,8 @@ Pdf :: [].{
 	## its caption than a page's flow region, is `document.figure_oversize`
 	## unless `figure_fit` selects `ScaleToFit`; nothing is clipped or
 	## silently shrunk.
-	figure : Scene.Drawing, Str, Document.Caption -> Document.Block
-	figure = |drawing, alternative, caption_value| Document.figure(drawing, alternative, caption_value)
+	figure : FigureProps -> Document.Block
+	figure = |props| Document.fitted_figure(props.drawing, props.alt, props.caption, props.fit)
 
 	## Select how a figure meets the flow region. `ScaleToFit({
 	## minimum_percent })` scales the drawing uniformly by the largest
@@ -447,8 +533,14 @@ Pdf :: [].{
 	## moves with that block's first line, so it is never clipped or split
 	## from it. A decoration needs a following flow block, and may not
 	## appear in a list item or a lead region.
-	decoration : Scene.Drawing -> Document.Block
-	decoration = |drawing| Document.decoration(drawing)
+	decoration : DecorationProps -> Document.Block
+	decoration = |props| {
+		behind = match props.layer {
+			Behind => True
+			Front => False
+		}
+		Document.spaced_decoration(props.drawing, { above: props.above, behind, below: props.below })
+	}
 
 	## A decoration with its own spacing and paint layer. `above` is space
 	## kept above the drawing and `below` space between the drawing and the
@@ -466,7 +558,7 @@ Pdf :: [].{
 	## A custom block, as a separately authored extension measured it (see
 	## `CustomBlock`).
 	custom_block : CustomBlock -> Document.Block
-	custom_block = |{ contents, fragmentation, inset, name, panel, size }| {
+	custom_block = |CustomBlock.{ contents, fragmentation, inset, name, panel, size }| {
 		match fragmentation {
 			Unsplittable => {}
 		}
@@ -574,8 +666,8 @@ Pdf :: [].{
 	## (`table.grid_mismatch`), a table needs a header cell
 	## (`table.header_missing`), and row spans are not yet supported
 	## (`table.row_span`).
-	table : { body_rows : List(Row), caption : Document.Caption, columns : List(Column), footer_rows : List(Row), header_rows : List(Row), row_split : RowSplit } -> Document.Block
-	table = |spec| Document.table(spec)
+	table : TableProps -> Document.Block
+	table = |TableProps.{ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split }| Document.table({ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split })
 
 	## One table row: its cells in logical order.
 	row : List(Cell) -> Row
@@ -695,20 +787,20 @@ Pdf :: [].{
 
 	## The first page's template. `lead` is a lead region of semantic blocks
 	## (such as a letterhead) or `no_lead`.
-	first_page_template : { footer : Region, gap : Layout.Unit, header : Region, lead : LeadRegion } -> FirstPageTemplate
-	first_page_template = |record| Document.first_page_template(record)
+	first_page_template : FirstPageTemplateProps -> FirstPageTemplate
+	first_page_template = |FirstPageTemplateProps.{ footer, gap, header, lead }| Document.first_page_template({ footer, gap, header, lead })
 
 	## The template of every page after the first.
-	page_template : { footer : Region, gap : Layout.Unit, header : Region } -> PageTemplate
-	page_template = |record| Document.page_template(record)
+	page_template : PageTemplateProps -> PageTemplate
+	page_template = |PageTemplateProps.{ footer, gap, header }| Document.page_template({ footer, gap, header })
 
 	## A header or footer region of positive `height`. Its `start`, `center`,
 	## and `end` slots each hold a vertical stack of furniture: a header's
 	## stacks sit on its bottom edge and a footer's hang from its top edge,
 	## beside the body flow. Start items align to the frame's start edge,
 	## end items to its end edge, and center items are centered.
-	region : { center : List(Furniture), end : List(Furniture), height : Layout.Unit, start : List(Furniture) } -> Region
-	region = |record| Document.region(record)
+	region : RegionProps -> Region
+	region = |RegionProps.{ backdrop, center, end, height, slot_inset, start }| Document.region({ backdrop, center, end, height, inset: slot_inset, start })
 
 	## A region with a backdrop: a decorative drawing (images and solid
 	## paths, as for `furniture_image`) whose origin is the region's
@@ -1130,7 +1222,7 @@ selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_fonts = |options| match Theme.font_selection(options.theme) {
 	StyleFaces => if !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
 	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A title or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give the title and headings the body face or use style faces.", [])))
-	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove Theme.with_inline_font or use style faces.", []))) else match options.font_source {
+	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove Theme.with_inline_font or use style faces.", []))) else match options.fonts {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
 			_faces = registry.policy_faces(policy) ? |_| InvalidFontSelection([InvalidPolicy(policy)])
@@ -2162,7 +2254,7 @@ selected_styled_fonts = |options| {
 	} else {
 		role_faces(options.theme)
 	}
-	registry = match options.font_source {
+	registry = match options.fonts {
 		Registered(value) => value
 		BuiltIn => return Err(InvalidFontResource(UnknownFace(list_first_or(other_faces, body_face))))
 	}
@@ -2209,7 +2301,7 @@ list_at_face = |faces, index| match faces.get(index) {
 }
 
 selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)
-selected_font = |options| match options.font_source {
+selected_font = |options| match options.fonts {
 	BuiltIn => {
 		# The packaged face has the same dense facade identity as the initial
 		# caller registry face. The shaping stage consumes only the validated
@@ -2932,7 +3024,7 @@ archive_twin_document = {
 	Pdf.document({
 		contents: [
 			Pdf.destination_heading("start", 1, "Archive twins"),
-			Pdf.figure(Scene.drawing({}).image(image, Layout.rect(0, 0, 120, 120)), "A two by two translucent raster", Pdf.no_caption),
+			Pdf.figure({ drawing: Scene.drawing({}).image(image, Layout.rect(0, 0, 120, 120)), alt: "A two by two translucent raster", caption: Pdf.no_caption }),
 			Pdf.link("Specification", "https://example.com/pdfa"),
 			Pdf.internal_link("Back to start", "start"),
 		],
@@ -3720,8 +3812,8 @@ expect {
 			Pdf.section([
 				Pdf.paragraph("Lead"),
 				Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Nested")])])])]),
-				Pdf.decoration(mark),
-				Pdf.figure(mark, "A mark", Pdf.caption("Figure 1.")),
+				Pdf.decoration({ drawing: mark }),
+				Pdf.figure({ drawing: mark, alt: "A mark", caption: Pdf.caption("Figure 1.") }),
 				Pdf.page_break,
 				Pdf.rich_paragraph([Pdf.text("Rich")]),
 				Pdf.custom_block({ contents: [Pdf.paragraph("Inside"), Pdf.paragraph("Also")], fragmentation: Unsplittable, inset: Layout.Unit.points(4), name: "Box", panel, size: { height: Layout.Unit.points(60), width: Layout.Unit.points(200) } }),

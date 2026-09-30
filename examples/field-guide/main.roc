@@ -141,18 +141,7 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
 	continuation: Pdf.page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(21),
-					start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])],
-					center: [],
-					end: [Pdf.furniture_image(wave_mark)],
-				}),
-				rule,
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(21), start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])], center: [], end: [Pdf.furniture_image(wave_mark)], backdrop: Backdrop(rule), slot_inset: points(3) }),
 		footer,
 		gap: points(14),
 	}),
@@ -408,13 +397,13 @@ callout_panel = |size| {
 ## A thin sand-coloured rule with a centred wave, set 6 pt below the
 ## account before it and above each species account.
 divider : Document.Block
-divider = Pdf.spaced_decoration(
-	Scene.drawing({})
+divider = Pdf.decoration({
+	drawing: Scene.drawing({})
 		.path(line(1, 7, 210, 7), Scene.solid_stroke(sand, points(1)))
 		.group(point(217, 0), wave_mark)
 		.path(line(249, 7, body_width - 1, 7), Scene.solid_stroke(sand, points(1))),
-	{ above: points(6), behind: False, below: points(0) },
-)
+	above: points(6),
+})
 
 ## ---------------------------------------------------------------------
 
@@ -536,14 +525,7 @@ body = |windows, etiquette| [
 		Pdf.strong([Pdf.text("Shorebirds of the Derwent estuary")]),
 		Pdf.text(" · A pocket companion for volunteer surveyors"),
 	]),
-	Pdf.figure_fit(
-		Pdf.figure(
-			habitat_section,
-			"Cross-section of the estuary from a grassy dune crest down across sand flats to the channel, with a dashed high-tide line and a solid low-tide line. Brackets above the flats mark where oystercatchers, red-capped plovers, and curlews feed, and a small bird of each species is shown in its zone.",
-			Pdf.caption("Figure 1. From dune to channel: where each species feeds"),
-		),
-		ScaleToFit({ minimum_percent: 60 }),
-	),
+	Pdf.figure({ drawing: habitat_section, alt: "Cross-section of the estuary from a grassy dune crest down across sand flats to the channel, with a dashed high-tide line and a solid low-tide line. Brackets above the flats mark where oystercatchers, red-capped plovers, and curlews feed, and a small bird of each species is shown in its zone.", caption: Pdf.caption("Figure 1. From dune to channel: where each species feeds"), fit: ScaleToFit({ minimum_percent: 60 }) }),
 	Pdf.section([
 		Pdf.destination_heading("habitat", 1, "Reading the estuary"),
 		Pdf.rich_paragraph([
@@ -574,11 +556,7 @@ body = |windows, etiquette| [
 	Pdf.section([
 		Pdf.destination_heading("species", 1, "Species accounts"),
 		Pdf.paragraph("Each plate below is drawn to the same scale, so relative size is a first clue. Compare bill shape next: it tells you how, and where, a bird feeds."),
-		Pdf.figure(
-			plates,
-			"Three bird silhouettes on tinted cards, drawn to scale. Left: a black-and-white oystercatcher with a long straight orange-red bill and pink legs. Centre: a small pale plover with a rust cap and a short bill. Right: a large brown curlew with a very long down-curved bill.",
-			Pdf.caption("Figure 2. Plates to scale: pied oystercatcher, red-capped plover, and Far Eastern curlew"),
-		),
+		Pdf.figure({ drawing: plates, alt: "Three bird silhouettes on tinted cards, drawn to scale. Left: a black-and-white oystercatcher with a long straight orange-red bill and pink legs. Centre: a small pale plover with a rust cap and a short bill. Right: a large brown curlew with a very long down-curved bill.", caption: Pdf.caption("Figure 2. Plates to scale: pied oystercatcher, red-capped plover, and Far Eastern curlew") }),
 		divider,
 		Pdf.section([
 			Pdf.destination_heading("oystercatcher", 2, "Pied oystercatcher"),

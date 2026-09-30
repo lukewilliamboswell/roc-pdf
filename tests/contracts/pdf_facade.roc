@@ -40,7 +40,7 @@ expect {
 		Color.srgb8({ red: 20, green: 90, blue: 140 }),
 	)
 	document = Pdf.document({
-		contents: [Pdf.figure(drawing, "Blue panel", Pdf.no_caption)],
+		contents: [Pdf.figure({ drawing: drawing, alt: "Blue panel", caption: Pdf.no_caption })],
 		language: "en",
 		title: "Forward figure",
 	})
@@ -62,7 +62,7 @@ expect {
 	})
 	drawing = Scene.drawing({}).image(image, Layout.rect(0, 0, 160, 90))
 	document = Pdf.document({
-		contents: [Pdf.figure(drawing, "Four-color editorial illustration", Pdf.caption("Figure 1 — Palette study"))],
+		contents: [Pdf.figure({ drawing: drawing, alt: "Four-color editorial illustration", caption: Pdf.caption("Figure 1 — Palette study") })],
 		language: "en",
 		title: "Raster figure",
 	})
@@ -75,8 +75,8 @@ expect {
 expect {
 	bad_image = Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 2, width: 2 }, pixels: [255, 0, 0], row_stride: 6 })
 	bad_drawing = Scene.drawing({}).image(bad_image, Layout.rect(0, 0, 120, 60))
-	bad_document = Pdf.document({ contents: [Pdf.figure(bad_drawing, "Malformed raster", Pdf.no_caption)], language: "en", title: "Bad raster" })
-	empty_alt_document = Pdf.document({ contents: [Pdf.figure(bad_drawing, "", Pdf.no_caption)], language: "en", title: "Missing alternative" })
+	bad_document = Pdf.document({ contents: [Pdf.figure({ drawing: bad_drawing, alt: "Malformed raster", caption: Pdf.no_caption })], language: "en", title: "Bad raster" })
+	empty_alt_document = Pdf.document({ contents: [Pdf.figure({ drawing: bad_drawing, alt: "", caption: Pdf.no_caption })], language: "en", title: "Missing alternative" })
 	bad_rejected = match Pdf.to_bytes(bad_document) {
 		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["DecodedLengthMismatch"], feature: Feature("image.invalid"), .. }], .. })) => True
 		_ => False

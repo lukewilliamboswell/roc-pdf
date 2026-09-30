@@ -172,13 +172,13 @@ labels_document = |count| {
 		$contents = $contents
 			.append(Pdf.heading(1, "Region ${number}"))
 			.append(paragraph($index))
-			.append(Pdf.figure(labelled_chart(140, shifted), "Bar chart ${number}: revenue grew in Hobart, Launceston, Moonah, and Fremantle.", Pdf.caption("Figure ${number}. Revenue by yard, AUD thousands")))
+			.append(Pdf.figure({ drawing: labelled_chart(140, shifted), alt: "Bar chart ${number}: revenue grew in Hobart, Launceston, Moonah, and Fremantle.", caption: Pdf.caption("Figure ${number}. Revenue by yard, AUD thousands") }))
 		$index = $index + 1
 	}
 	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 300, 70), Color.srgb8({ blue: 230, green: 240, red: 245 }))
 		.text({ align: End, color: sea, origin: Layout.point(292, 58), size: points(7), text: "KEY FIGURES" })
 	callout = Pdf.custom_block({ contents: [Pdf.paragraph("Kiln capacity rose by a third.")], fragmentation: Unsplittable, inset: points(10), name: "Key figures", panel, size: { height: points(70), width: points(300) } })
-	plan = Pdf.figure_fit(Pdf.figure(labelled_plan, "Plan of the Moonah yard: twelve numbered drying bays in four rows of three.", Pdf.caption("Moonah yard plan, scaled to fit.")), ScaleToFit({ minimum_percent: 50 }))
+	plan = Pdf.figure({ drawing: labelled_plan, alt: "Plan of the Moonah yard: twelve numbered drying bays in four rows of three.", caption: Pdf.caption("Moonah yard plan, scaled to fit."), fit: ScaleToFit({ minimum_percent: 50 }) })
 	Pdf.document({ contents: $contents.append(callout).append(plan), language: "en-AU", title: "Labelled figures" })
 }
 
@@ -192,14 +192,14 @@ run_labels = |count| {
 	number = count.to_str()
 	document_of = |contents| Pdf.document({ contents, language: "en-AU", title: "Label negatives ${number}" })
 	labelled = |text| Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 60, 30), oak).text({ align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text })
-	figure = |drawing| Pdf.figure(drawing, "A labelled mark", Pdf.no_caption)
+	figure = |drawing| Pdf.figure({ drawing: drawing, alt: "A labelled mark", caption: Pdf.no_caption })
 	furniture = Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_image(labelled("Mark"))] })
 	checks = [
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("A label far wider than its drawing"))]), LayoutConstraintViolated, "layout.drawing_label_bounds", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("中"))]), FontCoverageMissing, "text.unsupported_script", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("ƀ"))]), FontCoverageMissing, "text.coverage_missing", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled(""))]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
-		rejects(document_of([Pdf.paragraph("Lead"), Pdf.decoration(labelled("Mark")), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(document_of([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: labelled("Mark") }), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
 		rejects(Pdf.with_page_templates(document_of([Pdf.paragraph("Body")]), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: furniture }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: furniture, lead: Pdf.no_lead }) }), InvalidRelationship, "layout.furniture_drawing", ["templates.first.header.start[0]"]),
 	]
 	passed = checks.sum()
@@ -263,7 +263,7 @@ label_faces_document = |count| {
 		shifted = regions.map(|(previous, current)| (previous // 2 + ($index % 7).to_i64_wrap(), current // 2 + ($index % 5).to_i64_wrap()))
 		$contents = $contents
 			.append(paragraph($index))
-			.append(Pdf.figure(faced_chart(150, shifted), "Bar chart ${number}: yard revenue grew in Hobart, Launceston, Moonah, and Fremantle.", Pdf.caption("Figure ${number}. Yard revenue, AUD thousands")))
+			.append(Pdf.figure({ drawing: faced_chart(150, shifted), alt: "Bar chart ${number}: yard revenue grew in Hobart, Launceston, Moonah, and Fremantle.", caption: Pdf.caption("Figure ${number}. Yard revenue, AUD thousands") }))
 		$index = $index + 1
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Labels in their faces" })
@@ -308,7 +308,7 @@ run_label_faces = |count| {
 	flow = KernelFacadePipeline.probe(Document.normalize(document), font, report_theme, page_size, descriptor, pipeline_limits, ScenesReady) ? |_| EvidenceFailure
 	counts = face_counts(document)
 	uncovered = Pdf.document({
-		contents: [Pdf.paragraph("Lead"), Pdf.figure(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 60, 30), oak).text_in(Code, { align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text: "é${count.to_str()}" }), "A labelled mark", Pdf.no_caption)],
+		contents: [Pdf.paragraph("Lead"), Pdf.figure({ drawing: Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 60, 30), oak).text_in(Code, { align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text: "é${count.to_str()}" }), alt: "A labelled mark", caption: Pdf.no_caption })],
 		language: "en-AU",
 		title: "Uncovered code label",
 	})
@@ -431,23 +431,23 @@ report_document = |context| {
 		Pdf.section([
 			Pdf.heading(1, "1 Revenue by region"),
 			paragraph(1),
-			Pdf.figure(bar_chart(220, regions), "Bar chart comparing revenue in four regions for two years: every region grew, the Tasmanian yards most; Table 1 gives the exact values.", Pdf.caption("Figure 1. Revenue by region, AUD thousands")),
+			Pdf.figure({ drawing: bar_chart(220, regions), alt: "Bar chart comparing revenue in four regions for two years: every region grew, the Tasmanian yards most; Table 1 gives the exact values.", caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands") }),
 			paragraph(2),
-			Pdf.figure(leaf_mark, "The Harbour & Finch leaf mark", Pdf.no_caption),
+			Pdf.figure({ drawing: leaf_mark, alt: "The Harbour & Finch leaf mark", caption: Pdf.no_caption }),
 		]),
-		Pdf.decoration(divider),
+		Pdf.decoration({ drawing: divider }),
 		Pdf.section([
 			Pdf.heading(1, "2 Timber sourcing"),
 			paragraph(3),
-			Pdf.figure(photo, "Stacked Tasmanian oak boards air-drying under cover at the Moonah yard.", Pdf.caption("Figure 2. Air-drying boards at the Moonah yard.")),
+			Pdf.figure({ drawing: photo, alt: "Stacked Tasmanian oak boards air-drying under cover at the Moonah yard.", caption: Pdf.caption("Figure 2. Air-drying boards at the Moonah yard.") }),
 			paragraph(0),
 			paragraph(1),
 		]),
-		Pdf.decoration(divider),
+		Pdf.decoration({ drawing: divider }),
 		Pdf.section([
 			Pdf.heading(1, "3 Site plan"),
 			paragraph(2),
-			Pdf.figure_fit(Pdf.figure(site_plan, "Plan of the Moonah yard: twelve drying bays in four rows of three inside the yard boundary.", Pdf.caption("Figure 3. Moonah yard plan, scaled to fit.")), ScaleToFit({ minimum_percent: 50 })),
+			Pdf.figure({ drawing: site_plan, alt: "Plan of the Moonah yard: twelve drying bays in four rows of three inside the yard boundary.", caption: Pdf.caption("Figure 3. Moonah yard plan, scaled to fit."), fit: ScaleToFit({ minimum_percent: 50 }) }),
 			paragraph(3),
 		]),
 	]
@@ -471,10 +471,10 @@ sections_document = |count| {
 		number = ($index + 1).to_str()
 		shifted = regions.map(|(previous, current)| (previous // 2 + ($index % 7).to_i64_wrap(), current // 2 + ($index % 5).to_i64_wrap()))
 		$contents = $contents
-			.append(Pdf.decoration(divider))
+			.append(Pdf.decoration({ drawing: divider }))
 			.append(Pdf.heading(1, "Region ${number}"))
 			.append(paragraph($index))
-			.append(Pdf.figure(bar_chart(120, shifted), "Bar chart ${number}: revenue grew in all four yards.", Pdf.caption("Figure ${number}. Revenue by yard, AUD thousands")))
+			.append(Pdf.figure({ drawing: bar_chart(120, shifted), alt: "Bar chart ${number}: revenue grew in all four yards.", caption: Pdf.caption("Figure ${number}. Revenue by yard, AUD thousands") }))
 		$index = $index + 1
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Regional figures" })
@@ -494,8 +494,8 @@ run_bound_diagnostics = |context| {
 		_ => ""
 	}
 	options = Pdf.Options.with_theme(Pdf.Options.default, report_theme)
-	figure = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.figure(drawing, "A mark", Pdf.no_caption)], language: "en-AU", title: "Bounds" }), options))
-	decoration = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.decoration(drawing), Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), options))
+	figure = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.figure({ drawing: drawing, alt: "A mark", caption: Pdf.no_caption })], language: "en-AU", title: "Bounds" }), options))
+	decoration = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.decoration({ drawing: drawing }), Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), options))
 	furniture = |drawing| {
 		header = Pdf.region({ center: [], end: [], height: points(40), start: [Pdf.furniture_image(drawing)] })
 		message_of(Pdf.to_bytes_with(Pdf.with_page_templates(Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header, lead: Pdf.no_lead }) }), options))
@@ -513,7 +513,7 @@ run_bound_diagnostics = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	bytes = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure(Scene.drawing({}).group(Layout.point(4, 0), curve), "A curved mark moved inside the origin", Pdf.no_caption)], language: "en-AU", title: "Drawing bounds" }), options) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Drawing bounds"), Pdf.figure({ drawing: Scene.drawing({}).group(Layout.point(4, 0), curve), alt: "A curved mark moved inside the origin", caption: Pdf.no_caption })], language: "en-AU", title: "Drawing bounds" }), options) ? |_| EvidenceFailure
 	Ok({ bytes, work: [passed, bytes.len()] })
 }
 
@@ -527,8 +527,8 @@ spaced_document = |count| {
 	while $index < count {
 		number = ($index + 1).to_str()
 		$contents = $contents
-			.append(Pdf.spaced_decoration(rule, { above: points(12), behind: False, below: points(6) }))
-			.append(Pdf.spaced_decoration(band, { above: points(0), behind: True, below: points(-22) }))
+			.append(Pdf.decoration({ drawing: rule, above: points(12), below: points(6) }))
+			.append(Pdf.decoration({ drawing: band, layer: Behind, below: points(-22) }))
 			.append(Pdf.heading(1, "  Region ${number}"))
 			.append(paragraph($index))
 		$index = $index + 1
@@ -542,8 +542,8 @@ run_spaced_decorations = |count| {
 	rule = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 100, 2), oak)
 	document = |block| Pdf.document({ contents: [Pdf.paragraph("Lead ${count.to_str()}"), block, Pdf.paragraph("Body")], language: "en-AU", title: "Spacing negatives" })
 	checks = [
-		rejects(document(Pdf.spaced_decoration(rule, { above: points(-1), behind: False, below: points(0) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
-		rejects(document(Pdf.spaced_decoration(rule, { above: points(0), behind: True, below: points(-3) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(document(Pdf.decoration({ drawing: rule, above: points(-1) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(document(Pdf.decoration({ drawing: rule, layer: Behind, below: points(-3) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
 	]
 	rejections = checks.sum()
 	if rejections != checks.len() {
@@ -607,32 +607,32 @@ run_negatives = |context| {
 		}
 		$drawing
 	}
-	figure = |drawing, caption| Pdf.figure(drawing, "A plan drawing", caption)
+	figure = |drawing, caption| Pdf.figure({ drawing: drawing, alt: "A plan drawing", caption: caption })
 	lead_templates = {
 		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] }) }),
-		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.no_region, lead: Pdf.lead_region(points(60), [Pdf.paragraph("Letterhead"), Pdf.decoration(divider), Pdf.paragraph("Address")]) }),
+		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.no_region, lead: Pdf.lead_region(points(60), [Pdf.paragraph("Letterhead"), Pdf.decoration({ drawing: divider }), Pdf.paragraph("Address")]) }),
 	}
 	checks = [
 		rejects(document([Pdf.paragraph("Lead"), figure(tall, Pdf.caption("Figure 1."))]), LayoutConstraintViolated, "document.figure_oversize", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure_fit(figure(tall, Pdf.caption("Figure 1.")), ScaleToFit({ minimum_percent: 90 }))]), LayoutConstraintViolated, "document.figure_oversize", ["contents[1]"]),
 		rejects(document([Pdf.section([Pdf.paragraph("Lead"), figure(wide, Pdf.no_caption)])]), LayoutConstraintViolated, "document.figure_oversize", ["contents[0].contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), Pdf.figure(leaf_mark, "", Pdf.caption("Figure 2."))]), InvalidRelationship, "document.figure_alternative_empty", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "", caption: Pdf.caption("Figure 2.") })]), InvalidRelationship, "document.figure_alternative_empty", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(Scene.drawing({}), Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(nested(9), Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(leaf_mark, Pdf.caption(""))]), InvalidRelationship, "document.figure_caption_empty", ["contents[1].caption"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure_fit(figure(leaf_mark, Pdf.no_caption), ScaleToFit({ minimum_percent: 101 }))]), InvalidRelationship, "document.figure_fit", ["contents[1]"]),
 		rejects(document([Pdf.figure_fit(Pdf.paragraph("Not a figure"), ScaleToFit({ minimum_percent: 50 }))]), InvalidRelationship, "document.figure_fit", []),
-		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration(divider)]), LayoutConstraintViolated, "layout.decoration_position", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: divider })]), LayoutConstraintViolated, "layout.decoration_position", ["contents[1]"]),
 		rejects(Pdf.with_page_templates(document([Pdf.paragraph("Body")]), lead_templates), LayoutConstraintViolated, "layout.decoration_position", ["templates.first.lead.contents[1]"]),
-		rejects(document([Pdf.decoration(Scene.drawing({})), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[0]"]),
-		rejects(document([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), Pdf.decoration(divider)])]), Pdf.paragraph("Body")]), InvalidRelationship, "semantics.list_item_content", ["contents[0].items[0].contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration(tall), Pdf.paragraph("Body")]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),
+		rejects(document([Pdf.decoration({ drawing: Scene.drawing({}) }), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[0]"]),
+		rejects(document([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), Pdf.decoration({ drawing: divider })])]), Pdf.paragraph("Body")]), InvalidRelationship, "semantics.list_item_content", ["contents[0].items[0].contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: tall }), Pdf.paragraph("Body")]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),
 	]
 	passed = checks.sum()
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	carrier = Pdf.to_bytes_with(document([Pdf.title("Figure carrier"), Pdf.figure(leaf_mark, "The Harbour & Finch leaf mark", Pdf.no_caption)]), Pdf.Options.with_theme(Pdf.Options.default, report_theme)) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(document([Pdf.title("Figure carrier"), Pdf.figure({ drawing: leaf_mark, alt: "The Harbour & Finch leaf mark", caption: Pdf.no_caption })]), Pdf.Options.with_theme(Pdf.Options.default, report_theme)) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, carrier.len()] })
 }
 

@@ -170,11 +170,7 @@ key_figures : Document.Block
 key_figures = Callout.key_figures(report_theme, { lines: ["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%", "Certified timber: 88%"], name: "Key figures", width: points(483) })
 
 figure1 : Document.Block
-figure1 = Pdf.figure(
-	bar_chart,
-	"Bar chart comparing revenue by region for Q1 FY2026 and Q1 FY2027. Queensland grew most, by 15.4%; New South Wales fell by 2.1%. Values are given in Table 1.",
-	Pdf.caption("Figure 1. Revenue by region, AUD thousands"),
-)
+figure1 = Pdf.figure({ drawing: bar_chart, alt: "Bar chart comparing revenue by region for Q1 FY2026 and Q1 FY2027. Queensland grew most, by 15.4%; New South Wales fell by 2.1%. Values are given in Table 1.", caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands") })
 
 ## The rectangles of one seven-segment digit, 5 × 9 pt from its origin.
 digit : U64 -> Scene.Drawing
@@ -488,11 +484,7 @@ contents = |config| [
 						Pdf.text(" (“Timber asks for patience.”)"),
 					].concat(config.timber_extra),
 				),
-				Pdf.figure(
-					Scene.drawing({}).image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)),
-					config.figure2_alternative,
-					Pdf.caption("Figure 2. Air drying at the Moonah yard"),
-				),
+				Pdf.figure({ drawing: Scene.drawing({}).image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)), alt: config.figure2_alternative, caption: Pdf.caption("Figure 2. Air drying at the Moonah yard") }),
 			]),
 		]),
 		Pdf.section([

@@ -178,18 +178,7 @@ templates = {
 		gap: points(18),
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(21),
-					start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])],
-					center: [],
-					end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])],
-				}),
-				hairline,
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(21), start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])], center: [], end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])], backdrop: Backdrop(hairline), slot_inset: points(3) }),
 		footer,
 		gap: points(14),
 	}),
@@ -588,14 +577,7 @@ contents = |options| Ok([
 			Pdf.strong([Pdf.text("AUD 3.14 m")]),
 			Pdf.text(". Margin improved as we moved more volume through direct contracts and less through spot purchasing."),
 		]),
-		Pdf.figure_fit(
-			Pdf.figure(
-				revenue_chart,
-				"Column chart of monthly revenue from July to December 2026, rising from AUD 2.41 million in July to AUD 3.14 million in December, with the second-quarter months highlighted. An overlaid line shows gross margin rising from 31% to 36%. Values are listed in Table 2.",
-				Pdf.caption("Figure 1. Monthly revenue in AUD thousands, July to December 2026, with gross margin"),
-			),
-			ScaleToFit({ minimum_percent: 70 }),
-		),
+		Pdf.figure({ drawing: revenue_chart, alt: "Column chart of monthly revenue from July to December 2026, rising from AUD 2.41 million in July to AUD 3.14 million in December, with the second-quarter months highlighted. An overlaid line shows gross margin rising from 31% to 36%. Values are listed in Table 2.", caption: Pdf.caption("Figure 1. Monthly revenue in AUD thousands, July to December 2026, with gross margin"), fit: ScaleToFit({ minimum_percent: 70 }) }),
 		monthly_table,
 		Pdf.section([
 			Pdf.destination_heading("segments", 2, "2.1 Segment results"),
@@ -607,11 +589,7 @@ contents = |options| Ok([
 		Pdf.keep_together([
 			Pdf.destination_heading("targets", 1, "3 Progress against targets"),
 			Pdf.paragraph("Half of the financial year has elapsed, marked by the navy line. Teal tracks are at or ahead of that pace; amber tracks are behind it."),
-			Pdf.figure(
-				progress_chart,
-				"Four progress bars against FY2027 targets: revenue 62%, new members 48%, advisory clients 71%, and emissions reduction 39%. A marker at 50% shows the elapsed half year.",
-				Pdf.caption("Figure 2. Progress toward FY2027 targets"),
-			),
+			Pdf.figure({ drawing: progress_chart, alt: "Four progress bars against FY2027 targets: revenue 62%, new members 48%, advisory clients 71%, and emissions reduction 39%. A marker at 50% shows the elapsed half year.", caption: Pdf.caption("Figure 2. Progress toward FY2027 targets") }),
 
 			## The targets' notes stay with the figure they explain.
 			Pdf.bullet_list([

@@ -415,11 +415,7 @@ contents = [
 			Pdf.text("."),
 		]),
 		revenue_table,
-		Pdf.figure(
-			bar_chart,
-			"Bar chart comparing revenue by region for Q1 FY2026 and Q1 FY2027. Queensland grew most, by 15.4%; New South Wales fell by 2.1%. Values are given in Table 1.",
-			Pdf.caption("Figure 1. Revenue by region, AUD thousands"),
-		),
+		Pdf.figure({ drawing: bar_chart, alt: "Bar chart comparing revenue by region for Q1 FY2026 and Q1 FY2027. Queensland grew most, by 15.4%; New South Wales fell by 2.1%. Values are given in Table 1.", caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands") }),
 	]),
 	Pdf.section([
 		Pdf.destination_heading("supply-chain", 1, "3 Supply chain"),
@@ -442,11 +438,7 @@ contents = [
 				Pdf.quote([Pdf.in_language("fr", [Pdf.text("« Le bois demande de la patience. »")])]),
 				Pdf.text(" (“Timber asks for patience.”)"),
 			]),
-			Pdf.figure(
-				Scene.drawing({}).image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)),
-				"Stacked Tasmanian oak boards air-drying under cover at the Moonah yard.",
-				Pdf.caption("Figure 2. Air drying at the Moonah yard"),
-			),
+			Pdf.figure({ drawing: Scene.drawing({}).image(Image.Source.jpeg_srgb(drying_photo, RequireDisplayReady), Layout.rect(0, 0, 483, 260)), alt: "Stacked Tasmanian oak boards air-drying under cover at the Moonah yard.", caption: Pdf.caption("Figure 2. Air drying at the Moonah yard") }),
 		]),
 	]),
 	Pdf.section([

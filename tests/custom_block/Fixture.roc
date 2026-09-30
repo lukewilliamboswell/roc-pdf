@@ -170,7 +170,7 @@ report_document = |context| {
 		Pdf.section([
 			Pdf.destination_heading("supply-chain", 1, "3 Supply chain"),
 			Pdf.rich_paragraph([Pdf.text("Our partner "), Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]), Pdf.text(" puts it simply: "), Pdf.quote([Pdf.in_language("fr", [Pdf.text("« Le bois demande de la patience. »")])]), Pdf.text(" (“Timber asks for patience.”)")]),
-			Pdf.figure_fit(Pdf.figure(site_plan, "Plan of the Moonah yard: twelve drying bays inside the yard boundary.", Pdf.caption("Figure 3. Moonah yard plan, scaled to fit.")), ScaleToFit({ minimum_percent: 50 })),
+			Pdf.figure({ drawing: site_plan, alt: "Plan of the Moonah yard: twelve drying bays inside the yard boundary.", caption: Pdf.caption("Figure 3. Moonah yard plan, scaled to fit."), fit: ScaleToFit({ minimum_percent: 50 }) }),
 		]),
 		Pdf.section([
 			Pdf.destination_heading("appendix-a", 1, "Appendix A. Supplier register"),

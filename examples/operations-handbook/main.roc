@@ -151,18 +151,7 @@ templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
 	continuation: Pdf.page_template({
-		header: Pdf.with_slot_inset(
-			Pdf.with_backdrop(
-				Pdf.region({
-					height: points(22),
-					start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])],
-					center: [],
-					end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])],
-				}),
-				header_rule,
-			),
-			points(3),
-		),
+		header: Pdf.region({ height: points(22), start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])], center: [], end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])], backdrop: Backdrop(header_rule), slot_inset: points(3) }),
 		footer,
 		gap: points(14),
 	}),
@@ -570,13 +559,13 @@ rich_step : List(Pdf.Inline) -> Pdf.ListItem
 rich_step = |inlines| Pdf.list_item([Pdf.rich_paragraph(inlines)])
 
 accent_band : Document.Block
-accent_band = Pdf.decoration(
-	Scene.rectangle(
+accent_band = Pdf.decoration({
+	drawing: Scene.rectangle(
 		Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 10, 56, 6), teal), Layout.rect(60, 10, 18, 6), rust),
 		{ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } },
 		mist,
 	),
-)
+})
 
 contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
 contents = |options| Ok([
@@ -621,11 +610,7 @@ contents = |options| Ok([
 	Pdf.section([
 		Pdf.destination_heading("topology", 1, "2 Service topology"),
 		Pdf.paragraph("Every payment enters through the edge, is authorised by the payments API, and is written to the ledger before any acquirer is told to capture funds. Figure 1 shows the tiers you will meet during an incident."),
-		Pdf.figure(
-			topology,
-			"Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger.",
-			Pdf.caption("Figure 1. Request path through the production zone (shaded)"),
-		),
+		Pdf.figure({ drawing: topology, alt: "Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger.", caption: Pdf.caption("Figure 1. Request path through the production zone (shaded)") }),
 		Pdf.numbered_list(
 			{ start: 1, style: Decimal },
 			[
