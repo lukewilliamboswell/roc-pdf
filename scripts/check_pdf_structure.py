@@ -309,7 +309,9 @@ def self_test() -> None:
     deflate_pdf = DEFLATE_SNAPSHOT.read_bytes()
     generated_content = b"q Q\n" * 65536
     validate_pdf(deflate_pdf, 1, generated_content)
-    corrupt_deflate = deflate_pdf.replace(b"x\x9c", b"x\x9d", 1)
+    # The zlib header is CMF 0x78 with FLG 0xDA; 0xDB breaks the header check.
+    require(deflate_pdf.count(b"stream\nx\xda") == 1, "self-test DEFLATE snapshot has no zlib header")
+    corrupt_deflate = deflate_pdf.replace(b"stream\nx\xda", b"stream\nx\xdb", 1)
     for label, candidate, content in [
         ("corrupt DEFLATE", corrupt_deflate, generated_content),
         ("wrong generated content", deflate_pdf, generated_content[:-1]),

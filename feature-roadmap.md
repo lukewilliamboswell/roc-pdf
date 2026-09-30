@@ -402,9 +402,10 @@ within an early correctness gate.
 - Catalog, page tree, page objects, content streams, resources, and trailer
   information.
 - Xref streams, `startxref`, and end-of-file marker.
-- Flate streams through the private package-owned stateful compressor seam;
-  the independent Python checker uses zlib to reconstruct the exact emitted
-  payload, while the package dependency graph remains compressor-free.
+- Flate streams through the package's single private compressor seam over the
+  pinned pure-Roc `roc-deflate` dependency (a libdeflate port); the
+  independent Python checker uses zlib to reconstruct the exact emitted
+  payload.
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
 - Deterministic fixed-fanout balanced builders for page, name, number, ID, and
@@ -415,7 +416,7 @@ within an early correctness gate.
 - Flat object/value/edge stores, a consumption-shaped builder, and bulk lexical
   emission without one allocation or `Iter` step per token or byte.
 - A compact replayable sealed plan, preassigned indirect stream-length objects,
-  stateful deterministic DEFLATE, fixed-width unfiltered xref streams, bounded
+  deterministic per-stream DEFLATE, fixed-width unfiltered xref streams, bounded
   owned generated chunks, and optional seamless slices of validated unchanged
   resource allocations.
 - Default consume-and-release chunk sharing plus an explicit owned-chunk

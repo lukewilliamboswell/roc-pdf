@@ -106,7 +106,7 @@ is the snapshot before the step, "After" the snapshot after it.
 | **Total** | **57,777** | **40,343** | **-17,434** (-30.2%) |
 
 The package's DEFLATE reaches 11,758 bytes on the tax invoice's 17,072-byte
-subset where zlib -9 reaches 10,611; step 4 records the compressor.
+subset where zlib -9 reaches 10,611; step 2 replaces the compressor.
 
 ### Rendering
 
@@ -125,9 +125,132 @@ preview is byte-identical after re-rendering.
   ToUnicode CMap pays the same 512 KiB as a 64 KiB content stream. The cost is
   linear in the number of streams (eight subsets: +16.9 MB; 64 subsets:
   +133 MB), so it is not the quadratic copying the ceiling exists to catch.
-  The compressor is being replaced (step 4), and a table sized by
-  `min(input, window)` removes most of it.
+  Step 2 replaces this compressor.
 - **Work counters**: `output_bytes` falls everywhere a font or profile is
   embedded; `objects` and `font_objects` fall by two per Type 0 bundle;
   `cid_map_bytes` becomes `identity_cid_entries` (entries checked rather
   than bytes written).
+
+## 2. DEFLATE through `roc-deflate` at libdeflate level 10
+
+### What changed
+
+`KernelDeflate` no longer implements LZ77 and Huffman coding. It is the
+package's single DEFLATE seam: zlib framing, limits, a checked output bound,
+and one call (`compress_raw`) into the pinned pure-Roc `roc-deflate`
+0.4.0-rc1, a port of libdeflate that is byte-identical to libdeflate at every
+level (`vendor/README.md` records its provenance and upgrade policy). The
+emitter compresses each generated payload whole at its stream's transition and
+emits the compressed bytes as one owned segment; the payload was already held
+whole in the sealed plan, so no new uncompressed copy exists. The zlib header
+becomes `78 DA` (FLEVEL 3). The empty stream keeps its canonical eight bytes.
+
+The old compressor's LZ77 and Huffman code and its tests are removed; the
+seam's tests cover framing, the Adler-32 worked example, limits, the bound on
+incompressible input, round trips through the dependency's inflater, and
+determinism. The structural-kernel DEFLATE cases keep their names; their work
+counters become streams, input bytes, and emitted bytes, because the
+dependency exposes no finer deterministic counters.
+
+### Choosing the level
+
+Each stream was compressed by a standalone dev-backend program on the pinned
+compiler (the same test platform and allocation counter as the suite) and by
+an `--opt=speed` build. Sizes are raw DEFLATE bytes; zlib -9 is Python's
+`zlib.compress(data, 9)` minus its six framing bytes.
+
+| Stream (decoded bytes) | zlib -9 | L6 | L9 | L10 | L11 | L12 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Tax invoice page 2 content (70,921) | 5,775 | 6,126 | 5,497 | 5,242 | 5,144 | 5,126 |
+| Tax invoice non-stream objects (54,264) | 6,671 | 6,688 | 6,428 | 5,949 | 5,798 | 5,954 |
+| RocPdfSans subset (17,072) | 10,605 | 10,604 | 10,592 | 10,502 | 10,479 | 10,479 |
+| ToUnicode CMap (1,375) | 539 | 490 | 488 | 469 | 469 | 469 |
+
+The non-stream-objects row is every non-stream object of the tax invoice
+serialized back to back, a stand-in for step 4's object streams.
+
+| Product brief page 2 content x16 (762,736 bytes) | L6 | L9 | L10 | L11 | L12 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Output bytes | 109,720 | 102,040 | 95,061 | 93,706 | 93,556 |
+| Dev backend: allocations | 97,853 | 80,980 | 7,724 | 12,538 | 17,918 |
+| Dev backend: allocated bytes | 8.49 GB | 7.03 GB | 86.2 MB | 142.6 MB | 226.1 MB |
+| Dev backend: seconds | 2.01 | 1.89 | 2.18 | 3.27 | 7.89 |
+| `--opt=speed`: allocations | 688 | 576 | 4,777 | 8,044 | 11,987 |
+| `--opt=speed`: allocated bytes | 1.8 MB | 1.7 MB | 72.5 MB | 128.0 MB | 210.8 MB |
+| `--opt=speed`: seconds | 0.00 | 0.01 | 0.06 | 0.10 | 0.18 |
+
+Level 10 is the first near-optimal-parsing level. It is 7% smaller than
+level 9 and within 1.6% of level 12 on content, and it does the least
+allocation of any level in the dev backend the suite measures, at a third of
+level 12's time. Levels 6 to 9 run the lazy hash-chain parser, which is cheap
+when optimized but, in the dev backend, allocates about 11 KB per input byte
+(roughly a quarter-megabyte table copy every few input bytes; 1x/4x/16x inputs
+scale exactly linearly, so it is copying rather than growth). That is a
+finding for the fork's maintainers, recorded here, and a reason not to use
+those levels.
+
+Level 10 has its own cost: the near-optimal parser allocates a fixed
+libdeflate-sized working set per call (two 1.5-million-entry match caches, the
+optimum-node arrays, and the binary-tree matchfinder), about 15 MB and 150 to
+230 allocation events whatever the input length, plus about 90 bytes per input
+byte in the dev backend. Sizing those arrays to `min(input, block)` in the
+dependency would remove most of the fixed part for short streams.
+
+Against the old compressor (the audit's "weak Deflate"), the new streams are
+smaller than zlib -9 almost everywhere: the tax invoice's page 2 content falls
+from 8,554 to 5,248 stored bytes (zlib -9: 5,781), and its subset from 11,734
+to 10,508 (zlib -9: 10,611).
+
+### Budgets
+
+| Tax invoice | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| structure tree | 51,301 | 51,301 | +0 |
+| page content streams | 21,926 | 14,202 | -7,724 |
+| font programs | 11,827 | 10,601 | -1,226 |
+| xref/overhead | 3,415 | 3,415 | +0 |
+| OutputIntent/ICC | 2,760 | 2,661 | -99 |
+| font dicts/widths/ToUnicode | 1,770 | 1,496 | -274 |
+| page tree/resources/catalog/info | 1,650 | 1,650 | +0 |
+| xmp | 904 | 904 | +0 |
+| annots/outlines/dests | 328 | 328 | +0 |
+| **Total** | **95,881** | **86,558** | **-9,323** (-9.7%) |
+
+| Product brief | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| page content streams | 28,984 | 19,243 | -9,741 |
+| font programs | 30,746 | 27,347 | -3,399 |
+| font dicts/widths/ToUnicode | 5,419 | 4,782 | -637 |
+| OutputIntent/ICC | 2,760 | 2,661 | -99 |
+| other categories | 38,453 | 38,451 | -2 |
+| **Total** | **106,362** | **92,484** | **-13,878** (-13.0%) |
+
+| Quarterly report | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| page content streams | 30,431 | 20,625 | -9,806 |
+| font programs | 28,919 | 25,470 | -3,449 |
+| font dicts/widths/ToUnicode | 4,384 | 3,802 | -582 |
+| other categories | 52,820 | 52,718 | -102 |
+| **Total** | **116,554** | **102,615** | **-13,939** (-12.0%) |
+
+### Rendering and conformance
+
+Decoded stream contents are unchanged, so every comparable page is again
+pixel-identical at 100 dpi and the gallery previews are byte-identical. The
+bundle-consumer test resolves the new URL dependency through the bundled
+package. `roc build --fuzz` still aborts on the pinned compiler before and
+after this change (the known upstream fuzz-build crash), so the fuzz lane
+evidence is unchanged rather than newly broken.
+
+### Allocation and work
+
+- **Allocations and allocated bytes** rise by the per-call working set above
+  for every compressed stream: about 150 to 230 events and 15 MB each. A
+  one-profile blank archive rises by 200 events and 14.7 MB; the distinct
+  font-subset pair rises by 8,096 events and 0.50 GB for eight subsets and by
+  61,688 events and 3.80 GB for 64, which is linear in the number of streams.
+  It is not quadratic copying, and it is the same in the optimized build.
+- **Work counters**: `output_bytes` falls everywhere; the two structural-kernel
+  DEFLATE cases record streams, input bytes, and emitted bytes.
+- **Suite time**: the summed dev-backend case time rises from about 106 s to
+  190 s across 323 cases (about 15 s of wall time with six workers).

@@ -405,8 +405,8 @@ read_stream_length = |bytes, offsets, tokens, top_keys, number, xref_object| {
 
 ## A filtered payload announces itself in its own first bytes, so the declared
 ## filter and the payload have to agree. An absent `/Filter` means the payload
-## is stored unchanged, which is how XMP metadata and ICC profiles are written,
-## and there is nothing to assert about those bytes from out here.
+## is stored unchanged, which is how XMP metadata is written, and there is
+## nothing to assert about those bytes from out here.
 check_filter : List(U8), List(Token), List(TopKey), U64, U64, U64 -> Try({}, StructureOracle.Failure)
 check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| match top_key_value(bytes, tokens, top_keys, filter_key_bytes) {
 	Missing => Ok({})
@@ -415,7 +415,14 @@ check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| 
 			return Err(BadFilter(number))
 		}
 		if region_equals(bytes, token.start, token.len, flate_decode_bytes) {
-			if payload_length < 2 or list_at(bytes, payload_start) != 0x78 or list_at(bytes, payload_start + 1) != 0x9c {
+			## RFC 1950: CMF 0x78 (DEFLATE, 32 KiB window), no preset
+			## dictionary, and a header that is a multiple of 31.
+			if payload_length < 2 {
+				return Err(BadFilter(number))
+			}
+			cmf = list_at(bytes, payload_start).to_u64()
+			flg = list_at(bytes, payload_start + 1).to_u64()
+			if cmf != 0x78 or flg.bitwise_and(0x20) != 0 or U64.mod_by(cmf * 256 + flg, 31) != 0 {
 				return Err(BadFilter(number))
 			}
 			Ok({})

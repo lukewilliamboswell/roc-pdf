@@ -16,12 +16,6 @@ PayloadPhase : {
 	release : [KeepPayload, ReleasePayload(KernelObject.PayloadId)],
 }
 
-DeflatePhase : {
-	encoder : KernelDeflate.Encoder,
-	emitted_length : U64,
-	next_object : U64,
-}
-
 XrefEntriesPhase : {
 	entry : U64,
 	size : U64,
@@ -29,7 +23,6 @@ XrefEntriesPhase : {
 }
 
 Phase : [
-	DeflatePayload(DeflatePhase),
 	Finished,
 	Header,
 	Object(U64),
@@ -209,7 +202,6 @@ next_segment = |encoder| match encoder.phase {
 		Object(0),
 	)
 	Object(index) => emit_object(encoder, index)
-	DeflatePayload(state) => emit_deflate_payload(encoder, state)
 	Payload(payload) => {
 		next_plan = match payload.release {
 			KeepPayload => encoder.plan
@@ -336,34 +328,21 @@ emit_deflate_stream_prefix = |encoder, object_id, stream, payload, next_object| 
 			next = encoder_with_phase(with_work, Payload({ bytes: [120, 156, 3, 0, 0, 0, 0, 1], next_object, ownership: Generated, release: KeepPayload }))
 			emit_bytes(next, $prefix, Generated)
 		} else {
+			## The payload is compressed whole into one owned buffer: the
+			## compressor seam takes the complete input, and the compressed
+			## length it returns becomes the stream's length.
 			plan = prepare_deflate(payload.bytes) ? Deflate
-			compressor = KernelDeflate.Encoder.start(plan)
+			compressed = KernelDeflate.to_bytes(plan) ? Deflate
+			deflate_work = KernelDeflate.Work.add(encoder.deflate_work, compressed.work) ? Deflate
 			release = payload_release(encoder.plan, stream)
 			next_plan = match release {
 				KeepPayload => encoder.plan
 				ReleasePayload(payload_id) => KernelStructure.Plan.release_payload_bytes(encoder.plan, payload_id)
 			}
-			next = encoder_with_plan_and_phase(encoder, next_plan, DeflatePayload({ emitted_length: 0, encoder: compressor, next_object }))
+			with_length = encoder_with_stream_length(encoder_with_deflate_work(encoder, deflate_work), compressed.bytes.len())
+			next = encoder_with_plan_and_phase(with_length, next_plan, Payload({ bytes: compressed.bytes, next_object, ownership: Generated, release: KeepPayload }))
 			emit_bytes(next, $prefix, Generated)
 		}
-	}
-}
-
-emit_deflate_payload : KernelEmit.Encoder, DeflatePhase -> Try(KernelEmit.Step, KernelEmit.Error)
-emit_deflate_payload = |encoder, state| match KernelDeflate.Encoder.next(state.encoder) {
-	Err(error) => Err(Deflate(error))
-	Ok(Done(work)) => {
-		deflate_work = KernelDeflate.Work.add(encoder.deflate_work, work) ? Deflate
-		next = encoder_with_deflate_work(
-			encoder_with_stream_length(encoder, state.emitted_length),
-			deflate_work,
-		)
-		next_segment(encoder_with_phase(next, StreamSuffix(state.next_object)))
-	}
-	Ok(Emit(bytes, next_compressor)) => {
-		emitted_length = checked_add(state.emitted_length, bytes.len())?
-		next = encoder_with_phase(encoder, DeflatePayload({ emitted_length, encoder: next_compressor, next_object: state.next_object }))
-		emit_bytes(next, bytes, Generated)
 	}
 }
 
@@ -1146,7 +1125,7 @@ expect {
 		bytes.len() <= KernelEmit.Encoder.output_bound(encoder)
 }
 
-## Nonempty generated streams compress statefully and release their source at the transition.
+## Nonempty generated streams compress whole and release their source before the payload is emitted.
 expect {
 	input = Str.to_utf8("q 0 0 100 100 re f Q\nq 0 0 100 100 re f Q\n")
 	plan = KernelStructure.build_deflate_stream_probe(input, input.len())?
@@ -1165,7 +1144,7 @@ expect {
 			Emit(segment, next) => {
 				$bytes = append_all($bytes, segment.bytes)
 				match next.phase {
-					DeflatePayload(_) => {
+					Payload(_) => {
 						store = plan_store(next.plan)
 						$released = list_at(store.payloads, 0).bytes.is_empty()
 					}
@@ -1179,7 +1158,7 @@ expect {
 
 	$released and
 		contains_bytes($bytes, expected.bytes) and
-			KernelDeflate.Work.blocks(work) == 1 and
+			KernelDeflate.Work.streams(work) == 1 and
 				KernelDeflate.Work.input_bytes(work) == input.len() and
 					KernelDeflate.Work.emitted_bytes(work) == expected.bytes.len()
 }

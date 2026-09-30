@@ -13,6 +13,32 @@ immutable origin, license, attribution, and redistribution decision. The
 repository contract checker hashes every tracked binary before Roc allocation
 measurements begin.
 
+## Package dependencies
+
+The production package depends on two pure-Roc packages, fetched by `roc` from
+their immutable release URLs; they are not vendored or bundled. The URL's
+final path segment is the bundle's content hash, so a changed archive cannot
+satisfy the pin. `package/main.roc` and `package/all.roc` declare both.
+
+| Package | Version | Release bundle | Archive SHA-256 | License | Use |
+| --- | --- | --- | --- | --- | --- |
+| `roc-lang/unicode` | 4.2.0 | [4W8SHzvwet9hH9qZewJ1J1CVQoH7YKA6zyijWFTB3y1w.tar.zst](https://github.com/roc-lang/unicode/releases/download/4.2.0/4W8SHzvwet9hH9qZewJ1J1CVQoH7YKA6zyijWFTB3y1w.tar.zst) | `dfd0524fb84363d18fd5c77acb68fa1eb7ac185bd781db9c2b1eda813cae3a29` | UPL-1.0 | Scalar, segmentation, bidirectional, and case analysis |
+| `lukewilliamboswell/roc-deflate` | 0.4.0-rc1 | [37rMmhRWo734ZZRyGJ6WPx3U29PXG3XG35BKFy9dGvD5.tar.zst](https://github.com/lukewilliamboswell/roc-deflate/releases/download/0.4.0-rc1/37rMmhRWo734ZZRyGJ6WPx3U29PXG3XG35BKFy9dGvD5.tar.zst) | `15b47b38bb3fc4c0595c93dfeb3c545eb5799cb9357abaad866d80481879d3ec` | Apache-2.0 | DEFLATE compression behind `package/KernelDeflate.roc` |
+
+`roc-deflate` 0.4.0-rc1 is a fork of `niclas-ahden/roc-deflate` carrying
+Richard Feldman's pure-Roc port of libdeflate (upstream
+`rtfeldman/roc-deflate@1b39584`), which is byte-identical to libdeflate at
+levels 0 to 12. The package calls it from exactly one place,
+`KernelDeflate.compress_raw`, at the fixed level `KernelDeflate.level`.
+
+Upgrade policy: move to an upstream `niclas-ahden/roc-deflate` release as soon
+as one includes the libdeflate port, and treat any version or level change as
+a byte-contract change: every snapshot, gallery PDF, and allocation baseline is
+regenerated and reviewed, and `docs/performance/output-size.md` records the
+size and work movement.
+
+## Retained artifacts
+
 Current retained tools are:
 
 - Apache PDFBox 3.0.8's standalone application JAR;

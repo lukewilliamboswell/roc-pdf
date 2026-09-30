@@ -15,7 +15,13 @@ end state; the roadmap records which capabilities and claims are executable.
 
 The production implementation and all of its runtime dependencies are pure
 Roc. Python and native PDF tools are independent test oracles; they are not
-linked into or invoked by the package.
+linked into or invoked by the package. The package depends on two pure-Roc
+packages, each pinned by an immutable release URL: `roc-lang/unicode` for
+Unicode analysis, and `roc-deflate` for DEFLATE compression (a port of
+libdeflate). The DEFLATE dependency is currently the release candidate of a
+fork that carries the libdeflate port ahead of upstream; the package moves to
+an upstream `niclas-ahden/roc-deflate` release once one includes that work.
+[`vendor/README.md`](vendor/README.md) records each dependency's provenance.
 
 ## Product destination
 
@@ -1395,9 +1401,11 @@ that consumes and releases each chunk before requesting the next one. The
 choice affects allocation, copying, and retention only; it cannot affect PDF
 bytes. `Pdf.to_bytes` necessarily copies resource ranges into its single final
 contiguous `List(U8)`. Planning assigns every object and indirect stream-length
-ID before emission, and emission tracks a compact `U64` offset list. Stateful
-lexical, DEFLATE, and resource encoders produce stream bytes without
-materializing whole uncompressed and compressed copies.
+ID before emission, and emission tracks a compact `U64` offset list. Lexical
+and resource encoders produce stream bytes incrementally. A generated stream
+payload is compressed whole through the single DEFLATE seam into one owned
+buffer, bounded by that stream, and its source payload is released at its last
+use.
 
 This is a bounded-retention design, not a constant-memory claim. The compact
 sealed plan, validated live resource bytes, global font subset facts, structure
