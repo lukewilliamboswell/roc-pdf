@@ -496,7 +496,7 @@ validate_drawing = |drawing, path, image_base| {
 				}
 				$converted = $converted.append(DrawingPath({ fill, segments, stroke }))
 			}
-			AuthorGroup(_) => return Err(DrawingInvalid({ path, reason: "grouped drawing commands are not supported in furniture" }))
+			AuthorGroup(_) | AuthorTranslate(_) => return Err(DrawingInvalid({ path, reason: "grouped drawing commands are not supported in furniture" }))
 		}
 		$index = $index + 1
 	}

@@ -12,6 +12,13 @@ KernelFacadeSemantics :: [].{
 		ArithmeticOverflow,
 		ContainerDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
 		EmptyContainer({ group : U64 }),
+
+		## A decoration's drawing is not a supported flow drawing.
+		DecorationDrawing({ decoration : U64, reason : Str }),
+
+		## A decoration with no following flow block, or inside a lead
+		## region.
+		DecorationPosition({ decoration : U64 }),
 		EmptyInline({ block : U64, inline : U64 }),
 		EmptyKeep({ group : U64 }),
 		EmptyLanguage,
@@ -20,6 +27,18 @@ KernelFacadeSemantics :: [].{
 		EmptyListItem({ group : U64 }),
 		EmptyMetadataTitle,
 		EmptyRichParagraph({ block : U64 }),
+
+		## A figure's alternative text is empty.
+		FigureAlternativeEmpty({ block : U64 }),
+
+		## A figure's visible caption is empty.
+		FigureCaptionEmpty({ block : U64 }),
+
+		## A figure's drawing is not a supported flow drawing.
+		FigureDrawing({ block : U64, reason : Str }),
+
+		## A figure's fit floor is above 100 percent.
+		FigureFitInvalid({ block : U64 }),
 
 		## A page field or reserved width in body content: page fields are
 		## page furniture only.
@@ -32,6 +51,7 @@ KernelFacadeSemantics :: [].{
 		ListDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
 		ListItemBlock({ block : U64 }),
 		ListItemBreak({ page_break : U64 }),
+		ListItemDecoration({ decoration : U64 }),
 		ListItemGroup({ group : U64 }),
 		ListItemSpacer({ spacer : U64 }),
 		ListItemStart({ group : U64 }),
@@ -225,7 +245,7 @@ build_plan = |authoring, limits| {
 				artifacts: planning.artifacts.len(),
 				container_nodes: planning.group_nodes.len(),
 				content_writes: built.store.content_spine.len(),
-				header_association_edges: planning.relationship_count,
+				header_association_edges: planning.relationship_count - captioned_figures(authoring.figures),
 				inline_elements: planning.inline_elements,
 				inline_leaves: planning.inline_leaves,
 				list_items: planning.list_item_count,
@@ -284,7 +304,7 @@ plan_blocks = |authoring, limits| {
 			group = list_at(groups, $next_group)
 			in_item = in_list_item(groups, group.parent)
 			match group.kind {
-				Container(_) | LeadRegion => {
+				Container(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
 						return Err(ListItemGroup({ group: $next_group }))
 					}
@@ -510,7 +530,8 @@ plan_blocks = |authoring, limits| {
 					$content_count = attempted_content
 					$list_state = NoActiveList
 				}
-				Figure(_) => {
+				Figure(figure_index) => {
+					check_figure(list_at(authoring.figures, figure_index), $block_index)?
 					attempted_nodes = checked_add($next_node, 1)?
 					attempted_occurrences = checked_add($next_occurrence, 1)?
 					attempted_content = checked_add($content_count, 2)?
@@ -527,6 +548,29 @@ plan_blocks = |authoring, limits| {
 					$next_occurrence = attempted_occurrences
 					$content_count = attempted_content
 					$property_count = attempted_properties
+					$list_state = NoActiveList
+				}
+
+				## A caption is `Caption > P` beside its figure, with one
+				## `CaptionFor` relationship from the caption to the figure.
+				FigureCaption(_) => {
+					if block.text.is_empty() {
+						return Err(FigureCaptionEmpty({ block: $block_index }))
+					}
+					attempted_nodes = checked_add($next_node, 2)?
+					attempted_occurrences = checked_add($next_occurrence, 1)?
+					attempted_content = checked_add($content_count, 3)?
+					attempted_sources = checked_add($sources.len(), 1)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, $block_index)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, $block_index)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, $block_index)?
+					check_at(attempted_sources, limits.max_source_inputs, SourceInputs, $block_index)?
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, block.parent) })
+					$sources = $sources.append(block.text)
+					$next_node = attempted_nodes
+					$next_occurrence = attempted_occurrences
+					$content_count = attempted_content
+					$relationship_count = checked_add($relationship_count, 1)?
 					$list_state = NoActiveList
 				}
 				DestinationHeading({ level, name }) => {
@@ -632,6 +676,7 @@ plan_blocks = |authoring, limits| {
 		}
 	}
 	check_layout_items(authoring)?
+	check_decorations(authoring)?
 	Ok({ artifacts: $artifacts, attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
@@ -916,6 +961,73 @@ check_layout_items = |authoring| {
 		$index = $index + 1
 	}
 	Ok({})
+}
+
+## The number of figures with a caption, each adding one `CaptionFor`.
+captioned_figures : List(Document.NormalizedFigure) -> U64
+captioned_figures = |figures| {
+	var $count = 0
+	for figure in figures {
+		if figure.captioned {
+			$count = $count + 1
+		}
+	}
+	$count
+}
+
+## A figure has non-empty alternative text, a valid flow drawing, and a fit
+## floor of at most 100 percent.
+check_figure : Document.NormalizedFigure, U64 -> Try({}, KernelFacadeSemantics.Error)
+check_figure = |figure, block| {
+	if figure.alternative.is_empty() {
+		return Err(FigureAlternativeEmpty({ block: block }))
+	}
+	match figure.drawing {
+		InvalidDrawing(reason) => return Err(FigureDrawing({ block, reason }))
+		ValidDrawing(_) => {}
+	}
+	match figure.fit {
+		ExactFit => Ok({})
+		ScaleFit(floor) => if floor > 100 Err(FigureFitInvalid({ block: block })) else Ok({})
+	}
+}
+
+## A decoration is a block-level flow construct: never in a list item or a
+## lead region, always followed by a flow block, and with a valid drawing.
+check_decorations : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
+check_decorations = |authoring| {
+	var $index = 0
+	while $index < authoring.decorations.len() {
+		decoration = list_at(authoring.decorations, $index)
+		if in_list_item(authoring.groups, decoration.parent) {
+			return Err(ListItemDecoration({ decoration: $index }))
+		}
+		if decoration.block >= authoring.blocks.len() or in_lead_region(authoring.groups, decoration.parent) {
+			return Err(DecorationPosition({ decoration: $index }))
+		}
+		match decoration.drawing {
+			InvalidDrawing(reason) => return Err(DecorationDrawing({ decoration: $index, reason }))
+			ValidDrawing(_) => {}
+		}
+		$index = $index + 1
+	}
+	Ok({})
+}
+
+## Whether group code `code` lies inside the first page's lead region.
+in_lead_region : List(Document.NormalizedGroup), U64 -> Bool
+in_lead_region = |groups, code| {
+	var $code = code
+	while $code != 0 {
+		group = list_at(groups, $code - 1)
+		match group.kind {
+			LeadRegion => return True
+			_ => {
+				$code = group.parent
+			}
+		}
+	}
+	False
 }
 
 ## Every generated number must be representable in its style: letters and
@@ -1223,6 +1335,15 @@ build_store = |authoring, planning, source_plan| {
 					}
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Division), span, Inherited))
 				}
+
+				## A captioned figure is a `Sect` of its `Figure` and its
+				## `Caption`. `Div` and `Part` are transparent grouping
+				## elements for PDF/UA-2 8.2.5.27 (a Caption is the first or
+				## last child of its parent), so inside one the caption would
+				## sit among the enclosing element's children.
+				FigureGroup(_) => {
+					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Section), span, Inherited))
+				}
 				KeepTogether | KeepWithNext(_) => {}
 				ItemList(list_index) => {
 					attribute = $attributes.len()
@@ -1258,7 +1379,7 @@ build_store = |authoring, planning, source_plan| {
 		if $next_group < groups.len() and list_at(groups, $next_group).first_block <= $index {
 			group = list_at(groups, $next_group)
 			match group.kind {
-				Container(_) | ItemList(_) | LeadRegion => {
+				Container(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) => {}
@@ -1367,6 +1488,26 @@ build_store = |authoring, planning, source_plan| {
 					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
 					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
 					$next_node = checked_add($next_node, 1)?
+					$next_occurrence = checked_add($next_occurrence, 1)?
+					$source_input = checked_add($source_input, 1)?
+					$index = $index + 1
+				}
+
+				## The caption follows its figure leaf in the figure's `Sect`,
+				## so the figure's node is the one allocated just before it.
+				FigureCaption(_) => {
+					caption_node = $next_node
+					paragraph_node = checked_add(caption_node, 1)?
+					caption_start = $content.len()
+					$content = $content.append(ChildNode(Semantics.NodeId.from_index(paragraph_node)))
+					paragraph_start = $content.len()
+					$content = $content.append(ContentOccurrence(Semantics.OccurrenceId.from_index($next_occurrence)))
+					$nodes = list_set($nodes, caption_node, make_node(caption_node, ParentNode(parent_node(block.parent, planning.group_nodes)), "Caption", Semantics.Range.from_start_and_length(caption_start, 1), Inherited))
+					$nodes = list_set($nodes, paragraph_node, make_node(paragraph_node, ParentNode(Semantics.NodeId.from_index(caption_node)), "P", Semantics.Range.from_start_and_length(paragraph_start, 1), Inherited))
+					$relationships = $relationships.append(CaptionFor({ caption: Semantics.NodeId.from_index(caption_node), target: Semantics.NodeId.from_index(caption_node - 1) }))
+					$occurrences = $occurrences.append(make_occurrence($next_occurrence, $source_input, source_plan, language, empty))
+					$ownership = list_set($ownership, $index, TextBlock({ body: Semantics.OccurrenceId.from_index($next_occurrence), label: NoLabel, level: list_level }))
+					$next_node = checked_add($next_node, 2)?
 					$next_occurrence = checked_add($next_occurrence, 1)?
 					$source_input = checked_add($source_input, 1)?
 					$index = $index + 1
@@ -2050,6 +2191,7 @@ test_authoring = {
 		{ kind: PageArtifact(Header), parent: 0, text: "Header" },
 	],
 	cells: [],
+	decorations: [],
 	figures: [],
 	groups: [],
 	inlines: [],

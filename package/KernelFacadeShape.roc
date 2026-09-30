@@ -294,10 +294,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 			}
 			RichTextBlock({ label: _, level: _, occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 			TextBlock({ body, label, level }) => {
-				body_style = match block.kind {
-					Figure(index) => figure_style(list_at(authoring.figures, index), theme, $block_index)?
-					_ => style_for(block.kind, theme)
-				}
+				body_style = style_for(block.kind, theme)
 				if face_check == RequireBuiltInFace and body_style.font.index() != 0 {
 					return Err(UnsupportedThemeFace({ block: $block_index, face: body_style.font.index() }))
 				}
@@ -460,10 +457,7 @@ RangedContext : { authoring : Document.NormalizedAuthoring, block : U64, face_ch
 append_plain_requests : List(KernelFacadeShape.RequestRange), List(KernelShape.SimpleRequest), List(KernelFacadeShape.RunStyle), RangedContext, Semantics.OccurrenceId, [Label(Semantics.OccurrenceId), NoLabel] -> Try(RequestBuffers, KernelFacadeShape.Error)
 append_plain_requests = |ranges, requests, styles, at, body, label| {
 	block = list_at(at.authoring.blocks, at.block)
-	body_style = match block.kind {
-		Figure(index) => figure_style(list_at(at.authoring.figures, index), at.theme, at.block)?
-		_ => style_for(block.kind, at.theme)
-	}
+	body_style = style_for(block.kind, at.theme)
 	if at.face_check == RequireBuiltInFace and body_style.font.index() != 0 {
 		return Err(UnsupportedThemeFace({ block: at.block, face: body_style.font.index() }))
 	}
@@ -1146,14 +1140,10 @@ style_for : Document.NormalizedBlockKind, Theme -> Theme.TextStyle
 style_for = |kind, theme| match kind {
 	Title => Theme.title_style(theme)
 	Heading(_) | DestinationHeading(_) => Theme.heading_style(theme)
-	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | PageArtifact(_) | RichParagraph(_) => Theme.body_style(theme)
-}
 
-figure_style : Document.NormalizedFigure, Theme, U64 -> Try(Theme.TextStyle, KernelFacadeShape.Error)
-figure_style = |figure, theme, block| {
-	body = Theme.body_style(theme)
-	leading = I64.plus_try(body.leading.raw(), figure.placement.size.height.raw()) ? |_| StyleArithmeticOverflow(block)
-	Ok({ ..body, leading: Layout.Unit.from_raw(leading) })
+	## A figure's anchor line is shaped in the body style; pagination gives
+	## it the figure's (scaled) drawing height as its leading.
+	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | FigureCaption(_) | PageArtifact(_) | RichParagraph(_) => Theme.body_style(theme)
 }
 
 list_at : List(a), U64 -> a

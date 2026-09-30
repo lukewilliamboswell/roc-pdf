@@ -117,6 +117,12 @@ Pdf :: [].{
 	## drawing.
 	Furniture : Document.Furniture
 
+	## How a figure meets the flow region: `Exact` (the default) keeps its
+	## authored size and rejects a figure that does not fit;
+	## `ScaleToFit({ minimum_percent })` scales the drawing (never its
+	## caption) uniformly by the largest factor at most one that fits.
+	FigureFit : Document.FigureFit
+
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
 	Error := [
@@ -271,11 +277,39 @@ Pdf :: [].{
 	division : List(Document.Block) -> Document.Block
 	division = |contents| Document.division(contents)
 
-	## Own a drawing as meaningful figure content with required alternative text.
-	## The executable slice accepts exactly one typed image command; unsupported
-	## vector, grouped, or multi-command drawings report `document.figure`.
+	## Own a drawing as meaningful figure content (`Figure`) with required,
+	## non-empty alternative text (`/Alt`). The drawing may hold any number
+	## of images and solid paths, grouped with `Scene.Drawing.group`, all at
+	## or beyond its bottom-left origin; its extent is the union of its
+	## commands. It is placed start-aligned in the flow at its authored size,
+	## as one unsplittable unit together with its caption. A caption becomes
+	## a visible `Caption` beside the `Figure` in a `Sect`, related to it by
+	## `CaptionFor`, so assistive technology reads it independently of the
+	## alternative text. A figure wider than the flow region, or taller with
+	## its caption than a page's flow region, is `document.figure_oversize`
+	## unless `figure_fit` selects `ScaleToFit`; nothing is clipped or
+	## silently shrunk.
 	figure : Scene.Drawing, Str, Document.Caption -> Document.Block
 	figure = |drawing, alternative, caption_value| Document.figure(drawing, alternative, caption_value)
+
+	## Select how a figure meets the flow region. `ScaleToFit({
+	## minimum_percent })` scales the drawing uniformly by the largest
+	## factor at most one (in thousandths) that fits the flow width and the
+	## smallest page flow height together with its caption; a factor below
+	## the floor is `document.figure_oversize`. Applied to any block other
+	## than a figure, or with a floor above 100, it is rejected
+	## (`document.figure_fit`).
+	figure_fit : Document.Block, FigureFit -> Document.Block
+	figure_fit = |block, fit| Document.figure_fit(block, fit)
+
+	## An in-flow decorative drawing, such as a divider rule: a `Decoration`
+	## page artifact outside the logical structure. It occupies its
+	## drawing's height immediately above the next flow block and always
+	## moves with that block's first line, so it is never clipped or split
+	## from it. A decoration needs a following flow block, and may not
+	## appear in a list item or a lead region.
+	decoration : Scene.Drawing -> Document.Block
+	decoration = |drawing| Document.decoration(drawing)
 
 	## Add an optional visible caption to a figure.
 	caption : Str -> Document.Caption
@@ -752,6 +786,16 @@ pipeline_error = |error, doc| match error {
 			group_path(Document.normalize(doc).groups, group),
 		),
 	)
+	Semantics(FigureAlternativeEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_alternative_empty", "A figure's alternative text is empty; every figure needs alternative text that conveys what it communicates.", [leaf_path(doc, block)])
+	Semantics(FigureCaptionEmpty({ block })) => located_error(doc, InvalidRelationship, "document.figure_caption_empty", "A figure caption is empty; use no_caption for a figure without a visible caption.", [leaf_path(doc, block)])
+	Semantics(FigureDrawing({ block, reason })) => located_error(doc, InvalidRelationship, "document.figure_drawing", "A figure's drawing is not a supported flow drawing: ${reason}.", [leaf_path(doc, block)])
+	Semantics(FigureFitInvalid({ block })) => located_error(doc, InvalidRelationship, "document.figure_fit", "A ScaleToFit floor is above 100 percent; a figure is never enlarged.", [leaf_path(doc, block)])
+	Semantics(DecorationDrawing({ decoration, reason })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "layout.decoration_drawing", "A decoration's drawing is not a supported flow drawing: ${reason}.")
+	Semantics(DecorationPosition({ decoration })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.decoration_position", "A decoration is placed above the next flow block and moves with it, so it needs a following flow block and cannot appear in a lead region.")
+	Semantics(ListItemDecoration({ decoration })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "semantics.list_item_content", "A decoration cannot appear inside a list item.")
+	Pages(FigureOversize({ block, frame_height, frame_width, height, width })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure's drawing is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and ${points_text(frame_height)} tall for the figure with its caption and any decoration above it; a figure is never clipped or shrunk unless figure_fit selects ScaleToFit.", [leaf_path(doc, block)])
+	Pages(FigureScaleFloor({ block, floor, scale })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure fits the flow region only at ${percent_text(scale)} of its size, below its ScaleToFit floor of ${floor.to_str()}%.", [leaf_path(doc, block)])
+	Pages(DecorationOversize({ decoration, frame_height, frame_width, height, width })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.oversize_block", "A decoration is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and at most ${points_text(frame_height)} tall; a decoration is never clipped or shrunk.")
 	Semantics(EmptyRichParagraph({ block })) => inline_error(doc, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
 	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell contains no text.", [leaf_path(doc, block)])
 	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column and one body row.")
@@ -920,8 +964,13 @@ group_error = |doc, group, diagnostic, feature, message| {
 located_error : Document, Conformance.DiagnosticCode, Str, Str, List(Str) -> Pdf.Error
 located_error = |_doc, diagnostic, feature, message, paths| InvalidDocument(located_batch(diagnostic, feature, message, paths))
 
-## A page break or spacer located by its authored parent and position.
-flow_item_error : Document, [PageBreakItem(U64), SpacerItem(U64)], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+## A scale in thousandths as a percentage, such as `80.5%`.
+percent_text : U64 -> Str
+percent_text = |scale| if scale % 10 == 0 "${(scale // 10).to_str()}%" else "${(scale // 10).to_str()}.${(scale % 10).to_str()}%"
+
+## A page break, spacer, or decoration located by its authored parent and
+## position.
+flow_item_error : Document, [DecorationItem(U64), PageBreakItem(U64), SpacerItem(U64)], Conformance.DiagnosticCode, Str, Str -> Pdf.Error
 flow_item_error = |doc, item, diagnostic, feature, message| {
 	normalized = Document.normalize(doc)
 	path = match item {
@@ -932,6 +981,10 @@ flow_item_error = |doc, item, diagnostic, feature, message| {
 		SpacerItem(index) => match normalized.spacers.get(index) {
 			Ok(record) => child_path(normalized.groups, record.parent, record.position)
 			Err(OutOfBounds) => crash "normalized spacer path escaped"
+		}
+		DecorationItem(index) => match normalized.decorations.get(index) {
+			Ok(record) => child_path(normalized.groups, record.parent, record.position)
+			Err(OutOfBounds) => crash "normalized decoration path escaped"
 		}
 	}
 	located_error(doc, diagnostic, feature, message, [path])
@@ -1123,8 +1176,28 @@ leaf_path = |doc, block| {
 		Ok(value) => value
 		Err(OutOfBounds) => crash "normalized leaf path escaped"
 	}
-	position = leaf_position(normalized, block, record.parent)
-	child_path(normalized.groups, record.parent, position)
+
+	## A figure's leaves are named by the figure's own path, its caption
+	## as `.caption`.
+	figure_leaf = if record.parent == 0 {
+		NotFigure
+	} else {
+		match group_record(normalized.groups, record.parent).kind {
+			FigureGroup(_) => match record.kind {
+				FigureCaption(_) => CaptionLeaf
+				_ => FigureLeaf
+			}
+			_ => NotFigure
+		}
+	}
+	match figure_leaf {
+		NotFigure => {
+			position = leaf_position(normalized, block, record.parent)
+			child_path(normalized.groups, record.parent, position)
+		}
+		FigureLeaf => chain_path(normalized.groups, record.parent)
+		CaptionLeaf => "${chain_path(normalized.groups, record.parent)}.caption"
+	}
 }
 
 ## A leaf's authored index in its parent: the next leaves, groups, page
@@ -1181,6 +1254,11 @@ leaf_position = |normalized, block, parent| {
 		}
 	}
 	for record in normalized.spacers {
+		if record.parent == parent and record.block <= block {
+			$position = $position + 1
+		}
+	}
+	for record in normalized.decorations {
 		if record.parent == parent and record.block <= block {
 			$position = $position + 1
 		}
@@ -1393,10 +1471,17 @@ validate_profile_request = |options| {
 
 unavailable_message : Document.Feature, Str -> Str
 unavailable_message = |feature, summary| {
+	misuse = match feature {
+		FigureFit => True
+		_ => False
+	}
+	if misuse {
+		return "${summary} No PDF bytes were emitted."
+	}
 	roadmap = match feature {
 		ArchiveProfile => "Gate 5"
 		AccessibleArchiveProfile => "Gate 7"
-		Figures => "the current figure authoring slice"
+		Figures | FigureFit => "Gate 6"
 		ContextualArtifacts | PageTemplates | SemanticTextProperties => "Gate 6"
 		ComplexTables | CustomLayout | Floats | Footnotes | GeneratedReferences | MultiColumnLayout | SideContent | VerticalWriting => "Gate 8"
 	}
@@ -1408,6 +1493,7 @@ feature_code = |feature| match feature {
 	ArchiveProfile => "profile.archive"
 	AccessibleArchiveProfile => "profile.accessible_archive"
 	Figures => "document.figure"
+	FigureFit => "document.figure_fit"
 	ContextualArtifacts => "semantics.contextual_artifact"
 	SemanticTextProperties => "semantics.text_properties"
 	ComplexTables => "table.complex"
@@ -1429,7 +1515,10 @@ unavailable_batch = |feature, summary| {
 		diagnostics: [
 			{
 				clause_references: [],
-				code: FeatureUnavailable,
+				code: match feature {
+					FigureFit => InvalidRelationship
+					_ => FeatureUnavailable
+				},
 				details: [],
 				feature: Feature(feature_code(feature)),
 				location: Document,

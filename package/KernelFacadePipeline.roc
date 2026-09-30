@@ -249,7 +249,7 @@ probe_plan = |authoring, font, theme, page_size, descriptor, limits, stage| {
 	if stage == FragmentsReady {
 		return Ok(fragment_work)
 	}
-	probe_intent = if authoring.figures.is_empty() NoIntentProfile else PackagedSrgbIntent
+	probe_intent = if authoring.figures.is_empty() and authoring.decorations.is_empty() NoIntentProfile else PackagedSrgbIntent
 	scenes = KernelFacadeScenes.Plan.build_authoring_with_intent(fragments, page_size, authoring, probe_intent, limits.scenes) ? Scenes
 	scene_work = { ..fragment_work, scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes }
 	if stage == ScenesReady {
