@@ -310,7 +310,6 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 					),
 				)
 			}
-			_ => return Err(InvalidBlock({ block: $block_index }))
 		}
 		$block_index = $block_index + 1
 	}
@@ -502,7 +501,6 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 							$cell_rows = append_cell_rows($cell_rows, { body_lines: body_lines.lines, body_run, geometry, lines, requests: shape_requests, sources: table_sources, store: shape_batch.store }, $block)?
 							$grid = U64.max($grid, body_lines.lines.length())
 						}
-						_ => return Err(InvalidBlock({ block: $block }))
 					}
 					$unit_of_block = list_set($unit_of_block, $block, $units.len())
 					$cell_cursor = $cell_cursor + 1
@@ -599,7 +597,6 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			}
 			level = match list_at(block_runs, $block_index) {
 				TextBlock({ body: _, label: _, level: value }) => value
-				ArtifactBlock(_) => 0
 			}
 			spacing = if continues_list(authoring, block_runs, $block_index, level) 0 else paragraph_spacing
 			spaced = spacer_total(authoring.spacers, $spacer_cursor, $block_index + 1)
@@ -856,7 +853,6 @@ table_leaf_unit = |at, block_index, buffers| {
 				rows: $rows,
 			})
 		}
-		_ => Err(InvalidBlock({ block: block_index }))
 	}
 }
 
@@ -1200,7 +1196,6 @@ continues_list = |authoring, block_runs, index, level| {
 		_ => {
 			next_level = match list_at(block_runs, index + 1) {
 				TextBlock({ body: _, label: _, level: value }) => value
-				ArtifactBlock(_) => 0
 			}
 			if level == 0 or next_level == 0 {
 				False

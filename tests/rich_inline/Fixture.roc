@@ -360,7 +360,6 @@ pipeline_limits = KernelFacadePipeline.Limits.make({
 		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 0, max_paths: 0 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
-		max_artifacts: 0,
 		max_container_depth: 16,
 		max_content_spine: 8192,
 		max_inline_depth: 8,
@@ -404,7 +403,6 @@ object_limits = {
 
 semantic_limits : KernelFacadeSemantics.Limits
 semantic_limits = KernelFacadeSemantics.Limits.make({
-	max_artifacts: 0,
 	max_container_depth: 16,
 	max_content_spine: 8192,
 	max_inline_depth: 8,

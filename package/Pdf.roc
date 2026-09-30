@@ -873,7 +873,6 @@ furniture_error = |error| {
 
 dimension_name : KernelFacadeSemantics.Dimension -> Str
 dimension_name = |dimension| match dimension {
-	Artifacts => "page artifacts"
 	ContentSpine => "content-spine items"
 	Nodes => "structure elements"
 	Occurrences => "content occurrences"
@@ -1628,7 +1627,6 @@ standard_pipeline_limits = KernelFacadePipeline.Limits.make({
 		scene: KernelScene.Limits.make({ max_commands: 2000000, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 1000000, max_pages: 1024, max_path_segments: 1000000, max_paths: 1000000 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
-		max_artifacts: 0,
 		max_container_depth: 16,
 		max_content_spine: facade_spine,
 		max_inline_depth: 8,

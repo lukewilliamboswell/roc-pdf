@@ -260,7 +260,7 @@ evidence = |document, theme| {
 	semantic_work = KernelSemantics.Plan.work(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(semantics)))
 	source_store = KernelFacadeSources.Plan.sources(KernelFacadeSemantics.Plan.sources(semantics))
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, 0, font, theme, shape_limits) ? |_| EvidenceFailure
+	shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, font, theme, shape_limits) ? |_| EvidenceFailure
 	lines = KernelFacadeLines.Plan.build(shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
 	pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, page_limits) ? |_| EvidenceFailure
 	page_work = KernelFacadePages.Plan.work(pages).page
@@ -383,7 +383,6 @@ page_limits = KernelFacadePages.Limits.make({
 ## The facade's semantic-planning limits (package/Pdf.roc).
 semantic_limits : KernelFacadeSemantics.Limits
 semantic_limits = KernelFacadeSemantics.Limits.make({
-	max_artifacts: 0,
 	max_container_depth: 16,
 	max_content_spine: 8192,
 	max_inline_depth: 8,

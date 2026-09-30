@@ -74,7 +74,6 @@ evidence_semantic_facade = |repetitions| {
 	plan = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -139,7 +138,6 @@ evidence_shape_facade = |repetitions| {
 	semantic_result = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -174,7 +172,6 @@ evidence_shape_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({
@@ -224,7 +221,6 @@ evidence_line_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -255,7 +251,6 @@ evidence_line_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({
@@ -322,7 +317,6 @@ evidence_page_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -353,7 +347,6 @@ evidence_page_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({ max_requests: occurrences, shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }) }),
@@ -747,7 +740,6 @@ evidence_ordered_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
 			max_container_depth: 16,
 			max_inline_depth: 8,
 			max_content_spine: content,
@@ -779,7 +771,6 @@ evidence_ordered_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		{ policy: configured.policy, registry: configured.registry },
 		theme,
 		KernelFacadeShape.Limits.make({
@@ -888,7 +879,6 @@ inspect = |store| {
 			Heading(_) => {
 				$headings = $headings + 1
 			}
-			PageArtifact(_) => return Err(InvalidStore)
 			Paragraph => {
 				$paragraphs = $paragraphs + 1
 			}

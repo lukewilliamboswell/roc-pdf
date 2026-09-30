@@ -343,12 +343,12 @@ evidence = |document, theme, faces| {
 	staged = match faces {
 		BuiltInFace => {
 			font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
-			shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, 0, font, theme, shape_limits) ? |_| EvidenceFailure
+			shape = KernelFacadeShape.Plan.build(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, font, theme, shape_limits) ? |_| EvidenceFailure
 			lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
 			{ lines, shape }
 		}
 		Policy(policy) => {
-			shape = KernelFacadeShape.Plan.build_ordered(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, 0, policy, theme, shape_limits) ? |_| EvidenceFailure
+			shape = KernelFacadeShape.Plan.build_ordered(authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), store, source_store, policy, theme, shape_limits) ? |_| EvidenceFailure
 			lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, line_limits) ? |_| EvidenceFailure
 			{ lines, shape }
 		}
@@ -469,7 +469,6 @@ text_limits = KernelFacadeText.Limits.make({ max_clusters: 1000000, max_glyph_in
 ## The facade's semantic-planning limits (package/Pdf.roc).
 semantic_limits : KernelFacadeSemantics.Limits
 semantic_limits = KernelFacadeSemantics.Limits.make({
-	max_artifacts: 0,
 	max_container_depth: 16,
 	max_content_spine: 65536,
 	max_inline_depth: 8,

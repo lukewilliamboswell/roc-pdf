@@ -201,7 +201,6 @@ pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 		scene: KernelScene.Limits.make({ max_commands: 256, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 128, max_pages: 128, max_path_segments: 0, max_paths: 0 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
-		max_artifacts: 0,
 		max_container_depth: 16,
 		max_inline_depth: 8,
 		max_content_spine: 2,

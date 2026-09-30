@@ -13,7 +13,6 @@ KernelFacadeLines :: [].{
 	Dimension : [Blocks, Runs]
 	Error : [
 		ArithmeticOverflow,
-		ArtifactBlock({ block : U64, artifact : U64 }),
 		InvalidGeometry,
 		InvalidRun({ block : U64, run : U64 }),
 		LabelTooWide({ available : U64, block : U64, width : U64 }),
@@ -109,7 +108,6 @@ build_plan = |shape, sources, page, theme, limits| {
 	var $block_index = 0
 	while $block_index < block_runs.len() {
 		match list_at(block_runs, $block_index) {
-			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
 			TextBlock({ body, label, level }) => {
 				geometry = block_geometry(level, label, indent, content_width)?
 				match label {
@@ -143,7 +141,6 @@ build_plan = |shape, sources, page, theme, limits| {
 	$block_index = 0
 	while $block_index < block_runs.len() {
 		match list_at(block_runs, $block_index) {
-			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
 			TextBlock({ body, label, level }) => {
 				geometry = block_geometry(level, label, indent, content_width)?
 				body_index = single_run_index(body, $block_index)?
@@ -215,7 +212,6 @@ build_ordered_plan = |shape, sources, page, theme, limits, widths| {
 	var $block_index = 0
 	while $block_index < block_runs.len() {
 		match list_at(block_runs, $block_index) {
-			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
 			TextBlock({ body, label, level }) => {
 				geometry = block_geometry(level, label, indent, content_width)?
 				label_request = match label {
@@ -279,7 +275,6 @@ build_ordered_plan = |shape, sources, page, theme, limits, widths| {
 	$block_index = 0
 	while $block_index < block_runs.len() {
 		match list_at(block_runs, $block_index) {
-			ArtifactBlock(artifact) => return Err(ArtifactBlock({ artifact, block: $block_index }))
 			TextBlock({ body, label, level }) => {
 				geometry = block_geometry(level, label, indent, content_width)?
 				first_request = list_at($logical_index_of_body, $block_index)
@@ -347,7 +342,6 @@ has_multi_run = |block_runs| {
 	while !$found and $index < block_runs.len() {
 		$found = match list_at(block_runs, $index) {
 			TextBlock({ body, label: _, level: _ }) => body.physical.length() != 1
-			ArtifactBlock(_) => False
 		}
 		$index = $index + 1
 	}

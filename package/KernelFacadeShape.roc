@@ -15,7 +15,6 @@ import unicode.Scalar
 KernelFacadeShape :: [].{
 	Dimension : [Requests]
 	Error : [
-		ArtifactTextPending({ artifacts : U64 }),
 		FontSelectionRejected(List(Font.PlanError)),
 		GeneratedLabelEvidenceInvalid({ block : U64, occurrence : U64 }),
 		InlineClusterBoundary({ block : U64, inline : U64 }),
@@ -52,7 +51,7 @@ KernelFacadeShape :: [].{
 	## face) segments in logical order, all at the paragraph's size and
 	## leading, so line breaking measures the whole paragraph at once.
 	LogicalRun : { physical : Semantics.Range }
-	BlockRuns : [ArtifactBlock(U64), TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel], level : U64 })]
+	BlockRuns : [TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel], level : U64 })]
 	RunStyle : { color : Color.SourceValue, leading : Layout.Unit }
 
 	## Where each physical run's occurrence begins inside its interned source.
@@ -98,8 +97,8 @@ KernelFacadeShape :: [].{
 	## `ranges` is empty unless the document has a rich paragraph; then it
 	## holds one entry per request, in request order.
 	Preparation :: { block_runs : List(BlockRuns), options : KernelShape.BatchOptions, ranges : List(RequestRange), requests : List(KernelShape.SimpleRequest), styles : List(RunStyle) }.{
-		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, U64, Theme -> Try(Preparation, Error)
-		build = |authoring, owners, store, sources, artifact_count, max_requests, theme| prepare_plan(authoring, owners, store, sources, artifact_count, max_requests, theme, RequireBuiltInFace)
+		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, Theme -> Try(Preparation, Error)
+		build = |authoring, owners, store, sources, max_requests, theme| prepare_plan(authoring, owners, store, sources, max_requests, theme, RequireBuiltInFace)
 
 		block_runs : Preparation -> List(BlockRuns)
 		block_runs = |preparation| preparation.block_runs
@@ -122,14 +121,14 @@ KernelFacadeShape :: [].{
 		styles : List(RunStyle),
 		work : Work,
 	}.{
-		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, KernelFont.Inspection, Theme, Limits -> Try(Plan, Error)
-		build = |authoring, owners, store, sources, artifact_count, font, theme, limits| build_plan(authoring, owners, store, sources, artifact_count, font, theme, limits)
+		build : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, Limits -> Try(Plan, Error)
+		build = |authoring, owners, store, sources, font, theme, limits| build_plan(authoring, owners, store, sources, font, theme, limits)
 
 		## The ordered multi-face arm: policy resolution, once-per-unique-source
 		## coverage planning, physical-run splitting, and selected shaping. The
 		## single-face `build` path above is untouched by this entry point.
-		build_ordered : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Limits -> Try(Plan, Error)
-		build_ordered = |authoring, owners, store, sources, artifact_count, ordered, theme, limits| build_ordered_plan(authoring, owners, store, sources, artifact_count, ordered, theme, limits)
+		build_ordered : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, Limits -> Try(Plan, Error)
+		build_ordered = |authoring, owners, store, sources, ordered, theme, limits| build_ordered_plan(authoring, owners, store, sources, ordered, theme, limits)
 
 		block_runs : Plan -> List(BlockRuns)
 		block_runs = |plan| plan.block_runs
@@ -168,12 +167,16 @@ KernelFacadeShape :: [].{
 	}
 }
 
+## The placeholder every block's runs start from; each block overwrites it.
+unset_block_runs : KernelFacadeShape.BlockRuns
+unset_block_runs = TextBlock({ body: { physical: Semantics.Range.from_start_and_length(0, 0) }, label: NoLabel, level: 0 })
+
 logical_run_single : Text.RunId -> KernelFacadeShape.LogicalRun
 logical_run_single = |run| { physical: Semantics.Range.from_start_and_length(run.index(), 1) }
 
-build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
-build_plan = |authoring, owners, store, source_store, artifact_count, font, theme, limits| {
-	preparation = prepare_plan(authoring, owners, store, source_store, artifact_count, limits.max_requests, theme, RequireBuiltInFace)?
+build_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), KernelFont.Inspection, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_plan = |authoring, owners, store, source_store, font, theme, limits| {
+	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, RequireBuiltInFace)?
 
 	## Without a rich paragraph every occurrence covers its whole source and
 	## the exact whole-source batch shaper applies. A rich paragraph's
@@ -238,11 +241,8 @@ FaceCheck : [RequireBuiltInFace, PolicySelectsFaces]
 ## one keeps the exact whole-source preparation and its buffers; a document
 ## with one prepares every request with its exact cluster range, language,
 ## and occurrence origin.
-prepare_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, U64, Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
-prepare_plan = |authoring, owners, store, sources, artifact_count, max_requests, theme, face_check| {
-	if artifact_count != 0 {
-		return Err(ArtifactTextPending({ artifacts: artifact_count }))
-	}
+prepare_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, Theme, FaceCheck -> Try(KernelFacadeShape.Preparation, KernelFacadeShape.Error)
+prepare_plan = |authoring, owners, store, sources, max_requests, theme, face_check| {
 	occurrence_count = store.occurrences.len()
 	if occurrence_count > max_requests {
 		return Err(LimitExceeded({ attempted: occurrence_count, dimension: Requests, limit: max_requests }))
@@ -277,21 +277,13 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 	occurrence_count = store.occurrences.len()
 	var $requests = List.with_capacity(occurrence_count)
 	var $styles = List.with_capacity(occurrence_count)
-	var $block_runs = List.repeat(ArtifactBlock(0), authoring.blocks.len())
+	var $block_runs = List.repeat(unset_block_runs, authoring.blocks.len())
 	var $request_index = 0
 	var $block_index = 0
 	while $block_index < authoring.blocks.len() {
 		block = list_at(authoring.blocks, $block_index)
 		owner = list_at(owners, $block_index)
 		match owner {
-			ArtifactBlock(artifact) => {
-				$block_runs = match $block_runs.set($block_index, ArtifactBlock(artifact)) {
-					Err(OutOfBounds) => {
-						crash "validated facade shaping artifact write escaped"
-					}
-					Ok(updated) => updated
-				}
-			}
 			RichTextBlock({ label: _, level: _, occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 			TextBlock({ body, label, level }) => {
 				body_style = style_for(block.kind, theme)
@@ -383,16 +375,13 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 	var $requests = List.with_capacity(occurrence_count)
 	var $styles = List.with_capacity(occurrence_count)
 	var $ranges = List.with_capacity(occurrence_count)
-	var $block_runs = List.repeat(ArtifactBlock(0), authoring.blocks.len())
+	var $block_runs = List.repeat(unset_block_runs, authoring.blocks.len())
 	var $block_index = 0
 	while $block_index < authoring.blocks.len() {
 		block = list_at(authoring.blocks, $block_index)
 		first_request = $requests.len()
 		at = { authoring, block: $block_index, face_check, language: batch_options.language, sources, store, theme }
 		match list_at(owners, $block_index) {
-			ArtifactBlock(artifact) => {
-				$block_runs = list_set($block_runs, $block_index, ArtifactBlock(artifact))
-			}
 			RichTextBlock({ label, level, occurrences }) => {
 				rich = match block.kind {
 					RichParagraph(paragraph) => list_at(authoring.rich_paragraphs, paragraph)
@@ -727,9 +716,9 @@ inline_color = |inlines, parent, theme, paragraph_color| {
 ## range owned by one dense output font and one itemized script.
 SelectedSegment : { clusters : Semantics.Range, font : U64, script : Font.Script }
 
-build_ordered_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), U64, { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
-build_ordered_plan = |authoring, owners, store, source_store, artifact_count, ordered, theme, limits| {
-	preparation = prepare_plan(authoring, owners, store, source_store, artifact_count, limits.max_requests, theme, PolicySelectsFaces)?
+build_ordered_plan : Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Semantics.Store, List(KernelFacadeSources.Source), { policy : Font.PolicyId, registry : Font.Registry }, Theme, KernelFacadeShape.Limits -> Try(KernelFacadeShape.Plan, KernelFacadeShape.Error)
+build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, limits| {
+	preparation = prepare_plan(authoring, owners, store, source_store, limits.max_requests, theme, PolicySelectsFaces)?
 	policy_faces = ordered.registry.policy_faces(ordered.policy) ? PolicyInvalid
 	batch_language = preparation.options.language
 
@@ -799,13 +788,10 @@ build_ordered_plan = |authoring, owners, store, source_store, artifact_count, or
 	## Expand each logical request into its physical selected runs in the
 	## exact order the preparation assigned requests.
 	var $expanded = { origins: [], requests: [], selected: [], styles: [] }
-	var $block_runs = List.repeat(ArtifactBlock(0), preparation.block_runs.len())
+	var $block_runs = List.repeat(unset_block_runs, preparation.block_runs.len())
 	var $block_index = 0
 	while $block_index < preparation.block_runs.len() {
 		match list_at(preparation.block_runs, $block_index) {
-			ArtifactBlock(artifact) => {
-				$block_runs = list_set($block_runs, $block_index, ArtifactBlock(artifact))
-			}
 			TextBlock({ body, label, level }) => {
 				expanded_label = match label {
 					NoLabel => NoLabel
@@ -1143,7 +1129,7 @@ style_for = |kind, theme| match kind {
 
 	## A figure's anchor line is shaped in the body style; pagination gives
 	## it the figure's (scaled) drawing height as its leading.
-	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | FigureCaption(_) | PageArtifact(_) | RichParagraph(_) => Theme.body_style(theme)
+	Bullet(_) | Paragraph | DestinationParagraph(_) | Link(_) | InternalLink(_) | Figure(_) | FigureCaption(_) | RichParagraph(_) => Theme.body_style(theme)
 }
 
 list_at : List(a), U64 -> a

@@ -7,7 +7,7 @@ import KernelUnicode
 import Semantics
 
 KernelFacadeSemantics :: [].{
-	Dimension : [Artifacts, ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
+	Dimension : [ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
 	Error : [
 		ArithmeticOverflow,
 		ContainerDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
@@ -74,7 +74,6 @@ KernelFacadeSemantics :: [].{
 		UnsupportedHeadingLevel({ block : U64, level : U8 }),
 	]
 	Limits :: {
-		max_artifacts : U64,
 		max_container_depth : U64,
 		max_content_spine : U64,
 		max_inline_depth : U64,
@@ -87,7 +86,6 @@ KernelFacadeSemantics :: [].{
 		text_semantics : KernelTextSemantics.Limits,
 	}.{
 		make : {
-			max_artifacts : U64,
 			max_container_depth : U64,
 			max_content_spine : U64,
 			max_inline_depth : U64,
@@ -101,7 +99,6 @@ KernelFacadeSemantics :: [].{
 		} -> Limits
 		make = |limits| Limits.(limits)
 	}
-	Artifact : { block : U64, kind : Document.PageArtifactKind, text : Str }
 
 	## A rich paragraph owns a dense occurrence range, one occurrence per text
 	## leaf in logical order, over its one interned source or, with explicit
@@ -109,7 +106,7 @@ KernelFacadeSemantics :: [].{
 	## generated list label painted on the block's first line, and `level`
 	## the block's list nesting level (zero outside lists), which decides its
 	## indentation.
-	BlockOwnership : [ArtifactBlock(U64), RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
+	BlockOwnership : [RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
 
 	## One authored destination declaration: the block's semantic node is the
 	## structure target and its content occurrence is the explicit layout
@@ -122,7 +119,6 @@ KernelFacadeSemantics :: [].{
 	## the contiguous occurrences of the text leaves inside it.
 	LinkRecord : { node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }
 	Work : {
-		artifacts : U64,
 		container_nodes : U64,
 		content_writes : U64,
 		header_association_edges : U64,
@@ -145,7 +141,6 @@ KernelFacadeSemantics :: [].{
 	number_text = |style, value| number_digits(style, value)
 
 	Plan :: {
-		artifacts : List(Artifact),
 		authoring : Document.NormalizedAuthoring,
 		block_ownership : List(BlockOwnership),
 		destinations : List(DestinationRecord),
@@ -156,9 +151,6 @@ KernelFacadeSemantics :: [].{
 	}.{
 		build : Document.NormalizedAuthoring, Limits -> Try(Plan, Error)
 		build = |authoring, limits| build_plan(authoring, limits)
-
-		artifacts : Plan -> List(Artifact)
-		artifacts = |plan| plan.artifacts
 
 		destinations : Plan -> List(DestinationRecord)
 		destinations = |plan| plan.destinations
@@ -190,7 +182,6 @@ ListState : [ActiveList({ expected_item : U64, list : U64, node : U64 }), NoActi
 ChildEntry : { node : Semantics.NodeId, parent : U64 }
 
 Planning : {
-	artifacts : List(KernelFacadeSemantics.Artifact),
 	attribute_count : U64,
 	cell_headers : List(U64),
 	content_count : U64,
@@ -234,7 +225,6 @@ build_plan = |authoring, limits| {
 	) ? TextSemantics
 	Ok(
 		KernelFacadeSemantics.Plan.{
-			artifacts: planning.artifacts,
 			authoring,
 			block_ownership: built.block_ownership,
 			destinations: planning.destinations,
@@ -242,7 +232,6 @@ build_plan = |authoring, limits| {
 			preliminary,
 			sources,
 			work: {
-				artifacts: planning.artifacts.len(),
 				container_nodes: planning.group_nodes.len(),
 				content_writes: built.store.content_spine.len(),
 				header_association_edges: planning.relationship_count - captioned_figures(authoring.figures),
@@ -269,7 +258,6 @@ plan_blocks = |authoring, limits| {
 	blocks = authoring.blocks
 	groups = authoring.groups
 	source_bound = if blocks.len() > U64.highest / 2 U64.highest else blocks.len() * 2
-	var $artifacts = List.with_capacity(U64.min(blocks.len(), limits.max_artifacts))
 	var $destinations = []
 	var $links = []
 	var $sources = List.with_capacity(U64.min(source_bound, limits.max_source_inputs))
@@ -446,12 +434,6 @@ plan_blocks = |authoring, limits| {
 				}
 			}
 			match block.kind {
-				PageArtifact(kind) => {
-					artifact_count = checked_add($artifacts.len(), 1)?
-					check_limit(artifact_count, limits.max_artifacts, Artifacts)?
-					$artifacts = $artifacts.append({ block: $block_index, kind, text: block.text })
-					$list_state = NoActiveList
-				}
 				Bullet({ item, list }) => {
 					node_increment = if item == 0 4 else 3
 					content_increment = if item == 0 6 else 5
@@ -677,7 +659,7 @@ plan_blocks = |authoring, limits| {
 	}
 	check_layout_items(authoring)?
 	check_decorations(authoring)?
-	Ok({ artifacts: $artifacts, attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
+	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
 TableCursor : { break_cursor : U64, cell : U64, node : U64, occurrence : U64 }
@@ -1366,8 +1348,7 @@ build_store = |authoring, planning, source_plan| {
 	var $properties = List.with_capacity(planning.property_count)
 	var $identifiers = if planning.header_ranges.is_empty() [] else List.with_capacity(planning.header_ranges.len())
 	var $relationships = if planning.relationship_count == 0 [] else List.with_capacity(planning.relationship_count)
-	var $ownership = List.repeat(ArtifactBlock(0), blocks.len())
-	var $artifact = 0
+	var $ownership = List.repeat(TextBlock({ body: Semantics.OccurrenceId.from_index(0), label: NoLabel, level: 0 }), blocks.len())
 	var $index = 0
 	var $next_node = 1
 	var $next_occurrence = 0
@@ -1443,11 +1424,6 @@ build_store = |authoring, planning, source_plan| {
 			block = list_at(blocks, $index)
 			list_level = block_level(groups, block.parent)
 			match block.kind {
-				PageArtifact(_) => {
-					$ownership = list_set($ownership, $index, ArtifactBlock($artifact))
-					$artifact = checked_add($artifact, 1)?
-					$index = $index + 1
-				}
 				Heading(level) => {
 					role = heading_role(level, $index)?
 					start = $content.len()
@@ -1631,7 +1607,7 @@ build_store = |authoring, planning, source_plan| {
 		$next_group = $next_group + 1
 	}
 	unique_sources = KernelFacadeSources.Plan.sources(source_plan).map(|source| { unicode: source.unicode })
-	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $artifact != planning.artifacts.len() or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
+	if $identifiers.len() != planning.header_ranges.len() or $relationships.len() != planning.relationship_count or $attributes.len() != planning.attribute_count or $next_node != planning.node_count or $next_occurrence != planning.occurrence_count or $source_input != planning.source_inputs.len() or $content.len() != planning.content_count or $properties.len() != planning.property_count {
 		crash "facade semantic planning count escaped"
 	}
 	store = {
@@ -2159,7 +2135,6 @@ test_limits : KernelFacadeSemantics.Limits
 test_limits = KernelFacadeSemantics.Limits.make(test_limits_record)
 
 test_limits_record = {
-	max_artifacts: 2,
 	max_container_depth: 2,
 	max_inline_depth: 8,
 	max_content_spine: 32,
@@ -2188,7 +2163,6 @@ test_authoring = {
 		{ kind: Paragraph, parent: 0, text: "Body" },
 		{ kind: Bullet({ item: 0, list: 0 }), parent: 0, text: "One" },
 		{ kind: Bullet({ item: 1, list: 0 }), parent: 0, text: "Two" },
-		{ kind: PageArtifact(Header), parent: 0, text: "Header" },
 	],
 	cells: [],
 	decorations: [],
@@ -2223,7 +2197,7 @@ expect {
 	first_label = list_at(store.nodes, 6)
 	first_body = list_at(store.nodes, 7)
 
-	retained_authoring.metadata_title == "Report" and retained_authoring.language == "en-AU" and retained_authoring.blocks.len() == 6 and
+	retained_authoring.metadata_title == "Report" and retained_authoring.language == "en-AU" and retained_authoring.blocks.len() == 5 and
 		store.nodes.len() == 11 and store.occurrences.len() == 7 and store.content_spine.len() == 17 and
 			root.role.local_name == "Document" and root.content.start() == 0 and root.content.length() == 4 and
 				title.role.local_name == "Title" and list.role.local_name == "L" and list.content.start() == 7 and list.content.length() == 2 and
@@ -2251,17 +2225,6 @@ expect {
 	}
 
 	KernelFacadeSources.Plan.sources(source_plan).len() == 6 and store.text_properties.len() == 2 and labels_share_source and generated
-}
-
-## Page artifacts stay outside the semantic tree and retain typed ownership.
-expect {
-	plan = KernelFacadeSemantics.Plan.build(test_authoring, test_limits)?
-	artifacts = KernelFacadeSemantics.Plan.artifacts(plan)
-	owners = KernelFacadeSemantics.Plan.block_ownership(plan)
-	match (list_at(artifacts, 0), list_at(owners, 5)) {
-		({ block, kind: Header, text }, ArtifactBlock(artifact)) => block == 5 and text == "Header" and artifact == 0
-		_ => False
-	}
 }
 
 expect match KernelFacadeSemantics.Plan.build({ ..test_authoring, language: "" }, test_limits) {
@@ -2294,7 +2257,6 @@ expect {
 ## are appended.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({
-		max_artifacts: 2,
 		max_container_depth: 4,
 		max_content_spine: 32,
 		max_inline_depth: 8,

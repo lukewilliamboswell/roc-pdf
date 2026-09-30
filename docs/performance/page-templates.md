@@ -343,10 +343,12 @@ investigated separately); every rerun passed, and the final cold-cache
   boundaries; the reference report's Han variant (REP-A5) needs it.
 - **Unused templates.** A continuation template of a one-page document has
   only its static checks; its widths are proven on no page.
-- **Unreachable artifact blocks.** With the page-artifact block retired,
-  the facade's internal artifact-block ownership (`ArtifactBlock` in
-  semantics, shaping, and lines, and `max_artifacts`) can no longer be
-  reached and should be removed in a cleanup slice.
+- ~~**Unreachable artifact blocks.**~~ Removed by the open-issues slice:
+  the normalized `PageArtifact` block kind, `ArtifactBlock` ownership in
+  semantics, shaping, lines, pages, and tables, the `max_artifacts` limit,
+  the `Artifacts` dimension, and `ArtifactTextPending` no longer exist.
+  Allocation counts are unchanged; 79 cases allocate up to 0.4% fewer bytes
+  (the smaller semantic plan and limits records).
 - **Furniture style and vocabulary.** Furniture text uses the body style;
   a theme furniture style, backgrounds, watermarks, and grouped, clipped,
   or translucent furniture drawings are not offered.

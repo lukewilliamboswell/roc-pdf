@@ -297,7 +297,6 @@ NormalizedBlockKind := [
 	Heading(U8),
 	InternalLink({ destination : Str }),
 	Link({ uri : Str }),
-	PageArtifact(PageArtifactKind),
 	Paragraph,
 	RichParagraph(U64),
 	Title,

@@ -93,7 +93,6 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 		record = list_at(authoring.cells, $ordinal)
 		physical = match list_at(block_runs, record.block) {
 			TextBlock({ body, label: _, level: _ }) => body.physical
-			ArtifactBlock(_) => return Err(InvalidCell({ block: record.block }))
 		}
 		var $cell = { max_content: 0, min_content: 0, token: Semantics.Range.from_start_and_length(0, 0) }
 		var $segment = physical.start()

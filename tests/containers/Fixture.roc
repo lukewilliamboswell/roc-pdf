@@ -106,7 +106,6 @@ evidence = |document| {
 ## The facade's semantic-planning limits (package/Pdf.roc).
 semantic_limits : KernelFacadeSemantics.Limits
 semantic_limits = KernelFacadeSemantics.Limits.make({
-	max_artifacts: 0,
 	max_container_depth: 16,
 	max_inline_depth: 8,
 	max_content_spine: 8192,
