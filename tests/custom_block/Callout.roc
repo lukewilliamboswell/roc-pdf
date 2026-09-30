@@ -63,6 +63,27 @@ Callout :: [].{
 		{ height: Layout.Unit.from_raw(inset.raw() * 2 + leading * lines + spacing * gaps), width }
 	}
 
+	## A callout of any blocks a custom block holds (rich paragraphs with
+	## bold labels, code, and links, paragraphs that wrap), measured by the
+	## package: the content height comes from `Pdf.measure_custom_content`
+	## at the panel width less twice the inset, under the same options the
+	## document is prepared with.
+	measured : Pdf.Options, Style, { contents : List(Document.Block), language : Str, name : Str, width : Layout.Unit } -> Try(Document.Block, Pdf.Error)
+	measured = |options, style, { contents, language, name, width }| {
+		content = Pdf.measure_custom_content(options, { contents, language, width: Layout.Unit.from_raw(width.raw() - 2 * inset.raw()) })?
+		size = { height: Layout.Unit.from_raw(content.raw() + 2 * inset.raw()), width }
+		Ok(
+			Pdf.custom_block({
+				contents,
+				fragmentation: Unsplittable,
+				inset: inset,
+				name,
+				panel: panel(style, size),
+				size,
+			}),
+		)
+	}
+
 	## A measured box with an explicit height, for callers that measured
 	## differently (and for the adverse variants).
 	with_height : Theme, { height : Layout.Unit, lines : List(Str), name : Str, width : Layout.Unit } -> Document.Block

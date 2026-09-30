@@ -49,6 +49,13 @@ import pdf.Theme
 ##   and maps named report observations back to the authored paths.
 ## - `callouts xN`: N sections, each a heading, a paragraph, and a callout.
 ##   The 10/100 pair is the linear scale pair for layout and the report.
+## - `rich_callouts xN`: N dark-panel callouts, each a scoped custom block
+##   whose rich paragraphs (a bold label, code, a link) wrap over several
+##   lines, sized by the package through `Pdf.measure_custom_content`; the
+##   measured height must equal the pagination's own content height, which
+##   preparation proves. It also rejects a measurement at zero width
+##   (`layout.custom_block_measure`). The 10/50 pair is the linear scale
+##   pair.
 ## - `atomic_negatives`: every custom-block rejection with its stable
 ##   dotted code and authored path (REP-A10 among them), and report budget
 ##   exhaustion for entries and for text bytes, each with no bytes and no
@@ -78,6 +85,14 @@ Fixture :: [].{
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
+
+	rich_callouts : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	rich_callouts = |count| {
+		if count == 0 or count > 100 {
+			return Err(InvalidScale)
+		}
+		run_rich_callouts(count)
+	}
 }
 
 points : I64 -> Layout.Unit
@@ -188,6 +203,36 @@ callouts_document = |count| {
 		$index = $index + 1
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Regional key figures" })
+}
+
+run_rich_callouts : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_rich_callouts = |count| {
+	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
+	scope = Theme.Scope.empty.with_color(Text, near_white).with_color(Strong, Color.srgb8({ blue: 60, green: 190, red: 250 })).with_color(Link, Color.srgb8({ blue: 250, green: 205, red: 125 })).with_color(Code, near_white)
+	style = { fill: Color.srgb8({ blue: 70, green: 40, red: 20 }), radius: points(6), stroke: Color.srgb8({ blue: 110, green: 70, red: 40 }) }
+	var $contents = List.with_capacity(count * 2 + 1)
+	$contents = $contents.append(Pdf.title("Release runbook"))
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		body = [
+			Pdf.rich_paragraph([Pdf.strong([Pdf.text("Step ${number}. ")]), Pdf.text("Freeze the release branch, run "), Pdf.code("make release VERSION=${number}"), Pdf.text(", and confirm that every mirror reports the new checksum before you announce the build on "), Pdf.inline_link([Pdf.text("the status page")], "https://status.example/releases/${number}"), Pdf.text(".")]),
+			Pdf.paragraph("If a mirror lags by more than an hour, pause the announcement and page the on-call engineer."),
+		]
+		callout = Callout.measured(options, style, { contents: body, language: "en-AU", name: "Step ${number}", width: points(400) }) ? |_| EvidenceFailure
+		$contents = $contents.append(Pdf.heading(2, "Step ${number}")).append(Pdf.scoped(scope, [callout]))
+		$index = $index + 1
+	}
+	document = Pdf.document({ contents: $contents, language: "en-AU", title: "Release runbook" })
+	zero = match Pdf.measure_custom_content(options, { contents: [Pdf.paragraph("Text ${count.to_str()}")], language: "en-AU", width: points(0) }) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("layout.custom_block_measure"), details: ["width"], .. }], .. })) => 1
+		_ => 0
+	}
+	if zero != 1 {
+		return Err(MissingRejection(zero))
+	}
+	evidenced = evidence(document, |_| [])?
+	Ok({ bytes: evidenced.bytes, work: evidenced.work.append(zero) })
 }
 
 ## Prepare once with the report; the prepared bytes must equal the bytes

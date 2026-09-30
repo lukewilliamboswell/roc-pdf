@@ -1044,8 +1044,9 @@ independent structure checker. Each record lists its own open issues:
   callout (`tests/custom_block/Callout.roc`), and `Pdf.prepare_with_report`
   with separate facts and obligations, applied figure scales, relaxations,
   repeated headers, and an explicit budget:
-  `docs/performance/custom-block-report.md`. Its open issues: extensions
-  measure from theme metrics only (no public text measurement), only
+  `docs/performance/custom-block-report.md`. Extensions can measure content
+  height with `Pdf.measure_custom_content` (examples-showcase follow-up), so
+  callouts hold wrapped rich paragraphs. Its open issues: only
   `Unsplittable` fragmentation, probe work stops at text, and inline report
   paths scan line breaks. (The `Quote`/`Code` 8.2.4 finding is resolved by
   the closure.)

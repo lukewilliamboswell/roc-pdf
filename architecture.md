@@ -751,7 +751,12 @@ the general custom-layout capability. The first such subset is
 `Pdf.custom_block`: a data-only block whose extension supplies ordinary
 paragraphs, its own measurement of the block, and a decorative panel, with
 `Unsplittable` fragmentation; the package lays out and proves the content
-inside that measurement. A separately authored callout exercises it
+inside that measurement. An extension may take its content height from
+`Pdf.measure_custom_content`, which runs the same facade stages as
+preparation on the content alone and returns the height pagination measures
+(the fact behind `layout.custom_block_measure`), so wrapped rich paragraphs
+can be sized without the extension seeing a line, glyph, or PDF object;
+preparation still proves the fit. A separately authored callout exercises it
 (`tests/custom_block/Callout.roc`).
 
 The advanced conceptual lifecycle uses `Try`, current Roc's fallible-result

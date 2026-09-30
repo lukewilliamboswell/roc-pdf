@@ -24756,6 +24756,152 @@
       ]
     },
     {
+      "name": "custom block rich callouts x10",
+      "scenario_revision": "custom-block-rich-callouts-v1",
+      "source": "tests/custom_block/main.roc",
+      "snapshot": "tests/custom_block/rich_callouts_10.pdf",
+      "args": [
+        "rich_callouts",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "callouts": 10
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "custom_blocks",
+        "report_blocks",
+        "report_alternatives",
+        "report_outcomes",
+        "report_coverage",
+        "report_obligations",
+        "observations",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 67457,
+          "allocated_bytes": 17800882,
+          "work": {
+            "lines": 61,
+            "pages": 2,
+            "fragments": 111,
+            "custom_blocks": 10,
+            "report_blocks": 31,
+            "report_alternatives": 0,
+            "report_outcomes": 10,
+            "report_coverage": 31,
+            "report_obligations": 22,
+            "observations": 0,
+            "output_bytes": 43650,
+            "rejections": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 67457,
+          "allocated_bytes": 17800882,
+          "work": {
+            "lines": 61,
+            "pages": 2,
+            "fragments": 111,
+            "custom_blocks": 10,
+            "report_blocks": 31,
+            "report_alternatives": 0,
+            "report_outcomes": 10,
+            "report_coverage": 31,
+            "report_obligations": 22,
+            "observations": 0,
+            "output_bytes": 43650,
+            "rejections": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "custom block rich callouts x50",
+      "scenario_revision": "custom-block-rich-callouts-v1",
+      "source": "tests/custom_block/main.roc",
+      "snapshot": "tests/custom_block/rich_callouts_50.pdf",
+      "args": [
+        "rich_callouts",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 10,
+        "callouts": 50
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "custom_blocks",
+        "report_blocks",
+        "report_alternatives",
+        "report_outcomes",
+        "report_coverage",
+        "report_obligations",
+        "observations",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 316292,
+          "allocated_bytes": 83295038,
+          "work": {
+            "lines": 301,
+            "pages": 10,
+            "fragments": 551,
+            "custom_blocks": 50,
+            "report_blocks": 151,
+            "report_alternatives": 0,
+            "report_outcomes": 50,
+            "report_coverage": 151,
+            "report_obligations": 102,
+            "observations": 0,
+            "output_bytes": 141270,
+            "rejections": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 316292,
+          "allocated_bytes": 83295038,
+          "work": {
+            "lines": 301,
+            "pages": 10,
+            "fragments": 551,
+            "custom_blocks": 50,
+            "report_blocks": 151,
+            "report_alternatives": 0,
+            "report_outcomes": 50,
+            "report_coverage": 151,
+            "report_obligations": 102,
+            "observations": 0,
+            "output_bytes": 141270,
+            "rejections": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "custom block atomic negatives",
       "scenario_revision": "custom-block-v1",
       "source": "tests/custom_block/main.roc",

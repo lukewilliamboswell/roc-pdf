@@ -435,6 +435,20 @@ Pdf :: [].{
 		Document.custom_block({ contents, inset, name, panel, size })
 	}
 
+	## Measure the height custom-block content needs at a content width,
+	## exactly as preparation lays it out: the same theme, faces, line
+	## breaking, leading, and paragraph spacing, so an extension can size a
+	## `CustomBlock` whose paragraphs wrap (its `size.height` is this height
+	## plus twice its inset). `contents` are the blocks a custom block
+	## holds, in the document `language`. Content that preparation would
+	## reject returns that rejection, with paths relative to a probe
+	## document (`contents[0].contents[k]` is `contents[k]` here). Nothing
+	## is laid out on a page and no bytes are produced; preparation still
+	## proves the fit, so a stale measurement is `layout.custom_block_measure`,
+	## never clipped.
+	measure_custom_content : Options, { contents : List(Document.Block), language : Str, width : Layout.Unit } -> Try(Layout.Unit, Error)
+	measure_custom_content = |options, { contents, language, width }| measure_content(options, contents, language, width)
+
 	## Add an optional visible caption to a figure.
 	caption : Str -> Document.Caption
 	caption = |value| Document.caption(value)
@@ -881,6 +895,49 @@ build_plan = |doc, options| {
 	plan = KernelFacadeOutput.Plan.structure(output)
 	validate_lowered_plan(claim, xmp, plan)?
 	Ok(plan)
+}
+
+## Custom-block content height through the facade pipeline. The probe is a
+## custom block of the requested content width whose box leaves one
+## millipoint for content, so pagination always rejects it with the exact
+## content height it measured (`CustomMeasureShort`), the same fact that
+## proves a real custom block's fit. No page is laid out.
+measure_content : Pdf.Options, List(Document.Block), Str, Layout.Unit -> Try(Layout.Unit, Pdf.Error)
+measure_content = |options, contents, language, width| {
+	if width.raw() <= 0 {
+		return Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.custom_block_measure", "Custom-block content is measured at a positive width.", ["width"])))
+	}
+	inset = Layout.Unit.from_raw(1)
+	probe = Pdf.document({
+		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.rectangle(Scene.drawing({}), { origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, Color.srgb8({ blue: 0, green: 0, red: 0 })), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
+		language,
+		title: "Custom-block measurement",
+	})
+	match Document.first_unavailable(probe) {
+		Available => {}
+		UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
+	}
+	validate_theme(options.theme)?
+	validate_page_size(options.page_size)?
+	validate_body_frame(options.page_size, options.theme)?
+	validated = KernelMetadata.validate({ created: Document.created(probe), language: Document.language(probe), modified: Document.modified(probe), title: Document.metadata_title(probe) }, standard_metadata_limits) ? InvalidMetadata
+	facts = WithDocumentFacts({
+		condition_identifier: KernelMetadata.srgb_condition_identifier,
+		profile: Color.ProfileId.from_index(0),
+		registry_name: KernelMetadata.icc_registry_name,
+		language: validated.facts.language,
+		xmp: [],
+	})
+	measured = |result, on_error| match result {
+		Err(Pages(CustomMeasureShort({ content, .. }))) => Ok(Layout.Unit.from_raw(content.to_i64_wrap()))
+		Err(error) => Err(on_error(error))
+		Ok(_) => Err(InternalGenerationFailure)
+	}
+	match selected_fonts(options)? {
+		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(Document.normalize(probe), single, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
+		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(probe), styled, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
+		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(Document.normalize(probe), ordered, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
+	}
 }
 
 ## `build_plan` with the preparation report's facts collected by the

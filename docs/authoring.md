@@ -418,7 +418,11 @@ validated at their authored path (`document.figure_drawing`,
 An extension can contribute a block through `Pdf.custom_block` without any
 PDF object or operator: it supplies ordinary paragraphs, its own
 measurement of the block (`size` and a content `inset`), and a panel of
-solid paths drawn behind the content, and declares it `Unsplittable`:
+solid paths drawn behind the content, and declares it `Unsplittable`: To size content whose paragraphs wrap, an extension calls
+`Pdf.measure_custom_content(options, { contents, language, width })` with
+the content width (the box width less twice the inset) and the options the
+document is prepared with; it returns the exact content height preparation
+will prove.
 
 ```roc
 callout = Pdf.custom_block({

@@ -170,9 +170,8 @@ the pages plan's two lists, and the pipeline plan's `facts` field.
 
 ## Open issues
 
-- **Measurement.** Extensions measure from public theme metrics only; there
-  is no public text-measurement API, so content that wraps is rejected as
-  under-measured rather than measured.
+- ~~**Measurement.**~~ Resolved by `Pdf.measure_custom_content` (see
+  below).
 - **Fragmentation.** Only `Unsplittable`; no continuation, nested groups,
   lists, figures, or images in a panel.
 - **Probe coverage.** `KernelFacadePipeline.probe` has no document facts or
@@ -186,3 +185,31 @@ the pages plan's two lists, and the pipeline plan's `facts` field.
   the PDF 1.7 standard namespace (see rich-inline.md, Namespaces).
 - **Report scope.** Coverage is by output font instance and script, not by
   caller face name; obligations are a fixed vocabulary.
+
+## Measured custom-block content (examples showcase)
+
+Extensions measured from public theme metrics only, so a callout could hold
+only paragraphs it knew would not wrap. `Pdf.measure_custom_content(options,
+{ contents, language, width })` returns the height the content needs at a
+content width. It builds a probe document holding one custom block of that
+content width whose box leaves one millipoint for content, validates the
+options exactly as preparation does, and runs the same facade pipeline
+(single, styled, or ordered faces); pagination rejects the probe with
+`CustomMeasureShort`, whose typed `content` is the height `apply_customs`
+sums (lines times leading plus the spacing between blocks). That is the
+fact preparation later uses to prove the real block's fit, so the two
+cannot disagree; a stale measurement is still `layout.custom_block_measure`,
+never clipped. Content that preparation would reject returns that
+rejection, with paths into the probe (`contents[0].contents[k]`). No page is
+laid out and no bytes are produced. The cost is one pipeline run through
+pagination per measured block, paid by the extension.
+
+The separately authored `Callout` gains `measured`, which sizes its panel
+from the returned height plus twice its inset.
+
+Evidence: `custom block rich callouts x10` and `x50`: dark-panel callouts in
+a `Pdf.scoped` text color, each a wrapped rich paragraph (a bold label,
+code, a link) and a plain paragraph, measured by the package and fitted
+exactly; each also rejects a measurement at zero width. x10: 67,457
+allocations, 2 pages; x50: 316,292 (4.7× for 5×): linear. No existing
+baseline changes.
