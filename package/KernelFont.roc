@@ -671,7 +671,15 @@ inspect_names = |bytes, table| {
 		name_id = read_u16(bytes, record + 6)
 		length = read_u16(bytes, record + 8).to_u64()
 		offset = read_u16(bytes, record + 10).to_u64()
-		if length % 2 != 0 or offset > table.length - string_offset or length > table.length - string_offset - offset {
+		if offset > table.length - string_offset or length > table.length - string_offset - offset {
+			return Err(InvalidName)
+		}
+
+		## Only UTF-16BE records have an even-length rule. Unicode (0) and
+		## Windows (3) names, and ISO (2) encoding 1 (ISO 10646), are UTF-16BE;
+		## Macintosh (1) names and the other ISO encodings are 8-bit, where
+		## any length is legal (OpenType `name` table, platform encodings).
+		if length % 2 != 0 and utf16_name_platform(platform_id, encoding) {
 			return Err(InvalidName)
 		}
 		range : KernelFont.NameRange
@@ -707,6 +715,9 @@ inspect_names = |bytes, table| {
 		Ok({ family_utf16be: $family, full_utf16be: $full, postscript_utf16be: $postscript })
 	}
 }
+
+utf16_name_platform : U16, U16 -> Bool
+utf16_name_platform = |platform_id, encoding| platform_id == 0 or platform_id == 3 or (platform_id == 2 and encoding == 1)
 
 valid_utf16be : List(U8), KernelFont.NameRange -> Bool
 valid_utf16be = |bytes, range| {
@@ -1261,4 +1272,78 @@ expect match KernelFont.inspect(single_table_font(0x40, 4), single_table_limits)
 expect match KernelFont.inspect(single_table_font(28, 0), single_table_limits) {
 	Err(FontChecksumMismatch({ actual: 0x636f619c })) => Bool.True
 	_ => Bool.False
+}
+
+## A `name` table fixture: a header, records of [platform, encoding,
+## language, name ID, length, offset], then the string storage.
+name_table_fixture : List(List(U16)), List(U8) -> List(U8)
+name_table_fixture = |records, strings| {
+	count = records.len().to_u16_wrap()
+	var $bytes = List.with_capacity(6 + records.len() * 12 + strings.len())
+	for value in [0, count, 6 + count * 12] {
+		$bytes = append_u16(value, $bytes)
+	}
+	for record in records {
+		for value in record {
+			$bytes = append_u16(value, $bytes)
+		}
+	}
+	for byte in strings {
+		$bytes = $bytes.append(byte)
+	}
+	$bytes
+}
+
+append_u16 : U16, List(U8) -> List(U8)
+append_u16 = |value, bytes| bytes.append((value // 256).to_u8_wrap()).append((value % 256).to_u8_wrap())
+
+## Macintosh-platform names are 8-bit strings: an odd length is legal and
+## the Windows UTF-16BE records still select the family, full, and
+## PostScript names (IBM Plex and JetBrains Mono ship such records).
+expect {
+	bytes = name_table_fixture(
+		[[1, 0, 0, 1, 3, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]],
+		['F', 'o', 'o', 0, 'F'],
+	)
+	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
+		Ok(names) => names.postscript_utf16be == { length: 2, offset: 57 }
+		Err(_) => Bool.False
+	}
+}
+
+## A Windows (UTF-16BE) record of odd length is still malformed.
+expect {
+	bytes = name_table_fixture(
+		[[3, 1, 0x0409, 2, 3, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]],
+		[0, 'F', 0],
+	)
+	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
+		Err(InvalidName) => Bool.True
+		_ => Bool.False
+	}
+}
+
+## A Unicode-platform record of odd length is malformed.
+expect {
+	bytes = name_table_fixture(
+		[[0, 3, 0, 2, 1, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]],
+		[0, 'F'],
+	)
+	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
+		Err(InvalidName) => Bool.True
+		_ => Bool.False
+	}
+}
+
+## An odd-length Macintosh record that runs past the string storage is
+## still rejected: the bounds check applies to every platform.
+expect {
+	bytes = name_table_fixture(
+		[[1, 0, 0, 1, 7, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]],
+		['F', 'o', 'o', 0, 'F'],
+	)
+	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
+		Err(InvalidName) => Bool.True
+		_ => Bool.False
+	}
 }

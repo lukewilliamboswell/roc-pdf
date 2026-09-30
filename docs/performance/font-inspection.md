@@ -41,6 +41,23 @@ through subsetting and emission; the source is not copied by the inspection
 stage. The retained component edges are an earlier-stage fact consumed by
 subset closure rather than rediscovered from incidental glyph bytes.
 
+## Name records
+
+The `name` table is validated record by record: every record's string range
+must lie inside the string storage, and only records whose platform encoding
+is UTF-16BE must have an even length. Those are the Unicode platform (0), the
+Windows platform (3), and the deprecated ISO platform's encoding 1 (ISO
+10646). Macintosh-platform (1) names and the other ISO encodings are 8-bit
+strings, so an odd length is legal; rejecting it made the whole font
+`InvalidFont`, which refused IBM Plex, JetBrains Mono, and Noto Sans Italic
+2.015. The selected family, full, and PostScript names still come only from
+Windows Unicode records (encoding 10, else 1) in US English, which are
+UTF-16BE and checked as such. The change removes a rejection and adds no
+allocation or work: the record loop is unchanged. Four `KernelFont` expects
+pin it: an odd Macintosh record beside valid Windows records is accepted,
+odd Windows and Unicode records are rejected, and an odd Macintosh record
+that overruns the string storage is still rejected.
+
 ## Historical optimized-backend evidence (superseded)
 
 The speed-backend table is retained only as the representation-review record
