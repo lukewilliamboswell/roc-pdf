@@ -249,6 +249,10 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 				$row_count = checked_add($row_count, body.lines.length())?
 				check_limit($row_count, limits.max_rows, Rows)?
 			}
+
+			## Contentless cells exist only in tables, which take
+			## `build_table_plan`.
+			ContentlessCell => return Err(InvalidBlock({ block: $block_index }))
 		}
 		$block_index = $block_index + 1
 	}
@@ -347,6 +351,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 					),
 				)
 			}
+			_ => return Err(InvalidBlock({ block: $block_index }))
 		}
 		$block_index = $block_index + 1
 	}
@@ -537,6 +542,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				var $leading = 0
 				var $size = 0
 				var $occurrence = Semantics.OccurrenceId.from_index(0)
+				var $content_seen = False
 				var $block = row.first_block
 				while $block < row.block_end {
 					geometry = list_at(cell_geometry, $cell_cursor)
@@ -549,10 +555,11 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 
 							## The cells of a row share one leading; the row's
 							## baseline offset is its largest cell line size.
-							if $block == row.first_block {
+							if !$content_seen {
 								$leading = positive_raw(style.leading)?
 								$size = positive_raw(cell_size)?
 								$occurrence = semantic_occurrence(record, $block, body_index)?
+								$content_seen = True
 							} else if positive_raw(style.leading)? != $leading {
 								return Err(InvalidRun({ block: $block, run: body_index }))
 							} else {
@@ -562,12 +569,28 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 							$cell_rows = append_cell_rows($cell_rows, { body_lines: body_lines.lines, body_run, geometry, lines, requests: shape_requests, sources: table_sources, store: shape_batch.store }, $block)?
 							$grid = U64.max($grid, body_lines.lines.length())
 						}
+
+						## A contentless cell paints no line: it keeps its
+						## grid position and adds nothing to the row height.
+						(ContentlessCell, ContentlessCell) => {
+							$cell_starts = $cell_starts.append($cell_rows.len())
+						}
+						_ => return Err(InvalidBlock({ block: $block }))
 					}
 					$unit_of_block = list_set($unit_of_block, $block, $units.len())
 					$cell_cursor = $cell_cursor + 1
 					$block = $block + 1
 				}
-				if $grid == 0 {
+
+				## A row of only contentless cells is one line of the body
+				## style tall. Its unit's occurrence is never read: the
+				## placements of a table row are rebuilt from its cells'
+				## lines, and it has none.
+				if !$content_seen {
+					$grid = 1
+					$leading = positive_raw(Theme.body_style(theme).leading)?
+					$size = positive_raw(Theme.body_style(theme).size)?
+				} else if $grid == 0 {
 					return Err(InvalidBlock({ block: row.first_block }))
 				}
 				visual_start = $visual_lines.len()
@@ -667,6 +690,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			}
 			level = match list_at(block_runs, $block_index) {
 				TextBlock({ body: _, label: _, level: value }) => value
+				ContentlessCell => return Err(InvalidBlock({ block: $block_index }))
 			}
 			spacing = if continues_list(authoring, block_runs, $block_index, level) 0 else paragraph_spacing
 			spaced = spacer_total(authoring.spacers, $spacer_cursor, $block_index + 1)
@@ -944,6 +968,9 @@ table_leaf_unit = |at, block_index, buffers| {
 				rows: $rows,
 			})
 		}
+
+		## Only a table row places a contentless cell.
+		_ => Err(InvalidBlock({ block: block_index }))
 	}
 }
 
@@ -1364,6 +1391,7 @@ continues_list = |authoring, block_runs, index, level| {
 		_ => {
 			next_level = match list_at(block_runs, index + 1) {
 				TextBlock({ body: _, label: _, level: value }) => value
+				ContentlessCell => 0
 			}
 			if level == 0 or next_level == 0 {
 				False
@@ -1486,6 +1514,7 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 					}
 					caption_lines = match list_at(block_lines, $block + 1) {
 						TextBlock({ body, body_offset: _, label: _ }) => body.lines.length()
+						ContentlessCell => return Err(InvalidBlock({ block: $block + 1 }))
 					}
 					checked_add(spacing, checked_mul(caption_lines, leading)?)?
 				} else {

@@ -42,7 +42,9 @@ KernelFacadeLines :: [].{
 	## half the label's size as a gap) does not fit.
 	## A body that spans several explicit-line-break segments has one line
 	## request per segment, and its `lines` range covers them in order.
-	BlockLines : [TextBlock({ body : { lines : Semantics.Range, runs : KernelFacadeShape.LogicalRun }, body_offset : Layout.Unit, label : [Label({ lines : Semantics.Range, offset : Layout.Unit, runs : KernelFacadeShape.LogicalRun }), NoLabel] })]
+	##
+	## `ContentlessCell` is a table cell with no content: it has no line.
+	BlockLines : [ContentlessCell, TextBlock({ body : { lines : Semantics.Range, runs : KernelFacadeShape.LogicalRun }, body_offset : Layout.Unit, label : [Label({ lines : Semantics.Range, offset : Layout.Unit, runs : KernelFacadeShape.LogicalRun }), NoLabel] })]
 	Work : {
 		block_mapping_visits : U64,
 		blocks : U64,
@@ -136,6 +138,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 				$line_requests = list_set($line_requests, body_index, { source: list_at(shape_requests, body_index).source, width: Layout.Unit.from_raw(geometry.body_width.to_i64_wrap()) })
 				$next_run = checked_add($next_run, 1)?
 			}
+			ContentlessCell => {}
 		}
 		$block_index = $block_index + 1
 	}
@@ -160,6 +163,9 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 					}
 				}
 				$blocks = $blocks.append(TextBlock({ body: { lines: body_lines, runs: body }, body_offset: Layout.Unit.from_raw(geometry.body_offset.to_i64_wrap()), label: label_lines }))
+			}
+			ContentlessCell => {
+				$blocks = $blocks.append(ContentlessCell)
 			}
 		}
 		$block_index = $block_index + 1
@@ -270,6 +276,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 					$segment_start = $segment_start + length
 				}
 			}
+			ContentlessCell => {}
 		}
 		$block_index = $block_index + 1
 	}
@@ -294,6 +301,9 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 					Label(label_run) => Label({ lines: list_at(run_lines, list_at($logical_index_of_label, $block_index)), offset: Layout.Unit.from_raw(geometry.label_offset.to_i64_wrap()), runs: label_run })
 				}
 				$blocks = $blocks.append(TextBlock({ body: { lines: body_lines, runs: body }, body_offset: Layout.Unit.from_raw(geometry.body_offset.to_i64_wrap()), label: label_lines }))
+			}
+			ContentlessCell => {
+				$blocks = $blocks.append(ContentlessCell)
 			}
 		}
 		$block_index = $block_index + 1
@@ -349,6 +359,7 @@ has_multi_run = |block_runs| {
 	while !$found and $index < block_runs.len() {
 		$found = match list_at(block_runs, $index) {
 			TextBlock({ body, label: _, level: _ }) => body.physical.length() != 1
+			ContentlessCell => False
 		}
 		$index = $index + 1
 	}
@@ -388,7 +399,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 					NoList => return Err(InvalidGeometry)
 				}
 			}
-			TextBlock(_) => {}
+			TextBlock(_) | ContentlessCell => {}
 		}
 		$block = $block + 1
 	}
@@ -446,7 +457,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 				}
 				{ body_offset: placed.body_offset, body_width: content_width - placed.body_offset, column: placed.column, label_offset }
 			}
-			TextBlock(_) => {
+			TextBlock(_) | ContentlessCell => {
 				end = if $ends.is_empty() or record.parent == 0 content_width else list_at($ends, record.parent - 1)
 				if outer >= end {
 					return Err(InvalidGeometry)

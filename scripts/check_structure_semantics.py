@@ -69,6 +69,7 @@ SNAPSHOTS = {
     "figure_sections": ROOT / "tests" / "flow_figures" / "sections_10.pdf",
     "custom_blocks": ROOT / "tests" / "custom_block" / "callouts_10.pdf",
     "inline_roles": ROOT / "tests" / "rich_inline" / "mixed.pdf",
+    "empty_cells": ROOT / "tests" / "tables" / "empty_cells_40.pdf",
 }
 
 VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
@@ -529,7 +530,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
             for target in filter(None, match.group(1).split(",")):
                 require(target.encode("latin-1") in identifiers, f"/Headers names unknown element identifier {target}")
 
-    check_tables(document, visited, identifiers, pages, page_index)
+    check_tables(document, visited, identifiers, pages, page_index, dimensions)
     check_furniture(furniture_by_page(document, pages), dimensions)
     check_figures(document, visited, pages, page_index, dimensions)
     check_custom_blocks(document, visited, pages, dimensions)
@@ -721,8 +722,12 @@ def mcr_pages(document: Document, number: int) -> set[int]:
     return found
 
 
-def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int]) -> None:
+def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
     """Independent table checks, derived from the bytes alone:
+
+    * an empty cell (a TH or TD authored with no content) is an element
+      with no /K and no /Pg: it owns no marked content, and there are
+      exactly `empty_cells` of them when the case declares the count;
 
     * grid regularity: every row of a table spans the same number of
       columns (the sum of its cells' /ColSpan, default 1), and no cell spans
@@ -735,8 +740,12 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
       continues repaints text inside /Artifact <</Type /Pagination>> marked
       content that carries no MCID.
     """
+    empty_cells = 0
     for number in sorted(visited):
         element = document.get(number)
+        if str(element["S"]) in ("TH", "TD") and not element_children(document, element):
+            require("K" not in element and "Pg" not in element, "an empty table cell carries an empty /K or a /Pg")
+            empty_cells += 1
         if str(element["S"]) == "TH":
             require("Scope" in table_attributes(element), "a TH declares no /Scope")
         headers = table_attributes(element).get("Headers")
@@ -783,6 +792,9 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
                 require(b"/MCID" not in body, "a repeated header artifact carries an MCID")
                 repainted = repainted or b"Tj" in body or b"TJ" in body
             require(repainted, f"table continues on page {page_index[page]} without repainting its header rows as a pagination artifact")
+    expected_empty = dimensions.get("empty_cells")
+    if expected_empty is not None:
+        require(empty_cells == expected_empty, f"expected {expected_empty} empty table cells, found {empty_cells}")
 
 
 def normalize_attributes(value, role: str) -> str:
@@ -917,9 +929,12 @@ def self_test() -> None:
     callouts = SNAPSHOTS["custom_blocks"].read_bytes()
     callout_dimensions = {"paragraph_divs": 10, "underlays": 10, "layout_artifacts": 10}
     check_structure_semantics(callouts, callout_dimensions)
+    check_structure_semantics(SNAPSHOTS["empty_cells"].read_bytes(), {"empty_cells": 75})
     callout_twins = [
         ("a callout Div that is not a Div", replace_once(callouts, b"/S /Div ", b"/S /Art "), callout_dimensions),
         ("decorations painted after text counted as underlays", figure_sections, {"underlays": 10}),
+        ("a table without empty cells counted as having one", table, {"empty_cells": 1}),
+        ("an empty-cell table with one empty cell uncounted", SNAPSHOTS["empty_cells"].read_bytes(), {"empty_cells": 74}),
     ]
     for label, source, dimensions in callout_twins:
         try:

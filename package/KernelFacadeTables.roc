@@ -91,8 +91,12 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 	var $ordinal = 0
 	while $ordinal < authoring.cells.len() {
 		record = list_at(authoring.cells, $ordinal)
+
+		## A contentless cell has no run, so its widths are zero and it
+		## never widens a column.
 		physical = match list_at(block_runs, record.block) {
 			TextBlock({ body, label: _, level: _ }) => body.physical
+			ContentlessCell => Semantics.Range.from_start_and_length(0, 0)
 		}
 		var $cell = { max_content: 0, min_content: 0, token: Semantics.Range.from_start_and_length(0, 0) }
 		var $segment = physical.start()
@@ -150,10 +154,14 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 						record = list_at(authoring.cells, $ordinal_cursor)
 						span = record.column_span.to_u64()
 						cell_width = sum_range(columns, $column, span)
-						if cell_width <= 2 * padding {
+						contentless = match list_at(block_runs, $block) {
+							ContentlessCell => True
+							TextBlock(_) => False
+						}
+						if cell_width <= 2 * padding and !contentless {
 							return Err(UnbreakableToken({ available: 0, block: $block, token: list_at($measures, $ordinal_cursor).token, width: list_at($measures, $ordinal_cursor).min_content }))
 						}
-						text_width = cell_width - 2 * padding
+						text_width = if cell_width <= 2 * padding 0 else cell_width - 2 * padding
 						measure = list_at($measures, $ordinal_cursor)
 						if measure.min_content > text_width {
 							return Err(UnbreakableToken({ available: text_width, block: $block, token: measure.token, width: measure.min_content }))

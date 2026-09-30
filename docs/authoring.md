@@ -224,7 +224,10 @@ policy: `Theme.with_table_cell_padding`, `with_table_row_gap`,
 scope `Row`). Rows can be shaded with `with_table_header_fill`,
 `with_table_body_fills` (`{ odd, even }` for zebra stripes), and
 `with_table_footer_fill`, and separated with `with_table_body_rule`;
-`Pdf.shaded(color, cell)` shades one cell. Fills paint behind the text as
+`Pdf.shaded(color, cell)` shades one cell. `Pdf.cell([])` is an empty cell
+(a `TD` with no content) for a value the table leaves blank; it keeps its
+grid position, fill, and `Headers`, and a row of only empty cells is one
+line tall. Fills paint behind the text as
 layout artifacts and never change layout. Rejections name the table,
 row, or cell, such as `contents[4].table.body_rows[17].cells[1]`:
 `table.grid_mismatch`, `table.header_missing`, `table.empty`,

@@ -922,7 +922,11 @@ letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
   and the piece's scalar range.
 - Cell content is a sequence of inlines forming one paragraph (explicit line
   breaks included). Cells wrap within their column text width; there is no
-  block flow inside cells in v1. A cell must hold text (`table.cell_empty`).
+  block flow inside cells in v1. A cell with no inlines (`Pdf.cell([])`,
+  `Pdf.header_cell(scope, [])`) is an empty `TD` or `TH` with no content
+  (`reference-documents-v11`); inline content that holds no text is
+  `table.cell_empty`, and a table with no content in any cell is
+  `table.empty`.
   A cell's lines align by their visible advance (trailing spaces excluded)
   in the alignment of the first column it spans, or in its own alignment
   when authored with `Pdf.aligned(align, cell)` (`reference-documents-v8`); lines start at the top of
@@ -1041,8 +1045,8 @@ with.
 | `table.grid_mismatch` | `InvalidRelationship` | Row spans do not sum to the column count |
 | `table.header_missing` | `InvalidRelationship` | A table declares no header cell |
 | `table.row_span` | `FeatureUnavailable` | Row spans (Gate 8) |
-| `table.empty` | `InvalidRelationship` | A table declares no column or no body row |
-| `table.cell_empty` | `InvalidRelationship` | A table cell holds no text |
+| `table.empty` | `InvalidRelationship` | A table declares no column or no body row, or no cell has content |
+| `table.cell_empty` | `InvalidRelationship` | A table cell's inline content holds no text |
 | `layout.table_rule` | new family | The theme's table rule is wider than the row gap it is drawn in |
 | `document.content_limit` | `BudgetExceeded` | The document crosses a documented facade content bound; `details` names the table or block at which planning crossed it |
 | `text.unsupported_script` | `FontCoverageMissing` | Script outside the declared facade set |
@@ -1422,6 +1426,12 @@ version, the task, the observed outcome, and any limitation.
   read first, and that page furniture is not read as body text.
 
 ## Change log
+
+- `reference-documents-v11`: the examples-showcase slice makes a cell with
+  no inlines an empty `TD` or `TH` (no marked content, no `/K`), narrows
+  `table.cell_empty` to inline content that holds no text, and extends
+  `table.empty` to a table whose every cell is empty. The three reference
+  documents are unchanged.
 
 - `reference-documents-v10`: the reference-documents closure makes the three
   references gallery programs and adds `tests/reference_documents`, which

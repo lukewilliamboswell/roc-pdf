@@ -889,7 +889,7 @@ inspect = |store| {
 			Title => {
 				$titles = $titles + 1
 			}
-			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | FigureCaption(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
+			DestinationHeading(_) | DestinationParagraph(_) | EmptyCell | Figure(_) | FigureCaption(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
 		}
 		$index = $index + 1
 	}

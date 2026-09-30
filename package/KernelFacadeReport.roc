@@ -139,6 +139,7 @@ occurrence_owners = |ownership| {
 		end = match owned {
 			TextBlock({ body, label, level: _ }) => U64.max(body.index() + 1, label_end(label))
 			RichTextBlock({ label, level: _, occurrences }) => U64.max(occurrences.start() + occurrences.length(), label_end(label))
+			ContentlessCell => 0
 		}
 		$count = U64.max($count, end)
 	}
@@ -168,6 +169,7 @@ occurrence_owners = |ownership| {
 					NoLabel => {}
 				}
 			}
+			ContentlessCell => {}
 		}
 		$block = $block + 1
 	}

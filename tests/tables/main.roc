@@ -15,6 +15,7 @@ Case : [
 	AtomicNegatives({ context : U64 }),
 	KeptWhole({ context : U64 }),
 	Styled({ rows : U64 }),
+	EmptyCells({ rows : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -51,6 +52,7 @@ main! = |args| {
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 		KeptWhole({ context }) => Fixture.kept_whole(context)
 		Styled({ rows }) => Fixture.styled(rows)
+		EmptyCells({ rows }) => Fixture.empty_cells(rows)
 	}
 	match result {
 		Ok(value) => value

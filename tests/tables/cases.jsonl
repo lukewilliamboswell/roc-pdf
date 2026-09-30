@@ -8,3 +8,5 @@
 {"name":"tables whole-table keep","schema_version":1,"case":{"KeptWhole":{"context":0}}}
 {"name":"tables styled x40","schema_version":1,"case":{"Styled":{"rows":40}}}
 {"name":"tables styled x400","schema_version":1,"case":{"Styled":{"rows":400}}}
+{"name":"tables empty cells x40","schema_version":1,"case":{"EmptyCells":{"rows":40}}}
+{"name":"tables empty cells x400","schema_version":1,"case":{"EmptyCells":{"rows":400}}}

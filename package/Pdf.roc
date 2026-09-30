@@ -544,10 +544,20 @@ Pdf :: [].{
 	row = |cells| Document.row(cells)
 
 	## A data cell (`TD`) whose inline content forms one paragraph.
+	##
+	## `Pdf.cell([])` is an empty cell: a `TD` with no content, for a value
+	## the table deliberately leaves blank. It paints nothing, takes no
+	## part in column widths, and its row keeps the height of its other
+	## cells (one line when every cell is empty). It keeps its fill, its
+	## `Headers`, and its place in the grid. Inline content that holds no
+	## text, such as `[Pdf.strong([])]`, is `table.cell_empty`; a table
+	## whose every cell is empty is `table.empty`.
 	cell : List(Inline) -> Cell
 	cell = |contents| Document.cell(contents)
 
-	## A header cell (`TH`) with its declared scope.
+	## A header cell (`TH`) with its declared scope. With no contents it is
+	## an empty header cell, such as the blank corner above a column of row
+	## headers.
 	header_cell : Scope, List(Inline) -> Cell
 	header_cell = |scope, contents| Document.header_cell(scope, contents)
 
@@ -1133,8 +1143,8 @@ pipeline_error = |error, doc| match error {
 	Pages(CustomMeasureShort({ available, content, custom })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.custom_block_measure", "A custom block's content needs ${points_text(content)}, but its measured height less twice its inset leaves ${points_text(available)}; the extension must measure the block at least that tall.")
 	Pages(DecorationOversize({ decoration, frame_height, frame_width, height, width })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.oversize_block", "A decoration is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and at most ${points_text(frame_height)} tall; a decoration is never clipped or shrunk.")
 	Semantics(EmptyRichParagraph({ block })) => inline_error(doc, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
-	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell contains no text.", [leaf_path(doc, block)])
-	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column and one body row.")
+	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell's content holds no text; write an empty cell as Pdf.cell([]).", [leaf_path(doc, block)])
+	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column, one body row, and one cell with content.")
 	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
 	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
 	Semantics(TableRowSpan({ block })) => located_error(doc, FeatureUnavailable, "table.row_span", "A table cell spans rows; row spans are scheduled for Gate 8 and only column spans are supported.", [leaf_path(doc, block)])
@@ -3515,6 +3525,7 @@ leaf_role = |normalized, record| {
 		Bullet(_) => "LI"
 		DestinationHeading({ level, name: _ }) => "H${level.to_str()}"
 		DestinationParagraph(_) => "P"
+		EmptyCell => "TD"
 		Figure(_) => "Figure"
 		FigureCaption(_) => "Caption"
 		Heading(level) => "H${level.to_str()}"

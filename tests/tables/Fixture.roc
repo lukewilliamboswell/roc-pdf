@@ -49,6 +49,13 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   and the rules painted after it. It also rejects a body rule wider
 ##   than the row gap (`layout.table_rule`). The 40/400 pair is the linear
 ##   scale pair.
+## - `empty_cells xN`: a survey tally with an empty corner header cell,
+##   empty counts and notes, a shaded empty cell, and every fifth row
+##   entirely empty (one body line tall), under the styled theme's zebra
+##   fills and body rules, continued across pages with the header row (and
+##   its empty corner) repainted. Empty cells are `TD`/`TH` elements with
+##   no marked content; the work counts them. The 40/400 pair is the
+##   linear scale pair.
 ## - `kept_whole`: a 12-row captioned table inside `Pdf.keep_together`
 ##   after enough paragraphs that its caption, header, and first rows would
 ##   otherwise start on page 1; the whole table moves to page 2, which the
@@ -105,6 +112,14 @@ Fixture :: [].{
 			return Err(MissingRejection(rejected))
 		}
 		evidence_with(document, styled_theme, BuiltInFace, Paints)
+	}
+
+	empty_cells : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	empty_cells = |rows| {
+		if rows == 0 or rows > 400 {
+			return Err(InvalidScale)
+		}
+		evidence_with(empty_cells_document(rows), styled_theme, BuiltInFace, EmptyCellPaints)
 	}
 
 	kept_whole : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -354,6 +369,50 @@ styled_document = |count| {
 	})
 }
 
+## A survey tally: N body rows under a header whose corner is empty. A
+## row cycles through the tally values; blank counts, blank notes, and
+## every fifth row are empty cells, and one count cell is shaded empty.
+empty_cells_document : U64 -> Document
+empty_cells_document = |count| {
+	amber : Color.SourceValue
+	amber = Srgb(Rgb({ blue: 30000, green: 56000, red: 65000 }))
+	species = ["Pied oystercatcher", "Red-capped plover", "Far Eastern curlew", "Bar-tailed godwit"]
+	var $rows = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		name = match species.get($index % 4) {
+			Ok(value) => value
+			Err(OutOfBounds) => crash "empty-cell species index escaped"
+		}
+		row = if $index % 5 == 4 {
+			Pdf.row([Pdf.header_cell(Row, []), Pdf.cell([]), Pdf.cell([]), Pdf.cell([])])
+		} else if $index % 5 == 1 {
+			Pdf.row([Pdf.header_cell(Row, [Pdf.text(name)]), Pdf.shaded(amber, Pdf.cell([])), Pdf.cell([Pdf.text("12")]), Pdf.cell([Pdf.text("Roosting on the spit at high tide")])])
+		} else if $index % 5 == 2 {
+			Pdf.row([Pdf.header_cell(Row, [Pdf.text(name)]), Pdf.cell([Pdf.text("3")]), Pdf.cell([]), Pdf.cell([])])
+		} else {
+			Pdf.row([Pdf.header_cell(Row, [Pdf.text(name)]), Pdf.cell([Pdf.text("7")]), Pdf.cell([Pdf.text("9")]), Pdf.cell([])])
+		}
+		$rows = $rows.append(row)
+		$index = $index + 1
+	}
+	Pdf.document({
+		contents: [
+			Pdf.heading(1, "Survey tally"),
+			Pdf.table({
+				body_rows: $rows,
+				caption: Pdf.caption("Tally sheet (${count.to_str()} rows); blank cells were not counted"),
+				columns: [{ align: Start, width: Content }, { align: End, width: Fixed(Layout.Unit.points(60)) }, { align: End, width: Fixed(Layout.Unit.points(60)) }, { align: Start, width: Share(1) }],
+				footer_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Checked")]), Pdf.cell([]), Pdf.cell([]), Pdf.cell([Pdf.text("Signed by the survey coordinator")])])],
+				header_rows: [Pdf.row([Pdf.header_cell(Column, []), Pdf.header_cell(Column, [Pdf.text("Morning")]), Pdf.header_cell(Column, [Pdf.text("Evening")]), Pdf.header_cell(Column, [Pdf.text("Notes")])])],
+				row_split: KeepRows,
+			}),
+		],
+		language: "en-AU",
+		title: "Survey tally (${count.to_str()} rows)",
+	})
+}
+
 kept_document : U64 -> Document
 kept_document = |context| {
 	suffix = if context == 0 "" else " (${context.to_str()})"
@@ -467,7 +526,7 @@ evidence = |document, theme, faces| evidence_with(document, theme, faces, NoPain
 
 ## With `Paints`, the work also counts the table fills painted behind the
 ## text and the rules painted after it.
-evidence_with : Document, Theme, Faces, [NoPaints, Paints] -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+evidence_with : Document, Theme, Faces, [EmptyCellPaints, NoPaints, Paints] -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence_with = |document, theme, faces, paints| {
 	options = match faces {
 		BuiltInFace => Pdf.Options.with_theme(Pdf.Options.default, theme)
@@ -503,7 +562,7 @@ evidence_with = |document, theme, faces, paints| {
 	artifact_runs = KernelFacadeText.Plan.artifact_runs(text).len()
 	paint_counts = match paints {
 		NoPaints => { behind: 0, front: 0 }
-		Paints => {
+		Paints | EmptyCellPaints => {
 			rules = KernelFacadePages.Plan.rules(pages)
 			behind = rules.keep_if(|rule| rule.layer == Behind).len()
 			{ behind, front: rules.len() - behind }
@@ -548,6 +607,23 @@ evidence_with = |document, theme, faces, paints| {
 			paint_counts.front,
 			bytes.len(),
 		]
+		EmptyCellPaints => [
+			work.node_writes,
+			work.occurrence_writes,
+			work.table_cells,
+			work.empty_cells,
+			work.header_association_edges,
+			table_work.cell_measurements,
+			table_work.row_visits,
+			KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(staged.lines)).len(),
+			page_work.page.page_writes,
+			page_work.repeated_header_paints,
+			final_runs - artifact_runs,
+			artifact_runs,
+			paint_counts.behind,
+			paint_counts.front,
+			bytes.len(),
+		]
 	}
 	Ok({ bytes, work: measured })
 }
@@ -583,7 +659,8 @@ run_negatives = |context| {
 		rejects(document([lead, table([Pdf.row([Pdf.row_spanning(2, Pdf.header_cell(Row, [Pdf.text("A1")])), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), FeatureUnavailable, "table.row_span", ["contents[1].table.body_rows[0].cells[0]"]),
 		rejects(document([lead, table([], KeepRows)]), InvalidRelationship, "table.empty", ["contents[1]"]),
 		rejects(document([lead, Pdf.table({ body_rows: [], caption: Pdf.no_caption, columns: [], footer_rows: [], header_rows: [], row_split: KeepRows })]), InvalidRelationship, "table.empty", ["contents[1]"]),
-		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), InvalidRelationship, "table.cell_empty", ["contents[1].table.body_rows[0].cells[1]"]),
+		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([Pdf.strong([])]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), InvalidRelationship, "table.cell_empty", ["contents[1].table.body_rows[0].cells[1]"]),
+		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, []), Pdf.cell([]), Pdf.cell([])])], caption: Pdf.no_caption, columns, footer_rows: [], header_rows: [Pdf.row([Pdf.header_cell(Column, []), Pdf.header_cell(Column, []), Pdf.header_cell(Column, [])])], row_split: KeepRows })]), InvalidRelationship, "table.empty", ["contents[1]"]),
 		rejects(document([lead, table([body("short"), body(Str.repeat(sentence, 400 + offset))], KeepRows)]), LayoutConstraintViolated, "layout.oversize_row", ["contents[1].table.body_rows[1]"]),
 		rejects(document([lead, table([body(Str.repeat("0123456789abcdef", 8 + offset))], KeepRows)]), LayoutConstraintViolated, "layout.unbreakable_token", ["contents[1].table.body_rows[0].cells[1]"]),
 		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("a")]), Pdf.cell([Pdf.text("b")])])], caption: Pdf.no_caption, columns: [{ align: Start, width: Fixed(Layout.Unit.points(300)) }, { align: Start, width: Fixed(Layout.Unit.points(300)) }], footer_rows: [], header_rows: [], row_split: KeepRows })]), LayoutConstraintViolated, "layout.table_width", ["contents[1]"]),

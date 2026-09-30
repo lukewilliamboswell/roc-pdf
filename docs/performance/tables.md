@@ -460,23 +460,68 @@ of its leaves on page 2 (45,294 allocations, 53 lines, 2 pages). Keeps do
 not scale with table size beyond the existing unit mapping, so the case has
 no scale pair. No package code or existing baseline changes.
 
-### Deferred: empty cells
+### Empty cells
 
-An empty `TD` is legal PDF (a data cell with no content), but
-`table.cell_empty` still rejects one, and the gallery keeps its `—`
-placeholders. Accepting it is not a semantics-only change: a table cell
-is a rich-paragraph leaf, and every stage after semantics assumes a leaf
-has text. Removing the rejection fails first in `KernelFacadeSources`
-(`EmptySource`, every leaf's source must be non-empty), and after it each
-of shaping (`block_runs` expects a physical run range), line layout (a
-leaf's lines), table pagination (a row's grid is its tallest cell and a
-zero grid is `InvalidBlock`), and structure (a leaf's element owns marked
-content) assumes at least one run. Doing it properly means a distinct
-contentless-cell fact carried from normalization, where it is created, to
-the structure stage, where it becomes a `TD` with no kids and no MCID,
-with every stage between skipping it explicitly and a row of only empty
-cells taking one line of height. That is its own slice with its own
-evidence; it is not faked here with invisible content.
+An empty `TD` or `TH` is legal PDF: a data cell with no value, or the blank
+corner above a column of row headers. `Pdf.cell([])` and
+`Pdf.header_cell(scope, [])` now author one. Every stage after semantics
+assumed a cell leaf had text, so the cell is not faked with invisible
+content; an explicit contentless-cell fact is created once and every later
+stage handles it by name:
+
+- **Normalization** gives a cell with no inlines the leaf kind
+  `NormalizedBlockKind.EmptyCell` (text `""`, no rich-paragraph record).
+  The cell arena keeps its record, so the cell keeps its grid position,
+  spans, fill, kind, and ordinal; row leaf ranges stay one leaf per cell.
+- **Semantics** (`plan_table`, `place_table`) counts it as one node and one
+  row child and nothing else: no source, no occurrence, no content-spine
+  slot of its own. Its `TD`/`TH` node has an empty content range and keeps
+  its attributes (`Scope`, `ColSpan`, `Headers`) and generated identifier;
+  a data cell below an empty `Column` header still names it in `Headers`.
+  Block ownership is `ContentlessCell`. `table.cell_empty` now means
+  authored inline content that holds no text (`[Pdf.strong([])]`); a table
+  whose every cell is empty is `table.empty`, since it carries nothing
+  and would reach shaping with no run.
+- **Shaping** writes `BlockRuns.ContentlessCell`: no request, no run.
+- **Table geometry** measures it as zero width, so it never widens a
+  column, and skips the text-box width check (it has no text box to fit).
+- **Line layout** writes `BlockLines.ContentlessCell`: no line request.
+- **Pagination** gives it an empty line range in the row (its
+  `cell_starts` entry equals the next cell's), so it adds no placements
+  and the row's grid is its tallest other cell. The row's leading, line
+  size, and unit occurrence come from its first cell with content. A row
+  of only empty cells is one line of the body style tall; its unit
+  occurrence is never read, because a table row's placements are rebuilt
+  from its cells' lines and it has none. Row and cell fills and rules
+  paint as for any row.
+- **Text, fragments, scenes, and lowering** never see it: they are driven
+  by runs and placements. Structure lowering writes a `TD`/`TH` element
+  with no `/K` and no `/Pg`.
+
+Complexity is unchanged: each stage does O(1) work per empty cell, and
+documents without empty cells take exactly the previous paths (no existing
+allocation count changes; allocated bytes of existing cases move by at
+most 0.34% through code layout).
+
+Evidence: `tables empty cells x40` and `x400`, a survey tally under the
+styled theme with an empty corner `TH`, empty counts and notes, a shaded
+empty cell, every fifth row entirely empty, and a footer with two empty
+cells, continued with the header (and its empty corner) repainted. The
+structure checker counts elements with no kids and requires each to carry
+no `/K` and no `/Pg`; its self-test rejects the spans snapshot declared
+with one empty cell and the tally declared with one too few.
+
+| Case | Pages | Allocations | Work |
+| --- | ---: | ---: | --- |
+| empty cells x40 | 2 | 23,274 | 218 nodes, 168 cells, 75 empty, 246 associations, 95 lines, 1 repeated header, 95 fragments, 31 fills, 38 rules |
+| empty cells x400 | 11 | 172,502 | 2,018 nodes, 1,608 cells, 723 empty, 2,406 associations, 887 lines, 10 repeated headers, 887 fragments, 292 fills, 389 rules |
+
+The pair is linear: 10× the rows give 9.6× the empty cells, 9.3× the
+nodes and lines, and 7.4× the allocations; cell measurements stay 14
+(repeated texts hit the per-source cache). `tables atomic negatives` adds
+the all-empty table (`table.empty`) and moves `table.cell_empty` to
+`[Pdf.strong([])]`: 15 rejections, +1,045 allocations for the one added
+document, allocated bytes +0.18%. veraPDF PDF/A-4 passes both snapshots.
 
 ### Deferred: column rules and frames
 

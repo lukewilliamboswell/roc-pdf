@@ -66,7 +66,11 @@ KernelFacadeShape :: [].{
 	## face) segments in logical order, all at the paragraph's size and
 	## leading, so line breaking measures the whole paragraph at once.
 	LogicalRun : { physical : Semantics.Range }
-	BlockRuns : [TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel], level : U64 })]
+
+	## `ContentlessCell` is a table cell with no content: it has no run, so
+	## line layout gives it no line and pagination sizes its row from its
+	## other cells.
+	BlockRuns : [ContentlessCell, TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel], level : U64 })]
 	RunStyle : { color : Color.SourceValue, leading : Layout.Unit }
 
 	## Where each physical run's occurrence begins inside its interned source.
@@ -324,7 +328,7 @@ request_candidates = |authoring, preparation, styled, theme| {
 	var $block = 0
 	while $block < preparation.block_runs.len() {
 		match (list_at(authoring.blocks, $block).kind, list_at(preparation.block_runs, $block)) {
-			(RichParagraph(_), _) => {}
+			(RichParagraph(_), _) | (_, ContentlessCell) => {}
 			(kind, TextBlock({ body, label: _, level: _ })) => {
 				## A plain block's body shapes in its style's face (a title or
 				## heading face); its generated label stays in the body face.
@@ -490,6 +494,9 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 	while $block_index < authoring.blocks.len() {
 		owner = list_at(owners, $block_index)
 		match owner {
+			ContentlessCell => {
+				$block_runs = list_set($block_runs, $block_index, ContentlessCell)
+			}
 			RichTextBlock({ label: _, level: _, occurrences }) => return Err(InvalidOccurrence({ block: $block_index, occurrence: occurrences.start() }))
 			TextBlock({ body, label, level }) => {
 				body_style = block_style(authoring, $block_index, theme)
@@ -588,6 +595,9 @@ prepare_ranged_plan = |authoring, owners, store, sources, theme, face_check| {
 		first_request = $requests.len()
 		at = { authoring, block: $block_index, face_check, language: batch_options.language, sources, store, theme }
 		match list_at(owners, $block_index) {
+			ContentlessCell => {
+				$block_runs = list_set($block_runs, $block_index, ContentlessCell)
+			}
 			RichTextBlock({ label, level, occurrences }) => {
 				rich = match block.kind {
 					RichParagraph(paragraph) => list_at(authoring.rich_paragraphs, paragraph)
@@ -1133,6 +1143,9 @@ build_ordered_plan = |authoring, owners, store, source_store, ordered, theme, li
 				$expanded = expanded_body.buffers
 				$block_runs = list_set($block_runs, $block_index, TextBlock({ body: expanded_body.run, label: expanded_label, level }))
 			}
+			ContentlessCell => {
+				$block_runs = list_set($block_runs, $block_index, ContentlessCell)
+			}
 		}
 		$block_index = $block_index + 1
 	}
@@ -1465,8 +1478,9 @@ style_for = |kind, theme| match kind {
 	Heading(level) | DestinationHeading({ level, name: _ }) => Theme.heading_level_style(theme, heading_level(level))
 
 	## A figure's anchor line is shaped in the body style; pagination gives
-	## it the figure's (scaled) drawing height as its leading.
-	Bullet(_) | Paragraph | DestinationParagraph(_) | Figure(_) | FigureCaption(_) | RichParagraph(_) => Theme.body_style(theme)
+	## it the figure's (scaled) drawing height as its leading. A contentless
+	## cell shapes nothing; its style is the body style of its row.
+	Bullet(_) | Paragraph | DestinationParagraph(_) | EmptyCell | Figure(_) | FigureCaption(_) | RichParagraph(_) => Theme.body_style(theme)
 }
 
 ## Semantic planning rejects a heading level outside 1 to 6
@@ -1544,6 +1558,7 @@ locate_text_failure = |authoring, preparation, store, sources, rules, rule_of| {
 					$request = $request + 1
 				}
 			}
+			ContentlessCell => {}
 		}
 		$block = $block + 1
 	}

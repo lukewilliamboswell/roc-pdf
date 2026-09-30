@@ -126,7 +126,10 @@ KernelFacadeSemantics :: [].{
 	## generated list label painted on the block's first line, and `level`
 	## the block's list nesting level (zero outside lists), which decides its
 	## indentation.
-	BlockOwnership : [RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
+	## `ContentlessCell` is a table cell authored with no content: its
+	## `TD` or `TH` element owns no occurrence, so no later stage shapes,
+	## lays out, or paints anything for it.
+	BlockOwnership : [ContentlessCell, RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
 
 	## One authored destination declaration: the block's semantic node is the
 	## structure target and its content occurrence is the explicit layout
@@ -141,6 +144,9 @@ KernelFacadeSemantics :: [].{
 	Work : {
 		container_nodes : U64,
 		content_writes : U64,
+
+		## Table cells authored with no content (`Pdf.cell([])`).
+		empty_cells : U64,
 		header_association_edges : U64,
 		inline_elements : U64,
 		inline_leaves : U64,
@@ -206,6 +212,7 @@ Planning : {
 	cell_headers : List(U64),
 	content_count : U64,
 	destinations : List(KernelFacadeSemantics.DestinationRecord),
+	empty_cells : U64,
 	group_nodes : List(U64),
 	header_ranges : List(Semantics.Range),
 	inline_elements : U64,
@@ -254,6 +261,7 @@ build_plan = |authoring, limits| {
 			work: {
 				container_nodes: planning.group_nodes.len(),
 				content_writes: built.store.content_spine.len(),
+				empty_cells: planning.empty_cells,
 				header_association_edges: planning.relationship_count - captioned_figures(authoring.figures),
 				inline_elements: planning.inline_elements,
 				inline_leaves: planning.inline_leaves,
@@ -302,6 +310,7 @@ plan_blocks = |authoring, limits| {
 	var $header_ranges = if authoring.cells.is_empty() [] else List.with_capacity(authoring.cells.len())
 	var $relationship_count = 0
 	var $table_count = 0
+	var $empty_cells = 0
 	var $block_index = 0
 	check_limit($next_node, limits.max_nodes, Nodes)?
 
@@ -428,6 +437,7 @@ plan_blocks = |authoring, limits| {
 					$break_cursor = $break_cursor + planned.breaks
 					$cell_cursor = $cell_cursor + planned.cells
 					$table_count = $table_count + 1
+					$empty_cells = $empty_cells + planned.empty_cells
 					$block_index = group.block_end
 					$next_group = group.group_end - 1
 				}
@@ -481,6 +491,9 @@ plan_blocks = |authoring, limits| {
 				}
 			}
 			match block.kind {
+				EmptyCell => {
+					crash "normalized empty cell escaped its table"
+				}
 				Bullet({ item, list }) => {
 					node_increment = if item == 0 4 else 3
 					content_increment = if item == 0 6 else 5
@@ -707,14 +720,14 @@ plan_blocks = |authoring, limits| {
 	check_layout_items(authoring)?
 	check_customs(authoring)?
 	check_decorations(authoring)?
-	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
+	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
 TableCursor : { break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
 
 TableBuffers : { group_nodes : List(U64), headers : List(U64), links : List(KernelFacadeSemantics.LinkRecord), ranges : List(Semantics.Range), sources : List(Str) }
 
-TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, expansions : U64, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
+TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, empty_cells : U64, expansions : U64, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
 
 ## Validate and count one table in authored order: a table needs columns
 ## and a body row; each cell has non-empty inline content and no row span;
@@ -754,6 +767,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	var $elements = 0
 	var $leaves = 0
 	var $breaks = 0
+	var $empty_cells = 0
 	if table.caption {
 		$sources = $sources.append(list_at(authoring.blocks, group.first_block).text)
 		$occurrences = 1
@@ -786,30 +800,38 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			if record.column_span == 0 {
 				return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
 			}
-			paragraph = match list_at(authoring.blocks, $block).kind {
-				RichParagraph(value) => value
+			match list_at(authoring.blocks, $block).kind {
+
+				## A contentless cell is one element with no source, no
+				## occurrence, and no content of its own.
+				EmptyCell => {
+					$next_node = $next_node + 1
+					$empty_cells = $empty_cells + 1
+				}
+				RichParagraph(paragraph) => {
+					rich = list_at(authoring.rich_paragraphs, paragraph)
+					checked = match check_rich(authoring.inlines, rich, $block, max_depth) {
+						Ok(value) => value
+						Err(EmptyRichParagraph({ block: empty })) => return Err(TableCellEmpty({ block: empty }))
+						Err(error) => return Err(error)
+					}
+					cursor = at.break_cursor + $breaks
+					cell_breaks = paragraph_breaks(authoring.line_breaks, cursor, paragraph)
+					check_breaks(authoring.line_breaks, cursor, cell_breaks, rich, $block)?
+					if checked.links != 0 {
+						$links = append_rich_links($links, authoring.inlines, rich, $next_node, at.occurrence + $occurrences)
+					}
+					$sources = if cell_breaks == 0 $sources.append(list_at(authoring.blocks, $block).text) else append_segment_sources($sources.append(list_at(authoring.blocks, $block).text), authoring.line_breaks, cursor, cell_breaks)
+					$breaks = $breaks + cell_breaks
+					$next_node = $next_node + 1 + rich.elements
+					$content = $content + rich.length
+					$occurrences = $occurrences + rich.leaves
+					$expansions = $expansions + checked.expansions
+					$elements = $elements + rich.elements
+					$leaves = $leaves + rich.leaves
+				}
 				_ => crash "normalized table cell escaped its rich paragraph"
 			}
-			rich = list_at(authoring.rich_paragraphs, paragraph)
-			checked = match check_rich(authoring.inlines, rich, $block, max_depth) {
-				Ok(value) => value
-				Err(EmptyRichParagraph({ block: empty })) => return Err(TableCellEmpty({ block: empty }))
-				Err(error) => return Err(error)
-			}
-			cursor = at.break_cursor + $breaks
-			cell_breaks = paragraph_breaks(authoring.line_breaks, cursor, paragraph)
-			check_breaks(authoring.line_breaks, cursor, cell_breaks, rich, $block)?
-			if checked.links != 0 {
-				$links = append_rich_links($links, authoring.inlines, rich, $next_node, at.occurrence + $occurrences)
-			}
-			$sources = if cell_breaks == 0 $sources.append(list_at(authoring.blocks, $block).text) else append_segment_sources($sources.append(list_at(authoring.blocks, $block).text), authoring.line_breaks, cursor, cell_breaks)
-			$breaks = $breaks + cell_breaks
-			$next_node = $next_node + 1 + rich.elements
-			$content = $content + rich.length
-			$occurrences = $occurrences + rich.leaves
-			$expansions = $expansions + checked.expansions
-			$elements = $elements + rich.elements
-			$leaves = $leaves + rich.leaves
 			$spanned = $spanned + record.column_span.to_u64()
 			if record.column_span > 1 {
 				$attributes = $attributes + 1
@@ -882,6 +904,12 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	if !$has_header {
 		return Err(TableHeaderMissing({ group: group_index }))
 	}
+
+	## Empty cells are legal, but a table with no content in any cell
+	## carries nothing.
+	if $leaves == 0 {
+		return Err(TableEmpty({ group: group_index }))
+	}
 	Ok({
 		attributes: $attributes,
 		breaks: $breaks,
@@ -889,6 +917,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 		cells: $cell - at.cell,
 		content: $content,
 		elements: $elements,
+		empty_cells: $empty_cells,
 		expansions: $expansions,
 		leaves: $leaves,
 		nodes: $next_node - at.node,
@@ -1595,6 +1624,9 @@ build_store = |authoring, planning, source_plan| {
 			block = list_at(blocks, $index)
 			list_level = block_level(groups, block.parent)
 			match block.kind {
+				EmptyCell => {
+					crash "normalized empty cell escaped its table"
+				}
 				Heading(level) => {
 					role = heading_role(level, $index)?
 					start = $content.len()
@@ -1982,19 +2014,15 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 			var $block = row.first_block
 			while $block < row.block_end {
 				$content = $content.append(ChildNode(Semantics.NodeId.from_index($cell_node)))
-				rich = list_at(authoring.rich_paragraphs, rich_index(authoring, $block))
-				$cell_node = $cell_node + 1 + rich.elements
+				$cell_node = $cell_node + 1 + cell_elements(authoring, $block)
 				$block = $block + 1
 			}
 			$nodes = list_set($nodes, row_node, make_node(row_node, ParentNode(Semantics.NodeId.from_index(section_node)), "TR", Semantics.Range.from_start_and_length(row_span, row.block_end - row.first_block), Inherited))
 			$cell_node = row_node + 1
 			$block = row.first_block
 			while $block < row.block_end {
-				paragraph = rich_index(authoring, $block)
-				rich = list_at(authoring.rich_paragraphs, paragraph)
 				ordinal = cell_ordinal(authoring.cells, $block)
 				record = list_at(authoring.cells, ordinal)
-				breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
 				role = match record.kind {
 					HeaderCell(_) => "TH"
 					DataCell => "TD"
@@ -2021,34 +2049,51 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 					}
 					DataCell => {}
 				}
-				placed = place_rich(
-					{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
-					authoring,
-					rich,
-					{
-						attributes: Semantics.Range.from_start_and_length(attribute_start, $attributes.len() - attribute_start),
-						breaks: $break_cursor,
-						element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)),
-						language: at.language,
-						node: $cell_node,
-						occurrence: $occurrence,
-						parent: Semantics.NodeId.from_index(row_node),
-						role,
-						segments: breaks + 1,
-						source_input: $source_input,
-					},
-					source_plan,
-				)?
-				$content = placed.content
-				$nodes = placed.nodes
-				$occurrences = placed.occurrences
-				$properties = placed.properties
+				cell_attributes = Semantics.Range.from_start_and_length(attribute_start, $attributes.len() - attribute_start)
 				$identifiers = $identifiers.append({ id: Semantics.ElementId.from_index(ordinal), value: cell_identifier(ordinal) })
-				$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.Range.from_start_and_length($occurrence, rich.leaves) }))
-				$occurrence = $occurrence + rich.leaves
-				$source_input = $source_input + breaks + 1
-				$break_cursor = $break_cursor + breaks
-				$cell_node = $cell_node + 1 + rich.elements
+				match list_at(authoring.blocks, $block).kind {
+
+					## A contentless cell's element has no children: it owns
+					## no marked content, so it lowers to a `TD` or `TH`
+					## with no `/K`.
+					EmptyCell => {
+						$nodes = list_set($nodes, $cell_node, { ..make_node($cell_node, ParentNode(Semantics.NodeId.from_index(row_node)), role, Semantics.Range.from_start_and_length($content.len(), 0), Inherited), attributes: cell_attributes, element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)) })
+						$ownership = list_set($ownership, $block, ContentlessCell)
+						$cell_node = $cell_node + 1
+					}
+					RichParagraph(paragraph) => {
+						rich = list_at(authoring.rich_paragraphs, paragraph)
+						breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
+						placed = place_rich(
+							{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+							authoring,
+							rich,
+							{
+								attributes: cell_attributes,
+								breaks: $break_cursor,
+								element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)),
+								language: at.language,
+								node: $cell_node,
+								occurrence: $occurrence,
+								parent: Semantics.NodeId.from_index(row_node),
+								role,
+								segments: breaks + 1,
+								source_input: $source_input,
+							},
+							source_plan,
+						)?
+						$content = placed.content
+						$nodes = placed.nodes
+						$occurrences = placed.occurrences
+						$properties = placed.properties
+						$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.Range.from_start_and_length($occurrence, rich.leaves) }))
+						$occurrence = $occurrence + rich.leaves
+						$source_input = $source_input + breaks + 1
+						$break_cursor = $break_cursor + breaks
+						$cell_node = $cell_node + 1 + rich.elements
+					}
+					_ => crash "normalized table cell escaped its rich paragraph"
+				}
 				$block = $block + 1
 			}
 			$row_group = $row_group + 1
@@ -2075,15 +2120,17 @@ subtree_elements = |authoring, row| {
 	var $count = 0
 	var $block = row.first_block
 	while $block < row.block_end {
-		$count = $count + 1 + list_at(authoring.rich_paragraphs, rich_index(authoring, $block)).elements
+		$count = $count + 1 + cell_elements(authoring, $block)
 		$block = $block + 1
 	}
 	$count
 }
 
-rich_index : Document.NormalizedAuthoring, U64 -> U64
-rich_index = |authoring, block| match list_at(authoring.blocks, block).kind {
-	RichParagraph(value) => value
+## The inline elements below cell leaf `block`: none for a contentless cell.
+cell_elements : Document.NormalizedAuthoring, U64 -> U64
+cell_elements = |authoring, block| match list_at(authoring.blocks, block).kind {
+	RichParagraph(value) => list_at(authoring.rich_paragraphs, value).elements
+	EmptyCell => 0
 	_ => crash "normalized table cell escaped its rich paragraph"
 }
 

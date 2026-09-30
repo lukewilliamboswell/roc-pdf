@@ -23140,6 +23140,172 @@
       ]
     },
     {
+      "name": "tables empty cells x40",
+      "scenario_revision": "tables-empty-cells-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/empty_cells_40.pdf",
+      "args": [
+        "empty_cells",
+        "40"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "body_rows": 40,
+        "empty_cells": 75
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "table_cells",
+        "empty_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "row_visits",
+        "lines",
+        "pages",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "fills",
+        "rules",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 23274,
+          "allocated_bytes": 123681921,
+          "work": {
+            "node_writes": 218,
+            "occurrence_writes": 95,
+            "table_cells": 168,
+            "empty_cells": 75,
+            "header_association_edges": 246,
+            "cell_measurements": 14,
+            "row_visits": 42,
+            "lines": 95,
+            "pages": 2,
+            "repeated_header_paints": 1,
+            "fragments": 95,
+            "artifact_runs": 3,
+            "fills": 31,
+            "rules": 38,
+            "output_bytes": 18351
+          }
+        },
+        "x64musl": {
+          "allocations": 23274,
+          "allocated_bytes": 123681921,
+          "work": {
+            "node_writes": 218,
+            "occurrence_writes": 95,
+            "table_cells": 168,
+            "empty_cells": 75,
+            "header_association_edges": 246,
+            "cell_measurements": 14,
+            "row_visits": 42,
+            "lines": 95,
+            "pages": 2,
+            "repeated_header_paints": 1,
+            "fragments": 95,
+            "artifact_runs": 3,
+            "fills": 31,
+            "rules": 38,
+            "output_bytes": 18351
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "tables empty cells x400",
+      "scenario_revision": "tables-empty-cells-v1",
+      "source": "tests/tables/main.roc",
+      "snapshot": "tests/tables/empty_cells_400.pdf",
+      "args": [
+        "empty_cells",
+        "400"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 11,
+        "body_rows": 400,
+        "empty_cells": 723
+      },
+      "work_counters": [
+        "node_writes",
+        "occurrence_writes",
+        "table_cells",
+        "empty_cells",
+        "header_association_edges",
+        "cell_measurements",
+        "row_visits",
+        "lines",
+        "pages",
+        "repeated_header_paints",
+        "fragments",
+        "artifact_runs",
+        "fills",
+        "rules",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 172502,
+          "allocated_bytes": 513125308,
+          "work": {
+            "node_writes": 2018,
+            "occurrence_writes": 887,
+            "table_cells": 1608,
+            "empty_cells": 723,
+            "header_association_edges": 2406,
+            "cell_measurements": 14,
+            "row_visits": 402,
+            "lines": 887,
+            "pages": 11,
+            "repeated_header_paints": 10,
+            "fragments": 887,
+            "artifact_runs": 30,
+            "fills": 292,
+            "rules": 389,
+            "output_bytes": 56581
+          }
+        },
+        "x64musl": {
+          "allocations": 172502,
+          "allocated_bytes": 513125308,
+          "work": {
+            "node_writes": 2018,
+            "occurrence_writes": 887,
+            "table_cells": 1608,
+            "empty_cells": 723,
+            "header_association_edges": 2406,
+            "cell_measurements": 14,
+            "row_visits": 402,
+            "lines": 887,
+            "pages": 11,
+            "repeated_header_paints": 10,
+            "fragments": 887,
+            "artifact_runs": 30,
+            "fills": 292,
+            "rules": 389,
+            "output_bytes": 56581
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
       "name": "tables ordered numeric cells",
       "scenario_revision": "tables-v1",
       "source": "tests/tables/main.roc",
@@ -23247,18 +23413,18 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 71884,
-          "allocated_bytes": 150825157,
+          "allocations": 72929,
+          "allocated_bytes": 151103319,
           "work": {
-            "rejections": 14,
+            "rejections": 15,
             "output_bytes": 11521
           }
         },
         "x64musl": {
-          "allocations": 71884,
-          "allocated_bytes": 150825157,
+          "allocations": 72929,
+          "allocated_bytes": 151103319,
           "work": {
-            "rejections": 14,
+            "rejections": 15,
             "output_bytes": 11521
           }
         }

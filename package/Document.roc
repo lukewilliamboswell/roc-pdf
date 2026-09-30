@@ -333,6 +333,13 @@ NormalizedBlockKind := [
 	Bullet({ item : U64, list : U64 }),
 	DestinationHeading({ level : U8, name : Str }),
 	DestinationParagraph({ name : Str }),
+
+	## A table cell authored with no inline content (`Pdf.cell([])`): a
+	## `TD` or `TH` with no text. It has no source, no shaped run, and no
+	## line; its row keeps its grid position, and structure gives it an
+	## element with no marked content. Every stage after normalization
+	## handles it explicitly instead of inferring it from empty text.
+	EmptyCell,
 	Figure(U64),
 
 	## The visible caption of figure `k`: a `Caption` sibling of the
@@ -2158,7 +2165,11 @@ append_table_rows = |state, rows, section, table_code| {
 				CellFill(color) => pack_color(color)
 			}
 			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span, fill, kind: record.kind, row_span: record.row_span }) }
-			$state = append_rich($state, record.contents, row_group + 1, $index)
+			$state = if record.contents.is_empty() {
+				{ ..$state, blocks: $state.blocks.append({ kind: EmptyCell, parent: row_group + 1, text: "" }) }
+			} else {
+				append_rich($state, record.contents, row_group + 1, $index)
+			}
 			$index = $index + 1
 		}
 		$state = close_group($state, row_group)
