@@ -5,6 +5,57 @@ Layout :: [].{
 		is_eq : _
 		to_hash : _
 
+		## A bare number literal where a `Unit` is expected means points:
+		## `size: 12.5` is 12,500 units. The literal is stored exactly, so it
+		## may have at most three significant decimal places (`0.0005` is a
+		## compile-time error, `12.5000` is not), and it must fit the I64
+		## raw range; either violation is rejected at compile time, never
+		## rounded or clamped.
+		from_numeral : Numeral -> Try(Unit, [InvalidNumeral(Str)])
+		from_numeral = |numeral| {
+			range_error = InvalidNumeral("a layout unit literal is points and must fit the I64 range of millipoints")
+			var $whole = 0.U128
+			for digit in numeral.digits_before_pt() {
+				if $whole > 1_000_000_000_000_000_000_000 {
+					return Err(range_error)
+				}
+				$whole = $whole * 256 + digit.to_u128()
+			}
+			var $fraction = 0.U128
+			for digit in numeral.digits_after_pt() {
+				if $fraction > 1_000_000_000_000_000_000_000_000_000_000_000 {
+					return Err(InvalidNumeral("a layout unit literal has too many decimal digits to check exactly"))
+				}
+				$fraction = $fraction * 256 + digit.to_u128()
+			}
+			var $places = numeral.digits_after_pt_count()
+			while $places > 3 {
+				if $fraction % 10 != 0 {
+					return Err(InvalidNumeral("a layout unit literal is points in whole thousandths: at most three decimal places"))
+				}
+				$fraction = $fraction // 10
+				$places = $places - 1
+			}
+			while $places < 3 {
+				$fraction = $fraction * 10
+				$places = $places + 1
+			}
+			magnitude = $whole * 1000 + $fraction
+			if numeral.is_negative() {
+				if magnitude == 9_223_372_036_854_775_808 {
+					Ok(Unit.(-9_223_372_036_854_775_808))
+				} else if magnitude < 9_223_372_036_854_775_808 {
+					Ok(Unit.(0 - magnitude.to_i64_wrap()))
+				} else {
+					Err(range_error)
+				}
+			} else if magnitude <= 9_223_372_036_854_775_807 {
+				Ok(Unit.(magnitude.to_i64_wrap()))
+			} else {
+				Err(range_error)
+			}
+		}
+
 		## One point is exactly 1,000 layout units. The full I64 raw range is valid;
 		## arithmetic introduced by later capabilities must report overflow explicitly.
 		units_per_point : U64
@@ -223,3 +274,18 @@ expect Layout.Unit.from_raw(25).raw() == 25
 
 # Nested public type modules construct opaque component IDs directly.
 expect Layout.ComponentId.from_index(12).index() == 12
+
+# A bare literal is points, stored exactly in millipoints.
+expect {
+	size : Layout.Unit
+	size = 12.5
+	size.raw() == 12500
+}
+
+expect {
+	fine : Layout.Unit
+	fine = -0.25
+	width : Layout.Unit
+	width = 12.5000
+	fine.raw() == -250 and width.raw() == 12500 and width == Layout.Unit.millipoints(12500)
+}

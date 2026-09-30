@@ -306,6 +306,15 @@ one explicit rounding policy. Conversion to canonical PDF numbers occurs at a
 defined lowering boundary. Cache and convergence identity never depends on
 host floating-point equality.
 
+The public `Layout.Unit` is that unit: one point is exactly 1,000 units. A
+bare number literal where a `Layout.Unit` is expected means points
+(`size: 12.5` is 12,500 units), through `Unit.from_numeral`. The literal is
+stored exactly: one with more than three significant decimal places, or
+outside the I64 range of units, is a compile-time error, never rounded or
+clamped. Runtime values still convert explicitly with `Layout.Unit.points`
+or `Layout.Unit.millipoints`, and no arithmetic operators are defined on
+`Unit`, so overflow stays an explicit, checked result.
+
 Layout continuations are compact component/source IDs plus scalar cursors and
 explicit state. They are not list suffixes, string slices, rebuilt remaining-
 block lists, or copies of earlier measurements. Text ranges retain validated
