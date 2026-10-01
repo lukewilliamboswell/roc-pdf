@@ -583,11 +583,11 @@ run_scaled_code = |count| {
 		Err(_) => 0
 	}
 	below = match Pdf.to_bytes_with(document, boundary(49)) {
-		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.inline_scale.code"], feature: Feature("text.inline_scale"), .. }], .. })) => 1
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.inline.code.scale"], feature: Feature("text.inline_scale"), .. }], .. })) => 1
 		_ => 0
 	}
 	above = match Pdf.to_bytes_with(document, boundary(101)) {
-		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.inline_scale.code"], feature: Feature("text.inline_scale"), .. }], .. })) => 1
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.inline.code.scale"], feature: Feature("text.inline_scale"), .. }], .. })) => 1
 		_ => 0
 	}
 	checks = lower + upper + below + above
@@ -642,7 +642,7 @@ run_link_style = |count| {
 
 	## The rejected underlines: body leading 14 pt less size 11 pt leaves 3 pt.
 	rejected = |value| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: link_style_theme(value) }) {
-		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.link_underline"], feature: Feature("text.link_underline"), .. }], .. })) => 1
+		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.link.underline"], feature: Feature("text.link_underline"), .. }], .. })) => 1
 		_ => 0
 	}
 	negative = rejected(Underline({ offset: Layout.Unit.from_raw(-100), thickness: Layout.Unit.from_raw(600) }))

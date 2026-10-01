@@ -2294,7 +2294,7 @@ check_underline = |theme| match theme.link.underline {
 		body = Theme.body_style(theme)
 		room = body.leading.raw() - body.size.raw()
 		if offset.raw() < 0 or thickness.raw() <= 0 or offset.raw() + thickness.raw() > room {
-			Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.link_underline", "A link underline needs a non-negative offset and a positive thickness that together fit below the body text inside its leading (${points_text(room.to_u64_wrap())}); it never reaches the next line.", ["theme.link_underline"])))
+			Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.link_underline", "A link underline needs a non-negative offset and a positive thickness that together fit below the body text inside its leading (${points_text(room.to_u64_wrap())}); it never reaches the next line.", ["theme.link.underline"])))
 		} else {
 			Ok({})
 		}
@@ -2303,7 +2303,7 @@ check_underline = |theme| match theme.link.underline {
 
 check_scale : Theme, Theme.InlineRole, Str -> Try({}, Pdf.Error)
 check_scale = |theme, role, name| match Theme.inline_scale(theme, role) {
-	Percent(percent) if percent < 50 or percent > 100 => Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.inline_scale", "An inline role is scaled to ${percent.to_str()}% of its paragraph size; a scale is 50 to 100 percent, because a scaled run keeps its line's baseline and leading.", ["theme.inline_scale.${name}"])))
+	Percent(percent) if percent < 50 or percent > 100 => Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.inline_scale", "An inline role is scaled to ${percent.to_str()}% of its paragraph size; a scale is 50 to 100 percent, because a scaled run keeps its line's baseline and leading.", ["theme.inline.${name}.scale"])))
 	_ => Ok({})
 }
 
