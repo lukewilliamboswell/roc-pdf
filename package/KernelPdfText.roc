@@ -122,7 +122,7 @@ build_plan = |semantics, text, fonts, placements, limits| {
 			return Err(PlacementInvalid({ placement: $placement_index }))
 		}
 		run = list_at(text.runs, run_index)
-		if run.id.index() != run_index or run.size.raw() <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
+		if run.id.index() != run_index or run.size <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
 			return Err(RunInvalid({ run: run_index }))
 		}
 		font_index = run.instance.index()
@@ -192,7 +192,7 @@ build_scene_plan = |ownership, fonts, limits| {
 	var $run_index = 0
 	while $run_index < text.runs.len() {
 		run = list_at(text.runs, $run_index)
-		if run.id.index() != $run_index or run.size.raw() <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
+		if run.id.index() != $run_index or run.size <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
 			return Err(RunInvalid({ run: $run_index }))
 		}
 		font_index = run.instance.index()
@@ -647,7 +647,7 @@ emit_run_glyphs = |bytes, text, run, origin, font, limit| {
 	glyph_end = run.glyphs.start() + run.glyphs.length()
 	while $glyph_index < glyph_end {
 		glyph = list_at(text.glyphs, $glyph_index)
-		if glyph.advance_x.raw() < 0 or glyph.advance_y.raw() != 0 {
+		if glyph.advance_x < 0 or glyph.advance_y.raw() != 0 {
 			return Err(RunInvalid({ run: run.id.index() }))
 		}
 		x = checked_i64_add(origin.x.raw(), checked_i64_add($cursor_x, glyph.offset_x.raw())?)?

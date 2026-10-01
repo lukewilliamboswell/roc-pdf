@@ -255,7 +255,7 @@ build_arena = |prepared, limits| build_arena_with_intent(
 
 build_arena_with_intent : InternalArenaPrepared, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Arena, KernelFacadeScenes.Error)
 build_arena_with_intent = |prepared, intent, limits| {
-	if prepared.page_size.width.raw() <= 0 or prepared.page_size.height.raw() <= 0 {
+	if prepared.page_size.width <= 0 or prepared.page_size.height <= 0 {
 		return Err(InvalidPageSize)
 	}
 	run_count = prepared.run_unicode.len()

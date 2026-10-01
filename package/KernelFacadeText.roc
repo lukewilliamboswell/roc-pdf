@@ -231,14 +231,14 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 			match row.label {
 				NoLabel => {}
 				Label(label) => {
-					if label.offset.raw() < 0 {
+					if label.offset < 0 {
 						return Err(InvalidPlacement({ placement: $placement_cursor }))
 					}
 					label_x = checked_i64_add(placement.baseline.x.raw(), label.offset.raw())?
 					$requests = $requests.append({ artifact: False, line: label.line, origin: { x: Layout.Unit.from_raw(label_x), y: placement.baseline.y }, page: page.id, source_runs: label.runs })
 				}
 			}
-			if row.body_offset.raw() < 0 {
+			if row.body_offset < 0 {
 				return Err(InvalidPlacement({ placement: $placement_cursor }))
 			}
 			body_x = checked_i64_add(placement.baseline.x.raw(), row.body_offset.raw())?

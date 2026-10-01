@@ -82,7 +82,7 @@ build_plan = |text, fonts, page_size, limits| {
 	if fonts.len() == 0 or fonts.len() != mappings.len() {
 		return Err(FontCountMismatch({ fonts: fonts.len(), mappings: mappings.len() }))
 	}
-	if page_size.width.raw() <= 0 or page_size.height.raw() <= 0 {
+	if page_size.width <= 0 or page_size.height <= 0 {
 		return Err(PageSizeInvalid)
 	}
 	font_object_count = checked_times(fonts.len(), objects_per_font)?

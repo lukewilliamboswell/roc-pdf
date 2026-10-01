@@ -273,7 +273,7 @@ KernelNavigation :: [].{
 				NoAnchor => return Err(UnresolvedDestinationAnchor({ destination: $index }))
 				AnchorAt(anchor_rect) => anchor_rect
 			}
-			if rect.size.height.raw() < 0 {
+			if rect.size.height < 0 {
 				return Err(InvalidAnchorGeometry({ destination: $index }))
 			}
 			top_raw = I64.plus_try(rect.origin.y.raw(), rect.size.height.raw()) ? |_| InvalidAnchorGeometry({ destination: $index })
@@ -590,7 +590,7 @@ validate_annotations = |inputs, destinations, name_order, context, limits| {
 		var $quad = 0
 		while $quad < quad_count {
 			quad = list_at(input.quads, $quad)
-			if quad.x_left.raw() >= quad.x_right.raw() or quad.y_bottom.raw() >= quad.y_top.raw() {
+			if quad.x_left >= quad.x_right or quad.y_bottom >= quad.y_top {
 				return Err(InvalidQuad({ annotation: $index, quad: $quad }))
 			}
 			if quad.x_left.raw() < rect.x_left or quad.x_right.raw() > rect.x_right or quad.y_bottom.raw() < rect.y_bottom or quad.y_top.raw() > rect.y_top {

@@ -1017,7 +1017,7 @@ check_layout_items = |authoring| {
 		if in_list_item(authoring.groups, spacer.parent) {
 			return Err(ListItemSpacer({ spacer: $index }))
 		}
-		if spacer.amount.raw() < 0 {
+		if spacer.amount < 0 {
 			return Err(NegativeSpacer({ spacer: $index }))
 		}
 		$index = $index + 1
@@ -1103,7 +1103,7 @@ check_customs = |authoring| {
 			return Err(CustomName({ custom: $index }))
 		}
 		inset = custom.inset.raw()
-		if custom.width.raw() <= 0 or custom.height.raw() <= 0 or inset <= 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
+		if custom.width <= 0 or custom.height <= 0 or inset <= 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
 			return Err(CustomMeasure({ custom: $index }))
 		}
 		match custom.panel {

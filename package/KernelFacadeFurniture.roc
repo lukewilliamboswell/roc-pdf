@@ -258,7 +258,7 @@ build_static = |authoring, theme, page_size| {
 	lead_height = match templates.lead {
 		NoLead => 0
 		Lead(height) => {
-			value = if height.raw() <= 0 0 else height.raw().to_u64_wrap()
+			value = if height <= 0 0 else height.raw().to_u64_wrap()
 			if value == 0 {
 				return Err(RegionEmpty({ path: "${first_path}.lead" }))
 			}
@@ -321,7 +321,7 @@ lead_block_end = |authoring| match authoring.groups.first() {
 }
 
 gap_of : Layout.Unit, Str -> Try(U64, KernelFacadeFurniture.Error)
-gap_of = |gap, path| if gap.raw() < 0 Err(GapNegative({ path: "${path}.gap" })) else Ok(gap.raw().to_u64_wrap())
+gap_of = |gap, path| if gap < 0 Err(GapNegative({ path: "${path}.gap" })) else Ok(gap.raw().to_u64_wrap())
 
 ## A present region reserves positive height and holds at least one item;
 ## `no_region` reserves nothing.
@@ -334,7 +334,7 @@ region_height = |region, path| match region {
 			NoBackdrop => slotless
 			Backdrop(_) => False
 		}
-		if height.raw() <= 0 or bare Err(RegionEmpty({ path: path })) else Ok(height.raw().to_u64_wrap())
+		if height <= 0 or bare Err(RegionEmpty({ path: path })) else Ok(height.raw().to_u64_wrap())
 	}
 }
 
@@ -343,7 +343,7 @@ add_region = |state, region, at, style| match region {
 	NoRegion => Ok(state)
 	Region({ backdrop, center, end, height, inset, start }) => {
 		region_height_value = height.raw().to_u64_wrap()
-		if inset.raw() < 0 {
+		if inset < 0 {
 			return Err(InsetNegative({ path: "${at.path}.inset" }))
 		}
 		slot_inset = inset.raw().to_u64_wrap()
@@ -453,7 +453,7 @@ text_template = |inlines, path| {
 			BoxStart({ align, position, width }) => {
 				box_path = "${path}.inlines[${position.to_str()}]"
 				$open = OpenBox({ path: box_path, used: False })
-				$parts = $parts.append(BoxOpen({ align, path: box_path, width: if width.raw() <= 0 0 else width.raw().to_u64_wrap() }))
+				$parts = $parts.append(BoxOpen({ align, path: box_path, width: if width <= 0 0 else width.raw().to_u64_wrap() }))
 			}
 			BoxEnd => {
 				match $open {
@@ -532,7 +532,7 @@ validate_drawing = |drawing, path, image_base| {
 					return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
 				}
 				placement = { origin: { x: Layout.Unit.from_raw(authored.origin.x.raw() + $dx), y: Layout.Unit.from_raw(authored.origin.y.raw() + $dy) }, size: authored.size }
-				if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 or placement.origin.x.raw() < 0 or placement.origin.y.raw() < 0 {
+				if placement.size.width <= 0 or placement.size.height <= 0 or placement.origin.x < 0 or placement.origin.y < 0 {
 					return Err(DrawingInvalid({ path, reason: "an image placement needs a positive size at or beyond the drawing origin" }))
 				}
 				$width = U64.max($width, (placement.origin.x.raw() + placement.size.width.raw()).to_u64_wrap())
@@ -556,7 +556,7 @@ validate_drawing = |drawing, path, image_base| {
 				stroke = match style.stroke {
 					AuthorNoStroke => NoStroke
 					AuthorSolidStroke({ color, width }) => {
-						if width.raw() <= 0 {
+						if width <= 0 {
 							return Err(DrawingInvalid({ path, reason: "a stroke needs a positive width" }))
 						}
 						Stroke({ color, width })
@@ -697,12 +697,12 @@ origin_violation = |segments, half, command| {
 		for point in anchors {
 			$low_x = I64.min($low_x, point.x.raw())
 			$low_y = I64.min($low_y, point.y.raw())
-			if $geometry == NoPoint and (point.x.raw() < 0 or point.y.raw() < 0) {
+			if $geometry == NoPoint and (point.x < 0 or point.y < 0) {
 				$geometry = At(point.x.raw(), point.y.raw())
 			}
 		}
 		for point in controls {
-			if $control == NoPoint and (point.x.raw() < 0 or point.y.raw() < 0) {
+			if $control == NoPoint and (point.x < 0 or point.y < 0) {
 				$control = At(point.x.raw(), point.y.raw())
 			}
 		}
@@ -1396,7 +1396,7 @@ unit : U64 -> Layout.Unit
 unit = |value| Layout.Unit.from_raw(value.to_i64_wrap())
 
 nonnegative : Layout.Unit -> Try(U64, KernelFacadeFurniture.Error)
-nonnegative = |value| if value.raw() < 0 Err(ArithmeticOverflow) else Ok(value.raw().to_u64_wrap())
+nonnegative = |value| if value < 0 Err(ArithmeticOverflow) else Ok(value.raw().to_u64_wrap())
 
 check_limit : U64, U64, KernelFacadeFurniture.Dimension -> Try({}, KernelFacadeFurniture.Error)
 check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})

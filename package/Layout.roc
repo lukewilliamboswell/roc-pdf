@@ -74,6 +74,22 @@ Layout :: [].{
 
 		raw : Unit -> I64
 		raw = |Unit.(raw)| raw
+
+		## Units are ordered by their raw value, so `<`, `<=`, `>`, and `>=`
+		## compare two units (or a unit and a literal in points, such as
+		## `width <= 0`). Ordering is exact and never overflows; `Unit`
+		## still has no arithmetic operators.
+		is_lt : Unit, Unit -> Bool
+		is_lt = |Unit.(a), Unit.(b)| a < b
+
+		is_lte : Unit, Unit -> Bool
+		is_lte = |Unit.(a), Unit.(b)| a <= b
+
+		is_gt : Unit, Unit -> Bool
+		is_gt = |Unit.(a), Unit.(b)| a > b
+
+		is_gte : Unit, Unit -> Bool
+		is_gte = |Unit.(a), Unit.(b)| a >= b
 	}
 
 	ComponentId :: U64.{
@@ -259,6 +275,13 @@ expect Layout.Unit.units_per_point == 1000
 
 # Opaque layout units preserve signed raw values.
 expect Layout.Unit.from_raw(-25).raw() == -25
+
+# Units order by their raw value, and a bare literal compares as points.
+expect {
+	half : Layout.Unit
+	half = 0.5
+	Layout.Unit.millipoints(499) < half and half <= 0.5 and half > 0 and half >= Layout.Unit.millipoints(500) and !(Layout.Unit.from_raw(-1) >= 0)
+}
 
 # Layout component IDs preserve their dense index.
 expect Layout.ComponentId.from_index(3).index() == 3

@@ -359,7 +359,7 @@ shape_simple_batch_latin = |font, sources, options, requests, limits| {
 			return Err(InvalidSource({ request: $planning_index, source: source_index }))
 		}
 		source = list_at(sources, source_index)
-		if request.size.raw() <= 0 {
+		if request.size <= 0 {
 			return Err(InvalidSize(request.size.raw()))
 		}
 		source_bytes = source.unicode.count_utf8_bytes()
@@ -572,7 +572,7 @@ shape_selected_batch_horizontal = |fonts, sources, options, requests, limits| {
 		if source_index >= sources.len() {
 			return Err(InvalidSource({ request: $request_index, source: source_index }))
 		}
-		if request.size.raw() <= 0 {
+		if request.size <= 0 {
 			return Err(SelectedRequestInvalid({ reason: Size, request: $request_index }))
 		}
 		if request.instance.index() >= fonts.len() {
@@ -970,7 +970,7 @@ validate_advanced_with_selection = |selection, source, store, limits| {
 		if run.writing_mode != Horizontal {
 			return Err(UnsupportedWritingMode(run.writing_mode))
 		}
-		if run.size.raw() <= 0 {
+		if run.size <= 0 {
 			return Err(AdvancedRunInvalid({ reason: Size, run: $run_index }))
 		}
 		if !valid_text_range(run.source, boundaries, source_bytes, scalar_count) or run.source.scalars.start() != $source_scalar_cursor or run.source.utf8_bytes.start() != $source_byte_cursor {
@@ -998,7 +998,7 @@ validate_advanced_with_selection = |selection, source, store, limits| {
 			if glyph_id == 0 or glyph_id.to_u64() >= font.metrics.glyph_count {
 				return Err(AdvancedGlyphInvalid({ glyph: $glyph_index, reason: GlyphId }))
 			}
-			if glyph.advance_x.raw() < 0 or glyph.advance_y.raw() != 0 {
+			if glyph.advance_x < 0 or glyph.advance_y.raw() != 0 {
 				return Err(AdvancedGlyphInvalid({ glyph: $glyph_index, reason: Advance }))
 			}
 			$glyph_visits = $glyph_visits + 1

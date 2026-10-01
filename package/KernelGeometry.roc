@@ -49,7 +49,7 @@ KernelGeometry :: [].{
 
 validate_rect : Layout.Rect, KernelGeometry.BoxKind -> Try({}, KernelGeometry.Error)
 validate_rect = |rect, kind| {
-	if rect.size.width.raw() <= 0 or rect.size.height.raw() <= 0 {
+	if rect.size.width <= 0 or rect.size.height <= 0 {
 		Err(NonPositiveBox(kind))
 	} else {
 		_ = checked_add(rect.origin.x.raw(), rect.size.width.raw())?
@@ -65,8 +65,8 @@ validate_contained = |inner, inner_kind, outer, outer_kind| {
 	outer_right = checked_add(outer.origin.x.raw(), outer.size.width.raw())?
 	outer_top = checked_add(outer.origin.y.raw(), outer.size.height.raw())?
 
-	if inner.origin.x.raw() < outer.origin.x.raw() or
-		inner.origin.y.raw() < outer.origin.y.raw() or
+	if inner.origin.x < outer.origin.x or
+		inner.origin.y < outer.origin.y or
 			inner_right > outer_right or
 				inner_top > outer_top {
 		Err(BoxOutside({ inner: inner_kind, outer: outer_kind }))

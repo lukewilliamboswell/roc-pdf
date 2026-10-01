@@ -217,7 +217,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 			OccurrenceText(occurrence) => occurrence == shape_request.occurrence
 			ArtifactText(_) => False
 		}
-		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size != run.size or request.width.raw() <= 0 {
+		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size != run.size or request.width <= 0 {
 			return Err(InvalidRun({ run: $run_index }))
 		}
 		key = { instance: run.instance.index(), size: run.size.raw(), source: source_index, width: request.width.raw() }
@@ -383,7 +383,7 @@ build_logical_batch = |sources, store, requests, holds, limits| {
 			$hold_cursor = $hold_cursor + 1
 		}
 		held = $hold_cursor > hold_start
-		if source_index >= sources.len() or request.width.raw() <= 0 {
+		if source_index >= sources.len() or request.width <= 0 {
 			return Err(InvalidRun({ run: $request_index }))
 		}
 		logical = logical_bounds(store, request.runs, $run_cursor)?

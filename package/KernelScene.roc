@@ -422,7 +422,7 @@ validate_shading_geometry = |geometry, shading| match geometry {
 		}
 	}
 	Radial({ end_center, end_radius, start_center, start_radius }) => {
-		if start_radius.raw() < 0 or end_radius.raw() < 0 {
+		if start_radius < 0 or end_radius < 0 {
 			Err(NegativeShadingRadius({ shading: shading }))
 		} else if start_radius.raw() == 0 and end_radius.raw() == 0 {
 			Err(DegenerateShadingGeometry({ shading: shading }))
@@ -456,7 +456,7 @@ validate_cells = |store, scenes, resources, max_depth| {
 			return Err(NonDenseIdentity({ actual: cell.id.index(), expected: $cell_index, kind: PatternIndex }))
 		} else if !positive_rect(cell.bbox) {
 			return Err(NonPositiveRect({ index: $cell_index, kind: PatternIndex }))
-		} else if cell.x_step.raw() <= 0 or cell.y_step.raw() <= 0 {
+		} else if cell.x_step <= 0 or cell.y_step <= 0 {
 			return Err(PatternStepInvalid({ pattern: $cell_index }))
 		} else if cell.commands.length() == 0 {
 			return Err(EmptyPatternCell({ pattern: $cell_index }))
@@ -1001,7 +1001,7 @@ validate_text_paint = |paint, command, color_space_count| {
 			NoStroke => Err(TextPaintInvalid({ command, reason: FillAndStrokeMissingStroke }))
 			Stroke({ color, width }) => {
 				validate_color(color, color_space_count)?
-				if width.raw() <= 0 {
+				if width <= 0 {
 					Err(TextPaintInvalid({ command, reason: StrokeWidthNonPositive }))
 				} else {
 					Ok(2)
@@ -1045,9 +1045,9 @@ validate_style = |style, command, dash_lengths, resources| {
 validate_stroke : Scene.StrokeStyle, U64, List(Layout.Unit), U64 -> Try({ colors : U64, dash_values : U64 }, KernelScene.Error)
 validate_stroke = |stroke, command, dash_lengths, color_space_count| {
 	validate_color(stroke.color, color_space_count)?
-	if stroke.width.raw() <= 0 {
+	if stroke.width <= 0 {
 		scene_failure(NonPositiveRect({ index: command, kind: CommandIndex }))
-	} else if stroke.miter_limit.raw() < 1000 {
+	} else if stroke.miter_limit < 1 {
 		scene_failure(
 			MiterLimitTooSmall({
 				command: command,
@@ -1064,7 +1064,7 @@ validate_stroke = |stroke, command, dash_lengths, color_space_count| {
 
 validate_dash : Semantics.Range, Layout.Unit, U64, List(Layout.Unit) -> Try(U64, KernelScene.Error)
 validate_dash = |range, phase, command, values| {
-	if phase.raw() < 0 {
+	if phase < 0 {
 		scene_failure(
 			DashPhaseNegative({
 				command: command,
@@ -1158,7 +1158,7 @@ check_limit = |attempted, limit, dimension| {
 
 positive_rect : Layout.Rect -> Bool
 positive_rect = |rect| {
-	if rect.size.width.raw() <= 0 or rect.size.height.raw() <= 0 {
+	if rect.size.width <= 0 or rect.size.height <= 0 {
 		False
 	} else {
 		match I64.plus_try(rect.origin.x.raw(), rect.size.width.raw()) {
