@@ -467,17 +467,16 @@ Pdf :: [].{
         OwnChunks,
     ]
 
-    Options :: {
-        profile : Profile,
-        page_size : PageSize,
-        theme : Theme,
-        chunk_retention : ChunkRetention,
+    ## A transparent record whose fields all default; `{}` is the
+    ## production default and a caller names only what it changes.
+    Options := {
+        profile : Profile ?? Archive,
+        page_size : PageSize ?? A4,
+        theme : Theme ?? {},
+        fonts : FontSource ?? BuiltIn,
+        chunk_retention : ChunkRetention ?? ShareUnchangedResources,
     }.{
         default : Options
-        with_profile : Options, Profile -> Options
-        with_page_size : Options, PageSize -> Options
-        with_theme : Options, Theme -> Options
-        with_chunk_retention : Options, ChunkRetention -> Options
     }
 
     document : {
@@ -527,7 +526,31 @@ validated packaged or caller-provided resources, and a theme override cannot
 weaken the selected profile. The built-in theme is versioned because changing
 its metrics, fonts, or spacing can change pagination and bytes.
 
-The facade accepts typed sRGB text colors through opaque `Theme` setters. The
+`Theme` is a transparent nominal record (`Theme := { ... }`) whose every
+field carries its built-in value as a `??` default; those declarations are
+the versioned built-in theme, and `Theme.default` is `Theme.{}`. A caller
+writes only the fields it changes, as a nested record literal:
+`{ face: regular, headings: { all: { face: Face(bold), size: 17 } } }`.
+Each sub-record with its own defaults is its own nominal type, so a partial
+nested literal is completed from that type's defaults, never from another
+style's; deriving from an existing theme spreads the sub-record explicitly
+(`{ ..base, body: { ..base.body, leading: 16 } }`). Inheritance is an
+explicit tag (`ThemeFace`, `SameAsAll`, `Inherited`), resolved in one place
+by the getters preparation reads, never inferred from a missing value.
+
+The same rule applies to the public configuration and constructor records
+(`Pdf.Options`, `Theme.Scope`, `Pdf.CustomBlock`, `Pdf.NumberedList`,
+`Pdf.TableProps`, `Pdf.RegionProps`, the page-template props,
+`Pdf.DecorationProps`, `Pdf.FigureProps`, `Scene.Label`, and
+`Scene.AuthorPathStyle`): only presentation has defaults. Facts that cannot be
+responsibly guessed (title, language, contents, alternative text, captions,
+table columns and rows, and font security limits) stay required fields. A
+default is a documented construction value, never a fallback: constructors
+copy what they are given, preparation validates every field with a located
+diagnostic, and an invalid supplied value is rejected, not replaced. Changing
+a `??` default is a reviewed package-version change like any other default.
+
+The facade accepts typed sRGB text colors through `Theme` record fields. The
 packaged sRGB profile is both the painting-space definition and output intent;
 no device-color guess or fallback is permitted. The public image boundary uses
 typed JPEG or packed raster `Image.Source` values inside opaque `Scene.Drawing`
@@ -566,7 +589,8 @@ it validates the complete byte allocation and declared script provision before
 allocating dense resource, face, static-instance, and policy handles. The
 returned registry retains the original immutable input allocation together with
 its once-produced inspection facts; it does not copy the font payload into a
-second byte list. `Theme.with_font` accepts the returned face handle. A caller
+second byte list. A theme's `face` (or a style's `Face(face)`) accepts the
+returned face handle. A caller
 cannot register a name, path, URL, partial stream, or caller-selected identity.
 `Font.Registry.register_built_in` registers the packaged face through the same
 path, so an application can combine it with caller faces in one registry
@@ -683,15 +707,12 @@ An authored visible title remains semantically distinct from that metadata.
 Report templates normally include one; a business letter may omit it while
 retaining `AccessibleArchive`. Authors who intentionally need a different
 conformance claim set select `Archive` or `Standard` with
-`Pdf.Options.with_profile`; this is an opt-out, not an automatic downgrade.
+the options' `profile` field; this is an opt-out, not an automatic
+downgrade. The `??` default on that field is the one place the production
+profile is declared.
 
 ```roc
-options = Pdf.Options.with_profile(
-    Pdf.Options.default,
-    Pdf.Profile.Archive,
-)
-
-Pdf.to_bytes_with(document, options)
+Pdf.to_bytes_with(document, { profile: Standard })
 ```
 
 Defaulting to PDF/UA-2 does not certify the quality of prose, alternative text,

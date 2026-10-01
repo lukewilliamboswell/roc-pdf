@@ -107,8 +107,8 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 	if run_count == 0 or run_count != shape_batch.store.runs.len() {
 		return Err(RunCoverage({ actual: shape_batch.store.runs.len(), expected: run_count }))
 	}
-	content_width = calculate_content_width(page, Theme.page_margin(theme))?
-	indent = positive_raw(Theme.bullet_indent(theme))?
+	content_width = calculate_content_width(page, theme.page_margin)?
+	indent = positive_raw(theme.bullet_indent)?
 	if indent >= content_width {
 		return Err(InvalidGeometry)
 	}
@@ -191,7 +191,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 ## text width then replaces the flow width of its block.
 build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_table_plan = |authoring, shape, sources, page, theme, limits| {
-	content_width = calculate_content_width(page, Theme.page_margin(theme))?
+	content_width = calculate_content_width(page, theme.page_margin)?
 	tables = KernelFacadeTables.Plan.build(authoring, shape, sources, content_width, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
 	var $widths = List.repeat(0, authoring.blocks.len())
 	for cell in KernelFacadeTables.Plan.cells(tables) {
@@ -214,8 +214,8 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 	if run_count == 0 or run_count != shape_batch.store.runs.len() {
 		return Err(RunCoverage({ actual: shape_batch.store.runs.len(), expected: run_count }))
 	}
-	content_width = calculate_content_width(page, Theme.page_margin(theme))?
-	indent = positive_raw(Theme.bullet_indent(theme))?
+	content_width = calculate_content_width(page, theme.page_margin)?
+	indent = positive_raw(theme.bullet_indent)?
 	if indent >= content_width {
 		return Err(InvalidGeometry)
 	}

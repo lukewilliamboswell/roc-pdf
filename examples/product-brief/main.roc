@@ -27,8 +27,8 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## `Page N of M`, and an outline.
 main! = |_args| {
 	fonts = register_fonts({})?
-	theme = with_faces(base_theme, fonts)
-	options = Pdf.Options.default.with_theme(theme).with_page_size(Letter).with_font_registry(fonts.registry)
+	options : Pdf.Options
+	options = { theme: theme(fonts), page_size: Letter, fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({ contents: blocks, language: "en-US", title: "Sprout 2.4 product brief" })
 		.with_page_templates(templates)
@@ -59,26 +59,6 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
 }
 
-## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
-## Italic for `Pdf.emphasis`; the monospace face for `Pdf.code`, at 90%
-## of the text around it.
-with_faces : Theme, Faces -> Theme
-with_faces = |base, faces| {
-	title = Theme.title_style(base)
-	heading = Theme.heading_style(base)
-	base
-		.with_font(faces.regular)
-		.with_title_style({ ..title, font: faces.bold })
-		.with_heading_style({ ..heading, font: faces.bold })
-		.with_inline_font(Strong, faces.bold)
-		.with_inline_font(Emphasis, faces.italic)
-		.with_inline_font(Code, faces.mono)
-		.with_inline_scale(Code, 90)
-}
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 forest : Color.SourceValue
 forest = Color.srgb8({ red: 14, green: 92, blue: 60 })
 
@@ -106,28 +86,32 @@ charcoal = Color.srgb8({ red: 33, green: 41, blue: 37 })
 white : Color.SourceValue
 white = Color.srgb8({ red: 255, green: 255, blue: 255 })
 
-## US Letter with 54 pt margins: a 504 pt measure.
-base_theme : Theme
-base_theme = {
-	body = Theme.body_style(Theme.default)
-	heading = Theme.heading_style(Theme.default)
-	title = Theme.title_style(Theme.default)
-	Theme.default
-		.with_body_style({ ..body, color: charcoal, size: points(11), leading: points(16) })
-		.with_heading_style({ ..heading, color: forest, size: points(17), leading: points(22) })
-		.with_title_style({ ..title, color: forest, size: points(40), leading: points(46) })
-		.with_page_margin({ top: points(40), right: points(54), bottom: points(40), left: points(54) })
-		.with_paragraph_spacing(points(9))
-		.with_code_color(Color.srgb8({ red: 120, green: 64, blue: 18 }))
-		.with_table_header_color(forest)
-		.with_table_header_fill(meadow)
-		.with_table_footer_fill(meadow)
-		.with_table_body_rule(Rule({ color: Color.srgb8({ red: 214, green: 230, blue: 214 }), width: Layout.Unit.millipoints(500) }))
-		.with_table_cell_padding(points(5))
-		.with_table_row_gap(points(4))
-		.with_table_rule(Rule({ color: leaf, width: points(1) }))
-		.with_link_color(forest)
-		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1600), thickness: Layout.Unit.millipoints(700) }))
+## US Letter with 54 pt margins: a 504 pt measure. Regular for body text;
+## Bold for the title, headings, and `Pdf.strong`; Italic for
+## `Pdf.emphasis`; the monospace face for `Pdf.code`, at 90% of the text
+## around it.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: charcoal, size: 11, leading: 16 },
+	title: { color: forest, face: Face(faces.bold), size: 40, leading: 46 },
+	headings: { all: { color: forest, face: Face(faces.bold), size: 17, leading: 22 } },
+	inline: {
+		strong: { font: Face(faces.bold) },
+		emphasis: { font: Face(faces.italic) },
+		code: { color: Themed(Color.srgb8({ red: 120, green: 64, blue: 18 })), font: Face(faces.mono), scale: Percent(90) },
+	},
+	page_margin: { top: 40, right: 54, bottom: 40, left: 54 },
+	paragraph_spacing: 9,
+	link: { color: Themed(forest), underline: Underline({ offset: 1.6, thickness: 0.7 }) },
+	table: {
+		header_color: Themed(forest),
+		header_fill: Fill(meadow),
+		footer_fill: Fill(meadow),
+		rule: Rule({ color: leaf, width: 1 }),
+		body_rule: Rule({ color: Color.srgb8({ red: 214, green: 230, blue: 214 }), width: 0.5 }),
+		cell_padding: 5,
+	},
 }
 
 ## ---------------------------------------------------------------------
@@ -187,12 +171,12 @@ hero = {
 			$drawing = $drawing.group(Layout.point(8, $y), card(edge, length))
 			$y = $y - 44
 		}
-		$drawing.text({ align: Start, color: forest, origin: Layout.point(10, 136), size: points(10), text: name })
+		$drawing.text({ align: Start, color: forest, origin: Layout.point(10, 136), size: 10, text: name })
 	}
 	frame = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 504, 190), meadow)
 	progress = frame.rectangle(Layout.rect(16, 14, 380, 8), white).rectangle(Layout.rect(16, 14, 266, 8), leaf)
 	progress
-		.text_in(Strong, { align: End, color: forest, origin: Layout.point(488, 13), size: points(8), text: "Decision log 70%" })
+		.text_in(Strong, { align: End, color: forest, origin: Layout.point(488, 13), size: 8, text: "Decision log 70%" })
 		.group(Layout.point(16, 32), column("Proposed", [(clay, 96), (sun, 80), (clay, 104)]))
 		.group(Layout.point(176, 32), column("Deciding", [(sun, 88), (sun, 110)]))
 		.group(Layout.point(336, 32), column("Decided", [(leaf, 100), (leaf, 76), (leaf, 92)]))
@@ -214,8 +198,8 @@ line_chart = {
 	var $chart = Scene.Drawing.empty
 	for day in [0, 2, 4, 6, 8, 10] {
 		color = if day == 0 charcoal else stone
-		$chart = $chart.rectangle({ origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if day == 0 1000 else 500), width: points(474) } }, color)
-		$chart = $chart.text({ align: End, color: charcoal, origin: Layout.point(left - 6, y_of(day * 10) - 3), size: points(8), text: if day == 10 "10 d" else day.to_str() })
+		$chart = $chart.rectangle({ origin: Layout.point(left, y_of(day * 10)), size: { height: Layout.Unit.millipoints(if day == 0 1000 else 500), width: 474 } }, color)
+		$chart = $chart.text({ align: End, color: charcoal, origin: Layout.point(left - 6, y_of(day * 10) - 3), size: 8, text: if day == 10 "10 d" else day.to_str() })
 	}
 	var $area = Scene.PathBuilder.start.move_to(Layout.point(left + 12, base))
 	var $line = Scene.PathBuilder.start
@@ -227,7 +211,7 @@ line_chart = {
 	for tenths in cycle_time {
 		$area = $area.line_to(Layout.point($x, y_of(tenths)))
 		$line = if $first $line.move_to(Layout.point($x, y_of(tenths))) else $line.line_to(Layout.point($x, y_of(tenths)))
-		$chart = $chart.text({ align: Center, color: charcoal, origin: Layout.point($x, 4), size: points(8), text: "Week ${$week.to_str()}" })
+		$chart = $chart.text({ align: Center, color: charcoal, origin: Layout.point($x, 4), size: 8, text: "Week ${$week.to_str()}" })
 		$first = False
 		$x = $x + step
 		$week = $week + 1
@@ -235,10 +219,10 @@ line_chart = {
 	$area = $area.line_to(Layout.point($x - step, base)).close()
 	$chart = $chart
 		.path($area.finish(), Scene.solid_fill(sage))
-		.path($line.finish(), Scene.solid_stroke(forest, points(2)))
+		.path($line.finish(), Scene.solid_stroke(forest, 2))
 	var $marker_x = left + 12
 	for tenths in cycle_time {
-		$chart = $chart.path(circle($marker_x, y_of(tenths), 4), { fill: AuthorSolidFill(white), stroke: AuthorSolidStroke({ color: forest, width: Layout.Unit.millipoints(1500) }) })
+		$chart = $chart.path(circle($marker_x, y_of(tenths), 4), { fill: AuthorSolidFill(white), stroke: AuthorSolidStroke({ color: forest, width: 1.5 }) })
 		$marker_x = $marker_x + step
 	}
 
@@ -248,7 +232,7 @@ line_chart = {
 		$chart = $chart.rectangle(Layout.rect($dash, y_of(50), 8, 1), clay)
 		$dash = $dash + 14
 	}
-	$chart.text({ align: End, color: clay, origin: Layout.point(left + 474, y_of(50) + 4), size: points(8), text: "Target: 5 days" })
+	$chart.text({ align: End, color: clay, origin: Layout.point(left + 474, y_of(50) + 4), size: 8, text: "Target: 5 days" })
 }
 
 ## ---------------------------------------------------------------------
@@ -259,19 +243,19 @@ line_chart = {
 ## white text.
 
 callout_inset : Layout.Unit
-callout_inset = points(14)
+callout_inset = 14
 
 Panel : [Meadow, Forest]
 
 key_figures : Pdf.Options, Panel, Str, List(List(Pdf.Inline)) -> Try(Document.Block, Pdf.Error)
 key_figures = |options, ground, name, lines| {
 	accent = match ground {
-		Meadow => Theme.Scope.empty.with_color(Strong, forest).with_color(Quote, forest)
-		Forest => Theme.Scope.empty.with_color(Text, Color.srgb8({ red: 255, green: 255, blue: 255 })).with_color(Strong, meadow).with_color(Quote, meadow)
+		Meadow => Theme.Scope.{ strong: Themed(forest), quote: Themed(forest) }
+		Forest => Theme.Scope.{ text: Themed(Color.srgb8({ red: 255, green: 255, blue: 255 })), strong: Themed(meadow), quote: Themed(meadow) }
 	}
 	paragraphs = lines.map(|line| Pdf.rich_paragraph(line))
-	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-US", width: points(504 - 28) })?
-	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(504) }
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-US", width: Layout.Unit.points(504 - 28) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: 504 }
 	block = Pdf.custom_block({
 		contents: paragraphs,
 		fragmentation: Unsplittable,
@@ -309,22 +293,22 @@ rounded_panel = |ground, size| {
 		Meadow => meadow
 		Forest => forest
 	}
-	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: leaf, width: Layout.Unit.millipoints(1500) }) })
+	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: leaf, width: 1.5 }) })
 }
 
 ## ---------------------------------------------------------------------
 ## Furniture and navigation.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 ## A leaf-green hairline across the measure, under each header.
 green_rule : Scene.Drawing
-green_rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(1000), width: points(504) } }, leaf)
+green_rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 1, width: 504 } }, leaf)
 
 footer : Pdf.Region
 footer = Pdf.region({
-	height: points(16),
+	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("sprout.example · Launch brief, not for resale")])],
 	center: [],
 	end: [Pdf.furniture_text([page_of])],
@@ -333,15 +317,15 @@ footer = Pdf.region({
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: points(40), start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), sprout_mark))], center: [], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: points(3) }),
+		header: Pdf.region({ height: 40, start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), sprout_mark))], center: [], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: 3 }),
 		lead: Pdf.no_lead,
 		footer,
-		gap: points(16),
+		gap: 16,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(21), start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])], center: [], end: [Pdf.furniture_text([Pdf.text("October 2026")])], backdrop: Backdrop(green_rule), slot_inset: points(3) }),
+		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])], center: [], end: [Pdf.furniture_text([Pdf.text("October 2026")])], backdrop: Backdrop(green_rule), slot_inset: 3 }),
 		footer,
-		gap: points(16),
+		gap: 16,
 	}),
 }
 
@@ -428,7 +412,7 @@ plans = Pdf.table({
 support_table : Document.Block
 support_table = Pdf.table({
 	caption: Pdf.caption("Table 4. Support by plan"),
-	columns: [{ width: Fixed(points(92)), align: Start }, { width: Share(3), align: Start }, { width: Share(2), align: Start }],
+	columns: [{ width: Fixed(92), align: Start }, { width: Share(3), align: Start }, { width: Share(2), align: Start }],
 	header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Plan")]), Pdf.header_cell(Column, [Pdf.text("Channels")]), Pdf.header_cell(Column, [Pdf.text("First response")])])],
 	body_rows: [
 		("Starter", "Help centre and community forum", "Best effort"),
@@ -442,7 +426,7 @@ support_table = Pdf.table({
 rollout_table : Document.Block
 rollout_table = Pdf.table({
 	caption: Pdf.caption("Table 3. Rollout waves"),
-	columns: [{ width: Fixed(points(92)), align: Start }, { width: Share(2), align: Start }, { width: Share(3), align: Start }],
+	columns: [{ width: Fixed(92), align: Start }, { width: Share(2), align: Start }, { width: Share(3), align: Start }],
 	header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Date")]), Pdf.header_cell(Column, [Pdf.text("Wave")]), Pdf.header_cell(Column, [Pdf.text("What changes")])])],
 	body_rows: [
 		("6 Oct 2026", "Pilot customers", "Decision log and typed owners switch on; export stays in preview."),

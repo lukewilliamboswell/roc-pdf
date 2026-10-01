@@ -51,8 +51,8 @@ Scene :: [].{
 	LabelAlign : [Center, End, Start]
 
 	## The face a label is set in: the body face, or the face the theme
-	## gives an inline role (`Theme.with_inline_font`), such as a bold face
-	## for `Strong`. A role without a face in the theme sets the label in
+	## gives an inline role (its `inline` style's `font`), such as a bold
+	## face for `Strong`. A role without a face in the theme sets the label in
 	## the body face, as it does inline text.
 	LabelFace : [BodyFace, RoleFace([Code, Emphasis, Quote, Strong])]
 

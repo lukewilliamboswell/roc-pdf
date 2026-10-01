@@ -22,16 +22,13 @@ main! = |_args| {
 		.with_page_templates(templates)
 		.with_created("2026-09-21T00:00:00Z")
 		.with_modified("2026-09-21T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(theme)).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "warranty-letter.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Stdout.line!("Wrote warranty-letter.pdf").map_err(|err| OutputFailed(err))?
 	Ok({})
 }
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
 
 navy : Color.SourceValue
 navy = Color.srgb8({ red: 24, green: 52, blue: 84 })
@@ -41,10 +38,7 @@ brass = Color.srgb8({ red: 196, green: 150, blue: 64 })
 
 ## A4 with 48 pt top and bottom and 72 pt side margins: a 451 × 746 pt body.
 theme : Theme
-theme = Theme.default
-	.with_page_margin({ top: points(48), right: points(72), bottom: points(48), left: points(72) })
-	.with_heading_color(navy)
-	.with_strong_color(navy)
+theme = Theme.{ headings: { all: { color: navy } }, inline: { strong: { color: Themed(navy) } }, page_margin: { top: 48, right: 72, bottom: 48, left: 72 } }
 
 ## The Harbour & Finch mark, 140 × 48 pt: three navy bars beside a navy
 ## tile holding a brass finch's wing, aligned to the page's end edge.
@@ -62,14 +56,14 @@ logo = {
 }
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(72), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(72, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: points(48), start: [], center: [], end: [Pdf.furniture_image(logo)] }),
+		header: Pdf.region({ height: 48, start: [], center: [], end: [Pdf.furniture_image(logo)] }),
 		lead: Pdf.lead_region(
-			points(60),
+			60,
 			[
 				Pdf.rich_paragraph([Pdf.strong([Pdf.text("Harbour & Finch Pty Ltd")])]),
 				Pdf.rich_paragraph([
@@ -79,18 +73,18 @@ templates = {
 				]),
 			],
 		),
-		footer: Pdf.region({ height: points(16), start: [], center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])], end: [] }),
-		gap: points(12),
+		footer: Pdf.region({ height: 16, start: [], center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])], end: [] }),
+		gap: 12,
 	}),
 	continuation: Pdf.page_template({
 		header: Pdf.region({
-			height: points(16),
+			height: 16,
 			start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])],
 			center: [],
 			end: [Pdf.furniture_text([page_of])],
 		}),
 		footer: Pdf.no_region,
-		gap: points(12),
+		gap: 12,
 	}),
 }
 
@@ -119,7 +113,7 @@ terms = [
 schedule : Document.Block
 schedule = Pdf.table({
 	caption: Pdf.caption("Items covered by the extended warranty"),
-	columns: [{ width: Content, align: Start }, { width: Share(1), align: Start }, { width: Fixed(points(96)), align: Start }],
+	columns: [{ width: Content, align: Start }, { width: Share(1), align: Start }, { width: Fixed(96), align: Start }],
 	header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Warranty until")])])],
 	body_rows: [
 		("HF-DSK-140", [Pdf.text("Standing desk frame, twin motor, 1400 mm")]),
@@ -150,7 +144,7 @@ contents = [
 			Pdf.line_break,
 			Pdf.text("Fremantle WA 6160"),
 		]),
-		Pdf.spacer(points(12)),
+		Pdf.spacer(12),
 		Pdf.paragraph("Dear Ms Raman,"),
 		Pdf.rich_paragraph([Pdf.text("Subject: "), Pdf.strong([Pdf.text("Extended warranty for your Level 2–5 fit-out")])]),
 	],
@@ -161,7 +155,7 @@ contents = [
 		Pdf.paragraph("If you have any questions about the extension, or would like the November inspection scheduled at a particular time, please call me directly on (03) 5550 0142. We look forward to supporting Northstar Cooperative for many years to come."),
 		Pdf.keep_together([
 			Pdf.paragraph("Yours sincerely,"),
-			Pdf.spacer(points(36)),
+			Pdf.spacer(36),
 			Pdf.paragraph("Tom Finch"),
 			Pdf.paragraph("Director, Harbour & Finch Pty Ltd"),
 		]),

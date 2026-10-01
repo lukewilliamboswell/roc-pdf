@@ -142,7 +142,7 @@ build_sample = |_| {
 		Font.ValidationLimits.default,
 	) ? |_| FontFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	theme = Theme.with_font(Theme.default, registered.face)
+	theme = Theme.{ face: registered.face }
 	if theme.body_font() != registered.face {
 		return Err(FontFailure)
 	}

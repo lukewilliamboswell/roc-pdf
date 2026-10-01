@@ -231,7 +231,12 @@ Pdf :: [].{
 
 	## A figure: its drawing, its required alternative text, its caption
 	## (`Pdf.caption(...)` or `Pdf.no_caption`), and how it meets the flow
-	## region (`Exact` unless given).
+	## region (`Exact` unless given). `ScaleToFit({ minimum_percent })`
+	## scales the drawing uniformly by the largest factor at most one (in
+	## thousandths) that fits the flow width and the smallest page flow
+	## height together with its caption; a factor below the floor is
+	## `document.figure_oversize`, and a floor above 100 is
+	## `document.figure_fit`.
 	FigureProps := {
 		alt : Str,
 		caption : Document.Caption,
@@ -372,21 +377,6 @@ Pdf :: [].{
 		## Every option at its default.
 		default : Options
 		default = Options.{}
-
-		with_profile : Options, Profile -> Options
-		with_profile = |options, profile| { ..options, profile }
-
-		with_page_size : Options, PageSize -> Options
-		with_page_size = |options, page_size| { ..options, page_size }
-
-		with_theme : Options, Theme -> Options
-		with_theme = |options, theme| { ..options, theme }
-
-		with_font_registry : Options, Font.Registry -> Options
-		with_font_registry = |options, registry| { ..options, fonts: Registered(registry) }
-
-		with_chunk_retention : Options, ChunkRetention -> Options
-		with_chunk_retention = |options, chunk_retention| { ..options, chunk_retention }
 	}
 
 	## An opaque, fully validated document plan. Preparation performs all
@@ -512,20 +502,10 @@ Pdf :: [].{
 	## `CaptionFor`, so assistive technology reads it independently of the
 	## alternative text. A figure wider than the flow region, or taller with
 	## its caption than a page's flow region, is `document.figure_oversize`
-	## unless `figure_fit` selects `ScaleToFit`; nothing is clipped or
+	## unless its `fit` is `ScaleToFit`; nothing is clipped or
 	## silently shrunk.
 	figure : FigureProps -> Document.Block
 	figure = |props| Document.fitted_figure(props.drawing, props.alt, props.caption, props.fit)
-
-	## Select how a figure meets the flow region. `ScaleToFit({
-	## minimum_percent })` scales the drawing uniformly by the largest
-	## factor at most one (in thousandths) that fits the flow width and the
-	## smallest page flow height together with its caption; a factor below
-	## the floor is `document.figure_oversize`. Applied to any block other
-	## than a figure, or with a floor above 100, it is rejected
-	## (`document.figure_fit`).
-	figure_fit : Document.Block, FigureFit -> Document.Block
-	figure_fit = |block, fit| Document.figure_fit(block, fit)
 
 	## An in-flow decorative drawing, such as a divider rule: a `Decoration`
 	## page artifact outside the logical structure. It occupies its
@@ -533,27 +513,24 @@ Pdf :: [].{
 	## moves with that block's first line, so it is never clipped or split
 	## from it. A decoration needs a following flow block, and may not
 	## appear in a list item or a lead region.
+	##
+	## `above` is space kept above the drawing and `below` space between
+	## the drawing and the next block, so a divider needs no empty drawing
+	## area around it; the decoration occupies `above`, its drawing's
+	## height, and `below`. A negative `below` lowers the drawing over the
+	## next block's first lines by at most its own height, such as a
+	## highlight band behind a heading, and `layer: Behind` paints it before
+	## the page's text instead of after it (it stays a `Decoration` artifact
+	## either way). A negative `above` or a deeper overlap is
+	## `layout.decoration_drawing`.
 	decoration : DecorationProps -> Document.Block
 	decoration = |props| {
 		behind = match props.layer {
 			Behind => True
 			Front => False
 		}
-		Document.spaced_decoration(props.drawing, { above: props.above, behind, below: props.below })
+		Document.decoration({ above: props.above, behind, below: props.below, drawing: props.drawing })
 	}
-
-	## A decoration with its own spacing and paint layer. `above` is space
-	## kept above the drawing and `below` space between the drawing and the
-	## next block, so a divider needs no empty drawing area around it; the
-	## decoration occupies `above`, its drawing's height, and `below`, and
-	## still moves with the next block's first line. A negative `below`
-	## lowers the drawing over the next block's first lines by at most its
-	## own height, such as a highlight band behind a heading; `behind`
-	## paints the decoration before the page's text instead of after it
-	## (it stays a `Decoration` artifact either way). A negative `above` or
-	## a deeper overlap is `layout.decoration_drawing`.
-	spaced_decoration : Scene.Drawing, { above : Layout.Unit, behind : Bool, below : Layout.Unit } -> Document.Block
-	spaced_decoration = |drawing, spacing| Document.spaced_decoration(drawing, spacing)
 
 	## A custom block, as a separately authored extension measured it (see
 	## `CustomBlock`).
@@ -776,34 +753,26 @@ Pdf :: [].{
 	## stacks sit on its bottom edge and a footer's hang from its top edge,
 	## beside the body flow. Start items align to the frame's start edge,
 	## end items to its end edge, and center items are centered.
+	##
+	## A `backdrop` is a decorative drawing (images and solid paths, as for
+	## `furniture_image`) whose origin is the region's bottom-left corner at
+	## the body frame's start edge, painted behind the region's slots and
+	## the page's text as a page artifact of the region's kind. It spans up
+	## to the full frame width and the region's height
+	## (`layout.template_region_overflow` otherwise) and never takes part in
+	## the slots' stacking or overlap checks, so a full-width rule under a
+	## header can sit beside start-, center-, and end-slot furniture. A
+	## region may hold only a backdrop.
+	##
+	## A `slot_inset` lifts a header's stacks above its bottom edge (a
+	## footer's drop below its top edge), so a backdrop rule along that edge
+	## clears the text's descenders; the backdrop does not move. The stacks
+	## and the inset together must fit the region
+	## (`layout.template_region_overflow`), and a negative inset is
+	## `layout.spacer_negative`. A region of zero height is
+	## `layout.template_region_empty`.
 	region : RegionProps -> Region
 	region = |RegionProps.{ backdrop, center, end, height, slot_inset, start }| Document.region({ backdrop, center, end, height, inset: slot_inset, start })
-
-	## A region with a backdrop: a decorative drawing (images and solid
-	## paths, as for `furniture_image`) whose origin is the region's
-	## bottom-left corner at the body frame's start edge, painted behind
-	## the region's slots and the page's text as a page artifact of the
-	## region's kind. It spans up to the full frame width and the region's
-	## height (`layout.template_region_overflow` otherwise) and never takes
-	## part in the slots' stacking or overlap checks, so a full-width rule
-	## under a header can sit beside start-, center-, and end-slot
-	## furniture. A region may hold only a backdrop. On `no_region` it is
-	## `layout.template_region_empty`.
-	with_backdrop : Region, Scene.Drawing -> Region
-	with_backdrop = |value, drawing| Document.with_backdrop(value, drawing)
-
-	## A region whose slot stacks sit `inset` inside its outer edge: a
-	## header's stacks rise `inset` above its bottom edge and a footer's
-	## hang `inset` below its top edge, so a backdrop rule along that edge
-	## clears the text's descenders by more than its line box alone gives
-	## (a text item is one body line tall, its baseline one text size below
-	## its top). The backdrop does not move. The stacks and the
-	## inset together must fit the region
-	## (`layout.template_region_overflow`), a negative inset is
-	## `layout.spacer_negative`, and on `no_region` it is
-	## `layout.template_region_empty`.
-	with_slot_inset : Region, Layout.Unit -> Region
-	with_slot_inset = |value, inset| Document.with_slot_inset(value, inset)
 
 	## A template without this region; it reserves no height and no gap.
 	no_region : Region
@@ -1196,10 +1165,10 @@ profile_batch = |violation, stage| {
 ## packaged built-in face defines no policies, so that combination is a
 ## stable typed error rather than an implicit single-face fallback.
 selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
-selected_fonts = |options| match Theme.font_selection(options.theme) {
+selected_fonts = |options| match options.theme.font_selection {
 	StyleFaces => if !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
 	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A title or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give the title and headings the body face or use style faces.", [])))
-	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove Theme.with_inline_font or use style faces.", []))) else match options.fonts {
+	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove the inline role faces or use style faces.", []))) else match options.fonts {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
 			_faces = registry.policy_faces(policy) ? |_| InvalidFontSelection([InvalidPolicy(policy)])
@@ -1252,7 +1221,7 @@ pipeline_error = |error, doc| match error {
 	Semantics(DecorationDrawing({ decoration, reason })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "layout.decoration_drawing", "A decoration's drawing is not a supported flow drawing: ${reason}.")
 	Semantics(DecorationPosition({ decoration })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.decoration_position", "A decoration is placed above the next flow block and moves with it, so it needs a following flow block and cannot appear in a lead region.")
 	Semantics(ListItemDecoration({ decoration })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "semantics.list_item_content", "A decoration cannot appear inside a list item.")
-	Pages(FigureOversize({ block, frame_height, frame_width, height, width })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure's drawing is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and ${points_text(frame_height)} tall for the figure with its caption and any decoration above it; a figure is never clipped or shrunk unless figure_fit selects ScaleToFit.", [leaf_path(doc, block)])
+	Pages(FigureOversize({ block, frame_height, frame_width, height, width })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure's drawing is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and ${points_text(frame_height)} tall for the figure with its caption and any decoration above it; a figure is never clipped or shrunk unless its fit is ScaleToFit.", [leaf_path(doc, block)])
 	Pages(FigureScaleFloor({ block, floor, scale })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure fits the flow region only at ${percent_text(scale)} of its size, below its ScaleToFit floor of ${floor.to_str()}%.", [leaf_path(doc, block)])
 	Semantics(CustomContent({ child, custom })) => custom_content_error(doc, custom, child)
 	Semantics(CustomDrawing({ custom, reason })) => custom_error(doc, custom, InvalidRelationship, "layout.custom_block_drawing", "A custom block's panel is not a supported panel drawing: ${reason}.")
@@ -2319,7 +2288,7 @@ validate_theme = |theme| {
 ## A link underline sits below the body baseline inside the leading: its
 ## offset and thickness fit in the leading less the size.
 check_underline : Theme -> Try({}, Pdf.Error)
-check_underline = |theme| match Theme.link_style(theme).underline {
+check_underline = |theme| match theme.link.underline {
 	NoUnderline => Ok({})
 	Underline({ offset, thickness }) => {
 		body = Theme.body_style(theme)
@@ -2449,7 +2418,7 @@ validate_page_size = |page_size| match page_size {
 validate_body_frame : Pdf.PageSize, Theme -> Try({}, Pdf.Error)
 validate_body_frame = |page_size, theme| {
 	size = layout_page_size(page_size)
-	margin = Theme.page_margin(theme)
+	margin = theme.page_margin
 	width = size.width.raw() - margin.left.raw() - margin.right.raw()
 	height = size.height.raw() - margin.top.raw() - margin.bottom.raw()
 	if width > 0 and height > 0 {
@@ -2698,8 +2667,8 @@ expect {
 expect {
 	blue : Color.SourceValue
 	blue = Srgb(Rgb({ blue: 65535, green: 16000, red: 4000 }))
-	theme = Theme.with_body_color(Theme.default, blue)
-	options = Pdf.Options.with_theme(Pdf.Options.default, theme)
+	theme = Theme.{ body: { color: blue } }
+	options = Pdf.Options.{ theme: theme }
 	document = Pdf.document({ contents: [Pdf.paragraph("Blue body text")], language: "en-AU", title: "Color" })
 	bytes = Pdf.to_bytes_with(document, options)?
 
@@ -2762,7 +2731,7 @@ expect {
 		language: "en-AU",
 		title: "Explicit Standard",
 	})
-	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard)
+	options = Pdf.Options.{ profile: Pdf.Profile.Standard }
 	bytes = Pdf.to_bytes_with(document, options)?
 
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
@@ -2774,7 +2743,7 @@ expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Default")], language: "en-AU", title: "Default" })
 	implicit = Pdf.to_bytes(document)?
 	explicit = Pdf.to_bytes_with(document, Pdf.Options.default)?
-	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
+	archive = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
 
 	implicit == explicit and implicit == archive and contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>"))
 }
@@ -2783,8 +2752,8 @@ expect {
 # added to its canonical metadata; Standard never declares it.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Archive")], language: "en-AU", title: "Archive" })
-	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
-	standard = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard))?
+	archive = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
+	standard = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Standard })?
 	marker = Str.to_utf8("<pdfaid:part>4</pdfaid:part>")
 
 	archive.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(archive, marker) and !contains_bytes(standard, marker)
@@ -2793,7 +2762,7 @@ expect {
 # A blank Archive document is validated on the same lowered-plan path.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
 
 	contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
 }
@@ -2801,7 +2770,7 @@ expect {
 # AccessibleArchive remains unavailable rather than dropping its UA claim.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
-	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)
+	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
 
 	match Pdf.to_bytes_with(document, options) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), message, .. }], .. })) => code == "profile.accessible_archive" and message.contains("Gate 7")
@@ -2867,7 +2836,7 @@ expect {
 		title: "Report",
 	})
 	expected = Pdf.to_bytes(document)?
-	options = Pdf.Options.with_chunk_retention(Pdf.Options.default, Pdf.ChunkRetention.OwnChunks)
+	options = Pdf.Options.{ chunk_retention: Pdf.ChunkRetention.OwnChunks }
 	collected = collect_chunks(Pdf.to_chunks_with(document, options)?)
 
 	collected.bytes == expected
@@ -2965,7 +2934,7 @@ expect {
 	}).with_outline([{ depth: 0, destination: "start", open: True, title: "Start" }])
 	expected = Pdf.to_bytes(document)?
 	shared = collect_chunks(Pdf.to_chunks(document)?)
-	owned_options = Pdf.Options.with_chunk_retention(Pdf.Options.default, OwnChunks)
+	owned_options = Pdf.Options.{ chunk_retention: OwnChunks }
 	owned = collect_chunks(Pdf.to_chunks_with(document, owned_options)?)
 
 	shared.bytes == expected and owned.bytes == expected
@@ -3013,7 +2982,7 @@ archive_twin_document = {
 }
 
 archive_twin_options : Pdf.Options
-archive_twin_options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+archive_twin_options = Pdf.Options.{ profile: Pdf.Profile.Archive }
 
 archive_twin_packet : Str -> KernelXmp.Packet
 archive_twin_packet = |title| match KernelMetadata.validate({ created: Omitted, language: "en-AU", modified: Omitted, title }, standard_metadata_limits) {
@@ -3844,7 +3813,7 @@ expect {
 expect {
 	first = Font.Registry.empty.register_built_in(Font.ValidationLimits.default)?
 	second = first.registry.register_built_in(Font.ValidationLimits.default)?
-	options = Pdf.Options.default.with_theme(Theme.default.with_font(second.face)).with_font_registry(second.registry)
+	options = Pdf.Options.{ theme: Theme.{ face: second.face }, fonts: Registered(second.registry) }
 	footer = Pdf.region({ center: [], end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal)])], height: Layout.Unit.points(16), start: [] })
 	document = Pdf.with_page_templates(
 		Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Second face" }),

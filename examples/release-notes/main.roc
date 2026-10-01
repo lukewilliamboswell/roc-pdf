@@ -25,7 +25,8 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## running headers inset above a ruled backdrop and footers.
 main! = |_args| {
 	fonts = register_fonts({})?
-	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry).with_page_size(Letter)
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry), page_size: Letter }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({ contents: blocks, language: "en-US", title: "Kestrel 3.0 release notes" })
 		.with_page_templates(templates)
@@ -55,28 +56,6 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, mono: mono.face, registry: mono.registry })
 }
 
-## Regular for body text; Bold for the title, both heading levels, and
-## `Pdf.strong`; the monospace face for `Pdf.code`, at 88% of the text
-## around it so its larger letters match the body. Level-1 headings are
-## larger than level-2 headings. `Pdf.emphasis` keeps a colour: no italic
-## face is vendored beside this example.
-with_faces : Theme, Faces -> Theme
-with_faces = |base, faces| {
-	heading = Theme.heading_style(base)
-	title = Theme.title_style(base)
-	base
-		.with_font(faces.regular)
-		.with_title_style({ ..title, font: faces.bold })
-		.with_heading_level_style(H1, { ..heading, font: faces.bold, color: night, size: points(17), leading: points(23) })
-		.with_heading_level_style(H2, { ..heading, font: faces.bold, color: indigo, size: points(12), leading: points(18) })
-		.with_inline_font(Strong, faces.bold)
-		.with_inline_font(Code, faces.mono)
-		.with_inline_scale(Code, 88)
-}
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 ## ---------------------------------------------------------------------
 ## Palette and theme. US Letter (612 × 792 pt) with 60 pt side margins: a
 ## 492 pt measure.
@@ -102,39 +81,46 @@ haze = Color.srgb8({ red: 212, green: 212, blue: 216 })
 measure : I64
 measure = 492
 
-theme : Theme
-theme = {
-	body = Theme.body_style(Theme.default)
-	heading = Theme.heading_style(Theme.default)
-	title = Theme.title_style(Theme.default)
-	Theme.default
-		.with_body_style({ ..body, color: ink, size: points(10), leading: points(15) })
-		.with_heading_style({ ..heading, color: indigo, size: points(15), leading: points(21) })
-		.with_title_style({ ..title, color: night, size: points(30), leading: points(36) })
-		.with_page_margin({ top: points(48), right: points(60), bottom: points(46), left: points(60) })
-		.with_paragraph_spacing(points(7))
-		.with_bullet_indent(points(18))
-		.with_emphasis_color(indigo)
-		.with_code_color(pink)
-		.with_table_header_color(indigo)
-		.with_table_header_fill(Color.srgb8({ red: 238, green: 242, blue: 255 }))
-		.with_table_body_fills({ odd: NoFill, even: Fill(Color.srgb8({ red: 248, green: 248, blue: 250 })) })
-		.with_table_cell_padding(points(5))
-		.with_table_row_gap(points(2))
-		.with_table_rule(Rule({ color: haze, width: Layout.Unit.millipoints(700) }))
-		.with_link_color(indigo)
-		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1500), thickness: Layout.Unit.millipoints(600) }))
+## US Letter with 60 pt side margins. Regular for body text; Bold for the
+## title, the first two heading levels, and `Pdf.strong`; the monospace
+## face for `Pdf.code`, at 88% of the text around it.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: ink, size: 10, leading: 15 },
+	title: { color: night, face: Face(faces.bold), size: 30, leading: 36 },
+	headings: {
+		all: { color: indigo, size: 15, leading: 21 },
+		h1: Own({ color: night, face: Face(faces.bold), size: 17, leading: 23 }),
+		h2: Own({ color: indigo, face: Face(faces.bold), size: 12, leading: 18 }),
+	},
+	inline: {
+		strong: { font: Face(faces.bold) },
+		emphasis: { color: Themed(indigo) },
+		code: { color: Themed(pink), font: Face(faces.mono), scale: Percent(88) },
+	},
+	page_margin: { top: 48, right: 60, bottom: 46, left: 60 },
+	paragraph_spacing: 7,
+	link: { color: Themed(indigo), underline: Underline({ offset: 1.5, thickness: 0.6 }) },
+	table: {
+		header_color: Themed(indigo),
+		header_fill: Fill(Color.srgb8({ red: 238, green: 242, blue: 255 })),
+		body_fills: { even: Fill(Color.srgb8({ red: 248, green: 248, blue: 250 })) },
+		cell_padding: 5,
+		row_gap: 2,
+		rule: Rule({ color: haze, width: 0.7 }),
+	},
 }
 
 ## ---------------------------------------------------------------------
 ## Running furniture.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(72), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(72, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 footer : Pdf.Region
 footer = Pdf.region({
-	height: points(16),
+	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("kestrel.example/releases/3.0.0")])],
 	center: [],
 	end: [Pdf.furniture_text([page_of])],
@@ -145,11 +131,11 @@ header_mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 8, 8), indigo).rec
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
+	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 14 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(19), start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], center: [], end: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, haze)), slot_inset: points(3) }),
+		header: Pdf.region({ height: 19, start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], center: [], end: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, haze)), slot_inset: 3 }),
 		footer,
-		gap: points(16),
+		gap: 16,
 	}),
 }
 
@@ -184,17 +170,17 @@ breaking_style : CalloutStyle
 breaking_style = { accent: pink, fill: Color.srgb8({ red: 253, green: 242, blue: 248 }), label: pink, text: ink }
 
 callout_inset : Layout.Unit
-callout_inset = points(14)
+callout_inset = 14
 
 ## Each callout is scoped so its `Strong` labels take its label colour
 ## and its text and code its text colour.
 callout : Pdf.Options, Str, CalloutStyle, List(Document.Block) -> Try(Document.Block, Pdf.Error)
 callout = |options, name, style, paragraphs| {
-	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-US", width: points(measure - 28) })?
-	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(measure) }
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-US", width: Layout.Unit.points(measure - 28) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(measure) }
 	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
-	scope = Theme.Scope.empty.with_color(Strong, style.label).with_color(Text, style.text)
-	Ok(Pdf.scoped(if style.text == ink scope else scope.with_color(Code, style.label), [block]))
+	scope = Theme.Scope.{ strong: Themed(style.label), text: Themed(style.text) }
+	Ok(Pdf.scoped(if style.text == ink scope else { ..scope, code: Themed(style.label) }, [block]))
 }
 
 ## A rounded panel with a 3 pt accent along its top edge.
@@ -248,7 +234,7 @@ banner = {
 		$x = $x + 15
 		$i = $i + 1
 	}
-	Pdf.decoration({ drawing: $d.rectangle(Layout.rect(300, 22, 173, 1), lilac), below: points(14) })
+	Pdf.decoration({ drawing: $d.rectangle(Layout.rect(300, 22, 173, 1), lilac), below: 14 })
 }
 
 ## ---------------------------------------------------------------------
@@ -265,14 +251,14 @@ latency_chart = {
 	var $d = Scene.Drawing.empty
 	for step in [0, 1, 2, 3, 4] {
 		x = left + bar(step * 100)
-		$d = $d.rectangle({ origin: Layout.point(x, 16), size: { height: points(118), width: Layout.Unit.millipoints(600) } }, haze)
-		$d = $d.text({ align: Center, color: ink, origin: Layout.point(x, 4), size: points(7), text: if step == 4 "400 ms" else (step * 100).to_str() })
+		$d = $d.rectangle({ origin: Layout.point(x, 16), size: { height: 118, width: 0.6 } }, haze)
+		$d = $d.text({ align: Center, color: ink, origin: Layout.point(x, 4), size: 7, text: if step == 4 "400 ms" else (step * 100).to_str() })
 	}
 	var $y = 100
 	for (release, value, color) in values {
 		$d = $d.rectangle(Layout.rect(left, $y, bar(value), 24), color)
-		$d = $d.text({ align: End, color: ink, origin: Layout.point(left - 8, $y + 9), size: points(9), text: release })
-		$d = $d.text({ align: Start, color: ink, origin: Layout.point(left + bar(value) + 6, $y + 9), size: points(8), text: "${value.to_str()} ms" })
+		$d = $d.text({ align: End, color: ink, origin: Layout.point(left - 8, $y + 9), size: 9, text: release })
+		$d = $d.text({ align: Start, color: ink, origin: Layout.point(left + bar(value) + 6, $y + 9), size: 8, text: "${value.to_str()} ms" })
 		$y = $y - 36
 	}
 
@@ -280,10 +266,10 @@ latency_chart = {
 	end_29 = left + bar(356)
 	end_30 = left + bar(188)
 	$d
-		.path(Scene.PathBuilder.start.move_to(Layout.point(end_29, 76)).line_to(Layout.point(end_29, 52)).line_to(Layout.point(end_30 + 8, 52)).finish(), Scene.solid_stroke(pink, Layout.Unit.millipoints(1500)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(end_29, 76)).line_to(Layout.point(end_29, 52)).line_to(Layout.point(end_30 + 8, 52)).finish(), Scene.solid_stroke(pink, 1.5))
 		.path(Scene.PathBuilder.start.move_to(Layout.point(end_30, 52)).line_to(Layout.point(end_30 + 8, 56)).line_to(Layout.point(end_30 + 8, 48)).close().finish(), Scene.solid_fill(pink))
-		.text_in(Strong, { align: Start, color: pink, origin: Layout.point(end_29 + 6, 60), size: points(8), text: "−47%" })
-		.path(Scene.PathBuilder.start.move_to(Layout.point(left, 16)).line_to(Layout.point(measure - 1, 16)).finish(), Scene.solid_stroke(ink, Layout.Unit.millipoints(700)))
+		.text_in(Strong, { align: Start, color: pink, origin: Layout.point(end_29 + 6, 60), size: 8, text: "−47%" })
+		.path(Scene.PathBuilder.start.move_to(Layout.point(left, 16)).line_to(Layout.point(measure - 1, 16)).finish(), Scene.solid_stroke(ink, 0.7))
 }
 
 ## ---------------------------------------------------------------------
@@ -346,8 +332,8 @@ compatibility_table = Pdf.table({
 	caption: Pdf.caption("Table 1. Supported platforms and minimum versions"),
 	columns: [
 		{ width: Share(3), align: Start },
-		{ width: Fixed(points(64)), align: Center },
-		{ width: Fixed(points(64)), align: Center },
+		{ width: Fixed(64), align: Center },
+		{ width: Fixed(64), align: Center },
 		{ width: Share(4), align: Start },
 	],
 	header_rows: [

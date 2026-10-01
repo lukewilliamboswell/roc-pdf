@@ -215,15 +215,15 @@ keeps_document = |context| Pdf.document({
 
 ## A flow region one body line tall.
 one_line_theme : Theme
-one_line_theme = Theme.with_page_margin(
-	Theme.default,
-	{
+one_line_theme = Theme.{
+	page_margin: {
 		bottom: Layout.Unit.points(754),
 		left: Layout.Unit.points(72),
 		right: Layout.Unit.points(72),
 		top: Layout.Unit.points(72),
 	},
-)
+
+}
 
 relaxations_document : U64 -> Document
 relaxations_document = |context| Pdf.document({
@@ -263,7 +263,7 @@ heading_chain_document = |count| {
 
 evidence : Document, Theme -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document, theme| {
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) ? |_| EvidenceFailure
 	authoring = Document.normalize(document)
 	semantics = KernelFacadeSemantics.Plan.build(authoring, semantic_limits) ? |_| EvidenceFailure
 	work = KernelFacadeSemantics.Plan.work(semantics)

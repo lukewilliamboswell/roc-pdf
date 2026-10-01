@@ -26,7 +26,8 @@ import "fonts/NotoSerif-Italic.ttf" as italic_bytes : List(U8)
 ## page.
 main! = |_args| {
 	fonts = register_fonts({})?
-	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Northstar Cooperative quarterly report, Q2 FY2027" })
 		.with_page_templates(templates)
@@ -56,24 +57,6 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, registry: italic.registry })
 }
 
-## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
-## Italic for `Pdf.emphasis`. Level-2 headings are smaller and teal.
-with_faces : Theme, Faces -> Theme
-with_faces = |base, faces| {
-	title = Theme.title_style(base)
-	heading = Theme.heading_style(base)
-	base
-		.with_font(faces.regular)
-		.with_title_style({ ..title, font: faces.bold })
-		.with_heading_level_style(H1, { ..heading, font: faces.bold })
-		.with_heading_level_style(H2, { ..heading, font: faces.bold, color: teal, size: points(12), leading: points(17) })
-		.with_inline_font(Strong, faces.bold)
-		.with_inline_font(Emphasis, faces.italic)
-}
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 navy : Color.SourceValue
 navy = Color.srgb8({ red: 18, green: 42, blue: 74 })
 
@@ -99,26 +82,31 @@ white = Color.srgb8({ red: 255, green: 255, blue: 255 })
 body_width : I64
 body_width = 495
 
-theme : Theme
-theme = {
-	base_title = Theme.title_style(Theme.default)
-	base_heading = Theme.heading_style(Theme.default)
-	base_body = Theme.body_style(Theme.default)
-	Theme.default
-		.with_page_margin({ top: points(40), right: points(50), bottom: points(40), left: points(50) })
-		.with_title_style({ ..base_title, color: navy, size: points(30), leading: points(36) })
-		.with_heading_style({ ..base_heading, color: navy, size: points(15), leading: points(20) })
-		.with_body_style({ ..base_body, color: ink, size: points(10), leading: points(14) })
-		.with_paragraph_spacing(points(7))
-		.with_table_header_color(teal)
-		.with_table_header_fill(Color.srgb8({ red: 232, green: 244, blue: 244 }))
-		.with_table_body_fills({ odd: NoFill, even: Fill(Color.srgb8({ red: 246, green: 248, blue: 250 })) })
-		.with_table_footer_fill(Color.srgb8({ red: 236, green: 241, blue: 247 }))
-		.with_table_rule(Rule({ color: teal, width: points(1) }))
-		.with_table_cell_padding(points(5))
-		.with_table_row_gap(points(5))
-		.with_link_color(teal)
-		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1300), thickness: Layout.Unit.millipoints(500) }))
+## Regular for body text; Bold for the title, the first two heading
+## levels, and `Pdf.strong`; Italic for `Pdf.emphasis`.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: ink, size: 10, leading: 14 },
+	title: { color: navy, face: Face(faces.bold), size: 30, leading: 36 },
+	headings: {
+		all: { color: navy, size: 15, leading: 20 },
+		h1: Own({ color: navy, face: Face(faces.bold), size: 15, leading: 20 }),
+		h2: Own({ color: teal, face: Face(faces.bold), size: 12, leading: 17 }),
+	},
+	inline: { strong: { font: Face(faces.bold) }, emphasis: { font: Face(faces.italic) } },
+	page_margin: { top: 40, right: 50, bottom: 40, left: 50 },
+	paragraph_spacing: 7,
+	link: { color: Themed(teal), underline: Underline({ offset: 1.3, thickness: 0.5 }) },
+	table: {
+		header_color: Themed(teal),
+		header_fill: Fill(Color.srgb8({ red: 232, green: 244, blue: 244 })),
+		body_fills: { even: Fill(Color.srgb8({ red: 246, green: 248, blue: 250 })) },
+		footer_fill: Fill(Color.srgb8({ red: 236, green: 241, blue: 247 })),
+		rule: Rule({ color: teal, width: 1 }),
+		cell_padding: 5,
+		row_gap: 5,
+	},
 }
 
 ## ---------------------------------------------------------------------
@@ -126,11 +114,11 @@ theme = {
 ## header with a hairline on every later page. Both carry `Page N of M`.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 footer : Pdf.Region
 footer = Pdf.region({
-	height: points(14),
+	height: 14,
 	start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · Members' quarterly report")])],
 	center: [],
 	end: [Pdf.furniture_text([page_of])],
@@ -146,7 +134,7 @@ cover_band = {
 	# Faint diagonal hatching across the band's start, for texture.
 	var $x = 4
 	while $x < 220 {
-		$band = $band.path(Scene.PathBuilder.start.move_to(Layout.point($x, 8)).line_to(Layout.point($x + 28, 54)).finish(), Scene.solid_stroke(Color.srgb8({ red: 34, green: 62, blue: 98 }), points(2)))
+		$band = $band.path(Scene.PathBuilder.start.move_to(Layout.point($x, 8)).line_to(Layout.point($x + 28, 54)).finish(), Scene.solid_stroke(Color.srgb8({ red: 34, green: 62, blue: 98 }), 2))
 		$x = $x + 14
 	}
 
@@ -167,20 +155,20 @@ coop_mark = {
 }
 
 hairline : Scene.Drawing
-hairline = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(body_width) } }, teal)
+hairline = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(body_width) } }, teal)
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: points(56), start: [Pdf.furniture_image(cover_band)], center: [], end: [] }),
+		header: Pdf.region({ height: 56, start: [Pdf.furniture_image(cover_band)], center: [], end: [] }),
 		lead: Pdf.no_lead,
 		footer,
-		gap: points(18),
+		gap: 18,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(21), start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])], center: [], end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])], backdrop: Backdrop(hairline), slot_inset: points(3) }),
+		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])], center: [], end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
 		footer,
-		gap: points(14),
+		gap: 14,
 	}),
 }
 
@@ -202,15 +190,15 @@ outline = [
 ## edge. `text` colours the callout's ordinary text, for a dark panel.
 
 callout_inset : Layout.Unit
-callout_inset = points(12)
+callout_inset = 12
 
 ## Each line is a label and its value; the callout scopes its `Strong`
 ## labels to its accent colour.
 callout : Pdf.Options, { accent : Color.SourceValue, fill : Color.SourceValue, lines : List((Str, Str)), name : Str, text : Color.SourceValue } -> Try(Document.Block, Pdf.Error)
 callout = |options, { accent, fill, lines, name, text }| {
 	paragraphs = lines.map(|(label, value)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${value}")]))
-	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(body_width - 24) })?
-	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(body_width) }
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: Layout.Unit.points(body_width - 24) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(body_width) }
 	block = Pdf.custom_block({
 		contents: paragraphs,
 		fragmentation: Unsplittable,
@@ -219,7 +207,7 @@ callout = |options, { accent, fill, lines, name, text }| {
 		panel: callout_panel(size, fill, accent),
 		size,
 	})
-	Ok(Pdf.scoped(Theme.Scope.empty.with_color(Strong, accent).with_color(Text, text), [block]))
+	Ok(Pdf.scoped(Theme.Scope.{ strong: Themed(accent), text: Themed(text) }, [block]))
 }
 
 callout_panel : Layout.Size, Color.SourceValue, Color.SourceValue -> Scene.Drawing
@@ -241,7 +229,7 @@ callout_panel = |size, fill, accent| {
 		.cubic_to({ control_1: point(0, r - k), control_2: point(r - k, 0), end: point(r, 0) })
 		.close()
 		.finish()
-	bar = Scene.PathBuilder.start.rectangle({ origin: point(0, r), size: { height: Layout.Unit.from_raw(top - 2 * r), width: points(4) } }).finish()
+	bar = Scene.PathBuilder.start.rectangle({ origin: point(0, r), size: { height: Layout.Unit.from_raw(top - 2 * r), width: 4 } }).finish()
 	Scene.Drawing.empty
 		.path(outline_path, Scene.solid_fill(fill))
 		.path(bar, Scene.solid_fill(accent))
@@ -270,7 +258,7 @@ key : Scene.Drawing, I64, I64, Scene.Drawing, Str -> Scene.Drawing
 key = |drawing, x, y, swatch, name|
 	drawing
 		.group(Layout.point(x, y), swatch)
-		.text({ align: Start, color: ink, origin: Layout.point(x + 14, y + 1), size: points(8), text: name })
+		.text({ align: Start, color: ink, origin: Layout.point(x + 14, y + 1), size: 8, text: name })
 
 revenue_chart : Scene.Drawing
 revenue_chart = {
@@ -279,10 +267,10 @@ revenue_chart = {
 	width = body_width - left
 	var $chart = Scene.Drawing.empty
 	for step in [1, 2, 3, 4] {
-		$chart = $chart.rectangle({ origin: Layout.point(left, base + revenue_height(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(width) } }, grid)
+		$chart = $chart.rectangle({ origin: Layout.point(left, base + revenue_height(step * 1000)), size: { height: 0.5, width: Layout.Unit.points(width) } }, grid)
 	}
 	for step in [0, 1, 2, 3, 4] {
-		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: points(8), text: if step == 0 "0" else "${step.to_i64_wrap().to_str()},000" })
+		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(left - 6, base - 3 + revenue_height(step.to_i64_wrap() * 1000)), size: 8, text: if step == 0 "0" else "${step.to_i64_wrap().to_str()},000" })
 	}
 	slot = width // 6
 	var $index = 0
@@ -293,14 +281,14 @@ revenue_chart = {
 		$chart = $chart.rectangle(Layout.rect(x - 22, base, 44, revenue_height(month.revenue)), color)
 
 		## The month under its bar and its revenue above it.
-		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(x, 3), size: points(8), text: month.name })
+		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(x, 3), size: 8, text: month.name })
 		my = base + revenue_height(month.margin * 50 + 1000)
 		$line = if $index == 0 $line.move_to(Layout.point(x, my)) else $line.line_to(Layout.point(x, my))
 		$index = $index + 1
 	}
 	$chart = $chart
-		.path($line.finish(), Scene.solid_stroke(amber, points(2)))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(left, base)).line_to(Layout.point(body_width, base)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path($line.finish(), Scene.solid_stroke(amber, 2))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(left, base)).line_to(Layout.point(body_width, base)).finish(), Scene.solid_stroke(ink, 1))
 	var $i = 0
 	for month in monthly {
 		x = left + $i * slot + slot // 2
@@ -312,7 +300,7 @@ revenue_chart = {
 	## The legend, above the plot.
 	legend_y = base + revenue_height(4000) + 14
 	swatch = |color| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 8), color)
-	margin_key = Scene.Drawing.empty.path(Scene.PathBuilder.start.move_to(Layout.point(0, 4)).line_to(Layout.point(10, 4)).finish(), Scene.solid_stroke(amber, points(2))).rectangle(Layout.rect(3, 2, 4, 4), amber)
+	margin_key = Scene.Drawing.empty.path(Scene.PathBuilder.start.move_to(Layout.point(0, 4)).line_to(Layout.point(10, 4)).finish(), Scene.solid_stroke(amber, 2)).rectangle(Layout.rect(3, 2, 4, 4), amber)
 	$chart = key($chart, left, legend_y, swatch(slate), "Q1 revenue")
 	$chart = key($chart, left + 90, legend_y, swatch(teal), "Q2 revenue")
 	key($chart, left + 180, legend_y, margin_key, "Gross margin, 31% to 36%")
@@ -340,8 +328,8 @@ progress_chart = {
 		color = if percent >= 50 teal else amber
 		$chart = $chart.rectangle(Layout.rect(start, y, track, 14), grid).rectangle(Layout.rect(start, y, filled, 14), color)
 		$chart = $chart
-			.text({ align: End, color: ink, origin: Layout.point(start - 8, y + 3), size: points(9), text: name })
-			.text_in(Strong, { align: End, color: ink, origin: Layout.point(body_width - 2, y + 3), size: points(10), text: "${percent.to_str()}%" })
+			.text({ align: End, color: ink, origin: Layout.point(start - 8, y + 3), size: 9, text: name })
+			.text_in(Strong, { align: End, color: ink, origin: Layout.point(body_width - 2, y + 3), size: 10, text: "${percent.to_str()}%" })
 		$row = $row + 1
 	}
 
@@ -349,8 +337,8 @@ progress_chart = {
 	half = start + track // 2
 	top = 4 * row_height + 2
 	$chart
-		.path(Scene.PathBuilder.start.move_to(Layout.point(half, 1)).line_to(Layout.point(half, top)).finish(), Scene.solid_stroke(navy, points(1)))
-		.text_in(Strong, { align: Center, color: navy, origin: Layout.point(half, top + 4), size: points(8), text: "Half year" })
+		.path(Scene.PathBuilder.start.move_to(Layout.point(half, 1)).line_to(Layout.point(half, top)).finish(), Scene.solid_stroke(navy, 1))
+		.text_in(Strong, { align: Center, color: navy, origin: Layout.point(half, top + 4), size: 8, text: "Half year" })
 }
 
 ## ---------------------------------------------------------------------
@@ -405,7 +393,7 @@ scorecard = Pdf.table({
 		{ width: Share(1), align: End },
 		{ width: Share(1), align: End },
 		{ width: Share(1), align: End },
-		{ width: Fixed(points(72)), align: Start },
+		{ width: Fixed(72), align: Start },
 	],
 	header_rows: [
 		Pdf.row([

@@ -19,10 +19,10 @@ import "../assets/jpeg-fuzz-corpus/rgb-8x8.jpg" as jpeg_bytes : List(U8)
 ## (scripts/check_pdfa4.py) and that scripts/check_pdfa4_structure.py
 ## inspects structurally.
 archive : Pdf.Options
-archive = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+archive = Pdf.Options.{ profile: Pdf.Profile.Archive }
 
 standard : Pdf.Options
-standard = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard)
+standard = Pdf.Options.{ profile: Pdf.Profile.Standard }
 
 report_document : U64 -> Document
 report_document = |paragraphs| {
@@ -116,7 +116,7 @@ caller_bytes = |scale| {
 		Err(_) => crash "archive caller font registration failed"
 		Ok(value) => value
 	}
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(archive, Theme.with_font(Theme.default, registered.face)), registered.registry)
+	options = { ..archive, theme: Theme.{ face: registered.face }, fonts: Registered(registered.registry) }
 	document = Pdf.document({ contents: [Pdf.paragraph("Café PDF"), Pdf.paragraph("Café PDF")], language: "en-AU", title: "Archived caller font" })
 	generate(document, options)
 }
@@ -131,7 +131,7 @@ generate = |document, options| match Pdf.to_bytes_with(document, options) {
 
 chunked : Document, Pdf.ChunkRetention -> { bytes : List(U8), chunks : U64 }
 chunked = |document, retention| {
-	var $encoder = match Pdf.to_chunks_with(document, Pdf.Options.with_chunk_retention(archive, retention)) {
+	var $encoder = match Pdf.to_chunks_with(document, { ..archive, chunk_retention: retention }) {
 		Ok(value) => value
 		Err(_) => {
 			crash "archive chunked preparation failed"

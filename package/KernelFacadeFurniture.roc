@@ -231,7 +231,7 @@ build_static = |authoring, theme, page_size| {
 		NoTemplates => return Err(BodyEmpty)
 		Templates(value) => value
 	}
-	margins = Theme.page_margin(theme)
+	margins = theme.page_margin
 	page_height = nonnegative(page_size.height)?
 	page_width = nonnegative(page_size.width)?
 	top_margin = nonnegative(margins.top)?

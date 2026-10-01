@@ -209,7 +209,7 @@ run_labels = |count| {
 	policy_rejected = match Font.Registry.empty.register_built_in(if count > 0 Font.ValidationLimits.default else Font.ValidationLimits.make({ max_bytes: 0, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 })) {
 		Err(_) => 0
 		Ok(registered) => {
-			options = Pdf.Options.default.with_theme(Theme.with_font_policy(report_theme, registered.policy)).with_font_registry(registered.registry)
+			options = Pdf.Options.{ theme: { ..report_theme, font_selection: Policy(registered.policy) }, fonts: Registered(registered.registry) }
 			match Pdf.to_bytes_with(document_of([Pdf.paragraph("Lead"), figure(labelled("Mark"))]), options) {
 				Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.drawing_label_policy"), .. }], .. })) => 1
 				_ => 0
@@ -229,8 +229,8 @@ label_face_options = |context| {
 	body = Font.Registry.empty.register_built_in(limits) ? |_| EvidenceFailure
 	strong = body.registry.register(caller_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
 	code = strong.registry.register(mono_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
-	theme = report_theme.with_font(body.face).with_inline_font(Strong, strong.face).with_inline_font(Code, code.face)
-	Ok(Pdf.Options.default.with_theme(theme).with_font_registry(code.registry))
+	theme = { ..report_theme, face: body.face, inline: { ..report_theme.inline, code: { ..report_theme.inline.code, font: Face(code.face) }, strong: { ..report_theme.inline.strong, font: Face(strong.face) } } }
+	Ok(Pdf.Options.{ theme: theme, fonts: Registered(code.registry) })
 }
 
 ## A chart titled in the `Strong` face, with tick values in the `Code`
@@ -327,7 +327,7 @@ points = |value| Layout.Unit.points(value)
 
 ## The reference report theme: an A4 body frame of 483 × 746 pt.
 report_theme : Theme
-report_theme = Theme.with_page_margin(Theme.default, { bottom: points(48), left: points(56), right: points(56), top: points(48) })
+report_theme = Theme.{ page_margin: { bottom: points(48), left: points(56), right: points(56), top: points(48) } }
 
 ink : Color.SourceValue
 ink = Color.srgb8({ blue: 40, green: 40, red: 40 })
@@ -493,7 +493,7 @@ run_bound_diagnostics = |context| {
 		Err(InvalidDocument({ diagnostics: [{ message, .. }], .. })) => message
 		_ => ""
 	}
-	options = Pdf.Options.with_theme(Pdf.Options.default, report_theme)
+	options = Pdf.Options.{ theme: report_theme }
 	figure = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.figure({ drawing: drawing, alt: "A mark", caption: Pdf.no_caption })], language: "en-AU", title: "Bounds" }), options))
 	decoration = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.decoration({ drawing: drawing }), Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), options))
 	furniture = |drawing| {
@@ -556,7 +556,7 @@ run_spaced_decorations = |count| {
 ## probe through scenes over the same normalized authoring.
 evidence : Document -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document| {
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, report_theme)) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: report_theme }) ? |_| EvidenceFailure
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	normalized = Document.normalize(document)
 	figures = normalized.figures.len()
@@ -583,7 +583,7 @@ descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
-rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, report_theme)) {
+rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: report_theme }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == expected_paths 1 else 0
 	_ => 0
 }
@@ -614,14 +614,14 @@ run_negatives = |context| {
 	}
 	checks = [
 		rejects(document([Pdf.paragraph("Lead"), figure(tall, Pdf.caption("Figure 1."))]), LayoutConstraintViolated, "document.figure_oversize", ["contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), Pdf.figure_fit(figure(tall, Pdf.caption("Figure 1.")), ScaleToFit({ minimum_percent: 90 }))]), LayoutConstraintViolated, "document.figure_oversize", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), Pdf.figure({ drawing: tall, alt: "A plan drawing", caption: Pdf.caption("Figure 1."), fit: ScaleToFit({ minimum_percent: 90 }) })]), LayoutConstraintViolated, "document.figure_oversize", ["contents[1]"]),
 		rejects(document([Pdf.section([Pdf.paragraph("Lead"), figure(wide, Pdf.no_caption)])]), LayoutConstraintViolated, "document.figure_oversize", ["contents[0].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "", caption: Pdf.caption("Figure 2.") })]), InvalidRelationship, "document.figure_alternative_empty", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(Scene.Drawing.empty, Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(nested(9), Pdf.no_caption)]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), figure(leaf_mark, Pdf.caption(""))]), InvalidRelationship, "document.figure_caption_empty", ["contents[1].caption"]),
-		rejects(document([Pdf.paragraph("Lead"), Pdf.figure_fit(figure(leaf_mark, Pdf.no_caption), ScaleToFit({ minimum_percent: 101 }))]), InvalidRelationship, "document.figure_fit", ["contents[1]"]),
-		rejects(document([Pdf.figure_fit(Pdf.paragraph("Not a figure"), ScaleToFit({ minimum_percent: 50 }))]), InvalidRelationship, "document.figure_fit", []),
+		rejects(document([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "A plan drawing", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 101 }) })]), InvalidRelationship, "document.figure_fit", ["contents[1]"]),
+		rejects(document([Pdf.section([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "A plan drawing", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 255 }) })])]), InvalidRelationship, "document.figure_fit", ["contents[0].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: divider })]), LayoutConstraintViolated, "layout.decoration_position", ["contents[1]"]),
 		rejects(Pdf.with_page_templates(document([Pdf.paragraph("Body")]), lead_templates), LayoutConstraintViolated, "layout.decoration_position", ["templates.first.lead.contents[1]"]),
 		rejects(document([Pdf.decoration({ drawing: Scene.Drawing.empty }), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[0]"]),
@@ -632,7 +632,7 @@ run_negatives = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	carrier = Pdf.to_bytes_with(document([Pdf.title("Figure carrier"), Pdf.figure({ drawing: leaf_mark, alt: "The Harbour & Finch leaf mark", caption: Pdf.no_caption })]), Pdf.Options.with_theme(Pdf.Options.default, report_theme)) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(document([Pdf.title("Figure carrier"), Pdf.figure({ drawing: leaf_mark, alt: "The Harbour & Finch leaf mark", caption: Pdf.no_caption })]), Pdf.Options.{ theme: report_theme }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, carrier.len()] })
 }
 

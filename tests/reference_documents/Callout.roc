@@ -57,7 +57,7 @@ Callout :: [].{
 	measure : Theme, U64, Layout.Unit -> Layout.Size
 	measure = |theme, count, width| {
 		leading = Theme.body_style(theme).leading.raw()
-		spacing = Theme.paragraph_spacing(theme).raw()
+		spacing = theme.paragraph_spacing.raw()
 		lines = count.to_i64_wrap()
 		gaps = if lines == 0 0 else lines - 1
 		{ height: Layout.Unit.from_raw(inset.raw() * 2 + leading * lines + spacing * gaps), width }

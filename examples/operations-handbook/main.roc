@@ -26,7 +26,8 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## its cell empty).
 main! = |_args| {
 	fonts = register_fonts({})?
-	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Payments platform on-call runbook" })
 		.with_page_templates(templates)
@@ -57,27 +58,6 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
 }
 
-## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
-## Italic for `Pdf.emphasis`; the monospace face for `Pdf.code`, at 88% of
-## the text around it. Level-2 headings are smaller and charcoal.
-with_faces : Theme, Faces -> Theme
-with_faces = |base, faces| {
-	title = Theme.title_style(base)
-	heading = Theme.heading_style(base)
-	base
-		.with_font(faces.regular)
-		.with_title_style({ ..title, font: faces.bold })
-		.with_heading_level_style(H1, { ..heading, font: faces.bold })
-		.with_heading_level_style(H2, { ..heading, font: faces.bold, color: charcoal, size: points(12), leading: points(17) })
-		.with_inline_font(Strong, faces.bold)
-		.with_inline_font(Emphasis, faces.italic)
-		.with_inline_font(Code, faces.mono)
-		.with_inline_scale(Code, 88)
-}
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 ## ---------------------------------------------------------------------
 ## Palette and theme. A4 with 52 pt margins: a 491 pt measure.
 
@@ -99,28 +79,37 @@ white = Color.srgb8({ red: 255, green: 255, blue: 255 })
 measure : I64
 measure = 491
 
-theme : Theme
-theme = {
-	body = Theme.body_style(Theme.default)
-	heading = Theme.heading_style(Theme.default)
-	title = Theme.title_style(Theme.default)
-	Theme.default
-		.with_body_style({ ..body, color: charcoal, size: points(10), leading: points(14) })
-		.with_heading_style({ ..heading, color: teal, size: points(14), leading: points(20) })
-		.with_title_style({ ..title, color: charcoal, size: points(26), leading: points(32) })
-		.with_page_margin({ top: points(44), right: points(52), bottom: points(44), left: points(52) })
-		.with_paragraph_spacing(points(7))
-		.with_bullet_indent(points(20))
-		.with_code_color(rust)
-		.with_table_header_color(teal)
-		.with_table_header_fill(Color.srgb8({ red: 232, green: 245, blue: 246 }))
-		.with_table_body_fills({ odd: NoFill, even: Fill(Color.srgb8({ red: 248, green: 249, blue: 250 })) })
-		.with_table_body_rule(Rule({ color: Color.srgb8({ red: 226, green: 230, blue: 234 }), width: Layout.Unit.millipoints(400) }))
-		.with_table_cell_padding(points(5))
-		.with_table_row_gap(points(3))
-		.with_table_rule(Rule({ color: mist, width: Layout.Unit.millipoints(600) }))
-		.with_link_color(teal)
-		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1400), thickness: Layout.Unit.millipoints(500) }))
+## A4 with 52 pt margins: a 491 pt measure. Regular for body text; Bold
+## for the title, the first two heading levels, and `Pdf.strong`; Italic
+## for `Pdf.emphasis`; the monospace face for `Pdf.code`, at 88%.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: charcoal, size: 10, leading: 14 },
+	title: { color: charcoal, face: Face(faces.bold), size: 26, leading: 32 },
+	headings: {
+		all: { color: teal, size: 14, leading: 20 },
+		h1: Own({ color: teal, face: Face(faces.bold), size: 14, leading: 20 }),
+		h2: Own({ color: charcoal, face: Face(faces.bold), size: 12, leading: 17 }),
+	},
+	inline: {
+		strong: { font: Face(faces.bold) },
+		emphasis: { font: Face(faces.italic) },
+		code: { color: Themed(rust), font: Face(faces.mono), scale: Percent(88) },
+	},
+	page_margin: { top: 44, right: 52, bottom: 44, left: 52 },
+	paragraph_spacing: 7,
+	bullet_indent: 20,
+	link: { color: Themed(teal), underline: Underline({ offset: 1.4, thickness: 0.5 }) },
+	table: {
+		header_color: Themed(teal),
+		header_fill: Fill(Color.srgb8({ red: 232, green: 245, blue: 246 })),
+		body_fills: { even: Fill(Color.srgb8({ red: 248, green: 249, blue: 250 })) },
+		body_rule: Rule({ color: Color.srgb8({ red: 226, green: 230, blue: 234 }), width: 0.4 }),
+		cell_padding: 5,
+		row_gap: 3,
+		rule: Rule({ color: mist, width: 0.6 }),
+	},
 }
 
 ## ---------------------------------------------------------------------
@@ -128,11 +117,11 @@ theme = {
 ## continuation pages.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(72), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(72, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 footer : Pdf.Region
 footer = Pdf.region({
-	height: points(16),
+	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("Payments platform · Runbook PAY-OPS-004 · Revision 4.2")])],
 	center: [],
 	end: [Pdf.furniture_text([page_of])],
@@ -141,15 +130,15 @@ footer = Pdf.region({
 ## The continuation header's backdrop: a teal accent over its start edge
 ## and a hairline along its foot, beneath the slots' text.
 header_rule : Scene.Drawing
-header_rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 20, 40, 2), teal).rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, mist)
+header_rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 20, 40, 2), teal).rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, mist)
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(14) }),
+	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 14 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(22), start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])], center: [], end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])], backdrop: Backdrop(header_rule), slot_inset: points(3) }),
+		header: Pdf.region({ height: 22, start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])], center: [], end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])], backdrop: Backdrop(header_rule), slot_inset: 3 }),
 		footer,
-		gap: points(14),
+		gap: 14,
 	}),
 }
 
@@ -200,15 +189,15 @@ console_style = {
 }
 
 callout_inset : Layout.Unit
-callout_inset = points(14)
+callout_inset = 14
 
 ## The measured box of a callout's paragraphs: their height at the panel's
 ## content width (inside the inset and clear of the accent bar), plus the
 ## inset above and below.
 measured : Pdf.Options, List(Document.Block) -> Try(Layout.Size, Pdf.Error)
 measured = |options, paragraphs| {
-	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(measure - 28) })?
-	Ok({ height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(measure) })
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: Layout.Unit.points(measure - 28) })?
+	Ok({ height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(measure) })
 }
 
 ## A callout of paragraphs that may wrap.
@@ -219,7 +208,7 @@ callout = |options, name, style, paragraphs| {
 
 	## Each callout's labels take its accent colour: a warning's amber, a
 	## note's teal.
-	Ok(Pdf.scoped(Theme.Scope.empty.with_color(Strong, style.accent), [block]))
+	Ok(Pdf.scoped(Theme.Scope.{ strong: Themed(style.accent) }, [block]))
 }
 
 ## A dark command panel: one rich paragraph whose lines are separated by
@@ -237,7 +226,7 @@ console = |options, commands| {
 	size = measured(options, paragraphs)?
 	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name: "Commands", panel: callout_panel(console_style, size), size })
 	light = Color.srgb8({ red: 226, green: 232, blue: 240 })
-	Ok(Pdf.scoped(Theme.Scope.empty.with_color(Text, light).with_color(Code, light), [block]))
+	Ok(Pdf.scoped(Theme.Scope.{ text: Themed(light), code: Themed(light) }, [block]))
 }
 
 labelled : Str, List(Pdf.Inline) -> Document.Block
@@ -278,7 +267,7 @@ callout_panel = |style, size| {
 		.close()
 		.finish()
 	Scene.Drawing.empty
-		.path(outline_path, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: points(1) }) })
+		.path(outline_path, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) })
 		.path(bar, Scene.solid_fill(style.accent))
 }
 
@@ -317,11 +306,11 @@ rounded = |x, y, w, h, r| {
 tier : Scene.Drawing, { x : I64, y : I64, w : I64, h : I64, n : U64, name : Str, color : Color.SourceValue, tint : Color.SourceValue } -> Scene.Drawing
 tier = |drawing, { x, y, w, h, n, name, color, tint }| {
 	base = drawing
-		.path(rounded(x, y, w, h, 6), { fill: AuthorSolidFill(tint), stroke: AuthorSolidStroke({ color, width: points(1) }) })
+		.path(rounded(x, y, w, h, 6), { fill: AuthorSolidFill(tint), stroke: AuthorSolidStroke({ color, width: 1 }) })
 		.path(rounded(x + 8, y + h - 34, 26, 26, 13), Scene.solid_fill(color))
-		.text_in(Strong, { align: Center, color: white, origin: Layout.point(x + 21, y + h - 25), size: points(11), text: n.to_str() })
+		.text_in(Strong, { align: Center, color: white, origin: Layout.point(x + 21, y + h - 25), size: 11, text: n.to_str() })
 	base.rectangle(Layout.rect(x + 42, y + h - 18, w - 52, 4), color)
-		.text({ align: Center, color: charcoal, origin: Layout.point(x + w // 2, y + 9), size: points(8), text: name })
+		.text({ align: Center, color: charcoal, origin: Layout.point(x + w // 2, y + 9), size: 8, text: name })
 }
 
 ## A horizontal arrow from x1 to x2 at height y, with a filled head.
@@ -329,7 +318,7 @@ arrow_right : Scene.Drawing, I64, I64, I64 -> Scene.Drawing
 arrow_right = |drawing, x1, x2, y| {
 	head = Scene.PathBuilder.start.move_to(Layout.point(x2, y)).line_to(Layout.point(x2 - 7, y + 4)).line_to(Layout.point(x2 - 7, y - 4)).close().finish()
 	drawing
-		.path(Scene.PathBuilder.start.move_to(Layout.point(x1, y)).line_to(Layout.point(x2 - 6, y)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(x1, y)).line_to(Layout.point(x2 - 6, y)).finish(), Scene.solid_stroke(charcoal, 1.2))
 		.path(head, Scene.solid_fill(charcoal))
 }
 
@@ -338,7 +327,7 @@ arrow_down : Scene.Drawing, I64, I64, I64 -> Scene.Drawing
 arrow_down = |drawing, x, y1, y2| {
 	head = Scene.PathBuilder.start.move_to(Layout.point(x, y2)).line_to(Layout.point(x - 4, y2 + 7)).line_to(Layout.point(x + 4, y2 + 7)).close().finish()
 	drawing
-		.path(Scene.PathBuilder.start.move_to(Layout.point(x, y1)).line_to(Layout.point(x, y2 + 6)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(x, y1)).line_to(Layout.point(x, y2 + 6)).finish(), Scene.solid_stroke(charcoal, 1.2))
 		.path(head, Scene.solid_fill(charcoal))
 }
 
@@ -353,7 +342,7 @@ topology = {
 
 	# The production zone behind the application tiers, dashed by short bars.
 	var $d = Scene.Drawing.empty
-		.path(rounded(128, 2, 358, 172, 8), { fill: AuthorSolidFill(zone), stroke: AuthorSolidStroke({ color: mist, width: Layout.Unit.millipoints(800) }) })
+		.path(rounded(128, 2, 358, 172, 8), { fill: AuthorSolidFill(zone), stroke: AuthorSolidStroke({ color: mist, width: 0.8 }) })
 	$d = tier($d, { x: 4, y: 106, w: 100, h: 58, n: 1, name: "Edge load balancer", color: edge, tint: edge_tint })
 	$d = tier($d, { x: 144, y: 106, w: 100, h: 58, n: 2, name: "API gateway", color: edge, tint: edge_tint })
 	$d = tier($d, { x: 268, y: 106, w: 100, h: 58, n: 3, name: "Payments API", color: teal, tint: app_tint })
@@ -371,16 +360,16 @@ topology = {
 	## The payments API writes to the ledger: down, left, and down again.
 	ledger_head = Scene.PathBuilder.start.move_to(Layout.point(194, 70)).line_to(Layout.point(190, 77)).line_to(Layout.point(198, 77)).close().finish()
 	$d = $d
-		.path(Scene.PathBuilder.start.move_to(Layout.point(296, 106)).line_to(Layout.point(296, 88)).line_to(Layout.point(194, 88)).line_to(Layout.point(194, 76)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(296, 106)).line_to(Layout.point(296, 88)).line_to(Layout.point(194, 88)).line_to(Layout.point(194, 76)).finish(), Scene.solid_stroke(charcoal, 1.2))
 		.path(ledger_head, Scene.solid_fill(charcoal))
 
 	## The settlement worker drains the queue and reconciles against the
 	## ledger: arrows into it from both sides.
 	left_head = |x| Scene.PathBuilder.start.move_to(Layout.point(x, 41)).line_to(Layout.point(x + 7, 45)).line_to(Layout.point(x + 7, 37)).close().finish()
 	$d
-		.path(Scene.PathBuilder.start.move_to(Layout.point(382, 41)).line_to(Layout.point(374, 41)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(382, 41)).line_to(Layout.point(374, 41)).finish(), Scene.solid_stroke(charcoal, 1.2))
 		.path(left_head(368), Scene.solid_fill(charcoal))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(268, 41)).line_to(Layout.point(250, 41)).finish(), Scene.solid_stroke(charcoal, Layout.Unit.millipoints(1200)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(268, 41)).line_to(Layout.point(250, 41)).finish(), Scene.solid_stroke(charcoal, 1.2))
 		.path(left_head(244), Scene.solid_fill(charcoal))
 }
 
@@ -408,7 +397,7 @@ severity_table : Document.Block
 severity_table = Pdf.table({
 	caption: Pdf.caption("Table 1. Severity levels and response targets"),
 	columns: [
-		{ width: Fixed(points(46)), align: Start },
+		{ width: Fixed(46), align: Start },
 		{ width: Share(3), align: Start },
 		{ width: Share(2), align: Start },
 		{ width: Share(3), align: Start },
@@ -443,7 +432,7 @@ escalation_table : Document.Block
 escalation_table = Pdf.table({
 	caption: Pdf.caption("Table 2. Escalation path for SEV1 and SEV2 incidents"),
 	columns: [
-		{ width: Fixed(points(64)), align: Start },
+		{ width: Fixed(64), align: Start },
 		{ width: Share(3), align: Start },
 		{ width: Share(3), align: Start },
 		{ width: Share(3), align: Start },
@@ -487,8 +476,8 @@ drill_table = Pdf.table({
 	columns: [
 		{ width: Share(4), align: Start },
 		{ width: Share(3), align: Start },
-		{ width: Fixed(points(78)), align: Start },
-		{ width: Fixed(points(78)), align: Start },
+		{ width: Fixed(78), align: Start },
+		{ width: Fixed(78), align: Start },
 	],
 	header_rows: [
 		Pdf.row([
@@ -521,7 +510,7 @@ command_table = Pdf.table({
 	columns: [
 		{ width: Content, align: Start },
 		{ width: Share(1), align: Start },
-		{ width: Fixed(points(48)), align: Center },
+		{ width: Fixed(48), align: Center },
 	],
 	header_rows: [
 		Pdf.row([
@@ -556,7 +545,7 @@ rich_step = |inlines| Pdf.list_item([Pdf.rich_paragraph(inlines)])
 
 accent_band : Document.Block
 accent_band = Pdf.decoration({
-	drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 10, 56, 6), teal).rectangle(Layout.rect(60, 10, 18, 6), rust).rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(measure) } }, mist),
+	drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 10, 56, 6), teal).rectangle(Layout.rect(60, 10, 18, 6), rust).rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, mist),
 })
 
 contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)

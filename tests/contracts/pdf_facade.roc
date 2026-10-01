@@ -113,7 +113,7 @@ expect {
 # Nested profile and option modules use current package shorthand syntax;
 # the Archive profile is executable through the public options.
 expect {
-	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+	options = Pdf.Options.{ profile: Pdf.Profile.Archive }
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
 	bytes = Pdf.to_bytes_with(document, options)?
 
@@ -122,7 +122,7 @@ expect {
 
 # AccessibleArchive still rejects transactionally with its own feature code.
 expect {
-	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)
+	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
 
 	match Pdf.to_bytes_with(document, options) {

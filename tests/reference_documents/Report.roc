@@ -43,7 +43,7 @@ Report :: [].{
 	theme = report_theme
 
 	options : Pdf.Options
-	options = Pdf.Options.default.with_theme(report_theme)
+	options = Pdf.Options.{ theme: report_theme }
 
 	## Figure 1 of the ordinary report.
 	chart_figure : Document.Block
@@ -123,12 +123,7 @@ ink : Color.SourceValue
 ink = Color.srgb8({ red: 40, green: 40, blue: 40 })
 
 report_theme : Theme
-report_theme = Theme.default
-	.with_page_margin({ top: points(48), right: points(56), bottom: points(48), left: points(56) })
-	.with_title_color(navy)
-	.with_heading_color(navy)
-	.with_strong_color(navy)
-	.with_code_color(Color.srgb8({ red: 120, green: 60, blue: 20 }))
+report_theme = Theme.{ headings: { all: { color: navy } }, inline: { code: { color: Themed(Color.srgb8({ red: 120, green: 60, blue: 20 })) }, strong: { color: Themed(navy) } }, page_margin: { top: points(48), right: points(56), bottom: points(48), left: points(56) }, title: { color: navy } }
 
 ## `Page N of M` in a reserved width; below 64 pt (REP-A4) only the page
 ## number is reserved.

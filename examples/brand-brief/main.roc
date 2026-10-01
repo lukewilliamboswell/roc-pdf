@@ -28,8 +28,8 @@ import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
 ## lists, links, and an outline over named section destinations.
 main! = |_args| {
 	fonts = register_fonts({})?
-	theme = with_faces(base_theme, fonts)
-	options = Pdf.Options.default.with_theme(theme).with_font_registry(fonts.registry)
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({ contents: blocks, language: "en", title: "Lumen brand guidelines, edition 3" })
 		.with_page_templates(templates)
@@ -59,26 +59,6 @@ register_fonts = |_| {
 	mono = add(italic.registry, mono_bytes)?
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, mono: mono.face, registry: mono.registry })
 }
-
-## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
-## Italic for `Pdf.emphasis`; the monospace face for `Pdf.code`, at 90%
-## of the text around it.
-with_faces : Theme, Faces -> Theme
-with_faces = |base, faces| {
-	title = Theme.title_style(base)
-	heading = Theme.heading_style(base)
-	base
-		.with_font(faces.regular)
-		.with_title_style({ ..title, font: faces.bold })
-		.with_heading_style({ ..heading, font: faces.bold })
-		.with_inline_font(Strong, faces.bold)
-		.with_inline_font(Emphasis, faces.italic)
-		.with_inline_font(Code, faces.mono)
-		.with_inline_scale(Code, 90)
-}
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
 
 ## ---------------------------------------------------------------------
 ## The palette.
@@ -128,28 +108,32 @@ tint = |rgb, percent| {
 	Color.srgb8({ red: mix(rgb.red), green: mix(rgb.green), blue: mix(rgb.blue) })
 }
 
-## A4 with 56 pt sides: a 483 pt measure.
-base_theme : Theme
-base_theme = {
-	body = Theme.body_style(Theme.default)
-	heading = Theme.heading_style(Theme.default)
-	title = Theme.title_style(Theme.default)
-	Theme.default
-		.with_body_style({ ..body, color: ink, size: Layout.Unit.from_raw(10500), leading: Layout.Unit.from_raw(15500) })
-		.with_heading_style({ ..heading, color: indigo, size: points(16), leading: points(22) })
-		.with_title_style({ ..title, color: indigo, size: points(34), leading: points(40) })
-		.with_page_margin({ top: points(40), right: points(56), bottom: points(40), left: points(56) })
-		.with_paragraph_spacing(points(9))
-		.with_bullet_indent(points(16))
-		.with_code_color(Color.srgb8({ red: 170, green: 58, blue: 48 }))
-		.with_table_header_color(indigo)
-		.with_table_header_fill(mist)
-		.with_table_cell_padding(points(5))
-		.with_table_row_gap(points(5))
-		.with_table_rule(Rule({ color: indigo, width: Layout.Unit.millipoints(750) }))
-		.with_table_body_rule(Rule({ color: tint(indigo_rgb, 82), width: Layout.Unit.millipoints(400) }))
-		.with_link_color(indigo)
-		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1500), thickness: Layout.Unit.millipoints(600) }))
+## A4 with 56 pt margins. Regular for body text; Bold for the title,
+## headings, and `Pdf.strong`; Italic for `Pdf.emphasis`; the monospace
+## face for `Pdf.code`, at 90% of the text around it.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: ink, size: 10.5, leading: 15.5 },
+	title: { color: indigo, face: Face(faces.bold), size: 34, leading: 40 },
+	headings: { all: { color: indigo, face: Face(faces.bold), size: 16, leading: 22 } },
+	inline: {
+		strong: { font: Face(faces.bold) },
+		emphasis: { font: Face(faces.italic) },
+		code: { color: Themed(Color.srgb8({ red: 170, green: 58, blue: 48 })), font: Face(faces.mono), scale: Percent(90) },
+	},
+	page_margin: { top: 40, right: 56, bottom: 40, left: 56 },
+	paragraph_spacing: 9,
+	bullet_indent: 16,
+	link: { color: Themed(indigo), underline: Underline({ offset: 1.5, thickness: 0.6 }) },
+	table: {
+		header_color: Themed(indigo),
+		header_fill: Fill(mist),
+		cell_padding: 5,
+		row_gap: 5,
+		rule: Rule({ color: indigo, width: 0.75 }),
+		body_rule: Rule({ color: tint(indigo_rgb, 82), width: 0.4 }),
+	},
 }
 
 ## ---------------------------------------------------------------------
@@ -200,15 +184,15 @@ teal_source = Color.srgb8(teal_rgb)
 ## A section band: a short coral bar over a hairline across the measure,
 ## with 6 pt above it and 6 pt between it and the heading it introduces.
 band : Document.Block
-band = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)).rectangle(Layout.rect(0, 0, 36, 5), coral), above: points(6), below: points(6) })
+band = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 2, 483, 1), tint(indigo_rgb, 80)).rectangle(Layout.rect(0, 0, 36, 5), coral), above: 6, below: 6 })
 
 ## One swatch card: the solid colour, named in bold with its hex value in
 ## the code face, above three tints (75, 50, 25 percent toward white).
 swatch : Rgb, Str, Str, Color.SourceValue -> Scene.Drawing
 swatch = |rgb, name, hex, label| {
 	solid = Scene.Drawing.empty.rectangle(Layout.rect(0, 39, 88, 52), Color.srgb8(rgb))
-		.text_in(Strong, { align: Start, color: label, origin: Layout.point(6, 77), size: points(8), text: name })
-		.text_in(Code, { align: Start, color: label, origin: Layout.point(6, 45), size: points(7), text: hex })
+		.text_in(Strong, { align: Start, color: label, origin: Layout.point(6, 77), size: 8, text: name })
+		.text_in(Code, { align: Start, color: label, origin: Layout.point(6, 45), size: 7, text: hex })
 	light = solid.rectangle(Layout.rect(0, 26, 88, 12), tint(rgb, 25)).rectangle(Layout.rect(0, 13, 88, 12), tint(rgb, 50))
 	light.rectangle(Layout.rect(0, 0, 88, 12), tint(rgb, 75))
 }
@@ -235,14 +219,14 @@ placements = {
 		framed = if guides {
 			square = Scene.PathBuilder.start.rectangle(Layout.rect(48, 9, 59, 59)).finish()
 			base
-				.path(Scene.PathBuilder.start.rectangle(Layout.rect(41, 2, 73, 73)).finish(), Scene.solid_stroke(coral, Layout.Unit.millipoints(750)))
-				.path(square, Scene.solid_stroke(tint(coral_rgb, 40), Layout.Unit.millipoints(500)))
+				.path(Scene.PathBuilder.start.rectangle(Layout.rect(41, 2, 73, 73)).finish(), Scene.solid_stroke(coral, 0.75))
+				.path(square, Scene.solid_stroke(tint(coral_rgb, 40), 0.5))
 		} else {
 			base
 		}
 		framed
 			.group(Layout.point(56, 16), mark(44, disc, light))
-			.text({ align: Center, color: label, origin: Layout.point(77, 78), size: points(7), text: name })
+			.text({ align: Center, color: label, origin: Layout.point(77, 78), size: 7, text: name })
 	}
 	Scene.Drawing.empty
 		.group(Layout.point(0, 0), panel(mist, indigo, amber, True, "Clear space", indigo))
@@ -258,7 +242,7 @@ placements = {
 ## prepared with, and the block paints its panel behind them.
 
 callout_inset : Layout.Unit
-callout_inset = points(12)
+callout_inset = 12
 
 ## A callout's ground: a light Mist panel with a coral edge and Indigo
 ## labels, or an Indigo panel with white text and Dawn Amber labels.
@@ -266,12 +250,12 @@ Ground : [Light, Dark]
 
 at_a_glance : Pdf.Options, Ground, Str, List(List(Pdf.Inline)) -> Try(Document.Block, Pdf.Error)
 at_a_glance = |options, ground, name, lines| {
-	width = points(483)
+	width = 483
 	paragraphs = lines.map(|line| Pdf.rich_paragraph(line))
 	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en", width: Layout.Unit.from_raw(width.raw() - 2 * callout_inset.raw()) })?
 	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width }
 	box = { origin: Layout.point(0, 0), size }
-	edge = { origin: Layout.point(0, 0), size: { height: size.height, width: points(4) } }
+	edge = { origin: Layout.point(0, 0), size: { height: size.height, width: 4 } }
 	panel = match ground {
 		Light => Scene.Drawing.empty.rectangle(box, mist).rectangle(edge, coral)
 		Dark => Scene.Drawing.empty.rectangle(box, indigo).rectangle(edge, amber)
@@ -281,8 +265,8 @@ at_a_glance = |options, ground, name, lines| {
 	## Labels are Lumen Indigo on the light ground; on the Indigo ground
 	## all text is white and links are Mist. Accents never carry words.
 	scope = match ground {
-		Light => Theme.Scope.empty.with_color(Strong, indigo)
-		Dark => Theme.Scope.empty.with_color(Text, white).with_color(Strong, white).with_color(Link, mist)
+		Light => Theme.Scope.{ strong: Themed(indigo) }
+		Dark => Theme.Scope.{ text: Themed(white), strong: Themed(white), link: Themed(mist) }
 	}
 	Ok(Pdf.scoped(scope, [block]))
 }
@@ -291,11 +275,11 @@ at_a_glance = |options, ground, name, lines| {
 ## Page furniture.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 footer : Pdf.Region
 footer = Pdf.region({
-	height: points(16),
+	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("Lumen Labs · Brand Studio")])],
 	center: [],
 	end: [Pdf.furniture_text([page_of])],
@@ -309,15 +293,15 @@ hairline = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 1), tint(indigo_
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: points(44), start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), mark(36, indigo, amber)))], center: [], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: points(3) }),
+		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), mark(36, indigo, amber)))], center: [], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
 		lead: Pdf.no_lead,
 		footer,
-		gap: points(14),
+		gap: 14,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(22), start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])], center: [], end: [Pdf.furniture_text([Pdf.text("Edition 3")])], backdrop: Backdrop(hairline), slot_inset: points(3) }),
+		header: Pdf.region({ height: 22, start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])], center: [], end: [Pdf.furniture_text([Pdf.text("Edition 3")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
 		footer,
-		gap: points(14),
+		gap: 14,
 	}),
 }
 
@@ -352,9 +336,9 @@ palette_table = Pdf.table({
 	columns: [
 		{ width: Share(3), align: Start },
 		{ width: Share(5), align: Start },
-		{ width: Fixed(points(62)), align: Start },
-		{ width: Fixed(points(84)), align: Start },
-		{ width: Fixed(points(56)), align: End },
+		{ width: Fixed(62), align: Start },
+		{ width: Fixed(84), align: Start },
+		{ width: Fixed(56), align: End },
 	],
 	header_rows: [
 		Pdf.row([
@@ -384,7 +368,7 @@ type_row = |role, size, leading, use| Pdf.row([Pdf.header_cell(Row, [Pdf.text(ro
 type_table : Document.Block
 type_table = Pdf.table({
 	caption: Pdf.caption("Table 2. The type scale, in points"),
-	columns: [{ width: Share(2), align: Start }, { width: Fixed(points(48)), align: End }, { width: Fixed(points(58)), align: End }, { width: Share(5), align: Start }],
+	columns: [{ width: Share(2), align: Start }, { width: Fixed(48), align: End }, { width: Fixed(58), align: End }, { width: Share(5), align: Start }],
 	header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Role")]), Pdf.header_cell(Column, [Pdf.text("Size")]), Pdf.header_cell(Column, [Pdf.text("Leading")]), Pdf.header_cell(Column, [Pdf.text("Use")])])],
 	body_rows: [
 		type_row("Display", "34", "40", "Covers and one bold title per document"),
@@ -445,7 +429,7 @@ body = |glance, studio| [
 		Pdf.emphasis([Pdf.text("A practical identity for calm, precise software.")]),
 		Pdf.text(" Edition 3 replaces every earlier edition from 1 October 2026."),
 	]),
-	Pdf.decoration({ drawing: palette_strip, above: points(4), below: points(12) }),
+	Pdf.decoration({ drawing: palette_strip, above: 4, below: 12 }),
 	Pdf.paragraph("These guidelines describe how Lumen looks and sounds wherever people meet it: in the product, on the website, in documentation, and on the invoices and letters we send. They are short on purpose: when a case is not covered, choose the quieter option."),
 	glance,
 	Pdf.section([

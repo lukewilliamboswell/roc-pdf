@@ -22,7 +22,7 @@ main! = |_args| {
 		.with_page_templates(templates)
 		.with_created("2026-09-14T00:00:00Z")
 		.with_modified("2026-09-14T00:00:00Z")
-	prepared = Pdf.prepare(document, Pdf.Options.default.with_theme(theme)).map_err(|err| PdfFailed(err))?
+	prepared = Pdf.prepare(document, Pdf.Options.{ theme: theme }).map_err(|err| PdfFailed(err))?
 	bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| EmitFailed(err))?
 	output : Path
 	output = "tax-invoice.pdf"
@@ -30,9 +30,6 @@ main! = |_args| {
 	Stdout.line!("Wrote tax-invoice.pdf").map_err(|err| OutputFailed(err))?
 	Ok({})
 }
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
 
 navy : Color.SourceValue
 navy = Color.srgb8({ red: 24, green: 52, blue: 84 })
@@ -42,11 +39,7 @@ brass = Color.srgb8({ red: 196, green: 150, blue: 64 })
 
 ## A4 with 48 pt top and bottom and 56 pt side margins: a 483 × 746 pt body.
 theme : Theme
-theme = Theme.default
-	.with_page_margin({ top: points(48), right: points(56), bottom: points(48), left: points(56) })
-	.with_title_color(navy)
-	.with_heading_color(navy)
-	.with_strong_color(navy)
+theme = Theme.{ headings: { all: { color: navy } }, inline: { strong: { color: Themed(navy) } }, page_margin: { top: 48, right: 56, bottom: 48, left: 56 }, title: { color: navy } }
 
 ## The Harbour & Finch mark, 132 × 44 pt: a navy tile holding a brass
 ## finch's wing, beside three navy bars.
@@ -64,11 +57,11 @@ logo = {
 }
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 footer : Pdf.Region
 footer = Pdf.region({
-	height: points(16),
+	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("ABN 00 123 456 789 · Tax invoice HF-2026-0417")])],
 	center: [],
 	end: [Pdf.furniture_text([page_of])],
@@ -77,15 +70,15 @@ footer = Pdf.region({
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: points(44), start: [Pdf.furniture_image(logo)], center: [], end: [] }),
+		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(logo)], center: [], end: [] }),
 		lead: Pdf.no_lead,
 		footer,
-		gap: points(12),
+		gap: 12,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(16), start: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd — Tax invoice HF-2026-0417 (continued)")])], center: [], end: [] }),
+		header: Pdf.region({ height: 16, start: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd — Tax invoice HF-2026-0417 (continued)")])], center: [], end: [] }),
 		footer,
-		gap: points(12),
+		gap: 12,
 	}),
 }
 
@@ -170,9 +163,9 @@ contents = [
 			columns: [
 				{ width: Content, align: Start },
 				{ width: Share(1), align: Start },
-				{ width: Fixed(points(36)), align: End },
-				{ width: Fixed(points(72)), align: End },
-				{ width: Fixed(points(80)), align: End },
+				{ width: Fixed(36), align: End },
+				{ width: Fixed(72), align: End },
+				{ width: Fixed(80), align: End },
 			],
 			header_rows: [
 				Pdf.row([

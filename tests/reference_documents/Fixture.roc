@@ -117,7 +117,7 @@ Fixture :: [].{
 	report_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	report_ordered = |_context| {
 		faces = register_faces({}) ? |_| EvidenceFailure("register faces")
-		options = Report.options.with_theme(Report.theme.with_font_policy(faces.policy)).with_font_registry(faces.registry)
+		options = { ..Report.options, theme: { ..Report.theme, font_selection: Policy(faces.policy) }, fonts: Registered(faces.registry) }
 		extra = [Pdf.text(" The Shanghai office marks approved stock with "), Pdf.in_language("zh-Hans", [Pdf.text("中")]), Pdf.text(" on every board.")]
 		evidence(Report.document({ ..Report.ordinary, timber_extra: extra }), options, ordered_observations)
 	}
@@ -208,8 +208,12 @@ tall_figure = |floor| {
 	slate = Color.srgb8({ red: 128, green: 146, blue: 166 })
 	plan = Scene.Drawing.empty
 		.path(Scene.PathBuilder.start.rectangle(Layout.rect(2, 2, 596, 896)).finish(), Scene.solid_stroke(ink, points(4)))
-	figure = Pdf.figure({ drawing: plan.rectangle(Layout.rect(60, 60, 480, 780), slate), alt: "Bar chart of revenue by region, drawn at poster size.", caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands") })
-	if floor == 0 figure else Pdf.figure_fit(figure, ScaleToFit({ minimum_percent: floor }))
+	Pdf.figure({
+		drawing: plan.rectangle(Layout.rect(60, 60, 480, 780), slate),
+		alt: "Bar chart of revenue by region, drawn at poster size.",
+		caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands"),
+		fit: if floor == 0 Exact else ScaleToFit({ minimum_percent: floor }),
+	})
 }
 
 ## The packaged Latin face registered as a caller face, then a Han face.
@@ -683,7 +687,7 @@ run_negatives = |{}| {
 		(letter_with({ ..Letter.ordinary, continuation_start: "Northstar Regional Housing and Community Cooperative Ltd · 21 September 2026" }), Letter.options, Code(LayoutConstraintViolated, "layout.template_region_overflow", ["templates.continuation.header"])),
 
 		## LET-A4: the letter under AccessibleArchive before Gate 7.
-		(letter_with(Letter.ordinary), Letter.options.with_profile(AccessibleArchive), Code(FeatureUnavailable, "profile.accessible_archive", [])),
+		(letter_with(Letter.ordinary), { ..Letter.options, profile: AccessibleArchive }, Code(FeatureUnavailable, "profile.accessible_archive", [])),
 
 		## LET-A5: an empty metadata title.
 		(letter_with({ ..Letter.ordinary, title: "" }), Letter.options, Metadata),

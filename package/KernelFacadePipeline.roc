@@ -186,7 +186,7 @@ navigation_authoring = |semantics, authoring, theme| {
 			links,
 			outline: authoring.outline,
 			page_labels: authoring.page_labels,
-			underline: match Theme.link_style(theme).underline {
+			underline: match theme.link.underline {
 				NoUnderline => NoUnderline
 				Underline(underline) => Underline(underline)
 			},

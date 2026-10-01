@@ -47,10 +47,10 @@ FacadeTargets :: [].{
 }
 
 shared_options : Pdf.Options
-shared_options = Pdf.Options.with_chunk_retention(Pdf.Options.default, ShareUnchangedResources)
+shared_options = Pdf.Options.{ chunk_retention: ShareUnchangedResources }
 
 owned_options : Pdf.Options
-owned_options = Pdf.Options.with_chunk_retention(Pdf.Options.default, OwnChunks)
+owned_options = Pdf.Options.{ chunk_retention: OwnChunks }
 
 ## Sealing already succeeded for the buffered path, so a chunked failure here is
 ## a disagreement between two entrypoints over one sealed plan.

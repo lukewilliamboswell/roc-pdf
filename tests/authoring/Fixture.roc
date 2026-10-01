@@ -728,7 +728,7 @@ evidence_ordered_facade = |repetitions| {
 		Font.ValidationLimits.default,
 	) ? |_| EvidenceFailure
 	configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
-	theme = Theme.with_font_policy(Theme.default, configured.policy)
+	theme = Theme.{ font_selection: Policy(configured.policy) }
 	authoring = Document.normalize(
 		Document.from_blocks({
 			contents: List.repeat(Document.paragraph("C中é"), repetitions),

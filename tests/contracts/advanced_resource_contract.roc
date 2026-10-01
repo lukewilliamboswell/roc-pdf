@@ -30,8 +30,8 @@ expect {
 		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
 		Font.ValidationLimits.default,
 	)?
-	theme = Theme.with_font(Theme.default, registered.face)
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), registered.registry)
+	theme = Theme.{ face: registered.face }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
 	document = Pdf.document({
 		contents: [Pdf.paragraph("Café PDF")],
 		language: "en-AU",
@@ -45,8 +45,8 @@ expect {
 # The facade does not substitute the packaged font if a selected caller face
 # is absent from the supplied registry. The failed Try has no PDF byte value.
 expect {
-	theme = Theme.with_font(Theme.default, Font.FaceId.from_index(1))
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), Font.Registry.empty)
+	theme = Theme.{ face: Font.FaceId.from_index(1) }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(Font.Registry.empty) }
 	document = Pdf.document({
 		contents: [Pdf.paragraph("No fallback")],
 		language: "en-AU",
@@ -69,7 +69,7 @@ expect {
 		Font.ValidationLimits.default,
 	)?
 	store = registered.registry.store()
-	theme = Theme.with_font(Theme.default, registered.face)
+	theme = Theme.{ face: registered.face }
 	registered.face.index() == 0 and
 		registered.instance.index() == 0 and
 			registered.policy.index() == 0 and

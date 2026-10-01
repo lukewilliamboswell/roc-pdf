@@ -25,7 +25,8 @@ import "fonts/SourceCodePro-Bold.ttf" as bold_bytes : List(U8)
 ## rule.
 main! = |_args| {
 	fonts = register_fonts({})?
-	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Cold-chain telemetry export, shipment RX-40718" })
 		.with_page_templates(templates)
@@ -80,21 +81,6 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, registry: bold.registry })
 }
 
-## Regular for body text; Bold for the title, headings, and `Pdf.strong`.
-with_faces : Theme, Faces -> Theme
-with_faces = |base, faces| {
-	heading = Theme.heading_style(base)
-	title = Theme.title_style(base)
-	base
-		.with_font(faces.regular)
-		.with_title_style({ ..title, font: faces.bold })
-		.with_heading_style({ ..heading, font: faces.bold })
-		.with_inline_font(Strong, faces.bold)
-}
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 ## ---------------------------------------------------------------------
 ## Palette and theme. A4 with 50 pt margins: a 495 pt measure.
 
@@ -113,39 +99,42 @@ alarm = Color.srgb8({ red: 200, green: 30, blue: 30 })
 measure : I64
 measure = 495
 
-theme : Theme
-theme = {
-	body = Theme.body_style(Theme.default)
-	heading = Theme.heading_style(Theme.default)
-	title = Theme.title_style(Theme.default)
-	Theme.default
-		.with_body_style({ ..body, color: slate, size: points(9), leading: points(13) })
-		.with_heading_style({ ..heading, color: spruce, size: points(13), leading: points(18) })
-		.with_title_style({ ..title, color: slate, size: points(22), leading: points(27) })
-		.with_page_margin({ top: points(44), right: points(50), bottom: points(40), left: points(50) })
-		.with_paragraph_spacing(points(6))
-		.with_bullet_indent(points(16))
-		.with_strong_color(alarm)
-		.with_emphasis_color(spruce)
-		.with_code_color(spruce)
-		.with_table_header_color(spruce)
-		.with_table_header_fill(Color.srgb8({ red: 226, green: 238, blue: 242 }))
-		.with_table_body_fills({ odd: NoFill, even: Fill(Color.srgb8({ red: 246, green: 248, blue: 250 })) })
-		.with_table_footer_fill(Color.srgb8({ red: 236, green: 241, blue: 245 }))
-		.with_table_cell_padding(points(3))
-		.with_table_row_gap(points(2))
-		.with_table_rule(Rule({ color: frost, width: Layout.Unit.millipoints(500) }))
+## A4 with 50 pt margins: a 495 pt measure. Regular for body text; Bold
+## for the title, headings, and `Pdf.strong`.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: slate, size: 9, leading: 13 },
+	title: { color: slate, face: Face(faces.bold), size: 22, leading: 27 },
+	headings: { all: { color: spruce, face: Face(faces.bold), size: 13, leading: 18 } },
+	inline: {
+		strong: { color: Themed(alarm), font: Face(faces.bold) },
+		emphasis: { color: Themed(spruce) },
+		code: { color: Themed(spruce) },
+	},
+	page_margin: { top: 44, right: 50, bottom: 40, left: 50 },
+	paragraph_spacing: 6,
+	bullet_indent: 16,
+	table: {
+		header_color: Themed(spruce),
+		header_fill: Fill(Color.srgb8({ red: 226, green: 238, blue: 242 })),
+		body_fills: { even: Fill(Color.srgb8({ red: 246, green: 248, blue: 250 })) },
+		footer_fill: Fill(Color.srgb8({ red: 236, green: 241, blue: 245 })),
+		cell_padding: 3,
+		row_gap: 2,
+		rule: Rule({ color: frost, width: 0.5 }),
+	},
 }
 
 ## ---------------------------------------------------------------------
 ## Running furniture.
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 footer : Pdf.Region
 footer = Pdf.region({
-	height: points(14),
+	height: 14,
 	start: [Pdf.furniture_text([Pdf.text("Exported 30 September 2026 06:00 AEST · Logger CL-7 serial 00418")])],
 	center: [],
 	end: [Pdf.furniture_text([page_of])],
@@ -153,11 +142,11 @@ footer = Pdf.region({
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
+	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 12 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(17), start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])], center: [], end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(measure) } }, frost)), slot_inset: points(3) }),
+		header: Pdf.region({ height: 17, start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])], center: [], end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.5, width: Layout.Unit.points(measure) } }, frost)), slot_inset: 3 }),
 		footer,
-		gap: points(12),
+		gap: 12,
 	}),
 }
 
@@ -231,7 +220,7 @@ readings_table = {
 	Pdf.table({
 		caption: Pdf.caption("Table 1. Half-hourly readings, 06:00 29 September to 05:30 30 September"),
 		columns: [
-			{ width: Fixed(points(56)), align: Start },
+			{ width: Fixed(56), align: Start },
 			{ width: Share(1), align: End },
 			{ width: Share(1), align: End },
 			{ width: Share(1), align: End },
@@ -296,7 +285,7 @@ legend : Scene.Drawing, I64, I64, Color.SourceValue, Layout.Unit, Str -> Scene.D
 legend = |drawing, x, y, color, width, name|
 	drawing
 		.path(Scene.PathBuilder.start.move_to(Layout.point(x, y + 3)).line_to(Layout.point(x + 16, y + 3)).finish(), Scene.solid_stroke(color, width))
-		.text({ align: Start, color: slate, origin: Layout.point(x + 21, y), size: points(7), text: name })
+		.text({ align: Start, color: slate, origin: Layout.point(x + 21, y), size: 7, text: name })
 
 temperature_chart : Scene.Drawing
 temperature_chart = {
@@ -309,31 +298,31 @@ temperature_chart = {
 	# hour ticks labelled every 6 hours.
 	var $d = Scene.Drawing.empty.rectangle(Layout.rect(plot_x(0), plot_y(20), right - plot_x(0), plot_y(80) - plot_y(20)), band)
 	for degrees in [0, 2, 4, 6, 8] {
-		$d = $d.rectangle({ origin: Layout.point(plot_x(0), plot_y(degrees * 10)), size: { height: Layout.Unit.millipoints(500), width: points(right - plot_x(0)) } }, grid)
-		$d = $d.text({ align: End, color: slate, origin: Layout.point(plot_x(0) - 5, plot_y(degrees * 10) - 2), size: points(7), text: "${degrees.to_str()} °C" })
+		$d = $d.rectangle({ origin: Layout.point(plot_x(0), plot_y(degrees * 10)), size: { height: 0.5, width: Layout.Unit.points(right - plot_x(0)) } }, grid)
+		$d = $d.text({ align: End, color: slate, origin: Layout.point(plot_x(0) - 5, plot_y(degrees * 10) - 2), size: 7, text: "${degrees.to_str()} °C" })
 	}
 	var $tick = 0
 	while $tick <= 48 {
 		major = $tick % 12 == 0
-		$d = $d.rectangle({ origin: Layout.point(plot_x($tick), if major 16 else 20), size: { height: points(if major 8 else 4), width: Layout.Unit.millipoints(600) } }, slate)
+		$d = $d.rectangle({ origin: Layout.point(plot_x($tick), if major 16 else 20), size: { height: Layout.Unit.points(if major 8 else 4), width: 0.6 } }, slate)
 		if major {
 			## The last label ends at the axis end so it stays in the chart.
-			$d = $d.text({ align: if $tick == 48 End else Center, color: slate, origin: Layout.point(plot_x($tick), 5), size: points(7), text: clock($tick) })
+			$d = $d.text({ align: if $tick == 48 End else Center, color: slate, origin: Layout.point(plot_x($tick), 5), size: 7, text: clock($tick) })
 		}
 		$tick = $tick + 4
 	}
 
 	## The 8.0 °C limit as a solid alarm line, and the excursion window.
-	$d = $d.rectangle({ origin: Layout.point(plot_x(0), plot_y(80)), size: { height: Layout.Unit.millipoints(1200), width: points(right - plot_x(0)) } }, alarm)
+	$d = $d.rectangle({ origin: Layout.point(plot_x(0), plot_y(80)), size: { height: 1.2, width: Layout.Unit.points(right - plot_x(0)) } }, alarm)
 	$d = $d.rectangle(Layout.rect(plot_x(28), plot_y(80), plot_x(32) - plot_x(28), plot_y(95) - plot_y(80)), Color.srgb8({ red: 254, green: 226, blue: 226 }))
-	$d = $d.text({ align: End, color: alarm, origin: Layout.point(right, plot_y(80) + 4), size: points(7), text: "8.0 °C limit" })
-	$d = $d.text_in(Strong, { align: Center, color: alarm, origin: Layout.point((plot_x(28) + plot_x(32)) // 2, plot_y(95) + 4), size: points(7), text: "Excursion" })
-	$d = legend($d, plot_x(0), plot_y(100), spruce, points(2), "Probe A")
-	$d = legend($d, plot_x(0) + 76, plot_y(100), light, Layout.Unit.millipoints(1500), "Probe B")
+	$d = $d.text({ align: End, color: alarm, origin: Layout.point(right, plot_y(80) + 4), size: 7, text: "8.0 °C limit" })
+	$d = $d.text_in(Strong, { align: Center, color: alarm, origin: Layout.point((plot_x(28) + plot_x(32)) // 2, plot_y(95) + 4), size: 7, text: "Excursion" })
+	$d = legend($d, plot_x(0), plot_y(100), spruce, 2, "Probe A")
+	$d = legend($d, plot_x(0) + 76, plot_y(100), light, 1.5, "Probe B")
 	$d
-		.path(series(probe_b), Scene.solid_stroke(light, Layout.Unit.millipoints(1500)))
-		.path(series(probe_a), Scene.solid_stroke(spruce, points(2)))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(plot_x(0), 24)).line_to(Layout.point(right, 24)).finish(), Scene.solid_stroke(slate, Layout.Unit.millipoints(800)))
+		.path(series(probe_b), Scene.solid_stroke(light, 1.5))
+		.path(series(probe_a), Scene.solid_stroke(spruce, 2))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(plot_x(0), 24)).line_to(Layout.point(right, 24)).finish(), Scene.solid_stroke(slate, 0.8))
 }
 
 ## ---------------------------------------------------------------------
@@ -342,12 +331,12 @@ temperature_chart = {
 ## content width under the options the export is prepared with.
 
 callout_inset : Layout.Unit
-callout_inset = points(12)
+callout_inset = 12
 
 summary : Pdf.Options, List(Document.Block) -> Try(Document.Block, Pdf.Error)
 summary = |options, paragraphs| {
-	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(measure - 24) })?
-	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(measure) }
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: Layout.Unit.points(measure - 24) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(measure) }
 	panel = Scene.Drawing.empty
 		.path(Scene.PathBuilder.start.rectangle({ origin: Layout.point(0, 0), size }).finish(), Scene.solid_fill(Color.srgb8({ red: 240, green: 247, blue: 250 })))
 	Ok(
@@ -356,7 +345,7 @@ summary = |options, paragraphs| {
 			fragmentation: Unsplittable,
 			inset: callout_inset,
 			name: "Shipment summary",
-			panel: panel.rectangle({ origin: Layout.point(0, 0), size: { height: size.height, width: points(3) } }, spruce),
+			panel: panel.rectangle({ origin: Layout.point(0, 0), size: { height: size.height, width: 3 } }, spruce),
 			size,
 		}),
 	)
@@ -381,7 +370,7 @@ contents = |options| {
 
 body : Document.Block -> List(Document.Block)
 body = |shipment| [
-	Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 120, 4), spruce).rectangle(Layout.rect(124, 0, 24, 4), alarm), below: points(6) }),
+	Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 120, 4), spruce).rectangle(Layout.rect(124, 0, 24, 4), alarm), below: 6 }),
 	Pdf.title("Cold-chain telemetry export"),
 	Pdf.rich_paragraph([
 		Pdf.text("Shipment "),

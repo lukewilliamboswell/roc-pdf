@@ -77,7 +77,7 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   linear scale pair.
 ## - `slot_inset`: a header whose start and end text sit 3 pt above a
 ##   bottom rule backdrop and a footer whose text hangs 4 pt below a top
-##   rule backdrop (`Pdf.with_slot_inset`). The furniture plan of the same
+##   rule backdrop (`slot_inset`). The furniture plan of the same
 ##   document without insets is resolved beside it: every header piece's
 ##   baseline must rise by exactly 3 pt, every footer piece's must drop by
 ##   exactly 4 pt, and every backdrop must stay where it was. Rejections:
@@ -158,10 +158,10 @@ points = |value| Layout.Unit.points(value)
 ## The reference themes: A4 body frames of 451 × 746 pt (letter) and
 ## 483 × 746 pt (report).
 letter_theme : Theme
-letter_theme = Theme.with_page_margin(Theme.default, { bottom: points(48), left: points(72), right: points(72), top: points(48) })
+letter_theme = Theme.{ page_margin: { bottom: points(48), left: points(72), right: points(72), top: points(48) } }
 
 report_theme : Theme
-report_theme = Theme.with_page_margin(Theme.default, { bottom: points(48), left: points(56), right: points(56), top: points(48) })
+report_theme = Theme.{ page_margin: { bottom: points(48), left: points(56), right: points(56), top: points(48) } }
 
 ## A small raster logo: an 8 × 4 sRGB image in two bands.
 logo_image : Image.Source
@@ -417,8 +417,8 @@ ordered_faces = |sections| {
 run_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_ordered = |sections| {
 	ordered = ordered_faces(sections)?
-	theme = Theme.with_font_policy(report_theme, ordered.policy)
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), ordered.registry)
+	theme = { ..report_theme, font_selection: Policy(ordered.policy) }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(ordered.registry) }
 	document = report_with_header(sections, "Quarterly operations report · Q1 FY2027 · Office中")
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe_ordered(Document.normalize(document), ordered, theme, page_size, pipeline_limits) ? |_| EvidenceFailure
@@ -448,7 +448,7 @@ run_ordered = |sections| {
 
 evidence : Document, Theme -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence = |document, theme| {
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) ? |_| EvidenceFailure
 	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.probe(Document.normalize(document), font, theme, page_size, descriptor, pipeline_limits, FragmentsReady) ? |_| EvidenceFailure
 	Ok({
@@ -473,7 +473,7 @@ descriptor : KernelPdfFont.Descriptor
 descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 
 rejects : Document, Conformance.DiagnosticCode, Str, List(Str) -> U64
-rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, letter_theme)) {
+rejects = |document, expected_code, expected_feature, expected_paths| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: letter_theme }) {
 	Err(InvalidDocument({ diagnostics: [{ code, details, feature: Feature(feature), location: Document, stage: AuthoringValidation, .. }], truncation: Complete, .. })) => if code == expected_code and feature == expected_feature and details == expected_paths 1 else 0
 	_ => 0
 }
@@ -520,7 +520,7 @@ run_negatives = |context| {
 	if passed != checks.len() {
 		return Err(MissingRejection(passed))
 	}
-	carrier = Pdf.to_bytes_with(templated([Pdf.title("Template carrier"), Pdf.paragraph("A valid templated page.")], simple(text_header, text_header)), Pdf.Options.with_theme(Pdf.Options.default, letter_theme)) ? |_| EvidenceFailure
+	carrier = Pdf.to_bytes_with(templated([Pdf.title("Template carrier"), Pdf.paragraph("A valid templated page.")], simple(text_header, text_header)), Pdf.Options.{ theme: letter_theme }) ? |_| EvidenceFailure
 	Ok({ bytes: carrier, work: [passed, carrier.len()] })
 }
 
@@ -530,7 +530,7 @@ run_page_sizes : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Evid
 run_page_sizes = |context| {
 	title = if context == 0 "Landscape ledger" else "guarded"
 	landscape = { height: Layout.Unit.from_raw(595000), width: Layout.Unit.from_raw(842000) }
-	options = |size| Pdf.Options.with_page_size(Pdf.Options.with_theme(Pdf.Options.default, report_theme), size)
+	options = |size| Pdf.Options.{ theme: report_theme, page_size: size }
 	heading_cell = |value| Pdf.header_cell(Column, [Pdf.text(value)])
 	var $rows = []
 	var $index = 0
@@ -659,16 +659,18 @@ run_backdrops = |pages| {
 	evidenced = evidence(document, report_theme)?
 	body = [Pdf.paragraph("Body.")]
 	templated = |templates| Pdf.with_page_templates(Pdf.document({ contents: body, language: "en-AU", title: "Backdrop negatives" }), templates)
-	text_header = Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] })
+	header_props : Pdf.RegionProps
+	header_props = { height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] }
+	text_header = Pdf.region(header_props)
 	simple = |first_header| {
 		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: text_header }),
 		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: first_header, lead: Pdf.no_lead }),
 	}
 	tall = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 100, 30), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	checks = [
-		rejects(templated(simple(Pdf.with_backdrop(text_header, tall))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
+		rejects(templated(simple(Pdf.region({ ..header_props, backdrop: Backdrop(tall) }))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
 		rejects(templated(backdrop_templates(points(452 + (pages % 1).to_i64_wrap()))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
-		rejects(templated(simple(Pdf.with_backdrop(Pdf.no_region, tall))), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
+		rejects(templated(simple(Pdf.region({ height: points(0), backdrop: Backdrop(tall) }))), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
 	]
 	rejections = checks.sum()
 	if rejections != checks.len() {
@@ -734,11 +736,12 @@ run_slot_inset = |context| {
 	}
 	body = [Pdf.paragraph("Body.")]
 	templated = |header| Pdf.with_page_templates(Pdf.document({ contents: body, language: "en-AU", title: "Inset negatives" }), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header, lead: Pdf.no_lead }) })
-	text_header = Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] })
+	header_props : Pdf.RegionProps
+	header_props = { height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] }
 	checks = [
-		rejects(templated(Pdf.with_slot_inset(text_header, points(6))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.start"]),
-		rejects(templated(Pdf.with_slot_inset(text_header, points(-1))), LayoutConstraintViolated, "layout.spacer_negative", ["templates.first.header.inset"]),
-		rejects(templated(Pdf.with_slot_inset(Pdf.no_region, points(2))), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
+		rejects(templated(Pdf.region({ ..header_props, slot_inset: points(6) })), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.start"]),
+		rejects(templated(Pdf.region({ ..header_props, slot_inset: points(-1) })), LayoutConstraintViolated, "layout.spacer_negative", ["templates.first.header.inset"]),
+		rejects(templated(Pdf.region({ height: points(0), slot_inset: points(2) })), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
 	]
 	rejections = checks.sum()
 	if rejections != checks.len() {

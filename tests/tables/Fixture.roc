@@ -27,7 +27,7 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 ##   headers, no header rows) and its items table (caption, one column
 ##   header row, N body rows with row-header item codes and end-aligned
 ##   amounts, a French span, and three totals rows whose labels span four
-##   columns and are end-aligned with `Pdf.aligned`),
+##   columns and are end-aligned with `.aligned(End)`),
 ##   continued across pages with the header row repainted as an artifact.
 ##   The 50/500 pair is the linear scale pair.
 ## - `spans`: a two-row header whose `Both`-scoped corner and spanning
@@ -85,7 +85,7 @@ Fixture :: [].{
 		blue = Srgb(Rgb({ blue: 36000, green: 18000, red: 4000 }))
 		slate : Color.SourceValue
 		slate = Srgb(Rgb({ blue: 20000, green: 16000, red: 12000 }))
-		evidence(spans_document(context), Theme.with_table_row_header_color(Theme.with_table_header_color(Theme.default, blue), slate), BuiltInFace)
+		evidence(spans_document(context), Theme.{ table: { header_color: Themed(blue), row_header_color: Themed(slate) } }, BuiltInFace)
 	}
 
 	split_rows : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -97,7 +97,7 @@ Fixture :: [].{
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	ordered = |context| {
 		registered = register_faces(context)?
-		evidence(ordered_document(context), Theme.with_font_policy(Theme.default, registered.policy), Policy(registered))
+		evidence(ordered_document(context), Theme.{ font_selection: Policy(registered.policy) }, Policy(registered))
 	}
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -109,8 +109,8 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		document = styled_document(rows)
-		thick = Theme.with_table_body_rule(styled_theme, Rule({ color: rule_gray, width: Layout.Unit.points(5) }))
-		rejected = match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, thick)) {
+		thick = { ..styled_theme, table: { ..styled_theme.table, body_rule: Rule({ color: rule_gray, width: Layout.Unit.points(5) }) } }
+		rejected = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: thick }) {
 			Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if message.contains("table body rule") 1 else 0
 			_ => 0
 		}
@@ -134,10 +134,10 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		document = styled_document(rows)
-		wide_column = Theme.with_table_column_rule(ruled_theme, Rule({ color: rule_gray, width: Layout.Unit.points(9) }))
-		wide_frame = Theme.with_table_frame(ruled_theme, Rule({ color: rule_gray, width: Layout.Unit.points(3) }))
+		wide_column = { ..ruled_theme, table: { ..ruled_theme.table, column_rule: Rule({ color: rule_gray, width: Layout.Unit.points(9) }) } }
+		wide_frame = { ..ruled_theme, table: { ..ruled_theme.table, frame: Rule({ color: rule_gray, width: Layout.Unit.points(3) }) } }
 		rejected = [(wide_column, "table column rule"), (wide_frame, "table frame")].map(
-			|(theme, name)| match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) {
+			|(theme, name)| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
 				Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if message.contains(name) 1 else 0
 				_ => 0
 			},
@@ -346,14 +346,7 @@ styled_theme = {
 	stripe = Srgb(Rgb({ blue: 64000, green: 62000, red: 60000 }))
 	pale : Color.SourceValue
 	pale = Srgb(Rgb({ blue: 60000, green: 58000, red: 55000 }))
-	Theme.default
-		.with_table_header_color(white)
-		.with_table_header_fill(navy)
-		.with_table_row_header_color(slate)
-		.with_table_body_fills({ even: Fill(stripe), odd: NoFill })
-		.with_table_body_rule(Rule({ color: rule_gray, width: Layout.Unit.from_raw(250) }))
-		.with_table_footer_fill(pale)
-		.with_table_rule(NoRule)
+	Theme.{ table: { body_fills: { even: Fill(stripe), odd: NoFill }, body_rule: Rule({ color: rule_gray, width: Layout.Unit.from_raw(250) }), footer_fill: Fill(pale), header_color: Themed(white), header_fill: Fill(navy), row_header_color: Themed(slate), rule: NoRule } }
 }
 
 ## A styled register: N body rows under a two-column header, with a
@@ -444,9 +437,7 @@ ruled_theme : Theme
 ruled_theme = {
 	navy : Color.SourceValue
 	navy = Srgb(Rgb({ blue: 22000, green: 12000, red: 5000 }))
-	styled_theme
-		.with_table_column_rule(Rule({ color: rule_gray, width: Layout.Unit.from_raw(500) }))
-		.with_table_frame(Rule({ color: navy, width: Layout.Unit.from_raw(1000) }))
+	{ ..styled_theme, table: { ..styled_theme.table, column_rule: Rule({ color: rule_gray, width: Layout.Unit.from_raw(500) }), frame: Rule({ color: navy, width: Layout.Unit.from_raw(1000) }) } }
 }
 
 kept_document : U64 -> Document
@@ -565,8 +556,8 @@ evidence = |document, theme, faces| evidence_with(document, theme, faces, NoPain
 evidence_with : Document, Theme, Faces, [EmptyCellPaints, NoPaints, Paints] -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence_with = |document, theme, faces, paints| {
 	options = match faces {
-		BuiltInFace => Pdf.Options.with_theme(Pdf.Options.default, theme)
-		Policy(policy) => Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), policy.registry)
+		BuiltInFace => Pdf.Options.{ theme: theme }
+		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry) }
 	}
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	authoring = Document.normalize(document)

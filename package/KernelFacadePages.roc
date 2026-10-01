@@ -322,7 +322,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 					Required => Required
 					_ => if theme_keep Preferred(HeadingKeep) else authored
 				}
-				spacing = if continues_list(authoring, block_runs, $block_index, level) 0 else nonnegative_raw(Theme.paragraph_spacing(theme))?
+				spacing = if continues_list(authoring, block_runs, $block_index, level) 0 else nonnegative_raw(theme.paragraph_spacing)?
 				spaced = spacer_total(authoring.spacers, $spacer_cursor, $block_index + 1)
 				$spacer_cursor = spaced.cursor
 				break_before = $break_cursor < authoring.page_breaks.len() and list_at(authoring.page_breaks, $break_cursor).block == $block_index
@@ -363,7 +363,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	}
 	$page_blocks = apply_customs(authoring, $page_blocks, [])?
 	keep_groups = together_groups(authoring.groups)
-	constraints = { margins: Theme.page_margin(theme), page: page_size }
+	constraints = { margins: theme.page_margin, page: page_size }
 	page = match flow {
 		NoFlowTemplate => (
 			if keep_groups.is_empty() {
@@ -377,8 +377,8 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 			KernelPageLayout.Plan.build_with_template(lead_policies($page_blocks, leaves), flow_groups(keep_groups, leaves), $visual_lines, constraints, layout_template(template, leaves), limits.page) ? PageLayout
 		}
 	}
-	decorations = decoration_paints(authoring, KernelPageLayout.Plan.bands(page), [], nonnegative_raw(Theme.page_margin(theme).left)?)?
-	panels = panel_paints(authoring, KernelPageLayout.Plan.bands(page), [], flow_facts, nonnegative_raw(Theme.page_margin(theme).left)?)?
+	decorations = decoration_paints(authoring, KernelPageLayout.Plan.bands(page), [], nonnegative_raw(theme.page_margin.left)?)?
+	panels = panel_paints(authoring, KernelPageLayout.Plan.bands(page), [], flow_facts, nonnegative_raw(theme.page_margin.left)?)?
 	Ok(
 		KernelFacadePages.Plan.{
 			artifact_rows: [],
@@ -448,7 +448,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	check_limit(blocks.len(), limits.max_blocks, Blocks)?
 	check_page_breaks(authoring.page_breaks, blocks.len(), lead_leaves(flow))?
 	author_keeps = authored_keeps(authoring.groups, blocks.len())
-	table_style = Theme.table_style(theme)
+	table_style = theme.table
 	gap = nonnegative_raw(table_style.row_gap)?
 	rule = match table_style.rule {
 		NoRule => NoTableRule
@@ -492,7 +492,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
 		}
 	}
-	paragraph_spacing = nonnegative_raw(Theme.paragraph_spacing(theme))?
+	paragraph_spacing = nonnegative_raw(theme.paragraph_spacing)?
 	flow_facts = plan_flow(authoring, block_lines, page_size, theme, flow)?
 	cell_geometry = KernelFacadeTables.Plan.cells(tables)
 	table_geometry = KernelFacadeTables.Plan.tables(tables)
@@ -753,7 +753,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	## footer groups join them in preorder.
 	$page_blocks = apply_customs(authoring, $page_blocks, $unit_of_block)?
 	merged = merge_groups(unit_groups(authoring.groups, $unit_of_block), $footer_groups, $footer_sources)
-	constraints = { margins: Theme.page_margin(theme), page: page_size }
+	constraints = { margins: theme.page_margin, page: page_size }
 	page = match flow {
 		NoFlowTemplate => (
 			if merged.groups.is_empty() {
@@ -771,7 +771,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 
 	## Rebuild the placements: one per painted cell line and leaf line, with
 	## each continued table's header rows repainted first as artifacts.
-	margins = Theme.page_margin(theme)
+	margins = theme.page_margin
 	frame_top = checked_sub(positive_raw(page_size.height)?, nonnegative_raw(margins.top)?)?
 
 	## A continued table repaints its header rows at the top of a later
@@ -1450,7 +1450,7 @@ logical_run_first = |logical, block, run_count| {
 ## Every physical run of one logical run must carry the identical leading:
 ## pagination treats the logical run as one row source regardless of its
 ## face or occurrence split. Sizes may differ, since an inline role may
-## scale its text below the paragraph size (`Theme.with_inline_scale`); the
+## scale its text below the paragraph size (the theme's `inline.<role>.scale`); the
 ## logical run's line size, its baseline offset, is its largest run size.
 ## Fill colors may differ between the occurrences of a rich paragraph; they
 ## are paint facts, not row geometry.
@@ -1565,7 +1565,7 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 	if authoring.figures.is_empty() and authoring.decorations.is_empty() and authoring.customs.is_empty() {
 		return Ok({ decorations: [], heights: [], scales: [] })
 	}
-	margins = Theme.page_margin(theme)
+	margins = theme.page_margin
 	width = checked_sub(nonnegative_raw(page_size.width)?, checked_add(nonnegative_raw(margins.left)?, nonnegative_raw(margins.right)?)?)?
 	body_height = checked_sub(nonnegative_raw(page_size.height)?, checked_add(nonnegative_raw(margins.top)?, nonnegative_raw(margins.bottom)?)?)?
 	frames = match flow {
@@ -1608,7 +1608,7 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 		return Ok({ decorations: $decorations, heights: [], scales: [] })
 	}
 	leading = nonnegative_raw(Theme.body_style(theme).leading)?
-	spacing = nonnegative_raw(Theme.paragraph_spacing(theme))?
+	spacing = nonnegative_raw(theme.paragraph_spacing)?
 	var $heights = List.with_capacity(authoring.figures.len())
 	var $scales = List.with_capacity(authoring.figures.len())
 	var $block = 0
@@ -1871,8 +1871,8 @@ layout_template = |template, lead_units| {
 expect {
 	drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 600, 900), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	page = { height: Layout.Unit.points(842), width: Layout.Unit.points(595) }
-	theme = Theme.with_page_margin(Theme.default, { bottom: Layout.Unit.points(48), left: Layout.Unit.points(56), right: Layout.Unit.points(56), top: Layout.Unit.points(48) })
-	authoring = |fit| Document.normalize(Document.from_blocks({ contents: [Document.figure_fit(Document.figure(drawing, "A plan", NoCaption), fit)], language: "en-AU", title: "Fit" }))
+	theme = Theme.{ page_margin: { bottom: Layout.Unit.points(48), left: Layout.Unit.points(56), right: Layout.Unit.points(56), top: Layout.Unit.points(48) } }
+	authoring = |fit| Document.normalize(Document.from_blocks({ contents: [Document.fitted_figure(drawing, "A plan", NoCaption, fit)], language: "en-AU", title: "Fit" }))
 	scaled = match plan_flow(authoring(ScaleToFit({ minimum_percent: 50 })), [], page, theme, NoFlowTemplate) {
 		Ok({ decorations: [], heights: [height], scales: [scale] }) => scale == 805 and height == 724500
 		_ => False

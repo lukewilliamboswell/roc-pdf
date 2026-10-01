@@ -25,16 +25,13 @@ main! = |_args| {
 		.with_outline(outline)
 		.with_created("2026-10-12T00:00:00Z")
 		.with_modified("2026-10-12T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.default.with_theme(theme)).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "business-report.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
 	Stdout.line!("Wrote business-report.pdf").map_err(|err| OutputFailed(err))?
 	Ok({})
 }
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
 
 navy : Color.SourceValue
 navy = Color.srgb8({ red: 24, green: 52, blue: 84 })
@@ -50,30 +47,25 @@ ink = Color.srgb8({ red: 40, green: 40, blue: 40 })
 
 ## A4 with 48 pt top and bottom and 56 pt side margins: a 483 × 746 pt body.
 theme : Theme
-theme = Theme.default
-	.with_page_margin({ top: points(48), right: points(56), bottom: points(48), left: points(56) })
-	.with_title_color(navy)
-	.with_heading_color(navy)
-	.with_strong_color(navy)
-	.with_code_color(Color.srgb8({ red: 120, green: 60, blue: 20 }))
+theme = Theme.{ headings: { all: { color: navy } }, inline: { code: { color: Themed(Color.srgb8({ red: 120, green: 60, blue: 20 })) }, strong: { color: Themed(navy) } }, page_margin: { top: 48, right: 56, bottom: 48, left: 56 }, title: { color: navy } }
 
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 footer : Pdf.Region
-footer = Pdf.region({ height: points(16), start: [], center: [], end: [Pdf.furniture_text([page_of])] })
+footer = Pdf.region({ height: 16, start: [], center: [], end: [Pdf.furniture_text([page_of])] })
 
 ## A full-width 0.5 pt rule under the running header.
 rule : Scene.Drawing
-rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(500), width: points(483) } }, slate)
+rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.5, width: 483 } }, slate)
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
+	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 12 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(24), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report · Q1 FY2027")]), Pdf.furniture_image(rule)], center: [], end: [] }),
+		header: Pdf.region({ height: 24, start: [Pdf.furniture_text([Pdf.text("Quarterly operations report · Q1 FY2027")]), Pdf.furniture_image(rule)], center: [], end: [] }),
 		footer,
-		gap: points(12),
+		gap: 12,
 	}),
 }
 
@@ -96,12 +88,12 @@ outline = [
 ## paragraphs out and proves they fit the measured box.
 
 callout_inset : Layout.Unit
-callout_inset = points(10)
+callout_inset = 10
 
 key_figures : List(Str), Layout.Unit -> Document.Block
 key_figures = |lines, width| {
 	leading = Theme.body_style(theme).leading.raw()
-	spacing = Theme.paragraph_spacing(theme).raw()
+	spacing = theme.paragraph_spacing.raw()
 	count = lines.len().to_i64_wrap()
 	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width }
 	Pdf.custom_block({
@@ -140,7 +132,7 @@ callout_panel = |size| {
 		.finish()
 	fill = Color.srgb8({ red: 236, green: 244, blue: 250 })
 	stroke = Color.srgb8({ red: 150, green: 170, blue: 190 })
-	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: stroke, width: points(1) }) })
+	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(fill), stroke: AuthorSolidStroke({ color: stroke, width: 1 }) })
 }
 
 ## ---------------------------------------------------------------------
@@ -195,11 +187,11 @@ bar_chart = {
 	base = 24
 	var $chart = Scene.Drawing.empty
 	for step in [1, 2, 3, 4] {
-		$chart = $chart.rectangle({ origin: Layout.point(40, base + plotted(step * 1000)), size: { height: Layout.Unit.millipoints(500), width: points(440) } }, slate)
+		$chart = $chart.rectangle({ origin: Layout.point(40, base + plotted(step * 1000)), size: { height: 0.5, width: 440 } }, slate)
 	}
 	$chart = $chart
-		.path(Scene.PathBuilder.start.move_to(Layout.point(40, base)).line_to(Layout.point(480, base)).finish(), Scene.solid_stroke(ink, points(1)))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(40, base)).line_to(Layout.point(40, base + 196)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(40, base)).line_to(Layout.point(480, base)).finish(), Scene.solid_stroke(ink, 1))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(40, base)).line_to(Layout.point(40, base + 196)).finish(), Scene.solid_stroke(ink, 1))
 	for lead in [0, 1, 2, 3, 4] {
 		$chart = tick_label($chart, lead, 34, base - 4 + plotted(lead.to_i64_wrap() * 1000))
 	}
@@ -357,8 +349,8 @@ supplier_table = {
 			{ width: Share(3), align: Start },
 			{ width: Share(2), align: Start },
 			{ width: Share(2), align: Start },
-			{ width: Fixed(points(80)), align: End },
-			{ width: Fixed(points(56)), align: Center },
+			{ width: Fixed(80), align: End },
+			{ width: Fixed(56), align: Center },
 		],
 		header_rows: [
 			Pdf.row([
@@ -405,7 +397,7 @@ contents = [
 			]),
 			Pdf.list_item([Pdf.paragraph("Warranty claims fell to 0.6% of units shipped.")]),
 		]),
-		key_figures(["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%", "Certified timber: 88%"], points(483)),
+		key_figures(["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%", "Certified timber: 88%"], 483),
 	]),
 	Pdf.section([
 		Pdf.destination_heading("sales", 1, "2 Sales performance"),

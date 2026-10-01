@@ -39,7 +39,7 @@ Invoice :: [].{
 	theme = invoice_theme
 
 	options : Pdf.Options
-	options = Pdf.Options.default.with_theme(invoice_theme)
+	options = Pdf.Options.{ theme: invoice_theme }
 
 	## Body row `index`: the eight products once per fit-out site.
 	item_row : U64 -> Pdf.Row
@@ -100,11 +100,7 @@ brass : Color.SourceValue
 brass = Color.srgb8({ red: 196, green: 150, blue: 64 })
 
 invoice_theme : Theme
-invoice_theme = Theme.default
-	.with_page_margin({ top: points(48), right: points(56), bottom: points(48), left: points(56) })
-	.with_title_color(navy)
-	.with_heading_color(navy)
-	.with_strong_color(navy)
+invoice_theme = Theme.{ headings: { all: { color: navy } }, inline: { strong: { color: Themed(navy) } }, page_margin: { top: points(48), right: points(56), bottom: points(48), left: points(56) }, title: { color: navy } }
 
 logo : Scene.Drawing
 logo = {

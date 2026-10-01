@@ -910,7 +910,7 @@ header_cell_color = |authoring, block, theme, paragraph_color| {
 	if !in_row {
 		return paragraph_color
 	}
-	style = Theme.table_style(theme)
+	style = theme.table
 	match (style.header_color, style.row_header_color) {
 		(Inherited, Inherited) => paragraph_color
 		(column_color, row_color) => {
@@ -1229,7 +1229,7 @@ role_color = |authoring, block, theme, role| {
 	match role {
 		Code => Theme.inline_color(theme, Code)
 		Emphasis => Theme.inline_color(theme, Emphasis)
-		Link => Theme.link_style(theme).color
+		Link => theme.link.color
 		Quote => Theme.inline_color(theme, Quote)
 		Strong => Theme.inline_color(theme, Strong)
 		Text => Inherited
@@ -1695,7 +1695,7 @@ style_for = |kind, theme| match kind {
 	## A link block paints in the body style with the theme's link color.
 	Link(_) | InternalLink(_) => {
 		body = Theme.body_style(theme)
-		match Theme.link_style(theme).color {
+		match theme.link.color {
 			Themed(color) => { ..body, color }
 			Inherited => body
 		}

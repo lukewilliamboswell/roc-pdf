@@ -100,10 +100,10 @@ points = |value| Layout.Unit.points(value)
 
 ## The reference report theme: an A4 body frame of 483 x 746 pt.
 report_theme : Theme
-report_theme = Theme.with_page_margin(Theme.default, { bottom: points(48), left: points(56), right: points(56), top: points(48) })
+report_theme = Theme.{ page_margin: { bottom: points(48), left: points(56), right: points(56), top: points(48) } }
 
 options : Pdf.Options
-options = Pdf.Options.with_theme(Pdf.Options.default, report_theme)
+options = Pdf.Options.{ theme: report_theme }
 
 ink : Color.SourceValue
 ink = Color.srgb8({ blue: 40, green: 40, red: 40 })
@@ -208,7 +208,7 @@ callouts_document = |count| {
 run_rich_callouts : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_rich_callouts = |count| {
 	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
-	scope = Theme.Scope.empty.with_color(Text, near_white).with_color(Strong, Color.srgb8({ blue: 60, green: 190, red: 250 })).with_color(Link, Color.srgb8({ blue: 250, green: 205, red: 125 })).with_color(Code, near_white)
+	scope = Theme.Scope.{ text: Themed(near_white), strong: Themed(Color.srgb8({ blue: 60, green: 190, red: 250 })), link: Themed(Color.srgb8({ blue: 250, green: 205, red: 125 })), code: Themed(near_white) }
 	style = { fill: Color.srgb8({ blue: 70, green: 40, red: 20 }), radius: points(6), stroke: Color.srgb8({ blue: 110, green: 70, red: 40 }) }
 	var $contents = List.with_capacity(count * 2 + 1)
 	$contents = $contents.append(Pdf.title("Release runbook"))

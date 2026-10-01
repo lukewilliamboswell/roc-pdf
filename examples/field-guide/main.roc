@@ -24,7 +24,8 @@ import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 ## headers and footers with the header text inset above a ruled backdrop.
 main! = |_args| {
 	fonts = register_fonts({})?
-	options = Pdf.Options.default.with_theme(with_faces(theme, fonts)).with_font_registry(fonts.registry)
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
 	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Coastal field guide: shorebirds of the Derwent estuary" })
 		.with_page_templates(templates)
@@ -54,25 +55,6 @@ register_fonts = |_| {
 	Ok({ regular: regular.face, bold: bold.face, italic: italic.face, registry: italic.registry })
 }
 
-## Regular for body text; Bold for the title, headings, and `Pdf.strong`;
-## Italic for `Pdf.emphasis`. Level-2 headings (the species accounts) are
-## smaller and set in ink.
-with_faces : Theme, Faces -> Theme
-with_faces = |base, faces| {
-	title = Theme.title_style(base)
-	heading = Theme.heading_style(base)
-	base
-		.with_font(faces.regular)
-		.with_title_style({ ..title, font: faces.bold })
-		.with_heading_level_style(H1, { ..heading, font: faces.bold })
-		.with_heading_level_style(H2, { ..heading, font: faces.bold, color: ink, size: points(13), leading: points(18) })
-		.with_inline_font(Strong, faces.bold)
-		.with_inline_font(Emphasis, faces.italic)
-}
-
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 rgb : U8, U8, U8 -> Color.SourceValue
 rgb = |red, green, blue| Color.srgb8({ red, green, blue })
 
@@ -89,26 +71,31 @@ sand = rgb(226, 204, 158)
 body_width : I64
 body_width = 459
 
-theme : Theme
-theme = {
-	base_title = Theme.title_style(Theme.default)
-	base_heading = Theme.heading_style(Theme.default)
-	base_body = Theme.body_style(Theme.default)
-	Theme.default
-		.with_page_margin({ top: points(44), right: points(56), bottom: points(40), left: points(80) })
-		.with_title_style({ ..base_title, color: coastal, size: points(32), leading: points(38) })
-		.with_heading_style({ ..base_heading, color: coastal, size: points(16), leading: points(21) })
-		.with_body_style({ ..base_body, color: ink, size: points(10), leading: points(14) })
-		.with_paragraph_spacing(points(7))
-		.with_table_header_color(coastal)
-		.with_table_header_fill(rgb(232, 242, 241))
-		.with_table_body_fills({ odd: NoFill, even: Fill(rgb(249, 246, 239)) })
-		.with_table_rule(Rule({ color: rgb(120, 170, 168), width: points(1) }))
-		.with_table_column_rule(Rule({ color: rgb(214, 226, 224), width: Layout.Unit.millipoints(600) }))
-		.with_table_frame(Rule({ color: rgb(120, 170, 168), width: Layout.Unit.millipoints(800) }))
-		.with_table_cell_padding(points(4))
-		.with_link_color(coastal)
-		.with_link_underline(Underline({ offset: Layout.Unit.millipoints(1300), thickness: Layout.Unit.millipoints(500) }))
+## Regular for body text; Bold for the title, the first two heading
+## levels, and `Pdf.strong`; Italic for `Pdf.emphasis`.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: ink, size: 10, leading: 14 },
+	title: { color: coastal, face: Face(faces.bold), size: 32, leading: 38 },
+	headings: {
+		all: { color: coastal, size: 16, leading: 21 },
+		h1: Own({ color: coastal, face: Face(faces.bold), size: 16, leading: 21 }),
+		h2: Own({ color: ink, face: Face(faces.bold), size: 13, leading: 18 }),
+	},
+	inline: { strong: { font: Face(faces.bold) }, emphasis: { font: Face(faces.italic) } },
+	page_margin: { top: 44, right: 56, bottom: 40, left: 80 },
+	paragraph_spacing: 7,
+	link: { color: Themed(coastal), underline: Underline({ offset: 1.3, thickness: 0.5 }) },
+	table: {
+		header_color: Themed(coastal),
+		header_fill: Fill(rgb(232, 242, 241)),
+		body_fills: { even: Fill(rgb(249, 246, 239)) },
+		rule: Rule({ color: rgb(120, 170, 168), width: 1 }),
+		column_rule: Rule({ color: rgb(214, 226, 224), width: 0.6 }),
+		frame: Rule({ color: rgb(120, 170, 168), width: 0.8 }),
+		cell_padding: 4,
+	},
 }
 
 ## ---------------------------------------------------------------------
@@ -122,28 +109,28 @@ wave_mark = {
 		.cubic_to({ control_1: Layout.point(17, y - 5), control_2: Layout.point(21, y - 5), end: Layout.point(25, y) })
 		.finish()
 	Scene.Drawing.empty
-		.path(wave(6), Scene.solid_stroke(coastal, Layout.Unit.millipoints(1500)))
-		.path(wave(12), Scene.solid_stroke(rgb(120, 170, 168), Layout.Unit.millipoints(1500)))
+		.path(wave(6), Scene.solid_stroke(coastal, 1.5))
+		.path(wave(12), Scene.solid_stroke(rgb(120, 170, 168), 1.5))
 }
 
 rule : Scene.Drawing
-rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.millipoints(600), width: points(body_width) } }, rgb(120, 170, 168))
+rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(body_width) } }, rgb(120, 170, 168))
 
 footer : Pdf.Region
 footer = Pdf.region({
-	height: points(14),
+	height: 14,
 	start: [Pdf.furniture_text([Pdf.text("Derwent Estuary Bird Group · 2026 edition")])],
 	center: [],
-	end: [Pdf.furniture_text([Pdf.reserved_width(points(40), End, [Pdf.text("FG-"), Pdf.page_number(Decimal)])])],
+	end: [Pdf.furniture_text([Pdf.reserved_width(40, End, [Pdf.text("FG-"), Pdf.page_number(Decimal)])])],
 })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: points(12) }),
+	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 12 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(21), start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])], center: [], end: [Pdf.furniture_image(wave_mark)], backdrop: Backdrop(rule), slot_inset: points(3) }),
+		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])], center: [], end: [Pdf.furniture_image(wave_mark)], backdrop: Backdrop(rule), slot_inset: 3 }),
 		footer,
-		gap: points(14),
+		gap: 14,
 	}),
 }
 
@@ -216,18 +203,18 @@ habitat_section = {
 	## Marram grass tufts on the dune crest.
 	for x in [30, 52, 74, 96] {
 		$scene = $scene
-			.path(line(x, 136, x - 5, 152), Scene.solid_stroke(rgb(96, 128, 60), points(1)))
-			.path(line(x, 136, x, 156), Scene.solid_stroke(rgb(96, 128, 60), points(1)))
-			.path(line(x, 136, x + 5, 152), Scene.solid_stroke(rgb(96, 128, 60), points(1)))
+			.path(line(x, 136, x - 5, 152), Scene.solid_stroke(rgb(96, 128, 60), 1))
+			.path(line(x, 136, x, 156), Scene.solid_stroke(rgb(96, 128, 60), 1))
+			.path(line(x, 136, x + 5, 152), Scene.solid_stroke(rgb(96, 128, 60), 1))
 	}
 
 	# The high-tide line (dashed) and the low-tide line.
 	var $x = 184
 	while $x < w - 6 {
-		$scene = $scene.path(line($x, 72, $x + 6, 72), Scene.solid_stroke(coastal, points(1)))
+		$scene = $scene.path(line($x, 72, $x + 6, 72), Scene.solid_stroke(coastal, 1))
 		$x = $x + 10
 	}
-	$scene = $scene.path(line(300, 48, w - 2, 48), Scene.solid_stroke(rgb(12, 70, 80), points(1)))
+	$scene = $scene.path(line(300, 48, w - 2, 48), Scene.solid_stroke(rgb(12, 70, 80), 1))
 
 	## Feeding-zone brackets above the flats: oystercatcher (black), plover (rust), curlew (brown).
 	$scene = $scene
@@ -236,7 +223,7 @@ habitat_section = {
 		.group(point(240, 148), zone(rgb(120, 84, 50), 200))
 
 	## Zone names above their brackets and the tide lines' names.
-	label = |x, y, align, color, text| { align, color, origin: point(x, y), size: points(7), text }
+	label = |x, y, align, color, text| { align, color, origin: point(x, y), size: 7, text }
 	$scene = $scene
 		.text(label(225, 171, Center, rgb(20, 20, 20), "Oystercatcher"))
 		.text(label(104, 182, Start, rgb(176, 72, 40), "Plover"))
@@ -255,29 +242,29 @@ habitat_section = {
 
 zone : Color.SourceValue, I64 -> Scene.Drawing
 zone = |color, width| Scene.Drawing.empty
-	.path(Scene.PathBuilder.start.move_to(point(1, 0)).line_to(point(1, 6)).line_to(point(width - 1, 6)).line_to(point(width - 1, 0)).finish(), Scene.solid_stroke(color, Layout.Unit.millipoints(1500)))
+	.path(Scene.PathBuilder.start.move_to(point(1, 0)).line_to(point(1, 6)).line_to(point(width - 1, 6)).line_to(point(width - 1, 0)).finish(), Scene.solid_stroke(color, 1.5))
 
 oystercatcher_small : Scene.Drawing
 oystercatcher_small = Scene.Drawing.empty
-	.path(line(10, 1, 10, 10), Scene.solid_stroke(rgb(230, 130, 140), points(1)))
-	.path(line(14, 1, 14, 10), Scene.solid_stroke(rgb(230, 130, 140), points(1)))
+	.path(line(10, 1, 10, 10), Scene.solid_stroke(rgb(230, 130, 140), 1))
+	.path(line(14, 1, 14, 10), Scene.solid_stroke(rgb(230, 130, 140), 1))
 	.path(ellipse(12, 14, 9, 5), Scene.solid_fill(rgb(20, 20, 20)))
 	.path(ellipse(22, 19, 3, 3), Scene.solid_fill(rgb(20, 20, 20)))
-	.path(line(24, 19, 32, 16), Scene.solid_stroke(rgb(214, 70, 40), Layout.Unit.millipoints(1500)))
+	.path(line(24, 19, 32, 16), Scene.solid_stroke(rgb(214, 70, 40), 1.5))
 
 plover_small : Scene.Drawing
 plover_small = Scene.Drawing.empty
-	.path(line(7, 1, 7, 5), Scene.solid_stroke(ink, Layout.Unit.millipoints(800)))
+	.path(line(7, 1, 7, 5), Scene.solid_stroke(ink, 0.8))
 	.path(ellipse(8, 8, 6, 3), Scene.solid_fill(rgb(200, 180, 150)))
 	.path(ellipse(14, 11, 2, 2), Scene.solid_fill(rgb(176, 72, 40)))
 
 curlew_small : Scene.Drawing
 curlew_small = Scene.Drawing.empty
-	.path(line(12, 1, 12, 12), Scene.solid_stroke(ink, points(1)))
-	.path(line(16, 1, 16, 12), Scene.solid_stroke(ink, points(1)))
+	.path(line(12, 1, 12, 12), Scene.solid_stroke(ink, 1))
+	.path(line(16, 1, 16, 12), Scene.solid_stroke(ink, 1))
 	.path(ellipse(14, 17, 11, 6), Scene.solid_fill(rgb(150, 112, 72)))
 	.path(ellipse(26, 23, 3, 3), Scene.solid_fill(rgb(150, 112, 72)))
-	.path(Scene.PathBuilder.start.move_to(point(28, 23)).cubic_to({ control_1: point(34, 22), control_2: point(38, 18), end: point(40, 12) }).finish(), Scene.solid_stroke(ink, points(1)))
+	.path(Scene.PathBuilder.start.move_to(point(28, 23)).cubic_to({ control_1: point(34, 22), control_2: point(38, 18), end: point(40, 12) }).finish(), Scene.solid_stroke(ink, 1))
 
 ## ---------------------------------------------------------------------
 ## Species plates: a large, labelled-by-caption silhouette on a tinted card.
@@ -290,8 +277,8 @@ bird = |{ bill, body, belly, height, leg, length }| {
 	ry = length // 4
 	head = length // 7
 	legs = Scene.Drawing.empty
-		.path(line(cx - 4, 2, cx - 2, cy - ry + 4), Scene.solid_stroke(leg, points(2)))
-		.path(line(cx + 5, 2, cx + 3, cy - ry + 4), Scene.solid_stroke(leg, points(2)))
+		.path(line(cx - 4, 2, cx - 2, cy - ry + 4), Scene.solid_stroke(leg, 2))
+		.path(line(cx + 5, 2, cx + 3, cy - ry + 4), Scene.solid_stroke(leg, 2))
 	legs
 		.path(ellipse(cx, cy, rx, ry), Scene.solid_fill(body))
 		.path(ellipse(cx + 2, cy - ry // 3, rx - 6, ry // 2), Scene.solid_fill(belly))
@@ -302,9 +289,9 @@ bird = |{ bill, body, belly, height, leg, length }| {
 
 card : Scene.Drawing, Color.SourceValue, Str -> Scene.Drawing
 card = |figure, tint, name| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 145, 130), tint)
-	.path(line(10, 18, 135, 18), Scene.solid_stroke(sand, points(2)))
+	.path(line(10, 18, 135, 18), Scene.solid_stroke(sand, 2))
 	.group(point(18, 16), figure)
-	.text({ align: Center, color: ink, origin: point(72, 5), size: points(8), text: name })
+	.text({ align: Center, color: ink, origin: point(72, 5), size: 8, text: name })
 
 oystercatcher_plate : Scene.Drawing
 oystercatcher_plate = {
@@ -349,15 +336,15 @@ plates = Scene.Drawing.empty
 ## tinted rounded panel.
 
 callout_inset : Layout.Unit
-callout_inset = points(12)
+callout_inset = 12
 
 ## Each line is a label and its text; the callout scopes its `Strong`
 ## labels to its accent colour.
 callout : Pdf.Options, Str, Color.SourceValue, List((Str, Str)) -> Try(Document.Block, Pdf.Error)
 callout = |options, name, accent, lines| {
 	paragraphs = lines.map(|(label, text)| Pdf.rich_paragraph([Pdf.strong([Pdf.text(label)]), Pdf.text(" ${text}")]))
-	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: points(body_width - 24) })?
-	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: points(body_width) }
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-AU", width: Layout.Unit.points(body_width - 24) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(body_width) }
 	block = Pdf.custom_block({
 		contents: paragraphs,
 		fragmentation: Unsplittable,
@@ -366,7 +353,7 @@ callout = |options, name, accent, lines| {
 		panel: callout_panel(size),
 		size,
 	})
-	Ok(Pdf.scoped(Theme.Scope.empty.with_color(Strong, accent), [block]))
+	Ok(Pdf.scoped(Theme.Scope.{ strong: Themed(accent) }, [block]))
 }
 
 callout_panel : Layout.Size -> Scene.Drawing
@@ -391,7 +378,7 @@ callout_panel = |size| {
 		.cubic_to({ control_1: at(left, bottom + r - k), control_2: at(left + r - k, bottom), end: at(left + r, bottom) })
 		.close()
 		.finish()
-	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(rgb(246, 241, 228)), stroke: AuthorSolidStroke({ color: rgb(200, 170, 110), width: points(1) }) })
+	Scene.Drawing.empty.path(outline_path, { fill: AuthorSolidFill(rgb(246, 241, 228)), stroke: AuthorSolidStroke({ color: rgb(200, 170, 110), width: 1 }) })
 }
 
 ## A thin sand-coloured rule with a centred wave, set 6 pt below the
@@ -399,10 +386,10 @@ callout_panel = |size| {
 divider : Document.Block
 divider = Pdf.decoration({
 	drawing: Scene.Drawing.empty
-		.path(line(1, 7, 210, 7), Scene.solid_stroke(sand, points(1)))
+		.path(line(1, 7, 210, 7), Scene.solid_stroke(sand, 1))
 		.group(point(217, 0), wave_mark)
-		.path(line(249, 7, body_width - 1, 7), Scene.solid_stroke(sand, points(1))),
-	above: points(6),
+		.path(line(249, 7, body_width - 1, 7), Scene.solid_stroke(sand, 1)),
+	above: 6,
 })
 
 ## ---------------------------------------------------------------------
@@ -438,9 +425,9 @@ survey_details : Document.Block
 survey_details = Pdf.table({
 	caption: Pdf.caption("Table 1. Survey details"),
 	columns: [
-		{ width: Fixed(points(78)), align: Start },
+		{ width: Fixed(78), align: Start },
 		{ width: Share(1), align: Start },
-		{ width: Fixed(points(78)), align: Start },
+		{ width: Fixed(78), align: Start },
 		{ width: Share(1), align: Start },
 	],
 	header_rows: [],
@@ -465,7 +452,7 @@ table_of_species = Pdf.table({
 		{ width: Share(3), align: Start },
 		{ width: Share(2), align: Start },
 		{ width: Share(2), align: Start },
-		{ width: Fixed(points(44)), align: End },
+		{ width: Fixed(44), align: End },
 	],
 	header_rows: [
 		Pdf.row([

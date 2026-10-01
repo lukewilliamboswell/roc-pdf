@@ -1039,20 +1039,6 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	region : { backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(DocumentFurniture) } -> DocumentRegion
 	region = |record| DocumentRegion.Region(record)
 
-	## A region with a backdrop drawing behind its slots.
-	with_backdrop : DocumentRegion, Scene.Drawing -> DocumentRegion
-	with_backdrop = |value, drawing| match value {
-		NoRegion => DocumentRegion.Region({ backdrop: Backdrop(drawing), center: [], end: [], height: Layout.Unit.from_raw(0), inset: Layout.Unit.from_raw(0), start: [] })
-		Region(record) => DocumentRegion.Region({ ..record, backdrop: Backdrop(drawing) })
-	}
-
-	## A region whose slot stacks sit `inset` inside its outer edge.
-	with_slot_inset : DocumentRegion, Layout.Unit -> DocumentRegion
-	with_slot_inset = |value, inset| match value {
-		NoRegion => DocumentRegion.Region({ backdrop: NoBackdrop, center: [], end: [], height: Layout.Unit.from_raw(0), inset, start: [] })
-		Region(record) => DocumentRegion.Region({ ..record, inset })
-	}
-
 	no_region : DocumentRegion
 	no_region = DocumentRegion.NoRegion
 
@@ -1200,22 +1186,11 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	fitted_figure : Scene.Drawing, Str, Caption, FigureFit -> DocumentBlock
 	fitted_figure = |drawing_value, alternative, caption_value, fit| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: figure_policy(fit) })
 
-	## Select how a figure meets the flow region. On any block other than a
-	## figure this is rejected (`document.figure_fit`).
-	figure_fit : DocumentBlock, FigureFit -> DocumentBlock
-	figure_fit = |block, fit| match block {
-		Figure({ alternative, caption: caption_value, drawing, fit: _ }) => DocumentBlock.Figure({ alternative, caption: caption_value, drawing, fit: figure_policy(fit) })
-		_ => DocumentBlock.Unavailable({ feature: FigureFit, summary: "figure_fit applies only to a figure block." })
-	}
-
 	## An in-flow decorative drawing: a `Decoration` page artifact that
-	## occupies its drawing's height immediately above the next flow block.
-	decoration : Scene.Drawing -> DocumentBlock
-	decoration = |drawing_value| DocumentBlock.Decoration({ above: Layout.Unit.from_raw(0), behind: False, below: Layout.Unit.from_raw(0), drawing: drawing_value })
-
-	## An in-flow decoration with its own spacing and paint layer.
-	spaced_decoration : Scene.Drawing, { above : Layout.Unit, behind : Bool, below : Layout.Unit } -> DocumentBlock
-	spaced_decoration = |drawing_value, { above, behind, below }| DocumentBlock.Decoration({ above, behind, below, drawing: drawing_value })
+	## occupies its drawing's height, with its own spacing and paint layer,
+	## immediately above the next flow block.
+	decoration : DecorationSpec -> DocumentBlock
+	decoration = |spec| DocumentBlock.Decoration(spec)
 
 	## A custom block from a separately authored extension: its paragraphs
 	## become a `Div`, laid out inside its measured box, with its panel

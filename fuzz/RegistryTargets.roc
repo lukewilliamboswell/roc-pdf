@@ -1027,21 +1027,22 @@ clusters_for = |specs| {
 ## Two independent facade traps, checked through their observable consequence
 ## rather than by inspecting the theme.
 ##
-## `Theme.with_font` rewrites `font_selection` to `StyleFaces`, so calling it
-## after `Theme.with_font_policy` silently discards the policy; the last of the
-## two calls wins in both directions. And `with_font_registry` and `with_theme`
-## are independent options, so a theme naming a face minted by one registry can
-## be paired with another registry, or with the packaged built-in face, and
-## nothing catches the mismatch until preparation.
+## A theme's `face` and `font_selection` are independent fields: a theme that
+## names only a face selects `StyleFaces`, and one with a `Policy` selection
+## resolves fonts through the policy and never looks at the face. And the
+## options' `fonts` and `theme` are independent fields, so a theme naming a
+## face minted by one registry can be paired with another registry, or with
+## the packaged built-in face, and nothing catches the mismatch until
+## preparation.
 facade_wiring : Configured, U8 -> Bool
 facade_wiring = |configured, choice| {
 	faces = configured.faces.len()
 	missing_face = Font.FaceId.from_index(faces)
 	missing_policy = Font.PolicyId.from_index(configured.policies)
-	reset = Theme.with_font(Theme.with_font_policy(Theme.default, Font.PolicyId.from_index(0)), missing_face)
+	reset = Theme.{ face: missing_face }
 
-	## The reset is a pure theme fact and holds for every generated registry.
-	match Theme.font_selection(reset) {
+	## The default selection is a pure theme fact and holds for every generated registry.
+	match reset.font_selection {
 		Policy(_) => return False
 		StyleFaces => {}
 	}
@@ -1050,8 +1051,8 @@ facade_wiring = |configured, choice| {
 		language: "en-AU",
 		title: "Registry boundary",
 	})
-	registered = |theme| Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), configured.registry)
-	built_in = |theme| Pdf.Options.with_theme(Pdf.Options.default, theme)
+	registered = |theme| Pdf.Options.{ theme: theme, fonts: Registered(configured.registry) }
+	built_in = |theme| Pdf.Options.{ theme: theme }
 
 	## One trap per execution keeps the property cheap; the generator reaches all
 	## four within a handful of inputs.
@@ -1064,9 +1065,9 @@ facade_wiring = |configured, choice| {
 			_ => False
 		}
 
-		## The policy set last wins, so preparation never looks at the body face
+		## A policy selection means preparation never looks at the body face
 		## and reports the policy instead.
-		1 => match Pdf.to_bytes_with(document, registered(Theme.with_font_policy(Theme.with_font(Theme.default, Font.FaceId.from_index(0)), missing_policy))) {
+		1 => match Pdf.to_bytes_with(document, registered(Theme.{ face: Font.FaceId.from_index(0), font_selection: Policy(missing_policy) })) {
 			Err(InvalidFontSelection([InvalidPolicy(policy)])) => policy.index() == configured.policies
 			_ => False
 		}
@@ -1074,7 +1075,7 @@ facade_wiring = |configured, choice| {
 		## A face identity from a caller registry paired with the packaged
 		## built-in source: the built-in source owns exactly face zero, and the
 		## mismatch surfaces only here.
-		2 => match Pdf.to_bytes_with(document, built_in(Theme.with_font(Theme.default, Font.FaceId.from_index(faces + 1)))) {
+		2 => match Pdf.to_bytes_with(document, built_in(Theme.{ face: Font.FaceId.from_index(faces + 1) })) {
 			Err(InvalidFontResource(UnknownFace(face))) => face.index() == faces + 1
 			_ => False
 		}
@@ -1084,7 +1085,7 @@ facade_wiring = |configured, choice| {
 		## in the rejection rather than repeatedly checking one constant call.
 		_ => {
 			policy_index = U8.to_u64(choice // 4)
-			match Pdf.to_bytes_with(document, built_in(Theme.with_font_policy(Theme.default, Font.PolicyId.from_index(policy_index)))) {
+			match Pdf.to_bytes_with(document, built_in(Theme.{ font_selection: Policy(Font.PolicyId.from_index(policy_index)) })) {
 				Err(InvalidFontSelection([InvalidPolicy(policy)])) => policy.index() == policy_index
 				_ => False
 			}

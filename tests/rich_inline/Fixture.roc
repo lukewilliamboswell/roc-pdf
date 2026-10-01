@@ -54,7 +54,7 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ## - `ordered`: a rich paragraph through an ordered caller-font policy, with
 ##   a `zh-Hans` span selected onto the Han face and a French span.
 ## - `code_face`: the mixed document with a monospace caller face for
-##   `Code` (`Theme.with_inline_font`) beside the packaged face registered
+##   `Code` (`inline.code.font`) beside the packaged face registered
 ##   as the body face; code runs, including code nested in `Strong`, paint
 ##   in the second output font. Its rejections: a code face under an
 ##   ordered policy (`text.inline_font_policy`), code text the monospace
@@ -75,15 +75,15 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ##   heading text the heading face does not cover (`text.coverage_missing`
 ##   at the heading).
 ## - `scaled_code xN`: N rich paragraphs with `Code` runs in the monospace
-##   face at 85% of the paragraph size (`Theme.with_inline_scale`), a
+##   face at 85% of the paragraph size (`inline.code.scale`), a
 ##   paragraph that is all code, and a table row whose one cell is all code.
 ##   Scaled runs share their line's baseline and leading. Its rejections:
 ##   scales of 49% and 101% (`text.inline_scale` at the theme path); 50%
 ##   and 100% are accepted.
 ## - `link_style xN`: N rich paragraphs whose inline URI link (with a
 ##   nested `Strong` run in its own theme color) wraps across a line, and N
-##   link blocks, under `Theme.with_link_color` and
-##   `Theme.with_link_underline`. Every painted line run of a link gets a
+##   link blocks, under the theme's `link.color` and
+##   `link.underline`. Every painted line run of a link gets a
 ##   `Decoration` artifact underline in its fill color. Its rejections: a
 ##   negative offset, a zero thickness, and an underline taller than the
 ##   body leading's room (`text.link_underline`).
@@ -123,10 +123,7 @@ Fixture :: [].{
 
 	mixed : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	mixed = |context| {
-		theme = Theme.default
-			.with_emphasis_color(Color.srgb8({ blue: 140, green: 70, red: 20 }))
-			.with_strong_color(Color.srgb8({ blue: 30, green: 30, red: 150 }))
-			.with_code_color(Color.srgb8({ blue: 60, green: 100, red: 20 }))
+		theme = Theme.{ inline: { code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })) }, emphasis: { color: Themed(Color.srgb8({ blue: 140, green: 70, red: 20 })) }, strong: { color: Themed(Color.srgb8({ blue: 30, green: 30, red: 150 })) } } }
 		evidence(mixed_document(context), theme, BuiltInFace)
 	}
 
@@ -141,7 +138,7 @@ Fixture :: [].{
 	ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	ordered = |context| {
 		registered = register_faces(context)?
-		evidence(ordered_document(context), Theme.with_font_policy(Theme.default, registered.policy), Policy(registered))
+		evidence(ordered_document(context), Theme.{ font_selection: Policy(registered.policy) }, Policy(registered))
 	}
 
 	code_face : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -314,8 +311,8 @@ code_faces = |context| {
 run_code_face : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_code_face = |context| {
 	faces = code_faces(context)?
-	theme = Theme.default.with_code_color(Color.srgb8({ blue: 60, green: 100, red: 20 })).with_inline_font(Code, faces.mono)
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), faces.registry)
+	theme = Theme.{ inline: { code: { color: Themed(Color.srgb8({ blue: 60, green: 100, red: 20 })), font: Face(faces.mono) } } }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
 	document = mixed_document(context)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 
@@ -325,7 +322,7 @@ run_code_face = |context| {
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
 	mono_font = faces.registry.prepared_face(faces.mono) ? |_| EvidenceFailure
 	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Candidate(1), emphasis: Inherited, quote: Inherited, strong: Inherited } }
-	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, Theme.default.with_inline_font(Code, faces.mono), page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| EvidenceFailure
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, Theme.{ inline: { code: { font: Face(faces.mono) } } }, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
 	## Rejections: each is transactional, with no bytes.
@@ -334,7 +331,7 @@ run_code_face = |context| {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	policy_options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, Theme.with_font_policy(theme, policy.policy)), policy.registry)
+	policy_options = Pdf.Options.{ theme: { ..theme, font_selection: Policy(policy.policy) }, fonts: Registered(policy.registry) }
 	under_policy = match Pdf.to_bytes_with(document, policy_options) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.inline_font_policy"), .. }], .. })) => 1
 		_ => 0
@@ -344,7 +341,7 @@ run_code_face = |context| {
 		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[1].inlines[1].inlines[0]"], feature: Feature("text.coverage_missing"), .. }], .. })) => 1
 		_ => 0
 	}
-	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) {
+	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
 		Err(InvalidFontResource(UnknownFace(face))) => if face == faces.mono 1 else 0
 		_ => 0
 	}
@@ -424,8 +421,8 @@ run_shared_source = |count| {
 		return Err(InvalidScale)
 	}
 	faces = code_faces(0)?
-	theme = Theme.default.with_inline_font(Strong, faces.mono)
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), faces.registry)
+	theme = Theme.{ inline: { strong: { font: Face(faces.mono) } } }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
 	document = shared_source_document(count)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
@@ -457,13 +454,14 @@ run_shared_source = |count| {
 	})
 }
 
-heading_faces_theme : Font.FaceId, Font.FaceId -> Theme
-heading_faces_theme = |body, heading| {
-	base = Theme.default.with_font(body)
-	base
-		.with_title_style({ ..base.title_style(), font: heading })
-		.with_heading_level_style(H1, { ..base.heading_style(), color: Color.srgb8({ blue: 150, green: 60, red: 30 }), font: heading, leading: Layout.Unit.points(22), size: Layout.Unit.points(17) })
-		.with_heading_level_style(H2, { ..base.heading_style(), leading: Layout.Unit.points(16), size: Layout.Unit.points(12) })
+heading_faces_theme : Font.FaceId, Font.FaceId, Color.SourceValue -> Theme
+heading_faces_theme = |body, heading, h1_color| {
+	face: body,
+	title: { face: Face(heading) },
+	headings: {
+		h1: Own({ color: h1_color, face: Face(heading), leading: Layout.Unit.points(22), size: Layout.Unit.points(17) }),
+		h2: Own({ leading: Layout.Unit.points(16), size: Layout.Unit.points(12) }),
+	},
 }
 
 heading_faces_document : U64 -> Document
@@ -487,8 +485,8 @@ run_heading_faces = |count| {
 		return Err(InvalidScale)
 	}
 	faces = code_faces(0)?
-	theme = heading_faces_theme(faces.body, faces.mono)
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), faces.registry)
+	theme = heading_faces_theme(faces.body, faces.mono, Color.srgb8({ blue: 150, green: 60, red: 30 }))
+	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
 	document = heading_faces_document(count)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
@@ -496,12 +494,12 @@ run_heading_faces = |count| {
 	styled = { faces: [faces.body, faces.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 
 	## Colors change only paint facts, so work uses the uncolored theme.
-	uncolored = Theme.with_heading_color(theme, Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	uncolored = heading_faces_theme(faces.body, faces.mono, Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, uncolored, page_size, descriptor, NoDocumentFacts, shared_source_limits) ? |_| EvidenceFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
 	## Rejections: each is transactional, with no bytes.
-	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) {
+	unregistered = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
 		Err(InvalidFontResource(UnknownFace(face))) => if face == faces.mono 1 else 0
 		_ => 0
 	}
@@ -509,7 +507,7 @@ run_heading_faces = |count| {
 		Err(_) => return Err(EvidenceFailure)
 		Ok(value) => value
 	}
-	policy_options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, Theme.with_font_policy(theme, policy.policy)), policy.registry)
+	policy_options = Pdf.Options.{ theme: { ..theme, font_selection: Policy(policy.policy) }, fonts: Registered(policy.registry) }
 	under_policy = match Pdf.to_bytes_with(document, policy_options) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature("text.block_font_policy"), .. }], .. })) => 1
 		_ => 0
@@ -563,9 +561,9 @@ run_scaled_code = |count| {
 		return Err(InvalidScale)
 	}
 	faces = code_faces(0)?
-	base = Theme.default.with_inline_font(Code, faces.mono)
-	theme = base.with_inline_scale(Code, 85)
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), faces.registry)
+	base = Theme.{ inline: { code: { font: Face(faces.mono) } } }
+	theme = { ..base, inline: { ..base.inline, code: { ..base.inline.code, scale: Percent(85) } } }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(faces.registry) }
 	document = scaled_code_document(count)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	body_font = faces.registry.prepared_face(faces.body) ? |_| EvidenceFailure
@@ -575,7 +573,7 @@ run_scaled_code = |count| {
 	flow = KernelFacadePipeline.Plan.work(pipeline)
 
 	## The accepted boundaries, then the two rejected neighbours.
-	boundary = |percent| Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, base.with_inline_scale(Code, percent)), faces.registry)
+	boundary = |percent| Pdf.Options.{ theme: { ..base, inline: { ..base.inline, code: { ..base.inline.code, scale: Percent(percent) } } }, fonts: Registered(faces.registry) }
 	lower = match Pdf.to_bytes_with(document, boundary(50)) {
 		Ok(_) => 1
 		Err(_) => 0
@@ -631,10 +629,7 @@ link_style_document = |count| {
 
 link_style_theme : Theme.LinkUnderline -> Theme
 link_style_theme = |underline|
-	Theme.default
-		.with_link_color(Color.srgb8({ blue: 180, green: 80, red: 20 }))
-		.with_strong_color(Color.srgb8({ blue: 30, green: 30, red: 150 }))
-		.with_link_underline(underline)
+	Theme.{ inline: { strong: { color: Themed(Color.srgb8({ blue: 30, green: 30, red: 150 })) } }, link: { color: Themed(Color.srgb8({ blue: 180, green: 80, red: 20 })), underline: underline } }
 
 run_link_style : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_link_style = |count| {
@@ -643,10 +638,10 @@ run_link_style = |count| {
 	}
 	underline = Underline({ offset: Layout.Unit.from_raw(1200), thickness: Layout.Unit.from_raw(600) })
 	document = link_style_document(count)
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, link_style_theme(underline))) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: link_style_theme(underline) }) ? |_| EvidenceFailure
 
 	## The rejected underlines: body leading 14 pt less size 11 pt leaves 3 pt.
-	rejected = |value| match Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, link_style_theme(value))) {
+	rejected = |value| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: link_style_theme(value) }) {
 		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: ["theme.link_underline"], feature: Feature("text.link_underline"), .. }], .. })) => 1
 		_ => 0
 	}
@@ -671,8 +666,8 @@ teal = Color.srgb8({ blue: 120, green: 110, red: 0 })
 scoped_colors_document : U64, Bool -> Document
 scoped_colors_document = |count, scoped| {
 	wrap = |scope, blocks| if scoped [Pdf.scoped(scope, blocks)] else blocks
-	warning = Theme.Scope.empty.with_color(Strong, amber).with_color(Link, amber)
-	note = Theme.Scope.empty.with_color(Strong, teal).with_color(Link, teal)
+	warning = Theme.Scope.{ strong: Themed(amber), link: Themed(amber) }
+	note = Theme.Scope.{ strong: Themed(teal), link: Themed(teal) }
 	var $contents = List.with_capacity(2 * count + 3)
 	$contents = $contents.append(Pdf.heading(1, "Callouts"))
 	var $index = 0
@@ -689,7 +684,7 @@ scoped_colors_document = |count, scoped| {
 
 	## An inner scope overrides its outer scope; the outer still colors the
 	## role the inner leaves inherited.
-	inner = Theme.Scope.empty.with_color(Strong, teal)
+	inner = Theme.Scope.{ strong: Themed(teal) }
 	nested = if scoped [Pdf.scoped(warning, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Outer")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("outer link")], "https://example.org/outer")]), Pdf.scoped(inner, [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Inner")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("inner link")], "https://example.org/inner")])])])] else [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Outer")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("outer link")], "https://example.org/outer")]), Pdf.rich_paragraph([Pdf.strong([Pdf.text("Inner")]), Pdf.text(" and "), Pdf.inline_link([Pdf.text("inner link")], "https://example.org/inner")])]
 	for block in nested {
 		$contents = $contents.append(block)
@@ -706,8 +701,8 @@ scoped_text_document : U64, Bool -> Document
 scoped_text_document = |count, scoped| {
 	wrap = |scope, blocks| if scoped [Pdf.scoped(scope, blocks)] else blocks
 	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
-	dark = Theme.Scope.empty.with_color(Text, near_white).with_color(Strong, amber).with_color(Link, Color.srgb8({ blue: 250, green: 205, red: 125 })).with_color(Code, near_white)
-	slate = Theme.Scope.empty.with_color(Text, Color.srgb8({ blue: 105, green: 85, red: 70 }))
+	dark = Theme.Scope.{ text: Themed(near_white), strong: Themed(amber), link: Themed(Color.srgb8({ blue: 250, green: 205, red: 125 })), code: Themed(near_white) }
+	slate = Theme.Scope.{ text: Themed(Color.srgb8({ blue: 105, green: 85, red: 70 })) }
 	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 420, 40), Color.srgb8({ blue: 70, green: 40, red: 20 }))
 	var $contents = List.with_capacity(count + 4)
 	for block in wrap(
@@ -751,9 +746,9 @@ run_scoped_text = |count| {
 	if count == 0 or count > 1000 {
 		return Err(InvalidScale)
 	}
-	theme = Theme.default.with_table_header_color(Color.srgb8({ blue: 140, green: 70, red: 10 }))
+	theme = Theme.{ table: { header_color: Themed(Color.srgb8({ blue: 140, green: 70, red: 10 })) } }
 	document = scoped_text_document(count, True)
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_theme(Pdf.Options.default, theme)) ? |_| EvidenceFailure
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) ? |_| EvidenceFailure
 	scoped_plan = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
 	plain_plan = KernelFacadeSemantics.Plan.build(Document.normalize(scoped_text_document(count, False)), semantic_limits) ? |_| EvidenceFailure
 	scoped_work = KernelFacadeSemantics.Plan.work(scoped_plan)
@@ -769,8 +764,8 @@ run_scoped_colors = |count| {
 	if count == 0 or count > 1000 {
 		return Err(InvalidScale)
 	}
-	theme = Theme.default.with_strong_color(Color.srgb8({ blue: 30, green: 30, red: 150 })).with_link_color(Color.srgb8({ blue: 180, green: 80, red: 20 }))
-	options = Pdf.Options.with_theme(Pdf.Options.default, theme)
+	theme = Theme.{ inline: { strong: { color: Themed(Color.srgb8({ blue: 30, green: 30, red: 150 })) } }, link: { color: Themed(Color.srgb8({ blue: 180, green: 80, red: 20 })) } }
+	options = Pdf.Options.{ theme: theme }
 	document = scoped_colors_document(count, True)
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 
@@ -785,11 +780,11 @@ run_scoped_colors = |count| {
 	}
 
 	## Rejections: each is transactional, with no bytes.
-	empty = match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.paragraph("Lead ${count.to_str()}"), Pdf.scoped(Theme.Scope.empty, [])], language: "en-AU", title: "Empty scope" }), options) {
+	empty = match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.paragraph("Lead ${count.to_str()}"), Pdf.scoped(Theme.Scope.{}, [])], language: "en-AU", title: "Empty scope" }), options) {
 		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[1]"], feature: Feature("semantics.scope_empty"), .. }], .. })) => 1
 		_ => 0
 	}
-	in_item = match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item ${count.to_str()}"), Pdf.scoped(Theme.Scope.empty, [Pdf.paragraph("Scoped")])])])], language: "en-AU", title: "Scoped item" }), options) {
+	in_item = match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item ${count.to_str()}"), Pdf.scoped(Theme.Scope.{}, [Pdf.paragraph("Scoped")])])])], language: "en-AU", title: "Scoped item" }), options) {
 		Err(InvalidDocument({ diagnostics: [{ feature: Feature("semantics.list_item_content"), .. }], .. })) => 1
 		_ => 0
 	}
@@ -936,8 +931,8 @@ evidence = |document, theme, faces| evidence_with_limits(document, theme, faces,
 evidence_with_limits : Document, Theme, Faces, KernelFacadePipeline.Limits -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 evidence_with_limits = |document, theme, faces, limits| {
 	options = match faces {
-		BuiltInFace => Pdf.Options.with_theme(Pdf.Options.default, theme)
-		Policy(policy) => Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), policy.registry)
+		BuiltInFace => Pdf.Options.{ theme: theme }
+		Policy(policy) => Pdf.Options.{ theme: theme, fonts: Registered(policy.registry) }
 	}
 	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
 	authoring = Document.normalize(document)

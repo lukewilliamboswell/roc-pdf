@@ -21,7 +21,7 @@ Fixture :: [].{
 			Font.ValidationLimits.default,
 		) ? |_| EvidenceFailure
 		store = registered.registry.store()
-		theme = Theme.with_font(Theme.default, registered.face)
+		theme = Theme.{ face: registered.face }
 		if theme.body_font() != registered.face or
 			store.resources.len() != 1 or
 				store.faces.len() != 1 or
