@@ -313,7 +313,10 @@ stored exactly: one with more than three significant decimal places, or
 outside the I64 range of units, is a compile-time error, never rounded or
 clamped. Runtime values still convert explicitly with `Layout.Unit.points`
 or `Layout.Unit.millipoints`, and no arithmetic operators are defined on
-`Unit`, so overflow stays an explicit, checked result.
+`Unit`, so overflow stays an explicit, checked result. Units are ordered
+(`<`, `<=`, `>`, `>=` through `is_lt` and its siblings), which is exact and
+cannot overflow; package code compares units directly rather than through
+`.raw()`.
 
 Layout continuations are compact component/source IDs plus scalar cursors and
 explicit state. They are not list suffixes, string slices, rebuilt remaining-
@@ -539,7 +542,9 @@ explicit tag (`ThemeFace`, `SameAsAll`, `Inherited`), resolved in one place
 by the getters preparation reads, never inferred from a missing value.
 
 The same rule applies to the public configuration and constructor records
-(`Pdf.Options`, `Theme.Scope`, `Pdf.CustomBlock`, `Pdf.NumberedList`,
+(`Pdf.DocumentProps`, whose outline, page labels, and page templates are
+empty and whose timestamps are `Omitted` unless given, `Pdf.ReportBudget`,
+`Pdf.Options`, `Theme.Scope`, `Pdf.CustomBlock`, `Pdf.NumberedList`,
 `Pdf.TableProps`, `Pdf.RegionProps`, the page-template props,
 `Pdf.DecorationProps`, `Pdf.FigureProps`, `Scene.Label`, and
 `Scene.AuthorPathStyle`): only presentation has defaults. Facts that cannot be
@@ -550,7 +555,11 @@ copy what they are given, preparation validates every field with a located
 diagnostic, and an invalid supplied value is rejected, not replaced. Changing
 a `??` default is a reviewed package-version change like any other default.
 
-The facade accepts typed sRGB text colors through `Theme` record fields. The
+The facade accepts typed sRGB text colors through `Theme` record fields. A
+string literal where a `Color.SourceValue` is expected is an sRGB hex color
+(`"#183454"`) through `SourceValue.from_quote`, checked at compile time
+exactly like a unit literal; it names the sRGB space explicitly and is never
+a device color. The
 packaged sRGB profile is both the painting-space definition and output intent;
 no device-color guess or fallback is permitted. The public image boundary uses
 typed JPEG or packed raster `Image.Source` values inside opaque `Scene.Drawing`

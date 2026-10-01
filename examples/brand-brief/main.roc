@@ -31,11 +31,15 @@ main! = |_args| {
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
-	document = Pdf.document({ contents: blocks, language: "en", title: "Lumen brand guidelines, edition 3" })
-		.with_page_templates(templates)
-		.with_outline(outline)
-		.with_created("2026-09-30T00:00:00Z")
-		.with_modified("2026-09-30T00:00:00Z")
+	document = Pdf.document({
+		contents: blocks,
+		language: "en",
+		title: "Lumen brand guidelines, edition 3",
+		page_templates: Templates(templates),
+		outline,
+		created: Explicit("2026-09-30T00:00:00Z"),
+		modified: Explicit("2026-09-30T00:00:00Z"),
+	})
 	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "brand-brief.pdf"

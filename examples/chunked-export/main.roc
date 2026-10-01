@@ -28,10 +28,14 @@ main! = |_args| {
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
-	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Cold-chain telemetry export, shipment RX-40718" })
-		.with_page_templates(templates)
-		.with_created("2026-09-30T00:00:00Z")
-		.with_modified("2026-09-30T00:00:00Z")
+	document = Pdf.document({
+		contents: blocks,
+		language: "en-AU",
+		title: "Cold-chain telemetry export, shipment RX-40718",
+		page_templates: Templates(templates),
+		created: Explicit("2026-09-30T00:00:00Z"),
+		modified: Explicit("2026-09-30T00:00:00Z"),
+	})
 	prepared = Pdf.prepare(document, options).map_err(|err| PdfFailed(err))?
 	encoder = Pdf.to_chunks_prepared(prepared, ShareUnchangedResources).map_err(|err| EmitFailed(err))?
 	collected = collect(encoder)

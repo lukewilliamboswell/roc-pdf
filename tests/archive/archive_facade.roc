@@ -99,12 +99,16 @@ navigation_document = |links| {
 	}
 	$contents = $contents.append(Pdf.destination_heading("appendix", 1, "Appendix"))
 	$contents = $contents.append(Pdf.internal_link("Return to the overview", "overview"))
-	Pdf.document({ contents: $contents, language: "en-AU", title: "Archived navigation" })
-		.with_outline([
+	Pdf.document({
+		contents: $contents,
+		language: "en-AU",
+		title: "Archived navigation",
+		outline: [
 			{ depth: 0, destination: "overview", open: True, title: "Overview" },
 			{ depth: 0, destination: "appendix", open: False, title: "Appendix" },
-		])
-		.with_page_labels([{ prefix: "A-", start_number: 1, start_page: 0, style: DecimalArabic }])
+		],
+		page_labels: [{ prefix: "A-", start_number: 1, start_page: 0, style: DecimalArabic }],
+	})
 }
 
 ## The registration limits depend on the runtime scale so the registration is

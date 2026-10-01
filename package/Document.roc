@@ -937,6 +937,19 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			templates: NoTemplates,
 		}
 
+	## A paginated document with its navigation, templates, and timestamps
+	## set at once (`Pdf.document`'s props).
+	from_props : { contents : List(DocumentBlock), created : Metadata.TimestampInput, language : Str, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates, title : Str } -> Document
+	from_props = |{ contents, created, language, modified, outline, page_labels, templates, title: document_title }|
+		Document.{
+			authoring: Simple({ contents, language, metadata_title: document_title }),
+			created,
+			modified,
+			outline,
+			page_labels,
+			templates,
+		}
+
 	## Construct an explicitly framed document. Preparation rejects it with the
 	## `layout.custom` feature until fixed-layout lowering is executable.
 	from_fixed_pages : { language : Str, pages : List(FixedPage), title : Str } -> Document
@@ -1868,7 +1881,7 @@ validate_flow_drawing = |drawing| {
 				}
 				x = placement.origin.x.raw() + $dx
 				y = placement.origin.y.raw() + $dy
-				if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 or x < 0 or y < 0 {
+				if placement.size.width <= 0 or placement.size.height <= 0 or x < 0 or y < 0 {
 					return InvalidDrawing("an image placement needs a positive size at or beyond the drawing origin")
 				}
 				$width = U64.max($width, (x + placement.size.width.raw()).to_u64_wrap())
@@ -1884,7 +1897,7 @@ validate_flow_drawing = |drawing| {
 				stroke = match style.stroke {
 					AuthorNoStroke => NoStroke
 					AuthorSolidStroke({ color, width }) => {
-						if width.raw() <= 0 or !within_bound(width.raw()) {
+						if width <= 0 or !within_bound(width.raw()) {
 							return InvalidDrawing("a stroke needs a positive width")
 						}
 						Stroke({ color, width })
@@ -1943,7 +1956,7 @@ validate_flow_drawing = |drawing| {
 				if label.text.is_empty() {
 					return InvalidDrawing("a text label is empty")
 				}
-				if label.size.raw() <= 0 {
+				if label.size <= 0 {
 					return InvalidDrawing("a text label needs a positive size")
 				}
 				if x < 0 or y < 0 {
@@ -1996,12 +2009,12 @@ origin_violation = |segments, half, command| {
 		for point in anchors {
 			$low_x = I64.min($low_x, point.x.raw())
 			$low_y = I64.min($low_y, point.y.raw())
-			if $geometry == NoPoint and (point.x.raw() < 0 or point.y.raw() < 0) {
+			if $geometry == NoPoint and (point.x < 0 or point.y < 0) {
 				$geometry = At(point.x.raw(), point.y.raw())
 			}
 		}
 		for point in controls {
-			if $control == NoPoint and (point.x.raw() < 0 or point.y.raw() < 0) {
+			if $control == NoPoint and (point.x < 0 or point.y < 0) {
 				$control = At(point.x.raw(), point.y.raw())
 			}
 		}

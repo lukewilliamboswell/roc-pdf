@@ -18,6 +18,23 @@ document = Pdf.document({
 bytes = Pdf.to_bytes(document)?
 ```
 
+The document's navigation and furniture are fields of the same record,
+each empty unless given: `outline` (entries over destination names),
+`page_labels`, `page_templates` (`Templates({ first, continuation })`),
+and the `created` and `modified` metadata timestamps
+(`Explicit("2026-09-14T00:00:00Z")`; the package never reads a clock):
+
+```roc
+report = Pdf.document({
+    title: "Harbour & Finch quarterly operations report, Q1 FY2027",
+    language: "en-AU",
+    contents,
+    outline,
+    page_templates: Templates(templates),
+    created: Explicit("2026-10-12T00:00:00Z"),
+})
+```
+
 Group related blocks with `Pdf.part`, `Pdf.section`, and `Pdf.division`. They
 become PDF 2.0 `Part`, `Sect`, and `Div` structure elements around their
 children, in authored order; headings inside keep their explicit `H1`..`H6`
@@ -256,7 +273,7 @@ page_of = Pdf.reserved_width(72, End, [
     Pdf.total_pages(Decimal),
 ])
 
-letter = Pdf.with_page_templates(document, {
+templates = {
     first: Pdf.first_page_template({
         header: Pdf.region({ height: 48, end: [Pdf.furniture_image(logo)] }),
         lead: Pdf.lead_region(60, [
@@ -274,7 +291,9 @@ letter = Pdf.with_page_templates(document, {
         }),
         gap: 12,
     }),
-})
+}
+
+letter = Pdf.document({ title, language: "en-AU", contents, page_templates: Templates(templates) })
 ```
 
 A template leaves out what it does not use: a missing `header`, `footer`,
@@ -344,7 +363,9 @@ buffered = Pdf.to_bytes_prepared(prepared)?
 encoder = Pdf.to_chunks_prepared(prepared, Pdf.ChunkRetention.ShareUnchangedResources)?
 ```
 
-Theme colors can use familiar 8-bit channels with
+Theme colors can be sRGB hex literals where a `Color.SourceValue` is
+expected (`navy : Color.SourceValue` then `navy = "#183454"`, checked at
+compile time like a unit literal), familiar 8-bit channels with
 `Color.srgb8({ red, green, blue })`, or exact 16-bit channels with
 `Color.srgb16`. Role colors, complete text styles, page margins, paragraph
 spacing, and bullet indentation can be changed through `Theme`; every color is
@@ -407,7 +428,9 @@ A bare number where a `Layout.Unit` is expected is points, stored exactly in
 thousandths of a point: `size: 12.5` is 12,500 units. A literal with more than
 three decimal places, or outside the unit's range, is a compile-time error,
 never rounded. Values computed at runtime still use `Layout.Unit.points(n)`
-or `Layout.Unit.millipoints(n)`.
+or `Layout.Unit.millipoints(n)`. Units compare with `<`, `<=`, `>`, and
+`>=`, against each other or a literal in points (`width <= 0`); they still
+have no arithmetic operators.
 
 The built-in values are declared on the types (`Theme`, `Theme.BodyStyle`,
 `Theme.TableStyle`, `Pdf.Options`, `Pdf.RegionProps`, and the others), and

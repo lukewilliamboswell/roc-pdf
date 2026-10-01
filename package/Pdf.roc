@@ -164,6 +164,30 @@ Pdf :: [].{
 		size : Layout.Size,
 	}
 
+	## A paginated document: its semantic `contents`, its `language`, and
+	## its metadata `title` (all required), and its navigation and page
+	## furniture, each empty unless given: the `outline` over authored
+	## destination names in dense preorder, `page_labels` ranges keyed by
+	## physical page index, `page_templates` (`Templates({ first,
+	## continuation })`, or `NoTemplates` for the theme's body frame on every
+	## page), and the `created` and `modified` metadata timestamps
+	## (`Explicit("2026-09-14T00:00:00Z")` in the canonical UTC form, or
+	## `Omitted`). The package never reads a clock: an omitted timestamp
+	## omits its XMP property.
+	DocumentProps := {
+		contents : List(Document.Block),
+		created : Metadata.TimestampInput ?? Omitted,
+		language : Str,
+		modified : Metadata.TimestampInput ?? Omitted,
+		outline : List(Document.OutlineEntry) ?? [],
+		page_labels : List(Document.PageLabelRange) ?? [],
+		page_templates : PageTemplates ?? NoTemplates,
+		title : Str,
+	}
+
+	## A document's page templates, or none.
+	PageTemplates : [NoTemplates, Templates({ continuation : PageTemplate, first : FirstPageTemplate })]
+
 	## How a numbered list labels its items: from `start` (1 unless
 	## given) in `style` (`Decimal` unless given).
 	NumberedList := { start : U64 ?? 1, style : NumberStyle ?? Decimal }
@@ -302,11 +326,12 @@ Pdf :: [].{
 	## exactly its text, and whether an expansion is accurate.
 	ReportObligation : { obligation : [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful], path : Str }
 
-	## The report's explicit budget: its total entry count and the bytes of
-	## its materialized paths and texts. A report that would exceed either
-	## fails with `report.budget_exceeded` and no prepared document; no
-	## entry or obligation is ever silently omitted.
-	ReportBudget : { max_entries : U64, max_text_bytes : U64 }
+	## The report's explicit budget: its total entry count (65,536 unless
+	## given) and the bytes of its materialized paths and texts (4 MiB
+	## unless given). A report that would exceed either fails with
+	## `report.budget_exceeded` and no prepared document; no entry or
+	## obligation is ever silently omitted.
+	ReportBudget := { max_entries : U64 ?? 65536, max_text_bytes : U64 ?? 4194304 }
 
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
@@ -395,9 +420,10 @@ Pdf :: [].{
 		AccessibleArchive => Conformance.claims_for_profile(AccessibleArchive)
 	}
 
-	## Build an automatically paginated document from semantic blocks.
-	document : { contents : List(Document.Block), language : Str, title : Str } -> Document
-	document = |input| Document.from_blocks(input)
+	## Build an automatically paginated document from semantic blocks, with
+	## the navigation, page templates, and timestamps its props name.
+	document : DocumentProps -> Document
+	document = |DocumentProps.{ contents, created, language, modified, outline, page_labels, page_templates, title }| Document.from_props({ contents, created, language, modified, outline, page_labels, templates: page_templates, title })
 
 	## Build an explicitly framed document. The stable shape is available now;
 	## preparation reports `layout.custom` until its lowering closes.
@@ -711,34 +737,6 @@ Pdf :: [].{
 	destination_paragraph : Str, Str -> Document.Block
 	destination_paragraph = |name, value| Document.destination_paragraph(name, value)
 
-	## The authored document outline in dense preorder over authored
-	## destination names.
-	with_outline : Document, List(Document.OutlineEntry) -> Document
-	with_outline = |doc, entries| Document.with_outline(doc, entries)
-
-	## First-page and continuation-page templates. Each template reserves a
-	## header and a footer region of fixed height inside the theme's body
-	## frame, each separated from the body flow by the template's gap; the
-	## first page may also reserve a lead region below its header. Body flow
-	## is confined to what remains, so the first page and continuation pages
-	## may hold different body heights. Region furniture paints on every
-	## page of its template as a page artifact (`Header`, `Footer`, or
-	## `PageNum` when a line holds a page field) and never joins the logical
-	## structure; the lead region's blocks are semantic (a `Div`) and come
-	## first in reading order.
-	##
-	## Page fields resolve after pagination by explicit reference states:
-	## the first pass paginates the body, the second resolves every field
-	## with the final page count and proves it fits. Regions have fixed
-	## heights, so furniture never changes pagination and two passes always
-	## suffice. Template regions that leave less than one body line are
-	## `layout.template_body_space`; furniture or lead content that exceeds
-	## its region, or slots that overlap, are
-	## `layout.template_region_overflow`; a resolved field wider than its
-	## reserved width is `layout.field_overflow`.
-	with_page_templates : Document, { continuation : PageTemplate, first : FirstPageTemplate } -> Document
-	with_page_templates = |doc, templates| Document.with_page_templates(doc, templates)
-
 	## The first page's template. `lead` is a lead region of semantic blocks
 	## (such as a letterhead) or `no_lead`.
 	first_page_template : FirstPageTemplateProps -> FirstPageTemplate
@@ -815,19 +813,6 @@ Pdf :: [].{
 	## the width, or preparation reports `layout.field_overflow`.
 	reserved_width : Layout.Unit, Align, List(Inline) -> Inline
 	reserved_width = |width, align, contents| Document.reserved_width(width, align, contents)
-
-	## Authored page-label ranges keyed by physical page index.
-	with_page_labels : Document, List(Document.PageLabelRange) -> Document
-	with_page_labels = |doc, ranges| Document.with_page_labels(doc, ranges)
-
-	## Optional explicit metadata timestamps in the canonical UTC form
-	## `YYYY-MM-DDThh:mm:ssZ`. The package never invents a timestamp: omitted
-	## values deterministically omit their XMP properties.
-	with_created : Document, Str -> Document
-	with_created = |doc, timestamp| Document.with_created(doc, timestamp)
-
-	with_modified : Document, Str -> Document
-	with_modified = |doc, timestamp| Document.with_modified(doc, timestamp)
 
 	## The default profile is `Archive`: content follows the completed typed
 	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
@@ -1003,7 +988,7 @@ build_plan = |doc, options| {
 ## proves a real custom block's fit. No page is laid out.
 measure_content : Pdf.Options, List(Document.Block), Str, Layout.Unit -> Try(Layout.Unit, Pdf.Error)
 measure_content = |options, contents, language, width| {
-	if width.raw() <= 0 {
+	if width <= 0 {
 		return Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.custom_block_measure", "Custom-block content is measured at a positive width.", ["width"])))
 	}
 	inset = Layout.Unit.from_raw(1)
@@ -2293,7 +2278,7 @@ check_underline = |theme| match theme.link.underline {
 	Underline({ offset, thickness }) => {
 		body = Theme.body_style(theme)
 		room = body.leading.raw() - body.size.raw()
-		if offset.raw() < 0 or thickness.raw() <= 0 or offset.raw() + thickness.raw() > room {
+		if offset < 0 or thickness <= 0 or offset.raw() + thickness.raw() > room {
 			Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.link_underline", "A link underline needs a non-negative offset and a positive thickness that together fit below the body text inside its leading (${points_text(room.to_u64_wrap())}); it never reaches the next line.", ["theme.link.underline"])))
 		} else {
 			Ok({})
@@ -2700,7 +2685,7 @@ expect {
 		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header }),
 		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header, lead: Pdf.lead_region(Layout.Unit.points(lead_height), [Pdf.paragraph("Letterhead")]) }),
 	}
-	document = |contents, lead_height| Pdf.with_page_templates(Pdf.document({ contents, language: "en-AU", title: "Templates" }), templates(lead_height))
+	document = |contents, lead_height| Pdf.document({ contents, language: "en-AU", title: "Templates", page_templates: Templates(templates(lead_height)) })
 	accepted = match Pdf.to_bytes(document([Pdf.paragraph("First"), Pdf.page_break, Pdf.paragraph("Second")], 40)) {
 		Ok(bytes) => bytes.len() > 1000
 		Err(_) => False
@@ -2931,7 +2916,8 @@ expect {
 		],
 		language: "en-AU",
 		title: "Chunked navigation",
-	}).with_outline([{ depth: 0, destination: "start", open: True, title: "Start" }])
+		outline: [{ depth: 0, destination: "start", open: True, title: "Start" }],
+	})
 	expected = Pdf.to_bytes(document)?
 	shared = collect_chunks(Pdf.to_chunks(document)?)
 	owned_options = Pdf.Options.{ chunk_retention: OwnChunks }
@@ -2976,9 +2962,9 @@ archive_twin_document = {
 		],
 		language: "en-AU",
 		title: "Archive twins",
+		outline: [{ depth: 0, destination: "start", open: True, title: "Start" }],
+		page_labels: [{ prefix: "T-", start_number: 1, start_page: 0, style: DecimalArabic }],
 	})
-		.with_outline([{ depth: 0, destination: "start", open: True, title: "Start" }])
-		.with_page_labels([{ prefix: "T-", start_number: 1, start_page: 0, style: DecimalArabic }])
 }
 
 archive_twin_options : Pdf.Options
@@ -3354,7 +3340,7 @@ expect {
 ## The default preparation-report budget: 65,536 entries and 4 MiB of
 ## materialized paths and texts.
 default_report_budget : Pdf.ReportBudget
-default_report_budget = { max_entries: 65536, max_text_bytes: 4194304 }
+default_report_budget = Pdf.ReportBudget.{}
 
 ## Materialize the preparation report from its compact facts. The entry
 ## count is computed from scalar facts and checked against the budget
@@ -3815,13 +3801,12 @@ expect {
 	second = first.registry.register_built_in(Font.ValidationLimits.default)?
 	options = Pdf.Options.{ theme: Theme.{ face: second.face }, fonts: Registered(second.registry) }
 	footer = Pdf.region({ center: [], end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal)])], height: Layout.Unit.points(16), start: [] })
-	document = Pdf.with_page_templates(
-		Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Second face" }),
-		{
-			continuation: Pdf.page_template({ footer, gap: Layout.Unit.points(12), header: Pdf.no_region }),
-			first: Pdf.first_page_template({ footer, gap: Layout.Unit.points(12), header: Pdf.no_region, lead: Pdf.no_lead }),
-		},
-	)
+	document = Pdf.document({
+		contents: [Pdf.paragraph("Body")],
+		language: "en-AU",
+		title: "Second face",
+		page_templates: Templates({ continuation: Pdf.page_template({ footer, gap: 12 }), first: Pdf.first_page_template({ footer, gap: 12 }) }),
+	})
 	match Pdf.to_bytes_with(document, options) {
 		Ok(_) => True
 		Err(_) => False

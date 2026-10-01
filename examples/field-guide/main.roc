@@ -27,12 +27,16 @@ main! = |_args| {
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
-	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Coastal field guide: shorebirds of the Derwent estuary" })
-		.with_page_templates(templates)
-		.with_outline(outline)
-		.with_page_labels([{ prefix: "FG-", start_number: 1, start_page: 0, style: DecimalArabic }])
-		.with_created("2026-11-02T00:00:00Z")
-		.with_modified("2026-11-02T00:00:00Z")
+	document = Pdf.document({
+		contents: blocks,
+		language: "en-AU",
+		title: "Coastal field guide: shorebirds of the Derwent estuary",
+		page_templates: Templates(templates),
+		outline,
+		page_labels: [{ prefix: "FG-", start_number: 1, start_page: 0, style: DecimalArabic }],
+		created: Explicit("2026-11-02T00:00:00Z"),
+		modified: Explicit("2026-11-02T00:00:00Z"),
+	})
 	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "field-guide.pdf"

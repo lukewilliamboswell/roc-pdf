@@ -29,11 +29,15 @@ main! = |_args| {
 	options : Pdf.Options
 	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
 	blocks = contents(options).map_err(|err| PdfFailed(err))?
-	document = Pdf.document({ contents: blocks, language: "en-AU", title: "Northstar Cooperative quarterly report, Q2 FY2027" })
-		.with_page_templates(templates)
-		.with_outline(outline)
-		.with_created("2027-01-18T00:00:00Z")
-		.with_modified("2027-01-18T00:00:00Z")
+	document = Pdf.document({
+		contents: blocks,
+		language: "en-AU",
+		title: "Northstar Cooperative quarterly report, Q2 FY2027",
+		page_templates: Templates(templates),
+		outline,
+		created: Explicit("2027-01-18T00:00:00Z"),
+		modified: Explicit("2027-01-18T00:00:00Z"),
+	})
 	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "quarterly-report.pdf"
