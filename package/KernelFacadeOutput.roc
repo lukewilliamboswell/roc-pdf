@@ -190,7 +190,11 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 		if run.glyphs.start() > text_store.glyphs.len() or glyph_end > text_store.glyphs.len() {
 			return Err(Text(RunInvalid({ run: $run_index })))
 		}
+		# Take the font's usages out of the outer list before growing them,
+		# so the inner list stays unique and appends in place
+		# (docs/performance/lowering-uniqueness.md).
 		var $usages = list_at($usages_per_font, font_index)
+		$usages_per_font = list_set($usages_per_font, font_index, [])
 		var $glyph_index = run.glyphs.start()
 		while $glyph_index < glyph_end {
 			$usages = $usages.append({ glyph: list_at(text_store.glyphs, $glyph_index).id.raw() })
