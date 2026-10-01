@@ -7,7 +7,8 @@ The package offers a stable public authoring path whose default profile is
 `Archive`: `Pdf.to_bytes`, `Pdf.to_bytes_with`, and `Pdf.to_chunks_with` all
 produce deterministic tagged PDF 2.0 output that also claims static PDF/A-4,
 and the buffered and chunked forms are byte-identical. `Standard` (PDF 2.0
-only) remains available through `Pdf.Options.with_profile`. The built-in theme supports title, heading,
+only) remains available through the options' `profile` field
+(`Pdf.to_bytes_with(document, { profile: Standard })`). The built-in theme supports title, heading,
 paragraph, and bulleted-list constructors, with either the packaged face or
 caller-registered faces selected through `Theme` — including a finite ordered
 multi-face policy with per-cluster coverage selection. Theme text colors use

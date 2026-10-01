@@ -550,7 +550,7 @@ This is the first genuinely useful public document milestone.
   contiguous glyph buffers, global used-glyph accumulation, and once-only
   composite closure/subset-table emission.
 - At this gate `Pdf.Options.default` selects public profile `Standard`, whose
-  claim set is `Pdf20`. `Pdf.Options.with_profile` is the only way to request a
+  claim set is `Pdf20`. The options' `profile` is the only way to request a
   different implemented profile; incomplete `Archive` or `AccessibleArchive`
   claims remain unavailable.
 
@@ -1033,7 +1033,7 @@ independent structure checker. Each record lists its own open issues:
   text under ordered font policies (page-templates.md), a caller face per
   inline role such as a monospace `Code` (rich-inline.md), list label
   columns widened for wide labels and a U+0020 separator for explicit line
-  breaks (layout-policies.md), per-cell alignment with `Pdf.aligned`
+  breaks (layout-policies.md), per-cell alignment with `cell.aligned`
   (tables.md), located `text.coverage_missing`/`text.unsupported_script`/
   `text.unsupported_cluster` for every remaining coverage failure
   (rich-inline.md), and removal of the unreachable facade artifact-block

@@ -67,10 +67,10 @@ Pdf.rich_paragraph([
 `Quote`; `in_language` a `Span` with `/Lang`; `expansion` a `Span` with `/E`;
 and `inline_link` or `inline_internal_link` a `Link` whose annotation covers
 its painted text, one quadrilateral per line. Quotation marks are authored
-text. Inline roles paint like the surrounding text unless the theme colors
-them (`Theme.with_emphasis_color`, `with_strong_color`, `with_code_color`,
-`with_quote_color`) or give them a caller-registered face with
-`Theme.with_inline_font(theme, Code, face)` (a monospace face for code, say):
+text. Inline roles paint like the surrounding text unless the theme's
+`inline` record colors them (`inline: { strong: { color: Themed(navy) } }`)
+or gives them a caller-registered face
+(`inline: { code: { font: Face(mono) } }`, a monospace face for code, say):
 the innermost role with a face decides a run's face, at the paragraph's size
 and leading. The face must be in the options' font registry
 (`InvalidFontResource` otherwise), must cover the role's text
@@ -79,28 +79,29 @@ ordered font policy reports `text.inline_font_policy`. The package ships one
 regular face and never synthesizes bold or italic. To use the packaged face
 beside a caller face, put it in the registry with
 `Font.Registry.register_built_in(registry, Font.ValidationLimits.default)`
-and select the returned face with `Theme.with_font`; it validates and embeds
+and select the returned face as the theme's `face`; it validates and embeds
 exactly as the unregistered default does. Titles and headings take any
 registered face through their styles, for example a bold face:
-`Theme.with_title_style` and `Theme.with_heading_style` (all levels), or
-`Theme.with_heading_level_style(theme, H2, style)` for one level's face,
-size, leading, and color. Under an ordered font policy a title or heading
-face reports `text.block_font_policy`. A role face often looks larger than
-the body face at the same size; `Theme.with_inline_scale(theme, Code, 85)`
-paints that role at 85% of its paragraph size (50 to 100 percent, else
-`text.inline_scale`), on the paragraph's baseline and leading. Links take
-their own color with `Theme.with_link_color` and an underline with
-`Theme.with_link_underline(theme, Underline({ offset, thickness }))`, a
-decoration artifact below each painted line of the link that must fit
-below the body text inside its leading (`text.link_underline`). To color
-one group of blocks differently, such as a warning callout's label in
-amber and a note's in teal, wrap them in
-`Pdf.scoped(Theme.Scope.empty.with_color(Strong, amber), blocks)`: the
-innermost scope that colors a role wins, then the theme. The `Text` role
-colors the scope's ordinary text (paragraphs, headings, list items and
-their labels), so a callout on a dark panel can use
-`Theme.Scope.empty.with_color(Text, near_white)`. A scope adds no
-structure element and keeps nothing together.
+`title: { face: Face(bold) }` and `headings: { all: { face: Face(bold) } }`
+(every level), or `headings: { h2: Own({ face: Face(bold), size: 13 }) }`
+for one level's own face, size, leading, and color. Under an ordered font
+policy a title or heading face reports `text.block_font_policy`. A role
+face often looks larger than the body face at the same size;
+`inline: { code: { scale: Percent(85) } }` paints that role at 85% of its
+paragraph size (50 to 100 percent, else `text.inline_scale` at
+`theme.inline.code.scale`), on the paragraph's baseline and leading. Links
+take their own color and an underline from
+`link: { color: Themed(teal), underline: Underline({ offset, thickness }) }`,
+a decoration artifact below each painted line of the link that must fit
+below the body text inside its leading (`text.link_underline` at
+`theme.link.underline`). To color one group of blocks differently, such as
+a warning callout's label in amber and a note's in teal, wrap them in
+`Pdf.scoped({ strong: Themed(amber) }, blocks)`: the innermost scope that
+colors a role wins, then the theme. A scope's `text` colors its ordinary
+text (paragraphs, headings, list items and their labels), so a callout on a
+dark panel can use `Pdf.scoped({ text: Themed(near_white) }, blocks)`. A
+scope adds no structure element and keeps nothing together. See
+[Themes and options](#themes-and-options) for the record idiom.
 
 Lines break at UAX #14 opportunities across inline boundaries, with one
 tailoring: a `code` span keeps each of its words whole, so `--lumen-indigo`
@@ -121,11 +122,11 @@ Build lists from items that hold blocks. `Pdf.bullet_list` and
 generated `Lbl` and an `LBody` of its blocks. Items hold paragraphs, rich
 paragraphs, and nested lists, and begin with a paragraph, whose first line the
 label paints beside. Every nesting level is indented by the theme's list
-indent (`Theme.with_bullet_indent`):
+indent (the theme's `bullet_indent`):
 
 ```roc
 Pdf.numbered_list(
-    { start: 1, style: Decimal },
+    {},
     [
         Pdf.list_item([Pdf.paragraph("Extend the certified timber programme.")]),
         Pdf.list_item([
@@ -139,6 +140,7 @@ Pdf.numbered_list(
 )
 ```
 
+`{}` numbers from 1 in `Decimal`; give `start` or `style` to change either.
 Number styles are `Decimal`, `LowerAlpha`, `UpperAlpha`, `LowerRoman`, and
 `UpperRoman`; labels read `1.`, `b.`, `iv.`. The plain-text `Pdf.bullets`
 remains and now also declares `ListNumbering /Disc`. Lists nest at most four
@@ -160,7 +162,7 @@ Control the flow explicitly:
   the word boundary.
 - `Pdf.page_break` starts the next block on a new page. It must separate two
   blocks, and never asks for an empty page (`layout.page_break_position`).
-- `Pdf.spacer(Layout.Unit.points(12))` adds layout-only space after the
+- `Pdf.spacer(12)` adds layout-only space after the
   previous block; space at the top of a page is suppressed.
 - `Pdf.keep_together(blocks)` keeps blocks on one page. It is a required
   constraint; a group taller than a page body is `layout.keep_conflict`.
@@ -178,7 +180,7 @@ Pdf.table({
     columns: [
         { width: Content, align: Start },
         { width: Share(1), align: Start },
-        { width: Fixed(Layout.Unit.points(80)), align: End },
+        { width: Fixed(80), align: End },
     ],
     header_rows: [
         Pdf.row([
@@ -196,18 +198,17 @@ Pdf.table({
     ],
     footer_rows: [
         Pdf.row([
-            Pdf.spanning(2, Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")])),
+            Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")]).spanning(2),
             Pdf.cell([Pdf.strong([Pdf.text("2,756.00")])]),
         ]),
     ],
-    row_split: KeepRows,
 })
 ```
 
 Cells hold inline content that wraps within the column; a header cell
-declares its `Scope` (`Column`, `Row`, or `Both`), and `Pdf.spanning(n, cell)`
+declares its `Scope` (`Column`, `Row`, or `Both`), and `cell.spanning(n)`
 spans columns. A cell aligns like the first column it spans unless
-`Pdf.aligned(align, cell)` gives it its own alignment, such as an
+`cell.aligned(align)` gives it its own alignment, such as an
 end-aligned totals label spanning start-aligned columns. Every cell gets a generated identifier, and each data cell's
 `Headers` name the column headers above it and the row headers beside it,
 derived from the declared scopes. Column widths resolve once per table:
@@ -219,20 +220,19 @@ Tables continue across pages. The header rows repaint at the top of every
 continuation page as a pagination artifact, never as new rows; the table
 start (caption, header rows, first body row) is placed together; footer rows
 stay together after the last body row and prefer to carry at least one body
-row. `KeepRows` (the default) moves a row that does not fit to the next page
+row. `row_split: KeepRows` (the default) moves a row that does not fit to the next page
 and rejects a row taller than a page body as `layout.oversize_row`;
 `SplitRows` lets a row break at a line boundary. Wrap a table in
 `Pdf.keep_together([table])` to keep it whole on one page instead; a kept
-table taller than a page body is `layout.keep_conflict`. Table presentation is theme
-policy: `Theme.with_table_cell_padding`, `with_table_row_gap`,
-`with_table_rule`, `with_table_header_color` (column header cells, scope
-`Column` or `Both`), and `with_table_row_header_color` (row header cells,
-scope `Row`). Rows can be shaded with `with_table_header_fill`,
-`with_table_body_fills` (`{ odd, even }` for zebra stripes), and
-`with_table_footer_fill`, and separated with `with_table_body_rule`,
-between columns with `with_table_column_rule` (drawn in the cells'
-padding), and outlined with `with_table_frame`;
-`Pdf.shaded(color, cell)` shades one cell. `Pdf.cell([])` is an empty cell
+table taller than a page body is `layout.keep_conflict`. Header and footer
+rows default to none. Table presentation is theme policy, in the theme's
+`table` record: `cell_padding`, `row_gap`, `rule`, `header_color` (column
+header cells, scope `Column` or `Both`), and `row_header_color` (row header
+cells, scope `Row`). Rows can be shaded with `header_fill`, `body_fills`
+(`{ even: Fill(stripe) }` for zebra stripes), and `footer_fill`, and
+separated with `body_rule`, between columns with `column_rule` (drawn in
+the cells' padding), and outlined with `frame`; `cell.shaded(color)` shades
+one cell. `Pdf.cell([])` is an empty cell
 (a `TD` with no content) for a value the table leaves blank; it keeps its
 grid position, fill, and `Headers`, and a row of only empty cells is one
 line tall. Fills paint behind the text as
@@ -249,7 +249,7 @@ separated from the body by its gap, and the first page may also reserve a
 lead region for semantic letterhead content:
 
 ```roc
-page_of = Pdf.reserved_width(Layout.Unit.points(72), End, [
+page_of = Pdf.reserved_width(72, End, [
     Pdf.text("Page "),
     Pdf.page_number(Decimal),
     Pdf.text(" of "),
@@ -258,44 +258,43 @@ page_of = Pdf.reserved_width(Layout.Unit.points(72), End, [
 
 letter = Pdf.with_page_templates(document, {
     first: Pdf.first_page_template({
-        header: Pdf.region({ height: Layout.Unit.points(48), start: [], center: [], end: [Pdf.furniture_image(logo)] }),
-        lead: Pdf.lead_region(Layout.Unit.points(60), [
+        header: Pdf.region({ height: 48, end: [Pdf.furniture_image(logo)] }),
+        lead: Pdf.lead_region(60, [
             Pdf.rich_paragraph([Pdf.strong([Pdf.text("Harbour & Finch Pty Ltd")])]),
             Pdf.paragraph("Level 3, 18 Wharf Street, Hobart TAS 7000"),
         ]),
-        footer: Pdf.region({ height: Layout.Unit.points(16), start: [], center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])], end: [] }),
-        gap: Layout.Unit.points(12),
+        footer: Pdf.region({ height: 16, center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])] }),
+        gap: 12,
     }),
     continuation: Pdf.page_template({
         header: Pdf.region({
-            height: Layout.Unit.points(16),
+            height: 16,
             start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])],
-            center: [],
             end: [Pdf.furniture_text([page_of])],
         }),
-        footer: Pdf.no_region,
-        gap: Layout.Unit.points(12),
+        gap: 12,
     }),
 })
 ```
 
-Body text flows only in what the regions leave, so the first page and later
+A template leaves out what it does not use: a missing `header`, `footer`,
+or `lead` is no region, and a missing `gap` is zero. Body text flows only in what the regions leave, so the first page and later
 pages can hold different body heights. Each slot (`start`, `center`, `end`)
 stacks its furniture: a header's stack sits on the region's bottom edge and a
 footer's hangs from its top edge. `Pdf.furniture_text` is one line of text,
 page fields, and reserved widths in the body style; `Pdf.furniture_image`
-paints a drawing of images and solid paths (`Scene.rectangle`,
+paints a drawing of images and solid paths (`drawing.rectangle`,
 `Scene.solid_fill`, `Scene.solid_stroke`) whose origin is the item's
 bottom-left corner; `Scene.Drawing.group` reuses a mark at an offset. Furniture is a page artifact (`Header`, `Footer`, or
 `PageNum` when a line holds a page field): it repeats on every page of its
 template and never enters the structure tree or the logical text.
-`Pdf.with_backdrop(region, drawing)` adds a drawing behind a region's
+A region's `backdrop: Backdrop(drawing)` adds a drawing behind its
 slots, from the region's bottom-left corner across up to the full frame
 width, such as a full-width rule under a header or a tinted footer band; it
 paints before the page's other content and never takes part in the slots'
 overlap checks, so it can sit beside start- and end-slot furniture.
-`Pdf.with_slot_inset(region, inset)` lifts a header's slot stacks `inset`
-above its bottom edge (a footer's drop `inset` below its top edge), so a
+Its `slot_inset` lifts a header's slot stacks that far
+above its bottom edge (a footer's drop below its top edge), so a
 rule along that edge clears the text's descenders; the backdrop stays put,
 and the stacks and inset must fit the region. The lead
 region's blocks are semantic: a `Div` that comes first in reading order.
@@ -340,7 +339,7 @@ For deferred or repeated emission, prepare once. `Pdf.Prepared` is opaque: a
 successful value has completed document validation and object planning.
 
 ```roc
-prepared = Pdf.prepare(document, Pdf.Options.default)?
+prepared = Pdf.prepare(document, {})?
 buffered = Pdf.to_bytes_prepared(prepared)?
 encoder = Pdf.to_chunks_prepared(prepared, Pdf.ChunkRetention.ShareUnchangedResources)?
 ```
@@ -351,7 +350,7 @@ Theme colors can use familiar 8-bit channels with
 spacing, and bullet indentation can be changed through `Theme`; every color is
 resolved through the packaged sRGB profile and output intent.
 
-`Pdf.Options.with_page_size` selects one size for every page: `A4` (the
+The options' `page_size` selects one size for every page: `A4` (the
 default), `Letter`, `A4Landscape`, `LetterLandscape`, or `Custom({ width,
 height })` in whole points from 3 to 14,400 pt a side (`layout.page_size`
 otherwise). Margins and templates apply unchanged, so the body frame of a
@@ -359,7 +358,7 @@ landscape page is wider; margins that leave no body frame are
 `layout.page_margin`. Mixing sizes or orientations within one document is
 fixed-page composition (Gate 8).
 
-`Pdf.Options.default` selects the `Archive` profile, which claims PDF 2.0 plus
+The default options (`{}`, also `Pdf.Options.default`) select the `Archive` profile, which claims PDF 2.0 plus
 static PDF/A-4. The canonical XMP declares `pdfaid:part` 4 and `pdfaid:rev`
 2020, the packaged sRGB output intent characterizes every color, and every
 font is embedded. Profile and lowered-plan validation run before any byte is
@@ -371,12 +370,73 @@ requirement and the ISO 19005-4 clause. It is never silently emitted as
 To produce plain PDF 2.0 deliberately, opt out explicitly:
 
 ```roc
-options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard)
+bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 ```
 
 `AccessibleArchive` still rejects with an `InvalidDocument` diagnostic batch
 until PDF/UA-2 closes. The package does not read, repair, sign, encrypt,
 outline, or rasterize PDFs.
+
+## Themes and options
+
+A theme, the options, a scope, and the configuration of every block
+constructor are records whose presentation fields have documented defaults.
+Write only the fields you change; `{}` is all defaults:
+
+```roc
+theme : Faces -> Theme
+theme = |faces| {
+    face: faces.regular,
+    body: { color: charcoal, size: 11, leading: 16 },
+    title: { color: forest, face: Face(faces.bold), size: 40, leading: 46 },
+    headings: { all: { color: forest, face: Face(faces.bold), size: 17, leading: 22 } },
+    inline: {
+        strong: { font: Face(faces.bold) },
+        emphasis: { font: Face(faces.italic) },
+        code: { font: Face(faces.mono), scale: Percent(90) },
+    },
+    page_margin: { top: 40, right: 54, bottom: 40, left: 54 },
+    table: { header_fill: Fill(meadow), rule: Rule({ color: leaf, width: 1 }) },
+}
+
+options : Pdf.Options
+options = { theme: theme(faces), page_size: Letter, fonts: Registered(faces.registry) }
+```
+
+A bare number where a `Layout.Unit` is expected is points, stored exactly in
+thousandths of a point: `size: 12.5` is 12,500 units. A literal with more than
+three decimal places, or outside the unit's range, is a compile-time error,
+never rounded. Values computed at runtime still use `Layout.Unit.points(n)`
+or `Layout.Unit.millipoints(n)`.
+
+The built-in values are declared on the types (`Theme`, `Theme.BodyStyle`,
+`Theme.TableStyle`, `Pdf.Options`, `Pdf.RegionProps`, and the others), and
+`Theme.default` and `Pdf.Options.default` are those records with nothing
+set. A default is the value a field holds when you leave it out, never a
+fallback for a bad value: preparation still validates every field and
+names it in the diagnostic, such as `text.inline_scale` at
+`theme.inline.code.scale`. Title, language, contents, alternative text,
+captions, table columns and rows, and font validation limits have no
+defaults.
+
+A style's face is `ThemeFace`, the theme's `face` (the default), or
+`Face(face)`. A heading level is `SameAsAll`, the `headings.all` style (the
+default), or `Own(style)`: `headings: { all: { size: 15 }, h1: Own({ size:
+20, face: Face(bold) }) }`. An inline role's color, face, and scale are
+`Inherited` unless given.
+
+A nested record you write is completed from its own type's defaults, not
+from another theme's values, so derive from an existing theme by spreading
+the sub-record you change:
+
+```roc
+quiet = { ..brand, headings: { ..brand.headings, all: { ..brand.headings.all, leading: 20 } } }
+```
+
+`{ ..brand, headings: { all: { leading: 20 } } }` would instead reset every
+other heading field to the built-in value. Each sub-record with different
+defaults (`BodyStyle`, `TitleStyle`, `HeadingStyle`) is its own type, so a
+partial `title` literal never picks up the body's size.
 
 ## Images, figures, and forward authoring
 
@@ -393,18 +453,20 @@ image = Image.Source.rgb8({
     pixels: [24, 94, 134, 240, 180, 40, 40, 160, 90, 245, 245, 240],
     row_stride: 6,
 })
-drawing = Scene.drawing({}).image(image, Layout.rect(0, 0, 240, 120))
+drawing = Scene.Drawing.empty.image(image, Layout.rect(0, 0, 240, 120))
 
-figure = Pdf.figure(drawing, "A four-color information panel", Pdf.caption("Figure 1"))
+figure = Pdf.figure({ drawing, alt: "A four-color information panel", caption: Pdf.caption("Figure 1") })
 
-## A grouped vector chart: each bar pair is a group translated into place.
-bars = Scene.rectangle(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 36, 120), blue), Layout.rect(40, 0, 36, 150), orange)
-chart = Scene.drawing({})
-    .path(Scene.path({}).move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, Layout.Unit.points(1)))
+# A grouped vector chart: each bar pair is a group translated into place.
+bars = Scene.Drawing.empty
+    .rectangle(Layout.rect(0, 0, 36, 120), blue)
+    .rectangle(Layout.rect(40, 0, 36, 150), orange)
+chart = Scene.Drawing.empty
+    .path(Scene.PathBuilder.start.move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, 1))
     .group(Layout.point(48, 21), bars)
     .group(Layout.point(156, 21), bars)
-plan = Pdf.figure_fit(Pdf.figure(site_plan, "Plan of the yard", Pdf.no_caption), ScaleToFit({ minimum_percent: 50 }))
-rule = Pdf.decoration(Scene.rectangle(Scene.drawing({}), Layout.rect(0, 6, 483, 1), ink))
+plan = Pdf.figure({ drawing: site_plan, alt: "Plan of the yard", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 50 }) })
+rule = Pdf.decoration({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 6, 483, 1), ink) })
 ```
 
 Image pixel dimensions and layout placement are independent. Packed planes
@@ -416,16 +478,16 @@ A figure is placed start-aligned in the flow at its authored size, as one
 unsplittable unit with its caption below it; a caption becomes a `Caption`
 beside the `Figure` in a `Sect`, so assistive technology reads it
 independently of the alternative text. A figure that does not fit the flow
-region is `document.figure_oversize` unless `Pdf.figure_fit` selects
+region is `document.figure_oversize` unless its `fit` is
 `ScaleToFit({ minimum_percent })`, which scales the drawing (never its
 caption) by the largest fitting factor down to the floor. `Pdf.decoration`
 paints a drawing as a `Decoration` artifact that occupies its height
 immediately above the next flow block and moves with it.
-`Pdf.spaced_decoration(drawing, { above, below, behind })` adds space above
-the drawing and between it and the next block, so a divider needs no empty
-drawing area; a negative `below` overlaps the next block's first lines (by
-at most the drawing's height), and `behind: Bool.True` paints the drawing
-before the page's text, such as a band behind a heading. Drawings are
+Its `above` and `below` (zero unless given) add space above the drawing and
+between it and the next block, so a divider needs no empty drawing area; a
+negative `below` overlaps the next block's first lines (by at most the
+drawing's height), and `layer: Behind` paints the drawing before the page's
+text, such as a band behind a heading. Drawings are
 validated at their authored path (`document.figure_drawing`,
 `layout.decoration_drawing`). Fixed pages remain forward API: they report
 `layout.custom` and emit no bytes or chunks.
@@ -433,7 +495,9 @@ validated at their authored path (`document.figure_drawing`,
 An extension can contribute a block through `Pdf.custom_block` without any
 PDF object or operator: it supplies ordinary paragraphs, its own
 measurement of the block (`size` and a content `inset`), and a panel of
-solid paths drawn behind the content, and declares it `Unsplittable`: To size content whose paragraphs wrap, an extension calls
+solid paths drawn behind the content. The block is `Unsplittable` (its
+`fragmentation`, the only value), and `inset` and `panel` default to zero
+and an empty drawing. To size content whose paragraphs wrap, an extension calls
 `Pdf.measure_custom_content(options, { contents, language, width })` with
 the content width (the box width less twice the inset) and the options the
 document is prepared with; it returns the exact content height preparation
@@ -442,11 +506,10 @@ will prove.
 ```roc
 callout = Pdf.custom_block({
     contents: [Pdf.paragraph("Revenue: AUD 9.22 m (+5.0%)"), Pdf.paragraph("On-time delivery: 96.4%")],
-    fragmentation: Unsplittable,
-    inset: Layout.Unit.points(10),
+    inset: 10,
     name: "Key figures",
-    panel: Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 320, 70), tint),
-    size: { height: Layout.Unit.points(70), width: Layout.Unit.points(320) },
+    panel: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 320, 70), tint),
+    size: { height: 70, width: 320 },
 })
 ```
 

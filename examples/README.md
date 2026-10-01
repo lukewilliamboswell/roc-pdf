@@ -67,31 +67,31 @@ invoice are the reference documents of
 that their bytes equal the committed PDFs here, so they keep the built-in
 face. The other examples register their fonts through the public font
 registry (`Font.Registry.register`) and select a Bold, Italic, or monospace
-face per inline role with `Theme.with_inline_font`, a Bold face for the
-title and headings through `Theme.with_title_style` and
-`Theme.with_heading_level_style` (level-1 and level-2 headings differ in
-several), and scale inline code to the body text with
-`Theme.with_inline_scale`. Links take a colour and an underline from
-`Theme.with_link_color` and `Theme.with_link_underline`. Their charts,
+face per inline role through the theme's `inline` record, a Bold face for
+the title and headings through `title` and `headings` (level-1 and level-2
+headings are `Own` styles in several), and scale inline code to the body
+text with `inline: { code: { scale: Percent(90) } }`. Each example's theme
+is one record, `theme(faces)`, that names only what differs from the
+built-in values, with sizes as literal points. Links take a colour and an
+underline from the theme's `link` record. Their charts,
 illustrations, and diagrams are vector drawings built from `Scene` groups
 with real, searchable text labels (`Scene.Drawing.text`, or
 `Scene.Drawing.text_in` for a label in the bold or code face, such as the
 brand brief's swatch names and hex values), and the business
 report places a JPEG photograph as an accessible figure with authored
 alternative text and a caption. Tables are shaded and ruled through
-`Theme.with_table_header_fill`, `with_table_body_fills`,
-`with_table_footer_fill`, `with_table_body_rule`, and, in the field
-guide, `with_table_column_rule` and `with_table_frame`, with single cells
-tinted by `Pdf.shaded`, and row header cells keep the body colour unless
-`Theme.with_table_row_header_color` sets one. A cell the table leaves
+the theme's `table` record (`header_fill`, `body_fills`, `footer_fill`,
+`body_rule`, and, in the field guide, `column_rule` and `frame`), with
+single cells tinted by `cell.shaded(color)`, and row header cells keep the
+body colour unless `row_header_color` sets one. A cell the table leaves
 blank is `Pdf.cell([])`, an empty `TD` with no content, never a dash.
 Code spans keep their words whole, so a hyphenated flag never breaks
 across lines. Callouts size themselves with
 `Pdf.measure_custom_content`, so their paragraphs may wrap, and a scope's
 `Text` colour sets light text on a dark panel. Header rules sit in a
-region backdrop (`Pdf.with_backdrop`) beside the slots' furniture, with
-the header text lifted clear of the rule by `Pdf.with_slot_inset`, and
-dividers and banners keep their gaps through `Pdf.spaced_decoration`.
+region `backdrop` beside the slots' furniture, with the header text
+lifted clear of the rule by the region's `slot_inset`, and dividers and
+banners keep their gaps through a decoration's `above` and `below`.
 
 Fonts are retained byte-for-byte from their upstream releases under OFL-1.1;
 [vendor/README.md](../vendor/README.md) records each archive, and

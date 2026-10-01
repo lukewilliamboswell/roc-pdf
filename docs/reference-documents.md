@@ -61,10 +61,10 @@ dollars (AUD) and include 10% GST where stated. The document language is
   No reference depends on a bold or italic face: the built-in package ships one
   regular face, and synthetic emboldening or obliquing is not produced.
   `Em`, `Strong`, `Code`, and `Quote` are distinguished visually only by
-  their theme colors (`Theme.with_emphasis_color`, `with_strong_color`,
-  `with_code_color`, `with_quote_color`); an unthemed role paints exactly like
+  their theme colors (the theme's `inline: { emphasis, strong, code, quote }`
+  styles' `color`); an unthemed role paints exactly like
   the text around it. A caller-registered face per inline role (for example
-  a monospace face for `Code`) is selectable with `Theme.with_inline_font`
+  a monospace face for `Code`) is selectable with `inline: { code: { font: Face(mono) } }`
   under style faces (`reference-documents-v8`); under an ordered policy it
   reports `text.inline_font_policy`. The semantic role never depends on that
   presentation.
@@ -143,7 +143,7 @@ Body contents, in order:
      The product name `Cafetière « Élégance »` is authored as
      `Pdf.in_language("fr", [Pdf.text("Cafetière « Élégance »")])`.
    - Three footer rows, each a `Row`-scoped header cell spanning four columns
-     and end-aligned (`Pdf.aligned(End, Pdf.spanning(4, ...))`) and one
+     and end-aligned (`Pdf.header_cell(Row, ...).spanning(4).aligned(End)`) and one
      amount cell:
      `Subtotal (excl. GST)` / `40,116.40`; `GST (10%)` / `4,011.64`;
      `Total due (AUD)` / `44,128.04` (the amount wrapped in `Pdf.strong`).
@@ -164,9 +164,9 @@ items = Pdf.table({
     columns: [
         { width: Content, align: Start },
         { width: Share(1), align: Start },
-        { width: Fixed(Layout.Unit.points(36)), align: End },
-        { width: Fixed(Layout.Unit.points(72)), align: End },
-        { width: Fixed(Layout.Unit.points(80)), align: End },
+        { width: Fixed(36), align: End },
+        { width: Fixed(72), align: End },
+        { width: Fixed(80), align: End },
     ],
     header_rows: [
         Pdf.row([
@@ -180,19 +180,18 @@ items = Pdf.table({
     body_rows: item_rows,
     footer_rows: [
         Pdf.row([
-            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("Subtotal (excl. GST)")]))),
+            Pdf.header_cell(Row, [Pdf.text("Subtotal (excl. GST)")]).spanning(4).aligned(End),
             Pdf.cell([Pdf.text("40,116.40")]),
         ]),
         Pdf.row([
-            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("GST (10%)")]))),
+            Pdf.header_cell(Row, [Pdf.text("GST (10%)")]).spanning(4).aligned(End),
             Pdf.cell([Pdf.text("4,011.64")]),
         ]),
         Pdf.row([
-            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")]))),
+            Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")]).spanning(4).aligned(End),
             Pdf.cell([Pdf.strong([Pdf.text("44,128.04")])]),
         ]),
     ],
-    row_split: KeepRows,
 })
 ```
 
@@ -292,7 +291,7 @@ rules (`Decoration`).
 | INV-A6b | Address contains Han `北京` with the packaged face only | defaults | `text.coverage_missing` locating the scalars. No bytes. No face is substituted. |
 | INV-A7a | Items section and Payment section wrapped together in `Pdf.keep_together`, exceeding one page body | defaults | `layout.keep_conflict` naming the keep and its first and last member blocks (`details` `contents[4]`, `contents[4].contents[0].contents[0]`, `contents[4].contents[1].contents[2]`); the message gives their minimum height and the fresh-page body height. No bytes. |
 | INV-A7b | `Pdf.page_break` inside a `Pdf.keep_together` (between the Bill-to and Items sections) | defaults | `layout.keep_conflict` naming the explicit break and then the required keep. No bytes. |
-| INV-A8 | A body row with five cells plus a `Pdf.spanning(2, ...)` cell (seven grid columns in a five-column table) | defaults | `table.grid_mismatch` naming the row, the declared column count, and the spanned width. No bytes. |
+| INV-A8 | A body row with five cells plus a `cell.spanning(2)` cell (seven grid columns in a five-column table) | defaults | `table.grid_mismatch` naming the row, the declared column count, and the spanned width. No bytes. |
 | INV-A9 | A cell declared with a row span | defaults | `table.row_span` (`FeatureUnavailable`, Gate 8). No bytes. |
 
 ### Author obligations
@@ -512,7 +511,7 @@ custom block).
 | REP-A4 | 100 sections, each after an explicit break (`Page N of M` reaches three digits), with the page number alone in a `Pdf.reserved_width` sized for two digits (16 pt; amended in `reference-documents-v10`: the widest two-digit value, `40`, measures 14.045 pt, so the former 14 pt would already overflow on page 40) | defaults | `layout.field_overflow` naming the footer field (`templates.continuation.footer.end[0].inlines[0].inlines[0]`); the message names page 100, the resolved value `100`, its shaped width, and the reserved width. No bytes. |
 | REP-A5 | Font selection switched to an ordered policy of a caller-registered Latin face and a Han face; section 3.2 adds a nested `zh-Hans` span (amended in `reference-documents-v10` to `Pdf.in_language("zh-Hans", [Pdf.text("中")])` between spaces: the test-only Han fixture face covers only U+4E2D) | ordered policy | Accepted: per-cluster face selection, one nested `zh-Hans` span, no substitution. The spaces around the span itemize as Common and take the Latin face (the report's coverage facts show `Zyyy` runs on font 0 and one `Hani` scalar on font 1). |
 | REP-A6a | Figure 1's drawing is 600 × 900 pt | `Exact` (default) | `document.figure_oversize` reporting the drawing size and the body frame. No bytes. |
-| REP-A6b | As REP-A6a with `Pdf.figure_fit(..., ScaleToFit({ minimum_percent: 50 }))` | scale to fit | Accepted. Uniform scale `min(483/600, available/900)` on a fresh page, reported in the preparation report as an authored fit outcome: 733 thousandths, the continuation frame (682 pt) less the caption line and its spacing being 660 pt (`reference-documents-v10`). |
+| REP-A6b | As REP-A6a with `fit: ScaleToFit({ minimum_percent: 50 })` | scale to fit | Accepted. Uniform scale `min(483/600, available/900)` on a fresh page, reported in the preparation report as an authored fit outcome: 733 thousandths, the continuation frame (682 pt) less the caption line and its spacing being 660 pt (`reference-documents-v10`). |
 | REP-A6c | As REP-A6b with `minimum_percent: 90` | scale to fit | `document.figure_oversize` reporting the required scale and the floor. No bytes. |
 | REP-A7 | `H1 "3 Supply chain"` followed directly by an `H3` | defaults | `semantics.heading_skip` naming both headings. No bytes. |
 | REP-A8 | Internal link to an undeclared destination `risks` | defaults | The existing typed `InvalidNavigation` destination error, locating the link. No bytes. |
@@ -690,7 +689,7 @@ substitution, outlining, rasterization, or dropping text.
 | Vertical writing | rejected | rejected | `text.vertical_writing` (Gate 8) |
 | Nested language spans within one paragraph (`fr` in `en-AU` through the packaged face; `zh-Hans` in a Latin paragraph through an ordered policy whose faces cover it) | supported | — | [rich-inline.md](performance/rich-inline.md); an unsupported script inside a span rejects as `text.unsupported_script` with its inline path. REP-A5's spaces around a Han span take the Common-run row below |
 | Rich inline runs (`Em`, `Strong`, `Code`, `Quote`, `Link`, `Span`) with per-run theme colors in one line, wrapping across inline boundaries | supported | — | [rich-inline.md](performance/rich-inline.md) |
-| A distinct caller-registered face per inline role (e.g. monospace `Code`) under style faces | supported | — | [rich-inline.md](performance/rich-inline.md): `Theme.with_inline_font`; the innermost role with a face decides a run's face at the paragraph's size and leading; under an ordered policy `text.inline_font_policy` (`FeatureUnavailable`) |
+| A distinct caller-registered face per inline role (e.g. monospace `Code`) under style faces | supported | — | [rich-inline.md](performance/rich-inline.md): the theme's `inline.<role>.font`; the innermost role with a face decides a run's face at the paragraph's size and leading; under an ordered policy `text.inline_font_policy` (`FeatureUnavailable`) |
 | Runs whose script stays Common (or Inherited) after itemization, e.g. a cell holding only `1,284` or `+10.0%`, or the spaces in `Café 中 PDF`, under an ordered policy | supported | — | [tables.md](performance/tables.md): each cluster of such a run takes the first face in policy order that covers it, exactly as per-cluster coverage selection does for declared scripts; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
 | Furniture text (headers, footers, page fields) shaped with exact artifact ownership, through the single theme face or an ordered policy | supported | — | [page-templates.md](performance/page-templates.md); under an ordered policy each furniture cluster selects its face exactly as body text does, a furniture-only face becomes an extra output font, and pieces split at face boundaries (`reference-documents-v8`); uncovered or undeclared-script furniture text is `text.coverage_missing` or `text.unsupported_script` at its item path |
 
@@ -841,8 +840,8 @@ grow linearly with the document; there is no backtracking across pages.
 - A unit taller or wider than an empty flow region is rejected by default:
   `layout.oversize_block` for blocks and custom blocks, `layout.oversize_row`
   for rows under `KeepRows`, and `document.figure_oversize` for figures.
-- A figure may explicitly select `Pdf.figure_fit(figure, ScaleToFit({
-  minimum_percent }))`. The figure (not its caption) is scaled uniformly by the
+- A figure may explicitly select `fit: ScaleToFit({ minimum_percent })` in
+  its `Pdf.figure` record. The figure (not its caption) is scaled uniformly by the
   largest factor ≤ 1 that fits the flow region width and an empty page's flow
   height together with its caption. A scale below the floor is
   `document.figure_oversize`. The applied scale appears in the preparation
@@ -934,7 +933,7 @@ letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
   `table.empty`.
   A cell's lines align by their visible advance (trailing spaces excluded)
   in the alignment of the first column it spans, or in its own alignment
-  when authored with `Pdf.aligned(align, cell)` (`reference-documents-v8`); lines start at the top of
+  when authored with `cell.aligned(align)` (`reference-documents-v8`); lines start at the top of
   the row.
 - Every row's spans must sum to the table's column count, and every span is
   at least one (`table.grid_mismatch`). Column spans are supported; a cell
@@ -1061,7 +1060,7 @@ with.
 | `document.figure_alternative_empty` | `InvalidRelationship` | A figure's alternative text is empty |
 | `document.figure_drawing` | `InvalidRelationship` | A figure's drawing has no painting command, a non-positive image size, a path that paints nothing, content below or left of its origin, groups nested more than 8 deep, a clip, opacity, or soft-mask group, or a coordinate beyond 10^9 pt (`reference-documents-v7`) |
 | `document.figure_caption_empty` | `InvalidRelationship` | A figure's visible caption is empty (`reference-documents-v7`) |
-| `document.figure_fit` | `InvalidRelationship` | `figure_fit` on a block that is not a figure, or a `ScaleToFit` floor above 100 (`reference-documents-v7`) |
+| `document.figure_fit` | `InvalidRelationship` | a `ScaleToFit` floor above 100 (`reference-documents-v7`; a fit on a block that is not a figure is no longer representable) |
 | `layout.decoration_drawing` | `InvalidRelationship` | A decoration's drawing is not a valid flow drawing, as for `document.figure_drawing` (`reference-documents-v7`) |
 | `layout.decoration_position` | new family | A decoration has no following flow block, or appears in a lead region (`reference-documents-v7`) |
 | `semantics.heading_skip` | `InvalidRelationship` | A heading is more than one level deeper than its predecessor |
@@ -1221,9 +1220,9 @@ row_spanning : U16, Cell -> Cell                 # represented; rejects as table
 These are executable with these names and shapes (tables slice,
 `reference-documents-v5`); `Pdf.Column`, `Pdf.Row`, `Pdf.Cell`, `Pdf.Scope`,
 and `Pdf.RowSplit` name the types, and `Pdf.simple_table` is retired. Table
-presentation is `Theme` policy: `with_table_cell_padding`,
-`with_table_row_gap`, `with_table_rule` (`Rule({ color, width })` or
-`NoRule`), and `with_table_header_color`; cells paint in the body style.
+presentation is `Theme` policy, in its `table` record: `cell_padding`,
+`row_gap`, `rule` (`Rule({ color, width })` or `NoRule`), and
+`header_color`; cells paint in the body style.
 
 ### Page templates
 
@@ -1257,7 +1256,7 @@ These are executable with these names and shapes (page-templates slice,
 placeholders `Pdf.page_header` and `Pdf.page_footer` (and the compact
 builder's `add_page_header` and `add_page_footer`) are retired. A furniture
 drawing holds image commands and solid paths (`Scene.solid_fill`,
-`Scene.solid_stroke`, `Scene.rectangle`) in drawing-local coordinates
+`Scene.solid_stroke`, `Scene.Drawing.rectangle`) in drawing-local coordinates
 whose origin is the item's bottom-left corner, y upward; its extent is the
 union of its commands from that origin, a stroke extending a path by half
 its width on every side. Grouped commands report `layout.furniture_drawing`.
@@ -1270,33 +1269,32 @@ it are subsumed by its single unit.
 ### Figures, decorations, and extensions
 
 ```roc
-figure : Scene.Drawing, Str, Document.Caption -> Block   # existing; bounded vector drawings join
-figure_fit : Block, FigureFit -> Block    # FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
-decoration : Scene.Drawing -> Block       # in-flow Decoration artifact, occupies space
+figure : FigureProps -> Block       # { drawing, alt, caption, fit ?? Exact }; FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
+decoration : DecorationProps -> Block   # { drawing, above ?? 0, below ?? 0, layer ?? Front }: in-flow Decoration artifact
 custom_block : CustomBlock -> Block
 Scene.Drawing.group : Scene.Drawing, Layout.Point, Scene.Drawing -> Scene.Drawing
 ```
 
-`figure`, `figure_fit` (with `Pdf.FigureFit`), `decoration`, and
+`figure` (with its `fit`, a `Pdf.FigureFit`), `decoration`, and
 `Scene.Drawing.group` are executable with these names and shapes
 (flow-figures slice, `reference-documents-v7`); `custom_block` is executable
 with the shape below (custom-block slice, `reference-documents-v9`). A figure or decoration
 drawing holds any number of image commands and solid paths
-(`Scene.solid_fill`, `Scene.solid_stroke`, `Scene.rectangle`) and
+(`Scene.solid_fill`, `Scene.solid_stroke`, `Scene.Drawing.rectangle`) and
 translated groups (`Scene.Drawing.group`, at most 8 deep) in
 drawing-local coordinates whose origin is its bottom-left corner, y
 upward, with the furniture drawing's extent rule; a decoration is a
 `Decoration` page artifact (`/Artifact <</Type /Layout>>`) painted after the
-page's text. `figure_fit` on a non-figure block is rejected.
+page's text.
 
 ```roc
-CustomBlock : {
-    contents : List(Block),          # paragraphs and rich paragraphs only
-    fragmentation : [Unsplittable],  # the only v1 value
-    inset : Layout.Unit,             # content inset on every side, positive
-    name : Str,                      # names the block in diagnostics and the report
-    panel : Scene.Drawing,           # solid paths in box-local coordinates, behind the content
-    size : Layout.Size,              # the extension's measurement of the block
+CustomBlock := {
+    contents : List(Block),                          # paragraphs and rich paragraphs only
+    fragmentation : [Unsplittable] ?? Unsplittable,  # the only v1 value
+    inset : Layout.Unit ?? 0,                        # content inset on every side
+    name : Str,                                      # names the block in diagnostics and the report
+    panel : Scene.Drawing ?? Scene.Drawing.empty,    # solid paths in box-local coordinates, behind the content
+    size : Layout.Size,                              # the extension's measurement of the block
 }
 ```
 
@@ -1432,6 +1430,13 @@ version, the task, the observed outcome, and any limitation.
 
 ## Change log
 
+- API shape (no scenario revision): the facade's configuration became
+  records with defaults. Themes, options, scopes, regions, templates,
+  tables, figures, decorations, and custom blocks are written as records
+  that name only what differs from their defaults, and the cell modifiers
+  chain (`cell.spanning(4).aligned(End)`). The reference fixtures were
+  ported and every reference PDF is byte-identical; see
+  [performance/idiomatic-api.md](performance/idiomatic-api.md).
 - `reference-documents-v11`: the examples-showcase slice makes a cell with
   no inlines an empty `TD` or `TH` (no marked content, no `/K`), narrows
   `table.cell_empty` to inline content that holds no text, and extends
