@@ -258,7 +258,6 @@ key_figures = |options, ground, name, lines| {
 	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: 504 }
 	block = Pdf.custom_block({
 		contents: paragraphs,
-		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name,
 		panel: rounded_panel(ground, size),
@@ -310,20 +309,18 @@ footer : Pdf.Region
 footer = Pdf.region({
 	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("sprout.example · Launch brief, not for resale")])],
-	center: [],
 	end: [Pdf.furniture_text([page_of])],
 })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 40, start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), sprout_mark))], center: [], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: 3 }),
-		lead: Pdf.no_lead,
+		header: Pdf.region({ height: 40, start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), sprout_mark))], end: [Pdf.furniture_text([Pdf.text("Product brief · October 2026")])], backdrop: Backdrop(green_rule), slot_inset: 3 }),
 		footer,
 		gap: 16,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])], center: [], end: [Pdf.furniture_text([Pdf.text("October 2026")])], backdrop: Backdrop(green_rule), slot_inset: 3 }),
+		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Sprout 2.4 · Product brief")])], end: [Pdf.furniture_text([Pdf.text("October 2026")])], backdrop: Backdrop(green_rule), slot_inset: 3 }),
 		footer,
 		gap: 16,
 	}),
@@ -357,8 +354,6 @@ cycle_table = {
 		columns: $columns,
 		header_rows: [Pdf.row($weeks)],
 		body_rows: [Pdf.row($days)],
-		footer_rows: [],
-		row_split: KeepRows,
 	})
 }
 
@@ -406,7 +401,6 @@ plans = Pdf.table({
 			Pdf.cell([Pdf.strong([Pdf.text("$24")])]),
 		]),
 	],
-	row_split: KeepRows,
 })
 
 support_table : Document.Block
@@ -419,8 +413,6 @@ support_table = Pdf.table({
 		("Team", "Email and in-app chat, weekdays", "One business day"),
 		("Business", "Email, chat, and phone, with a named success manager", "Four business hours"),
 	].map(|(plan, channels, response)| Pdf.row([Pdf.header_cell(Row, [Pdf.text(plan)]), Pdf.cell([Pdf.text(channels)]), Pdf.cell([Pdf.text(response)])])),
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 rollout_table : Document.Block
@@ -433,8 +425,6 @@ rollout_table = Pdf.table({
 		("20 Oct 2026", "Team and Business", "All 2.4 features, including archival export and quiet notifications."),
 		("3 Nov 2026", "Starter", "All 2.4 features; the digest defaults to 9 a.m. local time."),
 	].map(|(date, wave, change)| Pdf.row([Pdf.header_cell(Row, [Pdf.text(date)]), Pdf.cell([Pdf.text(wave)]), Pdf.cell([Pdf.text(change)])])),
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 ## ---------------------------------------------------------------------
@@ -500,7 +490,7 @@ contents = |options| Ok([
 	Pdf.section([
 		Pdf.destination_heading("next", 1, "What comes next"),
 		Pdf.numbered_list(
-			{ start: 1, style: Decimal },
+			{},
 			[
 				Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("November. ")]), Pdf.text("Calendar sync, so a decision's due date appears where people plan their week.")])]),
 				Pdf.list_item([Pdf.rich_paragraph([Pdf.strong([Pdf.text("December. ")]), Pdf.text("Templates for hiring, vendor selection, and architecture reviews.")])]),

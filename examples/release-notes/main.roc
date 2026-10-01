@@ -122,7 +122,6 @@ footer : Pdf.Region
 footer = Pdf.region({
 	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("kestrel.example/releases/3.0.0")])],
-	center: [],
 	end: [Pdf.furniture_text([page_of])],
 })
 
@@ -131,9 +130,9 @@ header_mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 8, 8), indigo).rec
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 14 }),
+	first: Pdf.first_page_template({ footer, gap: 14 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 19, start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], center: [], end: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, haze)), slot_inset: 3 }),
+		header: Pdf.region({ height: 19, start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], end: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, haze)), slot_inset: 3 }),
 		footer,
 		gap: 16,
 	}),
@@ -178,7 +177,7 @@ callout : Pdf.Options, Str, CalloutStyle, List(Document.Block) -> Try(Document.B
 callout = |options, name, style, paragraphs| {
 	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-US", width: Layout.Unit.points(measure - 28) })?
 	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(measure) }
-	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
+	block = Pdf.custom_block({ contents: paragraphs, inset: callout_inset, name, panel: callout_panel(style, size), size })
 	scope = Theme.Scope.{ strong: Themed(style.label), text: Themed(style.text) }
 	Ok(Pdf.scoped(if style.text == ink scope else { ..scope, code: Themed(style.label) }, [block]))
 }
@@ -323,8 +322,6 @@ flags_table = Pdf.table({
 		flag_row("--graphite-host", "", [Pdf.text("Removed with the Graphite exporter.")]),
 		flag_row("--no-seed", "", [Pdf.text("Removed: every run is seeded from "), Pdf.code("kestrel.lock"), Pdf.text(".")]),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 compatibility_table : Document.Block
@@ -358,7 +355,6 @@ compatibility_table = Pdf.table({
 			Pdf.cell([Pdf.text("2.9 LTS receives security fixes until 30 September 2027.")]).aligned(Start).spanning(4),
 		]),
 	],
-	row_split: KeepRows,
 })
 
 contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
@@ -460,7 +456,7 @@ contents = |options| Ok([
 		Pdf.destination_heading("upgrading", 1, "Upgrading from 2.x"),
 		Pdf.keep_together([
 			Pdf.numbered_list(
-				{ start: 1, style: Decimal },
+				{},
 				[
 					Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Upgrade to 2.9.2 first and run your suite once; it warns about every deprecated flag.")])]),
 					Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Convert scenarios with "), Pdf.code("kestrel migrate scenarios/ --to toml --write"), Pdf.text(".")])]),

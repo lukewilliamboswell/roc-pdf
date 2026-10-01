@@ -25,7 +25,7 @@ main! = |_args| {
 		.with_outline(outline)
 		.with_created("2026-10-12T00:00:00Z")
 		.with_modified("2026-10-12T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme }).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "business-report.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
@@ -53,7 +53,7 @@ page_of : Pdf.Inline
 page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 footer : Pdf.Region
-footer = Pdf.region({ height: 16, start: [], center: [], end: [Pdf.furniture_text([page_of])] })
+footer = Pdf.region({ height: 16, end: [Pdf.furniture_text([page_of])] })
 
 ## A full-width 0.5 pt rule under the running header.
 rule : Scene.Drawing
@@ -61,9 +61,9 @@ rule = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { heigh
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 12 }),
+	first: Pdf.first_page_template({ footer, gap: 12 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 24, start: [Pdf.furniture_text([Pdf.text("Quarterly operations report · Q1 FY2027")]), Pdf.furniture_image(rule)], center: [], end: [] }),
+		header: Pdf.region({ height: 24, start: [Pdf.furniture_text([Pdf.text("Quarterly operations report · Q1 FY2027")]), Pdf.furniture_image(rule)] }),
 		footer,
 		gap: 12,
 	}),
@@ -98,7 +98,6 @@ key_figures = |lines, width| {
 	size = { height: Layout.Unit.from_raw(callout_inset.raw() * 2 + leading * count + spacing * (count - 1)), width }
 	Pdf.custom_block({
 		contents: lines.map(|line| Pdf.paragraph(line)),
-		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name: "Key figures",
 		panel: callout_panel(size),
@@ -294,7 +293,6 @@ revenue_table = Pdf.table({
 		region_row("Queensland", "1,127", "1,301", "+15.4%"),
 	],
 	footer_rows: [region_row("Total", "8,778", "9,221", "+5.0%")],
-	row_split: KeepRows,
 })
 
 suppliers : List({ category : Str, location : Str, name : Str })
@@ -362,8 +360,6 @@ supplier_table = {
 			]),
 		],
 		body_rows: $rows,
-		footer_rows: [],
-		row_split: KeepRows,
 	})
 }
 
@@ -441,7 +437,7 @@ contents = [
 			Pdf.text("."),
 		]),
 		Pdf.numbered_list(
-			{ start: 1, style: Decimal },
+			{},
 			[
 				Pdf.list_item([Pdf.paragraph("Commission the third kiln chamber at Moonah by November.")]),
 				Pdf.list_item([

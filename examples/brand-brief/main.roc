@@ -260,7 +260,7 @@ at_a_glance = |options, ground, name, lines| {
 		Light => Scene.Drawing.empty.rectangle(box, mist).rectangle(edge, coral)
 		Dark => Scene.Drawing.empty.rectangle(box, indigo).rectangle(edge, amber)
 	}
-	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel, size })
+	block = Pdf.custom_block({ contents: paragraphs, inset: callout_inset, name, panel, size })
 
 	## Labels are Lumen Indigo on the light ground; on the Indigo ground
 	## all text is white and links are Mist. Accents never carry words.
@@ -281,7 +281,6 @@ footer : Pdf.Region
 footer = Pdf.region({
 	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("Lumen Labs · Brand Studio")])],
-	center: [],
 	end: [Pdf.furniture_text([page_of])],
 })
 
@@ -293,13 +292,12 @@ hairline = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 1), tint(indigo_
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), mark(36, indigo, amber)))], center: [], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
-		lead: Pdf.no_lead,
+		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 5), mark(36, indigo, amber)))], end: [Pdf.furniture_text([Pdf.text("Brand guidelines · Edition 3 · September 2026")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
 		footer,
 		gap: 14,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 22, start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])], center: [], end: [Pdf.furniture_text([Pdf.text("Edition 3")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
+		header: Pdf.region({ height: 22, start: [Pdf.furniture_text([Pdf.text("Lumen brand guidelines")])], end: [Pdf.furniture_text([Pdf.text("Edition 3")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
 		footer,
 		gap: 14,
 	}),
@@ -358,8 +356,6 @@ palette_table = Pdf.table({
 		colour_row("Signal Coral", "Highlights, bands, one per view", "#F2665A", "242 102 90", "3.1 : 1"),
 		colour_row("Dawn Amber", "The light in the mark, charts", "#F5B83D", "245 184 61", "1.8 : 1"),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 type_row : Str, Str, Str, Str -> Pdf.Row
@@ -376,8 +372,6 @@ type_table = Pdf.table({
 		type_row("Body", "10.5", "15.5", "Running text and table cells, in Ink"),
 		type_row("Caption", "10.5", "15.5", "Figure and table captions"),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 voice_table : Document.Block
@@ -391,8 +385,6 @@ voice_table = Pdf.table({
 		("Plans start at USD 12 per editor each month.", "Unbeatable value for teams of every size."),
 		("Undo restores the last 50 changes.", "Never lose work again, guaranteed."),
 	].map(|(good, bad)| Pdf.row([Pdf.cell([Pdf.text(good)]), Pdf.cell([Pdf.text(bad)])])),
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 ## ---------------------------------------------------------------------
@@ -476,7 +468,7 @@ body = |glance, studio| [
 		Pdf.figure({ drawing: placements, alt: "The Lumen mark on three approved grounds: indigo on a pale mist ground with its clear-space boundary outlined in coral, white on indigo, and indigo on amber.", caption: Pdf.caption("Figure 2. The three approved grounds"), fit: ScaleToFit({ minimum_percent: 80 }) }),
 		Pdf.keep_together([
 			Pdf.numbered_list(
-				{ start: 1, style: Decimal },
+				{},
 				[
 					Pdf.list_item([Pdf.paragraph("Never place the mark on photography without a solid ground behind it.")]),
 					Pdf.list_item([Pdf.paragraph("Never recolour the light: it is Dawn Amber, or white on an amber ground.")]),

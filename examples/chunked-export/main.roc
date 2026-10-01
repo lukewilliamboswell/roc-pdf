@@ -136,15 +136,14 @@ footer : Pdf.Region
 footer = Pdf.region({
 	height: 14,
 	start: [Pdf.furniture_text([Pdf.text("Exported 30 September 2026 06:00 AEST · Logger CL-7 serial 00418")])],
-	center: [],
 	end: [Pdf.furniture_text([page_of])],
 })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 12 }),
+	first: Pdf.first_page_template({ footer, gap: 12 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 17, start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])], center: [], end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.5, width: Layout.Unit.points(measure) } }, frost)), slot_inset: 3 }),
+		header: Pdf.region({ height: 17, start: [Pdf.furniture_text([Pdf.text("Shipment RX-40718 · Melbourne to Hobart · Telemetry export")])], end: [Pdf.furniture_text([Pdf.text("Vaccines, 2 to 8 °C")])], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.5, width: Layout.Unit.points(measure) } }, frost)), slot_inset: 3 }),
 		footer,
 		gap: 12,
 	}),
@@ -254,7 +253,6 @@ readings_table = {
 				Pdf.cell([Pdf.text("3 samples over limit")]).spanning(2),
 			]),
 		],
-		row_split: KeepRows,
 	})
 }
 
@@ -342,7 +340,6 @@ summary = |options, paragraphs| {
 	Ok(
 		Pdf.custom_block({
 			contents: paragraphs,
-			fragmentation: Unsplittable,
 			inset: callout_inset,
 			name: "Shipment summary",
 			panel: panel.rectangle({ origin: Layout.point(0, 0), size: { height: size.height, width: 3 } }, spruce),

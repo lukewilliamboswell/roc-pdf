@@ -22,7 +22,7 @@ main! = |_args| {
 		.with_page_templates(templates)
 		.with_created("2026-09-14T00:00:00Z")
 		.with_modified("2026-09-14T00:00:00Z")
-	prepared = Pdf.prepare(document, Pdf.Options.{ theme: theme }).map_err(|err| PdfFailed(err))?
+	prepared = Pdf.prepare(document, Pdf.Options.{ theme }).map_err(|err| PdfFailed(err))?
 	bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| EmitFailed(err))?
 	output : Path
 	output = "tax-invoice.pdf"
@@ -63,20 +63,18 @@ footer : Pdf.Region
 footer = Pdf.region({
 	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("ABN 00 123 456 789 · Tax invoice HF-2026-0417")])],
-	center: [],
 	end: [Pdf.furniture_text([page_of])],
 })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(logo)], center: [], end: [] }),
-		lead: Pdf.no_lead,
+		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(logo)] }),
 		footer,
 		gap: 12,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 16, start: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd — Tax invoice HF-2026-0417 (continued)")])], center: [], end: [] }),
+		header: Pdf.region({ height: 16, start: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd — Tax invoice HF-2026-0417 (continued)")])] }),
 		footer,
 		gap: 12,
 	}),
@@ -134,15 +132,12 @@ contents = [
 	Pdf.table({
 		caption: Pdf.no_caption,
 		columns: [{ width: Content, align: Start }, { width: Share(1), align: Start }],
-		header_rows: [],
 		body_rows: [
 			detail_row("Invoice number", "HF-2026-0417"),
 			detail_row("Issue date", "14 September 2026"),
 			detail_row("Due date", "14 October 2026"),
 			detail_row("Customer reference", "PO 88213"),
 		],
-		footer_rows: [],
-		row_split: KeepRows,
 	}),
 	Pdf.section([
 		Pdf.heading(1, "Bill to"),
@@ -182,7 +177,6 @@ contents = [
 				total_row("GST (10%)", [Pdf.text("4,011.64")]),
 				total_row("Total due (AUD)", [Pdf.strong([Pdf.text("44,128.04")])]),
 			],
-			row_split: KeepRows,
 		}),
 	]),
 	Pdf.section([

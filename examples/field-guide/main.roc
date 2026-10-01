@@ -120,15 +120,14 @@ footer : Pdf.Region
 footer = Pdf.region({
 	height: 14,
 	start: [Pdf.furniture_text([Pdf.text("Derwent Estuary Bird Group · 2026 edition")])],
-	center: [],
 	end: [Pdf.furniture_text([Pdf.reserved_width(40, End, [Pdf.text("FG-"), Pdf.page_number(Decimal)])])],
 })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 12 }),
+	first: Pdf.first_page_template({ footer, gap: 12 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])], center: [], end: [Pdf.furniture_image(wave_mark)], backdrop: Backdrop(rule), slot_inset: 3 }),
+		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Coastal field guide · Shorebirds")])], end: [Pdf.furniture_image(wave_mark)], backdrop: Backdrop(rule), slot_inset: 3 }),
 		footer,
 		gap: 14,
 	}),
@@ -347,13 +346,12 @@ callout = |options, name, accent, lines| {
 	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(body_width) }
 	block = Pdf.custom_block({
 		contents: paragraphs,
-		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name,
 		panel: callout_panel(size),
 		size,
 	})
-	Ok(Pdf.scoped(Theme.Scope.{ strong: Themed(accent) }, [block]))
+	Ok(Pdf.scoped({ strong: Themed(accent) }, [block]))
 }
 
 callout_panel : Layout.Size -> Scene.Drawing
@@ -430,14 +428,11 @@ survey_details = Pdf.table({
 		{ width: Fixed(78), align: Start },
 		{ width: Share(1), align: Start },
 	],
-	header_rows: [],
 	body_rows: [
 		Pdf.row([Pdf.header_cell(Row, [Pdf.text("Observer")]), Pdf.cell([]), Pdf.header_cell(Row, [Pdf.text("Date")]), Pdf.cell([])]),
 		Pdf.row([Pdf.header_cell(Row, [Pdf.text("Start time")]), Pdf.cell([]), Pdf.header_cell(Row, [Pdf.text("High tide")]), Pdf.cell([])]),
 		Pdf.row([Pdf.header_cell(Row, [Pdf.text("Site code")]), Pdf.cell([Pdf.code("DERW-04")]), Pdf.header_cell(Row, [Pdf.text("Weather")]), Pdf.cell([])]),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 ## A blank row for a species not on the list.
@@ -476,8 +471,6 @@ table_of_species = Pdf.table({
 		other_row,
 		other_row,
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
@@ -595,7 +588,7 @@ body = |windows, etiquette| [
 			Pdf.text(", or send your sheet to the survey coordinator."),
 		]),
 		Pdf.numbered_list(
-			{ start: 1, style: Decimal },
+			{},
 			[
 				Pdf.list_item([Pdf.paragraph("Note the time, the tide height, the weather, and any disturbance.")]),
 				Pdf.list_item([

@@ -120,7 +120,6 @@ footer : Pdf.Region
 footer = Pdf.region({
 	height: 14,
 	start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · Members' quarterly report")])],
-	center: [],
 	end: [Pdf.furniture_text([page_of])],
 })
 
@@ -160,13 +159,12 @@ hairline = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { h
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 56, start: [Pdf.furniture_image(cover_band)], center: [], end: [] }),
-		lead: Pdf.no_lead,
+		header: Pdf.region({ height: 56, start: [Pdf.furniture_image(cover_band)] }),
 		footer,
 		gap: 18,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])], center: [], end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
+		header: Pdf.region({ height: 21, start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative · Q2 FY2027")])], end: [Pdf.furniture_text([Pdf.text("Members' quarterly report")])], backdrop: Backdrop(hairline), slot_inset: 3 }),
 		footer,
 		gap: 14,
 	}),
@@ -201,13 +199,12 @@ callout = |options, { accent, fill, lines, name, text }| {
 	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(body_width) }
 	block = Pdf.custom_block({
 		contents: paragraphs,
-		fragmentation: Unsplittable,
 		inset: callout_inset,
 		name,
 		panel: callout_panel(size, fill, accent),
 		size,
 	})
-	Ok(Pdf.scoped(Theme.Scope.{ strong: Themed(accent), text: Themed(text) }, [block]))
+	Ok(Pdf.scoped({ strong: Themed(accent), text: Themed(text) }, [block]))
 }
 
 callout_panel : Layout.Size, Color.SourceValue, Color.SourceValue -> Scene.Drawing
@@ -365,8 +362,6 @@ monthly_table = {
 		columns: $columns,
 		header_rows: [Pdf.row($months)],
 		body_rows: [Pdf.row($revenue), Pdf.row($margin)],
-		footer_rows: [],
-		row_split: KeepRows,
 	})
 }
 
@@ -413,8 +408,6 @@ scorecard = Pdf.table({
 		kpi_row("Net promoter score", "41", "44", "50", watch),
 		kpi_row("Lost-time injuries", "2", "0", "0", on_track),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 segment_row : Str, Str, Str, Str, Str -> Pdf.Row
@@ -461,7 +454,6 @@ segments = Pdf.table({
 			Pdf.cell([Pdf.text("34.4%")]),
 		]),
 	],
-	row_split: KeepRows,
 })
 
 position_row : Str, Str, Str -> Pdf.Row
@@ -493,7 +485,6 @@ position_table = Pdf.table({
 			Pdf.cell([Pdf.strong([Pdf.text("19,480")])]),
 		]),
 	],
-	row_split: KeepRows,
 })
 
 ## ---------------------------------------------------------------------
@@ -591,7 +582,7 @@ contents = |options| Ok([
 	Pdf.section([
 		Pdf.destination_heading("priorities", 1, "4 Priorities for Q3"),
 		Pdf.numbered_list(
-			{ start: 1, style: Decimal },
+			{},
 			[
 				Pdf.list_item([
 					Pdf.paragraph("Lift membership through the autumn recruitment drive:"),

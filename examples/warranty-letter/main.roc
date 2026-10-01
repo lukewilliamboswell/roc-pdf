@@ -22,7 +22,7 @@ main! = |_args| {
 		.with_page_templates(templates)
 		.with_created("2026-09-21T00:00:00Z")
 		.with_modified("2026-09-21T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }).map_err(|err| PdfFailed(err))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme }).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "warranty-letter.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
@@ -61,7 +61,7 @@ page_of = Pdf.reserved_width(72, End, [Pdf.text("Page "), Pdf.page_number(Decima
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 48, start: [], center: [], end: [Pdf.furniture_image(logo)] }),
+		header: Pdf.region({ height: 48, end: [Pdf.furniture_image(logo)] }),
 		lead: Pdf.lead_region(
 			60,
 			[
@@ -73,17 +73,15 @@ templates = {
 				]),
 			],
 		),
-		footer: Pdf.region({ height: 16, start: [], center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])], end: [] }),
+		footer: Pdf.region({ height: 16, center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])] }),
 		gap: 12,
 	}),
 	continuation: Pdf.page_template({
 		header: Pdf.region({
 			height: 16,
 			start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])],
-			center: [],
 			end: [Pdf.furniture_text([page_of])],
 		}),
-		footer: Pdf.no_region,
 		gap: 12,
 	}),
 }
@@ -125,8 +123,6 @@ schedule = Pdf.table({
 		("HF-INS-HRS", [Pdf.text("Installation labour (workmanship)")]),
 		("HF-DEL-MET", [Pdf.text("Metropolitan delivery, Hobart (transit damage)")]),
 	].map(|(code, description)| Pdf.row([Pdf.header_cell(Row, [Pdf.text(code)]), Pdf.cell(description), Pdf.cell([Pdf.text("30 Sep 2031")])])),
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 contents : List(Document.Block)
@@ -150,7 +146,7 @@ contents = [
 	],
 	body,
 	[
-		Pdf.numbered_list({ start: 1, style: Decimal }, terms.map(|term| Pdf.list_item([Pdf.paragraph(term)]))),
+		Pdf.numbered_list({}, terms.map(|term| Pdf.list_item([Pdf.paragraph(term)]))),
 		Pdf.paragraph("The enclosed schedule lists every covered item by product code. Please keep this letter and the schedule with your asset register, so that your team can quote them when lodging a claim by telephone or email."),
 		Pdf.paragraph("If you have any questions about the extension, or would like the November inspection scheduled at a particular time, please call me directly on (03) 5550 0142. We look forward to supporting Northstar Cooperative for many years to come."),
 		Pdf.keep_together([

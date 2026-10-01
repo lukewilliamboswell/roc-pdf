@@ -123,7 +123,6 @@ footer : Pdf.Region
 footer = Pdf.region({
 	height: 16,
 	start: [Pdf.furniture_text([Pdf.text("Payments platform · Runbook PAY-OPS-004 · Revision 4.2")])],
-	center: [],
 	end: [Pdf.furniture_text([page_of])],
 })
 
@@ -134,9 +133,9 @@ header_rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 20, 40, 2), teal).rec
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
-	first: Pdf.first_page_template({ header: Pdf.no_region, lead: Pdf.no_lead, footer, gap: 14 }),
+	first: Pdf.first_page_template({ footer, gap: 14 }),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 22, start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])], center: [], end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])], backdrop: Backdrop(header_rule), slot_inset: 3 }),
+		header: Pdf.region({ height: 22, start: [Pdf.furniture_text([Pdf.text("On-call runbook · Payments platform")])], end: [Pdf.furniture_text([Pdf.text("PAY-OPS-004 · Revision 4.2")])], backdrop: Backdrop(header_rule), slot_inset: 3 }),
 		footer,
 		gap: 14,
 	}),
@@ -204,11 +203,11 @@ measured = |options, paragraphs| {
 callout : Pdf.Options, Str, CalloutStyle, List(Document.Block) -> Try(Document.Block, Pdf.Error)
 callout = |options, name, style, paragraphs| {
 	size = measured(options, paragraphs)?
-	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name, panel: callout_panel(style, size), size })
+	block = Pdf.custom_block({ contents: paragraphs, inset: callout_inset, name, panel: callout_panel(style, size), size })
 
 	## Each callout's labels take its accent colour: a warning's amber, a
 	## note's teal.
-	Ok(Pdf.scoped(Theme.Scope.{ strong: Themed(style.accent) }, [block]))
+	Ok(Pdf.scoped({ strong: Themed(style.accent) }, [block]))
 }
 
 ## A dark command panel: one rich paragraph whose lines are separated by
@@ -224,9 +223,9 @@ console = |options, commands| {
 	}
 	paragraphs = [Pdf.rich_paragraph($inlines)]
 	size = measured(options, paragraphs)?
-	block = Pdf.custom_block({ contents: paragraphs, fragmentation: Unsplittable, inset: callout_inset, name: "Commands", panel: callout_panel(console_style, size), size })
+	block = Pdf.custom_block({ contents: paragraphs, inset: callout_inset, name: "Commands", panel: callout_panel(console_style, size), size })
 	light = Color.srgb8({ red: 226, green: 232, blue: 240 })
-	Ok(Pdf.scoped(Theme.Scope.{ text: Themed(light), code: Themed(light) }, [block]))
+	Ok(Pdf.scoped({ text: Themed(light), code: Themed(light) }, [block]))
 }
 
 labelled : Str, List(Pdf.Inline) -> Document.Block
@@ -416,8 +415,6 @@ severity_table = Pdf.table({
 		severity_row("SEV3", "Minor impact with a workaround.", "Next business day.", "One acquirer returns slow responses."),
 		severity_row("SEV4", "No customer impact yet.", "Ticket in the team queue.", "A certificate expires in 21 days."),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 contact_row : Str, Str, Str, Str -> Pdf.Row
@@ -458,7 +455,6 @@ escalation_table = Pdf.table({
 			Pdf.cell([Pdf.emphasis([Pdf.text("Escalate earlier whenever you are unsure. Nobody is ever blamed for paging.")])]).aligned(Start).spanning(4),
 		]),
 	],
-	row_split: KeepRows,
 })
 
 ## A procedure never drilled leaves its last-drill cell empty.
@@ -493,8 +489,6 @@ drill_table = Pdf.table({
 		drill_row("4.3 Database failover", "Data platform", "", "14 Oct 2026"),
 		drill_row("5 Escalation", "Duty engineering managers", "19 Aug 2026", "18 Nov 2026"),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 command_row : Str, Str, Str -> Pdf.Row
@@ -531,8 +525,6 @@ command_table = Pdf.table({
 		command_row("ledgerctl replicas --lag", "Show replication lag for each ledger replica.", "No"),
 		command_row("ledgerctl promote --replica", "Promote a replica to ledger primary.", "Yes"),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 ## ---------------------------------------------------------------------
@@ -593,7 +585,7 @@ contents = |options| Ok([
 		Pdf.paragraph("Every payment enters through the edge, is authorised by the payments API, and is written to the ledger before any acquirer is told to capture funds. Figure 1 shows the tiers you will meet during an incident."),
 		Pdf.figure({ drawing: topology, alt: "Diagram of the payments request path. Traffic flows left to right from the edge load balancer (1) through the API gateway (2) and payments API (3) to the acquirer adapters (4). The payments API writes to the ledger database (5), and the adapters publish to the settlement queue (6), which the settlement worker (7) consumes before reconciling against the ledger.", caption: Pdf.caption("Figure 1. Request path through the production zone (shaded)") }),
 		Pdf.numbered_list(
-			{ start: 1, style: Decimal },
+			{},
 			[
 				rich_step([Pdf.strong([Pdf.text("Edge load balancer")]), Pdf.text(" terminates TLS and applies rate limits.")]),
 				rich_step([Pdf.strong([Pdf.text("API gateway")]), Pdf.text(" authenticates merchants and routes by region.")]),
@@ -616,14 +608,14 @@ contents = |options| Ok([
 		Pdf.section([
 			Pdf.destination_heading("triage", 2, "4.1 Triage"),
 			Pdf.numbered_list(
-				{ start: 1, style: Decimal },
+				{},
 				[
 					rich_step([Pdf.text("Acknowledge the page and open the incident with "), Pdf.code("/incident open payments"), Pdf.text(".")]),
 					step("Check the overview dashboard for the three golden signals: authorisation rate, p99 latency, and error rate."),
 					Pdf.list_item([
 						Pdf.paragraph("Decide whether the fault is ours or upstream:"),
 						Pdf.numbered_list(
-							{ start: 1, style: LowerAlpha },
+							{ style: LowerAlpha },
 							[
 								step("if one acquirer is failing, disable it and let routing fail over;"),
 								step("if every acquirer is failing, suspect the payments API or the ledger;"),
@@ -651,7 +643,7 @@ contents = |options| Ok([
 				Pdf.text("."),
 			]),
 			Pdf.numbered_list(
-				{ start: 1, style: Decimal },
+				{},
 				[
 					rich_step([Pdf.text("Freeze deploys with "), Pdf.code("payctl freeze --reason INC"), Pdf.text(".")]),
 					rich_step([Pdf.text("Find the last good revision with "), Pdf.code("kubectl rollout history"), Pdf.text(".")]),
@@ -673,7 +665,7 @@ contents = |options| Ok([
 			Pdf.destination_heading("failover", 2, "4.3 Database failover"),
 			Pdf.paragraph("Fail the ledger over only when the primary is unreachable for more than two minutes and the incident commander agrees. Failover is automatic in most cases; these steps are for when it is not."),
 			Pdf.numbered_list(
-				{ start: 1, style: Decimal },
+				{},
 				[
 					step("Confirm replication lag on both replicas is below one second."),
 					rich_step([Pdf.text("Promote the healthier replica with "), Pdf.code("ledgerctl promote --replica"), Pdf.text(".")]),
