@@ -103,7 +103,7 @@ lists_document = |context| Pdf.document({
 						item("Pour and cure the concrete slab."),
 						Pdf.list_item([
 							Pdf.paragraph("Fit the loading equipment:"),
-							Pdf.numbered_list({ start: 1, style: LowerAlpha }, [item("two dock levellers,"), item("one overhead door, and"), item("weather seals.")]),
+							Pdf.numbered_list({ style: LowerAlpha }, [item("two dock levellers,"), item("one overhead door, and"), item("weather seals.")]),
 						]),
 						item("Commission the dock with two crews rostered."),
 					]),
@@ -113,7 +113,7 @@ lists_document = |context| Pdf.document({
 			],
 		),
 		Pdf.paragraph("The appendices follow the priorities."),
-		Pdf.numbered_list({ start: 1, style: UpperRoman }, [item("Supplier register"), item("Freight rates"), item("Audit schedule")]),
+		Pdf.numbered_list({ style: UpperRoman }, [item("Supplier register"), item("Freight rates"), item("Audit schedule")]),
 		Pdf.paragraph("Checklist items 98 to 100 continue the register; their labels widen the list's label column."),
 		Pdf.numbered_list(
 			{ start: 98, style: Decimal },
@@ -156,7 +156,7 @@ breaks_document = |context| Pdf.document({
 			Pdf.line_break,
 			Pdf.text("Fremantle WA 6160"),
 		]),
-		Pdf.spacer(Layout.Unit.points(12)),
+		Pdf.spacer(12),
 		Pdf.paragraph("Dear Ms Raman,"),
 		Pdf.rich_paragraph([Pdf.text("Subject: "), Pdf.strong([Pdf.text("Extended warranty for your Level 2 to 5 fit-out")])]),
 		Pdf.rich_paragraph([
@@ -166,7 +166,7 @@ breaks_document = |context| Pdf.document({
 		]),
 		Pdf.keep_together([
 			Pdf.paragraph("Yours sincerely,"),
-			Pdf.spacer(Layout.Unit.points(36)),
+			Pdf.spacer(36),
 			Pdf.paragraph("Tom Finch"),
 			Pdf.paragraph("Director, Harbour & Finch Pty Ltd"),
 		]),
@@ -186,16 +186,16 @@ keeps_document = |context| Pdf.document({
 	contents: [
 		Pdf.title("Keeps${suffix_for(context)}"),
 		Pdf.paragraph("The space below fills most of the first page, so the next group cannot fit beside it."),
-		Pdf.spacer(Layout.Unit.points(560)),
+		Pdf.spacer(560),
 		Pdf.paragraph("This paragraph still fits at the foot of the first page."),
 		Pdf.keep_together([
 			Pdf.paragraph("Yours sincerely,"),
-			Pdf.spacer(Layout.Unit.points(36)),
+			Pdf.spacer(36),
 			Pdf.paragraph("Tom Finch"),
 			Pdf.paragraph("Director, Harbour & Finch Pty Ltd"),
 		]),
 		Pdf.paragraph("The signature block above moved whole to this page."),
-		Pdf.spacer(Layout.Unit.points(548)),
+		Pdf.spacer(548),
 		Pdf.keep_with_next(Required, Pdf.paragraph("Step one keeps with step two.")),
 		Pdf.keep_with_next(Required, Pdf.paragraph("Step two keeps with step three.")),
 		Pdf.paragraph("Step three ends the required chain, which moved as one unit."),
@@ -204,7 +204,7 @@ keeps_document = |context| Pdf.document({
 		Pdf.heading(1, "A heading before a tall group"),
 		Pdf.keep_together([
 			Pdf.paragraph("The group opens here."),
-			Pdf.spacer(Layout.Unit.points(640)),
+			Pdf.spacer(640),
 			Pdf.paragraph("The group closes here."),
 		]),
 		Pdf.paragraph("The last paragraph follows the group."),
@@ -217,10 +217,10 @@ keeps_document = |context| Pdf.document({
 one_line_theme : Theme
 one_line_theme = Theme.{
 	page_margin: {
-		bottom: Layout.Unit.points(754),
-		left: Layout.Unit.points(72),
-		right: Layout.Unit.points(72),
-		top: Layout.Unit.points(72),
+		bottom: 754,
+		left: 72,
+		right: 72,
+		top: 72,
 	},
 
 }
@@ -351,8 +351,8 @@ run_negatives = |context| {
 		rejects(document([lead, Pdf.keep_with_next(Required, Pdf.paragraph("Kept")), Pdf.keep_together([Pdf.paragraph("Tall"), Pdf.spacer(tall), Pdf.paragraph("group")])]), LayoutConstraintViolated, "layout.keep_conflict", ["contents[2]", "contents[2].contents[0]", "contents[2].contents[2]"]),
 		rejects(document([lead, Pdf.heading(1, Str.repeat("An unsplittable heading that never fits. ", 150 + offset))]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),
 		rejects(document([lead, Pdf.keep_together([])]), LayoutConstraintViolated, "layout.keep_empty", ["contents[1]"]),
-		rejects(document([lead, Pdf.keep_with_next(Preferred, Pdf.spacer(Layout.Unit.points(12)))]), LayoutConstraintViolated, "layout.keep_empty", ["contents[1]"]),
-		rejects(document([lead, Pdf.spacer(Layout.Unit.points(-12)), Pdf.paragraph("After")]), LayoutConstraintViolated, "layout.spacer_negative", ["contents[1]"]),
+		rejects(document([lead, Pdf.keep_with_next(Preferred, Pdf.spacer(12))]), LayoutConstraintViolated, "layout.keep_empty", ["contents[1]"]),
+		rejects(document([lead, Pdf.spacer(-12), Pdf.paragraph("After")]), LayoutConstraintViolated, "layout.spacer_negative", ["contents[1]"]),
 		rejects(document([Pdf.page_break, lead]), LayoutConstraintViolated, "layout.page_break_position", ["contents[0]"]),
 		rejects(document([lead, Pdf.page_break]), LayoutConstraintViolated, "layout.page_break_position", ["contents[1]"]),
 		rejects(document([lead, Pdf.section([Pdf.page_break, Pdf.page_break, Pdf.paragraph("After")])]), LayoutConstraintViolated, "layout.page_break_position", ["contents[1].contents[1]"]),

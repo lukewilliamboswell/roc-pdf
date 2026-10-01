@@ -198,9 +198,7 @@ code_holds_document = |count, inline| {
 				],
 				caption: Pdf.no_caption,
 				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }],
-				footer_rows: [],
 				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Command")]), Pdf.header_cell(Column, [Pdf.text("Purpose")])])],
-				row_split: KeepRows,
 			}),
 		)
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Code holds (${count.to_str()})" })
@@ -282,7 +280,7 @@ run_code_holds = |count| {
 		return Err(EvidenceFailure)
 	}
 	narrow = Pdf.document({
-		contents: [Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.code("--to-revision=N")]), Pdf.cell([Pdf.text("Roll back.")])])], caption: Pdf.no_caption, columns: [{ align: Start, width: Fixed(Layout.Unit.points(40 + (count % 1).to_i64_wrap())) }, { align: Start, width: Share(1) }], footer_rows: [], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Flag")]), Pdf.header_cell(Column, [Pdf.text("Use")])])], row_split: KeepRows })],
+		contents: [Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.code("--to-revision=N")]), Pdf.cell([Pdf.text("Roll back.")])])], caption: Pdf.no_caption, columns: [{ align: Start, width: Fixed(Layout.Unit.points(40 + (count % 1).to_i64_wrap())) }, { align: Start, width: Share(1) }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Flag")]), Pdf.header_cell(Column, [Pdf.text("Use")])])] })],
 		language: "en-AU",
 		title: "Narrow code",
 	})
@@ -400,7 +398,6 @@ shared_source_document = |count| {
 			{ align: Center, width: Share(1) },
 			{ align: Center, width: Share(1) },
 		],
-		footer_rows: [],
 		header_rows: [
 			Pdf.row([
 				Pdf.header_cell(Column, [Pdf.text("Row")]),
@@ -459,8 +456,8 @@ heading_faces_theme = |body, heading, h1_color| {
 	face: body,
 	title: { face: Face(heading) },
 	headings: {
-		h1: Own({ color: h1_color, face: Face(heading), leading: Layout.Unit.points(22), size: Layout.Unit.points(17) }),
-		h2: Own({ leading: Layout.Unit.points(16), size: Layout.Unit.points(12) }),
+		h1: Own({ color: h1_color, face: Face(heading), leading: 22, size: 17 }),
+		h2: Own({ leading: 16, size: 12 }),
 	},
 }
 
@@ -548,7 +545,6 @@ scaled_code_document = |count| {
 		body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Check")]), Pdf.cell([Pdf.code("roc check")])])],
 		caption: Pdf.no_caption,
 		columns: [{ align: Start, width: Share(1) }, { align: Start, width: Share(1) }],
-		footer_rows: [],
 		header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Task")]), Pdf.header_cell(Column, [Pdf.text("Command")])])],
 		row_split: SplitRows,
 	})
@@ -690,7 +686,7 @@ scoped_colors_document = |count, scoped| {
 		$contents = $contents.append(block)
 	}
 	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 60), Color.srgb8({ blue: 220, green: 240, red: 250 }))
-	callout = Pdf.custom_block({ contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scoped callout.")]), Pdf.text(" Its label takes the scope's amber.")])], fragmentation: Unsplittable, inset: Layout.Unit.points(8), name: "Scoped callout", panel, size: { height: Layout.Unit.points(60), width: Layout.Unit.points(300) } })
+	callout = Pdf.custom_block({ contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scoped callout.")]), Pdf.text(" Its label takes the scope's amber.")])], inset: 8, name: "Scoped callout", panel, size: { height: 60, width: 300 } })
 	for block in wrap(warning, [callout]) {
 		$contents = $contents.append(block)
 	}
@@ -714,9 +710,7 @@ scoped_text_document = |count, scoped| {
 				body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Owner")]), Pdf.cell([Pdf.text("Release team")])])],
 				caption: Pdf.no_caption,
 				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }],
-				footer_rows: [],
 				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Field")]), Pdf.header_cell(Column, [Pdf.text("Value")])])],
-				row_split: KeepRows,
 			}),
 		],
 	) {
@@ -727,11 +721,10 @@ scoped_text_document = |count, scoped| {
 		number = ($index + 1).to_str()
 		callout = Pdf.custom_block({
 			contents: [Pdf.rich_paragraph([Pdf.strong([Pdf.text("Step ${number}.")]), Pdf.text(" Run "), Pdf.code("make release"), Pdf.text(" and read "), Pdf.inline_link([Pdf.text("the guide")], "https://example.org/release/${number}"), Pdf.text(".")])],
-			fragmentation: Unsplittable,
-			inset: Layout.Unit.points(12),
+			inset: 12,
 			name: "Dark callout",
 			panel,
-			size: { height: Layout.Unit.points(40), width: Layout.Unit.points(420) },
+			size: { height: 40, width: 420 },
 		})
 		for block in wrap(dark, [callout]) {
 			$contents = $contents.append(block)

@@ -109,7 +109,7 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		document = styled_document(rows)
-		thick = { ..styled_theme, table: { ..styled_theme.table, body_rule: Rule({ color: rule_gray, width: Layout.Unit.points(5) }) } }
+		thick = { ..styled_theme, table: { ..styled_theme.table, body_rule: Rule({ color: rule_gray, width: 5 }) } }
 		rejected = match Pdf.to_bytes_with(document, Pdf.Options.{ theme: thick }) {
 			Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if message.contains("table body rule") 1 else 0
 			_ => 0
@@ -134,8 +134,8 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		document = styled_document(rows)
-		wide_column = { ..ruled_theme, table: { ..ruled_theme.table, column_rule: Rule({ color: rule_gray, width: Layout.Unit.points(9) }) } }
-		wide_frame = { ..ruled_theme, table: { ..ruled_theme.table, frame: Rule({ color: rule_gray, width: Layout.Unit.points(3) }) } }
+		wide_column = { ..ruled_theme, table: { ..ruled_theme.table, column_rule: Rule({ color: rule_gray, width: 9 }) } }
+		wide_frame = { ..ruled_theme, table: { ..ruled_theme.table, frame: Rule({ color: rule_gray, width: 3 }) } }
 		rejected = [(wide_column, "table column rule"), (wide_frame, "table frame")].map(
 			|(theme, name)| match Pdf.to_bytes_with(document, Pdf.Options.{ theme: theme }) {
 				Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details: [], feature: Feature("layout.table_rule"), message, .. }], truncation: Complete, .. })) => if message.contains(name) 1 else 0
@@ -204,9 +204,9 @@ invoice_columns : List(Pdf.Column)
 invoice_columns = [
 	{ align: Start, width: Content },
 	{ align: Start, width: Share(1) },
-	{ align: End, width: Fixed(Layout.Unit.points(36)) },
-	{ align: End, width: Fixed(Layout.Unit.points(72)) },
-	{ align: End, width: Fixed(Layout.Unit.points(80)) },
+	{ align: End, width: Fixed(36) },
+	{ align: End, width: Fixed(72) },
+	{ align: End, width: Fixed(80) },
 ]
 
 invoice_header : Pdf.Row
@@ -235,7 +235,6 @@ items_table = |rows| Pdf.table({
 	columns: invoice_columns,
 	footer_rows: invoice_totals,
 	header_rows: [invoice_header],
-	row_split: KeepRows,
 })
 
 detail_row : Str, Str -> Pdf.Row
@@ -265,9 +264,6 @@ invoice_document = |count| {
 				],
 				caption: Pdf.no_caption,
 				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }],
-				footer_rows: [],
-				header_rows: [],
-				row_split: KeepRows,
 			}),
 			Pdf.section([Pdf.heading(1, "Bill to"), Pdf.rich_paragraph([Pdf.text("Northstar Cooperative Ltd"), Pdf.line_break, Pdf.text("42 Kestrel Parade"), Pdf.line_break, Pdf.text("Fremantle WA 6160")])]),
 			Pdf.section([Pdf.heading(1, "Items"), items_table($rows)]),
@@ -304,7 +300,7 @@ spans_document = |context| {
 					{ align: Start, width: Content },
 					{ align: End, width: Share(1) },
 					{ align: End, width: Share(1) },
-					{ align: Center, width: Fixed(Layout.Unit.points(72)) },
+					{ align: Center, width: Fixed(72) },
 				],
 				footer_rows: [region_row("Total", "8,778", "9,221", "+5.0%")],
 				header_rows: [
@@ -320,7 +316,6 @@ spans_document = |context| {
 						Pdf.header_cell(Column, [Pdf.text("Per cent")]),
 					]),
 				],
-				row_split: KeepRows,
 			}),
 			Pdf.paragraph("Negative values use the minus sign."),
 		],
@@ -377,10 +372,9 @@ styled_document = |count| {
 			Pdf.table({
 				body_rows: $rows,
 				caption: Pdf.caption("Register of supplied items (${count.to_str()} rows)"),
-				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(Layout.Unit.points(80)) }],
+				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(80) }],
 				footer_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Total (AUD)")]).spanning(2).aligned(End), Pdf.cell([Pdf.strong([Pdf.text("10,028.10")])]).shaded(amber)])],
 				header_rows: [Pdf.row([Pdf.header_cell(Both, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Amount")])])],
-				row_split: KeepRows,
 			}),
 		],
 		language: "en-AU",
@@ -421,10 +415,9 @@ empty_cells_document = |count| {
 			Pdf.table({
 				body_rows: $rows,
 				caption: Pdf.caption("Tally sheet (${count.to_str()} rows); blank cells were not counted"),
-				columns: [{ align: Start, width: Content }, { align: End, width: Fixed(Layout.Unit.points(60)) }, { align: End, width: Fixed(Layout.Unit.points(60)) }, { align: Start, width: Share(1) }],
+				columns: [{ align: Start, width: Content }, { align: End, width: Fixed(60) }, { align: End, width: Fixed(60) }, { align: Start, width: Share(1) }],
 				footer_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Checked")]), Pdf.cell([]), Pdf.cell([]), Pdf.cell([Pdf.text("Signed by the survey coordinator")])])],
 				header_rows: [Pdf.row([Pdf.header_cell(Column, []), Pdf.header_cell(Column, [Pdf.text("Morning")]), Pdf.header_cell(Column, [Pdf.text("Evening")]), Pdf.header_cell(Column, [Pdf.text("Notes")])])],
-				row_split: KeepRows,
 			}),
 		],
 		language: "en-AU",
@@ -452,9 +445,7 @@ kept_document = |context| {
 					body_rows: List.repeat(row("W1", "Survey the loading dock and mark the set-down zones"), 12),
 					caption: Pdf.caption("Table 2. Fit-out plan${suffix}"),
 					columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }],
-					footer_rows: [],
 					header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Week")]), Pdf.header_cell(Column, [Pdf.text("Work")])])],
-					row_split: KeepRows,
 				}),
 			]),
 		),
@@ -473,8 +464,7 @@ split_document = |context| {
 			Pdf.table({
 				body_rows: [row("HF-DSK-140", "Standing desk frame, twin motor, 1400 mm"), row("HF-CHR-ERG", long), row("HF-LMP-LED", "LED task lamp, 4000 K, clamp mount")],
 				caption: Pdf.caption("Items covered by the extended warranty"),
-				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(Layout.Unit.points(96)) }],
-				footer_rows: [],
+				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(96) }],
 				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Warranty until")])])],
 				row_split: SplitRows,
 			}),
@@ -516,9 +506,7 @@ ordered_document = |context| {
 				],
 				caption: Pdf.no_caption,
 				columns: [{ align: Start, width: Content }, { align: End, width: Share(1) }, { align: End, width: Share(1) }],
-				footer_rows: [],
 				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Name")]), Pdf.header_cell(Column, [Pdf.text("1,000")]), Pdf.header_cell(Column, [Pdf.text("%")])])],
-				row_split: KeepRows,
 			}),
 		],
 		language: "en-AU",
@@ -673,24 +661,24 @@ run_negatives = |context| {
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
 	offset = U64.mod_by(context, 1)
 	lead = Pdf.paragraph("Lead")
-	columns = [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(Layout.Unit.points(60)) }]
+	columns = [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(60) }]
 	header = Pdf.row([Pdf.header_cell(Column, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Amount")])])
 	body = |text| Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([Pdf.text(text)]), Pdf.cell([Pdf.text("1.00")])])
-	table = |rows, split| Pdf.table({ body_rows: rows, caption: Pdf.no_caption, columns, footer_rows: [], header_rows: [header], row_split: split })
+	table = |rows, split| Pdf.table({ body_rows: rows, caption: Pdf.no_caption, columns, header_rows: [header], row_split: split })
 	sentence = "A long description that keeps going and going. "
 	checks = [
-		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.cell([Pdf.text("a")]), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], caption: Pdf.no_caption, columns, footer_rows: [], header_rows: [], row_split: KeepRows })]), InvalidRelationship, "table.header_missing", ["contents[1]"]),
+		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.cell([Pdf.text("a")]), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], caption: Pdf.no_caption, columns })]), InvalidRelationship, "table.header_missing", ["contents[1]"]),
 		rejects(document([lead, table([body("b"), Pdf.row([Pdf.header_cell(Row, [Pdf.text("A2")]), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")]).spanning(2)])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[1]"]),
 		rejects(document([lead, table([Pdf.row([])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[0]"]),
 		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([Pdf.text("b")]).spanning(0), Pdf.cell([Pdf.text("c")]).spanning(2)])], KeepRows)]), InvalidRelationship, "table.grid_mismatch", ["contents[1].table.body_rows[0]"]),
 		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]).row_spanning(2), Pdf.cell([Pdf.text("b")]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), FeatureUnavailable, "table.row_span", ["contents[1].table.body_rows[0].cells[0]"]),
 		rejects(document([lead, table([], KeepRows)]), InvalidRelationship, "table.empty", ["contents[1]"]),
-		rejects(document([lead, Pdf.table({ body_rows: [], caption: Pdf.no_caption, columns: [], footer_rows: [], header_rows: [], row_split: KeepRows })]), InvalidRelationship, "table.empty", ["contents[1]"]),
+		rejects(document([lead, Pdf.table({ body_rows: [], caption: Pdf.no_caption, columns: [] })]), InvalidRelationship, "table.empty", ["contents[1]"]),
 		rejects(document([lead, table([Pdf.row([Pdf.header_cell(Row, [Pdf.text("A1")]), Pdf.cell([Pdf.strong([])]), Pdf.cell([Pdf.text("c")])])], KeepRows)]), InvalidRelationship, "table.cell_empty", ["contents[1].table.body_rows[0].cells[1]"]),
-		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, []), Pdf.cell([]), Pdf.cell([])])], caption: Pdf.no_caption, columns, footer_rows: [], header_rows: [Pdf.row([Pdf.header_cell(Column, []), Pdf.header_cell(Column, []), Pdf.header_cell(Column, [])])], row_split: KeepRows })]), InvalidRelationship, "table.empty", ["contents[1]"]),
+		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, []), Pdf.cell([]), Pdf.cell([])])], caption: Pdf.no_caption, columns, header_rows: [Pdf.row([Pdf.header_cell(Column, []), Pdf.header_cell(Column, []), Pdf.header_cell(Column, [])])] })]), InvalidRelationship, "table.empty", ["contents[1]"]),
 		rejects(document([lead, table([body("short"), body(Str.repeat(sentence, 400 + offset))], KeepRows)]), LayoutConstraintViolated, "layout.oversize_row", ["contents[1].table.body_rows[1]"]),
 		rejects(document([lead, table([body(Str.repeat("0123456789abcdef", 8 + offset))], KeepRows)]), LayoutConstraintViolated, "layout.unbreakable_token", ["contents[1].table.body_rows[0].cells[1]"]),
-		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("a")]), Pdf.cell([Pdf.text("b")])])], caption: Pdf.no_caption, columns: [{ align: Start, width: Fixed(Layout.Unit.points(300)) }, { align: Start, width: Fixed(Layout.Unit.points(300)) }], footer_rows: [], header_rows: [], row_split: KeepRows })]), LayoutConstraintViolated, "layout.table_width", ["contents[1]"]),
+		rejects(document([lead, Pdf.table({ body_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("a")]), Pdf.cell([Pdf.text("b")])])], caption: Pdf.no_caption, columns: [{ align: Start, width: Fixed(300) }, { align: Start, width: Fixed(300) }] })]), LayoutConstraintViolated, "layout.table_width", ["contents[1]"]),
 		rejects(document([Pdf.keep_together([lead, table(List.repeat(body("row"), 60 + offset), KeepRows)])]), LayoutConstraintViolated, "layout.keep_conflict", ["contents[0]", "contents[0].contents[0]", "contents[0].contents[1]"]),
 		rejects(document([lead, Pdf.section([table([body("b")], KeepRows), Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item")]), Pdf.list_item([table([body("b")], KeepRows)])])])]), InvalidRelationship, "semantics.list_item_content", ["contents[1].contents[1].items[1]"]),
 	]

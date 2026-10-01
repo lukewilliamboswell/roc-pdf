@@ -152,16 +152,13 @@ Fixture :: [].{
 	}
 }
 
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 ## The reference themes: A4 body frames of 451 × 746 pt (letter) and
 ## 483 × 746 pt (report).
 letter_theme : Theme
-letter_theme = Theme.{ page_margin: { bottom: points(48), left: points(72), right: points(72), top: points(48) } }
+letter_theme = Theme.{ page_margin: { bottom: 48, left: 72, right: 72, top: 48 } }
 
 report_theme : Theme
-report_theme = Theme.{ page_margin: { bottom: points(48), left: points(56), right: points(56), top: points(48) } }
+report_theme = Theme.{ page_margin: { bottom: 48, left: 56, right: 56, top: 48 } }
 
 ## A small raster logo: an 8 × 4 sRGB image in two bands.
 logo_image : Image.Source
@@ -180,7 +177,7 @@ logo = |width, height| Pdf.furniture_image(Scene.Drawing.empty.image(logo_image,
 
 ## `Page N of M`, end-aligned in a reserved width.
 page_of : I64 -> Pdf.Inline
-page_of = |width| Pdf.reserved_width(points(width), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = |width| Pdf.reserved_width(Layout.Unit.points(width), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 
 sentences : List(Str)
 sentences = [
@@ -217,11 +214,11 @@ body_paragraph = |index| {
 letter_templates : I64 -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 letter_templates = |field_width| {
 	first: Pdf.first_page_template({
-		footer: Pdf.region({ center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])], end: [], height: points(16), start: [] }),
-		gap: points(12),
-		header: Pdf.region({ center: [], end: [logo(140, 48)], height: points(48), start: [] }),
+		footer: Pdf.region({ center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])], height: 16 }),
+		gap: 12,
+		header: Pdf.region({ end: [logo(140, 48)], height: 48 }),
 		lead: Pdf.lead_region(
-			points(60),
+			60,
 			[
 				Pdf.rich_paragraph([Pdf.strong([Pdf.text("Harbour & Finch Pty Ltd")])]),
 				Pdf.rich_paragraph([Pdf.text("Level 3, 18 Wharf Street, Hobart TAS 7000"), Pdf.line_break, Pdf.text("(03) 5550 0142 · hello@harbourfinch.example · ABN 00 123 456 789")]),
@@ -229,9 +226,8 @@ letter_templates = |field_width| {
 		),
 	}),
 	continuation: Pdf.page_template({
-		footer: Pdf.no_region,
-		gap: points(12),
-		header: Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(field_width)])], height: points(16), start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])] }),
+		gap: 12,
+		header: Pdf.region({ end: [Pdf.furniture_text([page_of(field_width)])], height: 16, start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])] }),
 	}),
 }
 
@@ -252,48 +248,44 @@ letter_document = |paragraphs, field_width| {
 	schedule = Pdf.table({
 		body_rows: ["HF-DSK-140", "HF-TOP-OAK", "HF-CHR-ERG", "HF-CAF-ELG", "HF-LMP-LED", "HF-CBL-TRY", "HF-INS-HRS", "HF-DEL-MET"].map(|code| Pdf.row([Pdf.header_cell(Row, [Pdf.text(code)]), Pdf.cell([Pdf.text("Covered item ${code}")]), Pdf.cell([Pdf.text("30 September 2031")])])),
 		caption: Pdf.caption("Items covered by the extended warranty"),
-		columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(points(96)) }],
-		footer_rows: [],
+		columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(96) }],
 		header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Warranty until")])])],
-		row_split: KeepRows,
 	})
 	contents = List.concat(
 		[
 			Pdf.paragraph("21 September 2026"),
 			Pdf.rich_paragraph([Pdf.text("Ms Priya Raman"), Pdf.line_break, Pdf.text("Operations Manager"), Pdf.line_break, Pdf.text("Northstar Cooperative Ltd"), Pdf.line_break, Pdf.text("42 Kestrel Parade"), Pdf.line_break, Pdf.text("Fremantle WA 6160")]),
-			Pdf.spacer(points(12)),
+			Pdf.spacer(12),
 			Pdf.paragraph("Dear Ms Raman,"),
 			Pdf.rich_paragraph([Pdf.text("Subject: "), Pdf.strong([Pdf.text("Extended warranty for your Level 2–5 fit-out")])]),
 		],
 		List.concat(
 			$body,
 			[
-				Pdf.numbered_list({ start: 1, style: Decimal }, terms.map(|term| Pdf.list_item([Pdf.paragraph(term)]))),
+				Pdf.numbered_list({}, terms.map(|term| Pdf.list_item([Pdf.paragraph(term)]))),
 				Pdf.paragraph("Please call me if you have any questions about the extension."),
 				Pdf.paragraph("We look forward to supporting Northstar Cooperative for many years."),
-				Pdf.keep_together([Pdf.paragraph("Yours sincerely,"), Pdf.spacer(points(36)), Pdf.paragraph("Tom Finch"), Pdf.paragraph("Director, Harbour & Finch Pty Ltd")]),
+				Pdf.keep_together([Pdf.paragraph("Yours sincerely,"), Pdf.spacer(36), Pdf.paragraph("Tom Finch"), Pdf.paragraph("Director, Harbour & Finch Pty Ltd")]),
 				Pdf.paragraph("Enclosure: Schedule 1, covered items"),
 				Pdf.page_break,
 				Pdf.section([Pdf.heading(1, "Schedule 1. Covered items"), schedule]),
 			],
 		),
 	)
-	Pdf.with_page_templates(
-		Pdf.document({
-			contents,
-			language: "en-AU",
-			title: "Letter to Northstar Cooperative about the warranty extension, 21 September 2026",
-		}),
-		letter_templates(field_width),
-	)
+	Pdf.document({
+		contents,
+		language: "en-AU",
+		title: "Letter to Northstar Cooperative about the warranty extension, 21 September 2026",
+		page_templates: Templates(letter_templates(field_width)),
+	})
 }
 
 ## A full-width 0.5 pt rule as a vector drawing.
 rule : Pdf.Furniture
-rule = Pdf.furniture_image(Scene.Drawing.empty.rectangle({ origin: { x: points(0), y: points(0) }, size: { height: Layout.Unit.millipoints(500), width: points(483) } }, Color.srgb8({ blue: 110, green: 90, red: 60 })))
+rule = Pdf.furniture_image(Scene.Drawing.empty.rectangle({ origin: { x: 0, y: 0 }, size: { height: 0.5, width: 483 } }, Color.srgb8({ blue: 110, green: 90, red: 60 })))
 
 report_footer : Pdf.Region
-report_footer = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(64)])], height: points(16), start: [] })
+report_footer = Pdf.region({ end: [Pdf.furniture_text([page_of(64)])], height: 16 })
 
 report_document : U64 -> Document
 report_document = |sections| report_with_header(sections, "Quarterly operations report · Q1 FY2027")
@@ -314,17 +306,19 @@ report_with_header = |sections, running_title| {
 		)
 		$index = $index + 1
 	}
-	Pdf.with_page_templates(
-		Pdf.document({ contents: $contents, language: "en-AU", title: "Harbour & Finch quarterly operations report, Q1 FY2027" }),
-		{
+	Pdf.document({
+		contents: $contents,
+		language: "en-AU",
+		title: "Harbour & Finch quarterly operations report, Q1 FY2027",
+		page_templates: Templates({
 			continuation: Pdf.page_template({
 				footer: report_footer,
-				gap: points(12),
-				header: Pdf.region({ center: [], end: [], height: points(24), start: [Pdf.furniture_text([Pdf.text(running_title)]), rule] }),
+				gap: 12,
+				header: Pdf.region({ height: 24, start: [Pdf.furniture_text([Pdf.text(running_title)]), rule] }),
 			}),
-			first: Pdf.first_page_template({ footer: report_footer, gap: points(12), header: Pdf.no_region, lead: Pdf.no_lead }),
-		},
-	)
+			first: Pdf.first_page_template({ footer: report_footer, gap: 12 }),
+		}),
+	})
 }
 
 numbering_document : U64 -> Document
@@ -333,10 +327,9 @@ numbering_document = |context| {
 	footer = Pdf.region({
 		center: [styled("Decimal", Decimal), styled("Lower alpha", LowerAlpha), styled("Upper alpha", UpperAlpha)],
 		end: [styled("Lower roman", LowerRoman), styled("Upper roman", UpperRoman)],
-		height: points(42),
-		start: [],
+		height: 42,
 	})
-	template = Pdf.page_template({ footer, gap: points(12), header: Pdf.no_region })
+	template = Pdf.page_template({ footer, gap: 12 })
 	var $contents = []
 	var $page = 0
 	while $page < numbering_pages {
@@ -346,10 +339,12 @@ numbering_document = |context| {
 		$contents = $contents.append(Pdf.paragraph("Page body ${($page + 1).to_str()}${if context == 0 "." else "!"}"))
 		$page = $page + 1
 	}
-	Pdf.with_page_templates(
-		Pdf.document({ contents: $contents, language: "en-AU", title: "Page field number styles" }),
-		{ continuation: template, first: Pdf.first_page_template({ footer, gap: points(12), header: Pdf.no_region, lead: Pdf.no_lead }) },
-	)
+	Pdf.document({
+		contents: $contents,
+		language: "en-AU",
+		title: "Page field number styles",
+		page_templates: Templates({ continuation: template, first: Pdf.first_page_template({ footer, gap: 12 }) }),
+	})
 }
 
 numbering_pages : U64
@@ -360,7 +355,7 @@ image_pages = 3
 
 images_document : U64 -> Document
 images_document = |context| {
-	stroke = Scene.Drawing.empty.path(Scene.PathBuilder.start.move_to(Layout.point(1, 1)).line_to(Layout.point(119, 1)).finish(), Scene.solid_stroke(Color.srgb8({ blue: 40, green: 40, red: 160 }), points(1)))
+	stroke = Scene.Drawing.empty.path(Scene.PathBuilder.start.move_to(Layout.point(1, 1)).line_to(Layout.point(119, 1)).finish(), Scene.solid_stroke(Color.srgb8({ blue: 40, green: 40, red: 160 }), 1))
 	boxed = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 24, 12), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	mark = Pdf.furniture_image(Scene.Drawing.empty.image(gray_mark, Layout.rect(0, 0, 16, 8)))
 	var $contents = []
@@ -372,22 +367,23 @@ images_document = |context| {
 		$contents = $contents.append(Pdf.paragraph("Furniture drawing page ${($page + 1).to_str()}${if context == 0 "." else "!"}"))
 		$page = $page + 1
 	}
-	Pdf.with_page_templates(
-		Pdf.document({ contents: $contents, language: "en-AU", title: "Furniture drawings" }),
-		{
+	Pdf.document({
+		contents: $contents,
+		language: "en-AU",
+		title: "Furniture drawings",
+		page_templates: Templates({
 			continuation: Pdf.page_template({
-				footer: Pdf.region({ center: [mark], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Continued")])] }),
-				gap: points(12),
-				header: Pdf.region({ center: [Pdf.furniture_image(boxed)], end: [Pdf.furniture_image(stroke)], height: points(20), start: [logo(40, 20)] }),
+				footer: Pdf.region({ center: [mark], height: 16, start: [Pdf.furniture_text([Pdf.text("Continued")])] }),
+				gap: 12,
+				header: Pdf.region({ center: [Pdf.furniture_image(boxed)], end: [Pdf.furniture_image(stroke)], height: 20, start: [logo(40, 20)] }),
 			}),
 			first: Pdf.first_page_template({
-				footer: Pdf.region({ center: [mark], end: [Pdf.furniture_text([page_of(64)])], height: points(16), start: [] }),
-				gap: points(12),
-				header: Pdf.region({ center: [], end: [], height: points(48), start: [logo(140, 48)] }),
-				lead: Pdf.no_lead,
+				footer: Pdf.region({ center: [mark], end: [Pdf.furniture_text([page_of(64)])], height: 16 }),
+				gap: 12,
+				header: Pdf.region({ height: 48, start: [logo(140, 48)] }),
 			}),
-		},
-	)
+		}),
+	})
 }
 
 ## Bytes come from `Pdf.to_bytes_with`; work comes from one facade pipeline
@@ -486,32 +482,37 @@ run_negatives = |context| {
 	title = if context == 0 "Template negatives" else "guarded"
 	offset = context % 1
 	body = [Pdf.paragraph("Body text.")]
-	templated = |contents, templates| Pdf.with_page_templates(Pdf.document({ contents, language: "en-AU", title }), templates)
-	header = |items| Pdf.region({ center: [], end: [], height: points(16), start: items })
+	templated = |contents, templates| Pdf.document({
+		contents,
+		language: "en-AU",
+		title,
+		page_templates: Templates(templates),
+	})
+	header = |items| Pdf.region({ height: 16, start: items })
 	simple = |first_header, next_header| {
-		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: next_header }),
-		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: first_header, lead: Pdf.no_lead }),
+		continuation: Pdf.page_template({ gap: 12, header: next_header }),
+		first: Pdf.first_page_template({ gap: 12, header: first_header }),
 	}
 	text_header = header([Pdf.furniture_text([Pdf.text("Header")])])
 	lead_of = |height, blocks| {
-		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: text_header }),
-		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: text_header, lead: Pdf.lead_region(points(height), blocks) }),
+		continuation: Pdf.page_template({ gap: 12, header: text_header }),
+		first: Pdf.first_page_template({ gap: 12, header: text_header, lead: Pdf.lead_region(Layout.Unit.points(height), blocks) }),
 	}
 	two_pages = [Pdf.paragraph("First page."), Pdf.page_break, Pdf.paragraph("Second page.")]
 	ten_pages = List.repeat([Pdf.paragraph("A page."), Pdf.page_break], 9).join().append(Pdf.paragraph("The last page."))
-	one_digit = header([Pdf.furniture_text([Pdf.reserved_width(points(8), End, [Pdf.page_number(Decimal)])])])
+	one_digit = header([Pdf.furniture_text([Pdf.reserved_width(8, End, [Pdf.page_number(Decimal)])])])
 	long = Str.repeat("Northstar Cooperative Ltd ", 2 + offset)
 	checks = [
 		rejects(templated(body, lead_of(700, [Pdf.paragraph("Letterhead")])), LayoutConstraintViolated, "layout.template_body_space", ["templates.first"]),
 		rejects(templated(body, lead_of(60, List.repeat(Pdf.paragraph("A letterhead line"), 12))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.lead"]),
-		rejects(templated(two_pages, simple(text_header, Pdf.region({ center: [], end: [Pdf.furniture_text([Pdf.text(long)])], height: points(16), start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])] }))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.continuation.header"]),
+		rejects(templated(two_pages, simple(text_header, Pdf.region({ end: [Pdf.furniture_text([Pdf.text(long)])], height: 16, start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])] }))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.continuation.header"]),
 		rejects(templated(ten_pages, simple(one_digit, one_digit)), LayoutConstraintViolated, "layout.field_overflow", ["templates.continuation.header.start[0].inlines[0].inlines[0]"]),
-		rejects(templated(body, simple(Pdf.region({ center: [], end: [], height: points(16), start: [] }), text_header)), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
+		rejects(templated(body, simple(Pdf.region({ height: 16 }), text_header)), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
 		rejects(templated(body, simple(header([Pdf.furniture_image(Scene.Drawing.empty)]), text_header)), InvalidRelationship, "layout.furniture_drawing", ["templates.first.header.start[0]"]),
 		rejects(templated(body, simple(header([Pdf.furniture_text([Pdf.text("Header "), Pdf.emphasis([Pdf.text("styled")])])]), text_header)), LayoutConstraintViolated, "layout.furniture_inline", ["templates.first.header.start[0].inlines[1]"]),
 		rejects(templated(body, simple(header([Pdf.furniture_text([])]), text_header)), InvalidRelationship, "semantics.inline_empty", ["templates.first.header.start[0]"]),
-		rejects(templated(body, simple(Pdf.region({ center: [], end: [], height: points(10), start: [Pdf.furniture_text([Pdf.text("Too tall")])] }), text_header)), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.start"]),
-		rejects(templated(body, { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(-1), header: text_header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: text_header, lead: Pdf.no_lead }) }), LayoutConstraintViolated, "layout.spacer_negative", ["templates.continuation.gap"]),
+		rejects(templated(body, simple(Pdf.region({ height: 10, start: [Pdf.furniture_text([Pdf.text("Too tall")])] }), text_header)), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.start"]),
+		rejects(templated(body, { continuation: Pdf.page_template({ gap: -1, header: text_header }), first: Pdf.first_page_template({ gap: 12, header: text_header }) }), LayoutConstraintViolated, "layout.spacer_negative", ["templates.continuation.gap"]),
 		rejects(templated([], simple(text_header, text_header)), LayoutConstraintViolated, "layout.template_body_empty", []),
 		rejects(templated(body, lead_of(60, [Pdf.paragraph("Letterhead"), Pdf.page_break, Pdf.paragraph("More")])), LayoutConstraintViolated, "layout.page_break_position", ["templates.first.lead.contents[1]"]),
 		rejects(Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.rich_paragraph([Pdf.text("Page "), Pdf.page_number(Decimal)])], language: "en-AU", title }), FeatureUnavailable, "document.generated_reference", ["contents[1].inlines[1]"]),
@@ -539,34 +540,30 @@ run_page_sizes = |context| {
 		$index = $index + 1
 	}
 	rows = $rows
-	header = Pdf.region({ center: [], end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])], height: points(16), start: [Pdf.furniture_text([Pdf.text(title)])] })
+	header = Pdf.region({ end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])], height: 16, start: [Pdf.furniture_text([Pdf.text(title)])] })
 	templates = {
-		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header }),
-		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header, lead: Pdf.no_lead }),
+		continuation: Pdf.page_template({ gap: 12, header }),
+		first: Pdf.first_page_template({ gap: 12, header }),
 	}
-	document = Pdf.with_page_templates(
-		Pdf.document({
-			contents: [
-				Pdf.title(title),
-				Pdf.paragraph("A wide ledger lays out against the landscape body frame: 730 pt between the margins instead of 483 pt."),
-				Pdf.table({
-					body_rows: rows,
-					caption: Pdf.caption("Settlement ledger"),
-					columns: [{ align: Start, width: Content }, { align: Start, width: Content }, { align: Start, width: Share(1) }, { align: Start, width: Share(2) }, { align: End, width: Fixed(points(72)) }, { align: End, width: Fixed(points(72)) }, { align: End, width: Fixed(points(72)) }, { align: Start, width: Content }],
-					footer_rows: [],
-					header_rows: [Pdf.row([heading_cell("Batch"), heading_cell("Date"), heading_cell("Depot"), heading_cell("Street"), heading_cell("Gross"), heading_cell("Fees"), heading_cell("Net"), heading_cell("Status")])],
-					row_split: KeepRows,
-				}),
-			],
-			language: "en-AU",
-			title,
-		}),
-		templates,
-	)
+	document = Pdf.document({
+		contents: [
+			Pdf.title(title),
+			Pdf.paragraph("A wide ledger lays out against the landscape body frame: 730 pt between the margins instead of 483 pt."),
+			Pdf.table({
+				body_rows: rows,
+				caption: Pdf.caption("Settlement ledger"),
+				columns: [{ align: Start, width: Content }, { align: Start, width: Content }, { align: Start, width: Share(1) }, { align: Start, width: Share(2) }, { align: End, width: Fixed(72) }, { align: End, width: Fixed(72) }, { align: End, width: Fixed(72) }, { align: Start, width: Content }],
+				header_rows: [Pdf.row([heading_cell("Batch"), heading_cell("Date"), heading_cell("Depot"), heading_cell("Street"), heading_cell("Gross"), heading_cell("Fees"), heading_cell("Net"), heading_cell("Status")])],
+			}),
+		],
+		language: "en-AU",
+		title,
+		page_templates: Templates(templates),
+	})
 	bytes = Pdf.to_bytes_with(document, options(A4Landscape)) ? |_| EvidenceFailure
 	letter = Pdf.to_bytes_with(document, options(LetterLandscape)) ? |_| EvidenceFailure
-	custom = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Six by nine"), Pdf.paragraph("A custom 432 × 648 pt page.")], language: "en-AU", title }), options(Custom({ height: points(648), width: points(432) }))) ? |_| EvidenceFailure
-	blank = Pdf.to_bytes_with(Pdf.document({ contents: [], language: "en-AU", title }), options(Custom({ height: points(648), width: points(432) }))) ? |_| EvidenceFailure
+	custom = Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.title("Six by nine"), Pdf.paragraph("A custom 432 × 648 pt page.")], language: "en-AU", title }), options(Custom({ height: 648, width: 432 }))) ? |_| EvidenceFailure
+	blank = Pdf.to_bytes_with(Pdf.document({ contents: [], language: "en-AU", title }), options(Custom({ height: 648, width: 432 }))) ? |_| EvidenceFailure
 	rejects_size = |size, feature, paths| match Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.paragraph("Body.")], language: "en-AU", title }), options(size)) {
 		Err(InvalidDocument({ diagnostics: [{ code: LayoutConstraintViolated, details, feature: Feature(found), .. }], truncation: Complete, .. })) => if found == feature and details == paths 1 else 0
 		_ => 0
@@ -608,15 +605,17 @@ run_furniture_groups = |context| {
 	row = Scene.Drawing.empty.group(Layout.point(0, 0), mark).group(Layout.point(48, 0), mark).group(Layout.point(96, 0), mark)
 	nested = Scene.Drawing.empty.group(Layout.point(4, 2), Scene.Drawing.empty.group(Layout.point(6, 0), mark))
 	underline = Scene.Drawing.empty.group(Layout.point(0, 0), Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 1), Color.srgb8({ blue: 140, green: 70, red: 20 })))
-	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(20), start: [Pdf.furniture_image(row)], backdrop: Backdrop(underline) })
-	footer = Pdf.region({ center: [Pdf.furniture_image(nested)], end: [], height: points(16), start: [] })
-	document = Pdf.with_page_templates(
-		Pdf.document({ contents: [Pdf.title("Reused marks"), body_paragraph(context), Pdf.page_break, body_paragraph(context + 1)], language: "en-AU", title: "Furniture groups" }),
-		{
-			continuation: Pdf.page_template({ footer, gap: points(12), header }),
-			first: Pdf.first_page_template({ footer, gap: points(12), header, lead: Pdf.no_lead }),
-		},
-	)
+	header = Pdf.region({ end: [Pdf.furniture_text([page_of(80)])], height: 20, start: [Pdf.furniture_image(row)], backdrop: Backdrop(underline) })
+	footer = Pdf.region({ center: [Pdf.furniture_image(nested)], height: 16 })
+	document = Pdf.document({
+		contents: [Pdf.title("Reused marks"), body_paragraph(context), Pdf.page_break, body_paragraph(context + 1)],
+		language: "en-AU",
+		title: "Furniture groups",
+		page_templates: Templates({
+			continuation: Pdf.page_template({ footer, gap: 12, header }),
+			first: Pdf.first_page_template({ footer, gap: 12, header }),
+		}),
+	})
 	evidenced = evidence(document, report_theme)?
 	var $deep = mark
 	var $depth = 0
@@ -624,8 +623,18 @@ run_furniture_groups = |context| {
 		$deep = Scene.Drawing.empty.group(Layout.point(1, 0), $deep)
 		$depth = $depth + 1
 	}
-	deep_header = Pdf.region({ center: [], end: [], height: points(20), start: [Pdf.furniture_image($deep)] })
-	rejected = rejects(Pdf.with_page_templates(Pdf.document({ contents: [Pdf.paragraph("Body.")], language: "en-AU", title: "Deep groups" }), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: deep_header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: deep_header, lead: Pdf.no_lead }) }), InvalidRelationship, "layout.furniture_drawing", ["templates.first.header.start[0]"])
+	deep_header = Pdf.region({ height: 20, start: [Pdf.furniture_image($deep)] })
+	rejected = rejects(
+		Pdf.document({
+			contents: [Pdf.paragraph("Body.")],
+			language: "en-AU",
+			title: "Deep groups",
+			page_templates: Templates({ continuation: Pdf.page_template({ gap: 12, header: deep_header }), first: Pdf.first_page_template({ gap: 12, header: deep_header }) }),
+		}),
+		InvalidRelationship,
+		"layout.furniture_drawing",
+		["templates.first.header.start[0]"],
+	)
 	if rejected != 1 {
 		return Err(MissingRejection(rejected))
 	}
@@ -636,11 +645,11 @@ backdrop_templates : Layout.Unit -> { continuation : Pdf.PageTemplate, first : P
 backdrop_templates = |rule_width| {
 	rule_mark = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: Layout.Unit.from_raw(750), width: rule_width } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
 	band = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 483, 20), Color.srgb8({ blue: 245, green: 238, red: 232 }))
-	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(20), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])], backdrop: Backdrop(rule_mark) })
-	footer = Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], end: [], height: points(20), start: [], backdrop: Backdrop(band) })
+	header = Pdf.region({ end: [Pdf.furniture_text([page_of(80)])], height: 20, start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])], backdrop: Backdrop(rule_mark) })
+	footer = Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], height: 20, backdrop: Backdrop(band) })
 	{
-		continuation: Pdf.page_template({ footer, gap: points(12), header }),
-		first: Pdf.first_page_template({ footer, gap: points(12), header: Pdf.region({ center: [], end: [], height: points(6), start: [], backdrop: Backdrop(rule_mark) }), lead: Pdf.no_lead }),
+		continuation: Pdf.page_template({ footer, gap: 12, header }),
+		first: Pdf.first_page_template({ footer, gap: 12, header: Pdf.region({ height: 6, backdrop: Backdrop(rule_mark) }) }),
 	}
 }
 
@@ -655,22 +664,32 @@ run_backdrops = |pages| {
 		$contents = $contents.append(body_paragraph($page))
 		$page = $page + 1
 	}
-	document = Pdf.with_page_templates(Pdf.document({ contents: $contents, language: "en-AU", title: "Backdrops (${pages.to_str()} pages)" }), backdrop_templates(points(483)))
+	document = Pdf.document({
+		contents: $contents,
+		language: "en-AU",
+		title: "Backdrops (${pages.to_str()} pages)",
+		page_templates: Templates(backdrop_templates(483)),
+	})
 	evidenced = evidence(document, report_theme)?
 	body = [Pdf.paragraph("Body.")]
-	templated = |templates| Pdf.with_page_templates(Pdf.document({ contents: body, language: "en-AU", title: "Backdrop negatives" }), templates)
+	templated = |templates| Pdf.document({
+		contents: body,
+		language: "en-AU",
+		title: "Backdrop negatives",
+		page_templates: Templates(templates),
+	})
 	header_props : Pdf.RegionProps
-	header_props = { height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] }
+	header_props = { height: 16, start: [Pdf.furniture_text([Pdf.text("Header")])] }
 	text_header = Pdf.region(header_props)
 	simple = |first_header| {
-		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: text_header }),
-		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: first_header, lead: Pdf.no_lead }),
+		continuation: Pdf.page_template({ gap: 12, header: text_header }),
+		first: Pdf.first_page_template({ gap: 12, header: first_header }),
 	}
 	tall = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 100, 30), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	checks = [
 		rejects(templated(simple(Pdf.region({ ..header_props, backdrop: Backdrop(tall) }))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
-		rejects(templated(backdrop_templates(points(452 + (pages % 1).to_i64_wrap()))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
-		rejects(templated(simple(Pdf.region({ height: points(0), backdrop: Backdrop(tall) }))), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
+		rejects(templated(backdrop_templates(Layout.Unit.points(452 + (pages % 1).to_i64_wrap()))), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.backdrop"]),
+		rejects(templated(simple(Pdf.region({ height: 0, backdrop: Backdrop(tall) }))), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
 	]
 	rejections = checks.sum()
 	if rejections != checks.len() {
@@ -683,12 +702,12 @@ run_backdrops = |pages| {
 ## the given slot insets.
 inset_templates : Layout.Unit, Layout.Unit -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 inset_templates = |header_inset, footer_inset| {
-	edge_rule = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: Layout.Unit.from_raw(750), width: points(483) } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
-	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of(80)])], height: points(24), start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])], backdrop: Backdrop(edge_rule(0)), slot_inset: header_inset })
-	footer = Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], end: [], height: points(24), start: [], backdrop: Backdrop(edge_rule(23)), slot_inset: footer_inset })
+	edge_rule = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: Layout.Unit.from_raw(750), width: 483 } }, Color.srgb8({ blue: 110, green: 60, red: 20 }))
+	header = Pdf.region({ end: [Pdf.furniture_text([page_of(80)])], height: 24, start: [Pdf.furniture_text([Pdf.text("Quarterly operations report")])], backdrop: Backdrop(edge_rule(0)), slot_inset: header_inset })
+	footer = Pdf.region({ center: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd · Confidential")])], height: 24, backdrop: Backdrop(edge_rule(23)), slot_inset: footer_inset })
 	{
-		continuation: Pdf.page_template({ footer, gap: points(12), header }),
-		first: Pdf.first_page_template({ footer, gap: points(12), header, lead: Pdf.no_lead }),
+		continuation: Pdf.page_template({ footer, gap: 12, header }),
+		first: Pdf.first_page_template({ footer, gap: 12, header }),
 	}
 }
 
@@ -704,11 +723,16 @@ inset_plan = |document, theme| {
 
 run_slot_inset : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_slot_inset = |context| {
-	inset_document = |templates| Pdf.with_page_templates(Pdf.document({ contents: [Pdf.title("Quarterly operations report"), body_paragraph(context), Pdf.page_break, body_paragraph(context + 1)], language: "en-AU", title: "Slot insets" }), templates)
-	document = inset_document(inset_templates(points(3), points(4)))
+	inset_document = |templates| Pdf.document({
+		contents: [Pdf.title("Quarterly operations report"), body_paragraph(context), Pdf.page_break, body_paragraph(context + 1)],
+		language: "en-AU",
+		title: "Slot insets",
+		page_templates: Templates(templates),
+	})
+	document = inset_document(inset_templates(3, 4))
 	evidenced = evidence(document, report_theme)?
 	inset = inset_plan(document, report_theme)?
-	plain = inset_plan(inset_document(inset_templates(points(0), points(0))), report_theme)?
+	plain = inset_plan(inset_document(inset_templates(0, 0)), report_theme)?
 	inset_pieces = KernelFacadeFurniture.Plan.pieces(inset)
 	plain_pieces = KernelFacadeFurniture.Plan.pieces(plain)
 	if inset_pieces.len() != plain_pieces.len() or inset_pieces.is_empty() {
@@ -735,13 +759,18 @@ run_slot_inset = |context| {
 		return Err(EvidenceFailure)
 	}
 	body = [Pdf.paragraph("Body.")]
-	templated = |header| Pdf.with_page_templates(Pdf.document({ contents: body, language: "en-AU", title: "Inset negatives" }), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header, lead: Pdf.no_lead }) })
+	templated = |header| Pdf.document({
+		contents: body,
+		language: "en-AU",
+		title: "Inset negatives",
+		page_templates: Templates({ continuation: Pdf.page_template({ gap: 12, header }), first: Pdf.first_page_template({ gap: 12, header }) }),
+	})
 	header_props : Pdf.RegionProps
-	header_props = { height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] }
+	header_props = { height: 16, start: [Pdf.furniture_text([Pdf.text("Header")])] }
 	checks = [
-		rejects(templated(Pdf.region({ ..header_props, slot_inset: points(6) })), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.start"]),
-		rejects(templated(Pdf.region({ ..header_props, slot_inset: points(-1) })), LayoutConstraintViolated, "layout.spacer_negative", ["templates.first.header.inset"]),
-		rejects(templated(Pdf.region({ height: points(0), slot_inset: points(2) })), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
+		rejects(templated(Pdf.region({ ..header_props, slot_inset: 6 })), LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.header.start"]),
+		rejects(templated(Pdf.region({ ..header_props, slot_inset: -1 })), LayoutConstraintViolated, "layout.spacer_negative", ["templates.first.header.inset"]),
+		rejects(templated(Pdf.region({ height: 0, slot_inset: 2 })), LayoutConstraintViolated, "layout.template_region_empty", ["templates.first.header"]),
 	]
 	rejections = checks.sum()
 	if rejections != checks.len() {

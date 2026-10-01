@@ -134,15 +134,15 @@ labelled_chart = |height, pairs| {
 	var $chart = bar_chart(height, pairs)
 	var $index = 0
 	for name in region_names {
-		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(48 + $index * 108 + 38, 8), size: points(8), text: name })
+		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(48 + $index * 108 + 38, 8), size: 8, text: name })
 		$index = $index + 1
 	}
 	var $tick = 0
 	while $tick * 50 + 20 < height - 12 {
-		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(20, 18 + $tick * 50), size: points(7), text: ($tick * 50).to_str() })
+		$chart = $chart.text({ align: End, color: ink, origin: Layout.point(20, 18 + $tick * 50), size: 7, text: ($tick * 50).to_str() })
 		$tick = $tick + 1
 	}
-	$chart.text({ align: Start, color: sea, origin: Layout.point(28, height - 10), size: points(8), text: "AUD thousands" })
+	$chart.text({ align: Start, color: sea, origin: Layout.point(28, height - 10), size: 8, text: "AUD thousands" })
 }
 
 ## The site plan with a label in every bay, scaled with the plan.
@@ -153,7 +153,7 @@ labelled_plan = {
 	while $row < 4 {
 		var $column = 0
 		while $column < 3 {
-			$plan = $plan.text({ align: Center, color: Color.srgb8({ blue: 255, green: 255, red: 255 }), origin: Layout.point(60 + $column * 180 + 60, 40 + $row * 210 + 70), size: points(24), text: "Bay ${($row * 3 + $column + 1).to_str()}" })
+			$plan = $plan.text({ align: Center, color: Color.srgb8({ blue: 255, green: 255, red: 255 }), origin: Layout.point(60 + $column * 180 + 60, 40 + $row * 210 + 70), size: 24, text: "Bay ${($row * 3 + $column + 1).to_str()}" })
 			$column = $column + 1
 		}
 		$row = $row + 1
@@ -176,8 +176,8 @@ labels_document = |count| {
 		$index = $index + 1
 	}
 	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 70), Color.srgb8({ blue: 230, green: 240, red: 245 }))
-		.text({ align: End, color: sea, origin: Layout.point(292, 58), size: points(7), text: "KEY FIGURES" })
-	callout = Pdf.custom_block({ contents: [Pdf.paragraph("Kiln capacity rose by a third.")], fragmentation: Unsplittable, inset: points(10), name: "Key figures", panel, size: { height: points(70), width: points(300) } })
+		.text({ align: End, color: sea, origin: Layout.point(292, 58), size: 7, text: "KEY FIGURES" })
+	callout = Pdf.custom_block({ contents: [Pdf.paragraph("Kiln capacity rose by a third.")], inset: 10, name: "Key figures", panel, size: { height: 70, width: 300 } })
 	plan = Pdf.figure({ drawing: labelled_plan, alt: "Plan of the Moonah yard: twelve numbered drying bays in four rows of three.", caption: Pdf.caption("Moonah yard plan, scaled to fit."), fit: ScaleToFit({ minimum_percent: 50 }) })
 	Pdf.document({ contents: $contents.append(callout).append(plan), language: "en-AU", title: "Labelled figures" })
 }
@@ -191,16 +191,16 @@ run_labels = |count| {
 	result = evidence(document)?
 	number = count.to_str()
 	document_of = |contents| Pdf.document({ contents, language: "en-AU", title: "Label negatives ${number}" })
-	labelled = |text| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 60, 30), oak).text({ align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text })
+	labelled = |text| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 60, 30), oak).text({ align: Start, color: ink, origin: Layout.point(4, 8), size: 8, text })
 	figure = |drawing| Pdf.figure({ drawing: drawing, alt: "A labelled mark", caption: Pdf.no_caption })
-	furniture = Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_image(labelled("Mark"))] })
+	furniture = Pdf.region({ height: 16, start: [Pdf.furniture_image(labelled("Mark"))] })
 	checks = [
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("A label far wider than its drawing"))]), LayoutConstraintViolated, "layout.drawing_label_bounds", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("中"))]), FontCoverageMissing, "text.unsupported_script", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled("ƀ"))]), FontCoverageMissing, "text.coverage_missing", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), figure(labelled(""))]), InvalidRelationship, "document.figure_drawing", ["contents[1]"]),
 		rejects(document_of([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: labelled("Mark") }), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
-		rejects(Pdf.with_page_templates(document_of([Pdf.paragraph("Body")]), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: furniture }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: furniture, lead: Pdf.no_lead }) }), InvalidRelationship, "layout.furniture_drawing", ["templates.first.header.start[0]"]),
+		rejects(document_of([Pdf.paragraph("Body")]).with_page_templates({ continuation: Pdf.page_template({ gap: 12, header: furniture }), first: Pdf.first_page_template({ gap: 12, header: furniture }) }), InvalidRelationship, "layout.furniture_drawing", ["templates.first.header.start[0]"]),
 	]
 	passed = checks.sum()
 	if passed != checks.len() {
@@ -240,17 +240,17 @@ faced_chart = |height, pairs| {
 	var $chart = bar_chart(height, pairs)
 	var $index = 0
 	for name in region_names {
-		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(48 + $index * 108 + 38, 8), size: points(8), text: name })
+		$chart = $chart.text({ align: Center, color: ink, origin: Layout.point(48 + $index * 108 + 38, 8), size: 8, text: name })
 		$index = $index + 1
 	}
 	var $tick = 0
 	while $tick * 50 + 20 < height - 22 {
-		$chart = $chart.text_in(Code, { align: End, color: ink, origin: Layout.point(20, 18 + $tick * 50), size: points(7), text: ($tick * 50).to_str() })
+		$chart = $chart.text_in(Code, { align: End, color: ink, origin: Layout.point(20, 18 + $tick * 50), size: 7, text: ($tick * 50).to_str() })
 		$tick = $tick + 1
 	}
 	$chart
-		.text_in(Strong, { align: Start, color: sea, origin: Layout.point(28, height - 12), size: points(9), text: "Café" })
-		.text({ align: End, color: sea, origin: Layout.point(475, height - 12), size: points(7), text: "Café" })
+		.text_in(Strong, { align: Start, color: sea, origin: Layout.point(28, height - 12), size: 9, text: "Café" })
+		.text({ align: End, color: sea, origin: Layout.point(475, height - 12), size: 7, text: "Café" })
 }
 
 label_faces_document : U64 -> Document
@@ -308,7 +308,7 @@ run_label_faces = |count| {
 	flow = KernelFacadePipeline.probe(Document.normalize(document), font, report_theme, page_size, descriptor, pipeline_limits, ScenesReady) ? |_| EvidenceFailure
 	counts = face_counts(document)
 	uncovered = Pdf.document({
-		contents: [Pdf.paragraph("Lead"), Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 60, 30), oak).text_in(Code, { align: Start, color: ink, origin: Layout.point(4, 8), size: points(8), text: "é${count.to_str()}" }), alt: "A labelled mark", caption: Pdf.no_caption })],
+		contents: [Pdf.paragraph("Lead"), Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 60, 30), oak).text_in(Code, { align: Start, color: ink, origin: Layout.point(4, 8), size: 8, text: "é${count.to_str()}" }), alt: "A labelled mark", caption: Pdf.no_caption })],
 		language: "en-AU",
 		title: "Uncovered code label",
 	})
@@ -322,12 +322,9 @@ run_label_faces = |count| {
 	Ok({ bytes, work: [flow.lines, flow.pages, flow.fragments, flow.scene_commands, counts.body, counts.strong, counts.code, bytes.len(), rejected] })
 }
 
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 ## The reference report theme: an A4 body frame of 483 × 746 pt.
 report_theme : Theme
-report_theme = Theme.{ page_margin: { bottom: points(48), left: points(56), right: points(56), top: points(48) } }
+report_theme = Theme.{ page_margin: { bottom: 48, left: 56, right: 56, top: 48 } }
 
 ink : Color.SourceValue
 ink = Color.srgb8({ blue: 40, green: 40, red: 40 })
@@ -340,7 +337,7 @@ sea = Color.srgb8({ blue: 140, green: 90, red: 20 })
 
 ## A full-width divider: a 0.75 pt rule 6 pt above the next block.
 divider : Scene.Drawing
-divider = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 6), size: { height: Layout.Unit.millipoints(750), width: points(483) } }, sea)
+divider = Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 6), size: { height: 0.75, width: 483 } }, sea)
 
 ## One region's paired bars, drawn from the group's own origin.
 bar_pair : I64, I64 -> Scene.Drawing
@@ -351,8 +348,8 @@ bar_pair = |previous, current| Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 3
 bar_chart : I64, List((I64, I64)) -> Scene.Drawing
 bar_chart = |height, pairs| {
 	axes = Scene.Drawing.empty
-		.path(Scene.PathBuilder.start.move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, points(1)))
-		.path(Scene.PathBuilder.start.move_to(Layout.point(24, 20)).line_to(Layout.point(24, height - 1)).finish(), Scene.solid_stroke(ink, points(1)))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(24, 20)).line_to(Layout.point(480, 20)).finish(), Scene.solid_stroke(ink, 1))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(24, 20)).line_to(Layout.point(24, height - 1)).finish(), Scene.solid_stroke(ink, 1))
 	var $chart = axes
 	var $index = 0
 	for (previous, current) in pairs {
@@ -373,13 +370,13 @@ photo_image = {
 ## A small vector mark: a filled square with a stroked diagonal.
 leaf_mark : Scene.Drawing
 leaf_mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 48, 48), oak)
-	.path(Scene.PathBuilder.start.move_to(Layout.point(8, 8)).line_to(Layout.point(40, 40)).finish(), Scene.solid_stroke(ink, points(2)))
+	.path(Scene.PathBuilder.start.move_to(Layout.point(8, 8)).line_to(Layout.point(40, 40)).finish(), Scene.solid_stroke(ink, 2))
 
 ## A 600 × 900 pt plan drawing: a frame and a grouped grid of cells.
 site_plan : Scene.Drawing
 site_plan = {
 	cell = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 120, 160), sea)
-	var $plan = Scene.Drawing.empty.path(Scene.PathBuilder.start.rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, points(4)))
+	var $plan = Scene.Drawing.empty.path(Scene.PathBuilder.start.rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, 4))
 	var $row = 0
 	while $row < 4 {
 		var $column = 0
@@ -451,15 +448,17 @@ report_document = |context| {
 			paragraph(3),
 		]),
 	]
-	page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
-	footer = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: points(16), start: [] })
-	Pdf.with_page_templates(
-		Pdf.document({ contents, language: "en-AU", title }),
-		{
-			continuation: Pdf.page_template({ footer, gap: points(12), header: Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Harbour & Finch — Annual timber report")])] }) }),
-			first: Pdf.first_page_template({ footer, gap: points(12), header: Pdf.no_region, lead: Pdf.no_lead }),
-		},
-	)
+	page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+	footer = Pdf.region({ end: [Pdf.furniture_text([page_of])], height: 16 })
+	Pdf.document({
+		contents,
+		language: "en-AU",
+		title,
+		page_templates: Templates({
+			continuation: Pdf.page_template({ footer, gap: 12, header: Pdf.region({ height: 16, start: [Pdf.furniture_text([Pdf.text("Harbour & Finch — Annual timber report")])] }) }),
+			first: Pdf.first_page_template({ footer, gap: 12 }),
+		}),
+	})
 }
 
 sections_document : U64 -> Document
@@ -487,7 +486,7 @@ run_bound_diagnostics = |context| {
 	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 20, 20), oak)
 	below = mark.path(Scene.PathBuilder.start.move_to(Layout.point(0, 0)).line_to(Layout.point(10, -2 + offset)).line_to(Layout.point(10, 10)).close().finish(), solid)
 	curve = mark.path(Scene.PathBuilder.start.move_to(Layout.point(0, 0)).cubic_to({ control_1: Layout.point(-4, 5), control_2: Layout.point(-4, 15), end: Layout.point(0, 20) }).close().finish(), solid)
-	stroked = mark.path(Scene.PathBuilder.start.move_to(Layout.point(0, 2)).line_to(Layout.point(20, 2)).finish(), Scene.solid_stroke(oak, points(2)))
+	stroked = mark.path(Scene.PathBuilder.start.move_to(Layout.point(0, 2)).line_to(Layout.point(20, 2)).finish(), Scene.solid_stroke(oak, 2))
 	grouped = Scene.Drawing.empty.group(Layout.point(5, 5), curve)
 	message_of = |result| match result {
 		Err(InvalidDocument({ diagnostics: [{ message, .. }], .. })) => message
@@ -497,8 +496,18 @@ run_bound_diagnostics = |context| {
 	figure = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.figure({ drawing: drawing, alt: "A mark", caption: Pdf.no_caption })], language: "en-AU", title: "Bounds" }), options))
 	decoration = |drawing| message_of(Pdf.to_bytes_with(Pdf.document({ contents: [Pdf.decoration({ drawing: drawing }), Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), options))
 	furniture = |drawing| {
-		header = Pdf.region({ center: [], end: [], height: points(40), start: [Pdf.furniture_image(drawing)] })
-		message_of(Pdf.to_bytes_with(Pdf.with_page_templates(Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title: "Bounds" }), { continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header }), first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header, lead: Pdf.no_lead }) }), options))
+		header = Pdf.region({ height: 40, start: [Pdf.furniture_image(drawing)] })
+		message_of(
+			Pdf.to_bytes_with(
+				Pdf.document({
+					contents: [Pdf.paragraph("Body")],
+					language: "en-AU",
+					title: "Bounds",
+					page_templates: Templates({ continuation: Pdf.page_template({ gap: 12, header }), first: Pdf.first_page_template({ gap: 12, header }) }),
+				}),
+				options,
+			),
+		)
 	}
 	checks = [
 		figure(below).contains("command 1 (a path) has a point at (10 pt, -2 pt)"),
@@ -527,8 +536,8 @@ spaced_document = |count| {
 	while $index < count {
 		number = ($index + 1).to_str()
 		$contents = $contents
-			.append(Pdf.decoration({ drawing: rule, above: points(12), below: points(6) }))
-			.append(Pdf.decoration({ drawing: band, layer: Behind, below: points(-22) }))
+			.append(Pdf.decoration({ drawing: rule, above: 12, below: 6 }))
+			.append(Pdf.decoration({ drawing: band, layer: Behind, below: -22 }))
 			.append(Pdf.heading(1, "  Region ${number}"))
 			.append(paragraph($index))
 		$index = $index + 1
@@ -542,8 +551,8 @@ run_spaced_decorations = |count| {
 	rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 100, 2), oak)
 	document = |block| Pdf.document({ contents: [Pdf.paragraph("Lead ${count.to_str()}"), block, Pdf.paragraph("Body")], language: "en-AU", title: "Spacing negatives" })
 	checks = [
-		rejects(document(Pdf.decoration({ drawing: rule, above: points(-1) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
-		rejects(document(Pdf.decoration({ drawing: rule, layer: Behind, below: points(-3) })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(document(Pdf.decoration({ drawing: rule, above: -1 })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
+		rejects(document(Pdf.decoration({ drawing: rule, layer: Behind, below: -3 })), InvalidRelationship, "layout.decoration_drawing", ["contents[1]"]),
 	]
 	rejections = checks.sum()
 	if rejections != checks.len() {
@@ -609,8 +618,8 @@ run_negatives = |context| {
 	}
 	figure = |drawing, caption| Pdf.figure({ drawing: drawing, alt: "A plan drawing", caption: caption })
 	lead_templates = {
-		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Header")])] }) }),
-		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.no_region, lead: Pdf.lead_region(points(60), [Pdf.paragraph("Letterhead"), Pdf.decoration({ drawing: divider }), Pdf.paragraph("Address")]) }),
+		continuation: Pdf.page_template({ gap: 12, header: Pdf.region({ height: 16, start: [Pdf.furniture_text([Pdf.text("Header")])] }) }),
+		first: Pdf.first_page_template({ gap: 12, lead: Pdf.lead_region(60, [Pdf.paragraph("Letterhead"), Pdf.decoration({ drawing: divider }), Pdf.paragraph("Address")]) }),
 	}
 	checks = [
 		rejects(document([Pdf.paragraph("Lead"), figure(tall, Pdf.caption("Figure 1."))]), LayoutConstraintViolated, "document.figure_oversize", ["contents[1]"]),
@@ -623,7 +632,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "A plan drawing", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 101 }) })]), InvalidRelationship, "document.figure_fit", ["contents[1]"]),
 		rejects(document([Pdf.section([Pdf.paragraph("Lead"), Pdf.figure({ drawing: leaf_mark, alt: "A plan drawing", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 255 }) })])]), InvalidRelationship, "document.figure_fit", ["contents[0].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: divider })]), LayoutConstraintViolated, "layout.decoration_position", ["contents[1]"]),
-		rejects(Pdf.with_page_templates(document([Pdf.paragraph("Body")]), lead_templates), LayoutConstraintViolated, "layout.decoration_position", ["templates.first.lead.contents[1]"]),
+		rejects(document([Pdf.paragraph("Body")]).with_page_templates(lead_templates), LayoutConstraintViolated, "layout.decoration_position", ["templates.first.lead.contents[1]"]),
 		rejects(document([Pdf.decoration({ drawing: Scene.Drawing.empty }), Pdf.paragraph("Body")]), InvalidRelationship, "layout.decoration_drawing", ["contents[0]"]),
 		rejects(document([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), Pdf.decoration({ drawing: divider })])]), Pdf.paragraph("Body")]), InvalidRelationship, "semantics.list_item_content", ["contents[0].items[0].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), Pdf.decoration({ drawing: tall }), Pdf.paragraph("Body")]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),

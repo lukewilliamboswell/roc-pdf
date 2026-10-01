@@ -31,7 +31,7 @@ Callout :: [].{
 	default_style : Style
 	default_style = {
 		fill: Color.srgb8({ blue: 250, green: 244, red: 236 }),
-		radius: Layout.Unit.points(6),
+		radius: 6,
 		stroke: Color.srgb8({ blue: 190, green: 170, red: 150 }),
 	}
 
@@ -44,7 +44,6 @@ Callout :: [].{
 		size = measure(theme, lines.len(), width)
 		Pdf.custom_block({
 			contents: lines.map(|line| Pdf.paragraph(line)),
-			fragmentation: Unsplittable,
 			inset: inset,
 			name,
 			panel: panel(style, size),
@@ -75,7 +74,6 @@ Callout :: [].{
 		Ok(
 			Pdf.custom_block({
 				contents,
-				fragmentation: Unsplittable,
 				inset: inset,
 				name,
 				panel: panel(style, size),
@@ -91,7 +89,6 @@ Callout :: [].{
 		size = { height, width }
 		Pdf.custom_block({
 			contents: lines.map(|line| Pdf.paragraph(line)),
-			fragmentation: Unsplittable,
 			inset: inset,
 			name,
 			panel: panel(default_style, size),
@@ -102,7 +99,7 @@ Callout :: [].{
 
 ## Content sits 10 pt inside the panel on every side.
 inset : Layout.Unit
-inset = Layout.Unit.points(10)
+inset = 10
 
 ## A rounded rectangle filling the measured box, with a 1 pt outline kept
 ## inside it (the stroke's half width is the path's margin).
@@ -129,5 +126,5 @@ panel = |style, size| {
 		.close()
 		.finish()
 	Scene.Drawing.empty
-		.path(outline, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: Layout.Unit.points(1) }) })
+		.path(outline, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) })
 }
