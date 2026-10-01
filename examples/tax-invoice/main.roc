@@ -6,23 +6,35 @@ import pf.Path
 import pf.Stdout
 import pdf.Color
 import pdf.Document
+import pdf.Font
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "fonts/SourceSans3-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 
 ## The reference multi-page tax invoice (docs/reference-documents.md):
-## first-page and continuation templates with a vector logo and exact
-## `Page N of M` fields, a key/value details table, and a 32-row items
-## table with a repeated header row, end-aligned amounts, and a totals
-## group that keeps with the last body row. The document is prepared once
-## and then emitted.
+## first-page and continuation templates with a vector logo over a
+## masthead rule, running headers inset above a hairline, and exact
+## `Page N of M` fields; a striped key/value details table; and a 32-row
+## items table with white-on-navy column headers, striped and ruled rows,
+## a repeated header row, end-aligned amounts, and a totals group on a
+## brass tint that keeps with the last body row. The document is prepared
+## once and then emitted.
 main! = |_args| {
-	document = Pdf.document({ contents, language: "en-AU", title: "Tax invoice HF-2026-0417 — Harbour & Finch Pty Ltd" })
-		.with_page_templates(templates)
-		.with_created("2026-09-14T00:00:00Z")
-		.with_modified("2026-09-14T00:00:00Z")
-	prepared = Pdf.prepare(document, Pdf.Options.{ theme }).map_err(|err| PdfFailed(err))?
+	fonts = register_fonts({})?
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
+	document = Pdf.document({
+		contents: [supplier_block, Pdf.title("Tax invoice"), details_table, bill_to_section, items_section, payment_section],
+		language: "en-AU",
+		title: "Tax invoice HF-2026-0417 — Harbour & Finch Pty Ltd",
+		page_templates: Templates(templates),
+		created: Explicit("2026-09-14T00:00:00Z"),
+		modified: Explicit("2026-09-14T00:00:00Z"),
+	})
+	prepared = Pdf.prepare(document, options).map_err(|err| PdfFailed(err))?
 	bytes = Pdf.to_bytes_prepared(prepared).map_err(|err| EmitFailed(err))?
 	output : Path
 	output = "tax-invoice.pdf"
@@ -31,15 +43,55 @@ main! = |_args| {
 	Ok({})
 }
 
+Faces : { bold : Font.FaceId, regular : Font.FaceId, registry : Font.Registry }
+
+## Source Sans 3 Regular and Bold, each retained byte-for-byte from its
+## upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
+register_fonts = |_| {
+	latin : List(Font.Script)
+	latin = ["Latn"]
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	Ok({ bold: bold.face, regular: regular.face, registry: bold.registry })
+}
+
 navy : Color.SourceValue
-navy = Color.srgb8({ red: 24, green: 52, blue: 84 })
+navy = "#183454"
 
 brass : Color.SourceValue
-brass = Color.srgb8({ red: 196, green: 150, blue: 64 })
+brass = "#C49640"
 
-## A4 with 48 pt top and bottom and 56 pt side margins: a 483 × 746 pt body.
-theme : Theme
-theme = Theme.{ headings: { all: { color: navy } }, inline: { strong: { color: Themed(navy) } }, page_margin: { top: 48, right: 56, bottom: 48, left: 56 }, title: { color: navy } }
+ink : Color.SourceValue
+ink = "#22282F"
+
+## A4 with 48 pt top and bottom and 56 pt side margins: a 483 × 746 pt
+## body. Regular for body text; Bold for the title, headings, and
+## `Pdf.strong`. Column headers are white on navy, the body rows are
+## striped and ruled, and the totals sit on a brass tint.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: ink, size: 10.5, leading: 13.5 },
+	title: { color: navy, face: Face(faces.bold), size: 26, leading: 32 },
+	headings: { all: { color: navy, face: Face(faces.bold), size: 13, leading: 18 } },
+	inline: { strong: { color: Themed(navy), font: Face(faces.bold) } },
+	page_margin: { top: 48, right: 56, bottom: 48, left: 56 },
+	paragraph_spacing: 6,
+	link: { color: Themed("#1F6F8B"), underline: Underline({ offset: 1.5, thickness: 0.5 }) },
+	table: {
+		header_color: Themed("#FFFFFF"),
+		header_fill: Fill(navy),
+		row_header_color: Themed(navy),
+		body_fills: { even: Fill("#F2F5F8") },
+		body_rule: Rule({ color: "#DCE2E9", width: 0.5 }),
+		footer_fill: Fill("#F7EFE0"),
+		rule: Rule({ color: brass, width: 1 }),
+		cell_padding: 5,
+		row_gap: 3,
+	},
+}
 
 ## The Harbour & Finch mark, 132 × 44 pt: a navy tile holding a brass
 ## finch's wing, beside three navy bars.
@@ -56,27 +108,46 @@ logo = {
 	bars.rectangle(Layout.rect(54, 6, 40, 4), brass)
 }
 
-page_of : Pdf.Inline
-page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+## The first page's header rule: a 2 pt navy band over a 1 pt brass
+## keyline, the full 483 pt width, along the region's bottom edge.
+masthead_rule : Scene.Drawing
+masthead_rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 3, 483, 2), navy).rectangle(Layout.rect(0, 0, 483, 1), brass)
 
+## A 0.6 pt hairline the full width of the body, `y` points up.
+hairline : I64 -> Scene.Drawing
+hairline = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: 0.6, width: 483 } }, "#B8C2CE")
+
+## `Page N of M` end-aligned in 50 pt: in Source Sans 3 at 10.5 pt,
+## `Page 9 of 9` is 47.229 pt.
+page_of : Pdf.Inline
+page_of = Pdf.reserved_width(50, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+
+## The footer hangs 4 pt below a hairline at its top edge.
 footer : Pdf.Region
 footer = Pdf.region({
-	height: 16,
+	height: 20,
 	start: [Pdf.furniture_text([Pdf.text("ABN 00 123 456 789 · Tax invoice HF-2026-0417")])],
 	end: [Pdf.furniture_text([page_of])],
+	backdrop: Backdrop(hairline(19)),
+	slot_inset: 5,
 })
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 44, start: [Pdf.furniture_image(logo)] }),
+		header: Pdf.region({ height: 54, start: [Pdf.furniture_image(logo)], backdrop: Backdrop(masthead_rule), slot_inset: 10 }),
 		footer,
-		gap: 12,
+		gap: 14,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: 16, start: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd — Tax invoice HF-2026-0417 (continued)")])] }),
+		header: Pdf.region({
+			height: 21,
+			start: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd — Tax invoice HF-2026-0417 (continued)")])],
+			backdrop: Backdrop(hairline(0)),
+			slot_inset: 4,
+		}),
 		footer,
-		gap: 12,
+		gap: 14,
 	}),
 }
 
@@ -108,84 +179,92 @@ item_rows = ["2", "3", "4", "5"].map(
 	},
 ).join()
 
+item_columns : List(Pdf.Column)
+item_columns = [
+	{ width: Content, align: Start },
+	{ width: Share(1), align: Start },
+	{ width: Fixed(36), align: End },
+	{ width: Fixed(72), align: End },
+	{ width: Fixed(80), align: End },
+]
+
 total_row : Str, List(Pdf.Inline) -> Pdf.Row
 total_row = |label, amount| Pdf.row([Pdf.header_cell(Row, [Pdf.text(label)]).spanning(4).aligned(End), Pdf.cell(amount)])
 
 detail_row : Str, Str -> Pdf.Row
 detail_row = |label, value| Pdf.row([Pdf.header_cell(Row, [Pdf.text(label)]), Pdf.cell([Pdf.text(value)])])
 
-contents : List(Document.Block)
-contents = [
-	Pdf.division([
-		Pdf.rich_paragraph([Pdf.strong([Pdf.text("Harbour & Finch Pty Ltd")])]),
-		Pdf.rich_paragraph([
-			Pdf.text("Level 3, 18 Wharf Street"),
-			Pdf.line_break,
-			Pdf.text("Hobart TAS 7000"),
-			Pdf.line_break,
-			Pdf.text("ABN 00 123 456 789"),
-			Pdf.line_break,
-			Pdf.text("accounts@harbourfinch.example · (03) 5550 0142"),
-		]),
+supplier_block : Document.Block
+supplier_block = Pdf.division([
+	Pdf.rich_paragraph([Pdf.strong([Pdf.text("Harbour & Finch Pty Ltd")])]),
+	Pdf.rich_paragraph([
+		Pdf.text("Level 3, 18 Wharf Street"),
+		Pdf.line_break,
+		Pdf.text("Hobart TAS 7000"),
+		Pdf.line_break,
+		Pdf.text("ABN 00 123 456 789"),
+		Pdf.line_break,
+		Pdf.text("accounts@harbourfinch.example · (03) 5550 0142"),
 	]),
-	Pdf.title("Tax invoice"),
+])
+
+details_table : Document.Block
+details_table = Pdf.table({
+	caption: Pdf.no_caption,
+	columns: [{ width: Content, align: Start }, { width: Share(1), align: Start }],
+	body_rows: [
+		detail_row("Invoice number", "HF-2026-0417"),
+		detail_row("Issue date", "14 September 2026"),
+		detail_row("Due date", "14 October 2026"),
+		detail_row("Customer reference", "PO 88213"),
+	],
+})
+
+bill_to_section : Document.Block
+bill_to_section = Pdf.section([
+	Pdf.heading(1, "Bill to"),
+	Pdf.rich_paragraph([
+		Pdf.text("Northstar Cooperative Ltd"),
+		Pdf.line_break,
+		Pdf.text("Attn: Accounts Payable"),
+		Pdf.line_break,
+		Pdf.text("42 Kestrel Parade"),
+		Pdf.line_break,
+		Pdf.text("Fremantle WA 6160"),
+	]),
+])
+
+items_section : Document.Block
+items_section = Pdf.section([
+	Pdf.heading(1, "Items"),
 	Pdf.table({
-		caption: Pdf.no_caption,
-		columns: [{ width: Content, align: Start }, { width: Share(1), align: Start }],
-		body_rows: [
-			detail_row("Invoice number", "HF-2026-0417"),
-			detail_row("Issue date", "14 September 2026"),
-			detail_row("Due date", "14 October 2026"),
-			detail_row("Customer reference", "PO 88213"),
+		caption: Pdf.caption("Items supplied under purchase order PO 88213"),
+		columns: item_columns,
+		header_rows: [
+			Pdf.row([
+				Pdf.header_cell(Column, [Pdf.text("Code")]),
+				Pdf.header_cell(Column, [Pdf.text("Description")]),
+				Pdf.header_cell(Column, [Pdf.text("Qty")]),
+				Pdf.header_cell(Column, [Pdf.text("Unit price (AUD)")]),
+				Pdf.header_cell(Column, [Pdf.text("Amount (AUD)")]),
+			]),
+		],
+		body_rows: item_rows,
+		footer_rows: [
+			total_row("Subtotal (excl. GST)", [Pdf.text("40,116.40")]),
+			total_row("GST (10%)", [Pdf.text("4,011.64")]),
+			total_row("Total due (AUD)", [Pdf.strong([Pdf.text("44,128.04")])]),
 		],
 	}),
-	Pdf.section([
-		Pdf.heading(1, "Bill to"),
-		Pdf.rich_paragraph([
-			Pdf.text("Northstar Cooperative Ltd"),
-			Pdf.line_break,
-			Pdf.text("Attn: Accounts Payable"),
-			Pdf.line_break,
-			Pdf.text("42 Kestrel Parade"),
-			Pdf.line_break,
-			Pdf.text("Fremantle WA 6160"),
-		]),
+])
+
+payment_section : Document.Block
+payment_section = Pdf.section([
+	Pdf.heading(1, "Payment"),
+	Pdf.paragraph("Please pay by 14 October 2026. Bank transfer: BSB 000-000, account 1234 5678, reference HF-2026-0417."),
+	Pdf.rich_paragraph([
+		Pdf.text("You can also "),
+		Pdf.inline_link([Pdf.text("pay invoice HF-2026-0417 online")], "https://pay.harbourfinch.example/invoices/HF-2026-0417"),
+		Pdf.text(" (pay.harbourfinch.example/invoices/HF-2026-0417)."),
 	]),
-	Pdf.section([
-		Pdf.heading(1, "Items"),
-		Pdf.table({
-			caption: Pdf.caption("Items supplied under purchase order PO 88213"),
-			columns: [
-				{ width: Content, align: Start },
-				{ width: Share(1), align: Start },
-				{ width: Fixed(36), align: End },
-				{ width: Fixed(72), align: End },
-				{ width: Fixed(80), align: End },
-			],
-			header_rows: [
-				Pdf.row([
-					Pdf.header_cell(Column, [Pdf.text("Code")]),
-					Pdf.header_cell(Column, [Pdf.text("Description")]),
-					Pdf.header_cell(Column, [Pdf.text("Qty")]),
-					Pdf.header_cell(Column, [Pdf.text("Unit price (AUD)")]),
-					Pdf.header_cell(Column, [Pdf.text("Amount (AUD)")]),
-				]),
-			],
-			body_rows: item_rows,
-			footer_rows: [
-				total_row("Subtotal (excl. GST)", [Pdf.text("40,116.40")]),
-				total_row("GST (10%)", [Pdf.text("4,011.64")]),
-				total_row("Total due (AUD)", [Pdf.strong([Pdf.text("44,128.04")])]),
-			],
-		}),
-	]),
-	Pdf.section([
-		Pdf.heading(1, "Payment"),
-		Pdf.paragraph("Please pay by 14 October 2026. Bank transfer: BSB 000-000, account 1234 5678, reference HF-2026-0417."),
-		Pdf.rich_paragraph([
-			Pdf.text("You can also "),
-			Pdf.inline_link([Pdf.text("pay invoice HF-2026-0417 online")], "https://pay.harbourfinch.example/invoices/HF-2026-0417"),
-			Pdf.text(" (pay.harbourfinch.example/invoices/HF-2026-0417)."),
-		]),
-	]),
-]
+])

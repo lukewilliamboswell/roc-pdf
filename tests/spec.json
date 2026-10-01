@@ -3848,8 +3848,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9100,
-          "allocated_bytes": 15839866,
+          "allocations": 9097,
+          "allocated_bytes": 15839670,
           "work": {
             "body_face": 0,
             "code_face": 1,
@@ -3860,8 +3860,8 @@
           }
         },
         "x64musl": {
-          "allocations": 9100,
-          "allocated_bytes": 15839866,
+          "allocations": 9097,
+          "allocated_bytes": 15839670,
           "work": {
             "body_face": 0,
             "code_face": 1,
@@ -6893,8 +6893,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 2776,
-          "allocated_bytes": 5908869,
+          "allocations": 2775,
+          "allocated_bytes": 5908853,
           "work": {
             "latin_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -6911,8 +6911,8 @@
           }
         },
         "x64musl": {
-          "allocations": 2776,
-          "allocated_bytes": 5908869,
+          "allocations": 2775,
+          "allocated_bytes": 5908853,
           "work": {
             "latin_input_bytes": 7816,
             "cjk_input_bytes": 2104,
@@ -6966,8 +6966,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5488,
-          "allocated_bytes": 11809017,
+          "allocations": 5486,
+          "allocated_bytes": 11808985,
           "work": {
             "input_bytes": 9920,
             "retained_input_bytes": 9920,
@@ -6983,8 +6983,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5488,
-          "allocated_bytes": 11809017,
+          "allocations": 5486,
+          "allocated_bytes": 11808985,
           "work": {
             "input_bytes": 9920,
             "retained_input_bytes": 9920,
@@ -7038,8 +7038,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5549,
-          "allocated_bytes": 11817586,
+          "allocations": 5547,
+          "allocated_bytes": 11817554,
           "work": {
             "registries": 2,
             "input_bytes": 19840,
@@ -7056,8 +7056,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5549,
-          "allocated_bytes": 11817586,
+          "allocations": 5547,
+          "allocated_bytes": 11817554,
           "work": {
             "registries": 2,
             "input_bytes": 19840,
@@ -7099,7 +7099,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 136,
-          "allocated_bytes": 17781,
+          "allocated_bytes": 17789,
           "work": {
             "missing_coverage_rejected": 1,
             "output_bytes": 0
@@ -7107,7 +7107,7 @@
         },
         "x64musl": {
           "allocations": 136,
-          "allocated_bytes": 17781,
+          "allocated_bytes": 17789,
           "work": {
             "missing_coverage_rejected": 1,
             "output_bytes": 0
@@ -7136,7 +7136,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 134,
-          "allocated_bytes": 17683,
+          "allocated_bytes": 17691,
           "work": {
             "undeclared_script_rejected": 1,
             "output_bytes": 0
@@ -7144,7 +7144,7 @@
         },
         "x64musl": {
           "allocations": 134,
-          "allocated_bytes": 17683,
+          "allocated_bytes": 17691,
           "work": {
             "undeclared_script_rejected": 1,
             "output_bytes": 0
@@ -20964,8 +20964,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 3738,
-          "allocated_bytes": 6160782,
+          "allocations": 3734,
+          "allocated_bytes": 6160630,
           "work": {
             "node_writes": 5,
             "inline_elements": 3,
@@ -20983,8 +20983,8 @@
           }
         },
         "x64musl": {
-          "allocations": 3738,
-          "allocated_bytes": 6160782,
+          "allocations": 3734,
+          "allocated_bytes": 6160630,
           "work": {
             "node_writes": 5,
             "inline_elements": 3,
@@ -21035,8 +21035,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 15246,
-          "allocated_bytes": 11434598,
+          "allocations": 15096,
+          "allocated_bytes": 11138915,
           "work": {
             "shaped_runs": 40,
             "lines": 17,
@@ -21047,8 +21047,8 @@
           }
         },
         "x64musl": {
-          "allocations": 15246,
-          "allocated_bytes": 11434598,
+          "allocations": 15096,
+          "allocated_bytes": 11138915,
           "work": {
             "shaped_runs": 40,
             "lines": 17,
@@ -21091,8 +21091,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 21896,
-          "allocated_bytes": 17287564,
+          "allocations": 21568,
+          "allocated_bytes": 16667996,
           "work": {
             "shaped_runs": 80,
             "lines": 81,
@@ -21103,8 +21103,8 @@
           }
         },
         "x64musl": {
-          "allocations": 21896,
-          "allocated_bytes": 17287564,
+          "allocations": 21568,
+          "allocated_bytes": 16667996,
           "work": {
             "shaped_runs": 80,
             "lines": 81,
@@ -21147,8 +21147,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 72363,
-          "allocated_bytes": 67208236,
+          "allocations": 70921,
+          "allocated_bytes": 60667004,
           "work": {
             "shaped_runs": 360,
             "lines": 361,
@@ -21159,8 +21159,8 @@
           }
         },
         "x64musl": {
-          "allocations": 72363,
-          "allocated_bytes": 67208236,
+          "allocations": 70921,
+          "allocated_bytes": 60667004,
           "work": {
             "shaped_runs": 360,
             "lines": 361,
@@ -21202,8 +21202,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 18224,
-          "allocated_bytes": 11369509,
+          "allocations": 18082,
+          "allocated_bytes": 10999877,
           "work": {
             "shaped_runs": 31,
             "lines": 41,
@@ -21214,8 +21214,8 @@
           }
         },
         "x64musl": {
-          "allocations": 18224,
-          "allocated_bytes": 11369509,
+          "allocations": 18082,
+          "allocated_bytes": 10999877,
           "work": {
             "shaped_runs": 31,
             "lines": 41,
@@ -21257,8 +21257,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 68960,
-          "allocated_bytes": 38855070,
+          "allocations": 68192,
+          "allocated_bytes": 30171726,
           "work": {
             "shaped_runs": 151,
             "lines": 201,
@@ -21269,8 +21269,8 @@
           }
         },
         "x64musl": {
-          "allocations": 68960,
-          "allocated_bytes": 38855070,
+          "allocations": 68192,
+          "allocated_bytes": 30171726,
           "work": {
             "shaped_runs": 151,
             "lines": 201,
@@ -21312,8 +21312,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 34317,
-          "allocated_bytes": 31321564,
+          "allocations": 33844,
+          "allocated_bytes": 30415364,
           "work": {
             "shaped_runs": 56,
             "lines": 26,
@@ -21324,8 +21324,8 @@
           }
         },
         "x64musl": {
-          "allocations": 34317,
-          "allocated_bytes": 31321564,
+          "allocations": 33844,
+          "allocated_bytes": 30415364,
           "work": {
             "shaped_runs": 56,
             "lines": 26,
@@ -21367,8 +21367,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 121136,
-          "allocated_bytes": 102637467,
+          "allocations": 118767,
+          "allocated_bytes": 84693299,
           "work": {
             "shaped_runs": 256,
             "lines": 106,
@@ -21379,8 +21379,8 @@
           }
         },
         "x64musl": {
-          "allocations": 121136,
-          "allocated_bytes": 102637467,
+          "allocations": 118767,
+          "allocated_bytes": 84693299,
           "work": {
             "shaped_runs": 256,
             "lines": 106,
@@ -22912,8 +22912,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 60187,
-          "allocated_bytes": 43833635,
+          "allocations": 60188,
+          "allocated_bytes": 43833715,
           "work": {
             "node_writes": 23,
             "occurrence_writes": 14,
@@ -22934,8 +22934,8 @@
           }
         },
         "x64musl": {
-          "allocations": 60187,
-          "allocated_bytes": 43833635,
+          "allocations": 60188,
+          "allocated_bytes": 43833715,
           "work": {
             "node_writes": 23,
             "occurrence_writes": 14,
@@ -23518,7 +23518,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 34114,
-          "allocated_bytes": 24644228,
+          "allocated_bytes": 24644596,
           "work": {
             "node_writes": 176,
             "occurrence_writes": 127,
@@ -23542,7 +23542,7 @@
         },
         "x64musl": {
           "allocations": 34114,
-          "allocated_bytes": 24644228,
+          "allocated_bytes": 24644596,
           "work": {
             "node_writes": 176,
             "occurrence_writes": 127,
@@ -23609,7 +23609,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 238987,
-          "allocated_bytes": 230500719,
+          "allocated_bytes": 230501087,
           "work": {
             "node_writes": 1616,
             "occurrence_writes": 1207,
@@ -23633,7 +23633,7 @@
         },
         "x64musl": {
           "allocations": 238987,
-          "allocated_bytes": 230500719,
+          "allocated_bytes": 230501087,
           "work": {
             "node_writes": 1616,
             "occurrence_writes": 1207,
@@ -23698,8 +23698,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 5929,
-          "allocated_bytes": 7263316,
+          "allocations": 5906,
+          "allocated_bytes": 7260480,
           "work": {
             "node_writes": 19,
             "occurrence_writes": 12,
@@ -23720,8 +23720,8 @@
           }
         },
         "x64musl": {
-          "allocations": 5929,
-          "allocated_bytes": 7263316,
+          "allocations": 5906,
+          "allocated_bytes": 7260480,
           "work": {
             "node_writes": 19,
             "occurrence_writes": 12,
@@ -23771,16 +23771,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 72729,
-          "allocated_bytes": 64286439,
+          "allocations": 72730,
+          "allocated_bytes": 64286519,
           "work": {
             "rejections": 15,
             "output_bytes": 11521
           }
         },
         "x64musl": {
-          "allocations": 72729,
-          "allocated_bytes": 64286439,
+          "allocations": 72730,
+          "allocated_bytes": 64286519,
           "work": {
             "rejections": 15,
             "output_bytes": 11521
@@ -24075,8 +24075,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 137736,
-          "allocated_bytes": 122476046,
+          "allocations": 137183,
+          "allocated_bytes": 91455854,
           "work": {
             "lines": 266,
             "pages": 7,
@@ -24090,8 +24090,8 @@
           }
         },
         "x64musl": {
-          "allocations": 137736,
-          "allocated_bytes": 122476046,
+          "allocations": 137183,
+          "allocated_bytes": 91455854,
           "work": {
             "lines": 266,
             "pages": 7,
@@ -24199,8 +24199,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 17436,
-          "allocated_bytes": 15195647,
+          "allocations": 17428,
+          "allocated_bytes": 15194991,
           "work": {
             "lines": 23,
             "pages": 3,
@@ -24214,8 +24214,8 @@
           }
         },
         "x64musl": {
-          "allocations": 17436,
-          "allocated_bytes": 15195647,
+          "allocations": 17428,
+          "allocated_bytes": 15194991,
           "work": {
             "lines": 23,
             "pages": 3,
@@ -24262,8 +24262,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 103072,
-          "allocated_bytes": 91965899,
+          "allocations": 103064,
+          "allocated_bytes": 91965243,
           "work": {
             "lines": 212,
             "pages": 30,
@@ -24277,8 +24277,8 @@
           }
         },
         "x64musl": {
-          "allocations": 103072,
-          "allocated_bytes": 91965899,
+          "allocations": 103064,
+          "allocated_bytes": 91965243,
           "work": {
             "lines": 212,
             "pages": 30,
@@ -24391,8 +24391,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 11713,
-          "allocated_bytes": 10247682,
+          "allocations": 11673,
+          "allocated_bytes": 10235578,
           "work": {
             "lines": 15,
             "pages": 2,
@@ -24406,8 +24406,8 @@
           }
         },
         "x64musl": {
-          "allocations": 11713,
-          "allocated_bytes": 10247682,
+          "allocations": 11673,
+          "allocated_bytes": 10235578,
           "work": {
             "lines": 15,
             "pages": 2,
@@ -24456,8 +24456,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 10012,
-          "allocated_bytes": 9824092,
+          "allocations": 10005,
+          "allocated_bytes": 9822700,
           "work": {
             "lines": 5,
             "pages": 5,
@@ -24470,8 +24470,8 @@
           }
         },
         "x64musl": {
-          "allocations": 10012,
-          "allocated_bytes": 9824092,
+          "allocations": 10005,
+          "allocated_bytes": 9822700,
           "work": {
             "lines": 5,
             "pages": 5,
@@ -24577,16 +24577,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 16937,
-          "allocated_bytes": 8377823,
+          "allocations": 16934,
+          "allocated_bytes": 8377631,
           "work": {
             "rejections": 13,
             "output_bytes": 10431
           }
         },
         "x64musl": {
-          "allocations": 16937,
-          "allocated_bytes": 8377823,
+          "allocations": 16934,
+          "allocated_bytes": 8377631,
           "work": {
             "rejections": 13,
             "output_bytes": 10431
@@ -24627,8 +24627,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 17673,
-          "allocated_bytes": 15448217,
+          "allocations": 17672,
+          "allocated_bytes": 15448337,
           "work": {
             "lines": 39,
             "pages": 4,
@@ -24640,8 +24640,8 @@
           }
         },
         "x64musl": {
-          "allocations": 17673,
-          "allocated_bytes": 15448217,
+          "allocations": 17672,
+          "allocated_bytes": 15448337,
           "work": {
             "lines": 39,
             "pages": 4,
@@ -24808,8 +24808,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 38187,
-          "allocated_bytes": 23767335,
+          "allocations": 38182,
+          "allocated_bytes": 23767719,
           "work": {
             "lines": 69,
             "pages": 5,
@@ -24822,8 +24822,8 @@
           }
         },
         "x64musl": {
-          "allocations": 38187,
-          "allocated_bytes": 23767335,
+          "allocations": 38182,
+          "allocated_bytes": 23767719,
           "work": {
             "lines": 69,
             "pages": 5,
@@ -24869,8 +24869,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 130356,
-          "allocated_bytes": 94591922,
+          "allocations": 130351,
+          "allocated_bytes": 94594866,
           "work": {
             "lines": 329,
             "pages": 19,
@@ -24883,8 +24883,8 @@
           }
         },
         "x64musl": {
-          "allocations": 130356,
-          "allocated_bytes": 94591922,
+          "allocations": 130351,
+          "allocated_bytes": 94594866,
           "work": {
             "lines": 329,
             "pages": 19,
@@ -24931,8 +24931,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29118,
-          "allocated_bytes": 24991115,
+          "allocations": 28861,
+          "allocated_bytes": 23032351,
           "work": {
             "lines": 56,
             "pages": 4,
@@ -24946,8 +24946,8 @@
           }
         },
         "x64musl": {
-          "allocations": 29118,
-          "allocated_bytes": 24991115,
+          "allocations": 28861,
+          "allocated_bytes": 23032351,
           "work": {
             "lines": 56,
             "pages": 4,
@@ -24995,8 +24995,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 118727,
-          "allocated_bytes": 130872390,
+          "allocations": 117399,
+          "allocated_bytes": 87111570,
           "work": {
             "lines": 276,
             "pages": 17,
@@ -25010,8 +25010,8 @@
           }
         },
         "x64musl": {
-          "allocations": 118727,
-          "allocated_bytes": 130872390,
+          "allocations": 117399,
+          "allocated_bytes": 87111570,
           "work": {
             "lines": 276,
             "pages": 17,
@@ -25173,16 +25173,16 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 9427,
-          "allocated_bytes": 6370635,
+          "allocations": 9422,
+          "allocated_bytes": 6369971,
           "work": {
             "checks": 7,
             "output_bytes": 10181
           }
         },
         "x64musl": {
-          "allocations": 9427,
-          "allocated_bytes": 6370635,
+          "allocations": 9422,
+          "allocated_bytes": 6369971,
           "work": {
             "checks": 7,
             "output_bytes": 10181
@@ -25270,8 +25270,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 81842,
-          "allocated_bytes": 80815361,
+          "allocations": 81841,
+          "allocated_bytes": 80815481,
           "work": {
             "lines": 232,
             "pages": 4,
@@ -25287,8 +25287,8 @@
           }
         },
         "x64musl": {
-          "allocations": 81842,
-          "allocated_bytes": 80815361,
+          "allocations": 81841,
+          "allocated_bytes": 80815481,
           "work": {
             "lines": 232,
             "pages": 4,
@@ -25623,8 +25623,8 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 49265,
-          "allocated_bytes": 14270072,
+          "allocations": 49249,
+          "allocated_bytes": 14265560,
           "work": {
             "rejections": 17,
             "report_obligations": 3,
@@ -25632,8 +25632,8 @@
           }
         },
         "x64musl": {
-          "allocations": 49265,
-          "allocated_bytes": 14270072,
+          "allocations": 49249,
+          "allocated_bytes": 14265560,
           "work": {
             "rejections": 17,
             "report_obligations": 3,
@@ -25650,7 +25650,7 @@
     },
     {
       "name": "reference invoice",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/invoice.pdf",
       "args": [
@@ -25658,7 +25658,7 @@
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
-        "pages": 3
+        "pages": 2
       },
       "work_counters": [
         "pages",
@@ -25674,35 +25674,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 40638,
-          "allocated_bytes": 33487371,
+          "allocations": 36819,
+          "allocated_bytes": 34438810,
           "work": {
-            "pages": 3,
-            "fragments": 265,
+            "pages": 2,
+            "fragments": 254,
             "report_blocks": 189,
-            "report_outcomes": 2,
-            "repeated_headers": 2,
+            "report_outcomes": 1,
+            "repeated_headers": 1,
             "relaxations": 0,
             "report_obligations": 9,
-            "report_coverage": 199,
+            "report_coverage": 194,
             "observations": 12,
-            "output_bytes": 27174
+            "output_bytes": 32353
           }
         },
         "x64musl": {
-          "allocations": 40638,
-          "allocated_bytes": 33487371,
+          "allocations": 36819,
+          "allocated_bytes": 34438810,
           "work": {
-            "pages": 3,
-            "fragments": 265,
+            "pages": 2,
+            "fragments": 254,
             "report_blocks": 189,
-            "report_outcomes": 2,
-            "repeated_headers": 2,
+            "report_outcomes": 1,
+            "repeated_headers": 1,
             "relaxations": 0,
             "report_obligations": 9,
-            "report_coverage": 199,
+            "report_coverage": 194,
             "observations": 12,
-            "output_bytes": 27174
+            "output_bytes": 32353
           }
         }
       },
@@ -25715,7 +25715,7 @@
     },
     {
       "name": "reference report",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/report.pdf",
       "args": [
@@ -25723,7 +25723,7 @@
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
-        "pages": 5
+        "pages": 4
       },
       "work_counters": [
         "pages",
@@ -25739,35 +25739,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 51621,
-          "allocated_bytes": 52850561,
+          "allocations": 49441,
+          "allocated_bytes": 60743452,
           "work": {
-            "pages": 5,
-            "fragments": 317,
+            "pages": 4,
+            "fragments": 301,
             "report_blocks": 265,
-            "report_outcomes": 5,
-            "repeated_headers": 2,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
             "relaxations": 0,
             "report_obligations": 14,
-            "report_coverage": 275,
+            "report_coverage": 279,
             "observations": 17,
-            "output_bytes": 34105
+            "output_bytes": 104231
           }
         },
         "x64musl": {
-          "allocations": 51621,
-          "allocated_bytes": 52850561,
+          "allocations": 49441,
+          "allocated_bytes": 60743452,
           "work": {
-            "pages": 5,
-            "fragments": 317,
+            "pages": 4,
+            "fragments": 301,
             "report_blocks": 265,
-            "report_outcomes": 5,
-            "repeated_headers": 2,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
             "relaxations": 0,
             "report_obligations": 14,
-            "report_coverage": 275,
+            "report_coverage": 279,
             "observations": 17,
-            "output_bytes": 34105
+            "output_bytes": 104231
           }
         }
       },
@@ -25781,7 +25781,7 @@
     },
     {
       "name": "reference letter",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/letter.pdf",
       "args": [
@@ -25805,35 +25805,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 29065,
-          "allocated_bytes": 20140923,
+          "allocations": 23541,
+          "allocated_bytes": 23456454,
           "work": {
             "pages": 3,
-            "fragments": 104,
+            "fragments": 101,
             "report_blocks": 51,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 5,
-            "report_coverage": 51,
+            "report_coverage": 53,
             "observations": 8,
-            "output_bytes": 24538
+            "output_bytes": 37682
           }
         },
         "x64musl": {
-          "allocations": 29065,
-          "allocated_bytes": 20140923,
+          "allocations": 23541,
+          "allocated_bytes": 23456454,
           "work": {
             "pages": 3,
-            "fragments": 104,
+            "fragments": 101,
             "report_blocks": 51,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 5,
-            "report_coverage": 51,
+            "report_coverage": 53,
             "observations": 8,
-            "output_bytes": 24538
+            "output_bytes": 37682
           }
         }
       },
@@ -25846,7 +25846,7 @@
     },
     {
       "name": "reference invoice long text (INV-A1)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/invoice_long_text.pdf",
       "args": [
@@ -25870,11 +25870,11 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 43082,
-          "allocated_bytes": 36050440,
+          "allocations": 38948,
+          "allocated_bytes": 38129123,
           "work": {
             "pages": 3,
-            "fragments": 279,
+            "fragments": 265,
             "report_blocks": 189,
             "report_outcomes": 2,
             "repeated_headers": 2,
@@ -25882,15 +25882,15 @@
             "report_obligations": 9,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 28193
+            "output_bytes": 34061
           }
         },
         "x64musl": {
-          "allocations": 43082,
-          "allocated_bytes": 36050440,
+          "allocations": 38948,
+          "allocated_bytes": 38129123,
           "work": {
             "pages": 3,
-            "fragments": 279,
+            "fragments": 265,
             "report_blocks": 189,
             "report_outcomes": 2,
             "repeated_headers": 2,
@@ -25898,7 +25898,7 @@
             "report_obligations": 9,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 28193
+            "output_bytes": 34061
           }
         }
       },
@@ -25911,7 +25911,7 @@
     },
     {
       "name": "reference invoice wide code (INV-A2a)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/invoice_wide_code.pdf",
       "args": [
@@ -25919,7 +25919,7 @@
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
-        "pages": 4
+        "pages": 3
       },
       "work_counters": [
         "pages",
@@ -25935,35 +25935,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 43027,
-          "allocated_bytes": 36262883,
+          "allocations": 37890,
+          "allocated_bytes": 35736979,
           "work": {
-            "pages": 4,
-            "fragments": 317,
+            "pages": 3,
+            "fragments": 274,
             "report_blocks": 189,
-            "report_outcomes": 3,
-            "repeated_headers": 3,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
             "relaxations": 0,
             "report_obligations": 9,
-            "report_coverage": 204,
+            "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 29013
+            "output_bytes": 33709
           }
         },
         "x64musl": {
-          "allocations": 43027,
-          "allocated_bytes": 36262883,
+          "allocations": 37890,
+          "allocated_bytes": 35736979,
           "work": {
-            "pages": 4,
-            "fragments": 317,
+            "pages": 3,
+            "fragments": 274,
             "report_blocks": 189,
-            "report_outcomes": 3,
-            "repeated_headers": 3,
+            "report_outcomes": 2,
+            "repeated_headers": 2,
             "relaxations": 0,
             "report_obligations": 9,
-            "report_coverage": 204,
+            "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 29013
+            "output_bytes": 33709
           }
         }
       },
@@ -25976,7 +25976,7 @@
     },
     {
       "name": "reference invoice split row (INV-A4b)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/invoice_split_row.pdf",
       "args": [
@@ -25984,7 +25984,7 @@
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
-        "pages": 8
+        "pages": 7
       },
       "work_counters": [
         "pages",
@@ -26000,35 +26000,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 84442,
-          "allocated_bytes": 65615266,
+          "allocations": 61640,
+          "allocated_bytes": 62443744,
           "work": {
-            "pages": 8,
-            "fragments": 532,
+            "pages": 7,
+            "fragments": 454,
             "report_blocks": 189,
-            "report_outcomes": 13,
-            "repeated_headers": 7,
+            "report_outcomes": 11,
+            "repeated_headers": 6,
             "relaxations": 0,
             "report_obligations": 9,
-            "report_coverage": 230,
+            "report_coverage": 224,
             "observations": 3,
-            "output_bytes": 35241
+            "output_bytes": 40586
           }
         },
         "x64musl": {
-          "allocations": 84442,
-          "allocated_bytes": 65615266,
+          "allocations": 61640,
+          "allocated_bytes": 62443744,
           "work": {
-            "pages": 8,
-            "fragments": 532,
+            "pages": 7,
+            "fragments": 454,
             "report_blocks": 189,
-            "report_outcomes": 13,
-            "repeated_headers": 7,
+            "report_outcomes": 11,
+            "repeated_headers": 6,
             "relaxations": 0,
             "report_obligations": 9,
-            "report_coverage": 230,
+            "report_coverage": 224,
             "observations": 3,
-            "output_bytes": 35241
+            "output_bytes": 40586
           }
         }
       },
@@ -26040,7 +26040,7 @@
     },
     {
       "name": "reference invoice totals carry (INV-A5)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/invoice_totals_carry.pdf",
       "args": [
@@ -26064,35 +26064,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 71673,
-          "allocated_bytes": 40278834,
+          "allocations": 70939,
+          "allocated_bytes": 50538991,
           "work": {
             "pages": 3,
-            "fragments": 252,
-            "report_blocks": 179,
+            "fragments": 283,
+            "report_blocks": 209,
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
-            "report_coverage": 189,
+            "report_obligations": 10,
+            "report_coverage": 219,
             "observations": 5,
-            "output_bytes": 26876
+            "output_bytes": 33948
           }
         },
         "x64musl": {
-          "allocations": 71673,
-          "allocated_bytes": 40278834,
+          "allocations": 70939,
+          "allocated_bytes": 50538991,
           "work": {
             "pages": 3,
-            "fragments": 252,
-            "report_blocks": 179,
+            "fragments": 283,
+            "report_blocks": 209,
             "report_outcomes": 2,
             "repeated_headers": 2,
             "relaxations": 0,
-            "report_obligations": 9,
-            "report_coverage": 189,
+            "report_obligations": 10,
+            "report_coverage": 219,
             "observations": 5,
-            "output_bytes": 26876
+            "output_bytes": 33948
           }
         }
       },
@@ -26105,7 +26105,7 @@
     },
     {
       "name": "reference invoice rows x50",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/invoice_50.pdf",
       "args": [
@@ -26113,7 +26113,7 @@
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
-        "pages": 4
+        "pages": 3
       },
       "work_counters": [
         "pages",
@@ -26129,11 +26129,11 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 54437,
-          "allocated_bytes": 52254581,
+          "allocations": 48627,
+          "allocated_bytes": 53460855,
           "work": {
-            "pages": 4,
-            "fragments": 391,
+            "pages": 3,
+            "fragments": 376,
             "report_blocks": 279,
             "report_outcomes": 2,
             "repeated_headers": 2,
@@ -26141,15 +26141,15 @@
             "report_obligations": 11,
             "report_coverage": 289,
             "observations": 3,
-            "output_bytes": 31073
+            "output_bytes": 36570
           }
         },
         "x64musl": {
-          "allocations": 54437,
-          "allocated_bytes": 52254581,
+          "allocations": 48627,
+          "allocated_bytes": 53460855,
           "work": {
-            "pages": 4,
-            "fragments": 391,
+            "pages": 3,
+            "fragments": 376,
             "report_blocks": 279,
             "report_outcomes": 2,
             "repeated_headers": 2,
@@ -26157,7 +26157,7 @@
             "report_obligations": 11,
             "report_coverage": 289,
             "observations": 3,
-            "output_bytes": 31073
+            "output_bytes": 36570
           }
         }
       },
@@ -26170,7 +26170,7 @@
     },
     {
       "name": "reference invoice rows x500 (INV-A3)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/invoice_500.pdf",
       "args": [
@@ -26178,7 +26178,7 @@
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
-        "pages": 24
+        "pages": 21
       },
       "work_counters": [
         "pages",
@@ -26194,35 +26194,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 424512,
-          "allocated_bytes": 425479792,
+          "allocations": 357554,
+          "allocated_bytes": 421178133,
           "work": {
-            "pages": 24,
-            "fragments": 3542,
+            "pages": 21,
+            "fragments": 3415,
             "report_blocks": 2529,
-            "report_outcomes": 23,
-            "repeated_headers": 23,
+            "report_outcomes": 20,
+            "repeated_headers": 20,
             "relaxations": 0,
             "report_obligations": 68,
-            "report_coverage": 2644,
+            "report_coverage": 2629,
             "observations": 3,
-            "output_bytes": 131878
+            "output_bytes": 134285
           }
         },
         "x64musl": {
-          "allocations": 424512,
-          "allocated_bytes": 425479792,
+          "allocations": 357554,
+          "allocated_bytes": 421178133,
           "work": {
-            "pages": 24,
-            "fragments": 3542,
+            "pages": 21,
+            "fragments": 3415,
             "report_blocks": 2529,
-            "report_outcomes": 23,
-            "repeated_headers": 23,
+            "report_outcomes": 20,
+            "repeated_headers": 20,
             "relaxations": 0,
             "report_obligations": 68,
-            "report_coverage": 2644,
+            "report_coverage": 2629,
             "observations": 3,
-            "output_bytes": 131878
+            "output_bytes": 134285
           }
         }
       },
@@ -26235,207 +26235,9 @@
     },
     {
       "name": "reference report heading keep (REP-A1)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/report_heading_keep.pdf",
-      "args": [
-        "reference"
-      ],
-      "measurement_boundary": "before_fixture_main",
-      "dimensions": {
-        "pages": 6
-      },
-      "work_counters": [
-        "pages",
-        "fragments",
-        "report_blocks",
-        "report_outcomes",
-        "repeated_headers",
-        "relaxations",
-        "report_obligations",
-        "report_coverage",
-        "observations",
-        "output_bytes"
-      ],
-      "expectations": {
-        "arm64mac": {
-          "allocations": 52236,
-          "allocated_bytes": 53627461,
-          "work": {
-            "pages": 6,
-            "fragments": 318,
-            "report_blocks": 266,
-            "report_outcomes": 5,
-            "repeated_headers": 2,
-            "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 276,
-            "observations": 4,
-            "output_bytes": 34551
-          }
-        },
-        "x64musl": {
-          "allocations": 52236,
-          "allocated_bytes": 53627461,
-          "work": {
-            "pages": 6,
-            "fragments": 318,
-            "report_blocks": 266,
-            "report_outcomes": 5,
-            "repeated_headers": 2,
-            "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 276,
-            "observations": 4,
-            "output_bytes": 34551
-          }
-        }
-      },
-      "retention": null,
-      "validators": [
-        "pdfa4",
-        "structure_semantics",
-        "rich_inline",
-        "navigation"
-      ]
-    },
-    {
-      "name": "reference report figure and caption (REP-A2)",
-      "scenario_revision": "reference-documents-v10",
-      "source": "tests/reference_documents/main.roc",
-      "snapshot": "tests/reference_documents/report_figure_caption.pdf",
-      "args": [
-        "reference"
-      ],
-      "measurement_boundary": "before_fixture_main",
-      "dimensions": {
-        "pages": 6
-      },
-      "work_counters": [
-        "pages",
-        "fragments",
-        "report_blocks",
-        "report_outcomes",
-        "repeated_headers",
-        "relaxations",
-        "report_obligations",
-        "report_coverage",
-        "observations",
-        "output_bytes"
-      ],
-      "expectations": {
-        "arm64mac": {
-          "allocations": 52285,
-          "allocated_bytes": 53667377,
-          "work": {
-            "pages": 6,
-            "fragments": 318,
-            "report_blocks": 266,
-            "report_outcomes": 5,
-            "repeated_headers": 2,
-            "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 276,
-            "observations": 4,
-            "output_bytes": 34571
-          }
-        },
-        "x64musl": {
-          "allocations": 52285,
-          "allocated_bytes": 53667377,
-          "work": {
-            "pages": 6,
-            "fragments": 318,
-            "report_blocks": 266,
-            "report_outcomes": 5,
-            "repeated_headers": 2,
-            "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 276,
-            "observations": 4,
-            "output_bytes": 34571
-          }
-        }
-      },
-      "retention": null,
-      "validators": [
-        "pdfa4",
-        "structure_semantics",
-        "rich_inline",
-        "navigation"
-      ]
-    },
-    {
-      "name": "reference report table break (REP-A3)",
-      "scenario_revision": "reference-documents-v10",
-      "source": "tests/reference_documents/main.roc",
-      "snapshot": "tests/reference_documents/report_table_break.pdf",
-      "args": [
-        "reference"
-      ],
-      "measurement_boundary": "before_fixture_main",
-      "dimensions": {
-        "pages": 6
-      },
-      "work_counters": [
-        "pages",
-        "fragments",
-        "report_blocks",
-        "report_outcomes",
-        "repeated_headers",
-        "relaxations",
-        "report_obligations",
-        "report_coverage",
-        "observations",
-        "output_bytes"
-      ],
-      "expectations": {
-        "arm64mac": {
-          "allocations": 54257,
-          "allocated_bytes": 53897671,
-          "work": {
-            "pages": 6,
-            "fragments": 318,
-            "report_blocks": 266,
-            "report_outcomes": 6,
-            "repeated_headers": 3,
-            "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 280,
-            "observations": 6,
-            "output_bytes": 34797
-          }
-        },
-        "x64musl": {
-          "allocations": 54257,
-          "allocated_bytes": 53897671,
-          "work": {
-            "pages": 6,
-            "fragments": 318,
-            "report_blocks": 266,
-            "report_outcomes": 6,
-            "repeated_headers": 3,
-            "relaxations": 0,
-            "report_obligations": 14,
-            "report_coverage": 280,
-            "observations": 6,
-            "output_bytes": 34797
-          }
-        }
-      },
-      "retention": null,
-      "validators": [
-        "pdfa4",
-        "structure_semantics",
-        "rich_inline",
-        "navigation"
-      ]
-    },
-    {
-      "name": "reference report ordered faces (REP-A5)",
-      "scenario_revision": "reference-documents-v10",
-      "source": "tests/reference_documents/main.roc",
-      "snapshot": "tests/reference_documents/report_ordered.pdf",
       "args": [
         "reference"
       ],
@@ -26457,35 +26259,233 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 57728,
-          "allocated_bytes": 64602788,
+          "allocations": 52255,
+          "allocated_bytes": 61627984,
           "work": {
             "pages": 5,
-            "fragments": 322,
-            "report_blocks": 265,
-            "report_outcomes": 5,
-            "repeated_headers": 2,
+            "fragments": 302,
+            "report_blocks": 266,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
             "relaxations": 0,
-            "report_obligations": 15,
-            "report_coverage": 289,
+            "report_obligations": 14,
+            "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 35355
+            "output_bytes": 104851
           }
         },
         "x64musl": {
-          "allocations": 57728,
-          "allocated_bytes": 64602788,
+          "allocations": 52255,
+          "allocated_bytes": 61627984,
           "work": {
             "pages": 5,
-            "fragments": 322,
-            "report_blocks": 265,
+            "fragments": 302,
+            "report_blocks": 266,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 280,
+            "observations": 4,
+            "output_bytes": 104851
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report figure and caption (REP-A2)",
+      "scenario_revision": "reference-documents-v12",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_figure_caption.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 53595,
+          "allocated_bytes": 62427822,
+          "work": {
+            "pages": 5,
+            "fragments": 302,
+            "report_blocks": 266,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 280,
+            "observations": 4,
+            "output_bytes": 104870
+          }
+        },
+        "x64musl": {
+          "allocations": 53595,
+          "allocated_bytes": 62427822,
+          "work": {
+            "pages": 5,
+            "fragments": 302,
+            "report_blocks": 266,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 280,
+            "observations": 4,
+            "output_bytes": 104870
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report table break (REP-A3)",
+      "scenario_revision": "reference-documents-v12",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_table_break.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 5
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 52054,
+          "allocated_bytes": 61589133,
+          "work": {
+            "pages": 5,
+            "fragments": 302,
+            "report_blocks": 266,
             "report_outcomes": 5,
             "repeated_headers": 2,
             "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 284,
+            "observations": 6,
+            "output_bytes": 105103
+          }
+        },
+        "x64musl": {
+          "allocations": 52054,
+          "allocated_bytes": 61589133,
+          "work": {
+            "pages": 5,
+            "fragments": 302,
+            "report_blocks": 266,
+            "report_outcomes": 5,
+            "repeated_headers": 2,
+            "relaxations": 0,
+            "report_obligations": 14,
+            "report_coverage": 284,
+            "observations": 6,
+            "output_bytes": 105103
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "navigation"
+      ]
+    },
+    {
+      "name": "reference report ordered faces (REP-A5)",
+      "scenario_revision": "reference-documents-v12",
+      "source": "tests/reference_documents/main.roc",
+      "snapshot": "tests/reference_documents/report_ordered.pdf",
+      "args": [
+        "reference"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4
+      },
+      "work_counters": [
+        "pages",
+        "fragments",
+        "report_blocks",
+        "report_outcomes",
+        "repeated_headers",
+        "relaxations",
+        "report_obligations",
+        "report_coverage",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 48503,
+          "allocated_bytes": 54690740,
+          "work": {
+            "pages": 4,
+            "fragments": 307,
+            "report_blocks": 265,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
+            "relaxations": 0,
             "report_obligations": 15,
-            "report_coverage": 289,
+            "report_coverage": 284,
             "observations": 4,
-            "output_bytes": 35355
+            "output_bytes": 88886
+          }
+        },
+        "x64musl": {
+          "allocations": 48503,
+          "allocated_bytes": 54690740,
+          "work": {
+            "pages": 4,
+            "fragments": 307,
+            "report_blocks": 265,
+            "report_outcomes": 4,
+            "repeated_headers": 1,
+            "relaxations": 0,
+            "report_obligations": 15,
+            "report_coverage": 284,
+            "observations": 4,
+            "output_bytes": 88886
           }
         }
       },
@@ -26499,7 +26499,7 @@
     },
     {
       "name": "reference report scaled figure (REP-A6b)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/report_scaled_figure.pdf",
       "args": [
@@ -26523,35 +26523,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 49866,
-          "allocated_bytes": 53091772,
+          "allocations": 48534,
+          "allocated_bytes": 59328032,
           "work": {
             "pages": 5,
-            "fragments": 317,
+            "fragments": 301,
             "report_blocks": 265,
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
             "report_obligations": 14,
-            "report_coverage": 270,
+            "report_coverage": 279,
             "observations": 2,
-            "output_bytes": 33175
+            "output_bytes": 103887
           }
         },
         "x64musl": {
-          "allocations": 49866,
-          "allocated_bytes": 53091772,
+          "allocations": 48534,
+          "allocated_bytes": 59328032,
           "work": {
             "pages": 5,
-            "fragments": 317,
+            "fragments": 301,
             "report_blocks": 265,
             "report_outcomes": 4,
             "repeated_headers": 1,
             "relaxations": 0,
             "report_obligations": 14,
-            "report_coverage": 270,
+            "report_coverage": 279,
             "observations": 2,
-            "output_bytes": 33175
+            "output_bytes": 103887
           }
         }
       },
@@ -26565,7 +26565,7 @@
     },
     {
       "name": "reference report sections x10",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/report_sections_10.pdf",
       "args": [
@@ -26589,35 +26589,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 44996,
-          "allocated_bytes": 46502829,
+          "allocations": 39822,
+          "allocated_bytes": 48080629,
           "work": {
             "pages": 4,
-            "fragments": 251,
+            "fragments": 241,
             "report_blocks": 201,
-            "report_outcomes": 1,
-            "repeated_headers": 1,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 22,
-            "report_coverage": 204,
+            "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 27426
+            "output_bytes": 33555
           }
         },
         "x64musl": {
-          "allocations": 44996,
-          "allocated_bytes": 46502829,
+          "allocations": 39822,
+          "allocated_bytes": 48080629,
           "work": {
             "pages": 4,
-            "fragments": 251,
+            "fragments": 241,
             "report_blocks": 201,
-            "report_outcomes": 1,
-            "repeated_headers": 1,
+            "report_outcomes": 0,
+            "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 22,
-            "report_coverage": 204,
+            "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 27426
+            "output_bytes": 33555
           }
         }
       },
@@ -26631,7 +26631,7 @@
     },
     {
       "name": "reference report sections x100",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/report_sections_100.pdf",
       "args": [
@@ -26639,7 +26639,7 @@
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
-        "pages": 38
+        "pages": 37
       },
       "work_counters": [
         "pages",
@@ -26655,35 +26655,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 418216,
-          "allocated_bytes": 445804387,
+          "allocations": 324152,
+          "allocated_bytes": 440099836,
           "work": {
-            "pages": 38,
-            "fragments": 2501,
+            "pages": 37,
+            "fragments": 2401,
             "report_blocks": 2001,
-            "report_outcomes": 13,
-            "repeated_headers": 13,
+            "report_outcomes": 9,
+            "repeated_headers": 9,
             "relaxations": 0,
             "report_obligations": 202,
-            "report_coverage": 2040,
+            "report_coverage": 2028,
             "observations": 3,
-            "output_bytes": 140160
+            "output_bytes": 144382
           }
         },
         "x64musl": {
-          "allocations": 418216,
-          "allocated_bytes": 445804387,
+          "allocations": 324152,
+          "allocated_bytes": 440099836,
           "work": {
-            "pages": 38,
-            "fragments": 2501,
+            "pages": 37,
+            "fragments": 2401,
             "report_blocks": 2001,
-            "report_outcomes": 13,
-            "repeated_headers": 13,
+            "report_outcomes": 9,
+            "repeated_headers": 9,
             "relaxations": 0,
             "report_obligations": 202,
-            "report_coverage": 2040,
+            "report_coverage": 2028,
             "observations": 3,
-            "output_bytes": 140160
+            "output_bytes": 144382
           }
         }
       },
@@ -26697,7 +26697,7 @@
     },
     {
       "name": "reference letter long recipient (LET-A1)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/letter_long_recipient.pdf",
       "args": [
@@ -26721,35 +26721,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 30115,
-          "allocated_bytes": 20701905,
+          "allocations": 24174,
+          "allocated_bytes": 23947916,
           "work": {
             "pages": 3,
-            "fragments": 107,
+            "fragments": 104,
             "report_blocks": 51,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 5,
-            "report_coverage": 51,
+            "report_coverage": 53,
             "observations": 2,
-            "output_bytes": 24851
+            "output_bytes": 38011
           }
         },
         "x64musl": {
-          "allocations": 30115,
-          "allocated_bytes": 20701905,
+          "allocations": 24174,
+          "allocated_bytes": 23947916,
           "work": {
             "pages": 3,
-            "fragments": 107,
+            "fragments": 104,
             "report_blocks": 51,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 5,
-            "report_coverage": 51,
+            "report_coverage": 53,
             "observations": 2,
-            "output_bytes": 24851
+            "output_bytes": 38011
           }
         }
       },
@@ -26762,7 +26762,7 @@
     },
     {
       "name": "reference letter x60 (LET-A2)",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/letter_60.pdf",
       "args": [
@@ -26786,35 +26786,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 144019,
-          "allocated_bytes": 103951464,
+          "allocations": 84007,
+          "allocated_bytes": 70150919,
           "work": {
             "pages": 11,
-            "fragments": 482,
+            "fragments": 452,
             "report_blocks": 105,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 14,
-            "report_coverage": 105,
+            "report_coverage": 107,
             "observations": 3,
-            "output_bytes": 57438
+            "output_bytes": 63175
           }
         },
         "x64musl": {
-          "allocations": 144019,
-          "allocated_bytes": 103951464,
+          "allocations": 84007,
+          "allocated_bytes": 70150919,
           "work": {
             "pages": 11,
-            "fragments": 482,
+            "fragments": 452,
             "report_blocks": 105,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 14,
-            "report_coverage": 105,
+            "report_coverage": 107,
             "observations": 3,
-            "output_bytes": 57438
+            "output_bytes": 63175
           }
         }
       },
@@ -26827,7 +26827,7 @@
     },
     {
       "name": "reference letter x20",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/letter_20.pdf",
       "args": [
@@ -26851,35 +26851,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 58734,
-          "allocated_bytes": 41039144,
+          "allocations": 39065,
+          "allocated_bytes": 35154276,
           "work": {
             "pages": 5,
-            "fragments": 201,
+            "fragments": 191,
             "report_blocks": 65,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 7,
-            "report_coverage": 65,
+            "report_coverage": 67,
             "observations": 3,
-            "output_bytes": 33043
+            "output_bytes": 44313
           }
         },
         "x64musl": {
-          "allocations": 58734,
-          "allocated_bytes": 41039144,
+          "allocations": 39065,
+          "allocated_bytes": 35154276,
           "work": {
             "pages": 5,
-            "fragments": 201,
+            "fragments": 191,
             "report_blocks": 65,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 7,
-            "report_coverage": 65,
+            "report_coverage": 67,
             "observations": 3,
-            "output_bytes": 33043
+            "output_bytes": 44313
           }
         }
       },
@@ -26892,7 +26892,7 @@
     },
     {
       "name": "reference letter x200",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/letter_200.pdf",
       "args": [
@@ -26916,35 +26916,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 441602,
-          "allocated_bytes": 328257095,
+          "allocations": 240044,
+          "allocated_bytes": 202254550,
           "work": {
             "pages": 31,
-            "fragments": 1461,
+            "fragments": 1361,
             "report_blocks": 245,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 37,
-            "report_coverage": 245,
+            "report_coverage": 247,
             "observations": 3,
-            "output_bytes": 141759
+            "output_bytes": 128522
           }
         },
         "x64musl": {
-          "allocations": 441602,
-          "allocated_bytes": 328257095,
+          "allocations": 240044,
+          "allocated_bytes": 202254550,
           "work": {
             "pages": 31,
-            "fragments": 1461,
+            "fragments": 1361,
             "report_blocks": 245,
             "report_outcomes": 0,
             "repeated_headers": 0,
             "relaxations": 0,
             "report_obligations": 37,
-            "report_coverage": 245,
+            "report_coverage": 247,
             "observations": 3,
-            "output_bytes": 141759
+            "output_bytes": 128522
           }
         }
       },
@@ -26957,7 +26957,7 @@
     },
     {
       "name": "reference variant rejections",
-      "scenario_revision": "reference-documents-v10",
+      "scenario_revision": "reference-documents-v12",
       "source": "tests/reference_documents/main.roc",
       "snapshot": "tests/reference_documents/rejections.pdf",
       "args": [
@@ -26974,21 +26974,21 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 172997,
-          "allocated_bytes": 114420033,
+          "allocations": 162201,
+          "allocated_bytes": 116083140,
           "work": {
             "rejections": 24,
             "report_obligations": 2,
-            "output_bytes": 10977
+            "output_bytes": 15428
           }
         },
         "x64musl": {
-          "allocations": 172997,
-          "allocated_bytes": 114420033,
+          "allocations": 162201,
+          "allocated_bytes": 116083140,
           "work": {
             "rejections": 24,
             "report_obligations": 2,
-            "output_bytes": 10977
+            "output_bytes": 15428
           }
         }
       },

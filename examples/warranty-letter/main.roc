@@ -6,23 +6,36 @@ import pf.Path
 import pf.Stdout
 import pdf.Color
 import pdf.Document
+import pdf.Font
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "fonts/Literata-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/Literata-Bold.ttf" as bold_bytes : List(U8)
+import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 
-## The reference business letter (docs/reference-documents.md): a
-## first-page template whose lead region holds the semantic letterhead, a
-## vector logo and centered footer as page furniture, continuation pages
-## with the recipient, date, and `Page N of M`, an unsplittable signature
-## block, and an explicit break before the covered-items schedule. The
-## letter has no visible title; readers show its metadata title.
+## The reference business letter (docs/reference-documents.md), set in
+## Literata: a letterhead whose mark sits above a navy and brass rule as
+## page furniture, with the sender's name and address as semantic blocks
+## in the first-page lead region; a footer over a hairline; continuation
+## pages with the recipient, date, and `Page N of M` inset above a
+## hairline; an unsplittable signature block; and an explicit break before
+## the covered-items schedule. The letter has no visible title; readers
+## show its metadata title.
 main! = |_args| {
-	document = Pdf.document({ contents, language: "en-AU", title: "Letter to Northstar Cooperative about the warranty extension, 21 September 2026" })
-		.with_page_templates(templates)
-		.with_created("2026-09-21T00:00:00Z")
-		.with_modified("2026-09-21T00:00:00Z")
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ theme }).map_err(|err| PdfFailed(err))?
+	fonts = register_fonts({})?
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry) }
+	document = Pdf.document({
+		contents: opening.concat(body).concat(closing),
+		language: "en-AU",
+		title: "Letter to Northstar Cooperative about the warranty extension, 21 September 2026",
+		page_templates: Templates(templates),
+		created: Explicit("2026-09-21T00:00:00Z"),
+		modified: Explicit("2026-09-21T00:00:00Z"),
+	})
+	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
 	output : Path
 	output = "warranty-letter.pdf"
 	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
@@ -30,15 +43,87 @@ main! = |_args| {
 	Ok({})
 }
 
+Faces : { bold : Font.FaceId, italic : Font.FaceId, regular : Font.FaceId, registry : Font.Registry }
+
+## Literata Regular, Bold, and Italic, each retained byte-for-byte from
+## its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
+register_fonts = |_| {
+	latin : List(Font.Script)
+	latin = ["Latn"]
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	italic = add(bold.registry, italic_bytes)?
+	Ok({ bold: bold.face, italic: italic.face, regular: regular.face, registry: italic.registry })
+}
+
+opening : List(Document.Block)
+opening = [
+	Pdf.paragraph("21 September 2026"),
+	Pdf.rich_paragraph([
+		Pdf.text("Ms Priya Raman"),
+		Pdf.line_break,
+		Pdf.text("Operations Manager"),
+		Pdf.line_break,
+		Pdf.text("Northstar Cooperative Ltd"),
+		Pdf.line_break,
+		Pdf.text("42 Kestrel Parade"),
+		Pdf.line_break,
+		Pdf.text("Fremantle WA 6160"),
+	]),
+	Pdf.spacer(12),
+	Pdf.paragraph("Dear Ms Raman,"),
+	Pdf.rich_paragraph([Pdf.text("Subject: "), Pdf.strong([Pdf.text("Extended warranty for your Level 2–5 fit-out")])]),
+]
+
+closing : List(Document.Block)
+closing = [
+	Pdf.numbered_list({}, terms.map(|term| Pdf.list_item([Pdf.paragraph(term)]))),
+	Pdf.paragraph("The enclosed schedule lists every covered item by product code. Please keep this letter and the schedule with your asset register, so that your team can quote them when lodging a claim by telephone or email."),
+	Pdf.paragraph("If you have any questions about the extension, or would like the November inspection scheduled at a particular time, please call me directly on (03) 5550 0142. We look forward to supporting Northstar Cooperative for many years to come."),
+	Pdf.keep_together([
+		Pdf.paragraph("Yours sincerely,"),
+		Pdf.spacer(36),
+		Pdf.paragraph("Tom Finch"),
+		Pdf.paragraph("Director, Harbour & Finch Pty Ltd"),
+	]),
+	Pdf.rich_paragraph([Pdf.text("Enclosure: "), Pdf.emphasis([Pdf.text("Schedule 1, covered items")])]),
+	Pdf.page_break,
+	Pdf.section([Pdf.heading(1, "Schedule 1. Covered items"), schedule]),
+]
+
 navy : Color.SourceValue
-navy = Color.srgb8({ red: 24, green: 52, blue: 84 })
+navy = "#183454"
 
 brass : Color.SourceValue
-brass = Color.srgb8({ red: 196, green: 150, blue: 64 })
+brass = "#C49640"
 
-## A4 with 48 pt top and bottom and 72 pt side margins: a 451 × 746 pt body.
-theme : Theme
-theme = Theme.{ headings: { all: { color: navy } }, inline: { strong: { color: Themed(navy) } }, page_margin: { top: 48, right: 72, bottom: 48, left: 72 } }
+ink : Color.SourceValue
+ink = "#2B2B2B"
+
+slate : Color.SourceValue
+slate = "#56657A"
+
+## A4 with 48 pt top and bottom and 72 pt side margins: a 451 × 746 pt
+## body. Literata Regular for body text; Bold for the heading and
+## `Pdf.strong`; Italic for `Pdf.emphasis`.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: ink, size: 10.5, leading: 15 },
+	headings: { all: { color: navy, face: Face(faces.bold), size: 14, leading: 19 } },
+	inline: { strong: { color: Themed(navy), font: Face(faces.bold) }, emphasis: { font: Face(faces.italic) } },
+	page_margin: { top: 48, right: 72, bottom: 48, left: 72 },
+	table: {
+		header_color: Themed(navy),
+		header_fill: Fill("#E8EDF3"),
+		row_header_color: Themed(navy),
+		body_rule: Rule({ color: "#D9DFE6", width: 0.5 }),
+		rule: Rule({ color: navy, width: 0.8 }),
+		cell_padding: 5,
+	},
+}
 
 ## The Harbour & Finch mark, 140 × 48 pt: three navy bars beside a navy
 ## tile holding a brass finch's wing, aligned to the page's end edge.
@@ -55,34 +140,55 @@ logo = {
 	bars.rectangle(Layout.rect(42, 10, 40, 4), brass)
 }
 
+## The letterhead's rule under the mark: a 2 pt navy band over a 1 pt
+## brass keyline along the header region's bottom edge, the full 451 pt
+## width.
+masthead : Scene.Drawing
+masthead = Scene.Drawing.empty.rectangle(Layout.rect(0, 3, 451, 2), navy).rectangle(Layout.rect(0, 0, 451, 1), brass)
+
+## A 0.6 pt hairline the full width of the body, `y` points up.
+hairline : I64 -> Scene.Drawing
+hairline = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: 0.6, width: 451 } }, "#B8C2CE")
+
+## `Page N of M` end-aligned in 62 pt: in Literata at 10.5 pt the widest
+## value LET-A2's eleven pages need, `Page 10 of 11`, is 58.7 pt.
 page_of : Pdf.Inline
-page_of = Pdf.reserved_width(72, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+page_of = Pdf.reserved_width(62, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+
+## The letterhead: the sender's name in the Strong face, then the address
+## and contacts in slate.
+letterhead : List(Document.Block)
+letterhead = [
+	Pdf.rich_paragraph([Pdf.strong([Pdf.text("Harbour & Finch Pty Ltd")])]),
+	Pdf.scoped(
+		{ text: Themed(slate) },
+		[
+			Pdf.rich_paragraph([
+				Pdf.text("Level 3, 18 Wharf Street, Hobart TAS 7000"),
+				Pdf.line_break,
+				Pdf.text("(03) 5550 0142 · hello@harbourfinch.example · ABN 00 123 456 789"),
+			]),
+		],
+	),
+]
 
 templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: 48, end: [Pdf.furniture_image(logo)] }),
-		lead: Pdf.lead_region(
-			60,
-			[
-				Pdf.rich_paragraph([Pdf.strong([Pdf.text("Harbour & Finch Pty Ltd")])]),
-				Pdf.rich_paragraph([
-					Pdf.text("Level 3, 18 Wharf Street, Hobart TAS 7000"),
-					Pdf.line_break,
-					Pdf.text("(03) 5550 0142 · hello@harbourfinch.example · ABN 00 123 456 789"),
-				]),
-			],
-		),
-		footer: Pdf.region({ height: 16, center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])] }),
+		header: Pdf.region({ height: 58, end: [Pdf.furniture_image(logo)], backdrop: Backdrop(masthead), slot_inset: 10 }),
+		lead: Pdf.lead_region(64, letterhead),
+		footer: Pdf.region({ height: 22, center: [Pdf.furniture_text([Pdf.text("harbourfinch.example")])], backdrop: Backdrop(hairline(21)), slot_inset: 6 }),
 		gap: 12,
 	}),
 	continuation: Pdf.page_template({
 		header: Pdf.region({
-			height: 16,
+			height: 21,
 			start: [Pdf.furniture_text([Pdf.text("Northstar Cooperative Ltd · 21 September 2026")])],
 			end: [Pdf.furniture_text([page_of])],
+			backdrop: Backdrop(hairline(0)),
+			slot_inset: 4,
 		}),
-		gap: 12,
+		gap: 14,
 	}),
 }
 
@@ -124,39 +230,3 @@ schedule = Pdf.table({
 		("HF-DEL-MET", [Pdf.text("Metropolitan delivery, Hobart (transit damage)")]),
 	].map(|(code, description)| Pdf.row([Pdf.header_cell(Row, [Pdf.text(code)]), Pdf.cell(description), Pdf.cell([Pdf.text("30 Sep 2031")])])),
 })
-
-contents : List(Document.Block)
-contents = [
-	[
-		Pdf.paragraph("21 September 2026"),
-		Pdf.rich_paragraph([
-			Pdf.text("Ms Priya Raman"),
-			Pdf.line_break,
-			Pdf.text("Operations Manager"),
-			Pdf.line_break,
-			Pdf.text("Northstar Cooperative Ltd"),
-			Pdf.line_break,
-			Pdf.text("42 Kestrel Parade"),
-			Pdf.line_break,
-			Pdf.text("Fremantle WA 6160"),
-		]),
-		Pdf.spacer(12),
-		Pdf.paragraph("Dear Ms Raman,"),
-		Pdf.rich_paragraph([Pdf.text("Subject: "), Pdf.strong([Pdf.text("Extended warranty for your Level 2–5 fit-out")])]),
-	],
-	body,
-	[
-		Pdf.numbered_list({}, terms.map(|term| Pdf.list_item([Pdf.paragraph(term)]))),
-		Pdf.paragraph("The enclosed schedule lists every covered item by product code. Please keep this letter and the schedule with your asset register, so that your team can quote them when lodging a claim by telephone or email."),
-		Pdf.paragraph("If you have any questions about the extension, or would like the November inspection scheduled at a particular time, please call me directly on (03) 5550 0142. We look forward to supporting Northstar Cooperative for many years to come."),
-		Pdf.keep_together([
-			Pdf.paragraph("Yours sincerely,"),
-			Pdf.spacer(36),
-			Pdf.paragraph("Tom Finch"),
-			Pdf.paragraph("Director, Harbour & Finch Pty Ltd"),
-		]),
-		Pdf.paragraph("Enclosure: Schedule 1, covered items"),
-		Pdf.page_break,
-		Pdf.section([Pdf.heading(1, "Schedule 1. Covered items"), schedule]),
-	],
-].join()

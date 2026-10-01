@@ -76,7 +76,7 @@ GALLERY = {
     "letter": ROOT / "examples" / "warranty-letter" / "warranty-letter.pdf",
 }
 
-HEADING_LEADING = 18.0
+HEADING_LEADING = 21.0
 DC_TITLE = re.compile(rb"<dc:title>\s*<rdf:Alt>\s*<rdf:li xml:lang=\"x-default\">([^<]*)</rdf:li>\s*</rdf:Alt>\s*</dc:title>")
 MARKED = re.compile(rb"/[A-Za-z0-9]+ <</MCID (\d+)>> BDC\nq\n1 0 0 1 (-?[0-9.]+) (-?[0-9.]+) cm\n")
 TEXT_SHOW = re.compile(rb"<([0-9A-F]+)> Tj")

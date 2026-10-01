@@ -20,31 +20,33 @@ import pdf.Theme
 ## `layout.custom_block_measure` rather than clipping it. The callout is
 ## `Unsplittable`: it moves whole to the next page.
 ##
-## Its semantic ownership: the lines stay ordinary paragraphs, which the
-## package groups in a `Div`; the tinted rounded panel is decoration
+## Its semantic ownership: each figure stays an ordinary paragraph, its
+## label in `Strong` and its value in plain text, which the package groups
+## in a `Div`; the tinted rounded panel and its accent bar are decoration
 ## owned by the block and painted behind them.
 Callout :: [].{
 
-	## The callout's panel tint and outline.
-	Style : { fill : Color.SourceValue, radius : Layout.Unit, stroke : Color.SourceValue }
+	## The callout's panel tint, outline, and start-edge accent bar.
+	Style : { accent : Color.SourceValue, fill : Color.SourceValue, radius : Layout.Unit, stroke : Color.SourceValue }
 
 	default_style : Style
 	default_style = {
-		fill: Color.srgb8({ blue: 250, green: 244, red: 236 }),
-		radius: Layout.Unit.points(6),
-		stroke: Color.srgb8({ blue: 190, green: 170, red: 150 }),
+		accent: "#183454",
+		fill: "#F7F1E6",
+		radius: 6,
+		stroke: "#DCC69A",
 	}
 
-	## A callout `width` wide holding one paragraph per line.
-	key_figures : Theme, { lines : List(Str), name : Str, width : Layout.Unit } -> Document.Block
-	key_figures = |theme, { lines, name, width }| with_style(theme, default_style, { lines, name, width })
+	## A callout `width` wide holding one paragraph per figure: its label
+	## (with a colon) in `Strong`, then its value.
+	key_figures : Theme, { figures : List((Str, Str)), name : Str, width : Layout.Unit } -> Document.Block
+	key_figures = |theme, { figures, name, width }| with_style(theme, default_style, { figures, name, width })
 
-	with_style : Theme, Style, { lines : List(Str), name : Str, width : Layout.Unit } -> Document.Block
-	with_style = |theme, style, { lines, name, width }| {
-		size = measure(theme, lines.len(), width)
+	with_style : Theme, Style, { figures : List((Str, Str)), name : Str, width : Layout.Unit } -> Document.Block
+	with_style = |theme, style, { figures, name, width }| {
+		size = measure(theme, figures.len(), width)
 		Pdf.custom_block({
-			contents: lines.map(|line| Pdf.paragraph(line)),
-			fragmentation: Unsplittable,
+			contents: figures.map(|(label, value)| Pdf.rich_paragraph([Pdf.strong([Pdf.text("${label}:")]), Pdf.text(" ${value}")])),
 			inset: inset,
 			name,
 			panel: panel(style, size),
@@ -70,7 +72,6 @@ Callout :: [].{
 		size = { height, width }
 		Pdf.custom_block({
 			contents: lines.map(|line| Pdf.paragraph(line)),
-			fragmentation: Unsplittable,
 			inset: inset,
 			name,
 			panel: panel(default_style, size),
@@ -81,10 +82,11 @@ Callout :: [].{
 
 ## Content sits 10 pt inside the panel on every side.
 inset : Layout.Unit
-inset = Layout.Unit.points(10)
+inset = 10
 
 ## A rounded rectangle filling the measured box, with a 1 pt outline kept
-## inside it (the stroke's half width is the path's margin).
+## inside it (the stroke's half width is the path's margin), and a 4 pt
+## accent bar along its start edge between the corners.
 panel : Callout.Style, Layout.Size -> Scene.Drawing
 panel = |style, size| {
 	half = 500
@@ -107,6 +109,8 @@ panel = |style, size| {
 		.cubic_to({ control_1: point(left, bottom + r - k), control_2: point(left + r - k, bottom), end: point(left + r, bottom) })
 		.close()
 		.finish()
+	bar = Scene.PathBuilder.start.rectangle({ origin: point(left, bottom + r), size: { height: Layout.Unit.from_raw(top - bottom - 2 * r), width: 4 } }).finish()
 	Scene.Drawing.empty
-		.path(outline, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: Layout.Unit.points(1) }) })
+		.path(outline, { fill: AuthorSolidFill(style.fill), stroke: AuthorSolidStroke({ color: style.stroke, width: 1 }) })
+		.path(bar, Scene.solid_fill(style.accent))
 }

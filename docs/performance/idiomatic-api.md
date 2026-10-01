@@ -249,14 +249,23 @@ They are within the ceiling and left for a reviewed rebaseline.
 
 ## Deferred
 
-- `Layout.Unit` ordering methods (`is_lt` and the others) and rewriting the
-  internal `.raw() <` comparisons (audit B5).
-- Flattening the `Err(e) => Err(e)` pyramids with `?` (audit B7), which
-  needs allocation evidence for each site.
-- `from_quote` for `"#RRGGBB"` colors (audit A9).
-- Document-level navigation props (`with_outline`, `with_page_templates`,
-  `with_created`, `with_modified`, and `with_page_labels` stay methods), and
-  defaults on `ReportBudget`.
-- The test fixtures were converted mechanically. Many still write explicit
-  `Layout.Unit.points(n)` and spell out default-valued fields. Only the
-  examples were polished to the idiom.
+Closed by the reference-documents upgrade
+([reference-documents-upgrade.md](reference-documents-upgrade.md)), with
+every PDF byte unchanged:
+
+- `Layout.Unit` ordering methods (`is_lt`, `is_lte`, `is_gt`, `is_gte`);
+  the package compares units directly instead of through `.raw()`
+  (two comparisons against raw integers in mixed arithmetic remain).
+- `from_quote` for `"#RRGGBB"` colors: `Color.SourceValue` is a
+  transparent nominal union with a compile-time hex literal.
+- `Pdf.DocumentProps`: a document's outline, page labels, page templates,
+  and timestamps are defaulted fields of `Pdf.document`'s record, and the
+  `Pdf.with_*` navigation aliases are gone (the `Document` methods stay for
+  advanced callers). `Pdf.ReportBudget` has its 65,536-entry and 4 MiB
+  defaults.
+- The test fixtures are converted: literal points instead of
+  `Layout.Unit.points(n)` wherever the value is a literal, and no fields
+  equal to their defaults.
+
+Still deferred: flattening the `Err(e) => Err(e)` pyramids with `?` (audit
+B7), which needs allocation evidence for each site.

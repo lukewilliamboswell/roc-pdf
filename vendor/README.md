@@ -86,12 +86,12 @@ file's own length and digest.
 | Family | Examples | Release archive | Archive SHA-256 |
 | --- | --- | --- | --- |
 | Inter 4.1 | product-brief | [Inter-4.1.zip](https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip) | `9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e` |
-| Literata 3.103 | field-guide | [3.103.zip](https://github.com/googlefonts/literata/releases/download/3.103/3.103.zip) | `f7fb973cafb26cf785cbebaeaf51c18f87c15a3bcf4d82a7d4857564db5b056d` |
+| Literata 3.103 | field-guide, warranty-letter | [3.103.zip](https://github.com/googlefonts/literata/releases/download/3.103/3.103.zip) | `f7fb973cafb26cf785cbebaeaf51c18f87c15a3bcf4d82a7d4857564db5b056d` |
 | Noto Sans 2.015 (hinted) | release-notes | [NotoSans-v2.015.zip](https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSans-v2.015/NotoSans-v2.015.zip) | `0c34df072a3fa7efbb7cbf34950e1f971a4447cffe365d3a359e2d4089b958f5` |
 | Noto Serif 2.015 (hinted) | quarterly-report | [NotoSerif-v2.015.zip](https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSerif-v2.015/NotoSerif-v2.015.zip) | `0e9a43c8a4b94ac76f55069ed1d7385bbcaf6b99527a94deb5619e032b7e76c1` |
 | Public Sans 2.001 | brand-brief | [public-sans-v2.001.zip](https://github.com/uswds/public-sans/releases/download/v2.001/public-sans-v2.001.zip) | `88cacdf7cd03b31af8f1f83e1f51e0eb5a6052565a6c014c90c385f1ff2d13a5` |
-| Source Code Pro 2.042 | brand-brief, chunked-export, operations-handbook, product-brief, release-notes | [TTF-source-code-pro-2.042R-u_1.062R-i.zip](https://github.com/adobe-fonts/source-code-pro/releases/download/2.042R-u%2F1.062R-i%2F1.026R-vf/TTF-source-code-pro-2.042R-u_1.062R-i.zip) (license from the release tag's `LICENSE.md`) | `0c85bac90d15c040b82939aa92bc8404420fccc02e37bbcb9c93a7f21abb52c6` |
-| Source Sans 3 3.052 | operations-handbook | [TTF-source-sans-3.052R.zip](https://github.com/adobe-fonts/source-sans/releases/download/3.052R/TTF-source-sans-3.052R.zip) (license from the `3.052R` tag's `LICENSE.md`) | `1b0dd1ec44b39f1dd98bbd153a1a3815f083639874ddee02c842bd601bad3d21` |
+| Source Code Pro 2.042 | brand-brief, business-report, chunked-export, operations-handbook, product-brief, release-notes | [TTF-source-code-pro-2.042R-u_1.062R-i.zip](https://github.com/adobe-fonts/source-code-pro/releases/download/2.042R-u%2F1.062R-i%2F1.026R-vf/TTF-source-code-pro-2.042R-u_1.062R-i.zip) (license from the release tag's `LICENSE.md`) | `0c85bac90d15c040b82939aa92bc8404420fccc02e37bbcb9c93a7f21abb52c6` |
+| Source Sans 3 3.052 | business-report, operations-handbook, tax-invoice | [TTF-source-sans-3.052R.zip](https://github.com/adobe-fonts/source-sans/releases/download/3.052R/TTF-source-sans-3.052R.zip) (license from the `3.052R` tag's `LICENSE.md`) | `1b0dd1ec44b39f1dd98bbd153a1a3815f083639874ddee02c842bd601bad3d21` |
 
 Earlier selections were narrowed by two package limits that are now lifted:
 the font validator rejected odd-length Macintosh-platform `name` records
