@@ -5,7 +5,7 @@ import pdf.KernelFontPlan
 import pdf.KernelStructure
 import pdf.Semantics
 import pdf.Theme
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
@@ -21,8 +21,8 @@ Fixture :: [].{
 			Font.ValidationLimits.default,
 		) ? |_| EvidenceFailure
 		store = registered.registry.store()
-		theme = Theme.with_font(Theme.default, registered.face)
-		if theme.body_font().index() != registered.face.index() or
+		theme = Theme.{ face: registered.face }
+		if theme.body_font() != registered.face or
 			store.resources.len() != 1 or
 				store.faces.len() != 1 or
 					store.instances.len() != 1 or
@@ -167,9 +167,9 @@ Fixture :: [].{
 			Rejected(_) => return Err(EvidenceFailure)
 		}
 		if plan.face_ranges.len() != 3 or
-			list_at(plan.face_ranges, 0).instance.index() != caller.instance.index() or
-				list_at(plan.face_ranges, 1).instance.index() != cjk.instance.index() or
-					list_at(plan.face_ranges, 2).instance.index() != caller.instance.index() {
+			list_at(plan.face_ranges, 0).instance != caller.instance or
+				list_at(plan.face_ranges, 1).instance != cjk.instance or
+					list_at(plan.face_ranges, 2).instance != caller.instance {
 			return Err(EvidenceFailure)
 		}
 		uncovered = match configured.registry.plan(plan_request(configured.policy, [cluster(0, "Latn", [0x10ffff])])) {
@@ -181,7 +181,7 @@ Fixture :: [].{
 			_ => False
 		}
 		ambiguous = match cjk.registry.with_policy([caller.face, caller.face]) {
-			Err(AmbiguousFace(face)) => face.index() == caller.face.index()
+			Err(AmbiguousFace(face)) => face == caller.face
 			_ => False
 		}
 		invalid = match cjk.registry.with_policy([Font.FaceId.from_index(99)]) {
@@ -328,12 +328,12 @@ expect {
 	result.work.len() == 12
 }
 
-## Invalid caller bytes fail without returning a usable face or registry.
+# Invalid caller bytes fail without returning a usable face or registry.
 expect match Font.Registry.empty.register(
 	List.repeat(0, 12),
 	{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
 	Font.ValidationLimits.default,
 ) {
-	Err(UnsupportedFormat(0)) => Bool.True
-	_ => Bool.False
+	Err(UnsupportedFormat(0)) => True
+	_ => False
 }

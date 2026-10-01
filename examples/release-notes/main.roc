@@ -1,0 +1,509 @@
+app [main!] {
+	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.23.0/GNN5tt2gKdX4dhawg4915C4YB193woHFdcCkz31fhGxv.tar.zst",
+	pdf: "../../package/main.roc",
+}
+import pf.Path
+import pf.Stdout
+import pdf.Color
+import pdf.Document
+import pdf.Font
+import pdf.Layout
+import pdf.Pdf
+import pdf.Scene
+import pdf.Theme
+import "fonts/NotoSans-Regular.ttf" as regular_bytes : List(U8)
+import "fonts/NotoSans-Bold.ttf" as bold_bytes : List(U8)
+import "fonts/SourceCodePro-Regular.ttf" as mono_bytes : List(U8)
+
+## Release notes for a fictional load-testing tool, on US Letter: a
+## decorative version banner spaced from the title, a night-blue
+## highlights callout and a breaking-change callout through the
+## custom-block seam, measured by the package, versioned sections in the
+## outline, change lists with inline code and issue links, a latency
+## chart, a striped compatibility table and a table of changed flags whose
+## empty cells mark a platform or flag a release does not have, and
+## running headers inset above a ruled backdrop and footers.
+main! = |_args| {
+	fonts = register_fonts({})?
+	options : Pdf.Options
+	options = { theme: theme(fonts), fonts: Registered(fonts.registry), page_size: Letter }
+	blocks = contents(options).map_err(|err| PdfFailed(err))?
+	document = Pdf.document({
+		contents: blocks,
+		language: "en-US",
+		title: "Kestrel 3.0 release notes",
+		page_templates: Templates(templates),
+		outline,
+		created: Explicit("2026-09-30T00:00:00Z"),
+		modified: Explicit("2026-09-30T00:00:00Z"),
+	})
+	bytes = Pdf.to_bytes_with(document, options).map_err(|err| PdfFailed(err))?
+	output : Path
+	output = "release-notes.pdf"
+	output.write_bytes!(bytes).map_err(|err| WriteFailed(err))?
+	Stdout.line!("Wrote release-notes.pdf").map_err(|err| OutputFailed(err))?
+	Ok({})
+}
+
+Faces : { regular : Font.FaceId, bold : Font.FaceId, mono : Font.FaceId, registry : Font.Registry }
+
+## Noto Sans Regular and Bold, and Source Code Pro Regular, each retained
+## byte-for-byte from its upstream release in `fonts/` beside this file.
+register_fonts : {} -> Try(Faces, [FontRejected(Font.ResourceError)])
+register_fonts = |_| {
+	latin : List(Font.Script)
+	latin = ["Latn"]
+	add = |registry, bytes| registry.register(bytes, { provision: BuiltIn, scripts: latin }, Font.ValidationLimits.default).map_err(|err| FontRejected(err))
+	regular = add(Font.Registry.empty, regular_bytes)?
+	bold = add(regular.registry, bold_bytes)?
+	mono = add(bold.registry, mono_bytes)?
+	Ok({ regular: regular.face, bold: bold.face, mono: mono.face, registry: mono.registry })
+}
+
+## ---------------------------------------------------------------------
+## Palette and theme. US Letter (612 × 792 pt) with 60 pt side margins: a
+## 492 pt measure.
+
+indigo : Color.SourceValue
+indigo = Color.srgb8({ red: 67, green: 56, blue: 202 })
+
+night : Color.SourceValue
+night = Color.srgb8({ red: 30, green: 27, blue: 75 })
+
+ink : Color.SourceValue
+ink = Color.srgb8({ red: 39, green: 39, blue: 42 })
+
+pink : Color.SourceValue
+pink = Color.srgb8({ red: 190, green: 24, blue: 93 })
+
+lilac : Color.SourceValue
+lilac = Color.srgb8({ red: 199, green: 210, blue: 254 })
+
+haze : Color.SourceValue
+haze = Color.srgb8({ red: 212, green: 212, blue: 216 })
+
+measure : I64
+measure = 492
+
+## US Letter with 60 pt side margins. Regular for body text; Bold for the
+## title, the first two heading levels, and `Pdf.strong`; the monospace
+## face for `Pdf.code`, at 88% of the text around it.
+theme : Faces -> Theme
+theme = |faces| {
+	face: faces.regular,
+	body: { color: ink, size: 10, leading: 15 },
+	title: { color: night, face: Face(faces.bold), size: 30, leading: 36 },
+	headings: {
+		all: { color: indigo, size: 15, leading: 21 },
+		h1: Own({ color: night, face: Face(faces.bold), size: 17, leading: 23 }),
+		h2: Own({ color: indigo, face: Face(faces.bold), size: 12, leading: 18 }),
+	},
+	inline: {
+		strong: { font: Face(faces.bold) },
+		emphasis: { color: Themed(indigo) },
+		code: { color: Themed(pink), font: Face(faces.mono), scale: Percent(88) },
+	},
+	page_margin: { top: 48, right: 60, bottom: 46, left: 60 },
+	paragraph_spacing: 7,
+	link: { color: Themed(indigo), underline: Underline({ offset: 1.5, thickness: 0.6 }) },
+	table: {
+		header_color: Themed(indigo),
+		header_fill: Fill(Color.srgb8({ red: 238, green: 242, blue: 255 })),
+		body_fills: { even: Fill(Color.srgb8({ red: 248, green: 248, blue: 250 })) },
+		cell_padding: 5,
+		row_gap: 2,
+		rule: Rule({ color: haze, width: 0.7 }),
+	},
+}
+
+## ---------------------------------------------------------------------
+## Running furniture.
+
+page_of : Pdf.Inline
+page_of = Pdf.reserved_width(72, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+
+footer : Pdf.Region
+footer = Pdf.region({
+	height: 16,
+	start: [Pdf.furniture_text([Pdf.text("kestrel.example/releases/3.0.0")])],
+	end: [Pdf.furniture_text([page_of])],
+})
+
+header_mark : Scene.Drawing
+header_mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 8, 8), indigo).rectangle(Layout.rect(10, 0, 8, 8), pink)
+
+templates : { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
+templates = {
+	first: Pdf.first_page_template({ footer, gap: 14 }),
+	continuation: Pdf.page_template({
+		header: Pdf.region({ height: 19, start: [Pdf.furniture_text([Pdf.text("Kestrel 3.0 release notes")])], end: [Pdf.furniture_image(Scene.Drawing.empty.group(Layout.point(0, 4), header_mark))], backdrop: Backdrop(Scene.Drawing.empty.rectangle({ origin: Layout.point(0, 0), size: { height: 0.6, width: Layout.Unit.points(measure) } }, haze)), slot_inset: 3 }),
+		footer,
+		gap: 16,
+	}),
+}
+
+outline : List(Document.OutlineEntry)
+outline = [
+	{ depth: 0, destination: "highlights", open: True, title: "Highlights" },
+	{ depth: 0, destination: "v3-0-0", open: True, title: "3.0.0 (30 September 2026)" },
+	{ depth: 1, destination: "breaking", open: True, title: "Breaking changes" },
+	{ depth: 1, destination: "added", open: True, title: "Added" },
+	{ depth: 1, destination: "fixed", open: True, title: "Fixed" },
+	{ depth: 1, destination: "deprecated", open: True, title: "Deprecated" },
+	{ depth: 1, destination: "known-issues", open: True, title: "Known issues" },
+	{ depth: 0, destination: "compatibility", open: True, title: "Compatibility" },
+	{ depth: 0, destination: "upgrading", open: True, title: "Upgrading from 2.x" },
+	{ depth: 0, destination: "v2-9-2", open: True, title: "2.9.2 (12 August 2026)" },
+	{ depth: 0, destination: "v2-9-1", open: True, title: "2.9.1 (29 July 2026)" },
+	{ depth: 0, destination: "thanks", open: True, title: "Thanks" },
+]
+
+## ---------------------------------------------------------------------
+## Callouts: the custom-block pattern of tests/custom_block/Callout.roc.
+## The package measures each callout's paragraphs at the panel's content
+## width, so they may wrap. The panel is a rounded tint with a thicker top
+## rule; the highlights sit in white on the banner's night blue.
+
+CalloutStyle : { accent : Color.SourceValue, fill : Color.SourceValue, label : Color.SourceValue, text : Color.SourceValue }
+
+highlight_style : CalloutStyle
+highlight_style = { accent: pink, fill: night, label: lilac, text: Color.srgb8({ red: 255, green: 255, blue: 255 }) }
+
+breaking_style : CalloutStyle
+breaking_style = { accent: pink, fill: Color.srgb8({ red: 253, green: 242, blue: 248 }), label: pink, text: ink }
+
+callout_inset : Layout.Unit
+callout_inset = 14
+
+## Each callout is scoped so its `Strong` labels take its label colour
+## and its text and code its text colour.
+callout : Pdf.Options, Str, CalloutStyle, List(Document.Block) -> Try(Document.Block, Pdf.Error)
+callout = |options, name, style, paragraphs| {
+	content = Pdf.measure_custom_content(options, { contents: paragraphs, language: "en-US", width: Layout.Unit.points(measure - 28) })?
+	size = { height: Layout.Unit.from_raw(content.raw() + 2 * callout_inset.raw()), width: Layout.Unit.points(measure) }
+	block = Pdf.custom_block({ contents: paragraphs, inset: callout_inset, name, panel: callout_panel(style, size), size })
+	scope = Theme.Scope.{ strong: Themed(style.label), text: Themed(style.text) }
+	Ok(Pdf.scoped(if style.text == ink scope else { ..scope, code: Themed(style.label) }, [block]))
+}
+
+## A rounded panel with a 3 pt accent along its top edge.
+callout_panel : CalloutStyle, Layout.Size -> Scene.Drawing
+callout_panel = |style, size| {
+	r = 6000
+	k = r * 552 // 1000
+	right = size.width.raw()
+	top = size.height.raw()
+	point = |x, y| { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }
+	body = Scene.PathBuilder.start
+		.move_to(point(r, 0))
+		.line_to(point(right - r, 0))
+		.cubic_to({ control_1: point(right - r + k, 0), control_2: point(right, r - k), end: point(right, r) })
+		.line_to(point(right, top - r))
+		.cubic_to({ control_1: point(right, top - r + k), control_2: point(right - r + k, top), end: point(right - r, top) })
+		.line_to(point(r, top))
+		.cubic_to({ control_1: point(r - k, top), control_2: point(0, top - r + k), end: point(0, top - r) })
+		.line_to(point(0, r))
+		.cubic_to({ control_1: point(0, r - k), control_2: point(r - k, 0), end: point(r, 0) })
+		.close()
+		.finish()
+	cap = Scene.PathBuilder.start
+		.move_to(point(0, top - 3000))
+		.line_to(point(0, top - r))
+		.cubic_to({ control_1: point(0, top - r + k), control_2: point(r - k, top), end: point(r, top) })
+		.line_to(point(right - r, top))
+		.cubic_to({ control_1: point(right - r + k, top), control_2: point(right, top - r + k), end: point(right, top - r) })
+		.line_to(point(right, top - 3000))
+		.close()
+		.finish()
+	Scene.Drawing.empty.path(body, Scene.solid_fill(style.fill)).path(cap, Scene.solid_fill(style.accent))
+}
+
+## ---------------------------------------------------------------------
+## The version banner: a night-blue band with a pink edge and a row of
+## release dots. It is decoration; the version is in the title below.
+
+banner : Document.Block
+banner = {
+	# The band keeps 14 pt between itself and the title through its
+	# decoration spacing, not empty drawing area.
+	var $d = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, measure, 64), night)
+	$d = $d.rectangle(Layout.rect(0, 0, 6, 64), pink)
+
+	# Twelve release dots: minor releases in lilac, this major in pink.
+	var $x = 300
+	var $i = 0
+	while $i < 12 {
+		$d = $d.rectangle(Layout.rect($x, 28, 8, 8), if $i == 11 pink else lilac)
+		$x = $x + 15
+		$i = $i + 1
+	}
+	Pdf.decoration({ drawing: $d.rectangle(Layout.rect(300, 22, 173, 1), lilac), below: 14 })
+}
+
+## ---------------------------------------------------------------------
+## Figure 1: p99 latency of the reference scenario by release, as
+## horizontal bars on a light grid (shorter is better).
+
+latency_chart : Scene.Drawing
+latency_chart = {
+	## Milliseconds for 2.8, 2.9, and 3.0, drawn at 0.9 pt per millisecond
+	## from a 44 pt label column, with a grid line every 100 ms.
+	values = [("2.8", 412, haze), ("2.9", 356, lilac), ("3.0", 188, indigo)]
+	left = 44
+	bar = |value| value * 9 // 10
+	var $d = Scene.Drawing.empty
+	for step in [0, 1, 2, 3, 4] {
+		x = left + bar(step * 100)
+		$d = $d.rectangle({ origin: Layout.point(x, 16), size: { height: 118, width: 0.6 } }, haze)
+		$d = $d.text({ align: Center, color: ink, origin: Layout.point(x, 4), size: 7, text: if step == 4 "400 ms" else (step * 100).to_str() })
+	}
+	var $y = 100
+	for (release, value, color) in values {
+		$d = $d.rectangle(Layout.rect(left, $y, bar(value), 24), color)
+		$d = $d.text({ align: End, color: ink, origin: Layout.point(left - 8, $y + 9), size: 9, text: release })
+		$d = $d.text({ align: Start, color: ink, origin: Layout.point(left + bar(value) + 6, $y + 9), size: 8, text: "${value.to_str()} ms" })
+		$y = $y - 36
+	}
+
+	## Arrow from the 2.9 bar end back to the 3.0 bar end: the improvement.
+	end_29 = left + bar(356)
+	end_30 = left + bar(188)
+	$d
+		.path(Scene.PathBuilder.start.move_to(Layout.point(end_29, 76)).line_to(Layout.point(end_29, 52)).line_to(Layout.point(end_30 + 8, 52)).finish(), Scene.solid_stroke(pink, 1.5))
+		.path(Scene.PathBuilder.start.move_to(Layout.point(end_30, 52)).line_to(Layout.point(end_30 + 8, 56)).line_to(Layout.point(end_30 + 8, 48)).close().finish(), Scene.solid_fill(pink))
+		.text_in(Strong, { align: Start, color: pink, origin: Layout.point(end_29 + 6, 60), size: 8, text: "−47%" })
+		.path(Scene.PathBuilder.start.move_to(Layout.point(left, 16)).line_to(Layout.point(measure - 1, 16)).finish(), Scene.solid_stroke(ink, 0.7))
+}
+
+## ---------------------------------------------------------------------
+## Change entries.
+
+issue : U64 -> Pdf.Inline
+issue = |number| Pdf.inline_link([Pdf.emphasis([Pdf.text("#${number.to_str()}")])], "https://github.example/kestrel/kestrel/issues/${number.to_str()}")
+
+change : List(Pdf.Inline), U64 -> Pdf.ListItem
+change = |inlines, number| Pdf.list_item([Pdf.rich_paragraph(inlines.concat([Pdf.text(" ("), issue(number), Pdf.text(")")]))])
+
+## The new version is strong, in the bold face. A release that does not
+## support a platform leaves its cell empty, and a removal is shaded.
+compat_row : Str, Str, Str, Str -> Pdf.Row
+compat_row = |target, old, new, note| Pdf.row([
+	Pdf.header_cell(Row, [Pdf.text(target)]),
+	if old.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.text(old)]),
+	if new.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.strong([Pdf.text(new)])]),
+	if new.is_empty() Pdf.cell([Pdf.text(note)]).shaded(Color.srgb8({ red: 253, green: 242, blue: 248 })) else Pdf.cell([Pdf.text(note)]),
+])
+
+## A 2.x flag or setting and its 3.0 form; a removal with no replacement
+## leaves the 3.0 cell empty.
+flag_row : Str, Str, List(Pdf.Inline) -> Pdf.Row
+flag_row = |old, new, note| Pdf.row([
+	Pdf.header_cell(Row, [Pdf.code(old)]),
+	if new.is_empty() Pdf.cell([]) else Pdf.cell([Pdf.code(new)]),
+	Pdf.cell(note),
+])
+
+flags_table : Document.Block
+flags_table = Pdf.table({
+	caption: Pdf.caption("Table 2. Flags and settings changed in 3.0"),
+	columns: [
+		{ width: Content, align: Start },
+		{ width: Content, align: Start },
+		{ width: Share(1), align: Start },
+	],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("2.x")]),
+			Pdf.header_cell(Column, [Pdf.text("3.0")]),
+			Pdf.header_cell(Column, [Pdf.text("Notes")]),
+		]),
+	],
+	body_rows: [
+		flag_row("--rps 500", "--rate 500/s", [Pdf.text("Units are required; per-minute rates use "), Pdf.code("/m"), Pdf.text(".")]),
+		flag_row("--duration 10m", "duration = \"10m\"", [Pdf.text("Set in the scenario file; the flag still works until 4.0.")]),
+		flag_row("scenario.yaml", "scenario.toml", [Pdf.text("Convert with "), Pdf.code("kestrel migrate"), Pdf.text(".")]),
+		flag_row("--export statsd", "export = \"statsd\"", [Pdf.text("OpenTelemetry is the new default exporter.")]),
+		flag_row("--graphite-host", "", [Pdf.text("Removed with the Graphite exporter.")]),
+		flag_row("--no-seed", "", [Pdf.text("Removed: every run is seeded from "), Pdf.code("kestrel.lock"), Pdf.text(".")]),
+	],
+})
+
+compatibility_table : Document.Block
+compatibility_table = Pdf.table({
+	caption: Pdf.caption("Table 1. Supported platforms and minimum versions"),
+	columns: [
+		{ width: Share(3), align: Start },
+		{ width: Fixed(64), align: Center },
+		{ width: Fixed(64), align: Center },
+		{ width: Share(4), align: Start },
+	],
+	header_rows: [
+		Pdf.row([
+			Pdf.header_cell(Column, [Pdf.text("Platform")]),
+			Pdf.header_cell(Column, [Pdf.text("2.9")]),
+			Pdf.header_cell(Column, [Pdf.text("3.0")]),
+			Pdf.header_cell(Column, [Pdf.text("Notes")]),
+		]),
+	],
+	body_rows: [
+		compat_row("Linux x86-64 (glibc)", "2.28", "2.31", "Ubuntu 20.04, RHEL 9 and later"),
+		compat_row("Linux arm64 (glibc)", "2.28", "2.31", "Graviton and Ampere tested"),
+		compat_row("Linux x86-64 (musl)", "", "1.2", "New static build for containers"),
+		compat_row("macOS arm64", "12", "13", "Ventura and later"),
+		compat_row("macOS x86-64", "12", "", "Removed; use 2.9 LTS"),
+		compat_row("Windows x86-64", "10", "10", "Server 2019 and later"),
+		compat_row("Kubernetes operator", "1.26", "1.28", "Helm chart 5.x"),
+	],
+	footer_rows: [
+		Pdf.row([
+			Pdf.cell([Pdf.text("2.9 LTS receives security fixes until 30 September 2027.")]).aligned(Start).spanning(4),
+		]),
+	],
+})
+
+contents : Pdf.Options -> Try(List(Document.Block), Pdf.Error)
+contents = |options| Ok([
+	banner,
+	Pdf.title("Kestrel 3.0 release notes"),
+	Pdf.rich_paragraph([
+		Pdf.text("Released 30 September 2026 · "),
+		Pdf.inline_link([Pdf.emphasis([Pdf.text("Download")])], "https://kestrel.example/download/3.0.0"),
+		Pdf.text(" · "),
+		Pdf.inline_link([Pdf.emphasis([Pdf.text("Full changelog")])], "https://github.example/kestrel/kestrel/compare/v2.9.2...v3.0.0"),
+		Pdf.text(" · "),
+		Pdf.inline_internal_link([Pdf.emphasis([Pdf.text("Upgrade guide")])], "upgrading"),
+	]),
+	Pdf.section([
+		Pdf.destination_heading("highlights", 1, "Highlights"),
+		Pdf.rich_paragraph([
+			Pdf.text("Kestrel 3.0 is the first major release in two years. It replaces the scenario engine, halves tail latency under load, and makes every run reproducible from a single "),
+			Pdf.code("kestrel.lock"),
+			Pdf.text(" file."),
+		]),
+		callout(
+			options,
+			"Highlights",
+			highlight_style,
+			[
+				Pdf.rich_paragraph([Pdf.strong([Pdf.text("47% lower p99 latency")]), Pdf.text(" in the reference scenario, from 356 ms to 188 ms.")]),
+				Pdf.rich_paragraph([Pdf.strong([Pdf.text("Reproducible runs")]), Pdf.text(": seeds, versions, and targets are pinned in "), Pdf.code("kestrel.lock"), Pdf.text(".")]),
+				Pdf.rich_paragraph([Pdf.strong([Pdf.text("Scenario files in TOML")]), Pdf.text(", checked by "), Pdf.code("kestrel check"), Pdf.text(" before a run starts.")]),
+			],
+		)?,
+		Pdf.figure({ drawing: latency_chart, alt: "Horizontal bar chart of p99 latency in the reference scenario: 412 ms in 2.8, 356 ms in 2.9, and 188 ms in 3.0. An arrow marks the 47% reduction from 2.9 to 3.0.", caption: Pdf.caption("Figure 1. p99 latency in the reference scenario for 2.8, 2.9, and 3.0 (shorter is better)") }),
+	]),
+	Pdf.section([
+		Pdf.destination_heading("v3-0-0", 1, "3.0.0 · 30 September 2026"),
+		Pdf.section([
+			Pdf.destination_heading("breaking", 2, "Breaking changes"),
+			callout(
+				options,
+				"Breaking changes",
+				breaking_style,
+				[
+					Pdf.rich_paragraph([Pdf.strong([Pdf.text("Action required.")]), Pdf.text(" YAML scenarios no longer load. Convert them before upgrading:")]),
+					Pdf.rich_paragraph([Pdf.code("kestrel migrate scenarios/ --to toml --write")]),
+				],
+			)?,
+			Pdf.bullet_list([
+				change([Pdf.text("Scenario files are TOML; "), Pdf.code("kestrel migrate"), Pdf.text(" converts YAML files in place.")], 2210),
+				change([Pdf.text("The "), Pdf.code("--rps"), Pdf.text(" flag is now "), Pdf.code("--rate"), Pdf.text(" and accepts units such as "), Pdf.code("500/s"), Pdf.text(".")], 2187),
+				change([Pdf.text("Metrics are exported as OpenTelemetry by default; set "), Pdf.code("export = \"statsd\""), Pdf.text(" to keep the old format.")], 2143),
+				change([Pdf.text("macOS on Intel is no longer supported; the 2.9 LTS line remains available.")], 2231),
+			]),
+		]),
+		Pdf.section([
+			Pdf.destination_heading("added", 2, "Added"),
+			Pdf.bullet_list([
+				change([Pdf.code("kestrel.lock"), Pdf.text(" pins the random seed, target versions, and plugin hashes for every run.")], 2102),
+				change([Pdf.code("kestrel check"), Pdf.text(" validates scenarios, including unreachable steps and unused variables.")], 2125),
+				Pdf.list_item([
+					Pdf.rich_paragraph([Pdf.text("New open-loop arrival models:")]),
+					Pdf.bullet_list([
+						change([Pdf.code("poisson"), Pdf.text(" for independent arrivals;")], 2166),
+						change([Pdf.code("ramp"), Pdf.text(" and "), Pdf.code("step"), Pdf.text(" for capacity searches.")], 2167),
+					]),
+				]),
+				change([Pdf.text("A static musl build for minimal container images.")], 2198),
+				change([Pdf.text("Live terminal dashboard, enabled with "), Pdf.code("--watch"), Pdf.text(".")], 2204),
+			]),
+		]),
+		Pdf.section([
+			Pdf.destination_heading("fixed", 2, "Fixed"),
+			Pdf.bullet_list([
+				change([Pdf.text("Coordinated omission no longer hides stalls longer than the sampling interval.")], 2091),
+				change([Pdf.text("HTTP/2 connections are reused across scenario steps instead of per step.")], 2118),
+				change([Pdf.text("Reports keep their percentile order when a run is interrupted with "), Pdf.code("Ctrl-C"), Pdf.text(".")], 2150),
+			]),
+		]),
+		Pdf.section([
+			Pdf.destination_heading("deprecated", 2, "Deprecated"),
+			Pdf.bullet_list([
+				change([Pdf.text("The "), Pdf.code("--duration"), Pdf.text(" flag; set "), Pdf.code("duration"), Pdf.text(" in the scenario file instead. Removal is planned for 4.0.")], 2215),
+				change([Pdf.text("The Graphite exporter, in favour of OpenTelemetry.")], 2144),
+			]),
+		]),
+		Pdf.section([
+			Pdf.destination_heading("known-issues", 2, "Known issues"),
+			Pdf.bullet_list([
+				change([Pdf.text("The live dashboard flickers in terminals narrower than 80 columns.")], 2240),
+				change([Pdf.code("kestrel migrate"), Pdf.text(" drops YAML comments; review converted files before committing them.")], 2236),
+			]),
+		]),
+	]),
+	Pdf.section([
+		Pdf.destination_heading("compatibility", 1, "Compatibility"),
+		Pdf.paragraph("Kestrel 3.0 raises the minimum versions on most platforms. Check Table 1 before you upgrade agents on older hosts."),
+		compatibility_table,
+	]),
+	Pdf.section([
+		Pdf.destination_heading("upgrading", 1, "Upgrading from 2.x"),
+		Pdf.keep_together([
+			Pdf.numbered_list(
+				{},
+				[
+					Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Upgrade to 2.9.2 first and run your suite once; it warns about every deprecated flag.")])]),
+					Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Convert scenarios with "), Pdf.code("kestrel migrate scenarios/ --to toml --write"), Pdf.text(".")])]),
+					Pdf.list_item([Pdf.rich_paragraph([Pdf.text("Install 3.0 and run "), Pdf.code("kestrel check"), Pdf.text(" on every converted scenario.")])]),
+					Pdf.list_item([
+						Pdf.rich_paragraph([Pdf.text("Run once to create "), Pdf.code("kestrel.lock"), Pdf.text(", then commit it beside the scenarios.")]),
+					]),
+				],
+			),
+		]),
+		flags_table,
+		Pdf.rich_paragraph([
+			Pdf.text("Questions are welcome in "),
+			Pdf.inline_link([Pdf.emphasis([Pdf.text("the discussion forum")])], "https://github.example/kestrel/kestrel/discussions"),
+			Pdf.text("."),
+		]),
+	]),
+	Pdf.section([
+		Pdf.destination_heading("v2-9-2", 1, "2.9.2 · 12 August 2026"),
+		Pdf.bullet_list([
+			change([Pdf.text("Warns when a scenario uses a flag removed in 3.0.")], 2176),
+			change([Pdf.text("Fixed a crash when a target returned an empty "), Pdf.code("Content-Type"), Pdf.text(" header.")], 2171),
+		]),
+	]),
+	Pdf.section([
+		Pdf.destination_heading("v2-9-1", 1, "2.9.1 · 29 July 2026"),
+		Pdf.bullet_list([
+			change([Pdf.text("Security: updated the bundled TLS library to address "), Pdf.expansion("CVE-2026-31337", "Common Vulnerabilities and Exposures entry 2026-31337"), Pdf.text(".")], 2160),
+			change([Pdf.text("Histogram buckets above 60 s are no longer merged.")], 2158),
+		]),
+	]),
+	Pdf.section([
+		Pdf.destination_heading("thanks", 1, "Thanks"),
+		Pdf.rich_paragraph([
+			Pdf.text("Kestrel 3.0 includes work from 64 contributors, 23 of them new. Special thanks to "),
+			Pdf.strong([Pdf.text("Amara Okafor")]),
+			Pdf.text(" for the arrival models, "),
+			Pdf.strong([Pdf.text("Tomás Ribeiro")]),
+			Pdf.text(" for the TOML migration, and "),
+			Pdf.strong([Pdf.text("Yuki Tanaka")]),
+			Pdf.text(" for the coordinated-omission fix. Kestrel is released under the "),
+			Pdf.expansion("MPL-2.0", "Mozilla Public License, version 2.0"),
+			Pdf.text("."),
+		]),
+	]),
+])

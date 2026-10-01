@@ -1,13 +1,16 @@
 import pdf.Color
 import pdf.Document
+import pdf.Font
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "../../examples/tax-invoice/fonts/SourceSans3-Regular.ttf" as regular_bytes : List(U8)
+import "../../examples/tax-invoice/fonts/SourceSans3-Bold.ttf" as bold_bytes : List(U8)
 
 ## The reference multi-page tax invoice (docs/reference-documents.md),
 ## authored through the public `Pdf` constructors exactly as
-## `examples/prepared_invoice.roc` authors it, with the knobs its adverse
+## `examples/tax-invoice/main.roc` authors it, with the knobs its adverse
 ## variants change. `ordinary` produces the gallery invoice byte for byte.
 Invoice :: [].{
 	Arrangement : [Ordinary, KeepItemsWithPayment, BreakInsideKeep]
@@ -23,23 +26,39 @@ Invoice :: [].{
 		totals : Bool,
 	}
 
+	Faces : { bold : Font.FaceId, regular : Font.FaceId, registry : Font.Registry }
+
 	ordinary : Config
 	ordinary = {
 		arrangement: Ordinary,
 		bill_to: ["Northstar Cooperative Ltd", "Attn: Accounts Payable", "42 Kestrel Parade", "Fremantle WA 6160"],
 		columns: item_columns,
-		field_width: 64,
+		field_width: 50,
 		row: item_row,
 		row_split: KeepRows,
 		rows: 32,
 		totals: True,
 	}
 
-	theme : Theme
+	## Source Sans 3 Regular and Bold, each retained byte-for-byte from its
+	## upstream release in `examples/tax-invoice/fonts/`. `guard` is a
+	## runtime zero, so registration runs when the case runs and never at
+	## compile time.
+	register : U64 -> Try(Faces, [RegistrationFailed])
+	register = |guard| {
+		limits = Font.ValidationLimits.make({ max_bytes: 2000000 + guard, max_cmap_mappings: 1200000, max_glyphs: 65535, max_tables: 128 })
+		latin : List(Font.Script)
+		latin = ["Latn"]
+		regular = Font.Registry.empty.register(regular_bytes, { provision: BuiltIn, scripts: latin }, limits) ? |_| RegistrationFailed
+		bold = regular.registry.register(bold_bytes, { provision: BuiltIn, scripts: latin }, limits) ? |_| RegistrationFailed
+		Ok({ bold: bold.face, regular: regular.face, registry: bold.registry })
+	}
+
+	theme : Faces -> Theme
 	theme = invoice_theme
 
-	options : Pdf.Options
-	options = Pdf.Options.default.with_theme(invoice_theme)
+	options : Faces -> Pdf.Options
+	options = |faces| { theme: invoice_theme(faces), fonts: Registered(faces.registry) }
 
 	## Body row `index`: the eight products once per fit-out site.
 	item_row : U64 -> Pdf.Row
@@ -83,67 +102,109 @@ Invoice :: [].{
 			BreakInsideKeep => [supplier_block, Pdf.title("Tax invoice"), details_table]
 			_ => [supplier_block, Pdf.title("Tax invoice"), details_table, bill_to_section(config.bill_to)]
 		}
-		Pdf.document({ contents: head.concat(tail), language: "en-AU", title: "Tax invoice HF-2026-0417 — Harbour & Finch Pty Ltd" })
-			.with_page_templates(templates(config.field_width))
-			.with_created("2026-09-14T00:00:00Z")
-			.with_modified("2026-09-14T00:00:00Z")
+		Pdf.document({
+			contents: head.concat(tail),
+			language: "en-AU",
+			title: "Tax invoice HF-2026-0417 — Harbour & Finch Pty Ltd",
+			page_templates: Templates(templates(config.field_width)),
+			created: Explicit("2026-09-14T00:00:00Z"),
+			modified: Explicit("2026-09-14T00:00:00Z"),
+		})
 	}
 }
 
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
-
 navy : Color.SourceValue
-navy = Color.srgb8({ red: 24, green: 52, blue: 84 })
+navy = "#183454"
 
 brass : Color.SourceValue
-brass = Color.srgb8({ red: 196, green: 150, blue: 64 })
+brass = "#C49640"
 
-invoice_theme : Theme
-invoice_theme = Theme.default
-	.with_page_margin({ top: points(48), right: points(56), bottom: points(48), left: points(56) })
-	.with_title_color(navy)
-	.with_heading_color(navy)
-	.with_strong_color(navy)
+ink : Color.SourceValue
+ink = "#22282F"
 
+## A4 with 48 pt top and bottom and 56 pt side margins: a 483 × 746 pt
+## body. Regular for body text; Bold for the title, headings, and
+## `Pdf.strong`. Column headers are white on navy, the body rows are
+## striped and ruled, and the totals sit on a brass tint.
+invoice_theme : Invoice.Faces -> Theme
+invoice_theme = |faces| {
+	face: faces.regular,
+	body: { color: ink, size: 10.5, leading: 13.5 },
+	title: { color: navy, face: Face(faces.bold), size: 26, leading: 32 },
+	headings: { all: { color: navy, face: Face(faces.bold), size: 13, leading: 18 } },
+	inline: { strong: { color: Themed(navy), font: Face(faces.bold) } },
+	page_margin: { top: 48, right: 56, bottom: 48, left: 56 },
+	paragraph_spacing: 6,
+	link: { color: Themed("#1F6F8B"), underline: Underline({ offset: 1.5, thickness: 0.5 }) },
+	table: {
+		header_color: Themed("#FFFFFF"),
+		header_fill: Fill(navy),
+		row_header_color: Themed(navy),
+		body_fills: { even: Fill("#F2F5F8") },
+		body_rule: Rule({ color: "#DCE2E9", width: 0.5 }),
+		footer_fill: Fill("#F7EFE0"),
+		rule: Rule({ color: brass, width: 1 }),
+		cell_padding: 5,
+		row_gap: 3,
+	},
+}
+
+## The Harbour & Finch mark, 132 × 44 pt: a navy tile holding a brass
+## finch's wing, beside three navy bars.
 logo : Scene.Drawing
 logo = {
-	wing = Scene.path({})
+	wing = Scene.PathBuilder.start
 		.move_to(Layout.point(8, 12))
 		.cubic_to({ control_1: Layout.point(16, 34), control_2: Layout.point(30, 38), end: Layout.point(38, 36) })
 		.cubic_to({ control_1: Layout.point(30, 30), control_2: Layout.point(22, 20), end: Layout.point(8, 12) })
 		.close()
 		.finish()
-	tile = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 44, 44), navy).path(wing, Scene.solid_fill(brass))
-	bars = Scene.rectangle(Scene.rectangle(tile, Layout.rect(54, 28, 78, 8), navy), Layout.rect(54, 16, 60, 6), navy)
-	Scene.rectangle(bars, Layout.rect(54, 6, 40, 4), brass)
+	tile = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 44, 44), navy).path(wing, Scene.solid_fill(brass))
+	bars = tile.rectangle(Layout.rect(54, 28, 78, 8), navy).rectangle(Layout.rect(54, 16, 60, 6), navy)
+	bars.rectangle(Layout.rect(54, 6, 40, 4), brass)
 }
 
-## `Page N of M` end-aligned in `width` points: 64 pt holds one-digit
-## totals (`Page 9 of 9` is 60.0 pt) and 80 pt two-digit ones.
-page_of : I64 -> Pdf.Inline
-page_of = |width| Pdf.reserved_width(points(width), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+## The first page's header rule: a 2 pt navy band over a 1 pt brass
+## keyline, the full 483 pt width, along the region's bottom edge.
+masthead_rule : Scene.Drawing
+masthead_rule = Scene.Drawing.empty.rectangle(Layout.rect(0, 3, 483, 2), navy).rectangle(Layout.rect(0, 0, 483, 1), brass)
 
+## A 0.6 pt hairline the full width of the body, `y` points up.
+hairline : I64 -> Scene.Drawing
+hairline = |y| Scene.Drawing.empty.rectangle({ origin: Layout.point(0, y), size: { height: 0.6, width: 483 } }, "#B8C2CE")
+
+## `Page N of M` end-aligned in `width` points: in Source Sans 3 at
+## 10.5 pt, 50 pt holds one-digit totals (`Page 9 of 9` is 47.229 pt) and
+## 60 pt two-digit ones (`Page 24 of 24` is 57.666 pt).
+page_of : I64 -> Pdf.Inline
+page_of = |width| Pdf.reserved_width(Layout.Unit.points(width), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+
+## The footer hangs 4 pt below a hairline at its top edge.
 footer : I64 -> Pdf.Region
 footer = |width| Pdf.region({
-	height: points(16),
+	height: 20,
 	start: [Pdf.furniture_text([Pdf.text("ABN 00 123 456 789 · Tax invoice HF-2026-0417")])],
-	center: [],
 	end: [Pdf.furniture_text([page_of(width)])],
+	backdrop: Backdrop(hairline(19)),
+	slot_inset: 5,
 })
 
 templates : I64 -> { continuation : Pdf.PageTemplate, first : Pdf.FirstPageTemplate }
 templates = |width| {
 	first: Pdf.first_page_template({
-		header: Pdf.region({ height: points(44), start: [Pdf.furniture_image(logo)], center: [], end: [] }),
-		lead: Pdf.no_lead,
+		header: Pdf.region({ height: 54, start: [Pdf.furniture_image(logo)], backdrop: Backdrop(masthead_rule), slot_inset: 10 }),
 		footer: footer(width),
-		gap: points(12),
+		gap: 14,
 	}),
 	continuation: Pdf.page_template({
-		header: Pdf.region({ height: points(16), start: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd — Tax invoice HF-2026-0417 (continued)")])], center: [], end: [] }),
+		header: Pdf.region({
+			height: 21,
+			start: [Pdf.furniture_text([Pdf.text("Harbour & Finch Pty Ltd — Tax invoice HF-2026-0417 (continued)")])],
+			backdrop: Backdrop(hairline(0)),
+			slot_inset: 4,
+		}),
 		footer: footer(width),
-		gap: points(12),
+		gap: 14,
 	}),
 }
 
@@ -173,13 +234,13 @@ item_columns : List(Pdf.Column)
 item_columns = [
 	{ width: Content, align: Start },
 	{ width: Share(1), align: Start },
-	{ width: Fixed(points(36)), align: End },
-	{ width: Fixed(points(72)), align: End },
-	{ width: Fixed(points(80)), align: End },
+	{ width: Fixed(36), align: End },
+	{ width: Fixed(72), align: End },
+	{ width: Fixed(80), align: End },
 ]
 
 total_row : Str, List(Pdf.Inline) -> Pdf.Row
-total_row = |label, amount| Pdf.row([Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text(label)]))), Pdf.cell(amount)])
+total_row = |label, amount| Pdf.row([Pdf.header_cell(Row, [Pdf.text(label)]).spanning(4).aligned(End), Pdf.cell(amount)])
 
 detail_row : Str, Str -> Pdf.Row
 detail_row = |label, value| Pdf.row([Pdf.header_cell(Row, [Pdf.text(label)]), Pdf.cell([Pdf.text(value)])])
@@ -202,15 +263,12 @@ details_table : Document.Block
 details_table = Pdf.table({
 	caption: Pdf.no_caption,
 	columns: [{ width: Content, align: Start }, { width: Share(1), align: Start }],
-	header_rows: [],
 	body_rows: [
 		detail_row("Invoice number", "HF-2026-0417"),
 		detail_row("Issue date", "14 September 2026"),
 		detail_row("Due date", "14 October 2026"),
 		detail_row("Customer reference", "PO 88213"),
 	],
-	footer_rows: [],
-	row_split: KeepRows,
 })
 
 ## The Bill-to section: one paragraph with a line break between lines.

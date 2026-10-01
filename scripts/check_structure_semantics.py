@@ -43,6 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from pdf_layout import LayoutError, twin as layout_twin  # noqa: E402
 from check_pdf_structure import (  # noqa: E402
     ValidationError,
     indirect_length,
@@ -68,6 +69,7 @@ SNAPSHOTS = {
     "figure_sections": ROOT / "tests" / "flow_figures" / "sections_10.pdf",
     "custom_blocks": ROOT / "tests" / "custom_block" / "callouts_10.pdf",
     "inline_roles": ROOT / "tests" / "rich_inline" / "mixed.pdf",
+    "empty_cells": ROOT / "tests" / "tables" / "empty_cells_40.pdf",
 }
 
 VERAPDF_JAR_GLOB = ".roc-pdf-tmp/extended-tools/verapdf/bin/cli-*.jar"
@@ -215,8 +217,13 @@ class Parser:
             while True:
                 byte = data[self.at]
                 if byte == ord("\\"):
-                    out.append(data[self.at + 1])
-                    self.at += 2
+                    escaped = data[self.at + 1 : self.at + 4]
+                    if re.fullmatch(rb"[0-7]{3}", escaped) is not None:
+                        out.append(int(escaped, 8))
+                        self.at += 4
+                    else:
+                        out.append(data[self.at + 1])
+                        self.at += 2
                     continue
                 if byte == ord("("):
                     depth += 1
@@ -387,7 +394,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
         require(number not in visited, f"structure element {number} is reachable twice")
         visited.add(number)
         element = document.get(number)
-        require(element.get("Type") == "StructElem", f"object {number} is not a StructElem")
+        require(element.get("Type", "StructElem") == "StructElem" and "S" in element, f"object {number} is not a StructElem")
         require(int(element["P"]) == parent, f"structure element {number} /P does not name its parent")
         require(int(element["NS"]) in namespaces, "structure element namespace is not declared")
         role = str(element["S"])
@@ -421,9 +428,9 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
             facts.append(f"ID={identifier.decode('latin-1')}")
         if "A" in element:
             facts.append("A=" + normalize_attributes(element["A"], role))
-        children = element.get("K", [])
-        if not isinstance(children, list):
-            children = [children]
+        if "Pg" in element:
+            require(int(element["Pg"]) in page_index, "structure element /Pg is not a page")
+        children = element_children(document, element)
         leaves: list[str] = []
         limited_seen: set[str] = set()
         child_roles: list[str] = []
@@ -523,7 +530,7 @@ def check_structure_semantics(pdf: bytes, dimensions: dict[str, int] | None = No
             for target in filter(None, match.group(1).split(",")):
                 require(target.encode("latin-1") in identifiers, f"/Headers names unknown element identifier {target}")
 
-    check_tables(document, visited, identifiers, pages, page_index)
+    check_tables(document, visited, identifiers, pages, page_index, dimensions)
     check_furniture(furniture_by_page(document, pages), dimensions)
     check_figures(document, visited, pages, page_index, dimensions)
     check_custom_blocks(document, visited, pages, dimensions)
@@ -556,7 +563,7 @@ def furniture_by_page(document: Document, pages: list[int]) -> list[list[tuple[s
             body = match.group(2)
             text: list[str] = []
             current: dict[int, str] | None = None
-            for token in re.finditer(rb"/([A-Za-z0-9_]+) [0-9.]+ Tf|<([0-9A-Fa-f]*)> Tj", body):
+            for token in re.finditer(rb"/([A-Za-z0-9_]+) [0-9.]+ Tf|<([0-9A-Fa-f]*)> Tj|\[((?:<[0-9A-Fa-f]*>|-?[0-9.]+| )*)\] TJ", body):
                 if token.group(1) is not None:
                     name = token.group(1).decode("latin-1")
                     require(name in fonts, f"furniture selects an undeclared font /{name}")
@@ -566,7 +573,8 @@ def furniture_by_page(document: Document, pages: list[int]) -> list[list[tuple[s
                     current = decoders[number]
                 else:
                     require(current is not None, "furniture text is shown before a font is selected")
-                    string = bytes.fromhex(token.group(2).decode())
+                    hex_text = token.group(2) if token.group(2) is not None else b"".join(re.findall(rb"<([0-9A-Fa-f]*)>", token.group(3)))
+                    string = bytes.fromhex(hex_text.decode())
                     for index in range(0, len(string), 2):
                         cid = int.from_bytes(string[index : index + 2], "big")
                         require(cid in current, f"furniture CID {cid} has no ToUnicode mapping")
@@ -685,8 +693,19 @@ def table_attributes(element: dict) -> dict:
 
 
 def element_children(document: Document, element: dict) -> list:
+    """The element's /K kids with every bare integer MCID expanded to the
+    marked-content reference it abbreviates: an MCR on the element's /Pg
+    (ISO 32000-2 14.7.5.2)."""
     children = element.get("K", [])
-    return children if isinstance(children, list) else [children]
+    children = children if isinstance(children, list) else [children]
+    expanded = []
+    for child in children:
+        if isinstance(child, int) and not isinstance(child, (bool, Ref)):
+            require("Pg" in element, "a bare MCID kid needs the element's /Pg")
+            expanded.append({"MCID": child, "Pg": element["Pg"], "Type": "MCR"})
+        else:
+            expanded.append(child)
+    return expanded
 
 
 def mcr_pages(document: Document, number: int) -> set[int]:
@@ -703,8 +722,12 @@ def mcr_pages(document: Document, number: int) -> set[int]:
     return found
 
 
-def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int]) -> None:
+def check_tables(document: Document, visited: set[int], identifiers: dict[bytes, int], pages: list[int], page_index: dict[int, int], dimensions: dict[str, int]) -> None:
     """Independent table checks, derived from the bytes alone:
+
+    * an empty cell (a TH or TD authored with no content) is an element
+      with no /K and no /Pg: it owns no marked content, and there are
+      exactly `empty_cells` of them when the case declares the count;
 
     * grid regularity: every row of a table spans the same number of
       columns (the sum of its cells' /ColSpan, default 1), and no cell spans
@@ -717,8 +740,12 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
       continues repaints text inside /Artifact <</Type /Pagination>> marked
       content that carries no MCID.
     """
+    empty_cells = 0
     for number in sorted(visited):
         element = document.get(number)
+        if str(element["S"]) in ("TH", "TD") and not element_children(document, element):
+            require("K" not in element and "Pg" not in element, "an empty table cell carries an empty /K or a /Pg")
+            empty_cells += 1
         if str(element["S"]) == "TH":
             require("Scope" in table_attributes(element), "a TH declares no /Scope")
         headers = table_attributes(element).get("Headers")
@@ -765,6 +792,9 @@ def check_tables(document: Document, visited: set[int], identifiers: dict[bytes,
                 require(b"/MCID" not in body, "a repeated header artifact carries an MCID")
                 repainted = repainted or b"Tj" in body or b"TJ" in body
             require(repainted, f"table continues on page {page_index[page]} without repainting its header rows as a pagination artifact")
+    expected_empty = dimensions.get("empty_cells")
+    if expected_empty is not None:
+        require(empty_cells == expected_empty, f"expected {expected_empty} empty table cells, found {empty_cells}")
 
 
 def normalize_attributes(value, role: str) -> str:
@@ -818,15 +848,17 @@ NESTED_EXPECTED = [
 
 LOWERING_EXPECTED = [
     "Document [Table Alt='A one-row price table' A={O=Table Summary='One priced item with its column header.'} "
-    "[TR [TH ID=hdr-price A={O=Table Scope=Column}, TD Lang=fr ID=cell-price A={Headers=[hdr-price] O=Table} "
+    "[TR [TH ID=hdr-price A={O=Table Scope=Column}, TD Lang=fr A={Headers=[hdr-price] O=Table} "
     "[Span Lang=fr-FR E='Café Portable Document Format' ActualText='Café PDF' [mcid p0:0]]]]]"
 ]
 
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "mutation twins must preserve length")
-    require(value.count(old) >= 1, f"mutation anchor {old!r} is absent")
-    return value.replace(old, new, 1)
+    try:
+        return layout_twin(value, old, new, exactly_once=False)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
 
 
 def independent_table_matches_verapdf() -> str:
@@ -863,26 +895,26 @@ def self_test() -> None:
     check_structure_semantics(SNAPSHOTS["figures"].read_bytes(), {"figure_nodes": 4, "captioned_figures": 3, "scaled_figures": 1, "layout_artifacts": 2})
     mutations = [
         ("figure caption in a transparent Part", figure_sections, b"/S /Sect", b"/S /Part"),
-        ("Figure without /Alt", figure_sections, b"/Alt <", b"/Alz <"),
+        ("Figure without /Alt", figure_sections, b"/Alt ", b"/Alz "),
         ("irregular table grid", table, b"/ColSpan 2", b"/ColSpan 3"),
         ("row span outside the declared subset", table, b"/ColSpan 2", b"/RowSpan 2"),
-        ("/Headers names a TD", table, b"/Headers [<63303030303032> <63303030303035> <63303030303038>]", b"/Headers [<63303030303032> <63303030303035> <63303030303039>]"),
+        ("/Headers names a TD", table, b"/Headers [(c000002) (c000005) (c000008)]", b"/Headers [(c000002) (c000005) (c000009)]"),
         ("illegal containment Document > Span", nested, b"/S /Part ", b"/S /Span "),
         ("illegal containment Sect > LI", nested, b"/S /H1 ", b"/S /LI "),
-        ("content item in L", nested, b"/P 5 0 R /S /P /Type", b"/P 5 0 R /S /L /Type"),
+        ("content item in L", nested, b"/P 5 0 R /Pg 34 0 R /S /P >>", b"/P 5 0 R /Pg 34 0 R /S /L >>"),
         ("DisplayDocTitle false", nested, b"/DisplayDocTitle true", b"/DisplayDocTitle null"),
         ("DisplayDocTitle removed", facade, b"/ViewerPreferences", b"/ViewerPreferencez"),
         ("MarkInfo not marked", facade, b"/Marked true", b"/Marked null"),
         ("page Tabs not /S", facade, b"/Tabs /S", b"/Tabs /R"),
-        ("duplicate MCID reference", nested, b"<< /MCID 1 /Pg", b"<< /MCID 0 /Pg"),
+        ("duplicate MCID reference", nested, b"<< /K [1] /NS", b"<< /K [0] /NS"),
         ("ParentTree row drift", lowering, b"/Nums [0 [10 0 R]]", b"/Nums [0 [ 9 0 R]]"),
-        ("IDTree key without /ID", lowering, b"<63656C6C2D7072696365> 9 0 R", b"<63656C6C2D7072696366> 9 0 R"),
-        ("/Headers names a missing identifier", lowering, b"/Headers [<6864722D7072696365>]", b"/Headers [<6864722D7072696366>]"),
-        ("malformed nested language", lowering, b"/Lang <FEFF00660072>", b"/Lang <FEFF00360072>"),
+        ("IDTree key without /ID", lowering, b"(hdr-price) 8 0 R", b"(hdr-pricf) 8 0 R"),
+        ("/Headers names a missing identifier", lowering, b"/Headers [(hdr-price)]", b"/Headers [(hdr-pricf)]"),
+        ("malformed nested language", lowering, b"/Lang (fr)", b"/Lang (6r)"),
         ("invalid Scope value", lowering, b"/A << /O /Table /Scope /Column >> /ID", b"/A << /O /Table /Scope /Colunn >> /ID"),
         ("labelled list numbered /None", nested, b"/ListNumbering /Disc", b"/ListNumbering /None"),
         ("PDF 1.7 Quote claimed by the PDF 2.0 namespace", inline_roles, b"/NS 5 0 R /P 21 0 R /S /Quote ", b"/NS 4 0 R /P 21 0 R /S /Quote "),
-        ("PDF 2.0 P claimed by the PDF 1.7 namespace", inline_roles, b"/NS 4 0 R /P 6 0 R /S /P ", b"/NS 5 0 R /P 6 0 R /S /P "),
+        ("PDF 2.0 P claimed by the PDF 1.7 namespace", inline_roles, b"/NS 4 0 R /P 6 0 R /Pg 41 0 R /S /P >>", b"/NS 5 0 R /P 6 0 R /Pg 41 0 R /S /P >>"),
     ]
     for label, source, old, new in mutations:
         mutated = replace_once(source, old, new)
@@ -897,9 +929,12 @@ def self_test() -> None:
     callouts = SNAPSHOTS["custom_blocks"].read_bytes()
     callout_dimensions = {"paragraph_divs": 10, "underlays": 10, "layout_artifacts": 10}
     check_structure_semantics(callouts, callout_dimensions)
+    check_structure_semantics(SNAPSHOTS["empty_cells"].read_bytes(), {"empty_cells": 75})
     callout_twins = [
         ("a callout Div that is not a Div", replace_once(callouts, b"/S /Div ", b"/S /Art "), callout_dimensions),
         ("decorations painted after text counted as underlays", figure_sections, {"underlays": 10}),
+        ("a table without empty cells counted as having one", table, {"empty_cells": 1}),
+        ("an empty-cell table with one empty cell uncounted", SNAPSHOTS["empty_cells"].read_bytes(), {"empty_cells": 74}),
     ]
     for label, source, dimensions in callout_twins:
         try:

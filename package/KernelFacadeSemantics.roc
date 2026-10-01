@@ -36,6 +36,7 @@ KernelFacadeSemantics :: [].{
 		DecorationPosition({ decoration : U64 }),
 		EmptyInline({ block : U64, inline : U64 }),
 		EmptyKeep({ group : U64 }),
+		EmptyScope({ group : U64 }),
 		EmptyLanguage,
 		EmptyLinkText({ block : U64, inline : U64 }),
 		EmptyList({ group : U64 }),
@@ -125,7 +126,10 @@ KernelFacadeSemantics :: [].{
 	## generated list label painted on the block's first line, and `level`
 	## the block's list nesting level (zero outside lists), which decides its
 	## indentation.
-	BlockOwnership : [RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
+	## `ContentlessCell` is a table cell authored with no content: its
+	## `TD` or `TH` element owns no occurrence, so no later stage shapes,
+	## lays out, or paints anything for it.
+	BlockOwnership : [ContentlessCell, RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
 
 	## One authored destination declaration: the block's semantic node is the
 	## structure target and its content occurrence is the explicit layout
@@ -140,6 +144,9 @@ KernelFacadeSemantics :: [].{
 	Work : {
 		container_nodes : U64,
 		content_writes : U64,
+
+		## Table cells authored with no content (`Pdf.cell([])`).
+		empty_cells : U64,
 		header_association_edges : U64,
 		inline_elements : U64,
 		inline_leaves : U64,
@@ -205,6 +212,7 @@ Planning : {
 	cell_headers : List(U64),
 	content_count : U64,
 	destinations : List(KernelFacadeSemantics.DestinationRecord),
+	empty_cells : U64,
 	group_nodes : List(U64),
 	header_ranges : List(Semantics.Range),
 	inline_elements : U64,
@@ -253,6 +261,7 @@ build_plan = |authoring, limits| {
 			work: {
 				container_nodes: planning.group_nodes.len(),
 				content_writes: built.store.content_spine.len(),
+				empty_cells: planning.empty_cells,
 				header_association_edges: planning.relationship_count - captioned_figures(authoring.figures),
 				inline_elements: planning.inline_elements,
 				inline_leaves: planning.inline_leaves,
@@ -301,6 +310,7 @@ plan_blocks = |authoring, limits| {
 	var $header_ranges = if authoring.cells.is_empty() [] else List.with_capacity(authoring.cells.len())
 	var $relationship_count = 0
 	var $table_count = 0
+	var $empty_cells = 0
 	var $block_index = 0
 	check_limit($next_node, limits.max_nodes, Nodes)?
 
@@ -327,6 +337,18 @@ plan_blocks = |authoring, limits| {
 					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
 					$next_node = attempted_nodes
 					$content_count = attempted_content
+				}
+				Scope(_) => {
+					if in_item {
+						return Err(ListItemGroup({ group: $next_group }))
+					}
+					if group.first_block >= group.block_end {
+						return Err(EmptyScope({ group: $next_group }))
+					}
+
+					## A scope has no structure element either: it only
+					## recolors inline text inside it.
+					$group_nodes = $group_nodes.append(parent_node(group.parent, $group_nodes).index())
 				}
 				KeepTogether | KeepWithNext(_) => {
 					if in_item {
@@ -415,6 +437,7 @@ plan_blocks = |authoring, limits| {
 					$break_cursor = $break_cursor + planned.breaks
 					$cell_cursor = $cell_cursor + planned.cells
 					$table_count = $table_count + 1
+					$empty_cells = $empty_cells + planned.empty_cells
 					$block_index = group.block_end
 					$next_group = group.group_end - 1
 				}
@@ -468,6 +491,9 @@ plan_blocks = |authoring, limits| {
 				}
 			}
 			match block.kind {
+				EmptyCell => {
+					crash "normalized empty cell escaped its table"
+				}
 				Bullet({ item, list }) => {
 					node_increment = if item == 0 4 else 3
 					content_increment = if item == 0 6 else 5
@@ -694,14 +720,14 @@ plan_blocks = |authoring, limits| {
 	check_layout_items(authoring)?
 	check_customs(authoring)?
 	check_decorations(authoring)?
-	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
+	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
 
 TableCursor : { break_cursor : U64, cell : U64, header_base : U64, node : U64, occurrence : U64 }
 
 TableBuffers : { group_nodes : List(U64), headers : List(U64), links : List(KernelFacadeSemantics.LinkRecord), ranges : List(Semantics.Range), sources : List(Str) }
 
-TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, expansions : U64, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
+TablePlan : { attributes : U64, breaks : U64, buffers : TableBuffers, cells : U64, content : U64, elements : U64, empty_cells : U64, expansions : U64, leaves : U64, nodes : U64, occurrences : U64, relationships : U64 }
 
 ## Validate and count one table in authored order: a table needs columns
 ## and a body row; each cell has non-empty inline content and no row span;
@@ -726,7 +752,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	caption_nodes = if table.caption 2 else 0
 	sections = (if table.header_rows > 0 1 else 0) + 1 + (if table.footer_rows > 0 1 else 0)
 
-	## Fresh table-sized buffers; the caller appends them to its own.
+	# Fresh table-sized buffers; the caller appends them to its own.
 	var $group_nodes = List.with_capacity(group.group_end - group_index).append(at.node)
 	var $headers = []
 	var $links = []
@@ -741,6 +767,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	var $elements = 0
 	var $leaves = 0
 	var $breaks = 0
+	var $empty_cells = 0
 	if table.caption {
 		$sources = $sources.append(list_at(authoring.blocks, group.first_block).text)
 		$occurrences = 1
@@ -754,7 +781,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	while $row_group < group.group_end {
 		row = list_at(authoring.groups, $row_group)
 
-		## A section element precedes its first row.
+		# A section element precedes its first row.
 		if ($row_ordinal == 0 and table.header_rows > 0) or $row_ordinal == table.header_rows or ($row_ordinal == table.header_rows + table.body_rows and table.footer_rows > 0) {
 			$next_node = $next_node + 1
 		}
@@ -773,31 +800,39 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			if record.column_span == 0 {
 				return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
 			}
-			paragraph = match list_at(authoring.blocks, $block).kind {
-				RichParagraph(value) => value
+			match list_at(authoring.blocks, $block).kind {
+
+				## A contentless cell is one element with no source, no
+				## occurrence, and no content of its own.
+				EmptyCell => {
+					$next_node = $next_node + 1
+					$empty_cells = $empty_cells + 1
+				}
+				RichParagraph(paragraph) => {
+					rich = list_at(authoring.rich_paragraphs, paragraph)
+					checked = match check_rich(authoring.inlines, rich, $block, max_depth) {
+						Ok(value) => value
+						Err(EmptyRichParagraph({ block: empty })) => return Err(TableCellEmpty({ block: empty }))
+						Err(error) => return Err(error)
+					}
+					cursor = at.break_cursor + $breaks
+					cell_breaks = paragraph_breaks(authoring.line_breaks, cursor, paragraph)
+					check_breaks(authoring.line_breaks, cursor, cell_breaks, rich, $block)?
+					if checked.links != 0 {
+						$links = append_rich_links($links, authoring.inlines, rich, $next_node, at.occurrence + $occurrences)
+					}
+					$sources = if cell_breaks == 0 $sources.append(list_at(authoring.blocks, $block).text) else append_segment_sources($sources.append(list_at(authoring.blocks, $block).text), authoring.line_breaks, cursor, cell_breaks)
+					$breaks = $breaks + cell_breaks
+					$next_node = $next_node + 1 + rich.elements
+					$content = $content + rich.length
+					$occurrences = $occurrences + rich.leaves
+					$expansions = $expansions + checked.expansions
+					$elements = $elements + rich.elements
+					$leaves = $leaves + rich.leaves
+				}
 				_ => crash "normalized table cell escaped its rich paragraph"
 			}
-			rich = list_at(authoring.rich_paragraphs, paragraph)
-			checked = match check_rich(authoring.inlines, rich, $block, max_depth) {
-				Ok(value) => value
-				Err(EmptyRichParagraph({ block: empty })) => return Err(TableCellEmpty({ block: empty }))
-				Err(error) => return Err(error)
-			}
-			cursor = at.break_cursor + $breaks
-			cell_breaks = paragraph_breaks(authoring.line_breaks, cursor, paragraph)
-			check_breaks(authoring.line_breaks, cursor, cell_breaks, rich, $block)?
-			if checked.links != 0 {
-				$links = append_rich_links($links, authoring.inlines, rich, $next_node, at.occurrence + $occurrences)
-			}
-			$sources = if cell_breaks == 0 $sources.append(list_at(authoring.blocks, $block).text) else append_segment_sources($sources.append(list_at(authoring.blocks, $block).text), authoring.line_breaks, cursor, cell_breaks)
-			$breaks = $breaks + cell_breaks
-			$next_node = $next_node + 1 + rich.elements
-			$content = $content + rich.length
-			$occurrences = $occurrences + rich.leaves
-			$expansions = $expansions + checked.expansions
-			$elements = $elements + rich.elements
-			$leaves = $leaves + rich.leaves
-			$spanned = $spanned + record.column_span
+			$spanned = $spanned + record.column_span.to_u64()
 			if record.column_span > 1 {
 				$attributes = $attributes + 1
 			}
@@ -818,8 +853,8 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			return Err(TableGridMismatch({ columns, group: $row_group, spanned: $spanned }))
 		}
 
-		## Every row's header cells are known before its data cells'
-		## associations are derived; column headers come from earlier rows.
+		# Every row's header cells are known before its data cells'
+		# associations are derived; column headers come from earlier rows.
 		var $column = 0
 		var $index = first_cell
 		while $index < $cell {
@@ -831,7 +866,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 					$headers = if record.column_span == 1 {
 						append_all($headers, list_at($column_headers, $column))
 					} else {
-						append_spanned_headers($headers, $column_headers, $column, record.column_span)
+						append_spanned_headers($headers, $column_headers, $column, record.column_span.to_u64())
 					}
 					$headers = append_all($headers, $row_headers)
 				}
@@ -843,7 +878,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 				$relationships = $relationships + count
 			}
 			$ranges = $ranges.append(Semantics.Range.from_start_and_length(start, count))
-			$column = $column + record.column_span
+			$column = $column + record.column_span.to_u64()
 			$index = $index + 1
 		}
 		$column = 0
@@ -853,14 +888,14 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 			match record.kind {
 				HeaderCell(scope) => if scope != Row {
 					var $spanned_column = $column
-					while $spanned_column < $column + record.column_span {
+					while $spanned_column < $column + record.column_span.to_u64() {
 						$column_headers = list_set($column_headers, $spanned_column, list_at($column_headers, $spanned_column).append($index))
 						$spanned_column = $spanned_column + 1
 					}
 				}
 				DataCell => {}
 			}
-			$column = $column + record.column_span
+			$column = $column + record.column_span.to_u64()
 			$index = $index + 1
 		}
 		$row_ordinal = $row_ordinal + 1
@@ -869,6 +904,12 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 	if !$has_header {
 		return Err(TableHeaderMissing({ group: group_index }))
 	}
+
+	# Empty cells are legal, but a table with no content in any cell
+	# carries nothing.
+	if $leaves == 0 {
+		return Err(TableEmpty({ group: group_index }))
+	}
 	Ok({
 		attributes: $attributes,
 		breaks: $breaks,
@@ -876,6 +917,7 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 		cells: $cell - at.cell,
 		content: $content,
 		elements: $elements,
+		empty_cells: $empty_cells,
 		expansions: $expansions,
 		leaves: $leaves,
 		nodes: $next_node - at.node,
@@ -933,7 +975,7 @@ semantic_code = |groups, code| {
 	while $searching and $code != 0 {
 		group = list_at(groups, $code - 1)
 		match group.kind {
-			KeepTogether | KeepWithNext(_) => {
+			KeepTogether | KeepWithNext(_) | Scope(_) => {
 				$code = group.parent
 			}
 			_ => {
@@ -975,7 +1017,7 @@ check_layout_items = |authoring| {
 		if in_list_item(authoring.groups, spacer.parent) {
 			return Err(ListItemSpacer({ spacer: $index }))
 		}
-		if spacer.amount.raw() < 0 {
+		if spacer.amount < 0 {
 			return Err(NegativeSpacer({ spacer: $index }))
 		}
 		$index = $index + 1
@@ -1061,7 +1103,7 @@ check_customs = |authoring| {
 			return Err(CustomName({ custom: $index }))
 		}
 		inset = custom.inset.raw()
-		if custom.width.raw() <= 0 or custom.height.raw() <= 0 or inset <= 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
+		if custom.width <= 0 or custom.height <= 0 or inset <= 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
 			return Err(CustomMeasure({ custom: $index }))
 		}
 		match custom.panel {
@@ -1266,9 +1308,9 @@ check_breaks = |line_breaks, cursor, count, rich, block| {
 ## grammar. Returns the counts semantic planning reserves.
 check_rich : List(Document.NormalizedInline), Document.NormalizedRich, U64, U64 -> Try({ expansions : U64, links : U64 }, KernelFacadeSemantics.Error)
 check_rich = |inlines, rich, block, max_depth| {
-	## A page field or reserved width in body content is rejected first,
-	## with its inline path; it holds no text, so the emptiness checks
-	## below would otherwise misname it.
+	# A page field or reserved width in body content is rejected first,
+	# with its inline path; it holds no text, so the emptiness checks
+	# below would otherwise misname it.
 	var $scan = rich.inlines
 	while $scan < rich.inlines + rich.length {
 		match list_at(inlines, $scan).kind {
@@ -1482,7 +1524,7 @@ build_store = |authoring, planning, source_plan| {
 				FigureGroup(_) => {
 					$nodes = list_set($nodes, node_index, make_node(node_index, ParentNode(parent_node(group.parent, planning.group_nodes)), container_role(Section), span, Inherited))
 				}
-				KeepTogether | KeepWithNext(_) => {}
+				KeepTogether | KeepWithNext(_) | Scope(_) => {}
 				ItemList(list_index) => {
 					attribute = $attributes.len()
 					$attributes = $attributes.append(list_numbering(list_at(authoring.lists, list_index.to_u64()).marker))
@@ -1519,7 +1561,7 @@ build_store = |authoring, planning, source_plan| {
 				Container(_) | Custom(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
-				KeepTogether | KeepWithNext(_) => {}
+				KeepTogether | KeepWithNext(_) | Scope(_) => {}
 				Table(table_index) => {
 					## The result is destructured in one pattern, so each
 					## accumulator moves out of it: projecting the fields of a
@@ -1582,6 +1624,9 @@ build_store = |authoring, planning, source_plan| {
 			block = list_at(blocks, $index)
 			list_level = block_level(groups, block.parent)
 			match block.kind {
+				EmptyCell => {
+					crash "normalized empty cell escaped its table"
+				}
 				Heading(level) => {
 					role = heading_role(level, $index)?
 					start = $content.len()
@@ -1758,7 +1803,7 @@ build_store = |authoring, planning, source_plan| {
 	}
 	while $next_group < groups.len() {
 		$next_node = match list_at(groups, $next_group).kind {
-			KeepTogether | KeepWithNext(_) | Table(_) | TableRow(_) => $next_node
+			KeepTogether | KeepWithNext(_) | Scope(_) | Table(_) | TableRow(_) => $next_node
 			ListItem(_) => checked_add($next_node, 3)?
 			_ => checked_add($next_node, 1)?
 		}
@@ -1813,9 +1858,9 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		$slot = $slot + 1
 	}
 
-	## A table cell's attributes and identifier are written with its node
-	## here, so the caller never updates a node list it received through
-	## `?` (docs/performance/lowering-uniqueness.md).
+	# A table cell's attributes and identifier are written with its node
+	# here, so the caller never updates a node list it received through
+	# `?` (docs/performance/lowering-uniqueness.md).
 	var $nodes = list_set(buffers.nodes, at.node, { ..make_node(at.node, ParentNode(at.parent), at.role, Semantics.Range.from_start_and_length(base, rich.children), Inherited), attributes: at.attributes, element_identifier: at.element_identifier })
 	var $occurrences = buffers.occurrences
 	var $properties = buffers.properties
@@ -1834,9 +1879,9 @@ place_rich = |buffers, authoring, rich, at, source_plan| {
 		position = owner_spine + record.position
 		match record.kind {
 			Text({ byte_length, byte_start, text: _ }) => {
-				## A leaf after a line break starts the next segment's source.
-				## Validated breaks separate text, so one leaf crosses at most
-				## one break.
+				# A leaf after a line break starts the next segment's source.
+				# Validated breaks separate text, so one leaf crosses at most
+				# one break.
 				if $segment + 1 < at.segments and list_at(authoring.line_breaks, at.breaks + $segment).leaf <= record.first_leaf {
 					$segment = $segment + 1
 					$source_id = list_at(input_sources, at.source_input + $segment)
@@ -1892,7 +1937,8 @@ TablePlaced : { attributes : List(Semantics.StructureAttribute), break_cursor : 
 ## caption's `Caption > P` spans, and for each section its `TR` span followed
 ## by each row's cell span and each cell's rich span. Every cell carries its
 ## generated element identifier (`c` and its six-digit cell ordinal, so
-## identifier order is byte order); a header cell carries `Scope`, a data
+## identifier order is byte order); only identifiers a `/Headers` names lower
+## to `/ID` (`KernelTagged.lowered_identifiers`); a header cell carries `Scope`, a data
 ## cell with associations `Headers` and one `HeaderFor` relationship per
 ## header in the same order, and a spanning cell `ColSpan`. A cell's text is
 ## a rich paragraph owned by its `TH` or `TD` directly.
@@ -1968,26 +2014,22 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 			var $block = row.first_block
 			while $block < row.block_end {
 				$content = $content.append(ChildNode(Semantics.NodeId.from_index($cell_node)))
-				rich = list_at(authoring.rich_paragraphs, rich_index(authoring, $block))
-				$cell_node = $cell_node + 1 + rich.elements
+				$cell_node = $cell_node + 1 + cell_elements(authoring, $block)
 				$block = $block + 1
 			}
 			$nodes = list_set($nodes, row_node, make_node(row_node, ParentNode(Semantics.NodeId.from_index(section_node)), "TR", Semantics.Range.from_start_and_length(row_span, row.block_end - row.first_block), Inherited))
 			$cell_node = row_node + 1
 			$block = row.first_block
 			while $block < row.block_end {
-				paragraph = rich_index(authoring, $block)
-				rich = list_at(authoring.rich_paragraphs, paragraph)
 				ordinal = cell_ordinal(authoring.cells, $block)
 				record = list_at(authoring.cells, ordinal)
-				breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
 				role = match record.kind {
 					HeaderCell(_) => "TH"
 					DataCell => "TD"
 				}
 				attribute_start = $attributes.len()
 				if record.column_span > 1 {
-					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("ColSpan"), owner: Table, value: Integer(record.column_span.to_i64_wrap()) })
+					$attributes = $attributes.append({ applicability: Family(TableRoles), name: Standard("ColSpan"), owner: Table, value: Integer(record.column_span.to_i64()) })
 				}
 				associations = list_at(planning.header_ranges, ordinal)
 				if associations.length() != 0 {
@@ -2007,34 +2049,51 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 					}
 					DataCell => {}
 				}
-				placed = place_rich(
-					{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
-					authoring,
-					rich,
-					{
-						attributes: Semantics.Range.from_start_and_length(attribute_start, $attributes.len() - attribute_start),
-						breaks: $break_cursor,
-						element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)),
-						language: at.language,
-						node: $cell_node,
-						occurrence: $occurrence,
-						parent: Semantics.NodeId.from_index(row_node),
-						role,
-						segments: breaks + 1,
-						source_input: $source_input,
-					},
-					source_plan,
-				)?
-				$content = placed.content
-				$nodes = placed.nodes
-				$occurrences = placed.occurrences
-				$properties = placed.properties
+				cell_attributes = Semantics.Range.from_start_and_length(attribute_start, $attributes.len() - attribute_start)
 				$identifiers = $identifiers.append({ id: Semantics.ElementId.from_index(ordinal), value: cell_identifier(ordinal) })
-				$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.Range.from_start_and_length($occurrence, rich.leaves) }))
-				$occurrence = $occurrence + rich.leaves
-				$source_input = $source_input + breaks + 1
-				$break_cursor = $break_cursor + breaks
-				$cell_node = $cell_node + 1 + rich.elements
+				match list_at(authoring.blocks, $block).kind {
+
+					## A contentless cell's element has no children: it owns
+					## no marked content, so it lowers to a `TD` or `TH`
+					## with no `/K`.
+					EmptyCell => {
+						$nodes = list_set($nodes, $cell_node, { ..make_node($cell_node, ParentNode(Semantics.NodeId.from_index(row_node)), role, Semantics.Range.from_start_and_length($content.len(), 0), Inherited), attributes: cell_attributes, element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)) })
+						$ownership = list_set($ownership, $block, ContentlessCell)
+						$cell_node = $cell_node + 1
+					}
+					RichParagraph(paragraph) => {
+						rich = list_at(authoring.rich_paragraphs, paragraph)
+						breaks = paragraph_breaks(authoring.line_breaks, $break_cursor, paragraph)
+						placed = place_rich(
+							{ content: $content, nodes: $nodes, occurrences: $occurrences, properties: $properties },
+							authoring,
+							rich,
+							{
+								attributes: cell_attributes,
+								breaks: $break_cursor,
+								element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)),
+								language: at.language,
+								node: $cell_node,
+								occurrence: $occurrence,
+								parent: Semantics.NodeId.from_index(row_node),
+								role,
+								segments: breaks + 1,
+								source_input: $source_input,
+							},
+							source_plan,
+						)?
+						$content = placed.content
+						$nodes = placed.nodes
+						$occurrences = placed.occurrences
+						$properties = placed.properties
+						$ownership = list_set($ownership, $block, RichTextBlock({ label: NoLabel, level: 0, occurrences: Semantics.Range.from_start_and_length($occurrence, rich.leaves) }))
+						$occurrence = $occurrence + rich.leaves
+						$source_input = $source_input + breaks + 1
+						$break_cursor = $break_cursor + breaks
+						$cell_node = $cell_node + 1 + rich.elements
+					}
+					_ => crash "normalized table cell escaped its rich paragraph"
+				}
 				$block = $block + 1
 			}
 			$row_group = $row_group + 1
@@ -2061,15 +2120,17 @@ subtree_elements = |authoring, row| {
 	var $count = 0
 	var $block = row.first_block
 	while $block < row.block_end {
-		$count = $count + 1 + list_at(authoring.rich_paragraphs, rich_index(authoring, $block)).elements
+		$count = $count + 1 + cell_elements(authoring, $block)
 		$block = $block + 1
 	}
 	$count
 }
 
-rich_index : Document.NormalizedAuthoring, U64 -> U64
-rich_index = |authoring, block| match list_at(authoring.blocks, block).kind {
-	RichParagraph(value) => value
+## The inline elements below cell leaf `block`: none for a contentless cell.
+cell_elements : Document.NormalizedAuthoring, U64 -> U64
+cell_elements = |authoring, block| match list_at(authoring.blocks, block).kind {
+	RichParagraph(value) => list_at(authoring.rich_paragraphs, value).elements
+	EmptyCell => 0
 	_ => crash "normalized table cell escaped its rich paragraph"
 }
 
@@ -2352,13 +2413,14 @@ test_authoring = {
 	page_breaks: [],
 	page_labels: [],
 	rich_paragraphs: [],
+	scopes: [],
 	spacers: [],
 	tables: [],
 	templates: NoTemplates,
 }
 
-## Facade semantics are planned before layout, with a PDF 2.0 Title and a
-## proper L -> LI -> (Lbl, LBody) hierarchy in explicit reading order.
+# Facade semantics are planned before layout, with a PDF 2.0 Title and a
+# proper L -> LI -> (Lbl, LBody) hierarchy in explicit reading order.
 expect {
 	plan = KernelFacadeSemantics.Plan.build(test_authoring, test_limits)?
 	text_plan = KernelFacadeSemantics.Plan.preliminary(plan)
@@ -2380,8 +2442,8 @@ expect {
 						work.node_writes == 11 and work.occurrence_writes == 7 and work.content_writes == 17 and work.lists == 1 and work.list_items == 2
 }
 
-## Generated list labels retain an explicit source-to-presentation fact, and
-## repeated bullets share one immutable Unicode source analysis.
+# Generated list labels retain an explicit source-to-presentation fact, and
+# repeated bullets share one immutable Unicode source analysis.
 expect {
 	plan = KernelFacadeSemantics.Plan.build(test_authoring, test_limits)?
 	text_plan = KernelFacadeSemantics.Plan.preliminary(plan)
@@ -2391,7 +2453,7 @@ expect {
 	second_label = list_at(store.occurrences, 5)
 	property = list_at(store.text_properties, 0)
 	labels_share_source = match (first_label.source, second_label.source) {
-		(Text(first_source, _), Text(second_source, _)) => first_source.index() == second_source.index()
+		(Text(first_source, _), Text(second_source, _)) => first_source == second_source
 		_ => False
 	}
 	generated = match property {
@@ -2428,8 +2490,8 @@ expect {
 	}
 }
 
-## A heading may rise any number of levels but descend only one at a time;
-## destination headings take part, and the first heading has no predecessor.
+# A heading may rise any number of levels but descend only one at a time;
+# destination headings take part, and the first heading has no predecessor.
 expect {
 	skipped = [
 		{ kind: Heading(1), parent: 0, text: "Summary" },
@@ -2445,8 +2507,8 @@ expect {
 	check_heading_progression(skipped) == Err(HeadingSkip({ block: 2, previous: 0 })) and check_heading_progression(stepped) == Ok({})
 }
 
-## The first node crossing is rejected before its planned node/content buffers
-## are appended.
+# The first node crossing is rejected before its planned node/content buffers
+# are appended.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({
 		max_container_depth: 4,
@@ -2483,8 +2545,8 @@ nested_authoring = {
 	],
 }
 
-## Containers allocate their nodes in authored preorder and own contiguous
-## child spans: Document -> [Title, Sect], Sect -> [H1, P, Div], Div -> [L].
+# Containers allocate their nodes in authored preorder and own contiguous
+# child spans: Document -> [Title, Sect], Sect -> [H1, P, Div], Div -> [L].
 expect {
 	plan = KernelFacadeSemantics.Plan.build(nested_authoring, test_limits)?
 	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
@@ -2514,8 +2576,8 @@ expect {
 						work.container_nodes == 2 and work.node_writes == 13
 }
 
-## Nesting beyond the container depth bound and empty containers are stable
-## rejections before any store is built.
+# Nesting beyond the container depth bound and empty containers are stable
+# rejections before any store is built.
 expect {
 	deep = { ..nested_authoring, groups: nested_authoring.groups.map(|group| { ..group, depth: group.depth + 1 }) }
 	empty = {
@@ -2540,10 +2602,10 @@ expect {
 rich_authoring : List(Document.Inline) -> Document.NormalizedAuthoring
 rich_authoring = |inlines| Document.normalize(Document.from_blocks({ contents: [Document.rich_paragraph(inlines)], language: "en-AU", title: "Rich" }))
 
-## A rich paragraph plans one `P`, one node per inline element in preorder,
-## and one occurrence per text leaf over an exact sub-range of its single
-## interned source; every node owns one contiguous spine span in authored
-## order, and an inline language becomes the leaf occurrence's language.
+# A rich paragraph plans one `P`, one node per inline element in preorder,
+# and one occurrence per text leaf over an exact sub-range of its single
+# interned source; every node owns one contiguous spine span in authored
+# order, and an inline language becomes the leaf occurrence's language.
 expect {
 	authoring = rich_authoring([
 		Document.plain_text("Ab "),
@@ -2590,7 +2652,7 @@ expect {
 											})
 }
 
-## Inline rejections name the paragraph block and the inline's arena index.
+# Inline rejections name the paragraph block and the inline's arena index.
 expect {
 	empty = KernelFacadeSemantics.Plan.build(rich_authoring([Document.plain_text("a"), Document.strong([])]), test_limits)
 	nested = KernelFacadeSemantics.Plan.build(rich_authoring([Document.inline_link([Document.inline_link([Document.plain_text("b")], "https://example.org")], "https://example.org")]), test_limits)
@@ -2614,7 +2676,7 @@ table_authoring = Document.normalize(
 			Document.table({
 				body_rows: [
 					Document.row([Document.header_cell(Row, [Document.plain_text("A")]), Document.cell([Document.plain_text("1")])]),
-					Document.row([Document.spanning(2, Document.cell([Document.plain_text("Wide")]))]),
+					Document.row([Document.cell([Document.plain_text("Wide")]).spanning(2)]),
 				],
 				caption: Document.caption("Cap"),
 				columns: [{ align: Start, width: Content }, { align: End, width: Share(1) }],
@@ -2628,11 +2690,11 @@ table_authoring = Document.normalize(
 	}),
 )
 
-## A table plans `Table > (Caption > P, THead, TBody)` in preorder with one
-## `TR` per row and one `TH`/`TD` per cell. Every cell has an element
-## identifier in cell order, and a data cell's `Headers` are the column
-## headers above it in its columns followed by its row headers, each with a
-## `HeaderFor` relationship in the same order.
+# A table plans `Table > (Caption > P, THead, TBody)` in preorder with one
+# `TR` per row and one `TH`/`TD` per cell. Every cell has an element
+# identifier in cell order, and a data cell's `Headers` are the column
+# headers above it in its columns followed by its row headers, each with a
+# `HeaderFor` relationship in the same order.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, max_nodes: 64, max_content_spine: 64, semantics: KernelSemantics.Limits.make({ max_attributes: 32, max_content_spine: 64, max_fragments: 0, max_namespaces: 1, max_nodes: 64, max_occurrences: 12, max_semantic_depth: 16 }) })
 	plan = KernelFacadeSemantics.Plan.build(table_authoring, limits)?
@@ -2648,7 +2710,7 @@ expect {
 					and work.tables == 1 and work.table_cells == 5 and work.header_association_edges == 4
 }
 
-## Table rejections name the table, the row, or the cell.
+# Table rejections name the table, the row, or the cell.
 expect {
 	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, max_nodes: 64, max_content_spine: 64 })
 	table = |spec| Document.normalize(Document.from_blocks({ contents: [Document.table(spec)], language: "en-AU", title: "Table" }))
@@ -2657,7 +2719,7 @@ expect {
 	empty = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [] }), limits)
 	grid = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.cell([Document.plain_text("x")]), Document.cell([Document.plain_text("y")])])] }), limits)
 	missing = KernelFacadeSemantics.Plan.build(table({ ..base, header_rows: [] }), limits)
-	spanned = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.row_spanning(2, Document.cell([Document.plain_text("x")]))])] }), limits)
+	spanned = KernelFacadeSemantics.Plan.build(table({ ..base, body_rows: [Document.row([Document.cell([Document.plain_text("x")]).row_spanning(2)])] }), limits)
 	match (empty, grid, missing, spanned) {
 		(Err(TableEmpty({ group: 0 })), Err(TableGridMismatch({ columns: 1, group: 2, spanned: 2 })), Err(TableHeaderMissing({ group: 0 })), Err(TableRowSpan({ block: 1 }))) => True
 		_ => False

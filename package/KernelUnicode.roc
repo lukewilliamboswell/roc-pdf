@@ -218,8 +218,8 @@ KernelUnicode :: [].{
 
 	expect version == "17.0.0"
 
-	## Combining sequences stay atomic, scalar and byte coordinates agree, and
-	## script itemization is a separate explicit fact.
+	# Combining sequences stay atomic, scalar and byte coordinates agree, and
+	# script itemization is a separate explicit fact.
 	expect {
 		analysis = analyze("é漢", default_limits)?
 
@@ -232,8 +232,8 @@ KernelUnicode :: [].{
 		]
 	}
 
-	## Every UAX #14 boundary is retained, including prohibited boundaries and the
-	## mandatory end boundary needed by deterministic line selection.
+	# Every UAX #14 boundary is retained, including prohibited boundaries and the
+	# mandatory end boundary needed by deterministic line selection.
 	expect {
 		analysis = analyze("a b", default_limits)?
 
@@ -250,9 +250,9 @@ KernelUnicode :: [].{
 		]
 	}
 
-	## Limits reject atomically at the first crossing item.
+	# Limits reject atomically at the first crossing item.
 	expect match analyze("ab", { ..default_limits, max_graphemes: 1 }) {
-		Err(GraphemeLimitExceeded({ limit: 1, required: 2 })) => Bool.True
-		_ => Bool.False
+		Err(GraphemeLimitExceeded({ limit: 1, required: 2 })) => True
+		_ => False
 	}
 }

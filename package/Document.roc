@@ -7,6 +7,7 @@ import Metadata
 import Scene
 import Semantics
 import Text
+import Theme
 
 DocumentBlock :: [
 	Bullets(List(Str)),
@@ -18,7 +19,9 @@ DocumentBlock :: [
 	DestinationHeading({ level : U8, name : Str, text : Str }),
 	DestinationParagraph({ name : Str, text : Str }),
 	Heading({ level : U8, text : Str }),
-	Decoration(Scene.Drawing),
+
+	## An in-flow decoration (smaller than a figure, so unboxed).
+	Decoration(DecorationSpec),
 	Figure({ alternative : Str, caption : Caption, drawing : Scene.Drawing, fit : FigurePolicy }),
 	InternalLink({ destination : Str, text : Str }),
 	KeepTogether(List(DocumentBlock)),
@@ -28,11 +31,21 @@ DocumentBlock :: [
 	PageBreak,
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
+
+	## Blocks whose inline colors a `Theme.Scope` overrides, boxed so the
+	## block union keeps the size of its other alternatives.
+	Scoped(Box({ contents : List(DocumentBlock), scope : Theme.Scope })),
 	Spacer(Layout.Unit),
 	Table(Box(TableSpec)),
 	Title(Str),
 	Unavailable({ feature : AuthoringFeature, summary : Str }),
 ].{}
+
+## An in-flow decoration: its drawing, the space it keeps above the
+## drawing and between the drawing and the next block (`below`, negative
+## to overlap that block's first lines by at most the drawing's height),
+## and whether it paints behind the page's text or over it.
+DecorationSpec : { above : Layout.Unit, behind : Bool, below : Layout.Unit, drawing : Scene.Drawing }
 
 ## A custom block as the extension authored it: its semantic content
 ## (ordinary paragraphs and rich paragraphs, which become a `Div`), its
@@ -72,6 +85,10 @@ RowSplit : [KeepRows, SplitRows]
 ## spans, or in an explicit alignment of its own.
 CellAlign : [Aligned(ColumnAlign), FirstColumn]
 
+## A cell's own background: none, or a solid color painted over its row's
+## fill as a layout decoration artifact.
+CellFill := [NoCellFill, CellFill(Color.SourceValue)]
+
 ## A data cell (`TD`) or a header cell (`TH`) with its declared scope.
 CellKind : [DataCell, HeaderCell(HeaderScope)]
 
@@ -81,7 +98,40 @@ DocumentRow :: [Row(List(DocumentCell))].{}
 ## One authored table cell: inline content forming one paragraph, its kind,
 ## and the columns and rows it spans. Row spans are represented so they can
 ## be rejected with a located diagnostic.
-DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), kind : CellKind, row_span : U16 })].{}
+DocumentCell :: [Cell({ align : CellAlign, column_span : U16, contents : List(DocumentInline), fill : CellFill, kind : CellKind, row_span : U16 })].{
+
+	## The cell spanning `count` columns (`ColSpan`):
+	## `Pdf.header_cell(Row, label).spanning(2)`.
+	spanning : DocumentCell, U16 -> DocumentCell
+	spanning = |value, count| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, column_span: count })
+	}
+
+	## The cell with its lines aligned at `align` instead of in the
+	## alignment of the first column it spans, such as an end-aligned label
+	## spanning a table's start-aligned columns.
+	aligned : DocumentCell, ColumnAlign -> DocumentCell
+	aligned = |value, align| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, align: Aligned(align) })
+	}
+
+	## The cell with its own background color, such as a highlighted total.
+	## It covers the cell's box (its spanned columns, padding included) and
+	## half the row gap above and below, painted over any row fill as a
+	## layout decoration artifact behind the page's text. The cell keeps
+	## its `TH` or `TD` semantics; the fill adds no structure.
+	shaded : DocumentCell, Color.SourceValue -> DocumentCell
+	shaded = |value, color| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, fill: CellFill(color) })
+	}
+
+	## The cell spanning `count` rows. Row spans are outside the supported
+	## table subset: preparation reports `table.row_span` until Gate 8.
+	row_spanning : DocumentCell, U16 -> DocumentCell
+	row_spanning = |value, count| match value {
+		Cell(record) => DocumentCell.Cell({ ..record, row_span: count })
+	}
+}
 
 ## One authored list item: the blocks of its `LBody`, in logical order. Its
 ## `Lbl` is generated from the enclosing list's marker.
@@ -168,8 +218,14 @@ DocumentFurniture :: [FurnitureDrawing(Scene.Drawing), FurnitureText(List(Docume
 
 ## A header or footer region of a page template: a fixed authored height
 ## reserved inside the body frame and three slots whose furniture items
-## stack vertically. `NoRegion` reserves nothing.
-DocumentRegion :: [NoRegion, Region({ center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) })].{}
+## stack vertically, over an optional full-width backdrop drawing.
+## `inset` moves a header's stacks up from its bottom edge and a footer's
+## down from its top edge. `NoRegion` reserves nothing.
+DocumentRegion :: [NoRegion, Region({ backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(DocumentFurniture) })].{}
+
+## A region's backdrop: a decorative drawing painted behind its slots, or
+## none.
+Backdrop : [Backdrop(Scene.Drawing), NoBackdrop]
 
 ## The first page's lead region: semantic blocks (such as a letterhead) laid
 ## out once, below the first page's header, in a reserved height. They keep
@@ -201,7 +257,7 @@ NormalizedFurnitureInline : [
 
 NormalizedFurniture : [FurnitureDrawing(Scene.Drawing), FurnitureText(List(NormalizedFurnitureInline))]
 
-NormalizedRegion : [NoRegion, Region({ center : List(NormalizedFurniture), end : List(NormalizedFurniture), height : Layout.Unit, start : List(NormalizedFurniture) })]
+NormalizedRegion : [NoRegion, Region({ backdrop : Backdrop, center : List(NormalizedFurniture), end : List(NormalizedFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(NormalizedFurniture) })]
 
 ## One normalized page template: its regions and the gap between each
 ## present region and the flow region.
@@ -233,7 +289,14 @@ FigurePolicy := [ExactFit, ScaleFit(U64)]
 FlowCommand : [
 	FlowImage({ image : U64, placement : Layout.Rect }),
 	FlowPath({ fill : [Fill(Color.SourceValue), NoFill], segments : List(Scene.PathSegment), stroke : [NoStroke, Stroke({ color : Color.SourceValue, width : Layout.Unit })] }),
+
+	## A text label, its origin translated into drawing coordinates, with
+	## the face it is set in; boxed so the command union keeps its size.
+	FlowText(Box(FlowLabel)),
 ]
+
+## A label of a flow drawing: `Scene.Label` with its face.
+FlowLabel : { align : Scene.LabelAlign, color : Color.SourceValue, face : Scene.LabelFace, origin : Layout.Point, size : Layout.Unit, text : Str }
 
 ## A validated flow drawing: its flattened commands, the image sources
 ## they place in command order, and its extent from the origin.
@@ -307,6 +370,13 @@ NormalizedBlockKind := [
 	Bullet({ item : U64, list : U64 }),
 	DestinationHeading({ level : U8, name : Str }),
 	DestinationParagraph({ name : Str }),
+
+	## A table cell authored with no inline content (`Pdf.cell([])`): a
+	## `TD` or `TH` with no text. It has no source, no shaped run, and no
+	## line; its row keeps its grid position, and structure gives it an
+	## element with no marked content. Every stage after normalization
+	## handles it explicitly instead of inferring it from empty text.
+	EmptyCell,
 	Figure(U64),
 
 	## The visible caption of figure `k`: a `Caption` sibling of the
@@ -351,7 +421,9 @@ NormalizedSpacer : { amount : Layout.Unit, block : U64, parent : U64, position :
 ## count when no leaf follows): a `Decoration` page artifact that occupies
 ## its drawing's height immediately above that leaf's first line, on the
 ## same page. `parent` and `position` locate it.
-NormalizedDecoration : { block : U64, drawing : ValidatedDrawing, parent : U64, position : U64 }
+## `behind` paints the decoration before its page's text. Its drawing
+## already includes its authored spacing (`space_decoration`).
+NormalizedDecoration : { behind : Bool, block : U64, drawing : ValidatedDrawing, parent : U64, position : U64 }
 
 ## One custom block: its `Custom` group, the name the extension gave it,
 ## its measured box, the content inset, and its validated panel drawing.
@@ -366,7 +438,12 @@ NormalizedTable : { body_rows : U64, caption : Bool, columns : List(TableColumn)
 
 ## One table cell, in leaf-block order: its rich-paragraph leaf `block`, its
 ## kind, its authored column and row spans, and its line alignment.
-NormalizedCell : { align : CellAlign, block : U64, column_span : U64, kind : CellKind, row_span : U64 }
+##
+## `fill` is zero, or the cell's own background packed by `pack_color`.
+## Spans keep their authored `U16` so the record stays 24 bytes: a wider
+## cell record made every document allocate more under the pinned
+## compiler (docs/performance/tables.md).
+NormalizedCell : { align : CellAlign, block : U64, column_span : U16, fill : U64, kind : CellKind, row_span : U16 }
 
 ## The section a normalized table row belongs to.
 TableSection : [Body, Footer, Header]
@@ -389,7 +466,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -458,6 +535,7 @@ NormalizedAuthoring := {
 	page_breaks : List(NormalizedPageBreak),
 	page_labels : List(PageLabelRange),
 	rich_paragraphs : List(NormalizedRich),
+	scopes : List(Theme.Scope),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
 	templates : NormalizedTemplates,
@@ -691,6 +769,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	Caption : Caption
 	Cell : DocumentCell
 	CellAlign : CellAlign
+	CellFill : CellFill
+
+	## A normalized cell's own fill color.
+	cell_fill : NormalizedCell -> CellFill
+	cell_fill = |cell| if cell.fill == 0 NoCellFill else CellFill(unpack_color(cell.fill))
+
 	CellKind : CellKind
 	ColumnAlign : ColumnAlign
 	ColumnWidth : ColumnWidth
@@ -750,6 +834,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	PageLabelStyle : PageLabelStyle
 	PageTemplate : DocumentPageTemplate
 	Region : DocumentRegion
+	Backdrop : Backdrop
 	Row : DocumentRow
 	RowSplit : RowSplit
 	TableColumn : TableColumn
@@ -852,6 +937,19 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 			templates: NoTemplates,
 		}
 
+	## A paginated document with its navigation, templates, and timestamps
+	## set at once (`Pdf.document`'s props).
+	from_props : { contents : List(DocumentBlock), created : Metadata.TimestampInput, language : Str, modified : Metadata.TimestampInput, outline : List(OutlineEntry), page_labels : List(PageLabelRange), templates : DocumentTemplates, title : Str } -> Document
+	from_props = |{ contents, created, language, modified, outline, page_labels, templates, title: document_title }|
+		Document.{
+			authoring: Simple({ contents, language, metadata_title: document_title }),
+			created,
+			modified,
+			outline,
+			page_labels,
+			templates,
+		}
+
 	## Construct an explicitly framed document. Preparation rejects it with the
 	## `layout.custom` feature until fixed-layout lowering is executable.
 	from_fixed_pages : { language : Str, pages : List(FixedPage), title : Str } -> Document
@@ -951,7 +1049,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	page_template : { footer : DocumentRegion, gap : Layout.Unit, header : DocumentRegion } -> DocumentPageTemplate
 	page_template = |{ footer, gap, header }| DocumentPageTemplate.{ footer, gap, header }
 
-	region : { center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, start : List(DocumentFurniture) } -> DocumentRegion
+	region : { backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(DocumentFurniture) } -> DocumentRegion
 	region = |record| DocumentRegion.Region(record)
 
 	no_region : DocumentRegion
@@ -1026,6 +1124,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	keep_together : List(DocumentBlock) -> DocumentBlock
 	keep_together = |contents| DocumentBlock.KeepTogether(contents)
 
+	scoped : Theme.Scope, List(DocumentBlock) -> DocumentBlock
+	scoped = |scope, contents| DocumentBlock.Scoped(Box.box({ contents, scope }))
+
 	## Keep a block with the first placement unit of the block after it.
 	keep_with_next : Keep, DocumentBlock -> DocumentBlock
 	keep_with_next = |keep, block| DocumentBlock.KeepWithNext({ contents: [block], keep })
@@ -1044,31 +1145,11 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	## A data cell (`TD`) of inline content.
 	cell : List(DocumentInline) -> DocumentCell
-	cell = |contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, kind: DataCell, row_span: 1 })
+	cell = |contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: DataCell, row_span: 1 })
 
 	## A header cell (`TH`) with its declared scope.
 	header_cell : HeaderScope, List(DocumentInline) -> DocumentCell
-	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, kind: HeaderCell(scope), row_span: 1 })
-
-	## A cell spanning `count` columns.
-	spanning : U16, DocumentCell -> DocumentCell
-	spanning = |count, value| match value {
-		Cell(record) => DocumentCell.Cell({ ..record, column_span: count })
-	}
-
-	## A cell whose lines align at `align` instead of in the alignment of
-	## the first column it spans.
-	aligned : ColumnAlign, DocumentCell -> DocumentCell
-	aligned = |align, value| match value {
-		Cell(record) => DocumentCell.Cell({ ..record, align: Aligned(align) })
-	}
-
-	## A cell spanning `count` rows; row spans are outside the supported
-	## subset and reject at preparation.
-	row_spanning : U16, DocumentCell -> DocumentCell
-	row_spanning = |count, value| match value {
-		Cell(record) => DocumentCell.Cell({ ..record, row_span: count })
-	}
+	header_cell = |scope, contents| DocumentCell.Cell({ align: FirstColumn, column_span: 1, contents, fill: NoCellFill, kind: HeaderCell(scope), row_span: 1 })
 
 	## An explicit line break inside a rich paragraph.
 	line_break : DocumentInline
@@ -1114,18 +1195,15 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	figure : Scene.Drawing, Str, Caption -> DocumentBlock
 	figure = |drawing_value, alternative, caption_value| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: ExactFit })
 
-	## Select how a figure meets the flow region. On any block other than a
-	## figure this is rejected (`document.figure_fit`).
-	figure_fit : DocumentBlock, FigureFit -> DocumentBlock
-	figure_fit = |block, fit| match block {
-		Figure({ alternative, caption: caption_value, drawing, fit: _ }) => DocumentBlock.Figure({ alternative, caption: caption_value, drawing, fit: figure_policy(fit) })
-		_ => DocumentBlock.Unavailable({ feature: FigureFit, summary: "figure_fit applies only to a figure block." })
-	}
+	## A figure that meets the flow region by `fit`.
+	fitted_figure : Scene.Drawing, Str, Caption, FigureFit -> DocumentBlock
+	fitted_figure = |drawing_value, alternative, caption_value, fit| DocumentBlock.Figure({ alternative, caption: caption_value, drawing: drawing_value, fit: figure_policy(fit) })
 
 	## An in-flow decorative drawing: a `Decoration` page artifact that
-	## occupies its drawing's height immediately above the next flow block.
-	decoration : Scene.Drawing -> DocumentBlock
-	decoration = |drawing_value| DocumentBlock.Decoration(drawing_value)
+	## occupies its drawing's height, with its own spacing and paint layer,
+	## immediately above the next flow block.
+	decoration : DecorationSpec -> DocumentBlock
+	decoration = |spec| DocumentBlock.Decoration(spec)
 
 	## A custom block from a separately authored extension: its paragraphs
 	## become a `Div`, laid out inside its measured box, with its panel
@@ -1239,7 +1317,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 normalize_region : DocumentRegion -> NormalizedRegion
 normalize_region = |region| match region {
 	NoRegion => NoRegion
-	Region({ center, end, height, start }) => Region({ center: center.map(normalize_furniture), end: end.map(normalize_furniture), height, start: start.map(normalize_furniture) })
+	Region({ backdrop, center, end, height, inset, start }) => Region({ backdrop, center: center.map(normalize_furniture), end: end.map(normalize_furniture), height, inset, start: start.map(normalize_furniture) })
 }
 
 normalize_furniture : DocumentFurniture -> NormalizedFurniture
@@ -1284,12 +1362,12 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], spacers: [], tables: [] }
+empty_state = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1307,6 +1385,10 @@ first_unavailable_block = |blocks| {
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
 			KeepTogether(contents) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			Scoped(scoped) => match first_unavailable_nested(Box.unbox(scoped).contents) {
 				Available => {}
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
@@ -1349,6 +1431,9 @@ first_unavailable_nested = |contents| {
 				}
 				KeepTogether(nested) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
+				}
+				Scoped(scoped) => {
+					$frames = $frames.append({ blocks: Box.unbox(scoped).contents, next: 0 })
 				}
 				KeepWithNext({ contents: nested, keep: _ }) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
@@ -1441,6 +1526,7 @@ normalize_compact = |compact, initial| {
 		page_breaks: initial.page_breaks,
 		page_labels: [],
 		rich_paragraphs: initial.rich_paragraphs,
+		scopes: initial.scopes,
 		spacers: initial.spacers,
 		tables: initial.tables,
 		templates: NoTemplates,
@@ -1460,6 +1546,7 @@ SimpleState : {
 	lists : List(NormalizedList),
 	page_breaks : List(NormalizedPageBreak),
 	rich_paragraphs : List(NormalizedRich),
+	scopes : List(Theme.Scope),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
 }
@@ -1489,6 +1576,7 @@ normalize_simple = |simple, initial| {
 		page_breaks: $state.page_breaks,
 		page_labels: [],
 		rich_paragraphs: $state.rich_paragraphs,
+		scopes: $state.scopes,
 		spacers: $state.spacers,
 		tables: $state.tables,
 		templates: NoTemplates,
@@ -1497,7 +1585,7 @@ normalize_simple = |simple, initial| {
 
 is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
-	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => True
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => True
 	_ => False
 }
 
@@ -1579,6 +1667,12 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 		opened = open_group(state, KeepWithNext(keep), parent, depth, position)
 		{ frame: { blocks: contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
+	Scoped(boxed) => {
+		scoped = Box.unbox(boxed)
+		index = state.scopes.len()
+		opened = open_group({ ..state, scopes: state.scopes.append(scoped.scope) }, Scope(index.to_u32_wrap()), parent, depth, position)
+		{ frame: { blocks: scoped.contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
 	ListBlock({ items, marker }) => {
 		index = state.lists.len()
 		listed = { ..state, lists: state.lists.append({ items: items.len(), marker }) }
@@ -1613,13 +1707,15 @@ append_leaf = |state, block, parent, position| match block {
 		}
 		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
 	}
-	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) => {
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => {
 		crash "normalized group escaped the frame walk"
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
 	DestinationParagraph({ name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationParagraph({ name: name }), parent, text }) }
 	Heading({ level, text }) => { ..state, blocks: state.blocks.append({ kind: Heading(level), parent, text }) }
-	Decoration(drawing) => { ..state, decorations: state.decorations.append({ block: state.blocks.len(), drawing: validate_flow_drawing(drawing), parent, position }) }
+	Decoration(spec) => {
+		{ ..state, decorations: state.decorations.append({ behind: spec.behind, block: state.blocks.len(), drawing: space_decoration(without_decoration_labels(validate_flow_drawing(spec.drawing)), spec.above, spec.below), parent, position }) }
+	}
 	Figure({ alternative, caption, drawing, fit }) => append_figure(state, { alternative, caption, drawing, fit }, parent, position)
 	InternalLink({ destination, text }) => { ..state, blocks: state.blocks.append({ kind: InternalLink({ destination: destination }), parent, text }) }
 	Link({ text, uri }) => { ..state, blocks: state.blocks.append({ kind: Link({ uri: uri }), parent, text }) }
@@ -1689,6 +1785,72 @@ flow_group_depth = 8
 ## union of the commands from the origin, a stroke extending its path by
 ## half its width on every side. Opacity, clip, and soft-mask groups are
 ## not supported.
+## A decoration paints after the page's text, so a label in it would sit
+## under the decoration's own paths; decorations take no text labels.
+without_decoration_labels : ValidatedDrawing -> ValidatedDrawing
+without_decoration_labels = |validated| match validated {
+	ValidDrawing(drawing) => if drawing.commands.any(
+		|command| match command {
+			FlowText(_) => True
+			_ => False
+		},
+	) {
+		InvalidDrawing("a decoration takes no text labels; put labels in a figure's drawing or a custom block's panel")
+	} else {
+		validated
+	}
+	InvalidDrawing(_) => validated
+}
+
+## A decoration's drawing with its spacing applied: the space above adds to
+## its height, and the space below lifts every command by that amount and
+## adds to its height too (a negative amount lowers the commands into the
+## next block instead). The decoration then occupies `above + height +
+## below`, exactly as an unspaced drawing occupies its height. Negative
+## space above, or an overlap deeper than the drawing, is invalid.
+space_decoration : ValidatedDrawing, Layout.Unit, Layout.Unit -> ValidatedDrawing
+space_decoration = |validated, above, below| match validated {
+	InvalidDrawing(_) => validated
+	ValidDrawing(drawing) => {
+		up = above.raw()
+		down = below.raw()
+		if up == 0 and down == 0 {
+			return validated
+		}
+		if up < 0 {
+			return InvalidDrawing("the space above a decoration is negative")
+		}
+		if !within_bound(up) or !within_bound(down) or down + drawing.height.to_i64_wrap() < 0 {
+			return InvalidDrawing("a decoration overlaps the next block by more than its own height")
+		}
+		var $moved = List.with_capacity(drawing.commands.len())
+		for command in drawing.commands {
+			$moved = $moved.append(
+				match command {
+					FlowImage({ image, placement }) => FlowImage({ image, placement: { origin: { x: placement.origin.x, y: Layout.Unit.from_raw(placement.origin.y.raw() + down) }, size: placement.size } })
+					FlowPath({ fill, segments, stroke }) => FlowPath({ fill, segments: lift_segments(segments, down), stroke })
+					FlowText(boxed) => FlowText(boxed)
+				},
+			)
+		}
+		ValidDrawing({ ..drawing, commands: $moved, height: (drawing.height.to_i64_wrap() + up + down).to_u64_wrap() })
+	}
+}
+
+lift_segments : List(Scene.PathSegment), I64 -> List(Scene.PathSegment)
+lift_segments = |segments, dy| {
+	lift = |point| { x: point.x, y: Layout.Unit.from_raw(point.y.raw() + dy) }
+	segments.map(
+		|segment| match segment {
+			Close => Close
+			CubicTo({ control_1, control_2, end }) => CubicTo({ control_1: lift(control_1), control_2: lift(control_2), end: lift(end) })
+			LineTo(point) => LineTo(lift(point))
+			MoveTo(point) => MoveTo(lift(point))
+			Rectangle(rect) => Rectangle({ origin: lift(rect.origin), size: rect.size })
+		},
+	)
+}
+
 validate_flow_drawing : Scene.Drawing -> ValidatedDrawing
 validate_flow_drawing = |drawing| {
 	commands = drawing.commands()
@@ -1698,6 +1860,7 @@ validate_flow_drawing = |drawing| {
 	var $converted = List.with_capacity(commands.len())
 	var $images = []
 	var $groups = []
+	var $labels = 0
 	var $dx = 0
 	var $dy = 0
 	var $width = 0
@@ -1718,7 +1881,7 @@ validate_flow_drawing = |drawing| {
 				}
 				x = placement.origin.x.raw() + $dx
 				y = placement.origin.y.raw() + $dy
-				if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 or x < 0 or y < 0 {
+				if placement.size.width <= 0 or placement.size.height <= 0 or x < 0 or y < 0 {
 					return InvalidDrawing("an image placement needs a positive size at or beyond the drawing origin")
 				}
 				$width = U64.max($width, (x + placement.size.width.raw()).to_u64_wrap())
@@ -1734,7 +1897,7 @@ validate_flow_drawing = |drawing| {
 				stroke = match style.stroke {
 					AuthorNoStroke => NoStroke
 					AuthorSolidStroke({ color, width }) => {
-						if width.raw() <= 0 or !within_bound(width.raw()) {
+						if width <= 0 or !within_bound(width.raw()) {
 							return InvalidDrawing("a stroke needs a positive width")
 						}
 						Stroke({ color, width })
@@ -1759,7 +1922,7 @@ validate_flow_drawing = |drawing| {
 					NoPoints => return InvalidDrawing("a path needs at least one segment beginning with a move or a rectangle")
 					Bounds({ max_x, max_y, min_x, min_y }) => {
 						if min_x - half < 0 or min_y - half < 0 {
-							return InvalidDrawing("a path extends below or left of the drawing origin")
+							return InvalidDrawing(origin_violation(moved, half, $index))
 						}
 						$width = U64.max($width, (max_x + half).to_u64_wrap())
 						$height = U64.max($height, (max_y + half).to_u64_wrap())
@@ -1783,16 +1946,107 @@ validate_flow_drawing = |drawing| {
 				$dy = $dy + offset.y.raw()
 			}
 			AuthorGroup(_) => return InvalidDrawing("opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group")
+			AuthorText(boxed) => {
+				{ face, label } = Box.unbox(boxed)
+				if !within_bound(label.origin.x.raw()) or !within_bound(label.origin.y.raw()) or !within_bound(label.size.raw()) {
+					return InvalidDrawing("a coordinate lies more than 10^9 pt from the drawing origin")
+				}
+				x = label.origin.x.raw() + $dx
+				y = label.origin.y.raw() + $dy
+				if label.text.is_empty() {
+					return InvalidDrawing("a text label is empty")
+				}
+				if label.size <= 0 {
+					return InvalidDrawing("a text label needs a positive size")
+				}
+				if x < 0 or y < 0 {
+					return InvalidDrawing("a text label's origin lies below or left of the drawing origin")
+				}
+
+				## A label's baseline plus its size is known before shaping and
+				## joins the drawing's height; its width is proved after
+				## shaping, against the width the paths and images give.
+				$height = U64.max($height, (y + label.size.raw()).to_u64_wrap())
+				$width = U64.max($width, x.to_u64_wrap())
+				$labels = $labels + 1
+				$converted = $converted.append(FlowText(Box.box({ align: label.align, color: label.color, face, origin: { x: Layout.Unit.from_raw(x), y: Layout.Unit.from_raw(y) }, size: label.size, text: label.text })))
+			}
 		}
 		$index = $index + 1
 	}
-	if $converted.is_empty() {
+	if $converted.len() == $labels {
 		return InvalidDrawing("it has no painting command")
 	}
 	if $width == 0 or $height == 0 {
 		return InvalidDrawing("it has no positive extent")
 	}
 	ValidDrawing({ commands: $converted, height: $height, images: $images, width: $width })
+}
+
+## Why a path's extent reaches below or left of the drawing origin, and
+## where, for its diagnostic: its own geometry (a move, line, curve end,
+## or rectangle corner), a Bézier control point (the extent is the
+## control-point hull, which contains the curve), or, when every point is
+## inside, its stroke's half-width. Coordinates are drawing-local, after
+## any group offsets. Only a rejected path reaches this.
+origin_violation : List(Scene.PathSegment), I64, U64 -> Str
+origin_violation = |segments, half, command| {
+	var $geometry = NoPoint
+	var $control = NoPoint
+	var $low_x = I64.highest
+	var $low_y = I64.highest
+	for segment in segments {
+		anchors = match segment {
+			Close => []
+			CubicTo({ end, .. }) => [end]
+			LineTo(point) | MoveTo(point) => [point]
+			Rectangle(rect) => [rect.origin, { x: Layout.Unit.from_raw(rect.origin.x.raw() + rect.size.width.raw()), y: Layout.Unit.from_raw(rect.origin.y.raw() + rect.size.height.raw()) }]
+		}
+		controls = match segment {
+			CubicTo({ control_1, control_2, .. }) => [control_1, control_2]
+			_ => []
+		}
+		for point in anchors {
+			$low_x = I64.min($low_x, point.x.raw())
+			$low_y = I64.min($low_y, point.y.raw())
+			if $geometry == NoPoint and (point.x < 0 or point.y < 0) {
+				$geometry = At(point.x.raw(), point.y.raw())
+			}
+		}
+		for point in controls {
+			if $control == NoPoint and (point.x < 0 or point.y < 0) {
+				$control = At(point.x.raw(), point.y.raw())
+			}
+		}
+	}
+	prefix = "command ${command.to_str()} (a path)"
+	match ($geometry, $control) {
+		(At(x, y), _) => "${prefix} has a point at (${signed_points(x)}, ${signed_points(y)}), below or left of the drawing origin"
+		(NoPoint, At(x, y)) => "${prefix} has a Bézier control point at (${signed_points(x)}, ${signed_points(y)}), below or left of the drawing origin; a path's extent includes its control points, so move the control point or the whole path"
+		(NoPoint, NoPoint) => "${prefix} lies inside the drawing, but its stroke's half-width of ${signed_points(half)} reaches (${signed_points($low_x - half)}, ${signed_points($low_y - half)}), below or left of the drawing origin; move the path in by at least half the stroke width"
+	}
+}
+
+## A signed millipoint length as points, such as `-3 pt` or `0.375 pt`.
+signed_points : I64 -> Str
+signed_points = |raw| {
+	magnitude = if raw < 0 (0 - raw).to_u64_wrap() else raw.to_u64_wrap()
+	sign = if raw < 0 "-" else ""
+	fraction = magnitude % 1000
+	if fraction == 0 {
+		"${sign}${(magnitude // 1000).to_str()} pt"
+	} else {
+		digits = (1000 + fraction).to_str()
+		var $trimmed = Str.to_utf8(digits).drop_first(1)
+		while $trimmed.last() == Ok('0') {
+			$trimmed = $trimmed.drop_last(1)
+		}
+		text = match Str.from_utf8($trimmed) {
+			Ok(value) => value
+			Err(_) => "0"
+		}
+		"${sign}${(magnitude // 1000).to_str()}.${text} pt"
+	}
 }
 
 ## A path translated by a group offset. Every coordinate must lie within
@@ -1881,6 +2135,26 @@ has_caption = |caption| match caption {
 	NoCaption => False
 }
 
+## An exact color as one integer: `1 << 48` plus the red, green, and blue
+## channels for an sRGB color, `2 << 48` plus the channel for a gray one.
+pack_color : Color.SourceValue -> U64
+pack_color = |color| match color {
+	Srgb(Rgb({ blue, green, red })) => rgb_color_kind + red.to_u64().shl_wrap(32) + green.to_u64().shl_wrap(16) + blue.to_u64()
+	Srgb(Gray(level)) => gray_color_kind + level.to_u64()
+}
+
+unpack_color : U64 -> Color.SourceValue
+unpack_color = |packed| {
+	channel = |shift| packed.shr_wrap(shift).bitwise_and(0xFFFF).to_u16_wrap()
+	if packed >= gray_color_kind Srgb(Gray(channel(0))) else Srgb(Rgb({ blue: channel(0), green: channel(16), red: channel(32) }))
+}
+
+rgb_color_kind : U64
+rgb_color_kind = 0x1_0000_0000_0000
+
+gray_color_kind : U64
+gray_color_kind = 0x2_0000_0000_0000
+
 append_table_rows : SimpleState, List(DocumentRow), TableSection, U64 -> SimpleState
 append_table_rows = |state, rows, section, table_code| {
 	var $state = state
@@ -1896,8 +2170,16 @@ append_table_rows = |state, rows, section, table_code| {
 			record = match list_at(cells, $index) {
 				Cell(value) => value
 			}
-			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span.to_u64(), kind: record.kind, row_span: record.row_span.to_u64() }) }
-			$state = append_rich($state, record.contents, row_group + 1, $index)
+			fill = match record.fill {
+				NoCellFill => 0
+				CellFill(color) => pack_color(color)
+			}
+			$state = { ..$state, cells: $state.cells.append({ align: record.align, block: $state.blocks.len(), column_span: record.column_span, fill, kind: record.kind, row_span: record.row_span }) }
+			$state = if record.contents.is_empty() {
+				{ ..$state, blocks: $state.blocks.append({ kind: EmptyCell, parent: row_group + 1, text: "" }) }
+			} else {
+				append_rich($state, record.contents, row_group + 1, $index)
+			}
 			$index = $index + 1
 		}
 		$state = close_group($state, row_group)
@@ -2117,9 +2399,9 @@ segment_texts : List(NormalizedInline), U64, List(NormalizedLineBreak), U64 -> L
 segment_texts = |inlines, base, line_breaks, first_break| {
 	var $segments = List.with_capacity(line_breaks.len() - first_break + 1)
 
-	## A segment's leaf texts are joined once when the segment ends. Growing
-	## the segment with `Str.concat` sized it exactly on every leaf, which
-	## copied the segment once per leaf.
+	# A segment's leaf texts are joined once when the segment ends. Growing
+	# the segment with `Str.concat` sized it exactly on every leaf, which
+	# copied the segment once per leaf.
 	var $current = []
 	var $next_break = first_break
 	var $leaf = 0
@@ -2237,7 +2519,7 @@ list_set = |items, index, value| match items.set(index, value) {
 	Ok(updated) => updated
 }
 
-## The compact builder stores block descriptors and text payloads in separate flat buffers.
+# The compact builder stores block descriptors and text payloads in separate flat buffers.
 expect {
 	builder = Document.builder({ language: "en-AU", title: "Report" })
 		.add_title("Report")
@@ -2249,7 +2531,7 @@ expect {
 	builder.stats() == { blocks: 5, text_sources: 6 }
 }
 
-## Simple and compact authoring normalize to identical scalar/list identities.
+# Simple and compact authoring normalize to identical scalar/list identities.
 expect {
 	simple = Document.from_blocks({
 		contents: [Document.title("Report"), Document.heading(2, "Details"), Document.bullets(["One", "Two"]), Document.paragraph("Done")],
@@ -2300,17 +2582,17 @@ expect {
 								fifth_kind and fifth.text == "Done"
 }
 
-## Finishing a builder preserves required metadata without rebuilding a block list.
+# Finishing a builder preserves required metadata without rebuilding a block list.
 expect {
 	document = Document.builder({ language: "en-AU", title: "Report" }).finish()
 
 	document.metadata_title() == "Report" and document.language() == "en-AU"
 }
 
-## Prepared documents cannot retain authoring blocks or layout handlers.
+# Prepared documents cannot retain authoring blocks or layout handlers.
 expect Document.lifetimes.custom_handlers == ReleaseAfter(LayoutStabilization)
 
-## Metadata timestamps are explicit author inputs and default to omission.
+# Metadata timestamps are explicit author inputs and default to omission.
 expect {
 	document = Document.from_blocks({ contents: [], language: "en-AU", title: "Report" })
 	stamped = document.with_created("2026-01-02T03:04:05Z").with_modified("2026-01-02T03:04:06Z")
@@ -2318,8 +2600,8 @@ expect {
 	document.created() == Omitted and document.modified() == Omitted and stamped.created() == Explicit("2026-01-02T03:04:05Z") and stamped.modified() == Explicit("2026-01-02T03:04:06Z")
 }
 
-## Outline entries and page-label ranges are explicit author inputs and
-## default to absence.
+# Outline entries and page-label ranges are explicit author inputs and
+# default to absence.
 expect {
 	document = Document.from_blocks({ contents: [], language: "en-AU", title: "Report" })
 	entries = [{ depth: 0, destination: "intro", open: True, title: "Introduction" }]
@@ -2332,32 +2614,32 @@ expect {
 				navigated.page_labels() == ranges
 }
 
-## Nested translated groups flatten: every point moves by the accumulated
-## offsets of its groups, and the extent covers the moved commands.
+# Nested translated groups flatten: every point moves by the accumulated
+# offsets of its groups, and the extent covers the moved commands.
 expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
-	inner = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 10, 5), black)
-	drawing = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 1, 1), black).group(Layout.point(20, 10), Scene.drawing({}).group(Layout.point(5, 5), inner))
+	inner = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 5), black)
+	drawing = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 1, 1), black).group(Layout.point(20, 10), Scene.Drawing.empty.group(Layout.point(5, 5), inner))
 	match validate_flow_drawing(drawing) {
 		ValidDrawing({ commands: [_, FlowPath({ fill: Fill(_), segments: [Rectangle(rect)], stroke: NoStroke })], height, images: [], width }) => rect.origin.x.raw() == 25000 and rect.origin.y.raw() == 15000 and width == 35000 and height == 20000
 		_ => False
 	}
 }
 
-## Nine nested groups, a path moved left of the origin, a drawing without
-## a painting command, and an empty drawing are rejected with a reason.
+# Nine nested groups, a path moved left of the origin, a drawing without
+# a painting command, and an empty drawing are rejected with a reason.
 expect {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
-	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 4, 4), black)
+	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 4, 4), black)
 	var $deep = mark
 	var $level = 0
 	while $level < 9 {
-		$deep = Scene.drawing({}).group(Layout.point(1, 1), $deep)
+		$deep = Scene.Drawing.empty.group(Layout.point(1, 1), $deep)
 		$level = $level + 1
 	}
 	rejected = |drawing| match validate_flow_drawing(drawing) {
 		InvalidDrawing(_) => True
 		ValidDrawing(_) => False
 	}
-	rejected($deep) and rejected(Scene.drawing({}).group(Layout.point(-5, 0), mark)) and rejected(Scene.drawing({}).group(Layout.point(1, 1), Scene.drawing({}))) and rejected(Scene.drawing({}))
+	rejected($deep) and rejected(Scene.Drawing.empty.group(Layout.point(-5, 0), mark)) and rejected(Scene.Drawing.empty.group(Layout.point(1, 1), Scene.Drawing.empty)) and rejected(Scene.Drawing.empty)
 }

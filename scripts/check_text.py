@@ -5,12 +5,16 @@ import argparse
 import hashlib
 import os
 import re
+import struct
 import subprocess
 import tempfile
 import zlib
 from pathlib import Path
 
+from pdf_layout import mutate, occurrences
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import (
+    to_unicode_mappings,
     ValidationError,
     dictionary_ref,
     dictionary_ref_array,
@@ -40,7 +44,11 @@ LEGACY_EXPECTED_CONTENT = (
     b"1 0 0 1 114.753 700 Tm\n<0003> Tj\n"
     b"ET\n"
 )
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -61,6 +69,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [656, 730, 722, 590, 639, 562, 583, 583, 370, 0, 281]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_MAPPINGS = {
     0x0001: (0x0043,),
     0x0002: (0x0044,),
@@ -97,34 +107,7 @@ def decoded_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]
 
 def cmap_mappings(cmap: bytes) -> dict[int, tuple[int, ...]]:
     require(b"1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n" in cmap, "ToUnicode codespace is not exact")
-    count_match = re.search(rb"\n([0-9]+) beginbfchar\n", cmap)
-    require(count_match is not None, "ToUnicode has no bfchar block")
-    block_start = count_match.end()
-    block_end = cmap.find(b"endbfchar\n", block_start)
-    require(block_end >= 0, "ToUnicode bfchar block does not end")
-    rows = re.findall(rb"^<([0-9A-F]{4})> <([0-9A-F]{4}(?:[0-9A-F]{4})*)>$", cmap[block_start:block_end], re.MULTILINE)
-    require(len(rows) == int(count_match.group(1)), "ToUnicode bfchar count differs from its rows")
-    mappings: dict[int, tuple[int, ...]] = {}
-    for encoded_cid, encoded_unicode in rows:
-        cid = int(encoded_cid, 16)
-        require(cid not in mappings, f"ToUnicode repeats CID {cid}")
-        units = [int(encoded_unicode[index : index + 4], 16) for index in range(0, len(encoded_unicode), 4)]
-        scalars: list[int] = []
-        index = 0
-        while index < len(units):
-            unit = units[index]
-            if 0xD800 <= unit <= 0xDBFF:
-                require(index + 1 < len(units), "ToUnicode ends with a high surrogate")
-                low = units[index + 1]
-                require(0xDC00 <= low <= 0xDFFF, "ToUnicode high surrogate has no low surrogate")
-                scalars.append(0x10000 + ((unit - 0xD800) << 10) + low - 0xDC00)
-                index += 2
-            else:
-                require(not 0xDC00 <= unit <= 0xDFFF, "ToUnicode contains an unpaired low surrogate")
-                scalars.append(unit)
-                index += 1
-        mappings[cid] = tuple(scalars)
-    return mappings
+    return to_unicode_mappings(cmap)
 
 
 def validate_text_pdf(pdf: bytes) -> None:
@@ -142,7 +125,7 @@ def validate_text_pdf(pdf: bytes) -> None:
     require(b"/StructParents 0" in page_body, "page does not have the planned ParentTree key")
     require(b"/Tabs /S" in page_body, "page tab order is not structure order")
     resources = re.search(
-        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>",
         page_body,
     )
     require(resources is not None, "page does not have the exact color/font resource closure")
@@ -164,7 +147,7 @@ def validate_text_pdf(pdf: bytes) -> None:
         b"/W [0 [656 730 722 590 639 562 583 583 370 0 281]]" in cid_body,
         "CID widths are not the independently expected sequence",
     )
-    cid_map = dictionary_ref(cid_body, b"CIDToGIDMap")
+    require(b"/CIDToGIDMap /Identity " in cid_body, "CIDFont does not declare the identity CIDToGIDMap")
     descriptor = dictionary_ref(cid_body, b"FontDescriptor")
 
     descriptor_body = bodies[descriptor]
@@ -174,20 +157,18 @@ def validate_text_pdf(pdf: bytes) -> None:
     base_names = re.findall(rb"/(?:BaseFont|FontName) /([A-Z]{6}\+RocPdfSans-Regular)", type0_body + cid_body + descriptor_body)
     require(len(base_names) == 3 and len(set(base_names)) == 1, "subset font names are not one exact identity")
 
-    cid_dictionary, cid_bytes = decoded_stream(bodies, cid_map)
-    require(b"/Filter " not in cid_dictionary, "CIDToGIDMap unexpectedly uses a filter")
-    require(cid_bytes == b"".join(value.to_bytes(2, "big") for value in range(11)), "CIDToGIDMap is not identity for CIDs 0 through 10")
-
     _, cmap = decoded_stream(bodies, to_unicode)
     require(cmap_mappings(cmap) == EXPECTED_MAPPINGS, "ToUnicode mappings differ from source Unicode")
-    shown_cids = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", EXPECTED_CONTENT)]
-    require(all(cid in EXPECTED_MAPPINGS for cid in shown_cids), "content contains a CID without extraction mapping")
-    extracted = "".join(chr(scalar) for cid in shown_cids for scalar in EXPECTED_MAPPINGS[cid]).encode() + b"\n"
+    shown = shown_cids(EXPECTED_CONTENT)
+    require(all(cid in EXPECTED_MAPPINGS for cid in shown), "content contains a CID without extraction mapping")
+    extracted = "".join(chr(scalar) for cid in shown for scalar in EXPECTED_MAPPINGS[cid]).encode() + b"\n"
     require(extracted == EXPECTED_TEXT, "direct CID/ToUnicode reconstruction differs from expected text")
 
     font_dictionary, font_bytes = decoded_stream(bodies, font_file)
+    require(b"/Filter /FlateDecode" in font_dictionary, "embedded FontFile2 is not FlateDecode")
     require(b"/Length1 6776" in font_dictionary, "embedded font Length1 is not exact")
     require(font_bytes.startswith(b"\x00\x01\x00\x00"), "embedded FontFile2 is not TrueType-flavoured sfnt")
+    require(glyph_count(font_bytes) == 11, "identity CIDToGIDMap does not cover exactly the eleven subset glyphs")
     require(hashlib.sha256(font_bytes).hexdigest() == EXPECTED_SUBSET_SHA256, "embedded sanitized subset digest differs")
 
 
@@ -217,9 +198,26 @@ def check_pdfbox_extraction(pdf: Path) -> None:
 
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
+    """A twin with the one occurrence of ``old`` replaced.
+
+    ``old`` must occur exactly once among object bodies; a target absent
+    from them must occur exactly once among decoded stream payloads
+    (for example a ToUnicode row), which are re-deflated after the edit.
+    """
     require(len(old) == len(new), "negative twin must preserve byte length")
-    require(value.count(old) == 1, f"negative twin source occurs {value.count(old)} times")
-    return value.replace(old, new, 1)
+    if occurrences(value, old, "objects"):
+        return mutate(value, old, new, occurrences=1, scope="objects")
+    return mutate(value, old, new, occurrences=1, scope="payloads")
+
+
+def glyph_count(font: bytes) -> int:
+    """numGlyphs from the embedded subset's maxp table."""
+    tables = struct.unpack(">H", font[4:6])[0]
+    for index in range(tables):
+        tag, _, offset, _ = struct.unpack(">4sIII", font[12 + 16 * index : 28 + 16 * index])
+        if tag == b"maxp":
+            return struct.unpack(">H", font[offset + 4 : offset + 6])[0]
+    raise ValidationError("embedded subset has no maxp table")
 
 
 def self_test() -> None:
@@ -227,8 +225,8 @@ def self_test() -> None:
     validate_text_pdf(pdf)
     mutations = (
         replace_once(pdf, b"<0007> <00E9>", b"<0007> <00E8>"),
-        replace_once(pdf, b"/F1_0 20 0 R", b"/F1_0 19 0 R"),
-        replace_once(pdf, b"/CIDToGIDMap 14 0 R", b"/CIDToGIDMap 15 0 R"),
+        replace_once(pdf, b"/F1_0 18 0 R", b"/F1_0 17 0 R"),
+        replace_once(pdf, b"/CIDToGIDMap /Identity ", b"/CIDToGIDMap /Identitz "),
         replace_once(pdf, b"/Length1 6776", b"/Length1 6775"),
         replace_once(pdf, b"/CapHeight 728", b"/CapHeight 729"),
     )

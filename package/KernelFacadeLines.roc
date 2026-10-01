@@ -42,7 +42,9 @@ KernelFacadeLines :: [].{
 	## half the label's size as a gap) does not fit.
 	## A body that spans several explicit-line-break segments has one line
 	## request per segment, and its `lines` range covers them in order.
-	BlockLines : [TextBlock({ body : { lines : Semantics.Range, runs : KernelFacadeShape.LogicalRun }, body_offset : Layout.Unit, label : [Label({ lines : Semantics.Range, offset : Layout.Unit, runs : KernelFacadeShape.LogicalRun }), NoLabel] })]
+	##
+	## `ContentlessCell` is a table cell with no content: it has no line.
+	BlockLines : [ContentlessCell, TextBlock({ body : { lines : Semantics.Range, runs : KernelFacadeShape.LogicalRun }, body_offset : Layout.Unit, label : [Label({ lines : Semantics.Range, offset : Layout.Unit, runs : KernelFacadeShape.LogicalRun }), NoLabel] })]
 	Work : {
 		block_mapping_visits : U64,
 		blocks : U64,
@@ -90,10 +92,11 @@ build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFa
 build_plan = |authoring, shape, sources, page, theme, limits| {
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 
-	## A rich paragraph's logical run spans several physical runs; the
-	## logical batch measures such ranges. Documents whose runs are all
-	## single keep the exact one-run batch.
-	if has_multi_run(block_runs) {
+	# A rich paragraph's logical run spans several physical runs; the
+	# logical batch measures such ranges. Documents whose runs are all
+	# single keep the exact one-run batch, unless a code span holds its
+	# words together, which only the logical batch applies.
+	if has_multi_run(block_runs) or has_code_holds(authoring, shape, sources) {
 		return build_ordered_plan(authoring, shape, sources, page, theme, limits, [])
 	}
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
@@ -104,8 +107,8 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 	if run_count == 0 or run_count != shape_batch.store.runs.len() {
 		return Err(RunCoverage({ actual: shape_batch.store.runs.len(), expected: run_count }))
 	}
-	content_width = calculate_content_width(page, Theme.page_margin(theme))?
-	indent = positive_raw(Theme.bullet_indent(theme))?
+	content_width = calculate_content_width(page, theme.page_margin)?
+	indent = positive_raw(theme.bullet_indent)?
 	if indent >= content_width {
 		return Err(InvalidGeometry)
 	}
@@ -136,6 +139,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 				$line_requests = list_set($line_requests, body_index, { source: list_at(shape_requests, body_index).source, width: Layout.Unit.from_raw(geometry.body_width.to_i64_wrap()) })
 				$next_run = checked_add($next_run, 1)?
 			}
+			ContentlessCell => {}
 		}
 		$block_index = $block_index + 1
 	}
@@ -161,6 +165,9 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 				}
 				$blocks = $blocks.append(TextBlock({ body: { lines: body_lines, runs: body }, body_offset: Layout.Unit.from_raw(geometry.body_offset.to_i64_wrap()), label: label_lines }))
 			}
+			ContentlessCell => {
+				$blocks = $blocks.append(ContentlessCell)
+			}
 		}
 		$block_index = $block_index + 1
 	}
@@ -184,7 +191,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 ## text width then replaces the flow width of its block.
 build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_table_plan = |authoring, shape, sources, page, theme, limits| {
-	content_width = calculate_content_width(page, Theme.page_margin(theme))?
+	content_width = calculate_content_width(page, theme.page_margin)?
 	tables = KernelFacadeTables.Plan.build(authoring, shape, sources, content_width, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
 	var $widths = List.repeat(0, authoring.blocks.len())
 	for cell in KernelFacadeTables.Plan.cells(tables) {
@@ -207,13 +214,14 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 	if run_count == 0 or run_count != shape_batch.store.runs.len() {
 		return Err(RunCoverage({ actual: shape_batch.store.runs.len(), expected: run_count }))
 	}
-	content_width = calculate_content_width(page, Theme.page_margin(theme))?
-	indent = positive_raw(Theme.bullet_indent(theme))?
+	content_width = calculate_content_width(page, theme.page_margin)?
+	indent = positive_raw(theme.bullet_indent)?
 	if indent >= content_width {
 		return Err(InvalidGeometry)
 	}
 	geometries = list_geometries(authoring, block_runs, shape_batch.store, indent, content_width)?
 	var $line_requests = []
+	var $holds = []
 	var $logical_index_of_body = List.repeat(0, block_runs.len())
 	var $logical_index_of_label = List.repeat(0, block_runs.len())
 	var $next_physical = 0
@@ -247,6 +255,11 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 					}),
 				)
 				$next_physical = checked_add(body_start, body.physical.length())?
+				first_body_request = $line_requests.len() + (match label_request {
+					NoLabel => 0
+					Label(_) => 1
+				})
+				$holds = append_holds($holds, KernelFacadeShape.Plan.code_holds(shape, authoring, $block_index, sources), shape_requests, first_body_request, body_start, body_start + body.physical.length())
 				$line_requests = append_logical_requests(
 					$line_requests,
 					label_request,
@@ -257,8 +270,8 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 					},
 				)
 
-				## Each further explicit-line-break segment of the body is its
-				## own source and its own line request.
+				# Each further explicit-line-break segment of the body is its
+				# own source and its own line request.
 				var $segment_start = body_start + segment_length(shape_requests, body_start, body_start + body.physical.length())
 				while $segment_start < body_start + body.physical.length() {
 					length = segment_length(shape_requests, $segment_start, body_start + body.physical.length())
@@ -270,13 +283,14 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 					$segment_start = $segment_start + length
 				}
 			}
+			ContentlessCell => {}
 		}
 		$block_index = $block_index + 1
 	}
 	if $next_physical != run_count {
 		return Err(RunCoverage({ actual: $next_physical, expected: run_count }))
 	}
-	line = KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) ? LineLayout
+	line = (if $holds.is_empty() KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? LineLayout
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())
 	$block_index = 0
@@ -295,6 +309,9 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 				}
 				$blocks = $blocks.append(TextBlock({ body: { lines: body_lines, runs: body }, body_offset: Layout.Unit.from_raw(geometry.body_offset.to_i64_wrap()), label: label_lines }))
 			}
+			ContentlessCell => {
+				$blocks = $blocks.append(ContentlessCell)
+			}
 		}
 		$block_index = $block_index + 1
 	}
@@ -312,6 +329,43 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 			},
 		},
 	)
+}
+
+## Whether any block's code span holds a word together. It scans each
+## block's inline records once and allocates only for a code leaf that
+## has an interior break opportunity.
+has_code_holds : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source) -> Bool
+has_code_holds = |authoring, shape, sources| {
+	var $block = 0
+	var $found = False
+	while !$found and $block < authoring.blocks.len() {
+		$found = !KernelFacadeShape.Plan.code_holds(shape, authoring, $block, sources).is_empty()
+		$block = $block + 1
+	}
+	$found
+}
+
+## A block's code holds as line-layout holds: each goes to the line
+## request of the explicit-line-break segment holding its run. The body's
+## segments are its line requests from `first_request` on, in run order.
+append_holds : List(KernelLineLayout.Hold), List(KernelFacadeShape.CodeHold), List(KernelShape.SimpleRequest), U64, U64, U64 -> List(KernelLineLayout.Hold)
+append_holds = |holds, code, requests, first_request, body_start, body_end| {
+	if code.is_empty() {
+		return holds
+	}
+	var $holds = holds
+	var $request = first_request
+	var $segment_start = body_start
+	var $segment_end = body_start + segment_length(requests, body_start, body_end)
+	for hold in code {
+		while hold.run >= $segment_end and $segment_end < body_end {
+			$segment_start = $segment_end
+			$segment_end = $segment_start + segment_length(requests, $segment_start, body_end)
+			$request = $request + 1
+		}
+		$holds = $holds.append({ request: $request, scalars: hold.scalars })
+	}
+	$holds
 }
 
 ## An ordered logical run names a non-empty adjacent physical range starting
@@ -349,6 +403,7 @@ has_multi_run = |block_runs| {
 	while !$found and $index < block_runs.len() {
 		$found = match list_at(block_runs, $index) {
 			TextBlock({ body, label: _, level: _ }) => body.physical.length() != 1
+			ContentlessCell => False
 		}
 		$index = $index + 1
 	}
@@ -388,7 +443,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 					NoList => return Err(InvalidGeometry)
 				}
 			}
-			TextBlock(_) => {}
+			TextBlock(_) | ContentlessCell => {}
 		}
 		$block = $block + 1
 	}
@@ -446,7 +501,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 				}
 				{ body_offset: placed.body_offset, body_width: content_width - placed.body_offset, column: placed.column, label_offset }
 			}
-			TextBlock(_) => {
+			TextBlock(_) | ContentlessCell => {
 				end = if $ends.is_empty() or record.parent == 0 content_width else list_at($ends, record.parent - 1)
 				if outer >= end {
 					return Err(InvalidGeometry)

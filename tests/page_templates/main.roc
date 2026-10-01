@@ -13,6 +13,10 @@ Case : [
 	Numbering({ context : U64 }),
 	Images({ context : U64 }),
 	AtomicNegatives({ context : U64 }),
+	PageSizes({ context : U64 }),
+	Backdrops({ pages : U64 }),
+	SlotInset({ context : U64 }),
+	FurnitureGroups({ context : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -47,6 +51,10 @@ main! = |args| {
 		Numbering({ context }) => Fixture.numbering(context)
 		Images({ context }) => Fixture.images(context)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
+		PageSizes({ context }) => Fixture.page_sizes(context)
+		Backdrops({ pages }) => Fixture.backdrops(pages)
+		SlotInset({ context }) => Fixture.slot_inset(context)
+		FurnitureGroups({ context }) => Fixture.furniture_groups(context)
 	}
 	match result {
 		Ok(value) => value

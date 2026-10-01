@@ -8,6 +8,9 @@ import unicode.Scalar
 ## every range is a scalar/UTF-8 coordinate into the semantic source.
 KernelDiscretionaryHyphen :: [].{
 	OpportunityId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> OpportunityId
 		from_index = |index| OpportunityId.(index)
 
@@ -132,11 +135,11 @@ has_boundary = |boundaries, scalar_offset, byte_offset| {
 	while $index < boundaries.len() {
 		boundary = list_at(boundaries, $index)
 		if boundary.scalar_offset == scalar_offset and boundary.byte_offset == byte_offset {
-			return Bool.True
+			return True
 		}
 		$index = $index + 1
 	}
-	Bool.False
+	False
 }
 
 list_at : List(a), U64 -> a

@@ -142,8 +142,8 @@ build_sample = |_| {
 		Font.ValidationLimits.default,
 	) ? |_| FontFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	theme = Theme.with_font(Theme.default, registered.face)
-	if theme.body_font().index() != registered.face.index() {
+	theme = Theme.{ face: registered.face }
+	if theme.body_font() != registered.face {
 		return Err(FontFailure)
 	}
 	semantic = KernelTextSemantics.Plan.build(
@@ -388,14 +388,14 @@ tagged_object_limits = {
 	max_values: 256,
 }
 
-## The prohibited twin is checksum-valid but never returns usable handles.
+# The prohibited twin is checksum-valid but never returns usable handles.
 expect match Font.Registry.empty.register(
 	restricted_font_bytes,
 	{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
 	Font.ValidationLimits.default,
 ) {
-	Err(EmbeddingRightsProhibited({ fs_type: 2 })) => Bool.True
-	_ => Bool.False
+	Err(EmbeddingRightsProhibited({ fs_type: 2 })) => True
+	_ => False
 }
 
 expect {
@@ -403,9 +403,9 @@ expect {
 	structure = KernelTaggedTextStructure.Plan.structure(sample.structure)
 	font_objects = KernelTaggedTextStructure.Plan.font_objects(sample.structure)
 	first = list_at(font_objects, 0)
-	KernelStructure.Plan.object_count(structure) == 20 and
+	KernelStructure.Plan.object_count(structure) == 18 and
 		KernelObject.ObjectId.number(first.font_file) == 12 and
-			KernelObject.ObjectId.number(first.type0) == 20 and
+			KernelObject.ObjectId.number(first.type0) == 18 and
 				sample.selected_face == 0
 }
 

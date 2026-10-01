@@ -1,26 +1,26 @@
-## Validated document-metadata facts for the production-visual metadata/output-intent
-## slice. Authoring supplies a metadata title, a document language, and
-## explicit-or-omitted timestamps; this boundary validates them once against
-## the pinned RFC 5646 and XML 1.0 policies and returns typed facts that later
-## stages consume verbatim. No later stage re-parses, re-normalizes, or
-## recovers these values from serialized bytes.
-##
-## The language policy accepts the canonical-case well-formed RFC 5646 subset
-## `language["-" script]["-" region]`: a two- or three-letter lowercase
-## primary language, an optional four-letter titlecase script, and an optional
-## uppercase two-letter or three-digit region. Well-formed tags outside that
-## subset (extended language subtags, variants, extensions, private use, and
-## single-letter primaries) are rejected as unsupported rather than silently
-## accepted, and non-canonical letter case is rejected rather than silently
-## normalized. Registry validity beyond RFC 5646 syntax is out of scope
-## because the IANA subtag registry is not a pinned data dependency.
-##
-## The timestamp policy accepts exactly the canonical UTC form
-## `YYYY-MM-DDThh:mm:ssZ` with a valid proleptic-Gregorian calendar date.
-## Titles must be non-empty UTF-8 whose scalars are valid XML 1.0 characters
-## outside the C0/DEL controls; the validation pass also counts the XML escape
-## substitutions once so canonical XMP serialization can reserve its exact
-## output size without rescanning.
+# Validated document-metadata facts for the production-visual metadata/output-intent
+# slice. Authoring supplies a metadata title, a document language, and
+# explicit-or-omitted timestamps; this boundary validates them once against
+# the pinned RFC 5646 and XML 1.0 policies and returns typed facts that later
+# stages consume verbatim. No later stage re-parses, re-normalizes, or
+# recovers these values from serialized bytes.
+#
+# The language policy accepts the canonical-case well-formed RFC 5646 subset
+# `language["-" script]["-" region]`: a two- or three-letter lowercase
+# primary language, an optional four-letter titlecase script, and an optional
+# uppercase two-letter or three-digit region. Well-formed tags outside that
+# subset (extended language subtags, variants, extensions, private use, and
+# single-letter primaries) are rejected as unsupported rather than silently
+# accepted, and non-canonical letter case is rejected rather than silently
+# normalized. Registry validity beyond RFC 5646 syntax is out of scope
+# because the IANA subtag registry is not a pinned data dependency.
+#
+# The timestamp policy accepts exactly the canonical UTC form
+# `YYYY-MM-DDThh:mm:ssZ` with a valid proleptic-Gregorian calendar date.
+# Titles must be non-empty UTF-8 whose scalars are valid XML 1.0 characters
+# outside the C0/DEL controls; the validation pass also counts the XML escape
+# substitutions once so canonical XMP serialization can reserve its exact
+# output size without rescanning.
 import Color
 import KernelObject
 import KernelSrgbProfile
@@ -533,14 +533,14 @@ test_limits = KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_byt
 valid_input : { created : Metadata.TimestampInput, language : Str, modified : Metadata.TimestampInput, title : Str }
 valid_input = { created: Omitted, language: "en-AU", modified: Omitted, title: "Report" }
 
-## Canonical language, script, and region forms validate with exact work.
+# Canonical language, script, and region forms validate with exact work.
 expect {
 	result = KernelMetadata.validate(valid_input, test_limits)?
 
 	result.facts.language == "en-AU" and result.work == { language_bytes: 5, timestamp_bytes: 0, title_bytes: 6 }
 }
 
-## The full canonical language-script-region subset is accepted.
+# The full canonical language-script-region subset is accepted.
 expect {
 	forms = ["en", "de-DE", "zh-Hans", "zh-Hans-CN", "yue", "es-419", "und"]
 	var $index = 0
@@ -558,26 +558,26 @@ expect {
 	$ok
 }
 
-## Non-canonical letter case rejects rather than silently normalizing.
+# Non-canonical letter case rejects rather than silently normalizing.
 expect match KernelMetadata.validate({ ..valid_input, language: "en-au" }, test_limits) {
 	Err(LanguageNotCanonicalCase({ offset: 3 })) => True
 	_ => False
 }
 
-## Uppercase primary subtags are the non-canonical form of a supported tag.
+# Uppercase primary subtags are the non-canonical form of a supported tag.
 expect match KernelMetadata.validate({ ..valid_input, language: "EN" }, test_limits) {
 	Err(LanguageNotCanonicalCase({ offset: 0 })) => True
 	_ => False
 }
 
-## Lowercase script subtags reject as non-canonical case.
+# Lowercase script subtags reject as non-canonical case.
 expect match KernelMetadata.validate({ ..valid_input, language: "zh-hans" }, test_limits) {
 	Err(LanguageNotCanonicalCase({ offset: 3 })) => True
 	_ => False
 }
 
-## Well-formed RFC 5646 forms outside the subset reject as unsupported:
-## private use, singletons, variants, and extended language subtags.
+# Well-formed RFC 5646 forms outside the subset reject as unsupported:
+# private use, singletons, variants, and extended language subtags.
 expect {
 	forms = ["x-private", "en-x-priv", "de-DE-1996", "zh-yue-HK", "en-a-bbbb"]
 	var $index = 0
@@ -595,37 +595,37 @@ expect {
 	$ok
 }
 
-## Shapes RFC 5646 cannot produce reject as malformed with the byte offset.
+# Shapes RFC 5646 cannot produce reject as malformed with the byte offset.
 expect match KernelMetadata.validate({ ..valid_input, language: "en--AU" }, test_limits) {
 	Err(MalformedLanguageTag({ offset: 3 })) => True
 	_ => False
 }
 
-## Non-alphanumeric bytes are malformed at their exact offset.
+# Non-alphanumeric bytes are malformed at their exact offset.
 expect match KernelMetadata.validate({ ..valid_input, language: "en_AU" }, test_limits) {
 	Err(MalformedLanguageTag({ offset: 2 })) => True
 	_ => False
 }
 
-## A trailing hyphen is malformed, not an empty trailing subtag.
+# A trailing hyphen is malformed, not an empty trailing subtag.
 expect match KernelMetadata.validate({ ..valid_input, language: "en-" }, test_limits) {
 	Err(MalformedLanguageTag({ offset: 3 })) => True
 	_ => False
 }
 
-## Digit-bearing primary subtags have no RFC 5646 production.
+# Digit-bearing primary subtags have no RFC 5646 production.
 expect match KernelMetadata.validate({ ..valid_input, language: "e1" }, test_limits) {
 	Err(MalformedLanguageTag({ offset: 0 })) => True
 	_ => False
 }
 
-## A second region after a complete tag is malformed.
+# A second region after a complete tag is malformed.
 expect match KernelMetadata.validate({ ..valid_input, language: "en-AU-NZ" }, test_limits) {
 	Err(MalformedLanguageTag({ offset: 6 })) => True
 	_ => False
 }
 
-## Empty and oversized language values reject with their exact bounds.
+# Empty and oversized language values reject with their exact bounds.
 expect match KernelMetadata.validate({ ..valid_input, language: "" }, test_limits) {
 	Err(EmptyLanguage) => True
 	_ => False
@@ -639,14 +639,14 @@ expect {
 	}
 }
 
-## Titles retain exact escape counts for canonical XMP serialization.
+# Titles retain exact escape counts for canonical XMP serialization.
 expect {
 	result = KernelMetadata.validate({ ..valid_input, title: "R&D <plan> & more" }, test_limits)?
 
 	result.facts.title_escapes == { amps: 2, gts: 1, lts: 1 }
 }
 
-## Empty titles, oversized titles, and XML-invalid scalars reject atomically.
+# Empty titles, oversized titles, and XML-invalid scalars reject atomically.
 expect match KernelMetadata.validate({ ..valid_input, title: "" }, test_limits) {
 	Err(EmptyTitle) => True
 	_ => False
@@ -665,7 +665,7 @@ expect match KernelMetadata.validate({ ..valid_input, title: "Tab\tseparated" },
 	_ => False
 }
 
-## U+FFFF is not an XML 1.0 character even though it is valid UTF-8.
+# U+FFFF is not an XML 1.0 character even though it is valid UTF-8.
 expect {
 	title = match Str.from_utf8(Str.to_utf8("Bad ").concat([0xEF, 0xBF, 0xBF]).concat(Str.to_utf8("end"))) {
 		Ok(value) => value
@@ -679,7 +679,7 @@ expect {
 	}
 }
 
-## U+FFFD remains a valid XML scalar adjacent to the excluded pair.
+# U+FFFD remains a valid XML scalar adjacent to the excluded pair.
 expect {
 	title = match Str.from_utf8(Str.to_utf8("Ok ").concat([0xEF, 0xBF, 0xBD])) {
 		Ok(value) => value
@@ -693,7 +693,7 @@ expect {
 	}
 }
 
-## Canonical UTC timestamps validate, including a leap-year day.
+# Canonical UTC timestamps validate, including a leap-year day.
 expect {
 	result = KernelMetadata.validate(
 		{ ..valid_input, created: Explicit("2024-02-29T23:59:59Z"), modified: Explicit("2026-08-18T09:30:00Z") },
@@ -703,8 +703,8 @@ expect {
 	result.work.timestamp_bytes == 40
 }
 
-## Non-leap February 29, bad separators, and out-of-range fields reject with
-## the exact field and offset.
+# Non-leap February 29, bad separators, and out-of-range fields reject with
+# the exact field and offset.
 expect match KernelMetadata.validate({ ..valid_input, created: Explicit("2023-02-29T00:00:00Z") }, test_limits) {
 	Err(InvalidTimestamp({ field: Created, offset: 8 })) => True
 	_ => False
@@ -725,13 +725,13 @@ expect match KernelMetadata.validate({ ..valid_input, created: Explicit("2026-08
 	_ => False
 }
 
-## Timestamps with offsets or fractional seconds are not the canonical form.
+# Timestamps with offsets or fractional seconds are not the canonical form.
 expect match KernelMetadata.validate({ ..valid_input, created: Explicit("2026-08-18T09:30:00+10:00") }, test_limits) {
 	Err(InvalidTimestamp({ field: Created, offset: 25 })) => True
 	_ => False
 }
 
-## The packaged-profile output intent validates against the exact store entry.
+# The packaged-profile output intent validates against the exact store entry.
 expect {
 	store : Color.Store
 	store = {
@@ -748,7 +748,7 @@ expect {
 	work.intent_bytes_compared == KernelSrgbProfile.byte_count
 }
 
-## An altered profile byte rejects with the exact diverging position.
+# An altered profile byte rejects with the exact diverging position.
 expect {
 	altered = match KernelSrgbProfile.bytes.set(100, 255) {
 		Ok(bytes) => bytes
@@ -773,7 +773,7 @@ expect {
 	}
 }
 
-## Truncated packaged bytes reject before any byte comparison.
+# Truncated packaged bytes reject before any byte comparison.
 expect {
 	truncated = KernelSrgbProfile.bytes.sublist({ start: 0, len: 100 })
 
@@ -793,7 +793,7 @@ expect {
 	}
 }
 
-## Unsupported registries, identifiers, and out-of-range profiles reject.
+# Unsupported registries, identifiers, and out-of-range profiles reject.
 expect {
 	store : Color.Store
 	store = { profiles: [KernelSrgbProfile.profile(0, 0)], spaces: [], tags: KernelSrgbProfile.tags }
@@ -827,7 +827,7 @@ expect {
 	registry_ok and identifier_ok and range_ok
 }
 
-## A grayscale profile cannot satisfy the three-component sRGB intent.
+# A grayscale profile cannot satisfy the three-component sRGB intent.
 expect {
 	store : Color.Store
 	store = {
@@ -845,7 +845,7 @@ expect {
 	}
 }
 
-## Metadata-phase objects append immediately after the planned base count.
+# Metadata-phase objects append immediately after the planned base count.
 expect {
 	objects = KernelMetadata.plan_objects(47)?
 

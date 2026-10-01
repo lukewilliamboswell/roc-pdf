@@ -19,10 +19,10 @@ import "../assets/jpeg-fuzz-corpus/rgb-8x8.jpg" as jpeg_bytes : List(U8)
 ## (scripts/check_pdfa4.py) and that scripts/check_pdfa4_structure.py
 ## inspects structurally.
 archive : Pdf.Options
-archive = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+archive = Pdf.Options.{ profile: Pdf.Profile.Archive }
 
 standard : Pdf.Options
-standard = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard)
+standard = Pdf.Options.{ profile: Pdf.Profile.Standard }
 
 report_document : U64 -> Document
 report_document = |paragraphs| {
@@ -76,10 +76,10 @@ figure_document = |_| {
 	Pdf.document({
 		contents: [
 			Pdf.title("Archived figures"),
-			Pdf.figure(Scene.drawing({}).image(opaque, Layout.rect(0, 0, 320, 160)), "Teal diagonal stripes on an opaque raster", Pdf.caption("An opaque packed sRGB raster.")),
-			Pdf.figure(Scene.drawing({}).image(translucent, Layout.rect(0, 0, 320, 160)), "The same stripes fading from transparent to opaque", Pdf.caption("A packed raster with an alpha plane.")),
-			Pdf.figure(Scene.drawing({}).image(gray, Layout.rect(0, 0, 320, 80)), "A left-to-right gray ramp", Pdf.no_caption),
-			Pdf.figure(Scene.drawing({}).image(jpeg, Layout.rect(0, 0, 160, 160)), "A small sRGB JPEG test pattern", Pdf.caption("A baseline sRGB JPEG.")),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(opaque, Layout.rect(0, 0, 320, 160)), alt: "Teal diagonal stripes on an opaque raster", caption: Pdf.caption("An opaque packed sRGB raster.") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(translucent, Layout.rect(0, 0, 320, 160)), alt: "The same stripes fading from transparent to opaque", caption: Pdf.caption("A packed raster with an alpha plane.") }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(gray, Layout.rect(0, 0, 320, 80)), alt: "A left-to-right gray ramp", caption: Pdf.no_caption }),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(jpeg, Layout.rect(0, 0, 160, 160)), alt: "A small sRGB JPEG test pattern", caption: Pdf.caption("A baseline sRGB JPEG.") }),
 		],
 		language: "en-AU",
 		title: "Archived figures",
@@ -99,12 +99,16 @@ navigation_document = |links| {
 	}
 	$contents = $contents.append(Pdf.destination_heading("appendix", 1, "Appendix"))
 	$contents = $contents.append(Pdf.internal_link("Return to the overview", "overview"))
-	Pdf.document({ contents: $contents, language: "en-AU", title: "Archived navigation" })
-		.with_outline([
+	Pdf.document({
+		contents: $contents,
+		language: "en-AU",
+		title: "Archived navigation",
+		outline: [
 			{ depth: 0, destination: "overview", open: True, title: "Overview" },
 			{ depth: 0, destination: "appendix", open: False, title: "Appendix" },
-		])
-		.with_page_labels([{ prefix: "A-", start_number: 1, start_page: 0, style: DecimalArabic }])
+		],
+		page_labels: [{ prefix: "A-", start_number: 1, start_page: 0, style: DecimalArabic }],
+	})
 }
 
 ## The registration limits depend on the runtime scale so the registration is
@@ -116,7 +120,7 @@ caller_bytes = |scale| {
 		Err(_) => crash "archive caller font registration failed"
 		Ok(value) => value
 	}
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(archive, Theme.with_font(Theme.default, registered.face)), registered.registry)
+	options = { ..archive, theme: Theme.{ face: registered.face }, fonts: Registered(registered.registry) }
 	document = Pdf.document({ contents: [Pdf.paragraph("Café PDF"), Pdf.paragraph("Café PDF")], language: "en-AU", title: "Archived caller font" })
 	generate(document, options)
 }
@@ -131,7 +135,7 @@ generate = |document, options| match Pdf.to_bytes_with(document, options) {
 
 chunked : Document, Pdf.ChunkRetention -> { bytes : List(U8), chunks : U64 }
 chunked = |document, retention| {
-	var $encoder = match Pdf.to_chunks_with(document, Pdf.Options.with_chunk_retention(archive, retention)) {
+	var $encoder = match Pdf.to_chunks_with(document, { ..archive, chunk_retention: retention }) {
 		Ok(value) => value
 		Err(_) => {
 			crash "archive chunked preparation failed"

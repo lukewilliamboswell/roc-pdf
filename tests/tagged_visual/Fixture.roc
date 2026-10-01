@@ -80,5 +80,5 @@ build_minimal_pdf = |_| {
 	Ok(bytes)
 }
 
-## The tagged-visual evidence package links the private analytical geometry kernel.
+# The tagged-visual evidence package links the private analytical geometry kernel.
 expect Fixture.geometry_probe({ x: 2000, y: 3000 }) == { x: 2000, y: 9000 }

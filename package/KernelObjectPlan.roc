@@ -167,7 +167,7 @@ build_plan = |tagged, colors, images, resource_use, content, limits| {
 			{
 				color_spaces: color_count,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
-				element_identifiers: semantic_store.element_identifiers.len(),
+				element_identifiers: KernelTagged.Plan.lowered_identifier_count(tagged),
 				image_alpha: alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -199,7 +199,7 @@ build_text_plan = |tagged, colors, images, resource_use, content, limits| {
 			{
 				color_spaces: color_count,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
-				element_identifiers: semantic_store.element_identifiers.len(),
+				element_identifiers: KernelTagged.Plan.lowered_identifier_count(tagged),
 				image_alpha: alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -230,7 +230,7 @@ build_canonical_plan = |tagged, colors, images, resource_use, content, leaves, l
 			{
 				color_spaces: leaves.color_spaces,
 				contextual_artifacts: semantic_store.contextual_artifacts.len(),
-				element_identifiers: semantic_store.element_identifiers.len(),
+				element_identifiers: KernelTagged.Plan.lowered_identifier_count(tagged),
 				image_alpha: leaves.image_alpha,
 				namespaces: semantic_store.namespaces.len(),
 				pages: KernelContent.Plan.stream_count(content),
@@ -450,7 +450,7 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## Object families receive stable contiguous identities, including alpha masks.
+# Object families receive stable contiguous identities, including alpha masks.
 expect {
 	plan = build_counts(
 		{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
@@ -483,7 +483,7 @@ expect {
 																		}
 }
 
-## Object work separates stored objects from the generated xref object.
+# Object work separates stored objects from the generated xref object.
 expect {
 	plan = build_counts(
 		{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
@@ -493,7 +493,7 @@ expect {
 	work.object_identities == 20 and work.page_objects == 3 and work.page_tree_objects == 1 and work.profile_objects == 2 and work.image_objects == 4 and work.soft_mask_objects == 2 and work.structure_objects == 2 and work.contextual_artifact_objects == 1
 }
 
-## Object limits reject the whole plan before any builder mutation.
+# Object limits reject the whole plan before any builder mutation.
 expect match build_counts(
 	{ color_spaces: 1, contextual_artifacts: 1, element_identifiers: 0, image_alpha: [False, True], namespaces: 1, pages: 1, profiles: 1, structure_elements: 2 },
 	KernelObjectPlan.Limits.make({ max_objects: 19, max_pages: 1 }),
@@ -502,7 +502,7 @@ expect match build_counts(
 	_ => False
 }
 
-## A PDF object plan cannot omit the page-tree root.
+# A PDF object plan cannot omit the page-tree root.
 expect match build_counts(
 	{ color_spaces: 0, contextual_artifacts: 0, element_identifiers: 0, image_alpha: [], namespaces: 1, pages: 0, profiles: 0, structure_elements: 1 },
 	KernelObjectPlan.Limits.make({ max_objects: 8, max_pages: 1 }),
@@ -511,9 +511,9 @@ expect match build_counts(
 	_ => False
 }
 
-## IDTree nodes follow contextual Artifact elements and precede the page
-## tree only when element identifiers exist: 33 identifiers need a root and
-## two leaves at the fixed fanout of 32.
+# IDTree nodes follow contextual Artifact elements and precede the page
+# tree only when element identifiers exist: 33 identifiers need a root and
+# two leaves at the fixed fanout of 32.
 expect {
 	plan = build_counts(
 		{ color_spaces: 0, contextual_artifacts: 1, element_identifiers: 33, image_alpha: [], namespaces: 1, pages: 1, profiles: 0, structure_elements: 2 },

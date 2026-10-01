@@ -18,6 +18,7 @@ import Metadata
 import Semantics
 import KernelFacadeFragments
 import KernelFacadeFurniture
+import KernelFacadeLabels
 import KernelFacadeLines
 import KernelFacadeOutput
 import KernelFacadePages
@@ -49,7 +50,9 @@ import Scene
 import Theme
 
 Pdf :: [].{
-	Profile := [AccessibleArchive, Archive, Standard]
+	Profile := [AccessibleArchive, Archive, Standard].{
+		is_eq : _
+	}
 
 	## The facade records whether its selected theme face is the small packaged
 	## face or one of the opaque faces retained by a caller font registry. Both
@@ -57,8 +60,20 @@ Pdf :: [].{
 	## later stage branches on font provenance.
 	FontSource := [BuiltIn, Registered(Font.Registry)]
 
-	PageSize := [A4, Letter]
-	ChunkRetention := [OwnChunks, ShareUnchangedResources]
+	## The size of every page. `A4` is 595 × 842 pt and `Letter` 612 × 792 pt;
+	## `A4Landscape` and `LetterLandscape` swap their width and height.
+	## `Custom` is any other size in whole points from 3 to 14,400 on each
+	## side (the PDF user-space page limits); anything else is
+	## `layout.page_size`. The theme's margins and page templates apply to
+	## every size unchanged, so a size too small for them is rejected by the
+	## ordinary layout checks, never shrunk.
+	PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape].{
+		is_eq : _
+	}
+
+	ChunkRetention := [OwnChunks, ShareUnchangedResources].{
+		is_eq : _
+	}
 
 	## Stable roadmap feature identity carried by `FeatureUnavailable` diagnostics.
 	Feature : Document.Feature
@@ -140,7 +155,118 @@ Pdf :: [].{
 	## block moves whole to the next page, and one taller than a page flow
 	## region is `layout.oversize_block`. No PDF operators, private stores,
 	## or pagination callbacks are part of this contract.
-	CustomBlock : { contents : List(Document.Block), fragmentation : [Unsplittable], inset : Layout.Unit, name : Str, panel : Scene.Drawing, size : Layout.Size }
+	CustomBlock := {
+		contents : List(Document.Block),
+		fragmentation : [Unsplittable] ?? Unsplittable,
+		inset : Layout.Unit ?? 0,
+		name : Str,
+		panel : Scene.Drawing ?? Scene.Drawing.empty,
+		size : Layout.Size,
+	}
+
+	## A paginated document: its semantic `contents`, its `language`, and
+	## its metadata `title` (all required), and its navigation and page
+	## furniture, each empty unless given: the `outline` over authored
+	## destination names in dense preorder, `page_labels` ranges keyed by
+	## physical page index, `page_templates` (`Templates({ first,
+	## continuation })`, or `NoTemplates` for the theme's body frame on every
+	## page), and the `created` and `modified` metadata timestamps
+	## (`Explicit("2026-09-14T00:00:00Z")` in the canonical UTC form, or
+	## `Omitted`). The package never reads a clock: an omitted timestamp
+	## omits its XMP property.
+	DocumentProps := {
+		contents : List(Document.Block),
+		created : Metadata.TimestampInput ?? Omitted,
+		language : Str,
+		modified : Metadata.TimestampInput ?? Omitted,
+		outline : List(Document.OutlineEntry) ?? [],
+		page_labels : List(Document.PageLabelRange) ?? [],
+		page_templates : PageTemplates ?? NoTemplates,
+		title : Str,
+	}
+
+	## A document's page templates, or none.
+	PageTemplates : [NoTemplates, Templates({ continuation : PageTemplate, first : FirstPageTemplate })]
+
+	## How a numbered list labels its items: from `start` (1 unless
+	## given) in `style` (`Decimal` unless given).
+	NumberedList := { start : U64 ?? 1, style : NumberStyle ?? Decimal }
+
+	## A table: its caption (`Pdf.caption(...)` or `Pdf.no_caption`), its
+	## column declarations, and its header, body, and footer rows in
+	## logical order. Header and footer rows default to none (a table
+	## still needs a header cell somewhere), and rows are kept whole
+	## (`KeepRows`) unless `row_split` is `SplitRows`.
+	TableProps := {
+		body_rows : List(Row),
+		caption : Document.Caption,
+		columns : List(Column),
+		footer_rows : List(Row) ?? [],
+		header_rows : List(Row) ?? [],
+		row_split : RowSplit ?? KeepRows,
+	}
+
+	## A header or footer region of positive `height`: its `start`,
+	## `center`, and `end` slot stacks (empty unless given), an optional
+	## `backdrop` drawing behind them, and a `slot_inset` that moves the
+	## stacks inside the region's outer edge (zero unless given).
+	RegionProps := {
+		backdrop : Backdrop ?? NoBackdrop,
+		center : List(Furniture) ?? [],
+		end : List(Furniture) ?? [],
+		height : Layout.Unit,
+		slot_inset : Layout.Unit ?? 0,
+		start : List(Furniture) ?? [],
+	}
+
+	## A region's backdrop: none, or a decorative drawing.
+	Backdrop : Document.Backdrop
+
+	## The first page's template: header and footer regions (none unless
+	## given), the gap between them and the body (zero unless given), and a
+	## lead region of semantic blocks below the header (none unless given).
+	FirstPageTemplateProps := {
+		footer : Region ?? Pdf.no_region,
+		gap : Layout.Unit ?? 0,
+		header : Region ?? Pdf.no_region,
+		lead : LeadRegion ?? Pdf.no_lead,
+	}
+
+	## The template of every page after the first.
+	PageTemplateProps := {
+		footer : Region ?? Pdf.no_region,
+		gap : Layout.Unit ?? 0,
+		header : Region ?? Pdf.no_region,
+	}
+
+	## An in-flow decoration: its drawing, the space kept `above` it and
+	## `below` it before the next block (zero unless given; a negative
+	## `below` overlaps the next block), and whether it paints in `Front`
+	## of the page's text (the default) or `Behind` it.
+	DecorationProps := {
+		above : Layout.Unit ?? 0,
+		below : Layout.Unit ?? 0,
+		drawing : Scene.Drawing,
+		layer : DecorationLayer ?? Front,
+	}
+
+	## Whether a decoration paints after the page's text or before it.
+	DecorationLayer : [Behind, Front]
+
+	## A figure: its drawing, its required alternative text, its caption
+	## (`Pdf.caption(...)` or `Pdf.no_caption`), and how it meets the flow
+	## region (`Exact` unless given). `ScaleToFit({ minimum_percent })`
+	## scales the drawing uniformly by the largest factor at most one (in
+	## thousandths) that fits the flow width and the smallest page flow
+	## height together with its caption; a factor below the floor is
+	## `document.figure_oversize`, and a floor above 100 is
+	## `document.figure_fit`.
+	FigureProps := {
+		alt : Str,
+		caption : Document.Caption,
+		drawing : Scene.Drawing,
+		fit : FigureFit ?? Exact,
+	}
 
 	## The bounded, read-only preparation report returned beside a prepared
 	## document by `prepare_with_report`. `facts` are mechanically proven
@@ -200,11 +326,12 @@ Pdf :: [].{
 	## exactly its text, and whether an expansion is accurate.
 	ReportObligation : { obligation : [AlternativeTextMeaningful, ExpansionAccurate, LanguageAccurate, LinkPurposeMeaningful, ReadingOrderMeaningful, TableHeadersMeaningful], path : Str }
 
-	## The report's explicit budget: its total entry count and the bytes of
-	## its materialized paths and texts. A report that would exceed either
-	## fails with `report.budget_exceeded` and no prepared document; no
-	## entry or obligation is ever silently omitted.
-	ReportBudget : { max_entries : U64, max_text_bytes : U64 }
+	## The report's explicit budget: its total entry count (65,536 unless
+	## given) and the bytes of its materialized paths and texts (4 MiB
+	## unless given). A report that would exceed either fails with
+	## `report.budget_exceeded` and no prepared document; no entry or
+	## obligation is ever silently omitted.
+	ReportBudget := { max_entries : U64 ?? 65536, max_text_bytes : U64 ?? 4194304 }
 
 	## Every facade failure is typed. `InvalidDocument` is a bounded diagnostic
 	## batch and preparation emits no partial bytes on any error.
@@ -215,47 +342,66 @@ Pdf :: [].{
 		InvalidFontSelection(List(Font.PlanError)),
 		InvalidMetadata(Metadata.Error),
 		InvalidNavigation(Document.NavigationError),
-		UnsupportedAuthoringContent({ blocks : U64 }),
-	]
+	].{
 
-	Options :: {
-		chunk_retention : ChunkRetention,
-		font_source : FontSource,
-		page_size : PageSize,
-		profile : Profile,
-		theme : Theme,
+		## A readable rendering for `Str.inspect` and `dbg`, so an app whose
+		## `main!` returns `Err(PdfFailed(error))` prints each diagnostic as
+		## `code at path: message`. The wording is for people and is not a
+		## stability contract: branch on the typed payload instead.
+		to_inspect : Error -> Str
+		to_inspect = |error| match error {
+			InternalGenerationFailure => "Pdf.Error.InternalGenerationFailure"
+			InvalidDocument(batch) => {
+				count = batch.diagnostics.len()
+				var $text = "Pdf.Error.InvalidDocument (${count.to_str()} ${if count == 1 "diagnostic" else "diagnostics"}"
+				$text = match batch.truncation {
+					Complete => "${$text}):"
+					Truncated => "${$text}, truncated):"
+				}
+				for diagnostic in batch.diagnostics {
+					code = match diagnostic.feature {
+						Feature(name) => name
+						NoFeature => Str.inspect(diagnostic.code)
+					}
+					at = if diagnostic.details.is_empty() "" else " at ${Str.join_with(diagnostic.details, ", ")}"
+					$text = "${$text}\n  ${code}${at}: ${diagnostic.message}"
+				}
+				$text
+			}
+			InvalidFontResource(problem) => "Pdf.Error.InvalidFontResource(${Str.inspect(problem)})"
+			InvalidFontSelection(problems) => "Pdf.Error.InvalidFontSelection(${Str.inspect(problems)})"
+			InvalidMetadata(problem) => "Pdf.Error.InvalidMetadata(${Str.inspect(problem)})"
+			InvalidNavigation(problem) => "Pdf.Error.InvalidNavigation(${Str.inspect(problem)})"
+		}
+	}
+
+	## How a document is prepared: its conformance profile, page size,
+	## theme, fonts, and chunk retention. A transparent record whose
+	## fields all default, so `{}` (or `Pdf.Options.default`) is the
+	## production default and a caller names only what it changes:
+	## `Pdf.to_bytes_with(document, { page_size: Letter, theme, fonts:
+	## Registered(registry) })`.
+	##
+	## The production default selects the most complete public profile whose
+	## claim set is implemented and validated: `Archive` (PDF 2.0 plus static
+	## PDF/A-4). `AccessibleArchive` becomes the default only when its combined
+	## claim closes; `Standard` is an explicit opt-out, never a fallback.
+	## `fonts` is the complete public caller-resource boundary: a
+	## `Registered` registry carries the original immutable font bytes and
+	## the once-produced inspection facts, and the theme selects only the
+	## registry's opaque faces. Changing a default is a reviewed
+	## package-version change.
+	Options := {
+		chunk_retention : ChunkRetention ?? ShareUnchangedResources,
+		fonts : FontSource ?? BuiltIn,
+		page_size : PageSize ?? A4,
+		profile : Profile ?? Archive,
+		theme : Theme ?? {},
 	}.{
 
-		## The production default selects the most complete public profile whose
-		## claim set is implemented and validated: `Archive` (PDF 2.0 plus static
-		## PDF/A-4). `AccessibleArchive` becomes the default only when its combined
-		## claim closes; `Standard` is an explicit opt-out, never a fallback.
+		## Every option at its default.
 		default : Options
-		default = Options.{
-			chunk_retention: ShareUnchangedResources,
-			font_source: BuiltIn,
-			page_size: A4,
-			profile: Archive,
-			theme: Theme.default,
-		}
-
-		with_profile : Options, Profile -> Options
-		with_profile = |options, profile| { ..options, profile }
-
-		with_page_size : Options, PageSize -> Options
-		with_page_size = |options, page_size| { ..options, page_size }
-
-		with_theme : Options, Theme -> Options
-		with_theme = |options, theme| { ..options, theme }
-
-		## A registry is the complete public caller-resource boundary. It carries
-		## the original immutable font bytes and the once-produced inspection
-		## facts; callers still select only the returned opaque face through Theme.
-		with_font_registry : Options, Font.Registry -> Options
-		with_font_registry = |options, registry| { ..options, font_source: Registered(registry) }
-
-		with_chunk_retention : Options, ChunkRetention -> Options
-		with_chunk_retention = |options, chunk_retention| { ..options, chunk_retention }
+		default = Options.{}
 	}
 
 	## An opaque, fully validated document plan. Preparation performs all
@@ -274,9 +420,10 @@ Pdf :: [].{
 		AccessibleArchive => Conformance.claims_for_profile(AccessibleArchive)
 	}
 
-	## Build an automatically paginated document from semantic blocks.
-	document : { contents : List(Document.Block), language : Str, title : Str } -> Document
-	document = |input| Document.from_blocks(input)
+	## Build an automatically paginated document from semantic blocks, with
+	## the navigation, page templates, and timestamps its props name.
+	document : DocumentProps -> Document
+	document = |DocumentProps.{ contents, created, language, modified, outline, page_labels, page_templates, title }| Document.from_props({ contents, created, language, modified, outline, page_labels, templates: page_templates, title })
 
 	## Build an explicitly framed document. The stable shape is available now;
 	## preparation reports `layout.custom` until its lowering closes.
@@ -290,6 +437,15 @@ Pdf :: [].{
 	## Add a semantic heading at the requested level.
 	heading : U8, Str -> Document.Block
 	heading = |level, value| Document.heading(level, value)
+
+	## Blocks whose inline role and link colors a `Theme.Scope` overrides,
+	## for example a callout whose `Strong` label is amber. The group adds
+	## no structure element, keeps no blocks together, and changes only fill
+	## colors; the innermost scope that colors a role wins, then the theme.
+	## It holds the blocks a section can hold (not list-item content), and
+	## at least one (`semantics.scope_empty`).
+	scoped : Theme.Scope, List(Document.Block) -> Document.Block
+	scoped = |scope, contents| Document.scoped(scope, contents)
 
 	## Add a plain paragraph.
 	paragraph : Str -> Document.Block
@@ -313,8 +469,8 @@ Pdf :: [].{
 	## style becomes the list's `ListNumbering`. A label must fit the list
 	## indent, letters and Roman numerals start at 1, and Roman numerals stop
 	## at 3999.
-	numbered_list : { start : U64, style : NumberStyle }, List(ListItem) -> Document.Block
-	numbered_list = |numbering, items| Document.numbered_list(numbering, items)
+	numbered_list : NumberedList, List(ListItem) -> Document.Block
+	numbered_list = |numbering, items| Document.numbered_list({ start: numbering.start, style: numbering.style }, items)
 
 	## One list item holding its body blocks in logical order.
 	list_item : List(Document.Block) -> ListItem
@@ -328,7 +484,9 @@ Pdf :: [].{
 
 	## Keep blocks together on one page (a required constraint). The group
 	## produces no structure element; a group taller than a page body is
-	## `layout.keep_conflict`.
+	## `layout.keep_conflict`. Wrapping a table, such as
+	## `Pdf.keep_together([table])`, keeps the whole table (caption, header,
+	## body, and footer rows) on one page instead of continuing it.
 	keep_together : List(Document.Block) -> Document.Block
 	keep_together = |contents| Document.keep_together(contents)
 
@@ -370,20 +528,10 @@ Pdf :: [].{
 	## `CaptionFor`, so assistive technology reads it independently of the
 	## alternative text. A figure wider than the flow region, or taller with
 	## its caption than a page's flow region, is `document.figure_oversize`
-	## unless `figure_fit` selects `ScaleToFit`; nothing is clipped or
+	## unless its `fit` is `ScaleToFit`; nothing is clipped or
 	## silently shrunk.
-	figure : Scene.Drawing, Str, Document.Caption -> Document.Block
-	figure = |drawing, alternative, caption_value| Document.figure(drawing, alternative, caption_value)
-
-	## Select how a figure meets the flow region. `ScaleToFit({
-	## minimum_percent })` scales the drawing uniformly by the largest
-	## factor at most one (in thousandths) that fits the flow width and the
-	## smallest page flow height together with its caption; a factor below
-	## the floor is `document.figure_oversize`. Applied to any block other
-	## than a figure, or with a floor above 100, it is rejected
-	## (`document.figure_fit`).
-	figure_fit : Document.Block, FigureFit -> Document.Block
-	figure_fit = |block, fit| Document.figure_fit(block, fit)
+	figure : FigureProps -> Document.Block
+	figure = |props| Document.fitted_figure(props.drawing, props.alt, props.caption, props.fit)
 
 	## An in-flow decorative drawing, such as a divider rule: a `Decoration`
 	## page artifact outside the logical structure. It occupies its
@@ -391,18 +539,48 @@ Pdf :: [].{
 	## moves with that block's first line, so it is never clipped or split
 	## from it. A decoration needs a following flow block, and may not
 	## appear in a list item or a lead region.
-	decoration : Scene.Drawing -> Document.Block
-	decoration = |drawing| Document.decoration(drawing)
+	##
+	## `above` is space kept above the drawing and `below` space between
+	## the drawing and the next block, so a divider needs no empty drawing
+	## area around it; the decoration occupies `above`, its drawing's
+	## height, and `below`. A negative `below` lowers the drawing over the
+	## next block's first lines by at most its own height, such as a
+	## highlight band behind a heading, and `layer: Behind` paints it before
+	## the page's text instead of after it (it stays a `Decoration` artifact
+	## either way). A negative `above` or a deeper overlap is
+	## `layout.decoration_drawing`.
+	decoration : DecorationProps -> Document.Block
+	decoration = |props| {
+		behind = match props.layer {
+			Behind => True
+			Front => False
+		}
+		Document.decoration({ above: props.above, behind, below: props.below, drawing: props.drawing })
+	}
 
 	## A custom block, as a separately authored extension measured it (see
 	## `CustomBlock`).
 	custom_block : CustomBlock -> Document.Block
-	custom_block = |{ contents, fragmentation, inset, name, panel, size }| {
+	custom_block = |CustomBlock.{ contents, fragmentation, inset, name, panel, size }| {
 		match fragmentation {
 			Unsplittable => {}
 		}
 		Document.custom_block({ contents, inset, name, panel, size })
 	}
+
+	## Measure the height custom-block content needs at a content width,
+	## exactly as preparation lays it out: the same theme, faces, line
+	## breaking, leading, and paragraph spacing, so an extension can size a
+	## `CustomBlock` whose paragraphs wrap (its `size.height` is this height
+	## plus twice its inset). `contents` are the blocks a custom block
+	## holds, in the document `language`. Content that preparation would
+	## reject returns that rejection, with paths relative to a probe
+	## document (`contents[0].contents[k]` is `contents[k]` here). Nothing
+	## is laid out on a page and no bytes are produced; preparation still
+	## proves the fit, so a stale measurement is `layout.custom_block_measure`,
+	## never clipped.
+	measure_custom_content : Options, { contents : List(Document.Block), language : Str, width : Layout.Unit } -> Try(Layout.Unit, Error)
+	measure_custom_content = |options, { contents, language, width }| measure_content(options, contents, language, width)
 
 	## Add an optional visible caption to a figure.
 	caption : Str -> Document.Caption
@@ -486,39 +664,35 @@ Pdf :: [].{
 	## carry at least one body row. `KeepRows` moves a row that does not fit
 	## to the next page and rejects a row taller than a page body as
 	## `layout.oversize_row`; `SplitRows` breaks a row at a line boundary.
+	## `Pdf.keep_together([table])` keeps a whole table on one page.
 	## Each row's column spans must sum to the column count
 	## (`table.grid_mismatch`), a table needs a header cell
 	## (`table.header_missing`), and row spans are not yet supported
 	## (`table.row_span`).
-	table : { body_rows : List(Row), caption : Document.Caption, columns : List(Column), footer_rows : List(Row), header_rows : List(Row), row_split : RowSplit } -> Document.Block
-	table = |spec| Document.table(spec)
+	table : TableProps -> Document.Block
+	table = |TableProps.{ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split }| Document.table({ body_rows, caption: caption_value, columns, footer_rows, header_rows, row_split })
 
 	## One table row: its cells in logical order.
 	row : List(Cell) -> Row
 	row = |cells| Document.row(cells)
 
 	## A data cell (`TD`) whose inline content forms one paragraph.
+	##
+	## `Pdf.cell([])` is an empty cell: a `TD` with no content, for a value
+	## the table deliberately leaves blank. It paints nothing, takes no
+	## part in column widths, and its row keeps the height of its other
+	## cells (one line when every cell is empty). It keeps its fill, its
+	## `Headers`, and its place in the grid. Inline content that holds no
+	## text, such as `[Pdf.strong([])]`, is `table.cell_empty`; a table
+	## whose every cell is empty is `table.empty`.
 	cell : List(Inline) -> Cell
 	cell = |contents| Document.cell(contents)
 
-	## A header cell (`TH`) with its declared scope.
+	## A header cell (`TH`) with its declared scope. With no contents it is
+	## an empty header cell, such as the blank corner above a column of row
+	## headers.
 	header_cell : Scope, List(Inline) -> Cell
 	header_cell = |scope, contents| Document.header_cell(scope, contents)
-
-	## A cell spanning `count` columns (`ColSpan`).
-	spanning : U16, Cell -> Cell
-	spanning = |count, value| Document.spanning(count, value)
-
-	## A cell whose lines align at `align` instead of in the alignment of
-	## the first column it spans, such as an end-aligned label spanning a
-	## table's start-aligned columns.
-	aligned : Align, Cell -> Cell
-	aligned = |align, value| Document.aligned(align, value)
-
-	## A cell spanning `count` rows. Row spans are outside the supported
-	## table subset: preparation reports `table.row_span` until Gate 8.
-	row_spanning : U16, Cell -> Cell
-	row_spanning = |count, value| Document.row_spanning(count, value)
 
 	## Gate 6-8 authoring shapes are stable before their lowering is enabled.
 	## These constructors retain the authored intent and reject transactionally
@@ -563,50 +737,40 @@ Pdf :: [].{
 	destination_paragraph : Str, Str -> Document.Block
 	destination_paragraph = |name, value| Document.destination_paragraph(name, value)
 
-	## The authored document outline in dense preorder over authored
-	## destination names.
-	with_outline : Document, List(Document.OutlineEntry) -> Document
-	with_outline = |doc, entries| Document.with_outline(doc, entries)
-
-	## First-page and continuation-page templates. Each template reserves a
-	## header and a footer region of fixed height inside the theme's body
-	## frame, each separated from the body flow by the template's gap; the
-	## first page may also reserve a lead region below its header. Body flow
-	## is confined to what remains, so the first page and continuation pages
-	## may hold different body heights. Region furniture paints on every
-	## page of its template as a page artifact (`Header`, `Footer`, or
-	## `PageNum` when a line holds a page field) and never joins the logical
-	## structure; the lead region's blocks are semantic (a `Div`) and come
-	## first in reading order.
-	##
-	## Page fields resolve after pagination by explicit reference states:
-	## the first pass paginates the body, the second resolves every field
-	## with the final page count and proves it fits. Regions have fixed
-	## heights, so furniture never changes pagination and two passes always
-	## suffice. Template regions that leave less than one body line are
-	## `layout.template_body_space`; furniture or lead content that exceeds
-	## its region, or slots that overlap, are
-	## `layout.template_region_overflow`; a resolved field wider than its
-	## reserved width is `layout.field_overflow`.
-	with_page_templates : Document, { continuation : PageTemplate, first : FirstPageTemplate } -> Document
-	with_page_templates = |doc, templates| Document.with_page_templates(doc, templates)
-
 	## The first page's template. `lead` is a lead region of semantic blocks
 	## (such as a letterhead) or `no_lead`.
-	first_page_template : { footer : Region, gap : Layout.Unit, header : Region, lead : LeadRegion } -> FirstPageTemplate
-	first_page_template = |record| Document.first_page_template(record)
+	first_page_template : FirstPageTemplateProps -> FirstPageTemplate
+	first_page_template = |FirstPageTemplateProps.{ footer, gap, header, lead }| Document.first_page_template({ footer, gap, header, lead })
 
 	## The template of every page after the first.
-	page_template : { footer : Region, gap : Layout.Unit, header : Region } -> PageTemplate
-	page_template = |record| Document.page_template(record)
+	page_template : PageTemplateProps -> PageTemplate
+	page_template = |PageTemplateProps.{ footer, gap, header }| Document.page_template({ footer, gap, header })
 
 	## A header or footer region of positive `height`. Its `start`, `center`,
 	## and `end` slots each hold a vertical stack of furniture: a header's
 	## stacks sit on its bottom edge and a footer's hang from its top edge,
 	## beside the body flow. Start items align to the frame's start edge,
 	## end items to its end edge, and center items are centered.
-	region : { center : List(Furniture), end : List(Furniture), height : Layout.Unit, start : List(Furniture) } -> Region
-	region = |record| Document.region(record)
+	##
+	## A `backdrop` is a decorative drawing (images and solid paths, as for
+	## `furniture_image`) whose origin is the region's bottom-left corner at
+	## the body frame's start edge, painted behind the region's slots and
+	## the page's text as a page artifact of the region's kind. It spans up
+	## to the full frame width and the region's height
+	## (`layout.template_region_overflow` otherwise) and never takes part in
+	## the slots' stacking or overlap checks, so a full-width rule under a
+	## header can sit beside start-, center-, and end-slot furniture. A
+	## region may hold only a backdrop.
+	##
+	## A `slot_inset` lifts a header's stacks above its bottom edge (a
+	## footer's drop below its top edge), so a backdrop rule along that edge
+	## clears the text's descenders; the backdrop does not move. The stacks
+	## and the inset together must fit the region
+	## (`layout.template_region_overflow`), and a negative inset is
+	## `layout.spacer_negative`. A region of zero height is
+	## `layout.template_region_empty`.
+	region : RegionProps -> Region
+	region = |RegionProps.{ backdrop, center, end, height, slot_inset, start }| Document.region({ backdrop, center, end, height, inset: slot_inset, start })
 
 	## A template without this region; it reserves no height and no gap.
 	no_region : Region
@@ -649,19 +813,6 @@ Pdf :: [].{
 	## the width, or preparation reports `layout.field_overflow`.
 	reserved_width : Layout.Unit, Align, List(Inline) -> Inline
 	reserved_width = |width, align, contents| Document.reserved_width(width, align, contents)
-
-	## Authored page-label ranges keyed by physical page index.
-	with_page_labels : Document, List(Document.PageLabelRange) -> Document
-	with_page_labels = |doc, ranges| Document.with_page_labels(doc, ranges)
-
-	## Optional explicit metadata timestamps in the canonical UTC form
-	## `YYYY-MM-DDThh:mm:ssZ`. The package never invents a timestamp: omitted
-	## values deterministically omit their XMP properties.
-	with_created : Document, Str -> Document
-	with_created = |doc, timestamp| Document.with_created(doc, timestamp)
-
-	with_modified : Document, Str -> Document
-	with_modified = |doc, timestamp| Document.with_modified(doc, timestamp)
 
 	## The default profile is `Archive`: content follows the completed typed
 	## facade pipeline and passes static PDF/A-4 profile and lowered-plan
@@ -751,6 +902,9 @@ Pdf :: [].{
 build_plan : Document, Pdf.Options -> Try(KernelStructure.Plan, Pdf.Error)
 build_plan = |doc, options| {
 	claim = validate_profile_request(options)?
+	validate_theme(options.theme)?
+	validate_page_size(options.page_size)?
+	validate_body_frame(options.page_size, options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
 	## serializes once, identified exactly when the requested profile claims
@@ -827,6 +981,49 @@ build_plan = |doc, options| {
 	Ok(plan)
 }
 
+## Custom-block content height through the facade pipeline. The probe is a
+## custom block of the requested content width whose box leaves one
+## millipoint for content, so pagination always rejects it with the exact
+## content height it measured (`CustomMeasureShort`), the same fact that
+## proves a real custom block's fit. No page is laid out.
+measure_content : Pdf.Options, List(Document.Block), Str, Layout.Unit -> Try(Layout.Unit, Pdf.Error)
+measure_content = |options, contents, language, width| {
+	if width <= 0 {
+		return Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.custom_block_measure", "Custom-block content is measured at a positive width.", ["width"])))
+	}
+	inset = Layout.Unit.from_raw(1)
+	probe = Pdf.document({
+		contents: [Pdf.custom_block({ contents, fragmentation: Unsplittable, inset, name: "measurement", panel: Scene.Drawing.empty.rectangle({ origin: { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, size: { height: Layout.Unit.from_raw(1), width: Layout.Unit.from_raw(1) } }, Color.srgb8({ blue: 0, green: 0, red: 0 })), size: { height: Layout.Unit.from_raw(3), width: Layout.Unit.from_raw(width.raw() + 2) } })],
+		language,
+		title: "Custom-block measurement",
+	})
+	match Document.first_unavailable(probe) {
+		Available => {}
+		UnavailableFeature({ feature, summary }) => return Err(InvalidDocument(unavailable_batch(feature, summary)))
+	}
+	validate_theme(options.theme)?
+	validate_page_size(options.page_size)?
+	validate_body_frame(options.page_size, options.theme)?
+	validated = KernelMetadata.validate({ created: Document.created(probe), language: Document.language(probe), modified: Document.modified(probe), title: Document.metadata_title(probe) }, standard_metadata_limits) ? InvalidMetadata
+	facts = WithDocumentFacts({
+		condition_identifier: KernelMetadata.srgb_condition_identifier,
+		profile: Color.ProfileId.from_index(0),
+		registry_name: KernelMetadata.icc_registry_name,
+		language: validated.facts.language,
+		xmp: [],
+	})
+	measured = |result, on_error| match result {
+		Err(Pages(CustomMeasureShort({ content, .. }))) => Ok(Layout.Unit.from_raw(content.to_i64_wrap()))
+		Err(error) => Err(on_error(error))
+		Ok(_) => Err(InternalGenerationFailure)
+	}
+	match selected_fonts(options)? {
+		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(Document.normalize(probe), single, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
+		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(probe), styled, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
+		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(Document.normalize(probe), ordered, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
+	}
+}
+
 ## `build_plan` with the preparation report's facts collected by the
 ## `*_reporting` pipeline builders, which produce the identical prepared
 ## plan. The document is normalized once and the normalized authoring is
@@ -835,6 +1032,9 @@ build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacad
 build_reporting_plan = |doc, options| {
 	normalized = Document.normalize(doc)
 	claim = validate_profile_request(options)?
+	validate_theme(options.theme)?
+	validate_page_size(options.page_size)?
+	validate_body_frame(options.page_size, options.theme)?
 
 	## The authored metadata facts validate once and the canonical XMP packet
 	## serializes once, identified exactly when the requested profile claims
@@ -950,9 +1150,10 @@ profile_batch = |violation, stage| {
 ## packaged built-in face defines no policies, so that combination is a
 ## stable typed error rather than an implicit single-face fallback.
 selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
-selected_fonts = |options| match Theme.font_selection(options.theme) {
-	StyleFaces => if !has_role_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
-	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove Theme.with_inline_font or use style faces.", []))) else match options.font_source {
+selected_fonts = |options| match options.theme.font_selection {
+	StyleFaces => if !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
+	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A title or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give the title and headings the body face or use style faces.", [])))
+	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove the inline role faces or use style faces.", []))) else match options.fonts {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
 			_faces = registry.policy_faces(policy) ? |_| InvalidFontSelection([InvalidPolicy(policy)])
@@ -1005,7 +1206,7 @@ pipeline_error = |error, doc| match error {
 	Semantics(DecorationDrawing({ decoration, reason })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "layout.decoration_drawing", "A decoration's drawing is not a supported flow drawing: ${reason}.")
 	Semantics(DecorationPosition({ decoration })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.decoration_position", "A decoration is placed above the next flow block and moves with it, so it needs a following flow block and cannot appear in a lead region.")
 	Semantics(ListItemDecoration({ decoration })) => flow_item_error(doc, DecorationItem(decoration), InvalidRelationship, "semantics.list_item_content", "A decoration cannot appear inside a list item.")
-	Pages(FigureOversize({ block, frame_height, frame_width, height, width })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure's drawing is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and ${points_text(frame_height)} tall for the figure with its caption and any decoration above it; a figure is never clipped or shrunk unless figure_fit selects ScaleToFit.", [leaf_path(doc, block)])
+	Pages(FigureOversize({ block, frame_height, frame_width, height, width })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure's drawing is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and ${points_text(frame_height)} tall for the figure with its caption and any decoration above it; a figure is never clipped or shrunk unless its fit is ScaleToFit.", [leaf_path(doc, block)])
 	Pages(FigureScaleFloor({ block, floor, scale })) => located_error(doc, LayoutConstraintViolated, "document.figure_oversize", "A figure fits the flow region only at ${percent_text(scale)} of its size, below its ScaleToFit floor of ${floor.to_str()}%.", [leaf_path(doc, block)])
 	Semantics(CustomContent({ child, custom })) => custom_content_error(doc, custom, child)
 	Semantics(CustomDrawing({ custom, reason })) => custom_error(doc, custom, InvalidRelationship, "layout.custom_block_drawing", "A custom block's panel is not a supported panel drawing: ${reason}.")
@@ -1016,8 +1217,8 @@ pipeline_error = |error, doc| match error {
 	Pages(CustomMeasureShort({ available, content, custom })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.custom_block_measure", "A custom block's content needs ${points_text(content)}, but its measured height less twice its inset leaves ${points_text(available)}; the extension must measure the block at least that tall.")
 	Pages(DecorationOversize({ decoration, frame_height, frame_width, height, width })) => flow_item_error(doc, DecorationItem(decoration), LayoutConstraintViolated, "layout.oversize_block", "A decoration is ${points_text(width)} wide and ${points_text(height)} tall, but the flow region is ${points_text(frame_width)} wide and at most ${points_text(frame_height)} tall; a decoration is never clipped or shrunk.")
 	Semantics(EmptyRichParagraph({ block })) => inline_error(doc, block, NoInline, InvalidRelationship, "semantics.inline_empty", "A rich paragraph contains no text.")
-	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell contains no text.", [leaf_path(doc, block)])
-	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column and one body row.")
+	Semantics(TableCellEmpty({ block })) => located_error(doc, InvalidRelationship, "table.cell_empty", "A table cell's content holds no text; write an empty cell as Pdf.cell([]).", [leaf_path(doc, block)])
+	Semantics(TableEmpty({ group })) => group_error(doc, group, InvalidRelationship, "table.empty", "A table needs at least one column, one body row, and one cell with content.")
 	Semantics(TableGridMismatch({ columns, group, spanned })) => group_error(doc, group, InvalidRelationship, "table.grid_mismatch", "A table row spans ${spanned.to_str()} columns but the table declares ${columns.to_str()}; every row's column spans must sum to the column count and each span must be at least one.")
 	Semantics(TableHeaderMissing({ group })) => group_error(doc, group, InvalidRelationship, "table.header_missing", "A table declares no header cell; at least one cell must be a header_cell with a declared scope.")
 	Semantics(TableRowSpan({ block })) => located_error(doc, FeatureUnavailable, "table.row_span", "A table cell spans rows; row spans are scheduled for Gate 8 and only column spans are supported.", [leaf_path(doc, block)])
@@ -1026,7 +1227,20 @@ pipeline_error = |error, doc| match error {
 	Lines(Tables(UnbreakableToken({ available, block, token, width }))) => located_error(doc, LayoutConstraintViolated, "layout.unbreakable_token", "A table cell holds text with no break opportunity (scalars ${token.start().to_str()} to ${(token.start() + token.length()).to_str()}) that is ${points_text(width)} wide, but its column gives it at most ${points_text(available)}; there is no emergency breaking.", [leaf_path(doc, block)])
 	Pages(TableLayout({ error: LeadOverflow({ available, required }), groups: _, units: _ })) => lead_overflow_error(available, required)
 	Pages(TableLayout({ error: layout_error, groups: sources, units })) => table_layout_error(doc, layout_error, sources, units)
-	Pages(TableRuleWidth({ gap, width })) => located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's table rule is ${points_text(width)} wide but the row gap it is drawn in is ${points_text(gap)}.", [])
+	Pages(TableRuleWidth({ gap, rule, width })) => {
+		name = match rule {
+			HeaderFooterRule => "table rule"
+			BodyRule => "table body rule"
+			ColumnRule => "table column rule"
+			FrameRule => "table frame"
+		}
+		space = match rule {
+			HeaderFooterRule | BodyRule => "the row gap it is drawn in"
+			ColumnRule => "the padding of the two cells it is drawn between"
+			FrameRule => "the smaller of the cell padding and half the row gap, which it is drawn in,"
+		}
+		located_error(doc, LayoutConstraintViolated, "layout.table_rule", "The theme's ${name} is ${points_text(width)} wide but ${space} is ${points_text(gap)}.", [])
+	}
 	Semantics(EmptyInline({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.inline_empty", "An inline is empty: inline text, code, and expansions need text, and every inline element must contain text.")
 	Semantics(EmptyLinkText({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.link_text_empty", "A link has no text content to announce as its purpose.")
 	Semantics(NestedLink({ block, inline })) => inline_error(doc, block, AtInline(inline), InvalidRelationship, "semantics.nested_link", "A link contains another link.")
@@ -1037,6 +1251,7 @@ pipeline_error = |error, doc| match error {
 	Shape(InlineClusterBoundary({ block, inline })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_cluster", "An inline boundary falls inside a multi-scalar grapheme cluster, which the convenience shaper does not support.")
 	Semantics(LineBreakPosition({ block, line_break })) => line_break_error(doc, block, line_break)
 	Semantics(EmptyKeep({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.keep_empty", "A keep contains no laid-out block.")
+	Semantics(EmptyScope({ group })) => group_error(doc, group, InvalidRelationship, "semantics.scope_empty", "A scoped group contains no block; its colors would apply to nothing.")
 	Semantics(EmptyList({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_empty", "A list has no items.")
 	Semantics(EmptyListItem({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_item_empty", "A list item has no blocks.")
 	Semantics(ListDepthExceeded({ attempted, group, limit })) => group_error(doc, group, BudgetExceeded, "semantics.list_depth", "A list is nested ${attempted.to_str()} levels deep; the facade accepts at most ${limit.to_str()} nested lists.")
@@ -1058,8 +1273,191 @@ pipeline_error = |error, doc| match error {
 	Furniture(furniture) => furniture_error(furniture)
 	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
 	ReferenceBudget({ passes }) => located_error(doc, BudgetExceeded, "layout.budget_exhausted", "Reference stabilization did not repeat a state within its budget of ${passes.to_str()} passes; no attempted state is accepted.", [])
-	_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+	Semantics(UnsupportedHeadingLevel({ block, level })) => located_error(doc, InvalidRelationship, "semantics.heading_level", "A heading has level ${level.to_str()}; headings have levels 1 to 6 (H1 to H6).", [leaf_path(doc, block)])
+	Semantics(EmptyLanguage) => located_error(doc, InvalidLanguage, "document.language_empty", "The document language is empty; it must be a BCP 47 language tag.", [])
+	Semantics(EmptyMetadataTitle) => located_error(doc, InvalidRelationship, "document.title_empty", "The document's metadata title is empty.", [])
+	Shape(UnsupportedThemeFace({ block, face })) => located_error(doc, FeatureUnavailable, "text.theme_face", "A block's style selects face ${face.to_str()}, which is not one of the faces this document's font selection prepared.", [leaf_path(doc, block)])
+	Shape(ShapeFailure) => located_error(doc, FontCoverageMissing, "text.shaping_failed", "The selected faces could not shape the document's text, and no single text run was identified as the cause; no face is substituted.", [])
+	Scenes(UnsupportedColor({ run })) => located_error(doc, FeatureUnavailable, "color.unsupported", "Text run ${run.to_str()} is painted in a color the selected profile's output intent cannot represent; no color is converted.", [])
+	Output(Images(image)) => image_error(image)
+	Labels(label) => label_error(doc, label)
+	other => stage_error(other)
 }
+
+## A drawing label's rejection, located at its figure or custom block and
+## naming the label's position among the drawing's labels.
+label_error : Document, KernelFacadeLabels.Error -> Pdf.Error
+label_error = |doc, error| {
+	path = |owner| match owner {
+		FigureOwner(figure) => figure_path(doc, figure)
+		PanelOwner(custom) => custom_path(doc, custom)
+	}
+	match error {
+		LabelPolicy => located_error(doc, FeatureUnavailable, "text.drawing_label_policy", "Drawing labels shape in the body face or an inline role's face, and a theme with an ordered font policy has neither; use style faces for a document with drawing labels.", [])
+		LabelBounds({ height, label, left, owner, right, top, width }) => located_error(doc, LayoutConstraintViolated, "layout.drawing_label_bounds", "Drawing label ${label.to_str()} spans ${signed_points(left)} to ${signed_points(right)} across and reaches ${signed_points(top)} up, but its drawing is ${signed_points(width)} wide and ${signed_points(height)} tall; a label is never clipped, moved, or shrunk.", [path(owner)])
+		LabelText({ label, owner, reason }) => {
+			(feature, message) = match reason {
+				Coverage(scalar) => ("text.coverage_missing", "The face of drawing label ${label.to_str()} does not cover U+${scalar_hex(scalar)}; no face is substituted.")
+				Script(script) => ("text.unsupported_script", "Drawing label ${label.to_str()} uses the script ${script}, which the convenience text path does not shape.")
+				Cluster => ("text.unsupported_cluster", "Drawing label ${label.to_str()} holds a multi-scalar grapheme cluster, which the convenience shaper does not support.")
+			}
+			located_error(doc, FontCoverageMissing, feature, message, [path(owner)])
+		}
+		other => stage_error(Labels(other))
+	}
+}
+
+## A signed length in points, such as `-1.5 pt`.
+signed_points : I64 -> Str
+signed_points = |raw| if raw < 0 "-${points_text((0 - raw).to_u64_wrap())}" else points_text(raw.to_u64_wrap())
+
+## The authored path of figure `figure` (in authored order).
+figure_path : Document, U64 -> Str
+figure_path = |doc, figure| {
+	normalized = Document.normalize(doc)
+	var $index = 0
+	while $index < normalized.blocks.len() {
+		match normalized.blocks.get($index) {
+			Ok({ kind: Figure(value), .. }) => if value == figure {
+				return leaf_path(doc, $index)
+			}
+			_ => {}
+		}
+		$index = $index + 1
+	}
+	"contents"
+}
+
+## The authored path of custom block `custom`.
+custom_path : Document, U64 -> Str
+custom_path = |doc, custom| {
+	normalized = Document.normalize(doc)
+	match normalized.customs.get(custom) {
+		Ok(record) => group_path(normalized.groups, record.group)
+		Err(OutOfBounds) => "contents"
+	}
+}
+
+## An image resource whose data does not match its declaration (a packed
+## plane of the wrong length or row stride, dimensions out of range, a JPEG
+## the package does not accept) is an authoring error: the author supplied
+## the bytes. Its exact failure and the image's dense resource index (in
+## first-paint order) are kept; a crossed image limit is a budget error.
+image_error : KernelImage.Error -> Pdf.Error
+image_error = |image| match image {
+	LimitExceeded(_) | MarkerLimitExceeded(_) => stage_error(Output(Images(image)))
+	ArithmeticOverflow | NonDenseIdentity(_) => stage_error(Output(Images(image)))
+	_ => {
+		described = describe_failure(Str.inspect(image))
+		InvalidDocument(located_batch(InvalidRelationship, "image.invalid", "An image's data does not match what it declares (${described.path}${described.payload}); no image is repaired, padded, or dropped.", [described.path]))
+	}
+}
+
+## Every pipeline failure without an authoring cause of its own keeps its
+## exact stage and failure: its tag path, such as
+## `Output.Structure.TaggedObjects.Object.LimitExceeded`, becomes the stable
+## feature `pipeline.output.structure.tagged_objects.object.limit_exceeded`.
+## A crossed limit is a `BudgetExceeded` with the attempted value and the
+## limit in the message; any other failure is an `InternalInvariant`, a
+## package defect reported instead of an unlocated catch-all.
+stage_error : KernelFacadePipeline.Error -> Pdf.Error
+stage_error = |error| {
+	described = describe_failure(Str.inspect(error))
+	feature = "pipeline.${described.feature}"
+	if described.limit {
+		InvalidDocument(located_batch(BudgetExceeded, feature, "A preparation limit was crossed (${described.path}${described.payload}); no partial document is accepted.", [described.path]))
+	} else {
+		InvalidDocument(located_batch(InternalInvariant, feature, "A compiler stage rejected an internal precondition (${described.path}${described.payload}). This is a package defect, not an authoring error; please report it with the document.", [described.path]))
+	}
+}
+
+## The nested tag path of an inspected failure, its snake-case feature
+## code, whether it is a crossed limit, and a bounded view of the innermost
+## payload. Only the leading tags are read, one byte at a time.
+describe_failure : Str -> { feature : Str, limit : Bool, path : Str, payload : Str }
+describe_failure = |inspected| {
+	bytes = inspected.to_utf8()
+	var $path = []
+	var $feature = []
+	var $last = []
+	var $index = 0
+	var $reading = True
+	while $reading and $index < bytes.len() {
+		## One tag name: an upper-case letter then letters and digits.
+		start = $index
+		var $end = $index
+		while $end < bytes.len() and is_tag_byte(list_at_byte(bytes, $end), $end == start) {
+			$end = $end + 1
+		}
+		if $end == start {
+			$reading = False
+		} else {
+			if !$path.is_empty() {
+				$path = $path.append('.')
+				$feature = $feature.append('.')
+			}
+			$last = []
+			var $cursor = start
+			while $cursor < $end {
+				byte = list_at_byte(bytes, $cursor)
+				$path = $path.append(byte)
+				$last = $last.append(byte)
+				if byte >= 'A' and byte <= 'Z' {
+					if $cursor != start {
+						$feature = $feature.append('_')
+					}
+					$feature = $feature.append(byte + 32)
+				} else {
+					$feature = $feature.append(byte)
+				}
+				$cursor = $cursor + 1
+			}
+			$index = $end
+
+			## A nested tag follows `(`; anything else is the payload.
+			$reading = $index + 1 < bytes.len() and list_at_byte(bytes, $index) == '(' and is_tag_byte(list_at_byte(bytes, $index + 1), True)
+			if $reading {
+				$index = $index + 1
+			}
+		}
+	}
+
+	## The innermost payload up to its matching parenthesis, at most 160
+	## bytes, so a failure carrying a long list never floods the message.
+	payload = if $index < bytes.len() and list_at_byte(bytes, $index) == '(' {
+		limit = U64.min(bytes.len(), $index + 160)
+		var $depth = 0
+		var $end = $index
+		var $open = True
+		while $open and $end < limit {
+			byte = list_at_byte(bytes, $end)
+			if byte == '(' {
+				$depth = $depth + 1
+			} else if byte == ')' {
+				$depth = $depth - 1
+				if $depth == 0 {
+					$open = False
+				}
+			}
+			$end = $end + 1
+		}
+		": ${Str.from_utf8(bytes.sublist({ start: $index, len: $end - $index })) ?? ""}${if $open "…" else ""}"
+	} else {
+		""
+	}
+	{
+		feature: Str.from_utf8($feature) ?? "unknown",
+		limit: $last == "LimitExceeded".to_utf8() or $last == "CmapLimitExceeded".to_utf8() or $last == "MarkerLimitExceeded".to_utf8(),
+		path: Str.from_utf8($path) ?? "Unknown",
+		payload,
+	}
+}
+
+is_tag_byte : U8, Bool -> Bool
+is_tag_byte = |byte, first| if first byte >= 'A' and byte <= 'Z' else (byte >= 'A' and byte <= 'Z') or (byte >= 'a' and byte <= 'z') or (byte >= '0' and byte <= '9')
+
+list_at_byte : List(U8), U64 -> U8
+list_at_byte = |bytes, index| bytes.get(index) ?? 0
 
 ## Text a shaping path cannot shape, located at its paragraph or rich
 ## inline with the failing cluster's scalars. A script outside the path's
@@ -1127,9 +1525,10 @@ furniture_error = |error| {
 		InlineEmpty({ path }) => located(InvalidRelationship, "semantics.inline_empty", "Furniture text and every reserved width in it must contain text or a page field, and no text inline may be empty.", [path])
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
+		InsetNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template region's slot inset is negative; slot furniture never leaves its region.", [path])
 		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
 		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if script.is_empty() "Unknown" else script}, which the convenience text path does not shape.", [path])
-		_ => InternalGenerationFailure
+		other => stage_error(Furniture(other))
 	}
 }
 
@@ -1211,7 +1610,7 @@ table_layout_error = |doc, error, sources, units| {
 			RequiredKeepAtEnd({ block }) => located_error(doc, LayoutConstraintViolated, feature, "A required keep-with-next has no following block.", [required_keep_path(doc, normalized, leaf_of(block))])
 		}
 		LimitExceeded({ attempted, dimension: Pages, limit }) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
-		_ => UnsupportedAuthoringContent({ blocks: Document.block_count(doc) })
+		other => stage_error(Pages(PageLayout(other)))
 	}
 }
 
@@ -1505,8 +1904,8 @@ leaf_position = |normalized, block, parent| {
 		Err(OutOfBounds) => crash "normalized leaf path escaped"
 	}
 
-	## Siblings in the same parent before this leaf: earlier leaves (a legacy
-	## bullet list counts once), child groups, page breaks, and spacers.
+	# Siblings in the same parent before this leaf: earlier leaves (a legacy
+	# bullet list counts once), child groups, page breaks, and spacers.
 	var $position = 0
 	var $index = 0
 	var $previous_list = U64.highest
@@ -1727,9 +2126,30 @@ has_role_face = |theme| {
 	body = Theme.body_font(theme).index()
 	differs = |font| match font {
 		Face(face) => face.index() != body
-		Inherited => Bool.False
+		Inherited => False
 	}
 	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong))
+}
+
+## The title and heading style faces, in title then level order.
+block_faces : Theme -> List(Font.FaceId)
+block_faces = |theme| [
+	Theme.title_style(theme).font,
+	Theme.heading_level_style(theme, H1).font,
+	Theme.heading_level_style(theme, H2).font,
+	Theme.heading_level_style(theme, H3).font,
+	Theme.heading_level_style(theme, H4).font,
+	Theme.heading_level_style(theme, H5).font,
+	Theme.heading_level_style(theme, H6).font,
+]
+
+## Whether a title or heading style selects a face other than the body
+## face, without building a list on the common path.
+has_block_face : Theme -> Bool
+has_block_face = |theme| {
+	body = Theme.body_font(theme).index()
+	differs = |style| style.font.index() != body
+	differs(Theme.title_style(theme)) or differs(Theme.heading_level_style(theme, H1)) or differs(Theme.heading_level_style(theme, H2)) or differs(Theme.heading_level_style(theme, H3)) or differs(Theme.heading_level_style(theme, H4)) or differs(Theme.heading_level_style(theme, H5)) or differs(Theme.heading_level_style(theme, H6))
 }
 
 ## The inline role faces a theme selects that differ from its body face.
@@ -1739,8 +2159,8 @@ role_faces = |theme| {
 	[Theme.inline_font(theme, Code), Theme.inline_font(theme, Emphasis), Theme.inline_font(theme, Quote), Theme.inline_font(theme, Strong)]
 		.keep_if(
 			|font| match font {
-				Face(face) => face.index() != body.index()
-				Inherited => Bool.False
+				Face(face) => face != body
+				Inherited => False
 			},
 		)
 		.map(
@@ -1751,29 +2171,35 @@ role_faces = |theme| {
 		)
 }
 
-## The style-face candidates with inline role faces: the body face first,
-## then each distinct role face, all prepared from the caller registry. The
-## packaged face alone has no second face, so a role face there is an
+## The style-face candidates with title, heading, or inline role faces:
+## the body face first, then each distinct title and heading face, then
+## each distinct role face, all prepared from the caller registry. The
+## packaged face alone has no second face, so another face there is an
 ## unknown face.
 selected_styled_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_styled_fonts = |options| {
 	body_face = Theme.body_font(options.theme)
 	body = selected_font(options)?
-	registry = match options.font_source {
+	other_faces = if has_block_face(options.theme) {
+		block_faces(options.theme).keep_if(|face| face != body_face).concat(role_faces(options.theme))
+	} else {
+		role_faces(options.theme)
+	}
+	registry = match options.fonts {
 		Registered(value) => value
-		BuiltIn => return Err(InvalidFontResource(UnknownFace(list_first_or(role_faces(options.theme), body_face))))
+		BuiltIn => return Err(InvalidFontResource(UnknownFace(list_first_or(other_faces, body_face))))
 	}
 	var $faces = [body_face]
 	var $fonts = [body]
-	for face in role_faces(options.theme) {
-		if !$faces.any(|known| known.index() == face.index()) {
+	for face in other_faces {
+		if !$faces.any(|known| known == face) {
 			font = registry.prepared_face(face) ? InvalidFontResource
 			$faces = $faces.append(face)
 			$fonts = $fonts.append(font)
 		}
 	}
 	candidate = |role| match Theme.inline_font(options.theme, role) {
-		Face(face) => if face.index() == body_face.index() Inherited else Candidate(index_of($faces, face))
+		Face(face) => if face == body_face Inherited else Candidate(index_of($faces, face))
 		Inherited => Inherited
 	}
 	Ok(Styled({ faces: $faces, fonts: $fonts, roles: { code: candidate(Code), emphasis: candidate(Emphasis), quote: candidate(Quote), strong: candidate(Strong) } }))
@@ -1789,7 +2215,7 @@ index_of : List(Font.FaceId), Font.FaceId -> U64
 index_of = |faces, face| {
 	var $index = 0
 	while $index < faces.len() {
-		if list_at_face(faces, $index).index() == face.index() {
+		if list_at_face(faces, $index) == face {
 			return $index
 		}
 		$index = $index + 1
@@ -1806,11 +2232,11 @@ list_at_face = |faces, index| match faces.get(index) {
 }
 
 selected_font : Pdf.Options -> Try(KernelFont.Inspection, Pdf.Error)
-selected_font = |options| match options.font_source {
+selected_font = |options| match options.fonts {
 	BuiltIn => {
-		## The packaged face has the same dense facade identity as the initial
-		## caller registry face. The shaping stage consumes only the validated
-		## inspection and typed Theme face, never a provenance flag.
+		# The packaged face has the same dense facade identity as the initial
+		# caller registry face. The shaping stage consumes only the validated
+		# inspection and typed Theme face, never a provenance flag.
 		if Theme.body_font(options.theme).index() != 0 {
 			Err(InvalidFontResource(UnknownFace(Theme.body_font(options.theme))))
 		} else {
@@ -1830,6 +2256,40 @@ selected_registered_font : Font.Registry, Font.FaceId -> Try(KernelFont.Inspecti
 selected_registered_font = |registry, face| {
 	font = registry.prepared_face(face) ? InvalidFontResource
 	Ok(font)
+}
+
+## Theme values a setter cannot reject are validated before any work: each
+## inline role scale is 50 to 100 percent of its paragraph size, since a
+## scaled run keeps its line's baseline and leading.
+validate_theme : Theme -> Try({}, Pdf.Error)
+validate_theme = |theme| {
+	check_scale(theme, Code, "code")?
+	check_scale(theme, Emphasis, "emphasis")?
+	check_scale(theme, Quote, "quote")?
+	check_scale(theme, Strong, "strong")?
+	check_underline(theme)
+}
+
+## A link underline sits below the body baseline inside the leading: its
+## offset and thickness fit in the leading less the size.
+check_underline : Theme -> Try({}, Pdf.Error)
+check_underline = |theme| match theme.link.underline {
+	NoUnderline => Ok({})
+	Underline({ offset, thickness }) => {
+		body = Theme.body_style(theme)
+		room = body.leading.raw() - body.size.raw()
+		if offset < 0 or thickness <= 0 or offset.raw() + thickness.raw() > room {
+			Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.link_underline", "A link underline needs a non-negative offset and a positive thickness that together fit below the body text inside its leading (${points_text(room.to_u64_wrap())}); it never reaches the next line.", ["theme.link.underline"])))
+		} else {
+			Ok({})
+		}
+	}
+}
+
+check_scale : Theme, Theme.InlineRole, Str -> Try({}, Pdf.Error)
+check_scale = |theme, role, name| match Theme.inline_scale(theme, role) {
+	Percent(percent) if percent < 50 or percent > 100 => Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.inline_scale", "An inline role is scaled to ${percent.to_str()}% of its paragraph size; a scale is 50 to 100 percent, because a scaled run keeps its line's baseline and leading.", ["theme.inline.${name}.scale"])))
+	_ => Ok({})
 }
 
 ## The requested claim is derived from the public profile's exact claim set.
@@ -1909,13 +2369,58 @@ structure_page_size : Pdf.PageSize -> KernelStructure.PageSize
 structure_page_size = |page_size| match page_size {
 	A4 => KernelStructure.PageSize.A4
 	Letter => KernelStructure.PageSize.Letter
+	_ => {
+		size = layout_page_size(page_size)
+		KernelStructure.PageSize.Points({ height: size.height.raw() // 1000, width: size.width.raw() // 1000 })
+	}
 }
 
 layout_page_size : Pdf.PageSize -> Layout.Size
 layout_page_size = |page_size| match page_size {
 	A4 => { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
+	A4Landscape => { height: Layout.Unit.from_raw(595000), width: Layout.Unit.from_raw(842000) }
 	Letter => { height: Layout.Unit.from_raw(792000), width: Layout.Unit.from_raw(612000) }
+	LetterLandscape => { height: Layout.Unit.from_raw(612000), width: Layout.Unit.from_raw(792000) }
+	Custom(size) => size
 }
+
+## A custom page is whole points, 3 to 14,400 pt on each side. Whole points
+## keep the page box and the document identifier exact integers.
+validate_page_size : Pdf.PageSize -> Try({}, Pdf.Error)
+validate_page_size = |page_size| match page_size {
+	Custom({ height, width }) => {
+		if page_side_valid(width) and page_side_valid(height) {
+			Ok({})
+		} else {
+			Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.page_size", "A custom page is ${signed_points_text(width.raw())} wide and ${signed_points_text(height.raw())} high; each side must be a whole number of points from 3 to 14400 pt.", ["options.page_size"])))
+		}
+	}
+	_ => Ok({})
+}
+
+## The theme's margins must leave a body frame of positive width and
+## height on the selected page; margins are never reduced to fit.
+validate_body_frame : Pdf.PageSize, Theme -> Try({}, Pdf.Error)
+validate_body_frame = |page_size, theme| {
+	size = layout_page_size(page_size)
+	margin = theme.page_margin
+	width = size.width.raw() - margin.left.raw() - margin.right.raw()
+	height = size.height.raw() - margin.top.raw() - margin.bottom.raw()
+	if width > 0 and height > 0 {
+		Ok({})
+	} else {
+		Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.page_margin", "The theme's page margins leave a body frame ${signed_points_text(width)} wide and ${signed_points_text(height)} high on a ${signed_points_text(size.width.raw())} × ${signed_points_text(size.height.raw())} page; the body frame needs a positive width and height.", ["theme.page_margin", "options.page_size"])))
+	}
+}
+
+page_side_valid : Layout.Unit -> Bool
+page_side_valid = |unit| {
+	raw = unit.raw()
+	raw >= 3000 and raw <= 14400000 and raw % 1000 == 0
+}
+
+signed_points_text : I64 -> Str
+signed_points_text = |raw| if raw < 0 "-${points_text((0 - raw).to_u64_wrap())}" else points_text(raw.to_u64_wrap())
 
 standard_metadata_limits : KernelMetadata.Limits
 standard_metadata_limits = KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })
@@ -2049,20 +2554,20 @@ standard_object_limits = {
 	max_values: 4000000,
 }
 
-## Public profiles map to exact claim sets without enabling orthogonal WTPDF claims.
+# Public profiles map to exact claim sets without enabling orthogonal WTPDF claims.
 expect {
 	claims = Pdf.claims_for_profile(Pdf.Profile.AccessibleArchive)
 
 	claims.pdf20 and claims.static_pdf_a4 and claims.pdf_ua2 and !claims.wtpdf_accessibility
 }
 
-## The lexical implementation remains a private package module.
+# The lexical implementation remains a private package module.
 expect KernelLex.boolean(True) == Str.to_utf8("true")
 
-## text-layout Unicode analysis is pinned to the reviewed Unicode 17 package release.
+# text-layout Unicode analysis is pinned to the reviewed Unicode 17 package release.
 expect KernelUnicode.version == "17.0.0"
 
-## Object/value/edge storage is likewise package-private.
+# Object/value/edge storage is likewise package-private.
 expect KernelObject.counts(
 	KernelObject.init({
 		max_array_items: 0,
@@ -2082,7 +2587,7 @@ expect KernelObject.counts(
 	}),
 ).objects == 0
 
-## Sealing remains private and accepts the empty construction store.
+# Sealing remains private and accepts the empty construction store.
 expect match KernelSeal.seal(
 	KernelObject.init({
 		max_array_items: 0,
@@ -2105,13 +2610,13 @@ expect match KernelSeal.seal(
 	Err(_) => False
 }
 
-## The blank-page structural lowerer is private to the package.
+# The blank-page structural lowerer is private to the package.
 expect match KernelStructure.build_blank(1, KernelStructure.PageSize.A4) {
 	Ok(plan) => KernelStructure.Plan.object_count(plan) == 5
 	Err(_) => False
 }
 
-## The private buffered and chunk transitions share one emitter.
+# The private buffered and chunk transitions share one emitter.
 expect {
 	plan = KernelStructure.build_blank(1, KernelStructure.PageSize.A4)?
 	bytes = KernelEmit.to_bytes(plan)?
@@ -2119,7 +2624,7 @@ expect {
 	bytes.len() > 0
 }
 
-## Default authored content crosses the public facade without exposing PDF internals.
+# Default authored content crosses the public facade without exposing PDF internals.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -2131,8 +2636,8 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## Preparation is a one-way public boundary and both emission paths consume
-## the same sealed plan.
+# Preparation is a one-way public boundary and both emission paths consume
+# the same sealed plan.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Prepared once")], language: "en-AU", title: "Prepared" })
 	prepared = Pdf.prepare(document, Pdf.Options.default)?
@@ -2142,21 +2647,21 @@ expect {
 	buffered == chunked.bytes
 }
 
-## Every sRGB theme color is resolved through the packaged profile rather
-## than being silently reduced to black.
+# Every sRGB theme color is resolved through the packaged profile rather
+# than being silently reduced to black.
 expect {
 	blue : Color.SourceValue
 	blue = Srgb(Rgb({ blue: 65535, green: 16000, red: 4000 }))
-	theme = Theme.with_body_color(Theme.default, blue)
-	options = Pdf.Options.with_theme(Pdf.Options.default, theme)
+	theme = Theme.{ body: { color: blue } }
+	options = Pdf.Options.{ theme: theme }
 	document = Pdf.document({ contents: [Pdf.paragraph("Blue body text")], language: "en-AU", title: "Color" })
 	bytes = Pdf.to_bytes_with(document, options)?
 
 	bytes.len() > 667
 }
 
-## Unavailable authored content rejects atomically through the facade; no
-## blank document or partial bytes can escape a Try error.
+# Unavailable authored content rejects atomically through the facade; no
+# blank document or partial bytes can escape a Try error.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.footnote("Not implemented")],
@@ -2170,9 +2675,9 @@ expect {
 	}
 }
 
-## Page templates: furniture, a lead region, and page fields prepare
-## through the public facade; a template that leaves no body line and a page
-## field in body text reject with their stable codes and paths.
+# Page templates: furniture, a lead region, and page fields prepare
+# through the public facade; a template that leaves no body line and a page
+# field in body text reject with their stable codes and paths.
 expect {
 	page_of = Pdf.reserved_width(Layout.Unit.points(72), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
 	header = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: Layout.Unit.points(16), start: [Pdf.furniture_text([Pdf.text("Running head")])] })
@@ -2180,7 +2685,7 @@ expect {
 		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header }),
 		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: Layout.Unit.points(12), header, lead: Pdf.lead_region(Layout.Unit.points(lead_height), [Pdf.paragraph("Letterhead")]) }),
 	}
-	document = |contents, lead_height| Pdf.with_page_templates(Pdf.document({ contents, language: "en-AU", title: "Templates" }), templates(lead_height))
+	document = |contents, lead_height| Pdf.document({ contents, language: "en-AU", title: "Templates", page_templates: Templates(templates(lead_height)) })
 	accepted = match Pdf.to_bytes(document([Pdf.paragraph("First"), Pdf.page_break, Pdf.paragraph("Second")], 40)) {
 		Ok(bytes) => bytes.len() > 1000
 		Err(_) => False
@@ -2196,7 +2701,7 @@ expect {
 	accepted and body_space and body_field
 }
 
-## Empty default documents emit one structural PDF 2.0 page.
+# Empty default documents emit one structural PDF 2.0 page.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
 	bytes = Pdf.to_bytes(document)?
@@ -2204,53 +2709,53 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
 }
 
-## The explicit Standard option takes the same authored-content path.
+# The explicit Standard option takes the same authored-content path.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.paragraph("Explicit Standard")],
 		language: "en-AU",
 		title: "Explicit Standard",
 	})
-	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard)
+	options = Pdf.Options.{ profile: Pdf.Profile.Standard }
 	bytes = Pdf.to_bytes_with(document, options)?
 
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## The default is exactly `to_bytes_with(document, Options.default)`, and
-## that default claims static PDF/A-4.
+# The default is exactly `to_bytes_with(document, Options.default)`, and
+# that default claims static PDF/A-4.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Default")], language: "en-AU", title: "Default" })
 	implicit = Pdf.to_bytes(document)?
 	explicit = Pdf.to_bytes_with(document, Pdf.Options.default)?
-	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
+	archive = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
 
 	implicit == explicit and implicit == archive and contains_bytes(implicit, Str.to_utf8("<pdfaid:part>4</pdfaid:part>"))
 }
 
-## Archive emits the same document with exactly the PDF/A identification
-## added to its canonical metadata; Standard never declares it.
+# Archive emits the same document with exactly the PDF/A identification
+# added to its canonical metadata; Standard never declares it.
 expect {
 	document = Pdf.document({ contents: [Pdf.paragraph("Archive")], language: "en-AU", title: "Archive" })
-	archive = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
-	standard = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Standard))?
+	archive = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
+	standard = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Standard })?
 	marker = Str.to_utf8("<pdfaid:part>4</pdfaid:part>")
 
 	archive.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and contains_bytes(archive, marker) and !contains_bytes(standard, marker)
 }
 
-## A blank Archive document is validated on the same lowered-plan path.
+# A blank Archive document is validated on the same lowered-plan path.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Archive" })
-	bytes = Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive))?
+	bytes = Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.Archive })?
 
 	contains_bytes(bytes, Str.to_utf8("<pdfaid:rev>2020</pdfaid:rev>"))
 }
 
-## AccessibleArchive remains unavailable rather than dropping its UA claim.
+# AccessibleArchive remains unavailable rather than dropping its UA claim.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Accessible" })
-	options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)
+	options = Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }
 
 	match Pdf.to_bytes_with(document, options) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), message, .. }], .. })) => code == "profile.accessible_archive" and message.contains("Gate 7")
@@ -2258,7 +2763,7 @@ expect {
 	}
 }
 
-## Chunked facade output is byte-identical with buffered output.
+# Chunked facade output is byte-identical with buffered output.
 expect {
 	document = Pdf.document({ contents: [], language: "en-AU", title: "Blank" })
 	expected = Pdf.to_bytes(document)?
@@ -2280,8 +2785,8 @@ expect {
 	$actual == expected
 }
 
-## Authored chunked output is byte-identical to buffered output and arrives
-## in more than one plan-derived chunk.
+# Authored chunked output is byte-identical to buffered output and arrives
+# in more than one plan-derived chunk.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -2294,7 +2799,7 @@ expect {
 	collected.chunks >= 2 and collected.bytes == expected
 }
 
-## Unavailable authored content rejects atomically before any chunk exists.
+# Unavailable authored content rejects atomically before any chunk exists.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.footnote("Not implemented")],
@@ -2308,7 +2813,7 @@ expect {
 	}
 }
 
-## The owned-chunk retention mode concatenates to the identical authored bytes.
+# The owned-chunk retention mode concatenates to the identical authored bytes.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.title("Report"), Pdf.paragraph("Body")],
@@ -2316,7 +2821,7 @@ expect {
 		title: "Report",
 	})
 	expected = Pdf.to_bytes(document)?
-	options = Pdf.Options.with_chunk_retention(Pdf.Options.default, Pdf.ChunkRetention.OwnChunks)
+	options = Pdf.Options.{ chunk_retention: Pdf.ChunkRetention.OwnChunks }
 	collected = collect_chunks(Pdf.to_chunks_with(document, options)?)
 
 	collected.bytes == expected
@@ -2377,9 +2882,9 @@ append_pdf_bytes = |target, source| {
 	$out
 }
 
-## Facade navigation: URI and internal links, an authored named destination,
-## an outline, and page labels lower end to end through the standard
-## pipeline, and the navigation rejections surface as typed errors.
+# Facade navigation: URI and internal links, an authored named destination,
+# an outline, and page labels lower end to end through the standard
+# pipeline, and the navigation rejections surface as typed errors.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -2400,8 +2905,8 @@ expect {
 	bytes.len() > 4717
 }
 
-## A navigation document's chunked output is byte-identical to its buffered
-## output under both retention policies.
+# A navigation document's chunked output is byte-identical to its buffered
+# output under both retention policies.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -2411,17 +2916,18 @@ expect {
 		],
 		language: "en-AU",
 		title: "Chunked navigation",
-	}).with_outline([{ depth: 0, destination: "start", open: True, title: "Start" }])
+		outline: [{ depth: 0, destination: "start", open: True, title: "Start" }],
+	})
 	expected = Pdf.to_bytes(document)?
 	shared = collect_chunks(Pdf.to_chunks(document)?)
-	owned_options = Pdf.Options.with_chunk_retention(Pdf.Options.default, OwnChunks)
+	owned_options = Pdf.Options.{ chunk_retention: OwnChunks }
 	owned = collect_chunks(Pdf.to_chunks_with(document, owned_options)?)
 
 	shared.bytes == expected and owned.bytes == expected
 }
 
-## An unknown destination name on an internal link is a typed navigation
-## rejection through the facade, and no bytes escape.
+# An unknown destination name on an internal link is a typed navigation
+# rejection through the facade, and no bytes escape.
 expect {
 	document = Pdf.document({
 		contents: [Pdf.internal_link("Broken", "missing")],
@@ -2450,19 +2956,19 @@ archive_twin_document = {
 	Pdf.document({
 		contents: [
 			Pdf.destination_heading("start", 1, "Archive twins"),
-			Pdf.figure(Scene.drawing({}).image(image, Layout.rect(0, 0, 120, 120)), "A two by two translucent raster", Pdf.no_caption),
+			Pdf.figure({ drawing: Scene.Drawing.empty.image(image, Layout.rect(0, 0, 120, 120)), alt: "A two by two translucent raster", caption: Pdf.no_caption }),
 			Pdf.link("Specification", "https://example.com/pdfa"),
 			Pdf.internal_link("Back to start", "start"),
 		],
 		language: "en-AU",
 		title: "Archive twins",
+		outline: [{ depth: 0, destination: "start", open: True, title: "Start" }],
+		page_labels: [{ prefix: "T-", start_number: 1, start_page: 0, style: DecimalArabic }],
 	})
-		.with_outline([{ depth: 0, destination: "start", open: True, title: "Start" }])
-		.with_page_labels([{ prefix: "T-", start_number: 1, start_page: 0, style: DecimalArabic }])
 }
 
 archive_twin_options : Pdf.Options
-archive_twin_options = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+archive_twin_options = Pdf.Options.{ profile: Pdf.Profile.Archive }
 
 archive_twin_packet : Str -> KernelXmp.Packet
 archive_twin_packet = |title| match KernelMetadata.validate({ created: Omitted, language: "en-AU", modified: Omitted, title }, standard_metadata_limits) {
@@ -2581,31 +3087,31 @@ archive_twin_rewrite = |key, value| |store| {
 	{ ..store, values: $values }
 }
 
-## The unmutated claimed plan is eligible.
+# The unmutated claimed plan is eligible.
 expect archive_twin_lowered(|store| store) == Accepted
 
-## Annotation flags: a hidden or unprintable link is rejected.
+# Annotation flags: a hidden or unprintable link is rejected.
 expect archive_twin_lowered(archive_twin_rewrite("F", Integer(0))) == Rejected(AnnotationFlags)
 	and archive_twin_lowered(archive_twin_rewrite("F", Integer(6))) == Rejected(AnnotationFlags)
 		and archive_twin_lowered(archive_twin_rewrite("F", Integer(4 + 32))) == Rejected(AnnotationFlags)
 
-## Actions: a non-whitelisted action type, and a URI action retyped as a
-## non-link annotation.
+# Actions: a non-whitelisted action type, and a URI action retyped as a
+# non-link annotation.
 expect archive_twin_lowered(archive_twin_rename("URI", "Launch")) == Rejected(Actions)
 	and archive_twin_lowered(archive_twin_rename("Link", "Widget")) == Rejected(AnnotationTypes)
 
-## Images: interpolation, an unsupported bit depth, and OPI data.
+# Images: interpolation, an unsupported bit depth, and OPI data.
 expect archive_twin_lowered(archive_twin_rewrite("BitsPerComponent", Integer(3))) == Rejected(ImageDictionary)
 	and archive_twin_lowered(archive_twin_rename("BitsPerComponent", "Interpolate")) == Rejected(ImageDictionary)
 		and archive_twin_lowered(archive_twin_rename("Width", "OPI")) == Rejected(ImageDictionary)
 
-## Fonts: a simple font subtype, a non-FontFile2 program, and a CIDFont
-## without CIDToGIDMap.
+# Fonts: a simple font subtype, a non-FontFile2 program, and a CIDFont
+# without CIDToGIDMap.
 expect archive_twin_lowered(archive_twin_rename("Type0", "TrueType")) == Rejected(FontDictionary)
 	and archive_twin_lowered(archive_twin_rename("FontFile2", "FontFile3")) == Rejected(FontEmbedding)
 		and archive_twin_lowered(archive_twin_rename("CIDToGIDMap", "CIDToGIDMapz")) == Rejected(CompositeFont)
 
-## Package exclusions reachable as keys anywhere in the plan.
+# Package exclusions reachable as keys anywhere in the plan.
 expect archive_twin_lowered(archive_twin_rename("Lang", "JS")) == Rejected(Actions)
 	and archive_twin_lowered(archive_twin_rename("Lang", "OC")) == Rejected(OptionalContent)
 		and archive_twin_lowered(archive_twin_rename("Lang", "AF")) == Rejected(EmbeddedFiles)
@@ -2614,10 +3120,10 @@ expect archive_twin_lowered(archive_twin_rename("Lang", "JS")) == Rejected(Actio
 					and archive_twin_lowered(archive_twin_rename("Lang", "TR")) == Rejected(GraphicsState)
 						and archive_twin_lowered(archive_twin_rename("Lang", "NeedsRendering")) == Rejected(InteractiveForms)
 
-## Stream dictionaries must not reference external file data.
+# Stream dictionaries must not reference external file data.
 expect archive_twin_lowered(archive_twin_rename("Length1", "FFilter")) == Rejected(StreamExternal)
 
-## Profile-stage twins over the prepared text facts of the same plan.
+# Profile-stage twins over the prepared text facts of the same plan.
 expect {
 	facts = KernelFacadeOutput.Plan.text_facts(archive_twin_pipeline(archive_twin_options))
 	clean = KernelPdfA4.validate_text(StaticPdfA4Claim, facts)
@@ -2636,9 +3142,9 @@ twin_at = |items, index| match items.get(index) {
 	}
 }
 
-## Public containers lower to nested PDF 2.0 grouping elements in authored
-## order, and every tagged facade document asks readers to display its
-## metadata title.
+# Public containers lower to nested PDF 2.0 grouping elements in authored
+# order, and every tagged facade document asks readers to display its
+# metadata title.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -2648,14 +3154,16 @@ expect {
 		language: "en-AU",
 		title: "Grouped",
 	})
-	bytes = Pdf.to_bytes(document)?
+
+	## Inspect the object bodies the object streams carry.
+	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	text = Str.from_utf8_lossy(bytes)
 
 	text.contains("/S /Part ") and text.contains("/S /Sect ") and text.contains("/S /Div ") and text.contains("/S /H1 ") and text.contains("/ViewerPreferences << /DisplayDocTitle true >>")
 }
 
-## Container depth and emptiness reject with stable feature codes and the
-## compact authored path of the offending container; no bytes are emitted.
+# Container depth and emptiness reject with stable feature codes and the
+# compact authored path of the offending container; no bytes are emitted.
 expect {
 	var $block = Pdf.paragraph("Leaf")
 	var $depth = 0
@@ -2676,9 +3184,9 @@ expect {
 	deep_rejected and empty_rejected
 }
 
-## Rich paragraphs lower each inline to its PDF 2.0 role inside one `P`,
-## with `/Lang` on language spans and `/E` on expansions, and an inline link
-## gains a link annotation owned by its `Link` element.
+# Rich paragraphs lower each inline to its PDF 2.0 role inside one `P`,
+# with `/Lang` on language spans and `/E` on expansions, and an inline link
+# gains a link annotation owned by its `Link` element.
 expect {
 	document = Pdf.document({
 		contents: [
@@ -2703,14 +3211,16 @@ expect {
 		language: "en-AU",
 		title: "Rich",
 	})
-	bytes = Pdf.to_bytes(document)?
+
+	## Inspect the object bodies the object streams carry.
+	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	text = Str.from_utf8_lossy(bytes)
 
-	text.contains("/S /Sect ") and text.contains("/S /Strong ") and text.contains("/S /Em ") and text.contains("/S /Code ") and text.contains("/S /Quote ") and text.contains("/S /Link ") and text.contains("/Lang <FEFF00660072>") and text.contains("/E <FEFF") and text.contains("/Subtype /Link")
+	text.contains("/S /Sect ") and text.contains("/S /Strong ") and text.contains("/S /Em ") and text.contains("/S /Code ") and text.contains("/S /Quote ") and text.contains("/S /Link ") and text.contains("/Lang (fr)") and text.contains("/E (") and text.contains("/Subtype /Link")
 }
 
-## Inline rejections carry a stable dotted code and the inline's authored
-## path below its paragraph; no bytes are emitted.
+# Inline rejections carry a stable dotted code and the inline's authored
+# path below its paragraph; no bytes are emitted.
 expect {
 	nested = Pdf.document({
 		contents: [Pdf.paragraph("Lead"), Pdf.section([Pdf.rich_paragraph([Pdf.inline_link([Pdf.text("a "), Pdf.inline_link([Pdf.text("b")], "https://example.org")], "https://example.org")])])],
@@ -2729,10 +3239,10 @@ expect {
 	nested_rejected and empty_rejected
 }
 
-## Lists lower to `L > LI > (Lbl, LBody)` with a typed `ListNumbering` on
-## every `L`, including the legacy plain-text bullets; items hold paragraphs,
-## rich paragraphs, and nested lists; an explicit line break splits a rich
-## paragraph's lines without a painted glyph.
+# Lists lower to `L > LI > (Lbl, LBody)` with a typed `ListNumbering` on
+# every `L`, including the legacy plain-text bullets; items hold paragraphs,
+# rich paragraphs, and nested lists; an explicit line break splits a rich
+# paragraph's lines without a painted glyph.
 expect {
 	item = |text| Pdf.list_item([Pdf.paragraph(text)])
 	document = Pdf.document({
@@ -2753,13 +3263,15 @@ expect {
 		language: "en-AU",
 		title: "Lists",
 	})
-	bytes = Pdf.to_bytes(document)?
+
+	## Inspect the object bodies the object streams carry.
+	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	text = Str.from_utf8_lossy(bytes)
 
 	text.contains("/A << /ListNumbering /Disc /O /List >>") and text.contains("/A << /ListNumbering /LowerRoman /O /List >>") and text.contains("/S /LBody ") and text.contains("/Count 2")
 }
 
-## List, break, and keep rejections carry stable codes and authored paths.
+# List, break, and keep rejections carry stable codes and authored paths.
 expect {
 	check = |contents, expected_feature, expected_path| match Pdf.to_bytes(Pdf.document({ contents, language: "en-AU", title: "Rejected" })) {
 		Err(InvalidDocument({ diagnostics: [{ details: [path, ..], feature: Feature(feature), .. }], .. })) => feature == expected_feature and path == expected_path
@@ -2774,9 +3286,9 @@ expect {
 							and check([Pdf.numbered_list({ start: 0, style: UpperAlpha }, [Pdf.list_item([Pdf.paragraph("A")])])], "semantics.list_numbering", "contents[0]")
 }
 
-## A public table lowers `Table > THead/TBody > TR > TH/TD` with typed
-## `Scope`, `ColSpan`, identifiers, and `Headers`, and a table continued on
-## a second page repaints its header row as a pagination artifact.
+# A public table lowers `Table > THead/TBody > TR > TH/TD` with typed
+# `Scope`, `ColSpan`, identifiers, and `Headers`, and a table continued on
+# a second page repaints its header row as a pagination artifact.
 expect {
 	row = |code| Pdf.row([Pdf.header_cell(Row, [Pdf.text(code)]), Pdf.cell([Pdf.text("Standing desk frame, twin motor")]), Pdf.cell([Pdf.text("2,756.00")])])
 	document = Pdf.document({
@@ -2785,7 +3297,7 @@ expect {
 				body_rows: List.repeat(row("HF-DSK-140"), 60),
 				caption: Pdf.caption("Items"),
 				columns: [{ align: Start, width: Content }, { align: Start, width: Share(1) }, { align: End, width: Fixed(Layout.Unit.points(80)) }],
-				footer_rows: [Pdf.row([Pdf.spanning(2, Pdf.header_cell(Row, [Pdf.text("Total")])), Pdf.cell([Pdf.text("165,360.00")])])],
+				footer_rows: [Pdf.row([Pdf.header_cell(Row, [Pdf.text("Total")]).spanning(2), Pdf.cell([Pdf.text("165,360.00")])])],
 				header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Code")]), Pdf.header_cell(Column, [Pdf.text("Description")]), Pdf.header_cell(Column, [Pdf.text("Amount")])])],
 				row_split: KeepRows,
 			}),
@@ -2793,7 +3305,7 @@ expect {
 		language: "en-AU",
 		title: "Table",
 	})
-	bytes = Pdf.to_bytes(document)?
+	bytes = KernelEmit.object_text(build_plan(document, Pdf.Options.default)?)?
 	contains = |needle| {
 		pattern = Str.to_utf8(needle)
 		var $index = 0
@@ -2805,11 +3317,11 @@ expect {
 		$found
 	}
 
-	contains("/S /THead") and contains("/S /TFoot") and contains("/ColSpan 2") and contains("/Scope /Column") and contains("/Headers [<63303030303032> <63303030303034>]") and contains("/IDTree")
+	contains("/S /THead") and contains("/S /TFoot") and contains("/ColSpan 2") and contains("/Scope /Column") and contains("/Headers [(c000002) (c000004)]") and contains("/IDTree")
 }
 
-## Table rejections are located: the row whose spans do not sum to the
-## column count, and a cell that spans rows.
+# Table rejections are located: the row whose spans do not sum to the
+# column count, and a cell that spans rows.
 expect {
 	columns = [{ align: Start, width: Content }, { align: Start, width: Share(1) }]
 	header = Pdf.row([Pdf.header_cell(Column, [Pdf.text("A")]), Pdf.header_cell(Column, [Pdf.text("B")])])
@@ -2818,7 +3330,7 @@ expect {
 		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[0].table.body_rows[0]"], feature: Feature("table.grid_mismatch"), .. }], .. })) => True
 		_ => False
 	}
-	spanned = match Pdf.to_bytes(table([Pdf.row([Pdf.row_spanning(2, Pdf.cell([Pdf.text("x")])), Pdf.cell([Pdf.text("y")])])])) {
+	spanned = match Pdf.to_bytes(table([Pdf.row([Pdf.cell([Pdf.text("x")]).row_spanning(2), Pdf.cell([Pdf.text("y")])])])) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, details: ["contents[0].table.body_rows[0].cells[0]"], feature: Feature("table.row_span"), .. }], .. })) => True
 		_ => False
 	}
@@ -2828,7 +3340,7 @@ expect {
 ## The default preparation-report budget: 65,536 entries and 4 MiB of
 ## materialized paths and texts.
 default_report_budget : Pdf.ReportBudget
-default_report_budget = { max_entries: 65536, max_text_bytes: 4194304 }
+default_report_budget = Pdf.ReportBudget.{}
 
 ## Materialize the preparation report from its compact facts. The entry
 ## count is computed from scalar facts and checked against the budget
@@ -2954,7 +3466,7 @@ build_report = |normalized, collected, budget| {
 		$index = $index + 1
 	}
 
-	## Tables and custom blocks, by their group paths.
+	# Tables and custom blocks, by their group paths.
 	var $group = 0
 	for group in normalized.groups {
 		match group.kind {
@@ -3096,6 +3608,7 @@ leaf_role = |normalized, record| {
 		Bullet(_) => "LI"
 		DestinationHeading({ level, name: _ }) => "H${level.to_str()}"
 		DestinationParagraph(_) => "P"
+		EmptyCell => "TD"
 		Figure(_) => "Figure"
 		FigureCaption(_) => "Caption"
 		Heading(level) => "H${level.to_str()}"
@@ -3217,12 +3730,12 @@ set_at = |items, index, value| match items.set(index, value) {
 	Err(OutOfBounds) => crash "report index escaped"
 }
 
-## The report's linear leaf paths equal the diagnostic `leaf_path` of every
-## leaf across groups, lists, a legacy bullet list, a table, a captioned
-## figure, flow items, and a custom block.
+# The report's linear leaf paths equal the diagnostic `leaf_path` of every
+# leaf across groups, lists, a legacy bullet list, a table, a captioned
+# figure, flow items, and a custom block.
 expect {
-	mark = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 20, 20), Color.srgb8({ blue: 0, green: 0, red: 0 }))
-	panel = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 200, 60), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	mark = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 20, 20), Color.srgb8({ blue: 0, green: 0, red: 0 }))
+	panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 200, 60), Color.srgb8({ blue: 0, green: 0, red: 0 }))
 	doc = Pdf.document({
 		contents: [
 			Pdf.title("Paths"),
@@ -3231,8 +3744,8 @@ expect {
 			Pdf.section([
 				Pdf.paragraph("Lead"),
 				Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Nested")])])])]),
-				Pdf.decoration(mark),
-				Pdf.figure(mark, "A mark", Pdf.caption("Figure 1.")),
+				Pdf.decoration({ drawing: mark }),
+				Pdf.figure({ drawing: mark, alt: "A mark", caption: Pdf.caption("Figure 1.") }),
 				Pdf.page_break,
 				Pdf.rich_paragraph([Pdf.text("Rich")]),
 				Pdf.custom_block({ contents: [Pdf.paragraph("Inside"), Pdf.paragraph("Also")], fragmentation: Unsplittable, inset: Layout.Unit.points(4), name: "Box", panel, size: { height: Layout.Unit.points(60), width: Layout.Unit.points(200) } }),
@@ -3251,4 +3764,73 @@ expect {
 		$index = $index + 1
 	}
 	leaf_paths(normalized) == $expected
+}
+
+# A crossed stage limit keeps its exact tag path and payload.
+expect {
+	described = describe_failure("Output(Structure(TaggedObjects(Object(LimitExceeded({ attempted: 8196, dimension: NameBytes, limit: 8192 })))))")
+	described.feature == "output.structure.tagged_objects.object.limit_exceeded" and described.limit and described.path == "Output.Structure.TaggedObjects.Object.LimitExceeded" and described.payload == ": ({ attempted: 8196, dimension: NameBytes, limit: 8192 })"
+}
+
+# Any other stage failure is an internal invariant with its tag path.
+expect {
+	described = describe_failure("Text(InvalidRun({ run: 4 }))")
+	described.feature == "text.invalid_run" and !described.limit and described.path == "Text.InvalidRun"
+}
+
+# A payload-free tag has no payload view.
+expect {
+	described = describe_failure("Output(Subset(ArithmeticOverflow))")
+	described.feature == "output.subset.arithmetic_overflow" and described.payload == ""
+}
+
+# A heading level the document model does not have is located at the
+# heading instead of an unlocated catch-all.
+expect {
+	document = Pdf.document({ contents: [Pdf.paragraph("Lead"), Pdf.heading(7, "Too deep")], language: "en-AU", title: "Levels" })
+	match Pdf.to_bytes(document) {
+		Err(InvalidDocument({ diagnostics: [{ code: InvalidRelationship, details: ["contents[1]"], feature: Feature("semantics.heading_level"), .. }], .. })) => True
+		_ => False
+	}
+}
+
+# Furniture text shapes in the body face even when the body face is not
+# the registry's first face.
+expect {
+	first = Font.Registry.empty.register_built_in(Font.ValidationLimits.default)?
+	second = first.registry.register_built_in(Font.ValidationLimits.default)?
+	options = Pdf.Options.{ theme: Theme.{ face: second.face }, fonts: Registered(second.registry) }
+	footer = Pdf.region({ center: [], end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal)])], height: Layout.Unit.points(16), start: [] })
+	document = Pdf.document({
+		contents: [Pdf.paragraph("Body")],
+		language: "en-AU",
+		title: "Second face",
+		page_templates: Templates({ continuation: Pdf.page_template({ footer, gap: 12 }), first: Pdf.first_page_template({ footer, gap: 12 }) }),
+	})
+	match Pdf.to_bytes_with(document, options) {
+		Ok(_) => True
+		Err(_) => False
+	}
+}
+
+# Profiles, page sizes, and chunk retention compare with `==`.
+expect {
+	letter : Pdf.PageSize
+	letter = Letter
+	custom : Pdf.PageSize
+	custom = Custom({ height: Layout.Unit.points(300), width: Layout.Unit.points(200) })
+	archive : Pdf.Profile
+	archive = Archive
+	owned : Pdf.ChunkRetention
+	owned = OwnChunks
+	letter != custom and custom == Custom({ height: Layout.Unit.points(300), width: Layout.Unit.points(200) }) and archive == Archive and owned != ShareUnchangedResources
+}
+
+# A failed document renders its diagnostics readably through Str.inspect.
+expect {
+	result = Pdf.to_bytes(Pdf.document({ contents: [Pdf.section([])], language: "en-AU", title: "Empty" }))
+	match result {
+		Err(error) => Str.inspect(error).starts_with("Pdf.Error.InvalidDocument (1 diagnostic):\n  semantics.empty_container at contents[0]: ")
+		Ok(_) => False
+	}
 }

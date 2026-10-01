@@ -1,5 +1,6 @@
 import Document
 import KernelFacadeFurniture
+import KernelFacadePages
 import KernelFacadeText
 import KernelNavigation
 import KernelSemantics
@@ -54,9 +55,14 @@ KernelFacadeFragments :: [].{
 				links : List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }),
 				outline : List(Document.OutlineEntry),
 				page_labels : List(Document.PageLabelRange),
+				underline : LinkUnderline,
 			},
 		),
 	]
+
+	## The theme's link underline: a decoration below every painted line
+	## run of a link, `offset` below its baseline and `thickness` thick.
+	LinkUnderline : [NoUnderline, Underline({ offset : Layout.Unit, thickness : Layout.Unit })]
 	Arena :: { fragments : List(Semantics.LayoutFragment), work : Work }.{
 
 		## Focused phase evidence stops at the flat fragment arena. The production
@@ -136,10 +142,18 @@ build_plan = |preliminary, text, navigation, limits, semantic_limits, navigation
 	## the semantic sources, before the final store validates. The plan is
 	## handed on in each branch rather than bound by a value-producing
 	## match, so its stores stay uniquely owned.
+	## Drawing-label sources follow the furniture sources.
+	labels = KernelFacadeText.Plan.label_sources(text)
 	match KernelFacadeText.Plan.furniture(text) {
-		NoFurniture => attach_plan(preliminary, arena, text, navigation, semantic_limits, navigation_limits)
+		NoFurniture => if labels.is_empty() {
+			attach_plan(preliminary, arena, text, navigation, semantic_limits, navigation_limits)
+		} else {
+			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, labels, artifact_source_limits) ? TextSemantics
+			attach_plan(with_sources, arena, text, navigation, semantic_limits, navigation_limits)
+		}
 		WithFurniture(furniture) => {
-			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, KernelFacadeFurniture.Plan.sources(furniture), artifact_source_limits) ? TextSemantics
+			sources = if labels.is_empty() KernelFacadeFurniture.Plan.sources(furniture) else KernelFacadeFurniture.Plan.sources(furniture).concat(labels)
+			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, sources, artifact_source_limits) ? TextSemantics
 			attach_plan(with_sources, arena, text, navigation, semantic_limits, navigation_limits)
 		}
 	}
@@ -157,6 +171,13 @@ attach_plan = |preliminary, arena, text, navigation, semantic_limits, navigation
 			store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(preliminary))
 			geometry = derive_run_geometry(text)?
 			grouped = group_link_annotations(store, text, geometry.rects, authored.links, page_count)?
+			underlined = match authored.underline {
+				NoUnderline => text
+				Underline(underline) => {
+					rules = underline_rules(text, authored.links, store, underline)?
+					if rules.is_empty() text else KernelFacadeText.Plan.with_rules(text, merge_rules(KernelFacadeText.Plan.rules(text), rules))
+				}
+			}
 			patch = patch_spine(store, authored.links, grouped.per_link)?
 			navigation_input = {
 				annotations: grouped.annotations,
@@ -180,9 +201,132 @@ attach_plan = |preliminary, arena, text, navigation, semantic_limits, navigation
 				page_count,
 				semantic_limits,
 			) ? TextSemantics
-			Ok(KernelFacadeFragments.Plan.{ anchor_rects: geometry.rects, arena, navigation: WithNavigationStore(validated.store), semantics, text })
+			Ok(KernelFacadeFragments.Plan.{ anchor_rects: geometry.rects, arena, navigation: WithNavigationStore(validated.store), semantics, text: underlined })
 		}
 	}
+}
+
+## The underline of every painted line run of a link: a filled rectangle
+## in the run's fill color from its baseline start across its exact glyph
+## advance sum, `offset` below the baseline, `thickness` tall. Repainted
+## header runs and furniture are artifacts and join no link. Rules follow
+## the runs' page order.
+underline_rules : KernelFacadeText.Plan, List({ node : Semantics.NodeId, occurrences : Semantics.Range, target : [InternalDestination(Str), Uri(Str)] }), Semantics.Store, { offset : Layout.Unit, thickness : Layout.Unit } -> Try(List(KernelFacadePages.Rule), KernelFacadeFragments.Error)
+underline_rules = |text_plan, links, store, underline| {
+	owners = link_owners(links, store.occurrences.len())?
+	sentinel = links.len()
+	text = KernelFacadeText.Plan.text(text_plan)
+	placements = KernelFacadeText.Plan.placements(text_plan)
+	styles = KernelFacadeText.Plan.styles(text_plan)
+	artifact_runs = KernelFacadeText.Plan.artifact_runs(text_plan)
+	var $rules = []
+	var $artifact_cursor = 0
+	var $run_index = 0
+	while $run_index < text.runs.len() {
+		if $artifact_cursor < artifact_runs.len() and list_at(artifact_runs, $artifact_cursor) == $run_index {
+			$artifact_cursor = $artifact_cursor + 1
+		} else {
+			run = list_at(text.runs, $run_index)
+			owner = match run.unicode {
+				OccurrenceText(occurrence) => if occurrence.index() < owners.len() list_at(owners, occurrence.index()) else sentinel
+				_ => sentinel
+			}
+			if owner != sentinel {
+				placement = list_at(placements, $run_index)
+				var $width = 0
+				var $glyph = run.glyphs.start()
+				glyph_end = run.glyphs.start() + run.glyphs.length()
+				while $glyph < glyph_end {
+					$width = checked_i64(list_at(text.glyphs, $glyph).advance_x.raw(), $width)?
+					$glyph = $glyph + 1
+				}
+
+				## A run that ends its line stops before the spaces it ends
+				## with, which the line carries but never shows.
+				next = $run_index + 1
+				ends_line = next >= text.runs.len() or list_at(placements, next).page != placement.page or list_at(placements, next).origin.y != placement.origin.y
+				trailing = if ends_line trailing_space_advance(text, run, store)? else 0
+				visible = $width - trailing
+				if visible > 0 {
+					bottom = placement.origin.y.raw() - underline.offset.raw() - underline.thickness.raw()
+					$rules = $rules.append({
+						color: list_at(styles, $run_index).color,
+						layer: Front,
+						page: placement.page.index(),
+						rect: {
+							origin: { x: placement.origin.x, y: Layout.Unit.from_raw(bottom) },
+							size: { height: underline.thickness, width: Layout.Unit.from_raw(visible) },
+						},
+					})
+				}
+			}
+		}
+		$run_index = $run_index + 1
+	}
+	Ok($rules)
+}
+
+## The advance of the U+0020 spaces a run ends with. The run's clusters are
+## relative to its occurrence, whose text is a range of one source; each
+## byte is read through a slice of the source, never a copy.
+trailing_space_advance : Text.Store, Text.Run, Semantics.Store -> Try(I64, KernelFacadeFragments.Error)
+trailing_space_advance = |text, run, store| {
+	located = match run.unicode {
+		OccurrenceText(occurrence) => match store.occurrences.get(occurrence.index()) {
+			Ok({ source: Text(id, UnicodeRange(range)), .. }) => match store.text_sources.get(id.index()) {
+				Ok(source) => Found({ base: range.utf8_bytes.start(), source: source.unicode })
+				Err(OutOfBounds) => Missing
+			}
+			_ => Missing
+		}
+		_ => Missing
+	}
+	match located {
+		Missing => Ok(0)
+		Found({ base, source }) => {
+			var $advance = 0
+			var $cluster = run.clusters.start() + run.clusters.length()
+			var $trimming = True
+			while $trimming and $cluster > run.clusters.start() {
+				cluster = list_at(text.clusters, $cluster - 1)
+				space = cluster.source.utf8_bytes.length() == 1 and (match source.drop_first_bytes(base + cluster.source.utf8_bytes.start()) {
+					Ok(rest) => rest.starts_with(" ")
+					Err(_) => False
+				})
+				if space {
+					var $reference = cluster.glyphs.start()
+					while $reference < cluster.glyphs.start() + cluster.glyphs.length() {
+						$advance = checked_i64($advance, list_at(text.glyphs, list_at(text.glyph_indices, $reference)).advance_x.raw())?
+						$reference = $reference + 1
+					}
+					$cluster = $cluster - 1
+				} else {
+					$trimming = False
+				}
+			}
+			Ok($advance)
+		}
+	}
+}
+
+## Two page-ordered rule lists as one: on each page the earlier list's
+## rules (table rules) paint before the later list's (link underlines).
+merge_rules : List(KernelFacadePages.Rule), List(KernelFacadePages.Rule) -> List(KernelFacadePages.Rule)
+merge_rules = |first, second| {
+	var $merged = List.with_capacity(first.len() + second.len())
+	var $left = 0
+	var $right = 0
+	while $left < first.len() or $right < second.len() {
+		take_left = $right >= second.len() or ($left < first.len() and list_at(first, $left).page <= list_at(second, $right).page)
+		if take_left {
+			$merged = $merged.append(list_at(first, $left))
+			$left = $left + 1
+		} else {
+			$merged = $merged.append(list_at(second, $right))
+			$right = $right + 1
+		}
+	}
+	$merged
 }
 
 ## One deterministic layout box per placed line run: the placement origin is
@@ -282,7 +426,7 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 					## quadrilateral rather than adding a second one, so each
 					## painted line of a link contributes exactly one quad.
 					quads = match group.quads.last() {
-						Ok(previous) => if previous.y_bottom.raw() == quad.y_bottom.raw() and previous.y_top.raw() == quad.y_top.raw() and previous.x_right.raw() == quad.x_left.raw() {
+						Ok(previous) => if previous.y_bottom == quad.y_bottom and previous.y_top == quad.y_top and previous.x_right == quad.x_left {
 							list_set(group.quads, group.quads.len() - 1, { ..previous, x_right: quad.x_right })
 						} else {
 							group.quads.append(quad)
@@ -290,11 +434,11 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 						Err(_) => group.quads.append(quad)
 					}
 					updated = { ..group, quads }
-					{ groups: list_set($link_groups, $link_groups.len() - 1, updated), new_group: Bool.False }
+					{ groups: list_set($link_groups, $link_groups.len() - 1, updated), new_group: False }
 				} else {
-					{ groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: Bool.True }
+					{ groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: True }
 				}
-				Err(_) => { groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: Bool.True }
+				Err(_) => { groups: $link_groups.append({ page: placement.page.index(), quads: [quad] }), new_group: True }
 			}
 			$groups = list_set($groups, owner, appended.groups)
 		}
@@ -328,7 +472,7 @@ group_link_annotations = |store, text_plan, rects, links, page_count| {
 				description: NoDescription,
 				keyboard_order,
 				page: Semantics.PageId.from_index(group.page),
-				print: Bool.True,
+				print: True,
 				quads: group.quads,
 				rect,
 			})

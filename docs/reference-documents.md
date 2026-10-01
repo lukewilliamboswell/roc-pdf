@@ -10,12 +10,12 @@ declared text support, layout policy, planned public vocabulary, and scale
 workloads. It is step 1 of
 [Work following the Gate 4 milestone](../feature-roadmap.md#work-following-the-gate-4-milestone).
 
-Version: **`reference-documents-v10`**.
+Version: **`reference-documents-v12`**.
 
 - It began as a design record. From `reference-documents-v10` every outline,
   adverse variant, and policy below is executable: the three references are
-  the gallery programs `examples/prepared_invoice.roc`,
-  `examples/business_report.roc`, and `examples/letter.roc`, and
+  the gallery programs `examples/tax-invoice/main.roc`,
+  `examples/business-report/main.roc`, and `examples/warranty-letter/main.roc`, and
   `tests/reference_documents` prepares each of them and every adverse
   variant (see [the closure record](performance/business-authoring-closure.md)).
   Capability status remains governed by the [roadmap](../feature-roadmap.md)
@@ -55,19 +55,27 @@ dollars (AUD) and include 10% GST where stated. The document language is
   and bottom and 56 pt left and right (72 pt left and right for the letter),
   giving body frames of 483 × 746 pt and 451 × 746 pt respectively. Template
   regions are reserved inside the body frame, never in the margins.
-- Body text uses the packaged face at 11/14 pt (the built-in theme's body
-  style). Headings, captions, table text, and furniture text use exact
-  `Theme` styles over the same packaged face unless a variant says otherwise.
-  No reference depends on a bold or italic face: the built-in package ships one
-  regular face, and synthetic emboldening or obliquing is not produced.
-  `Em`, `Strong`, `Code`, and `Quote` are distinguished visually only by
-  their theme colors (`Theme.with_emphasis_color`, `with_strong_color`,
-  `with_code_color`, `with_quote_color`); an unthemed role paints exactly like
-  the text around it. A caller-registered face per inline role (for example
-  a monospace face for `Code`) is selectable with `Theme.with_inline_font`
-  under style faces (`reference-documents-v8`); under an ordered policy it
-  reports `text.inline_font_policy`. The semantic role never depends on that
-  presentation.
+- Each reference registers vendored OFL faces through the public font
+  registry (`reference-documents-v12`), each file retained byte-for-byte
+  from its upstream release beside the example (`examples/<name>/fonts/`):
+  the invoice Source Sans 3 Regular and Bold at 10.5/13.5 pt, the report
+  Source Sans 3 Regular, Bold, and Italic with Source Code Pro Regular at
+  10.5/15 pt, and the letter Literata Regular, Bold, and Italic at
+  10.5/15 pt. Each theme is one record (`theme(faces)`) naming only what
+  differs from the built-in values: the Bold face for the title, headings,
+  and `Strong`, the Italic face for `Em`, and in the report the monospace
+  face for `Code` at 90% of the body size. Furniture text uses the body
+  style. No face is synthesized: bold and italic text uses a real Bold or
+  Italic face, and synthetic emboldening or obliquing is not produced. The
+  semantic role never depends on that presentation; under an ordered policy
+  a role face reports `text.inline_font_policy`, a title or heading face
+  `text.block_font_policy`, and a drawing label `text.drawing_label_policy`.
+- Tables are shaded and ruled through the theme's `table` record: a header
+  fill and color, striped body rows, a `body_rule` between body rows, a
+  footer fill for totals, and the `rule` below the header rows and above the
+  footer rows. Running headers sit inset (`slot_inset`) above a hairline
+  region backdrop, and footers hang below one. Colors are written as sRGB
+  hex literals (`"#183454"`).
 - Numbers, currency amounts, and dates are caller-formatted strings. The
   package performs no arithmetic, rounding, currency formatting, or total
   verification; correctness of totals is an author obligation.
@@ -88,14 +96,18 @@ Visible title: `Tax invoice`. Created and modified timestamps are authored as
 
 Page templates:
 
-- First page: header region 44 pt holding the Harbour & Finch logo as
+- First page: header region 54 pt holding the Harbour & Finch logo as
   `Pdf.furniture_image` in the start slot (a validated vector drawing, 132 × 44
-  pt). Footer region 16 pt: start slot `ABN 00 123 456 789 · Tax invoice
-  HF-2026-0417`; end slot `Page N of M` built from `Pdf.page_number` and
-  `Pdf.total_pages` inside a `Pdf.reserved_width` of 64 pt, end-aligned. Region
-  gap 12 pt. No lead region.
-- Continuation pages: header region 16 pt with start slot `Harbour & Finch Pty
-  Ltd — Tax invoice HF-2026-0417 (continued)`; the same footer.
+  pt), inset 10 pt above a masthead backdrop (a 2 pt navy band over a 1 pt
+  brass keyline, 483 pt wide). Footer region 20 pt: start slot `ABN 00 123
+  456 789 · Tax invoice HF-2026-0417`; end slot `Page N of M` built from
+  `Pdf.page_number` and `Pdf.total_pages` inside a `Pdf.reserved_width` of
+  50 pt, end-aligned; the slots hang 5 pt below a hairline backdrop at the
+  region's top. Region gap 14 pt. No lead region. First-page body height:
+  746 − 54 − 14 − 20 − 14 = 644 pt.
+- Continuation pages: header region 21 pt with start slot `Harbour & Finch Pty
+  Ltd — Tax invoice HF-2026-0417 (continued)` inset 4 pt above a hairline
+  backdrop; the same footer and gap. Continuation body height: 677 pt.
 
 Body contents, in order:
 
@@ -143,7 +155,7 @@ Body contents, in order:
      The product name `Cafetière « Élégance »` is authored as
      `Pdf.in_language("fr", [Pdf.text("Cafetière « Élégance »")])`.
    - Three footer rows, each a `Row`-scoped header cell spanning four columns
-     and end-aligned (`Pdf.aligned(End, Pdf.spanning(4, ...))`) and one
+     and end-aligned (`Pdf.header_cell(Row, ...).spanning(4).aligned(End)`) and one
      amount cell:
      `Subtotal (excl. GST)` / `40,116.40`; `GST (10%)` / `4,011.64`;
      `Total due (AUD)` / `44,128.04` (the amount wrapped in `Pdf.strong`).
@@ -164,9 +176,9 @@ items = Pdf.table({
     columns: [
         { width: Content, align: Start },
         { width: Share(1), align: Start },
-        { width: Fixed(Layout.Unit.points(36)), align: End },
-        { width: Fixed(Layout.Unit.points(72)), align: End },
-        { width: Fixed(Layout.Unit.points(80)), align: End },
+        { width: Fixed(36), align: End },
+        { width: Fixed(72), align: End },
+        { width: Fixed(80), align: End },
     ],
     header_rows: [
         Pdf.row([
@@ -180,19 +192,18 @@ items = Pdf.table({
     body_rows: item_rows,
     footer_rows: [
         Pdf.row([
-            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("Subtotal (excl. GST)")]))),
+            Pdf.header_cell(Row, [Pdf.text("Subtotal (excl. GST)")]).spanning(4).aligned(End),
             Pdf.cell([Pdf.text("40,116.40")]),
         ]),
         Pdf.row([
-            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("GST (10%)")]))),
+            Pdf.header_cell(Row, [Pdf.text("GST (10%)")]).spanning(4).aligned(End),
             Pdf.cell([Pdf.text("4,011.64")]),
         ]),
         Pdf.row([
-            Pdf.aligned(End, Pdf.spanning(4, Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")]))),
+            Pdf.header_cell(Row, [Pdf.text("Total due (AUD)")]).spanning(4).aligned(End),
             Pdf.cell([Pdf.strong([Pdf.text("44,128.04")])]),
         ]),
     ],
-    row_split: KeepRows,
 })
 ```
 
@@ -250,49 +261,49 @@ rules (`Decoration`).
 
 ### Expected appearance
 
-- Page 1: logo top-left in the 44 pt header region. Supplier block at the top of
-  the body, start-aligned; then the title at the title style; then the details
-  table as a two-column key/value grid with no rules; `Bill to`; `Items`
-  heading; the caption above the items table; the header row with a rule below
-  it; body rows.
+- Page 1: logo top-left above the masthead rule. Supplier block at the top of
+  the body, start-aligned, its name in the Bold face; then the title in the
+  Bold face; then the details table as a striped two-column key/value grid
+  with navy row headers and hairline body rules; `Bill to`; `Items` heading;
+  the caption above the items table; the header row in white on navy with a
+  brass rule below it; striped, hairline-ruled body rows.
   Code cells hug their content width; descriptions wrap within the share
   column; numeric columns are end-aligned so decimal points line up because
   every amount has two decimals. Footer: ABN text start-aligned, `Page 1 of M`
   end-aligned inside its reserved width.
 - Continuation pages: continuation header text; the items header row repainted
   at the top of the body before the next body row; remaining body rows; on the
-  last page the three totals rows (with the total's amount in the strong
-  style), then the Payment section.
+  last page the three totals rows on a brass tint (with the total's amount in
+  the Bold face), then the Payment section.
 - Invariants for the ordinary variant: no body row is split (`KeepRows`); the
   three totals rows are on one page together with at least the last body row;
   the Payment heading is not the last line on a page; every page shows
   `Page N of M` with the exact final `M`. With the reference theme the
   ordinary variant is expected to occupy two or three pages; the exact break
   rows are recorded here from the first reviewed snapshot.
-- Reviewed break positions (`reference-documents-v10`, MuPDF 1.28.2 render
-  of `examples/tax-invoice.pdf`): three pages. Page 1 holds body rows 1–9
-  (through `HF-DSK-140/L3`); page 2 repaints the header row and holds rows
-  10–28 (through `HF-CAF-ELG/L5`); page 3 repaints the header row and holds
-  rows 29–32, the three totals rows, and the Payment section. No preference
+- Reviewed break positions (`reference-documents-v12`, MuPDF 1.28.2 render
+  of `examples/tax-invoice/tax-invoice.pdf`): two pages. Page 1 holds body
+  rows 1–11 (through `HF-CHR-ERG/L3`); page 2 repaints the header row and
+  holds rows 12–32, the three totals rows, and the Payment section. No preference
   is relaxed.
 
 ### Adverse variants
 
 | ID | Change from ordinary | Policy | Expected outcome |
 | --- | --- | --- | --- |
-| INV-A1 | Customer name `The Northstar Regional Housing and Community Development Cooperative (Western Australia) Ltd`; every address line ~90 characters; one description 380 characters | defaults | Accepted. Lines wrap at pinned UAX #14 opportunities inside the Bill-to paragraph and the description cell; the affected row grows and, under `KeepRows`, moves whole to the next page if it does not fit. No shrinking, clipping, or truncation. |
-| INV-A2a | Code `HF-DSK-140-TASMANIAN-OAK/L2` | defaults | Accepted. The `Content` column widens and the `Share` column absorbs the difference. Amended in `reference-documents-v10` to the column rule of `-v5`: the `Share` column's minimum still fits beside the code's max-content width, so the `Content` column takes that width and the code does not break at its hyphens; descriptions wrap in the narrower share (four pages). |
+| INV-A1 | Customer name `The Northstar Regional Housing and Community Development Cooperative (Western Australia) Ltd, trading as Northstar Homes and Community Services`; every address line ~140 characters (lengthened in `reference-documents-v12` so that each still wraps in the narrower Source Sans 3); one description 380 characters | defaults | Accepted. Lines wrap at pinned UAX #14 opportunities inside the Bill-to paragraph and the description cell; the affected row grows and, under `KeepRows`, moves whole to the next page if it does not fit. No shrinking, clipping, or truncation. |
+| INV-A2a | Code `HF-DSK-140-TASMANIAN-OAK/L2` | defaults | Accepted. The `Content` column widens and the `Share` column absorbs the difference. Amended in `reference-documents-v10` to the column rule of `-v5`: the `Share` column's minimum still fits beside the code's max-content width, so the `Content` column takes that width and the code does not break at its hyphens; descriptions wrap in the narrower share (three pages, `reference-documents-v12`). |
 | INV-A2b | Description contains a 128-hex-digit serial with no break opportunity | defaults | `layout.unbreakable_token` locating the cell and the token's scalar range, reporting the token width and the widest width the column could receive. No bytes. |
 | INV-A2c | Fixed columns widened so fixed widths plus every column's min-content exceed the table width | defaults | `layout.table_width` naming the table, the sum of minima, and the available width. No bytes. |
-| INV-A3 | 500 body rows (products cycled) | defaults, with an 80 pt `Page N of M` reserved width (`reference-documents-v10`) | Accepted: 24 pages. The header row repeats as an artifact on every continuation page; the logical `THead` and `TFoot` occur once; totals obey the INV-A5 rule. With the ordinary 64 pt reserved width the two-digit total does not fit (`Page 1 of 24` measures 64.598 pt), which is `layout.field_overflow` at `templates.first.footer.end[0].inlines[0].inlines[1]` with no bytes. |
+| INV-A3 | 500 body rows (products cycled) | defaults, with a 60 pt `Page N of M` reserved width (`reference-documents-v12`; `Page 21 of 21` measures 57.666 pt) | Accepted: 21 pages. The header row repeats as an artifact on every continuation page; the logical `THead` and `TFoot` occur once; totals obey the INV-A5 rule. With the ordinary 50 pt reserved width the two-digit total does not fit (`Page 1 of 21` measures 52.448 pt), which is `layout.field_overflow` at `templates.first.footer.end[0].inlines[0].inlines[1]` with no bytes. |
 | INV-A4a | One description of 9,000 characters (taller than a continuation page body) | `KeepRows` (default) | `layout.oversize_row` locating the row and reporting its measured height and the largest available body height. No bytes. |
 | INV-A4b | As INV-A4a | `SplitRows` | Accepted. The row fragments at line boundaries; each continuation page paints the repeated header then the row's continuation. Cells whose content completed in an earlier fragment paint nothing further; cell rules continue. One `TR`, one `TD` per cell, the long `TD` owning several fragments. |
-| INV-A5 | Rows arranged so the last body row fits on page *k* but the three totals rows do not (30 body rows, `reference-documents-v10`; without the totals the 30th row fits on page 2) | defaults | Accepted. The totals group is unsplittable and prefers to carry at least one body row: page *k* ends at the second-last body row; page *k+1* paints the repeated header, the last body row, and the totals. No preference is relaxed. |
+| INV-A5 | Rows arranged so the last body row fits on page *k* but the three totals rows do not (36 body rows, `reference-documents-v12`; without the totals the 36th row fits on page 2) | defaults | Accepted. The totals group is unsplittable and prefers to carry at least one body row: page *k* ends at the second-last body row; page *k+1* paints the repeated header, the last body row, and the totals. No preference is relaxed. |
 | INV-A6a | Customer name contains Arabic `شركة الشمال` | defaults | `text.unsupported_script` locating the paragraph and the Arabic scalar range; the script check precedes coverage so the author sees the fundamental cause. No bytes. |
-| INV-A6b | Address contains Han `北京` with the packaged face only | defaults | `text.coverage_missing` locating the scalars. No bytes. No face is substituted. |
+| INV-A6b | Address contains Han `北京` with the invoice's Latin faces only | defaults | `text.coverage_missing` locating the scalars. No bytes. No face is substituted. |
 | INV-A7a | Items section and Payment section wrapped together in `Pdf.keep_together`, exceeding one page body | defaults | `layout.keep_conflict` naming the keep and its first and last member blocks (`details` `contents[4]`, `contents[4].contents[0].contents[0]`, `contents[4].contents[1].contents[2]`); the message gives their minimum height and the fresh-page body height. No bytes. |
 | INV-A7b | `Pdf.page_break` inside a `Pdf.keep_together` (between the Bill-to and Items sections) | defaults | `layout.keep_conflict` naming the explicit break and then the required keep. No bytes. |
-| INV-A8 | A body row with five cells plus a `Pdf.spanning(2, ...)` cell (seven grid columns in a five-column table) | defaults | `table.grid_mismatch` naming the row, the declared column count, and the spanned width. No bytes. |
+| INV-A8 | A body row with five cells plus a `cell.spanning(2)` cell (seven grid columns in a five-column table) | defaults | `table.grid_mismatch` naming the row, the declared column count, and the spanned width. No bytes. |
 | INV-A9 | A cell declared with a row span | defaults | `table.row_span` (`FeatureUnavailable`, Gate 8). No bytes. |
 
 ### Author obligations
@@ -319,15 +330,21 @@ are authored as `2026-10-12T00:00:00Z`.
 
 Page templates:
 
-- First page: no header region. Footer region 16 pt: end slot `Page N of M`
-  inside a `Pdf.reserved_width` of 64 pt.
-- Continuation pages: header region 24 pt with start slot `Quarterly operations
-  report · Q1 FY2027` and a full-width 0.5 pt rule as a `Pdf.furniture_image`
-  vector drawing at the region's bottom; the same footer. Region gap 12 pt.
+- First page: header region 36 pt holding only a backdrop: a navy cover
+  band over a brass keyline, 483 pt wide, with the Harbour & Finch mark
+  reversed at its end (`reference-documents-v12`). Footer region 20 pt:
+  start slot `Harbour & Finch Pty Ltd · Operations`, end slot `Page N of M`
+  inside a `Pdf.reserved_width` of 50 pt, both hanging 5 pt below a hairline
+  backdrop. Region gap 14 pt. First-page body height: 746 − 36 − 14 − 20 −
+  14 = 662 pt.
+- Continuation pages: header region 21 pt with start slot `Quarterly operations
+  report · Q1 FY2027` and end slot `Harbour & Finch`, inset 4 pt above a
+  full-width 0.6 pt hairline backdrop; the same footer and gap.
+  Continuation body height: 677 pt.
 
 Destinations and outline: each section heading is a destination heading
 (`summary`, `sales`, `supply-chain`, `freight`, `timber`, `outlook`,
-`appendix-a`). `Pdf.with_outline` lists them in document order with depths
+`appendix-a`). The document's `outline` lists them in document order with depths
 matching heading levels and titles equal to the visible heading text.
 
 Body contents, in order:
@@ -350,9 +367,10 @@ Body contents, in order:
      - `Warranty claims fell to 0.6% of units shipped.`
    - A "Key figures" callout through `Pdf.custom_block` (the custom-block seam
      exercise): semantically a `Div` of three paragraphs `Revenue: AUD 9.22 m
-     (+5.0%)`, `On-time delivery: 96.4%`, `Certified timber: 88%`; visually a
-     tinted rounded panel owned by the block as a decoration artifact.
-     Unsplittable, measured by the extension.
+     (+5.0%)`, `On-time delivery: 96.4%`, `Certified timber: 88%`, each label
+     with its colon in `Strong` (`reference-documents-v12`); visually a tinted
+     rounded panel with a navy accent bar owned by the block as a decoration
+     artifact. Unsplittable, measured by the extension.
 4. Section `sales`, `H1 "2 Sales performance"`:
    - Paragraph introducing the table, with
      `Pdf.expansion("GST", "Goods and Services Tax")` in `Revenue is reported
@@ -370,8 +388,14 @@ Body contents, in order:
      | *footer:* Total | 8,778 | 9,221 | +5.0% |
 
      Negative values use U+2212 MINUS SIGN.
-   - Figure 1: a bounded vector bar chart (paired bars per region, axis, tick
-     labels drawn as vector paths) authored as `Pdf.figure` with alternative
+   - Figure 1: a bounded vector bar chart (paired bars per region over a
+     gridded axis) whose labels are real drawing text (`Scene.Drawing.text`,
+     `reference-documents-v12`): the axis values `0` to `4,000`, each bar's
+     value above it (the later quarter's in the `Strong` face), the region
+     names under their pairs, the unit `AUD thousands`, and a legend naming
+     `Q1 FY2026` and `Q1 FY2027` beside their swatches. Labels are
+     decoration artifacts; the figure's alternative text carries their
+     meaning. It is authored as `Pdf.figure` with alternative
      text `Bar chart comparing revenue by region for Q1 FY2026 and Q1 FY2027.
      Queensland grew most, by 15.4%; New South Wales fell by 2.1%. Values are
      given in Table 1.` and caption `Figure 1. Revenue by region, AUD
@@ -386,7 +410,9 @@ Body contents, in order:
      simply: ` + `Pdf.quote([Pdf.in_language("fr", [Pdf.text("« Le bois
      demande de la patience. »")])])` + ` (“Timber asks for patience.”)`.
      Then Figure 2: a raster photograph (a caller-supplied sRGB JPEG, 483 ×
-     260 pt placement) with alternative text `Stacked Tasmanian oak boards
+     260 pt placement; `examples/business-report/drying-yard.jpg`, 966 × 520
+     pixels, generated by `scripts/build_report_photo.py` from
+     `reference-documents-v12`) with alternative text `Stacked Tasmanian oak boards
      air-drying under cover at the Moonah yard.` and caption `Figure 2. Air
      drying at the Moonah yard`.
 6. Section `outlook`, `H1 "4 Outlook"`: a paragraph and a numbered list
@@ -396,8 +422,10 @@ Body contents, in order:
    "https://www.harbourfinch.example/sustainability")`.
 7. Section `appendix-a`, `H1 "Appendix A. Supplier register"`: a paragraph and
    Table 2, caption `Table 2. Active suppliers at 30 September 2026`, 40 body
-   rows, columns `Supplier` (`Row` scope, `Share(3)`), `Location`
-   (`Share(2)`), `Category` (`Share(2)`), `Spend (AUD thousands)`
+   rows, columns `Supplier` (`Row` scope, `Share(4)`), `Location`
+   (`Share(3)`), `Category` (`Share(2)`; shares amended in
+   `reference-documents-v12` so that every supplier name fits one line),
+   `Spend (AUD thousands)`
    (`Fixed(80 pt)`, `End`), `Certified` (`Fixed(56 pt)`, `Center`,
    `Yes`/`No`). One row's supplier cell is
    `Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")])`. `KeepRows`. The
@@ -484,35 +512,38 @@ custom block).
   total row after a rule) and Figure 1 with its caption below; section 3 with
   Figure 2; section 4; Appendix A with Table 2 continuing across pages and its
   header row repainted on each continuation page.
-- Continuation pages show the header text and rule; every page shows `Page N
-  of M` end-aligned in the footer.
+- Tables have a light navy-tinted header row with navy text and a navy rule
+  below it, striped body rows separated by hairlines, and (Table 1) a total
+  row on a sand tint after the rule.
+- The first page shows the cover band; continuation pages show the header
+  text above its hairline; every page shows `Page N of M` end-aligned in the
+  footer.
 - Invariants for the ordinary variant: no heading is the last line on a page
   (heading keep-with-next); every figure stays with its caption; every table
   caption stays with the table's header row and first body row; Table 1 is
   not split in the ordinary variant; paragraphs respect two-line widow and
   orphan minimums unless a relaxation is reported. The exact page
   composition is recorded here from the first reviewed snapshot.
-- Reviewed composition (`reference-documents-v10`, MuPDF 1.28.2 render of
-  `examples/business-report.pdf`): five pages. Page 1 holds the title,
-  subtitle, section 1 with its list and the callout, and section 2 through
-  Table 1 (unsplit); Figure 1 with its caption does not fit below it and
-  opens page 2, which continues with section 3 through the paragraph of
-  3.2; Figure 2 with its caption opens page 3, followed by section 4 and
-  Appendix A with Table 2's caption, header, and rows 1–8; page 4 repaints
-  the header and holds rows 9–34; page 5 repaints it and holds rows 35–40.
-  No preference is relaxed.
+- Reviewed composition (`reference-documents-v12`, MuPDF 1.28.2 render of
+  `examples/business-report/business-report.pdf`): four pages. Page 1 holds
+  the title, subtitle, section 1 with its list and the callout, and section
+  2 through Table 1 (unsplit); Figure 1 with its caption does not fit below
+  it and opens page 2, which continues with section 3 through the paragraph
+  of 3.2; Figure 2 with its caption opens page 3, followed by section 4 and
+  Appendix A with Table 2's caption, header, and rows 1–7; page 4 repaints
+  the header and holds rows 8–40. No preference is relaxed.
 
 ### Adverse variants
 
 | ID | Change from ordinary | Policy | Expected outcome |
 | --- | --- | --- | --- |
-| REP-A1 | Section 2's heading falls on the last line of a page (`reference-documents-v10`: a page break, a one-line filler paragraph, and a 630 pt spacer before section 2 leave room for the heading but not for a body line; a control proves the heading alone fits) | defaults | Accepted. Heading keep-with-next (preferred, rank R1) moves the heading and at least two lines of the next paragraph to the next page. Not reported as relaxed. |
-| REP-A2 | Figure 1 lands where the figure fits but its caption does not (`reference-documents-v10`: a page break, a filler line, and a 430 pt spacer before Figure 1; a control proves the uncaptioned figure fits) | defaults | Accepted. Figure and caption form one unsplittable unit and move together. If a heading precedes it, the heading moves with it (R1). |
-| REP-A3 | Table 1 placed so that only two body rows fit (`reference-documents-v10`: a page break, a filler line, and a 580 pt spacer before Table 1) | defaults | Accepted. The table breaks after a whole row; the next page repaints the header row (artifact) before rows 3–4 and the total row. Logical `THead` and `TFoot` occur once. |
-| REP-A4 | 100 sections, each after an explicit break (`Page N of M` reaches three digits), with the page number alone in a `Pdf.reserved_width` sized for two digits (16 pt; amended in `reference-documents-v10`: the widest two-digit value, `40`, measures 14.045 pt, so the former 14 pt would already overflow on page 40) | defaults | `layout.field_overflow` naming the footer field (`templates.continuation.footer.end[0].inlines[0].inlines[0]`); the message names page 100, the resolved value `100`, its shaped width, and the reserved width. No bytes. |
-| REP-A5 | Font selection switched to an ordered policy of a caller-registered Latin face and a Han face; section 3.2 adds a nested `zh-Hans` span (amended in `reference-documents-v10` to `Pdf.in_language("zh-Hans", [Pdf.text("中")])` between spaces: the test-only Han fixture face covers only U+4E2D) | ordered policy | Accepted: per-cluster face selection, one nested `zh-Hans` span, no substitution. The spaces around the span itemize as Common and take the Latin face (the report's coverage facts show `Zyyy` runs on font 0 and one `Hani` scalar on font 1). |
+| REP-A1 | Section 2's heading falls on the last line of a page (`reference-documents-v12`: a page break, a one-line filler paragraph, and a 620 pt spacer before section 2 leave room for the heading but not for a body line; a control proves the heading alone fits) | defaults | Accepted. Heading keep-with-next (preferred, rank R1) moves the heading and at least two lines of the next paragraph to the next page. Not reported as relaxed. |
+| REP-A2 | Figure 1 lands where the figure fits but its caption does not (`reference-documents-v12`: a page break, a filler line, and a 420 pt spacer before Figure 1; a control proves the uncaptioned figure fits) | defaults | Accepted. Figure and caption form one unsplittable unit and move together. If a heading precedes it, the heading moves with it (R1). |
+| REP-A3 | Table 1 placed so that only two body rows fit (`reference-documents-v10`, unchanged in `-v12`: a page break, a filler line, and a 580 pt spacer before Table 1) | defaults | Accepted. The table breaks after a whole row; the next page repaints the header row (artifact) before rows 3–4 and the total row. Logical `THead` and `TFoot` occur once. |
+| REP-A4 | 100 sections, each after an explicit break (`Page N of M` reaches three digits), with the page number alone in a `Pdf.reserved_width` sized for two digits (12 pt; amended in `reference-documents-v12`: in Source Sans 3 at 10.5 pt every two-digit value measures 10.437 pt and every three-digit value 15.656 pt) | defaults | `layout.field_overflow` naming the footer field (`templates.continuation.footer.end[0].inlines[0].inlines[0]`); the message names page 100, the resolved value `100`, its shaped width, and the reserved width. No bytes. |
+| REP-A5 | Font selection switched to an ordered policy of the report's Source Sans 3 Regular face and a Han face; section 3.2 adds a nested `zh-Hans` span (amended in `reference-documents-v10` to `Pdf.in_language("zh-Hans", [Pdf.text("中")])` between spaces: the test-only Han fixture face covers only U+4E2D). From `reference-documents-v12` the theme names no title, heading, or role faces (`text.block_font_policy` and `text.inline_font_policy` otherwise), and Figure 1 is the same chart without its text labels, because drawing labels have no face under an ordered policy (`text.drawing_label_policy`); its alternative text and caption are unchanged | ordered policy | Accepted: per-cluster face selection, one nested `zh-Hans` span, no substitution. The spaces around the span itemize as Common and take the Latin face (the report's coverage facts show `Zyyy` runs on font 0 and one `Hani` scalar on font 1). |
 | REP-A6a | Figure 1's drawing is 600 × 900 pt | `Exact` (default) | `document.figure_oversize` reporting the drawing size and the body frame. No bytes. |
-| REP-A6b | As REP-A6a with `Pdf.figure_fit(..., ScaleToFit({ minimum_percent: 50 }))` | scale to fit | Accepted. Uniform scale `min(483/600, available/900)` on a fresh page, reported in the preparation report as an authored fit outcome: 733 thousandths, the continuation frame (682 pt) less the caption line and its spacing being 660 pt (`reference-documents-v10`). |
+| REP-A6b | As REP-A6a with `fit: ScaleToFit({ minimum_percent: 50 })` | scale to fit | Accepted. Uniform scale `min(483/600, available/900)` on a fresh page, reported in the preparation report as an authored fit outcome: 710 thousandths, the first page's frame (662 pt, the smaller) less the caption line and its spacing being 639 pt (`reference-documents-v12`). |
 | REP-A6c | As REP-A6b with `minimum_percent: 90` | scale to fit | `document.figure_oversize` reporting the required scale and the floor. No bytes. |
 | REP-A7 | `H1 "3 Supply chain"` followed directly by an `H3` | defaults | `semantics.heading_skip` naming both headings. No bytes. |
 | REP-A8 | Internal link to an undeclared destination `risks` | defaults | The existing typed `InvalidNavigation` destination error, locating the link. No bytes. |
@@ -543,20 +574,22 @@ through `DisplayDocTitle`. Created and modified timestamps are authored as
 
 Page templates:
 
-- First page: header region 48 pt with the logo (`Pdf.furniture_image`, 140 ×
-  48 pt) in the end slot. A **lead region** of 60 pt holds semantic letterhead
-  blocks: a rich paragraph `Harbour & Finch Pty Ltd` (strong) and a rich
-  paragraph `Level 3, 18 Wharf Street, Hobart TAS 7000⏎(03) 5550 0142 ·
-  hello@harbourfinch.example · ABN 00 123 456 789`. Footer region 16 pt with
-  centered text `harbourfinch.example`. Region gap 12 pt. First-page body
-  height: 746 − 48 − 12 − 60 − 12 − 16 − 12 = 586 pt.
-- Continuation pages: header region 16 pt, start slot `Northstar Cooperative
-  Ltd · 21 September 2026`, end slot `Page N of M` in a 72 pt reserved width
-  (amended in `reference-documents-v6`: in the packaged face at 11 pt,
-  `Page 10 of 11`, which LET-A2 requires, measures 66.7 pt and would not fit
-  the former 64 pt; `Page 9 of 9` measures 60.0 pt, so the invoice's and
-  report's 64 pt suit their one-digit totals).
-  No footer. Continuation body height: 746 − 16 − 12 = 718 pt.
+- First page: header region 58 pt with the logo (`Pdf.furniture_image`, 140 ×
+  48 pt) in the end slot, inset 10 pt above a letterhead rule backdrop (a
+  2 pt navy band over a 1 pt brass keyline, 451 pt wide). A **lead region**
+  of 64 pt holds semantic letterhead blocks: a rich paragraph `Harbour &
+  Finch Pty Ltd` (strong, in the Bold face) and, in a `Pdf.scoped` group that
+  colors its text slate, a rich paragraph `Level 3, 18 Wharf Street, Hobart
+  TAS 7000⏎(03) 5550 0142 · hello@harbourfinch.example · ABN 00 123 456 789`.
+  Footer region 22 pt with centered text `harbourfinch.example` hanging 6 pt
+  below a hairline backdrop. Region gap 12 pt. First-page body height: 746 −
+  58 − 12 − 64 − 12 − 22 − 12 = 566 pt (`reference-documents-v12`).
+- Continuation pages: header region 21 pt, start slot `Northstar Cooperative
+  Ltd · 21 September 2026`, end slot `Page N of M` in a 62 pt reserved width,
+  both inset 4 pt above a hairline backdrop (`reference-documents-v12`: in
+  Literata at 10.5 pt, `Page 10 of 11`, which LET-A2 requires, measures
+  58.7 pt). No footer. Region gap 14 pt. Continuation body height: 746 − 21 −
+  14 = 711 pt.
 
 Body contents, in order:
 
@@ -575,7 +608,8 @@ Body contents, in order:
 9. Signature block as one `Pdf.keep_together`: paragraph `Yours sincerely,`,
    `Pdf.spacer(36 pt)` (signature space), paragraph `Tom Finch`, paragraph
    `Director, Harbour & Finch Pty Ltd`.
-10. Paragraph `Enclosure: Schedule 1, covered items`.
+10. Rich paragraph `Enclosure: ` + emphasis `Schedule 1, covered items` (the
+    enclosed document's title in the Italic face, `reference-documents-v12`).
 11. `Pdf.page_break`.
 12. `Pdf.section` with `Pdf.heading(1, "Schedule 1. Covered items")` and a
     table (caption `Items covered by the extended warranty`), columns `Code`
@@ -602,7 +636,7 @@ Document  Lang=en-AU                       (no Title element)
 ├─ P "Yours sincerely,"
 ├─ P "Tom Finch"
 ├─ P "Director, Harbour & Finch Pty Ltd"
-├─ P "Enclosure: Schedule 1, covered items"
+├─ P "Enclosure: " Em "Schedule 1, covered items"
 └─ Sect
    ├─ H1 "Schedule 1. Covered items"
    └─ Table ── Caption, THead, TBody ── TR ×8
@@ -616,7 +650,9 @@ rules.
 
 ### Expected appearance
 
-- Page 1: logo top-right; letterhead lines start-aligned in the lead region;
+- Page 1: logo top-right above the navy and brass letterhead rule; the
+  sender's name in navy Bold and the address lines in slate, start-aligned
+  in the lead region;
   body begins 12 pt below the lead region with the date, recipient block,
   salutation, subject line, and body paragraphs; centered footer.
 - Page 2: continuation header (recipient and date start-aligned, `Page 2 of 3`
@@ -627,8 +663,8 @@ rules.
   (explicit break); the table.
 - Invariants: the signature block is never split; the explicit break always
   starts the schedule on a new page; `Page N of M` is exact.
-- Reviewed composition (`reference-documents-v10`, MuPDF 1.28.2 render of
-  `examples/warranty-letter.pdf`): three pages. Page 1 holds the letterhead,
+- Reviewed composition (`reference-documents-v12`, MuPDF 1.28.2 render of
+  `examples/warranty-letter/warranty-letter.pdf`): three pages. Page 1 holds the letterhead,
   date, recipient, salutation, subject, and body paragraphs 1–4; page 2
   paragraphs 5–6, the list, the closing paragraphs, the signature block,
   and the enclosure line; page 3 the schedule. The schedule dates read
@@ -639,10 +675,10 @@ rules.
 
 | ID | Change from ordinary | Policy | Expected outcome |
 | --- | --- | --- | --- |
-| LET-A1 | Recipient name, position, organization, and address lines of 80–110 characters each | defaults | Accepted. Each line wraps inside the recipient paragraph at UAX #14 opportunities; subsequent content moves down. |
+| LET-A1 | Recipient name, position, organization, and address lines of 100–115 characters each (lengthened in `reference-documents-v12` so that each wraps in Literata) | defaults | Accepted. Each line wraps inside the recipient paragraph at UAX #14 opportunities; subsequent content moves down. |
 | LET-A2 | Ten pages of letter text (60 body paragraphs) | defaults | Accepted. Pages 2–10 use the continuation template with exact `Page N of 11` values (schedule included). |
 | LET-A3a | Lead region height 640 pt | defaults | `layout.template_body_space` naming the first-page template, each region height, and the remaining body height (less than one body line). Detected before flow. No bytes. |
-| LET-A3b | Letterhead with twelve lines in the 60 pt lead region | defaults | `layout.template_region_overflow` naming the lead region (`templates.first.lead`), with the content and reserved heights in the message. No bytes. |
+| LET-A3b | Letterhead with twelve lines in the 64 pt lead region | defaults | `layout.template_region_overflow` naming the lead region (`templates.first.lead`), with the content and reserved heights in the message. No bytes. |
 | LET-A3c | Continuation header slot texts whose combined widths exceed the region width | defaults | `layout.template_region_overflow` naming the region and slots. No bytes. |
 | LET-A4 | The ordinary letter (no visible title) under `Archive` and, from Gate 7, `AccessibleArchive` | profile | Accepted. No diagnostic requires a visible title. Gate 6 evidence checks XMP `dc:title` equals the metadata title and the catalog sets `DisplayDocTitle true`. Until Gate 7, `AccessibleArchive` still reports `profile.accessible_archive`. |
 | LET-A5 | Empty metadata title | defaults | The existing typed metadata error. No bytes. |
@@ -690,7 +726,7 @@ substitution, outlining, rasterization, or dropping text.
 | Vertical writing | rejected | rejected | `text.vertical_writing` (Gate 8) |
 | Nested language spans within one paragraph (`fr` in `en-AU` through the packaged face; `zh-Hans` in a Latin paragraph through an ordered policy whose faces cover it) | supported | — | [rich-inline.md](performance/rich-inline.md); an unsupported script inside a span rejects as `text.unsupported_script` with its inline path. REP-A5's spaces around a Han span take the Common-run row below |
 | Rich inline runs (`Em`, `Strong`, `Code`, `Quote`, `Link`, `Span`) with per-run theme colors in one line, wrapping across inline boundaries | supported | — | [rich-inline.md](performance/rich-inline.md) |
-| A distinct caller-registered face per inline role (e.g. monospace `Code`) under style faces | supported | — | [rich-inline.md](performance/rich-inline.md): `Theme.with_inline_font`; the innermost role with a face decides a run's face at the paragraph's size and leading; under an ordered policy `text.inline_font_policy` (`FeatureUnavailable`) |
+| A distinct caller-registered face per inline role (e.g. monospace `Code`) under style faces | supported | — | [rich-inline.md](performance/rich-inline.md): the theme's `inline.<role>.font`; the innermost role with a face decides a run's face at the paragraph's size and leading; under an ordered policy `text.inline_font_policy` (`FeatureUnavailable`) |
 | Runs whose script stays Common (or Inherited) after itemization, e.g. a cell holding only `1,284` or `+10.0%`, or the spaces in `Café 中 PDF`, under an ordered policy | supported | — | [tables.md](performance/tables.md): each cluster of such a run takes the first face in policy order that covers it, exactly as per-cluster coverage selection does for declared scripts; no script-specific shaping is applied because the convenience shaper applies none. The single-face path is unaffected. |
 | Furniture text (headers, footers, page fields) shaped with exact artifact ownership, through the single theme face or an ordered policy | supported | — | [page-templates.md](performance/page-templates.md); under an ordered policy each furniture cluster selects its face exactly as body text does, a furniture-only face becomes an extra output font, and pieces split at face boundaries (`reference-documents-v8`); uncovered or undeclared-script furniture text is `text.coverage_missing` or `text.unsupported_script` at its item path |
 
@@ -841,8 +877,8 @@ grow linearly with the document; there is no backtracking across pages.
 - A unit taller or wider than an empty flow region is rejected by default:
   `layout.oversize_block` for blocks and custom blocks, `layout.oversize_row`
   for rows under `KeepRows`, and `document.figure_oversize` for figures.
-- A figure may explicitly select `Pdf.figure_fit(figure, ScaleToFit({
-  minimum_percent }))`. The figure (not its caption) is scaled uniformly by the
+- A figure may explicitly select `fit: ScaleToFit({ minimum_percent })` in
+  its `Pdf.figure` record. The figure (not its caption) is scaled uniformly by the
   largest factor ≤ 1 that fits the flow region width and an empty page's flow
   height together with its caption. A scale below the floor is
   `document.figure_oversize`. The applied scale appears in the preparation
@@ -870,7 +906,12 @@ grow linearly with the document; there is no backtracking across pages.
 ### Unbreakable tokens
 
 Lines break only at pinned UAX #14 opportunities and explicit
-`Pdf.line_break`s. A token without an opportunity that is wider than the widest
+`Pdf.line_break`s. Inside a `code` span the one tailoring applies
+(`reference-documents-v11`): each word of the span (a run of scalars other
+than U+0020) keeps its tailorable opportunities withheld, so an identifier
+such as `--lumen-indigo` or `kubectl-rollout` never breaks at a hyphen, while
+the opportunities after the spaces between words stay. A token without an
+opportunity (a code word counts as one) that is wider than the widest
 width its container can receive is `layout.unbreakable_token`. There is no
 emergency breaking, character-level wrapping, ellipsis, or overflow in v1.
 
@@ -922,10 +963,14 @@ letters are bijective base 26 (`z.`, `aa.`). Each `L` declares its
   and the piece's scalar range.
 - Cell content is a sequence of inlines forming one paragraph (explicit line
   breaks included). Cells wrap within their column text width; there is no
-  block flow inside cells in v1. A cell must hold text (`table.cell_empty`).
+  block flow inside cells in v1. A cell with no inlines (`Pdf.cell([])`,
+  `Pdf.header_cell(scope, [])`) is an empty `TD` or `TH` with no content
+  (`reference-documents-v11`); inline content that holds no text is
+  `table.cell_empty`, and a table with no content in any cell is
+  `table.empty`.
   A cell's lines align by their visible advance (trailing spaces excluded)
   in the alignment of the first column it spans, or in its own alignment
-  when authored with `Pdf.aligned(align, cell)` (`reference-documents-v8`); lines start at the top of
+  when authored with `cell.aligned(align)` (`reference-documents-v8`); lines start at the top of
   the row.
 - Every row's spans must sum to the table's column count, and every span is
   at least one (`table.grid_mismatch`). Column spans are supported; a cell
@@ -1041,9 +1086,9 @@ with.
 | `table.grid_mismatch` | `InvalidRelationship` | Row spans do not sum to the column count |
 | `table.header_missing` | `InvalidRelationship` | A table declares no header cell |
 | `table.row_span` | `FeatureUnavailable` | Row spans (Gate 8) |
-| `table.empty` | `InvalidRelationship` | A table declares no column or no body row |
-| `table.cell_empty` | `InvalidRelationship` | A table cell holds no text |
-| `layout.table_rule` | new family | The theme's table rule is wider than the row gap it is drawn in |
+| `table.empty` | `InvalidRelationship` | A table declares no column or no body row, or no cell has content |
+| `table.cell_empty` | `InvalidRelationship` | A table cell's inline content holds no text |
+| `layout.table_rule` | new family | A theme table rule is wider than the space it is drawn in: the row gap (header, footer, and body rules), twice the cell padding (column rule), or the smaller of the padding and half the row gap (frame) |
 | `document.content_limit` | `BudgetExceeded` | The document crosses a documented facade content bound; `details` names the table or block at which planning crossed it |
 | `text.unsupported_script` | `FontCoverageMissing` | Script outside the declared facade set |
 | `text.coverage_missing` | `FontCoverageMissing` | No selected face covers a cluster |
@@ -1052,7 +1097,7 @@ with.
 | `document.figure_alternative_empty` | `InvalidRelationship` | A figure's alternative text is empty |
 | `document.figure_drawing` | `InvalidRelationship` | A figure's drawing has no painting command, a non-positive image size, a path that paints nothing, content below or left of its origin, groups nested more than 8 deep, a clip, opacity, or soft-mask group, or a coordinate beyond 10^9 pt (`reference-documents-v7`) |
 | `document.figure_caption_empty` | `InvalidRelationship` | A figure's visible caption is empty (`reference-documents-v7`) |
-| `document.figure_fit` | `InvalidRelationship` | `figure_fit` on a block that is not a figure, or a `ScaleToFit` floor above 100 (`reference-documents-v7`) |
+| `document.figure_fit` | `InvalidRelationship` | a `ScaleToFit` floor above 100 (`reference-documents-v7`; a fit on a block that is not a figure is no longer representable) |
 | `layout.decoration_drawing` | `InvalidRelationship` | A decoration's drawing is not a valid flow drawing, as for `document.figure_drawing` (`reference-documents-v7`) |
 | `layout.decoration_position` | new family | A decoration has no following flow block, or appears in a lead region (`reference-documents-v7`) |
 | `semantics.heading_skip` | `InvalidRelationship` | A heading is more than one level deeper than its predecessor |
@@ -1212,9 +1257,9 @@ row_spanning : U16, Cell -> Cell                 # represented; rejects as table
 These are executable with these names and shapes (tables slice,
 `reference-documents-v5`); `Pdf.Column`, `Pdf.Row`, `Pdf.Cell`, `Pdf.Scope`,
 and `Pdf.RowSplit` name the types, and `Pdf.simple_table` is retired. Table
-presentation is `Theme` policy: `with_table_cell_padding`,
-`with_table_row_gap`, `with_table_rule` (`Rule({ color, width })` or
-`NoRule`), and `with_table_header_color`; cells paint in the body style.
+presentation is `Theme` policy, in its `table` record: `cell_padding`,
+`row_gap`, `rule` (`Rule({ color, width })` or `NoRule`), and
+`header_color`; cells paint in the body style.
 
 ### Page templates
 
@@ -1248,7 +1293,7 @@ These are executable with these names and shapes (page-templates slice,
 placeholders `Pdf.page_header` and `Pdf.page_footer` (and the compact
 builder's `add_page_header` and `add_page_footer`) are retired. A furniture
 drawing holds image commands and solid paths (`Scene.solid_fill`,
-`Scene.solid_stroke`, `Scene.rectangle`) in drawing-local coordinates
+`Scene.solid_stroke`, `Scene.Drawing.rectangle`) in drawing-local coordinates
 whose origin is the item's bottom-left corner, y upward; its extent is the
 union of its commands from that origin, a stroke extending a path by half
 its width on every side. Grouped commands report `layout.furniture_drawing`.
@@ -1261,33 +1306,32 @@ it are subsumed by its single unit.
 ### Figures, decorations, and extensions
 
 ```roc
-figure : Scene.Drawing, Str, Document.Caption -> Block   # existing; bounded vector drawings join
-figure_fit : Block, FigureFit -> Block    # FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
-decoration : Scene.Drawing -> Block       # in-flow Decoration artifact, occupies space
+figure : FigureProps -> Block       # { drawing, alt, caption, fit ?? Exact }; FigureFit : [Exact, ScaleToFit({ minimum_percent : U8 })]
+decoration : DecorationProps -> Block   # { drawing, above ?? 0, below ?? 0, layer ?? Front }: in-flow Decoration artifact
 custom_block : CustomBlock -> Block
 Scene.Drawing.group : Scene.Drawing, Layout.Point, Scene.Drawing -> Scene.Drawing
 ```
 
-`figure`, `figure_fit` (with `Pdf.FigureFit`), `decoration`, and
+`figure` (with its `fit`, a `Pdf.FigureFit`), `decoration`, and
 `Scene.Drawing.group` are executable with these names and shapes
 (flow-figures slice, `reference-documents-v7`); `custom_block` is executable
 with the shape below (custom-block slice, `reference-documents-v9`). A figure or decoration
 drawing holds any number of image commands and solid paths
-(`Scene.solid_fill`, `Scene.solid_stroke`, `Scene.rectangle`) and
+(`Scene.solid_fill`, `Scene.solid_stroke`, `Scene.Drawing.rectangle`) and
 translated groups (`Scene.Drawing.group`, at most 8 deep) in
 drawing-local coordinates whose origin is its bottom-left corner, y
 upward, with the furniture drawing's extent rule; a decoration is a
 `Decoration` page artifact (`/Artifact <</Type /Layout>>`) painted after the
-page's text. `figure_fit` on a non-figure block is rejected.
+page's text.
 
 ```roc
-CustomBlock : {
-    contents : List(Block),          # paragraphs and rich paragraphs only
-    fragmentation : [Unsplittable],  # the only v1 value
-    inset : Layout.Unit,             # content inset on every side, positive
-    name : Str,                      # names the block in diagnostics and the report
-    panel : Scene.Drawing,           # solid paths in box-local coordinates, behind the content
-    size : Layout.Size,              # the extension's measurement of the block
+CustomBlock := {
+    contents : List(Block),                          # paragraphs and rich paragraphs only
+    fragmentation : [Unsplittable] ?? Unsplittable,  # the only v1 value
+    inset : Layout.Unit ?? 0,                        # content inset on every side
+    name : Str,                                      # names the block in diagnostics and the report
+    panel : Scene.Drawing ?? Scene.Drawing.empty,    # solid paths in box-local coordinates, behind the content
+    size : Layout.Size,                              # the extension's measurement of the block
 }
 ```
 
@@ -1422,6 +1466,46 @@ version, the task, the observed outcome, and any limitation.
   read first, and that page furniture is not read as body text.
 
 ## Change log
+
+- `reference-documents-v12`: the reference-documents upgrade sets the three
+  references in vendored OFL faces with real Bold and Italic (Source Sans 3
+  and Source Code Pro for the invoice and report, Literata for the letter),
+  each stored beside its example and registered at run time, with themes
+  written as records. Presentation changes only, except where recorded:
+  shaded and ruled tables through the theme's `table` record; header slots
+  inset above hairline backdrops and footers hanging below them; a
+  masthead rule under the invoice's logo, a cover band with the reversed
+  mark on the report's first page, and a letterhead rule with the sender's
+  address in slate; real drawing labels on Figure 1 (axis values, bar
+  values, region names, unit, and a labelled legend), replacing the
+  seven-segment tick digits and the unlabelled legend swatches; a
+  generated 966 × 520 JPEG for Figure 2 in place of the 128 × 69 one; the
+  callout's labels in `Strong` with a navy accent bar; the letter's
+  enclosure title in `Em`; and Table 2's shares widened to 4/3/2 so that
+  every supplier name fits one line. Region heights, gaps, and reserved
+  widths are re-measured for the new faces (the invoice's and report's page
+  field 50 pt, INV-A3's 60 pt, the letter's 62 pt, REP-A4's 12 pt). Reviewed
+  composition: the invoice two pages, the report four, the letter three;
+  INV-A3 21 pages; INV-A5 36 body rows; REP-A1 a 620 pt and REP-A2 a 420 pt
+  spacer; REP-A6b 710 thousandths on the smaller first-page frame; INV-A1
+  and LET-A1 lines lengthened so they still wrap; REP-A5 places Figure 1
+  without labels under its ordered policy (`text.drawing_label_policy`).
+  Every adverse variant keeps its outcome, and every rejection keeps its
+  code and paths.
+- API shape (no scenario revision): the facade's configuration became
+  records with defaults. Themes, options, scopes, regions, templates,
+  tables, figures, decorations, and custom blocks are written as records
+  that name only what differs from their defaults, and the cell modifiers
+  chain (`cell.spanning(4).aligned(End)`). The reference fixtures were
+  ported and every reference PDF is byte-identical; see
+  [performance/idiomatic-api.md](performance/idiomatic-api.md).
+- `reference-documents-v11`: the examples-showcase slice makes a cell with
+  no inlines an empty `TD` or `TH` (no marked content, no `/K`), narrows
+  `table.cell_empty` to inline content that holds no text, and extends
+  `table.empty` to a table whose every cell is empty; and tailors UAX #14
+  inside `code` spans so each word of the span keeps its tailorable break
+  opportunities withheld (a code word is one unbreakable token). The three
+  reference documents are unchanged.
 
 - `reference-documents-v10`: the reference-documents closure makes the three
   references gallery programs and adds `tests/reference_documents`, which

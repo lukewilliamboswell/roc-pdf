@@ -107,9 +107,9 @@ sanitized_stream = |bytes, source_length| {
 		return False
 	}
 
-	## Walk segment headers rather than scanning every byte: a quantization or
-	## Huffman payload may legitimately contain a marker-looking pair, and a
-	## byte scan would report that as a retained segment.
+	# Walk segment headers rather than scanning every byte: a quantization or
+	# Huffman payload may legitimately contain a marker-looking pair, and a
+	# byte scan would report that as a retained segment.
 	var $index = 2
 	while $index + 3 < bytes.len() {
 		if list_at(bytes, $index) != 0xff {
@@ -120,14 +120,14 @@ sanitized_stream = |bytes, source_length| {
 			return False
 		}
 
-		## `KernelImage` drops every application segment except the two whose
-		## payload a decoder needs to interpret the pixels it kept: a JFIF APP0
-		## supplies the pixel density and an Adobe APP14 supplies the colour
-		## transform. Both are retained only when the payload identifies itself
-		## and is long enough to carry the fields that identification promises,
-		## so repeat those conditions here instead of trusting the marker alone.
-		## An Exif APP1 is read for its orientation and then dropped, so it must
-		## never appear.
+		# `KernelImage` drops every application segment except the two whose
+		# payload a decoder needs to interpret the pixels it kept: a JFIF APP0
+		# supplies the pixel density and an Adobe APP14 supplies the colour
+		# transform. Both are retained only when the payload identifies itself
+		# and is long enough to carry the fields that identification promises,
+		# so repeat those conditions here instead of trusting the marker alone.
+		# An Exif APP1 is read for its orientation and then dropped, so it must
+		# never appear.
 		if marker >= 0xe0 and marker <= 0xef {
 			length_here = list_at(bytes, $index + 2).to_u64() * 256 + list_at(bytes, $index + 3).to_u64()
 			data_here = $index + 4
@@ -138,14 +138,14 @@ sanitized_stream = |bytes, source_length| {
 			}
 		}
 
-		## Entropy-coded scan data and the end marker carry no further headers.
+		# Entropy-coded scan data and the end marker carry no further headers.
 		if marker == 0xda or marker == 0xd9 {
 			return True
 		}
 		length = list_at(bytes, $index + 2).to_u64() * 256 + list_at(bytes, $index + 3).to_u64()
 
-		## An inspected stream always declares a segment length that stays inside
-		## the payload; stop conservatively rather than claim a violation.
+		# An inspected stream always declares a segment length that stays inside
+		# the payload; stop conservatively rather than claim a violation.
 		if length < 2 or $index + 2 + length > bytes.len() {
 			return True
 		}
@@ -249,61 +249,61 @@ emitted_stream = |bytes, space| match inspect_encoded_jpeg(bytes, space) {
 	}
 }
 
-## Replay the greyscale baseline seed. This is the exact input the property
-## rejected before the JFIF exemption was written down: like every real JPEG it
-## opens with a JFIF APP0 that `KernelImage` copies through, and the blanket
-## rejection of every application segment failed on it immediately. Its
-## single-component frame reaches the accept path through the calibrated-grey
-## space. Without this expect the whole invariant block only runs under the
-## fuzzer.
+# Replay the greyscale baseline seed. This is the exact input the property
+# rejected before the JFIF exemption was written down: like every real JPEG it
+# opens with a JFIF APP0 that `KernelImage` copies through, and the blanket
+# rejection of every application segment failed on it immediately. Its
+# single-component frame reaches the accept path through the calibrated-grey
+# space. Without this expect the whole invariant block only runs under the
+# fuzzer.
 expect JpegTargets.jpeg_mutation(gray_jpeg)
 
-## Replay a seed carrying an already-upright Exif APP1 orientation. Its
-## three-component frame reaches the accept path through the sRGB space, so this
-## replays the APP1-stripping half of the retention rule: the inspector reads
-## the orientation, resolves it before placement, and must not leave the segment
-## in the emitted stream.
+# Replay a seed carrying an already-upright Exif APP1 orientation. Its
+# three-component frame reaches the accept path through the sRGB space, so this
+# replays the APP1-stripping half of the retention rule: the inspector reads
+# the orientation, resolves it before placement, and must not leave the segment
+# in the emitted stream.
 expect JpegTargets.jpeg_mutation(exif_jpeg)
 
-## Replay a seed whose Exif orientation would need the pixels rotated.
-## `resolve_orientation` admits only `TopLeft`, because rotating pixels is
-## rasterization and the package refuses it rather than recovering silently, so
-## this source must be rejected outright under either space.
+# Replay a seed whose Exif orientation would need the pixels rotated.
+# `resolve_orientation` admits only `TopLeft`, because rotating pixels is
+# rasterization and the package refuses it rather than recovering silently, so
+# this source must be rejected outright under either space.
 expect JpegTargets.jpeg_mutation(rotated_jpeg)
 
-## Replay a seed carrying a COM segment, which the retention rule forbids in the
-## output. It reaches the accept path through the same sRGB space, so it pins
-## the comment-stripping half of the rule.
+# Replay a seed carrying a COM segment, which the retention rule forbids in the
+# output. It reaches the accept path through the same sRGB space, so it pins
+# the comment-stripping half of the rule.
 expect JpegTargets.jpeg_mutation(comment_jpeg)
 
-## The three expects above would each pass if the inspector had merely rejected
-## its seed, so they are paired with positive evidence that the accept path was
-## actually taken. Each seed must produce a stream, and the two carrying a
-## segment the rule strips must produce a strictly shorter one.
+# The three expects above would each pass if the inspector had merely rejected
+# its seed, so they are paired with positive evidence that the accept path was
+# actually taken. Each seed must produce a stream, and the two carrying a
+# segment the rule strips must produce a strictly shorter one.
 expect emitted_stream(gray_jpeg, gray_space) != None
 
 expect match emitted_stream(exif_jpeg, srgb_space) {
-	None => Bool.False
+	None => False
 	Some(bytes) => bytes.len() < exif_jpeg.len()
 }
 
 expect match emitted_stream(comment_jpeg, srgb_space) {
-	None => Bool.False
+	None => False
 	Some(bytes) => bytes.len() < comment_jpeg.len()
 }
 
-## A three-component frame is admitted only by the sRGB space and a
-## single-component frame only by the calibrated-grey one, which is the reason
-## the store carries both. If this ever inverts, the seeds above would silently
-## stop exercising the accept path while their expects kept passing.
+# A three-component frame is admitted only by the sRGB space and a
+# single-component frame only by the calibrated-grey one, which is the reason
+# the store carries both. If this ever inverts, the seeds above would silently
+# stop exercising the accept path while their expects kept passing.
 expect emitted_stream(exif_jpeg, gray_space) == None
 
 expect emitted_stream(gray_jpeg, srgb_space) == None
 
-## The rotation-requiring seed is rejected for its orientation rather than its
-## components, so neither space admits it. Pinning both directions keeps the
-## refusal attributable: a future change that started accepting it would fail
-## here instead of quietly widening what reaches the store.
+# The rotation-requiring seed is rejected for its orientation rather than its
+# components, so neither space admits it. Pinning both directions keeps the
+# refusal attributable: a future change that started accepting it would fail
+# here instead of quietly widening what reaches the store.
 expect emitted_stream(rotated_jpeg, srgb_space) == None
 
 expect emitted_stream(rotated_jpeg, gray_space) == None

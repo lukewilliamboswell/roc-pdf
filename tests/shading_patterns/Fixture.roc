@@ -506,22 +506,22 @@ showcase_geometry : U64, U64 -> { extend_end : Bool, extend_start : Bool, geomet
 showcase_geometry = |logical, srgb_space| {
 	if logical == 2 {
 		{
-			extend_end: Bool.True,
-			extend_start: Bool.True,
+			extend_end: True,
+			extend_start: True,
 			geometry: Radial({ end_center: point(60000, 59000), end_radius: unit(12000), start_center: point(30000, 59000), start_radius: unit(2000) }),
 			space: srgb_space,
 		}
 	} else if logical == 3 {
-		{ extend_end: Bool.False, extend_start: Bool.False, geometry: axial(10000, 0, 90000, 0), space: srgb_space + 1 - 2 * U64.mod_by(srgb_space, 2) }
+		{ extend_end: False, extend_start: False, geometry: axial(10000, 0, 90000, 0), space: srgb_space + 1 - 2 * U64.mod_by(srgb_space, 2) }
 	} else if logical == 6 {
-		{ extend_end: Bool.False, extend_start: Bool.False, geometry: axial(5000, 0, 10000, 0), space: srgb_space }
+		{ extend_end: False, extend_start: False, geometry: axial(5000, 0, 10000, 0), space: srgb_space }
 	} else if logical == 1 {
 		## The multi-stop gradient runs diagonally across its band so axis
 		## direction errors are visible, and its unextended corners knock
 		## out exactly.
-		{ extend_end: Bool.False, extend_start: Bool.False, geometry: axial(10000, 70000, 90000, 80000), space: srgb_space }
+		{ extend_end: False, extend_start: False, geometry: axial(10000, 70000, 90000, 80000), space: srgb_space }
 	} else {
-		{ extend_end: Bool.False, extend_start: Bool.False, geometry: axial(10000, 0, 90000, 0), space: srgb_space }
+		{ extend_end: False, extend_start: False, geometry: axial(10000, 0, 90000, 0), space: srgb_space }
 	}
 }
 
@@ -583,7 +583,7 @@ showcase_scenario = |direction| {
 		Reversed => showcase_pattern_count - 1 - logical
 	}
 
-	## The shading store in dense-ID order; only dense IDs permute.
+	# The shading store in dense-ID order; only dense IDs permute.
 	var $stops = []
 	var $shadings = List.with_capacity(showcase_shading_count)
 	var $dense = 0
@@ -607,8 +607,8 @@ showcase_scenario = |direction| {
 		$dense = $dense + 1
 	}
 
-	## The pattern store in dense-ID order: cells 0 and 2 are byte-identical
-	## twins at the identity matrix, cell 1 differs only by its matrix.
+	# The pattern store in dense-ID order: cells 0 and 2 are byte-identical
+	# twins at the identity matrix, cell 1 differs only by its matrix.
 	var $cells = List.with_capacity(showcase_pattern_count)
 	var $cell_arena = []
 	var $cell_dense = 0
@@ -799,7 +799,7 @@ scaled_scenario = |scene, shadings, patterns| {
 }
 
 two_stop_shading : U64, U64 -> Scene.Shading
-two_stop_shading = |id, stops_start| shading_record(id, axial(10000, 0, 90000, 0), 1, stops_start, 2, Bool.False, Bool.False)
+two_stop_shading = |id, stops_start| shading_record(id, axial(10000, 0, 90000, 0), 1, stops_start, 2, False, False)
 
 ## N shading paints over one two-stop shading (`Reuse`) or over N distinct
 ## two-stop shadings whose first stop color varies (`Distinct`).
@@ -850,7 +850,7 @@ stop_ramp = |stop_count| {
 		$stops = $stops.append(rgb_stop(offset, level, 32768, 65535 - level))
 		$stop = $stop + 1
 	}
-	shadings = [shading_record(0, axial(10000, 0, 90000, 0), 1, 0, stop_count, Bool.False, Bool.False)]
+	shadings = [shading_record(0, axial(10000, 0, 90000, 0), 1, 0, stop_count, False, False)]
 	commands = [
 		anchor_command,
 		Clip({ children: span(2, 1), path: Scene.PathId.from_index(1) }),
@@ -1123,7 +1123,7 @@ check_negatives = |context| {
 	## 1: shading paints stay rejected under the tagged-visual resource constructor.
 	rejected = match KernelScene.Plan.build(base.scene, KernelScene.Resources.make({ color_spaces: 2, images: 0 }), scene_limits) {
 		Err(UnsupportedCommand({ command })) => command == 1 + context
-		_ => Bool.False
+		_ => False
 	}
 	if !rejected {
 		return Err(MissingRejection(1))
@@ -1132,7 +1132,7 @@ check_negatives = |context| {
 	## 2: pattern fills stay rejected under the production-visual form constructor.
 	form_gate_rejected = match KernelScene.Plan.build(pattern_base.scene, KernelScene.Resources.with_forms({ color_spaces: 1, forms: 0, images: 0, text_runs: 0 }), scene_limits) {
 		Err(UnsupportedCommand({ command })) => command == context
-		_ => Bool.False
+		_ => False
 	}
 	if !form_gate_rejected {
 		return Err(MissingRejection(2))
@@ -1154,7 +1154,7 @@ check_negatives = |context| {
 		},
 		|error| match error {
 			IndexOutOfRange({ available: 1, index, kind: ShadingIndex }) => index == context + 6
-			_ => Bool.False
+			_ => False
 		},
 	)?
 
@@ -1173,17 +1173,17 @@ check_negatives = |context| {
 		},
 		|error| match error {
 			IndexOutOfRange({ available: 1, index, kind: PatternIndex }) => index == context + 4
-			_ => Bool.False
+			_ => False
 		},
 	)?
 
 	## 5: a single-stop gradient.
 	expect_paint_rejection(
 		5,
-		with_shading(base, shading_record(0, axial(10000, 0, 90000, 0), 1, 0, 1, Bool.False, Bool.False)),
+		with_shading(base, shading_record(0, axial(10000, 0, 90000, 0), 1, 0, 1, False, False)),
 		|error| match error {
-			TooFewShadingStops({ shading: 0, stops: 1 }) => Bool.True
-			_ => Bool.False
+			TooFewShadingStops({ shading: 0, stops: 1 }) => True
+			_ => False
 		},
 	)?
 
@@ -1199,8 +1199,8 @@ check_negatives = |context| {
 		6,
 		first_off,
 		|error| match error {
-			ShadingStopEndpointInvalid({ shading: 0 }) => Bool.True
-			_ => Bool.False
+			ShadingStopEndpointInvalid({ shading: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1216,8 +1216,8 @@ check_negatives = |context| {
 		7,
 		last_off,
 		|error| match error {
-			ShadingStopEndpointInvalid({ shading: 0 }) => Bool.True
-			_ => Bool.False
+			ShadingStopEndpointInvalid({ shading: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1225,7 +1225,7 @@ check_negatives = |context| {
 	equal_stops = {
 		..base,
 		shadings: {
-			shadings: [shading_record(0, axial(10000, 0, 90000, 0), 1, 0, 3, Bool.False, Bool.False)],
+			shadings: [shading_record(0, axial(10000, 0, 90000, 0), 1, 0, 3, False, False)],
 			stops: [rgb_stop(0, 65535, 0, 0), rgb_stop(0, 0, 65535, 0), rgb_stop(65535, 0, 0, 65535)],
 		},
 	}
@@ -1233,48 +1233,48 @@ check_negatives = |context| {
 		8,
 		equal_stops,
 		|error| match error {
-			ShadingStopsNotIncreasing({ shading: 0, stop: 1 }) => Bool.True
-			_ => Bool.False
+			ShadingStopsNotIncreasing({ shading: 0, stop: 1 }) => True
+			_ => False
 		},
 	)?
 
 	## 9: degenerate linear geometry.
 	expect_paint_rejection(
 		9,
-		with_shading(base, shading_record(0, axial(10000, 0, 10000, 0), 1, 0, 2, Bool.False, Bool.False)),
+		with_shading(base, shading_record(0, axial(10000, 0, 10000, 0), 1, 0, 2, False, False)),
 		|error| match error {
-			DegenerateShadingGeometry({ shading: 0 }) => Bool.True
-			_ => Bool.False
+			DegenerateShadingGeometry({ shading: 0 }) => True
+			_ => False
 		},
 	)?
 
 	## 10: a negative radius.
 	expect_paint_rejection(
 		10,
-		with_shading(base, shading_record(0, Radial({ end_center: point(50000, 50000), end_radius: unit(10000), start_center: point(40000, 50000), start_radius: unit(-1) }), 1, 0, 2, Bool.False, Bool.False)),
+		with_shading(base, shading_record(0, Radial({ end_center: point(50000, 50000), end_radius: unit(10000), start_center: point(40000, 50000), start_radius: unit(-1) }), 1, 0, 2, False, False)),
 		|error| match error {
-			NegativeShadingRadius({ shading: 0 }) => Bool.True
-			_ => Bool.False
+			NegativeShadingRadius({ shading: 0 }) => True
+			_ => False
 		},
 	)?
 
 	## 11: coincident radial circles.
 	expect_paint_rejection(
 		11,
-		with_shading(base, shading_record(0, Radial({ end_center: point(40000, 50000), end_radius: unit(10000), start_center: point(40000, 50000), start_radius: unit(10000) }), 1, 0, 2, Bool.False, Bool.False)),
+		with_shading(base, shading_record(0, Radial({ end_center: point(40000, 50000), end_radius: unit(10000), start_center: point(40000, 50000), start_radius: unit(10000) }), 1, 0, 2, False, False)),
 		|error| match error {
-			DegenerateShadingGeometry({ shading: 0 }) => Bool.True
-			_ => Bool.False
+			DegenerateShadingGeometry({ shading: 0 }) => True
+			_ => False
 		},
 	)?
 
 	## 12: both radii zero.
 	expect_paint_rejection(
 		12,
-		with_shading(base, shading_record(0, Radial({ end_center: point(50000, 50000), end_radius: unit(0), start_center: point(40000, 50000), start_radius: unit(0) }), 1, 0, 2, Bool.False, Bool.False)),
+		with_shading(base, shading_record(0, Radial({ end_center: point(50000, 50000), end_radius: unit(0), start_center: point(40000, 50000), start_radius: unit(0) }), 1, 0, 2, False, False)),
 		|error| match error {
-			DegenerateShadingGeometry({ shading: 0 }) => Bool.True
-			_ => Bool.False
+			DegenerateShadingGeometry({ shading: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1282,7 +1282,7 @@ check_negatives = |context| {
 	over_budget = stop_ramp(256 + context)
 	stops_rejected = match KernelScene.PaintPlan.build(over_budget.scene, over_budget.form_store, over_budget.shadings, over_budget.patterns, paint_resources(over_budget), scene_limits, form_scene_limits, paint_limits) {
 		Err(LimitExceeded({ attempted, dimension: ShadingStops, limit: 256 })) => attempted == 256 + context
-		_ => Bool.False
+		_ => False
 	}
 	if !stops_rejected {
 		return Err(MissingRejection(13))
@@ -1300,8 +1300,8 @@ check_negatives = |context| {
 	mismatch_colors = KernelColor.Plan.build(mismatched.colors, mismatched.color_limits) ? |_| MissingRejection(14)
 	mismatch_images = KernelImage.Plan.build(mismatched.images, mismatch_colors, mismatched.image_limits) ? |_| MissingRejection(14)
 	arity_rejected = match KernelResourceUse.TextPlan.build_with_paints(mismatch_scene, mismatch_colors, mismatch_images, NoBlending) {
-		Err(ShadingStopComponentMismatch({ actual: One, expected: Three, shading: 0, stop: 1 })) => Bool.True
-		_ => Bool.False
+		Err(ShadingStopComponentMismatch({ actual: One, expected: Three, shading: 0, stop: 1 })) => True
+		_ => False
 	}
 	if !arity_rejected {
 		return Err(MissingRejection(14))
@@ -1319,8 +1319,8 @@ check_negatives = |context| {
 		15,
 		flat_step,
 		|error| match error {
-			PatternStepInvalid({ pattern: 0 }) => Bool.True
-			_ => Bool.False
+			PatternStepInvalid({ pattern: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1336,8 +1336,8 @@ check_negatives = |context| {
 		16,
 		singular,
 		|error| match error {
-			PatternMatrixSingular({ pattern: 0 }) => Bool.True
-			_ => Bool.False
+			PatternMatrixSingular({ pattern: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1353,8 +1353,8 @@ check_negatives = |context| {
 		17,
 		flat_bounds,
 		|error| match error {
-			NonPositiveRect({ index: 0, kind: PatternIndex }) => Bool.True
-			_ => Bool.False
+			NonPositiveRect({ index: 0, kind: PatternIndex }) => True
+			_ => False
 		},
 	)?
 
@@ -1370,8 +1370,8 @@ check_negatives = |context| {
 		18,
 		empty_cell,
 		|error| match error {
-			EmptyPatternCell({ pattern: 0 }) => Bool.True
-			_ => Bool.False
+			EmptyPatternCell({ pattern: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1398,8 +1398,8 @@ check_negatives = |context| {
 		form_scene_limits,
 		paint_limits,
 	) {
-		Err(TextInPatternCell({ command: 0 })) => Bool.True
-		_ => Bool.False
+		Err(TextInPatternCell({ command: 0 })) => True
+		_ => False
 	}
 	if !text_cell_rejected {
 		return Err(MissingRejection(19))
@@ -1420,8 +1420,8 @@ check_negatives = |context| {
 		20,
 		opacity_cell,
 		|error| match error {
-			TransparencyInPatternCell({ command: 0 }) => Bool.True
-			_ => Bool.False
+			TransparencyInPatternCell({ command: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1437,8 +1437,8 @@ check_negatives = |context| {
 		21,
 		nested_cell,
 		|error| match error {
-			PatternInPatternCell({ command: 0 }) => Bool.True
-			_ => Bool.False
+			PatternInPatternCell({ command: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1472,8 +1472,8 @@ check_negatives = |context| {
 	text_form_colors = KernelColor.Plan.build(text_form_pattern.colors, text_form_pattern.color_limits) ? |_| MissingRejection(22)
 	text_form_images = KernelImage.Plan.build(text_form_pattern.images, text_form_colors, text_form_pattern.image_limits) ? |_| MissingRejection(22)
 	text_form_rejected = match KernelForm.Facts.build_with_paints(text_form_scene, { colors: text_form_colors, font_count: 1, images: text_form_images }, WithTextStore(minimal_text_store), form_limits) {
-		Err(TextInPatternForm({ form: 0 })) => Bool.True
-		_ => Bool.False
+		Err(TextInPatternForm({ form: 0 })) => True
+		_ => False
 	}
 	if !text_form_rejected {
 		return Err(MissingRejection(22))
@@ -1499,8 +1499,8 @@ check_negatives = |context| {
 		transparent_form_pattern,
 		form_limits,
 		|error| match error {
-			TransparencyInPattern({ form: 0 }) => Bool.True
-			_ => Bool.False
+			TransparencyInPattern({ form: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1538,8 +1538,8 @@ check_negatives = |context| {
 		nested_invocation,
 		form_limits,
 		|error| match error {
-			NestedPatternInvocation({ form: 0 }) => Bool.True
-			_ => Bool.False
+			NestedPatternInvocation({ form: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1572,8 +1572,8 @@ check_negatives = |context| {
 		alpha_pattern,
 		form_limits,
 		|error| match error {
-			AlphaImageInPattern({ image: 0, pattern: 0 }) => Bool.True
-			_ => Bool.False
+			AlphaImageInPattern({ image: 0, pattern: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1595,8 +1595,8 @@ check_negatives = |context| {
 		cycle,
 		form_limits,
 		|error| match error {
-			Graph(DependencyCycle(_)) => Bool.True
-			_ => Bool.False
+			Graph(DependencyCycle(_)) => True
+			_ => False
 		},
 	)?
 
@@ -1616,8 +1616,8 @@ check_negatives = |context| {
 		unreachable,
 		form_limits,
 		|error| match error {
-			Graph(UnreachableResource(_)) => Bool.True
-			_ => Bool.False
+			Graph(UnreachableResource(_)) => True
+			_ => False
 		},
 	)?
 
@@ -1632,52 +1632,52 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## The showcase deduplicates the authored twin shading and twin pattern,
-## shares the yellow-to-green segment function across shadings, keeps the
-## one-fact-distinct shading separate, and emits identical bytes for both
-## authored orders.
+# The showcase deduplicates the authored twin shading and twin pattern,
+# shares the yellow-to-green segment function across shadings, keeps the
+# one-fact-distinct shading separate, and emits identical bytes for both
+# authored orders.
 expect {
 	result = Fixture.scenario("showcase", 0)?
 	result.work.get(9) == Ok(7) and result.work.get(10) == Ok(6) and result.work.get(11) == Ok(1) and result.work.get(12) == Ok(10) and result.work.get(13) == Ok(8) and result.work.get(14) == Ok(2) and result.work.get(15) == Ok(3) and result.work.get(16) == Ok(2) and result.work.get(17) == Ok(1)
 }
 
-## Repeated shading paints share one canonical shading and function.
+# Repeated shading paints share one canonical shading and function.
 expect {
 	result = Fixture.scenario("share", 5)?
 	result.work.get(2) == Ok(5) and result.work.get(10) == Ok(1) and result.work.get(13) == Ok(1) and result.work.get(32) == Ok(1)
 }
 
-## Distinct shadings stay distinct canonical shadings and objects.
+# Distinct shadings stay distinct canonical shadings and objects.
 expect {
 	result = Fixture.scenario("distinct", 5)?
 	result.work.get(10) == Ok(5) and result.work.get(13) == Ok(5) and result.work.get(32) == Ok(5) and result.work.get(33) == Ok(5)
 }
 
-## One shading with N stops derives N-1 segments plus one stitch.
+# One shading with N stops derives N-1 segments plus one stitch.
 expect {
 	result = Fixture.scenario("stops", 5)?
 	result.work.get(1) == Ok(5) and result.work.get(6) == Ok(5) and result.work.get(13) == Ok(5) and result.work.get(10) == Ok(1)
 }
 
-## Repeated pattern fills share one canonical pattern and stream.
+# Repeated pattern fills share one canonical pattern and stream.
 expect {
 	result = Fixture.scenario("pshare", 5)?
 	result.work.get(3) == Ok(5) and result.work.get(16) == Ok(1) and result.work.get(30) == Ok(1) and result.work.get(34) == Ok(1)
 }
 
-## Distinct patterns stay distinct canonical patterns and streams.
+# Distinct patterns stay distinct canonical patterns and streams.
 expect {
 	result = Fixture.scenario("pdistinct", 5)?
 	result.work.get(16) == Ok(5) and result.work.get(30) == Ok(5) and result.work.get(34) == Ok(5)
 }
 
-## Per-cell-command work scales inside one canonical pattern.
+# Per-cell-command work scales inside one canonical pattern.
 expect {
 	result = Fixture.scenario("pcells", 5)?
 	result.work.get(5) == Ok(5) and result.work.get(7) == Ok(5) and result.work.get(16) == Ok(1)
 }
 
-## Every negative twin is rejected and no plan escapes.
+# Every negative twin is rejected and no plan escapes.
 expect {
 	result = Fixture.atomic_negatives(1)?
 	result.work.get(0) == Ok(27) and result.work.get(1) == Ok(0)

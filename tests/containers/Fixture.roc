@@ -4,7 +4,10 @@ import pdf.KernelFacadeSemantics
 import pdf.KernelFacadeSources
 import pdf.KernelSemantics
 import pdf.KernelTextSemantics
+import pdf.Color
+import pdf.Layout
 import pdf.Pdf
+import pdf.Scene
 
 ## Semantic-foundation evidence through the public `Pdf` constructors.
 ##
@@ -157,7 +160,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), nest(Pdf.section([Pdf.paragraph("Kept"), Pdf.division([])]), offset)]), InvalidRelationship, "semantics.empty_container", "contents[1].contents[1]"),
 		rejects(document([nest(Pdf.section([]), offset), Pdf.paragraph("Body")]), InvalidRelationship, "semantics.empty_container", "contents[0]"),
 		rejects(document([nest(Pdf.section([Pdf.heading(1, "Tables"), Pdf.complex_table("A nested table placeholder.")]), offset)]), FeatureUnavailable, "table.complex", ""),
-		rejects(document([nest(Pdf.part([Pdf.division([Pdf.figure_fit(Pdf.paragraph("Not a figure"), ScaleToFit({ minimum_percent: 50 }))])]), offset)]), InvalidRelationship, "document.figure_fit", ""),
+		rejects(document([nest(Pdf.part([Pdf.division([Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 10, 10), Color.gray8(0)), alt: "A square", caption: Pdf.no_caption, fit: ScaleToFit({ minimum_percent: 101 }) })])]), offset)]), InvalidRelationship, "document.figure_fit", "contents[0].contents[0].contents[0]"),
 	]
 	passed = checks.sum()
 	if passed != checks.len() {

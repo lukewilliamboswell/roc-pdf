@@ -13,6 +13,10 @@ Case : [
 	FooterCarry({ context : U64 }),
 	Ordered({ context : U64 }),
 	AtomicNegatives({ context : U64 }),
+	KeptWhole({ context : U64 }),
+	Styled({ rows : U64 }),
+	EmptyCells({ rows : U64 }),
+	Ruled({ rows : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -47,6 +51,10 @@ main! = |args| {
 		FooterCarry({ context }) => Fixture.footer_carry(context)
 		Ordered({ context }) => Fixture.ordered(context)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
+		KeptWhole({ context }) => Fixture.kept_whole(context)
+		Styled({ rows }) => Fixture.styled(rows)
+		EmptyCells({ rows }) => Fixture.empty_cells(rows)
+		Ruled({ rows }) => Fixture.ruled(rows)
 	}
 	match result {
 		Ok(value) => value

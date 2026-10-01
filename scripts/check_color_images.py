@@ -27,7 +27,10 @@ import zlib
 from pathlib import Path
 
 from check_forms import FormFacts, check_ownership, replace_once
+from pdf_layout import mutate as layout_mutate
 from check_pdf_structure import (
+    structure_kids,
+    decode_stream,
     ValidationError,
     dictionary_ref,
     indirect_length,
@@ -44,7 +47,7 @@ DEDUP_64_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_dedup_64.pdf
 DISTINCT_8_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_distinct_8.pdf"
 DISTINCT_64_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_distinct_64.pdf"
 NEGATIVE_SNAPSHOT = ROOT / "tests" / "color_images" / "color_images_negative.pdf"
-SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
+SRGB_PROFILE = ROOT / "package" / "sRGB2014.icc"
 SRGB_SHA256 = "384b832de3412066743b52a75ee906b6fb9fb8d9e09e936fc2c43223815c6e0a"
 
 RGB_PIXELS = bytes([255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255])
@@ -97,9 +100,10 @@ class LeafFacts:
             if marker < 0:
                 continue
             dictionary = body[:marker]
-            if b"/N 3" in dictionary and b"/Subtype" not in dictionary and b"/Filter" not in dictionary:
-                _, encoded = raw_stream(self.bodies, number)
-                self.profiles[number] = encoded
+            if b"/N 3" in dictionary and b"/Subtype" not in dictionary:
+                require(b"/Filter /FlateDecode" in dictionary, f"profile stream {number} is not FlateDecode")
+                _, decoded = decode_stream(self.bodies, number)
+                self.profiles[number] = decoded
 
         self.cal_gray_spaces = {
             number for number, body in self.bodies.items() if body.strip().startswith(b"[/CalGray")
@@ -244,7 +248,7 @@ def validate_color_image_showcase(pdf: bytes, dimensions: dict[str, int]) -> Non
     require(document_k is not None, "document /K missing")
     children = [int(match.group(1)) for match in re.finditer(rb"([1-9][0-9]*) 0 R", document_k.group(1))]
     require(len(children) == 3, "document does not hold the three paragraphs")
-    first_child_mcids = [int(m.group(1)) for m in re.finditer(rb"<< /MCID ([0-9]+) /Pg", facts.bodies[children[0]])]
+    first_child_mcids = [mcid for kind, mcid, _ in structure_kids(facts.bodies[children[0]]) if kind == "mcr"]
     require(first_child_mcids == [1], "logical reading order does not lead with the second painted paragraph")
 
 
@@ -327,14 +331,12 @@ def self_test() -> None:
     )
 
     ## Length-preserving mutation twins: each must be rejected.
+    # The profile is a FlateDecode stream; the twin flips one decoded byte
+    # and re-deflates it.
     vendored = SRGB_PROFILE.read_bytes()
     profile_prefix = vendored[:64]
-    offset = showcase.find(profile_prefix)
-    require(offset >= 0, "self-test fixture does not embed the vendored profile bytes")
-    flipped_profile = (
-        showcase[: offset + 40] + bytes([showcase[offset + 40] ^ 0x01]) + showcase[offset + 41 :]
-    )
-    require(len(flipped_profile) == len(showcase), "profile mutation changed the byte length")
+    flipped_prefix = profile_prefix[:40] + bytes([profile_prefix[40] ^ 0x01]) + profile_prefix[41:]
+    flipped_profile = layout_mutate(showcase, profile_prefix, flipped_prefix, occurrences=1)
 
     mutations = (
         ("profile payload", flipped_profile),

@@ -34,4 +34,23 @@ mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd)"
 
 cd "$root_dir/package"
-"$roc_bin" bundle main.roc --output-dir "$output_dir"
+# `roc bundle` follows module imports but silently omits files reached through
+# byte imports (`import "x.ttf" as bytes : List(U8)`, roc-lang/roc#11907), so
+# every file a package module byte-imports is named on the command line. The
+# list is read from the modules themselves so a new data import cannot be
+# forgotten; an import that escapes package/ is rejected.
+data_files=()
+while IFS= read -r data_file; do
+    case "$data_file" in
+        /* | ../* | */../*)
+            echo "ERROR: package byte import escapes package/: $data_file" >&2
+            exit 1
+            ;;
+    esac
+    if [[ ! -f "$data_file" ]]; then
+        echo "ERROR: package byte import names a missing file: $data_file" >&2
+        exit 1
+    fi
+    data_files+=("$data_file")
+done < <(sed -n 's/^import "\([^"]*\)" as .*/\1/p' ./*.roc | LC_ALL=C sort -u)
+"$roc_bin" bundle main.roc "${data_files[@]}" --output-dir "$output_dir"

@@ -10,6 +10,7 @@ Case : [
 	Report({ context : U64 }),
 	Callouts({ callouts : U64 }),
 	AtomicNegatives({ context : U64 }),
+	RichCallouts({ callouts : U64 }),
 ]
 
 CaseSpec : { case : Case, schema_version : U64 }
@@ -41,6 +42,7 @@ main! = |args| {
 		Report({ context }) => Fixture.report(context)
 		Callouts({ callouts }) => Fixture.callouts(callouts)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
+		RichCallouts({ callouts }) => Fixture.rich_callouts(callouts)
 	}
 	match result {
 		Ok(value) => value

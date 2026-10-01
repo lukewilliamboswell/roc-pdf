@@ -13,7 +13,7 @@ Modes:
     Validate the named files.
 ``--cases``
     Validate every distinct non-empty snapshot referenced by tests/spec.json
-    plus every public example in examples/*.pdf. Only the files in
+    plus every public example in examples/*/*.pdf. Only the files in
     ``FIXTURE_EXCEPTIONS`` may fail, and each must fail exactly its recorded
     rule set; an exception that no longer fails, or fails differently, is
     itself an error.
@@ -224,8 +224,8 @@ def case_paths(root: Path = ROOT) -> list[str]:
     for relative in sorted(snapshots):
         require((root / relative).is_file(), f"spec snapshot {relative} is missing")
     selected = sorted(relative for relative in snapshots if (root / relative).stat().st_size > 0)
-    examples = sorted(path.relative_to(root).as_posix() for path in (root / "examples").glob("*.pdf"))
-    require(bool(examples), "examples/*.pdf is empty")
+    examples = sorted(path.relative_to(root).as_posix() for path in (root / "examples").glob("*/*.pdf"))
+    require(bool(examples), "examples/*/*.pdf is empty")
     return selected + examples
 
 

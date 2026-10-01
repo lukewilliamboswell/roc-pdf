@@ -204,8 +204,8 @@ resolve = |paragraph, line, clusters, limits| {
 		return Err(LimitExceeded({ attempted: line.clusters.length(), dimension: VisualOrder, limit: limits.max_visual_order }))
 	}
 
-	## The line's clusters must exactly partition its source range. The dense
-	## scalar-to-cluster table is the only extra buffer this resolution needs.
+	# The line's clusters must exactly partition its source range. The dense
+	# scalar-to-cluster table is the only extra buffer this resolution needs.
 	var $scalar_clusters = List.repeat(clusters.len(), line_scalars)
 	var $cluster_scalars = List.repeat(0, line.clusters.length())
 	var $cluster_visits = 0
@@ -239,14 +239,14 @@ resolve = |paragraph, line, clusters, limits| {
 	visual = Bidi.visual_to_logical(order)
 	mirroring = Bidi.line_mirroring(order)
 
-	## Walk the dependency's visual scalar sequence once. A cluster is emitted
-	## at its first visual scalar and must own the immediately following
-	## visual entries for its remaining scalars; any other arrangement would
-	## split the cluster, which is a typed rejection rather than a reordering
-	## this project invents.
+	# Walk the dependency's visual scalar sequence once. A cluster is emitted
+	# at its first visual scalar and must own the immediately following
+	# visual entries for its remaining scalars; any other arrangement would
+	# split the cluster, which is a typed rejection rather than a reordering
+	# this project invents.
 	var $visual_clusters = List.with_capacity(line.clusters.length())
 	var $mirrors = List.with_capacity(line.clusters.length())
-	var $emitted = List.repeat(Bool.False, line.clusters.length())
+	var $emitted = List.repeat(False, line.clusters.length())
 	var $mirror_visits = 0
 	var $scalar_visits = 0
 	var $visual_index = 0
@@ -281,14 +281,14 @@ resolve = |paragraph, line, clusters, limits| {
 			$mirror_visits = $mirror_visits + cluster_length
 			$mirrors = $mirrors.append(mirror)
 			$visual_clusters = $visual_clusters.append(owning_cluster)
-			$emitted = list_set($emitted, local_cluster, Bool.True)
+			$emitted = list_set($emitted, local_cluster, True)
 			$visual_index = $visual_index + 1
 		}
 	}
 
-	## Every cluster absent from the paint sequence must consist solely of
-	## scalars X9 removed. Any other unpainted cluster would mean text
-	## silently vanished, so it is a typed rejection.
+	# Every cluster absent from the paint sequence must consist solely of
+	# scalars X9 removed. Any other unpainted cluster would mean text
+	# silently vanished, so it is a typed rejection.
 	var $removed_clusters = 0
 	var $unpainted = 0
 	while $unpainted < line.clusters.length() {
@@ -361,7 +361,7 @@ mirror_for_cluster = |mirroring, local_scalar, cluster_length, cluster| {
 			}
 			$offset = $offset + 1
 		}
-		return Ok({ glyph: None, needs_glyph: Bool.False })
+		return Ok({ glyph: None, needs_glyph: False })
 	}
 	Ok({
 		glyph: match first.glyph {
@@ -389,56 +389,15 @@ range_end = |range| {
 	}
 }
 
-range_equal : Semantics.Range, Semantics.Range -> Bool
-range_equal = |left, right| left.start() == right.start() and left.length() == right.length()
-
-text_range_equal : Semantics.TextRange, Semantics.TextRange -> Bool
-text_range_equal = |left, right| range_equal(left.scalars, right.scalars) and range_equal(left.utf8_bytes, right.utf8_bytes)
-
-work_equal : KernelBidiBoundary.Work, KernelBidiBoundary.Work -> Bool
-work_equal = |left, right| left.cluster_visits == right.cluster_visits and left.mirror_visits == right.mirror_visits and left.scalar_visits == right.scalar_visits and left.visual_writes == right.visual_writes
-
-facts_equal : KernelBidiBoundary.ScalarFact, KernelBidiBoundary.ScalarFact -> Bool
-facts_equal = |left, right| {
-	levels = match (left.level, right.level) {
-		(Level(first), Level(second)) => first == second
-		(RemovedByX9, RemovedByX9) => Bool.True
-		_ => Bool.False
-	}
-	brackets = match (left.matched_bracket, right.matched_bracket) {
-		(Some(first), Some(second)) => first == second
-		(None, None) => Bool.True
-		_ => Bool.False
-	}
-	glyphs = match (left.mirroring_glyph, right.mirroring_glyph) {
-		(Some(first), Some(second)) => first == second
-		(None, None) => Bool.True
-		_ => Bool.False
-	}
-	levels and brackets and glyphs and left.needs_mirrored_glyph == right.needs_mirrored_glyph and left.non_rendering == right.non_rendering
-}
-
 paragraph_equal : KernelBidiBoundary.Paragraph, KernelBidiBoundary.Paragraph -> Bool
-paragraph_equal = |left, right| {
-	if left.base_level != right.base_level or left.entries.len() != right.entries.len() or !text_range_equal(left.logical_source, right.logical_source) or !work_equal(left.work, right.work) {
-		return Bool.False
-	}
-	var $index = 0
-	while $index < left.entries.len() {
-		if !facts_equal(list_at(left.entries, $index), list_at(right.entries, $index)) {
-			return Bool.False
-		}
-		$index = $index + 1
-	}
-	Bool.True
-}
+paragraph_equal = |left, right| left.base_level == right.base_level and left.logical_source == right.logical_source and left.work == right.work and left.entries == right.entries
 
 ## X9 removes explicit embedding and override controls from the display
 ## sequence; every other scalar keeps a resolved level and is painted.
 scalar_is_painted : List(KernelBidiBoundary.ScalarFact), U64 -> Bool
 scalar_is_painted = |entries, scalar| match list_at(entries, scalar).level {
-	Level(_) => Bool.True
-	RemovedByX9 => Bool.False
+	Level(_) => True
+	RemovedByX9 => False
 }
 
 list_at : List(a), U64 -> a

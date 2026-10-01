@@ -6,7 +6,9 @@ import re
 import zlib
 from pathlib import Path
 
+from pdf_layout import LayoutError, twin as layout_twin
 from check_pdf_structure import (
+    structure_kids,
     ValidationError,
     dictionary_ref,
     dictionary_ref_array,
@@ -79,10 +81,7 @@ def validate_tagged_visual_pdf(pdf: bytes) -> None:
     require(b"/ParentTreeNextKey 1" in structure_body, "ParentTreeNextKey is not exact")
 
     namespace_body = bodies[namespace]
-    expected_namespace = (
-        b"<< /NS <FEFF0068007400740070003A002F002F00690073006F002E006F00720067002F"
-        b"0070006400660032002F00730073006E> /Type /Namespace >>\nendobj\n"
-    )
+    expected_namespace = b"<< /NS (http://iso.org/pdf2/ssn) /Type /Namespace >>\nendobj\n"
     require(namespace_body == expected_namespace, "PDF 2.0 namespace is not canonical")
 
     document_body = bodies[document]
@@ -96,9 +95,11 @@ def validate_tagged_visual_pdf(pdf: bytes) -> None:
     page = only_object(bodies, b"/Type /Page ", "page")
     require(pages_root in bodies, "catalog page-tree root is missing")
     page_body = bodies[page]
-    for box in (b"ArtBox", b"BleedBox", b"CropBox", b"MediaBox", b"TrimBox"):
-        require(b"/" + box + b" [0 0 10 10]" in page_body, f"/{box.decode()} is not exact")
-    require(b"/Rotate 0" in page_body, "page rotation is not exact")
+    # CropBox, BleedBox, TrimBox, and ArtBox equal their defaults (the
+    # MediaBox), so only the MediaBox is written (ISO 32000-2 Table 31).
+    require(b"/MediaBox [0 0 10 10]" in page_body, "/MediaBox is not exact")
+    for box in (b"ArtBox", b"BleedBox", b"CropBox", b"TrimBox", b"Rotate"):
+        require(b"/" + box + b" " not in page_body, f"/{box.decode()} repeats its default")
     require(b"/StructParents 0" in page_body, "page StructParents key is not zero")
     require(b"/Tabs /S" in page_body, "page tab order does not follow structure order")
 
@@ -106,13 +107,11 @@ def validate_tagged_visual_pdf(pdf: bytes) -> None:
     require(b"/S /P" in paragraph_body, "structure child is not P")
     require(dictionary_ref(paragraph_body, b"P") == document, "P has wrong structure parent")
     require(dictionary_ref(paragraph_body, b"NS") == namespace, "P has wrong namespace")
-    mixed = re.search(
-        rb"/K \[([1-9][0-9]*) 0 R << /MCID 0 /Pg ([1-9][0-9]*) 0 R /Type /MCR >>\]",
-        paragraph_body,
-    )
-    require(mixed is not None, "P /K is not exact contextual-Artifact then MCR order")
-    contextual_artifact = int(mixed.group(1))
-    require(int(mixed.group(2)) == page, "MCR /Pg does not name its painted page")
+    kids = structure_kids(paragraph_body)
+    require(len(kids) == 2 and kids[0][0] == "element" and kids[1][:2] == ("mcr", 0), "P /K is not exact contextual-Artifact then MCR order")
+    require(re.search(rb"/K \[[1-9][0-9]* 0 R 0\]", paragraph_body) is not None, "P /K does not write its MCID bare on its own page")
+    contextual_artifact = kids[0][1]
+    require(kids[1][2] == page, "MCR /Pg does not name its painted page")
 
     artifact_body = bodies[contextual_artifact]
     require(b"/S /Artifact" in artifact_body, "contextual child is not an Artifact structure element")
@@ -157,8 +156,10 @@ def validate_tagged_visual_pdf(pdf: bytes) -> None:
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "negative twin must preserve byte length")
-    require(value.count(old) == 1, f"negative twin source occurs {value.count(old)} times")
-    return value.replace(old, new, 1)
+    try:
+        return layout_twin(value, old, new, exactly_once=True)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
 
 
 def self_test() -> None:
@@ -172,14 +173,14 @@ def self_test() -> None:
 
     p_ref = f"{paragraph} 0 R".encode("ascii")
     a_ref = f"{artifact} 0 R".encode("ascii")
-    page_ref = f"{page} 0 R".encode("ascii")
-    mixed = a_ref + b" << /MCID 0 /Pg " + page_ref + b" /Type /MCR >>"
-    reordered = b"<< /MCID 0 /Pg " + page_ref + b" /Type /MCR >> " + a_ref
+    # The paragraph writes its MCID bare on its own /Pg.
+    mixed = b"/K [" + a_ref + b" 0]"
+    reordered = b"/K [0 " + a_ref + b"]"
     parent_ref = f"{parent_tree} 0 R".encode("ascii")
     mutations = (
         replace_once(pdf, mixed, reordered),
         replace_once(pdf, b"/Nums [0 [" + p_ref + b"]]", b"/Nums [0 [" + a_ref + b"]]"),
-        replace_once(pdf, b"/MCID 0 /Pg " + page_ref, b"/MCID 1 /Pg " + page_ref),
+        replace_once(pdf, mixed, b"/K [" + a_ref + b" 1]"),
         replace_once(pdf, b"/StructParents 0", b"/StructParents 1"),
         replace_once(pdf, b"/P " + p_ref + b" /S /Artifact", b"/P " + parent_ref + b" /S /Artifact"),
     )

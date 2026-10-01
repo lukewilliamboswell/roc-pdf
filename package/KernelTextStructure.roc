@@ -82,7 +82,7 @@ build_plan = |text, fonts, page_size, limits| {
 	if fonts.len() == 0 or fonts.len() != mappings.len() {
 		return Err(FontCountMismatch({ fonts: fonts.len(), mappings: mappings.len() }))
 	}
-	if page_size.width.raw() <= 0 or page_size.height.raw() <= 0 {
+	if page_size.width <= 0 or page_size.height <= 0 {
 		return Err(PageSizeInvalid)
 	}
 	font_object_count = checked_times(fonts.len(), objects_per_font)?
@@ -285,7 +285,7 @@ font_resource_name : U64 -> List(U8)
 font_resource_name = |index| KernelResourceName.bytes("F", index)
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelTextStructure.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 object_id : U64 -> KernelObject.ObjectId
 object_id = |number| match KernelObject.ObjectId.from_number(number) {

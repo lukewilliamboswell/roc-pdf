@@ -3,7 +3,7 @@ import pdf.KernelFont
 import pdf.Pdf
 import pdf.Semantics
 import pdf.Theme
-import "../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font : List(U8)
+import "../package/RocPdfSans-Regular.ttf" as built_in_font : List(U8)
 import "../tests/assets/CallerFont-Regular.ttf" as caller_font : List(U8)
 import "../tests/assets/CallerFont-Restricted.ttf" as restricted_font : List(U8)
 import "../tests/assets/IBMPlexSansHebrew-Rtl-Fixture.ttf" as hebrew_font : List(U8)
@@ -94,17 +94,17 @@ register_all = |specs| {
 		registration = { provision: provision_for(spec.provision), scripts }
 		before = $registry.store()
 
-		## The first pre-call store is the empty registry's, observed through a
-		## loop variable so it is a measurement rather than a folded constant.
+		# The first pre-call store is the empty registry's, observed through a
+		# loop variable so it is a measurement rather than a folded constant.
 		if $index == 0 and !empty_store(before) {
 			return Err(Violation)
 		}
 		match $registry.register(bytes, registration, Font.ValidationLimits.make(limits)) {
 			Err(error) => {
-				## A rejection leaves the caller holding the registry it already
-				## had, so the loop simply continues with it. What the property
-				## checks is that the rejection is the exact one the public
-				## contract describes for this input.
+				# A rejection leaves the caller holding the registry it already
+				# had, so the loop simply continues with it. What the property
+				# checks is that the rejection is the exact one the public
+				# contract describes for this input.
 				if !expected_registration_failure(error, spec, scripts, limits) {
 					return Err(Violation)
 				}
@@ -190,7 +190,7 @@ policy_append_only = |before, after|
 						append_only(before, after)
 
 ## The registry's identity types are opaque, so the prefix comparisons below are
-## written out field by field: `index()` and `as_str()` are the only ways to
+## written out field by field: `index()` and `to_str()` are the only ways to
 ## observe a face, instance, policy, resource, or script identity from outside
 ## the package, and a derived structural equality is not available.
 prefix_of_spans : List(Font.ScalarSpan), List(Font.ScalarSpan) -> Bool
@@ -219,8 +219,8 @@ prefix_of_faces = |before, after| {
 	while $index < before.len() {
 		left = list_at(before, $index)
 		right = list_at(after, $index)
-		if left.id.index() != right.id.index() or
-			left.resource.index() != right.resource.index() or
+		if left.id != right.id or
+			left.resource != right.resource or
 				left.coverage.start() != right.coverage.start() or
 					left.coverage.length() != right.coverage.length() or
 						left.scripts.start() != right.scripts.start() or
@@ -247,8 +247,8 @@ prefix_of_instances = |before, after| {
 	while $index < before.len() {
 		left = list_at(before, $index)
 		right = list_at(after, $index)
-		if left.id.index() != right.id.index() or
-			left.face.index() != right.face.index() or
+		if left.id != right.id or
+			left.face != right.face or
 				left.kind != right.kind {
 			return False
 		}
@@ -266,7 +266,7 @@ prefix_of_policies = |before, after| {
 	while $index < before.len() {
 		left = list_at(before, $index)
 		right = list_at(after, $index)
-		if left.id.index() != right.id.index() or !same_instances(left.instances, right.instances) {
+		if left.id != right.id or !same_instances(left.instances, right.instances) {
 			return False
 		}
 		$index = $index + 1
@@ -283,7 +283,7 @@ prefix_of_resources = |before, after| {
 	while $index < before.len() {
 		left = list_at(before, $index)
 		right = list_at(after, $index)
-		if left.id.index() != right.id.index() or left.bytes != right.bytes {
+		if left.id != right.id or left.bytes != right.bytes {
 			return False
 		}
 		$index = $index + 1
@@ -298,7 +298,7 @@ prefix_of_scripts = |before, after| {
 	}
 	var $index = 0
 	while $index < before.len() {
-		if list_at(before, $index).as_str() != list_at(after, $index).as_str() {
+		if list_at(before, $index).to_str() != list_at(after, $index).to_str() {
 			return False
 		}
 		$index = $index + 1
@@ -313,7 +313,7 @@ same_instances = |left, right| {
 	}
 	var $index = 0
 	while $index < left.len() {
-		if list_at(left, $index).index() != list_at(right, $index).index() {
+		if list_at(left, $index) != list_at(right, $index) {
 			return False
 		}
 		$index = $index + 1
@@ -328,7 +328,7 @@ same_faces = |left, right| {
 	}
 	var $index = 0
 	while $index < left.len() {
-		if list_at(left, $index).index() != list_at(right, $index).index() {
+		if list_at(left, $index) != list_at(right, $index) {
 			return False
 		}
 		$index = $index + 1
@@ -377,8 +377,8 @@ dense_identities = |store, index, registration| {
 		return False
 	}
 
-	## Only one font program format is accepted today, and the provision is a
-	## caller declaration that registration records rather than infers.
+	# Only one font program format is accepted today, and the provision is a
+	# caller declaration that registration records rather than infers.
 	if face.format != OpenTypeTrueType or face.provision != registration.provision {
 		return False
 	}
@@ -388,7 +388,7 @@ dense_identities = |store, index, registration| {
 	var $script_index = 0
 	while $script_index < registration.scripts.len() {
 		stored = list_at(store.scripts, face.scripts.start() + $script_index)
-		if stored.as_str() != list_at(registration.scripts, $script_index).as_str() {
+		if stored.to_str() != list_at(registration.scripts, $script_index).to_str() {
 			return False
 		}
 		$script_index = $script_index + 1
@@ -452,10 +452,10 @@ expected_registration_failure = |error, spec, scripts, limits| {
 	generous = spec.limits % 5 == 0
 	kind = fixture_kind(spec.font)
 
-	## A packaged fixture with a valid script list and the default limits has no
-	## reason to fail, so a rejection there is a regression rather than an
-	## ordinary outcome. Each deliberately broken fixture has exactly one
-	## rejection it must reach under those same limits.
+	# A packaged fixture with a valid script list and the default limits has no
+	# reason to fail, so a rejection there is a regression rather than an
+	# ordinary outcome. Each deliberately broken fixture has exactly one
+	# rejection it must reach under those same limits.
 	if generous and kind == Healthy {
 		return False
 	}
@@ -466,7 +466,7 @@ expected_registration_failure = |error, spec, scripts, limits| {
 		return False
 	}
 
-	## Four bytes cannot hold a table directory under any limits at all.
+	# Four bytes cannot hold a table directory under any limits at all.
 	if kind == Truncated and !malformed_rejection(error) {
 		return False
 	}
@@ -520,7 +520,7 @@ expected_script_rejection = |scripts| {
 	}
 	var $index = 0
 	while $index < scripts.len() {
-		tag = Str.to_utf8(list_at(scripts, $index).as_str())
+		tag = Str.to_utf8(list_at(scripts, $index).to_str())
 		if tag.len() != 4 {
 			return ScriptRejected($index)
 		}
@@ -532,7 +532,7 @@ expected_script_rejection = |scripts| {
 		}
 		var $previous = 0
 		while $previous < $index {
-			if list_at(scripts, $previous).as_str() == list_at(scripts, $index).as_str() {
+			if list_at(scripts, $previous).to_str() == list_at(scripts, $index).to_str() {
 				return ScriptRejected($index)
 			}
 			$previous = $previous + 1
@@ -576,12 +576,12 @@ add_policies = |configured, requests| {
 					return Err(Violation)
 				}
 				record = list_at(after.policies, result.policy.index())
-				if record.id.index() != result.policy.index() or record.instances.len() != requested.len() {
+				if record.id != result.policy or record.instances.len() != requested.len() {
 					return Err(Violation)
 				}
 
-				## Instance identity is dense, so the policy's instance list is
-				## the requested face list read through that identity.
+				# Instance identity is dense, so the policy's instance list is
+				# the requested face list read through that identity.
 				var $slot = 0
 				while $slot < requested.len() {
 					if list_at(record.instances, $slot).index() != list_at(requested, $slot).index() {
@@ -597,8 +597,8 @@ add_policies = |configured, requests| {
 					Ok(returned) => if !same_faces(returned, requested) return Err(Violation)
 				}
 
-				## The pre-call registry keeps working and does not learn about a
-				## policy that was constructed from it afterwards.
+				# The pre-call registry keeps working and does not learn about a
+				# policy that was constructed from it afterwards.
 				if !unknown_policy(previous, result.policy.index()) {
 					return Err(Violation)
 				}
@@ -649,7 +649,7 @@ expected_policy_rejection = |requested, face_count| {
 		}
 		var $previous = 0
 		while $previous < $index {
-			if list_at(requested, $previous).index() == face.index() {
+			if list_at(requested, $previous) == face {
 				return RejectAmbiguous(face.index())
 			}
 			$previous = $previous + 1
@@ -667,8 +667,8 @@ boundary_probes = |configured, probe| {
 	store = configured.registry.store()
 	faces = configured.faces.len()
 
-	## `register` mints one implicit single-face policy per face, so the policy
-	## space is N wide before any explicit policy and N + M wide after M of them.
+	# `register` mints one implicit single-face policy per face, so the policy
+	# space is N wide before any explicit policy and N + M wide after M of them.
 	if store.faces.len() != faces or store.policies.len() != configured.policies {
 		return False
 	}
@@ -779,7 +779,7 @@ plan_invariants = |configured, input| {
 		## also accumulates per-cluster rejections.
 		return match result {
 			Complete(_) => False
-			Rejected([InvalidPolicy(reported)]) => reported.index() == policy.index()
+			Rejected([InvalidPolicy(reported)]) => reported == policy
 			Rejected(_) => False
 		}
 	}
@@ -915,7 +915,7 @@ declares_script : Font.Store, Font.Face, Font.Script -> Bool
 declares_script = |store, face, script| {
 	var $index = 0
 	while $index < face.scripts.length() {
-		if list_at(store.scripts, face.scripts.start() + $index).as_str() == script.as_str() {
+		if list_at(store.scripts, face.scripts.start() + $index).to_str() == script.to_str() {
 			return True
 		}
 		$index = $index + 1
@@ -957,7 +957,7 @@ same_results = |left, right| match (left, right) {
 		while $index < first.face_ranges.len() {
 			one = list_at(first.face_ranges, $index)
 			other = list_at(second.face_ranges, $index)
-			if one.instance.index() != other.instance.index() or
+			if one.instance != other.instance or
 				one.clusters.start() != other.clusters.start() or
 					one.clusters.length() != other.clusters.length() {
 				return False
@@ -986,9 +986,9 @@ same_plan_error : Font.PlanError, Font.PlanError -> Bool
 same_plan_error = |left, right| match (left, right) {
 	(EmptyCluster(first), EmptyCluster(second)) => first.cluster == second.cluster and same_text_range(first.source, second.source)
 	(MissingCoverage(first), MissingCoverage(second)) => first.cluster == second.cluster and same_text_range(first.source, second.source)
-	(InvalidPolicy(first), InvalidPolicy(second)) => first.index() == second.index()
-	(EmbeddingProhibited(first), EmbeddingProhibited(second)) => first.index() == second.index()
-	(UnsupportedBuiltInShaping(first), UnsupportedBuiltInShaping(second)) => first.cluster == second.cluster and first.script.as_str() == second.script.as_str()
+	(InvalidPolicy(first), InvalidPolicy(second)) => first == second
+	(EmbeddingProhibited(first), EmbeddingProhibited(second)) => first == second
+	(UnsupportedBuiltInShaping(first), UnsupportedBuiltInShaping(second)) => first.cluster == second.cluster and first.script.to_str() == second.script.to_str()
 	_ => False
 }
 
@@ -1027,21 +1027,22 @@ clusters_for = |specs| {
 ## Two independent facade traps, checked through their observable consequence
 ## rather than by inspecting the theme.
 ##
-## `Theme.with_font` rewrites `font_selection` to `StyleFaces`, so calling it
-## after `Theme.with_font_policy` silently discards the policy; the last of the
-## two calls wins in both directions. And `with_font_registry` and `with_theme`
-## are independent options, so a theme naming a face minted by one registry can
-## be paired with another registry, or with the packaged built-in face, and
-## nothing catches the mismatch until preparation.
+## A theme's `face` and `font_selection` are independent fields: a theme that
+## names only a face selects `StyleFaces`, and one with a `Policy` selection
+## resolves fonts through the policy and never looks at the face. And the
+## options' `fonts` and `theme` are independent fields, so a theme naming a
+## face minted by one registry can be paired with another registry, or with
+## the packaged built-in face, and nothing catches the mismatch until
+## preparation.
 facade_wiring : Configured, U8 -> Bool
 facade_wiring = |configured, choice| {
 	faces = configured.faces.len()
 	missing_face = Font.FaceId.from_index(faces)
 	missing_policy = Font.PolicyId.from_index(configured.policies)
-	reset = Theme.with_font(Theme.with_font_policy(Theme.default, Font.PolicyId.from_index(0)), missing_face)
+	reset = Theme.{ face: missing_face }
 
-	## The reset is a pure theme fact and holds for every generated registry.
-	match Theme.font_selection(reset) {
+	## The default selection is a pure theme fact and holds for every generated registry.
+	match reset.font_selection {
 		Policy(_) => return False
 		StyleFaces => {}
 	}
@@ -1050,8 +1051,8 @@ facade_wiring = |configured, choice| {
 		language: "en-AU",
 		title: "Registry boundary",
 	})
-	registered = |theme| Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), configured.registry)
-	built_in = |theme| Pdf.Options.with_theme(Pdf.Options.default, theme)
+	registered = |theme| Pdf.Options.{ theme: theme, fonts: Registered(configured.registry) }
+	built_in = |theme| Pdf.Options.{ theme: theme }
 
 	## One trap per execution keeps the property cheap; the generator reaches all
 	## four within a handful of inputs.
@@ -1064,9 +1065,9 @@ facade_wiring = |configured, choice| {
 			_ => False
 		}
 
-		## The policy set last wins, so preparation never looks at the body face
+		## A policy selection means preparation never looks at the body face
 		## and reports the policy instead.
-		1 => match Pdf.to_bytes_with(document, registered(Theme.with_font_policy(Theme.with_font(Theme.default, Font.FaceId.from_index(0)), missing_policy))) {
+		1 => match Pdf.to_bytes_with(document, registered(Theme.{ face: Font.FaceId.from_index(0), font_selection: Policy(missing_policy) })) {
 			Err(InvalidFontSelection([InvalidPolicy(policy)])) => policy.index() == configured.policies
 			_ => False
 		}
@@ -1074,7 +1075,7 @@ facade_wiring = |configured, choice| {
 		## A face identity from a caller registry paired with the packaged
 		## built-in source: the built-in source owns exactly face zero, and the
 		## mismatch surfaces only here.
-		2 => match Pdf.to_bytes_with(document, built_in(Theme.with_font(Theme.default, Font.FaceId.from_index(faces + 1)))) {
+		2 => match Pdf.to_bytes_with(document, built_in(Theme.{ face: Font.FaceId.from_index(faces + 1) })) {
 			Err(InvalidFontResource(UnknownFace(face))) => face.index() == faces + 1
 			_ => False
 		}
@@ -1084,7 +1085,7 @@ facade_wiring = |configured, choice| {
 		## in the rejection rather than repeatedly checking one constant call.
 		_ => {
 			policy_index = U8.to_u64(choice // 4)
-			match Pdf.to_bytes_with(document, built_in(Theme.with_font_policy(Theme.default, Font.PolicyId.from_index(policy_index)))) {
+			match Pdf.to_bytes_with(document, built_in(Theme.{ font_selection: Policy(Font.PolicyId.from_index(policy_index)) })) {
 				Err(InvalidFontSelection([InvalidPolicy(policy)])) => policy.index() == policy_index
 				_ => False
 			}
@@ -1215,8 +1216,8 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## Three registrations and two explicit policies: the policy space ends up five
-## wide, which is the implicit-policy behaviour no existing test reaches.
+# Three registrations and two explicit policies: the policy space ends up five
+# wide, which is the implicit-policy behaviour no existing test reaches.
 expect RegistryTargets.registry_boundary({
 	clusters: [{ scalars: [0], script: 0 }, { scalars: [6], script: 1 }, { scalars: [], script: 0 }],
 	facade: 0,
@@ -1230,10 +1231,10 @@ expect RegistryTargets.registry_boundary({
 	],
 })
 
-## Every registration rejection the boundary can produce, in one input: a
-## duplicated script tag, a malformed tag, a rights-restricted font, a truncated
-## font, an unsupported font program, and a byte budget too small for the font.
-## The two policy requests add `EmptyPolicy` and `UnknownPolicyFace`.
+# Every registration rejection the boundary can produce, in one input: a
+# duplicated script tag, a malformed tag, a rights-restricted font, a truncated
+# font, an unsupported font program, and a byte budget too small for the font.
+# The two policy requests add `EmptyPolicy` and `UnknownPolicyFace`.
 expect RegistryTargets.registry_boundary({
 	clusters: [],
 	facade: 1,
@@ -1250,11 +1251,11 @@ expect RegistryTargets.registry_boundary({
 	],
 })
 
-## A Latin face and a Han face ordered into one explicit policy, over clusters
-## that select the first, select the second, select the first again, miss every
-## face, and carry no scalars at all. This is the multi-error accumulation case:
-## the rejection carries both failing clusters in ascending order, which no
-## hand-written assertion in the repository reaches.
+# A Latin face and a Han face ordered into one explicit policy, over clusters
+# that select the first, select the second, select the first again, miss every
+# face, and carry no scalars at all. This is the multi-error accumulation case:
+# the rejection carries both failing clusters in ascending order, which no
+# hand-written assertion in the repository reaches.
 expect RegistryTargets.registry_boundary({
 	clusters: [
 		{ scalars: [0], script: 0 },
@@ -1273,12 +1274,12 @@ expect RegistryTargets.registry_boundary({
 	],
 })
 
-## Two faces that both declare Latin but cover overlapping subsets, ordered into
-## one policy. The clusters select the first face, then the second because only
-## it covers `i`, then the first again because it comes earlier and covers `f`,
-## then a cluster the first face also covers so that the builder coalesces it
-## into the range already open. The complete plan therefore has three ranges for
-## four clusters, with no two adjacent ranges sharing an instance.
+# Two faces that both declare Latin but cover overlapping subsets, ordered into
+# one policy. The clusters select the first face, then the second because only
+# it covers `i`, then the first again because it comes earlier and covers `f`,
+# then a cluster the first face also covers so that the builder coalesces it
+# into the range already open. The complete plan therefore has three ranges for
+# four clusters, with no two adjacent ranges sharing an instance.
 expect RegistryTargets.registry_boundary({
 	clusters: [
 		{ scalars: [0], script: 0 },

@@ -671,7 +671,15 @@ inspect_names = |bytes, table| {
 		name_id = read_u16(bytes, record + 6)
 		length = read_u16(bytes, record + 8).to_u64()
 		offset = read_u16(bytes, record + 10).to_u64()
-		if length % 2 != 0 or offset > table.length - string_offset or length > table.length - string_offset - offset {
+		if offset > table.length - string_offset or length > table.length - string_offset - offset {
+			return Err(InvalidName)
+		}
+
+		# Only UTF-16BE records have an even-length rule. Unicode (0) and
+		# Windows (3) names, and ISO (2) encoding 1 (ISO 10646), are UTF-16BE;
+		# Macintosh (1) names and the other ISO encodings are 8-bit, where
+		# any length is legal (OpenType `name` table, platform encodings).
+		if length % 2 != 0 and utf16_name_platform(platform_id, encoding) {
 			return Err(InvalidName)
 		}
 		range : KernelFont.NameRange
@@ -707,6 +715,9 @@ inspect_names = |bytes, table| {
 		Ok({ family_utf16be: $family, full_utf16be: $full, postscript_utf16be: $postscript })
 	}
 }
+
+utf16_name_platform : U16, U16 -> Bool
+utf16_name_platform = |platform_id, encoding| platform_id == 0 or platform_id == 3 or (platform_id == 2 and encoding == 1)
 
 valid_utf16be : List(U8), KernelFont.NameRange -> Bool
 valid_utf16be = |bytes, range| {
@@ -1151,25 +1162,25 @@ tag_post = 0x706f7374
 sfnt_checksum : U32
 sfnt_checksum = 0xb1b0afba
 
-## Unsupported program signatures are rejected before table parsing.
+# Unsupported program signatures are rejected before table parsing.
 expect match KernelFont.inspect(
 	[0x4f, 0x54, 0x54, 0x4f, 0, 0, 0, 0, 0, 0, 0, 0],
 	KernelFont.Limits.make({ max_bytes: 12, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }),
 ) {
-	Err(UnsupportedFontProgram(0x4f54544f)) => Bool.True
-	_ => Bool.False
+	Err(UnsupportedFontProgram(0x4f54544f)) => True
+	_ => False
 }
 
-## The byte budget rejects before inspecting an attacker-controlled header.
+# The byte budget rejects before inspecting an attacker-controlled header.
 expect match KernelFont.inspect(
 	[0, 1, 0, 0],
 	KernelFont.Limits.make({ max_bytes: 3, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 0 }),
 ) {
-	Err(LimitExceeded({ attempted: 4, dimension: FontBytes, limit: 3 })) => Bool.True
-	_ => Bool.False
+	Err(LimitExceeded({ attempted: 4, dimension: FontBytes, limit: 3 })) => True
+	_ => False
 }
 
-## A one-point simple glyph whose packed flag omits both coordinates is valid.
+# A one-point simple glyph whose packed flag omits both coordinates is valid.
 expect validate_simple_glyph(
 	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x31],
 	0,
@@ -1179,7 +1190,7 @@ expect validate_simple_glyph(
 	0,
 ) == Ok({})
 
-## Reserved simple-glyph flag bits are rejected within the glyph span.
+# Reserved simple-glyph flag bits are rejected within the glyph span.
 expect match validate_simple_glyph(
 	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80],
 	0,
@@ -1188,11 +1199,11 @@ expect match validate_simple_glyph(
 	7,
 	22,
 ) {
-	Err(InvalidGlyph({ glyph: 7, offset: 22 })) => Bool.True
-	_ => Bool.False
+	Err(InvalidGlyph({ glyph: 7, offset: 22 })) => True
+	_ => False
 }
 
-## Composite closure is acyclic and its actual depth fits maxp's declaration.
+# Composite closure is acyclic and its actual depth fits maxp's declaration.
 expect validate_component_graph(
 	[{ child: 0, component_offset: 10, parent: 1 }, { child: 1, component_offset: 20, parent: 2 }],
 	3,
@@ -1204,11 +1215,11 @@ expect match validate_component_graph(
 	2,
 	2,
 ) {
-	Err(CompositeCycle) => Bool.True
-	_ => Bool.False
+	Err(CompositeCycle) => True
+	_ => False
 }
 
-## Name parsing rejects malformed surrogate structure and PostScript delimiters.
+# Name parsing rejects malformed surrogate structure and PostScript delimiters.
 expect valid_utf16be([0xd8, 0x00, 0xdc, 0x00], { length: 4, offset: 0 })
 expect !valid_utf16be([0xd8, 0x00, 0x00, 0x41], { length: 4, offset: 0 })
 expect valid_postscript_utf16be([0x00, 0x46, 0x00, 0x6f, 0x00, 0x6e, 0x00, 0x74], { length: 8, offset: 0 })
@@ -1219,8 +1230,8 @@ expect match validate_component_graph(
 	3,
 	1,
 ) {
-	Err(CompositeDepthMismatch({ actual: 2, declared: 1 })) => Bool.True
-	_ => Bool.False
+	Err(CompositeDepthMismatch({ actual: 2, declared: 1 })) => True
+	_ => False
 }
 
 ## A 28-byte font holding one `cmap` record with the given range. The header
@@ -1244,21 +1255,95 @@ append_u32 = |bytes, value| bytes
 single_table_limits : KernelFont.Limits
 single_table_limits = KernelFont.Limits.make({ max_bytes: 28, max_cmap_mappings: 0, max_glyphs: 0, max_tables: 1 })
 
-## A table record starting past end-of-font is rejected before any table byte is
-## read. Regression for the unsigned `bytes.len() - offset` bound, which wrapped
-## to a huge value and let the range pass validation; the checksum walk then read
-## outside the font. This is the atomic twin of the retained field reproduction
-## `tests/assets/FontTableRangeOverflow-FuzzSeed.ttf`, whose first table record
-## declares offset 1908 in a 316-byte font.
+# A table record starting past end-of-font is rejected before any table byte is
+# read. Regression for the unsigned `bytes.len() - offset` bound, which wrapped
+# to a huge value and let the range pass validation; the checksum walk then read
+# outside the font. This is the atomic twin of the retained field reproduction
+# `tests/assets/FontTableRangeOverflow-FuzzSeed.ttf`, whose first table record
+# declares offset 1908 in a 316-byte font.
 expect match KernelFont.inspect(single_table_font(0x40, 4), single_table_limits) {
-	Err(InvalidTableRange({ length: 4, offset: 0x40, tag: 0x636d6170 })) => Bool.True
-	_ => Bool.False
+	Err(InvalidTableRange({ length: 4, offset: 0x40, tag: 0x636d6170 })) => True
+	_ => False
 }
 
-## The exact end-of-font boundary stays legal, so the overflow guard cannot be
-## tightened into rejecting a zero-length table that ends the font. This record
-## clears the range check and fails later on the whole-font checksum instead.
+# The exact end-of-font boundary stays legal, so the overflow guard cannot be
+# tightened into rejecting a zero-length table that ends the font. This record
+# clears the range check and fails later on the whole-font checksum instead.
 expect match KernelFont.inspect(single_table_font(28, 0), single_table_limits) {
-	Err(FontChecksumMismatch({ actual: 0x636f619c })) => Bool.True
-	_ => Bool.False
+	Err(FontChecksumMismatch({ actual: 0x636f619c })) => True
+	_ => False
+}
+
+## A `name` table fixture: a header, records of [platform, encoding,
+## language, name ID, length, offset], then the string storage.
+name_table_fixture : List(List(U16)), List(U8) -> List(U8)
+name_table_fixture = |records, strings| {
+	count = records.len().to_u16_wrap()
+	var $bytes = List.with_capacity(6 + records.len() * 12 + strings.len())
+	for value in [0, count, 6 + count * 12] {
+		$bytes = append_u16(value, $bytes)
+	}
+	for record in records {
+		for value in record {
+			$bytes = append_u16(value, $bytes)
+		}
+	}
+	for byte in strings {
+		$bytes = $bytes.append(byte)
+	}
+	$bytes
+}
+
+append_u16 : U16, List(U8) -> List(U8)
+append_u16 = |value, bytes| bytes.append((value // 256).to_u8_wrap()).append((value % 256).to_u8_wrap())
+
+# Macintosh-platform names are 8-bit strings: an odd length is legal and
+# the Windows UTF-16BE records still select the family, full, and
+# PostScript names (IBM Plex and JetBrains Mono ship such records).
+expect {
+	bytes = name_table_fixture(
+		[[1, 0, 0, 1, 3, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]],
+		['F', 'o', 'o', 0, 'F'],
+	)
+	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
+		Ok(names) => names.postscript_utf16be == { length: 2, offset: 57 }
+		Err(_) => False
+	}
+}
+
+# A Windows (UTF-16BE) record of odd length is still malformed.
+expect {
+	bytes = name_table_fixture(
+		[[3, 1, 0x0409, 2, 3, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]],
+		[0, 'F', 0],
+	)
+	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
+		Err(InvalidName) => True
+		_ => False
+	}
+}
+
+# A Unicode-platform record of odd length is malformed.
+expect {
+	bytes = name_table_fixture(
+		[[0, 3, 0, 2, 1, 0], [3, 1, 0x0409, 1, 2, 0], [3, 1, 0x0409, 4, 2, 0], [3, 1, 0x0409, 6, 2, 0]],
+		[0, 'F'],
+	)
+	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
+		Err(InvalidName) => True
+		_ => False
+	}
+}
+
+# An odd-length Macintosh record that runs past the string storage is
+# still rejected: the bounds check applies to every platform.
+expect {
+	bytes = name_table_fixture(
+		[[1, 0, 0, 1, 7, 0], [3, 1, 0x0409, 1, 2, 3], [3, 1, 0x0409, 4, 2, 3], [3, 1, 0x0409, 6, 2, 3]],
+		['F', 'o', 'o', 0, 'F'],
+	)
+	match inspect_names(bytes, { checksum: 0, length: bytes.len(), offset: 0, tag: tag_name }) {
+		Err(InvalidName) => True
+		_ => False
+	}
 }

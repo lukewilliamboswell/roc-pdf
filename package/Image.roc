@@ -2,6 +2,9 @@ import Color
 
 Image :: [].{
 	Id :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> Id
 		from_index = |index| Id.(index)
 
@@ -122,5 +125,5 @@ Image :: [].{
 	}
 }
 
-## Image resource IDs preserve their dense index.
+# Image resource IDs preserve their dense index.
 expect Image.Id.from_index(7).index() == 7

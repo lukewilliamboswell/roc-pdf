@@ -2,6 +2,59 @@ import Semantics
 
 Layout :: [].{
 	Unit :: I64.{
+		is_eq : _
+		to_hash : _
+
+		## A bare number literal where a `Unit` is expected means points:
+		## `size: 12.5` is 12,500 units. The literal is stored exactly, so it
+		## may have at most three significant decimal places (`0.0005` is a
+		## compile-time error, `12.5000` is not), and it must fit the I64
+		## raw range; either violation is rejected at compile time, never
+		## rounded or clamped.
+		from_numeral : Numeral -> Try(Unit, [InvalidNumeral(Str)])
+		from_numeral = |numeral| {
+			range_error = InvalidNumeral("a layout unit literal is points and must fit the I64 range of millipoints")
+			var $whole = 0.U128
+			for digit in numeral.digits_before_pt() {
+				if $whole > 1_000_000_000_000_000_000_000 {
+					return Err(range_error)
+				}
+				$whole = $whole * 256 + digit.to_u128()
+			}
+			var $fraction = 0.U128
+			for digit in numeral.digits_after_pt() {
+				if $fraction > 1_000_000_000_000_000_000_000_000_000_000_000 {
+					return Err(InvalidNumeral("a layout unit literal has too many decimal digits to check exactly"))
+				}
+				$fraction = $fraction * 256 + digit.to_u128()
+			}
+			var $places = numeral.digits_after_pt_count()
+			while $places > 3 {
+				if $fraction % 10 != 0 {
+					return Err(InvalidNumeral("a layout unit literal is points in whole thousandths: at most three decimal places"))
+				}
+				$fraction = $fraction // 10
+				$places = $places - 1
+			}
+			while $places < 3 {
+				$fraction = $fraction * 10
+				$places = $places + 1
+			}
+			magnitude = $whole * 1000 + $fraction
+			if numeral.is_negative() {
+				if magnitude == 9_223_372_036_854_775_808 {
+					Ok(Unit.(-9_223_372_036_854_775_808))
+				} else if magnitude < 9_223_372_036_854_775_808 {
+					Ok(Unit.(0 - magnitude.to_i64_wrap()))
+				} else {
+					Err(range_error)
+				}
+			} else if magnitude <= 9_223_372_036_854_775_807 {
+				Ok(Unit.(magnitude.to_i64_wrap()))
+			} else {
+				Err(range_error)
+			}
+		}
 
 		## One point is exactly 1,000 layout units. The full I64 raw range is valid;
 		## arithmetic introduced by later capabilities must report overflow explicitly.
@@ -21,9 +74,28 @@ Layout :: [].{
 
 		raw : Unit -> I64
 		raw = |Unit.(raw)| raw
+
+		## Units are ordered by their raw value, so `<`, `<=`, `>`, and `>=`
+		## compare two units (or a unit and a literal in points, such as
+		## `width <= 0`). Ordering is exact and never overflows; `Unit`
+		## still has no arithmetic operators.
+		is_lt : Unit, Unit -> Bool
+		is_lt = |Unit.(a), Unit.(b)| a < b
+
+		is_lte : Unit, Unit -> Bool
+		is_lte = |Unit.(a), Unit.(b)| a <= b
+
+		is_gt : Unit, Unit -> Bool
+		is_gt = |Unit.(a), Unit.(b)| a > b
+
+		is_gte : Unit, Unit -> Bool
+		is_gte = |Unit.(a), Unit.(b)| a >= b
 	}
 
 	ComponentId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ComponentId
 		from_index = |index| ComponentId.(index)
 
@@ -32,6 +104,9 @@ Layout :: [].{
 	}
 
 	SourceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> SourceId
 		from_index = |index| SourceId.(index)
 
@@ -40,6 +115,9 @@ Layout :: [].{
 	}
 
 	ReferenceStateId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ReferenceStateId
 		from_index = |index| ReferenceStateId.(index)
 
@@ -48,6 +126,9 @@ Layout :: [].{
 	}
 
 	StyleId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> StyleId
 		from_index = |index| StyleId.(index)
 
@@ -56,6 +137,9 @@ Layout :: [].{
 	}
 
 	ResourceStateId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ResourceStateId
 		from_index = |index| ResourceStateId.(index)
 
@@ -64,6 +148,9 @@ Layout :: [].{
 	}
 
 	HyphenationDataId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> HyphenationDataId
 		from_index = |index| HyphenationDataId.(index)
 
@@ -72,6 +159,9 @@ Layout :: [].{
 	}
 
 	ReferenceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ReferenceId
 		from_index = |index| ReferenceId.(index)
 
@@ -180,23 +270,45 @@ Layout :: [].{
 	]
 }
 
-## The fixed-point scale is exactly 1,000 units per point.
+# The fixed-point scale is exactly 1,000 units per point.
 expect Layout.Unit.units_per_point == 1000
 
-## Opaque layout units preserve signed raw values.
+# Opaque layout units preserve signed raw values.
 expect Layout.Unit.from_raw(-25).raw() == -25
 
-## Layout component IDs preserve their dense index.
+# Units order by their raw value, and a bare literal compares as points.
+expect {
+	half : Layout.Unit
+	half = 0.5
+	Layout.Unit.millipoints(499) < half and half <= 0.5 and half > 0 and half >= Layout.Unit.millipoints(500) and !(Layout.Unit.from_raw(-1) >= 0)
+}
+
+# Layout component IDs preserve their dense index.
 expect Layout.ComponentId.from_index(3).index() == 3
 
-## Reference state IDs preserve their dense index.
+# Reference state IDs preserve their dense index.
 expect Layout.ReferenceStateId.from_index(9).index() == 9
 
-## Exact layout cache identities remain compact dense IDs.
+# Exact layout cache identities remain compact dense IDs.
 expect Layout.ResourceStateId.from_index(11).index() == 11
 
-## Nested public type modules construct opaque layout units directly.
+# Nested public type modules construct opaque layout units directly.
 expect Layout.Unit.from_raw(25).raw() == 25
 
-## Nested public type modules construct opaque component IDs directly.
+# Nested public type modules construct opaque component IDs directly.
 expect Layout.ComponentId.from_index(12).index() == 12
+
+# A bare literal is points, stored exactly in millipoints.
+expect {
+	size : Layout.Unit
+	size = 12.5
+	size.raw() == 12500
+}
+
+expect {
+	fine : Layout.Unit
+	fine = -0.25
+	width : Layout.Unit
+	width = 12.5000
+	fine.raw() == -250 and width.raw() == 12500 and width == Layout.Unit.millipoints(12500)
+}

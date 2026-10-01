@@ -244,11 +244,8 @@ Fixture :: [].{
 			bytes: result.bytes,
 			work: [
 				input_bytes,
-				KernelDeflate.Work.blocks(work),
-				KernelDeflate.Work.candidate_visits(work),
-				KernelDeflate.Work.hash_inserts(work),
-				KernelDeflate.Work.tokens(work),
-				KernelDeflate.Work.matches(work),
+				KernelDeflate.Work.streams(work),
+				KernelDeflate.Work.input_bytes(work),
 				KernelDeflate.Work.emitted_bytes(work),
 				KernelDeflate.Work.max_chunk_bytes(work),
 				result.generated_segments,

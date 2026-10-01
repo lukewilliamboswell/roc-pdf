@@ -11,7 +11,7 @@ import pdf.Semantics
 import pdf.Theme
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 
-## Prepared color values identify the exact validated color-space resource.
+# Prepared color values identify the exact validated color-space resource.
 expect {
 	color : Color.Value
 	color = {
@@ -22,16 +22,16 @@ expect {
 	color.space.index() == 1
 }
 
-## A registered caller face is selected by Theme and reaches the one-import
-## facade without exposing a resource ID or any PDF object detail.
+# A registered caller face is selected by Theme and reaches the one-import
+# facade without exposing a resource ID or any PDF object detail.
 expect {
 	registered = Font.Registry.empty.register(
 		caller_font_bytes,
 		{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
 		Font.ValidationLimits.default,
 	)?
-	theme = Theme.with_font(Theme.default, registered.face)
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), registered.registry)
+	theme = Theme.{ face: registered.face }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
 	document = Pdf.document({
 		contents: [Pdf.paragraph("Café PDF")],
 		language: "en-AU",
@@ -42,11 +42,11 @@ expect {
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667
 }
 
-## The facade does not substitute the packaged font if a selected caller face
-## is absent from the supplied registry. The failed Try has no PDF byte value.
+# The facade does not substitute the packaged font if a selected caller face
+# is absent from the supplied registry. The failed Try has no PDF byte value.
 expect {
-	theme = Theme.with_font(Theme.default, Font.FaceId.from_index(1))
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), Font.Registry.empty)
+	theme = Theme.{ face: Font.FaceId.from_index(1) }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(Font.Registry.empty) }
 	document = Pdf.document({
 		contents: [Pdf.paragraph("No fallback")],
 		language: "en-AU",
@@ -59,9 +59,9 @@ expect {
 	}
 }
 
-## Complete caller-owned bytes are validated once, assigned opaque dense
-## handles, attached to options, and selected through Theme without a font name
-## or caller-assigned resource ID.
+# Complete caller-owned bytes are validated once, assigned opaque dense
+# handles, attached to options, and selected through Theme without a font name
+# or caller-assigned resource ID.
 expect {
 	registered = Font.Registry.empty.register(
 		caller_font_bytes,
@@ -69,7 +69,7 @@ expect {
 		Font.ValidationLimits.default,
 	)?
 	store = registered.registry.store()
-	theme = Theme.with_font(Theme.default, registered.face)
+	theme = Theme.{ face: registered.face }
 	registered.face.index() == 0 and
 		registered.instance.index() == 0 and
 			registered.policy.index() == 0 and
@@ -78,7 +78,7 @@ expect {
 						registered.work.copied_input_bytes == 0 and
 							list_at(store.resources, 0).bytes.len() == caller_font_bytes.len() and
 								list_at(store.faces, 0).postscript_name == Str.to_utf8("CallerFixtureSans-Regular") and
-									theme.body_font().index() == registered.face.index()
+									theme.body_font() == registered.face
 }
 
 list_at : List(a), U64 -> a
@@ -89,7 +89,7 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## ICC profile bytes are retained once and tags remain validated source ranges.
+# ICC profile bytes are retained once and tags remain validated source ranges.
 expect {
 	profile : Color.IccProfile
 	profile = {
@@ -103,7 +103,7 @@ expect {
 	profile.id.index() == 0 and profile.tags.length() == 1
 }
 
-## Raster resources use packed planes and an explicit typed color space.
+# Raster resources use packed planes and an explicit typed color space.
 expect {
 	resource : Image.Resource
 	resource = {
@@ -124,7 +124,7 @@ expect {
 	}
 }
 
-## JPEG orientation evidence is explicit before placement.
+# JPEG orientation evidence is explicit before placement.
 expect {
 	jpeg : Image.ValidatedJpeg
 	jpeg = {

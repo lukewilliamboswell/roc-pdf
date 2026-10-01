@@ -13,6 +13,7 @@ from check_facade_output import validate_facade_output_pdf
 from check_text_renderers import InkMetrics, assert_geometry_agreement, compile_pdfbox_renderer, ink_metrics
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE
 from check_visual_renderers import read_ppm
+from pdf_layout import mutate as layout_mutate
 from check_pdf_structure import ValidationError, object_slices, require
 
 
@@ -85,8 +86,9 @@ def check_renderers(renderer: Path, working_directory: Path | None, pdf: Path) -
 def self_test() -> None:
     pdf = SELF_TEST_SNAPSHOT.read_bytes()
     validate_generated_labels_pdf(pdf)
-    mutation = pdf.replace(b"<2022>", b"<002D>", 1)
-    require(mutation != pdf, "generated-label self-test fixture does not contain the bullet ToUnicode row")
+    # The bullet row lives in the FlateDecode ToUnicode CMap; the twin
+    # re-deflates the edited CMap.
+    mutation = layout_mutate(pdf, b"<2022>", b"<002D>", occurrences=None)
     try:
         validate_generated_labels_pdf(mutation)
     except ValidationError:

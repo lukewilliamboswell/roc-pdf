@@ -18,7 +18,7 @@ import pdf.Layout
 import pdf.Semantics
 import pdf.Text
 import pdf.Theme
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
@@ -728,7 +728,7 @@ evidence_ordered_facade = |repetitions| {
 		Font.ValidationLimits.default,
 	) ? |_| EvidenceFailure
 	configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
-	theme = Theme.with_font_policy(Theme.default, configured.policy)
+	theme = Theme.{ font_selection: Policy(configured.policy) }
 	authoring = Document.normalize(
 		Document.from_blocks({
 			contents: List.repeat(Document.paragraph("C中é"), repetitions),
@@ -889,7 +889,7 @@ inspect = |store| {
 			Title => {
 				$titles = $titles + 1
 			}
-			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | FigureCaption(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
+			DestinationHeading(_) | DestinationParagraph(_) | EmptyCell | Figure(_) | FigureCaption(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
 		}
 		$index = $index + 1
 	}
@@ -907,12 +907,12 @@ list_at = |items, index| match items.get(index) {
 expect {
 	simple = Fixture.normalize_simple(2)?
 	builder = Fixture.normalize_builder(2)?
-	simple.work == [5, 6, 27, 1, 1, 2, 2, 1, 667] and builder.work == simple.work and builder.bytes == simple.bytes
+	simple.work == [5, 6, 27, 1, 1, 2, 2, 1, 713] and builder.work == simple.work and builder.bytes == simple.bytes
 }
 
 expect {
 	result = Fixture.line_layout(1)?
-	result.work == [1, 6, 7, 6, 6, 6, 10, 3, 667]
+	result.work == [1, 6, 7, 6, 6, 6, 10, 3, 713]
 }
 
 expect {
@@ -922,12 +922,12 @@ expect {
 
 expect {
 	result = Fixture.semantic_facade(2)?
-	result.work == [5, 6, 12, 8, 19, 2, 8, 6, 1, 2, 12, 19, 8, 4, 26, 24, 667]
+	result.work == [5, 6, 12, 8, 19, 2, 8, 6, 1, 2, 12, 19, 8, 4, 26, 24, 713]
 }
 
 expect {
 	result = Fixture.shape_facade(2)?
-	result.work == [2, 8, 33, 29, 29, 24, 6, 8, 29, 29, 29, 166300, 17, 667]
+	result.work == [2, 8, 33, 29, 29, 24, 6, 8, 29, 29, 29, 166300, 17, 713]
 }
 
 expect {

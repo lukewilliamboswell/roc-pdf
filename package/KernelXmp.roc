@@ -1,34 +1,34 @@
-## Canonical XMP serialization from validated metadata facts. One policy
-## produces one byte sequence for one set of facts:
-##
-## - The packet is UTF-8 with the standard `xpacket` frame, a UTF-8 byte order
-##   mark inside the `begin` attribute, no padding, and `end="w"`.
-## - Namespace declarations and properties follow the pinned
-##   `Metadata.canonical.property_order` policy: ascending namespace URI, then
-##   ascending local name. The XMP namespace URI orders before the Dublin Core
-##   URI, so explicit timestamps precede `dc:language` and `dc:title`.
-## - `dc:title` is an `rdf:Alt` with one `x-default` item; `dc:language` is an
-##   `rdf:Bag` with the single validated document language.
-## - Omitted timestamps omit their property elements and, when both are
-##   omitted, the `xmlns:xmp` declaration; nothing emits empty elements.
-## - Text content escapes exactly `&`, `<`, and `>`; validation has already
-##   rejected scalars XML 1.0 cannot represent, and no other substitution or
-##   whitespace policy applies.
-## - A packet built for a validated static PDF/A-4 claim additionally declares
-##   the PDF/A Identification schema (`pdfaid:part` 4, `pdfaid:rev` 2020). Its
-##   namespace URI sorts last, so the declaration follows `xmlns:dc` and the two
-##   properties follow `dc:title`. An unidentified packet is byte-identical to
-##   the packet this policy produced before the identification existed.
-## - Indentation is one tab per element depth with single newlines; the packet
-##   carries no trailing newline. There are no XMP identifiers: deterministic
-##   document identity remains the trailer `/ID` digest, which hashes the
-##   sealed plan (including these metadata bytes) and therefore cannot itself
-##   appear inside the packet.
-##
-## Validation already counted the title's escape substitutions, so the exact
-## packet size is known before any byte is written; the packet is emitted once
-## into an exactly reserved buffer and rejected against `max_xmp_bytes` before
-## that allocation.
+# Canonical XMP serialization from validated metadata facts. One policy
+# produces one byte sequence for one set of facts:
+#
+# - The packet is UTF-8 with the standard `xpacket` frame, a UTF-8 byte order
+#   mark inside the `begin` attribute, no padding, and `end="w"`.
+# - Namespace declarations and properties follow the pinned
+#   `Metadata.canonical.property_order` policy: ascending namespace URI, then
+#   ascending local name. The XMP namespace URI orders before the Dublin Core
+#   URI, so explicit timestamps precede `dc:language` and `dc:title`.
+# - `dc:title` is an `rdf:Alt` with one `x-default` item; `dc:language` is an
+#   `rdf:Bag` with the single validated document language.
+# - Omitted timestamps omit their property elements and, when both are
+#   omitted, the `xmlns:xmp` declaration; nothing emits empty elements.
+# - Text content escapes exactly `&`, `<`, and `>`; validation has already
+#   rejected scalars XML 1.0 cannot represent, and no other substitution or
+#   whitespace policy applies.
+# - A packet built for a validated static PDF/A-4 claim additionally declares
+#   the PDF/A Identification schema (`pdfaid:part` 4, `pdfaid:rev` 2020). Its
+#   namespace URI sorts last, so the declaration follows `xmlns:dc` and the two
+#   properties follow `dc:title`. An unidentified packet is byte-identical to
+#   the packet this policy produced before the identification existed.
+# - Indentation is one tab per element depth with single newlines; the packet
+#   carries no trailing newline. There are no XMP identifiers: deterministic
+#   document identity remains the trailer `/ID` digest, which hashes the
+#   sealed plan (including these metadata bytes) and therefore cannot itself
+#   appear inside the packet.
+#
+# Validation already counted the title's escape substitutions, so the exact
+# packet size is known before any byte is written; the packet is emitted once
+# into an exactly reserved buffer and rejected against `max_xmp_bytes` before
+# that allocation.
 import KernelMetadata
 import Metadata
 
@@ -278,9 +278,9 @@ sample_facts = {
 	title_escapes: no_escapes,
 }
 
-## The canonical packet for the minimal fact set is pinned byte-for-byte,
-## including the frame, the byte order mark, the namespace order, and the
-## omission of the unused XMP timestamp namespace.
+# The canonical packet for the minimal fact set is pinned byte-for-byte,
+# including the frame, the byte order mark, the namespace order, and the
+# omission of the unused XMP timestamp namespace.
 expect {
 	packet = KernelXmp.Packet.build(sample_facts, 4096)?
 	expected = Str.to_utf8("<?xpacket begin=\"")
@@ -294,8 +294,8 @@ expect {
 	KernelXmp.Packet.bytes(packet) == expected and KernelXmp.Packet.work(packet) == { packet_bytes: expected.len(), properties: 2, title_escapes: 0 }
 }
 
-## Explicit timestamps add the XMP namespace declaration and order before the
-## Dublin Core properties because the XMP namespace URI sorts first.
+# Explicit timestamps add the XMP namespace declaration and order before the
+# Dublin Core properties because the XMP namespace URI sorts first.
 expect {
 	facts = { ..sample_facts, created: Explicit("2026-01-02T03:04:05Z"), modified: Explicit("2026-01-02T03:04:06Z") }
 	packet = KernelXmp.Packet.build(facts, 4096)?
@@ -311,7 +311,7 @@ expect {
 			and KernelXmp.Packet.work(packet).properties == 4
 }
 
-## One explicit timestamp emits exactly its own property and no empty twin.
+# One explicit timestamp emits exactly its own property and no empty twin.
 expect {
 	facts = { ..sample_facts, modified: Explicit("2026-01-02T03:04:06Z") }
 	packet = KernelXmp.Packet.build(facts, 4096)?
@@ -325,8 +325,8 @@ expect {
 	!Str.contains(text, "CreateDate") and Str.contains(text, "<xmp:ModifyDate>") and KernelXmp.Packet.work(packet).properties == 3
 }
 
-## Title escaping substitutes exactly the three XML metacharacters and the
-## emitted length matches the escape counts recorded by validation.
+# Title escaping substitutes exactly the three XML metacharacters and the
+# emitted length matches the escape counts recorded by validation.
 expect {
 	facts = { ..sample_facts, title: "R&D <plan> & more", title_escapes: { amps: 2, gts: 1, lts: 1 } }
 	packet = KernelXmp.Packet.build(facts, 4096)?
@@ -340,7 +340,7 @@ expect {
 	Str.contains(text, ">R&amp;D &lt;plan&gt; &amp; more</rdf:li>") and KernelXmp.Packet.work(packet).title_escapes == 4
 }
 
-## Non-ASCII UTF-8 title scalars pass through unescaped as canonical UTF-8.
+# Non-ASCII UTF-8 title scalars pass through unescaped as canonical UTF-8.
 expect {
 	facts = { ..sample_facts, title: "Übersicht — 概要" }
 	packet = KernelXmp.Packet.build(facts, 4096)?
@@ -354,7 +354,7 @@ expect {
 	Str.contains(text, ">Übersicht — 概要</rdf:li>")
 }
 
-## Identical facts serialize to identical bytes.
+# Identical facts serialize to identical bytes.
 expect {
 	first = KernelXmp.Packet.build(sample_facts, 4096)?
 	second = KernelXmp.Packet.build(sample_facts, 4096)?
@@ -362,7 +362,7 @@ expect {
 	KernelXmp.Packet.bytes(first) == KernelXmp.Packet.bytes(second)
 }
 
-## The packet budget rejects before the output allocation with exact facts.
+# The packet budget rejects before the output allocation with exact facts.
 expect {
 	small = KernelXmp.Packet.build(sample_facts, 4096)?
 	limit = KernelXmp.Packet.work(small).packet_bytes - 1
@@ -372,8 +372,8 @@ expect {
 	}
 }
 
-## The identified packet adds exactly the PDF/A Identification declaration and
-## its two properties in canonical URI order, and nothing else.
+# The identified packet adds exactly the PDF/A Identification declaration and
+# its two properties in canonical URI order, and nothing else.
 expect {
 	plain = KernelXmp.Packet.build(sample_facts, 4096)?
 	identified = KernelXmp.Packet.build_identified(sample_facts, PdfA4Identification, 4096)?
@@ -392,7 +392,7 @@ expect {
 					and KernelXmp.Packet.identification(plain) == NoIdentification
 }
 
-## Explicit timestamps keep the XMP namespace first and the identification last.
+# Explicit timestamps keep the XMP namespace first and the identification last.
 expect {
 	facts = { ..sample_facts, created: Explicit("2026-01-02T03:04:05Z") }
 	packet = KernelXmp.Packet.build_identified(facts, PdfA4Identification, 4096)?
@@ -409,7 +409,7 @@ expect {
 				and KernelXmp.Packet.work(packet).properties == 5
 }
 
-## The identified packet budget includes the identification bytes.
+# The identified packet budget includes the identification bytes.
 expect {
 	identified = KernelXmp.Packet.build_identified(sample_facts, PdfA4Identification, 4096)?
 	limit = KernelXmp.Packet.work(identified).packet_bytes - 1

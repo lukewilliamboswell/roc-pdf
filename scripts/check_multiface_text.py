@@ -9,14 +9,20 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from pdf_layout import flatten
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "actual_text" / "multiface_text.pdf"
 EXPECTED_TEXT = "C中é\n".encode()
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n1 0 0 1 72 700 cm\n"
     b"/CS1_0 cs\n0 scn\nBT\n0 Tr\n/F1_0 11 Tf\n1 0 0 1 0 0 Tm\n<0001> Tj\nET\n"
@@ -24,6 +30,8 @@ EXPECTED_CONTENT = (
     b"/CS1_0 cs\n0 scn\nBT\n0 Tr\n/F1_0 11 Tf\n1 0 0 1 18 0 Tm\n<0003> Tj\nET\n"
     b"Q\nEMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [656, 730, 583, 583, 0], b'F1_1': [1000, 1000]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_LATIN = {0x0001: (0x0043,), 0x0003: (0x00E9,)}
 EXPECTED_CJK = {0x0001: (0x4E2D,)}
 
@@ -38,7 +46,7 @@ def validate_multiface_text_pdf(pdf: bytes) -> None:
     _, bodies = object_slices(pdf)
     page = only_object(bodies, b"/Type /Page ", "page")
     page_body = bodies[page]
-    resources = re.search(rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R /F1_1 ([1-9][0-9]*) 0 R >> /XObject << >> >>", page_body)
+    resources = re.search(rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R /F1_1 ([1-9][0-9]*) 0 R >> >>", page_body)
     require(resources is not None, "multi-face page does not have the exact two-font resource closure")
     require(b"/CalGray" in bodies[int(resources.group(1))], "multi-face text color is not calibrated Gray")
     latin, cjk = int(resources.group(2)), int(resources.group(3))
@@ -57,7 +65,7 @@ def validate_multiface_text_pdf(pdf: bytes) -> None:
     shown = ((latin, 0x0001), (cjk, 0x0001), (latin, 0x0003))
     direct = "".join(chr(scalar) for font, cid in shown for scalar in font_mappings(bodies, font)[cid]).encode() + b"\n"
     require(direct == EXPECTED_TEXT, "two-font CID/ToUnicode reconstruction differs from paint-order source text")
-    require(b"/FontFile2" in pdf and b"/Type /Font" in pdf, "multi-face PDF lacks embedded font closure")
+    require(b"/FontFile2" in flatten(pdf) and b"/Type /Font" in flatten(pdf), "multi-face PDF lacks embedded font closure")
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:

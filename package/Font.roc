@@ -1,8 +1,12 @@
 import Semantics
+import KernelBuiltInFont
 import KernelFont
 
 Font :: [].{
 	ResourceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ResourceId
 		from_index = |index| ResourceId.(index)
 
@@ -11,6 +15,9 @@ Font :: [].{
 	}
 
 	FaceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> FaceId
 		from_index = |index| FaceId.(index)
 
@@ -19,6 +26,9 @@ Font :: [].{
 	}
 
 	InstanceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> InstanceId
 		from_index = |index| InstanceId.(index)
 
@@ -27,6 +37,9 @@ Font :: [].{
 	}
 
 	PolicyId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> PolicyId
 		from_index = |index| PolicyId.(index)
 
@@ -35,11 +48,23 @@ Font :: [].{
 	}
 
 	Script :: Str.{
+		is_eq : _
+		to_hash : _
+
 		from_iso15924 : Str -> Script
 		from_iso15924 = |value| Script.(value)
 
-		as_str : Script -> Str
-		as_str = |Script.(value)| value
+		## A quoted literal where a `Script` is expected is an ISO 15924
+		## code, checked at compile time: `scripts: ["Latn"]`. Registration
+		## accepts exactly the codes this accepts (one uppercase and three
+		## lowercase ASCII letters), so a typo such as `"Latin"` or
+		## `"latn"` is a compile error rather than an `InvalidScript`
+		## registration error. Use `from_iso15924` for a runtime string.
+		from_quote : Str -> Try(Script, [BadQuotedBytes(Str)])
+		from_quote = |value| if script_code_valid(value) Ok(Script.(value)) else Err(BadQuotedBytes("an ISO 15924 script code is one uppercase and three lowercase ASCII letters, such as \"Latn\""))
+
+		to_str : Script -> Str
+		to_str = |Script.(value)| value
 	}
 
 	ScalarSpan : { first : U32, last : U32 }
@@ -201,6 +226,17 @@ Font :: [].{
 		register : Registry, List(U8), Registration, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
 		register = |registry, bytes, registration, limits| register_font(registry, bytes, registration, limits)
 
+		## Register the package's built-in face, the face of `Theme.default`,
+		## as an ordinary registered face for the Latin script. Use it to put
+		## the built-in face in a registry beside caller faces: for example a
+		## monospace `Code` face (the theme's `inline.code.font`) over the built-in
+		## body face. The registry retains the package's own byte list; the
+		## face is validated exactly like caller bytes and emits the same
+		## subset as the unregistered default. `limits` apply as in
+		## `register`; `ValidationLimits.default` accepts the built-in face.
+		register_built_in : Registry, ValidationLimits -> Try({ face : FaceId, instance : InstanceId, policy : PolicyId, registry : Registry, work : RegistrationWork }, ResourceError)
+		register_built_in = |registry, limits| register_font(registry, KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Script.from_iso15924("Latn")] }, limits)
+
 		store : Registry -> Store
 		store = |Registry.(state)| state.store
 
@@ -242,13 +278,13 @@ register_font = |Font.Registry.(state), bytes, registration, Font.ValidationLimi
 	instance_index = state.store.instances.len()
 	policy_index = state.store.policies.len()
 
-	## Resources, faces, instances, and retained inspections advance together,
-	## one per registration, so a disagreement between them means the registry
-	## is not the value this boundary produced. Policies deliberately do not
-	## join that invariant: `with_policy` appends an explicit policy without a
-	## resource, face, or instance, so requiring the policy count to match would
-	## seal the registry against every later registration and report a
-	## registry-state precondition as a fault in the caller's font bytes.
+	# Resources, faces, instances, and retained inspections advance together,
+	# one per registration, so a disagreement between them means the registry
+	# is not the value this boundary produced. Policies deliberately do not
+	# join that invariant: `with_policy` appends an explicit policy without a
+	# resource, face, or instance, so requiring the policy count to match would
+	# seal the registry against every later registration and report a
+	# registry-state precondition as a fault in the caller's font bytes.
 	if resource_index != face_index or face_index != instance_index or state.inspections.len() != face_index {
 		return Err(InvalidFont)
 	}
@@ -351,12 +387,12 @@ add_policy = |Font.Registry.(state), faces| {
 	var $face_index = 0
 	while $face_index < faces.len() {
 		face = list_at(faces, $face_index)
-		if face.index() >= state.store.faces.len() or list_at(state.store.faces, face.index()).id.index() != face.index() {
+		if face.index() >= state.store.faces.len() or list_at(state.store.faces, face.index()).id != face {
 			return Err(UnknownPolicyFace(face))
 		}
 		var $previous = 0
 		while $previous < $face_index {
-			if list_at(faces, $previous).index() == face.index() {
+			if list_at(faces, $previous) == face {
 				return Err(AmbiguousFace(face))
 			}
 			$previous = $previous + 1
@@ -384,7 +420,7 @@ plan_clusters = |Font.Registry.(state), request| {
 		return Rejected([InvalidPolicy(request.policy)])
 	}
 	policy = list_at(state.store.policies, policy_index)
-	if policy.id.index() != request.policy.index() or policy.instances.is_empty() {
+	if policy.id != request.policy or policy.instances.is_empty() {
 		return Rejected([InvalidPolicy(request.policy)])
 	}
 	var $ranges = []
@@ -431,13 +467,13 @@ select_instance = |store, policy, cluster, script, prior_coverage, prior_faces| 
 		}
 		instance_record = list_at(store.instances, instance.index())
 		face_index = instance_record.face.index()
-		if instance_record.id.index() != instance.index() or face_index >= store.faces.len() {
+		if instance_record.id != instance or face_index >= store.faces.len() {
 			return Err({ coverage_span_visits: $coverage_visits, face_visits: $face_visits })
 		}
 		face = list_at(store.faces, face_index)
 		$face_visits = $face_visits + 1
 
-		if face.id.index() == instance_record.face.index() and (common_script(script) or face_supports_script(store, face, script)) {
+		if face.id == instance_record.face and (common_script(script) or face_supports_script(store, face, script)) {
 			coverage = cluster_coverage(store, face, cluster.scalars, $coverage_visits)
 			$coverage_visits = coverage.visits
 			if coverage.covered {
@@ -454,7 +490,7 @@ select_instance = |store, policy, cluster, script, prior_coverage, prior_faces| 
 ## face in policy order whose coverage holds it, exactly as every other
 ## cluster is selected by coverage, with no script-specific requirement.
 common_script : Font.Script -> Bool
-common_script = |script| script.as_str() == "Zyyy" or script.as_str() == "Zinh"
+common_script = |script| script.to_str() == "Zyyy" or script.to_str() == "Zinh"
 
 face_supports_script : Font.Store, Font.Face, Font.Script -> Bool
 face_supports_script = |store, face, script| {
@@ -464,7 +500,7 @@ face_supports_script = |store, face, script| {
 		if script_index >= store.scripts.len() {
 			return False
 		}
-		if list_at(store.scripts, script_index).as_str() == script.as_str() {
+		if list_at(store.scripts, script_index).to_str() == script.to_str() {
 			return True
 		}
 		$index = $index + 1
@@ -507,7 +543,7 @@ append_face_range = |ranges, instance, cluster| {
 	}
 	last_index = ranges.len() - 1
 	last = list_at(ranges, last_index)
-	if last.instance.index() == instance.index() and last.clusters.start() + last.clusters.length() == cluster {
+	if last.instance == instance and last.clusters.start() + last.clusters.length() == cluster {
 		match ranges.set(last_index, { clusters: Semantics.Range.from_start_and_length(last.clusters.start(), last.clusters.length() + 1), instance }) {
 			Ok(updated) => updated
 			Err(OutOfBounds) => crash "validated font plan range update escaped"
@@ -524,13 +560,12 @@ validate_scripts = |scripts| {
 	}
 	var $index = 0
 	while $index < scripts.len() {
-		bytes = Str.to_utf8(list_at(scripts, $index).as_str())
-		if bytes.len() != 4 or !ascii_upper(list_at(bytes, 0)) or !ascii_lower(list_at(bytes, 1)) or !ascii_lower(list_at(bytes, 2)) or !ascii_lower(list_at(bytes, 3)) {
+		if !script_code_valid(list_at(scripts, $index).to_str()) {
 			return Err(InvalidScript({ index: $index }))
 		}
 		var $previous = 0
 		while $previous < $index {
-			if list_at(scripts, $previous).as_str() == list_at(scripts, $index).as_str() {
+			if list_at(scripts, $previous).to_str() == list_at(scripts, $index).to_str() {
 				return Err(InvalidScript({ index: $index }))
 			}
 			$previous = $previous + 1
@@ -553,6 +588,12 @@ map_font_error = |error| match error {
 	_ => InvalidFont
 }
 
+script_code_valid : Str -> Bool
+script_code_valid = |value| {
+	bytes = Str.to_utf8(value)
+	bytes.len() == 4 and ascii_upper(list_at(bytes, 0)) and ascii_lower(list_at(bytes, 1)) and ascii_lower(list_at(bytes, 2)) and ascii_lower(list_at(bytes, 3))
+}
+
 ascii_upper : U8 -> Bool
 ascii_upper = |byte| byte >= 0x41 and byte <= 0x5a
 
@@ -567,17 +608,24 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## Font resource IDs preserve their dense index.
+# Font resource IDs preserve their dense index.
 expect Font.ResourceId.from_index(2).index() == 2
 
-## Font face IDs preserve their dense index.
+# Font face IDs preserve their dense index.
 expect Font.FaceId.from_index(3).index() == 3
 
-## Static font instance IDs preserve their dense index.
+# Static font instance IDs preserve their dense index.
 expect Font.InstanceId.from_index(5).index() == 5
 
-## Font policy IDs preserve their dense index.
+# Font policy IDs preserve their dense index.
 expect Font.PolicyId.from_index(6).index() == 6
 
-## Script tags retain their exact source spelling for later validation.
-expect Font.Script.from_iso15924("Latn").as_str() == "Latn"
+# Script tags retain their exact source spelling for later validation.
+expect Font.Script.from_iso15924("Latn").to_str() == "Latn"
+
+# A quoted script literal is checked like a registered script code.
+expect {
+	scripts : List(Font.Script)
+	scripts = ["Latn", "Hani"]
+	scripts.map(|script| script.to_str()) == ["Latn", "Hani"] and Font.Script.from_quote("Latin").is_err() and Font.Script.from_quote("latn").is_err()
+}

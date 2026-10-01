@@ -106,9 +106,9 @@ verify_vector = |source, base, expected_level, expected_levels, expected_visual,
 	}
 	clusters = clusters_from_analysis(analysis)
 
-	## The seam compares scalar-indexed normative expectations, so each
-	## vector must segment one grapheme per scalar; anything else would make
-	## the comparison meaningless rather than merely different.
+	# The seam compares scalar-indexed normative expectations, so each
+	# vector must segment one grapheme per scalar; anything else would make
+	# the comparison meaningless rather than merely different.
 	if clusters.len() != analysis.work.scalar_visits {
 		return Err(EvidenceFailure)
 	}
@@ -171,13 +171,13 @@ bracket_mirror_facts = |_| {
 		mirror = list_at(order.mirrors, $visual_index)
 		expected_glyph = expected_mirror(logical)
 		match (mirror.needs_glyph, mirror.glyph, expected_glyph) {
-			(Bool.True, Some(actual), Some(wanted)) => {
+			(True, Some(actual), Some(wanted)) => {
 				if actual != wanted {
 					return Err(EvidenceFailure)
 				}
 				$mirrored = $mirrored + 1
 			}
-			(Bool.False, None, None) => {}
+			(False, None, None) => {}
 			_ => return Err(EvidenceFailure)
 		}
 		$visual_index = $visual_index + 1
@@ -214,8 +214,8 @@ rejection_facts = |_| {
 	clusters = clusters_from_analysis(analysis)
 	mutated = { ..paragraph, base_level: 0 }
 	fact_rejected = match KernelBidiBoundary.validate_paragraph(bracket_source, analysis, RightToLeft, mutated, vector_limits) {
-		Err(ParagraphFactsMismatch) => Bool.True
-		_ => Bool.False
+		Err(ParagraphFactsMismatch) => True
+		_ => False
 	}
 	oversized = {
 		clusters: Semantics.Range.from_start_and_length(0, clusters.len()),
@@ -225,13 +225,13 @@ rejection_facts = |_| {
 		},
 	}
 	range_rejected = match KernelBidiBoundary.resolve_line(paragraph, oversized, clusters, vector_limits) {
-		Err(InvalidLineRange) => Bool.True
-		_ => Bool.False
+		Err(InvalidLineRange) => True
+		_ => False
 	}
 	bounded = KernelBidiBoundary.Limits.make({ max_clusters: 2, max_scalars: 1000, max_visual_order: 1000 })
 	limit_rejected = match KernelBidiBoundary.resolve_line(paragraph, whole_line(analysis, bracket_source), clusters, bounded) {
-		Err(LimitExceeded({ attempted: 14, dimension: Clusters, limit: 2 })) => Bool.True
-		_ => Bool.False
+		Err(LimitExceeded({ attempted: 14, dimension: Clusters, limit: 2 })) => True
+		_ => False
 	}
 	if !fact_rejected or !range_rejected or !limit_rejected {
 		Err(EvidenceFailure)
@@ -300,7 +300,7 @@ clusters_from_analysis = |analysis| {
 levels_match : List(KernelBidiBoundary.ScalarFact), List(I64) -> Bool
 levels_match = |facts, expected| {
 	if facts.len() != expected.len() {
-		return Bool.False
+		return False
 	}
 	var $index = 0
 	while $index < facts.len() {
@@ -310,11 +310,11 @@ levels_match = |facts, expected| {
 			RemovedByX9 => wanted < 0
 		}
 		if !agrees {
-			return Bool.False
+			return False
 		}
 		$index = $index + 1
 	}
-	Bool.True
+	True
 }
 
 list_at : List(a), U64 -> a

@@ -105,7 +105,7 @@ test_plan = |_| {
 	Ok(plan)
 }
 
-## The complete tagged-visual object graph emits one deterministic PDF 2.0 byte stream.
+# The complete tagged-visual object graph emits one deterministic PDF 2.0 byte stream.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -114,7 +114,7 @@ expect {
 	starts_with(first, Str.to_utf8("%PDF-2.0\n")) and first == second
 }
 
-## The sealed object graph proves an emission bound before encoding begins.
+# The sealed object graph proves an emission bound before encoding begins.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -122,7 +122,7 @@ expect {
 	bytes.len() <= KernelStructure.Plan.output_bound(structure)
 }
 
-## Bound construction visits each sealed object once and is linear in serialized value occurrences.
+# Bound construction visits each sealed object once and is linear in serialized value occurrences.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -130,7 +130,7 @@ expect {
 	bound_work.object_visits == KernelStructure.Plan.object_count(structure)
 }
 
-## Bound construction traverses direct values and looks up each stream payload twice.
+# Bound construction traverses direct values and looks up each stream payload twice.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -139,17 +139,17 @@ expect {
 	bound_work.payload_bound_lookups == stream_count * 2 and bound_work.value_visits > 0
 }
 
-## An xref identifier outside the sealed object sequence cannot acquire a bound.
+# An xref identifier outside the sealed object sequence cannot acquire a bound.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
 	match KernelOutputBound.calculate(KernelStructure.Plan.sealed(structure), KernelStructure.Plan.root(structure)) {
-		Err(XrefObjectMismatch({ actual, expected })) => KernelObject.ObjectId.is_eq(actual, KernelStructure.Plan.root(structure)) and expected == KernelStructure.Plan.object_count(structure) + 1
+		Err(XrefObjectMismatch({ actual, expected })) => actual == KernelStructure.Plan.root(structure) and expected == KernelStructure.Plan.object_count(structure) + 1
 		_ => False
 	}
 }
 
-## The file identity covers the sealed normalized plan and all payload source bytes.
+# The file identity covers the sealed normalized plan and all payload source bytes.
 expect {
 	plan = test_plan({})?
 	structure = KernelTaggedStructure.Plan.structure(plan)
@@ -186,23 +186,23 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## Node facts lower onto the structure element and the structure tree root:
-## the paragraph's element identifier becomes `/ID` and the single IDTree
-## leaf maps it back to that element; its `fr` language differs from the
-## `en-AU` Document it inherits from and becomes `/Lang`. The Document's own
-## language is the kernel path's unexpressed default and does not lower.
+# Node facts lower onto the structure element and the structure tree root:
+# the paragraph's element identifier becomes `/ID` and the single IDTree
+# leaf maps it back to that element; its `fr` language differs from the
+# `en-AU` Document it inherits from and becomes `/Lang`. The Document's own
+# language is the kernel path's unexpressed default and does not lower.
 expect {
 	pipeline = KernelPipelineFixture.identified_pipeline({})?
 	limits = { ..test_object_limits, max_byte_strings: 2, max_byte_string_bytes: 12, max_objects: 17, max_text_strings: 2, max_names: 136 }
 	plan = KernelTaggedStructure.Plan.build(pipeline.tagged, pipeline.colors, pipeline.images, pipeline.content, pipeline.objects, KernelTaggedStructure.Limits.make({ object_limits: limits }))?
-	bytes = KernelEmit.to_bytes(KernelTaggedStructure.Plan.structure(plan))?
+	bytes = KernelEmit.object_text(KernelTaggedStructure.Plan.structure(plan))?
 	work = KernelTaggedStructure.Plan.work(plan).tagged_objects
 	text = Str.from_utf8_lossy(bytes)
 
-	text.contains("<< /ID <706172612D31> /K [") and
-		text.contains("/Lang <FEFF00660072> /NS 4 0 R /P 5 0 R /S /P") and
+	text.contains("<< /ID (para-1) /K [") and
+		text.contains("/Lang (fr) /NS 4 0 R /P 5 0 R /Pg ") and text.contains(" /S /P >>") and
 			text.contains("<< /IDTree 7 0 R /K 5 0 R /Namespaces") and
-				text.contains("7 0 obj\n<< /Names [<706172612D31> 6 0 R] >>") and
-					!text.contains("<FEFF0065006E002D00410055>") and
+				text.contains("7 0 obj\n<< /Names [(para-1) 6 0 R] >>") and
+					!text.contains("(en-AU)") and
 						work.id_tree_entries == 1 and work.language_entries == 1
 }

@@ -1,5 +1,8 @@
 Semantics :: [].{
 	NodeId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> NodeId
 		from_index = |index| NodeId.(index)
 
@@ -8,6 +11,9 @@ Semantics :: [].{
 	}
 
 	OccurrenceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> OccurrenceId
 		from_index = |index| OccurrenceId.(index)
 
@@ -16,6 +22,9 @@ Semantics :: [].{
 	}
 
 	FragmentId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> FragmentId
 		from_index = |index| FragmentId.(index)
 
@@ -24,6 +33,9 @@ Semantics :: [].{
 	}
 
 	NamespaceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> NamespaceId
 		from_index = |index| NamespaceId.(index)
 
@@ -32,6 +44,9 @@ Semantics :: [].{
 	}
 
 	StructureElementId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> StructureElementId
 		from_index = |index| StructureElementId.(index)
 
@@ -40,6 +55,9 @@ Semantics :: [].{
 	}
 
 	ElementId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ElementId
 		from_index = |index| ElementId.(index)
 
@@ -48,6 +66,9 @@ Semantics :: [].{
 	}
 
 	DestinationId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> DestinationId
 		from_index = |index| DestinationId.(index)
 
@@ -56,6 +77,9 @@ Semantics :: [].{
 	}
 
 	MathMlSubtreeId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> MathMlSubtreeId
 		from_index = |index| MathMlSubtreeId.(index)
 
@@ -64,6 +88,9 @@ Semantics :: [].{
 	}
 
 	AssertionId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> AssertionId
 		from_index = |index| AssertionId.(index)
 
@@ -72,6 +99,9 @@ Semantics :: [].{
 	}
 
 	AnnotationId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> AnnotationId
 		from_index = |index| AnnotationId.(index)
 
@@ -80,6 +110,9 @@ Semantics :: [].{
 	}
 
 	ContextualArtifactId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ContextualArtifactId
 		from_index = |index| ContextualArtifactId.(index)
 
@@ -88,6 +121,9 @@ Semantics :: [].{
 	}
 
 	TextSourceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> TextSourceId
 		from_index = |index| TextSourceId.(index)
 
@@ -96,6 +132,9 @@ Semantics :: [].{
 	}
 
 	TextPropertyId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> TextPropertyId
 		from_index = |index| TextPropertyId.(index)
 
@@ -104,6 +143,9 @@ Semantics :: [].{
 	}
 
 	NonTextSourceId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> NonTextSourceId
 		from_index = |index| NonTextSourceId.(index)
 
@@ -112,6 +154,9 @@ Semantics :: [].{
 	}
 
 	PageId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> PageId
 		from_index = |index| PageId.(index)
 
@@ -120,6 +165,9 @@ Semantics :: [].{
 	}
 
 	ContentStreamId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ContentStreamId
 		from_index = |index| ContentStreamId.(index)
 
@@ -128,6 +176,9 @@ Semantics :: [].{
 	}
 
 	Range :: { length : U64, start : U64 }.{
+		is_eq : _
+		to_hash : _
+
 		from_start_and_length : U64, U64 -> Range
 		from_start_and_length = |start, length| Range.{ start, length }
 
@@ -325,29 +376,29 @@ Semantics :: [].{
 	}
 }
 
-## Semantic node IDs preserve their dense index.
+# Semantic node IDs preserve their dense index.
 expect Semantics.NodeId.from_index(7).index() == 7
 
-## Content occurrence IDs preserve their dense index.
+# Content occurrence IDs preserve their dense index.
 expect Semantics.OccurrenceId.from_index(11).index() == 11
 
-## Layout fragment IDs preserve their dense index.
+# Layout fragment IDs preserve their dense index.
 expect Semantics.FragmentId.from_index(13).index() == 13
 
-## Emitted structure-element IDs remain independent of semantic node IDs.
+# Emitted structure-element IDs remain independent of semantic node IDs.
 expect Semantics.StructureElementId.from_index(19).index() == 19
 
-## IDTree element identities preserve their dense index.
+# IDTree element identities preserve their dense index.
 expect Semantics.ElementId.from_index(23).index() == 23
 
-## Ranges preserve their exact start offset.
+# Ranges preserve their exact start offset.
 expect Semantics.Range.from_start_and_length(5, 8).start() == 5
 
-## Ranges preserve their exact length.
+# Ranges preserve their exact length.
 expect Semantics.Range.from_start_and_length(5, 8).length() == 8
 
-## Nested public type modules construct opaque node IDs directly.
+# Nested public type modules construct opaque node IDs directly.
 expect Semantics.NodeId.from_index(17).index() == 17
 
-## Nested public type modules construct exact ranges directly.
+# Nested public type modules construct exact ranges directly.
 expect Semantics.Range.from_start_and_length(2, 3).length() == 3

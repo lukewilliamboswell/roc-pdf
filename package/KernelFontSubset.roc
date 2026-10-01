@@ -42,22 +42,27 @@ KernelFontSubset :: [].{
 	build = |font, plan| build_subset(font, plan)
 }
 
+## A hinting table the source font may omit. TrueType instructions (`cvt `,
+## `fpgm`, `prep`) and the `gasp` rasterizer hints are optional in OpenType;
+## an unhinted font has none, and the subset then omits them too.
+OptionalTable : [Absent, Present(List(U8))]
+
 SourceTables : {
-	cvt : List(U8),
-	fpgm : List(U8),
-	gasp : List(U8),
+	cvt : OptionalTable,
+	fpgm : OptionalTable,
+	gasp : OptionalTable,
 	head : List(U8),
 	hhea : List(U8),
 	maxp : List(U8),
 	os2 : List(U8),
-	prep : List(U8),
+	prep : OptionalTable,
 }
 
 SfntTables : {
 	cmap : List(U8),
-	cvt : List(U8),
-	fpgm : List(U8),
-	gasp : List(U8),
+	cvt : OptionalTable,
+	fpgm : OptionalTable,
+	gasp : OptionalTable,
 	glyf : List(U8),
 	head : List(U8),
 	hhea : List(U8),
@@ -67,7 +72,7 @@ SfntTables : {
 	name : List(U8),
 	os2 : List(U8),
 	post : List(U8),
-	prep : List(U8),
+	prep : OptionalTable,
 }
 
 build_subset : KernelFont.Inspection, KernelFontPlan.Plan -> Try(KernelFontSubset.Subset, KernelFontSubset.Error)
@@ -97,7 +102,8 @@ build_subset = |font, plan| {
 		post,
 		prep: source.prep,
 	}
-	bytes = assemble_sfnt(tables)?
+	assembled = assemble_sfnt(tables)?
+	bytes = assembled.bytes
 	Ok({
 		bytes,
 		work: {
@@ -109,7 +115,7 @@ build_subset = |font, plan| {
 			loca_bytes: glyph_tables.loca.len(),
 			output_bytes: bytes.len(),
 			source_glyph_bytes: glyph_tables.work.source_glyph_bytes,
-			tables: subset_table_count,
+			tables: assembled.tables,
 		},
 	})
 }
@@ -332,73 +338,72 @@ ascii_utf16be = |ascii| {
 
 collect_source_tables : KernelFont.Inspection -> Try(SourceTables, KernelFontSubset.Error)
 collect_source_tables = |font| {
-	var $cvt = []
-	var $fpgm = []
-	var $gasp = []
+	var $cvt = Absent
+	var $fpgm = Absent
+	var $gasp = Absent
 	var $head = []
 	var $hhea = []
 	var $maxp = []
 	var $os2 = []
-	var $prep = []
+	var $prep = Absent
 	var $found = 0
 	var $index = 0
 	while $index < font.tables.len() {
 		table = list_at(font.tables, $index)
 		if table.tag == tag_cvt {
-			$cvt = append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length)
-			$found = $found.bitwise_or(1)
+			$cvt = Present(append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length))
 		} else if table.tag == tag_fpgm {
-			$fpgm = append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length)
-			$found = $found.bitwise_or(2)
+			$fpgm = Present(append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length))
 		} else if table.tag == tag_gasp {
-			$gasp = append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length)
-			$found = $found.bitwise_or(4)
+			$gasp = Present(append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length))
 		} else if table.tag == tag_head {
 			$head = append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length)
-			$found = $found.bitwise_or(8)
+			$found = $found.bitwise_or(1)
 		} else if table.tag == tag_hhea {
 			$hhea = append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length)
-			$found = $found.bitwise_or(16)
+			$found = $found.bitwise_or(2)
 		} else if table.tag == tag_maxp {
 			$maxp = append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length)
-			$found = $found.bitwise_or(32)
+			$found = $found.bitwise_or(4)
 		} else if table.tag == tag_os2 {
 			$os2 = append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length)
-			$found = $found.bitwise_or(64)
+			$found = $found.bitwise_or(8)
 		} else if table.tag == tag_prep {
-			$prep = append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length)
-			$found = $found.bitwise_or(128)
+			$prep = Present(append_range(List.with_capacity(table.length), font.bytes, table.offset, table.length))
 		}
 		$index = $index + 1
 	}
-	if $found != 255 {
-		missing = if $found.bitwise_and(1) == 0 tag_cvt else if $found.bitwise_and(2) == 0 tag_fpgm else if $found.bitwise_and(4) == 0 tag_gasp else if $found.bitwise_and(8) == 0 tag_head else if $found.bitwise_and(16) == 0 tag_hhea else if $found.bitwise_and(32) == 0 tag_maxp else if $found.bitwise_and(64) == 0 tag_os2 else tag_prep
+	if $found != 15 {
+		missing = if $found.bitwise_and(1) == 0 tag_head else if $found.bitwise_and(2) == 0 tag_hhea else if $found.bitwise_and(4) == 0 tag_maxp else tag_os2
 		return Err(MissingSourceTable(missing))
 	}
 	Ok({ cvt: $cvt, fpgm: $fpgm, gasp: $gasp, head: $head, hhea: $hhea, maxp: $maxp, os2: $os2, prep: $prep })
 }
 
-assemble_sfnt : SfntTables -> Try(List(U8), KernelFontSubset.Error)
+assemble_sfnt : SfntTables -> Try({ bytes : List(U8), tables : U64 }, KernelFontSubset.Error)
 assemble_sfnt = |tables| {
-	ordered = [
-		{ bytes: tables.os2, tag: tag_os2 },
-		{ bytes: tables.cmap, tag: tag_cmap },
-		{ bytes: tables.cvt, tag: tag_cvt },
-		{ bytes: tables.fpgm, tag: tag_fpgm },
-		{ bytes: tables.gasp, tag: tag_gasp },
-		{ bytes: tables.glyf, tag: tag_glyf },
-		{ bytes: tables.head, tag: tag_head },
-		{ bytes: tables.hhea, tag: tag_hhea },
-		{ bytes: tables.hmtx, tag: tag_hmtx },
-		{ bytes: tables.loca, tag: tag_loca },
-		{ bytes: tables.maxp, tag: tag_maxp },
-		{ bytes: tables.name, tag: tag_name },
-		{ bytes: tables.post, tag: tag_post },
-		{ bytes: tables.prep, tag: tag_prep },
-	]
-	var $output_length = sfnt_directory_length
+	# Tables in ascending tag order; an absent hinting table has no
+	# directory entry, so the directory holds 10 to 14 tables.
+	var $ordered = List.with_capacity(subset_table_count)
+	$ordered = $ordered.append({ bytes: tables.os2, tag: tag_os2 })
+	$ordered = $ordered.append({ bytes: tables.cmap, tag: tag_cmap })
+	$ordered = append_optional($ordered, tables.cvt, tag_cvt)
+	$ordered = append_optional($ordered, tables.fpgm, tag_fpgm)
+	$ordered = append_optional($ordered, tables.gasp, tag_gasp)
+	$ordered = $ordered.append({ bytes: tables.glyf, tag: tag_glyf })
+	$ordered = $ordered.append({ bytes: tables.head, tag: tag_head })
+	$ordered = $ordered.append({ bytes: tables.hhea, tag: tag_hhea })
+	$ordered = $ordered.append({ bytes: tables.hmtx, tag: tag_hmtx })
+	$ordered = $ordered.append({ bytes: tables.loca, tag: tag_loca })
+	$ordered = $ordered.append({ bytes: tables.maxp, tag: tag_maxp })
+	$ordered = $ordered.append({ bytes: tables.name, tag: tag_name })
+	$ordered = $ordered.append({ bytes: tables.post, tag: tag_post })
+	ordered = append_optional($ordered, tables.prep, tag_prep)
+	count = ordered.len()
+	directory_length = 12 + count * 16
+	var $output_length = directory_length
 	var $index = 0
-	while $index < ordered.len() {
+	while $index < count {
 		table = list_at(ordered, $index)
 		$output_length = checked_add($output_length, padded_length(table.bytes.len()))?
 		$index = $index + 1
@@ -406,16 +411,26 @@ assemble_sfnt = |tables| {
 	if $output_length > u32_max {
 		return Err(ArithmeticOverflow)
 	}
+
+	# The binary-search fields: the largest power of two not above the
+	# table count, times 16, its log2, and the remainder.
+	var $entry_selector = 0
+	var $power = 1
+	while $power * 2 <= count {
+		$power = $power * 2
+		$entry_selector = $entry_selector + 1
+	}
+	search_range = $power * 16
 	var $output = List.with_capacity($output_length)
 	$output = append_u32($output, 0x00010000)
-	$output = append_u16($output, subset_table_count.to_u16_wrap())
-	$output = append_u16($output, 128)
-	$output = append_u16($output, 3)
-	$output = append_u16($output, 96)
-	var $table_offset = sfnt_directory_length
+	$output = append_u16($output, count.to_u16_wrap())
+	$output = append_u16($output, search_range.to_u16_wrap())
+	$output = append_u16($output, $entry_selector.to_u16_wrap())
+	$output = append_u16($output, (count * 16 - search_range).to_u16_wrap())
+	var $table_offset = directory_length
 	var $head_offset = 0
 	$index = 0
-	while $index < ordered.len() {
+	while $index < count {
 		table = list_at(ordered, $index)
 		$output = append_directory($output, table.tag, table.bytes, $table_offset)
 		if table.tag == tag_head {
@@ -425,13 +440,19 @@ assemble_sfnt = |tables| {
 		$index = $index + 1
 	}
 	$index = 0
-	while $index < ordered.len() {
+	while $index < count {
 		table = list_at(ordered, $index)
 		$output = append_padded($output, table.bytes)
 		$index = $index + 1
 	}
 	adjustment = U32.minus_wrap(sfnt_checksum, checksum_bytes($output))
-	Ok(set_u32($output, $head_offset + 8, adjustment))
+	Ok({ bytes: set_u32($output, $head_offset + 8, adjustment), tables: count })
+}
+
+append_optional : List({ bytes : List(U8), tag : U32 }), OptionalTable, U32 -> List({ bytes : List(U8), tag : U32 })
+append_optional = |ordered, table, tag| match table {
+	Absent => ordered
+	Present(bytes) => ordered.append({ bytes, tag })
 }
 
 append_directory : List(U8), U32, List(U8), U64 -> List(U8)
@@ -632,9 +653,6 @@ sfnt_checksum = 0xb1b0afba
 
 subset_table_count : U64
 subset_table_count = 14
-
-sfnt_directory_length : U64
-sfnt_directory_length = 236
 
 expect encode_loca([0, 1, 0x01020304]) == [0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 4]
 

@@ -6,7 +6,6 @@ import pdf.Color
 import pdf.Conformance
 import pdf.Document
 import pdf.Font
-import pdf.KernelBuiltInFont
 import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
@@ -14,14 +13,14 @@ import pdf.Theme
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
 ## The reference invoice, report, and letter and every adverse variant of
-## `reference-documents-v10`, authored only through the public `Pdf`,
+## `reference-documents-v12`, authored only through the public `Pdf`,
 ## `Scene`, `Layout`, `Theme`, and `Font` surface (the report's callout
 ## through the separately authored `Callout` extension).
 ##
 ## - The three ordinary documents are the gallery examples:
 ##   `scripts/check_reference_documents.py` proves their snapshots are
-##   byte-identical to `examples/tax-invoice.pdf`,
-##   `examples/business-report.pdf`, and `examples/warranty-letter.pdf`, and
+##   byte-identical to `examples/tax-invoice/tax-invoice.pdf`,
+##   `examples/business-report/business-report.pdf`, and `examples/warranty-letter/warranty-letter.pdf`, and
 ##   `scripts/check_gallery.py` that the example programs regenerate those.
 ## - Every accepted variant is prepared with `Pdf.prepare_with_report` and
 ##   its policy outcome is checked through the report's mechanical facts,
@@ -39,47 +38,51 @@ Fixture :: [].{
 	EvidenceError : [EvidenceFailure(Str), InvalidScale, MissingObservation(U64), MissingRejection(U64, Str)]
 
 	invoice : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	invoice = |_context| evidence(Invoice.document(Invoice.ordinary), Invoice.options, invoice_observations)
+	invoice = |context| evidence(Invoice.document(Invoice.ordinary), invoice_options(context)?, invoice_observations)
 
 	report : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	report = |_context| evidence(Report.document(Report.ordinary), Report.options, report_observations)
+	report = |context| {
+		options = report_options(context)?
+		evidence(Report.document(Report.ordinary), options, |observed| report_observations(observed, options.theme))
+	}
 
 	letter : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	letter = |_context| evidence(Letter.document(Letter.ordinary), Letter.options, letter_observations)
+	letter = |context| evidence(Letter.document(Letter.ordinary), letter_options(context)?, letter_observations)
 
 	## INV-A1: long customer, address lines, and one long description.
 	invoice_long_text : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	invoice_long_text = |_context| {
+	invoice_long_text = |context| {
 		config = {
 			..Invoice.ordinary,
 			bill_to: [
-				"The Northstar Regional Housing and Community Development Cooperative (Western Australia) Ltd",
-				"Attention: Accounts Payable Team, Finance and Procurement Division, Level 7 Harbourside Tower",
-				"Building C, Kestrel Parade Business Park, 42 Kestrel Parade, off Marine Terrace and Beach Street",
-				"Fremantle, Western Australia 6160, Australia (deliveries by the loading dock on Beach Street only)",
+				"The Northstar Regional Housing and Community Development Cooperative (Western Australia) Ltd, trading as Northstar Homes and Community Services",
+				"Attention: Accounts Payable Team, Finance and Procurement Division, Level 7 Harbourside Tower, quoting purchase order PO 88213 on every remittance",
+				"Building C, Kestrel Parade Business Park, 42 Kestrel Parade, off Marine Terrace and Beach Street, opposite the Fremantle Fishing Boat Harbour",
+				"Fremantle, Western Australia 6160, Australia (deliveries by the loading dock on Beach Street only, between 7 am and 3 pm on business days)",
 			],
 			row: |index| if index == 2 Invoice.row_with(index, [Pdf.text(long_description)], Invoice.product_code(index)) else Invoice.item_row(index),
 		}
-		evidence(Invoice.document(config), Invoice.options, long_text_observations)
+		evidence(Invoice.document(config), invoice_options(context)?, long_text_observations)
 	}
 
 	## INV-A2a: a code wider than its content column's share.
 	invoice_wide_code : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	invoice_wide_code = |_context| {
+	invoice_wide_code = |context| {
 		config = { ..Invoice.ordinary, row: |index| if index == 0 Invoice.row_with(index, Invoice.product_description(index), "HF-DSK-140-TASMANIAN-OAK/L2") else Invoice.item_row(index) }
-		evidence(Invoice.document(config), Invoice.options, wide_code_observations)
+		evidence(Invoice.document(config), invoice_options(context)?, wide_code_observations)
 	}
 
 	## INV-A4b: a 9,000-character description under `SplitRows`.
 	invoice_split_row : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	invoice_split_row = |_context| evidence(Invoice.document({ ..Invoice.ordinary, row: oversize_row, row_split: SplitRows }), Invoice.options, split_row_observations)
+	invoice_split_row = |context| evidence(Invoice.document({ ..Invoice.ordinary, row: oversize_row, row_split: SplitRows }), invoice_options(context)?, split_row_observations)
 
 	## INV-A5: the last body row fits on its page but the totals do not.
 	invoice_totals_carry : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	invoice_totals_carry = |_context| {
+	invoice_totals_carry = |context| {
+		options = invoice_options(context)?
 		config = { ..Invoice.ordinary, rows: carry_rows }
-		control = Pdf.prepare_with_report(Invoice.document({ ..config, totals: False }), Invoice.options) ? |_| EvidenceFailure("totals control")
-		evidence(Invoice.document(config), Invoice.options, |observed| carry_observations(observed, control.report))
+		control = Pdf.prepare_with_report(Invoice.document({ ..config, totals: False }), options) ? |_| EvidenceFailure("totals control")
+		evidence(Invoice.document(config), options, |observed| carry_observations(observed, control.report, config.rows))
 	}
 
 	## INV-A3 and the invoice scale pair: `rows` body rows.
@@ -88,43 +91,48 @@ Fixture :: [].{
 		if rows < 32 or rows > 500 {
 			return Err(InvalidScale)
 		}
-		evidence(Invoice.document({ ..Invoice.ordinary, rows, field_width: 80 }), Invoice.options, |observed| rows_observations(observed, rows))
+		evidence(Invoice.document({ ..Invoice.ordinary, rows, field_width: 60 }), invoice_options(rows % 1)?, |observed| rows_observations(observed, rows))
 	}
 
 	## REP-A1: section 2's heading falls on the last line of a page.
 	report_heading_keep : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	report_heading_keep = |_context| {
+	report_heading_keep = |context| {
+		options = report_options(context)?
 		prefix = fresh_page(heading_space)
-		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(Pdf.heading(1, "2 Sales performance"))), Report.options) ? |_| EvidenceFailure("heading control")
-		evidence(Report.document({ ..Report.ordinary, before_sales: prefix }), Report.options, |observed| heading_keep_observations(observed, control.report))
+		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(Pdf.heading(1, "2 Sales performance"))), options) ? |_| EvidenceFailure("heading control")
+		evidence(Report.document({ ..Report.ordinary, before_sales: prefix }), options, |observed| heading_keep_observations(observed, control.report))
 	}
 
 	## REP-A2: Figure 1 fits where its caption does not.
 	report_figure_caption : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	report_figure_caption = |_context| {
+	report_figure_caption = |context| {
+		options = report_options(context)?
 		prefix = fresh_page(figure_space)
-		uncaptioned = Pdf.figure(Report.chart, "Bar chart comparing revenue by region.", Pdf.no_caption)
-		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(uncaptioned)), Report.options) ? |_| EvidenceFailure("figure control")
-		evidence(Report.document({ ..Report.ordinary, before_figure1: prefix }), Report.options, |observed| figure_caption_observations(observed, control.report))
+		uncaptioned = Pdf.figure({ drawing: Report.chart, alt: "Bar chart comparing revenue by region.", caption: Pdf.no_caption })
+		control = Pdf.prepare_with_report(Report.framed([Pdf.paragraph("Lead.")].concat(prefix).append(uncaptioned)), options) ? |_| EvidenceFailure("figure control")
+		evidence(Report.document({ ..Report.ordinary, before_figure1: prefix }), options, |observed| figure_caption_observations(observed, control.report))
 	}
 
 	## REP-A3: only two of Table 1's body rows fit.
 	report_table_break : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	report_table_break = |_context| evidence(Report.document({ ..Report.ordinary, before_table1: fresh_page(table_space) }), Report.options, table_break_observations)
+	report_table_break = |context| evidence(Report.document({ ..Report.ordinary, before_table1: fresh_page(table_space) }), report_options(context)?, table_break_observations)
 
-	## REP-A5: an ordered policy of a caller-registered Latin face and a
-	## Han face, with a nested `zh-Hans` span in section 3.2.
+	## REP-A5: an ordered policy of the report's regular Latin face and a
+	## Han face, with a nested `zh-Hans` span in section 3.2. Under an
+	## ordered policy every cluster takes the first policy face that covers
+	## it, so the theme names no title, heading, or inline role faces.
 	report_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	report_ordered = |_context| {
-		faces = register_faces({}) ? |_| EvidenceFailure("register faces")
-		options = Report.options.with_theme(Report.theme.with_font_policy(faces.policy)).with_font_registry(faces.registry)
+	report_ordered = |context| {
+		faces = register_faces(context) ? |_| EvidenceFailure("register faces")
+		options : Pdf.Options
+		options = { theme: { ..Report.single_face_theme(faces.latin), font_selection: Policy(faces.policy) }, fonts: Registered(faces.registry) }
 		extra = [Pdf.text(" The Shanghai office marks approved stock with "), Pdf.in_language("zh-Hans", [Pdf.text("中")]), Pdf.text(" on every board.")]
-		evidence(Report.document({ ..Report.ordinary, timber_extra: extra }), options, ordered_observations)
+		evidence(Report.document({ ..Report.ordinary, timber_extra: extra, figure1: Report.unlabelled_chart_figure }), options, ordered_observations)
 	}
 
 	## REP-A6b: a 600 × 900 pt Figure 1 scaled to fit.
 	report_scaled_figure : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	report_scaled_figure = |_context| evidence(Report.document({ ..Report.ordinary, figure1: tall_figure(50) }), Report.options, scaled_observations)
+	report_scaled_figure = |context| evidence(Report.document({ ..Report.ordinary, figure1: tall_figure(50) }), report_options(context)?, scaled_observations)
 
 	## The report-sections scale pair.
 	report_sections : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -132,19 +140,19 @@ Fixture :: [].{
 		if count == 0 or count > 100 {
 			return Err(InvalidScale)
 		}
-		evidence(Report.sections_document(count, 90, False), Report.options, |observed| sections_observations(observed, count))
+		evidence(Report.sections_document(count, 90, False), report_options(count % 1)?, |observed| sections_observations(observed, count))
 	}
 
 	## LET-A1: recipient lines of 80–110 characters.
 	letter_long_recipient : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	letter_long_recipient = |_context| {
+	letter_long_recipient = |context| {
 		recipient = [
-			"Ms Priya Raman-Whitcombe, Operations Manager and Acting Director of Facilities and Workplace Services",
-			"Northstar Regional Housing and Community Development Cooperative (Western Australia) Limited",
-			"Building C, Level 7, Harbourside Tower, Kestrel Parade Business Park, 42 Kestrel Parade",
-			"Fremantle, Western Australia 6160, Australia (deliveries via the Beach Street loading dock)",
+			"Ms Priya Raman-Whitcombe, Operations Manager and Acting Director of Facilities, Property, and Workplace Services",
+			"Northstar Regional Housing and Community Development Cooperative (Western Australia) Limited, Fremantle office",
+			"Building C, Level 7, Harbourside Tower, Kestrel Parade Business Park, 42 Kestrel Parade, off Marine Terrace",
+			"Fremantle, Western Australia 6160, Australia (deliveries via the Beach Street loading dock, weekdays only)",
 		]
-		evidence(Letter.document({ ..Letter.ordinary, recipient }), Letter.options, long_recipient_observations)
+		evidence(Letter.document({ ..Letter.ordinary, recipient }), letter_options(context)?, long_recipient_observations)
 	}
 
 	## LET-A2 and the letter scale pair: `paragraphs` body paragraphs.
@@ -153,15 +161,23 @@ Fixture :: [].{
 		if paragraphs < 6 or paragraphs > 200 {
 			return Err(InvalidScale)
 		}
-		evidence(Letter.document({ ..Letter.ordinary, paragraphs }), Letter.options, |observed| paragraphs_observations(observed, paragraphs))
+		evidence(Letter.document({ ..Letter.ordinary, paragraphs }), letter_options(paragraphs % 1)?, |observed| paragraphs_observations(observed, paragraphs))
 	}
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
-	atomic_negatives = |_context| run_negatives({})
+	atomic_negatives = |context| run_negatives(context)
 }
 
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
+## The reference documents' options, their faces registered at run time
+## (`guard` is the case's runtime zero).
+invoice_options : U64 -> Try(Pdf.Options, Fixture.EvidenceError)
+invoice_options = |guard| Ok(Invoice.options(Invoice.register(guard) ? |_| EvidenceFailure("register invoice faces")))
+
+report_options : U64 -> Try(Pdf.Options, Fixture.EvidenceError)
+report_options = |guard| Ok(Report.options(Report.register(guard) ? |_| EvidenceFailure("register report faces")))
+
+letter_options : U64 -> Try(Pdf.Options, Fixture.EvidenceError)
+letter_options = |guard| Ok(Letter.options(Letter.register(guard) ? |_| EvidenceFailure("register letter faces")))
 
 long_description : Str
 long_description = "Ergonomic task chair with a breathable mesh back, adjustable lumbar support, four-dimensional armrests, a synchronised tilt mechanism with five locking positions, seat depth adjustment, a class four gas lift, a polished aluminium base, and dual-wheel castors suited to both carpet and hard floors, supplied fully assembled, labelled by workstation, and delivered to each level of the fit-out."
@@ -177,24 +193,24 @@ oversize_row = |index| if index == 5 {
 
 ## The body-row count of INV-A5 (recorded from the reviewed layout).
 carry_rows : U64
-carry_rows = 30
+carry_rows = 36
 
 ## A fresh continuation page holding one filler line and then `space`
 ## points of authored space. A continuation page's flow region is
-## 746 − (24 + 12) − (16 + 12) = 682 pt; the filler line and its paragraph
-## spacing take 22 pt.
+## 746 − (21 + 14) − (20 + 14) = 677 pt; the filler line and its paragraph
+## spacing take 15 + 8 = 23 pt.
 fresh_page : I64 -> List(Document.Block)
-fresh_page = |space| [Pdf.page_break, Pdf.paragraph("Filler."), Pdf.spacer(points(space))]
+fresh_page = |space| [Pdf.page_break, Pdf.paragraph("Filler."), Pdf.spacer(Layout.Unit.points(space))]
 
-## REP-A1: 22 + 630 + 18 = 670 ≤ 682 leaves room for the heading line,
-## but not for it and one body line (670 + 8 + 14 = 692).
+## REP-A1: 23 + 620 + 21 = 664 ≤ 677 leaves room for the heading line,
+## but not for it and one body line (664 + 8 + 15 = 687).
 heading_space : I64
-heading_space = 630
+heading_space = 620
 
-## REP-A2: 22 + 430 + 220 = 672 ≤ 682 fits the figure, but not its
-## caption (672 + 8 + 14 = 694).
+## REP-A2: 23 + 420 + 220 = 663 ≤ 677 fits the figure, but not its
+## caption (663 + 8 + 15 = 686).
 figure_space : I64
-figure_space = 430
+figure_space = 420
 
 ## REP-A3: authored space that leaves room for Table 1's caption, header,
 ## and two body rows (recorded from the reviewed layout).
@@ -206,20 +222,25 @@ tall_figure : U8 -> Document.Block
 tall_figure = |floor| {
 	ink = Color.srgb8({ red: 40, green: 40, blue: 40 })
 	slate = Color.srgb8({ red: 128, green: 146, blue: 166 })
-	plan = Scene.drawing({})
-		.path(Scene.path({}).rectangle(Layout.rect(2, 2, 596, 896)).finish(), Scene.solid_stroke(ink, points(4)))
-	figure = Pdf.figure(Scene.rectangle(plan, Layout.rect(60, 60, 480, 780), slate), "Bar chart of revenue by region, drawn at poster size.", Pdf.caption("Figure 1. Revenue by region, AUD thousands"))
-	if floor == 0 figure else Pdf.figure_fit(figure, ScaleToFit({ minimum_percent: floor }))
+	plan = Scene.Drawing.empty
+		.path(Scene.PathBuilder.start.rectangle(Layout.rect(2, 2, 596, 896)).finish(), Scene.solid_stroke(ink, 4))
+	Pdf.figure({
+		drawing: plan.rectangle(Layout.rect(60, 60, 480, 780), slate),
+		alt: "Bar chart of revenue by region, drawn at poster size.",
+		caption: Pdf.caption("Figure 1. Revenue by region, AUD thousands"),
+		fit: if floor == 0 Exact else ScaleToFit({ minimum_percent: floor }),
+	})
 }
 
-## The packaged Latin face registered as a caller face, then a Han face.
-register_faces : {} -> Try({ policy : Font.PolicyId, registry : Font.Registry }, [RegistrationFailed])
-register_faces = |{}| {
-	limits = Font.ValidationLimits.default
-	latin = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| RegistrationFailed
-	cjk = latin.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, limits) ? |_| RegistrationFailed
+## The report's regular face registered for Latin, then a Han face, in
+## an ordered policy.
+register_faces : U64 -> Try({ latin : Font.FaceId, policy : Font.PolicyId, registry : Font.Registry }, [RegistrationFailed])
+register_faces = |guard| {
+	limits = Font.ValidationLimits.make({ max_bytes: 2000000 + guard, max_cmap_mappings: 1200000, max_glyphs: 65535, max_tables: 128 })
+	latin = Font.Registry.empty.register(Report.regular_face_bytes, { provision: BuiltIn, scripts: ["Latn"] }, limits) ? |_| RegistrationFailed
+	cjk = latin.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: ["Hani"] }, limits) ? |_| RegistrationFailed
 	configured = cjk.registry.with_policy([latin.face, cjk.face]) ? |_| RegistrationFailed
-	Ok({ policy: configured.policy, registry: configured.registry })
+	Ok({ latin: latin.face, policy: configured.policy, registry: configured.registry })
 }
 
 ## Prepare once with the report; bytes come from the prepared document.
@@ -361,9 +382,9 @@ invoice_observations = |report| {
 	last = "${items_table}.table.body_rows[31]"
 	[
 		facts.title == "Tax invoice HF-2026-0417 — Harbour & Finch Pty Ltd" and facts.language == "en-AU",
-		page_count(report) == 3,
+		page_count(report) == 2,
 		has_role(report, "contents[1]", "Title"),
-		repeated_on(report, items_table, 2) and repeated_on(report, items_table, 3) and repeated_headers(report) == 2,
+		repeated_on(report, items_table, 2) and repeated_headers(report) == 1,
 		row_on(report, "${items_table}.table.footer_rows[0]", last_page(report, "${last}.cells[0]")),
 		row_on(report, "${items_table}.table.footer_rows[2]", first_page(report, "${last}.cells[0]")),
 		first_page(report, "contents[5].contents[0]") == first_page(report, "contents[5].contents[1]"),
@@ -375,8 +396,8 @@ invoice_observations = |report| {
 	]
 }
 
-report_observations : Pdf.Report -> List(Bool)
-report_observations = |report| {
+report_observations : Pdf.Report, Theme -> List(Bool)
+report_observations = |report, theme| {
 	facts = report.facts
 	figure_one = "contents[3].contents[3]"
 	figure_two = "contents[4].contents[3].contents[2]"
@@ -385,16 +406,16 @@ report_observations = |report| {
 	headings = ["contents[2]", "contents[3]", "contents[4]", "contents[4].contents[2]", "contents[4].contents[3]", "contents[5]", "contents[6]"]
 	[
 		facts.title == "Harbour & Finch quarterly operations report, Q1 FY2027" and facts.language == "en-AU",
-		page_count(report) == 5,
+		page_count(report) == 4,
 		headings.all(|section| has_role(report, "${section}.contents[0]", "H1") or has_role(report, "${section}.contents[0]", "H2")),
 		headings.all(|section| first_page(report, "${section}.contents[0]") == first_page(report, "${section}.contents[1]")),
 		first_page(report, figure_one) == first_page(report, "${figure_one}.caption"),
 		first_page(report, figure_two) == first_page(report, "${figure_two}.caption"),
 		first_page(report, "${table_one}.caption") == last_page(report, "${table_one}.table.footer_rows[0].cells[3]"),
-		repeated_headers(report) == 2 and repeated_on(report, table_two, page_count(report)),
+		repeated_headers(report) == 1 and repeated_on(report, table_two, page_count(report)),
 		facts.outcomes.any(
 			|outcome| match outcome {
-				CustomBlockPlaced({ name, path, page, height }) => name == "Key figures" and path == "contents[2].contents[3]" and page == 1 and height.raw() == Callout.measure(Report.theme, 3, points(483)).height.raw()
+				CustomBlockPlaced({ name, path, page, height }) => name == "Key figures" and path == "contents[2].contents[3]" and page == 1 and height == Callout.measure(theme, 3, 483).height
 				_ => False
 			},
 		),
@@ -459,10 +480,10 @@ split_row_observations = |report| {
 	]
 }
 
-carry_observations : Pdf.Report, Pdf.Report -> List(Bool)
-carry_observations = |report, control| {
-	last = "${items_table}.table.body_rows[${(carry_rows - 1).to_str()}]"
-	previous = "${items_table}.table.body_rows[${(carry_rows - 2).to_str()}]"
+carry_observations : Pdf.Report, Pdf.Report, U64 -> List(Bool)
+carry_observations = |report, control, rows| {
+	last = "${items_table}.table.body_rows[${(rows - 1).to_str()}]"
+	previous = "${items_table}.table.body_rows[${(rows - 2).to_str()}]"
 	page = first_page(report, "${last}.cells[0]")
 	[
 
@@ -545,10 +566,10 @@ scaled_observations : Pdf.Report -> List(Bool)
 scaled_observations = |report| {
 	figure = "contents[3].contents[3]"
 
-	## min(483/600, (682 − 8 − 14)/900) in thousandths: the continuation
+	## min(483/600, (662 − 8 − 15)/900) in thousandths: the first page's
 	## frame is the smaller, and the caption line and its spacing stay.
 	[
-		figure_scale(report, figure) == 733,
+		figure_scale(report, figure) == 710,
 		first_page(report, "${figure}.caption") == first_page(report, figure),
 	]
 }
@@ -603,96 +624,99 @@ check_rejection = |document, options, expected| {
 	}
 }
 
-run_negatives : {} -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
-run_negatives = |{}| {
+run_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_negatives = |guard| {
+	invoice_faces = invoice_options(guard)?
+	report_faces = report_options(guard)?
+	letter_faces = letter_options(guard)?
 	invoice_with = |config| Invoice.document(config)
 	row_override = |target, replacement| |index| if index == target replacement(index) else Invoice.item_row(index)
 	serial = Str.repeat("0123456789abcdef", 8)
 	wide_columns = [
 		{ width: Content, align: Start },
 		{ width: Share(1), align: Start },
-		{ width: Fixed(points(120)), align: End },
-		{ width: Fixed(points(140)), align: End },
-		{ width: Fixed(points(160)), align: End },
+		{ width: Fixed(120), align: End },
+		{ width: Fixed(140), align: End },
+		{ width: Fixed(160), align: End },
 	]
 	letter_with = |config| Letter.document(config)
 	report_with = |config| Report.document(config)
-	oversize_callout = Callout.with_height(Report.theme, { height: points(900), lines: ["Revenue: AUD 9.22 m (+5.0%)"], name: "Key figures", width: points(483) })
+	oversize_callout = Callout.with_height(report_faces.theme, { height: 900, lines: ["Revenue: AUD 9.22 m (+5.0%)"], name: "Key figures", width: 483 })
 	items = items_table
 	checks = [
 
 		## INV-A2b: a 128-hex-digit serial in a description.
-		(invoice_with({ ..Invoice.ordinary, row: row_override(4, |index| Invoice.row_with(index, [Pdf.text("LED task lamp, serial ${serial}")], Invoice.product_code(index))) }), Invoice.options, Code(LayoutConstraintViolated, "layout.unbreakable_token", ["${items}.table.body_rows[4].cells[1]"])),
+		(invoice_with({ ..Invoice.ordinary, row: row_override(4, |index| Invoice.row_with(index, [Pdf.text("LED task lamp, serial ${serial}")], Invoice.product_code(index))) }), invoice_faces, Code(LayoutConstraintViolated, "layout.unbreakable_token", ["${items}.table.body_rows[4].cells[1]"])),
 
 		## INV-A2c: fixed widths plus minima exceed the table width.
-		(invoice_with({ ..Invoice.ordinary, columns: wide_columns }), Invoice.options, Code(LayoutConstraintViolated, "layout.table_width", [items])),
+		(invoice_with({ ..Invoice.ordinary, columns: wide_columns }), invoice_faces, Code(LayoutConstraintViolated, "layout.table_width", [items])),
 
-		## INV-A3 with the ordinary 64 pt page field: `Page 1 of 10` does not fit.
-		(invoice_with({ ..Invoice.ordinary, rows: 500 }), Invoice.options, Code(LayoutConstraintViolated, "layout.field_overflow", ["templates.first.footer.end[0].inlines[0].inlines[1]"])),
+		## INV-A3 with the ordinary 50 pt page field: `Page 1 of 24` does not fit.
+		(invoice_with({ ..Invoice.ordinary, rows: 500 }), invoice_faces, Code(LayoutConstraintViolated, "layout.field_overflow", ["templates.first.footer.end[0].inlines[0].inlines[1]"])),
 
 		## INV-A4a: a row taller than a continuation page under KeepRows.
-		(invoice_with({ ..Invoice.ordinary, row: oversize_row }), Invoice.options, Code(LayoutConstraintViolated, "layout.oversize_row", ["${items}.table.body_rows[5]"])),
+		(invoice_with({ ..Invoice.ordinary, row: oversize_row }), invoice_faces, Code(LayoutConstraintViolated, "layout.oversize_row", ["${items}.table.body_rows[5]"])),
 
 		## INV-A6a: Arabic in the customer name.
-		(invoice_with({ ..Invoice.ordinary, bill_to: ["شركة الشمال Northstar Cooperative Ltd", "42 Kestrel Parade"] }), Invoice.options, Code(FontCoverageMissing, "text.unsupported_script", ["contents[3].contents[1].inlines[0]"])),
+		(invoice_with({ ..Invoice.ordinary, bill_to: ["شركة الشمال Northstar Cooperative Ltd", "42 Kestrel Parade"] }), invoice_faces, Code(FontCoverageMissing, "text.unsupported_script", ["contents[3].contents[1].inlines[0]"])),
 
-		## INV-A6b: Han in the address with the packaged face only.
-		(invoice_with({ ..Invoice.ordinary, bill_to: ["Northstar Cooperative Ltd", "42 Kestrel Parade, 北京"] }), Invoice.options, Code(FontCoverageMissing, "text.coverage_missing", ["contents[3].contents[1].inlines[2]"])),
+		## INV-A6b: Han in the address with the invoice's Latin faces only.
+		(invoice_with({ ..Invoice.ordinary, bill_to: ["Northstar Cooperative Ltd", "42 Kestrel Parade, 北京"] }), invoice_faces, Code(FontCoverageMissing, "text.coverage_missing", ["contents[3].contents[1].inlines[2]"])),
 
 		## INV-A7a: Items and Payment kept together beyond one page.
-		(invoice_with({ ..Invoice.ordinary, arrangement: KeepItemsWithPayment }), Invoice.options, Code(LayoutConstraintViolated, "layout.keep_conflict", ["contents[4]", "contents[4].contents[0].contents[0]", "contents[4].contents[1].contents[2]"])),
+		(invoice_with({ ..Invoice.ordinary, arrangement: KeepItemsWithPayment }), invoice_faces, Code(LayoutConstraintViolated, "layout.keep_conflict", ["contents[4]", "contents[4].contents[0].contents[0]", "contents[4].contents[1].contents[2]"])),
 
 		## INV-A7b: an explicit break inside a required keep.
-		(invoice_with({ ..Invoice.ordinary, arrangement: BreakInsideKeep }), Invoice.options, Code(LayoutConstraintViolated, "layout.keep_conflict", ["contents[3].contents[1]", "contents[3]"])),
+		(invoice_with({ ..Invoice.ordinary, arrangement: BreakInsideKeep }), invoice_faces, Code(LayoutConstraintViolated, "layout.keep_conflict", ["contents[3].contents[1]", "contents[3]"])),
 
 		## INV-A8: a row of five cells and a two-column span.
-		(invoice_with({ ..Invoice.ordinary, row: row_override(6, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]), Pdf.cell([Pdf.text("Installation")]), Pdf.cell([Pdf.text("12")]), Pdf.cell([Pdf.text("95.00")]), Pdf.cell([Pdf.text("1,140.00")]), Pdf.spanning(2, Pdf.cell([Pdf.text("extra")]))])) }), Invoice.options, Code(InvalidRelationship, "table.grid_mismatch", ["${items}.table.body_rows[6]"])),
+		(invoice_with({ ..Invoice.ordinary, row: row_override(6, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]), Pdf.cell([Pdf.text("Installation")]), Pdf.cell([Pdf.text("12")]), Pdf.cell([Pdf.text("95.00")]), Pdf.cell([Pdf.text("1,140.00")]), Pdf.cell([Pdf.text("extra")]).spanning(2)])) }), invoice_faces, Code(InvalidRelationship, "table.grid_mismatch", ["${items}.table.body_rows[6]"])),
 
 		## INV-A9: a row span.
-		(invoice_with({ ..Invoice.ordinary, row: row_override(7, |index| Pdf.row([Pdf.row_spanning(2, Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))])), Pdf.cell([Pdf.text("Delivery")]), Pdf.cell([Pdf.text("1")]), Pdf.cell([Pdf.text("180.00")]), Pdf.cell([Pdf.text("180.00")])])) }), Invoice.options, Code(FeatureUnavailable, "table.row_span", ["${items}.table.body_rows[7].cells[0]"])),
+		(invoice_with({ ..Invoice.ordinary, row: row_override(7, |index| Pdf.row([Pdf.header_cell(Row, [Pdf.text(Invoice.product_code(index))]).row_spanning(2), Pdf.cell([Pdf.text("Delivery")]), Pdf.cell([Pdf.text("1")]), Pdf.cell([Pdf.text("180.00")]), Pdf.cell([Pdf.text("180.00")])])) }), invoice_faces, Code(FeatureUnavailable, "table.row_span", ["${items}.table.body_rows[7].cells[0]"])),
 
 		## REP-A4: a three-digit page number in a reserved width sized for
-		## two digits (16 pt; the widest two-digit value, `40`, is 14.045 pt).
-		(Report.sections_document(100, 16, True), Report.options, Located(LayoutConstraintViolated, "layout.field_overflow", ["templates.continuation.footer.end[0].inlines[0].inlines[0]"], "on page 100: its resolved value 100")),
+		## two digits (12 pt; every two-digit value is 10.437 pt).
+		(Report.sections_document(100, 12, True), report_faces, Located(LayoutConstraintViolated, "layout.field_overflow", ["templates.continuation.footer.end[0].inlines[0].inlines[0]"], "on page 100: its resolved value 100")),
 
 		## REP-A6a: an Exact 600 × 900 pt Figure 1.
-		(report_with({ ..Report.ordinary, figure1: tall_figure(0) }), Report.options, Code(LayoutConstraintViolated, "document.figure_oversize", ["contents[3].contents[3]"])),
+		(report_with({ ..Report.ordinary, figure1: tall_figure(0) }), report_faces, Code(LayoutConstraintViolated, "document.figure_oversize", ["contents[3].contents[3]"])),
 
 		## REP-A6c: the same figure with a 90% floor.
-		(report_with({ ..Report.ordinary, figure1: tall_figure(90) }), Report.options, Code(LayoutConstraintViolated, "document.figure_oversize", ["contents[3].contents[3]"])),
+		(report_with({ ..Report.ordinary, figure1: tall_figure(90) }), report_faces, Code(LayoutConstraintViolated, "document.figure_oversize", ["contents[3].contents[3]"])),
 
 		## REP-A7: an H3 directly after the H1 of section 3.
-		(report_with({ ..Report.ordinary, freight_level: 3 }), Report.options, Code(InvalidRelationship, "semantics.heading_skip", ["contents[4].contents[0]", "contents[4].contents[2].contents[0]"])),
+		(report_with({ ..Report.ordinary, freight_level: 3 }), report_faces, Code(InvalidRelationship, "semantics.heading_skip", ["contents[4].contents[0]", "contents[4].contents[2].contents[0]"])),
 
 		## REP-A8: an internal link to the undeclared destination `risks`.
-		(report_with({ ..Report.ordinary, summary_link: "risks" }), Report.options, Navigation),
+		(report_with({ ..Report.ordinary, summary_link: "risks" }), report_faces, Navigation),
 
 		## REP-A9: Figure 2 with empty alternative text.
-		(report_with({ ..Report.ordinary, figure2_alternative: "" }), Report.options, Code(InvalidRelationship, "document.figure_alternative_empty", ["contents[4].contents[3].contents[2]"])),
+		(report_with({ ..Report.ordinary, figure2_alternative: "" }), report_faces, Code(InvalidRelationship, "document.figure_alternative_empty", ["contents[4].contents[3].contents[2]"])),
 
 		## REP-A10: the callout reports a height beyond the body frame.
-		(report_with({ ..Report.ordinary, callout: oversize_callout }), Report.options, Code(LayoutConstraintViolated, "layout.oversize_block", ["contents[2].contents[3]"])),
+		(report_with({ ..Report.ordinary, callout: oversize_callout }), report_faces, Code(LayoutConstraintViolated, "layout.oversize_block", ["contents[2].contents[3]"])),
 
 		## LET-A3a: a 640 pt lead region.
-		(letter_with({ ..Letter.ordinary, lead_height: 640 }), Letter.options, Code(LayoutConstraintViolated, "layout.template_body_space", ["templates.first"])),
+		(letter_with({ ..Letter.ordinary, lead_height: 640 }), letter_faces, Code(LayoutConstraintViolated, "layout.template_body_space", ["templates.first"])),
 
 		## LET-A3b: twelve letterhead lines in the 60 pt lead region.
-		(letter_with({ ..Letter.ordinary, letterhead_lines: 9 }), Letter.options, Code(LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.lead"])),
+		(letter_with({ ..Letter.ordinary, letterhead_lines: 9 }), letter_faces, Code(LayoutConstraintViolated, "layout.template_region_overflow", ["templates.first.lead"])),
 
 		## LET-A3c: continuation header slots wider than the region.
-		(letter_with({ ..Letter.ordinary, continuation_start: "Northstar Regional Housing and Community Cooperative Ltd · 21 September 2026" }), Letter.options, Code(LayoutConstraintViolated, "layout.template_region_overflow", ["templates.continuation.header"])),
+		(letter_with({ ..Letter.ordinary, continuation_start: "Northstar Regional Housing and Community Cooperative Ltd · 21 September 2026" }), letter_faces, Code(LayoutConstraintViolated, "layout.template_region_overflow", ["templates.continuation.header"])),
 
 		## LET-A4: the letter under AccessibleArchive before Gate 7.
-		(letter_with(Letter.ordinary), Letter.options.with_profile(AccessibleArchive), Code(FeatureUnavailable, "profile.accessible_archive", [])),
+		(letter_with(Letter.ordinary), { ..letter_faces, profile: AccessibleArchive }, Code(FeatureUnavailable, "profile.accessible_archive", [])),
 
 		## LET-A5: an empty metadata title.
-		(letter_with({ ..Letter.ordinary, title: "" }), Letter.options, Metadata),
+		(letter_with({ ..Letter.ordinary, title: "" }), letter_faces, Metadata),
 
 		## LET-A6: a signature block taller than a continuation body.
-		(letter_with({ ..Letter.ordinary, signature_space: 700 }), Letter.options, Code(LayoutConstraintViolated, "layout.keep_conflict", ["contents[14]", "contents[14].contents[0]", "contents[14].contents[3]"])),
+		(letter_with({ ..Letter.ordinary, signature_space: 700 }), letter_faces, Code(LayoutConstraintViolated, "layout.keep_conflict", ["contents[14]", "contents[14].contents[0]", "contents[14].contents[3]"])),
 
 		## LET-A7: a page field in a body paragraph.
-		(letter_with({ ..Letter.ordinary, body_field: True }), Letter.options, Code(FeatureUnavailable, "document.generated_reference", ["contents[5].inlines[1]"])),
+		(letter_with({ ..Letter.ordinary, body_field: True }), letter_faces, Code(FeatureUnavailable, "document.generated_reference", ["contents[5].inlines[1]"])),
 	]
 	var $index = 0
 	for (document, options, expected) in checks {
@@ -702,7 +726,7 @@ run_negatives = |{}| {
 		}
 		$index = $index + 1
 	}
-	{ prepared, report } = Pdf.prepare_with_report(Pdf.document({ contents: [Pdf.title("Reference variant rejections"), Pdf.paragraph("Every rejected variant returned its stable diagnostic and no bytes.")], language: "en-AU", title: "Reference variant rejections" }), Invoice.options) ? |_| EvidenceFailure("carrier")
+	{ prepared, report } = Pdf.prepare_with_report(Pdf.document({ contents: [Pdf.title("Reference variant rejections"), Pdf.paragraph("Every rejected variant returned its stable diagnostic and no bytes.")], language: "en-AU", title: "Reference variant rejections" }), invoice_faces) ? |_| EvidenceFailure("carrier")
 	carrier = Pdf.to_bytes_prepared(prepared) ? |_| EvidenceFailure("carrier emit")
 	Ok({ bytes: carrier, work: [$index, report.obligations.len(), carrier.len()] })
 }

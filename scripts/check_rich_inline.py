@@ -34,8 +34,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from check_pdf_structure import ValidationError, require  # noqa: E402
-from check_structure_semantics import Document, Parser, Ref, page_order, text_string  # noqa: E402
+from pdf_layout import flatten, mutate as layout_mutate, occurrences
+from check_pdf_structure import STRING, TO_UNICODE_BLOCK, ValidationError, require, to_unicode_mappings  # noqa: E402
+from check_structure_semantics import Document, Parser, Ref, element_children, page_order, text_string  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 MIXED = ROOT / "tests" / "rich_inline" / "mixed.pdf"
@@ -62,14 +63,8 @@ def to_unicode(document: Document, font: int) -> dict[int, str]:
     require(dictionary.get("Subtype") == "Type0" and dictionary.get("Encoding") == "Identity-H", "shown font is not an Identity-H Type 0 font")
     cmap = document.stream(int(dictionary["ToUnicode"]))
     mappings: dict[int, str] = {}
-    for block in re.findall(rb"beginbfchar\n(.*?)endbfchar", cmap, re.S):
-        for source, target in re.findall(rb"<([0-9A-F]+)> <([0-9A-F]+)>", block):
-            mappings[int(source, 16)] = bytes.fromhex(target.decode()).decode("utf-16-be")
-    for block in re.findall(rb"beginbfrange\n(.*?)endbfrange", cmap, re.S):
-        for low, high, target in re.findall(rb"<([0-9A-F]+)> <([0-9A-F]+)> <([0-9A-F]+)>", block):
-            base = bytes.fromhex(target.decode()).decode("utf-16-be")
-            for offset in range(int(low, 16), int(high, 16) + 1):
-                mappings[offset] = base[:-1] + chr(ord(base[-1]) + offset - int(low, 16))
+    if TO_UNICODE_BLOCK.search(cmap) is not None:
+        mappings = {cid: "".join(chr(scalar) for scalar in scalars) for cid, scalars in to_unicode_mappings(cmap).items()}
     require(mappings, "ToUnicode CMap maps no CID")
     return mappings
 
@@ -203,9 +198,7 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
             facts.append(f"E={text_string(element['E'])}")
         if "ActualText" in element:
             facts.append(f"ActualText={text_string(element['ActualText'])}")
-        children = element.get("K", [])
-        if not isinstance(children, list):
-            children = [children]
+        children = element_children(document, element)
         pieces: list[str] = []
         annotations: list[str] = []
         for child in children:
@@ -302,8 +295,10 @@ PDFBOX_EXPECTED = (
 
 
 def mutate(value: bytes, old: bytes, new: bytes) -> bytes:
-    require(value.count(old) >= 1, f"mutation anchor {old!r} is absent")
-    return value.replace(old, new, 1)
+    """A twin with the first ``old`` replaced; a target absent from the
+    object bodies is edited inside the decoded stream payloads instead."""
+    scope = "objects" if occurrences(value, old, "objects") else "payloads"
+    return layout_mutate(value, old, new, occurrences=None, scope=scope, first_only=True)
 
 
 def check_pdfbox_extraction(pdf: Path) -> None:
@@ -359,13 +354,13 @@ def self_test() -> None:
     require(font_text(furniture, "NotoSCCJKFixture-Regular") == "", "body text uses the furniture-only Han face")
     breaks = render(BREAKS.read_bytes())
     require(all(line in breaks for line in BREAKS_EXPECTED), f"line-break separators changed: {breaks!r}")
-    expansion = re.search(rb"/E <[0-9A-F]+> /K \[[^\]]*\] /NS [0-9]+ 0 R /P [0-9]+ 0 R /S /Span ", mixed)
+    expansion = re.search(rb"/E " + STRING + rb" /K \[[^\]]*\] /NS [0-9]+ 0 R /P [0-9]+ 0 R (?:/Pg [0-9]+ 0 R )?/S /Span >>", flatten(mixed))
     require(expansion is not None, "mixed snapshot has no expansion Span")
     twins = [
-        ("structure order swapped against paint order", mutate(mutate(mutate(mixed, b"<< /MCID 6 /Pg", b"<< /MCID X /Pg"), b"<< /MCID 7 /Pg", b"<< /MCID 6 /Pg"), b"<< /MCID X /Pg", b"<< /MCID 7 /Pg"), "structure order and paint order disagree"),
+        ("structure order swapped against paint order", mutate(mutate(mixed, b"/K [6] /NS", b"/K [7] /NS"), b"/K [5 12 0 R 7 13 0 R", b"/K [5 12 0 R 6 13 0 R"), "structure order and paint order disagree"),
         ("a Link without an OBJR", mutate(mixed, b"/Type /OBJR", b"/Type /OBJX"), "a Link owns no link annotation"),
-        ("an expansion on a non-Span role", mutate(mixed, expansion.group(0), expansion.group(0)[:-6] + b"/Code "), "/E appears on a role other than Span"),
-        ("a missing ToUnicode mapping", mutate(mixed, b"beginbfchar", b"beginbfchaR"), "ToUnicode CMap maps no CID"),
+        ("an expansion on a non-Span role", mutate(mixed, expansion.group(0), expansion.group(0)[:-8] + b"/Code >>"), "/E appears on a role other than Span"),
+        ("a missing ToUnicode mapping", mutate(mixed, b"beginbfchar", b"beginbfchaR"), "has no ToUnicode mapping"),
     ]
     rejected = 0
     for label, source, reason in twins:

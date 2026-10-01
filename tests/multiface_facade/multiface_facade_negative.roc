@@ -79,8 +79,8 @@ rejected = |runtime_argument_count, text, expected| {
 		crash "text-layout multiface facade negative argument count is invalid"
 	}
 	registered = register_faces(runtime_argument_count)
-	theme = Theme.with_font_policy(Theme.default, registered.policy)
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), registered.registry)
+	theme = Theme.{ font_selection: Policy(registered.policy) }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
 	document = Pdf.document({
 		contents: [Pdf.paragraph(text)],
 		language: "en-AU",
@@ -103,8 +103,8 @@ unknown_policy = |runtime_argument_count| {
 		crash "text-layout multiface facade negative argument count is invalid"
 	}
 	registered = register_faces(runtime_argument_count)
-	theme = Theme.with_font_policy(Theme.default, Font.PolicyId.from_index(99))
-	options = Pdf.Options.with_font_registry(Pdf.Options.with_theme(Pdf.Options.default, theme), registered.registry)
+	theme = Theme.{ font_selection: Policy(Font.PolicyId.from_index(99)) }
+	options = Pdf.Options.{ theme: theme, fonts: Registered(registered.registry) }
 	matched = match Pdf.to_bytes_with(mixed_document({}), options) {
 		Err(InvalidFontSelection([InvalidPolicy(policy)])) => if policy.index() == 99 1 else 0
 		_ => 0
@@ -126,8 +126,8 @@ builtin_policy = |runtime_argument_count| {
 	## The policy index is derived from the validated runtime argument count,
 	## so this is a real runtime request rather than a constant the compiler
 	## could fold away.
-	theme = Theme.with_font_policy(Theme.default, Font.PolicyId.from_index(runtime_argument_count - 2))
-	options = Pdf.Options.with_theme(Pdf.Options.default, theme)
+	theme = Theme.{ font_selection: Policy(Font.PolicyId.from_index(runtime_argument_count - 2)) }
+	options = Pdf.Options.{ theme: theme }
 	matched = match Pdf.to_bytes_with(mixed_document({}), options) {
 		Err(InvalidFontSelection([InvalidPolicy(policy)])) => if policy.index() == 0 1 else 0
 		_ => 0

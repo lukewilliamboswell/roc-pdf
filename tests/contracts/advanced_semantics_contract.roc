@@ -9,7 +9,7 @@ pdf20 = Semantics.NamespaceId.from_index(0)
 
 mathml = Semantics.NamespaceId.from_index(1)
 
-## Role mappings retain source and target namespace identity independently.
+# Role mappings retain source and target namespace identity independently.
 expect {
 	mapping : Semantics.RoleMapping
 	mapping = {
@@ -20,7 +20,7 @@ expect {
 	mapping.from.namespace.index() == 1 and mapping.to.namespace.index() == 0
 }
 
-## Structure attributes carry typed names, owners, values, and applicability.
+# Structure attributes carry typed names, owners, values, and applicability.
 expect {
 	attribute : Semantics.StructureAttribute
 	attribute = {
@@ -36,7 +36,7 @@ expect {
 	}
 }
 
-## Table header relationships use IDTree identities rather than adding parents.
+# Table header relationships use IDTree identities rather than adding parents.
 expect {
 	relationship : Semantics.Relationship
 	relationship = HeaderFor({
@@ -50,7 +50,7 @@ expect {
 	}
 }
 
-## Parsed MathML carries bounded validation work and no unchecked markup bytes.
+# Parsed MathML carries bounded validation work and no unchecked markup bytes.
 expect {
 	subtree : Semantics.MathMlSubtree
 	subtree = {

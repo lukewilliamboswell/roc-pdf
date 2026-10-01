@@ -1565,7 +1565,7 @@ test_store = {
 test_limits : KernelSemantics.Limits
 test_limits = KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: 4, max_fragments: 3, max_namespaces: 1, max_nodes: 2, max_occurrences: 2, max_semantic_depth: 2 })
 
-## Counts and prefix sums produce occurrence ranges without sorting fragments.
+# Counts and prefix sums produce occurrence ranges without sorting fragments.
 expect {
 	plan = KernelSemantics.Plan.build(test_store, 1, 1, test_limits)?
 	store = KernelSemantics.Plan.store(plan)
@@ -1576,7 +1576,7 @@ expect {
 	first.start() == 0 and first.length() == 2 and second.start() == 2 and second.length() == 1 and actual == [1, 2, 0]
 }
 
-## Semantic work is linear in nodes, content, occurrences, and fragments.
+# Semantic work is linear in nodes, content, occurrences, and fragments.
 expect {
 	plan = KernelSemantics.Plan.build(test_store, 1, 1, test_limits)?
 	work = KernelSemantics.Plan.work(plan)
@@ -1584,7 +1584,7 @@ expect {
 	work.node_visits == 2 and work.content_visits == 4 and work.occurrence_visits == 2 and work.fragment_count_visits == 3 and work.prefix_steps == 2 and work.reverse_writes == 3 and work.max_semantic_depth == 2
 }
 
-## The top-level semantic root must be the PDF 2.0 Document role.
+# The top-level semantic root must be the PDF 2.0 Document role.
 expect {
 	root = list_at(test_store.nodes, 0)
 	nodes = list_set(test_store.nodes, 0, { ..root, role: { ..root.role, local_name: "P" } })
@@ -1596,9 +1596,9 @@ expect {
 	}
 }
 
-## Role mappings are outside every supported subset, so a role-map cycle
-## (`Chapter` to `Sect` and back) is rejected before the graph walk and no
-## `/RoleMap` is ever lowered.
+# Role mappings are outside every supported subset, so a role-map cycle
+# (`Chapter` to `Sect` and back) is rejected before the graph walk and no
+# `/RoleMap` is ever lowered.
 expect {
 	chapter = { local_name: "Chapter", namespace: Semantics.NamespaceId.from_index(0) }
 	sect = { local_name: "Sect", namespace: Semantics.NamespaceId.from_index(0) }
@@ -1610,8 +1610,8 @@ expect {
 	}
 }
 
-## Namespace 0 is PDF 2.0 and an optional namespace 1 is exactly the PDF 1.7
-## standard namespace; any other second namespace is rejected.
+# Namespace 0 is PDF 2.0 and an optional namespace 1 is exactly the PDF 1.7
+# standard namespace; any other second namespace is rejected.
 expect {
 	pdf20 = { id: Semantics.NamespaceId.from_index(0), kind: Pdf20, uri: "http://iso.org/pdf2/ssn" }
 	pdf17 = { id: Semantics.NamespaceId.from_index(1), kind: Pdf17, uri: "http://iso.org/pdf/ssn" }
@@ -1623,10 +1623,10 @@ expect {
 						validate_namespaces([pdf20, pdf17, pdf17]) == Err(InvalidPdf20Namespace)
 }
 
-## Text authoring adds the grouping, block, inline, list, and table roles
-## without widening the tagged-visual subset; unknown, non-root Document, and
-## non-PDF-2.0 roles stay unsupported, and the PDF 1.7 roles `Code` and
-## `Quote` are valid only in the PDF 1.7 namespace.
+# Text authoring adds the grouping, block, inline, list, and table roles
+# without widening the tagged-visual subset; unknown, non-root Document, and
+# non-PDF-2.0 roles stay unsupported, and the PDF 1.7 roles `Code` and
+# `Quote` are valid only in the PDF 1.7 namespace.
 expect {
 	paragraph = list_at(test_store.nodes, 1)
 	with_role = |name| { ..paragraph, role: { ..paragraph.role, local_name: name } }
@@ -1647,7 +1647,7 @@ expect {
 								!valid_role(foreign, False, True, False)
 }
 
-## Fragment occurrence identities are checked before prefix-sum indexing.
+# Fragment occurrence identities are checked before prefix-sum indexing.
 expect {
 	fragments = list_set(test_store.fragments, 0, { ..test_fragment(0, 1), occurrence: Semantics.OccurrenceId.from_index(2) })
 	bad = { ..test_store, fragments }
@@ -1658,7 +1658,7 @@ expect {
 	}
 }
 
-## Fragment identities remain dense before any reverse-index write.
+# Fragment identities remain dense before any reverse-index write.
 expect {
 	fragments = list_set(test_store.fragments, 0, { ..test_fragment(0, 1), id: Semantics.FragmentId.from_index(3) })
 	bad = { ..test_store, fragments }
@@ -1669,7 +1669,7 @@ expect {
 	}
 }
 
-## Fragment content-stream identities are checked before ParentTree planning.
+# Fragment content-stream identities are checked before ParentTree planning.
 expect {
 	fragments = list_set(test_store.fragments, 0, { ..test_fragment(0, 1), content_stream: Semantics.ContentStreamId.from_index(1) })
 	bad = { ..test_store, fragments }
@@ -1680,7 +1680,7 @@ expect {
 	}
 }
 
-## Contextual Artifact structure attributes cannot leak onto ordinary nodes.
+# Contextual Artifact structure attributes cannot leak onto ordinary nodes.
 expect {
 	root = list_at(test_store.nodes, 0)
 	nodes = list_set(test_store.nodes, 0, { ..root, attributes: Semantics.Range.from_start_and_length(0, 1) })
@@ -1711,8 +1711,8 @@ navigation_store = {
 navigation_limits : KernelSemantics.Limits
 navigation_limits = KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: 5, max_fragments: 3, max_namespaces: 1, max_nodes: 2, max_occurrences: 2, max_semantic_depth: 2 })
 
-## Navigation-enabled validation accepts annotation spine occurrences with
-## exact annotation work, while the plain subset keeps rejecting them.
+# Navigation-enabled validation accepts annotation spine occurrences with
+# exact annotation work, while the plain subset keeps rejecting them.
 expect {
 	plan = KernelSemantics.Plan.build_navigation(navigation_store, 1, 1, navigation_limits)?
 	rejected = match KernelSemantics.Plan.build(navigation_store, 1, 1, navigation_limits) {
@@ -1723,15 +1723,15 @@ expect {
 	KernelSemantics.Plan.work(plan).annotation_visits == 2 and rejected
 }
 
-## The Link role is accepted only when navigation is enabled.
+# The Link role is accepted only when navigation is enabled.
 expect {
 	link_node = list_at(navigation_store.nodes, 1)
 
 	valid_role(link_node, False, False, True) and !valid_role(link_node, False, False, False)
 }
 
-## An annotation occurrence inside a node other than the annotation's owner
-## is a stable ownership rejection.
+# An annotation occurrence inside a node other than the annotation's owner
+# is a stable ownership rejection.
 expect {
 	annotations = [{ ..navigation_annotation, owner: Semantics.NodeId.from_index(0) }]
 	bad = { ..navigation_store, annotations }
@@ -1742,7 +1742,7 @@ expect {
 	}
 }
 
-## Logical order must equal the annotation's rank among spine occurrences.
+# Logical order must equal the annotation's rank among spine occurrences.
 expect {
 	annotations = [{ ..navigation_annotation, logical_order: 3 }]
 	bad = { ..navigation_store, annotations }
@@ -1753,9 +1753,9 @@ expect {
 	}
 }
 
-## An annotation without a spine occurrence is orphaned, and one occurring
-## twice fails the rank check on its second occurrence (the graph's
-## duplicate-ownership check remains as defense in depth behind it).
+# An annotation without a spine occurrence is orphaned, and one occurring
+# twice fails the rank check on its second occurrence (the graph's
+# duplicate-ownership check remains as defense in depth behind it).
 expect {
 	orphan_spine = [ChildNode(Semantics.NodeId.from_index(1)), ContextualArtifact(Semantics.ContextualArtifactId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(0)), ContentOccurrence(Semantics.OccurrenceId.from_index(1))]
 	orphan_nodes = list_set(navigation_store.nodes, 1, { ..list_at(navigation_store.nodes, 1), content: Semantics.Range.from_start_and_length(2, 2) })
@@ -1776,7 +1776,7 @@ expect {
 	orphaned and duplicated
 }
 
-## Annotation identities stay dense and owners stay in range.
+# Annotation identities stay dense and owners stay in range.
 expect {
 	non_dense = { ..navigation_store, annotations: [{ ..navigation_annotation, id: Semantics.AnnotationId.from_index(4) }] }
 	bad_owner = { ..navigation_store, annotations: [{ ..navigation_annotation, owner: Semantics.NodeId.from_index(7) }] }
@@ -1844,8 +1844,8 @@ shaped_limits = KernelSemantics.Limits.make({ max_attributes: 16, max_content_sp
 build_shaped : Semantics.Store -> Try(KernelSemantics.Plan, KernelSemantics.Error)
 build_shaped = |store| KernelSemantics.Plan.build_text_validated(store, [], 1, 1, shaped_limits)
 
-## The containment table: legal and illegal parent/child pairs taken from
-## ISO/TS 32005:2023 Table 5, including every grouping pair the facade emits.
+# The containment table: legal and illegal parent/child pairs taken from
+# ISO/TS 32005:2023 Table 5, including every grouping pair the facade emits.
 expect {
 	allows = |parent, child| may_contain(role_index(parent), role_index(child))
 	legal = [
@@ -1941,7 +1941,7 @@ expect {
 	legal.all(|(parent, child)| allows(parent, child)) and illegal.all(|(parent, child)| !allows(parent, child))
 }
 
-## Nested grouping elements validate with one containment check per edge.
+# Nested grouping elements validate with one containment check per edge.
 expect {
 	shape = [{ parent: 0, role: "Document" }, { parent: 0, role: "Part" }, { parent: 1, role: "Sect" }, { parent: 2, role: "Div" }, { parent: 3, role: "Sect" }, { parent: 4, role: "H2" }, { parent: 4, role: "P" }]
 	plan = build_shaped(shaped_store(shape, 6))?
@@ -1950,7 +1950,7 @@ expect {
 	work.containment_edges == 6 and work.max_semantic_depth == 6 and work.node_visits == 7
 }
 
-## An illegal edge is rejected at the child with its parent, never flattened.
+# An illegal edge is rejected at the child with its parent, never flattened.
 expect {
 	shape = [{ parent: 0, role: "Document" }, { parent: 0, role: "P" }, { parent: 1, role: "Sect" }]
 	match build_shaped(shaped_store(shape, 1)) {
@@ -1959,7 +1959,7 @@ expect {
 	}
 }
 
-## Document, Sect, L, LI, Table, and row groups cannot own content items.
+# Document, Sect, L, LI, Table, and row groups cannot own content items.
 expect {
 	sect = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Sect" }], 1)
 	item = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "L" }, { parent: 1, role: "LI" }], 2)
@@ -1979,7 +1979,7 @@ expect {
 	sect_rejected and item_rejected and part_accepted
 }
 
-## At-most-one child rules and the first-or-last Caption rule.
+# At-most-one child rules and the first-or-last Caption rule.
 expect {
 	two_heads = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Table" }, { parent: 1, role: "THead" }, { parent: 1, role: "THead" }, { parent: 2, role: "TR" }, { parent: 4, role: "TD" }], 5)
 	middle_caption = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Table" }, { parent: 1, role: "TR" }, { parent: 1, role: "Caption" }, { parent: 1, role: "TR" }, { parent: 2, role: "TD" }], 5)
@@ -2030,7 +2030,7 @@ expect {
 	work.identifier_visits == 2 and work.relationship_visits == 1 and work.attribute_visits == 6
 }
 
-## Element identifiers are unique, ordered, non-empty, and owned exactly once.
+# Element identifiers are unique, ordered, non-empty, and owned exactly once.
 expect {
 	duplicate = { ..table_store, element_identifiers: [{ id: Semantics.ElementId.from_index(0), value: "hdr" }, { id: Semantics.ElementId.from_index(1), value: "hdr" }] }
 	unordered = { ..table_store, element_identifiers: [{ id: Semantics.ElementId.from_index(0), value: "zz" }, { id: Semantics.ElementId.from_index(1), value: "hdr" }], attributes: [] }
@@ -2057,7 +2057,7 @@ expect {
 	duplicated and ordered and orphaned and nonempty
 }
 
-## Dangling `/Headers` targets, mistyped attributes, and ill-typed relations.
+# Dangling `/Headers` targets, mistyped attributes, and ill-typed relations.
 expect {
 	dangling = { ..table_store, attributes: list_set(table_store.attributes, 1, { applicability: Family(TableRoles), name: Standard("Headers"), owner: Table, value: Names(["missing"]) }) }
 	scope_on_cell = { ..table_store, attributes: list_set(table_store.attributes, 1, { applicability: Family(TableRoles), name: Standard("Scope"), owner: Table, value: Name("Row") }) }
@@ -2105,8 +2105,8 @@ expect {
 	checks.all(|passed| passed)
 }
 
-## A Caption relation names a Caption inside, or beside, an element that may
-## contain one; ListNumbering is typed on L.
+# A Caption relation names a Caption inside, or beside, an element that may
+# contain one; ListNumbering is typed on L.
 expect {
 	store = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "Figure" }, { parent: 1, role: "Caption" }, { parent: 0, role: "L" }, { parent: 3, role: "LI" }, { parent: 4, role: "LBody" }], 2)
 	list_node = list_at(store.nodes, 3)
@@ -2128,8 +2128,8 @@ expect {
 	accepted and rejected
 }
 
-## Nested languages must be well-formed tags; node text properties are
-## limited to one each of ActualText, Alt, and E.
+# Nested languages must be well-formed tags; node text properties are
+# limited to one each of ActualText, Alt, and E.
 expect {
 	cell = list_at(table_store.nodes, 4)
 	bad_language = { ..table_store, nodes: list_set(table_store.nodes, 4, { ..cell, language: Language("fr_CA") }) }
@@ -2157,8 +2157,8 @@ expect {
 	language and accepted and phoneme and twice and valid_language_tag("en-AU") and valid_language_tag("zh-Hant-TW") and !valid_language_tag("en--AU") and !valid_language_tag("1en") and !valid_language_tag("toolongtag")
 }
 
-## A language repeated from the nearest explicit ancestor is inherited and
-## needs no second check; a differing nested language is validated.
+# A language repeated from the nearest explicit ancestor is inherited and
+# needs no second check; a differing nested language is validated.
 expect {
 	store = shaped_store([{ parent: 0, role: "Document" }, { parent: 0, role: "P" }, { parent: 1, role: "Span" }, { parent: 2, role: "Em" }], 3)
 	with_languages = |span, emphasis| {
@@ -2180,9 +2180,9 @@ expect {
 	repeated and nested and malformed and repeats_language(with_languages("fr-CA", "fr-CA"), 2, "fr-CA") and !repeats_language(store, U64.highest, "fr-CA")
 }
 
-## `/Headers` and `HeaderFor` must state the same associations: a `/Headers`
-## value without its relationship, a relationship without its `/Headers`
-## value, and a relationship naming a different header are all rejected.
+# `/Headers` and `HeaderFor` must state the same associations: a `/Headers`
+# value without its relationship, a relationship without its `/Headers`
+# value, and a relationship naming a different header are all rejected.
 expect {
 	unrelated = { ..table_store, relationships: [] }
 	unheaded = {

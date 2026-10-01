@@ -49,6 +49,13 @@ import pdf.Theme
 ##   and maps named report observations back to the authored paths.
 ## - `callouts xN`: N sections, each a heading, a paragraph, and a callout.
 ##   The 10/100 pair is the linear scale pair for layout and the report.
+## - `rich_callouts xN`: N dark-panel callouts, each a scoped custom block
+##   whose rich paragraphs (a bold label, code, a link) wrap over several
+##   lines, sized by the package through `Pdf.measure_custom_content`; the
+##   measured height must equal the pagination's own content height, which
+##   preparation proves. It also rejects a measurement at zero width
+##   (`layout.custom_block_measure`). The 10/50 pair is the linear scale
+##   pair.
 ## - `atomic_negatives`: every custom-block rejection with its stable
 ##   dotted code and authored path (REP-A10 among them), and report budget
 ##   exhaustion for entries and for text bytes, each with no bytes and no
@@ -78,17 +85,22 @@ Fixture :: [].{
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	atomic_negatives = |context| run_negatives(context)
-}
 
-points : I64 -> Layout.Unit
-points = |value| Layout.Unit.points(value)
+	rich_callouts : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	rich_callouts = |count| {
+		if count == 0 or count > 100 {
+			return Err(InvalidScale)
+		}
+		run_rich_callouts(count)
+	}
+}
 
 ## The reference report theme: an A4 body frame of 483 x 746 pt.
 report_theme : Theme
-report_theme = Theme.with_page_margin(Theme.default, { bottom: points(48), left: points(56), right: points(56), top: points(48) })
+report_theme = Theme.{ page_margin: { bottom: 48, left: 56, right: 56, top: 48 } }
 
 options : Pdf.Options
-options = Pdf.Options.with_theme(Pdf.Options.default, report_theme)
+options = Pdf.Options.{ theme: report_theme }
 
 ink : Color.SourceValue
 ink = Color.srgb8({ blue: 40, green: 40, red: 40 })
@@ -98,12 +110,12 @@ sea = Color.srgb8({ blue: 140, green: 90, red: 20 })
 
 ## The "Key figures" callout of the reference report, full body width.
 key_figures : Document.Block
-key_figures = Callout.key_figures(report_theme, { lines: ["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%", "Certified timber: 88%"], name: "Key figures", width: points(483) })
+key_figures = Callout.key_figures(report_theme, { lines: ["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%", "Certified timber: 88%"], name: "Key figures", width: 483 })
 
 ## A 600 x 900 pt plan drawing (REP-A6b), scaled to fit.
 site_plan : Scene.Drawing
-site_plan = Scene.drawing({}).path(Scene.path({}).rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, points(4)))
-	.path(Scene.path({}).rectangle(Layout.rect(60, 40, 480, 820)).finish(), Scene.solid_fill(sea))
+site_plan = Scene.Drawing.empty.path(Scene.PathBuilder.start.rectangle(Layout.rect(4, 4, 592, 892)).finish(), Scene.solid_stroke(ink, 4))
+	.path(Scene.PathBuilder.start.rectangle(Layout.rect(60, 40, 480, 820)).finish(), Scene.solid_fill(sea))
 
 supplier_row : U64 -> Pdf.Row
 supplier_row = |index| {
@@ -129,10 +141,8 @@ supplier_table = {
 	Pdf.table({
 		body_rows: $rows,
 		caption: Pdf.caption("Table 2. Active suppliers at 30 September 2026"),
-		columns: [{ align: Start, width: Share(3) }, { align: Start, width: Share(2) }, { align: Start, width: Share(2) }, { align: End, width: Fixed(points(80)) }, { align: Center, width: Fixed(points(56)) }],
-		footer_rows: [],
+		columns: [{ align: Start, width: Share(3) }, { align: Start, width: Share(2) }, { align: Start, width: Share(2) }, { align: End, width: Fixed(80) }, { align: Center, width: Fixed(56) }],
 		header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Supplier")]), Pdf.header_cell(Column, [Pdf.text("Location")]), Pdf.header_cell(Column, [Pdf.text("Category")]), Pdf.header_cell(Column, [Pdf.text("Spend (AUD thousands)")]), Pdf.header_cell(Column, [Pdf.text("Certified")])])],
-		row_split: KeepRows,
 	})
 }
 
@@ -155,7 +165,7 @@ report_document = |context| {
 		Pdf.section([
 			Pdf.destination_heading("supply-chain", 1, "3 Supply chain"),
 			Pdf.rich_paragraph([Pdf.text("Our partner "), Pdf.in_language("fr", [Pdf.text("Atelier Beaulieu")]), Pdf.text(" puts it simply: "), Pdf.quote([Pdf.in_language("fr", [Pdf.text("« Le bois demande de la patience. »")])]), Pdf.text(" (“Timber asks for patience.”)")]),
-			Pdf.figure_fit(Pdf.figure(site_plan, "Plan of the Moonah yard: twelve drying bays inside the yard boundary.", Pdf.caption("Figure 3. Moonah yard plan, scaled to fit.")), ScaleToFit({ minimum_percent: 50 })),
+			Pdf.figure({ drawing: site_plan, alt: "Plan of the Moonah yard: twelve drying bays inside the yard boundary.", caption: Pdf.caption("Figure 3. Moonah yard plan, scaled to fit."), fit: ScaleToFit({ minimum_percent: 50 }) }),
 		]),
 		Pdf.section([
 			Pdf.destination_heading("appendix-a", 1, "Appendix A. Supplier register"),
@@ -163,15 +173,17 @@ report_document = |context| {
 			supplier_table,
 		]),
 	]
-	page_of = Pdf.reserved_width(points(64), End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
-	footer = Pdf.region({ center: [], end: [Pdf.furniture_text([page_of])], height: points(16), start: [] })
-	Pdf.with_page_templates(
-		Pdf.document({ contents, language: "en-AU", title }),
-		{
-			continuation: Pdf.page_template({ footer, gap: points(12), header: Pdf.region({ center: [], end: [], height: points(16), start: [Pdf.furniture_text([Pdf.text("Harbour & Finch — Quarterly operations report · Q1 FY2027")])] }) }),
-			first: Pdf.first_page_template({ footer, gap: points(12), header: Pdf.no_region, lead: Pdf.no_lead }),
-		},
-	)
+	page_of = Pdf.reserved_width(64, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])
+	footer = Pdf.region({ end: [Pdf.furniture_text([page_of])], height: 16 })
+	Pdf.document({
+		contents,
+		language: "en-AU",
+		title,
+		page_templates: Templates({
+			continuation: Pdf.page_template({ footer, gap: 12, header: Pdf.region({ height: 16, start: [Pdf.furniture_text([Pdf.text("Harbour & Finch — Quarterly operations report · Q1 FY2027")])] }) }),
+			first: Pdf.first_page_template({ footer, gap: 12 }),
+		}),
+	})
 }
 
 callouts_document : U64 -> Document
@@ -184,10 +196,40 @@ callouts_document = |count| {
 		$contents = $contents
 			.append(Pdf.heading(1, "Region ${number}"))
 			.append(Pdf.paragraph("Revenue, delivery, and sourcing figures for region ${number} in the first quarter of financial year 2027."))
-			.append(Callout.key_figures(report_theme, { lines: ["Revenue: AUD ${(($index % 9) + 1).to_str()}.2 m", "On-time delivery: 9${($index % 10).to_str()}%"], name: "Region ${number} figures", width: points(320) }))
+			.append(Callout.key_figures(report_theme, { lines: ["Revenue: AUD ${(($index % 9) + 1).to_str()}.2 m", "On-time delivery: 9${($index % 10).to_str()}%"], name: "Region ${number} figures", width: 320 }))
 		$index = $index + 1
 	}
 	Pdf.document({ contents: $contents, language: "en-AU", title: "Regional key figures" })
+}
+
+run_rich_callouts : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_rich_callouts = |count| {
+	near_white = Color.srgb8({ blue: 245, green: 242, red: 240 })
+	scope = Theme.Scope.{ text: Themed(near_white), strong: Themed(Color.srgb8({ blue: 60, green: 190, red: 250 })), link: Themed(Color.srgb8({ blue: 250, green: 205, red: 125 })), code: Themed(near_white) }
+	style = { fill: Color.srgb8({ blue: 70, green: 40, red: 20 }), radius: 6, stroke: Color.srgb8({ blue: 110, green: 70, red: 40 }) }
+	var $contents = List.with_capacity(count * 2 + 1)
+	$contents = $contents.append(Pdf.title("Release runbook"))
+	var $index = 0
+	while $index < count {
+		number = ($index + 1).to_str()
+		body = [
+			Pdf.rich_paragraph([Pdf.strong([Pdf.text("Step ${number}. ")]), Pdf.text("Freeze the release branch, run "), Pdf.code("make release VERSION=${number}"), Pdf.text(", and confirm that every mirror reports the new checksum before you announce the build on "), Pdf.inline_link([Pdf.text("the status page")], "https://status.example/releases/${number}"), Pdf.text(".")]),
+			Pdf.paragraph("If a mirror lags by more than an hour, pause the announcement and page the on-call engineer."),
+		]
+		callout = Callout.measured(options, style, { contents: body, language: "en-AU", name: "Step ${number}", width: 400 }) ? |_| EvidenceFailure
+		$contents = $contents.append(Pdf.heading(2, "Step ${number}")).append(Pdf.scoped(scope, [callout]))
+		$index = $index + 1
+	}
+	document = Pdf.document({ contents: $contents, language: "en-AU", title: "Release runbook" })
+	zero = match Pdf.measure_custom_content(options, { contents: [Pdf.paragraph("Text ${count.to_str()}")], language: "en-AU", width: 0 }) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature("layout.custom_block_measure"), details: ["width"], .. }], .. })) => 1
+		_ => 0
+	}
+	if zero != 1 {
+		return Err(MissingRejection(zero))
+	}
+	evidenced = evidence(document, |_| [])?
+	Ok({ bytes: evidenced.bytes, work: evidenced.work.append(zero) })
 }
 
 ## Prepare once with the report; the prepared bytes must equal the bytes
@@ -259,7 +301,7 @@ report_observations = |report| {
 		has_alternative(report, "contents[3].contents[2]", "Plan of the Moonah yard: twelve drying bays inside the yard boundary."),
 		facts.outcomes.any(
 			|outcome| match outcome {
-				CustomBlockPlaced({ height, name, page: _, path }) => path == "contents[2].contents[3]" and name == "Key figures" and height.raw() == Callout.measure(report_theme, 3, points(483)).height.raw()
+				CustomBlockPlaced({ height, name, page: _, path }) => path == "contents[2].contents[3]" and name == "Key figures" and height == Callout.measure(report_theme, 3, 483).height
 				_ => False
 			},
 		),
@@ -330,15 +372,15 @@ run_negatives = |context| {
 	offset = (context % 1).to_i64_wrap()
 	document = |contents| Pdf.document({ contents, language: "en-AU", title })
 	lines = ["Revenue: AUD 9.22 m (+5.0%)", "On-time delivery: 96.4%"]
-	sized = |height, width| Callout.with_height(report_theme, { height: points(height + offset), lines, name: "Key figures", width: points(width) })
-	custom = |contents, inset, name, panel| Pdf.custom_block({ contents, fragmentation: Unsplittable, inset: points(inset), name, panel, size: { height: points(80), width: points(300) } })
-	square = Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 300, 80), sea)
-	image = Scene.drawing({}).image(Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 1, width: 1 }, pixels: [200, 200, 200], row_stride: 3 }), Layout.rect(0, 0, 10, 10))
+	sized = |height, width| Callout.with_height(report_theme, { height: Layout.Unit.points(height + offset), lines, name: "Key figures", width: Layout.Unit.points(width) })
+	custom = |contents, inset, name, panel| Pdf.custom_block({ contents, inset: Layout.Unit.points(inset), name, panel, size: { height: 80, width: 300 } })
+	square = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 80), sea)
+	image = Scene.Drawing.empty.image(Image.Source.rgb8({ alpha: NoAlpha, dimensions: { height: 1, width: 1 }, pixels: [200, 200, 200], row_stride: 3 }), Layout.rect(0, 0, 10, 10))
 	lead_templates = {
-		continuation: Pdf.page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.no_region }),
-		first: Pdf.first_page_template({ footer: Pdf.no_region, gap: points(12), header: Pdf.no_region, lead: Pdf.lead_region(points(120), [Pdf.paragraph("Letterhead"), key_figures]) }),
+		continuation: Pdf.page_template({ gap: 12 }),
+		first: Pdf.first_page_template({ gap: 12, lead: Pdf.lead_region(120, [Pdf.paragraph("Letterhead"), key_figures]) }),
 	}
-	valid = Callout.key_figures(report_theme, { lines, name: "Key figures", width: points(300) })
+	valid = Callout.key_figures(report_theme, { lines, name: "Key figures", width: 300 })
 	many = document(List.repeat(valid, 40))
 	checks = [
 
@@ -346,17 +388,17 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), sized(900, 300)]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), sized(80, 500)]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), sized(40, 300)]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[1]"]),
-		rejects(document([Pdf.section([Pdf.paragraph("Lead"), Callout.key_figures(report_theme, { lines: ["A figure line long enough that it must wrap inside a narrow callout panel"], name: "Key figures", width: points(160) })])]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[0].contents[1]"]),
+		rejects(document([Pdf.section([Pdf.paragraph("Lead"), Callout.key_figures(report_theme, { lines: ["A figure line long enough that it must wrap inside a narrow callout panel"], name: "Key figures", width: 160 })])]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[0].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 0, "Key figures", square)]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 40, "Key figures", square)]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body"), Pdf.heading(2, "Not in a callout")], 10, "Key figures", square)]), InvalidRelationship, "semantics.custom_block_content", ["contents[1]", "contents[1].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body"), Pdf.division([Pdf.paragraph("Nested")])], 10, "Key figures", square)]), InvalidRelationship, "semantics.custom_block_content", ["contents[1]", "contents[1].contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body"), Pdf.spacer(points(4)), Pdf.paragraph("More")], 10, "Key figures", square)]), InvalidRelationship, "semantics.custom_block_content", ["contents[1]", "contents[1].contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body"), Pdf.spacer(4), Pdf.paragraph("More")], 10, "Key figures", square)]), InvalidRelationship, "semantics.custom_block_content", ["contents[1]", "contents[1].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "", square)]), InvalidRelationship, "semantics.custom_block_name", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", image)]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", Scene.rectangle(Scene.drawing({}), Layout.rect(0, 0, 320, 80), sea))]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 10, "Key figures", Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 320, 80), sea))]), InvalidRelationship, "layout.custom_block_drawing", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([], 10, "Key figures", square)]), InvalidRelationship, "semantics.empty_container", ["contents[1]"]),
-		rejects(Pdf.with_page_templates(document([Pdf.paragraph("Body")]), lead_templates), InvalidRelationship, "semantics.custom_block_content", ["templates.first.lead.contents[1]"]),
+		rejects(document([Pdf.paragraph("Body")]).with_page_templates(lead_templates), InvalidRelationship, "semantics.custom_block_content", ["templates.first.lead.contents[1]"]),
 		rejects(document([Pdf.bullet_list([Pdf.list_item([Pdf.paragraph("Item"), valid])])]), InvalidRelationship, "semantics.list_item_content", ["contents[0].items[0].contents[1]"]),
 		budget_rejects(many, { max_entries: 100, max_text_bytes: 1000000 }),
 		budget_rejects(many, { max_entries: 100000, max_text_bytes: 400 }),

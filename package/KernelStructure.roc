@@ -2,6 +2,7 @@ import KernelBalanced
 import KernelDeflate
 import KernelIdentity
 import KernelObject
+import KernelOutputBound
 import KernelSeal
 import KernelSha256
 
@@ -23,10 +24,13 @@ BlankFacts : {
 DocumentFacts : [NoBlankFacts, WithBlankFacts(BlankFacts)]
 
 KernelStructure :: [].{
-	PageSize := [A4, Letter]
+
+	## A fixed page size. `Points` is any other size in whole points.
+	PageSize := [A4, Letter, Points({ height : I64, width : I64 })]
 	PageGeometry := [Fixed(PageSize), Variable]
 	Error : [
 		Deflate(KernelDeflate.Error),
+		OutputBound(KernelOutputBound.Error),
 		Identity(KernelIdentity.Error),
 		IdentityInputTooLarge,
 		Object(KernelObject.Error),
@@ -334,10 +338,16 @@ build_nonempty = |page_count, page_size, content_plan, facts| {
 	xref_number = checked_add(KernelSeal.Plan.counts(sealed).objects, 1)?
 	xref_object = KernelObject.ObjectId.from_number(xref_number) ? Object
 
+	## The formula bound above rejects oversized plans before any store is
+	## allocated; the emitted file's bound is derived from the sealed objects
+	## under the object-stream layout.
+	_ = output_bound
+	layout_bound = KernelOutputBound.calculate(sealed, xref_object) ? OutputBound
+
 	Ok(
 		KernelStructure.Plan.{
 			identity,
-			output_bound,
+			output_bound: KernelOutputBound.Bound.bytes(layout_bound),
 			page_count,
 			page_geometry: Fixed(page_size),
 			root: catalog_object.id,
@@ -416,7 +426,8 @@ facts_limit_budget = |facts| match facts {
 	}
 }
 
-## The facts output bound covers the two appended stream payloads, the worst
+## The facts output bound covers the unfiltered XMP payload, the DEFLATE
+## bound of the compressed profile payload, the worst
 ## UTF-16 hex expansion of the three text strings, and a fixed allowance for
 ## the added dictionary syntax.
 facts_output_bound : DocumentFacts -> Try(U64, KernelStructure.Error)
@@ -427,7 +438,12 @@ facts_output_bound = |facts| match facts {
 			checked_add(Str.to_utf8(data.language).len(), Str.to_utf8(data.condition_identifier).len())?,
 			Str.to_utf8(data.registry_name).len(),
 		)?
-		payload_bytes = checked_add(data.xmp.len(), data.profile_bytes.len())?
+		profile_bound = if data.profile_bytes.is_empty() {
+			8
+		} else {
+			KernelDeflate.output_bound(data.profile_bytes.len()) ? Deflate
+		}
+		payload_bytes = checked_add(data.xmp.len(), profile_bound)?
 		checked_add(checked_add(payload_bytes, checked_times(text_bytes, 4)?)?, 1024)
 	}
 }
@@ -465,8 +481,9 @@ add_fact_names = |builder| {
 	})
 }
 
-## The metadata stream is the uncompressed canonical XMP packet; the profile
-## stream is the packaged ICC payload shared as an unchanged resource.
+## The metadata stream is the uncompressed canonical XMP packet (PDF/A-4
+## requires it unfiltered); the profile stream is the packaged ICC payload,
+## compressed with FlateDecode.
 add_fact_streams : KernelObject.Builder, KernelObject.NameId, { data : BlankFacts, metadata_id : KernelObject.ObjectId, names : BlankFactNames, profile_id : KernelObject.ObjectId } -> Try(KernelObject.Builder, KernelStructure.Error)
 add_fact_streams = |builder, type_name, context| {
 	subtype_value = KernelObject.add_name_value(builder, context.names.xml) ? Object
@@ -484,11 +501,11 @@ add_fact_streams = |builder, type_name, context| {
 	ensure_object_number(stream.id, KernelObject.ObjectId.number(context.metadata_id))?
 	ensure_object_number(stream.length_object, KernelObject.ObjectId.number(context.metadata_id) + 1)?
 	n_value = KernelObject.add_integer(stream.builder, context.data.profile_components) ? Object
-	icc_payload = KernelObject.add_payload(n_value.builder, context.data.profile_bytes, UnchangedResource) ? Object
+	icc_payload = KernelObject.add_payload(n_value.builder, context.data.profile_bytes, Generated) ? Object
 	icc_stream = KernelObject.add_stream_object(
 		icc_payload.builder,
 		[{ key: context.names.n, value: n_value.id }],
-		Unfiltered,
+		Deflate,
 		icc_payload.id,
 	) ? Object
 	ensure_object_number(icc_stream.id, KernelObject.ObjectId.number(context.profile_id))?
@@ -702,6 +719,7 @@ page_dimensions : KernelStructure.PageSize -> { height : I64, width : I64 }
 page_dimensions = |page_size| match page_size {
 	A4 => { height: 842, width: 595 }
 	Letter => { height: 792, width: 612 }
+	Points(dimensions) => dimensions
 }
 
 checked_linear : U64, U64, U64 -> Try(U64, KernelStructure.Error)
@@ -769,7 +787,7 @@ content_plan_output_bound = |content_plan| match content_plan {
 	Unchanged(bytes) => Ok(bytes.len())
 }
 
-## One blank page lowers to catalog, pages, page, stream, and length objects.
+# One blank page lowers to catalog, pages, page, stream, and length objects.
 expect {
 	plan = KernelStructure.build_blank(1, A4)?
 
@@ -788,7 +806,7 @@ expect {
 	actual == expected
 }
 
-## Variable-page plans carry a normalized identity without pretending to use a fixed page size.
+# Variable-page plans carry a normalized identity without pretending to use a fixed page size.
 expect {
 	blank = KernelStructure.build_blank(1, A4)?
 	plan = KernelStructure.Plan.from_sealed({
@@ -811,7 +829,7 @@ expect {
 	geometry_ok and identity_ok
 }
 
-## Nonempty generated bytes carry a checked DEFLATE bound and remain generated input.
+# Nonempty generated bytes carry a checked DEFLATE bound and remain generated input.
 expect {
 	bytes = Str.to_utf8("BT /Span BMC EMC ET\n")
 	plan = KernelStructure.build_deflate_stream_probe(bytes, bytes.len())?
@@ -820,17 +838,19 @@ expect {
 	stream = list_at(store.streams, 0)
 	compressed_bound = KernelDeflate.output_bound(bytes.len())?
 
-	KernelStructure.Plan.output_bound(plan) == blank_output_bound(1)? + compressed_bound and
-		payload.bytes == bytes and
-			payload.kind == Generated and
-				stream.filter == Deflate and
-					match KernelStructure.Plan.identity(plan) {
-						GeneratedContentDigest(digest) => digest.len() == 32
-						_ => False
-					}
+	layout_bound = KernelOutputBound.calculate(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.xref_object(plan))?
+	KernelStructure.Plan.output_bound(plan) == KernelOutputBound.Bound.bytes(layout_bound) and
+		KernelStructure.Plan.output_bound(plan) > compressed_bound and
+			payload.bytes == bytes and
+				payload.kind == Generated and
+					stream.filter == Deflate and
+						match KernelStructure.Plan.identity(plan) {
+							GeneratedContentDigest(digest) => digest.len() == 32
+							_ => False
+						}
 }
 
-## Multi-page lowering preserves deterministic three-object page slices.
+# Multi-page lowering preserves deterministic three-object page slices.
 expect {
 	plan = KernelStructure.build_blank(3, Letter)?
 
@@ -847,7 +867,7 @@ expect {
 	actual == expected
 }
 
-## The 33rd page creates two leaf nodes under one fixed-fanout root.
+# The 33rd page creates two leaf nodes under one fixed-fanout root.
 expect {
 	plan = KernelStructure.build_blank(33, A4)?
 
@@ -864,7 +884,7 @@ expect {
 	actual == expected
 }
 
-## Thousands of pages preserve one balanced depth and deterministic node counts.
+# Thousands of pages preserve one balanced depth and deterministic node counts.
 expect {
 	plan = KernelStructure.build_blank(4096, A4)?
 
@@ -879,8 +899,8 @@ expect {
 	actual == expected
 }
 
-## Document facts extend one blank page with the metadata and profile
-## streams, a distinct sealed-plan identity, and the same page structure.
+# Document facts extend one blank page with the metadata and profile
+# streams, a distinct sealed-plan identity, and the same page structure.
 expect {
 	facts : BlankFacts
 	facts = {
@@ -908,27 +928,27 @@ expect {
 		KernelObject.ObjectId.number(KernelStructure.Plan.xref_object(plan)) == 10 and
 			metadata_payload.kind == Generated and
 				metadata_payload.bytes == Str.to_utf8("<?xpacket?>") and
-					profile_payload.kind == UnchangedResource and
+					profile_payload.kind == Generated and
 						profile_payload.bytes == [0, 0, 0, 4] and
 							identity_ok
 }
 
-## Zero pages is a named structural failure and creates no partial plan.
+# Zero pages is a named structural failure and creates no partial plan.
 expect match KernelStructure.build_blank(0, A4) {
 	Err(PageCountZero) => True
 	_ => False
 }
 
-## The explicit page limit rejects oversized work before allocating stores.
+# The explicit page limit rejects oversized work before allocating stores.
 expect match KernelStructure.build_blank(max_pages + 1, A4) {
 	Err(PageLimitExceeded({ attempted, limit })) => attempted == max_pages + 1 and limit == max_pages
 	_ => False
 }
 
-## The maximum accepted plan fixes a checked pre-emission output bound.
+# The maximum accepted plan fixes a checked pre-emission output bound.
 expect blank_output_bound(max_pages) == Ok(1073745920)
 
-## An unchanged stream extends the sealed bound and identity without copying its bytes.
+# An unchanged stream extends the sealed bound and identity without copying its bytes.
 expect {
 	bytes = [37, 32, 114, 101, 115, 111, 117, 114, 99, 101, 10]
 	plan = KernelStructure.build_unchanged_stream_probe(bytes)?
@@ -936,12 +956,14 @@ expect {
 	payload = list_at(store.payloads, 0)
 	stream = list_at(store.streams, 0)
 
-	KernelStructure.Plan.output_bound(plan) == blank_output_bound(1)? + bytes.len() and
-		payload.bytes == bytes and
-			payload.kind == UnchangedResource and
-				stream.filter == Unfiltered and
-					match KernelStructure.Plan.identity(plan) {
-						UnchangedContentDigest(digest) => digest.len() == 32
-						_ => False
-					}
+	layout_bound = KernelOutputBound.calculate(KernelStructure.Plan.sealed(plan), KernelStructure.Plan.xref_object(plan))?
+	KernelStructure.Plan.output_bound(plan) == KernelOutputBound.Bound.bytes(layout_bound) and
+		KernelStructure.Plan.output_bound(plan) > bytes.len() and
+			payload.bytes == bytes and
+				payload.kind == UnchangedResource and
+					stream.filter == Unfiltered and
+						match KernelStructure.Plan.identity(plan) {
+							UnchangedContentDigest(digest) => digest.len() == 32
+							_ => False
+						}
 }

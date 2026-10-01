@@ -27,9 +27,9 @@ ThemeTargets :: [].{
 
 	## Drive the unvalidated public `Theme` surface into pagination.
 	##
-	## `with_body_style`, `with_heading_style`, `with_title_style`,
-	## `with_page_margin`, `with_paragraph_spacing`, and `with_bullet_indent`
-	## all accept a raw `I64` `Layout.Unit` and perform no validation of their
+	## The theme's `body`, `headings`, and `title` styles, `page_margin`,
+	## `paragraph_spacing`, and `bullet_indent` all hold a raw `I64`
+	## `Layout.Unit`, and building a theme performs no validation of its
 	## own, so a caller can hand the paginator a zero or negative leading, a
 	## margin pair wider than the page, or a size near `I64` saturation. Those
 	## are exactly the shapes that make a layout loop fail to advance or an
@@ -108,37 +108,25 @@ options_for : ThemeTargets.Input -> Pdf.Options
 options_for = |input| {
 	black = Color.srgb8({ blue: 0, green: 0, red: 0 })
 	face = Theme.body_font(Theme.default)
-	styled = Theme.with_title_style(
-		Theme.with_heading_style(
-			Theme.with_body_style(
-				Theme.default,
-				{ color: black, font: face, leading: unit_for(input.body_leading), size: unit_for(input.body_size) },
-			),
-			{ color: black, font: face, leading: unit_for(input.heading_leading), size: unit_for(input.heading_size) },
-		),
-		{ color: black, font: face, leading: unit_for(input.title_leading), size: unit_for(input.title_size) },
-	)
-	spaced = Theme.with_bullet_indent(
-		Theme.with_paragraph_spacing(
-			Theme.with_page_margin(
-				styled,
-				{
-					bottom: unit_for(input.margin_bottom),
-					left: unit_for(input.margin_left),
-					right: unit_for(input.margin_right),
-					top: unit_for(input.margin_top),
-				},
-			),
-			unit_for(input.paragraph_spacing),
-		),
-		unit_for(input.bullet_indent),
-	)
+	styled = Theme.{ body: { color: black, face: Face(face), leading: unit_for(input.body_leading), size: unit_for(input.body_size) }, headings: { all: { color: black, face: Face(face), leading: unit_for(input.heading_leading), size: unit_for(input.heading_size) } }, title: { color: black, face: Face(face), leading: unit_for(input.title_leading), size: unit_for(input.title_size) } }
+	spaced = {
+		..styled,
+		bullet_indent: unit_for(input.bullet_indent),
+		page_margin: {
+			bottom: unit_for(input.margin_bottom),
+			left: unit_for(input.margin_left),
+			right: unit_for(input.margin_right),
+			top: unit_for(input.margin_top),
+		},
+		paragraph_spacing: unit_for(input.paragraph_spacing),
 
-	base = Pdf.Options.with_theme(Pdf.Options.default, spaced)
+	}
+
+	base = Pdf.Options.{ theme: spaced }
 	sized = if input.page_size % 2 == 0 {
-		Pdf.Options.with_page_size(base, A4)
+		{ ..base, page_size: A4 }
 	} else {
-		Pdf.Options.with_page_size(base, Letter)
+		{ ..base, page_size: Letter }
 	}
 
 	## Standard and Archive both lay out and seal; Archive additionally runs
@@ -147,9 +135,9 @@ options_for = |input| {
 	## unavailable capability that rejects before layout; the contract that it
 	## is a stable typed rejection rather than a crash is held here too.
 	match input.profile % 3 {
-		0 => Pdf.Options.with_profile(sized, Standard)
-		1 => Pdf.Options.with_profile(sized, Archive)
-		_ => Pdf.Options.with_profile(sized, AccessibleArchive)
+		0 => { ..sized, profile: Standard }
+		1 => { ..sized, profile: Archive }
+		_ => { ..sized, profile: AccessibleArchive }
 	}
 }
 
@@ -237,23 +225,23 @@ ordinary_input = {
 	title_size: 9,
 }
 
-## The ordinary theme is the control: whatever the extremes below do, the
-## everyday case still satisfies the same contracts.
+# The ordinary theme is the control: whatever the extremes below do, the
+# everyday case still satisfies the same contracts.
 expect ThemeTargets.theme_output(ordinary_input)
 
-## Zero leading on every style. A paginator that advances by leading cannot
-## make progress on a zero step, so this is the shape that either terminates
-## with a typed rejection or does not terminate at all.
+# Zero leading on every style. A paginator that advances by leading cannot
+# make progress on a zero step, so this is the shape that either terminates
+# with a typed rejection or does not terminate at all.
 expect ThemeTargets.theme_output({ ..ordinary_input, body_leading: 0, heading_leading: 0, title_leading: 0 })
 
-## Negative margins on all four sides, which place the text frame outside the
-## media box. Nothing in the public surface prevents this, so it must still
-## resolve to one stable outcome.
+# Negative margins on all four sides, which place the text frame outside the
+# media box. Nothing in the public surface prevents this, so it must still
+# resolve to one stable outcome.
 expect ThemeTargets.theme_output({ ..ordinary_input, margin_bottom: 3, margin_left: 3, margin_right: 3, margin_top: 3 })
 
-## Sizes and leadings near `I64` saturation in both directions, mixed so that
-## adding a size to a leading, or a top margin to a bottom margin, would wrap
-## if either sum were unchecked.
+# Sizes and leadings near `I64` saturation in both directions, mixed so that
+# adding a size to a leading, or a top margin to a bottom margin, would wrap
+# if either sum were unchecked.
 expect ThemeTargets.theme_output({
 	..ordinary_input,
 	body_leading: 14,

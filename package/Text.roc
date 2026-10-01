@@ -4,6 +4,9 @@ import Semantics
 
 Text :: [].{
 	RunId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> RunId
 		from_index = |index| RunId.(index)
 
@@ -12,6 +15,9 @@ Text :: [].{
 	}
 
 	GlyphId :: U32.{
+		is_eq : _
+		to_hash : _
+
 		from_raw : U32 -> GlyphId
 		from_raw = |raw| GlyphId.(raw)
 
@@ -20,6 +26,9 @@ Text :: [].{
 	}
 
 	FeatureTag :: U32.{
+		is_eq : _
+		to_hash : _
+
 		from_raw : U32 -> FeatureTag
 		from_raw = |raw| FeatureTag.(raw)
 
@@ -28,6 +37,9 @@ Text :: [].{
 	}
 
 	FeaturePolicyId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> FeaturePolicyId
 		from_index = |index| FeaturePolicyId.(index)
 
@@ -147,14 +159,14 @@ Text :: [].{
 	}
 }
 
-## Shaped-run IDs preserve their dense index.
+# Shaped-run IDs preserve their dense index.
 expect Text.RunId.from_index(7).index() == 7
 
-## Glyph IDs remain compact opaque U32 values.
+# Glyph IDs remain compact opaque U32 values.
 expect Text.GlyphId.from_raw(41).raw() == 41
 
-## OpenType feature tags remain compact opaque U32 values.
+# OpenType feature tags remain compact opaque U32 values.
 expect Text.FeatureTag.from_raw(0x6B65726E).raw() == 0x6B65726E
 
-## Feature-policy IDs preserve their dense cache-key index.
+# Feature-policy IDs preserve their dense cache-key index.
 expect Text.FeaturePolicyId.from_index(9).index() == 9

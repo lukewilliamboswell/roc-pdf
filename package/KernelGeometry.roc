@@ -49,7 +49,7 @@ KernelGeometry :: [].{
 
 validate_rect : Layout.Rect, KernelGeometry.BoxKind -> Try({}, KernelGeometry.Error)
 validate_rect = |rect, kind| {
-	if rect.size.width.raw() <= 0 or rect.size.height.raw() <= 0 {
+	if rect.size.width <= 0 or rect.size.height <= 0 {
 		Err(NonPositiveBox(kind))
 	} else {
 		_ = checked_add(rect.origin.x.raw(), rect.size.width.raw())?
@@ -65,8 +65,8 @@ validate_contained = |inner, inner_kind, outer, outer_kind| {
 	outer_right = checked_add(outer.origin.x.raw(), outer.size.width.raw())?
 	outer_top = checked_add(outer.origin.y.raw(), outer.size.height.raw())?
 
-	if inner.origin.x.raw() < outer.origin.x.raw() or
-		inner.origin.y.raw() < outer.origin.y.raw() or
+	if inner.origin.x < outer.origin.x or
+		inner.origin.y < outer.origin.y or
 			inner_right > outer_right or
 				inner_top > outer_top {
 		Err(BoxOutside({ inner: inner_kind, outer: outer_kind }))
@@ -123,14 +123,14 @@ test_page = {
 	rotation: Rotate0,
 }
 
-## Resolved page boxes validate in one fixed amount of work per page.
+# Resolved page boxes validate in one fixed amount of work per page.
 expect KernelGeometry.validate_page(test_page)? == {
 	box_checks: 5,
 	containment_checks: 4,
 	coordinate_checks: 20,
 }
 
-## A page box outside its required containing box is rejected atomically.
+# A page box outside its required containing box is rejected atomically.
 expect {
 	bad = {
 		..test_page,
@@ -140,7 +140,7 @@ expect {
 	KernelGeometry.validate_page(bad) == Err(BoxOutside({ inner: ArtBox, outer: CropBox }))
 }
 
-## Non-positive page boxes are rejected before containment is considered.
+# Non-positive page boxes are rejected before containment is considered.
 expect {
 	bad = {
 		..test_page,
@@ -150,7 +150,7 @@ expect {
 	KernelGeometry.validate_page(bad) == Err(NonPositiveBox(ArtBox))
 }
 
-## Affine point transforms use checked fixed-point half-even rounding.
+# Affine point transforms use checked fixed-point half-even rounding.
 expect {
 	matrix : Scene.Matrix
 	matrix = {
@@ -167,7 +167,7 @@ expect {
 	transformed.x.raw() == 2000 and transformed.y.raw() == 9000
 }
 
-## Transform arithmetic reports overflow rather than wrapping coordinates.
+# Transform arithmetic reports overflow rather than wrapping coordinates.
 expect {
 	matrix : Scene.Matrix
 	matrix = {

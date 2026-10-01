@@ -47,6 +47,11 @@ import sys
 from pathlib import Path
 
 from check_pdf_structure import (
+    is_structure_element,
+    text_string,
+    string_bytes,
+    canonical_text,
+    STRING,
     ValidationError,
     dictionary_int,
     dictionary_ref,
@@ -206,7 +211,7 @@ def check_annotation(bodies, pages, structure_elements, number: int, page: int):
     if b"/S /URI" in action:
         require(b"/Type /Action" in action, "URI action missing /Type")
         require(
-            re.search(rb"/URI <[0-9A-F]*>", action) is not None,
+            re.search(rb"/URI " + STRING, action) is not None,
             "URI action missing byte-string URI",
         )
         destination = None
@@ -224,7 +229,7 @@ def check_annotation(bodies, pages, structure_elements, number: int, page: int):
         )
         require(d_target in pages, "/D does not reference a page object")
         require(
-            b"/Type /StructElem" in bodies.get(sd_target, b""),
+            is_structure_element(bodies.get(sd_target, b"")),
             "/SD does not reference a structure element",
         )
         require(
@@ -268,7 +273,7 @@ def check_parent_tree(bodies, root, annotation_pages, struct_parents):
         require(key in scalar, f"annotation StructParent {key} missing from ParentTree")
         element = scalar[key]
         element_body = bodies[element]
-        require(b"/Type /StructElem" in element_body, "ParentTree row is not a StructElem")
+        require(is_structure_element(element_body), "ParentTree row is not a StructElem")
         objr = re.findall(
             rb"<< /Obj (\d+) 0 R /Pg (\d+) 0 R /Type /OBJR >>", element_body
         )
@@ -292,14 +297,12 @@ def walk_name_tree(bodies, node, depth=0):
     else:
         names_match = re.search(rb"/Names \[(.*)\] >>", body, re.S)
         require(names_match is not None, "leaf node missing /Names")
-        pairs = re.findall(rb"<([0-9A-F]*)> (<<.*?>>)", names_match.group(1))
-        entries.extend((bytes.fromhex(k.decode()), v) for k, v in pairs)
+        pairs = re.findall(rb"(" + STRING + rb") (<<.*?>>)", names_match.group(1))
+        entries.extend((string_bytes(k), v) for k, v in pairs)
     if depth > 0:
-        limits = re.findall(rb"/Limits \[<([0-9A-F]*)> <([0-9A-F]*)>\]", body)
+        limits = re.findall(rb"/Limits \[(" + STRING + rb") (" + STRING + rb")\]", body)
         require(len(limits) == 1, "non-root node missing /Limits")
-        first, last = bytes.fromhex(limits[0][0].decode()), bytes.fromhex(
-            limits[0][1].decode()
-        )
+        first, last = string_bytes(limits[0][0]), string_bytes(limits[0][1])
         require(
             entries and entries[0][0] == first and entries[-1][0] == last,
             "node /Limits disagree with its descendant span",
@@ -323,7 +326,7 @@ def check_name_tree(bodies, root, pages):
         require(sd_match is not None, "named destination missing /SD")
         require(int(d_match.group(1)) in pages, "named /D does not reference a page")
         require(
-            b"/Type /StructElem" in bodies.get(int(sd_match.group(1)), b""),
+            is_structure_element(bodies.get(int(sd_match.group(1)), b"")),
             "named /SD does not reference a structure element",
         )
         require(
@@ -398,13 +401,14 @@ def check_outline(bodies, root, named):
         for item in children(parent_number):
             total_items += 1
             body = bodies[item]
-            dest = re.search(rb"/Dest <([0-9A-F]*)>", body)
+            dest = re.search(rb"/Dest (" + STRING + rb")", body)
             require(dest is not None, "outline item missing /Dest name")
             require(
-                bytes.fromhex(dest.group(1).decode()) in named,
+                string_bytes(dest.group(1)) in named,
                 "outline /Dest name not in the name tree",
             )
-            require(b"/Title <FEFF" in body, "outline item missing UTF-16BE title")
+            title = re.search(rb"/Title (" + STRING + rb")", body)
+            require(title is not None and title.group(1) == canonical_text(text_string(title.group(1))), "outline item missing canonical text-string title")
             count_items(item)
 
     declared_root = signed_count(root_body)
@@ -519,7 +523,7 @@ def self_test() -> None:
         ("unsupported annotation flags", replace_once(showcase, b"/F 4", b"/F 9")),
         ("StructParent key drift", replace_once(showcase, b"/StructParent 2", b"/StructParent 9")),
         ("outline count drift", replace_once(showcase, b"/Count 3 /First", b"/Count 9 /First")),
-        ("name ordering break", replace_once(showcase, b"<696E74726F>", b"<7A6E74726F>")),
+        ("name ordering break", replace_once(showcase, b"(intro)", b"(zntro)")),
         ("page-label zero key loss", replace_once(showcase, b"/Nums [0 << /S /r >>", b"/Nums [7 << /S /r >>")),
         ("OBJR target drift", replace_once(showcase, b"/Obj 25 0 R", b"/Obj 15 0 R")),
         ("duplicate Annots entry", replace_once(showcase, b"/Annots [24 0 R 25 0 R]", b"/Annots [24 0 R 24 0 R]")),

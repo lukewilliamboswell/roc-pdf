@@ -13,9 +13,11 @@ from check_text import (
     check_pdfbox_extraction,
     cmap_mappings,
     decoded_stream,
+    glyph_count,
     only_object,
     replace_once,
 )
+from text_positions import shown_cids
 from check_pdf_structure import (
     ValidationError,
     dictionary_ref,
@@ -87,7 +89,7 @@ def validate_caller_text_pdf(pdf: bytes) -> None:
     require(b"/StructParents 0" in page_body, "caller page does not have the planned ParentTree key")
     require(b"/Tabs /S" in page_body, "caller page tab order is not structure order")
     resources = re.search(
-        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>",
+        rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>",
         page_body,
     )
     require(resources is not None, "caller page does not have the exact color/font resource closure")
@@ -106,16 +108,17 @@ def validate_caller_text_pdf(pdf: bytes) -> None:
     base_names = re.findall(rb"/(?:BaseFont|FontName) /([A-Z]{6}\+CallerFixtureSans-Regular)", type0_body + cid_body + descriptor_body)
     require(len(base_names) == 3 and len(set(base_names)) == 1, "caller PDF font dictionaries do not share one exact identity")
 
-    _, cid_bytes = decoded_stream(bodies, dictionary_ref(cid_body, b"CIDToGIDMap"))
-    require(cid_bytes == b"".join(value.to_bytes(2, "big") for value in range(11)), "caller CIDToGIDMap is not the exact identity map")
+    require(b"/CIDToGIDMap /Identity " in cid_body, "caller CIDFont does not declare the identity CIDToGIDMap")
     _, cmap = decoded_stream(bodies, dictionary_ref(type0_body, b"ToUnicode"))
     require(cmap_mappings(cmap) == EXPECTED_MAPPINGS, "caller ToUnicode mappings differ from source Unicode")
-    shown_cids = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", EXPECTED_CONTENT)]
-    extracted = "".join(chr(scalar) for cid in shown_cids for scalar in EXPECTED_MAPPINGS[cid]).encode() + b"\n"
+    shown = shown_cids(EXPECTED_CONTENT)
+    extracted = "".join(chr(scalar) for cid in shown for scalar in EXPECTED_MAPPINGS[cid]).encode() + b"\n"
     require(extracted == EXPECTED_TEXT, "caller direct CID reconstruction differs from expected text")
 
     font_dictionary, font_bytes = decoded_stream(bodies, dictionary_ref(descriptor_body, b"FontFile2"))
+    require(b"/Filter /FlateDecode" in font_dictionary, "caller embedded FontFile2 is not FlateDecode")
     require(b"/Length1 6820" in font_dictionary, "caller embedded font Length1 is not exact")
+    require(glyph_count(font_bytes) == 11, "caller identity CIDToGIDMap does not cover exactly the eleven subset glyphs")
     require(hashlib.sha256(font_bytes).hexdigest() == EXPECTED_SUBSET_SHA256, "caller sanitized subset digest differs")
     require(subset_names(font_bytes) == EXPECTED_NAMES, "caller subset name table does not preserve the validated source identity")
 

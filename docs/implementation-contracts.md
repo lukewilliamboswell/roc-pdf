@@ -20,25 +20,45 @@ recursive PDF tree or a collection of precompressed byte blobs. Every object
 and indirect stream-length object is assigned before emission. Object IDs
 follow emission order so offsets append to a dense list rather than update a
 map. Ordinary stream lengths use indirect objects emitted immediately after
-their streams, allowing the encoder to run validated content recipes through
-lexical emission and stateful deterministic DEFLATE without buffering the
-entire uncompressed or compressed stream.
+their streams. A generated stream payload is already held whole in the
+sealed plan's payload store; the encoder compresses it whole at its stream's
+transition into one owned buffer, emits it as one generated segment, releases
+the source payload at its last use, and records the compressed length for the
+following length object.
 
-The baseline DEFLATE transition is a private, package-owned pure Roc
-implementation. Its internal seam accepts preflighted input and checked
-limits, exposes a conservative output bound, and yields deterministic bounded
-chunks plus explicit work and source-release facts. The independent Python
-checker uses zlib only as a test-time decompression oracle over the emitted PDF
-bytes. No compression package is part of the package dependency graph, and a
-future replacement cannot weaken these contracts or silently change emitted
-bytes.
+DEFLATE goes through one private seam, `KernelDeflate`, whose single call into
+the pinned pure-Roc `roc-deflate` package (a libdeflate port) compresses at a
+fixed package-versioned level. The seam owns the zlib framing (header and
+Adler-32 trailer), accepts preflighted input and checked limits, proves a
+conservative output bound before a plan escapes (the dependency's stored-block
+bound plus six framing bytes), checks the emitted length against it, and
+reports deterministic work (streams, input bytes, and emitted bytes). The
+independent Python checker uses zlib only as a test-time decompression oracle
+over the emitted PDF bytes. Changing the dependency version or the level is a
+byte-contract change reviewed like any other; it cannot weaken these
+contracts or change emitted bytes silently.
 
-The initial xref stream is unfiltered, covers the complete contiguous object
-range, and uses `/W [1 8 2]`; its direct length is therefore 11 bytes per entry
-with checked multiplication. The encoder retains `U64` offsets proportional to
-object count. Any alternative compressed or replay/counting strategy is a
-separately specified capability. Sealing proves exact counts where possible
-and safe upper bounds for lexical output, compression, offsets, and configured
+Stream objects are written top-level in plan order. Every other object is
+serialized into the open object stream's buffer: its value followed by a
+newline, with its object number and offset recorded for the stream header.
+The object streams partition the compressible objects in plan order into
+batches of at most 400 members (`KernelFileLayout.max_objects_per_stream`).
+When a batch fills, or the last compressible object is placed, the batch is
+written as one FlateDecode object stream: `/Filter /FlateDecode /First /Length
+/N /Type /ObjStm`, numbered after the planned objects in order, with a direct
+length. The open batch is the only buffer that grows with object count between
+segments, and it is bounded by 400 serialized objects.
+
+The cross-reference stream is numbered after the object streams and covers the
+complete contiguous range from object zero. Each row is `[type, field, index]`
+with `/W [1 w 2]`, where `w` is the fewest bytes that hold the stream's own
+offset (the largest offset in the file). Type 1 rows are top-level objects;
+type 2 rows name an object stream and a member index. The rows are PNG Up
+predicted (`/DecodeParms << /Columns w+3 /Predictor 12 >>`) and FlateDecode
+compressed, and every dictionary entry, including `/Length`, is direct. The
+encoder retains one `U64` per planned object: a file offset, or a marked
+object stream ordinal and member index. Sealing proves exact counts where
+possible and safe upper bounds for lexical output, compression, offsets, and configured
 output budgets so the infallible encoder cannot discover overflow or limit
 failures.
 

@@ -80,7 +80,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 	requests = KernelFacadeShape.Plan.requests(shape)
 	store = KernelFacadeShape.Plan.shape(shape).store
 	simple_sources = sources.map(|source| { analysis: source.analysis, unicode: source.unicode })
-	padding = nonnegative(Theme.table_style(theme).cell_padding.raw())?
+	padding = nonnegative(theme.table.cell_padding.raw())?
 	var $cache = List.repeat(Unmeasured, sources.len())
 	var $measures = List.with_capacity(authoring.cells.len())
 	var $cells = List.with_capacity(authoring.cells.len())
@@ -91,27 +91,40 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 	var $ordinal = 0
 	while $ordinal < authoring.cells.len() {
 		record = list_at(authoring.cells, $ordinal)
+
+		## A contentless cell has no run, so its widths are zero and it
+		## never widens a column.
 		physical = match list_at(block_runs, record.block) {
 			TextBlock({ body, label: _, level: _ }) => body.physical
+			ContentlessCell => Semantics.Range.from_start_and_length(0, 0)
 		}
 		var $cell = { max_content: 0, min_content: 0, token: Semantics.Range.from_start_and_length(0, 0) }
+		code = KernelFacadeShape.Plan.code_holds(shape, authoring, record.block, sources)
 		var $segment = physical.start()
 		end = physical.start() + physical.length()
 		while $segment < end {
 			length = segment_length(requests, $segment, end)
 			source = list_at(requests, $segment).source
 			size = list_at(store.runs, $segment).size.raw()
-			measured = match list_at($cache, source.index()) {
+			held = segment_holds(code, $segment, $segment + length)
+
+			## A segment whose code span holds words together measures on
+			## its own: the per-source cache holds untailored widths.
+			measured = if !held.is_empty() {
+				fresh = measure_segment(simple_sources, store, $segment, length, source, held, limits)?
+				$measurements = $measurements + 1
+				fresh
+			} else match list_at($cache, source.index()) {
 				Measured(slot) => if slot.size == size {
 					$cache_hits = $cache_hits + 1
 					slot.measure
 				} else {
-					fresh = measure_segment(simple_sources, store, $segment, length, source, limits)?
+					fresh = measure_segment(simple_sources, store, $segment, length, source, [], limits)?
 					$measurements = $measurements + 1
 					fresh
 				}
 				Unmeasured => {
-					fresh = measure_segment(simple_sources, store, $segment, length, source, limits)?
+					fresh = measure_segment(simple_sources, store, $segment, length, source, [], limits)?
 					$measurements = $measurements + 1
 					$cache = list_set($cache, source.index(), Measured({ measure: fresh, size }))
 					fresh
@@ -128,7 +141,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 		$ordinal = $ordinal + 1
 	}
 
-	## Resolve each table's columns once, then every cell's text box.
+	# Resolve each table's columns once, then every cell's text box.
 	var $cell_cursor = 0
 	var $group_index = 0
 	while $group_index < authoring.groups.len() {
@@ -148,12 +161,16 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 					var $block = row_group.first_block
 					while $block < row_group.block_end {
 						record = list_at(authoring.cells, $ordinal_cursor)
-						span = record.column_span
+						span = record.column_span.to_u64()
 						cell_width = sum_range(columns, $column, span)
-						if cell_width <= 2 * padding {
+						contentless = match list_at(block_runs, $block) {
+							ContentlessCell => True
+							TextBlock(_) => False
+						}
+						if cell_width <= 2 * padding and !contentless {
 							return Err(UnbreakableToken({ available: 0, block: $block, token: list_at($measures, $ordinal_cursor).token, width: list_at($measures, $ordinal_cursor).min_content }))
 						}
-						text_width = cell_width - 2 * padding
+						text_width = if cell_width <= 2 * padding 0 else cell_width - 2 * padding
 						measure = list_at($measures, $ordinal_cursor)
 						if measure.min_content > text_width {
 							return Err(UnbreakableToken({ available: text_width, block: $block, token: measure.token, width: measure.min_content }))
@@ -193,11 +210,28 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 	)
 }
 
+## The code holds whose run lies in one segment's runs, as line-layout
+## holds (their request field is unused by measurement).
+segment_holds : List(KernelFacadeShape.CodeHold), U64, U64 -> List(KernelLineLayout.Hold)
+segment_holds = |code, start, end| {
+	if code.is_empty() {
+		return []
+	}
+	var $held = []
+	for hold in code {
+		if hold.run >= start and hold.run < end {
+			$held = $held.append({ request: 0, scalars: hold.scalars })
+		}
+	}
+	$held
+}
+
 ## Measure one explicit-line-break segment: its physical runs over one
 ## whole source, as a logical request.
-measure_segment : List(KernelShape.SimpleSource), Text.Store, U64, U64, Semantics.TextSourceId, KernelLineLayout.Limits -> Try(CellMeasure, KernelFacadeTables.Error)
-measure_segment = |sources, store, start, length, source, limits| {
-	measured = KernelLineLayout.measure_logical(sources, store, { runs: Semantics.Range.from_start_and_length(start, length), source, width: Layout.Unit.from_raw(1) }, limits) ? Measure
+measure_segment : List(KernelShape.SimpleSource), Text.Store, U64, U64, Semantics.TextSourceId, List(KernelLineLayout.Hold), KernelLineLayout.Limits -> Try(CellMeasure, KernelFacadeTables.Error)
+measure_segment = |sources, store, start, length, source, holds, limits| {
+	request = { runs: Semantics.Range.from_start_and_length(start, length), source, width: Layout.Unit.from_raw(1) }
+	measured = (if holds.is_empty() KernelLineLayout.measure_logical(sources, store, request, limits) else KernelLineLayout.measure_logical_held(sources, store, request, holds, limits)) ? Measure
 	first = list_at(store.clusters, measured.measure.token.start())
 	last = list_at(store.clusters, measured.measure.token.start() + U64.max(measured.measure.token.length(), 1) - 1)
 	token_start = first.source.scalars.start()
@@ -244,7 +278,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 				}
 				$maxima = list_set($maxima, $column, U64.max(list_at($maxima, $column), measure.max_content + 2 * padding))
 			}
-			$column = $column + record.column_span
+			$column = $column + record.column_span.to_u64()
 			$ordinal = $ordinal + 1
 			$block = $block + 1
 		}
@@ -254,7 +288,7 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		return Err(InvalidCell({ block: group.first_block }))
 	}
 
-	## Exact fixed columns, and each single column's own feasibility.
+	# Exact fixed columns, and each single column's own feasibility.
 	var $widths = List.repeat(0, count)
 	var $fixed = 0
 	var $required = 0
@@ -286,8 +320,8 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		return Err(TableWidth({ available, group: group_index, required: $required }))
 	}
 
-	## Content columns at their max-content width, reduced proportionally
-	## to their slack when the minima of the share columns would not fit.
+	# Content columns at their max-content width, reduced proportionally
+	# to their slack when the minima of the share columns would not fit.
 	var $content_total = 0
 	var $slack_total = 0
 	var $share_minima = 0
@@ -336,8 +370,8 @@ resolve_columns = |authoring, table, group, group_index, measures, first_cell, c
 		}
 	}
 
-	## Share columns divide what remains; a share below its minimum is fixed
-	## at the minimum and the others divide the rest again.
+	# Share columns divide what remains; a share below its minimum is fixed
+	# at the minimum and the others divide the rest again.
 	var $used = sum_range($widths, 0, count)
 	var $settled = List.repeat(False, count)
 	var $settling = True

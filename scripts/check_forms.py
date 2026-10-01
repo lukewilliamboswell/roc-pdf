@@ -23,7 +23,11 @@ import re
 import zlib
 from pathlib import Path
 
+from pdf_layout import LayoutError, flatten, twin as layout_twin
 from check_pdf_structure import (
+    dictionary_value,
+    structure_kids,
+    mcid_owners,
     ValidationError,
     dictionary_int,
     dictionary_ref,
@@ -65,11 +69,9 @@ def decoded_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]
 
 def parse_resources(dictionary: bytes, owner: str) -> dict[str, int]:
     """The exact direct resource dictionary of one stream as name -> object."""
-    match = re.search(rb"/Resources << (.*?) >> /(?:Rotate|Subtype)", dictionary, re.DOTALL)
-    if match is None:
-        match = re.search(rb"/Resources << (.*) >>", dictionary, re.DOTALL)
-    require(match is not None, f"{owner}: missing /Resources dictionary")
-    body = match.group(1)
+    value = dictionary_value(dictionary, b"Resources")
+    require(value is not None, f"{owner}: missing /Resources dictionary")
+    body = value[2:-2].strip()
     entries: dict[str, int] = {}
     for sub in re.finditer(rb"/(ColorSpace|ExtGState|Font|XObject) << ([^>]*) >>", body):
         for entry in re.finditer(rb"/([A-Za-z0-9_]+) ([1-9][0-9]*) 0 R", sub.group(2)):
@@ -257,11 +259,9 @@ def check_ownership(facts: FormFacts, page: int, expected_mcids: int) -> dict[in
     ## Every marked-content item is owned exactly once: its parent structure
     ## element's /K holds exactly one MCR with this page and MCID.
     for mcid, parent in enumerate(parents):
-        parent_body = facts.bodies[parent]
-        pattern = rb"<< /MCID " + str(mcid).encode() + rb" /Pg " + str(page).encode() + rb" 0 R /Type /MCR >>"
-        matches = sum(len(re.findall(pattern, body)) for body in facts.bodies.values())
-        require(matches == 1, f"MCID {mcid} is referenced {matches} times; exactly one owner required")
-        require(re.search(pattern, parent_body) is not None, f"MCID {mcid} owner disagrees with ParentTree")
+        owners = mcid_owners(facts.bodies, page, mcid)
+        require(len(owners) == 1, f"MCID {mcid} is referenced {len(owners)} times; exactly one owner required")
+        require(owners[0] == parent, f"MCID {mcid} owner disagrees with ParentTree")
     return sequences
 
 
@@ -320,9 +320,9 @@ def validate_showcase(pdf: bytes, dimensions: dict[str, int]) -> None:
     require(document_k is not None, "document /K missing")
     children = [int(match.group(1)) for match in re.finditer(rb"([1-9][0-9]*) 0 R", document_k.group(1))]
     require(len(children) == 4, "document does not hold the four paragraphs")
-    first_child_mcids = [int(m.group(1)) for m in re.finditer(rb"<< /MCID ([0-9]+) /Pg", facts.bodies[children[0]])]
+    first_child_mcids = [mcid for kind, mcid, _ in structure_kids(facts.bodies[children[0]]) if kind == "mcr"]
     require(first_child_mcids == [1], "logical reading order does not lead with the second painted paragraph")
-    last_child_mcids = [int(m.group(1)) for m in re.finditer(rb"<< /MCID ([0-9]+) /Pg", facts.bodies[children[3]])]
+    last_child_mcids = [mcid for kind, mcid, _ in structure_kids(facts.bodies[children[3]]) if kind == "mcr"]
     require(last_child_mcids == [3, 4], "the split occurrence does not own its two placements in order")
 
 
@@ -416,8 +416,10 @@ def validate_forms_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "negative twin must preserve byte length")
-    require(value.count(old) >= 1, f"negative twin source missing: {old!r}")
-    return value.replace(old, new, 1)
+    try:
+        return layout_twin(value, old, new, exactly_once=False)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
 
 
 def self_test() -> None:
@@ -432,13 +434,15 @@ def self_test() -> None:
     validate_deep(DEEP_64_SNAPSHOT.read_bytes(), {"pages": 1, "chain_depth": 64})
     validate_text(TEXT_SNAPSHOT.read_bytes(), {"pages": 1, "form_text": 1})
 
-    nums = re.search(rb"/Nums \[0 \[([1-9][0-9]*) 0 R ([1-9][0-9]*) 0 R ", showcase)
+    nums = re.search(rb"/Nums \[0 \[([1-9][0-9]*) 0 R ([1-9][0-9]*) 0 R ", flatten(showcase))
     require(nums is not None, "self-test fixture has no ParentTree row")
     require(nums.group(1) != nums.group(2), "self-test ParentTree row is degenerate")
-    swapped_row = showcase[: nums.start()] + (
-        b"/Nums [0 [" + nums.group(2) + b" 0 R " + nums.group(1) + b" 0 R "
-    ) + showcase[nums.end() :]
-    require(len(swapped_row) == len(showcase), "ParentTree mutation changed the byte length")
+    swapped_row = layout_twin(
+        showcase,
+        nums.group(0),
+        b"/Nums [0 [" + nums.group(2) + b" 0 R " + nums.group(1) + b" 0 R ",
+        exactly_once=True,
+    )
 
     mutations = (
         ("form type", replace_once(showcase, b"/FormType 1", b"/FormType 2")),
