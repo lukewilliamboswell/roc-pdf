@@ -29,7 +29,7 @@ import pdf.Layout
 import pdf.Scene
 import pdf.Semantics
 import pdf.Text
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 ## production-visual text-inside-a-form evidence.
 ##
@@ -309,8 +309,8 @@ form_scene_limits = KernelScene.FormLimits.make({ max_form_commands: 8, max_form
 object_limits : KernelObject.Limits
 object_limits = {
 	max_array_items: 128,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 256,
 	max_direct_depth: 8,
 	max_name_bytes: 4096,
@@ -319,8 +319,8 @@ object_limits = {
 	max_payload_bytes: 262144,
 	max_payloads: 8,
 	max_streams: 8,
-	max_text_string_bytes: 64,
-	max_text_strings: 4,
+	max_text_string_bytes: 51,
+	max_text_strings: 2,
 	max_values: 1024,
 }
 
@@ -375,7 +375,7 @@ build_sample = |prelude, scene_store| {
 		semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	resources = KernelScene.Resources.with_forms({ color_spaces: 1, forms: 1, images: 0, text_runs: shape.store.runs.len() })
@@ -489,8 +489,8 @@ check_text_negatives = |prelude| {
 		groups: [{ commands: Semantics.Range.from_start_and_length(0, 2), id: Scene.GroupId.from_index(0), owner: Fragment(Semantics.FragmentId.from_index(0)) }],
 	}
 	twice_rejected = match build_facts_for(prelude, twice) {
-		Err(TextFormMultiplyPlaced({ form: 0, instances: 2 })) => Bool.True
-		_ => Bool.False
+		Err(TextFormMultiplyPlaced({ form: 0, instances: 2 })) => True
+		_ => False
 	}
 	if !twice_rejected {
 		return Err(MissingRejection(1))
@@ -502,8 +502,8 @@ check_text_negatives = |prelude| {
 		groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Header) }],
 	}
 	artifact_rejected = match build_facts_for(prelude, artifact) {
-		Err(ArtifactTextInForm({ form: 0 })) => Bool.True
-		_ => Bool.False
+		Err(ArtifactTextInForm({ form: 0 })) => True
+		_ => False
 	}
 	if !artifact_rejected {
 		return Err(MissingRejection(2))
@@ -528,8 +528,8 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## Text painted inside a meaningful form keeps its run, mapping, ActualText,
-## and font behavior while the form's own dictionary carries the font.
+# Text painted inside a meaningful form keeps its run, mapping, ActualText,
+# and font behavior while the form's own dictionary carries the font.
 expect {
 	result = Fixture.text_form(0)?
 	result.work.get(0) == Ok(1) and result.work.get(1) == Ok(1) and result.work.get(2) == Ok(1) and result.work.get(4) == Ok(1) and result.work.get(12) == Ok(8) and result.work.get(19) == Ok(2)

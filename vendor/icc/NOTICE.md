@@ -1,6 +1,6 @@
 # ICC sRGB2014 profile
 
-The retained `sRGB2014.icc` is the International Color Consortium's official
+The retained `package/sRGB2014.icc` is the International Color Consortium's official
 sRGB v2 profile, byte-for-byte as published at:
 
 https://www.color.org/profiles/sRGB2014.icc
@@ -9,10 +9,13 @@ https://www.color.org/profiles/sRGB2014.icc
 https://www.color.org/srgbprofiles.xalter). It is a reviewed production data
 asset: the production-visual color pipeline embeds these exact bytes as the ICCBased sRGB
 profile stream, and the later static-archive slices reuse the same bytes for
-the sRGB output intent. `scripts/build_srgb_profile.py` emits the private
-`package/KernelSrgbProfile.roc` byte module from this exact asset, so the pure
-Roc package carries the profile as compiled package data and performs no file
-access.
+the sRGB output intent. It lives inside `package/` beside the private
+`package/KernelSrgbProfile.roc` module, which `scripts/build_srgb_profile.py`
+emits after verifying this exact asset and which byte-imports it at compile
+time, so the pure Roc package carries the profile as compiled package data and
+performs no file access. `scripts/bundle.sh` names it on the `roc bundle`
+command line, because `roc bundle` does not follow byte imports
+(roc-lang/roc#11907).
 
 Its SHA-256 digest is:
 

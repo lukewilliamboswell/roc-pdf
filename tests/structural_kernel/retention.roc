@@ -1,6 +1,6 @@
 app [main!] {
-	pf: platform "../retention_platform/main.roc",
 	pdf: "../../package/all.roc",
+	pf: platform "../retention_platform/main.roc",
 }
 
 import Fixture

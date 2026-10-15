@@ -31,6 +31,8 @@ from pathlib import Path
 
 from check_forms import FormFacts, check_ownership, replace_once
 from check_pdf_structure import (
+    structure_kids,
+    decode_stream,
     ValidationError,
     dictionary_ref,
     object_slices,
@@ -49,7 +51,7 @@ NEST_64_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_nest_64.pdf"
 FORMS_8_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_forms_8.pdf"
 FORMS_32_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_forms_32.pdf"
 NEGATIVE_SNAPSHOT = ROOT / "tests" / "transparency" / "transparency_negative.pdf"
-SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
+SRGB_PROFILE = ROOT / "package" / "sRGB2014.icc"
 
 STATE_OBJECT = re.compile(
     rb"^<< /BM /Normal /CA ([0-9.]+) /Type /ExtGState /ca ([0-9.]+) >>\s*endobj$"
@@ -173,10 +175,7 @@ class TransparencyFacts:
         icc = re.match(rb"\[/ICCBased ([1-9][0-9]*) 0 R\]", body.strip())
         require(icc is not None, "page /Group /CS is not the canonical ICCBased array")
         profile = int(icc.group(1))
-        profile_body = self.bodies[profile]
-        marker = profile_body.find(b"stream\n")
-        require(marker >= 0, "blending profile is not a stream")
-        payload = profile_body[marker + len(b"stream\n") : profile_body.rfind(b"\nendstream")]
+        _, payload = decode_stream(self.bodies, profile)
         require(payload == SRGB_PROFILE.read_bytes(), "blending profile is not byte-identical to the vendored sRGB2014.icc")
 
     def isolated_forms(self) -> dict[int, int]:
@@ -248,7 +247,7 @@ def validate_transparency_showcase(pdf: bytes, dimensions: dict[str, int]) -> No
     require(document_k is not None, "document /K missing")
     children = [int(match.group(1)) for match in re.finditer(rb"([1-9][0-9]*) 0 R", document_k.group(1))]
     require(len(children) == 4, "document does not hold the four paragraphs")
-    first_child_mcids = [int(m.group(1)) for m in re.finditer(rb"<< /MCID ([0-9]+) /Pg", facts.bodies[children[0]])]
+    first_child_mcids = [mcid for kind, mcid, _ in structure_kids(facts.bodies[children[0]]) if kind == "mcr"]
     require(first_child_mcids == [1], "logical reading order does not lead with the second painted paragraph")
 
     ## The alpha image keeps its raster soft mask (image /SMask is the

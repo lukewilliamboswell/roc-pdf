@@ -168,32 +168,16 @@ build_font_plan = |prefix, tagged, content, font_objects, annotation_objects| {
 			var $annots = List.with_capacity(per_page.len())
 			var $builder = resources.builder
 			var $page = 0
-			var $error = NoError
-			while $page < per_page.len() and $error == NoError {
+			while $page < per_page.len() {
 				page_objects = list_at(per_page, $page)
 				if page_objects.is_empty() {
 					$annots = $annots.append(NoAnnots)
 				} else {
-					match add_references($builder, page_objects) {
-						Err(error) => {
-							$error = Invalid(error)
-						}
-						Ok(references) => match KernelObject.add_array(references.builder, references.values) {
-							Err(error) => {
-								$error = Invalid(Object(error))
-							}
-							Ok(array) => {
-								$builder = array.builder
-								$annots = $annots.append(WithAnnots(array.id))
-							}
-						}
-					}
+					array = add_reference_array($builder, page_objects)?
+					$builder = array.builder
+					$annots = $annots.append(WithAnnots(array.id))
 				}
 				$page = $page + 1
-			}
-			match $error {
-				Invalid(error) => return Err(error)
-				NoError => {}
 			}
 			{ builder: $builder, value: PerPageAnnotations($annots) }
 		}
@@ -293,13 +277,16 @@ add_resources = |builder, names, objects| {
 	images = add_image_references(colors.builder, KernelObjectPlan.Plan.images(objects))?
 	color_dictionary = KernelObject.add_dictionary(images.builder, colors.entries) ? Object
 	image_dictionary = KernelObject.add_dictionary(color_dictionary.builder, images.entries) ? Object
-	resources = KernelObject.add_dictionary(
-		image_dictionary.builder,
-		[
-			{ key: names.color_space, value: color_dictionary.id },
-			{ key: names.x_object, value: image_dictionary.id },
-		],
-	) ? Object
+
+	# An empty resource category is omitted rather than written `<< >>`.
+	var $entries = List.with_capacity(2)
+	if !colors.entries.is_empty() {
+		$entries = $entries.append({ key: names.color_space, value: color_dictionary.id })
+	}
+	if !images.entries.is_empty() {
+		$entries = $entries.append({ key: names.x_object, value: image_dictionary.id })
+	}
+	resources = KernelObject.add_dictionary(image_dictionary.builder, $entries) ? Object
 	Ok({ builder: resources.builder, references: colors.entries.len() + images.entries.len(), value: resources.id })
 }
 
@@ -311,14 +298,19 @@ add_resources_with_fonts = |builder, names, font_name, objects, fonts| {
 	color_dictionary = KernelObject.add_dictionary(font_references.builder, colors.entries) ? Object
 	image_dictionary = KernelObject.add_dictionary(color_dictionary.builder, images.entries) ? Object
 	font_dictionary = KernelObject.add_dictionary(image_dictionary.builder, font_references.entries) ? Object
-	resources = KernelObject.add_dictionary(
-		font_dictionary.builder,
-		[
-			{ key: names.color_space, value: color_dictionary.id },
-			{ key: font_name, value: font_dictionary.id },
-			{ key: names.x_object, value: image_dictionary.id },
-		],
-	) ? Object
+
+	# An empty resource category is omitted rather than written `<< >>`.
+	var $entries = List.with_capacity(3)
+	if !colors.entries.is_empty() {
+		$entries = $entries.append({ key: names.color_space, value: color_dictionary.id })
+	}
+	if !font_references.entries.is_empty() {
+		$entries = $entries.append({ key: font_name, value: font_dictionary.id })
+	}
+	if !images.entries.is_empty() {
+		$entries = $entries.append({ key: names.x_object, value: image_dictionary.id })
+	}
+	resources = KernelObject.add_dictionary(font_dictionary.builder, $entries) ? Object
 	Ok({ builder: resources.builder, references: colors.entries.len() + font_references.entries.len() + images.entries.len(), value: resources.id })
 }
 
@@ -338,29 +330,15 @@ add_named_references = |builder, prefix, objects| {
 	var $builder = builder
 	var $entries = List.with_capacity(objects.len())
 	var $index = 0
-	var $error = NoError
-	while $index < objects.len() and $error == NoError {
+	while $index < objects.len() {
 		name_bytes = KernelResourceName.bytes(prefix, $index)
-		match KernelObject.add_name($builder, name_bytes) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(name) => match KernelObject.add_reference(name.builder, list_at(objects, $index)) {
-				Err(error) => {
-					$error = Invalid(error)
-				}
-				Ok(reference) => {
-					$builder = reference.builder
-					$entries = $entries.append({ key: name.id, value: reference.id })
-				}
-			}
-		}
+		name = KernelObject.add_name($builder, name_bytes) ? Object
+		reference = KernelObject.add_reference(name.builder, list_at(objects, $index)) ? Object
+		$builder = reference.builder
+		$entries = $entries.append({ key: name.id, value: reference.id })
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => Ok({ builder: $builder, entries: $entries })
-	}
+	Ok({ builder: $builder, entries: $entries })
 }
 
 add_image_references : KernelObject.Builder, List(KernelObjectPlan.ImageObjects) -> Try({ builder : KernelObject.Builder, entries : List(KernelObject.DictionaryEntry) }, KernelPageObjects.Error)
@@ -380,27 +358,17 @@ add_page_tree = |builder, names, objects| {
 	var $builder = builder
 	var $level = 0
 	var $edges = 0
-	var $error = NoError
-	while $level < KernelBalanced.Shape.level_count(shape) and $error == NoError {
+	while $level < KernelBalanced.Shape.level_count(shape) {
 		var $node = 0
-		while $node < KernelBalanced.Shape.level_node_count(shape, $level) and $error == NoError {
-			match add_page_tree_node($builder, names, objects, $level, $node) {
-				Err(error) => {
-					$error = Invalid(error)
-				}
-				Ok(added) => {
-					$builder = added.builder
-					$edges = $edges + added.edges
-				}
-			}
+		while $node < KernelBalanced.Shape.level_node_count(shape, $level) {
+			added = add_page_tree_node($builder, names, objects, $level, $node)?
+			$builder = added.builder
+			$edges = $edges + added.edges
 			$node = $node + 1
 		}
 		$level = $level + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ builder: $builder, edges: $edges })
-	}
+	Ok({ builder: $builder, edges: $edges })
 }
 
 add_page_tree_node : KernelObject.Builder, Names, KernelObjectPlan.Plan, U64, U64 -> Try({ builder : KernelObject.Builder, edges : U64 }, KernelPageObjects.Error)
@@ -408,36 +376,45 @@ add_page_tree_node = |builder, names, objects, level, node| {
 	shape = KernelObjectPlan.Plan.page_tree_shape(objects)
 	is_leaf = level == KernelBalanced.Shape.leaf_level(shape)
 	span = if is_leaf KernelBalanced.Shape.item_span(shape, level, node) else KernelBalanced.Shape.child_span(shape, level, node)
-	children = (if is_leaf add_page_references(builder, KernelObjectPlan.Plan.pages(objects), span) else add_tree_references(builder, KernelObjectPlan.Plan.page_tree(objects), span))?
-	kids = KernelObject.add_array(children.builder, children.values) ? Object
+	kids = (if is_leaf add_page_reference_array(builder, KernelObjectPlan.Plan.pages(objects), span) else add_tree_reference_array(builder, KernelObjectPlan.Plan.page_tree(objects), span))?
 	descendants = KernelBalanced.Span.length(KernelBalanced.Shape.item_span(shape, level, node))
 	count = KernelObject.add_integer(kids.builder, descendants.to_i64_wrap()) ? Object
 	type_value = KernelObject.add_name_value(count.builder, names.pages) ? Object
 	global = KernelBalanced.Shape.level_offset(shape, level) + node
-	entries = if level == 0 {
-		[
-			{ key: names.count, value: count.id },
-			{ key: names.kids, value: kids.id },
-			{ key: names.type_name, value: type_value.id },
-		]
+
+	## A non-root node's `/Parent` reference joins the builder that the
+	## node's dictionary is then built from, so the dictionary never names
+	## a value that its builder does not hold.
+	linked = if level == 0 {
+		{
+			builder: type_value.builder,
+			entries: [
+				{ key: names.count, value: count.id },
+				{ key: names.kids, value: kids.id },
+				{ key: names.type_name, value: type_value.id },
+			],
+		}
 	} else {
 		parent_global = KernelBalanced.Shape.level_offset(shape, level - 1) + U64.div_by(node, KernelBalanced.Shape.fanout)
 		parent = KernelObject.add_reference(type_value.builder, list_at(KernelObjectPlan.Plan.page_tree(objects), parent_global)) ? Object
-		[
-			{ key: names.count, value: count.id },
-			{ key: names.kids, value: kids.id },
-			{ key: names.parent, value: parent.id },
-			{ key: names.type_name, value: type_value.id },
-		]
+		{
+			builder: parent.builder,
+			entries: [
+				{ key: names.count, value: count.id },
+				{ key: names.kids, value: kids.id },
+				{ key: names.parent, value: parent.id },
+				{ key: names.type_name, value: type_value.id },
+			],
+		}
 	}
-	dictionary = KernelObject.add_dictionary(type_value.builder, entries) ? Object
+	dictionary = KernelObject.add_dictionary(linked.builder, linked.entries) ? Object
 	object = KernelObject.add_object(dictionary.builder, dictionary.id) ? Object
 	ensure_object(object.id, list_at(KernelObjectPlan.Plan.page_tree(objects), global))?
 	Ok({ builder: object.builder, edges: KernelBalanced.Span.length(span) })
 }
 
-add_page_references : KernelObject.Builder, List(KernelObjectPlan.PageObjects), KernelBalanced.Span -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelPageObjects.Error)
-add_page_references = |builder, pages, span| {
+add_page_reference_array : KernelObject.Builder, List(KernelObjectPlan.PageObjects), KernelBalanced.Span -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPageObjects.Error)
+add_page_reference_array = |builder, pages, span| {
 	var $objects = List.with_capacity(KernelBalanced.Span.length(span))
 	var $index = KernelBalanced.Span.start(span)
 	end = $index + KernelBalanced.Span.length(span)
@@ -445,11 +422,11 @@ add_page_references = |builder, pages, span| {
 		$objects = $objects.append(list_at(pages, $index).page)
 		$index = $index + 1
 	}
-	add_references(builder, $objects)
+	add_reference_array(builder, $objects)
 }
 
-add_tree_references : KernelObject.Builder, List(KernelObject.ObjectId), KernelBalanced.Span -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelPageObjects.Error)
-add_tree_references = |builder, objects, span| {
+add_tree_reference_array : KernelObject.Builder, List(KernelObject.ObjectId), KernelBalanced.Span -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPageObjects.Error)
+add_tree_reference_array = |builder, objects, span| {
 	var $children = List.with_capacity(KernelBalanced.Span.length(span))
 	var $index = KernelBalanced.Span.start(span)
 	end = $index + KernelBalanced.Span.length(span)
@@ -457,31 +434,26 @@ add_tree_references = |builder, objects, span| {
 		$children = $children.append(list_at(objects, $index))
 		$index = $index + 1
 	}
-	add_references(builder, $children)
+	add_reference_array(builder, $children)
 }
 
-add_references : KernelObject.Builder, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, values : List(KernelObject.ValueId) }, KernelPageObjects.Error)
-add_references = |builder, objects| {
+## One reference value per object, then the array of them. It returns only
+## the builder and the array's id: returning the builder beside the value
+## list made the pinned dev backend copy the store once per call
+## (docs/performance/lowering-uniqueness.md).
+add_reference_array : KernelObject.Builder, List(KernelObject.ObjectId) -> Try({ builder : KernelObject.Builder, id : KernelObject.ValueId }, KernelPageObjects.Error)
+add_reference_array = |builder, objects| {
 	var $builder = builder
 	var $values = List.with_capacity(objects.len())
 	var $index = 0
-	var $error = NoError
-	while $index < objects.len() and $error == NoError {
-		match KernelObject.add_reference($builder, list_at(objects, $index)) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(reference) => {
-				$builder = reference.builder
-				$values = $values.append(reference.id)
-			}
-		}
+	while $index < objects.len() {
+		reference = KernelObject.add_reference($builder, list_at(objects, $index)) ? Object
+		$builder = reference.builder
+		$values = $values.append(reference.id)
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		NoError => Ok({ builder: $builder, values: $values })
-	}
+	array = KernelObject.add_array($builder, $values) ? Object
+	Ok(array)
 }
 
 add_pages : KernelObject.Builder, Names, ResourcesFor, KernelTagged.Plan, KernelContent.Plan, KernelObjectPlan.Plan, PageGroups, PageAnnotations -> Try(KernelObject.Builder, KernelPageObjects.Error)
@@ -494,8 +466,7 @@ add_pages = |builder, names, resources, tagged, content, objects, groups, annota
 	tabs_s = KernelObject.add_name_value(page_type.builder, names.s) ? Object
 	var $builder = tabs_s.builder
 	var $index = 0
-	var $error = NoError
-	while $index < scenes.pages.len() and $error == NoError {
+	while $index < scenes.pages.len() {
 		page = list_at(scenes.pages, $index)
 		planned = list_at(page_objects, $index)
 		parent_index = leaf_offset + U64.div_by($index, KernelBalanced.Shape.fanout)
@@ -511,33 +482,27 @@ add_pages = |builder, names, resources, tagged, content, objects, groups, annota
 			NoAnnotations => NoAnnots
 			PerPageAnnotations(values) => list_at(values, $index)
 		}
-		match add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelObjectPlan.Plan.page_tree(objects), parent_index), planned, page_group, page_annots) {
-			Err(error) => {
-				$error = Invalid(error)
-			}
-			Ok(next) => {
-				$builder = next
-			}
-		}
+		$builder = add_page($builder, names, page_resources, page_type.id, tabs_s.id, page, KernelContent.Plan.stream(content, Semantics.ContentStreamId.from_index($index)), list_at(KernelObjectPlan.Plan.page_tree(objects), parent_index), planned, page_group, page_annots)?
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($builder)
-	}
+	Ok($builder)
 }
 
 add_page : KernelObject.Builder, Names, KernelObject.ValueId, KernelObject.ValueId, KernelObject.ValueId, Scene.Page, KernelContent.Stream, KernelObject.ObjectId, KernelObjectPlan.PageObjects, KernelPageObjects.PageGroup, KernelPageObjects.PageAnnots -> Try(KernelObject.Builder, KernelPageObjects.Error)
 add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_object, planned, group, annots| {
-	art = add_rect(builder, page.boxes.art)?
-	bleed = add_rect(art.builder, page.boxes.bleed)?
+	## ISO 32000-2 Table 31 defaults: CropBox is the MediaBox, BleedBox,
+	## TrimBox, and ArtBox are the CropBox, and Rotate is 0. A box equal to its
+	## default and a zero rotation are omitted.
+	art = add_box(builder, page.boxes.art, page.boxes.crop)?
+	bleed = add_box(art.builder, page.boxes.bleed, page.boxes.crop)?
 	contents = KernelObject.add_reference(bleed.builder, planned.content.stream) ? Object
-	crop = add_rect(contents.builder, page.boxes.crop)?
+	crop = add_box(contents.builder, page.boxes.crop, page.boxes.media)?
 	media = add_rect(crop.builder, page.boxes.media)?
 	parent = KernelObject.add_reference(media.builder, parent_object) ? Object
-	rotate = KernelObject.add_integer(parent.builder, rotation_degrees(page.rotation)) ? Object
+	degrees = rotation_degrees(page.rotation)
+	rotate = KernelObject.add_integer(parent.builder, degrees) ? Object
 	struct_parents = KernelObject.add_integer(rotate.builder, content.stream.index().to_i64_wrap()) ? Object
-	trim = add_rect(struct_parents.builder, page.boxes.trim)?
+	trim = add_box(struct_parents.builder, page.boxes.trim, page.boxes.crop)?
 	var $entries = []
 	match annots {
 		NoAnnots => {}
@@ -553,10 +518,10 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 			})
 		}
 	}
-	$entries = $entries.append({ key: names.art_box, value: art.value })
-	$entries = $entries.append({ key: names.bleed_box, value: bleed.value })
+	$entries = append_box($entries, names.art_box, art.value)
+	$entries = append_box($entries, names.bleed_box, bleed.value)
 	$entries = $entries.append({ key: names.contents, value: contents.id })
-	$entries = $entries.append({ key: names.crop_box, value: crop.value })
+	$entries = append_box($entries, names.crop_box, crop.value)
 	match group {
 		NoGroup => {}
 		WithGroup(group_value) => {
@@ -574,10 +539,12 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 	$entries = $entries.append({ key: names.media_box, value: media.value })
 	$entries = $entries.append({ key: names.parent, value: parent.id })
 	$entries = $entries.append({ key: names.resources, value: resources })
-	$entries = $entries.append({ key: names.rotate, value: rotate.id })
+	if degrees != 0 {
+		$entries = $entries.append({ key: names.rotate, value: rotate.id })
+	}
 	$entries = $entries.append({ key: names.struct_parents, value: struct_parents.id })
 	$entries = $entries.append({ key: names.tabs, value: tabs_s })
-	$entries = $entries.append({ key: names.trim_box, value: trim.value })
+	$entries = append_box($entries, names.trim_box, trim.value)
 	$entries = $entries.append({ key: names.type_name, value: page_type })
 	dictionary = KernelObject.add_dictionary(
 		trim.builder,
@@ -590,6 +557,30 @@ add_page = |builder, names, resources, page_type, tabs_s, page, content, parent_
 	ensure_object(stream.id, planned.content.stream)?
 	ensure_object(stream.length_object, planned.content.length)?
 	Ok(stream.builder)
+}
+
+## A page box, or nothing when it equals the box it defaults to.
+add_box : KernelObject.Builder, Layout.Rect, Layout.Rect -> Try({ builder : KernelObject.Builder, value : [DefaultBox, Box(KernelObject.ValueId)] }, KernelPageObjects.Error)
+add_box = |builder, rect, default| {
+	if same_rect(rect, default) {
+		Ok({ builder, value: DefaultBox })
+	} else {
+		added = add_rect(builder, rect)?
+		Ok({ builder: added.builder, value: Box(added.value) })
+	}
+}
+
+same_rect : Layout.Rect, Layout.Rect -> Bool
+same_rect = |left, right|
+	left.origin.x == right.origin.x
+		and left.origin.y == right.origin.y
+			and left.size.width == right.size.width
+				and left.size.height == right.size.height
+
+append_box : List(KernelObject.DictionaryEntry), KernelObject.NameId, [DefaultBox, Box(KernelObject.ValueId)] -> List(KernelObject.DictionaryEntry)
+append_box = |entries, key, value| match value {
+	DefaultBox => entries
+	Box(id) => entries.append({ key, value: id })
 }
 
 add_rect : KernelObject.Builder, Layout.Rect -> Try({ builder : KernelObject.Builder, value : KernelObject.ValueId }, KernelPageObjects.Error)
@@ -623,7 +614,7 @@ rotation_degrees = |rotation| match rotation {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelPageObjects.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
@@ -651,7 +642,7 @@ test_limits = {
 	max_values: 512,
 }
 
-## Page lowering consumes the planned page-tree, page, stream, and length IDs.
+# Page lowering consumes the planned page-tree, page, stream, and length IDs.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	prefix = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
@@ -662,7 +653,7 @@ expect {
 	counts.objects + 1 == KernelObject.ObjectId.number(first_color) and counts.payloads == 1 and counts.streams == 1 and work.pages == 1 and work.page_tree_nodes == 1 and work.page_tree_edges == 1 and work.box_values == 5 and work.resource_references == 2
 }
 
-## The additive text-layout path references each planned Type 0 font without widening tagged-visual plans.
+# The additive text-layout path references each planned Type 0 font without widening tagged-visual plans.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	fonts = KernelFontObjects.Plan.build(pipeline.objects, 1, 24)?

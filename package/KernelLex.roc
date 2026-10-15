@@ -6,18 +6,14 @@ KernelLex :: [].{
 		from_bytes = |bytes| {
 			length = bytes.len()
 			var $index = 0
-			var $error = NoError
-			while $index < length and $error == NoError {
+			while $index < length {
 				if byte_at(bytes, $index) == 0 {
-					$error = Invalid($index)
+					return Err(NullNameByte($index))
 				}
 				$index = $index + 1
 			}
 
-			match $error {
-				Invalid(index) => Err(NullNameByte(index))
-				NoError => Ok(Name.(bytes))
-			}
+			Ok(Name.(bytes))
 		}
 
 		bytes : Name -> List(U8)
@@ -68,11 +64,22 @@ KernelLex :: [].{
 	name : Name -> List(U8)
 	name = |value| append_name_bytes([], Name.bytes(value))
 
+	## A byte string is written in whichever canonical form is shorter: a
+	## literal `( )` string, in which `(`, `)`, and `\\` are escaped with a
+	## backslash and every byte outside printable ASCII is a three-digit octal
+	## escape, or uppercase hex. A tie is written as hex.
 	byte_string : List(U8) -> List(U8)
 	byte_string = |bytes| write_byte_string([], bytes)
 
-	## Text strings use UTF-16BE with a BOM and canonical uppercase hex syntax.
-	## Roc Str supplies valid UTF-8, so malformed encodings cannot cross this API.
+	## Always uppercase hex, for binary values such as file identifiers.
+	hex_string : List(U8) -> List(U8)
+	hex_string = |bytes| write_hex_string([], bytes)
+
+	## A text string whose characters are all printable ASCII (U+0020 to
+	## U+007E) is written as those bytes, which PDFDocEncoding maps to the same
+	## characters, under the byte-string rule. Any other text is UTF-16BE with a
+	## BOM in canonical uppercase hex. Roc Str supplies valid UTF-8, so
+	## malformed encodings cannot cross this API.
 	text_string : Str -> List(U8)
 	text_string = |value| write_text_string([], value)
 
@@ -94,6 +101,10 @@ KernelLex :: [].{
 	append_thousandths : List(U8), I64 -> List(U8)
 	append_thousandths = |output, coefficient| append_decimal(output, coefficient, 3)
 
+	## `coefficient` / 10^`digits` in canonical decimal form.
+	append_decimal_digits : List(U8), I64, U8 -> List(U8)
+	append_decimal_digits = |output, coefficient, digits| append_decimal(output, coefficient, digits)
+
 	append_billionths : List(U8), I64 -> List(U8)
 	append_billionths = |output, coefficient| append_decimal(output, coefficient, 9)
 
@@ -102,6 +113,9 @@ KernelLex :: [].{
 
 	append_byte_string : List(U8), List(U8) -> List(U8)
 	append_byte_string = |output, bytes| write_byte_string(output, bytes)
+
+	append_hex_string : List(U8), List(U8) -> List(U8)
+	append_hex_string = |output, bytes| write_hex_string(output, bytes)
 
 	append_text_string : List(U8), Str -> List(U8)
 	append_text_string = |output, value| write_text_string(output, value)
@@ -170,6 +184,11 @@ append_u64 = |output, value| {
 	}
 }
 
+## The sign is bound once and each branch consumes it. A `var` output that
+## one branch reassigned while the other passed it on as its value stayed live
+## across that call, and the call copied the whole output: once per integral
+## decimal, which is every whole coordinate in a content stream
+## (docs/performance/emission-linearity.md).
 append_decimal : List(U8), I64, U8 -> List(U8)
 append_decimal = |output, coefficient, scale| {
 	if coefficient == 0 {
@@ -187,25 +206,30 @@ append_decimal = |output, coefficient, scale| {
 			$scale = $scale - 1
 		}
 
-		var $out = if coefficient < 0 output.append(45) else output
+		signed = if coefficient < 0 output.append(45) else output
 		if $scale == 0 {
-			append_u64($out, $normalized)
+			append_u64(signed, $normalized)
 		} else {
-			power = power_of_ten($scale)
-			whole = U64.div_by($normalized, power)
-			fraction = U64.mod_by($normalized, power)
-			$out = append_u64($out, whole)
-			$out = $out.append(46)
-
-			var $divisor = U64.div_by(power, 10)
-			while $divisor > 0 {
-				digit = U64.mod_by(U64.div_by(fraction, $divisor), 10)
-				$out = $out.append((48 + digit).to_u8_wrap())
-				$divisor = U64.div_by($divisor, 10)
-			}
-			$out
+			append_fraction(signed, $normalized, $scale)
 		}
 	}
+}
+
+append_fraction : List(U8), U64, U64 -> List(U8)
+append_fraction = |output, normalized, scale| {
+	power = power_of_ten(scale)
+	whole = U64.div_by(normalized, power)
+	fraction = U64.mod_by(normalized, power)
+	var $out = append_u64(output, whole)
+	$out = $out.append(46)
+
+	var $divisor = U64.div_by(power, 10)
+	while $divisor > 0 {
+		digit = U64.mod_by(U64.div_by(fraction, $divisor), 10)
+		$out = $out.append((48 + digit).to_u8_wrap())
+		$divisor = U64.div_by($divisor, 10)
+	}
+	$out
 }
 
 power_of_ten : U64 -> U64
@@ -247,6 +271,51 @@ is_regular_name_byte = |byte| {
 
 write_byte_string : List(U8), List(U8) -> List(U8)
 write_byte_string = |output, bytes| {
+	var $literal = 2
+	var $index = 0
+	while $index < bytes.len() {
+		$literal = $literal + literal_width(byte_at(bytes, $index))
+		$index = $index + 1
+	}
+	if $literal < 2 + 2 * bytes.len() {
+		write_literal_string(output, bytes)
+	} else {
+		write_hex_string(output, bytes)
+	}
+}
+
+## Bytes one byte takes in a canonical literal string.
+literal_width : U8 -> U64
+literal_width = |byte| {
+	if byte == 40 or byte == 41 or byte == 92 {
+		2
+	} else if byte >= 32 and byte <= 126 {
+		1
+	} else {
+		4
+	}
+}
+
+write_literal_string : List(U8), List(U8) -> List(U8)
+write_literal_string = |output, bytes| {
+	var $out = output.append(40)
+	var $index = 0
+	while $index < bytes.len() {
+		byte = byte_at(bytes, $index)
+		if byte == 40 or byte == 41 or byte == 92 {
+			$out = $out.append(92).append(byte)
+		} else if byte >= 32 and byte <= 126 {
+			$out = $out.append(byte)
+		} else {
+			$out = $out.append(92).append(48 + U8.div_by(byte, 64)).append(48 + U8.mod_by(U8.div_by(byte, 8), 8)).append(48 + U8.mod_by(byte, 8))
+		}
+		$index = $index + 1
+	}
+	$out.append(41)
+}
+
+write_hex_string : List(U8), List(U8) -> List(U8)
+write_hex_string = |output, bytes| {
 	length = bytes.len()
 	var $out = output.append(60)
 	var $index = 0
@@ -262,6 +331,24 @@ write_text_string = |output, value| write_text_utf8(output, Str.to_utf8(value))
 
 write_text_utf8 : List(U8), List(U8) -> List(U8)
 write_text_utf8 = |output, utf8| {
+	var $ascii = True
+	var $scan = 0
+	while $ascii and $scan < utf8.len() {
+		byte = byte_at(utf8, $scan)
+		if byte < 32 or byte > 126 {
+			$ascii = False
+		}
+		$scan = $scan + 1
+	}
+	if $ascii {
+		write_byte_string(output, utf8)
+	} else {
+		write_text_utf16(output, utf8)
+	}
+}
+
+write_text_utf16 : List(U8), List(U8) -> List(U8)
+write_text_utf16 = |output, utf8| {
 	length = utf8.len()
 	var $out = output.append(60)
 	$out = append_hex_byte($out, 254)
@@ -389,5 +476,17 @@ expect {
 	}
 }
 
-## Fixed kernel scales append without constructing an opaque Decimal value.
+# Fixed kernel scales append without constructing an opaque Decimal value.
 expect KernelLex.append_thousandths([], -25) == Str.to_utf8("-0.025") and KernelLex.append_billionths([], 1) == Str.to_utf8("0.000000001")
+
+# Byte strings take the shorter canonical form; ties and binary stay hex.
+expect KernelLex.byte_string(Str.to_utf8("c000008")) == Str.to_utf8("(c000008)") and
+	KernelLex.byte_string(Str.to_utf8("a(b)\\")) == Str.to_utf8("(a\\(b\\)\\\\)") and
+		KernelLex.byte_string([0, 255]) == Str.to_utf8("<00FF>") and
+			KernelLex.byte_string([65, 10]) == Str.to_utf8("<410A>") and
+				KernelLex.byte_string([]) == Str.to_utf8("<>")
+
+# Printable-ASCII text is written as PDFDocEncoding bytes; other text is UTF-16BE.
+expect KernelLex.text_string("en-AU") == Str.to_utf8("(en-AU)") and
+	KernelLex.text_string("Café") == Str.to_utf8("<FEFF00430061006600E9>") and
+		KernelLex.text_string("") == Str.to_utf8("<>")

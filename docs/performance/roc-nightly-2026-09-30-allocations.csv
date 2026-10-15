@@ -1,0 +1,265 @@
+case,x64musl_allocations_sep28,x64musl_allocations_df1f747,allocations_delta,x64musl_allocated_bytes_sep28,x64musl_allocated_bytes_df1f747,allocated_bytes_delta,deterministic_work
+text-layout selected external discretionary-hyphen extraction,1549,1545,-4,965566,965022,-544,unchanged
+structural-kernel blank PDF,0,0,0,0,0,0,unchanged
+structural-kernel balanced 4096-page PDF,29679,29677,-2,11261917,11316693,54776,unchanged
+structural-kernel balanced index plans,33798,33796,-2,11508357,11563133,54776,unchanged
+structural-kernel linked outline plan,29683,29681,-2,11950253,12005029,54776,unchanged
+structural-kernel stable resource names,29683,29681,-2,11412466,11467242,54776,unchanged
+structural-kernel bulk lexical values x2048,29683,29681,-2,11468860,11523636,54776,unchanged
+structural-kernel bulk lexical values x4096,29683,29681,-2,11675708,11730484,54776,unchanged
+structural-kernel one-block dynamic DEFLATE,78,77,-1,677842,678442,600,unchanged
+structural-kernel stateful dynamic DEFLATE,90,89,-1,3205912,3206512,600,unchanged
+placeholder PDF x1,1,1,0,24,24,0,unchanged
+placeholder PDF x4,1,1,0,24,24,0,unchanged
+tagged-visual minimal tagged visual PDF,379,375,-4,1132275,1131731,-544,unchanged
+tagged-visual million-command image reuse,115,114,-1,208781268,208781868,600,unchanged
+text-layout simple-list authoring normalization x1000,85,84,-1,522642,523242,600,unchanged
+text-layout compact-builder authoring normalization x1000,114,118,4,410223,488122,77899,unchanged
+text-layout simple-list authoring normalization x10000,94,93,-1,5466018,5466618,600,unchanged
+text-layout compact-builder authoring normalization x10000,140,144,4,4791375,5682298,890923,unchanged
+text-layout shaped-cluster line selection x1000,94,93,-1,1814002,1814602,600,unchanged
+text-layout shaped-cluster line selection x10000,102,101,-1,18037370,18037970,600,unchanged
+text-layout single-column pagination x1000,105,104,-1,1801082,1801682,600,unchanged
+text-layout single-column pagination x10000,117,116,-1,15797610,15798210,600,unchanged
+text-layout shared facade source cache x1000,73,72,-1,57022,57622,600,unchanged
+text-layout shared facade source cache x10000,73,72,-1,590782,591382,600,unchanged
+text-layout unique facade source cache x1000,15975,15974,-1,2081478,2082078,600,unchanged
+text-layout unique facade source cache x10000,177979,177978,-1,28824022,28824622,600,unchanged
+text-layout facade semantic planning x1000,253,257,4,1155098,1232997,77899,unchanged
+text-layout facade semantic planning x10000,284,288,4,12279554,13170477,890923,unchanged
+text-layout facade batch shaping x1000,1252,1256,4,2225076,2302975,77899,unchanged
+text-layout facade batch shaping x10000,1283,1287,4,20549532,21440455,890923,unchanged
+text-layout facade cached line layout x1000,1280,1284,4,2429092,2506991,77899,unchanged
+text-layout facade cached line layout x10000,1311,1315,4,22655308,23546231,890923,unchanged
+text-layout facade row pagination x1000,1318,1322,4,3127044,3204943,77899,unchanged
+text-layout facade row pagination x10000,1363,1367,4,29250996,30141919,890923,unchanged
+text-layout built-in TrueType inspection,1036,1035,-1,271098,271698,600,unchanged
+text-layout caller-font registration,90,89,-1,12375,12975,600,unchanged
+text-layout Unicode analysis x1000,122,121,-1,2121490,2122090,600,unchanged
+text-layout UAX boundary seam vectors,101,100,-1,9976,10576,600,unchanged
+text-layout UAX boundary atomic limits,63,62,-1,7849,8449,600,unchanged
+text-layout UAX 9 conformance vectors,762,761,-1,139611,140211,600,unchanged
+text-layout deterministic font plan,1046,1045,-1,300560,301160,600,unchanged
+text-layout ordered multi-face cluster selection,125,124,-1,16659,17259,600,unchanged
+text-layout Unicode analysis x10000,137,136,-1,19210834,19211434,600,unchanged
+text-layout sanitized TrueType subset,1068,1067,-1,318440,319040,600,unchanged
+text-layout simple and advanced shaping,1059,1058,-1,274147,274747,600,unchanged
+text-layout Type 0 PDF font objects,1119,1118,-1,328150,328750,600,unchanged
+text-layout visible searchable text,1596,1592,-4,987968,987424,-544,unchanged
+text-layout authored facade output,1864,1860,-4,1025463,1024919,-544,unchanged
+text-layout authored facade output atomic negative,1096,1095,-1,286638,287238,600,unchanged
+text-layout caller-font facade output,1003,1000,-3,789493,789981,488,unchanged
+text-layout caller-font facade restricted-rights atomic negative,18,18,0,2860,2860,0,unchanged
+text-layout caller-font shared registry retention,1973,1967,-6,1574285,1575261,976,unchanged
+text-layout caller-font unique registry retention control,2005,1999,-6,1578906,1579882,976,unchanged
+text-layout public built-in Pdf facade output,1957,1952,-5,1088877,1085253,-3624,unchanged
+text-layout public image-figure facade output,2747,2744,-3,1731539,1732027,488,unchanged
+text-layout chunked facade output shared resources,2016,2011,-5,1384027,1380403,-3624,unchanged
+text-layout chunked facade output owned chunks,2017,2012,-5,1387059,1383435,-3624,unchanged
+text-layout chunked facade atomic negative,5,5,0,555,555,0,unchanged
+text-layout generated list-label text,2008,2003,-5,1110384,1104712,-5672,unchanged
+text-layout generated list-label atomic negative,124,123,-1,13474,14074,600,unchanged
+text-layout caller-font visible searchable text,650,646,-4,695280,694736,-544,unchanged
+text-layout reordered ActualText,579,575,-4,671548,671004,-544,unchanged
+text-layout selected soft-hyphen extraction,1624,1620,-4,988452,987908,-544,unchanged
+text-layout malformed soft-hyphen opportunity atomic negative,66,65,-1,7935,8535,600,unchanged
+text-layout unselected soft-hyphen atomic negative,75,74,-1,10011,10611,600,unchanged
+text-layout malformed external discretionary-hyphen opportunity atomic negative,66,65,-1,8034,8634,600,unchanged
+text-layout unselected external discretionary-hyphen opportunity atomic negative,66,65,-1,8034,8634,600,unchanged
+text-layout supplementary-plane searchable text,2462,2458,-4,1394697,1394153,-544,unchanged
+text-layout supplementary-plane text atomic negative,1995,1994,-1,642658,643258,600,unchanged
+text-layout CJK searchable text,544,540,-4,642416,641872,-544,unchanged
+text-layout ordered multi-face advanced output,789,785,-4,746598,746054,-544,unchanged
+text-layout ordered multi-face script mismatch atomic negative,120,119,-1,16291,16891,600,unchanged
+text-layout CJK text atomic negative,80,79,-1,10589,11189,600,unchanged
+text-layout combining-mark searchable text,1511,1507,-4,962397,961853,-544,unchanged
+text-layout combining-mark text atomic negative,1498,1493,-5,414098,414154,56,unchanged
+text-layout facade text prepared-input control x1000,71,70,-1,1282330,1282930,600,unchanged
+text-layout facade text materialization x1000,79,78,-1,2643202,2643802,600,unchanged
+text-layout facade text prepared-input control x10000,76,75,-1,12774530,12775130,600,unchanged
+text-layout facade text materialization x10000,84,83,-1,26382146,26382746,600,unchanged
+text-layout facade fragment prepared-input control x1000,99,98,-1,1558355,1558955,600,unchanged
+text-layout facade fragment arena x1000,101,100,-1,1726387,1726987,600,unchanged
+text-layout facade fragment prepared-input control x10000,109,108,-1,15713539,15714139,600,unchanged
+text-layout facade fragment arena x10000,111,110,-1,17393571,17394171,600,unchanged
+text-layout facade fragment semantic attachment,98,97,-1,14554,15154,600,unchanged
+text-layout facade fragment atomic negatives,102,101,-1,14070,14670,600,unchanged
+text-layout facade owned scene composition,153,152,-1,20084,20684,600,unchanged
+text-layout facade scene prepared-input control x1000,64,63,-1,105194,105794,600,unchanged
+text-layout facade scene arena x1000,70,69,-1,751506,752106,600,unchanged
+text-layout facade scene prepared-input control x10000,68,67,-1,989194,989794,600,unchanged
+text-layout facade scene arena x10000,74,73,-1,7449458,7450058,600,unchanged
+text-layout facade scene atomic negatives,74,73,-1,11282,11882,600,unchanged
+text-layout GSUB fi ligature searchable text,552,548,-4,651292,650748,-544,unchanged
+text-layout GSUB fi ligature atomic negative,79,78,-1,10500,11100,600,unchanged
+text-layout resolved right-to-left text,780,776,-4,699693,699149,-544,unchanged
+text-layout right-to-left mismatched bidi fact atomic negative,184,183,-1,33584,34184,600,unchanged
+text-layout public ordered multi-face facade output,1032,1027,-5,808364,804740,-3624,unchanged
+text-layout multi-face facade shared registry retention,2000,1990,-10,1608007,1600759,-7248,unchanged
+text-layout multi-face facade unique registries retention control,2061,2051,-10,1616576,1609328,-7248,unchanged
+text-layout multi-face facade missing coverage atomic negative,122,122,0,15565,15565,0,unchanged
+text-layout multi-face facade undeclared script atomic negative,122,122,0,15572,15572,0,unchanged
+text-layout multi-face facade unknown policy atomic negative,79,79,0,12881,12881,0,unchanged
+text-layout multi-face facade builtin policy atomic negative,18,18,0,4320,4320,0,unchanged
+text-layout adversarial ordered font selection x1000,1133,1132,-1,195515,196115,600,unchanged
+text-layout adversarial ordered font selection x10000,10138,10137,-1,1717563,1718163,600,unchanged
+text-layout ordered multi-face facade scale x1000,290,289,-1,3955684,3956284,600,unchanged
+text-layout ordered multi-face facade scale x10000,317,316,-1,41912692,41913292,600,unchanged
+text-layout case transformation text,1537,1533,-4,964293,963749,-544,unchanged
+text-layout case transformation atomic negative,1049,1048,-1,272352,272952,600,unchanged
+structural-kernel unchanged-resource retention,141,140,-1,28856,29456,600,unchanged
+production-visual resource dependency chain x100,1378,1377,-1,442418,443018,600,unchanged
+production-visual resource dependency chain x1000,12202,12201,-1,5155322,5155922,600,unchanged
+production-visual resource dependency fan x100,1378,1377,-1,442418,443018,600,unchanged
+production-visual resource dependency fan x1000,12202,12201,-1,5155322,5155922,600,unchanged
+production-visual dense resource dependency graph x100,1394,1393,-1,814194,814794,600,unchanged
+production-visual dense resource dependency graph x1000,12218,12217,-1,9812106,9812706,600,unchanged
+production-visual forced digest-collision bucket x100,711,710,-1,199916,200516,600,unchanged
+production-visual forced digest-collision bucket x1000,6128,6127,-1,2245510,2246110,600,unchanged
+production-visual unique resource-input ownership x100,715,714,-1,212550,213150,600,unchanged
+production-visual retained resource-input ownership x100,1372,1371,-1,427034,427634,600,unchanged
+production-visual resource-graph atomic negatives,445,444,-1,49062,49662,600,unchanged
+production-visual form showcase with adversarial authoring,2717,2601,-116,8209408,7878672,-330736,unchanged
+production-visual form unique-input ownership,1359,1301,-58,4104880,3939512,-165368,unchanged
+production-visual form retained-input ownership,2686,2570,-116,8198696,7867960,-330736,unchanged
+production-visual artifact form repeated x100,1428,1409,-19,1258024,1241808,-16216,unchanged
+production-visual artifact form repeated x1000,8650,8631,-19,2180569,2164353,-16216,unchanged
+production-visual nested form DAG x8,2076,1938,-138,7683829,7226525,-457304,unchanged
+production-visual nested form DAG x32,5479,5034,-445,24132276,20751796,-3380480,unchanged
+production-visual deep nested form chain x64,7046,6284,-762,43598768,35916664,-7682104,unchanged
+production-visual text inside a meaningful form,1066,1047,-19,1348698,1327474,-21224,unchanged
+production-visual form atomic negatives,1665,1646,-19,1254261,1238045,-16216,unchanged
+production-visual color-image showcase with adversarial authoring,2309,2251,-58,5851486,5739310,-112176,unchanged
+production-visual color-image unique-input ownership,1155,1126,-29,2925903,2869815,-56088,unchanged
+production-visual color-image retained-input ownership,2288,2230,-58,5846886,5734710,-112176,unchanged
+production-visual duplicate image collapse x8,745,732,-13,1199155,1194459,-4696,unchanged
+production-visual duplicate image collapse x64,1861,1848,-13,1546526,1541830,-4696,unchanged
+production-visual distinct image emission x8,1022,1008,-14,4912339,4905731,-6608,unchanged
+production-visual distinct image emission x64,4298,4282,-16,35233665,35213665,-20000,unchanged
+production-visual color-image atomic negatives,847,834,-13,1185817,1181121,-4696,unchanged
+production-visual transparency showcase with adversarial authoring,2827,2719,-108,8168572,7902828,-265744,unchanged
+production-visual transparency unique-input ownership,1414,1360,-54,4084414,3951542,-132872,unchanged
+production-visual transparency retained-input ownership,2800,2692,-108,8160020,7894276,-265744,unchanged
+production-visual shared-constant opacity x100,1762,1749,-13,1340255,1335559,-4696,unchanged
+production-visual shared-constant opacity x1000,11689,11676,-13,2717427,2712731,-4696,unchanged
+production-visual distinct opacity states x100,4997,4983,-14,2232244,2216932,-15312,unchanged
+production-visual distinct opacity states x1000,43798,43783,-15,23562408,23463776,-98632,unchanged
+production-visual nested opacity chain x16,1223,1210,-13,1333999,1327975,-6024,unchanged
+production-visual nested opacity chain x64,2940,2925,-15,1783915,1767379,-16536,unchanged
+production-visual per-form opacity x8,1600,1494,-106,5852120,5568072,-284048,unchanged
+production-visual per-form opacity x32,4225,3834,-391,21295317,18781725,-2513592,unchanged
+production-visual transparency atomic negatives,1459,1446,-13,5468136,5463440,-4696,unchanged
+production-visual soft-mask showcase with adversarial authoring,2592,2484,-108,6033778,5783842,-249936,unchanged
+production-visual soft-mask unique-input ownership,1295,1241,-54,3016761,2891793,-124968,unchanged
+production-visual soft-mask retained-input ownership,2567,2459,-108,6024882,5774946,-249936,unchanged
+production-visual shared mask reuse x100,1963,1938,-25,1915095,1885903,-29192,unchanged
+production-visual shared mask reuse x1000,11890,11865,-25,3292267,3263075,-29192,unchanged
+production-visual distinct mask forms x8,1938,1833,-105,5954300,5671108,-283192,unchanged
+production-visual distinct mask forms x64,10207,9437,-770,46505092,37736548,-8768544,unchanged
+production-visual mask chain x2,989,952,-37,2352243,2294587,-57656,unchanged
+production-visual mask chain x4,1271,1213,-58,3536259,3421771,-114488,unchanged
+production-visual soft-mask atomic negatives,1654,1629,-25,4998124,4968932,-29192,unchanged
+production-visual shading-pattern showcase with adversarial authoring,3955,3817,-138,6668028,6127436,-540592,unchanged
+production-visual shading-pattern unique-input ownership,1978,1909,-69,3334206,3063910,-270296,unchanged
+production-visual shading-pattern retained-input ownership,3916,3778,-138,6655728,6115136,-540592,unchanged
+production-visual shared shading x100,1612,1599,-13,809831,805135,-4696,unchanged
+production-visual shared shading x1000,9739,9726,-13,2079069,2074373,-4696,unchanged
+production-visual distinct shadings x8,1299,1285,-14,830725,824117,-6608,unchanged
+production-visual distinct shadings x64,5711,5695,-16,2203966,2183966,-20000,unchanged
+production-visual shading stops x16,1199,1186,-13,827176,822480,-4696,unchanged
+production-visual shading stops x64,2681,2668,-13,1391880,1387184,-4696,unchanged
+production-visual shared pattern x100,1314,1295,-19,1252547,1236331,-16216,unchanged
+production-visual shared pattern x1000,7625,7606,-19,1940006,1923790,-16216,unchanged
+production-visual distinct patterns x8,1336,1278,-58,5150966,5003222,-147744,unchanged
+production-visual distinct patterns x64,6686,6298,-388,41340142,35949598,-5390544,unchanged
+production-visual pattern cell commands x16,738,719,-19,1205261,1189045,-16216,unchanged
+production-visual pattern cell commands x64,1126,1107,-19,1239102,1222886,-16216,unchanged
+production-visual shading-pattern atomic negatives,1365,1352,-13,1259342,1254646,-4696,unchanged
+production-visual font-leaf showcase with adversarial authoring,5107,5013,-94,5189392,4994784,-194608,unchanged
+production-visual font-leaf distinctness matrix,2637,2621,-16,1594059,1571867,-22192,unchanged
+production-visual font-leaf unique-input ownership,2554,2507,-47,2594808,2497504,-97304,unchanged
+production-visual font-leaf retained-input ownership,5095,5001,-94,5188568,4993960,-194608,unchanged
+production-visual shared font subset x100,6451,6437,-14,2456292,2226796,-229496,unchanged
+production-visual shared font subset x1000,48864,48849,-15,20563893,17897341,-2666552,unchanged
+production-visual equivalent authored fonts collapse x8,2461,2445,-16,1654344,1622360,-31984,unchanged
+production-visual equivalent authored fonts collapse x64,8262,8248,-14,6998208,6850024,-148184,unchanged
+production-visual distinct font subsets x8,6591,6557,-34,4162800,4091424,-71376,unchanged
+production-visual distinct font subsets x64,31361,31331,-30,25540764,25203772,-336992,unchanged
+production-visual font-leaf forced digest collisions x8,3052,3039,-13,1919985,1915289,-4696,unchanged
+production-visual font-leaf forced digest collisions x64,5564,5551,-13,16787359,16782663,-4696,unchanged
+production-visual font-leaf atomic negatives,5109,5096,-13,2053977,2049281,-4696,unchanged
+production-visual metadata showcase with adversarial authoring,1475,1453,-22,1502102,1477766,-24336,unchanged
+production-visual metadata omitted-timestamp packet,721,710,-11,737975,725807,-12168,unchanged
+production-visual metadata unique-input ownership,738,727,-11,751127,738959,-12168,unchanged
+production-visual metadata retained-input ownership,1474,1452,-22,1501902,1477566,-24336,unchanged
+production-visual shared intent profile x16,1648,1638,-10,1247938,1218386,-29552,unchanged
+production-visual shared intent profile x64,4731,4722,-9,3597025,3514825,-82200,unchanged
+production-visual metadata title scaling x64,739,728,-11,751601,739433,-12168,unchanged
+production-visual metadata title scaling x256,741,730,-11,757514,745346,-12168,unchanged
+production-visual metadata atomic negatives,753,742,-11,754222,742054,-12168,unchanged
+production-visual public facade metadata output,34061,34057,-4,7330676,7321844,-8832,unchanged
+production-visual public facade metadata determinism,68121,68113,-8,14661344,14643680,-17664,unchanged
+production-visual facade metadata atomic negatives,1734,1729,-5,1031811,1028187,-3624,unchanged
+production-visual navigation showcase with adversarial authoring,2107,2071,-36,3886122,3788458,-97664,unchanged
+production-visual navigation annotations x8,1023,1013,-10,911704,883512,-28192,unchanged
+production-visual navigation annotations x64,3825,3816,-9,2869912,2691368,-178544,unchanged
+production-visual navigation fragmented link x32 quads,1178,1169,-9,901793,882313,-19480,unchanged
+production-visual navigation shared destination x32 links,2302,2294,-8,1914396,1820052,-94344,unchanged
+production-visual navigation shared appearance x16 links,1634,1620,-14,1824800,1740272,-84528,unchanged
+production-visual navigation outline depth x16,814,806,-8,746102,740534,-5568,unchanged
+production-visual navigation outline width x64,1450,1442,-8,952582,947014,-5568,unchanged
+production-visual navigation destination names x8,877,867,-10,796635,775115,-21520,unchanged
+production-visual navigation destination names x40,1976,1967,-9,1379672,1325544,-54128,unchanged
+production-visual navigation page labels x8,1124,1076,-48,4768849,4639969,-128880,unchanged
+production-visual navigation unique-input ownership,1054,1036,-18,1943129,1894297,-48832,unchanged
+production-visual navigation retained-input ownership,2105,2069,-36,3885530,3787866,-97664,unchanged
+production-visual navigation atomic negatives,3465,3447,-18,2347847,2299015,-48832,unchanged
+production-visual navigation authored facade output,37730,37728,-2,7882788,7908964,26176,unchanged
+production-visual navigation facade determinism,75459,75455,-4,15765568,15817920,52352,unchanged
+production-visual navigation facade atomic negatives,12229,12225,-4,3661127,3660423,-704,unchanged
+static PDF/A-4 blank archive document,188,187,-1,50587,51955,1368,unchanged
+static PDF/A-4 archived report with timestamps,59688,59684,-4,13541717,13528997,-12720,unchanged
+static PDF/A-4 archived report scaling x400,571088,571084,-4,120137324,120037676,-99648,unchanged
+static PDF/A-4 archived raster, alpha, gray, and JPEG figures,3052,3047,-5,3410426,3404754,-5672,unchanged
+static PDF/A-4 archived navigation x8 links,4851,4847,-4,1711198,1710974,-224,unchanged
+static PDF/A-4 archived navigation x64 links,14851,14846,-5,5369961,5305177,-64784,unchanged
+static PDF/A-4 archived caller font,909,904,-5,777763,774139,-3624,unchanged
+static PDF/A-4 owned chunked output,119524,119516,-8,29421171,29395731,-25440,unchanged
+static PDF/A-4 shared chunked output,119523,119515,-8,29418139,29392699,-25440,unchanged
+static PDF/A-4 Archive and Standard profile twins,119331,119323,-8,27070510,27045070,-25440,unchanged
+static PDF/A-4 facade atomic negatives,1852,1847,-5,1072562,1068938,-3624,unchanged
+static PDF/A-4 Standard twin of the archived figures,3050,3045,-5,3409571,3403899,-5672,unchanged
+static PDF/A-4 Standard twin of the archived navigation,4849,4845,-4,1710291,1710067,-224,unchanged
+semantic foundation nested public containers,6222,6217,-5,1966094,1957414,-8680,unchanged
+semantic foundation sections x10,13416,13411,-5,3867309,3854917,-12392,unchanged
+semantic foundation sections x100,117527,117523,-4,29518684,29478220,-40464,unchanged
+semantic foundation container atomic negatives,7451,7445,-6,3107290,3110314,3024,unchanged
+semantic foundation kernel attribute, identifier, and language lowering,1787,1783,-4,1047574,1046806,-768,unchanged
+rich inline mixed styles, links, languages, and expansions,18549,18539,-10,4666716,4641916,-24800,unchanged
+rich inline paragraphs x10,38674,38666,-8,9590202,9540202,-50000,unchanged
+rich inline paragraphs x100,353763,353755,-8,87539928,87013896,-526032,unchanged
+rich inline ordered multi-face spans,2095,2088,-7,1044722,1044922,200,unchanged
+rich inline atomic negatives,16725,16717,-8,5524255,5519071,-5184,unchanged
+layout policies nested lists,11311,11307,-4,3338607,3329775,-8832,unchanged
+layout policies explicit breaks and spacers,11495,11491,-4,3806541,3802029,-4512,unchanged
+layout policies keeps across page boundaries,8329,8324,-5,4561652,4554188,-7464,unchanged
+layout policies reported relaxations,4638,4635,-3,3317592,3318080,488,unchanged
+layout policies keep groups and lists x50,47807,47803,-4,13844836,13804372,-40464,unchanged
+layout policies keep groups and lists x500,462348,462344,-4,129267858,128931474,-336384,unchanged
+layout policies adversarial heading chain x50,11339,11335,-4,3504343,3495511,-8832,unchanged
+layout policies adversarial heading chain x500,88142,88138,-4,28591801,28531609,-60192,unchanged
+layout policies atomic negatives,31438,31428,-10,12814194,12801058,-13136,unchanged
+tables invoice x50,69843,69839,-4,21352339,21261411,-90928,unchanged
+tables invoice x500,543673,543670,-3,158290115,160287179,1997064,unchanged
+tables column spans and two header rows,11067,11063,-4,3271659,3259611,-12048,unchanged
+tables split rows,103482,103478,-4,38515446,38488998,-26448,unchanged
+tables footer carry,29239,29235,-4,9282194,9223346,-58848,unchanged
+tables ordered numeric cells,4365,4361,-4,1653560,1647720,-5840,unchanged
+tables atomic negatives,70612,70609,-3,60093876,60095932,2056,unchanged
+page templates letter x6,49198,49195,-3,18794233,18822513,28280,unchanged
+page templates letter x20,115718,115715,-3,46498657,46541337,42680,unchanged
+page templates letter x200,966707,966703,-4,384532972,384383228,-149744,unchanged
+page templates report,174175,174171,-4,58527780,58509228,-18552,unchanged
+page templates number styles,9805,9800,-5,4989314,4983642,-5672,unchanged
+page templates furniture drawings,4701,4698,-3,4862794,4863282,488,unchanged
+page templates atomic negatives,15900,15895,-5,4654199,4650575,-3624,unchanged

@@ -170,7 +170,7 @@ list_at = |list, index| match list.get(index) {
 	}
 }
 
-## One item produces one root that is also a leaf.
+# One item produces one root that is also a leaf.
 expect {
 	shape = KernelBalanced.Shape.build(1, 1024)?
 	span = KernelBalanced.Shape.item_span(shape, 0, 0)
@@ -181,7 +181,7 @@ expect {
 				KernelBalanced.Span.length(span) == 1
 }
 
-## The 33rd item creates two leaves beneath one root.
+# The 33rd item creates two leaves beneath one root.
 expect {
 	shape = KernelBalanced.Shape.build(33, 1024)?
 	children = KernelBalanced.Shape.child_span(shape, 0, 0)
@@ -197,7 +197,7 @@ expect {
 							KernelBalanced.Span.length(right) == 1
 }
 
-## Thousands of items retain the same fixed-fanout left-packed shape as pages.
+# Thousands of items retain the same fixed-fanout left-packed shape as pages.
 expect {
 	shape = KernelBalanced.Shape.build(4096, 1048576)?
 
@@ -208,19 +208,19 @@ expect {
 					KernelBalanced.Shape.node_count(shape) == 133
 }
 
-## Shape limits fail before allocating level storage.
+# Shape limits fail before allocating level storage.
 expect match KernelBalanced.Shape.build(1025, 1024) {
 	Err(ItemLimitExceeded({ attempted, limit })) => attempted == 1025 and limit == 1024
 	_ => False
 }
 
-## Empty index structures are rejected before shape allocation.
+# Empty index structures are rejected before shape allocation.
 expect match KernelBalanced.Shape.build(0, 1024) {
 	Err(ItemCountZero) => True
 	_ => False
 }
 
-## The package maximum has four levels and an exact fixed-fanout node count.
+# The package maximum has four levels and an exact fixed-fanout node count.
 expect {
 	shape = KernelBalanced.Shape.build(1048576, 1048576)?
 

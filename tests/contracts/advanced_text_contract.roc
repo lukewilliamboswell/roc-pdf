@@ -1,6 +1,6 @@
 app [main!] {
-	pf: platform "../platform/main.roc",
 	pdf: "../../package/main.roc",
+	pf: platform "../platform/main.roc",
 }
 
 import pdf.Color
@@ -16,7 +16,7 @@ source_range = {
 	utf8_bytes: Semantics.Range.from_start_and_length(0, 3),
 }
 
-## Font planning assigns complete grapheme clusters to exact static instances.
+# Font planning assigns complete grapheme clusters to exact static instances.
 expect {
 	plan : Font.PlanResult
 	plan = Complete({
@@ -39,7 +39,7 @@ expect {
 	}
 }
 
-## Cluster evidence can explicitly represent many source scalars forming one glyph.
+# Cluster evidence can explicitly represent many source scalars forming one glyph.
 expect {
 	cluster : Text.Cluster
 	cluster = {
@@ -51,7 +51,7 @@ expect {
 	cluster.kind == ManyToOne and cluster.source.scalars.length() == 2
 }
 
-## A shaped run retains occurrence ownership and source-to-glyph evidence by ranges.
+# A shaped run retains occurrence ownership and source-to-glyph evidence by ranges.
 expect {
 	run : Text.Run
 	run = {
@@ -62,19 +62,23 @@ expect {
 		id: Text.RunId.from_index(0),
 		instance: Font.InstanceId.from_index(2),
 		language: Language("en-AU"),
-		occurrence: Semantics.OccurrenceId.from_index(4),
 		script: Font.Script.from_iso15924("Latn"),
 		size: Layout.Unit.from_raw(11000),
 		source: source_range,
 		substitutions: Semantics.Range.from_start_and_length(0, 0),
 		transformations: Semantics.Range.from_start_and_length(0, 0),
+		unicode: OccurrenceText(Semantics.OccurrenceId.from_index(4)),
 		writing_mode: Horizontal,
 	}
 
-	run.occurrence.index() == 4 and run.instance.index() == 2
+	occurrence_index = match run.unicode {
+		OccurrenceText(occurrence) => occurrence.index()
+		ArtifactText(_) => 0
+	}
+	occurrence_index == 4 and run.instance.index() == 2
 }
 
-## Text paint admits only the initial visible rendering modes.
+# Text paint admits only the initial visible rendering modes.
 expect {
 	black : Color.Value
 	black = {

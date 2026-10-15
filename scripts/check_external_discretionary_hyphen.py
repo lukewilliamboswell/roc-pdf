@@ -11,13 +11,18 @@ import tempfile
 from pathlib import Path
 
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "actual_text" / "external_discretionary_hyphen.pdf"
 EXPECTED_TEXT = b"ab\n"
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -35,6 +40,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [656, 562, 612, 460]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_MAPPINGS = {0x0001: (0x0061,), 0x0002: (0x0062,), 0x0003: (0x002D,)}
 EXPECTED_SUBSET_SHA256 = "6e6811fa7dc3bd1b2334079f0d3c696d465655d502889515a51edd331d7a9be2"
 
@@ -63,7 +70,7 @@ def validate_external_discretionary_hyphen_pdf(pdf: bytes) -> None:
 
 
 def validate_actual_text_content(content: bytes, mappings: dict[int, tuple[int, ...]]) -> None:
-    shown = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", content)]
+    shown = shown_cids(content)
     require(shown == [0x0001, 0x0003, 0x0002], "external discretionary-hyphen visual glyph order changed")
     direct = "".join(chr(scalar) for cid in shown for scalar in mappings[cid])
     require(direct == "a-b", "external discretionary-hyphen CMap mapping is not the typed visible presentation")

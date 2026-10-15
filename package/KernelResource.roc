@@ -13,6 +13,9 @@ KernelResource :: [].{
 	]
 
 	NameId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		index : NameId -> U64
 		index = |NameId.(index)| index
 	}
@@ -131,28 +134,27 @@ validate_entries = |entries, max_name_bytes| {
 	var $previous_rank = 0
 	var $next_identity = 0
 	var $name_bytes = 0
-	var $error = NoError
 
-	while $index < entry_count and $error == NoError {
+	while $index < entry_count {
 		entry = list_at(entries, $index)
 		rank = kind_rank(entry.kind)
 		if $has_previous and rank < $previous_rank {
-			$error = Invalid(NonMonotonicKind({ current: entry.kind, index: $index, previous: $previous_kind }))
+			return Err(NonMonotonicKind({ current: entry.kind, index: $index, previous: $previous_kind }))
 		} else {
 			expected = if $has_previous and rank == $previous_rank $next_identity else 0
 			if entry.identity != expected {
-				$error = Invalid(NonDenseIdentity({ actual: entry.identity, expected, index: $index, kind: entry.kind }))
+				return Err(NonDenseIdentity({ actual: entry.identity, expected, index: $index, kind: entry.kind }))
 			} else if entry.identity == U64.highest {
-				$error = Invalid(IdentityOverflow({ identity: entry.identity, index: $index }))
+				return Err(IdentityOverflow({ identity: entry.identity, index: $index }))
 			} else {
 				one_based = entry.identity + 1
 				name_length = prefix_length(entry.kind) + decimal_digits(one_based)
 				if U64.highest - $name_bytes < name_length {
-					$error = Invalid(NameBytesOverflow)
+					return Err(NameBytesOverflow)
 				} else {
 					attempted = $name_bytes + name_length
 					if attempted > max_name_bytes {
-						$error = Invalid(NameBytesLimitExceeded({ attempted, limit: max_name_bytes }))
+						return Err(NameBytesLimitExceeded({ attempted, limit: max_name_bytes }))
 					} else {
 						$name_bytes = attempted
 						$has_previous = True
@@ -166,10 +168,7 @@ validate_entries = |entries, max_name_bytes| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ name_bytes: $name_bytes })
-	}
+	Ok({ name_bytes: $name_bytes })
 }
 
 kind_rank : KernelResource.Kind -> U8
@@ -230,7 +229,7 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## Empty resource dictionaries need no synthetic name entries.
+# Empty resource dictionaries need no synthetic name entries.
 expect {
 	plan = KernelResource.Plan.build([], KernelResource.Limits.make({ max_entries: 0, max_name_bytes: 0 }))?
 	work = KernelResource.Plan.work(plan)
@@ -239,7 +238,7 @@ expect {
 			KernelResource.Work.entries_checked(work) == 0
 }
 
-## Kind prefixes and one-based dense identities form canonical resource names.
+# Kind prefixes and one-based dense identities form canonical resource names.
 expect {
 	entries = [
 		KernelResource.Entry.make(ColorSpace, 0),
@@ -263,7 +262,7 @@ expect {
 								KernelResource.Plan.name_at(plan, 7) == Str.to_utf8("XO1")
 }
 
-## Decimal-width transitions use the same canonical unsigned lexical policy.
+# Decimal-width transitions use the same canonical unsigned lexical policy.
 expect {
 	var $entries = List.with_capacity(10)
 	var $index = 0
@@ -275,7 +274,7 @@ expect {
 	KernelResource.Plan.name_at(plan, 8) == Str.to_utf8("F9") and KernelResource.Plan.name_at(plan, 9) == Str.to_utf8("F10")
 }
 
-## A kind-order reversal is rejected before a plan can escape.
+# A kind-order reversal is rejected before a plan can escape.
 expect match KernelResource.Plan.build(
 	[KernelResource.Entry.make(Font, 0), KernelResource.Entry.make(ColorSpace, 0)],
 	KernelResource.Limits.make({ max_entries: 2, max_name_bytes: 8 }),
@@ -284,7 +283,7 @@ expect match KernelResource.Plan.build(
 	_ => False
 }
 
-## Duplicate, skipped, and nonzero-first identities are one dense-order error.
+# Duplicate, skipped, and nonzero-first identities are one dense-order error.
 expect {
 	limits = KernelResource.Limits.make({ max_entries: 2, max_name_bytes: 8 })
 	duplicate = KernelResource.Plan.build(
@@ -309,7 +308,7 @@ expect {
 	}
 }
 
-## Entry and aggregate-name limits reject the exact attempted dimension.
+# Entry and aggregate-name limits reject the exact attempted dimension.
 expect {
 	entry = KernelResource.Entry.make(Font, 0)
 	too_many = KernelResource.Plan.build([entry], KernelResource.Limits.make({ max_entries: 0, max_name_bytes: 2 }))

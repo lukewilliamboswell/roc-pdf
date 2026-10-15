@@ -333,8 +333,9 @@ the unchanged form-text scenario.
 `scripts/check_fonts.py` parses the emitted bytes directly and
 proves, per fixture: exactly one nine-object bundle per canonical font — a
 Type 0 parent with Identity-H and a tagged BaseFont, a CIDFontType2
-descendant with the canonical UTF-16BE Adobe-Identity-0 `CIDSystemInfo`
-and `/DW 1000`, a descriptor whose `FontName` agrees and whose program is
+descendant with the canonical ASCII Adobe-Identity-0 `CIDSystemInfo`
+(`/Ordering <4964656E74697479> /Registry <41646F6265> /Supplement 0`; see
+[the correction below](#cidsysteminfo-ascii-correction)) and `/DW 1000`, a descriptor whose `FontName` agrees and whose program is
 `FontFile2` only, an unfiltered subset stream whose `/Length1` equals its
 exact bytes, an identity `CIDToGIDMap` stream byte-compared against the
 dense `2 × glyphs` map, and a ToUnicode CMap whose `bfchar` entries are
@@ -431,3 +432,18 @@ structural-kernel/2 fixtures and every fontless byte snapshot are untouched.
   [navigation-annotations.md](navigation-annotations.md).
 
 This slice deliberately claims `Pdf20`/`Standard` output only.
+
+## CIDSystemInfo ASCII correction
+
+This slice originally emitted the constant `CIDSystemInfo` `/Registry` and
+`/Ordering` entries as UTF-16BE text strings
+(`<FEFF004900640065006E0074006900740079>`, `<FEFF00410064006F00620065>`), and
+`check_fonts.py` pinned those bytes as canonical. ISO 32000-2 Table 114 types
+both entries as ASCII strings, and the pinned Arlington validator rejected
+every font-bearing file. They are now ASCII byte strings (`<4964656E74697479>`,
+`<41646F6265>`), 34 bytes smaller per CIDFont, and the oracle pins the new
+bytes. The entries remain constants of the one emission site, so the recipe
+and leaf digests, deduplication, and every distinctness result are unchanged;
+only the emitted bytes, the object-store budgets, and the measured baselines
+moved. The cause, budgets, and reviewed rebaseline are recorded in
+[cid-system-info-ascii.md](cid-system-info-ascii.md).

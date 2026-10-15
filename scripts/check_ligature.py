@@ -11,13 +11,18 @@ import tempfile
 from pathlib import Path
 
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "actual_text" / "ligature_text.pdf"
 EXPECTED_TEXT = "fi\n".encode()
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -33,6 +38,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [464, 633]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_SUBSET_SHA256 = "e99ef53b60c53e5252f0f4ffc0b30c6406766244dae663bf7b147020d326e07b"
 
 
@@ -43,7 +50,7 @@ def validate_ligature_pdf(pdf: bytes) -> None:
     validate_pdf(pdf, 1, content, normalized_plan_identity=True)
     require(content.count(b" BDC\n") == content.count(b"EMC\n") == 2, "ligature marked content is unbalanced")
     require(b"/Span <</ActualText <FEFF00660069>>> BDC\n" in content, "ligature lacks exact logical ActualText")
-    shown = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", content)]
+    shown = shown_cids(content)
     require(shown == [1], f"ligature content CIDs differ: {shown!r}")
     resources = re.search(rb"/Resources << .*? /Font << /F1_0 ([1-9][0-9]*) 0 R >>", bodies[page])
     require(resources is not None, "ligature page has no text font resource")

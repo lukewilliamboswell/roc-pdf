@@ -86,7 +86,7 @@ build_plan = |inputs, limits| {
 		if source.is_empty() {
 			return Err(EmptySource({ input: $input_index }))
 		}
-		var $resolved = Bool.False
+		var $resolved = False
 		if $previous != empty_slot {
 			adjacent = list_at($sources, $previous)
 			$equality_checks = checked_add($equality_checks, 1)?
@@ -94,14 +94,14 @@ build_plan = |inputs, limits| {
 			if adjacent.unicode == source {
 				$input_sources = $input_sources.append(Semantics.TextSourceId.from_index($previous))
 				$adjacent_hits = checked_add($adjacent_hits, 1)?
-				$resolved = Bool.True
+				$resolved = True
 			}
 		}
-		if $resolved == Bool.False {
+		if $resolved == False {
 			hashed = hash_source(source)
 			$hash_scalar_visits = checked_add($hash_scalar_visits, hashed.scalars)?
 			var $probe = 0
-			while $probe < capacity and $resolved == Bool.False {
+			while $probe < capacity and $resolved == False {
 				$probes = checked_add($probes, 1)?
 				check_limit($probes, limits.max_hash_probes, HashProbes)?
 				slot_index = (hashed.value + $probe) % capacity
@@ -118,20 +118,20 @@ build_plan = |inputs, limits| {
 					$sources = $sources.append({ analysis, unicode: source })
 					$slots = list_set($slots, slot_index, id)
 					$input_sources = $input_sources.append(Semantics.TextSourceId.from_index(id))
-					$resolved = Bool.True
+					$resolved = True
 				} else {
 					candidate_source = list_at($sources, candidate).unicode
 					$equality_checks = checked_add($equality_checks, 1)?
 					$equality_byte_bound = checked_add($equality_byte_bound, U64.max(candidate_source.count_utf8_bytes(), source.count_utf8_bytes()))?
 					if candidate_source == source {
 						$input_sources = $input_sources.append(Semantics.TextSourceId.from_index(candidate))
-						$resolved = Bool.True
+						$resolved = True
 					}
 				}
 				$probe = $probe + 1
 			}
 		}
-		if $resolved == Bool.False {
+		if $resolved == False {
 			return Err(TableExhausted)
 		}
 		$previous = list_at($input_sources, $input_sources.len() - 1).index()
@@ -230,7 +230,7 @@ test_limits = KernelFacadeSources.Limits.make({
 	unicode: { max_graphemes: 16, max_line_boundaries: 17, max_scalars: 16, max_script_runs: 8 },
 })
 
-## Equal immutable strings share one Unicode analysis and source identity.
+# Equal immutable strings share one Unicode analysis and source identity.
 expect {
 	plan = KernelFacadeSources.Plan.build(["Body", "Body", "Café"], test_limits)?
 	ids = KernelFacadeSources.Plan.input_sources(plan)
@@ -238,8 +238,8 @@ expect {
 	KernelFacadeSources.Plan.sources(plan).len() == 2 and list_at(ids, 0).index() == 0 and list_at(ids, 1).index() == 0 and list_at(ids, 2).index() == 1 and work.inputs == 3 and work.unique_sources == 2 and work.unique_source_scalars == 8
 }
 
-## The fast path follows the previous resolved input identity, even after a
-## non-adjacent hash-table hit.
+# The fast path follows the previous resolved input identity, even after a
+# non-adjacent hash-table hit.
 expect {
 	plan = KernelFacadeSources.Plan.build(["A", "B", "A", "A"], test_limits)?
 	ids = KernelFacadeSources.Plan.input_sources(plan)
@@ -247,7 +247,7 @@ expect {
 	ids.map(|id| id.index()) == [0, 1, 0, 0] and work.unique_sources == 2 and work.adjacent_hits == 1
 }
 
-## The first probe crossing fails atomically under its explicit work bound.
+# The first probe crossing fails atomically under its explicit work bound.
 expect {
 	limits = KernelFacadeSources.Limits.make({
 		max_hash_probes: 0,

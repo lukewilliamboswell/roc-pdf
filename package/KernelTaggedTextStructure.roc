@@ -380,7 +380,7 @@ add_metadata_stream = |builder, xmp, ids| {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelTaggedTextStructure.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 checked_add : U64, U64 -> Try(U64, KernelTaggedTextStructure.Error)
 checked_add = |left, right| match U64.plus_try(left, right) {

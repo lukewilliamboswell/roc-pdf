@@ -22,7 +22,7 @@ import pdf.KernelTextSemantics
 import pdf.Layout
 import pdf.Semantics
 import pdf.Text
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Fixture :: [].{
 	arena : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRepetitions])
@@ -394,7 +394,6 @@ prepared_text = |occurrence_count| {
 				id: run_id,
 				instance: Font.InstanceId.from_index(0),
 				language: Language("en"),
-				occurrence: Semantics.OccurrenceId.from_index($occurrence_index),
 				script: Font.Script.from_iso15924("Latn"),
 				size: Layout.Unit.from_raw(1000),
 				source: {
@@ -403,6 +402,7 @@ prepared_text = |occurrence_count| {
 				},
 				substitutions: empty_range,
 				transformations: empty_range,
+				unicode: OccurrenceText(Semantics.OccurrenceId.from_index($occurrence_index)),
 				writing_mode: Horizontal,
 			})
 			page_index = run_index / 64
@@ -452,7 +452,7 @@ semantic_limits = |occurrences, fragments| KernelSemantics.Limits.make({
 	max_attributes: 0,
 	max_content_spine: occurrences + 1,
 	max_fragments: fragments,
-	max_namespaces: 1,
+	max_namespaces: 2,
 	max_nodes: 2,
 	max_occurrences: occurrences,
 	max_semantic_depth: 2,
@@ -488,8 +488,8 @@ descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 output_object_limits : KernelObject.Limits
 output_object_limits = {
 	max_array_items: 256,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 512,
 	max_direct_depth: 8,
 	max_name_bytes: 4096,
@@ -498,8 +498,8 @@ output_object_limits = {
 	max_payload_bytes: 200000,
 	max_payloads: 8,
 	max_streams: 8,
-	max_text_string_bytes: 256,
-	max_text_strings: 8,
+	max_text_string_bytes: 243,
+	max_text_strings: 6,
 	max_values: 1024,
 }
 

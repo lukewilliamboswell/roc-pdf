@@ -1,6 +1,6 @@
 app [main!] {
-	pf: platform "../platform/main.roc",
 	pdf: "../../package/main.roc",
+	pf: platform "../platform/main.roc",
 }
 
 import pdf.Document
@@ -15,12 +15,12 @@ import pdf.Pdf
 ## profile rules are exercised by white-box twins in package/Pdf.roc and
 ## package/KernelPdfA4.roc.
 archive : Pdf.Options
-archive = Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.Archive)
+archive = Pdf.Options.{ profile: Pdf.Profile.Archive }
 
 rejects_accessible_archive : Str -> Bool
 rejects_accessible_archive = |title| {
 	document = Pdf.document({ contents: [Pdf.paragraph("Body")], language: "en-AU", title })
-	match Pdf.to_bytes_with(document, Pdf.Options.with_profile(Pdf.Options.default, Pdf.Profile.AccessibleArchive)) {
+	match Pdf.to_bytes_with(document, Pdf.Options.{ profile: Pdf.Profile.AccessibleArchive }) {
 		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), stage: AuthoringValidation, .. }], .. })) => code == "profile.accessible_archive"
 		_ => False
 	}
@@ -37,18 +37,18 @@ keeps_metadata_cause = |language| {
 
 keeps_feature_cause : Str -> Bool
 keeps_feature_cause = |summary| {
-	document = Pdf.document({ contents: [Pdf.simple_table(summary)], language: "en-AU", title: "Archive" })
+	document = Pdf.document({ contents: [Pdf.complex_table(summary)], language: "en-AU", title: "Archive" })
 	match Pdf.to_bytes_with(document, archive) {
-		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), .. }], .. })) => code == "table.simple"
+		Err(InvalidDocument({ diagnostics: [{ code: FeatureUnavailable, feature: Feature(code), .. }], .. })) => code == "table.complex"
 		_ => False
 	}
 }
 
-keeps_content_cause : Str -> Bool
-keeps_content_cause = |text| {
+keeps_content_cause : Str, Str -> Bool
+keeps_content_cause = |text, expected| {
 	document = Pdf.document({ contents: [Pdf.paragraph(text)], language: "en-AU", title: "Archive" })
 	match Pdf.to_bytes_with(document, archive) {
-		Err(UnsupportedAuthoringContent({ blocks: 1 })) => True
+		Err(InvalidDocument({ diagnostics: [{ code: FontCoverageMissing, details: ["contents[0]"], feature: Feature(feature), .. }], .. })) => feature == expected
 		_ => False
 	}
 }
@@ -73,8 +73,8 @@ main! = |args| {
 		rejects_accessible_archive(title),
 		keeps_metadata_cause("en-au"),
 		keeps_feature_cause(title),
-		keeps_content_cause("Zero\u(FEFF)width"),
-		keeps_content_cause("Private\u(E000)use"),
+		keeps_content_cause("Zero\u(FEFF)width", "text.coverage_missing"),
+		keeps_content_cause("Private\u(E000)use", "text.unsupported_script"),
 	]
 	var $passed = 0
 	var $index = 0

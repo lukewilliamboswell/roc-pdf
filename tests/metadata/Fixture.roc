@@ -186,7 +186,7 @@ semantic_limits = |nodes, spine, fragments| KernelSemantics.Limits.make({
 	max_attributes: 0,
 	max_content_spine: spine,
 	max_fragments: fragments,
-	max_namespaces: 1,
+	max_namespaces: 2,
 	max_nodes: nodes,
 	max_occurrences: nodes,
 	max_semantic_depth: 2,
@@ -602,7 +602,6 @@ minimal_scenario = |_| {
 
 run_scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_scenario = |mode, scale| {
-
 	## Always zero at runtime, but derived from a runtime argument, so the
 	## measured pipelines cannot be evaluated at compile time.
 	guard = U64.mod_by(scale, 1)
@@ -818,9 +817,9 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## The adversarial showcase, sharing checks, and atomic negatives hold under
-## `roc test`; the harness re-runs them as compiled scenarios with exact
-## allocation and work baselines.
+# The adversarial showcase, sharing checks, and atomic negatives hold under
+# `roc test`; the harness re-runs them as compiled scenarios with exact
+# allocation and work baselines.
 expect match Fixture.scenario("showcase", 0) {
 	Ok(result) => result.bytes.len() > 0 and list_at(result.work, 0) == 2 and list_at(result.work, 1) == 1
 	Err(_) => False
@@ -846,8 +845,8 @@ expect match Fixture.atomic_negatives(1) {
 	Err(_) => False
 }
 
-## The blank facade path carries the same facts: this pins the public
-## structural kernel boundary the facade uses for empty documents.
+# The blank facade path carries the same facts: this pins the public
+# structural kernel boundary the facade uses for empty documents.
 expect {
 	facts = {
 		condition_identifier: KernelMetadata.srgb_condition_identifier,

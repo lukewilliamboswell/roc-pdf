@@ -3,7 +3,8 @@ import pdf.KernelFont
 import pdf.KernelFontPlan
 import pdf.KernelFontSubset
 import pdf.KernelStructure
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../assets/CallerFont-Unhinted.ttf" as unhinted_font_bytes : List(U8)
 
 Fixture :: [].{
 	font_subset : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -91,4 +92,38 @@ list_at = |items, index| match items.get(index) {
 expect {
 	result = Fixture.font_program(0)?
 	result.bytes.len() == list_at(result.work, 2)
+}
+
+## Subset a font with the given scalars and inspect the subset it writes.
+subset_and_reinspect : List(U8), List(U32) -> Try({ subset : KernelFontSubset.Subset, tags : List(U32) }, [EvidenceFailure])
+subset_and_reinspect = |bytes, scalars| {
+	limits = KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })
+	font = KernelFont.inspect(bytes, limits) ? |_| EvidenceFailure
+	var $usage = []
+	for scalar in scalars {
+		glyph = match KernelFont.glyph_for_scalar(font, scalar) {
+			None => return Err(EvidenceFailure)
+			Some(value) => value
+		}
+		$usage = $usage.append({ glyph: glyph })
+	}
+	plan = KernelFontPlan.plan(font, $usage, KernelFontPlan.Limits.make({ max_retained_glyphs: 64 })) ? |_| EvidenceFailure
+	subset = KernelFontSubset.build(font, plan) ? |_| EvidenceFailure
+	reinspected = KernelFont.inspect(subset.bytes, limits) ? |_| EvidenceFailure
+	Ok({ subset, tags: reinspected.tables.map(|table| table.tag) })
+}
+
+# An unhinted source (no cvt, fpgm, gasp, or prep table) subsets to the
+# ten required tables, and the subset is itself a valid TrueType font.
+expect {
+	result = subset_and_reinspect(unhinted_font_bytes, [0x43, 0x61, 0xe9])?
+	hinting = [0x63767420, 0x6670676d, 0x67617370, 0x70726570]
+	result.subset.work.tables == 10 and result.tags.len() == 10 and !result.tags.any(|tag| hinting.contains(tag))
+}
+
+# A hinted source keeps all four hinting tables: fourteen tables.
+expect {
+	result = subset_and_reinspect(built_in_font_bytes, [0x41, 0xe9])?
+	hinting = [0x63767420, 0x6670676d, 0x67617370, 0x70726570]
+	result.subset.work.tables == 14 and hinting.all(|tag| result.tags.contains(tag))
 }

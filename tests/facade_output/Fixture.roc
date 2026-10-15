@@ -30,7 +30,7 @@ import pdf.KernelStructure
 import pdf.KernelTextSemantics
 import pdf.Layout
 import pdf.Theme
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Fixture :: [].{
 	negative : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -148,7 +148,7 @@ pipeline_limits = pipeline_limits_for(1)
 
 pipeline_limits_for : U64 -> KernelFacadePipeline.Limits
 pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
-	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 128, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+	fragment_semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 128, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 	fragments: KernelFacadeFragments.Limits.make({ max_fragments: 128, max_occurrences: 1, max_pages: 128 }),
 	navigation: KernelNavigation.Limits.make({
 		max_annotations: 0,
@@ -201,13 +201,14 @@ pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 		scene: KernelScene.Limits.make({ max_commands: 256, max_dash_lengths: 0, max_graphics_depth: 2, max_groups: 128, max_pages: 128, max_path_segments: 0, max_paths: 0 }),
 	}),
 	semantics: KernelFacadeSemantics.Limits.make({
-		max_artifacts: 0,
+		max_container_depth: 16,
+		max_inline_depth: 8,
 		max_content_spine: 2,
 		max_nodes: 2,
 		max_occurrences: 1,
 		max_properties: 0,
 		max_source_inputs: 1,
-		semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 0, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 0, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		sources: KernelFacadeSources.Limits.make({
 			max_hash_probes: 16,
 			max_inputs: 1,
@@ -226,8 +227,8 @@ pipeline_limits_for = |max_line_runs| KernelFacadePipeline.Limits.make({
 output_object_limits : KernelObject.Limits
 output_object_limits = {
 	max_array_items: 512,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 1024,
 	max_direct_depth: 8,
 	max_name_bytes: 8192,
@@ -236,7 +237,7 @@ output_object_limits = {
 	max_payload_bytes: 200000,
 	max_payloads: 256,
 	max_streams: 256,
-	max_text_string_bytes: 256,
-	max_text_strings: 8,
+	max_text_string_bytes: 243,
+	max_text_strings: 6,
 	max_values: 2048,
 }

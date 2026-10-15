@@ -27,7 +27,7 @@ import pdf.Layout
 import pdf.Scene
 import pdf.Semantics
 import pdf.Text
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 
 ## production-visual canonical font-leaf evidence.
@@ -184,8 +184,8 @@ content_limits = KernelContent.Limits.make({ max_content_bytes: 1048576, max_con
 object_limits : KernelObject.Limits
 object_limits = {
 	max_array_items: 65536,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 832,
+	max_byte_strings: 128,
 	max_dictionary_entries: 65536,
 	max_direct_depth: 8,
 	max_name_bytes: 65536,
@@ -194,8 +194,8 @@ object_limits = {
 	max_payload_bytes: 8388608,
 	max_payloads: 4096,
 	max_streams: 4096,
-	max_text_string_bytes: 65536,
-	max_text_strings: 2048,
+	max_text_string_bytes: 64704,
+	max_text_strings: 1920,
 	max_values: 262144,
 }
 
@@ -210,7 +210,7 @@ semantic_limits = |nodes, spine, fragments| KernelSemantics.Limits.make({
 	max_attributes: 0,
 	max_content_spine: spine,
 	max_fragments: fragments,
-	max_namespaces: 1,
+	max_namespaces: 2,
 	max_nodes: nodes,
 	max_occurrences: nodes,
 	max_semantic_depth: 2,
@@ -291,13 +291,13 @@ append_utf8 = |bytes, scalar| {
 prepare_fonts : List(FontSpec), U64 -> Try(List(PreparedFont), BuildFailure)
 prepare_fonts = |specs, guard| {
 	builtin = KernelFont.inspect(builtin_bytes({}), font_inspection_limits(guard)) ? FontFailure
-	var $uses_caller = Bool.False
+	var $uses_caller = False
 	var $scan = 0
 	while $scan < specs.len() {
 		match list_at(specs, $scan).face {
 			BuiltIn => {}
 			CallerFace => {
-				$uses_caller = Bool.True
+				$uses_caller = True
 			}
 		}
 		$scan = $scan + 1
@@ -413,12 +413,12 @@ build_text_store = |spec, prepared| {
 			id: Text.RunId.from_index($run_index),
 			instance: Font.InstanceId.from_index(run.font),
 			language: Language("en-AU"),
-			occurrence: Semantics.OccurrenceId.from_index($run_index),
 			script: Font.Script.from_iso15924("Latn"),
 			size: unit(11000),
 			source: { scalars: span(0, run_scalar_count), utf8_bytes: span(0, $byte_offset) },
 			substitutions: empty_range,
 			transformations: empty_range,
+			unicode: OccurrenceText(Semantics.OccurrenceId.from_index($run_index)),
 			writing_mode: Horizontal,
 		})
 		$run_index = $run_index + 1
@@ -580,7 +580,7 @@ build_scene = |spec| {
 		$index = $index + 1
 	}
 
-	## Page paint order: each page's groups in reverse logical order.
+	# Page paint order: each page's groups in reverse logical order.
 	var $page_groups = []
 	var $pages = List.with_capacity(spec.pages)
 	var $page = 0
@@ -934,8 +934,8 @@ run_collision = |scale| {
 	}
 	twins = U64.div_by(scale, 2)
 
-	## Prepare the twin bundle once and each distinct bundle once; derive
-	## one recipe per authored entry exactly as the pipeline would.
+	# Prepare the twin bundle once and each distinct bundle once; derive
+	# one recipe per authored entry exactly as the pipeline would.
 	var $specs = List.with_capacity(scale)
 	var $index = 0
 	while $index < scale {
@@ -988,8 +988,8 @@ run_collision = |scale| {
 	work = KernelResourceGraph.Plan.work(graph)
 	canonical = KernelResourceGraph.Plan.resource_count(graph)
 
-	## Only the true twins may merge; every entry shares the one forced
-	## bucket; and the equality work stays strictly below all-pairs.
+	# Only the true twins may merge; every entry shares the one forced
+	# bucket; and the equality work stays strictly below all-pairs.
 	if canonical != twins + 1 {
 		return Err(CollisionDiverged)
 	}
@@ -1034,7 +1034,6 @@ content_cid_of = |plan| {
 
 run_scenario : Str, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
 run_scenario = |mode, scale| {
-
 	## Always zero at runtime, but derived from a runtime argument, so the
 	## measured pipelines cannot be evaluated at compile time.
 	guard = U64.mod_by(scale, 1)
@@ -1160,8 +1159,8 @@ check_negatives = |guard| {
 		1,
 		{ ..base_bundle, descriptor: { flags: 32, italic_angle: 0, stem_v: 0 } },
 		|error| match error {
-			DescriptorInvalid => Bool.True
-			_ => Bool.False
+			DescriptorInvalid => True
+			_ => False
 		},
 	)?
 
@@ -1170,8 +1169,8 @@ check_negatives = |guard| {
 		2,
 		{ ..base_bundle, plan: { ..prepared.plan, prefix: [0x41, 0x42, 0x63, 0x44, 0x45, 0x46] } },
 		|error| match error {
-			InvalidSubsetTag => Bool.True
-			_ => Bool.False
+			InvalidSubsetTag => True
+			_ => False
 		},
 	)?
 
@@ -1181,8 +1180,8 @@ check_negatives = |guard| {
 		3,
 		{ ..base_bundle, subset: { bytes: truncated, work: prepared.subset.work } },
 		|error| match error {
-			SubsetLengthMismatch(_) => Bool.True
-			_ => Bool.False
+			SubsetLengthMismatch(_) => True
+			_ => False
 		},
 	)?
 
@@ -1191,8 +1190,8 @@ check_negatives = |guard| {
 		4,
 		{ ..base_bundle, mappings: [] },
 		|error| match error {
-			MissingUnicodeMapping(_) => Bool.True
-			_ => Bool.False
+			MissingUnicodeMapping(_) => True
+			_ => False
 		},
 	)?
 
@@ -1201,8 +1200,8 @@ check_negatives = |guard| {
 		5,
 		{ ..base_bundle, mappings: [{ cid: 0, scalars: [0x41] }].concat(context.mappings) },
 		|error| match error {
-			UnexpectedUnicodeMapping({ cid: 0 }) => Bool.True
-			_ => Bool.False
+			UnexpectedUnicodeMapping({ cid: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1211,8 +1210,8 @@ check_negatives = |guard| {
 		6,
 		{ ..base_bundle, mappings: [{ cid: list_at(context.mappings, 0).cid, scalars: [] }] },
 		|error| match error {
-			EmptyUnicodeMapping(_) => Bool.True
-			_ => Bool.False
+			EmptyUnicodeMapping(_) => True
+			_ => False
 		},
 	)?
 
@@ -1221,8 +1220,8 @@ check_negatives = |guard| {
 		7,
 		{ ..base_bundle, mappings: [{ cid: list_at(context.mappings, 0).cid, scalars: [0xd800] }] },
 		|error| match error {
-			InvalidUnicodeScalar(0xd800) => Bool.True
-			_ => Bool.False
+			InvalidUnicodeScalar(0xd800) => True
+			_ => False
 		},
 	)?
 

@@ -20,25 +20,45 @@ recursive PDF tree or a collection of precompressed byte blobs. Every object
 and indirect stream-length object is assigned before emission. Object IDs
 follow emission order so offsets append to a dense list rather than update a
 map. Ordinary stream lengths use indirect objects emitted immediately after
-their streams, allowing the encoder to run validated content recipes through
-lexical emission and stateful deterministic DEFLATE without buffering the
-entire uncompressed or compressed stream.
+their streams. A generated stream payload is already held whole in the
+sealed plan's payload store; the encoder compresses it whole at its stream's
+transition into one owned buffer, emits it as one generated segment, releases
+the source payload at its last use, and records the compressed length for the
+following length object.
 
-The baseline DEFLATE transition is a private, package-owned pure Roc
-implementation. Its internal seam accepts preflighted input and checked
-limits, exposes a conservative output bound, and yields deterministic bounded
-chunks plus explicit work and source-release facts. The independent Python
-checker uses zlib only as a test-time decompression oracle over the emitted PDF
-bytes. No compression package is part of the package dependency graph, and a
-future replacement cannot weaken these contracts or silently change emitted
-bytes.
+DEFLATE goes through one private seam, `KernelDeflate`, whose single call into
+the pinned pure-Roc `roc-deflate` package (a libdeflate port) compresses at a
+fixed package-versioned level. The seam owns the zlib framing (header and
+Adler-32 trailer), accepts preflighted input and checked limits, proves a
+conservative output bound before a plan escapes (the dependency's stored-block
+bound plus six framing bytes), checks the emitted length against it, and
+reports deterministic work (streams, input bytes, and emitted bytes). The
+independent Python checker uses zlib only as a test-time decompression oracle
+over the emitted PDF bytes. Changing the dependency version or the level is a
+byte-contract change reviewed like any other; it cannot weaken these
+contracts or change emitted bytes silently.
 
-The initial xref stream is unfiltered, covers the complete contiguous object
-range, and uses `/W [1 8 2]`; its direct length is therefore 11 bytes per entry
-with checked multiplication. The encoder retains `U64` offsets proportional to
-object count. Any alternative compressed or replay/counting strategy is a
-separately specified capability. Sealing proves exact counts where possible
-and safe upper bounds for lexical output, compression, offsets, and configured
+Stream objects are written top-level in plan order. Every other object is
+serialized into the open object stream's buffer: its value followed by a
+newline, with its object number and offset recorded for the stream header.
+The object streams partition the compressible objects in plan order into
+batches of at most 400 members (`KernelFileLayout.max_objects_per_stream`).
+When a batch fills, or the last compressible object is placed, the batch is
+written as one FlateDecode object stream: `/Filter /FlateDecode /First /Length
+/N /Type /ObjStm`, numbered after the planned objects in order, with a direct
+length. The open batch is the only buffer that grows with object count between
+segments, and it is bounded by 400 serialized objects.
+
+The cross-reference stream is numbered after the object streams and covers the
+complete contiguous range from object zero. Each row is `[type, field, index]`
+with `/W [1 w 2]`, where `w` is the fewest bytes that hold the stream's own
+offset (the largest offset in the file). Type 1 rows are top-level objects;
+type 2 rows name an object stream and a member index. The rows are PNG Up
+predicted (`/DecodeParms << /Columns w+3 /Predictor 12 >>`) and FlateDecode
+compressed, and every dictionary entry, including `/Length`, is direct. The
+encoder retains one `U64` per planned object: a file offset, or a marked
+object stream ordinal and member index. Sealing proves exact counts where
+possible and safe upper bounds for lexical output, compression, offsets, and configured
 output budgets so the infallible encoder cannot discover overflow or limit
 failures.
 
@@ -102,11 +122,41 @@ checks. Preflight checker self-tests are likewise an ordered manifest list.
 Python registries bind those IDs to project-owned callables and scripts without
 allowing manifest data to import or execute arbitrary code.
 
-Exact allocation baselines are measured from a cold Roc cache, in the full
-harness order that CI runs. The pinned compiler can produce different
-allocation counts for identical source when a warm local cache holds artifacts
-from other command sequences, even though bytes and work counters are
-identical. A delta observed only with a warm cache is not evidence. A case's
+Exact allocation baselines and allocated-bytes ceilings are measured from a
+cold Roc cache, in the full harness order that CI runs, with fixture
+executables built by `roc build --no-cache`. The pinned compiler produces
+different code for identical source when it reuses procedures cached by other
+programs: a program built against procedures compiled for another fixture can
+copy a list that the same program built alone updates in place, even though
+bytes and work counters are identical. Building fixtures without the cache
+makes each case's allocation evidence independent of build order and cache
+state. A reproduction of the cache dependence is recorded in
+[upstream-roc-uniqueness-issue.md](performance/upstream-roc-uniqueness-issue.md)
+(B). A case's
 static PDF/A-4 claim is declared by its `pdfa4` validator; Standard-only
 snapshots must never declare PDF/A identification, and
 `scripts/check_pdfa4.py` enforces both directions.
+
+## Scope decisions (2026-09-28)
+
+The maintainer refocused the project's goals on correctness to stop gates from
+accumulating evidence that does not affect whether generated PDFs are right.
+[architecture.md](../architecture.md), the [roadmap](../feature-roadmap.md),
+and `AGENTS.md` now state that:
+
+- Performance evidence exists to catch super-linear or exponential blow-ups
+  that would make the package unusable. Exact per-case Roc allocation counts,
+  deterministic work counters, and the pinned-compiler re-baseline protocol
+  remain mandatory and unchanged; every scalable feature carries at least one
+  small/large scale pair proving linear or `n log n` work growth.
+- There are no numeric latency, peak-memory, throughput, output-size, or
+  benchmark product targets, and no controlled timing or memory jobs. Copied
+  bytes, ARC counts, retained bytes, peak RSS, and timing are recorded only
+  where existing instrumentation reports them.
+- Human reader and assistive-technology review, expert review, and assessor
+  sign-off are optional recorded protocols that do not block Gate 6, Gate 7,
+  or later closure. Human-verifiable requirements remain recorded as author
+  obligations, and the package still never claims to certify semantic quality.
+- Machine-verifiable conformance (veraPDF profiles, PDF/UA-2 and PDF/A-4
+  ledger rules, structural checks, and atomic negative twins), determinism,
+  ownership, and no-fallback invariants are unchanged.

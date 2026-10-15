@@ -29,8 +29,8 @@ decimal_length = |value| {
 	$digits
 }
 
-## Length-prefixed decimal names remain sorted across digit boundaries.
+# Length-prefixed decimal names remain sorted across digit boundaries.
 expect KernelResourceName.bytes("CS", 9) == Str.to_utf8("CS1_9") and KernelResourceName.bytes("CS", 10) == Str.to_utf8("CS2_10") and KernelResourceName.bytes("CS", 99) == Str.to_utf8("CS2_99") and KernelResourceName.bytes("CS", 100) == Str.to_utf8("CS3_100")
 
-## U64 indices carry their exact decimal width without a fixed object limit.
+# U64 indices carry their exact decimal width without a fixed object limit.
 expect KernelResourceName.bytes("Im", U64.highest) == Str.to_utf8("Im20_18446744073709551615")

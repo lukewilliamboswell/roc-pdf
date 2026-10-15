@@ -78,3 +78,32 @@ jobs:
       - name: Verify public example gallery
         if: runner.os == 'Linux'
         run: python3 scripts/check_gallery.py
+
+  # Arlington PDF 2.0 object-model lane over every committed package snapshot
+  # and public example. It runs after the Linux suite has proven the
+  # snapshots are exactly what the package generates. The validator is the
+  # digest-pinned veraPDF Arlington 1.30.2 service; service containers need a
+  # Linux runner.
+  arlington:
+    name: Arlington PDF 2.0 object model
+    needs: test
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: roc-pdf
+    services:
+      arlington:
+        image: verapdf/arlington@sha256:1543368902c393771557e2a1da69e64ad72b69db32e6efebd38a09a7b86eacbc
+        ports:
+          - 18080:8080
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: roc-pdf
+
+      - name: Check Arlington report contract
+        run: python3 scripts/check_arlington.py --self-test
+
+      - name: Validate snapshots and examples with Arlington
+        run: python3 scripts/check_arlington.py --cases

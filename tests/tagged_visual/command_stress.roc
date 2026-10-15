@@ -1,6 +1,6 @@
 app [main!] {
-	pf: platform "../platform/main.roc",
 	pdf: "../../package/all.roc",
+	pf: platform "../platform/main.roc",
 }
 
 import StressFixture

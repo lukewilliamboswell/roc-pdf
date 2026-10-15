@@ -1,5 +1,13 @@
 # structural-kernel bounded dynamic DEFLATE
 
+> **Superseded.** This records the package-owned compressor that shipped
+> until the output-size work. `KernelDeflate` is now the zlib-framing seam
+> over the pinned `roc-deflate` dependency (libdeflate level 10); see
+> [output-size.md](output-size.md), step 4. The structural-kernel DEFLATE
+> case names below are unchanged, but their work counters now record
+> streams, input bytes, and emitted bytes instead of blocks, candidate
+> visits, hash inserts, tokens, and matches.
+
 ## Scope and byte contract
 
 `KernelDeflate` is the package-owned private generated-stream compression

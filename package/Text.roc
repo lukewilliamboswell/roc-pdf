@@ -4,6 +4,9 @@ import Semantics
 
 Text :: [].{
 	RunId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> RunId
 		from_index = |index| RunId.(index)
 
@@ -12,6 +15,9 @@ Text :: [].{
 	}
 
 	GlyphId :: U32.{
+		is_eq : _
+		to_hash : _
+
 		from_raw : U32 -> GlyphId
 		from_raw = |raw| GlyphId.(raw)
 
@@ -20,6 +26,9 @@ Text :: [].{
 	}
 
 	FeatureTag :: U32.{
+		is_eq : _
+		to_hash : _
+
 		from_raw : U32 -> FeatureTag
 		from_raw = |raw| FeatureTag.(raw)
 
@@ -28,6 +37,9 @@ Text :: [].{
 	}
 
 	FeaturePolicyId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> FeaturePolicyId
 		from_index = |index| FeaturePolicyId.(index)
 
@@ -72,7 +84,8 @@ Text :: [].{
 	]
 
 	## `glyphs` is a range into Store.glyph_indices. `source` is relative to
-	## the owning occurrence's Unicode and can represent combining and reordering.
+	## the run's Unicode (its occurrence or artifact source) and can represent
+	## combining and reordering.
 	Cluster : {
 		glyphs : Semantics.Range,
 		kind : ClusterKind,
@@ -92,6 +105,15 @@ Text :: [].{
 	}
 
 	ActualTextEvidence : [FromOccurrence, SemanticOverride(Semantics.TextPropertyId)]
+
+	## The Unicode a run's `source` range indexes. A semantic run shapes the
+	## text of its content occurrence and is painted by that occurrence's
+	## layout fragments. An artifact run shapes an artifact text source, such
+	## as page furniture resolved after pagination: it belongs to no structure
+	## element, is painted only by a page-artifact scene group, and carries no
+	## text properties. `FromOccurrence` evidence of an artifact run reads its
+	## artifact source.
+	RunUnicode : [ArtifactText(Semantics.TextSourceId), OccurrenceText(Semantics.OccurrenceId)]
 
 	## Every field that can affect joining, substitution, placement, or extraction
 	## participates in the cache identity. Empty context ranges are explicit.
@@ -116,12 +138,12 @@ Text :: [].{
 		id : RunId,
 		instance : Font.InstanceId,
 		language : Semantics.Language,
-		occurrence : Semantics.OccurrenceId,
 		script : Font.Script,
 		size : Layout.Unit,
 		source : Semantics.TextRange,
 		substitutions : Semantics.Range,
 		transformations : Semantics.Range,
+		unicode : RunUnicode,
 		writing_mode : WritingMode,
 	}
 
@@ -137,14 +159,14 @@ Text :: [].{
 	}
 }
 
-## Shaped-run IDs preserve their dense index.
+# Shaped-run IDs preserve their dense index.
 expect Text.RunId.from_index(7).index() == 7
 
-## Glyph IDs remain compact opaque U32 values.
+# Glyph IDs remain compact opaque U32 values.
 expect Text.GlyphId.from_raw(41).raw() == 41
 
-## OpenType feature tags remain compact opaque U32 values.
+# OpenType feature tags remain compact opaque U32 values.
 expect Text.FeatureTag.from_raw(0x6B65726E).raw() == 0x6B65726E
 
-## Feature-policy IDs preserve their dense cache-key index.
+# Feature-policy IDs preserve their dense cache-key index.
 expect Text.FeaturePolicyId.from_index(9).index() == 9

@@ -1,5 +1,5 @@
 //! Test-only Roc host that writes the generated PDF to stdout and reports the
-//! number of Roc allocation events to stderr.
+//! number of Roc allocation events and their requested bytes to stderr.
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("roc_platform_abi.zig");
@@ -22,9 +22,15 @@ extern fn roc_main(args: abi.RocList(abi.RocStr)) callconv(.c) ScenarioResult;
 
 var roc_host: ?*abi.RocHost = null;
 var allocation_events: usize = 0;
+/// Sum of the sizes requested by every `roc_alloc` and `roc_realloc`
+/// event. A reallocation counts its full new length, because the
+/// allocator may move and copy the whole block; a list that is copied on
+/// every append therefore grows this total quadratically.
+var allocated_bytes: u64 = 0;
 
 export fn roc_host_reset_allocations() callconv(.c) void {
     allocation_events = 0;
+    allocated_bytes = 0;
 }
 
 comptime {
@@ -45,6 +51,7 @@ fn main(argc: c_int, argv: [*][*:0]u8) callconv(.c) c_int {
 
 fn hostAlloc(length: usize, alignment: usize) callconv(.c) ?*anyopaque {
     allocation_events += 1;
+    allocated_bytes += length;
     return abi.DefaultAllocators.rocAlloc(roc_host.?, length, alignment);
 }
 
@@ -54,6 +61,7 @@ fn hostDealloc(ptr: *anyopaque, alignment: usize) callconv(.c) void {
 
 fn hostRealloc(ptr: *anyopaque, new_length: usize, alignment: usize) callconv(.c) ?*anyopaque {
     allocation_events += 1;
+    allocated_bytes += new_length;
     return abi.DefaultAllocators.rocRealloc(roc_host.?, ptr, new_length, alignment);
 }
 
@@ -85,6 +93,7 @@ fn platformMain(argc: usize, argv: [*][*:0]u8) c_int {
 
     const args = buildStrArgsList(argc, argv, &host);
     allocation_events = 0;
+    allocated_bytes = 0;
 
     var result = roc_main(args);
     std.Io.File.stdout().writeStreamingAll(io, result.bytes.items()) catch return 1;
@@ -104,8 +113,11 @@ fn reportMetrics(io: std.Io, work: []const u64) !void {
     const stderr = std.Io.File.stderr();
     var buffer: [64]u8 = undefined;
     const allocations = try std.fmt.bufPrint(&buffer, "{d}", .{allocation_events});
-    try stderr.writeStreamingAll(io, "ROC_METRICS protocol=1 allocations=");
+    try stderr.writeStreamingAll(io, "ROC_METRICS protocol=2 allocations=");
     try stderr.writeStreamingAll(io, allocations);
+    const bytes = try std.fmt.bufPrint(&buffer, "{d}", .{allocated_bytes});
+    try stderr.writeStreamingAll(io, " allocated_bytes=");
+    try stderr.writeStreamingAll(io, bytes);
     try stderr.writeStreamingAll(io, " work=");
     for (work, 0..) |value, index| {
         if (index != 0) try stderr.writeStreamingAll(io, ",");

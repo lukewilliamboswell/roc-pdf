@@ -1,0 +1,22 @@
+case,arm64mac_allocations_oct04,arm64mac_allocations_oct14,allocations_delta,arm64mac_allocated_bytes_oct04,arm64mac_allocated_bytes_oct14,allocated_bytes_delta,identical_allocation_size_histogram
+production-visual dense resource dependency graph x100,1715,1715,0,2055379,2055379,0,True
+production-visual dense resource dependency graph x1000,12539,12539,0,11053291,11053291,0,True
+production-visual distinct mask forms x64,18871,18871,0,47313245,47313245,0,True
+production-visual distinct mask forms x8,3632,3632,0,8642706,8642706,0,True
+reference invoice rows x50,47244,47218,-26,42976200,42973960,-2240,False
+reference invoice rows x500 (INV-A3),343260,343234,-26,326769260,326767020,-2240,False
+reference variant rejections,170006,162216,-7790,115175065,114180841,-994224,False
+rich inline code holds x14,28455,28447,-8,14873591,14879447,5856,False
+rich inline code holds x140,168493,168483,-10,61888311,61887479,-832,False
+rich inline paragraphs x10,27369,27369,0,15024690,15024690,0,True
+rich inline paragraphs x100,241903,241903,0,136027348,136027348,0,True
+structural-kernel balanced 4096-page PDF,56645,56645,0,230557616,230557616,0,True
+tagged-visual minimal tagged visual PDF,845,857,12,1975968,1976266,298,False
+text-layout built-in TrueType inspection,1357,1357,0,1512795,1512795,0,True
+text-layout compact-builder authoring normalization x1000,433,433,0,1641727,1641727,0,True
+text-layout compact-builder authoring normalization x10000,460,460,0,5939031,5939031,0,True
+text-layout ordered multi-face advanced output,1996,2000,4,4972774,4972880,106,False
+text-layout shared facade source cache x1000,394,394,0,1298719,1298719,0,True
+text-layout shared facade source cache x10000,394,394,0,1832479,1832479,0,True
+text-layout unique facade source cache x1000,16296,16296,0,3323175,3323175,0,True
+text-layout unique facade source cache x10000,178300,178300,0,30065719,30065719,0,True

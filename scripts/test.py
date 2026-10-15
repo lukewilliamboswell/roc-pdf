@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
+from roc_diagnostics import tolerated_warnings_only
 from harness_validators import (
     PREFLIGHT_CHECKS,
     run_validators,
@@ -46,17 +47,26 @@ ACTIVE_PROCESSES: set[subprocess.Popen[object]] = set()
 SNAPSHOT_LOCKS: dict[Path, threading.Lock] = {}
 UPDATED_SNAPSHOT_BYTES: dict[Path, bytes] = {}
 METRICS_REPORT = re.compile(
-    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
+    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) allocated_bytes=([0-9]+) "
+    rb"work=([0-9]+(?:,[0-9]+)*)?\r?\n"
 )
 RETENTION_REPORT = re.compile(
     rb"ROC_RETENTION protocol=([0-9]+) backing_refs=([0-9]+) source_offset=([0-9]+) owned_capacity=([0-9]+)\r?\n"
-    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) work=([0-9]+(?:,[0-9]+)*)?\r?\n"
+    rb"ROC_METRICS protocol=([0-9]+) allocations=([0-9]+) allocated_bytes=([0-9]+) "
+    rb"work=([0-9]+(?:,[0-9]+)*)?\r?\n"
 )
+# A case may allocate at most this many tenths of its recorded allocated
+# bytes. The bytes requested by every roc_alloc and roc_realloc grow
+# quadratically when a list is copied on every append, which an exact
+# allocation count (one event per copy) does not distinguish from linear
+# growth; the ceiling absorbs small drift and fails a blow-up.
+ALLOCATED_BYTES_CEILING_TENTHS = 11
 
 
 @dataclass(frozen=True)
 class Metrics:
     allocations: int
+    allocated_bytes: int
     work: tuple[int, ...]
 
 
@@ -120,6 +130,7 @@ class BaselineDelta:
 @dataclass(frozen=True)
 class CaseRunResult:
     delta: BaselineDelta | None
+    drift: BaselineDelta | None
     metrics: Metrics
     output_bytes: int
 
@@ -236,6 +247,11 @@ def command(executable: str, *args: str, cwd: Path = ROOT) -> None:
     started = time.monotonic()
     result = managed_run(values, cwd=cwd, text=True, stderr=subprocess.STDOUT)
     log(result.stdout)
+    if result.returncode == 2 and executable == ROC and tolerated_warnings_only(result.stdout):
+        # The only tolerated warning: a downloaded package pins an older Roc
+        # nightly in its header (see scripts/roc_diagnostics.py).
+        detail(f"PASS command with a tolerated package version-pin warning: {' '.join(values)}")
+        return
     if result.returncode != 0:
         tail = "\n".join(result.stdout.splitlines()[-30:])
         raise SystemExit(f"command failed ({result.returncode}): {rendered}\n{tail}\nFull log: {RUN_LOG}")
@@ -295,8 +311,8 @@ def load_suite() -> TestSuite:
         "cases",
     }:
         raise SystemExit(f"{SPEC_PATH}: unexpected top-level schema")
-    if data["schema_version"] != 5 or data["protocol_version"] != 1:
-        raise SystemExit(f"{SPEC_PATH}: schema_version must be 5 and protocol_version must be 1")
+    if data["schema_version"] != 6 or data["protocol_version"] != 2:
+        raise SystemExit(f"{SPEC_PATH}: schema_version must be 6 and protocol_version must be 2")
 
     preflight_checks = string_list(data["preflight_checks"], "preflight_checks")
     validate_preflight_ids(preflight_checks, f"{SPEC_PATH}: preflight_checks")
@@ -460,12 +476,15 @@ def load_suite() -> TestSuite:
             raise SystemExit(f"{SPEC_PATH}: {name}: expectations must cover every supported target")
         expectations: dict[str, Metrics] = {}
         for target, raw_metrics in raw_expectations.items():
-            if not isinstance(raw_metrics, dict) or set(raw_metrics) != {"allocations", "work"}:
+            if not isinstance(raw_metrics, dict) or set(raw_metrics) != {"allocations", "allocated_bytes", "work"}:
                 raise SystemExit(f"{SPEC_PATH}: {name}.{target}: invalid metrics schema")
             allocations = raw_metrics["allocations"]
+            allocated_bytes = raw_metrics["allocated_bytes"]
             work = raw_metrics["work"]
             if type(allocations) is not int or allocations < 0:
                 raise SystemExit(f"{SPEC_PATH}: {name}.{target}: allocations must be non-negative")
+            if type(allocated_bytes) is not int or allocated_bytes < 0:
+                raise SystemExit(f"{SPEC_PATH}: {name}.{target}: allocated_bytes must be non-negative")
             if (
                 not isinstance(work, dict)
                 or set(work) != set(work_counters)
@@ -477,6 +496,7 @@ def load_suite() -> TestSuite:
                 )
             expectations[target] = Metrics(
                 allocations,
+                allocated_bytes,
                 tuple(work[counter] for counter in work_counters),
             )
 
@@ -632,6 +652,12 @@ def metrics_mismatch(
         differences.append(
             f"allocations expected {expected.allocations}, got {actual.allocations}"
         )
+    if check_allocations and allocated_bytes_exceeded(expected, actual):
+        differences.append(
+            f"allocated_bytes {actual.allocated_bytes} exceeds the recorded "
+            f"{expected.allocated_bytes} by more than "
+            f"{(ALLOCATED_BYTES_CEILING_TENTHS - 10) * 10}%"
+        )
     for name, expected_value, actual_value in zip(work_counters, expected.work, actual.work):
         if actual_value != expected_value:
             differences.append(f"{name} expected {expected_value}, got {actual_value}")
@@ -640,17 +666,40 @@ def metrics_mismatch(
     return "; ".join(differences) if differences else None
 
 
+def allocated_bytes_exceeded(expected: Metrics, actual: Metrics) -> bool:
+    return actual.allocated_bytes * 10 > expected.allocated_bytes * ALLOCATED_BYTES_CEILING_TENTHS
+
+
+def metrics_drift(expected: Metrics, actual: Metrics) -> bool:
+    """Any exact difference, including allocated bytes inside the ceiling."""
+    return expected != actual
+
+
 def self_test_metrics(suite: TestSuite) -> None:
     case = suite.cases[0]
     expected = case.expectations["arm64mac"]
-    allocation_regression = Metrics(expected.allocations + 1, expected.work)
+    allocation_regression = Metrics(expected.allocations + 1, expected.allocated_bytes, expected.work)
     if metrics_mismatch(expected, allocation_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted an allocation regression")
     changed_work = list(expected.work)
     changed_work[0] += 1
-    work_regression = Metrics(expected.allocations, tuple(changed_work))
+    work_regression = Metrics(expected.allocations, expected.allocated_bytes, tuple(changed_work))
     if metrics_mismatch(expected, work_regression, case.work_counters) is None:
         raise SystemExit("Performance baseline self-test accepted a work regression")
+    ceiling = expected.allocated_bytes * ALLOCATED_BYTES_CEILING_TENTHS // 10
+    byte_blowup = Metrics(expected.allocations, ceiling + 1, expected.work)
+    if metrics_mismatch(expected, byte_blowup, case.work_counters) is None:
+        raise SystemExit("Performance baseline self-test accepted allocated bytes above the ceiling")
+    for accepted_bytes in (ceiling, expected.allocated_bytes // 2):
+        accepted = Metrics(expected.allocations, accepted_bytes, expected.work)
+        if metrics_mismatch(expected, accepted, case.work_counters) is not None:
+            raise SystemExit(
+                "Performance baseline self-test rejected allocated bytes within the ceiling"
+            )
+    if metrics_mismatch(expected, byte_blowup, case.work_counters, check_allocations=False) is not None:
+        raise SystemExit(
+            "Performance baseline self-test checked allocated bytes without allocation baselines"
+        )
     detail("PASS performance baseline self-test")
 
 
@@ -707,6 +756,126 @@ def verify_toolchain(toolchain: Toolchain) -> None:
         )
 
 
+LOCAL_IMPORT = re.compile(r"^\s*import\s+([A-Z][A-Za-z0-9_]*)\b", re.MULTILINE)
+TOP_LEVEL_EXPECT = re.compile(r"^\s*expect\b", re.MULTILINE)
+
+
+@dataclass(frozen=True)
+class ValidationTask:
+    action: str
+    sources: tuple[Path, ...]
+    # The expect-bearing files this `roc test` root is responsible for, or
+    # the reason a root needs no task of its own.
+    covers: tuple[Path, ...] = ()
+
+    @property
+    def label(self) -> str:
+        if self.action == "fmt":
+            return f"{len(self.sources)} files"
+        return relative(self.sources[0])
+
+
+@dataclass(frozen=True)
+class ValidationPlan:
+    tasks: tuple[ValidationTask, ...]
+    # Roots whose type checking is provided by another task, with the reason.
+    delegated: tuple[tuple[Path, str], ...]
+
+
+def local_import_closure(root: Path) -> tuple[Path, ...]:
+    """The root plus the same-directory modules it reaches through plain imports."""
+    seen: list[Path] = [root]
+    pending = [root]
+    while pending:
+        source = pending.pop()
+        for name in LOCAL_IMPORT.findall(source.read_text(encoding="utf-8")):
+            module = source.parent / f"{name}.roc"
+            if module.is_file() and module not in seen:
+                seen.append(module)
+                pending.append(module)
+    return tuple(seen)
+
+
+def has_expect(source: Path) -> bool:
+    return TOP_LEVEL_EXPECT.search(source.read_text(encoding="utf-8")) is not None
+
+
+def plan_validation(
+    fmt_sources: list[Path],
+    roots: list[Path],
+    fixture_sources: set[Path],
+    jobs: int,
+) -> ValidationPlan:
+    """Choose the fewest compiler invocations that keep every check and expect.
+
+    Every `roc check`, `roc test`, and `roc build` re-checks the whole package
+    (seconds and gigabytes per root), so each root gets at most one of them:
+
+    - `roc test` reports exactly the errors and warnings `roc check` does, with
+      the same exit codes, before running expects; a tested root is not also
+      checked.
+    - `roc build --no-cache` of a fixture source does the same, so a fixture
+      root that no `roc test` needs is checked by its evidence build.
+    - `package/all.roc` runs every package-module expect (it exposes every
+      module, see verify_all_package_root). An application root's `roc test`
+      would re-run them all, so application roots are tested only for the
+      expects in their own file and same-directory modules: every root whose
+      own file has expects, then, per directory, the fewest roots whose local
+      import closures cover the remaining expect-bearing modules.
+    - Every other root gets one `roc check`.
+
+    fmt is cheap and takes many files, so it runs as one batch per worker.
+    """
+    package_all = (ROOT / "package" / "all.roc").resolve()
+    tasks: list[ValidationTask] = []
+    delegated: list[tuple[Path, str]] = []
+
+    ordered_fmt = sorted(fmt_sources)
+    batches = max(1, min(jobs, len(ordered_fmt)))
+    for index in range(batches):
+        batch = tuple(ordered_fmt[index::batches])
+        if batch:
+            tasks.append(ValidationTask("fmt", batch))
+
+    closures = {root: local_import_closure(root) for root in roots}
+    tested: dict[Path, tuple[Path, ...]] = {}
+    if package_all in closures:
+        tested[package_all] = tuple(
+            module for module in sorted((ROOT / "package").glob("*.roc")) if has_expect(module)
+        )
+    uncovered: set[Path] = set()
+    for root, closure in closures.items():
+        if root == package_all or root.parent == ROOT / "package":
+            continue
+        uncovered.update(module for module in closure if has_expect(module))
+    for root in sorted(closures):
+        if root in uncovered:
+            tested[root] = tuple(module for module in closures[root] if module in uncovered)
+            uncovered.difference_update(tested[root])
+    while uncovered:
+        root = min(
+            (candidate for candidate in closures if candidate not in tested),
+            key=lambda candidate: (
+                -len(uncovered.intersection(closures[candidate])),
+                relative(candidate),
+            ),
+        )
+        covered = tuple(module for module in closures[root] if module in uncovered)
+        if not covered:
+            raise SystemExit(f"no validation root reaches {sorted(relative(item) for item in uncovered)}")
+        tested[root] = covered
+        uncovered.difference_update(covered)
+
+    for root in sorted(closures):
+        if root in tested:
+            tasks.append(ValidationTask("test", (root,), tested[root]))
+        elif root in fixture_sources:
+            delegated.append((root, "checked by its fixture build"))
+        else:
+            tasks.append(ValidationTask("check", (root,)))
+    return ValidationPlan(tuple(tasks), tuple(delegated))
+
+
 def build_case_sources(
     cases: tuple[TestCase, ...],
     build_dir: Path,
@@ -720,11 +889,22 @@ def build_case_sources(
         executable = build_dir / f"source-{source_key(source)}"
         started = time.monotonic()
         detail(f"START BUILD {relative(source)}")
+        # Evidence executables never reuse compiled procedures from the
+        # cache. The pinned compiler reuses a package procedure compiled for
+        # an earlier fixture program in a later one, and the later program
+        # can then copy lists that it updates in place when built alone: the
+        # allocation counts and allocated bytes of a case depended on which
+        # fixtures were built before it. Built without the cache, every
+        # fixture compiles exactly as a standalone `roc build --no-cache`
+        # does, whatever the order or cache state
+        # (docs/performance/lowering-uniqueness.md).
+        # --no-cache works around roc-lang/roc#11826; remove it once that is fixed.
         roc(
             "build",
             relative(source),
             f"--opt={roc_optimization}",
             f"--target={target}",
+            "--no-cache",
             f"--output={executable}",
         )
         return source, time.monotonic() - started
@@ -742,23 +922,30 @@ def build_case_sources(
         executor.shutdown()
 
 
-def run_parallel_roc_tasks(tasks: list[tuple[str, Path]], jobs: int) -> None:
-    def run_task(item: tuple[str, Path]) -> tuple[str, Path, float]:
-        action, source = item
+def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
+    def run_task(task: ValidationTask) -> tuple[ValidationTask, float]:
         started = time.monotonic()
-        detail(f"START {action.upper():5s} {relative(source)}")
-        if action == "fmt":
-            roc("fmt", "--check", relative(source))
-        else:
-            roc(action, relative(source))
-        return action, source, time.monotonic() - started
+        detail(f"START {task.action.upper():5s} {task.label}")
+        try:
+            if task.action == "fmt":
+                roc("fmt", "--check", *(relative(source) for source in task.sources))
+            else:
+                roc(task.action, relative(task.sources[0]))
+        except SystemExit as error:
+            if task.action != "test":
+                raise
+            # A failing expect names its own file and line; also name the
+            # family root and every module this root was responsible for.
+            covered = ", ".join(relative(module) for module in task.covers)
+            raise SystemExit(f"{error}\nTEST root {task.label} covers expects in: {covered}") from None
+        return task, time.monotonic() - started
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=jobs)
     futures = [executor.submit(run_task, item) for item in tasks]
     try:
         for future in concurrent.futures.as_completed(futures):
-            action, source, elapsed = future.result()
-            progress("PASS", f"{action.upper():5s} {relative(source)} ({elapsed:.1f}s)")
+            task, elapsed = future.result()
+            progress("PASS", f"{task.action.upper():5s} {task.label} ({elapsed:.1f}s)")
     except KeyboardInterrupt:
         cancel_parallel(executor, futures)
         raise
@@ -823,12 +1010,14 @@ def run_case(
         match = METRICS_REPORT.fullmatch(result.stderr)
         protocol_group = 1
         allocations_group = 2
-        work_group = 3
+        allocated_bytes_group = 3
+        work_group = 4
     else:
         match = RETENTION_REPORT.fullmatch(result.stderr)
         protocol_group = 5
         allocations_group = 6
-        work_group = 7
+        allocated_bytes_group = 7
+        work_group = 8
     if match is None:
         raise SystemExit(
             f"{case.name}: expected its versioned evidence report on stderr, got "
@@ -854,7 +1043,11 @@ def run_case(
         )
     work_text = match.group(work_group)
     actual_work = () if not work_text else tuple(int(value) for value in work_text.split(b","))
-    actual_metrics = Metrics(int(match.group(allocations_group)), actual_work)
+    actual_metrics = Metrics(
+        int(match.group(allocations_group)),
+        int(match.group(allocated_bytes_group)),
+        actual_work,
+    )
     expected_metrics = case.expectations[target]
     mismatch = metrics_mismatch(
         expected_metrics,
@@ -890,6 +1083,7 @@ def run_case(
     detail(
         f"PASS {case.name}: {describe_bytes(result.stdout)}, "
         f"{actual_metrics.allocations} allocations, "
+        f"{actual_metrics.allocated_bytes} allocated bytes, "
         + ", ".join(
             f"{name}={value}" for name, value in zip(case.work_counters, actual_metrics.work)
         )
@@ -903,7 +1097,12 @@ def run_case(
     )
 
     delta = None if mismatch is None else BaselineDelta(case.name, expected_metrics, actual_metrics)
-    return CaseRunResult(delta, actual_metrics, len(result.stdout))
+    drift = (
+        BaselineDelta(case.name, expected_metrics, actual_metrics)
+        if metrics_drift(expected_metrics, actual_metrics)
+        else None
+    )
+    return CaseRunResult(delta, drift, actual_metrics, len(result.stdout))
 
 
 def available_cpu_count() -> int:
@@ -934,8 +1133,12 @@ def default_jobs() -> int:
     if memory is None:
         memory_jobs = cpu_jobs
     else:
+        # Each check, test, or build root type-checks the whole package and
+        # peaks at 4 to 5.2 GB resident with the pinned compiler; on a 32 GB
+        # machine 8 and 10 workers were killed for memory, 6 were not
+        # (docs/performance/test-suite-speed.md).
         reserve = 2 * 1024**3
-        per_job = 2 * 1024**3
+        per_job = 5 * 1024**3
         memory_jobs = max(1, (max(0, memory - reserve)) // per_job)
     # Beyond sixteen simultaneous compiler/linker processes, filesystem and
     # cache contention tends to dominate even on large build machines.
@@ -1062,7 +1265,8 @@ def main() -> None:
     verify_toolchain(suite.toolchain)
     verify_all_package_root()
 
-    validation_tasks: list[tuple[str, Path]] = []
+    fmt_sources: list[Path] = []
+    roots: list[Path] = []
     skipped_tasks = 0
     for source in suite.validation_sources:
         source_name = Path(relative(source))
@@ -1081,31 +1285,53 @@ def main() -> None:
                 log(
                     f"SKIP {action} {relative(source)}: {matching_skips[0].reason}"
                 )
-            else:
-                validation_tasks.append((action, source))
+            elif action == "fmt":
+                fmt_sources.append(source)
+            elif action == "check":
+                roots.append(source)
+    # Selecting cases never drops validation: every root is still checked by
+    # a test, a check, or one of the fixture builds, so delegate a root to a
+    # fixture build only when that build runs in this invocation.
+    plan = plan_validation(
+        fmt_sources,
+        roots,
+        {case.source for case in suite.cases},
+        args.jobs,
+    )
+    for task in plan.tasks:
+        if task.action == "test":
+            log(
+                f"PLAN test {task.label} (checks it and runs expects in "
+                f"{', '.join(relative(module) for module in task.covers)})"
+            )
+        elif task.action == "check":
+            log(f"PLAN check {task.label}")
+    for root, reason in plan.delegated:
+        log(f"PLAN {relative(root)}: {reason}")
 
     PROGRESS_TOTAL = (
-        len(validation_tasks)
+        len(plan.tasks)
         + len({case.source for case in suite.cases})
         + len(suite.cases)
     )
 
-    non_test_tasks = [task for task in validation_tasks if task[0] != "test"]
-    test_tasks = [task for task in validation_tasks if task[0] == "test"]
+    # The package roots run first and alone so that every later root reads
+    # the package's checked modules from a warm cache.
     seed_paths = {
         (ROOT / "package" / "main.roc").resolve(),
         (ROOT / "package" / "all.roc").resolve(),
     }
-    seed_test_tasks = [task for task in test_tasks if task[1] in seed_paths]
-    dependent_test_tasks = [task for task in test_tasks if task[1] not in seed_paths]
+    seed_tasks = [task for task in plan.tasks if task.action != "fmt" and task.sources[0] in seed_paths]
+    other_tasks = [task for task in plan.tasks if task not in seed_tasks]
+    counts = {action: sum(1 for task in plan.tasks if task.action == action) for action in ("fmt", "check", "test")}
     phase(
-        f"Running {len(validation_tasks)} spec-defined Roc validation tasks "
-        f"({skipped_tasks} documented skips); seeding {len(seed_test_tasks)} shared "
-        "test roots before parallel dependent tests"
+        f"Running {len(plan.tasks)} Roc validation tasks: {counts['fmt']} fmt batches over "
+        f"{len(fmt_sources)} files, {counts['test']} test roots, {counts['check']} check roots; "
+        f"{len(plan.delegated)} fixture roots are checked by their builds "
+        f"({skipped_tasks} documented skips)"
     )
-    run_parallel_roc_tasks(non_test_tasks, args.jobs)
-    run_parallel_roc_tasks(seed_test_tasks, 1)
-    run_parallel_roc_tasks(dependent_test_tasks, args.jobs)
+    run_parallel_roc_tasks(seed_tasks, 1)
+    run_parallel_roc_tasks(other_tasks, args.jobs)
     command(
         ZIG,
         "fmt",
@@ -1130,6 +1356,7 @@ def main() -> None:
         f"(toolchain cap {suite.toolchain.max_build_workers})"
     )
     baseline_deltas: list[BaselineDelta] = []
+    baseline_drift: list[BaselineDelta] = []
     with tempfile.TemporaryDirectory(prefix="test-", dir=TEMP_ROOT) as temporary:
         build_dir = Path(temporary)
         build_case_sources(
@@ -1182,6 +1409,8 @@ def main() -> None:
                 )
                 if result.delta is not None:
                     baseline_deltas.append(result.delta)
+                if result.drift is not None:
+                    baseline_drift.append(result.drift)
         except KeyboardInterrupt:
             cancel_parallel(executor, futures)
             raise
@@ -1190,13 +1419,24 @@ def main() -> None:
 
     if args.baseline_report is not None:
         work_names = {case.name: case.work_counters for case in suite.cases}
+        # The report lists every exact difference, including allocated bytes
+        # that stay inside the ceiling, so a reviewed rebaseline can lower
+        # recorded ceilings as well as accept failing deltas.
         report = [
             {
                 "case": delta.case_name,
-                "expected": {"allocations": delta.expected.allocations, "work": dict(zip(work_names[delta.case_name], delta.expected.work))},
-                "actual": {"allocations": delta.actual.allocations, "work": dict(zip(work_names[delta.case_name], delta.actual.work))},
+                "expected": {
+                    "allocations": delta.expected.allocations,
+                    "allocated_bytes": delta.expected.allocated_bytes,
+                    "work": dict(zip(work_names[delta.case_name], delta.expected.work)),
+                },
+                "actual": {
+                    "allocations": delta.actual.allocations,
+                    "allocated_bytes": delta.actual.allocated_bytes,
+                    "work": dict(zip(work_names[delta.case_name], delta.actual.work)),
+                },
             }
-            for delta in sorted(baseline_deltas, key=lambda item: item.case_name)
+            for delta in sorted(baseline_drift, key=lambda item: item.case_name)
         ]
         args.baseline_report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         announce("RUN", f"Wrote {len(report)} baseline differences to {args.baseline_report}")
@@ -1212,15 +1452,20 @@ def main() -> None:
 
     if baseline_deltas:
         announce("FAIL", "Allocation baseline comparison:")
-        announce("FAIL", "| Case | Expected | Actual | Delta | Work counters |")
-        announce("FAIL", "| --- | ---: | ---: | ---: | --- |")
+        announce("FAIL", "| Case | Expected | Actual | Delta | Allocated bytes | Work counters |")
+        announce("FAIL", "| --- | ---: | ---: | ---: | --- | --- |")
         for delta in baseline_deltas:
             work_status = "unchanged" if delta.expected.work == delta.actual.work else "CHANGED"
             allocation_delta = delta.actual.allocations - delta.expected.allocations
+            bytes_status = (
+                f"{delta.actual.allocated_bytes} OVER CEILING of {delta.expected.allocated_bytes}"
+                if allocated_bytes_exceeded(delta.expected, delta.actual)
+                else f"{delta.actual.allocated_bytes} (recorded {delta.expected.allocated_bytes})"
+            )
             announce(
                 "FAIL",
                 f"| {delta.case_name} | {delta.expected.allocations} | "
-                f"{delta.actual.allocations} | {allocation_delta:+d} | {work_status} |",
+                f"{delta.actual.allocations} | {allocation_delta:+d} | {bytes_status} | {work_status} |",
             )
         raise SystemExit(
             "Performance baselines differ; review and update tests/spec.json deliberately"
