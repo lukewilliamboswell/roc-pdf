@@ -31,7 +31,12 @@ import re
 import sys
 from pathlib import Path
 
+from pdf_layout import mutate as layout_mutate
+from pdf_layout import flatten
 from check_pdf_structure import (
+    canonical_text,
+    STRING,
+    decode_stream,
     ValidationError,
     dictionary_int,
     dictionary_ref,
@@ -47,7 +52,7 @@ from check_forms import replace_once
 import re as _re
 
 ROOT = Path(__file__).resolve().parents[1]
-SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
+SRGB_PROFILE = ROOT / "package" / "sRGB2014.icc"
 
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata.pdf"
 MINIMAL_SNAPSHOT = ROOT / "tests" / "metadata" / "metadata_minimal.pdf"
@@ -68,8 +73,8 @@ SHOWCASE_MODIFIED = "2026-08-18T09:30:00Z"
 
 OUTPUT_INTENT = re.compile(
     rb"/OutputIntents \[<< /DestOutputProfile ([0-9]+) 0 R"
-    rb" /OutputConditionIdentifier <([0-9A-F]+)>"
-    rb" /RegistryName <([0-9A-F]+)>"
+    rb" /OutputConditionIdentifier (" + STRING + rb")"
+    rb" /RegistryName (" + STRING + rb")"
     rb" /S /GTS_PDFA1 /Type /OutputIntent >>\]"
 )
 ICC_BASED = re.compile(rb"\[/ICCBased ([0-9]+) 0 R\]")
@@ -120,7 +125,9 @@ def canonical_xmp(
 
 
 def utf16_hex(text: str) -> bytes:
-    return (b"\xfe\xff" + text.encode("utf-16-be")).hex().upper().encode("ascii")
+    """The canonical text-string token for ``text`` (named for its original
+    UTF-16BE-only form)."""
+    return canonical_text(text)
 
 
 def check_metadata(
@@ -147,13 +154,13 @@ def check_metadata(
     root, _file_identifier = validate_xref(pdf, offsets, bodies, xref_object, xref_offset)
     validate_page_tree(bodies, dictionary_ref(bodies[root], b"Pages"), expected_pages)
     validate_stream_lengths(bodies, xref_object, set(), b"")
-    require(b"/DestOutputProfileRef" not in pdf, "forbidden external profile reference")
+    require(b"/DestOutputProfileRef" not in flatten(pdf), "forbidden external profile reference")
     catalogs = [number for number, body in bodies.items() if b"/Type /Catalog" in body]
     require(len(catalogs) == 1, "expected exactly one catalog")
     catalog = bodies[catalogs[0]]
 
-    # /Lang: the canonical BOM-prefixed UTF-16BE text string.
-    lang = re.search(rb"/Lang <([0-9A-F]+)>", catalog)
+    # /Lang: the canonical text string.
+    lang = re.search(rb"/Lang (" + STRING + rb")", catalog)
     require(lang is not None, "catalog has no /Lang text string")
     require(lang.group(1) == utf16_hex(language), "catalog /Lang is not the validated language")
 
@@ -196,9 +203,8 @@ def check_metadata(
     require(profile_marker >= 0, "output intent profile is not a stream")
     profile_dictionary = profile_body[:profile_marker]
     require(dictionary_int(profile_dictionary, b"N") == 3, "profile stream does not declare three components")
-    require(b"/Filter" not in profile_dictionary, "profile stream must stay unfiltered")
-    profile_length = indirect_length(bodies, dictionary_ref(profile_dictionary, b"Length"))
-    _, profile_bytes = stream_parts(profile_body, profile_length)
+    require(b"/Filter /FlateDecode" in profile_dictionary, "profile stream must be FlateDecode")
+    _, profile_bytes = decode_stream(bodies, profile_object)
     require(profile_bytes == SRGB_PROFILE.read_bytes(), "profile stream is not the vendored sRGB2014 asset")
 
     # Exactly one embedded copy of the packaged profile, shared by every
@@ -208,8 +214,7 @@ def check_metadata(
         body_marker = body.find(b"stream\n")
         if body_marker < 0 or b"/N 3" not in body[:body_marker]:
             continue
-        body_length = indirect_length(bodies, dictionary_ref(body[:body_marker], b"Length"))
-        _, payload = stream_parts(body, body_length)
+        _, payload = decode_stream(bodies, number)
         if payload == profile_bytes:
             copies += 1
     require(copies == 1, f"expected exactly one embedded profile, found {copies}")
@@ -286,18 +291,18 @@ def self_test() -> None:
     pdf = SHOWCASE_SNAPSHOT.read_bytes()
     mutations = [
         ("altered XMP packet byte", replace_once(pdf, b"<dc:title>", b"<dc:titlf>")),
-        ("altered /Lang value", replace_once(pdf, b"/Lang <FEFF", b"/Lang <FEFE")),
+        ("altered /Lang value", replace_once(pdf, b"/Lang (", b"/Lang <")),
         ("altered intent subtype", replace_once(pdf, b"/S /GTS_PDFA1", b"/S /GTS_PDFB1")),
         ("altered profile component count", replace_once(pdf, b"/N 3", b"/N 4")),
         ("altered metadata subtype", replace_once(pdf, b"/Subtype /XML", b"/Subtype /XNL")),
         ("filtered metadata stream", replace_once(pdf, b"/Subtype /XML /Type /Metadata", b"/Filterx /XML /Type /Metadata")),
     ]
+    # The profile is a FlateDecode stream; the twin flips one decoded byte
+    # and re-deflates it.
     profile_payload = SRGB_PROFILE.read_bytes()
-    corrupt_profile = bytearray(pdf)
-    profile_offset = pdf.find(profile_payload)
-    require(profile_offset >= 0, "self-test snapshot does not embed the vendored profile")
-    corrupt_profile[profile_offset + 100] ^= 0xFF
-    mutations.append(("altered ICC payload byte", bytes(corrupt_profile)))
+    window = profile_payload[96:112]
+    flipped = window[:4] + bytes([window[4] ^ 0xFF]) + window[5:]
+    mutations.append(("altered ICC payload byte", layout_mutate(pdf, window, flipped, occurrences=1)))
 
     for label, mutation in mutations:
         try:

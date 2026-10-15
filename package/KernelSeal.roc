@@ -99,16 +99,15 @@ validate_objects : KernelObject.Store -> Try(U64, KernelSeal.Error)
 validate_objects = |store| {
 	length = store.objects.len()
 	var $index = 0
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		object = list_at(store.objects, $index)
 		expected = $index + 1
 		if KernelObject.ObjectId.number(object.id) != expected {
-			$error = Invalid(ObjectOrder({ actual: object.id, expected }))
+			return Err(ObjectOrder({ actual: object.id, expected }))
 		} else {
 			match object.content {
 				Stored(value) => if KernelObject.ValueId.index(value) >= store.values.len() {
-					$error = Invalid(
+					return Err(
 						IndexOutOfRange({
 							available: store.values.len(),
 							index: KernelObject.ValueId.index(value),
@@ -117,7 +116,7 @@ validate_objects = |store| {
 					)
 				}
 				LengthOf(stream) => if KernelObject.StreamId.index(stream) >= store.streams.len() {
-					$error = Invalid(
+					return Err(
 						IndexOutOfRange({
 							available: store.streams.len(),
 							index: KernelObject.StreamId.index(stream),
@@ -130,10 +129,7 @@ validate_objects = |store| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok(length)
-	}
+	Ok(length)
 }
 
 validate_values : KernelObject.Store -> Try({ references_checked : U64, values_checked : U64 }, KernelSeal.Error)
@@ -141,19 +137,18 @@ validate_values = |store| {
 	length = store.values.len()
 	var $index = 0
 	var $references_checked = 0
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		value = list_at(store.values, $index)
 		match value {
 			Array(span) => match validate_span(span, store.array_items.len(), ArrayEdge) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(_) => {}
 			}
 			Boolean(_) => {}
 			ByteString(string) => if KernelObject.ByteStringId.index(string) >= store.byte_strings.len() {
-				$error = Invalid(
+				return Err(
 					IndexOutOfRange({
 						available: store.byte_strings.len(),
 						index: KernelObject.ByteStringId.index(string),
@@ -163,13 +158,13 @@ validate_values = |store| {
 			}
 			Dictionary(span) => match validate_span(span, store.dictionary_entries.len(), DictionaryEdge) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(_) => {}
 			}
 			Integer(_) => {}
 			Name(name) => if KernelObject.NameId.index(name) >= store.names.len() {
-				$error = Invalid(
+				return Err(
 					IndexOutOfRange({
 						available: store.names.len(),
 						index: KernelObject.NameId.index(name),
@@ -182,7 +177,7 @@ validate_values = |store| {
 			Reference(target) => {
 				number = KernelObject.ObjectId.number(target)
 				if number == 0 or number > store.objects.len() {
-					$error = Invalid(
+					return Err(
 						ReferenceOutOfRange({
 							available: store.objects.len(),
 							source: KernelObject.ValueId.from_index($index),
@@ -192,7 +187,7 @@ validate_values = |store| {
 				} else {
 					match U64.plus_try($references_checked, 1) {
 						Err(Overflow) => {
-							$error = Invalid(WorkOverflow)
+							return Err(WorkOverflow)
 						}
 						Ok(next) => {
 							$references_checked = next
@@ -201,7 +196,7 @@ validate_values = |store| {
 				}
 			}
 			Stream(stream) => if KernelObject.StreamId.index(stream) >= store.streams.len() {
-				$error = Invalid(
+				return Err(
 					IndexOutOfRange({
 						available: store.streams.len(),
 						index: KernelObject.StreamId.index(stream),
@@ -210,7 +205,7 @@ validate_values = |store| {
 				)
 			}
 			TextString(string) => if KernelObject.TextStringId.index(string) >= store.text_strings.len() {
-				$error = Invalid(
+				return Err(
 					IndexOutOfRange({
 						available: store.text_strings.len(),
 						index: KernelObject.TextStringId.index(string),
@@ -222,18 +217,14 @@ validate_values = |store| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ references_checked: $references_checked, values_checked: length })
-	}
+	Ok({ references_checked: $references_checked, values_checked: length })
 }
 
 validate_streams : KernelObject.Store -> Try(U64, KernelSeal.Error)
 validate_streams = |store| {
 	length = store.streams.len()
 	var $index = 0
-	var $error = NoError
-	while $index < length and $error == NoError {
+	while $index < length {
 		stream = list_at(store.streams, $index)
 		stream_id = KernelObject.StreamId.from_index($index)
 		object_number = KernelObject.ObjectId.number(stream.object)
@@ -242,15 +233,15 @@ validate_streams = |store| {
 		source_index = KernelObject.PayloadId.index(stream.source)
 
 		if source_index >= store.payloads.len() {
-			$error = Invalid(IndexOutOfRange({ available: store.payloads.len(), index: source_index, kind: PayloadValue }))
+			return Err(IndexOutOfRange({ available: store.payloads.len(), index: source_index, kind: PayloadValue }))
 		} else if stream.id != stream_id {
-			$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
+			return Err(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
 		} else if object_number == 0 or object_number > store.objects.len() {
-			$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
+			return Err(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
 		} else if length_number == 0 or length_number > store.objects.len() {
-			$error = Invalid(StreamLengthObjectMismatch({ length_object: stream.length_object, stream: stream_id }))
+			return Err(StreamLengthObjectMismatch({ length_object: stream.length_object, stream: stream_id }))
 		} else if object_number == store.objects.len() or length_number != object_number + 1 {
-			$error = Invalid(
+			return Err(
 				StreamLengthNotAdjacent({
 					length_object: stream.length_object,
 					object: stream.object,
@@ -261,38 +252,34 @@ validate_streams = |store| {
 			payload = list_at(store.payloads, source_index)
 			match payload.last_use {
 				Unused => {
-					$error = Invalid(PayloadUseMissing({ payload: payload.id, stream: stream_id }))
+					return Err(PayloadUseMissing({ payload: payload.id, stream: stream_id }))
 				}
 				LastStream(last) => if KernelObject.StreamId.index(last) < $index {
-					$error = Invalid(PayloadLastUseInvalid({ last_stream: last, payload: payload.id }))
+					return Err(PayloadLastUseInvalid({ last_stream: last, payload: payload.id }))
 				}
 			}
-			if $error == NoError {
-				object = list_at(store.objects, object_number - 1)
-				match object.content {
-					Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
-						Stream(actual) => if actual != stream_id {
-							$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
-						}
-						_ => {
-							$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
-						}
+			object = list_at(store.objects, object_number - 1)
+			match object.content {
+				Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
+					Stream(actual) => if actual != stream_id {
+						return Err(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
 					}
 					_ => {
-						$error = Invalid(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
+						return Err(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
 					}
+				}
+				_ => {
+					return Err(StreamObjectMismatch({ object: stream.object, stream: stream_id }))
 				}
 			}
 
-			if $error == NoError {
-				length_object = list_at(store.objects, length_number - 1)
-				match length_object.content {
-					LengthOf(actual) => if actual != stream_id {
-						$error = Invalid(StreamLengthObjectMismatch({ length_object: stream.length_object, stream: stream_id }))
-					}
-					_ => {
-						$error = Invalid(StreamLengthObjectMismatch({ length_object: stream.length_object, stream: stream_id }))
-					}
+			length_object = list_at(store.objects, length_number - 1)
+			match length_object.content {
+				LengthOf(actual) => if actual != stream_id {
+					return Err(StreamLengthObjectMismatch({ length_object: stream.length_object, stream: stream_id }))
+				}
+				_ => {
+					return Err(StreamLengthObjectMismatch({ length_object: stream.length_object, stream: stream_id }))
 				}
 			}
 		}
@@ -300,24 +287,21 @@ validate_streams = |store| {
 	}
 
 	var $payload_index = 0
-	while $payload_index < store.payloads.len() and $error == NoError {
+	while $payload_index < store.payloads.len() {
 		payload = list_at(store.payloads, $payload_index)
 		match payload.last_use {
 			Unused => {}
 			LastStream(last) => {
 				last_index = KernelObject.StreamId.index(last)
 				if last_index >= store.streams.len() or list_at(store.streams, last_index).source != payload.id {
-					$error = Invalid(PayloadLastUseInvalid({ last_stream: last, payload: payload.id }))
+					return Err(PayloadLastUseInvalid({ last_stream: last, payload: payload.id }))
 				}
 			}
 		}
 		$payload_index = $payload_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok(length)
-	}
+	Ok(length)
 }
 
 validate_span : KernelObject.Span, U64, KernelSeal.StoreKind -> Try({}, KernelSeal.Error)
@@ -379,7 +363,7 @@ seal_limits = {
 	max_values: 32,
 }
 
-## Sealing preserves the compact stores and records exact linear work.
+# Sealing preserves the compact stores and records exact linear work.
 expect {
 	null = KernelObject.add_null(KernelObject.init(seal_limits))?
 	object = KernelObject.add_object(null.builder, null.id)?
@@ -396,7 +380,7 @@ expect {
 	actual == expected
 }
 
-## Forward references resolve against the complete sealed object range.
+# Forward references resolve against the complete sealed object range.
 expect {
 	target = KernelObject.ObjectId.from_number(2)?
 	reference = KernelObject.add_reference(KernelObject.init(seal_limits), target)?
@@ -408,7 +392,7 @@ expect {
 	KernelSeal.Plan.seal_work(plan).references_checked == 1
 }
 
-## A reference outside the final object range is rejected by source value ID.
+# A reference outside the final object range is rejected by source value ID.
 expect {
 	target = KernelObject.ObjectId.from_number(2)?
 	reference = KernelObject.add_reference(KernelObject.init(seal_limits), target)?
@@ -422,7 +406,7 @@ expect {
 	}
 }
 
-## Stream and indirect length objects seal as one consecutive pair.
+# Stream and indirect length objects seal as one consecutive pair.
 expect {
 	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], Generated)?
 	stream = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
@@ -431,7 +415,7 @@ expect {
 	KernelSeal.Plan.counts(plan).objects == 2 and KernelSeal.Plan.seal_work(plan).streams_checked == 1
 }
 
-## Sealing verifies and retains the final stream use for payload release.
+# Sealing verifies and retains the final stream use for payload release.
 expect {
 	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], UnchangedResource)?
 	first = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
@@ -444,7 +428,7 @@ expect {
 	}
 }
 
-## A missing final-use fact is rejected before any payload can be emitted.
+# A missing final-use fact is rejected before any payload can be emitted.
 expect {
 	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], UnchangedResource)?
 	stream = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?
@@ -460,7 +444,7 @@ expect {
 	}
 }
 
-## A non-adjacent stream-length object is rejected before emission.
+# A non-adjacent stream-length object is rejected before emission.
 expect {
 	payload = KernelObject.add_payload(KernelObject.init(seal_limits), [1, 2, 3], Generated)?
 	stream_result = KernelObject.add_stream_object(payload.builder, [], Unfiltered, payload.id)?

@@ -142,15 +142,15 @@ build_sample = |_| {
 		Font.ValidationLimits.default,
 	) ? |_| FontFailure
 	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
-	theme = Theme.with_font(Theme.default, registered.face)
-	if theme.body_font().index() != registered.face.index() {
+	theme = Theme.{ face: registered.face }
+	if theme.body_font() != registered.face {
 		return Err(FontFailure)
 	}
 	semantic = KernelTextSemantics.Plan.build(
 		semantics,
 		1,
 		1,
-		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 1, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
+		KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: 2, max_fragments: 1, max_namespaces: 2, max_nodes: 2, max_occurrences: 1, max_semantic_depth: 2 }),
 		KernelTextSemantics.Limits.make({ max_text_properties: 0, max_text_property_bytes: 0, max_text_source_bytes: 9, max_text_source_scalars: 8, max_text_sources: 1 }),
 	) ? |_| SemanticFailure
 	analysis = KernelUnicode.analyze(
@@ -373,8 +373,8 @@ descriptor = { flags: 32, italic_angle: 0, stem_v: 80 }
 tagged_object_limits : KernelObject.Limits
 tagged_object_limits = {
 	max_array_items: 64,
-	max_byte_string_bytes: 0,
-	max_byte_strings: 0,
+	max_byte_string_bytes: 13,
+	max_byte_strings: 2,
 	max_dictionary_entries: 128,
 	max_direct_depth: 8,
 	max_name_bytes: 3072,
@@ -383,19 +383,19 @@ tagged_object_limits = {
 	max_payload_bytes: 200000,
 	max_payloads: 4,
 	max_streams: 4,
-	max_text_string_bytes: 64,
-	max_text_strings: 4,
+	max_text_string_bytes: 51,
+	max_text_strings: 2,
 	max_values: 256,
 }
 
-## The prohibited twin is checksum-valid but never returns usable handles.
+# The prohibited twin is checksum-valid but never returns usable handles.
 expect match Font.Registry.empty.register(
 	restricted_font_bytes,
 	{ provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] },
 	Font.ValidationLimits.default,
 ) {
-	Err(EmbeddingRightsProhibited({ fs_type: 2 })) => Bool.True
-	_ => Bool.False
+	Err(EmbeddingRightsProhibited({ fs_type: 2 })) => True
+	_ => False
 }
 
 expect {
@@ -403,9 +403,9 @@ expect {
 	structure = KernelTaggedTextStructure.Plan.structure(sample.structure)
 	font_objects = KernelTaggedTextStructure.Plan.font_objects(sample.structure)
 	first = list_at(font_objects, 0)
-	KernelStructure.Plan.object_count(structure) == 20 and
+	KernelStructure.Plan.object_count(structure) == 18 and
 		KernelObject.ObjectId.number(first.font_file) == 12 and
-			KernelObject.ObjectId.number(first.type0) == 20 and
+			KernelObject.ObjectId.number(first.type0) == 18 and
 				sample.selected_face == 0
 }
 

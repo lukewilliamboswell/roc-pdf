@@ -1,6 +1,6 @@
 import pdf.KernelFont
 import pdf.KernelGsub
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 ## This module is inspection-only. It deliberately emits no PDF: the retained
 ## `Fact` is the upstream proof required before a later output slice can create
@@ -97,16 +97,16 @@ list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 }
 
-## The selected Latin default language system exposes `ccmp`, whose Type-4
-## lookup 4 proves the exact A + grave -> glyph 5 relationship. This validates
-## the prerequisite without pretending that this font has an `fi` `liga` rule.
+# The selected Latin default language system exposes `ccmp`, whose Type-4
+# lookup 4 proves the exact A + grave -> glyph 5 relationship. This validates
+# the prerequisite without pretending that this font has an `fi` `liga` rule.
 expect {
 	work = GsubFixture.validation_work({})?
 	work == [4, 2, 37, 2, 2, 61, 23, 19]
 }
 
-## The returned value is the durable stage fact. It records all selection
-## inputs, rather than leaving a later advanced-run stage to rediscover them.
+# The returned value is the durable stage fact. It records all selection
+# inputs, rather than leaving a later advanced-run stage to rediscover them.
 expect {
 	font = fixture_font({})?
 	request = fixture_request(font)?
@@ -121,8 +121,8 @@ expect {
 	}
 }
 
-## An otherwise valid lookup whose declared output glyph is wrong is rejected
-## before any advanced run, scene, or object plan can exist.
+# An otherwise valid lookup whose declared output glyph is wrong is rejected
+# before any advanced run, scene, or object plan can exist.
 expect {
 	font = fixture_font({})?
 	request = fixture_request(font)?
@@ -132,9 +132,9 @@ expect {
 	}
 }
 
-## A corrupt GSUB header is rejected at this boundary, independently of the
-## earlier sfnt-directory inspection. No malformed lookup becomes a shaping
-## fact merely because the outer font was once inspected successfully.
+# A corrupt GSUB header is rejected at this boundary, independently of the
+# earlier sfnt-directory inspection. No malformed lookup becomes a shaping
+# fact merely because the outer font was once inspected successfully.
 expect {
 	font = fixture_font({})?
 	table = find_gsub(font.tables)?

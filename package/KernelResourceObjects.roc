@@ -134,25 +134,24 @@ add_canonical_profiles = |builder, names, profiles, representatives, planned| {
 	var $builder = builder
 	var $bytes = 0
 	var $ordinal = 0
-	var $error = NoError
-	while $ordinal < representatives.len() and $error == NoError {
+	while $ordinal < representatives.len() {
 		profile = list_at(profiles, list_at(representatives, $ordinal))
 		objects = list_at(planned, $ordinal)
 		components = KernelObject.add_integer($builder, component_count(profile.components))
 		match components {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(Object(error))
 			}
-			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, UnchangedResource) {
+			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, Generated) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(Object(error))
 				}
-				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Unfiltered, payload.id) {
+				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Deflate, payload.id) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(Object(error))
 					}
-					Ok(stream) => if !KernelObject.ObjectId.is_eq(stream.id, objects.stream.stream) or !KernelObject.ObjectId.is_eq(stream.length_object, objects.stream.length) or !KernelObject.ObjectId.is_eq(stream.id, objects.profile) {
-						$error = InvalidOrder({ actual: stream.id, expected: objects.profile })
+					Ok(stream) => if stream.id != objects.stream.stream or stream.length_object != objects.stream.length or stream.id != objects.profile {
+						return Err(ObjectOrder({ actual: stream.id, expected: objects.profile }))
 					} else {
 						$builder = stream.builder
 						$bytes = $bytes + profile.bytes.len()
@@ -162,11 +161,7 @@ add_canonical_profiles = |builder, names, profiles, representatives, planned| {
 		}
 		$ordinal = $ordinal + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		InvalidOrder(order) => Err(ObjectOrder(order))
-		NoError => Ok({ builder: $builder, bytes: $bytes })
-	}
+	Ok({ builder: $builder, bytes: $bytes })
 }
 
 add_canonical_color_spaces : KernelObject.Builder, Names, List(Color.SpaceRecord), KernelResourceObjects.CanonicalLeaves, KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelResourceObjects.Error)
@@ -174,8 +169,7 @@ add_canonical_color_spaces = |builder, names, spaces, leaves, objects| {
 	planned = KernelObjectPlan.Plan.color_spaces(objects)
 	var $builder = builder
 	var $ordinal = 0
-	var $error = NoError
-	while $ordinal < leaves.color_representatives.len() and $error == NoError {
+	while $ordinal < leaves.color_representatives.len() {
 		record = list_at(spaces, list_at(leaves.color_representatives, $ordinal))
 		value = match record.space {
 			CalibratedGray({ black_point, white_point }) => add_cal_gray($builder, names, black_point, white_point)
@@ -184,14 +178,14 @@ add_canonical_color_spaces = |builder, names, spaces, leaves, objects| {
 		}
 		match value {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(added) => match KernelObject.add_object(added.builder, added.id) {
 				Err(error) => {
-					$error = Invalid(Object(error))
+					return Err(Object(error))
 				}
-				Ok(object) => if !KernelObject.ObjectId.is_eq(object.id, list_at(planned, $ordinal)) {
-					$error = Invalid(ObjectOrder({ actual: object.id, expected: list_at(planned, $ordinal) }))
+				Ok(object) => if object.id != list_at(planned, $ordinal) {
+					return Err(ObjectOrder({ actual: object.id, expected: list_at(planned, $ordinal) }))
 				} else {
 					$builder = object.builder
 				}
@@ -199,10 +193,7 @@ add_canonical_color_spaces = |builder, names, spaces, leaves, objects| {
 		}
 		$ordinal = $ordinal + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($builder)
-	}
+	Ok($builder)
 }
 
 ## The `[/ICCBased …]` array references the canonical profile object the
@@ -223,13 +214,12 @@ add_canonical_images = |builder, names, images, leaves, objects| {
 	var $image_rows = 0
 	var $raster_bytes = 0
 	var $soft_mask_rows = 0
-	var $error = NoError
-	while $ordinal < leaves.image_representatives.len() and $error == NoError {
+	while $ordinal < leaves.image_representatives.len() {
 		resource = list_at(images, list_at(leaves.image_representatives, $ordinal))
 		planes = list_at(leaves.image_planes, $ordinal)
 		match add_canonical_image($builder, names, resource, planes, leaves, objects, list_at(planned, $ordinal)) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(added) => {
 				$builder = added.builder
@@ -240,10 +230,7 @@ add_canonical_images = |builder, names, images, leaves, objects| {
 		}
 		$ordinal = $ordinal + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ builder: $builder, image_rows: $image_rows, raster_bytes: $raster_bytes, soft_mask_rows: $soft_mask_rows })
-	}
+	Ok({ builder: $builder, image_rows: $image_rows, raster_bytes: $raster_bytes, soft_mask_rows: $soft_mask_rows })
 }
 
 ## A canonical raster image emits the already row-compacted canonical planes,
@@ -321,25 +308,24 @@ add_profiles = |builder, names, profiles, planned| {
 	var $builder = builder
 	var $bytes = 0
 	var $index = 0
-	var $error = NoError
-	while $index < profiles.len() and $error == NoError {
+	while $index < profiles.len() {
 		profile = list_at(profiles, $index)
 		objects = list_at(planned, profile.id.index())
 		components = KernelObject.add_integer($builder, component_count(profile.components))
 		match components {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(Object(error))
 			}
-			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, UnchangedResource) {
+			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, Generated) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(Object(error))
 				}
-				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Unfiltered, payload.id) {
+				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Deflate, payload.id) {
 					Err(error) => {
-						$error = Invalid(error)
+						return Err(Object(error))
 					}
-					Ok(stream) => if !KernelObject.ObjectId.is_eq(stream.id, objects.stream.stream) or !KernelObject.ObjectId.is_eq(stream.length_object, objects.stream.length) or !KernelObject.ObjectId.is_eq(stream.id, objects.profile) {
-						$error = InvalidOrder({ actual: stream.id, expected: objects.profile })
+					Ok(stream) => if stream.id != objects.stream.stream or stream.length_object != objects.stream.length or stream.id != objects.profile {
+						return Err(ObjectOrder({ actual: stream.id, expected: objects.profile }))
 					} else {
 						$builder = stream.builder
 						$bytes = $bytes + profile.bytes.len()
@@ -349,11 +335,7 @@ add_profiles = |builder, names, profiles, planned| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(Object(error))
-		InvalidOrder(order) => Err(ObjectOrder(order))
-		NoError => Ok({ builder: $builder, bytes: $bytes })
-	}
+	Ok({ builder: $builder, bytes: $bytes })
 }
 
 add_color_spaces : KernelObject.Builder, Names, List(Color.SpaceRecord), KernelObjectPlan.Plan -> Try(KernelObject.Builder, KernelResourceObjects.Error)
@@ -361,12 +343,11 @@ add_color_spaces = |builder, names, spaces, objects| {
 	planned = KernelObjectPlan.Plan.color_spaces(objects)
 	var $builder = builder
 	var $index = 0
-	var $error = NoError
-	while $index < spaces.len() and $error == NoError {
+	while $index < spaces.len() {
 		record = list_at(spaces, $index)
 		match add_color_space($builder, names, record.space, objects, list_at(planned, record.id.index())) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(next) => {
 				$builder = next
@@ -374,10 +355,7 @@ add_color_spaces = |builder, names, spaces, objects| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok($builder)
-	}
+	Ok($builder)
 }
 
 add_color_space : KernelObject.Builder, Names, Color.Space, KernelObjectPlan.Plan, KernelObject.ObjectId -> Try(KernelObject.Builder, KernelResourceObjects.Error)
@@ -445,12 +423,11 @@ add_images = |builder, names, images, objects| {
 	var $image_rows = 0
 	var $raster_bytes = 0
 	var $soft_mask_rows = 0
-	var $error = NoError
-	while $index < images.len() and $error == NoError {
+	while $index < images.len() {
 		resource = list_at(images, $index)
 		match add_image($builder, names, resource, objects, list_at(planned, resource.id.index())) {
 			Err(error) => {
-				$error = Invalid(error)
+				return Err(error)
 			}
 			Ok(added) => {
 				$builder = added.builder
@@ -461,10 +438,7 @@ add_images = |builder, names, images, objects| {
 		}
 		$index = $index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ builder: $builder, image_rows: $image_rows, raster_bytes: $raster_bytes, soft_mask_rows: $soft_mask_rows })
-	}
+	Ok({ builder: $builder, image_rows: $image_rows, raster_bytes: $raster_bytes, soft_mask_rows: $soft_mask_rows })
 }
 
 add_image : KernelObject.Builder, Names, Image.Resource, KernelObjectPlan.Plan, KernelObjectPlan.ImageObjects -> Try(ImageWork, KernelResourceObjects.Error)
@@ -598,7 +572,7 @@ component_count = |components| match components {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelResourceObjects.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
@@ -626,7 +600,7 @@ test_limits = {
 	max_values: 640,
 }
 
-## Resource lowering completes every planned object and produces a sealable store.
+# Resource lowering completes every planned object and produces a sealable store.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	prefix = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
@@ -638,7 +612,7 @@ expect {
 	counts.objects == KernelObjectPlan.Plan.object_count(pipeline.objects) and counts.payloads == 2 and counts.streams == 2 and work.color_spaces == 1 and work.images == 1 and work.image_rows == 2 and work.raster_bytes == 4
 }
 
-## Padded raster and alpha rows compact into distinct image and soft-mask streams.
+# Padded raster and alpha rows compact into distinct image and soft-mask streams.
 expect {
 	pipeline = KernelPipelineFixture.alpha_pipeline({})?
 	prefix = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?

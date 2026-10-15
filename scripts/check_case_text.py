@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
@@ -21,7 +22,11 @@ SNAPSHOT = ROOT / "tests" / "actual_text" / "case_text.pdf"
 # dependency's resolved mapping, never a fixture-local table.
 LOGICAL_TEXT = "a\u00df"
 PRESENTATION_TEXT = "ASS"
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -39,6 +44,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [656, 690, 642]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_ACTUAL_TEXT = b"<FEFF006100DF>"
 EXPECTED_MAPPINGS = {0x0001: (0x0061,), 0x0002: (0x00DF,)}
 EXPECTED_SUBSET_SHA256 = "aea5b021187971fd57d34562eae236065d1c77e466b7a47e31b0f00529681717"
@@ -73,7 +80,7 @@ def validate_case_pdf(pdf: bytes) -> None:
     mappings = cmap_mappings(cmap)
     require(mappings == EXPECTED_MAPPINGS, f"case ToUnicode rows differ: {mappings!r}")
 
-    shown = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", content)]
+    shown = shown_cids(content)
     require(len(shown) == len(PRESENTATION_TEXT), f"case paints {len(shown)} CIDs, expected {len(PRESENTATION_TEXT)}")
     # The expansion paints one glyph per presentation scalar while the two
     # identical output scalars legitimately share one CID; the surviving

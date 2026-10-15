@@ -11,5 +11,5 @@ Fixture :: [].{
 	}
 }
 
-## The test-only placeholder retains its exact snapshot size.
+# The test-only placeholder retains its exact snapshot size.
 expect Fixture.placeholder_pdf(0).len() == 431

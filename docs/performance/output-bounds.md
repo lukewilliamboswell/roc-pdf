@@ -1,5 +1,11 @@
 # structural-kernel structural output bounds
 
+> **Current layout.** Since the output-size work every plan's stored bound is
+> computed by `KernelOutputBound.calculate` over the sealed objects under the
+> object-stream layout; see "Object-stream layout bound" below. The formula
+> in the next sections remains the checked pre-allocation guard for blank
+> plans.
+
 ## Scope
 
 The current `KernelStructure.Plan` represents one through 1,048,576 blank
@@ -79,3 +85,32 @@ without allocating the represented bytes, and verifies the exact 11-byte xref
 entry. It also rejects `U64` position overflow. This proves that offset
 accounting and fixed-width serialization remain 64-bit beyond 4 GiB without a
 multi-gigabyte fixture allocation.
+
+## Object-stream layout bound
+
+`KernelOutputBound.calculate` walks the sealed objects once in plan order and
+applies the same partition as emission (`KernelFileLayout`):
+
+- A stream object is bounded as a top-level object, exactly as before: its
+  header, dictionary value bound with the generated `/Filter` and `/Length`
+  entries, framing, and payload bound (a DEFLATE bound for generated
+  payloads).
+- Every other object is bounded as an object-stream member: its value bound
+  (or the digits of its stream's payload bound for a length object) plus 43
+  bytes for its header pair (two numbers of at most 20 digits, two spaces)
+  and newline.
+- Each object stream closed by the partition (every 400 members, and the last
+  partial batch) adds the DEFLATE bound of its members plus the header's
+  newline, and 256 bytes of framing: its object header, a dictionary with at
+  most three 20-digit numbers, and the stream keywords.
+- The cross-reference stream adds the DEFLATE bound of 12 bytes per row (a
+  predictor byte, the type, at most eight offset bytes, and two index bytes)
+  over every object including zero, the object streams, and itself, plus 512
+  bytes of dictionary and the `startxref` trailer with the digits of the
+  running bound.
+
+The DEFLATE bound is the dependency's stored-block bound (five bytes per
+5,000-byte block beyond the input, at least one block) plus six zlib framing
+bytes, so every term is an upper bound of what emission writes whatever the
+compressor finds. Every addition and multiplication is checked. The emitter
+still compares its position with the stored bound at every segment.

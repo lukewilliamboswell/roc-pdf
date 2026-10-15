@@ -1,4 +1,5 @@
 import KernelDeflate
+import KernelFileLayout
 import KernelLex
 import KernelObject
 import KernelSeal
@@ -29,19 +30,25 @@ calculate_bound = |sealed, xref_object| {
 	if KernelObject.ObjectId.number(xref_object) != expected_xref {
 		Err(XrefObjectMismatch({ actual: xref_object, expected: expected_xref }))
 	} else {
+		# Stream objects are bounded as top-level objects. Every other object
+		# is bounded as an object-stream member (a header pair of at most two
+		# 20-digit numbers and two spaces, its value, and a newline), and each
+		# object stream closed by the shared partition adds its DEFLATE bound
+		# and framing.
 		var $bytes = 15
+		var $batch = 0
+		var $members = 0
+		var $streams = 0
 		var $object_index = 0
 		var $payload_bound_lookups = 0
 		var $value_visits = 0
 		while $object_index < store.objects.len() {
 			object = list_at(store.objects, $object_index)
-			$bytes = checked_add($bytes, checked_add(decimal_length(KernelObject.ObjectId.number(object.id)), 7)?)?
-			match object.content {
+			member = match object.content {
 				LengthOf(stream_id) => {
 					payload_bound = stream_payload_bound(store, stream_id)?
 					$payload_bound_lookups = checked_add($payload_bound_lookups, 1)?
-					$bytes = checked_add($bytes, decimal_length(payload_bound))?
-					$bytes = checked_add($bytes, 8)?
+					Member(decimal_length(payload_bound))
 				}
 				Stored(value_id) => match list_at(store.values, KernelObject.ValueId.index(value_id)) {
 					Stream(stream_id) => {
@@ -50,24 +57,43 @@ calculate_bound = |sealed, xref_object| {
 						$value_visits = checked_add($value_visits, dictionary.visits)?
 						payload_bound = stream_payload_bound(store, stream_id)?
 						$payload_bound_lookups = checked_add($payload_bound_lookups, 1)?
+						$bytes = checked_add($bytes, checked_add(decimal_length(KernelObject.ObjectId.number(object.id)), 7)?)?
 						$bytes = checked_add($bytes, dictionary.bytes)?
 						$bytes = checked_add($bytes, stream_inserted_entries_bound(stream))?
 						$bytes = checked_add($bytes, 8)?
 						$bytes = checked_add($bytes, payload_bound)?
 						$bytes = checked_add($bytes, 18)?
+						TopLevel
 					}
 					_ => {
 						value = value_bound(store, value_id)?
 						$value_visits = checked_add($value_visits, value.visits)?
-						$bytes = checked_add($bytes, value.bytes)?
-						$bytes = checked_add($bytes, 8)?
+						Member(value.bytes)
+					}
+				}
+			}
+			match member {
+				TopLevel => {}
+				Member(body) => {
+					$batch = checked_add($batch, checked_add(body, member_overhead_bound)?)?
+					$members = $members + 1
+					if $members == KernelFileLayout.max_objects_per_stream {
+						$bytes = checked_add($bytes, object_stream_bound($batch)?)?
+						$streams = $streams + 1
+						$batch = 0
+						$members = 0
 					}
 				}
 			}
 			$object_index = $object_index + 1
 		}
+		if $members > 0 {
+			$bytes = checked_add($bytes, object_stream_bound($batch)?)?
+			$streams = $streams + 1
+		}
 
-		xref = xref_bound(xref_object, $bytes)?
+		xref_number = checked_add(KernelObject.ObjectId.number(xref_object), $streams)?
+		xref = xref_bound(xref_number, $bytes)?
 		Ok(
 			KernelOutputBound.Bound.{
 				bytes: checked_add($bytes, xref)?,
@@ -159,24 +185,32 @@ stream_payload_bound = |store, stream_id| {
 	}
 }
 
-xref_bound : KernelObject.ObjectId, U64 -> Try(U64, KernelOutputBound.Error)
-xref_bound = |xref_object, xref_offset_bound| {
-	xref_number = KernelObject.ObjectId.number(xref_object)
+## One member's header pair (two numbers of at most 20 digits and two
+## spaces) and its terminating newline.
+member_overhead_bound : U64
+member_overhead_bound = 43
+
+## An object stream over members whose serialized bound is `batch`: the
+## header's final newline, the DEFLATE bound, and the framing (object header,
+## a dictionary of at most three 20-digit numbers, and the stream keywords).
+object_stream_bound : U64 -> Try(U64, KernelOutputBound.Error)
+object_stream_bound = |batch| {
+	compressed = KernelDeflate.output_bound(checked_add(batch, 1)?) ? Deflate
+	checked_add(compressed, 256)
+}
+
+## The cross-reference stream: one predicted row per object of at most
+## 1 + 1 + 8 + 2 bytes, its DEFLATE bound, a dictionary with two 32-byte
+## identifiers and at most five 20-digit numbers, and the trailer.
+xref_bound : U64, U64 -> Try(U64, KernelOutputBound.Error)
+xref_bound = |xref_number, xref_offset_bound| {
 	size = checked_add(xref_number, 1)?
-	stream_length = checked_times(size, 11)?
-	dictionary =
-		2 +
-			140 +
-			12 + decimal_length(size) +
-			9 + decimal_length(stream_length) +
-			11 + decimal_length(xref_number) +
-			7 + decimal_length(size) +
-			12 +
-			12 +
-			3
+	rows = checked_times(size, 12)?
+	compressed = KernelDeflate.output_bound(rows) ? Deflate
 	header = decimal_length(xref_number) + 7
+	dictionary = 512
 	suffix = 35 + decimal_length(xref_offset_bound)
-	checked_add(checked_add(checked_add(checked_add(header, dictionary)?, 8)?, stream_length)?, suffix)
+	checked_add(checked_add(checked_add(header, dictionary)?, compressed)?, suffix)
 }
 
 decimal_length : U64 -> U64

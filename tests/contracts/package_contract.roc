@@ -1,6 +1,6 @@
 app [main!] {
-	pf: platform "../platform/main.roc",
 	pdf: "../../package/main.roc",
+	pf: platform "../platform/main.roc",
 }
 
 import pdf.Layout
@@ -90,7 +90,7 @@ contract_report = {
 	\\exhaustion represented: ${Str.inspect(exhausted == BudgetExhausted({ attempted: 8, passes: 4, work: 100 }))}
 }
 
-## contract-definition types preserve mixed order, fragmented ownership, and stabilization outcomes.
+# contract-definition types preserve mixed order, fragmented ownership, and stabilization outcomes.
 expect {
 	expected =
 		\\root index: 0

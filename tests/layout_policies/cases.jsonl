@@ -1,0 +1,9 @@
+{"name":"layout policies nested lists","schema_version":1,"case":{"Lists":{"context":0}}}
+{"name":"layout policies explicit breaks and spacers","schema_version":1,"case":{"Breaks":{"context":0}}}
+{"name":"layout policies keeps across page boundaries","schema_version":1,"case":{"Keeps":{"context":0}}}
+{"name":"layout policies reported relaxations","schema_version":1,"case":{"Relaxations":{"context":0}}}
+{"name":"layout policies keep groups and lists x50","schema_version":1,"case":{"Groups":{"count":50}}}
+{"name":"layout policies keep groups and lists x500","schema_version":1,"case":{"Groups":{"count":500}}}
+{"name":"layout policies adversarial heading chain x50","schema_version":1,"case":{"HeadingChain":{"count":50}}}
+{"name":"layout policies adversarial heading chain x500","schema_version":1,"case":{"HeadingChain":{"count":500}}}
+{"name":"layout policies atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}

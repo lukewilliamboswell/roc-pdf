@@ -38,7 +38,7 @@ from pathlib import Path
 
 from check_forms import check_balance, check_ownership, decoded_stream, replace_once
 from check_transparency import alpha_decimal
-from check_pdf_structure import ValidationError, dictionary_ref, require, validate_pdf
+from check_pdf_structure import ValidationError, dictionary_ref, dictionary_value, require, validate_pdf
 
 ROOT = Path(__file__).resolve().parents[1]
 SHOWCASE_SNAPSHOT = ROOT / "tests" / "shading_patterns" / "shadings.pdf"
@@ -67,11 +67,9 @@ NUMBER = rb"-?[0-9]+(?:\.[0-9]+)?"
 def parse_paint_resources(dictionary: bytes, owner: str) -> dict[str, int]:
     """The exact direct resource dictionary of one stream, including the
     /Pattern and /Shading buckets this slice introduces."""
-    match = re.search(rb"/Resources << (.*?) >> /(?:Rotate|Subtype|TilingType|Type)", dictionary, re.DOTALL)
-    if match is None:
-        match = re.search(rb"/Resources << (.*) >>", dictionary, re.DOTALL)
-    require(match is not None, f"{owner}: missing /Resources dictionary")
-    body = match.group(1)
+    value = dictionary_value(dictionary, b"Resources")
+    require(value is not None, f"{owner}: missing /Resources dictionary")
+    body = value[2:-2].strip()
     entries: dict[str, int] = {}
     for sub in re.finditer(PAINT_BUCKETS, body):
         for entry in re.finditer(rb"/([A-Za-z0-9_]+) ([1-9][0-9]*) 0 R", sub.group(2)):

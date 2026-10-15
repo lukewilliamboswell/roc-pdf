@@ -18,7 +18,7 @@ import pdf.Layout
 import pdf.Semantics
 import pdf.Text
 import pdf.Theme
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 import "../assets/CallerFont-Regular.ttf" as caller_font_bytes : List(U8)
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
@@ -74,13 +74,14 @@ evidence_semantic_facade = |repetitions| {
 	plan = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -137,13 +138,14 @@ evidence_shape_facade = |repetitions| {
 	semantic_result = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -170,7 +172,6 @@ evidence_shape_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({
@@ -220,13 +221,14 @@ evidence_line_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -249,7 +251,6 @@ evidence_line_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({
@@ -258,6 +259,7 @@ evidence_line_facade = |repetitions| {
 		}),
 	) ? |_| EvidenceFailure
 	line = KernelFacadeLines.Plan.build(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
@@ -316,13 +318,14 @@ evidence_page_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -345,13 +348,13 @@ evidence_page_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		font,
 		Theme.default,
 		KernelFacadeShape.Limits.make({ max_requests: occurrences, shape: KernelShape.Limits.make({ max_clusters: text_units, max_glyphs: text_units, max_scalars: text_units, max_source_bytes: text_bytes }) }),
 	) ? |_| EvidenceFailure
 	page_size = { height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) }
 	line = KernelFacadeLines.Plan.build(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		page_size,
@@ -526,7 +529,6 @@ synthetic_line_input = |scalars| {
 						id: Text.RunId.from_index(0),
 						instance: Font.InstanceId.from_index(0),
 						language: Language("en"),
-						occurrence: Semantics.OccurrenceId.from_index(0),
 						script: Font.Script.from_iso15924("Latn"),
 						size: Layout.Unit.from_raw(1000),
 						source: {
@@ -535,6 +537,7 @@ synthetic_line_input = |scalars| {
 						},
 						substitutions: Semantics.Range.from_start_and_length(0, 0),
 						transformations: Semantics.Range.from_start_and_length(0, 0),
+						unicode: OccurrenceText(Semantics.OccurrenceId.from_index(0)),
 						writing_mode: Horizontal,
 					},
 				],
@@ -622,17 +625,20 @@ synthetic_page_input = |block_count| {
 		kept = $block_index % 5 == 0
 		$blocks = $blocks.append({
 			baseline_offset: Layout.Unit.from_raw(800),
+			decoration: Layout.Unit.from_raw(0),
+			lead: Layout.Unit.from_raw(0),
 			leading: Layout.Unit.from_raw(1000),
 			lines: Semantics.Range.from_start_and_length(line_start, 6),
 			occurrence: Semantics.OccurrenceId.from_index($block_index),
 			policy: {
 				break_before: $block_index > 0 and $block_index % 10 == 0,
 				keep_together: kept,
-				keep_with_next: $block_index % 10 == 5 and $block_index + 1 < block_count,
+				keep_with_next: if $block_index % 10 == 5 and $block_index + 1 < block_count Required else NoKeep,
 				minimum_first_lines: 2,
 				minimum_last_lines: 2,
 			},
 			space_after: Layout.Unit.from_raw(0),
+			trailing: Layout.Unit.from_raw(0),
 		})
 		$block_index = $block_index + 1
 	}
@@ -722,7 +728,7 @@ evidence_ordered_facade = |repetitions| {
 		Font.ValidationLimits.default,
 	) ? |_| EvidenceFailure
 	configured = cjk.registry.with_policy([caller.face, cjk.face]) ? |_| EvidenceFailure
-	theme = Theme.with_font_policy(Theme.default, configured.policy)
+	theme = Theme.{ font_selection: Policy(configured.policy) }
 	authoring = Document.normalize(
 		Document.from_blocks({
 			contents: List.repeat(Document.paragraph("C中é"), repetitions),
@@ -737,13 +743,14 @@ evidence_ordered_facade = |repetitions| {
 	semantic = KernelFacadeSemantics.Plan.build(
 		authoring,
 		KernelFacadeSemantics.Limits.make({
-			max_artifacts: 0,
+			max_container_depth: 16,
+			max_inline_depth: 8,
 			max_content_spine: content,
 			max_nodes: nodes,
 			max_occurrences: occurrences,
 			max_properties: 2,
 			max_source_inputs: inputs,
-			semantics: KernelSemantics.Limits.make({ max_attributes: 0, max_content_spine: content, max_fragments: 0, max_namespaces: 1, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
+			semantics: KernelSemantics.Limits.make({ max_attributes: 1, max_content_spine: content, max_fragments: 0, max_namespaces: 2, max_nodes: nodes, max_occurrences: occurrences, max_semantic_depth: 4 }),
 			sources: KernelFacadeSources.Limits.make({
 				max_hash_probes: inputs * 100,
 				max_inputs: inputs,
@@ -767,7 +774,6 @@ evidence_ordered_facade = |repetitions| {
 		KernelFacadeSemantics.Plan.block_ownership(semantic),
 		KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(text_plan)),
 		source_store,
-		KernelFacadeSemantics.Plan.artifacts(semantic).len(),
 		{ policy: configured.policy, registry: configured.registry },
 		theme,
 		KernelFacadeShape.Limits.make({
@@ -780,6 +786,7 @@ evidence_ordered_facade = |repetitions| {
 		SingleFace => return Err(EvidenceFailure)
 	}
 	line = KernelFacadeLines.Plan.build_ordered(
+		KernelFacadeSemantics.Plan.authoring(semantic),
 		shape,
 		source_store,
 		{ height: Layout.Unit.from_raw(842000), width: Layout.Unit.from_raw(595000) },
@@ -876,14 +883,13 @@ inspect = |store| {
 			Heading(_) => {
 				$headings = $headings + 1
 			}
-			PageArtifact(_) => return Err(InvalidStore)
 			Paragraph => {
 				$paragraphs = $paragraphs + 1
 			}
 			Title => {
 				$titles = $titles + 1
 			}
-			DestinationHeading(_) | DestinationParagraph(_) | Figure(_) | InternalLink(_) | Link(_) => return Err(InvalidStore)
+			DestinationHeading(_) | DestinationParagraph(_) | EmptyCell | Figure(_) | FigureCaption(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
 		}
 		$index = $index + 1
 	}
@@ -901,12 +907,12 @@ list_at = |items, index| match items.get(index) {
 expect {
 	simple = Fixture.normalize_simple(2)?
 	builder = Fixture.normalize_builder(2)?
-	simple.work == [5, 6, 27, 1, 1, 2, 2, 1, 667] and builder.work == simple.work and builder.bytes == simple.bytes
+	simple.work == [5, 6, 27, 1, 1, 2, 2, 1, 713] and builder.work == simple.work and builder.bytes == simple.bytes
 }
 
 expect {
 	result = Fixture.line_layout(1)?
-	result.work == [1, 6, 7, 6, 6, 6, 10, 3, 667]
+	result.work == [1, 6, 7, 6, 6, 6, 10, 3, 713]
 }
 
 expect {
@@ -916,12 +922,12 @@ expect {
 
 expect {
 	result = Fixture.semantic_facade(2)?
-	result.work == [5, 6, 12, 8, 19, 2, 8, 6, 1, 2, 12, 19, 8, 4, 26, 24, 667]
+	result.work == [5, 6, 12, 8, 19, 2, 8, 6, 1, 2, 12, 19, 8, 4, 26, 24, 713]
 }
 
 expect {
 	result = Fixture.shape_facade(2)?
-	result.work == [2, 8, 33, 29, 29, 24, 6, 8, 29, 29, 29, 166300, 17, 667]
+	result.work == [2, 8, 33, 29, 29, 24, 6, 8, 29, 29, 29, 166300, 17, 713]
 }
 
 expect {

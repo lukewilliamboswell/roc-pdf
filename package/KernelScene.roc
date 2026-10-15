@@ -85,24 +85,24 @@ KernelScene :: [].{
 
 	Resources :: { allow_opacity : Bool, allow_paints : Bool, color_spaces : U64, forms : U64, images : U64, patterns : U64, shadings : U64, text_runs : U64 }.{
 		make : { color_spaces : U64, images : U64 } -> Resources
-		make = |resources| Resources.({ allow_opacity: Bool.False, allow_paints: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, patterns: 0, shadings: 0, text_runs: 0 })
+		make = |resources| Resources.({ allow_opacity: False, allow_paints: False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, patterns: 0, shadings: 0, text_runs: 0 })
 
 		with_text : { color_spaces : U64, images : U64, text_runs : U64 } -> Resources
-		with_text = |resources| Resources.({ allow_opacity: Bool.False, allow_paints: Bool.False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, patterns: 0, shadings: 0, text_runs: resources.text_runs })
+		with_text = |resources| Resources.({ allow_opacity: False, allow_paints: False, color_spaces: resources.color_spaces, forms: 0, images: resources.images, patterns: 0, shadings: 0, text_runs: resources.text_runs })
 
 		## production-visual scenes additionally declare their dense form count and gain
 		## the constant-opacity capability; the older constructors keep
 		## declaring zero forms and rejecting opacity, so a tagged-visual or text-layout
 		## scene still rejects any form placement or opacity group.
 		with_forms : { color_spaces : U64, forms : U64, images : U64, text_runs : U64 } -> Resources
-		with_forms = |resources| Resources.({ allow_opacity: Bool.True, allow_paints: Bool.False, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, patterns: 0, shadings: 0, text_runs: resources.text_runs })
+		with_forms = |resources| Resources.({ allow_opacity: True, allow_paints: False, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, patterns: 0, shadings: 0, text_runs: resources.text_runs })
 
 		## Paint-aware scenes additionally declare their dense shading and
 		## pattern counts and gain the shading-paint and pattern-fill
 		## capabilities; every earlier constructor keeps declaring zero and
 		## rejecting the paint commands.
 		with_paints : { color_spaces : U64, forms : U64, images : U64, patterns : U64, shadings : U64, text_runs : U64 } -> Resources
-		with_paints = |resources| Resources.({ allow_opacity: Bool.True, allow_paints: Bool.True, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, patterns: resources.patterns, shadings: resources.shadings, text_runs: resources.text_runs })
+		with_paints = |resources| Resources.({ allow_opacity: True, allow_paints: True, color_spaces: resources.color_spaces, forms: resources.forms, images: resources.images, patterns: resources.patterns, shadings: resources.shadings, text_runs: resources.text_runs })
 
 		color_space_count : Resources -> U64
 		color_space_count = |resources| resources.color_spaces
@@ -354,41 +354,40 @@ validate_shadings = |store, resources, max_stops| {
 	var $owners = List.repeat(0, store.stops.len())
 	var $shading_index = 0
 	var $visits = 0
-	var $error = NoError
-	while $shading_index < store.shadings.len() and $error == NoError {
+	while $shading_index < store.shadings.len() {
 		shading = list_at(store.shadings, $shading_index)
 		if shading.id.index() != $shading_index {
-			$error = Invalid(NonDenseIdentity({ actual: shading.id.index(), expected: $shading_index, kind: ShadingIndex }))
+			return Err(NonDenseIdentity({ actual: shading.id.index(), expected: $shading_index, kind: ShadingIndex }))
 		} else if shading.space.index() >= resources.color_spaces {
-			$error = Invalid(IndexOutOfRange({ available: resources.color_spaces, index: shading.space.index(), kind: ColorSpaceIndex }))
+			return Err(IndexOutOfRange({ available: resources.color_spaces, index: shading.space.index(), kind: ColorSpaceIndex }))
 		} else if shading.stops.length() < 2 {
-			$error = Invalid(TooFewShadingStops({ shading: $shading_index, stops: shading.stops.length() }))
+			return Err(TooFewShadingStops({ shading: $shading_index, stops: shading.stops.length() }))
 		} else if shading.stops.length() > max_stops {
-			$error = Invalid(LimitExceeded({ attempted: shading.stops.length(), dimension: ShadingStops, limit: max_stops }))
+			return Err(LimitExceeded({ attempted: shading.stops.length(), dimension: ShadingStops, limit: max_stops }))
 		} else {
 			match validate_span(shading.stops, store.stops.len(), ShadingStopIndex, $shading_index) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(span) => {
 					var $stop_index = span.start
 					var $previous = 0
-					while $stop_index < span.end and $error == NoError {
+					while $stop_index < span.end {
 						match mark_once($owners, $stop_index, ShadingStopIndex) {
 							Err(error) => {
-								$error = Invalid(error)
+								return Err(error)
 							}
 							Ok(next_owners) => {
 								$owners = next_owners
 								offset = list_at(store.stops, $stop_index).offset.to_u64()
 								if $stop_index == span.start {
 									if offset != 0 {
-										$error = Invalid(ShadingStopEndpointInvalid({ shading: $shading_index }))
+										return Err(ShadingStopEndpointInvalid({ shading: $shading_index }))
 									}
 								} else if offset <= $previous {
-									$error = Invalid(ShadingStopsNotIncreasing({ shading: $shading_index, stop: $stop_index }))
+									return Err(ShadingStopsNotIncreasing({ shading: $shading_index, stop: $stop_index }))
 								} else if $stop_index == span.end - 1 and offset != 65535 {
-									$error = Invalid(ShadingStopEndpointInvalid({ shading: $shading_index }))
+									return Err(ShadingStopEndpointInvalid({ shading: $shading_index }))
 								} else {
 									{}
 								}
@@ -398,43 +397,36 @@ validate_shadings = |store, resources, max_stops| {
 						$stop_index = $stop_index + 1
 						$visits = $visits + 1
 					}
-					if $error == NoError {
-						match validate_shading_geometry(shading.geometry, $shading_index) {
-							Err(error) => {
-								$error = Invalid(error)
-							}
-							Ok({}) => {}
+					match validate_shading_geometry(shading.geometry, $shading_index) {
+						Err(error) => {
+							return Err(error)
 						}
+						Ok({}) => {}
 					}
 				}
 			}
 		}
 		$shading_index = $shading_index + 1
 	}
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => {
-			ensure_all_owned($owners, ShadingStopIndex)?
-			Ok({ stop_visits: $visits })
-		}
-	}
+	ensure_all_owned($owners, ShadingStopIndex)?
+	Ok({ stop_visits: $visits })
 }
 
 validate_shading_geometry : Scene.ShadingGeometry, U64 -> Try({}, KernelScene.Error)
 validate_shading_geometry = |geometry, shading| match geometry {
 	Axial({ end, start }) => {
-		if start.x.raw() == end.x.raw() and start.y.raw() == end.y.raw() {
+		if start.x == end.x and start.y == end.y {
 			Err(DegenerateShadingGeometry({ shading: shading }))
 		} else {
 			Ok({})
 		}
 	}
 	Radial({ end_center, end_radius, start_center, start_radius }) => {
-		if start_radius.raw() < 0 or end_radius.raw() < 0 {
+		if start_radius < 0 or end_radius < 0 {
 			Err(NegativeShadingRadius({ shading: shading }))
 		} else if start_radius.raw() == 0 and end_radius.raw() == 0 {
 			Err(DegenerateShadingGeometry({ shading: shading }))
-		} else if start_center.x.raw() == end_center.x.raw() and start_center.y.raw() == end_center.y.raw() and start_radius.raw() == end_radius.raw() {
+		} else if start_center.x == end_center.x and start_center.y == end_center.y and start_radius == end_radius {
 			Err(DegenerateShadingGeometry({ shading: shading }))
 		} else {
 			Ok({})
@@ -458,47 +450,46 @@ validate_cells = |store, scenes, resources, max_depth| {
 	var $image_placements = 0
 	var $shading_paints = 0
 	var $maximum_depth = 0
-	var $error = NoError
-	while $cell_index < store.cells.len() and $error == NoError {
+	while $cell_index < store.cells.len() {
 		cell = list_at(store.cells, $cell_index)
 		if cell.id.index() != $cell_index {
-			$error = Invalid(NonDenseIdentity({ actual: cell.id.index(), expected: $cell_index, kind: PatternIndex }))
+			return Err(NonDenseIdentity({ actual: cell.id.index(), expected: $cell_index, kind: PatternIndex }))
 		} else if !positive_rect(cell.bbox) {
-			$error = Invalid(NonPositiveRect({ index: $cell_index, kind: PatternIndex }))
-		} else if cell.x_step.raw() <= 0 or cell.y_step.raw() <= 0 {
-			$error = Invalid(PatternStepInvalid({ pattern: $cell_index }))
+			return Err(NonPositiveRect({ index: $cell_index, kind: PatternIndex }))
+		} else if cell.x_step <= 0 or cell.y_step <= 0 {
+			return Err(PatternStepInvalid({ pattern: $cell_index }))
 		} else if cell.commands.length() == 0 {
-			$error = Invalid(EmptyPatternCell({ pattern: $cell_index }))
+			return Err(EmptyPatternCell({ pattern: $cell_index }))
 		} else {
 			match validate_pattern_matrix(cell.matrix, $cell_index) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok({}) => {
 					var $frames = [Frame.{ depth: 1, range: cell.commands }]
 					var $frame_index = 0
-					while $frame_index < $frames.len() and $error == NoError {
+					while $frame_index < $frames.len() {
 						frame = list_at($frames, $frame_index)
 						if frame.depth > max_depth {
-							$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
+							return Err(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
 						} else {
 							$maximum_depth = U64.max($maximum_depth, frame.depth)
 							match validate_span(frame.range, store.commands.len(), PatternCommandIndex, $cell_index) {
 								Err(error) => {
-									$error = Invalid(error)
+									return Err(error)
 								}
 								Ok(span) => {
 									var $command_index = span.start
-									while $command_index < span.end and $error == NoError {
+									while $command_index < span.end {
 										if $command_index < $expected_command {
-											$error = Invalid(DuplicateOwnership({ index: $command_index, kind: PatternCommandIndex }))
+											return Err(DuplicateOwnership({ index: $command_index, kind: PatternCommandIndex }))
 										} else if $command_index > $expected_command {
-											$error = Invalid(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
+											return Err(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
 										} else {
 											$expected_command = $expected_command + 1
 											match validate_cell_command(list_at(store.commands, $command_index), $command_index, scenes, resources) {
 												Err(error) => {
-													$error = Invalid(error)
+													return Err(error)
 												}
 												Ok(work) => {
 													$form_placements = $form_placements + work.form_placements
@@ -507,11 +498,11 @@ validate_cells = |store, scenes, resources, max_depth| {
 													match work.children {
 														Leaf => {}
 														Nested(children) => if children.length() == 0 {
-															$error = Invalid(EmptyPatternCell({ pattern: $cell_index }))
+															return Err(EmptyPatternCell({ pattern: $cell_index }))
 														} else {
 															match U64.plus_try(frame.depth, 1) {
 																Err(Overflow) => {
-																	$error = Invalid(ArithmeticOverflow)
+																	return Err(ArithmeticOverflow)
 																}
 																Ok(depth) => {
 																	$frames = $frames.append(Frame.{ depth, range: children })
@@ -537,20 +528,17 @@ validate_cells = |store, scenes, resources, max_depth| {
 		$cell_index = $cell_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => if $expected_command < store.commands.len() {
-			Err(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
-		} else {
-			Ok({
-				cell_child_ranges: $child_ranges,
-				cell_command_visits: $command_visits,
-				cell_form_placements: $form_placements,
-				cell_image_placements: $image_placements,
-				cell_shading_paints: $shading_paints,
-				max_cell_depth: $maximum_depth,
-			})
-		}
+	if $expected_command < store.commands.len() {
+		Err(Orphaned({ index: $expected_command, kind: PatternCommandIndex }))
+	} else {
+		Ok({
+			cell_child_ranges: $child_ranges,
+			cell_command_visits: $command_visits,
+			cell_form_placements: $form_placements,
+			cell_image_placements: $image_placements,
+			cell_shading_paints: $shading_paints,
+			max_cell_depth: $maximum_depth,
+		})
 	}
 }
 
@@ -595,40 +583,39 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 	var $shading_paints = 0
 	var $soft_mask_commands = 0
 	var $maximum_depth = 0
-	var $error = NoError
-	while $form_index < form_store.forms.len() and $error == NoError {
+	while $form_index < form_store.forms.len() {
 		form = list_at(form_store.forms, $form_index)
 		if form.id.index() != $form_index {
-			$error = Invalid(NonDenseIdentity({ actual: form.id.index(), expected: $form_index, kind: FormIndex }))
+			return Err(NonDenseIdentity({ actual: form.id.index(), expected: $form_index, kind: FormIndex }))
 		} else if !positive_rect(form.bbox) {
-			$error = Invalid(NonPositiveRect({ index: $form_index, kind: FormIndex }))
+			return Err(NonPositiveRect({ index: $form_index, kind: FormIndex }))
 		} else if form.commands.length() == 0 {
-			$error = Invalid(EmptyForm({ form: $form_index }))
+			return Err(EmptyForm({ form: $form_index }))
 		} else {
 			var $frames = [Frame.{ depth: 1, range: form.commands }]
 			var $frame_index = 0
-			while $frame_index < $frames.len() and $error == NoError {
+			while $frame_index < $frames.len() {
 				frame = list_at($frames, $frame_index)
 				if frame.depth > max_depth {
-					$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
+					return Err(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
 				} else {
 					$maximum_depth = U64.max($maximum_depth, frame.depth)
 					match validate_span(frame.range, form_store.commands.len(), FormCommandIndex, $form_index) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(span) => {
 							var $command_index = span.start
-							while $command_index < span.end and $error == NoError {
+							while $command_index < span.end {
 								if $command_index < $expected_command {
-									$error = Invalid(DuplicateOwnership({ index: $command_index, kind: FormCommandIndex }))
+									return Err(DuplicateOwnership({ index: $command_index, kind: FormCommandIndex }))
 								} else if $command_index > $expected_command {
-									$error = Invalid(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
+									return Err(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
 								} else {
 									$expected_command = $expected_command + 1
 									match validate_command(list_at(form_store.commands, $command_index), $command_index, scenes, resources) {
 										Err(error) => {
-											$error = Invalid(error)
+											return Err(error)
 										}
 										Ok(work) => {
 											$nested_placements = $nested_placements + work.form_placements
@@ -639,11 +626,11 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 											match work.children {
 												Leaf => {}
 												Nested(children) => if children.length() == 0 {
-													$error = Invalid(EmptyForm({ form: $form_index }))
+													return Err(EmptyForm({ form: $form_index }))
 												} else {
 													match U64.plus_try(frame.depth, 1) {
 														Err(Overflow) => {
-															$error = Invalid(ArithmeticOverflow)
+															return Err(ArithmeticOverflow)
 														}
 														Ok(depth) => {
 															$frames = $frames.append(Frame.{ depth, range: children })
@@ -667,23 +654,20 @@ validate_forms = |form_store, scenes, resources, max_depth| {
 		$form_index = $form_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => if $expected_command < form_store.commands.len() {
-			Err(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
-		} else {
-			Ok({
-				form_child_ranges: $child_ranges,
-				form_command_visits: $command_visits,
-				form_opacity_commands: $opacity_commands,
-				form_pattern_fills: $pattern_fills,
-				form_shading_paints: $shading_paints,
-				form_soft_mask_commands: $soft_mask_commands,
-				form_visits: form_store.forms.len(),
-				max_form_depth: $maximum_depth,
-				nested_form_placements: $nested_placements,
-			})
-		}
+	if $expected_command < form_store.commands.len() {
+		Err(Orphaned({ index: $expected_command, kind: FormCommandIndex }))
+	} else {
+		Ok({
+			form_child_ranges: $child_ranges,
+			form_command_visits: $command_visits,
+			form_opacity_commands: $opacity_commands,
+			form_pattern_fills: $pattern_fills,
+			form_shading_paints: $shading_paints,
+			form_soft_mask_commands: $soft_mask_commands,
+			form_visits: form_store.forms.len(),
+			max_form_depth: $maximum_depth,
+			nested_form_placements: $nested_placements,
+		})
 	}
 }
 
@@ -692,26 +676,25 @@ validate_paths = |scenes| {
 	var $owners = List.repeat(0, scenes.path_segments.len())
 	var $path_index = 0
 	var $visits = 0
-	var $error = NoError
-	while $path_index < scenes.paths.len() and $error == NoError {
+	while $path_index < scenes.paths.len() {
 		path = list_at(scenes.paths, $path_index)
 		if path.id.index() != $path_index {
-			$error = Invalid(NonDenseIdentity({ actual: path.id.index(), expected: $path_index, kind: PathIndex }))
+			return Err(NonDenseIdentity({ actual: path.id.index(), expected: $path_index, kind: PathIndex }))
 		} else if path.segments.length() == 0 {
-			$error = Invalid(EmptyPath({ path: $path_index }))
+			return Err(EmptyPath({ path: $path_index }))
 		} else {
 			match validate_span(path.segments, scenes.path_segments.len(), SegmentIndex, $path_index) {
 				Err(error) => {
-					$error = Invalid(error)
+					return Err(error)
 				}
 				Ok(span) => {
 					var $segment_index = span.start
 					var $subpath_open = False
 					var $draws = 0
-					while $segment_index < span.end and $error == NoError {
+					while $segment_index < span.end {
 						match mark_once($owners, $segment_index, SegmentIndex) {
 							Err(error) => {
-								$error = Invalid(error)
+								return Err(error)
 							}
 							Ok(next_owners) => {
 								$owners = next_owners
@@ -723,23 +706,23 @@ validate_paths = |scenes| {
 									LineTo(_) => if $subpath_open {
 										$draws = $draws + 1
 									} else {
-										$error = Invalid(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
+										return Err(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
 									}
 									CubicTo(_) => if $subpath_open {
 										$draws = $draws + 1
 									} else {
-										$error = Invalid(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
+										return Err(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
 									}
 									Close => if $subpath_open {
 										$subpath_open = False
 									} else {
-										$error = Invalid(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
+										return Err(InvalidPathOrder({ path: $path_index, segment: $segment_index }))
 									}
 									Rectangle(rectangle) => if positive_rect(rectangle) {
 										$draws = $draws + 1
 										$subpath_open = False
 									} else {
-										$error = Invalid(NonPositiveRect({ index: $segment_index, kind: SegmentIndex }))
+										return Err(NonPositiveRect({ index: $segment_index, kind: SegmentIndex }))
 									}
 								}
 							}
@@ -747,8 +730,8 @@ validate_paths = |scenes| {
 						$segment_index = $segment_index + 1
 						$visits = $visits + 1
 					}
-					if $error == NoError and $draws == 0 {
-						$error = Invalid(NoPathPaint({ path: $path_index }))
+					if $draws == 0 {
+						return Err(NoPathPaint({ path: $path_index }))
 					}
 				}
 			}
@@ -756,13 +739,8 @@ validate_paths = |scenes| {
 		$path_index = $path_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => {
-			ensure_all_owned($owners, SegmentIndex)?
-			Ok({ path_segments: $visits })
-		}
-	}
+	ensure_all_owned($owners, SegmentIndex)?
+	Ok({ path_segments: $visits })
 }
 
 validate_pages : Scene.Store -> Try({ page_box_checks : U64, page_group_edges : U64 }, KernelScene.Error)
@@ -772,38 +750,37 @@ validate_pages = |scenes| {
 	var $page_index = 0
 	var $box_checks = 0
 	var $edge_visits = 0
-	var $error = NoError
-	while $page_index < scenes.pages.len() and $error == NoError {
+	while $page_index < scenes.pages.len() {
 		page = list_at(scenes.pages, $page_index)
 		if page.id.index() != $page_index {
-			$error = Invalid(NonDenseIdentity({ actual: page.id.index(), expected: $page_index, kind: PageIndex }))
+			return Err(NonDenseIdentity({ actual: page.id.index(), expected: $page_index, kind: PageIndex }))
 		} else {
 			match KernelGeometry.validate_page(page) {
 				Err(error) => {
-					$error = Invalid(Geometry(error))
+					return Err(Geometry(error))
 				}
 				Ok(geometry_work) => {
 					$box_checks = $box_checks + geometry_work.box_checks
 					match validate_span(page.paint_order, scenes.page_groups.len(), GroupIndex, $page_index) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(span) => {
 							var $edge = span.start
-							while $edge < span.end and $error == NoError {
+							while $edge < span.end {
 								match mark_once($edge_owners, $edge, PageGroupEdgeIndex) {
 									Err(error) => {
-										$error = Invalid(error)
+										return Err(error)
 									}
 									Ok(next_edge_owners) => {
 										$edge_owners = next_edge_owners
 										group_index = list_at(scenes.page_groups, $edge).index()
 										if group_index >= scenes.groups.len() {
-											$error = Invalid(IndexOutOfRange({ available: scenes.groups.len(), index: group_index, kind: GroupIndex }))
+											return Err(IndexOutOfRange({ available: scenes.groups.len(), index: group_index, kind: GroupIndex }))
 										} else {
 											match mark_once($group_owners, group_index, GroupIndex) {
 												Err(error) => {
-													$error = Invalid(error)
+													return Err(error)
 												}
 												Ok(next_group_owners) => {
 													$group_owners = next_group_owners
@@ -823,14 +800,9 @@ validate_pages = |scenes| {
 		$page_index = $page_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => {
-			ensure_all_owned($edge_owners, PageGroupEdgeIndex)?
-			ensure_all_owned($group_owners, GroupIndex)?
-			Ok({ page_box_checks: $box_checks, page_group_edges: $edge_visits })
-		}
-	}
+	ensure_all_owned($edge_owners, PageGroupEdgeIndex)?
+	ensure_all_owned($group_owners, GroupIndex)?
+	Ok({ page_box_checks: $box_checks, page_group_edges: $edge_visits })
 }
 
 validate_groups : Scene.Store, KernelScene.Resources, U64 -> Try({ child_ranges : U64, color_references : U64, command_visits : U64, dash_values : U64, form_placements : U64, image_placements : U64, max_graphics_depth : U64, opacity_commands : U64, pattern_fills : U64, shading_paints : U64, soft_mask_commands : U64, text_placements : U64 }, KernelScene.Error)
@@ -849,38 +821,37 @@ validate_groups = |scenes, resources, max_depth| {
 	var $soft_mask_commands = 0
 	var $text_placements = 0
 	var $maximum_depth = 0
-	var $error = NoError
-	while $group_index < scenes.groups.len() and $error == NoError {
+	while $group_index < scenes.groups.len() {
 		group = list_at(scenes.groups, $group_index)
 		if group.id.index() != $group_index {
-			$error = Invalid(NonDenseIdentity({ actual: group.id.index(), expected: $group_index, kind: GroupIndex }))
+			return Err(NonDenseIdentity({ actual: group.id.index(), expected: $group_index, kind: GroupIndex }))
 		} else if group.commands.length() == 0 {
-			$error = Invalid(EmptyCommandRange({ group: $group_index }))
+			return Err(EmptyCommandRange({ group: $group_index }))
 		} else {
 			var $frames = [Frame.{ depth: 1, range: group.commands }]
 			var $frame_index = 0
-			while $frame_index < $frames.len() and $error == NoError {
+			while $frame_index < $frames.len() {
 				frame = list_at($frames, $frame_index)
 				if frame.depth > max_depth {
-					$error = Invalid(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
+					return Err(LimitExceeded({ attempted: frame.depth, dimension: GraphicsDepth, limit: max_depth }))
 				} else {
 					$maximum_depth = U64.max($maximum_depth, frame.depth)
 					match validate_span(frame.range, scenes.commands.len(), CommandIndex, $group_index) {
 						Err(error) => {
-							$error = Invalid(error)
+							return Err(error)
 						}
 						Ok(span) => {
 							var $command_index = span.start
-							while $command_index < span.end and $error == NoError {
+							while $command_index < span.end {
 								if $command_index < $expected_command {
-									$error = Invalid(DuplicateOwnership({ index: $command_index, kind: CommandIndex }))
+									return Err(DuplicateOwnership({ index: $command_index, kind: CommandIndex }))
 								} else if $command_index > $expected_command {
-									$error = Invalid(Orphaned({ index: $expected_command, kind: CommandIndex }))
+									return Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
 								} else {
 									$expected_command = $expected_command + 1
 									match validate_command(list_at(scenes.commands, $command_index), $command_index, scenes, resources) {
 										Err(error) => {
-											$error = Invalid(error)
+											return Err(error)
 										}
 										Ok(work) => {
 											$color_references = $color_references + work.color_references
@@ -895,11 +866,11 @@ validate_groups = |scenes, resources, max_depth| {
 											match work.children {
 												Leaf => {}
 												Nested(children) => if children.length() == 0 {
-													$error = Invalid(EmptyCommandRange({ group: $group_index }))
+													return Err(EmptyCommandRange({ group: $group_index }))
 												} else {
 													match U64.plus_try(frame.depth, 1) {
 														Err(Overflow) => {
-															$error = Invalid(ArithmeticOverflow)
+															return Err(ArithmeticOverflow)
 														}
 														Ok(depth) => {
 															$frames = $frames.append(Frame.{ depth, range: children })
@@ -923,13 +894,10 @@ validate_groups = |scenes, resources, max_depth| {
 		$group_index = $group_index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => if $expected_command < scenes.commands.len() {
-			Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
-		} else {
-			Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, pattern_fills: $pattern_fills, shading_paints: $shading_paints, soft_mask_commands: $soft_mask_commands, text_placements: $text_placements })
-		}
+	if $expected_command < scenes.commands.len() {
+		Err(Orphaned({ index: $expected_command, kind: CommandIndex }))
+	} else {
+		Ok({ child_ranges: $child_ranges, color_references: $color_references, command_visits: $command_visits, dash_values: $dash_values, form_placements: $form_placements, image_placements: $image_placements, max_graphics_depth: $maximum_depth, opacity_commands: $opacity_commands, pattern_fills: $pattern_fills, shading_paints: $shading_paints, soft_mask_commands: $soft_mask_commands, text_placements: $text_placements })
 	}
 }
 
@@ -1033,7 +1001,7 @@ validate_text_paint = |paint, command, color_space_count| {
 			NoStroke => Err(TextPaintInvalid({ command, reason: FillAndStrokeMissingStroke }))
 			Stroke({ color, width }) => {
 				validate_color(color, color_space_count)?
-				if width.raw() <= 0 {
+				if width <= 0 {
 					Err(TextPaintInvalid({ command, reason: StrokeWidthNonPositive }))
 				} else {
 					Ok(2)
@@ -1077,9 +1045,9 @@ validate_style = |style, command, dash_lengths, resources| {
 validate_stroke : Scene.StrokeStyle, U64, List(Layout.Unit), U64 -> Try({ colors : U64, dash_values : U64 }, KernelScene.Error)
 validate_stroke = |stroke, command, dash_lengths, color_space_count| {
 	validate_color(stroke.color, color_space_count)?
-	if stroke.width.raw() <= 0 {
+	if stroke.width <= 0 {
 		scene_failure(NonPositiveRect({ index: command, kind: CommandIndex }))
-	} else if stroke.miter_limit.raw() < 1000 {
+	} else if stroke.miter_limit < 1 {
 		scene_failure(
 			MiterLimitTooSmall({
 				command: command,
@@ -1096,7 +1064,7 @@ validate_stroke = |stroke, command, dash_lengths, color_space_count| {
 
 validate_dash : Semantics.Range, Layout.Unit, U64, List(Layout.Unit) -> Try(U64, KernelScene.Error)
 validate_dash = |range, phase, command, values| {
-	if phase.raw() < 0 {
+	if phase < 0 {
 		scene_failure(
 			DashPhaseNegative({
 				command: command,
@@ -1106,24 +1074,20 @@ validate_dash = |range, phase, command, values| {
 		span = validate_span(range, values.len(), DashIndex, command)?
 		var $index = span.start
 		var $has_positive = False
-		var $error = NoError
-		while $index < span.end and $error == NoError {
+		while $index < span.end {
 			value = list_at(values, $index).raw()
 			if value < 0 {
-				$error = Invalid(DashLengthNegative({ command, dash: $index }))
+				return Err(DashLengthNegative({ command, dash: $index }))
 			} else if value > 0 {
 				$has_positive = True
 			}
 			$index = $index + 1
 		}
-		match $error {
-			Invalid(error) => Err(error)
-			NoError => if $has_positive Ok(span.end - span.start) else scene_failure(
-				DashAllZero({
-					command: command,
-				}),
-			)
-		}
+		if $has_positive Ok(span.end - span.start) else scene_failure(
+			DashAllZero({
+				command: command,
+			}),
+		)
 	}
 }
 
@@ -1194,7 +1158,7 @@ check_limit = |attempted, limit, dimension| {
 
 positive_rect : Layout.Rect -> Bool
 positive_rect = |rect| {
-	if rect.size.width.raw() <= 0 or rect.size.height.raw() <= 0 {
+	if rect.size.width <= 0 or rect.size.height <= 0 {
 		False
 	} else {
 		match I64.plus_try(rect.origin.x.raw(), rect.size.width.raw()) {
@@ -1314,14 +1278,14 @@ text_limits = KernelScene.Limits.make({ max_commands: 1, max_dash_lengths: 2, ma
 text_resources : KernelScene.Resources
 text_resources = KernelScene.Resources.with_text({ color_spaces: 1, images: 0, text_runs: 1 })
 
-## Visible text paint is a validated scene fact with an exact run reference.
+# Visible text paint is a validated scene fact with an exact run reference.
 expect {
 	plan = KernelScene.Plan.build(text_store, text_resources, text_limits)?
 	work = KernelScene.Plan.work(plan)
 	work.text_placements == 1 and work.color_references == 1 and KernelScene.Resources.text_run_count(KernelScene.Plan.resources(plan)) == 1
 }
 
-## A text command cannot refer to a run absent from the prepared text store.
+# A text command cannot refer to a run absent from the prepared text store.
 expect {
 	command = list_at(text_store.commands, 0)
 	bad_command = match command {
@@ -1335,7 +1299,7 @@ expect {
 	}
 }
 
-## text-layout text paint is opaque until an ExtGState capability is implemented.
+# text-layout text paint is opaque until an ExtGState capability is implemented.
 expect {
 	bad = { ..text_store, commands: [DrawText({ paint: { ..test_text_paint, opacity: 65534 }, run: Text.RunId.from_index(0) })] }
 	match KernelScene.Plan.build(bad, text_resources, text_limits) {
@@ -1344,7 +1308,7 @@ expect {
 	}
 }
 
-## Fill-only and fill-and-stroke modes require matching typed stroke policy.
+# Fill-only and fill-and-stroke modes require matching typed stroke policy.
 expect {
 	stroke = Stroke({ color: test_color, width: unit(500) })
 	fill_with_stroke = { ..text_store, commands: [DrawText({ paint: { ..test_text_paint, stroke }, run: Text.RunId.from_index(0) })] }
@@ -1365,7 +1329,7 @@ expect {
 	fill_rejected and missing_rejected and width_rejected
 }
 
-## Flat scene validation visits every stored relationship exactly once.
+# Flat scene validation visits every stored relationship exactly once.
 expect {
 	plan = KernelScene.Plan.build(test_store, test_resources, test_limits)?
 	work = KernelScene.Plan.work(plan)
@@ -1399,7 +1363,7 @@ expect {
 	actual == expected
 }
 
-## Overlapping command ranges are rejected instead of painting twice.
+# Overlapping command ranges are rejected instead of painting twice.
 expect {
 	commands = list_set(
 		test_store.commands,
@@ -1417,7 +1381,7 @@ expect {
 	}
 }
 
-## A drawable path cannot begin with a line lacking a current point.
+# A drawable path cannot begin with a line lacking a current point.
 expect {
 	bad = { ..test_store, path_segments: [LineTo({ x: unit(1), y: unit(1) }), Rectangle(rect(0, 0, 1, 1)), Rectangle(rect(0, 0, 1, 1)), Rectangle(rect(0, 0, 1, 1)), Rectangle(rect(0, 0, 1, 1))] }
 
@@ -1427,7 +1391,7 @@ expect {
 	}
 }
 
-## Dash arrays reject negative entries before a scene plan escapes.
+# Dash arrays reject negative entries before a scene plan escapes.
 expect {
 	bad = { ..test_store, dash_lengths: [unit(1000), unit(-1)] }
 
@@ -1437,7 +1401,7 @@ expect {
 	}
 }
 
-## production-visual opacity remains explicitly unavailable in a tagged-visual scene.
+# production-visual opacity remains explicitly unavailable in a tagged-visual scene.
 expect {
 	commands = list_set(test_store.commands, 3, Opacity({ children: Semantics.Range.from_start_and_length(0, 1), opacity: 32768 }))
 	bad = { ..test_store, commands }
@@ -1448,7 +1412,7 @@ expect {
 	}
 }
 
-## Dense path identities cannot be detached from their arena index.
+# Dense path identities cannot be detached from their arena index.
 expect {
 	paths = [{ id: Scene.PathId.from_index(1), segments: Semantics.Range.from_start_and_length(0, 5) }]
 	bad = { ..test_store, paths }
@@ -1459,7 +1423,7 @@ expect {
 	}
 }
 
-## Every page-group edge is owned by exactly one page range.
+# Every page-group edge is owned by exactly one page range.
 expect {
 	bad = { ..test_store, page_groups: test_store.page_groups.append(Scene.GroupId.from_index(0)) }
 
@@ -1469,7 +1433,7 @@ expect {
 	}
 }
 
-## Every command is reached exactly once from one group root.
+# Every command is reached exactly once from one group root.
 expect {
 	group = list_at(test_store.groups, 0)
 	groups = [{ ..group, commands: Semantics.Range.from_start_and_length(0, 1) }]
@@ -1481,7 +1445,7 @@ expect {
 	}
 }
 
-## Command ranges are checked before any arena access.
+# Command ranges are checked before any arena access.
 expect {
 	group = list_at(test_store.groups, 0)
 	groups = [{ ..group, commands: Semantics.Range.from_start_and_length(4, 1) }]
@@ -1493,7 +1457,7 @@ expect {
 	}
 }
 
-## Graphics-state depth is bounded without depending on the host stack.
+# Graphics-state depth is bounded without depending on the host stack.
 expect {
 	shallow_limits = KernelScene.Limits.make({ max_commands: 4, max_dash_lengths: 2, max_graphics_depth: 2, max_groups: 1, max_pages: 1, max_path_segments: 5, max_paths: 1 })
 
@@ -1503,7 +1467,7 @@ expect {
 	}
 }
 
-## Scene dimensions are rejected before traversal exceeds their budget.
+# Scene dimensions are rejected before traversal exceeds their budget.
 expect {
 	small_limits = KernelScene.Limits.make({ max_commands: 3, max_dash_lengths: 2, max_graphics_depth: 3, max_groups: 1, max_pages: 1, max_path_segments: 5, max_paths: 1 })
 
@@ -1513,7 +1477,7 @@ expect {
 	}
 }
 
-## Resource indices are checked at every image placement.
+# Resource indices are checked at every image placement.
 expect {
 	commands = list_set(test_store.commands, 3, DrawImage({ image: Image.Id.from_index(1), placement: rect(0, 0, 1000, 1000) }))
 	bad = { ..test_store, commands }
@@ -1524,7 +1488,7 @@ expect {
 	}
 }
 
-## A dash pattern must contain a positive painted length.
+# A dash pattern must contain a positive painted length.
 expect {
 	bad = { ..test_store, dash_lengths: [unit(0), unit(0)] }
 
@@ -1563,8 +1527,8 @@ form_placing_store = {
 form_test_resources : KernelScene.Resources
 form_test_resources = KernelScene.Resources.with_forms({ color_spaces: 1, forms: 1, images: 1, text_runs: 0 })
 
-## Form content is validated with the same command rules as page content, with
-## dense once-each arena ownership and the declared depth budget.
+# Form content is validated with the same command rules as page content, with
+# dense once-each arena ownership and the declared depth budget.
 expect {
 	plan = KernelScene.FormPlan.build(form_placing_store, test_form_store, form_test_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }))?
 	work = KernelScene.FormPlan.work(plan)
@@ -1572,8 +1536,8 @@ expect {
 	work.form_visits == 1 and work.form_command_visits == 2 and work.form_child_ranges == 1 and work.max_form_depth == 2 and work.nested_form_placements == 0 and page_work.form_placements == 1
 }
 
-## A tagged-visual or text-layout scene still rejects any form placement: the older
-## resource constructors declare zero forms.
+# A tagged-visual or text-layout scene still rejects any form placement: the older
+# resource constructors declare zero forms.
 expect {
 	match KernelScene.Plan.build(form_placing_store, test_resources, test_limits) {
 		Err(IndexOutOfRange({ available: 0, index: 0, kind: FormIndex })) => True
@@ -1581,7 +1545,7 @@ expect {
 	}
 }
 
-## A singular placement transform is rejected before any lowering.
+# A singular placement transform is rejected before any lowering.
 expect {
 	bad = {
 		..form_placing_store,
@@ -1597,7 +1561,7 @@ expect {
 	}
 }
 
-## Form identities stay dense and bounding boxes stay positive.
+# Form identities stay dense and bounding boxes stay positive.
 expect {
 	sparse = { ..test_form_store, forms: [{ ..list_at(test_form_store.forms, 0), id: Scene.FormId.from_index(1) }] }
 	flat = { ..test_form_store, forms: [{ ..list_at(test_form_store.forms, 0), bbox: rect(0, 0, 0, 1000) }] }
@@ -1625,17 +1589,17 @@ opacity_store = {
 	groups: [{ commands: Semantics.Range.from_start_and_length(0, 1), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
 }
 
-## A form-aware scene validates constant-opacity groups like any nested range:
-## the children stay once-each owned, depth is bounded, and every opacity
-## command (opaque or not) is counted as validation work.
+# A form-aware scene validates constant-opacity groups like any nested range:
+# the children stay once-each owned, depth is bounded, and every opacity
+# command (opaque or not) is counted as validation work.
 expect {
 	plan = KernelScene.Plan.build(opacity_store, form_test_resources, test_limits)?
 	work = KernelScene.Plan.work(plan)
 	work.opacity_commands == 2 and work.command_visits == 4 and work.child_ranges == 2 and work.max_graphics_depth == 3 and work.image_placements == 1
 }
 
-## The same opacity scene stays rejected under the tagged-visual and text-layout resource
-## constructors: constant opacity is a production-visual capability.
+# The same opacity scene stays rejected under the tagged-visual and text-layout resource
+# constructors: constant opacity is a production-visual capability.
 expect {
 	made = match KernelScene.Plan.build(opacity_store, test_resources, test_limits) {
 		Err(UnsupportedCommand({ command: 0 })) => True
@@ -1648,7 +1612,7 @@ expect {
 	made and with_text
 }
 
-## An empty opacity group cannot own zero commands.
+# An empty opacity group cannot own zero commands.
 expect {
 	bad = {
 		..opacity_store,
@@ -1665,9 +1629,9 @@ expect {
 	}
 }
 
-## Soft-mask groups validate in form-aware scenes with nested children, a
-## bounded mask reference, and counted work — and stay rejected under the
-## tagged-visual/3 resource constructors like every production-visual transparency command.
+# Soft-mask groups validate in form-aware scenes with nested children, a
+# bounded mask reference, and counted work — and stay rejected under the
+# tagged-visual/3 resource constructors like every production-visual transparency command.
 expect {
 	masked = {
 		..opacity_store,
@@ -1703,8 +1667,8 @@ expect {
 span_of : U64, U64 -> Semantics.Range
 span_of = |start, length| Semantics.Range.from_start_and_length(start, length)
 
-## Opacity groups inside form content validate with the identical command
-## rules and are counted as form validation work.
+# Opacity groups inside form content validate with the identical command
+# rules and are counted as form validation work.
 expect {
 	form_commands = [
 		Opacity({ children: Semantics.Range.from_start_and_length(1, 1), opacity: 16384 }),
@@ -1724,8 +1688,8 @@ paint_limits = KernelScene.PaintLimits.make({ max_pattern_commands: 8, max_patte
 
 test_shading : Scene.Shading
 test_shading = {
-	extend_end: Bool.False,
-	extend_start: Bool.False,
+	extend_end: False,
+	extend_start: False,
 	geometry: Axial({ end: { x: unit(9000), y: unit(0) }, start: { x: unit(1000), y: unit(0) } }),
 	id: Scene.ShadingId.from_index(0),
 	space: Color.SpaceId.from_index(0),
@@ -1768,9 +1732,9 @@ paint_scene = {
 	groups: [{ commands: span_of(0, 3), id: Scene.GroupId.from_index(0), owner: PageArtifact(Background) }],
 }
 
-## A paint-aware plan validates shading stops, cell content, and paint
-## commands with exact per-relationship work, counting shading paints and
-## pattern fills across the page arena.
+# A paint-aware plan validates shading stops, cell content, and paint
+# commands with exact per-relationship work, counting shading paints and
+# pattern fills across the page arena.
 expect {
 	plan = KernelScene.PaintPlan.build(paint_scene, test_form_store, test_shading_store, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits)?
 	work = KernelScene.PaintPlan.work(plan)
@@ -1778,7 +1742,7 @@ expect {
 	work.shading_visits == 1 and work.shading_stop_visits == 2 and work.cell_visits == 1 and work.cell_command_visits == 1 and page_work.shading_paints == 1 and page_work.pattern_fills == 1
 }
 
-## Paint commands stay rejected under every earlier resource constructor.
+# Paint commands stay rejected under every earlier resource constructor.
 expect {
 	tagged_visual = match KernelScene.Plan.build(paint_scene, test_resources, test_limits) {
 		Err(UnsupportedCommand({ command })) => command == 1
@@ -1791,8 +1755,8 @@ expect {
 	tagged_visual and forms_only
 }
 
-## The stop model rejects too-few, misplaced-endpoint, and non-increasing
-## stops with distinct structured diagnostics.
+# The stop model rejects too-few, misplaced-endpoint, and non-increasing
+# stops with distinct structured diagnostics.
 expect {
 	single = { ..test_shading_store, shadings: [{ ..test_shading, stops: span_of(0, 1) }] }
 	too_few = match KernelScene.PaintPlan.build(paint_scene, test_form_store, single, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
@@ -1825,8 +1789,8 @@ expect {
 	too_few and endpoint and not_increasing
 }
 
-## Degenerate axial and radial geometry and negative radii are rejected; a
-## single zero radius is a supported cone endpoint.
+# Degenerate axial and radial geometry and negative radii are rejected; a
+# single zero radius is a supported cone endpoint.
 expect {
 	flat_axis = { ..test_shading_store, shadings: [{ ..test_shading, geometry: Axial({ end: { x: unit(1000), y: unit(0) }, start: { x: unit(1000), y: unit(0) } }) }] }
 	axial_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, flat_axis, test_pattern_store, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {
@@ -1846,8 +1810,8 @@ expect {
 	axial_rejected and negative_rejected and cone_accepted
 }
 
-## Pattern cells reject text, transparency, and nested pattern fills, and
-## keep positive steps and an invertible matrix.
+# Pattern cells reject text, transparency, and nested pattern fills, and
+# keep positive steps and an invertible matrix.
 expect {
 	text_cell = { ..test_pattern_store, commands: [DrawText({ paint: test_text_paint, run: Text.RunId.from_index(0) })] }
 	text_rejected = match KernelScene.PaintPlan.build(paint_scene, test_form_store, test_shading_store, text_cell, paint_resources, test_limits, KernelScene.FormLimits.make({ max_form_commands: 2, max_forms: 1 }), paint_limits) {

@@ -190,16 +190,15 @@ validate_byte_entries = |entries, key_byte_limit, value_count| {
 	var $key_bytes_checked = 0
 	var $ordering_steps = 0
 	var $index = 0
-	var $error = NoError
-	while $index < entries.len() and $error == NoError {
+	while $index < entries.len() {
 		entry = list_at(entries, $index)
 		key = KernelIndex.ByteEntry.key(entry)
 		key_length = key.len()
 		value = KernelIndex.ByteEntry.value(entry)
 		if key_length > key_byte_limit {
-			$error = Invalid(KeyBytesLimitExceeded({ attempted: key_length, index: $index, limit: key_byte_limit }))
+			return Err(KeyBytesLimitExceeded({ attempted: key_length, index: $index, limit: key_byte_limit }))
 		} else if KernelObject.ValueId.index(value) >= value_count {
-			$error = Invalid(ValueIndexOutOfRange({ available: value_count, index: $index, value }))
+			return Err(ValueIndexOutOfRange({ available: value_count, index: $index, value }))
 		} else {
 			$entries_checked = checked_add($entries_checked, 1)?
 			$key_bytes_checked = checked_add($key_bytes_checked, key_length)?
@@ -209,10 +208,10 @@ validate_byte_entries = |entries, key_byte_limit, value_count| {
 				$ordering_steps = checked_add($ordering_steps, comparison.steps)?
 				match comparison.ordering {
 					Equal => {
-						$error = Invalid(DuplicateByteKey({ index: $index }))
+						return Err(DuplicateByteKey({ index: $index }))
 					}
 					Greater => {
-						$error = Invalid(NonMonotonicByteKey({ index: $index }))
+						return Err(NonMonotonicByteKey({ index: $index }))
 					}
 					Less => {}
 				}
@@ -221,10 +220,7 @@ validate_byte_entries = |entries, key_byte_limit, value_count| {
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ entries_checked: $entries_checked, key_bytes_checked: $key_bytes_checked, ordering_steps: $ordering_steps })
-	}
+	Ok({ entries_checked: $entries_checked, key_bytes_checked: $key_bytes_checked, ordering_steps: $ordering_steps })
 }
 
 validate_number_entries : List(KernelIndex.NumberEntry), KernelIndex.NumberKind, U64 -> Try({ entries_checked : U64, key_bytes_checked : U64, ordering_steps : U64 }, KernelIndex.Error)
@@ -236,34 +232,30 @@ validate_number_entries = |entries, kind, value_count| {
 	var $entries_checked = 0
 	var $ordering_steps = 0
 	var $index = 0
-	var $error = NoError
-	while $index < entries.len() and $error == NoError {
+	while $index < entries.len() {
 		entry = list_at(entries, $index)
 		key = KernelIndex.NumberEntry.key(entry)
 		value = KernelIndex.NumberEntry.value(entry)
 		if is_parent_tree and key < 0 {
-			$error = Invalid(NegativeParentKey({ index: $index, key }))
+			return Err(NegativeParentKey({ index: $index, key }))
 		} else if KernelObject.ValueId.index(value) >= value_count {
-			$error = Invalid(ValueIndexOutOfRange({ available: value_count, index: $index, value }))
+			return Err(ValueIndexOutOfRange({ available: value_count, index: $index, value }))
 		} else {
 			$entries_checked = checked_add($entries_checked, 1)?
 			if $index > 0 {
 				$ordering_steps = checked_add($ordering_steps, 1)?
 				previous = KernelIndex.NumberEntry.key(list_at(entries, $index - 1))
 				if key == previous {
-					$error = Invalid(DuplicateNumberKey({ index: $index }))
+					return Err(DuplicateNumberKey({ index: $index }))
 				} else if key < previous {
-					$error = Invalid(NonMonotonicNumberKey({ index: $index }))
+					return Err(NonMonotonicNumberKey({ index: $index }))
 				}
 			}
 		}
 		$index = $index + 1
 	}
 
-	match $error {
-		Invalid(error) => Err(error)
-		NoError => Ok({ entries_checked: $entries_checked, key_bytes_checked: 0, ordering_steps: $ordering_steps })
-	}
+	Ok({ entries_checked: $entries_checked, key_bytes_checked: 0, ordering_steps: $ordering_steps })
 }
 
 index_node : KernelBalanced.Shape, U64, U64 -> KernelIndex.Node
@@ -372,7 +364,7 @@ number_entries = |count| {
 	$entries
 }
 
-## Byte-key trees use unsigned lexicographic ordering and shared balanced nodes.
+# Byte-key trees use unsigned lexicographic ordering and shared balanced nodes.
 expect {
 	tree = KernelIndex.ByteTree.build(byte_entries(33), NameTree, test_limits)?
 	root = KernelIndex.ByteTree.node(tree, 0, 0)
@@ -384,7 +376,7 @@ expect {
 				KernelIndex.Node.limits(right) == NodeLimits({ first_index: 32, last_index: 32 })
 }
 
-## ID trees retain their distinct sealed kind without changing key policy.
+# ID trees retain their distinct sealed kind without changing key policy.
 expect {
 	tree = KernelIndex.ByteTree.build(byte_entries(1), IDTree, test_limits)?
 	match KernelIndex.ByteTree.kind(tree) {
@@ -393,7 +385,7 @@ expect {
 	}
 }
 
-## Duplicate and descending byte keys are distinct named failures.
+# Duplicate and descending byte keys are distinct named failures.
 expect {
 	duplicate = [byte_entry([1], 0), byte_entry([1], 1)]
 	descending = [byte_entry([2], 0), byte_entry([1], 1)]
@@ -407,7 +399,7 @@ expect {
 	}
 }
 
-## Byte ordering is unsigned lexicographic, including prefix and empty keys.
+# Byte ordering is unsigned lexicographic, including prefix and empty keys.
 expect {
 	ordered = [byte_entry([], 0), byte_entry([0], 1), byte_entry([0, 255], 2), byte_entry([1], 3)]
 	prefix_reversed = [byte_entry([1, 0], 0), byte_entry([1], 1)]
@@ -425,13 +417,13 @@ expect {
 	}
 }
 
-## Byte-key size limits fail before shape allocation.
+# Byte-key size limits fail before shape allocation.
 expect match KernelIndex.ByteTree.build([byte_entry([0, 1, 2], 0)], NameTree, KernelIndex.Limits.make({ max_entries: 1, max_key_bytes: 2, value_count: 1 })) {
 	Err(KeyBytesLimitExceeded({ attempted, index, limit })) => attempted == 3 and index == 0 and limit == 2
 	_ => False
 }
 
-## Number trees retain exact stress topology and linear validation work.
+# Number trees retain exact stress topology and linear validation work.
 expect {
 	tree = KernelIndex.NumberTree.build(number_entries(4096), NumberTree, test_limits)?
 	work = KernelIndex.NumberTree.work(tree)
@@ -441,19 +433,19 @@ expect {
 			KernelIndex.Work.ordering_steps(work) == 4095
 }
 
-## ParentTree keys are non-negative in addition to being strictly monotonic.
+# ParentTree keys are non-negative in addition to being strictly monotonic.
 expect match KernelIndex.NumberTree.build([number_entry(-1)], ParentTree, test_limits) {
 	Err(NegativeParentKey({ index, key })) => index == 0 and key == -1
 	_ => False
 }
 
-## Sealing rejects values that do not exist in the earlier object-value store.
+# Sealing rejects values that do not exist in the earlier object-value store.
 expect match KernelIndex.NumberTree.build([number_entry(1)], NumberTree, KernelIndex.Limits.make({ max_entries: 1, max_key_bytes: 0, value_count: 1 })) {
 	Err(ValueIndexOutOfRange({ available, index, value })) => available == 1 and index == 0 and KernelObject.ValueId.index(value) == 1
 	_ => False
 }
 
-## Duplicate and descending number keys are distinct named failures.
+# Duplicate and descending number keys are distinct named failures.
 expect {
 	duplicate = [number_entry(1), number_entry(1)]
 	descending = [number_entry(2), number_entry(1)]
@@ -467,7 +459,7 @@ expect {
 	}
 }
 
-## Empty and over-limit entry lists are rejected before validation or shape work.
+# Empty and over-limit entry lists are rejected before validation or shape work.
 expect {
 	empty = KernelIndex.ByteTree.build([], NameTree, test_limits)
 	over = KernelIndex.NumberTree.build(number_entries(2), NumberTree, KernelIndex.Limits.make({ max_entries: 1, max_key_bytes: 0, value_count: 2 }))

@@ -1,0 +1,21 @@
+{"name":"reference invoice","schema_version":1,"case":{"Invoice":{"context":0}}}
+{"name":"reference report","schema_version":1,"case":{"Report":{"context":0}}}
+{"name":"reference letter","schema_version":1,"case":{"Letter":{"context":0}}}
+{"name":"reference invoice long text (INV-A1)","schema_version":1,"case":{"InvoiceLongText":{"context":0}}}
+{"name":"reference invoice wide code (INV-A2a)","schema_version":1,"case":{"InvoiceWideCode":{"context":0}}}
+{"name":"reference invoice split row (INV-A4b)","schema_version":1,"case":{"InvoiceSplitRow":{"context":0}}}
+{"name":"reference invoice totals carry (INV-A5)","schema_version":1,"case":{"InvoiceTotalsCarry":{"context":0}}}
+{"name":"reference invoice rows x50","schema_version":1,"case":{"InvoiceRows":{"rows":50}}}
+{"name":"reference invoice rows x500 (INV-A3)","schema_version":1,"case":{"InvoiceRows":{"rows":500}}}
+{"name":"reference report heading keep (REP-A1)","schema_version":1,"case":{"ReportHeadingKeep":{"context":0}}}
+{"name":"reference report figure and caption (REP-A2)","schema_version":1,"case":{"ReportFigureCaption":{"context":0}}}
+{"name":"reference report table break (REP-A3)","schema_version":1,"case":{"ReportTableBreak":{"context":0}}}
+{"name":"reference report ordered faces (REP-A5)","schema_version":1,"case":{"ReportOrdered":{"context":0}}}
+{"name":"reference report scaled figure (REP-A6b)","schema_version":1,"case":{"ReportScaledFigure":{"context":0}}}
+{"name":"reference report sections x10","schema_version":1,"case":{"ReportSections":{"sections":10}}}
+{"name":"reference report sections x100","schema_version":1,"case":{"ReportSections":{"sections":100}}}
+{"name":"reference letter long recipient (LET-A1)","schema_version":1,"case":{"LetterLongRecipient":{"context":0}}}
+{"name":"reference letter x60 (LET-A2)","schema_version":1,"case":{"LetterParagraphs":{"paragraphs":60}}}
+{"name":"reference letter x20","schema_version":1,"case":{"LetterParagraphs":{"paragraphs":20}}}
+{"name":"reference letter x200","schema_version":1,"case":{"LetterParagraphs":{"paragraphs":200}}}
+{"name":"reference variant rejections","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}

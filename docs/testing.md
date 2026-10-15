@@ -13,11 +13,43 @@ hardware-aware worker count, or `--verbose` to mirror the detailed log:
 ROC=/path/to/roc ./scripts/test.py --jobs 8 --verbose
 ```
 
-The driver applies `roc fmt --check`, `roc check`, and `roc test` to the
-validation inventory in `tests/spec.json`, builds each distinct fixture app
-once, and executes independent evidence cases in parallel. Fixture builds also
-obey `toolchain.max_build_workers` to avoid cold-cache memory pressure. Logs are
-written under `.roc-pdf-tmp/logs/`.
+The driver applies `roc fmt --check` to the validation inventory in
+`tests/spec.json`, type-checks every root in it and runs every `expect`, builds
+each distinct fixture app once, and executes independent evidence cases in
+parallel. Fixture builds also obey `toolchain.max_build_workers` to avoid
+memory pressure. Logs are written under `.roc-pdf-tmp/logs/`.
+
+The Zig build installs the ordinary host into `tests/platform/targets/`
+and the retention host into `tests/retention_platform/targets/`. It also
+copies the pinned Linux startup object and libc archive into the retention
+platform's generated target directory. Each platform's `inputs_dir` stays
+inside its own directory, as required by the pinned compiler.
+
+Every `roc check`, `roc test`, or `roc build` re-checks the whole package
+(about 4 s and 4 GB per root), so the driver plans validation to give each
+root exactly one compiler invocation (`plan_validation` in `scripts/test.py`):
+
+- `package/all.roc` is tested; it exposes every package module, so it runs
+  every package `expect`. `package/main.roc` is checked.
+- An application root's `roc test` would re-run every package `expect` too,
+  so application roots are tested only for the expects in their own file and
+  in the same-directory modules they import: every root whose own file has
+  expects is tested, then, per directory (family), the fewest roots whose
+  local import closures reach the remaining expect-bearing modules.
+- `roc test` and `roc build` report the same errors and warnings as `roc
+  check`, with the same exit codes, so a tested root is not also checked, and
+  a fixture root that no test needs is checked by its evidence build.
+- Every other root (examples, fuzz targets, platforms) gets one `roc check`.
+- `roc fmt --check` runs as one batch of files per worker.
+
+The detailed log records the plan (`PLAN test <root> (checks it and runs
+expects in ...)`, `PLAN check <root>`, `PLAN <root>: checked by its fixture
+build`). A failing `expect` names its own file and line, and the driver adds
+the test root and every module that root covers. A new expect-bearing module
+needs no registration, but it is only run if some root imports it: a module
+that no root reaches is not tested (`tests/shaping/GsubFixture.roc` is
+currently such a module). See `docs/performance/test-suite-speed.md` for the
+measurements.
 
 Integration cases use the dev backend and require exact PDF snapshots,
 dimensions, allocation baselines, deterministic work counters, retention
@@ -38,11 +70,39 @@ in the same run. An allocation event is a call to `roc_alloc` or `roc_realloc`;
 host setup, teardown, and family-case JSON decoding are outside the
 `before_fixture_main` measurement boundary.
 
-Measure allocation baselines from a cold Roc cache, as CI does. A warm
-`~/.cache/roc` can compile identical source into binaries with different
-allocation counts (bytes and work counters stay identical), which looks like a
-feature regression but is not one. For any delta you intend to review, run the
-full suite against an empty cache directory:
+The test hosts report metrics protocol 2:
+
+```text
+ROC_METRICS protocol=2 allocations=N allocated_bytes=B work=W1,W2,...
+```
+
+`allocated_bytes` sums the size of every `roc_alloc` and the new size of every
+`roc_realloc` inside the same boundary. It is deterministic for the pinned dev
+backend. Each case records it per target beside `allocations`, and the harness
+fails a case whose allocated bytes exceed the recorded value by more than 10%
+(`ALLOCATED_BYTES_CEILING_TENTHS` in `scripts/test.py`). The ceiling exists to
+catch quadratic copying: a list copied on every append adds one allocation
+event per append, so the exact count grows linearly and can look reasonable,
+while the copied bytes grow with the square of the list. Decreases and drift
+inside the ceiling pass; a reviewed rebaseline lowers the recorded value. The
+ceiling is checked wherever allocation baselines are (`--allocation-baselines`,
+`--compare-baselines`, `--update-snapshots`), and from the same cold cache.
+`--baseline-report` lists every case whose allocations, allocated bytes, or
+work differ exactly, so a rebaseline can also lower ceilings that did not
+fail.
+
+Fixture executables are built with `roc build --no-cache`. With the cache, the
+pinned compiler reused package procedures compiled for an earlier fixture
+program in later ones, and a later program could then copy lists that it
+updates in place when built alone: a case's allocation count and allocated
+bytes depended on which fixtures were built before it and on the local cache
+(`docs/performance/lowering-uniqueness.md`). Without the cache each fixture
+compiles exactly as a standalone `roc build --no-cache --opt=dev` does, so a
+case can be reproduced outside the harness. The flag works around
+roc-lang/roc#11826 and should be removed once that is fixed. Validation (`roc
+check`, `roc test`) still uses the cache. Still measure a delta you intend to review from a
+cold cache, as CI does, by running the full suite against an empty cache
+directory:
 
 ```sh
 XDG_CACHE_HOME="$PWD/.roc-pdf-tmp/cold-cache" ./scripts/test.py \
@@ -79,9 +139,9 @@ installer) exactly once; `scripts/check_contracts.py` enforces this.
 ## Property fuzz targets
 
 The bounded property targets in `fuzz/` are evidence-only applications on the
-content-addressed `roc-fuzz` platform. `./scripts/test.py` applies `roc fmt
---check`, `roc check`, and `roc test` to every `fuzz/*.roc` source, which runs
-the `expect`s a target retains against its committed corpus. Compiling a target
+content-addressed `roc-fuzz` platform. `./scripts/test.py` formats every
+`fuzz/*.roc` source, checks every target, and tests the fewest targets that
+reach every helper module's `expect`s, which run against the committed corpus. Compiling a target
 proves nothing about its property, so a separate lane executes each one:
 
 ```sh

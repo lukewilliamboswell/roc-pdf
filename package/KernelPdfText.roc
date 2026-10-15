@@ -100,7 +100,7 @@ ScalarCache := { starts : List(U64), values : List(U32) }
 
 ActualText := [NoActualText, UseActualText(List(U32))]
 
-RunSource := { id : Semantics.TextSourceId, occurrence : Semantics.ContentOccurrence, range : Semantics.TextRange }
+RunSource := { id : Semantics.TextSourceId, properties : Semantics.Range, range : Semantics.TextRange }
 
 build_plan : Semantics.Store, Text.Store, List(KernelFontPlan.Plan), List(KernelPdfText.Placement), KernelPdfText.Limits -> Try(KernelPdfText.Plan, KernelPdfText.Error)
 build_plan = |semantics, text, fonts, placements, limits| {
@@ -122,7 +122,7 @@ build_plan = |semantics, text, fonts, placements, limits| {
 			return Err(PlacementInvalid({ placement: $placement_index }))
 		}
 		run = list_at(text.runs, run_index)
-		if run.id.index() != run_index or run.size.raw() <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
+		if run.id.index() != run_index or run.size <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
 			return Err(RunInvalid({ run: run_index }))
 		}
 		font_index = run.instance.index()
@@ -192,7 +192,7 @@ build_scene_plan = |ownership, fonts, limits| {
 	var $run_index = 0
 	while $run_index < text.runs.len() {
 		run = list_at(text.runs, $run_index)
-		if run.id.index() != $run_index or run.size.raw() <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
+		if run.id.index() != $run_index or run.size <= 0 or run.glyphs.length() == 0 or run.glyphs.start() > text.glyphs.len() or run.glyphs.length() > text.glyphs.len() - run.glyphs.start() {
 			return Err(RunInvalid({ run: $run_index }))
 		}
 		font_index = run.instance.index()
@@ -296,22 +296,44 @@ build_scalar_cache = |sources, limit| {
 	Ok({ starts: $starts, values: $values })
 }
 
-run_source : Semantics.Store, Text.Run, U64 -> Try(RunSource, KernelPdfText.Error)
-run_source = |semantics, run, run_index| {
-	if run.occurrence.index() >= semantics.occurrences.len() {
-		return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
-	}
-	occurrence = list_at(semantics.occurrences, run.occurrence.index())
-	if occurrence.id.index() != run.occurrence.index() {
-		return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
-	}
-	source = match occurrence.source {
-		Text(source_id, UnicodeRange(range)) => if source_id.index() < semantics.text_sources.len() {
-			{ id: source_id, occurrence, range }
-		} else {
-			return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
+run_source : Semantics.Store, ScalarCache, Text.Run, U64 -> Try(RunSource, KernelPdfText.Error)
+run_source = |semantics, scalars, run, run_index| {
+	source = match run.unicode {
+		OccurrenceText(occurrence_id) => {
+			if occurrence_id.index() >= semantics.occurrences.len() {
+				return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
+			}
+			occurrence = list_at(semantics.occurrences, occurrence_id.index())
+			if occurrence.id != occurrence_id {
+				return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
+			}
+			match occurrence.source {
+				Text(source_id, UnicodeRange(range)) => if source_id.index() < semantics.text_sources.len() {
+					{ id: source_id, properties: occurrence.text_properties, range }
+				} else {
+					return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
+				}
+				_ => return Err(OccurrenceInvalid({ occurrence: occurrence_id.index(), run: run_index }))
+			}
 		}
-		_ => return Err(OccurrenceInvalid({ occurrence: run.occurrence.index(), run: run_index }))
+
+		## An artifact run indexes its whole artifact text source and owns no
+		## text property.
+		ArtifactText(source_id) => {
+			if source_id.index() >= semantics.text_sources.len() {
+				return Err(RunInvalid({ run: run_index }))
+			}
+			unicode = list_at(semantics.text_sources, source_id.index()).unicode
+			scalar_count = list_at(scalars.starts, source_id.index() + 1) - list_at(scalars.starts, source_id.index())
+			{
+				id: source_id,
+				properties: Semantics.Range.from_start_and_length(0, 0),
+				range: {
+					scalars: Semantics.Range.from_start_and_length(0, scalar_count),
+					utf8_bytes: Semantics.Range.from_start_and_length(0, unicode.count_utf8_bytes()),
+				},
+			}
+		}
 	}
 	if !relative_text_range_fits(run.source, source.range) {
 		return Err(RunInvalid({ run: run_index }))
@@ -343,7 +365,7 @@ has_private_use = |actual_text| match actual_text {
 
 actual_text_for_run : Semantics.Store, ScalarCache, Text.Store, Text.Run, U64, U64, U64 -> Try(ActualText, KernelPdfText.Error)
 actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
-	source = run_source(semantics, run, run_index)?
+	source = run_source(semantics, scalars, run, run_index)?
 	match run.actual_text {
 		FromOccurrence => {
 			if !requires_actual_text(text, run, run_index)? {
@@ -361,8 +383,8 @@ actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
 		}
 		SemanticOverride(property_id) => {
 			property_index = property_id.index()
-			property_start = source.occurrence.text_properties.start()
-			property_length = source.occurrence.text_properties.length()
+			property_start = source.properties.start()
+			property_length = source.properties.length()
 			if property_index < property_start or property_index - property_start >= property_length or property_index >= semantics.text_properties.len() {
 				return Err(ActualTextRequired({ run: run_index }))
 			}
@@ -414,7 +436,7 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 	if run.clusters.start() > text.clusters.len() or run.clusters.length() > text.clusters.len() - run.clusters.start() {
 		return Err(RunInvalid({ run: run_index }))
 	}
-	source = run_source(semantics, run, run_index)?
+	source = run_source(semantics, scalars, run, run_index)?
 	state = list_at(states, font_index)
 	var $slots = state.mappings
 	var $conflicts = 0
@@ -427,7 +449,7 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 		}
 		mapping = match cluster.kind {
 			GeneratedDiscretionaryHyphen({ property, transformation: _ }) => {
-				if cluster.source.scalars.length() != 0 or cluster.source.utf8_bytes.length() != 0 or !generated_discretionary_property(source.occurrence, semantics.text_properties, property, cluster.source) {
+				if cluster.source.scalars.length() != 0 or cluster.source.utf8_bytes.length() != 0 or !generated_discretionary_property(source.properties, semantics.text_properties, property, cluster.source) {
 					return Err(ClusterInvalid({ cluster: $cluster_index, run: run_index }))
 				}
 				[0x002d]
@@ -468,22 +490,16 @@ collect_run_mappings = |states, font_index, semantics, scalars, text, run, run_i
 	Ok({ conflicts: $conflicts, states: list_set(states, font_index, { mappings: $slots, plan: state.plan }) })
 }
 
-generated_discretionary_property : Semantics.ContentOccurrence, List(Semantics.TextProperty), Semantics.TextPropertyId, Semantics.TextRange -> Bool
-generated_discretionary_property = |occurrence, properties, property_id, source| {
+generated_discretionary_property : Semantics.Range, List(Semantics.TextProperty), Semantics.TextPropertyId, Semantics.TextRange -> Bool
+generated_discretionary_property = |range, properties, property_id, source| {
 	index = property_id.index()
-	range = occurrence.text_properties
 	if index < range.start() or index >= properties.len() or index - range.start() >= range.length() {
-		return Bool.False
+		return False
 	}
 	match list_at(properties, index) {
-		SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation, source: property_source }) => presentation == "-" and text_ranges_equal(property_source, source)
-		_ => Bool.False
+		SourceToPresentation({ kind: InsertedDiscretionaryHyphen, presentation, source: property_source }) => presentation == "-" and property_source == source
+		_ => False
 	}
-}
-
-text_ranges_equal : Semantics.TextRange, Semantics.TextRange -> Bool
-text_ranges_equal = |left, right| {
-	left.scalars.start() == right.scalars.start() and left.scalars.length() == right.scalars.length() and left.utf8_bytes.start() == right.utf8_bytes.start() and left.utf8_bytes.length() == right.utf8_bytes.length()
 }
 
 source_scalars : ScalarCache, Semantics.TextSourceId, U64, U64, U64 -> Try(List(U32), KernelPdfText.Error)
@@ -574,34 +590,143 @@ emit_run_body = |bytes, text, run, origin, font, limit| {
 	emit_run_glyphs($out, text, run, origin, font, limit)
 }
 
+## TJ adjustments are written with `adjustment_digits` fractional digits,
+## so one adjustment step is 10^-digits thousandths of text space. One digit
+## keeps every glyph within 0.00005 em of its layout position (0.0006 pt at
+## 12 pt); whole thousandths would allow 0.0005 em for about 1% less output
+## (docs/performance/output-size.md, step 3).
+adjustment_digits : U8
+adjustment_digits = 1
+
+## Adjustment steps per thousandth of text space: 10^`adjustment_digits`.
+adjustment_scale : I64
+adjustment_scale = pow10(adjustment_digits)
+
+pow10 : U8 -> I64
+pow10 = |digits| {
+	var $value = 1
+	var $index = 0
+	while $index < digits {
+		$value = $value * 10
+		$index = $index + 1
+	}
+	$value
+}
+
+## Writes one prepared glyph run as baseline segments.
+##
+## Each segment starts at the exact layout position of its first glyph with
+## one `Td`, relative to the previous segment's start (a run's first segment
+## is relative to the text object's origin and omits a zero move), and shows
+## the segment's glyphs in one `TJ` array. A glyph whose vertical offset
+## differs from the current segment's starts a new segment, so every glyph
+## keeps its exact baseline.
+##
+## Inside a segment the reader advances the pen by each glyph's emitted `/W`
+## width. Before every later glyph the array carries the adjustment that
+## returns the pen to that glyph's exact layout position, rounded to the
+## nearest 1/`adjustment_scale` thousandth of text space (halves round up).
+## The pen is tracked exactly in units of 1/(1000 * `adjustment_scale`)
+## layout units, so each glyph's rounding error is at most half an
+## adjustment step, 0.0005 em at scale 1, and never accumulates along the
+## segment. All arithmetic is checked `I64` integer arithmetic.
 emit_run_glyphs : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
 emit_run_glyphs = |bytes, text, run, origin, font, limit| {
+	size = run.size.raw()
+	if size <= 0 {
+		return Err(RunInvalid({ run: run.id.index() }))
+	}
 	var $out = bytes
 	var $cursor_x = 0
-	var $cursor_y = 0
+	var $segment_x = 0
+	var $segment_y = 0
+	var $pen = 0
+	var $previous_width = 0
+	var $open = False
 	var $glyph_index = run.glyphs.start()
 	glyph_end = run.glyphs.start() + run.glyphs.length()
 	while $glyph_index < glyph_end {
 		glyph = list_at(text.glyphs, $glyph_index)
-		if glyph.advance_x.raw() < 0 or glyph.advance_y.raw() != 0 {
+		if glyph.advance_x < 0 or glyph.advance_y.raw() != 0 {
 			return Err(RunInvalid({ run: run.id.index() }))
 		}
 		x = checked_i64_add(origin.x.raw(), checked_i64_add($cursor_x, glyph.offset_x.raw())?)?
-		y = checked_i64_add(origin.y.raw(), checked_i64_add($cursor_y, glyph.offset_y.raw())?)?
+		y = checked_i64_add(origin.y.raw(), glyph.offset_y.raw())?
 		cid = cid_for_glyph(font, glyph.id.raw(), run.id.index())?
-		$out = append_literal($out, "1 0 0 1 ", limit)?
-		$out = append_layout($out, Layout.Unit.from_raw(x), limit)?
-		$out = append_literal($out, " ", limit)?
-		$out = append_layout($out, Layout.Unit.from_raw(y), limit)?
-		$out = append_literal($out, " Tm\n<", limit)?
+		width = emitted_width(font, cid)?
+		if $open == False or y != $segment_y {
+			if $open {
+				$out = append_literal($out, ">] TJ\n", limit)?
+			}
+			dx = checked_i64_sub(x, $segment_x)?
+			dy = checked_i64_sub(y, $segment_y)?
+			if dx != 0 or dy != 0 {
+				$out = append_layout($out, Layout.Unit.from_raw(dx), limit)?
+				$out = append_literal($out, " ", limit)?
+				$out = append_layout($out, Layout.Unit.from_raw(dy), limit)?
+				$out = append_literal($out, " Td\n", limit)?
+			}
+			$out = append_literal($out, "[<", limit)?
+			$segment_x = x
+			$segment_y = y
+			$pen = 0
+			$open = True
+		} else {
+			advance = checked_i64_times(checked_i64_times($previous_width, adjustment_scale)?, size)?
+			nominal = checked_i64_add($pen, advance)?
+			target = checked_i64_times(checked_i64_sub(x, $segment_x)?, checked_i64_times(1000, adjustment_scale)?)?
+			steps = round_half_up(checked_i64_sub(nominal, target)?, size)?
+			$pen = checked_i64_sub(nominal, checked_i64_times(steps, size)?)?
+			if steps != 0 {
+				$out = append_literal($out, "> ", limit)?
+				$out = append_adjustment($out, steps, limit)?
+				$out = append_literal($out, " <", limit)?
+			}
+		}
 		$out = append_hex_u16($out, cid.to_u16_wrap(), limit)?
-		$out = append_literal($out, "> Tj\n", limit)?
+		$previous_width = width
 		$cursor_x = checked_i64_add($cursor_x, glyph.advance_x.raw())?
-		$cursor_y = checked_i64_add($cursor_y, glyph.advance_y.raw())?
 		$glyph_index = $glyph_index + 1
+	}
+	if $open {
+		$out = append_literal($out, ">] TJ\n", limit)?
 	}
 	Ok({ bytes: $out, glyphs: run.glyphs.length() })
 }
+
+## The `/W` value the font lowering emits for a CID: its advance scaled to
+## thousandths of an em by the same shared rounding.
+emitted_width : KernelFontPlan.Plan, U32 -> Try(I64, KernelPdfText.Error)
+emitted_width = |font, cid| {
+	entry = list_at(font.entries, cid.to_u64())
+	match KernelPdfFont.scaled_unsigned_metric(entry.width, font.units_per_em) {
+		Ok(width) => if width > I64.highest.to_u64_wrap() Err(ArithmeticOverflow) else Ok(width.to_i64_wrap())
+		Err(_) => Err(FontPlanInvalid({ font: 0 }))
+	}
+}
+
+## floor(numerator / denominator + 1/2) for a positive denominator.
+round_half_up : I64, I64 -> Try(I64, KernelPdfText.Error)
+round_half_up = |numerator, denominator| {
+	twice = checked_i64_times(numerator, 2)?
+	floor_div(checked_i64_add(twice, denominator)?, checked_i64_times(denominator, 2)?)
+}
+
+floor_div : I64, I64 -> Try(I64, KernelPdfText.Error)
+floor_div = |numerator, denominator| {
+	quotient = I64.div_trunc_by(numerator, denominator)
+	remainder = I64.rem_by(numerator, denominator)
+	if remainder != 0 and numerator < 0 {
+		checked_i64_sub(quotient, 1)
+	} else {
+		Ok(quotient)
+	}
+}
+
+## A TJ number: `steps` / `adjustment_scale` thousandths of text space, in
+## canonical decimal form.
+append_adjustment : List(U8), I64, U64 -> Try(List(U8), KernelPdfText.Error)
+append_adjustment = |bytes, steps, limit| append_bytes(bytes, KernelLex.append_decimal_digits([], steps, adjustment_digits), limit)
 
 append_actual_text_begin : List(U8), List(U32), U64, U64 -> Try(List(U8), KernelPdfText.Error)
 append_actual_text_begin = |bytes, scalars, run, limit| {
@@ -639,8 +764,8 @@ append_layout = |bytes, value, limit| append_bytes(bytes, KernelLex.append_thous
 
 append_hex_u16 : List(U8), U16, U64 -> Try(List(U8), KernelPdfText.Error)
 append_hex_u16 = |bytes, value, limit| {
-	result = reserve(bytes, 4, limit)?
-	var $out = result
+	check_room(bytes.len(), 4, limit)?
+	var $out = bytes
 	$out = $out.append(hex_digit(value.shr_wrap(12).to_u8_wrap()))
 	$out = $out.append(hex_digit(value.shr_wrap(8).bitwise_and(0xf).to_u8_wrap()))
 	$out = $out.append(hex_digit(value.shr_wrap(4).bitwise_and(0xf).to_u8_wrap()))
@@ -655,7 +780,8 @@ append_literal = |bytes, literal, limit| append_bytes(bytes, Str.to_utf8(literal
 
 append_bytes : List(U8), List(U8), U64 -> Try(List(U8), KernelPdfText.Error)
 append_bytes = |bytes, added, limit| {
-	var $out = reserve(bytes, added.len(), limit)?
+	check_room(bytes.len(), added.len(), limit)?
+	var $out = bytes
 	var $index = 0
 	while $index < added.len() {
 		$out = $out.append(list_at(added, $index))
@@ -664,16 +790,21 @@ append_bytes = |bytes, added, limit| {
 	Ok($out)
 }
 
-reserve : List(U8), U64, U64 -> Try(List(U8), KernelPdfText.Error)
-reserve = |bytes, additional, limit| {
-	if bytes.len() > limit or additional > limit - bytes.len() {
-		attempted = match U64.plus_try(bytes.len(), additional) {
+## Checks that `additional` more bytes fit the content limit. It takes only
+## the length and reserves nothing: an explicit `List.reserve` sizes the
+## allocation exactly, and a list returned through `?` and then appended to
+## was copied per token by the pinned dev backend
+## (docs/performance/lowering-uniqueness.md).
+check_room : U64, U64, U64 -> Try({}, KernelPdfText.Error)
+check_room = |length, additional, limit| {
+	if length > limit or additional > limit - length {
+		attempted = match U64.plus_try(length, additional) {
 			Err(Overflow) => U64.highest
 			Ok(value) => value
 		}
 		Err(LimitExceeded({ attempted, dimension: ContentBytes, limit }))
 	} else {
-		Ok(List.reserve(bytes, additional))
+		Ok({})
 	}
 }
 
@@ -688,6 +819,18 @@ checked_add = |left, right| match U64.plus_try(left, right) {
 
 checked_i64_add : I64, I64 -> Try(I64, KernelPdfText.Error)
 checked_i64_add = |left, right| match I64.plus_try(left, right) {
+	Err(Overflow) => Err(ArithmeticOverflow)
+	Ok(value) => Ok(value)
+}
+
+checked_i64_sub : I64, I64 -> Try(I64, KernelPdfText.Error)
+checked_i64_sub = |left, right| match I64.minus_try(left, right) {
+	Err(Overflow) => Err(ArithmeticOverflow)
+	Ok(value) => Ok(value)
+}
+
+checked_i64_times : I64, I64 -> Try(I64, KernelPdfText.Error)
+checked_i64_times = |left, right| match I64.times_try(left, right) {
 	Err(Overflow) => Err(ArithmeticOverflow)
 	Ok(value) => Ok(value)
 }
@@ -713,3 +856,16 @@ initial_capacity = 1024
 
 content : ScenePlan -> KernelContent.TextPlan
 content = |plan| plan.content
+
+# Adjustment rounding is floor(n / d + 1/2) for both signs.
+expect round_half_up(5, 10) == Ok(1) and
+	round_half_up(-5, 10) == Ok(0) and
+		round_half_up(-6, 10) == Ok(-1) and
+			round_half_up(14, 10) == Ok(1) and
+				round_half_up(-15, 10) == Ok(-1) and
+					round_half_up(0, 7) == Ok(0)
+
+# One-digit adjustments print as canonical decimals.
+expect append_adjustment([], -3, 16) == Ok(Str.to_utf8("-0.3")) and
+	append_adjustment([], 25, 16) == Ok(Str.to_utf8("2.5")) and
+		append_adjustment([], 40, 16) == Ok(Str.to_utf8("4"))
