@@ -1,17 +1,17 @@
 package
 	[
-		Pdf,
+		Color,
+		Conformance,
 		Document,
-		Semantics,
-		Layout,
-		Scene,
-		Text,
+		Encode,
 		Font,
 		Image,
-		Color,
+		Layout,
 		Metadata,
-		Encode,
-		Conformance,
+		Pdf,
+		Scene,
+		Semantics,
+		Text,
 		Theme,
 	]
 	{

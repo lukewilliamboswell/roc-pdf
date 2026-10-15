@@ -903,10 +903,12 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 header_cell_color : Document.NormalizedAuthoring, U64, Theme, Color.SourceValue -> Color.SourceValue
 header_cell_color = |authoring, block, theme, paragraph_color| {
 	parent = list_at(authoring.blocks, block).parent
-	in_row = parent != 0 and (match list_at(authoring.groups, parent - 1).kind {
-		TableRow(_) => True
-		_ => False
-	})
+	in_row = parent != 0 and (
+		match list_at(authoring.groups, parent - 1).kind {
+			TableRow(_) => True
+			_ => False
+		}
+	)
 	if !in_row {
 		return paragraph_color
 	}

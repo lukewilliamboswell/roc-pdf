@@ -249,16 +249,20 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 				$logical_index_of_body = list_set(
 					$logical_index_of_body,
 					$block_index,
-					$line_requests.len() + (match label_request {
-						NoLabel => 0
-						Label(_) => 1
-					}),
+					$line_requests.len() + (
+						match label_request {
+							NoLabel => 0
+							Label(_) => 1
+						}
+					),
 				)
 				$next_physical = checked_add(body_start, body.physical.length())?
-				first_body_request = $line_requests.len() + (match label_request {
-					NoLabel => 0
-					Label(_) => 1
-				})
+				first_body_request = $line_requests.len() + (
+					match label_request {
+						NoLabel => 0
+						Label(_) => 1
+					}
+				)
 				$holds = append_holds($holds, KernelFacadeShape.Plan.code_holds(shape, authoring, $block_index, sources), shape_requests, first_body_request, body_start, body_start + body.physical.length())
 				$line_requests = append_logical_requests(
 					$line_requests,

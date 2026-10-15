@@ -1819,10 +1819,12 @@ points_text = |raw| {
 trim_zeros : List(U8) -> List(U8)
 trim_zeros = |bytes| {
 	var $bytes = bytes
-	while !$bytes.is_empty() and (match $bytes.get($bytes.len() - 1) {
-		Ok(last) => last == 48
-		Err(OutOfBounds) => False
-	}) {
+	while !$bytes.is_empty() and (
+		match $bytes.get($bytes.len() - 1) {
+			Ok(last) => last == 48
+			Err(OutOfBounds) => False
+		}
+	) {
 		$bytes = $bytes.drop_last(1)
 	}
 	$bytes
@@ -2404,14 +2406,19 @@ validate_body_frame : Pdf.PageSize, Theme -> Try({}, Pdf.Error)
 validate_body_frame = |page_size, theme| {
 	size = layout_page_size(page_size)
 	margin = theme.page_margin
-	width = size.width.raw() - margin.left.raw() - margin.right.raw()
-	height = size.height.raw() - margin.top.raw() - margin.bottom.raw()
+	width_before_right = I64.minus_try(size.width.raw(), margin.left.raw()) ? |_| body_frame_overflow({})
+	width = I64.minus_try(width_before_right, margin.right.raw()) ? |_| body_frame_overflow({})
+	height_before_bottom = I64.minus_try(size.height.raw(), margin.top.raw()) ? |_| body_frame_overflow({})
+	height = I64.minus_try(height_before_bottom, margin.bottom.raw()) ? |_| body_frame_overflow({})
 	if width > 0 and height > 0 {
 		Ok({})
 	} else {
 		Err(InvalidDocument(located_batch(LayoutConstraintViolated, "layout.page_margin", "The theme's page margins leave a body frame ${signed_points_text(width)} wide and ${signed_points_text(height)} high on a ${signed_points_text(size.width.raw())} × ${signed_points_text(size.height.raw())} page; the body frame needs a positive width and height.", ["theme.page_margin", "options.page_size"])))
 	}
 }
+
+body_frame_overflow : {} -> Pdf.Error
+body_frame_overflow = |_| InvalidDocument(located_batch(LayoutConstraintViolated, "layout.page_margin", "The theme's page margins make the body frame exceed the representable layout range.", ["theme.page_margin", "options.page_size"]))
 
 page_side_valid : Layout.Unit -> Bool
 page_side_valid = |unit| {
@@ -2420,7 +2427,9 @@ page_side_valid = |unit| {
 }
 
 signed_points_text : I64 -> Str
-signed_points_text = |raw| if raw < 0 "-${points_text((0 - raw).to_u64_wrap())}" else points_text(raw.to_u64_wrap())
+signed_points_text = |raw| if raw < 0 "-${points_text(U64.minus_wrap(0, raw.to_u64_wrap()))}" else points_text(raw.to_u64_wrap())
+
+expect signed_points_text(I64.lowest) == "-9223372036854775.808 pt"
 
 standard_metadata_limits : KernelMetadata.Limits
 standard_metadata_limits = KernelMetadata.Limits.make({ max_language_bytes: 64, max_title_bytes: 2048 })
@@ -3383,10 +3392,12 @@ build_report = |normalized, collected, budget| {
 			Ok(value) => value
 			Err(OutOfBounds) => { first_page: U64.highest, fragments: 0, last_page: 0 }
 		}
-		is_cell = $cell < normalized.cells.len() and (match normalized.cells.get($cell) {
-			Ok(cell) => cell.block == $index
-			Err(OutOfBounds) => False
-		})
+		is_cell = $cell < normalized.cells.len() and (
+			match normalized.cells.get($cell) {
+				Ok(cell) => cell.block == $index
+				Err(OutOfBounds) => False
+			}
+		)
 		role = if is_cell {
 			kind = match normalized.cells.get($cell) {
 				Ok(cell) => cell.kind
@@ -3597,13 +3608,15 @@ count_link_blocks = |normalized| {
 ## from the cell arena by the caller).
 leaf_role : Document.NormalizedAuthoring, Document.NormalizedBlock -> Str
 leaf_role = |normalized, record| {
-	in_table = record.parent != 0 and (match normalized.groups.get(record.parent - 1) {
-		Ok(group) => match group.kind {
-			Table(_) => True
-			_ => False
+	in_table = record.parent != 0 and (
+		match normalized.groups.get(record.parent - 1) {
+			Ok(group) => match group.kind {
+				Table(_) => True
+				_ => False
+			}
+			Err(OutOfBounds) => False
 		}
-		Err(OutOfBounds) => False
-	})
+	)
 	match record.kind {
 		Bullet(_) => "LI"
 		DestinationHeading({ level, name: _ }) => "H${level.to_str()}"

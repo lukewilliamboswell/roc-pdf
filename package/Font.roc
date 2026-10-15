@@ -110,14 +110,12 @@ Font :: [].{
 	InstanceKey : { face : FaceId, kind : InstanceKind }
 
 	Policy : {
-
 		## Ordered exact instances are the complete selection search space.
 		id : PolicyId,
 		instances : List(InstanceId),
 	}
 
 	SourceCluster : {
-
 		## These are the already-segmented scalar facts for exactly one grapheme
 		## cluster. Font planning deliberately does not decode UTF-8 or rediscover
 		## grapheme boundaries from a later source store.

@@ -625,18 +625,26 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 					$synthetic = $synthetic + 1
 				}
 				last_row = $row_group + 1 == group.group_end
-				last_body = section == Body and ($row_group + 1 == group.group_end or (match list_at(authoring.groups, $row_group + 1).kind {
-					TableRow(Footer) => True
-					_ => False
-				}))
-				first_footer = section == Footer and (match list_at(authoring.groups, $row_group - 1).kind {
-					TableRow(Footer) => False
-					_ => True
-				})
-				last_header = section == Header and (match list_at(authoring.groups, $row_group + 1).kind {
-					TableRow(Header) => False
-					_ => True
-				})
+				last_body = section == Body and (
+					$row_group + 1 == group.group_end or (
+						match list_at(authoring.groups, $row_group + 1).kind {
+							TableRow(Footer) => True
+							_ => False
+						}
+					)
+				)
+				first_footer = section == Footer and (
+					match list_at(authoring.groups, $row_group - 1).kind {
+						TableRow(Footer) => False
+						_ => True
+					}
+				)
+				last_header = section == Header and (
+					match list_at(authoring.groups, $row_group + 1).kind {
+						TableRow(Header) => False
+						_ => True
+					}
+				)
 				authored = if author_keeps.is_empty() NoKeep else list_at(author_keeps, row.block_end - 1)
 				keep_with_next = if section == Header {
 					Required

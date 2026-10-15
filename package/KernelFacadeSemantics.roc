@@ -449,10 +449,12 @@ plan_blocks = |authoring, limits| {
 						return Err(EmptyListItem({ group: $next_group }))
 					}
 					first = list_at(blocks, group.first_block)
-					starts_with_paragraph = first.parent == $next_group + 1 and (match first.kind {
-						Paragraph | RichParagraph(_) => True
-						_ => False
-					})
+					starts_with_paragraph = first.parent == $next_group + 1 and (
+						match first.kind {
+							Paragraph | RichParagraph(_) => True
+							_ => False
+						}
+					)
 					if !starts_with_paragraph {
 						return Err(ListItemStart({ group: $next_group }))
 					}
@@ -2646,10 +2648,12 @@ expect {
 								and list_at(store.nodes, 4).language == Language("fr")
 									and work.inline_elements == 3
 										and work.inline_leaves == 4
-											and (match KernelFacadeSemantics.Plan.block_ownership(plan) {
-												[RichTextBlock({ label: NoLabel, level: 0, occurrences })] => occurrences.start() == 0 and occurrences.length() == 4
-												_ => False
-											})
+											and (
+												match KernelFacadeSemantics.Plan.block_ownership(plan) {
+													[RichTextBlock({ label: NoLabel, level: 0, occurrences })] => occurrences.start() == 0 and occurrences.length() == 4
+													_ => False
+												}
+											)
 }
 
 # Inline rejections name the paragraph block and the inline's arena index.

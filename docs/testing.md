@@ -19,6 +19,12 @@ each distinct fixture app once, and executes independent evidence cases in
 parallel. Fixture builds also obey `toolchain.max_build_workers` to avoid
 memory pressure. Logs are written under `.roc-pdf-tmp/logs/`.
 
+The Zig build installs the ordinary host into `tests/platform/targets/`
+and the retention host into `tests/retention_platform/targets/`. It also
+copies the pinned Linux startup object and libc archive into the retention
+platform's generated target directory. Each platform's `inputs_dir` stays
+inside its own directory, as required by the pinned compiler.
+
 Every `roc check`, `roc test`, or `roc build` re-checks the whole package
 (about 4 s and 4 GB per root), so the driver plans validation to give each
 root exactly one compiler invocation (`plan_validation` in `scripts/test.py`):

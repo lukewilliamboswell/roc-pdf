@@ -486,7 +486,6 @@ carry_observations = |report, control, rows| {
 	previous = "${items_table}.table.body_rows[${(rows - 2).to_str()}]"
 	page = first_page(report, "${last}.cells[0]")
 	[
-
 		## Without totals, the last body row fits on the second-last row's page.
 		first_page(control, "${last}.cells[0]") == first_page(control, "${previous}.cells[0]"),
 
@@ -514,7 +513,6 @@ heading_keep_observations = |report, control| {
 	filler = "contents[4]"
 	heading = "contents[6].contents[0]"
 	[
-
 		## Alone, the heading fits on the filler's page.
 		first_page(control, "contents[4]") == first_page(control, "contents[2]"),
 		first_page(report, heading) == first_page(report, filler) + 1,
@@ -528,7 +526,6 @@ figure_caption_observations = |report, control| {
 	filler = "contents[3].contents[4]"
 	figure = "contents[3].contents[6]"
 	[
-
 		## Without its caption, the figure fits on the filler's page.
 		first_page(control, "contents[4]") == first_page(control, "contents[2]"),
 		first_page(report, figure) == first_page(report, filler) + 1,
@@ -644,7 +641,6 @@ run_negatives = |guard| {
 	oversize_callout = Callout.with_height(report_faces.theme, { height: 900, lines: ["Revenue: AUD 9.22 m (+5.0%)"], name: "Key figures", width: 483 })
 	items = items_table
 	checks = [
-
 		## INV-A2b: a 128-hex-digit serial in a description.
 		(invoice_with({ ..Invoice.ordinary, row: row_override(4, |index| Invoice.row_with(index, [Pdf.text("LED task lamp, serial ${serial}")], Invoice.product_code(index))) }), invoice_faces, Code(LayoutConstraintViolated, "layout.unbreakable_token", ["${items}.table.body_rows[4].cells[1]"])),
 

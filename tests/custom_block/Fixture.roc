@@ -383,7 +383,6 @@ run_negatives = |context| {
 	valid = Callout.key_figures(report_theme, { lines, name: "Key figures", width: 300 })
 	many = document(List.repeat(valid, 40))
 	checks = [
-
 		## REP-A10: the extension reports a height larger than the body frame.
 		rejects(document([Pdf.paragraph("Lead"), sized(900, 300)]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), sized(80, 500)]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),

@@ -229,6 +229,12 @@ ordinary_input = {
 # everyday case still satisfies the same contracts.
 expect ThemeTargets.theme_output(ordinary_input)
 
+# The minimized October 14 fuzz failure: two negative half-range margins
+# overflowed the signed subtraction before layout could reject the theme.
+expect ThemeTargets.theme_output({ ..ordinary_input, blocks: [], margin_left: 15, margin_right: 15, title: "" })
+expect ThemeTargets.theme_output({ ..ordinary_input, margin_bottom: 15, margin_top: 15 })
+expect ThemeTargets.theme_output({ ..ordinary_input, margin_left: 14, margin_right: 14 })
+
 # Zero leading on every style. A paginator that advances by leading cannot
 # make progress on a zero step, so this is the shape that either terminates
 # with a typed rejection or does not terminate at all.

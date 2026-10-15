@@ -1,6 +1,6 @@
 # Example gallery
 
-Each example is a complete [basic-cli 0.23.0](https://github.com/roc-lang/basic-cli/releases/tag/0.23.0)
+Each example is a complete [basic-cli 0.26.0-rc2](https://github.com/roc-lang/basic-cli/releases/tag/0.26.0-rc2)
 application that imports the local package. Every example has its own
 directory:
 
@@ -11,6 +11,8 @@ examples/<name>/
   preview.png   the first page, rendered by pdftoppm at 96 dpi
   fonts/        the fonts it registers, with their license texts
 ```
+
+basic-cli 0.26.0-rc2 requires Roc `nightly-2026-10-12-2664a27` or later.
 
 Run an example from its directory, where it writes its PDF:
 

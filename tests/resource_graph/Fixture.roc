@@ -293,7 +293,6 @@ collision_input = |scale| {
 		$index = $index + 1
 	}
 	{
-
 		## The white-box seam folds the production digest into one bucket. The
 		## digest procedure itself is unchanged, so this cannot weaken the
 		## production identity path.

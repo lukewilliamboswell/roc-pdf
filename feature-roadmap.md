@@ -997,10 +997,12 @@ headings keep with their next block, `semantics.heading_skip` is returned,
 and table semantics no longer copy the document's node lists once per table.
 Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
 
-**Merge blocker (not closure evidence).** `.roc-version` names
-`nightly-2026-09-30-df1f747`, a local build of Roc commit `df1f747ebb` that
-is not a published nightly, so CI cannot provision it; see the pin record
-below.
+The compiler pin is the published `nightly-2026-10-14-38a3029`, replacing
+the former unpublished local build. Its reviewed allocation baselines and the
+basic-cli `0.26.0-rc2` example upgrade are recorded in the
+[October 14 compiler review](docs/performance/roc-nightly-2026-10-14-38a3029.md).
+This retires the compiler-provisioning blocker without changing Gate 6's
+capability or conformance claims.
 
 The following public authoring is executable under the default `Archive`
 profile, with exact allocation, work, and allocated-byte ceilings, scale
@@ -1076,19 +1078,17 @@ independent structure checker. Each record lists its own open issues:
   structure-extraction and reference-document checkers, and the closure
   review: `docs/performance/business-authoring-closure.md`.
 
-The intermittent `roc check` crash seen in harness runs is Roc #11777, fixed
-upstream by commit 329a48a04d. The pin advances to
-`nightly-2026-09-28-9927ba8`, which contains the fix, with its own bulk
-re-baseline ([record](docs/performance/roc-nightly-2026-09-28-9927ba8.md)).
-Before that pin merges, the fuzz targets need a roc-fuzz release pinned to
-the same nightly, and the upstream LLVM `roc build --fuzz` segfault recorded
-there must be resolved.
-Because that nightly still crashes in places, the pin then moves for now to a
-local build of Roc commit `df1f747ebb`, recorded as `nightly-2026-09-30-df1f747`
-([record](docs/performance/roc-nightly-2026-09-30-df1f747.md)). That tag is
-not a published nightly, so CI cannot provision it until a nightly containing
-the commit is published; the record also documents an upstream uniqueness
-regression that copies the compact builder's buffers once per document.
+The September compiler reviews record the earlier `roc check` crash
+(Roc #11777), the September 28 LLVM fuzz-build crashes, and the temporary
+local September 30 pin:
+[September 28](docs/performance/roc-nightly-2026-09-28-9927ba8.md),
+[September 30](docs/performance/roc-nightly-2026-09-30-df1f747.md).
+The current published October 14 pin passes both formerly crashing fuzz
+targets and the complete bounded workspace fuzz lane. Its review retains the
+cache constraints, records the October 4 comparison compiler's transparency
+failure, and uses the working October 1 release for the full old/new
+allocation comparison on both targets. The reviewed upgrade changes no PDF
+snapshot or deterministic work vector.
 
 ## Gate 7: business-document production release and combined closure
 

@@ -289,10 +289,12 @@ trailing_space_advance = |text, run, store| {
 			var $trimming = True
 			while $trimming and $cluster > run.clusters.start() {
 				cluster = list_at(text.clusters, $cluster - 1)
-				space = cluster.source.utf8_bytes.length() == 1 and (match source.drop_first_bytes(base + cluster.source.utf8_bytes.start()) {
-					Ok(rest) => rest.starts_with(" ")
-					Err(_) => False
-				})
+				space = cluster.source.utf8_bytes.length() == 1 and (
+					match source.drop_first_bytes(base + cluster.source.utf8_bytes.start()) {
+						Ok(rest) => rest.starts_with(" ")
+						Err(_) => False
+					}
+				)
 				if space {
 					var $reference = cluster.glyphs.start()
 					while $reference < cluster.glyphs.start() + cluster.glyphs.length() {
