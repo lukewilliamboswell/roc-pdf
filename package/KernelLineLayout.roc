@@ -95,18 +95,42 @@ KernelLineLayout :: [].{
 	## Measure one logical request with the same boundary and advance
 	## validation as line selection, in O(clusters + boundaries).
 	measure_logical : List(KernelShape.SimpleSource), Text.Store, LogicalRunRequest, Limits -> Try({ measure : Measure, work : Work }, Error)
-	measure_logical = |sources, store, request, limits| measure_request(sources, store, request, limits)
+	measure_logical = |sources, store, request, limits| measure_request(sources, store, request, no_holds, limits)
+
+	## A hold is a scalar range of a request's source whose interior break
+	## opportunities are withheld: every `Allowed` boundary strictly inside
+	## it whose UAX #14 authority is `Tailorable` becomes `Prohibited`.
+	## Boundaries at its edges, mandatory boundaries, and non-tailorable
+	## ones are untouched. Holds are sorted by start and do not overlap.
+	## They are how the facade keeps a code span's words whole; the kernel
+	## gives them no other meaning.
+	Hold : { request : U64, scalars : Semantics.Range }
+
+	## `measure_logical` under the given holds (the `request` field of each
+	## is ignored).
+	measure_logical_held : List(KernelShape.SimpleSource), Text.Store, LogicalRunRequest, List(Hold), Limits -> Try({ measure : Measure, work : Work }, Error)
+	measure_logical_held = |sources, store, request, holds, limits| measure_request(sources, store, request, { holds, length: holds.len(), start: 0 }, limits)
 
 	BatchPlan :: { lines : List(Line), run_lines : List(Semantics.Range), work : BatchWork }.{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
 		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, limits)
 
-		## The ordered multi-face batch. The template cache stays keyed by the
-		## existing `BatchKey`: one policy per build makes the physical split
-		## of a source deterministic, so source, first-instance, size, and
-		## width remain a complete cache identity.
+		## The logical (rich paragraph and multi-face) batch. One interned
+		## source can be split differently by different occurrences (plain
+		## text beside the same text inside a strong run with its own face),
+		## so the template cache key is the source and width together with
+		## the exact sequence of the logical run's physical runs: each run's
+		## instance, size, and cluster count. A signature over that sequence
+		## narrows probes, and equal signatures are confirmed run by run.
 		build_logical : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), BatchLimits -> Try(BatchPlan, Error)
-		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, limits)
+		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, [], limits)
+
+		## `build_logical` with holds, sorted by request and then by start.
+		## A request with holds is laid out on its own: its template is
+		## neither found in nor added to the template cache, so it never
+		## shares lines with an equal request that has none.
+		build_logical_held : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), BatchLimits -> Try(BatchPlan, Error)
+		build_logical_held = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, limits)
 
 		lines : BatchPlan -> List(Line)
 		lines = |plan| plan.lines
@@ -143,7 +167,15 @@ KernelLineLayout :: [].{
 	}
 }
 
-BatchKey := { instance : U64, size : I64, source : U64, width : I64 }
+BatchKey := { instance : U64, size : I64, source : U64, width : I64 }.{
+	is_eq : _
+}
+
+## The logical batch key: the source and width, the signature over the
+## physical-run sequence (which covers each run's instance and size), and
+## the first run and run count of the logical run that defines the split.
+## It stays four words, the size of `BatchKey`.
+LogicalKey := { run_count : U32, run_start : U64, signature : U64, source : U32, width : I64 }
 
 Template := { cluster_length : U64, cluster_start : U64, lines : Semantics.Range }
 
@@ -182,10 +214,10 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 		run = list_at(store.runs, $run_index)
 		source_index = request.source.index()
 		same_occurrence = match run.unicode {
-			OccurrenceText(occurrence) => occurrence.index() == shape_request.occurrence.index()
+			OccurrenceText(occurrence) => occurrence == shape_request.occurrence
 			ArtifactText(_) => False
 		}
-		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size.raw() != run.size.raw() or request.width.raw() <= 0 {
+		if source_index >= sources.len() or shape_request.source.index() != source_index or !same_occurrence or shape_request.size != run.size or request.width <= 0 {
 			return Err(InvalidRun({ run: $run_index }))
 		}
 		key = { instance: run.instance.index(), size: run.size.raw(), source: source_index, width: request.width.raw() }
@@ -194,7 +226,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 		if $previous_template != empty_slot {
 			$key_probes = checked_add($key_probes, 1)?
 			check_limit($key_probes, limits.max_key_probes, KeyProbes)?
-			if key_equal(key, list_at($keys, $previous_template)) {
+			if key == list_at($keys, $previous_template) {
 				$template_index = $previous_template
 				$cache_hits = checked_add($cache_hits, 1)?
 			}
@@ -209,7 +241,7 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 				candidate = list_at($slots, slot_index)
 				if candidate == empty_slot {
 					$insertion_slot = slot_index
-				} else if key_equal(key, list_at($keys, candidate)) {
+				} else if key == list_at($keys, candidate) {
 					$template_index = candidate
 					$cache_hits = checked_add($cache_hits, 1)?
 				}
@@ -315,10 +347,10 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 
 ## The merged dense-store bounds and identity facts of one logical request's
 ## adjacent physical runs, proven contiguous before any measurement.
-LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, size : I64 }
+LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, signature : U64, size : I64 }
 
-build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
-build_logical_batch = |sources, store, requests, limits| {
+build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), List(KernelLineLayout.Hold), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
+build_logical_batch = |sources, store, requests, holds, limits| {
 	if requests.len() == 0 or store.runs.len() == 0 {
 		return Err(InvalidAnalysis)
 	}
@@ -339,28 +371,39 @@ build_logical_batch = |sources, store, requests, limits| {
 	var $key_probes = 0
 	var $run_cursor = 0
 	var $previous_template = empty_slot
+	var $hold_cursor = 0
 	var $request_index = 0
 	while $request_index < requests.len() {
 		request = list_at(requests, $request_index)
 		source_index = request.source.index()
-		if source_index >= sources.len() or request.width.raw() <= 0 {
+
+		## This request's holds, if any: a held request bypasses the cache.
+		hold_start = $hold_cursor
+		while $hold_cursor < holds.len() and list_at(holds, $hold_cursor).request == $request_index {
+			$hold_cursor = $hold_cursor + 1
+		}
+		held = $hold_cursor > hold_start
+		if source_index >= sources.len() or request.width <= 0 {
 			return Err(InvalidRun({ run: $request_index }))
 		}
 		logical = logical_bounds(store, request.runs, $run_cursor)?
 		$run_cursor = range_end(request.runs)?
-		key = { instance: logical.instance, size: logical.size, source: source_index, width: request.width.raw() }
+		if source_index > u32_max or request.runs.length() > u32_max {
+			return Err(InvalidRun({ run: $request_index }))
+		}
+		key = { run_count: request.runs.length().to_u32_wrap(), run_start: request.runs.start(), signature: logical.signature, source: source_index.to_u32_wrap(), width: request.width.raw() }
 		var $template_index = empty_slot
 		var $insertion_slot = empty_slot
-		if $previous_template != empty_slot {
+		if $previous_template != empty_slot and !held {
 			$key_probes = checked_add($key_probes, 1)?
 			check_limit($key_probes, limits.max_key_probes, KeyProbes)?
-			if key_equal(key, list_at($keys, $previous_template)) {
+			if logical_key_equal(store, key, list_at($keys, $previous_template)) {
 				$template_index = $previous_template
 				$cache_hits = checked_add($cache_hits, 1)?
 			}
 		}
-		if $template_index == empty_slot {
-			hashed = hash_key(key)
+		if $template_index == empty_slot and !held {
+			hashed = hash_logical_key(key, logical.instance, logical.size)
 			var $probe = 0
 			while $probe < capacity and $template_index == empty_slot and $insertion_slot == empty_slot {
 				$key_probes = checked_add($key_probes, 1)?
@@ -369,7 +412,7 @@ build_logical_batch = |sources, store, requests, limits| {
 				candidate = list_at($slots, slot_index)
 				if candidate == empty_slot {
 					$insertion_slot = slot_index
-				} else if key_equal(key, list_at($keys, candidate)) {
+				} else if logical_key_equal(store, key, list_at($keys, candidate)) {
 					$template_index = candidate
 					$cache_hits = checked_add($cache_hits, 1)?
 				}
@@ -384,7 +427,7 @@ build_logical_batch = |sources, store, requests, limits| {
 			check_limit(template_count, limits.max_templates, Templates)?
 			source = list_at(sources, source_index)
 			bounds = logical.bounds
-			selected = build_range(source.analysis, store, bounds, request.width, limits.line)?
+			selected = build_range(source.analysis, store, bounds, request.width, { holds, length: $hold_cursor - hold_start, start: hold_start }, limits.line)?
 			if selected.work.glyph_index_visits != logical.glyph_length {
 				return Err(InvalidRun({ run: $request_index }))
 			}
@@ -396,7 +439,9 @@ build_logical_batch = |sources, store, requests, limits| {
 			}
 			$template_index = $templates.len()
 			$keys = $keys.append(key)
-			$slots = list_set($slots, $insertion_slot, $template_index)
+			if !held {
+				$slots = list_set($slots, $insertion_slot, $template_index)
+			}
 			$templates = $templates.append({
 				cluster_length: bounds.cluster_end - bounds.cluster_start,
 				cluster_start: bounds.cluster_start,
@@ -415,8 +460,11 @@ build_logical_batch = |sources, store, requests, limits| {
 			Err(OutOfBounds) => return Err(InvalidRun({ run: $request_index }))
 			Ok(updated) => updated
 		}
-		$previous_template = $template_index
+		$previous_template = if held empty_slot else $template_index
 		$request_index = $request_index + 1
+	}
+	if $hold_cursor != holds.len() {
+		return Err(InvalidAnalysis)
 	}
 	if $run_cursor != store.runs.len() {
 		return Err(InvalidAnalysis)
@@ -480,11 +528,13 @@ build_logical_batch = |sources, store, requests, limits| {
 	)
 }
 
-## Validates one logical request's physical runs: dense IDs, adjacency of
-## cluster and glyph ranges, and one size over one contiguous source span.
+## Validates one logical request's physical runs: dense IDs and adjacency of
+## cluster and glyph ranges over one contiguous source span. Runs may differ
+## in size (a scaled inline role); their advances already carry it, and the
+## template key's run signature includes every run's size.
 ## A rich paragraph's adjacent runs belong to different occurrences of the
-## same source; line selection depends only on clusters, advances, and the
-## shared size, so occurrence identity is not a line-layout fact. The
+## same source; line selection depends only on clusters and advances, so
+## occurrence identity is not a line-layout fact. The
 ## returned merged bounds cover the whole logical range.
 logical_bounds : Text.Store, Semantics.Range, U64 -> Try(LogicalBounds, KernelLineLayout.Error)
 logical_bounds = |store, run_range, expected_start| {
@@ -503,29 +553,32 @@ logical_bounds = |store, run_range, expected_start| {
 	var $cluster_end = first_cluster_end
 	var $glyph_end = first_glyph_end
 	var $glyph_length = first.glyphs.length()
+	var $signature = run_signature(14695981039346656037, first)
 	var $index = run_start + 1
 	while $index < run_end {
 		run = list_at(store.runs, $index)
 		cluster_end = range_end(run.clusters)?
 		glyph_end = range_end(run.glyphs)?
-		if run.id.index() != $index or run.clusters.length() == 0 or run.glyphs.length() == 0 or run.clusters.start() != $cluster_end or run.glyphs.start() != $glyph_end or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() or run.size.raw() != first.size.raw() {
+		if run.id.index() != $index or run.clusters.length() == 0 or run.glyphs.length() == 0 or run.clusters.start() != $cluster_end or run.glyphs.start() != $glyph_end or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() {
 			return Err(InvalidRun({ run: $index }))
 		}
 		$cluster_end = cluster_end
 		$glyph_end = glyph_end
 		$glyph_length = checked_add($glyph_length, run.glyphs.length())?
+		$signature = run_signature($signature, run)
 		$index = $index + 1
 	}
 	Ok({
 		bounds: { cluster_end: $cluster_end, cluster_start: first.clusters.start(), glyph_end: $glyph_end, glyph_start: first.glyphs.start() },
 		glyph_length: $glyph_length,
 		instance: first.instance.index(),
+		signature: $signature,
 		size: first.size.raw(),
 	})
 }
 
-measure_request : List(KernelShape.SimpleSource), Text.Store, KernelLineLayout.LogicalRunRequest, KernelLineLayout.Limits -> Try({ measure : KernelLineLayout.Measure, work : KernelLineLayout.Work }, KernelLineLayout.Error)
-measure_request = |sources, store, request, limits| {
+measure_request : List(KernelShape.SimpleSource), Text.Store, KernelLineLayout.LogicalRunRequest, HeldRange, KernelLineLayout.Limits -> Try({ measure : KernelLineLayout.Measure, work : KernelLineLayout.Work }, KernelLineLayout.Error)
+measure_request = |sources, store, request, holds, limits| {
 	source_index = request.source.index()
 	if source_index >= sources.len() {
 		return Err(InvalidRun({ run: request.runs.start() }))
@@ -555,8 +608,9 @@ measure_request = |sources, store, request, limits| {
 	var $candidate = cluster_start + 1
 	while $candidate <= cluster_end {
 		cluster = list_at(store.clusters, $candidate - 1)
-		boundary = list_at(analysis.line_boundaries, range_end(cluster.source.scalars)?)
-		match boundary.decision {
+		boundary_index = range_end(cluster.source.scalars)?
+		boundary = list_at(analysis.line_boundaries, boundary_index)
+		match held_decision(boundary, boundary_index, holds) {
 			Prohibited => {}
 			decision => {
 				piece = list_at(measure.prefix, $candidate - cluster_start) - list_at(measure.prefix, $piece_start - cluster_start)
@@ -588,8 +642,40 @@ measure_request = |sources, store, request, limits| {
 	})
 }
 
-key_equal : BatchKey, BatchKey -> Bool
-key_equal = |left, right| left.instance == right.instance and left.size == right.size and left.source == right.source and left.width == right.width
+## One physical run's contribution to a logical key: the facts that decide
+## its advances (instance and size) and its extent (cluster count).
+run_signature : U64, Text.Run -> U64
+run_signature = |hash, run| mix_hash(mix_hash(mix_hash(hash, run.instance.index()), run.size.raw().to_u64_wrap()), run.clusters.length())
+
+## Equal logical keys: the scalar fields and signature, then the physical
+## runs compared one by one, so a signature collision never shares lines.
+logical_key_equal : Text.Store, LogicalKey, LogicalKey -> Bool
+logical_key_equal = |store, left, right| {
+	if left.source != right.source or left.width != right.width or left.signature != right.signature or left.run_count != right.run_count {
+		return False
+	}
+	var $index = 0
+	while $index < left.run_count.to_u64() {
+		a = list_at(store.runs, left.run_start + $index)
+		b = list_at(store.runs, right.run_start + $index)
+		if a.instance != b.instance or a.size != b.size or a.clusters.length() != b.clusters.length() {
+			return False
+		}
+		$index = $index + 1
+	}
+	True
+}
+
+## The probe hash of the base fields only, exactly as `hash_key`: splits
+## that agree on them share a probe sequence and are told apart by
+## `logical_key_equal`, so documents with one split per source probe as
+## before.
+## The probe hash over the same fields, in the same order, as `hash_key`
+## hashed a logical run's first instance and size: documents with one split
+## per source probe exactly as before, and differing splits are told apart
+## by `logical_key_equal`.
+hash_logical_key : LogicalKey, U64, I64 -> U64
+hash_logical_key = |key, instance, size| hash_key({ instance, size, source: key.source.to_u64(), width: key.width })
 
 hash_key : BatchKey -> U64
 hash_key = |key| {
@@ -619,7 +705,7 @@ table_capacity = |requests, limit| {
 }
 
 build_plan : KernelUnicode.UnicodeAnalysis, Text.Store, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
-build_plan = |analysis, store, width, limits| build_range(analysis, store, { cluster_end: store.clusters.len(), cluster_start: 0, glyph_end: store.glyphs.len(), glyph_start: 0 }, width, limits)
+build_plan = |analysis, store, width, limits| build_range(analysis, store, { cluster_end: store.clusters.len(), cluster_start: 0, glyph_end: store.glyphs.len(), glyph_start: 0 }, width, no_holds, limits)
 
 build_run_plan : KernelUnicode.UnicodeAnalysis, Text.Store, Text.RunId, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
 build_run_plan = |analysis, store, run_id, width, limits| {
@@ -633,7 +719,7 @@ build_run_plan = |analysis, store, run_id, width, limits| {
 	if run.id.index() != run_index or run.clusters.length() == 0 or run.glyphs.length() == 0 or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() {
 		return Err(InvalidRun({ run: run_index }))
 	}
-	plan = build_range(analysis, store, { cluster_end, cluster_start: run.clusters.start(), glyph_end, glyph_start: run.glyphs.start() }, width, limits)?
+	plan = build_range(analysis, store, { cluster_end, cluster_start: run.clusters.start(), glyph_end, glyph_start: run.glyphs.start() }, width, no_holds, limits)?
 	if plan.work.glyph_index_visits != run.glyphs.length() {
 		Err(InvalidRun({ run: run_index }))
 	} else {
@@ -641,8 +727,8 @@ build_run_plan = |analysis, store, run_id, width, limits| {
 	}
 }
 
-build_range : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, Layout.Unit, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
-build_range = |analysis, store, bounds, width, limits| {
+build_range : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, Layout.Unit, HeldRange, KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
+build_range = |analysis, store, bounds, width, holds, limits| {
 	cluster_start = bounds.cluster_start
 	cluster_end = bounds.cluster_end
 	glyph_start = bounds.glyph_start
@@ -680,6 +766,7 @@ build_range = |analysis, store, bounds, width, limits| {
 		cluster = list_at(store.clusters, $candidate - 1)
 		boundary_index = range_end(cluster.source.scalars)?
 		boundary = list_at(analysis.line_boundaries, boundary_index)
+		decision = held_decision(boundary, boundary_index, holds)
 		line_width = list_at(measure.prefix, $candidate - cluster_start) - list_at(measure.prefix, $line_start - cluster_start)
 		if line_width > max_width {
 			if $last_break == $line_start {
@@ -690,7 +777,7 @@ build_range = |analysis, store, bounds, width, limits| {
 			$candidate = $line_start + 1
 			$last_break = $line_start
 		} else {
-			match boundary.decision {
+			match decision {
 				Allowed => {
 					$last_break = $candidate
 					$candidate = $candidate + 1
@@ -721,6 +808,42 @@ build_range = |analysis, store, bounds, width, limits| {
 		},
 	)
 }
+
+## A boundary's decision under holds: an `Allowed`, `Tailorable` boundary
+## strictly inside a hold is `Prohibited`. Holds are sorted and disjoint,
+## so the last hold starting before the boundary is the only candidate;
+## a binary search finds it in O(log holds), and no hold costs nothing.
+held_decision : KernelUnicode.LineBoundary, U64, HeldRange -> [Allowed, Mandatory, Prohibited]
+held_decision = |boundary, index, held| match (boundary.decision, boundary.authority) {
+	(Allowed, Tailorable) => if held.length == 0 {
+		Allowed
+	} else {
+		var $low = held.start
+		var $high = held.start + held.length
+		while $low < $high {
+			middle = $low + ($high - $low) // 2
+			if list_at(held.holds, middle).scalars.start() < index {
+				$low = middle + 1
+			} else {
+				$high = middle
+			}
+		}
+		if $low == held.start {
+			Allowed
+		} else {
+			hold = list_at(held.holds, $low - 1).scalars
+			if index < hold.start() + hold.length() Prohibited else Allowed
+		}
+	}
+	(decision, _) => decision
+}
+
+## One request's holds: `length` holds of `holds` from `start`, borrowed
+## rather than copied out of the batch's list.
+HeldRange : { holds : List(KernelLineLayout.Hold), length : U64, start : U64 }
+
+no_holds : HeldRange
+no_holds = { holds: [], length: 0, start: 0 }
 
 validate_boundaries : List(KernelUnicode.LineBoundary), List(Text.Cluster), U64, U64, U64 -> Try({ visits : U64 }, KernelLineLayout.Error)
 validate_boundaries = |boundaries, clusters, cluster_start, cluster_end, scalars| {
@@ -942,8 +1065,8 @@ expect {
 	}
 }
 
-## An allowed scalar boundary inside one multi-scalar cluster is not silently
-## treated as a legal cluster break.
+# An allowed scalar boundary inside one multi-scalar cluster is not silently
+# treated as a legal cluster break.
 expect {
 	cluster = {
 		glyphs: Semantics.Range.from_start_and_length(0, 1),
@@ -967,9 +1090,9 @@ expect {
 	}
 }
 
-## Width facts: the widest piece between break opportunities is the
-## min-content width with its cluster range, and the whole line the
-## max-content width.
+# Width facts: the widest piece between break opportunities is the
+# min-content width with its cluster range, and the whole line the
+# max-content width.
 expect {
 	run = {
 		actual_text: FromOccurrence,
@@ -992,3 +1115,6 @@ expect {
 	measured = KernelLineLayout.measure_logical(sources, store, { runs: Semantics.Range.from_start_and_length(0, 1), source: Semantics.TextSourceId.from_index(0), width: Layout.Unit.from_raw(1) }, test_limits)?
 	measured.measure.max_content == 6000 and measured.measure.min_content == 2000 and measured.measure.token.start() == 0 and measured.measure.token.length() == 2
 }
+
+u32_max : U64
+u32_max = 4294967295

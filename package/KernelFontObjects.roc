@@ -7,9 +7,9 @@ KernelFontObjects :: [].{
 
 	FontObjects : { first : KernelObject.ObjectId, type0 : KernelObject.ObjectId }
 
-	## Planned object identities per Type 0 font: font file, its length, the
-	## descriptor, ToUnicode stream and length, CIDFont, widths, CMap-facing
-	## objects, and the Type 0 font itself.
+	## Planned object identities per Type 0 font: font file and its length,
+	## ToUnicode stream and its length, the descriptor, the CIDFont (whose
+	## CIDToGIDMap is the name /Identity), and the Type 0 font itself.
 	font_object_count : U64
 	font_object_count = objects_per_font
 
@@ -85,20 +85,20 @@ object_id = |number| match KernelObject.ObjectId.from_number(number) {
 }
 
 objects_per_font : U64
-objects_per_font = 9
+objects_per_font = 7
 
-## Font identities append after the complete tagged-visual plan and move only xref.
+# Font identities append after the complete tagged-visual plan and move only xref.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	base = pipeline.objects
-	plan = KernelFontObjects.Plan.build(base, 2, KernelObjectPlan.Plan.object_count(base) + 18)?
+	plan = KernelFontObjects.Plan.build(base, 2, KernelObjectPlan.Plan.object_count(base) + 14)?
 	first = list_at(KernelFontObjects.Plan.fonts(plan), 0)
 	second = list_at(KernelFontObjects.Plan.fonts(plan), 1)
 	KernelObject.ObjectId.number(first.first) == KernelObjectPlan.Plan.object_count(base) + 1 and
-		KernelObject.ObjectId.number(first.type0) == KernelObjectPlan.Plan.object_count(base) + 9 and
-			KernelObject.ObjectId.number(second.first) == KernelObjectPlan.Plan.object_count(base) + 10 and
-				KernelObject.ObjectId.number(second.type0) == KernelObjectPlan.Plan.object_count(base) + 18 and
-					KernelObject.ObjectId.number(KernelFontObjects.Plan.xref(plan)) == KernelObjectPlan.Plan.object_count(base) + 19
+		KernelObject.ObjectId.number(first.type0) == KernelObjectPlan.Plan.object_count(base) + 7 and
+			KernelObject.ObjectId.number(second.first) == KernelObjectPlan.Plan.object_count(base) + 8 and
+				KernelObject.ObjectId.number(second.type0) == KernelObjectPlan.Plan.object_count(base) + 14 and
+					KernelObject.ObjectId.number(KernelFontObjects.Plan.xref(plan)) == KernelObjectPlan.Plan.object_count(base) + 15
 }
 
 list_at : List(a), U64 -> a

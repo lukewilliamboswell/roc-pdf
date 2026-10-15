@@ -93,11 +93,11 @@ transform = |source, limits| {
 	source_bytes = source.count_utf8_bytes()
 	output_bytes = text.count_utf8_bytes()
 
-	## The facts must partition both sides exactly and in order: one input
-	## scalar each, contiguous input and output coordinates, and a length the
-	## declared shape allows. A gap, an overlap, or a shape whose lengths
-	## disagree means the mapping cannot be trusted to relate presentation
-	## back to source, so nothing is returned.
+	# The facts must partition both sides exactly and in order: one input
+	# scalar each, contiguous input and output coordinates, and a length the
+	# declared shape allows. A gap, an overlap, or a shape whose lengths
+	# disagree means the mapping cannot be trusted to relate presentation
+	# back to source, so nothing is returned.
 	var $projected = List.with_capacity(facts.len())
 	var $input_scalar_cursor = 0
 	var $input_byte_cursor = 0

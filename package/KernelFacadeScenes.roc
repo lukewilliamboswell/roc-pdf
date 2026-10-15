@@ -178,7 +178,7 @@ no_flow : KernelFacadePages.FlowPaints
 no_flow = { decorations: [], figure_scales: [], panels: [] }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], spacers: [], tables: [], templates: NoTemplates }
+empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [], templates: NoTemplates }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {
@@ -255,7 +255,7 @@ build_arena = |prepared, limits| build_arena_with_intent(
 
 build_arena_with_intent : InternalArenaPrepared, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Arena, KernelFacadeScenes.Error)
 build_arena_with_intent = |prepared, intent, limits| {
-	if prepared.page_size.width.raw() <= 0 or prepared.page_size.height.raw() <= 0 {
+	if prepared.page_size.width <= 0 or prepared.page_size.height <= 0 {
 		return Err(InvalidPageSize)
 	}
 	run_count = prepared.run_unicode.len()
@@ -332,7 +332,14 @@ build_arena_with_intent = |prepared, intent, limits| {
 		## first loop's exit state reached the second loop's entry through an
 		## aggregate that still held them (docs/performance/emission-linearity.md).
 		while ($panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index) or $placement_cursor < page_end or ($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index) or ($decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index) or ($paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index) {
-			if $panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index {
+			## A template region's backdrops paint first on their page,
+			## through the furniture branch below, behind everything else.
+			backdrop_ready = $paint_cursor < paint_count and list_at(furniture.paints, $paint_cursor).page == $page_index and list_at(furniture.paints, $paint_cursor).behind
+
+			## In-flow decorations that paint behind the text come next,
+			## through the decoration branch below.
+			behind_ready = !backdrop_ready and $decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index and list_at(prepared.flow.decorations, $decoration_cursor).behind
+			if !backdrop_ready and !behind_ready and $panel_cursor < panel_count and list_at(prepared.flow.panels, $panel_cursor).page == $page_index {
 				## A custom block's panel paints first on its page, behind
 				## the text it frames: one `Decoration` page-artifact group,
 				## a transform to its measured box's bottom-left corner
@@ -356,6 +363,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 				for drawing_command in panel.commands {
 					match drawing_command {
 						FlowImage(_) => {}
+						FlowText(_) => {}
 						FlowPath({ fill, segments, stroke }) => {
 							path = Scene.PathId.from_index($paths.len())
 							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
@@ -370,7 +378,10 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
 				$page_groups = $page_groups.append(group)
 				$panel_cursor = $panel_cursor + 1
-			} else if $placement_cursor < page_end {
+			} else if !backdrop_ready and !behind_ready and $placement_cursor < page_end and !($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index and list_at(prepared.rules, $rule_cursor).layer == Behind) {
+				## Table row and cell fills (`Behind` rules, first on their
+				## page) paint through the rule branch below before any of the
+				## page's text.
 				placement = list_at(prepared.placements, $placement_cursor)
 				if placement.page.index() != $page_index or placement.run.index() != $placement_cursor {
 					return Err(InvalidPlacement({ placement: $placement_cursor }))
@@ -465,6 +476,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 								FlowImage({ image, placement: image_placement }) => {
 									$commands = $commands.append(DrawImage({ image: Image.Id.from_index(figure_drawing.image_base + image), placement: image_placement }))
 								}
+								FlowText(_) => {}
 								FlowPath({ fill, segments, stroke }) => {
 									path = Scene.PathId.from_index($paths.len())
 									$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
@@ -514,9 +526,10 @@ build_arena_with_intent = |prepared, intent, limits| {
 				})
 				$page_groups = $page_groups.append(group)
 				$placement_cursor = $placement_cursor + 1
-			} else if $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
-				## Table rules paint after the page's text, each a filled rectangle
-				## owned by a layout decoration artifact.
+			} else if !backdrop_ready and !behind_ready and $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
+				## Table fills paint before the page's text and table rules and
+				## link underlines after it, each a filled rectangle owned by a
+				## layout decoration artifact.
 				rule = list_at(prepared.rules, $rule_cursor)
 				fill = match paint_color(rule.color, intent, use_srgb) {
 					Ok(value) => value
@@ -531,9 +544,9 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command, 1), id: group, owner: PageArtifact(Decoration) })
 				$page_groups = $page_groups.append(group)
 				$rule_cursor = $rule_cursor + 1
-			} else if $decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index {
+			} else if !backdrop_ready and $decoration_cursor < decoration_count and list_at(prepared.flow.decorations, $decoration_cursor).page == $page_index {
 				## In-flow decorations paint after the page's text and table
-				## rules, each one `Decoration` page-artifact group: a
+				## rules (those that paint behind, before them), each one `Decoration` page-artifact group: a
 				## transform to its bottom-left corner around its commands.
 				paint = list_at(prepared.flow.decorations, $decoration_cursor)
 				decoration = list_at(flow.decorations, paint.decoration)
@@ -556,6 +569,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 						FlowImage({ image, placement: image_placement }) => {
 							$commands = $commands.append(DrawImage({ image: Image.Id.from_index(decoration.image_base + image), placement: image_placement }))
 						}
+						FlowText(_) => {}
 						FlowPath({ fill, segments, stroke }) => {
 							path = Scene.PathId.from_index($paths.len())
 							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
@@ -571,7 +585,8 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$page_groups = $page_groups.append(group)
 				$decoration_cursor = $decoration_cursor + 1
 			} else {
-				## Furniture drawings paint last, each one page-artifact group:
+				## Furniture drawings paint last (region backdrops first), each
+				## one page-artifact group:
 				## a transform to its bottom-left corner around its images and
 				## paths in drawing-local geometry.
 				paint = list_at(furniture.paints, $paint_cursor)
@@ -754,7 +769,7 @@ flow_facts = |authoring, paints| {
 	var $segments = 0
 	var $nonblack = False
 	for figure in authoring.figures {
-		drawing = valid_flow_drawing(figure.drawing)?
+		drawing = without_labels(valid_flow_drawing(figure.drawing)?)
 		$figures = $figures.append({ commands: drawing.commands, image_base: $images.len() })
 		for image in drawing.images {
 			$images = $images.append(image)
@@ -766,7 +781,7 @@ flow_facts = |authoring, paints| {
 		$nonblack = $nonblack or counted.nonblack
 	}
 	for decoration in authoring.decorations {
-		drawing = valid_flow_drawing(decoration.drawing)?
+		drawing = without_labels(valid_flow_drawing(decoration.drawing)?)
 		$decorations = $decorations.append({ commands: drawing.commands, image_base: $images.len() })
 		for image in drawing.images {
 			$images = $images.append(image)
@@ -779,7 +794,7 @@ flow_facts = |authoring, paints| {
 	}
 	var $panels = List.with_capacity(authoring.customs.len())
 	for custom in authoring.customs {
-		drawing = valid_flow_drawing(custom.panel)?
+		drawing = without_labels(valid_flow_drawing(custom.panel)?)
 		if !drawing.images.is_empty() {
 			return Err(InvalidPlacement({ placement: 0 }))
 		}
@@ -791,6 +806,32 @@ flow_facts = |authoring, paints| {
 		$nonblack = $nonblack or counted.nonblack
 	}
 	Ok({ commands: $commands, decorations: $decorations, figures: $figures, images: $images, nonblack: $nonblack, panels: $panels, paths: $paths, segments: $segments })
+}
+
+## A drawing's paths and images: its text labels are artifact text runs,
+## shaped and placed by `KernelFacadeLabels` and painted with the page's
+## text. A drawing without labels keeps its command list as is.
+without_labels : Document.FlowDrawing -> Document.FlowDrawing
+without_labels = |drawing| {
+	labelled = drawing.commands.any(
+		|command| match command {
+			FlowText(_) => True
+			_ => False
+		},
+	)
+	if labelled {
+		{
+			..drawing,
+			commands: drawing.commands.keep_if(
+				|command| match command {
+					FlowText(_) => False
+					_ => True
+				},
+			),
+		}
+	} else {
+		drawing
+	}
 }
 
 valid_flow_drawing : Document.ValidatedDrawing -> Try(Document.FlowDrawing, KernelFacadeScenes.Error)
@@ -807,6 +848,7 @@ count_flow = |commands| {
 	for command in commands {
 		match command {
 			FlowImage(_) => {}
+			FlowText(_) => {}
 			FlowPath({ fill, segments, stroke }) => {
 				$paths = checked_add($paths, 1)?
 				$segments = checked_add($segments, segments.len())?
@@ -835,6 +877,7 @@ check_flow_colors = |authoring, intent, use_srgb| {
 			for command in value.commands {
 				match command {
 					FlowImage(_) => {}
+					FlowText(_) => {}
 					FlowPath({ fill, segments: _, stroke }) => {
 						_ = furniture_path_style(fill, stroke, intent, use_srgb)?
 					}

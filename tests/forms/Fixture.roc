@@ -472,7 +472,7 @@ run_scenario = |mode, scale| {
 		}
 		Ok({ bytes: built.bytes, work: work_vector(built) })
 	} else if mode == "dag" {
-		## Marker distinctness spans 10 columns by 15 exact eight-bit levels.
+		# Marker distinctness spans 10 columns by 15 exact eight-bit levels.
 		if scale < 1 or scale > 128 {
 			return Err(InvalidScale)
 		}
@@ -512,8 +512,8 @@ check_showcase_sharing = |built| {
 		return Err(SharingDiverged)
 	}
 
-	## Every semantic placement carries a distinct fragment and MCID, so no
-	## placement-specific association was merged by deduplication.
+	# Every semantic placement carries a distinct fragment and MCID, so no
+	# placement-specific association was merged by deduplication.
 	var $semantic_keys = []
 	var $index = 0
 	while $index < placements.len() {
@@ -581,8 +581,8 @@ showcase_scenario = |direction| {
 		rect(0, 0, 30000, 10000),
 	]
 
-	## The arena is written in dense-ID order, so the two directions place the
-	## same logical content at different arena offsets and dense IDs.
+	# The arena is written in dense-ID order, so the two directions place the
+	# same logical content at different arena offsets and dense IDs.
 	var $arena = []
 	var $forms = List.with_capacity(form_count)
 	var $dense_index = 0
@@ -667,7 +667,7 @@ showcase_scenario = |direction| {
 		form_store: { commands: $arena, forms: $forms },
 		images: image_sources,
 		scene,
-		semantics: build_semantics(5, [1, 0, 2, 3], Bool.True),
+		semantics: build_semantics(5, [1, 0, 2, 3], True),
 	}
 }
 
@@ -715,16 +715,16 @@ repeat_scenario = |scale| {
 		},
 		images: empty_image_sources,
 		scene,
-		semantics: build_semantics(1, [0], Bool.False),
+		semantics: build_semantics(1, [0], False),
 	}
 }
 
 dag_scenario : U64 -> Scenario
 dag_scenario = |scale| {
-	## Four shared base forms, then `scale` distinct parents that each place
-	## all four and additionally paint one parent-specific integer-position
-	## marker, so parents never deduplicate while every painted edge stays on
-	## an exact pixel boundary for the zero-tolerance renderer expectation.
+	# Four shared base forms, then `scale` distinct parents that each place
+	# all four and additionally paint one parent-specific integer-position
+	# marker, so parents never deduplicate while every painted edge stays on
+	# an exact pixel boundary for the zero-tolerance renderer expectation.
 	var $arena = []
 	var $forms = []
 	var $base = 0
@@ -809,14 +809,14 @@ dag_scenario = |scale| {
 		form_store: { commands: $arena, forms: $forms },
 		images: empty_image_sources,
 		scene,
-		semantics: build_semantics(1, [0], Bool.False),
+		semantics: build_semantics(1, [0], False),
 	}
 }
 
 deep_scenario : U64 -> Scenario
 deep_scenario = |scale| {
-	## A legal chain: form i places form i + 1 and paints its own small step;
-	## the last form paints only. The whole chain is placed once.
+	# A legal chain: form i places form i + 1 and paints its own small step;
+	# the last form paints only. The whole chain is placed once.
 	var $arena = []
 	var $forms = []
 	var $index = 0
@@ -866,7 +866,7 @@ deep_scenario = |scale| {
 		form_store: { commands: $arena, forms: $forms },
 		images: empty_image_sources,
 		scene,
-		semantics: build_semantics(1, [0], Bool.False),
+		semantics: build_semantics(1, [0], False),
 	}
 }
 
@@ -893,8 +893,8 @@ check_negatives = |context| {
 		1,
 		missing_form,
 		|error| match error {
-			IndexOutOfRange({ available: _, index: 7, kind: FormIndex }) => Bool.True
-			_ => Bool.False
+			IndexOutOfRange({ available: _, index: 7, kind: FormIndex }) => True
+			_ => False
 		},
 	)?
 
@@ -904,8 +904,8 @@ check_negatives = |context| {
 		2,
 		sparse,
 		|error| match error {
-			NonDenseIdentity({ actual: 3, expected: 0, kind: FormIndex }) => Bool.True
-			_ => Bool.False
+			NonDenseIdentity({ actual: 3, expected: 0, kind: FormIndex }) => True
+			_ => False
 		},
 	)?
 
@@ -915,8 +915,8 @@ check_negatives = |context| {
 		3,
 		empty_form,
 		|error| match error {
-			EmptyForm({ form: 0 }) => Bool.True
-			_ => Bool.False
+			EmptyForm({ form: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -926,8 +926,8 @@ check_negatives = |context| {
 		4,
 		escaping,
 		|error| match error {
-			SpanOutOfRange({ kind: FormCommandIndex, available: _, length: _, owner: _, start: _ }) => Bool.True
-			_ => Bool.False
+			SpanOutOfRange({ kind: FormCommandIndex, available: _, length: _, owner: _, start: _ }) => True
+			_ => False
 		},
 	)?
 
@@ -937,8 +937,8 @@ check_negatives = |context| {
 		5,
 		flat_box,
 		|error| match error {
-			NonPositiveRect({ index: 0, kind: FormIndex }) => Bool.True
-			_ => Bool.False
+			NonPositiveRect({ index: 0, kind: FormIndex }) => True
+			_ => False
 		},
 	)?
 
@@ -948,8 +948,8 @@ check_negatives = |context| {
 		6,
 		singular,
 		|error| match error {
-			FormTransformSingular({ command: 1 }) => Bool.True
-			_ => Bool.False
+			FormTransformSingular({ command: 1 }) => True
+			_ => False
 		},
 	)?
 
@@ -959,8 +959,8 @@ check_negatives = |context| {
 		7,
 		overflowing,
 		|error| match error {
-			ArithmeticOverflow => Bool.True
-			_ => Bool.False
+			ArithmeticOverflow => True
+			_ => False
 		},
 	)?
 
@@ -970,8 +970,8 @@ check_negatives = |context| {
 		8,
 		orphan_arena,
 		|error| match error {
-			Orphaned({ index: 1, kind: FormCommandIndex }) => Bool.True
-			_ => Bool.False
+			Orphaned({ index: 1, kind: FormCommandIndex }) => True
+			_ => False
 		},
 	)?
 
@@ -987,8 +987,8 @@ check_negatives = |context| {
 		9,
 		double_owned,
 		|error| match error {
-			DuplicateOwnership({ index: 0, kind: FormCommandIndex }) => Bool.True
-			_ => Bool.False
+			DuplicateOwnership({ index: 0, kind: FormCommandIndex }) => True
+			_ => False
 		},
 	)?
 
@@ -1000,8 +1000,8 @@ check_negatives = |context| {
 		10,
 		transparent,
 		|error| match error {
-			EmptyForm({ form: 0 }) => Bool.True
-			_ => Bool.False
+			EmptyForm({ form: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1011,8 +1011,8 @@ check_negatives = |context| {
 		base,
 		KernelScene.FormLimits.make({ max_form_commands: 65536, max_forms: 0 }),
 		|error| match error {
-			LimitExceeded({ attempted: 1, dimension: Forms, limit: 0 }) => Bool.True
-			_ => Bool.False
+			LimitExceeded({ attempted: 1, dimension: Forms, limit: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1022,8 +1022,8 @@ check_negatives = |context| {
 		base,
 		KernelScene.FormLimits.make({ max_form_commands: 0, max_forms: 4096 }),
 		|error| match error {
-			LimitExceeded({ attempted: 1, dimension: FormCommands, limit: 0 }) => Bool.True
-			_ => Bool.False
+			LimitExceeded({ attempted: 1, dimension: FormCommands, limit: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1050,8 +1050,8 @@ check_negatives = |context| {
 	})
 	scene_resources = KernelScene.Resources.with_forms({ color_spaces: 1, forms: 1, images: 0, text_runs: 0 })
 	depth_rejected = match KernelScene.FormPlan.build(nested_depth.scene, nested_depth.form_store, scene_resources, shallow, form_scene_limits) {
-		Err(LimitExceeded({ attempted: 3, dimension: GraphicsDepth, limit: 2 })) => Bool.True
-		_ => Bool.False
+		Err(LimitExceeded({ attempted: 3, dimension: GraphicsDepth, limit: 2 })) => True
+		_ => False
 	}
 	if !depth_rejected {
 		return Err(MissingRejection(13))
@@ -1069,8 +1069,8 @@ check_negatives = |context| {
 		14,
 		self_cycle,
 		|error| match error {
-			Graph(SelfCycle(_)) => Bool.True
-			_ => Bool.False
+			Graph(SelfCycle(_)) => True
+			_ => False
 		},
 	)?
 
@@ -1092,8 +1092,8 @@ check_negatives = |context| {
 		15,
 		two_cycle,
 		|error| match error {
-			Graph(DependencyCycle(_)) => Bool.True
-			_ => Bool.False
+			Graph(DependencyCycle(_)) => True
+			_ => False
 		},
 	)?
 
@@ -1109,8 +1109,8 @@ check_negatives = |context| {
 		16,
 		unplaced,
 		|error| match error {
-			Graph(UnreachableResource(_)) => Bool.True
-			_ => Bool.False
+			Graph(UnreachableResource(_)) => True
+			_ => False
 		},
 	)?
 
@@ -1129,8 +1129,8 @@ check_negatives = |context| {
 		},
 		graph_limits,
 	) {
-		Err(SemanticOwnershipMerge({ placement: 0, resource: 0 })) => Bool.True
-		_ => Bool.False
+		Err(SemanticOwnershipMerge({ placement: 0, resource: 0 })) => True
+		_ => False
 	}
 	if !merge_rejected {
 		return Err(MissingRejection(17))
@@ -1151,16 +1151,16 @@ check_negatives = |context| {
 		18,
 		duplicated_fragment,
 		|error| match error {
-			DuplicateFragmentOwnership({ fragment: 0 }) => Bool.True
-			_ => Bool.False
+			DuplicateFragmentOwnership({ fragment: 0 }) => True
+			_ => False
 		},
 	)?
 
 	## 19: content bytes exhausted by form streams, transactionally.
 	tight_content = KernelContent.Limits.make({ max_content_bytes: 64, max_content_streams: 1 })
 	content_rejected = match build_content(base, tight_content) {
-		Err(ContentFailure(LimitExceeded({ dimension: ContentBytes, attempted: _, limit: 64 }))) => Bool.True
-		_ => Bool.False
+		Err(ContentFailure(LimitExceeded({ dimension: ContentBytes, attempted: _, limit: 64 }))) => True
+		_ => False
 	}
 	if !content_rejected {
 		return Err(MissingRejection(19))
@@ -1168,8 +1168,8 @@ check_negatives = |context| {
 
 	## 20: the object budget cannot admit the planned form objects.
 	object_rejected = match build_objects(base, 5) {
-		Err(FormObjectFailure(LimitExceeded({ attempted: _, limit: 5 }))) => Bool.True
-		_ => Bool.False
+		Err(FormObjectFailure(LimitExceeded({ attempted: _, limit: 5 }))) => True
+		_ => False
 	}
 	if !object_rejected {
 		return Err(MissingRejection(20))
@@ -1177,8 +1177,8 @@ check_negatives = |context| {
 
 	## 21: the recipe byte budget is enforced before the canonical run.
 	recipe_rejected = match build_form_plan_with_limits(base, KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 8 })) {
-		Err(FormPlanFailure(RecipeByteLimitExceeded({ attempted: _, limit: 8 }))) => Bool.True
-		_ => Bool.False
+		Err(FormPlanFailure(RecipeByteLimitExceeded({ attempted: _, limit: 8 }))) => True
+		_ => False
 	}
 	if !recipe_rejected {
 		return Err(MissingRejection(21))
@@ -1188,8 +1188,8 @@ check_negatives = |context| {
 	## derived from; a color store with a different space count is rejected
 	## before any leaf identity exists.
 	mismatched_stores = match build_form_plan_with_mismatched_stores(base) {
-		Err(FormPlanFailure(StoreCountMismatch({ declared: 1, kind: ColorSpaces, supplied: 2 }))) => Bool.True
-		_ => Bool.False
+		Err(FormPlanFailure(StoreCountMismatch({ declared: 1, kind: ColorSpaces, supplied: 2 }))) => True
+		_ => False
 	}
 	if !mismatched_stores {
 		return Err(MissingRejection(22))
@@ -1376,32 +1376,32 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-## The showcase deduplicates nine authored forms into five physical ones while
-## keeping five distinct semantic placements and four artifact placements.
+# The showcase deduplicates nine authored forms into five physical ones while
+# keeping five distinct semantic placements and four artifact placements.
 expect {
 	result = Fixture.scenario("showcase", 0)?
 	result.work.get(0) == Ok(9) and result.work.get(1) == Ok(5) and result.work.get(2) == Ok(4) and result.work.get(3) == Ok(0) and result.work.get(5) == Ok(5) and result.work.get(6) == Ok(4)
 }
 
-## Repeated artifact placement shares one physical form at any scale.
+# Repeated artifact placement shares one physical form at any scale.
 expect {
 	result = Fixture.scenario("repeat", 5)?
 	result.work.get(1) == Ok(1) and result.work.get(4) == Ok(1) and result.work.get(6) == Ok(5)
 }
 
-## The nested DAG keeps exactly its direct edges and shared base forms.
+# The nested DAG keeps exactly its direct edges and shared base forms.
 expect {
 	result = Fixture.scenario("dag", 3)?
 	result.work.get(1) == Ok(7) and result.work.get(9) == Ok(12)
 }
 
-## A deep legal chain plans iteratively without recursion.
+# A deep legal chain plans iteratively without recursion.
 expect {
 	result = Fixture.scenario("deep", 8)?
 	result.work.get(1) == Ok(8) and result.work.get(9) == Ok(7)
 }
 
-## Every negative twin is rejected and no plan escapes.
+# Every negative twin is rejected and no plan escapes.
 expect {
 	result = Fixture.atomic_negatives(1)?
 	result.work.get(0) == Ok(22) and result.work.get(1) == Ok(0)

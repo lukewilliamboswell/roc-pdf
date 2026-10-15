@@ -10,13 +10,18 @@ import tempfile
 from pathlib import Path
 
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "actual_text" / "soft_hyphen.pdf"
 EXPECTED_TEXT = b"cooperate \n"
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -41,6 +46,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [656, 562, 571, 583, 600, 612, 376, 327, 460]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_MAPPINGS = {
     0x0001: (0x0061,),
     0x0002: (0x0063,),
@@ -80,7 +87,7 @@ def validate_soft_hyphen_pdf(pdf: bytes) -> None:
 
 
 def validate_actual_text_content(content: bytes, mappings: dict[int, tuple[int, ...]]) -> None:
-    shown = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", content)]
+    shown = shown_cids(content)
     require(all(cid in mappings for cid in shown), "soft-hyphen content shows an unmapped CID")
     direct = "".join(chr(scalar) for cid in shown for scalar in mappings[cid])
     require(direct == "co\u00adoperate", "soft-hyphen direct CMap extraction did not retain its original source scalar")
@@ -118,7 +125,7 @@ def self_test() -> None:
     validate_soft_hyphen_pdf(pdf)
     for index, mutation in enumerate((
         replace_once(pdf, b"<0008> <00AD>", b"<0008> <002D>"),
-        replace_once(pdf, b"/F1_0 20 0 R", b"/F1_0 19 0 R"),
+        replace_once(pdf, b"/F1_0 18 0 R", b"/F1_0 17 0 R"),
     )):
         try:
             validate_soft_hyphen_pdf(mutation)

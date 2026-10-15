@@ -302,8 +302,8 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 		fragment_start = $page_fragment_start
 		placement_start = $page_placement_start
 
-		## Materialize the accepted page once, from the page start to the
-		## chosen break, exactly as the scan measured it.
+		# Materialize the accepted page once, from the page start to the
+		# chosen break, exactly as the scan measured it.
 		var $used = nonnegative_raw(list_at(blocks, $block).lead)?
 		var $cursor_block = $block
 		var $cursor_line = $line
@@ -945,7 +945,7 @@ test_block = {
 	trailing: Layout.Unit.from_raw(0),
 }
 
-## Five lines split three/two without violating widow/orphan minima.
+# Five lines split three/two without violating widow/orphan minima.
 expect {
 	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 5) }
 	plan = KernelPageLayout.Plan.build([block], test_lines.take_first(5), test_constraints, test_limits)?
@@ -955,8 +955,8 @@ expect {
 	fragments.len() == 2 and pages.len() == 2 and placements.len() == 5 and list_at(fragments, 0).lines.length() == 3 and list_at(fragments, 1).lines.length() == 2 and list_at(placements, 0).baseline.y.raw() == 3200 and KernelPageLayout.Plan.relaxations(plan).is_empty()
 }
 
-## A preferred heading keep moves the heading to the next page with its
-## following paragraph's first two lines; nothing is relaxed.
+# A preferred heading keep moves the heading to the next page with its
+# following paragraph's first two lines; nothing is relaxed.
 expect {
 	blocks = [
 		{ ..test_block, lines: Semantics.Range.from_start_and_length(0, 2), policy: { ..test_policy, keep_together: True } },
@@ -969,9 +969,9 @@ expect {
 	pages.len() == 3 and list_at(fragments, 1).page.index() == 1 and list_at(fragments, 2).page.index() == 1 and KernelPageLayout.Plan.relaxations(plan).is_empty()
 }
 
-## A decoration band is part of its block's first placement unit: a block
-## whose band and first line do not fit below the previous block moves to
-## the next page with its band, which is recorded at that page's top.
+# A decoration band is part of its block's first placement unit: a block
+# whose band and first line do not fit below the previous block moves to
+# the next page with its band, which is recorded at that page's top.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -983,11 +983,11 @@ expect {
 	KernelPageLayout.Plan.pages(plan).len() == 2 and KernelPageLayout.Plan.bands(plan) == [{ block: 1, page: 1, top: 4000 }] and list_at(placements, 2).baseline.y.raw() == 1700
 }
 
-## Trailing height reserved below an unsplittable block's last line (a
-## custom block's bottom inset) counts toward its fit: with it the block
-## no longer fits below the first block and moves whole, and the next
-## block starts below the reservation. Only an unsplittable block may
-## reserve it.
+# Trailing height reserved below an unsplittable block's last line (a
+# custom block's bottom inset) counts toward its fit: with it the block
+# no longer fits below the first block and moves whole, and the next
+# block starts below the reservation. Only an unsplittable block may
+# reserve it.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -1005,8 +1005,8 @@ expect {
 	KernelPageLayout.Plan.pages(plan).len() == 2 and list_at(placements, 2).baseline.y.raw() == 3200 and list_at(placements, 3).baseline.y.raw() == 1200 and rejected
 }
 
-## A band that does not fit even on a fresh page with its line is an
-## oversize unit, never clipped.
+# A band that does not fit even on a fresh page with its line is an
+# oversize unit, never clipped.
 expect {
 	block = { ..test_block, decoration: Layout.Unit.from_raw(2500), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	match KernelPageLayout.Plan.build([block], test_lines.take_first(1), test_constraints, test_limits) {
@@ -1015,7 +1015,7 @@ expect {
 	}
 }
 
-## Break-before starts the next block on a new page even when space remains.
+# Break-before starts the next block on a new page even when space remains.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -1026,8 +1026,8 @@ expect {
 	KernelPageLayout.Plan.pages(plan).len() == 2
 }
 
-## An unsplittable block larger than the content box fails instead of
-## overflowing the page or silently dropping the policy.
+# An unsplittable block larger than the content box fails instead of
+# overflowing the page or silently dropping the policy.
 expect {
 	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 5), policy: { ..test_policy, keep_together: True } }
 	match KernelPageLayout.Plan.build([block], test_lines.take_first(5), test_constraints, test_limits) {
@@ -1036,7 +1036,7 @@ expect {
 	}
 }
 
-## A required keep followed by an explicit break is a conflict naming both.
+# A required keep followed by an explicit break is a conflict naming both.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -1049,8 +1049,8 @@ expect {
 	}
 }
 
-## A three-line paragraph with two lines left on the page moves whole: the
-## break before it satisfies every preference.
+# A three-line paragraph with two lines left on the page moves whole: the
+# break before it satisfies every preference.
 expect {
 	blocks = [
 		{ ..test_block, lines: Semantics.Range.from_start_and_length(0, 1), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } },
@@ -1061,9 +1061,9 @@ expect {
 	fragments.len() == 2 and list_at(fragments, 1).page.index() == 1 and list_at(fragments, 1).lines.length() == 3 and KernelPageLayout.Plan.relaxations(plan).is_empty()
 }
 
-## When no break satisfies every preference, the lexicographically best one
-## is chosen: a three-line paragraph on a two-line page keeps its orphan
-## minimum (R4) and relaxes the widow minimum (R5), which is recorded.
+# When no break satisfies every preference, the lexicographically best one
+# is chosen: a three-line paragraph on a two-line page keeps its orphan
+# minimum (R4) and relaxes the widow minimum (R5), which is recorded.
 expect {
 	small = { ..test_constraints, page: { height: Layout.Unit.from_raw(4000), width: Layout.Unit.from_raw(10000) } }
 	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 3) }
@@ -1073,9 +1073,9 @@ expect {
 	fragments.len() == 2 and list_at(fragments, 0).lines.length() == 2 and relaxations == [{ block: 0, page: 0, rank: Widow }]
 }
 
-## A preferred heading keep that cannot hold (the heading and the next
-## unsplittable block never share a page) is relaxed and reported rather
-## than rejected.
+# A preferred heading keep that cannot hold (the heading and the next
+# unsplittable block never share a page) is relaxed and reported rather
+# than rejected.
 expect {
 	blocks = [
 		{ ..test_block, policy: { ..test_policy, keep_together: True, keep_with_next: Preferred(HeadingKeep), minimum_first_lines: 1, minimum_last_lines: 1 } },
@@ -1085,8 +1085,8 @@ expect {
 	KernelPageLayout.Plan.pages(plan).len() == 2 and KernelPageLayout.Plan.relaxations(plan) == [{ block: 0, page: 0, rank: HeadingKeep }]
 }
 
-## A keep-together group moves whole to the next page, and a group taller
-## than a fresh page is a conflict naming the group.
+# A keep-together group moves whole to the next page, and a group taller
+# than a fresh page is a conflict naming the group.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -1104,7 +1104,7 @@ expect {
 	}
 }
 
-## An explicit break strictly inside a keep-together group conflicts.
+# An explicit break strictly inside a keep-together group conflicts.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -1117,7 +1117,7 @@ expect {
 	}
 }
 
-## A required keep chain taller than a fresh page conflicts statically.
+# A required keep chain taller than a fresh page conflicts statically.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -1130,9 +1130,9 @@ expect {
 	}
 }
 
-## A block's lead is reserved at the top of every page it starts or
-## continues on: the kept second block moves to page two below its lead,
-## and a kept block that cannot fit a fresh page with its lead is oversize.
+# A block's lead is reserved at the top of every page it starts or
+# continues on: the kept second block moves to page two below its lead,
+# and a kept block that cannot fit a fresh page with its lead is oversize.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -1149,9 +1149,9 @@ expect {
 	moved and oversize
 }
 
-## Page templates: the lead region receives its block on the first page at
-## its own top, the first page flows in its own frame below it, and later
-## pages flow in the continuation frame.
+# Page templates: the lead region receives its block on the first page at
+# its own top, the first page flows in its own frame below it, and later
+# pages flow in the continuation frame.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [
@@ -1175,8 +1175,8 @@ expect {
 	pages.len() == 3 and list_at(placements, 0).baseline.y.raw() == 2700 and list_at(placements, 1).baseline.y.raw() == 1200 and list_at(placements, 2).baseline.y.raw() == 2200 and list_at(fragments, 0).page.index() == 0 and list_at(fragments, 1).page.index() == 0 and list_at(fragments, 2).page.index() == 1
 }
 
-## Lead content taller than its region fails with both heights; it is
-## never split into the body flow.
+# Lead content taller than its region fails with both heights; it is
+# never split into the body flow.
 expect {
 	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	blocks = [

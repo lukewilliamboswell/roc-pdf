@@ -1,6 +1,6 @@
 app [main!] {
-	pf: platform "../platform/main.roc",
 	pdf: "../../package/main.roc",
+	pf: platform "../platform/main.roc",
 }
 
 import pdf.Document

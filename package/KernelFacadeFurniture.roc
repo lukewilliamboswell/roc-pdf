@@ -52,6 +52,9 @@ KernelFacadeFurniture :: [].{
 		## An inline other than text, a page field, or a reserved width.
 		FurnitureInline({ path : Str }),
 		GapNegative({ path : Str }),
+
+		## A region's slot inset is negative.
+		InsetNegative({ path : Str }),
 		InlineEmpty({ path : Str }),
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 
@@ -96,7 +99,9 @@ KernelFacadeFurniture :: [].{
 
 	## One painted drawing: its drawing, artifact kind, page, and the
 	## absolute position of its bottom-left corner.
-	DrawingPaint : { drawing : U64, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64 }
+	## `behind` marks a region backdrop, which paints before the page's
+	## other content; on each page the backdrops come first.
+	DrawingPaint : { behind : Bool, drawing : U64, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64 }
 
 	## One painted text piece: a contiguous cluster range of shaped furniture
 	## run `run`, its source range within that run's source, and its
@@ -188,7 +193,9 @@ FrameFacts : { left : U64, top : U64, width : U64 }
 
 TemplateKind : [ContinuationTemplate, FirstTemplate]
 
-Slot : [CenterSlot, EndSlot, StartSlot]
+## `BackdropSlot` is a region's backdrop: full frame width available, on
+## the region's bottom edge, outside the slots' overlap checks.
+Slot : [BackdropSlot, CenterSlot, EndSlot, StartSlot]
 
 ## One present header or footer region: its items (in slot order, each
 ## stack top to bottom), its offset below the body frame top, and height.
@@ -224,7 +231,7 @@ build_static = |authoring, theme, page_size| {
 		NoTemplates => return Err(BodyEmpty)
 		Templates(value) => value
 	}
-	margins = Theme.page_margin(theme)
+	margins = theme.page_margin
 	page_height = nonnegative(page_size.height)?
 	page_width = nonnegative(page_size.width)?
 	top_margin = nonnegative(margins.top)?
@@ -251,7 +258,7 @@ build_static = |authoring, theme, page_size| {
 	lead_height = match templates.lead {
 		NoLead => 0
 		Lead(height) => {
-			value = if height.raw() <= 0 0 else height.raw().to_u64_wrap()
+			value = if height <= 0 0 else height.raw().to_u64_wrap()
 			if value == 0 {
 				return Err(RegionEmpty({ path: "${first_path}.lead" }))
 			}
@@ -314,35 +321,76 @@ lead_block_end = |authoring| match authoring.groups.first() {
 }
 
 gap_of : Layout.Unit, Str -> Try(U64, KernelFacadeFurniture.Error)
-gap_of = |gap, path| if gap.raw() < 0 Err(GapNegative({ path: "${path}.gap" })) else Ok(gap.raw().to_u64_wrap())
+gap_of = |gap, path| if gap < 0 Err(GapNegative({ path: "${path}.gap" })) else Ok(gap.raw().to_u64_wrap())
 
 ## A present region reserves positive height and holds at least one item;
 ## `no_region` reserves nothing.
 region_height : Document.NormalizedRegion, Str -> Try(U64, KernelFacadeFurniture.Error)
 region_height = |region, path| match region {
 	NoRegion => Ok(0)
-	Region({ center, end, height, start }) => if height.raw() <= 0 or (center.is_empty() and end.is_empty() and start.is_empty()) Err(RegionEmpty({ path: path })) else Ok(height.raw().to_u64_wrap())
+	Region({ backdrop, center, end, height, inset: _, start }) => {
+		slotless = center.is_empty() and end.is_empty() and start.is_empty()
+		bare = match backdrop {
+			NoBackdrop => slotless
+			Backdrop(_) => False
+		}
+		if height <= 0 or bare Err(RegionEmpty({ path: path })) else Ok(height.raw().to_u64_wrap())
+	}
 }
 
 add_region : StaticState, Document.NormalizedRegion, { band : KernelFacadeFurniture.Band, kind : Scene.PageArtifactKind, path : Str, template : TemplateKind, top : U64 }, Theme.TextStyle -> Try(StaticState, KernelFacadeFurniture.Error)
 add_region = |state, region, at, style| match region {
 	NoRegion => Ok(state)
-	Region({ center, end, height, start }) => {
+	Region({ backdrop, center, end, height, inset, start }) => {
 		region_height_value = height.raw().to_u64_wrap()
+		if inset < 0 {
+			return Err(InsetNegative({ path: "${at.path}.inset" }))
+		}
+		slot_inset = inset.raw().to_u64_wrap()
 		first_item = state.items.len()
 		var $state = state
-		$state = add_slot($state, start, StartSlot, "${at.path}.start", { band: at.band, height: region_height_value, top: at.top }, style)?
-		$state = add_slot($state, center, CenterSlot, "${at.path}.center", { band: at.band, height: region_height_value, top: at.top }, style)?
-		$state = add_slot($state, end, EndSlot, "${at.path}.end", { band: at.band, height: region_height_value, top: at.top }, style)?
+		match backdrop {
+			NoBackdrop => {}
+			Backdrop(drawing) => {
+				$state = add_backdrop($state, drawing, "${at.path}.backdrop", { height: region_height_value, top: at.top })?
+			}
+		}
+		$state = add_slot($state, start, StartSlot, "${at.path}.start", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
+		$state = add_slot($state, center, CenterSlot, "${at.path}.center", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
+		$state = add_slot($state, end, EndSlot, "${at.path}.end", { band: at.band, height: region_height_value, inset: slot_inset, top: at.top }, style)?
 		region_record = { band: at.band, height: region_height_value, items: Semantics.Range.from_start_and_length(first_item, $state.items.len() - first_item), kind: at.kind, path: at.path, template: at.template, top: at.top }
 		Ok({ ..$state, regions: $state.regions.append(region_record) })
 	}
 }
 
+## A region's backdrop: one drawing item on the region's bottom edge, no
+## taller than the region; its width is proven against the frame when the
+## region is measured.
+add_backdrop : StaticState, Scene.Drawing, Str, { height : U64, top : U64 } -> Try(StaticState, KernelFacadeFurniture.Error)
+add_backdrop = |state, drawing, path, region| {
+	validated = validate_drawing(drawing, path, state.images.len())?
+	height = validated.drawing.height
+	if height > region.height {
+		return Err(RegionOverflow({ available: region.height, path, required: height }))
+	}
+	var $images = state.images
+	for image in validated.images {
+		$images = $images.append(image)
+	}
+	Ok({
+		drawings: state.drawings.append(validated.drawing),
+		images: $images,
+		items: state.items.append({ content: DrawingContent(state.drawings.len()), height, path, slot: BackdropSlot, top: region.top + region.height - height }),
+		regions: state.regions,
+		texts: state.texts,
+	})
+}
+
 ## One slot's stack: its items' heights must fit the region; a header's
 ## stack sits on the region's bottom edge and a footer's hangs from its top
-## edge, next to the body flow.
-add_slot : StaticState, List(Document.NormalizedFurniture), Slot, Str, { band : KernelFacadeFurniture.Band, height : U64, top : U64 }, Theme.TextStyle -> Try(StaticState, KernelFacadeFurniture.Error)
+## edge, next to the body flow, each moved `inset` inward, and the stack
+## and its inset together must fit the region.
+add_slot : StaticState, List(Document.NormalizedFurniture), Slot, Str, { band : KernelFacadeFurniture.Band, height : U64, inset : U64, top : U64 }, Theme.TextStyle -> Try(StaticState, KernelFacadeFurniture.Error)
 add_slot = |state, furniture, slot, path, region, style| {
 	if furniture.is_empty() {
 		return Ok(state)
@@ -373,12 +421,13 @@ add_slot = |state, furniture, slot, path, region, style| {
 		}
 		$index = $index + 1
 	}
-	if $stack > region.height {
-		return Err(RegionOverflow({ available: region.height, path, required: $stack }))
+	required = checked_add($stack, region.inset)?
+	if required > region.height {
+		return Err(RegionOverflow({ available: region.height, path, required }))
 	}
 	var $top = match region.band {
-		Above => checked_add(region.top, region.height - $stack)?
-		Below => region.top
+		Above => checked_add(region.top, region.height - required)?
+		Below => checked_add(region.top, region.inset)?
 	}
 	var $items = state.items
 	for content in $contents {
@@ -404,7 +453,7 @@ text_template = |inlines, path| {
 			BoxStart({ align, position, width }) => {
 				box_path = "${path}.inlines[${position.to_str()}]"
 				$open = OpenBox({ path: box_path, used: False })
-				$parts = $parts.append(BoxOpen({ align, path: box_path, width: if width.raw() <= 0 0 else width.raw().to_u64_wrap() }))
+				$parts = $parts.append(BoxOpen({ align, path: box_path, width: if width <= 0 0 else width.raw().to_u64_wrap() }))
 			}
 			BoxEnd => {
 				match $open {
@@ -451,8 +500,11 @@ furniture_path = |path, position, inner| match inner {
 
 ## A decorative drawing: at least one command; images with positive size
 ## and paths with a solid fill, a solid stroke of positive width, or both,
-## all at or beyond the drawing origin. Groups are not supported in
-## furniture. The drawing's extent is its commands' union from the origin.
+## all at or beyond the drawing origin. Groups from `Scene.Drawing.group`
+## are flattened here by their offsets, at most eight deep, exactly as in
+## a flow figure, so a mark can be reused; opacity, clip, soft-mask, and
+## transform groups are not supported. The drawing's extent is its
+## commands' union from the origin.
 validate_drawing : Scene.Drawing, Str, U64 -> Try({ drawing : KernelFacadeFurniture.Drawing, images : List(Image.Source) }, KernelFacadeFurniture.Error)
 validate_drawing = |drawing, path, image_base| {
 	commands = drawing.commands()
@@ -461,13 +513,26 @@ validate_drawing = |drawing, path, image_base| {
 	}
 	var $converted = List.with_capacity(commands.len())
 	var $images = []
+	var $groups = []
+	var $dx = 0
+	var $dy = 0
 	var $width = 0
 	var $height = 0
 	var $index = 0
 	while $index < commands.len() {
+		# Close every group that ends before this command.
+		if !$groups.is_empty() {
+			$groups = open_groups($groups, $index)
+			$dx = stack_offset($groups, X)
+			$dy = stack_offset($groups, Y)
+		}
 		match list_at(commands, $index) {
-			AuthorImage({ image, placement }) => {
-				if placement.size.width.raw() <= 0 or placement.size.height.raw() <= 0 or placement.origin.x.raw() < 0 or placement.origin.y.raw() < 0 {
+			AuthorImage({ image, placement: authored }) => {
+				if !within_bound(authored.origin.x.raw()) or !within_bound(authored.origin.y.raw()) or !within_bound(authored.size.width.raw()) or !within_bound(authored.size.height.raw()) {
+					return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
+				}
+				placement = { origin: { x: Layout.Unit.from_raw(authored.origin.x.raw() + $dx), y: Layout.Unit.from_raw(authored.origin.y.raw() + $dy) }, size: authored.size }
+				if placement.size.width <= 0 or placement.size.height <= 0 or placement.origin.x < 0 or placement.origin.y < 0 {
 					return Err(DrawingInvalid({ path, reason: "an image placement needs a positive size at or beyond the drawing origin" }))
 				}
 				$width = U64.max($width, (placement.origin.x.raw() + placement.size.width.raw()).to_u64_wrap())
@@ -475,7 +540,15 @@ validate_drawing = |drawing, path, image_base| {
 				$converted = $converted.append(DrawingImage({ image: image_base + $images.len(), placement }))
 				$images = $images.append(image)
 			}
-			AuthorPath({ path: segments, style }) => {
+			AuthorPath({ path: authored, style }) => {
+				segments = if $dx == 0 and $dy == 0 {
+					authored
+				} else {
+					match offset_segments(authored, $dx, $dy) {
+						Moved(moved) => moved
+						OutOfRange => return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
+					}
+				}
 				fill = match style.fill {
 					AuthorNoFill => NoFill
 					AuthorSolidFill(color) => Fill(color)
@@ -483,7 +556,7 @@ validate_drawing = |drawing, path, image_base| {
 				stroke = match style.stroke {
 					AuthorNoStroke => NoStroke
 					AuthorSolidStroke({ color, width }) => {
-						if width.raw() <= 0 {
+						if width <= 0 {
 							return Err(DrawingInvalid({ path, reason: "a stroke needs a positive width" }))
 						}
 						Stroke({ color, width })
@@ -505,7 +578,7 @@ validate_drawing = |drawing, path, image_base| {
 					NoPoints => return Err(DrawingInvalid({ path, reason: "a path needs at least one segment beginning with a move or a rectangle" }))
 					Bounds({ max_x, max_y, min_x, min_y }) => {
 						if min_x - half < 0 or min_y - half < 0 {
-							return Err(DrawingInvalid({ path, reason: "a path extends below or left of the drawing origin" }))
+							return Err(DrawingInvalid({ path, reason: origin_violation(segments, half, $index) }))
 						}
 						$width = U64.max($width, (max_x + half).to_u64_wrap())
 						$height = U64.max($height, (max_y + half).to_u64_wrap())
@@ -513,7 +586,22 @@ validate_drawing = |drawing, path, image_base| {
 				}
 				$converted = $converted.append(DrawingPath({ fill, segments, stroke }))
 			}
-			AuthorGroup(_) | AuthorTranslate(_) => return Err(DrawingInvalid({ path, reason: "grouped drawing commands are not supported in furniture" }))
+			AuthorTranslate({ commands: count, offset }) => {
+				if $groups.len() >= 8 {
+					return Err(DrawingInvalid({ path, reason: "groups nest more than 8 deep" }))
+				}
+				if count > commands.len() - $index - 1 {
+					return Err(DrawingInvalid({ path, reason: "a group extends past the drawing's last command" }))
+				}
+				if !within_bound(offset.x.raw()) or !within_bound(offset.y.raw()) {
+					return Err(DrawingInvalid({ path, reason: "a coordinate lies more than 10^9 pt from the drawing origin" }))
+				}
+				$groups = $groups.append({ end: $index + 1 + count, x: offset.x.raw(), y: offset.y.raw() })
+				$dx = $dx + offset.x.raw()
+				$dy = $dy + offset.y.raw()
+			}
+			AuthorGroup(_) => return Err(DrawingInvalid({ path, reason: "opacity, clip, soft-mask, and transform groups are not supported; group drawings with Scene.Drawing.group" }))
+			AuthorText(_) => return Err(DrawingInvalid({ path, reason: "text labels are not supported in furniture drawings; use furniture text" }))
 		}
 		$index = $index + 1
 	}
@@ -521,6 +609,132 @@ validate_drawing = |drawing, path, image_base| {
 		return Err(DrawingInvalid({ path, reason: "it has no positive extent" }))
 	}
 	Ok({ drawing: { commands: $converted, height: $height, width: $width }, images: $images })
+}
+
+## The group stack without the groups that end at or before `index`.
+open_groups : List({ end : U64, x : I64, y : I64 }), U64 -> List({ end : U64, x : I64, y : I64 })
+open_groups = |groups, index| {
+	var $open = groups.len()
+	while $open > 0 and list_at(groups, $open - 1).end <= index {
+		$open = $open - 1
+	}
+	groups.take_first($open)
+}
+
+## The accumulated offset of the open groups along one axis.
+stack_offset : List({ end : U64, x : I64, y : I64 }), [X, Y] -> I64
+stack_offset = |groups, axis| {
+	var $total = 0
+	for group in groups {
+		$total = $total + (if axis == X group.x else group.y)
+	}
+	$total
+}
+
+## A furniture path moved by an accumulated group offset. Every authored
+## coordinate must lie within 10^9 pt of the origin, as in a flow figure,
+## so no later arithmetic can overflow.
+offset_segments : List(Scene.PathSegment), I64, I64 -> [Moved(List(Scene.PathSegment)), OutOfRange]
+offset_segments = |segments, dx, dy| {
+	var $moved = List.with_capacity(segments.len())
+	for segment in segments {
+		in_range = match segment {
+			Close => True
+			CubicTo({ control_1, control_2, end }) => point_in_bound(control_1) and point_in_bound(control_2) and point_in_bound(end)
+			LineTo(point) | MoveTo(point) => point_in_bound(point)
+			Rectangle(rect) => point_in_bound(rect.origin) and within_bound(rect.size.width.raw()) and within_bound(rect.size.height.raw())
+		}
+		if !in_range {
+			return OutOfRange
+		}
+		$moved = $moved.append(
+			match segment {
+				Close => Close
+				CubicTo({ control_1, control_2, end }) => CubicTo({ control_1: shift_point(control_1, dx, dy), control_2: shift_point(control_2, dx, dy), end: shift_point(end, dx, dy) })
+				LineTo(point) => LineTo(shift_point(point, dx, dy))
+				MoveTo(point) => MoveTo(shift_point(point, dx, dy))
+				Rectangle(rect) => Rectangle({ origin: shift_point(rect.origin, dx, dy), size: rect.size })
+			},
+		)
+	}
+	Moved($moved)
+}
+
+point_in_bound : Layout.Point -> Bool
+point_in_bound = |point| within_bound(point.x.raw()) and within_bound(point.y.raw())
+
+shift_point : Layout.Point, I64, I64 -> Layout.Point
+shift_point = |point, dx, dy| { x: Layout.Unit.from_raw(point.x.raw() + dx), y: Layout.Unit.from_raw(point.y.raw() + dy) }
+
+## Drawing coordinates, sizes, and accumulated group offsets stay within
+## 10^9 pt of the origin (the flow figures' bound).
+within_bound : I64 -> Bool
+within_bound = |value| value <= 1000000000000 and value >= -1000000000000
+
+## Why a path's extent reaches below or left of the drawing origin, and
+## where, for its diagnostic: its own geometry (a move, line, curve end,
+## or rectangle corner), a Bézier control point (the extent is the
+## control-point hull, which contains the curve), or, when every point is
+## inside, its stroke's half-width. Coordinates are drawing-local, after
+## any group offsets. Only a rejected path reaches this.
+origin_violation : List(Scene.PathSegment), I64, U64 -> Str
+origin_violation = |segments, half, command| {
+	var $geometry = NoPoint
+	var $control = NoPoint
+	var $low_x = I64.highest
+	var $low_y = I64.highest
+	for segment in segments {
+		anchors = match segment {
+			Close => []
+			CubicTo({ end, .. }) => [end]
+			LineTo(point) | MoveTo(point) => [point]
+			Rectangle(rect) => [rect.origin, { x: Layout.Unit.from_raw(rect.origin.x.raw() + rect.size.width.raw()), y: Layout.Unit.from_raw(rect.origin.y.raw() + rect.size.height.raw()) }]
+		}
+		controls = match segment {
+			CubicTo({ control_1, control_2, .. }) => [control_1, control_2]
+			_ => []
+		}
+		for point in anchors {
+			$low_x = I64.min($low_x, point.x.raw())
+			$low_y = I64.min($low_y, point.y.raw())
+			if $geometry == NoPoint and (point.x < 0 or point.y < 0) {
+				$geometry = At(point.x.raw(), point.y.raw())
+			}
+		}
+		for point in controls {
+			if $control == NoPoint and (point.x < 0 or point.y < 0) {
+				$control = At(point.x.raw(), point.y.raw())
+			}
+		}
+	}
+	prefix = "command ${command.to_str()} (a path)"
+	match ($geometry, $control) {
+		(At(x, y), _) => "${prefix} has a point at (${signed_points(x)}, ${signed_points(y)}), below or left of the drawing origin"
+		(NoPoint, At(x, y)) => "${prefix} has a Bézier control point at (${signed_points(x)}, ${signed_points(y)}), below or left of the drawing origin; a path's extent includes its control points, so move the control point or the whole path"
+		(NoPoint, NoPoint) => "${prefix} lies inside the drawing, but its stroke's half-width of ${signed_points(half)} reaches (${signed_points($low_x - half)}, ${signed_points($low_y - half)}), below or left of the drawing origin; move the path in by at least half the stroke width"
+	}
+}
+
+## A signed millipoint length as points, such as `-3 pt` or `0.375 pt`.
+signed_points : I64 -> Str
+signed_points = |raw| {
+	magnitude = if raw < 0 (0 - raw).to_u64_wrap() else raw.to_u64_wrap()
+	sign = if raw < 0 "-" else ""
+	fraction = magnitude % 1000
+	if fraction == 0 {
+		"${sign}${(magnitude // 1000).to_str()} pt"
+	} else {
+		digits = (1000 + fraction).to_str()
+		var $trimmed = Str.to_utf8(digits).drop_first(1)
+		while $trimmed.last() == Ok('0') {
+			$trimmed = $trimmed.drop_last(1)
+		}
+		text = match Str.from_utf8($trimmed) {
+			Ok(value) => value
+			Err(_) => "0"
+		}
+		"${sign}${(magnitude // 1000).to_str()}.${text} pt"
+	}
 }
 
 ## The bounds of a path's points: control points included, so the extent
@@ -559,21 +773,13 @@ path_bounds = |segments| {
 ## Pass 2: resolve, shape, prove, and place.
 resolve_plan : KernelFacadeFurniture.Static, U64, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection)], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
 resolve_plan = |static, page_count, selection, language, source_base, limits| {
-	if !static.texts.is_empty() {
-		match selection {
-			PolicyFaces(_) => {}
-			SingleFace(_) => {
-				if static.style.font.index() != 0 {
-					return Err(UnsupportedThemeFace({ face: static.style.font.index() }))
-				}
-			}
-		}
-	}
+	## The single face is the theme's body face, which is the furniture
+	## style's face whatever its registry index.
 	check_limit(static.items.len(), limits.max_items, Items)?
 
-	## Resolve every text item on every page into its line string and
-	## segments. Static items resolve to the same string on every page and
-	## intern to one source.
+	# Resolve every text item on every page into its line string and
+	# segments. Static items resolve to the same string on every page and
+	# intern to one source.
 	var $inputs = []
 	var $pending = []
 	var $field_resolutions = 0
@@ -631,7 +837,7 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	run_sources = shaped.run_sources
 	store = { ..shaped.batch.store, runs: shaped.batch.store.runs.map(|run| { ..run, unicode: ArtifactText(Semantics.TextSourceId.from_index(source_base + (if run_sources.is_empty() run.id.index() else list_at(run_sources, run.id.index())))) }) }
 
-	## Prove fits and place every piece and drawing, page by page.
+	# Prove fits and place every piece and drawing, page by page.
 	var $pieces = []
 	var $drawing_paints = []
 	var $cursor = 0
@@ -655,7 +861,7 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	check_limit($pieces.len(), limits.max_pieces, Pieces)?
 	Ok(
 		KernelFacadeFurniture.Plan.{
-			drawing_paints: $drawing_paints,
+			drawing_paints: backdrops_first($drawing_paints),
 			drawings: static.drawings,
 			extra_fonts: shaped.extra_fonts,
 			images: static.images,
@@ -672,6 +878,43 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 			},
 		},
 	)
+}
+
+## Page-ordered drawing paints with each page's backdrops moved before its
+## other drawings, keeping both orders; a list without backdrops is
+## returned as is.
+backdrops_first : List(KernelFacadeFurniture.DrawingPaint) -> List(KernelFacadeFurniture.DrawingPaint)
+backdrops_first = |paints| {
+	if !paints.any(|paint| paint.behind) {
+		return paints
+	}
+	var $ordered = List.with_capacity(paints.len())
+	var $start = 0
+	while $start < paints.len() {
+		page = list_at(paints, $start).page
+		var $end = $start
+		while $end < paints.len() and list_at(paints, $end).page == page {
+			$end = $end + 1
+		}
+		var $index = $start
+		while $index < $end {
+			paint = list_at(paints, $index)
+			if paint.behind {
+				$ordered = $ordered.append(paint)
+			}
+			$index = $index + 1
+		}
+		$index = $start
+		while $index < $end {
+			paint = list_at(paints, $index)
+			if !paint.behind {
+				$ordered = $ordered.append(paint)
+			}
+			$index = $index + 1
+		}
+		$start = $end
+	}
+	$ordered
 }
 
 empty_store : Text.Store
@@ -800,8 +1043,8 @@ measure_region = |static, store, source_runs, input_sources, pending, cursor, re
 		$item = $item + 1
 	}
 
-	## Slot extents from the frame's start edge; slots may touch but never
-	## overlap.
+	# Slot extents from the frame's start edge; slots may touch but never
+	# overlap.
 	var $start = 0
 	var $center = 0
 	var $end = 0
@@ -809,6 +1052,7 @@ measure_region = |static, store, source_runs, input_sources, pending, cursor, re
 	while $offset < $widths.len() {
 		item_width = list_at($widths, $offset)
 		match list_at(static.items, region.items.start() + $offset).slot {
+			BackdropSlot => {}
 			StartSlot => {
 				$start = U64.max($start, item_width)
 			}
@@ -895,6 +1139,7 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 		x = checked_add(
 			frame.left,
 			match record.slot {
+				BackdropSlot => 0
 				StartSlot => 0
 				CenterSlot => (frame.width - item_width) // 2
 				EndSlot => frame.width - item_width
@@ -904,7 +1149,7 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 		match record.content {
 			DrawingContent(drawing) => {
 				bottom = checked_sub(top_y, record.height)?
-				$drawing_paints = $drawing_paints.append({ drawing, kind: region.kind, origin: point(x, bottom), page })
+				$drawing_paints = $drawing_paints.append({ behind: record.slot == BackdropSlot, drawing, kind: region.kind, origin: point(x, bottom), page })
 			}
 			TextContent(text_index) => {
 				entry = list_at(pending, $cursor)
@@ -927,8 +1172,8 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 						)?
 					}
 
-					## One piece per run the segment covers, in order, each at
-					## the advance of the pieces before it.
+					# One piece per run the segment covers, in order, each at
+					# the advance of the pieces before it.
 					var $piece_x = origin_x
 					var $run_index = runs.start()
 					while $run_index < runs.start() + runs.length() {
@@ -1048,7 +1293,7 @@ face_position : List(Font.FaceId), Font.FaceId -> U64
 face_position = |faces, face| {
 	var $index = 0
 	while $index < faces.len() {
-		if list_at(faces, $index).index() == face.index() {
+		if list_at(faces, $index) == face {
 			return $index
 		}
 		$index = $index + 1
@@ -1075,7 +1320,7 @@ furniture_text_error = |error, path| match error {
 	UndeclaredScript({ script, source: _ }) => FurnitureText({ path, reason: Script(script) })
 	FontSelectionRejected(errors) => match errors.first() {
 		Ok(MissingCoverage(_)) => FurnitureText({ path, reason: Coverage })
-		Ok(UnsupportedBuiltInShaping({ cluster: _, script })) => FurnitureText({ path, reason: Script(script.as_str()) })
+		Ok(UnsupportedBuiltInShaping({ cluster: _, script })) => FurnitureText({ path, reason: Script(script.to_str()) })
 		_ => Selection(error)
 	}
 	_ => Selection(error)
@@ -1151,7 +1396,7 @@ unit : U64 -> Layout.Unit
 unit = |value| Layout.Unit.from_raw(value.to_i64_wrap())
 
 nonnegative : Layout.Unit -> Try(U64, KernelFacadeFurniture.Error)
-nonnegative = |value| if value.raw() < 0 Err(ArithmeticOverflow) else Ok(value.raw().to_u64_wrap())
+nonnegative = |value| if value < 0 Err(ArithmeticOverflow) else Ok(value.raw().to_u64_wrap())
 
 check_limit : U64, U64, KernelFacadeFurniture.Dimension -> Try({}, KernelFacadeFurniture.Error)
 check_limit = |attempted, limit, dimension| if attempted > limit Err(LimitExceeded({ attempted, dimension, limit })) else Ok({})

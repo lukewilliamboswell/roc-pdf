@@ -6,8 +6,9 @@ import KernelResourceGraph
 
 ## Canonical font-leaf identity.
 ##
-## One emitted Type 0 bundle (FontFile2 subset program, identity CIDToGIDMap,
-## ToUnicode CMap, descriptor, CIDFontType2 descendant, and Type 0 parent) is
+## One emitted Type 0 bundle (FontFile2 subset program, ToUnicode CMap,
+## descriptor, CIDFontType2 descendant with `/CIDToGIDMap /Identity`, and
+## Type 0 parent) is
 ## one inseparable canonical resource. Its identity payload is a typed recipe,
 ## bijective with the emitted bundle: every emitted dictionary fact serialized
 ## in its exact emitted form, followed by the exact sanitized subset-program
@@ -19,8 +20,8 @@ import KernelResourceGraph
 ## Facts that are constants of the one emission site are not serialized and
 ## cannot differ between two bundles that reach emission: Identity-H encoding,
 ## horizontal writing mode, CIDSystemInfo Adobe-Identity-0, `/DW 1000`, the
-## `/W [0 [...]]` array shape, the unfiltered FontFile2 with `/Length1`, and
-## the fixed ToUnicode header/footer/blocking. Embedding-permission and
+## `/W [0 [...]]` array shape, the FlateDecode FontFile2 with `/Length1`,
+## the `/Identity` CIDToGIDMap, and the fixed ToUnicode header/footer/blocking. Embedding-permission and
 ## hinting differences live inside the sanitized program's retained tables,
 ## so they are inside the recipe's subset bytes.
 ##
@@ -157,8 +158,8 @@ build_leaf = |bundle| {
 	$recipe = append_i64_bytes($recipe, scaled_signed(bundle.font.metrics.y_max, units_per_em)?)
 
 	## The width table: per CID the exact emitted `/W` integer and the
-	## content flag. The entry count also commits the identity CIDToGIDMap
-	## stream, because CID = subset glyph ID is validated below.
+	## content flag. The entry count also commits the `/Identity`
+	## CIDToGIDMap, because CID = subset glyph ID is validated below.
 	$recipe = append_u64_bytes($recipe, bundle.plan.entries.len())
 	var $entry_index = 0
 	while $entry_index < bundle.plan.entries.len() {
@@ -267,14 +268,14 @@ validate_mappings = |plan, mappings| {
 valid_subset_tag : List(U8) -> Bool
 valid_subset_tag = |prefix| {
 	if prefix.len() != 6 {
-		return Bool.False
+		return False
 	}
 	var $index = 0
-	var $valid = Bool.True
+	var $valid = True
 	while $valid and $index < prefix.len() {
 		byte = list_at(prefix, $index)
 		if byte < 0x41 or byte > 0x5a {
-			$valid = Bool.False
+			$valid = False
 		}
 		$index = $index + 1
 	}
@@ -393,12 +394,13 @@ test_inspection = |_| {
 test_plan : {} -> KernelFontPlan.Plan
 test_plan = |_| {
 	entries: [
-		{ cid: 0, content: Bool.False, left_side_bearing: 0, original_glyph: 0, subset_glyph: 0, width: 500 },
-		{ cid: 1, content: Bool.True, left_side_bearing: 10, original_glyph: 2, subset_glyph: 1, width: 600 },
+		{ cid: 0, content: False, left_side_bearing: 0, original_glyph: 0, subset_glyph: 0, width: 500 },
+		{ cid: 1, content: True, left_side_bearing: 10, original_glyph: 2, subset_glyph: 1, width: 600 },
 	],
 	original_to_subset: [0, 0xffffffff, 1],
 	prefix: [0x41, 0x42, 0x43, 0x44, 0x45, 0x46],
 	retained: [1, 0, 2],
+	units_per_em: 1000,
 	work: { component_edge_visits: 0, component_index_visits: 0, glyph_scans: 3, retained_glyphs: 2, usage_visits: 1 },
 }
 
@@ -417,8 +419,8 @@ test_bundle = |_| {
 	subset: test_subset({}),
 }
 
-## The recipe serializes every emitted fact in fixed order and embeds the
-## exact subset bytes, and derivation is deterministic.
+# The recipe serializes every emitted fact in fixed order and embeds the
+# exact subset bytes, and derivation is deterministic.
 expect {
 	leaf = KernelFontLeaf.Leaf.build(test_bundle({}))?
 	again = KernelFontLeaf.Leaf.build(test_bundle({}))?
@@ -479,9 +481,9 @@ expect {
 								descriptor.kind == Font and descriptor.subtype == 0
 }
 
-## Every identity axis flips the recipe: mappings, widths, subset bytes,
-## descriptor policy, and the subset tag each produce a distinct payload
-## while a byte-identical bundle reproduces it exactly.
+# Every identity axis flips the recipe: mappings, widths, subset bytes,
+# descriptor policy, and the subset tag each produce a distinct payload
+# while a byte-identical bundle reproduces it exactly.
 expect {
 	bundle = test_bundle({})
 	base = KernelFontLeaf.Leaf.build(bundle)?
@@ -492,8 +494,8 @@ expect {
 		plan: {
 			..base_plan,
 			entries: [
-				{ cid: 0, content: Bool.False, left_side_bearing: 0, original_glyph: 0, subset_glyph: 0, width: 500 },
-				{ cid: 1, content: Bool.True, left_side_bearing: 10, original_glyph: 2, subset_glyph: 1, width: 700 },
+				{ cid: 0, content: False, left_side_bearing: 0, original_glyph: 0, subset_glyph: 0, width: 500 },
+				{ cid: 1, content: True, left_side_bearing: 10, original_glyph: 2, subset_glyph: 1, width: 700 },
 			],
 		},
 	})?
@@ -518,12 +520,12 @@ expect {
 		KernelFontLeaf.Leaf.recipe(other_tag),
 	]
 	var $index = 0
-	var $distinct = Bool.True
+	var $distinct = True
 	while $index < recipes.len() {
 		var $other = $index + 1
 		while $other < recipes.len() {
 			if list_at(recipes, $index) == list_at(recipes, $other) {
-				$distinct = Bool.False
+				$distinct = False
 			}
 			$other = $other + 1
 		}
@@ -532,8 +534,8 @@ expect {
 	$distinct
 }
 
-## Metric scaling in the recipe matches the emitted descriptor integers for
-## a non-trivial units-per-em (2048: 800 font units emit 391).
+# Metric scaling in the recipe matches the emitted descriptor integers for
+# a non-trivial units-per-em (2048: 800 font units emit 391).
 expect {
 	base = test_inspection({})
 	source = test_bundle({})
@@ -551,49 +553,49 @@ expect {
 	expected_ascent == 391 and $value == 391
 }
 
-## Each identity-boundary rejection is a distinct typed error and no recipe
-## escapes.
+# Each identity-boundary rejection is a distinct typed error and no recipe
+# escapes.
 expect {
 	bundle = test_bundle({})
 	bad_descriptor = match KernelFontLeaf.Leaf.build({ ..bundle, descriptor: { flags: 32, italic_angle: 0, stem_v: 0 } }) {
-		Err(DescriptorInvalid) => Bool.True
-		_ => Bool.False
+		Err(DescriptorInvalid) => True
+		_ => False
 	}
 	base = test_inspection({})
 	bad_units = match KernelFontLeaf.Leaf.build({ ..bundle, font: { ..base, metrics: { ..base.metrics, units_per_em: 0 } } }) {
-		Err(DescriptorInvalid) => Bool.True
-		_ => Bool.False
+		Err(DescriptorInvalid) => True
+		_ => False
 	}
 	base_plan = test_plan({})
 	bad_tag = match KernelFontLeaf.Leaf.build({ ..bundle, plan: { ..base_plan, prefix: [0x41, 0x42, 0x43] } }) {
-		Err(InvalidSubsetTag) => Bool.True
-		_ => Bool.False
+		Err(InvalidSubsetTag) => True
+		_ => False
 	}
 	lower_tag = match KernelFontLeaf.Leaf.build({ ..bundle, plan: { ..base_plan, prefix: [0x61, 0x42, 0x43, 0x44, 0x45, 0x46] } }) {
-		Err(InvalidSubsetTag) => Bool.True
-		_ => Bool.False
+		Err(InvalidSubsetTag) => True
+		_ => False
 	}
 	bad_name = match KernelFontLeaf.Leaf.build({ ..bundle, font: { ..base, names: { ..base.names, postscript_utf16be: { length: 0, offset: 0 } } } }) {
-		Err(InvalidPostScriptName) => Bool.True
-		_ => Bool.False
+		Err(InvalidPostScriptName) => True
+		_ => False
 	}
 	empty_plan = match KernelFontLeaf.Leaf.build({ ..bundle, plan: { ..base_plan, entries: [] } }) {
-		Err(FontPlanInvalid) => Bool.True
-		_ => Bool.False
+		Err(FontPlanInvalid) => True
+		_ => False
 	}
 	sparse_plan = match KernelFontLeaf.Leaf.build({
 		..bundle,
 		plan: {
 			..base_plan,
 			entries: [
-				{ cid: 0, content: Bool.False, left_side_bearing: 0, original_glyph: 0, subset_glyph: 0, width: 500 },
-				{ cid: 2, content: Bool.True, left_side_bearing: 10, original_glyph: 2, subset_glyph: 2, width: 600 },
+				{ cid: 0, content: False, left_side_bearing: 0, original_glyph: 0, subset_glyph: 0, width: 500 },
+				{ cid: 2, content: True, left_side_bearing: 10, original_glyph: 2, subset_glyph: 2, width: 600 },
 			],
 		},
 		mappings: [{ cid: 2, scalars: [0x41] }],
 	}) {
-		Err(FontPlanInvalid) => Bool.True
-		_ => Bool.False
+		Err(FontPlanInvalid) => True
+		_ => False
 	}
 	short_subset = match KernelFontLeaf.Leaf.build({
 		..bundle,
@@ -602,28 +604,28 @@ expect {
 			work: { cmap_mappings: 1, component_rewrites: 0, entry_visits: 2, glyf_bytes: 0, hmtx_bytes: 8, loca_bytes: 8, output_bytes: 4, source_glyph_bytes: 0, tables: 14 },
 		},
 	}) {
-		Err(SubsetLengthMismatch({ actual: 3, recorded: 4 })) => Bool.True
-		_ => Bool.False
+		Err(SubsetLengthMismatch({ actual: 3, recorded: 4 })) => True
+		_ => False
 	}
 	missing_mapping = match KernelFontLeaf.Leaf.build({ ..bundle, mappings: [] }) {
-		Err(MissingUnicodeMapping({ cid: 1 })) => Bool.True
-		_ => Bool.False
+		Err(MissingUnicodeMapping({ cid: 1 })) => True
+		_ => False
 	}
 	unexpected_mapping = match KernelFontLeaf.Leaf.build({ ..bundle, mappings: [{ cid: 0, scalars: [0x41] }, { cid: 1, scalars: [0x41] }] }) {
-		Err(UnexpectedUnicodeMapping({ cid: 0 })) => Bool.True
-		_ => Bool.False
+		Err(UnexpectedUnicodeMapping({ cid: 0 })) => True
+		_ => False
 	}
 	trailing_mapping = match KernelFontLeaf.Leaf.build({ ..bundle, mappings: [{ cid: 1, scalars: [0x41] }, { cid: 5, scalars: [0x42] }] }) {
-		Err(UnexpectedUnicodeMapping({ cid: 5 })) => Bool.True
-		_ => Bool.False
+		Err(UnexpectedUnicodeMapping({ cid: 5 })) => True
+		_ => False
 	}
 	empty_mapping = match KernelFontLeaf.Leaf.build({ ..bundle, mappings: [{ cid: 1, scalars: [] }] }) {
-		Err(EmptyUnicodeMapping({ cid: 1 })) => Bool.True
-		_ => Bool.False
+		Err(EmptyUnicodeMapping({ cid: 1 })) => True
+		_ => False
 	}
 	surrogate = match KernelFontLeaf.Leaf.build({ ..bundle, mappings: [{ cid: 1, scalars: [0xd800] }] }) {
-		Err(InvalidUnicodeScalar(0xd800)) => Bool.True
-		_ => Bool.False
+		Err(InvalidUnicodeScalar(0xd800)) => True
+		_ => False
 	}
 	bad_descriptor and bad_units and bad_tag and lower_tag and bad_name and empty_plan and sparse_plan and short_subset and missing_mapping and unexpected_mapping and trailing_mapping and empty_mapping and surrogate
 }

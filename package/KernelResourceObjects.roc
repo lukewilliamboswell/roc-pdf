@@ -142,15 +142,15 @@ add_canonical_profiles = |builder, names, profiles, representatives, planned| {
 			Err(error) => {
 				return Err(Object(error))
 			}
-			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, UnchangedResource) {
+			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, Generated) {
 				Err(error) => {
 					return Err(Object(error))
 				}
-				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Unfiltered, payload.id) {
+				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Deflate, payload.id) {
 					Err(error) => {
 						return Err(Object(error))
 					}
-					Ok(stream) => if !KernelObject.ObjectId.is_eq(stream.id, objects.stream.stream) or !KernelObject.ObjectId.is_eq(stream.length_object, objects.stream.length) or !KernelObject.ObjectId.is_eq(stream.id, objects.profile) {
+					Ok(stream) => if stream.id != objects.stream.stream or stream.length_object != objects.stream.length or stream.id != objects.profile {
 						return Err(ObjectOrder({ actual: stream.id, expected: objects.profile }))
 					} else {
 						$builder = stream.builder
@@ -184,7 +184,7 @@ add_canonical_color_spaces = |builder, names, spaces, leaves, objects| {
 				Err(error) => {
 					return Err(Object(error))
 				}
-				Ok(object) => if !KernelObject.ObjectId.is_eq(object.id, list_at(planned, $ordinal)) {
+				Ok(object) => if object.id != list_at(planned, $ordinal) {
 					return Err(ObjectOrder({ actual: object.id, expected: list_at(planned, $ordinal) }))
 				} else {
 					$builder = object.builder
@@ -316,15 +316,15 @@ add_profiles = |builder, names, profiles, planned| {
 			Err(error) => {
 				return Err(Object(error))
 			}
-			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, UnchangedResource) {
+			Ok(n) => match KernelObject.add_payload(n.builder, profile.bytes, Generated) {
 				Err(error) => {
 					return Err(Object(error))
 				}
-				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Unfiltered, payload.id) {
+				Ok(payload) => match KernelObject.add_stream_object(payload.builder, [{ key: names.n, value: n.id }], Deflate, payload.id) {
 					Err(error) => {
 						return Err(Object(error))
 					}
-					Ok(stream) => if !KernelObject.ObjectId.is_eq(stream.id, objects.stream.stream) or !KernelObject.ObjectId.is_eq(stream.length_object, objects.stream.length) or !KernelObject.ObjectId.is_eq(stream.id, objects.profile) {
+					Ok(stream) => if stream.id != objects.stream.stream or stream.length_object != objects.stream.length or stream.id != objects.profile {
 						return Err(ObjectOrder({ actual: stream.id, expected: objects.profile }))
 					} else {
 						$builder = stream.builder
@@ -572,7 +572,7 @@ component_count = |components| match components {
 }
 
 ensure_object : KernelObject.ObjectId, KernelObject.ObjectId -> Try({}, KernelResourceObjects.Error)
-ensure_object = |actual, expected| if KernelObject.ObjectId.is_eq(actual, expected) Ok({}) else Err(ObjectOrder({ actual, expected }))
+ensure_object = |actual, expected| if actual == expected Ok({}) else Err(ObjectOrder({ actual, expected }))
 
 list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
@@ -600,7 +600,7 @@ test_limits = {
 	max_values: 640,
 }
 
-## Resource lowering completes every planned object and produces a sealable store.
+# Resource lowering completes every planned object and produces a sealable store.
 expect {
 	pipeline = KernelPipelineFixture.pipeline({})?
 	prefix = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?
@@ -612,7 +612,7 @@ expect {
 	counts.objects == KernelObjectPlan.Plan.object_count(pipeline.objects) and counts.payloads == 2 and counts.streams == 2 and work.color_spaces == 1 and work.images == 1 and work.image_rows == 2 and work.raster_bytes == 4
 }
 
-## Padded raster and alpha rows compact into distinct image and soft-mask streams.
+# Padded raster and alpha rows compact into distinct image and soft-mask streams.
 expect {
 	pipeline = KernelPipelineFixture.alpha_pipeline({})?
 	prefix = KernelTaggedObjects.Plan.build(pipeline.tagged, pipeline.objects, test_limits)?

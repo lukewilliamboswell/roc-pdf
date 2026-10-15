@@ -15,7 +15,13 @@ end state; the roadmap records which capabilities and claims are executable.
 
 The production implementation and all of its runtime dependencies are pure
 Roc. Python and native PDF tools are independent test oracles; they are not
-linked into or invoked by the package.
+linked into or invoked by the package. The package depends on two pure-Roc
+packages, each pinned by an immutable release URL: `roc-lang/unicode` for
+Unicode analysis, and `roc-deflate` for DEFLATE compression (a port of
+libdeflate). The DEFLATE dependency is currently the release candidate of a
+fork that carries the libdeflate port ahead of upstream; the package moves to
+an upstream `niclas-ahden/roc-deflate` release once one includes that work.
+[`vendor/README.md`](vendor/README.md) records each dependency's provenance.
 
 ## Product destination
 
@@ -300,6 +306,18 @@ one explicit rounding policy. Conversion to canonical PDF numbers occurs at a
 defined lowering boundary. Cache and convergence identity never depends on
 host floating-point equality.
 
+The public `Layout.Unit` is that unit: one point is exactly 1,000 units. A
+bare number literal where a `Layout.Unit` is expected means points
+(`size: 12.5` is 12,500 units), through `Unit.from_numeral`. The literal is
+stored exactly: one with more than three significant decimal places, or
+outside the I64 range of units, is a compile-time error, never rounded or
+clamped. Runtime values still convert explicitly with `Layout.Unit.points`
+or `Layout.Unit.millipoints`, and no arithmetic operators are defined on
+`Unit`, so overflow stays an explicit, checked result. Units are ordered
+(`<`, `<=`, `>`, `>=` through `is_lt` and its siblings), which is exact and
+cannot overflow; package code compares units directly rather than through
+`.raw()`.
+
 Layout continuations are compact component/source IDs plus scalar cursors and
 explicit state. They are not list suffixes, string slices, rebuilt remaining-
 block lists, or copies of earlier measurements. Text ranges retain validated
@@ -440,24 +458,28 @@ Pdf :: [].{
         Standard,
     ]
 
-    PageSize := [A4, Letter]
+    ## One size for every page of a document: A4 or Letter in either
+    ## orientation, or a custom size in whole points (3 to 14,400 pt a
+    ## side). A size the theme's margins do not fit is rejected
+    ## (`layout.page_margin`), never shrunk. Per-page sizes and
+    ## orientations belong to fixed-page composition (Gate 8).
+    PageSize := [A4, A4Landscape, Custom({ height : Layout.Unit, width : Layout.Unit }), Letter, LetterLandscape]
 
     ChunkRetention := [
         ShareUnchangedResources,
         OwnChunks,
     ]
 
-    Options :: {
-        profile : Profile,
-        page_size : PageSize,
-        theme : Theme,
-        chunk_retention : ChunkRetention,
+    ## A transparent record whose fields all default; `{}` is the
+    ## production default and a caller names only what it changes.
+    Options := {
+        profile : Profile ?? Archive,
+        page_size : PageSize ?? A4,
+        theme : Theme ?? {},
+        fonts : FontSource ?? BuiltIn,
+        chunk_retention : ChunkRetention ?? ShareUnchangedResources,
     }.{
         default : Options
-        with_profile : Options, Profile -> Options
-        with_page_size : Options, PageSize -> Options
-        with_theme : Options, Theme -> Options
-        with_chunk_retention : Options, ChunkRetention -> Options
     }
 
     document : {
@@ -507,7 +529,37 @@ validated packaged or caller-provided resources, and a theme override cannot
 weaken the selected profile. The built-in theme is versioned because changing
 its metrics, fonts, or spacing can change pagination and bytes.
 
-The facade accepts typed sRGB text colors through opaque `Theme` setters. The
+`Theme` is a transparent nominal record (`Theme := { ... }`) whose every
+field carries its built-in value as a `??` default; those declarations are
+the versioned built-in theme, and `Theme.default` is `Theme.{}`. A caller
+writes only the fields it changes, as a nested record literal:
+`{ face: regular, headings: { all: { face: Face(bold), size: 17 } } }`.
+Each sub-record with its own defaults is its own nominal type, so a partial
+nested literal is completed from that type's defaults, never from another
+style's; deriving from an existing theme spreads the sub-record explicitly
+(`{ ..base, body: { ..base.body, leading: 16 } }`). Inheritance is an
+explicit tag (`ThemeFace`, `SameAsAll`, `Inherited`), resolved in one place
+by the getters preparation reads, never inferred from a missing value.
+
+The same rule applies to the public configuration and constructor records
+(`Pdf.DocumentProps`, whose outline, page labels, and page templates are
+empty and whose timestamps are `Omitted` unless given, `Pdf.ReportBudget`,
+`Pdf.Options`, `Theme.Scope`, `Pdf.CustomBlock`, `Pdf.NumberedList`,
+`Pdf.TableProps`, `Pdf.RegionProps`, the page-template props,
+`Pdf.DecorationProps`, `Pdf.FigureProps`, `Scene.Label`, and
+`Scene.AuthorPathStyle`): only presentation has defaults. Facts that cannot be
+responsibly guessed (title, language, contents, alternative text, captions,
+table columns and rows, and font security limits) stay required fields. A
+default is a documented construction value, never a fallback: constructors
+copy what they are given, preparation validates every field with a located
+diagnostic, and an invalid supplied value is rejected, not replaced. Changing
+a `??` default is a reviewed package-version change like any other default.
+
+The facade accepts typed sRGB text colors through `Theme` record fields. A
+string literal where a `Color.SourceValue` is expected is an sRGB hex color
+(`"#183454"`) through `SourceValue.from_quote`, checked at compile time
+exactly like a unit literal; it names the sRGB space explicitly and is never
+a device color. The
 packaged sRGB profile is both the painting-space definition and output intent;
 no device-color guess or fallback is permitted. The public image boundary uses
 typed JPEG or packed raster `Image.Source` values inside opaque `Scene.Drawing`
@@ -546,8 +598,12 @@ it validates the complete byte allocation and declared script provision before
 allocating dense resource, face, static-instance, and policy handles. The
 returned registry retains the original immutable input allocation together with
 its once-produced inspection facts; it does not copy the font payload into a
-second byte list. `Theme.with_font` accepts the returned face handle. A caller
+second byte list. A theme's `face` (or a style's `Face(face)`) accepts the
+returned face handle. A caller
 cannot register a name, path, URL, partial stream, or caller-selected identity.
+`Font.Registry.register_built_in` registers the packaged face through the same
+path, so an application can combine it with caller faces in one registry
+without supplying a copy of the package's font bytes.
 
 Validated font identity and metrics are source facts. Inspection records exact
 ranges for the selected family, full, and PostScript name strings and the OS/2
@@ -660,15 +716,12 @@ An authored visible title remains semantically distinct from that metadata.
 Report templates normally include one; a business letter may omit it while
 retaining `AccessibleArchive`. Authors who intentionally need a different
 conformance claim set select `Archive` or `Standard` with
-`Pdf.Options.with_profile`; this is an opt-out, not an automatic downgrade.
+the options' `profile` field; this is an opt-out, not an automatic
+downgrade. The `??` default on that field is the one place the production
+profile is declared.
 
 ```roc
-options = Pdf.Options.with_profile(
-    Pdf.Options.default,
-    Pdf.Profile.Archive,
-)
-
-Pdf.to_bytes_with(document, options)
+Pdf.to_bytes_with(document, { profile: Standard })
 ```
 
 Defaulting to PDF/UA-2 does not certify the quality of prose, alternative text,
@@ -743,7 +796,12 @@ the general custom-layout capability. The first such subset is
 `Pdf.custom_block`: a data-only block whose extension supplies ordinary
 paragraphs, its own measurement of the block, and a decorative panel, with
 `Unsplittable` fragmentation; the package lays out and proves the content
-inside that measurement. A separately authored callout exercises it
+inside that measurement. An extension may take its content height from
+`Pdf.measure_custom_content`, which runs the same facade stages as
+preparation on the content alone and returns the height pagination measures
+(the fact behind `layout.custom_block_measure`), so wrapped rich paragraphs
+can be sized without the extension seeing a line, glyph, or PDF object;
+preparation still proves the fit. A separately authored callout exercises it
 (`tests/custom_block/Callout.roc`).
 
 The advanced conceptual lifecycle uses `Try`, current Roc's fallible-result
@@ -1033,9 +1091,21 @@ supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
 never a second run-local string.
 
-Page-content artifact text is the one other source. Page furniture, resolved
-after pagination, is shaped from artifact text sources appended to the same
-dense Unicode store after the semantic sources. An artifact run names its
+Page-content artifact text is the one other source. Page furniture and text
+labels inside drawings, both resolved after pagination, are shaped from
+artifact text sources appended to the same dense Unicode store after the
+semantic sources (furniture sources, then label sources). A drawing label
+(`Scene.Drawing.text`) is shaped whole in the body face, or in an inline
+role's style face (`Scene.Drawing.text_in`, whose face joins the output fonts
+through shaping's face selection like any run's), by the same shaper as
+body text, scaled with its figure, proved to lie inside its drawing, and
+painted as `Decoration` artifact text; it is never outlined or rasterized. In
+a figure it is part of the figure's visual presentation: the `Figure`
+element's `/Alt` is what assistive technology reads, so conveying what the
+labels say is part of the author's alternative-text obligation, and the
+labels stay extractable through `ToUnicode`. Decorations take no labels (they
+paint after the page's text), and furniture drawings take none (furniture
+text is their text path). An artifact run names its
 source rather than an occurrence, belongs to no structure element, carries no
 semantic text property, and may be painted only by a page-artifact
 `OwnedGroup`; a layout fragment that paints artifact text is an ownership
@@ -1293,10 +1363,43 @@ It never inserts synthetic grouping items to balance sibling lists because
 those items would alter the visible document outline. Entry and depth limits
 are explicit and checked before an outline plan can escape.
 
-The initial file representation uses PDF 2.0 xref streams. Object streams are
-an independent compression optimization and are not required by the
-architecture. Incremental revisions and linearization are outside the
-generation-only baseline.
+Every generated stream payload (page and form content, font programs,
+ToUnicode CMaps, ICC profiles, image samples, and masks) is FlateDecode through
+the package compressor seam. Validated JPEG data keeps DCTDecode unchanged.
+The XMP metadata stream stays unfiltered because PDF/A-4 requires it. A
+CIDFontType2 whose CIDs are its subset glyph IDs, which font planning
+guarantees, declares `/CIDToGIDMap /Identity` rather than carrying an identity
+map stream.
+
+The file representation is PDF 2.0 compressed object streams with a
+compressed cross-reference stream, and it is the only one the package writes.
+Stream objects stay top-level. Every other object goes into a FlateDecode
+object stream (ISO 32000-2 7.5.7): in plan order, the compressible objects fill
+object streams of a fixed maximum number of members, which take the object
+numbers after the planned objects. The partition depends only on the plan's
+object order and kinds, so it is fixed before emission. The cross-reference
+stream follows the object streams. Its rows use the fewest offset bytes that
+hold its own offset, and it is FlateDecode with the PNG Up predictor. Object
+streams and the cross-reference stream carry direct lengths.
+
+This is an enduring decision, and the evidence behind it is recorded in
+[`docs/performance/output-size.md`](docs/performance/output-size.md). In a
+tagged business document most bytes are small dictionaries: structure
+elements, the ParentTree, annotations, and the page tree. Written as top-level
+uncompressed objects they were about half the file, and object streams remove
+most of those bytes. PDF 2.0 and PDF/A-4 both permit object streams. The rules
+of 7.5.7 are respected by construction: object streams never hold a stream
+object, a nonzero generation (none are written), an encryption dictionary
+(the package never encrypts), or an object stream's own length (object streams
+use direct lengths). Readers that predate PDF 1.5 cannot read the result; that
+is outside the PDF 2.0 destination.
+
+There is no uncompressed or flat layout option. A second layout would double
+the byte contract, the output-bound proof, and the conformance evidence for a
+debugging convenience that standard tools already provide (`qpdf --qdf`,
+`mutool clean -d`). The repository's independent reader,
+`scripts/pdf_layout.py`, expands any emitted file for inspection. Incremental
+revisions and linearization are outside the generation-only baseline.
 
 The Arlington PDF Model is a useful independent schema cross-check, but its
 documented scope excludes parts of lexical syntax, content streams, and file
@@ -1316,6 +1419,11 @@ Determinism is part of the public contract:
 - Names, strings, XML, and content tokens use canonical escaping.
 - Dictionary and XMP property ordering is defined.
 - Newlines and compression parameters are fixed.
+- A prepared glyph run is written as baseline segments: one `Td` to the
+  exact position of the segment's first glyph and one `TJ` array whose
+  adjustments round to a tenth of a thousandth of text space with the error
+  carried forward, so every glyph stays within 0.00005 em of its layout
+  position.
 - Font subset prefixes and glyph order are deterministic.
 - Timestamps are explicit inputs or omitted when optional.
 - Document identity is explicit or derived by a specified digest procedure.
@@ -1346,7 +1454,7 @@ conformance, size-bound, and safe-output-bound errors occur before sealing,
 followed by a validation failure.
 
 Generated chunks have bounded independently owned backing allocations. When a
-validated JPEG, ICC profile, or other resource range is already exactly the
+validated JPEG or other resource range is already exactly the
 bytes required by the PDF stream, the default chunk policy may instead return
 a seamless slice of that resource allocation. Such a slice is immutable and
 avoids copying, but retaining even a small slice can retain the whole source
@@ -1364,9 +1472,11 @@ that consumes and releases each chunk before requesting the next one. The
 choice affects allocation, copying, and retention only; it cannot affect PDF
 bytes. `Pdf.to_bytes` necessarily copies resource ranges into its single final
 contiguous `List(U8)`. Planning assigns every object and indirect stream-length
-ID before emission, and emission tracks a compact `U64` offset list. Stateful
-lexical, DEFLATE, and resource encoders produce stream bytes without
-materializing whole uncompressed and compressed copies.
+ID before emission, and emission tracks a compact `U64` offset list. Lexical
+and resource encoders produce stream bytes incrementally. A generated stream
+payload is compressed whole through the single DEFLATE seam into one owned
+buffer, bounded by that stream, and its source payload is released at its last
+use.
 
 This is a bounded-retention design, not a constant-memory claim. The compact
 sealed plan, validated live resource bytes, global font subset facts, structure

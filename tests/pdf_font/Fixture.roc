@@ -6,7 +6,7 @@ import pdf.KernelObject
 import pdf.KernelPdfFont
 import pdf.KernelSeal
 import pdf.KernelStructure
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 Fixture :: [].{
 	font_objects : U64 -> Try({ bytes : List(U8), work : List(U64) }, [EvidenceFailure, InvalidRuntimeGuard])
@@ -23,7 +23,7 @@ Fixture :: [].{
 				sample.font.bytes.len(),
 				sample.subset.work.output_bytes,
 				font_work.font_program_bytes,
-				font_work.cid_map_bytes,
+				font_work.identity_cid_entries,
 				font_work.to_unicode_bytes,
 				font_work.unicode_mappings,
 				font_work.unicode_scalars,
@@ -146,24 +146,21 @@ expect {
 	counts = KernelSeal.Plan.counts(sample.sealed)
 	KernelObject.ObjectId.number(objects.font_file) == 1 and
 		KernelObject.ObjectId.number(objects.font_file_length) == 2 and
-			KernelObject.ObjectId.number(objects.cid_to_gid) == 3 and
-				KernelObject.ObjectId.number(objects.cid_to_gid_length) == 4 and
-					KernelObject.ObjectId.number(objects.to_unicode) == 5 and
-						KernelObject.ObjectId.number(objects.to_unicode_length) == 6 and
-							KernelObject.ObjectId.number(objects.descriptor) == 7 and
-								KernelObject.ObjectId.number(objects.cid_font) == 8 and
-									KernelObject.ObjectId.number(objects.type0) == 9 and
-										counts.objects == 9 and
-											counts.streams == 3 and
-												counts.payloads == 3
+			KernelObject.ObjectId.number(objects.to_unicode) == 3 and
+				KernelObject.ObjectId.number(objects.to_unicode_length) == 4 and
+					KernelObject.ObjectId.number(objects.descriptor) == 5 and
+						KernelObject.ObjectId.number(objects.cid_font) == 6 and
+							KernelObject.ObjectId.number(objects.type0) == 7 and
+								counts.objects == 7 and
+									counts.streams == 2 and
+										counts.payloads == 2
 }
 
 expect {
 	sample = sample_font_objects(0)?
 	store = KernelSeal.Plan.store(sample.sealed)
-	cid_map = list_at(store.payloads, 1).bytes
-	to_unicode = list_at(store.payloads, 2).bytes
-	cid_map == [0, 0, 0, 1, 0, 2, 0, 3, 0, 4] and
+	to_unicode = list_at(store.payloads, 1).bytes
+	KernelPdfFont.Plan.work(sample.pdf_font).identity_cid_entries == 5 and
 		contains_bytes(to_unicode, Str.to_utf8("<0001> <0041>\n")) and
 			contains_bytes(to_unicode, Str.to_utf8("<0003> <00E9>\n"))
 }
@@ -182,8 +179,8 @@ expect {
 		KernelPdfFont.Limits.make({ max_to_unicode_bytes: 4096, max_unicode_mappings: 8, max_unicode_scalars: 16 }),
 	)
 	match result {
-		Err(IncompleteUnicodeMapping({ cid: 3 })) => Bool.True
-		_ => Bool.False
+		Err(IncompleteUnicodeMapping({ cid: 3 })) => True
+		_ => False
 	}
 }
 

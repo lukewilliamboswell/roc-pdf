@@ -367,5 +367,129 @@ investigated separately); every rerun passed, and the final cold-cache
 - **Batch identity.** Furniture lines shape through the facade's shaping
   batch, whose requests name an occurrence ordinal; the furniture stage
   replaces it with the artifact source before any run leaves the stage.
-- **Gallery.** `examples/letter.roc` does not use templates yet; the
+- **Gallery.** `examples/warranty-letter/main.roc` does not use templates yet; the
   reference-letter slice will.
+
+## Landscape and custom page sizes (examples showcase)
+
+`Pdf.PageSize` was `[A4, Letter]`. It now adds `A4Landscape`,
+`LetterLandscape`, and `Custom({ height, width })`. The facade already laid
+out against a `Layout.Size` and wrote each page's boxes from it, so the
+change is the size table in `Pdf.layout_page_size` plus two authoring
+checks before any stage runs:
+
+- `layout.page_size` (`options.page_size`): a custom side that is not a
+  whole number of points from 3 to 14,400 pt (the PDF user-space page
+  limits). Whole points keep the blank-document page box
+  (`KernelStructure.PageSize.Points`) an integer and give the document
+  identifier an exact width and height: a size other than A4 or Letter
+  contributes geometry code 3 and both sides to the identifier facts, so
+  two documents that differ only in page size never share an identifier.
+  A4 and Letter keep codes 0 and 1, so no existing identifier changes.
+- `layout.page_margin` (`theme.page_margin`, `options.page_size`): margins
+  that leave no positive body frame. Before this change an oversized margin
+  reached line layout as the internal `Lines.InvalidGeometry` defect; it is
+  now an author-facing rejection. Margins are never reduced to fit.
+
+Evidence (`page templates landscape and custom page sizes`): a landscape A4
+report with a running header and `Page N of M`, and a 36-row, eight-column
+ledger continuing onto a second page under its repeated header. The work
+vector also records the byte lengths of the same document on landscape
+Letter, a 432 × 648 pt custom document, and a blank custom document, and
+five rejections: 2 pt, 14,401 pt, 432.5 pt, and −432 pt sides
+(`layout.page_size`), and a 100 × 100 pt page under 56 pt margins
+(`layout.page_margin`). 115,284 allocations; 299 lines, 2 pages. Page size
+does not scale work, so the case has no scale pair. No existing baseline
+changes.
+
+Per-page sizes and orientations stay Gate 8 fixed-page composition: page
+templates and pagination assume one body frame per template.
+
+## Region backdrops (examples showcase)
+
+A full-width rule in a header's start slot made any end-slot furniture a
+`layout.template_region_overflow` (the slots overlap), so the brand brief
+dropped its first-page header rule. `Pdf.with_backdrop(region, drawing)`
+adds a layer separate from the slots. A backdrop is validated exactly like
+a furniture drawing, placed as a `BackdropSlot` item on the region's
+bottom edge (it may be as tall as the region, so a drawing positions its
+marks anywhere inside it), and measured against the frame width, but it
+contributes nothing to the slot extents that the overlap check compares.
+It paints as a page artifact of the region's kind (`Header` or `Footer`)
+before everything else on its page: `DrawingPaint` gains `behind`, the
+resolved paints are reordered so each page's backdrops come first
+(`backdrops_first`, one linear pass that returns the list untouched when
+no region has a backdrop), and the scene loop routes a ready backdrop
+through the furniture branch before any panel, fill, text, or rule. A
+region may hold only a backdrop. `with_backdrop` on `no_region` produces a
+zero-height region, which is `layout.template_region_empty`, never a silent
+no-op.
+
+Evidence: `page templates backdrops x3` and `x30`. The continuation
+header has a 0.75 pt full-width rule backdrop under start-slot text and
+end-slot `Page N of M`; the footer is a tinted 20 pt band behind centered
+text; the first page's header is a backdrop only. Each rejects a backdrop
+taller than its region and one wider than the frame
+(`layout.template_region_overflow` at `templates.first.header.backdrop`),
+and a backdrop on `no_region`. x3: 23,412 allocations; x30: 168,863 (7.2×
+for 10× pages): linear. No existing baseline changes; the region record's
+new field leaves every allocation count unchanged.
+
+## Slot insets (examples showcase)
+
+A header's slot stacks sit on the region's bottom edge, so header text's
+descenders came within about 2 pt of a backdrop rule along that edge (a
+text item is one body line tall with its baseline one text size below its
+top, so only the leading minus the size lies under the baseline).
+`Pdf.with_slot_inset(region, inset)` gives the region an `inset`: header
+stacks rise `inset` above the bottom edge and footer stacks hang `inset`
+below the top edge. The region record gains the field (normalized
+unchanged), and `add_slot` requires the stack plus the inset to fit the
+region (`layout.template_region_overflow` at the slot otherwise) and
+offsets the stack's first item by it. A negative inset is
+`layout.spacer_negative` at `.inset`; an inset on `no_region` makes a
+zero-height region, `layout.template_region_empty`, as a backdrop does.
+The backdrop and the overlap checks are unaffected: slots move together,
+so their horizontal extents and overlaps are unchanged.
+
+Evidence: `page templates slot inset`, a two-page report whose header text
+sits 3 pt above a bottom rule and whose footer text hangs 4 pt below a top
+rule. The fixture resolves the furniture plan of the same document without
+insets beside it and requires every header piece's baseline to rise by
+exactly 3 pt, every footer piece's to drop by exactly 4 pt, every piece to
+keep its x, and every drawing paint (the backdrops) to keep its origin;
+all 6 pieces moved. It rejects a 6 pt inset under a one-line 16 pt header,
+a negative inset, and an inset on `no_region`. 16,372 allocations; the
+case does not scale with anything but pages, which the backdrop pair
+already covers. No existing allocation count or snapshot changes.
+
+## Grouped furniture drawings (examples showcase)
+
+`layout.furniture_drawing` rejected any `Scene.Drawing.group`, so a mark
+could not be reused in furniture. The furniture validator now applies
+translation groups as the flow-figure validator does: a stack of open
+groups with their end command and offset, at most eight deep, within the
+same 10^9 pt coordinate bound. Offsets are applied once at validation, so
+every later stage sees the same flat drawing commands as before. Opacity,
+clip, soft-mask, and transform groups stay rejected.
+
+Two shapes of this change added allocations to every document with
+furniture drawings under the pinned compiler, and were replaced:
+
+- closing ended groups with an inner `while` inside the validation loop
+  added 28 allocations to `flow figures report` and 600 to `flow figures
+  sections x100`: the inner loop's join carried the loop's accumulators
+  (`docs/performance/emission-linearity.md`). The stack is now trimmed by
+  `open_groups` and the offsets summed by `stack_offset`, called only when
+  a group is open;
+- a pre-pass over the commands (either `List.any` or an indexed scan) to
+  detect groups cost the same 28 allocations, one per command read;
+- calling the flow validator's `translate_segments` from this module also
+  changed its lowering; the furniture stage has its own `offset_segments`,
+  which checks bounds per segment without building a point list.
+
+Evidence: `page templates furniture groups`: a mark (two rectangles and an
+image) reused three times in a header item, nested two deep in a footer
+item, and grouped inside a backdrop; nine nested groups are
+`layout.furniture_drawing`. 14,721 allocations. Validation stays linear in
+commands with a stack of at most eight. No existing baseline changes.

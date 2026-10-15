@@ -11,13 +11,18 @@ import tempfile
 from pathlib import Path
 
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import legacy_to_tj, shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "tests" / "actual_text" / "cjk_text.pdf"
 EXPECTED_TEXT = "中\n".encode()
-EXPECTED_CONTENT = (
+# The authored glyph positions, one `1 0 0 1 x y Tm` / `<cid> Tj` pair per
+# glyph. EXPECTED_CONTENT re-encodes them as the package writes text (one
+# `Td` + `TJ` segment per baseline run) with the independent model in
+# text_positions.py and the expected /W widths below.
+POSITIONED_CONTENT = (
     b"/P <</MCID 0>> BDC\n"
     b"q\n"
     b"1 0 0 1 72 700 cm\n"
@@ -31,6 +36,8 @@ EXPECTED_CONTENT = (
     b"Q\n"
     b"EMC\n"
 )
+EXPECTED_WIDTHS = {b'F1_0': [1000, 1000]}
+EXPECTED_CONTENT = legacy_to_tj(POSITIONED_CONTENT, {font: dict(enumerate(widths)) for font, widths in EXPECTED_WIDTHS.items()})
 EXPECTED_MAPPINGS = {0x0001: (0x4E2D,)}
 EXPECTED_SUBSET_SHA256 = "e63604452a131dbaf60dd6baf21017b1ac63e13199c5bd5846dd77ecb97e2175"
 
@@ -43,7 +50,7 @@ def validate_cjk_text_pdf(pdf: bytes) -> None:
     page = only_object(bodies, b"/Type /Page ", "page")
     page_body = bodies[page]
     require(b"/StructParents 0" in page_body and b"/Tabs /S" in page_body, "CJK page does not retain tagged reading-order facts")
-    resources = re.search(rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> /XObject << >> >>", page_body)
+    resources = re.search(rb"/Resources << /ColorSpace << /CS1_0 ([1-9][0-9]*) 0 R >> /Font << /F1_0 ([1-9][0-9]*) 0 R >> >>", page_body)
     require(resources is not None, "CJK page does not have the exact color/font resource closure")
     require(b"/CalGray" in bodies[int(resources.group(1))], "CJK text color is not calibrated Gray")
     type0_body = bodies[int(resources.group(2))]
@@ -56,7 +63,7 @@ def validate_cjk_text_pdf(pdf: bytes) -> None:
     mappings = cmap_mappings(cmap)
     require(mappings == EXPECTED_MAPPINGS, "CJK ToUnicode mapping is not the exact source scalar")
     require(b"<0001> <4E2D>" in cmap, "CJK ToUnicode mapping is not canonical UTF-16BE BMP output")
-    shown = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", EXPECTED_CONTENT)]
+    shown = shown_cids(EXPECTED_CONTENT)
     direct = "".join(chr(scalar) for cid in shown for scalar in mappings[cid]).encode() + b"\n"
     require(direct == EXPECTED_TEXT, "CJK CID/ToUnicode reconstruction differs from the source")
     descriptor = bodies[dictionary_ref(cid_body, b"FontDescriptor")]

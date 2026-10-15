@@ -1,11 +1,11 @@
 app [main!] {
-	pf: platform "../platform/main.roc",
 	pdf: "../../package/main.roc",
+	pf: platform "../platform/main.roc",
 }
 
 import pdf.Document
 
-## The public compact builder chains through its nested opaque Builder type.
+# The public compact builder chains through its nested opaque Builder type.
 expect {
 	builder : Document.Builder
 	builder = Document.builder({ language: "en-AU", title: "Quarterly report" })

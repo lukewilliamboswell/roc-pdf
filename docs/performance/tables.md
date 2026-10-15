@@ -367,6 +367,209 @@ the next run.
 | Conformance | `ROC-PDF-PDF20-TABLE-SEMANTICS`, `ROC-PDF-PDFUA2-8-2-5-26-TABLE-HEADERS`, and `ROC-PDF-PDFUA2-8-2-5-26-TABLE-REGULARITY` are `implemented`; `PdfUa2` stays `defined_only` |
 | Reader and AT behavior | Not performed (optional) |
 
+## Table styling follow-ups (examples showcase)
+
+These slices close layout gaps found while rewriting the gallery. Each keeps
+the stage contracts above: presentation is `Theme` or table policy, cells
+keep their `TH`/`TD` semantics, and paint the package adds is an artifact.
+
+### Row header color
+
+`Theme.with_table_header_color` colored every header cell, so a first column
+of `Row`-scoped headers took the column header color. `TableStyle` now has a
+separate `row_header_color` (`Theme.with_table_row_header_color`): scope
+`Row` paints in it, scopes `Column` and `Both` (a corner heads both
+directions and sits in a header row) in `header_color`. Both default to
+`Inherited`, so a theme that sets neither never searches the cell arena.
+The shaping lookup is unchanged: one binary search over the cells per rich
+block inside a table row, now taken when either color is set.
+
+Evidence: the spans case themes the column headers blue and the row headers
+slate. Its allocation count is unchanged (11,059); allocated bytes grow by 65
+(+0.002%) and output by 24 bytes: the row headers' fill-color operands
+are the slate value instead of the blue one. Every other table case is unchanged.
+
+### Row and cell fills, zebra stripes, and body rules
+
+`TableStyle` gains `header_fill`, `body_fills` (`{ odd, even }`, counted by
+the row's index in the table body so stripes are stable across pages),
+`footer_fill`, and `body_rule` (`Theme.with_table_header_fill`,
+`with_table_body_fills`, `with_table_footer_fill`, `with_table_body_rule`).
+`Pdf.shaded(color, cell)` gives one cell its own fill. All default to
+none.
+
+Ownership and paint order. A fill is presentation, not content: it is a
+filled rectangle owned by a `Decoration` layout artifact, like the header
+rule, and the cell keeps its `TH`/`TD` semantics. `KernelFacadePages.Rule`
+gains a `layer`: fills are `Behind`, rules and link underlines `Front`.
+Pagination emits every page's fills before its rules (`behind_first`, a
+linear page-ordered merge that returns the rule list untouched when a
+document has no fills), and the scene loop paints a page's `Behind`
+rectangles before its first text placement. A row fill covers the row box
+across the table and half the row gap above and below, so filled neighbours
+meet; a cell fill covers the cell's spanned columns including padding.
+Repeated headers repaint their fills with their text. Fills never move
+layout.
+
+The body rule is drawn centered in the gap above each body row that is not
+the first body row and not the first unit on its page, so it never
+duplicates the header rule on a continuation page. Like the header rule it
+must fit the row gap: a wider one is `layout.table_rule`, whose message now
+names the body rule.
+
+Normalized storage. The cell's fill is one packed `U64` in the cell arena
+(`Document.pack_color`: exact 16-bit sRGB or gray channels). A first
+attempt stored `Color.SourceValue` in `NormalizedCell`, which grew the
+record from 32 to 40 bytes; under the pinned compiler that alone added one
+to four allocations to documents with and without tables (the reference
+letter +1, the scaled-code rich-inline case +4). A `U32` field that fit the
+record's padding did not, and neither did a document- or table-level fill
+list help (a list on `SimpleState` added 60 to 100 allocations). The spans
+now keep their authored `U16` width, which keeps the record at 24 bytes
+with the packed fill. The smaller cell arena removes one to three
+allocations from table-bearing documents: `tables invoice x500` −2, the
+reference report family −1, `custom block report` −3, the page-sizes case
+−3, `reference variant rejections` −14, and `rich inline shared source
+faces x50` −2, all with allocated bytes within 0.2% (these cases are
+rebaselined). Every other case keeps its allocation count; the
+`KernelFacadePages.Rule` record's new field moves allocated bytes of
+link-underline cases by under 0.05%.
+
+Evidence: `tables styled x40` and `x400` (navy header with white column
+header text, slate row headers, zebra body, 0.25 pt body rules, a pale
+footer, and an amber total cell; continued with the header and its fill
+repainted) count fills and rules. x40: 36,247 allocations, 24 fills, 38
+rules, 2 pages. x400: 286,176 allocations (7.9×), 214 fills, 388 rules,
+12 pages: linear. Each also rejects a 5 pt body rule in a 4 pt gap.
+
+### Whole-table keeps
+
+A table inside `Pdf.keep_together` already moved whole: `unit_groups` maps
+an authored keep over leaf ranges onto the table's page-layout units
+(caption, header rows, every body row, footer rows), and page layout
+places a required group on one page or rejects it as
+`layout.keep_conflict`. The gallery split tables only because the facade
+never said so. The facade and authoring guide now document the idiom. The
+existing evidence covers it: the reference invoice's `KeepItemsWithPayment`
+variant keeps its items table with the payment section, and the tables
+negatives reject a kept 60-row table as `layout.keep_conflict` at the
+group and both its members. A new positive case, `tables whole-table keep`,
+places 26 paragraphs and then a kept 12-row captioned table that would
+otherwise start near the foot of page 1: the preparation report puts all 27
+of its leaves on page 2 (45,294 allocations, 53 lines, 2 pages). Keeps do
+not scale with table size beyond the existing unit mapping, so the case has
+no scale pair. No package code or existing baseline changes.
+
+### Empty cells
+
+An empty `TD` or `TH` is legal PDF: a data cell with no value, or the blank
+corner above a column of row headers. `Pdf.cell([])` and
+`Pdf.header_cell(scope, [])` now author one. Every stage after semantics
+assumed a cell leaf had text, so the cell is not faked with invisible
+content; an explicit contentless-cell fact is created once and every later
+stage handles it by name:
+
+- **Normalization** gives a cell with no inlines the leaf kind
+  `NormalizedBlockKind.EmptyCell` (text `""`, no rich-paragraph record).
+  The cell arena keeps its record, so the cell keeps its grid position,
+  spans, fill, kind, and ordinal; row leaf ranges stay one leaf per cell.
+- **Semantics** (`plan_table`, `place_table`) counts it as one node and one
+  row child and nothing else: no source, no occurrence, no content-spine
+  slot of its own. Its `TD`/`TH` node has an empty content range and keeps
+  its attributes (`Scope`, `ColSpan`, `Headers`) and generated identifier;
+  a data cell below an empty `Column` header still names it in `Headers`.
+  Block ownership is `ContentlessCell`. `table.cell_empty` now means
+  authored inline content that holds no text (`[Pdf.strong([])]`); a table
+  whose every cell is empty is `table.empty`, since it carries nothing
+  and would reach shaping with no run.
+- **Shaping** writes `BlockRuns.ContentlessCell`: no request, no run.
+- **Table geometry** measures it as zero width, so it never widens a
+  column, and skips the text-box width check (it has no text box to fit).
+- **Line layout** writes `BlockLines.ContentlessCell`: no line request.
+- **Pagination** gives it an empty line range in the row (its
+  `cell_starts` entry equals the next cell's), so it adds no placements
+  and the row's grid is its tallest other cell. The row's leading, line
+  size, and unit occurrence come from its first cell with content. A row
+  of only empty cells is one line of the body style tall; its unit
+  occurrence is never read, because a table row's placements are rebuilt
+  from its cells' lines and it has none. Row and cell fills and rules
+  paint as for any row.
+- **Text, fragments, scenes, and lowering** never see it: they are driven
+  by runs and placements. Structure lowering writes a `TD`/`TH` element
+  with no `/K` and no `/Pg`.
+
+Complexity is unchanged: each stage does O(1) work per empty cell, and
+documents without empty cells take exactly the previous paths (no existing
+allocation count changes; allocated bytes of existing cases move by at
+most 0.34% through code layout).
+
+Evidence: `tables empty cells x40` and `x400`, a survey tally under the
+styled theme with an empty corner `TH`, empty counts and notes, a shaded
+empty cell, every fifth row entirely empty, and a footer with two empty
+cells, continued with the header (and its empty corner) repainted. The
+structure checker counts elements with no kids and requires each to carry
+no `/K` and no `/Pg`; its self-test rejects the spans snapshot declared
+with one empty cell and the tally declared with one too few.
+
+| Case | Pages | Allocations | Work |
+| --- | ---: | ---: | --- |
+| empty cells x40 | 2 | 23,274 | 218 nodes, 168 cells, 75 empty, 246 associations, 95 lines, 1 repeated header, 95 fragments, 31 fills, 38 rules |
+| empty cells x400 | 11 | 172,502 | 2,018 nodes, 1,608 cells, 723 empty, 2,406 associations, 887 lines, 10 repeated headers, 887 fragments, 292 fills, 389 rules |
+
+The pair is linear: 10× the rows give 9.6× the empty cells, 9.3× the
+nodes and lines, and 7.4× the allocations; cell measurements stay 14
+(repeated texts hit the per-source cache). `tables atomic negatives` adds
+the all-empty table (`table.empty`) and moves `table.cell_empty` to
+`[Pdf.strong([])]`: 15 rejections, +1,045 allocations for the one added
+document, allocated bytes +0.18%. veraPDF PDF/A-4 passes both snapshots.
+
+### Column rules, frames, and the column-gap contract
+
+Rules were horizontal only. Vertical rules and an outer frame needed a
+decision about the space between columns, which the width algorithm never
+reserved: cells abut, and each cell's text box is its columns less the
+cell padding on both sides.
+
+**The contract: no separate column gap.** The space between two columns'
+text is the two cells' padding (2 × `cell_padding`), the horizontal
+counterpart of the row gap between two rows' lines. Widths resolve
+exactly as before, so no existing table moves. Rules live in that space:
+
+- `Theme.with_table_column_rule` draws a rule centered on every boundary
+  between adjacent cells of a row, from half the row gap below the row to
+  half the row gap above it, so the rules of consecutive rows meet. A
+  spanning cell has no interior boundary, so no rule crosses it. It must
+  be at most 2 × `cell_padding` wide (`layout.table_rule`, "table column
+  rule"), so it never reaches a text box.
+- `Theme.with_table_frame` outlines each page's contiguous run of a
+  table's rows, repeated header rows included and the caption excluded,
+  with four rectangles inside the rows' outer boxes (the fill boxes). It
+  must fit the cell padding and half the row gap (`layout.table_rule`,
+  "table frame").
+
+Both are `Front` layout decoration rectangles like the header and body
+rules: painted after the page's text as `Decoration` artifacts, never
+changing layout or structure. Header rows repainted on a continuation page
+get their column rules and open that page's frame. Pagination tracks the
+open frame segment in a tag (`Segment`) across the page's fragments and
+closes it when the page ends or a leaf or another table's row follows, so
+the frame costs O(1) per row and four rectangles per page segment, and the
+rules list stays in page order for `behind_first`.
+
+Evidence: `tables ruled grid x40` and `x400`, the styled register with a
+0.5 pt column rule and a 1 pt frame; each also rejects a 9 pt column rule
+(padding 4 pt) and a 3 pt frame (half the 4 pt row gap).
+
+| Case | Pages | Allocations | Rules |
+| --- | ---: | ---: | ---: |
+| ruled grid x40 | 2 | 34,114 | 131 (38 body and header, 85 column, 8 frame) |
+| ruled grid x400 | 12 | 238,987 | 1,261 |
+
+The pair is linear (9.6× the rules and 7.0× the allocations for 10× the
+rows). Every existing case keeps its allocation count and snapshot; the
+two new `TableStyle` fields move allocated bytes by at most 0.001%.
+veraPDF PDF/A-4 passes both snapshots.
+
 ## Open issues
 
 - ~~**Per-table copies in semantic placement.**~~ (reference-documents
@@ -388,7 +591,7 @@ the next run.
   rebaselined in one reviewed change.
 - **Reference documents.** The invoice and report tables are exercised in
   this family, but the complete reference documents (templates, furniture,
-  figures) belong to later slices; `examples/prepared_invoice.roc` still
+  figures) belong to later slices; `examples/tax-invoice/main.roc` still
   lists its services as bullets.
 - **Relaxations and repeated headers are not yet public**; the preparation
   report must map page-layout units to authored paths, as the facade's
@@ -399,8 +602,11 @@ the next run.
   data cell.
 - **SplitRows minimums** apply to the row's grid (its tallest cell), not to
   each cell; paint order of a split row interleaves its cells across pages.
-- **Rules** are fixed to the header and footer boundaries; header-row
-  shading and body rules are not offered.
+- **Rules** cover the header and footer boundaries and, optionally, the
+  gaps between body rows, the boundaries between cells, and a frame. A
+  row's column rules follow that row's cells, so rows with different spans
+  have different vertical rules; there is no per-column or per-cell rule
+  selection.
 - **Cell identifiers** are document-wide ordinals; authored identifiers for
   cross-document references are not offered.
 - **Column minimums of spanning cells** are checked after resolution rather

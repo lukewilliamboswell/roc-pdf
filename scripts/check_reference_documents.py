@@ -35,8 +35,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from check_pdf_structure import ValidationError, require  # noqa: E402
-from check_structure_semantics import Document, Ref, page_order, text_string  # noqa: E402
+from text_positions import shown_cids  # noqa: E402
+from pdf_layout import LayoutError, mutate as layout_mutate, occurrences as layout_occurrences, twin as layout_twin  # noqa: E402
+from check_pdf_structure import ValidationError, require, to_unicode_mappings  # noqa: E402
+from check_structure_semantics import Document, Ref, element_children, page_order, text_string  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -69,12 +71,12 @@ REPORT_DESTINATIONS = {
 # the committed example PDFs must be the same bytes (scripts/check_gallery.py
 # proves each example program regenerates its PDF).
 GALLERY = {
-    "invoice": ROOT / "examples" / "tax-invoice.pdf",
-    "report": ROOT / "examples" / "business-report.pdf",
-    "letter": ROOT / "examples" / "warranty-letter.pdf",
+    "invoice": ROOT / "examples" / "tax-invoice" / "tax-invoice.pdf",
+    "report": ROOT / "examples" / "business-report" / "business-report.pdf",
+    "letter": ROOT / "examples" / "warranty-letter" / "warranty-letter.pdf",
 }
 
-HEADING_LEADING = 18.0
+HEADING_LEADING = 21.0
 DC_TITLE = re.compile(rb"<dc:title>\s*<rdf:Alt>\s*<rdf:li xml:lang=\"x-default\">([^<]*)</rdf:li>\s*</rdf:Alt>\s*</dc:title>")
 MARKED = re.compile(rb"/[A-Za-z0-9]+ <</MCID (\d+)>> BDC\nq\n1 0 0 1 (-?[0-9.]+) (-?[0-9.]+) cm\n")
 TEXT_SHOW = re.compile(rb"<([0-9A-F]+)> Tj")
@@ -100,9 +102,7 @@ def heading_line(document: Document, element_number: int, page_index: dict[int, 
     """The page, x, and baseline y of a heading's first marked line."""
     element = document.get(element_number)
     require(re.fullmatch(r"H[1-6]", str(element["S"])) is not None, f"/SD names a /{element['S']}, not a numbered heading")
-    kids = element.get("K", [])
-    kids = kids if isinstance(kids, list) else [kids]
-    references = [kid for kid in kids if isinstance(kid, dict) and kid.get("Type") == "MCR"]
+    references = [kid for kid in element_children(document, element) if isinstance(kid, dict) and kid.get("Type") == "MCR"]
     require(references, "the heading owns no marked content")
     first = references[0]
     page = int(first["Pg"])
@@ -134,8 +134,7 @@ def resolve(document: Document, target: list, page_index: dict[int, int], kind: 
 def heading_text(document: Document, element_number: int, fonts: dict[bytes, dict[int, str]]) -> str:
     """The heading's text, decoded through the page font's ToUnicode map."""
     element = document.get(element_number)
-    kids = element.get("K", [])
-    kids = kids if isinstance(kids, list) else [kids]
+    kids = element_children(document, element)
     text = ""
     for kid in kids:
         page = int(kid["Pg"])
@@ -145,7 +144,7 @@ def heading_text(document: Document, element_number: int, fonts: dict[bytes, dic
         segment = content[start:end]
         font_name = re.search(rb"/(F[0-9_]+) [0-9.]+ Tf", segment).group(1)
         mapping = fonts.setdefault(font_name, font_map(document, page, font_name))
-        text += "".join(mapping[int(glyph, 16)] for glyph in TEXT_SHOW.findall(segment))
+        text += "".join(mapping[cid] for cid in shown_cids(segment))
     return text
 
 
@@ -154,15 +153,7 @@ def font_map(document: Document, page: int, name: bytes) -> dict[int, str]:
     resources = document.get(int(resources)) if isinstance(resources, Ref) else resources
     font = document.get(int(resources["Font"][name.decode()]))
     cmap = document.stream(int(font["ToUnicode"]))
-    mapping: dict[int, str] = {}
-    for block in re.findall(rb"beginbfchar\n(.*?)endbfchar", cmap, re.S):
-        for source, target in re.findall(rb"<([0-9A-F]+)> <([0-9A-F]+)>", block):
-            mapping[int(source, 16)] = bytes.fromhex(target.decode()).decode("utf-16-be")
-    for block in re.findall(rb"beginbfrange\n(.*?)endbfrange", cmap, re.S):
-        for low, high, target in re.findall(rb"<([0-9A-F]+)> <([0-9A-F]+)> <([0-9A-F]+)>", block):
-            base = int(target, 16)
-            for offset, code in enumerate(range(int(low, 16), int(high, 16) + 1)):
-                mapping[code] = chr(base + offset)
+    mapping = {cid: "".join(chr(scalar) for scalar in scalars) for cid, scalars in to_unicode_mappings(cmap).items()}
     return mapping
 
 
@@ -228,8 +219,10 @@ def kind_of(label: str) -> str:
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "mutation twins must preserve length")
-    require(value.count(old) >= 1, f"mutation anchor {old!r} is absent")
-    return value.replace(old, new, 1)
+    try:
+        return layout_twin(value, old, new, exactly_once=False)
+    except LayoutError as error:
+        raise ValidationError(str(error)) from error
 
 
 def self_test() -> None:
@@ -251,7 +244,7 @@ def self_test() -> None:
     # Both points of `summary` lifted 40 pt above its heading line.
     heading_point = f"/XYZ 56 {summary['D'][3]:g} null]".encode()
     lifted_point = f"/XYZ 56 {summary['D'][3] + 40:g} null]".encode()
-    require(len(heading_point) == len(lifted_point) and report.count(heading_point) == 2, "the summary destination point is not a length-preserving twin anchor")
+    require(len(heading_point) == len(lifted_point) and layout_occurrences(report, heading_point, "objects") == 2, "the summary destination point is not a length-preserving twin anchor")
     # The /SD of `summary` rewritten to the next element (its paragraph).
     sd_summary = f"/SD [{summary['SD'][0]} 0 R".encode()
     sd_paragraph = f"/SD [{summary['SD'][0] + 1} 0 R".encode()
@@ -262,7 +255,7 @@ def self_test() -> None:
         ("MarkInfo off", "invoice", replace_once(invoice, b"/Marked true", b"/Marked null")),
         ("a page /Tabs /R", "letter", replace_once(letter, b"/Tabs /S", b"/Tabs /R")),
         ("a /D on the wrong page", "report", replace_once(report, d_summary, d_other)),
-        ("a /D and /SD point off the heading", "report", report.replace(heading_point, lifted_point)),
+        ("a /D and /SD point off the heading", "report", layout_mutate(report, heading_point, lifted_point, occurrences=2, scope="objects")),
         ("a /SD naming a paragraph", "report", replace_once(report, sd_summary, sd_paragraph)),
     ]
     for label, kind, twin in twins:

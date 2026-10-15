@@ -4,17 +4,16 @@
 The checker parses the emitted bytes directly (no rewriting tool in front)
 and proves the canonical font-bundle facts:
 
-- exactly one nine-object Type 0 bundle per canonical font: the Type 0
-  parent, CIDFontType2 descendant, font descriptor, unfiltered ``FontFile2``
-  subset stream, identity ``CIDToGIDMap`` stream, and ``ToUnicode`` CMap,
-  wired by reference;
+- exactly one seven-object Type 0 bundle per canonical font: the Type 0
+  parent, CIDFontType2 descendant (``/CIDToGIDMap /Identity``), font
+  descriptor, FlateDecode ``FontFile2`` subset stream, and FlateDecode
+  ``ToUnicode`` CMap, wired by reference;
 - the embedded subset program is a well-formed sfnt whose table set stays
   inside the sanitizer's allowlist, whose per-table checksums and whole-font
   ``checkSumAdjustment`` verify, and whose ``hmtx`` advances scaled by
   ``unitsPerEm`` reproduce the emitted ``/W`` array exactly;
-- the ``CIDToGIDMap`` stream is exactly the dense identity map over the
-  subset's glyph count, and every ``ToUnicode`` ``bfchar`` entry names an
-  in-range CID in ascending order;
+- every ``ToUnicode`` entry names an in-range CID (below the subset's
+  glyph count, which the identity CIDToGIDMap requires) in ascending order;
 - ``BaseFont`` is a six-uppercase-letter subset tag joined to the validated
   PostScript name, and a shared tag never merges distinct bundles;
 - every ``Tf`` operand resolves through its own stream's exact direct
@@ -38,7 +37,11 @@ from check_forms import (
     form_objects,
     parse_resources,
 )
+from pdf_layout import flatten, mutate, occurrences
 from check_pdf_structure import (
+    to_unicode_mappings,
+    mcid_owners,
+    decode_stream,
     ValidationError,
     dictionary_int,
     dictionary_ref,
@@ -62,14 +65,9 @@ BFCHAR = re.compile(rb"<([0-9A-F]{4})> <((?:[0-9A-F]{4})+)>")
 
 
 def raw_stream(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]:
-    """Dictionary and exact bytes of one unfiltered stream object."""
-    body = bodies[number]
-    marker = body.find(b"stream\n")
-    require(marker >= 0, f"object {number} is not a stream")
-    dictionary = body[:marker]
-    require(b"/Filter" not in dictionary, f"object {number} must be unfiltered")
-    length = indirect_length(bodies, dictionary_ref(dictionary, b"Length"))
-    _, payload = stream_parts(body, length)
+    """Dictionary and decoded bytes of one FlateDecode font stream object."""
+    dictionary, payload = decode_stream(bodies, number)
+    require(b"/Filter /FlateDecode" in dictionary, f"object {number} must be FlateDecode")
     return dictionary, payload
 
 
@@ -141,8 +139,8 @@ class Bundle:
         require(b"/Subtype /CIDFontType2" in descendant, f"{owner}: descendant is not CIDFontType2")
         require(base.group(0) in descendant, f"{owner}: descendant BaseFont disagrees")
         require(
-            b"/CIDSystemInfo << /Ordering <4964656E74697479> "
-            b"/Registry <41646F6265> /Supplement 0 >>" in descendant,
+            b"/CIDSystemInfo << /Ordering (Identity) "
+            b"/Registry (Adobe) /Supplement 0 >>" in descendant,
             f"{owner}: CIDSystemInfo is not the canonical ASCII Adobe-Identity-0",
         )
         require(b"/DW 1000" in descendant, f"{owner}: /DW is not 1000")
@@ -158,10 +156,9 @@ class Bundle:
         require(length1 == len(self.subset_bytes), f"{owner}: /Length1 disagrees with the subset bytes")
         self.subset = Subset(owner, self.subset_bytes)
 
-        self.cid_map = dictionary_ref(descendant, b"CIDToGIDMap")
-        _, cid_map = raw_stream(bodies, self.cid_map)
-        expected = b"".join(struct.pack(">H", glyph) for glyph in range(self.subset.glyph_count))
-        require(cid_map == expected, f"{owner}: CIDToGIDMap is not the dense identity map")
+        # CID = subset glyph ID for the dense planned CID range, so the
+        # descendant names the identity map instead of carrying a stream.
+        require(b"/CIDToGIDMap /Identity " in descendant, f"{owner}: CIDToGIDMap is not /Identity")
 
         widths = re.search(rb"/W \[0 \[((?:[0-9]+ ?)+)\]\]", descendant)
         require(widths is not None, f"{owner}: /W is not the canonical one-run array")
@@ -176,21 +173,14 @@ class Bundle:
         require(b"begincmap" in cmap and b"endcmap" in cmap, f"{owner}: ToUnicode is not a CMap")
         require(b"/CMapName /Adobe-Identity-UCS def" in cmap, f"{owner}: ToUnicode CMap name")
         self.mappings: dict[int, str] = {}
-        previous = -1
-        blocks = re.findall(rb"beginbfchar\n(.*?)endbfchar", cmap, re.DOTALL)
-        require(blocks, f"{owner}: ToUnicode has no bfchar block")
-        for match in BFCHAR.finditer(b"".join(blocks)):
-            cid = int(match.group(1), 16)
-            require(cid > previous, f"{owner}: ToUnicode CIDs are not ascending")
+        for cid, scalars in to_unicode_mappings(cmap).items():
             require(0 < cid < self.subset.glyph_count, f"{owner}: ToUnicode CID out of subset range")
-            previous = cid
-            units = bytes.fromhex(match.group(2).decode())
-            self.mappings[cid] = units.decode("utf-16-be")
+            self.mappings[cid] = "".join(chr(scalar) for scalar in scalars)
         require(self.mappings, f"{owner}: empty ToUnicode mapping")
 
     @property
     def objects(self) -> set[int]:
-        return {self.type0, self.descendant, self.descriptor, self.font_file, self.cid_map, self.to_unicode}
+        return {self.type0, self.descendant, self.descriptor, self.font_file, self.to_unicode}
 
 
 class FontFacts:
@@ -299,10 +289,9 @@ class FontFacts:
             require(key in rows, f"page {page}: /StructParents key missing from ParentTree")
             require(len(rows[key]) == len(mcids), f"page {page}: ParentTree row length disagrees with painted MCIDs")
             for mcid, parent in enumerate(rows[key]):
-                pattern = rb"<< /MCID " + str(mcid).encode() + rb" /Pg " + str(page).encode() + rb" 0 R /Type /MCR >>"
-                matches = sum(len(re.findall(pattern, body)) for body in self.bodies.values())
-                require(matches == 1, f"page {page}: MCID {mcid} referenced {matches} times")
-                require(re.search(pattern, self.bodies[parent]) is not None, f"page {page}: MCID {mcid} owner disagrees")
+                owners = mcid_owners(self.bodies, page, mcid)
+                require(len(owners) == 1, f"page {page}: MCID {mcid} referenced {len(owners)} times")
+                require(owners[0] == parent, f"page {page}: MCID {mcid} owner disagrees")
 
 
 def font_entries(resources: dict[str, int]) -> dict[str, int]:
@@ -397,8 +386,10 @@ def validate_fonts_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
 
 
 def replace_once(value: bytes, old: bytes, new: bytes) -> bytes:
-    require(value.count(old) >= 1, f"mutation target {old!r} not found")
-    return value.replace(old, new, 1)
+    """A twin with the first occurrence of ``old`` (among object bodies, or
+    else among decoded stream payloads) replaced."""
+    scope = "objects" if occurrences(value, old, "objects") else "payloads"
+    return mutate(value, old, new, occurrences=None, scope=scope, first_only=True)
 
 
 def self_test() -> None:
@@ -419,14 +410,12 @@ def self_test() -> None:
         ("cid map identity", None),
         ("subset signature", None),
     ]
-    tag_match = BASE_FONT.search(showcase)
+    tag_match = BASE_FONT.search(flatten(showcase))
     lowered = tag_match.group(1).lower()
-    mutations[4] = ("subset tag casing", showcase.replace(tag_match.group(1), lowered))
-    identity_prefix = b"\x00\x00\x00\x01\x00\x02"
-    require(identity_prefix in showcase, "identity CIDToGIDMap prefix not found")
-    mutations[5] = ("cid map identity", replace_once(showcase, identity_prefix, b"\x00\x00\x00\x02\x00\x01"))
+    mutations[4] = ("subset tag casing", mutate(showcase, tag_match.group(1), lowered, occurrences=None, scope="objects"))
+    mutations[5] = ("cid map identity", mutate(showcase, b"/CIDToGIDMap /Identity ", b"/CIDToGIDMap /Identitz ", occurrences=None))
     signature = struct.pack(">I", 0x00010000)
-    mutations[6] = ("subset signature", replace_once(showcase, signature + b"\x00\x0e", struct.pack(">I", 0x4F54544F) + b"\x00\x0e"))
+    mutations[6] = ("subset signature", mutate(showcase, signature + b"\x00\x0e", struct.pack(">I", 0x4F54544F) + b"\x00\x0e", occurrences=None))
     for label, mutated in mutations:
         try:
             validate_showcase(mutated, {"pages": 2, "canonical_fonts": 3})

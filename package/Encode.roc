@@ -27,15 +27,18 @@ Encode :: [].{
 		version : U16,
 	}
 
-	HuffmanPolicy : [Dynamic]
-	XrefCompression : [Uncompressed]
-	DeflatePolicy : {
-		block_input_limit : U64,
-		huffman : HuffmanPolicy,
-		match_search_limit : U16,
-		window_bits : U8,
-	}
+	## `LibdeflateLevel(n)` is libdeflate's compression level `n`, through the
+	## pinned pure-Roc `roc-deflate` port.
+	DeflatePolicy : [LibdeflateLevel(U8)]
+
+	## Every non-stream object is stored in FlateDecode object streams of at
+	## most `max_objects` members, in plan order.
+	ObjectStreamPolicy : { max_objects : U64 }
+
+	## The cross-reference stream is FlateDecode with the PNG Up predictor.
+	XrefCompression : [FlateUpPredictor]
 	CompressionPolicy : {
+		object_streams : ObjectStreamPolicy,
 		streams : DeflatePolicy,
 		xref : XrefCompression,
 	}
@@ -55,13 +58,9 @@ Encode :: [].{
 	canonical : Policy
 	canonical = {
 		compression: {
-			streams: {
-				block_input_limit: 65535,
-				huffman: Dynamic,
-				match_search_limit: 128,
-				window_bits: 15,
-			},
-			xref: Uncompressed,
+			object_streams: { max_objects: 400 },
+			streams: LibdeflateLevel(10),
+			xref: FlateUpPredictor,
 		},
 		escaping: CanonicalPdf20,
 		identifiers: {
@@ -85,14 +84,14 @@ Encode :: [].{
 	}
 }
 
-## Canonical numbers normalize negative zero and never use host formatting.
+# Canonical numbers normalize negative zero and never use host formatting.
 expect Encode.canonical.numbers.negative_zero == NormalizeToZero
 
-## Canonical stream work has an exact bounded match search.
-expect Encode.canonical.compression.streams.match_search_limit == 128
+# Canonical streams use libdeflate level 10.
+expect Encode.canonical.compression.streams == LibdeflateLevel(10)
 
-## The initial xref stream remains uncompressed.
-expect Encode.canonical.compression.xref == Uncompressed
+# Non-stream objects go into object streams; the xref stream is compressed.
+expect Encode.canonical.compression.object_streams.max_objects == 400 and Encode.canonical.compression.xref == FlateUpPredictor
 
-## Document identifiers use a versioned domain-separated digest input.
+# Document identifiers use a versioned domain-separated digest input.
 expect Encode.canonical.identifiers.domain_separator == "roc-pdf:document-id:v1"

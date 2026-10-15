@@ -5,7 +5,9 @@ from dataclasses import dataclass
 
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
-from check_caller_facade import validate_caller_facade_pdf
+from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
+from check_link_underlines import validate_link_underlines_pdf
+from check_drawing_labels import validate_drawing_label_faces_pdf, validate_drawing_labels_pdf
 from check_caller_text import validate_caller_text_pdf
 from check_case_text import validate_case_pdf
 from check_cjk_text import EXPECTED_CONTENT as CJK_TEXT_CONTENT
@@ -27,7 +29,7 @@ from check_pdfa4_structure import validate_pdfa4_pdf, validate_standard_twin_pdf
 from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
-from check_pdf_structure import dictionary_ref, object_slices, require, validate_pdf
+from check_pdf_structure import canonical_text, dictionary_ref, is_structure_element, object_slices, require, structure_kids, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
 from check_rtl import validate_rtl_pdf
 from check_shadings import validate_shadings_pdf
@@ -124,9 +126,9 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
     require(content.count(b" Do\n") == 1, "facade image must be painted exactly once")
 
     figure = only_object(bodies, b"/S /Figure ", "Figure structure element")
-    expected_alt = "A four-color field palette arranged in mirrored bands".encode("utf-16-be").hex().upper().encode()
-    require(b"/Alt <FEFF" + expected_alt + b">" in bodies[figure], "Figure alternative text is missing or changed")
-    require(b"/Type /StructElem" in bodies[figure] and b"/Type /MCR" in bodies[figure], "Figure does not own its marked-content reference")
+    expected_alt = canonical_text("A four-color field palette arranged in mirrored bands")
+    require(b"/Alt " + expected_alt + b" " in bodies[figure], "Figure alternative text is missing or changed")
+    require(is_structure_element(bodies[figure]) and [kind for kind, _, _ in structure_kids(bodies[figure])] == ["mcr"], "Figure does not own its marked-content reference")
     report("exact packed image payload, one image placement, semantic Figure ownership, and authored /Alt")
 
 
@@ -149,6 +151,10 @@ VALIDATORS: dict[str, Validator] = {
     "rtl_text": _simple(validate_rtl_pdf, "resolved visual order, mirrored presentation, logical ActualText, CID, and Unicode mapping facts"),
     "multiface_facade": _simple(validate_multiface_facade_pdf, "independent offsets, lengths, xref, dense two-font resources, visual-order paint segments, CID, and per-font Unicode mapping facts"),
     "caller_facade": _simple(validate_caller_facade_pdf, "independent offsets, lengths, xref, public caller source identity, three placements, Type 0 font, CID, and Unicode mapping facts"),
+    "drawing_labels": _simple(validate_drawing_labels_pdf, "every drawing label shown as Layout artifact text decoding through ToUnicode to its exact string, and none tagged"),
+    "drawing_label_faces": _simple(validate_drawing_label_faces_pdf, "labels decoded per font: region names and a title repeat in the body face, the title in a second face and tick values in a third, neither role face setting tagged text"),
+    "link_underlines": _simple(validate_link_underlines_pdf, "every link line quadrilateral has a Layout artifact underline inside its extent, and underlines exist"),
+    "unhinted_caller_font": _simple(validate_unhinted_caller_pdf, "caller facade facts plus an embedded subset of exactly the ten required TrueType tables, no hinting table"),
     "fonts": _dimensioned(validate_fonts_pdf, "canonical Type 0 bundles, verified embedded subsets, identity CID maps, ToUnicode facts, exact per-stream /Font dictionaries, and placement-site ownership"),
     "forms": _dimensioned(validate_forms_pdf, "exact Form XObject dictionaries, per-stream direct resources, Do resolution, sharing, and placement-site MCID/ParentTree ownership facts"),
     "color_images": _dimensioned(validate_color_images_pdf, "canonical ICC/color-space/image objects, exact leaf payload equality, soft-mask wiring, and deduplicated direct dictionaries"),
@@ -191,7 +197,7 @@ PREFLIGHT_CHECKS: dict[str, PreflightCheck] = {
         "check_color_image_renderers.py", "check_transparency.py", "check_transparency_renderers.py",
         "check_soft_masks.py", "check_soft_mask_renderers.py", "check_shadings.py", "check_shading_renderers.py",
         "check_font_renderers.py", "check_metadata.py", "check_metadata_renderers.py",
-        "check_navigation.py", "check_navigation_renderers.py", "extract_verapdf_rules.py",
+        "check_navigation.py", "check_navigation_renderers.py", "check_link_underlines.py", "check_drawing_labels.py", "extract_verapdf_rules.py",
         "build_verapdf_corpus_subset.py", "roc_diagnostics.py",
     )
 }

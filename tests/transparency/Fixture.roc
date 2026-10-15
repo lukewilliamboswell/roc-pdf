@@ -955,7 +955,7 @@ check_negatives = |context| {
 	## 1: opacity stays rejected under the tagged-visual resource constructor.
 	rejected = match KernelScene.Plan.build(base.scene, KernelScene.Resources.make({ color_spaces: 2, images: 0 }), scene_limits) {
 		Err(UnsupportedCommand({ command })) => command == context
-		_ => Bool.False
+		_ => False
 	}
 	if !rejected {
 		return Err(MissingRejection(1))
@@ -977,8 +977,8 @@ check_negatives = |context| {
 		KernelScene.Resources.with_forms({ color_spaces: 2, forms: 0, images: 0, text_runs: 1 }),
 		scene_limits,
 	) {
-		Err(TextPaintInvalid({ command: 0, reason: OpacityNotOpaque })) => Bool.True
-		_ => Bool.False
+		Err(TextPaintInvalid({ command: 0, reason: OpacityNotOpaque })) => True
+		_ => False
 	}
 	if !text_paint_rejected {
 		return Err(MissingRejection(2))
@@ -995,8 +995,8 @@ check_negatives = |context| {
 			},
 		},
 		|error| match error {
-			EmptyCommandRange({ group: 1 }) => Bool.True
-			_ => Bool.False
+			EmptyCommandRange({ group: 1 }) => True
+			_ => False
 		},
 	)?
 
@@ -1006,8 +1006,8 @@ check_negatives = |context| {
 		calibrated_only(base),
 		form_limits,
 		|error| match error {
-			MissingBlendingSpace({ page: 0 }) => Bool.True
-			_ => Bool.False
+			MissingBlendingSpace({ page: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1030,8 +1030,8 @@ check_negatives = |context| {
 		calibrated_only({ ..plain_isolated, scene: plain_scene }),
 		form_limits,
 		|error| match error {
-			MissingBlendingSpace({ page: 0 }) => Bool.True
-			_ => Bool.False
+			MissingBlendingSpace({ page: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1048,8 +1048,8 @@ check_negatives = |context| {
 		),
 		form_limits,
 		|error| match error {
-			FormOpacityInAmbient({ form: 0 }) => Bool.True
-			_ => Bool.False
+			FormOpacityInAmbient({ form: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1079,8 +1079,8 @@ check_negatives = |context| {
 		nested_scenario,
 		form_limits,
 		|error| match error {
-			FormOpacityInAmbient({ form: 1 }) => Bool.True
-			_ => Bool.False
+			FormOpacityInAmbient({ form: 1 }) => True
+			_ => False
 		},
 	)?
 
@@ -1090,8 +1090,8 @@ check_negatives = |context| {
 		nest_chain(3),
 		KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 2, max_recipe_bytes: 4194304 }),
 		|error| match error {
-			OpacityDepthExceeded({ attempted: 3, limit: 2 }) => Bool.True
-			_ => Bool.False
+			OpacityDepthExceeded({ attempted: 3, limit: 2 }) => True
+			_ => False
 		},
 	)?
 
@@ -1101,8 +1101,8 @@ check_negatives = |context| {
 		form_grid(1),
 		KernelForm.Limits.make({ graph: graph_limits, max_mask_depth: 4, max_opacity_depth: 64, max_recipe_bytes: 8 }),
 		|error| match error {
-			FormPlanFailure(RecipeByteLimitExceeded({ attempted: _, limit: 8 })) => Bool.True
-			_ => Bool.False
+			FormPlanFailure(RecipeByteLimitExceeded({ attempted: _, limit: 8 })) => True
+			_ => False
 		},
 	)?
 
@@ -1117,8 +1117,8 @@ check_negatives = |context| {
 			max_recipe_bytes: 4194304,
 		}),
 		|error| match error {
-			Graph(ResourceLimitExceeded({ attempted: 4, limit: 3 })) => Bool.True
-			_ => Bool.False
+			Graph(ResourceLimitExceeded({ attempted: 4, limit: 3 })) => True
+			_ => False
 		},
 	)?
 
@@ -1135,8 +1135,8 @@ check_negatives = |context| {
 		unplaced,
 		form_limits,
 		|error| match error {
-			Graph(UnreachableResource(_)) => Bool.True
-			_ => Bool.False
+			Graph(UnreachableResource(_)) => True
+			_ => False
 		},
 	)?
 
@@ -1152,8 +1152,8 @@ check_negatives = |context| {
 			max_recipe_bytes: 4194304,
 		}),
 		|error| match error {
-			Graph(RootUseLimitExceeded({ attempted: 3, limit: 2 })) => Bool.True
-			_ => Bool.False
+			Graph(RootUseLimitExceeded({ attempted: 3, limit: 2 })) => True
+			_ => False
 		},
 	)?
 
@@ -1168,40 +1168,40 @@ list_at = |items, index| match items.get(index) {
 	}
 }
 
-## The showcase collapses six non-opaque groups over 0.5-equivalent products
-## into one canonical state, keeps four distinct states, normalizes the
-## opaque identity away, and emits identical bytes for both authored orders.
+# The showcase collapses six non-opaque groups over 0.5-equivalent products
+# into one canonical state, keeps four distinct states, normalizes the
+# opaque identity away, and emits identical bytes for both authored orders.
 expect {
 	result = Fixture.scenario("showcase", 0)?
 	result.work.get(0) == Ok(10) and result.work.get(1) == Ok(9) and result.work.get(2) == Ok(1) and result.work.get(4) == Ok(4) and result.work.get(5) == Ok(5) and result.work.get(8) == Ok(1) and result.work.get(9) == Ok(1)
 }
 
-## Shared constants collapse to one canonical ExtGState.
+# Shared constants collapse to one canonical ExtGState.
 expect {
 	result = Fixture.scenario("share", 5)?
 	result.work.get(1) == Ok(5) and result.work.get(4) == Ok(1) and result.work.get(5) == Ok(4) and result.work.get(10) == Ok(1)
 }
 
-## Distinct constants stay distinct canonical states and objects.
+# Distinct constants stay distinct canonical states and objects.
 expect {
 	result = Fixture.scenario("states", 5)?
 	result.work.get(4) == Ok(5) and result.work.get(5) == Ok(0) and result.work.get(10) == Ok(5)
 }
 
-## A nested chain records its depth and its distinct effective products.
+# A nested chain records its depth and its distinct effective products.
 expect {
 	result = Fixture.scenario("nest", 4)?
 	result.work.get(6) == Ok(4) and result.work.get(3) == Ok(4) and result.work.get(4) == Ok(4)
 }
 
-## Per-form opacity over one shared constant keeps one canonical state while
-## forms and their state edges scale.
+# Per-form opacity over one shared constant keeps one canonical state while
+# forms and their state edges scale.
 expect {
 	result = Fixture.scenario("forms", 3)?
 	result.work.get(4) == Ok(1) and result.work.get(25) == Ok(3) and result.work.get(14) == Ok(3)
 }
 
-## Every negative twin is rejected and no plan escapes.
+# Every negative twin is rejected and no plan escapes.
 expect {
 	result = Fixture.atomic_negatives(1)?
 	result.work.get(0) == Ok(12) and result.work.get(1) == Ok(0)

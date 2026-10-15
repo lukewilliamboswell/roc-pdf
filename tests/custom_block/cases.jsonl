@@ -2,3 +2,5 @@
 {"name":"custom block callouts x10","schema_version":1,"case":{"Callouts":{"callouts":10}}}
 {"name":"custom block callouts x100","schema_version":1,"case":{"Callouts":{"callouts":100}}}
 {"name":"custom block atomic negatives","schema_version":1,"case":{"AtomicNegatives":{"context":0}}}
+{"name":"custom block rich callouts x10","schema_version":1,"case":{"RichCallouts":{"callouts":10}}}
+{"name":"custom block rich callouts x50","schema_version":1,"case":{"RichCallouts":{"callouts":50}}}

@@ -910,8 +910,8 @@ check_negatives = |context| {
 		{ ..store_with_profile(truncated_profile), tags: [] },
 		single_profile_limits,
 		|error| match error {
-			ProfileTooShort({ bytes: 100, profile: 0 }) => Bool.True
-			_ => Bool.False
+			ProfileTooShort({ bytes: 100, profile: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -921,8 +921,8 @@ check_negatives = |context| {
 		store_with_profile(profile_with_bytes(patched_profile_bytes(3, 0xd1))),
 		single_profile_limits,
 		|error| match error {
-			DeclaredSizeMismatch({ actual: 3024, declared: 3025, profile: 0 }) => Bool.True
-			_ => Bool.False
+			DeclaredSizeMismatch({ actual: 3024, declared: 3025, profile: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -932,8 +932,8 @@ check_negatives = |context| {
 		store_with_profile(profile_with_bytes(patched_profile_bytes(36, 0))),
 		single_profile_limits,
 		|error| match error {
-			InvalidIccSignature({ profile: 0 }) => Bool.True
-			_ => Bool.False
+			InvalidIccSignature({ profile: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -943,8 +943,8 @@ check_negatives = |context| {
 		store_with_profile(profile_with_bytes(patched_profile_bytes(8, 4))),
 		single_profile_limits,
 		|error| match error {
-			UnsupportedIccVersion({ profile: 0, version: 4 }) => Bool.True
-			_ => Bool.False
+			UnsupportedIccVersion({ profile: 0, version: 4 }) => True
+			_ => False
 		},
 	)?
 
@@ -955,8 +955,8 @@ check_negatives = |context| {
 		store_with_profile(profile_with_bytes(gray_header)),
 		single_profile_limits,
 		|error| match error {
-			ComponentMismatch({ profile: 0 }) => Bool.True
-			_ => Bool.False
+			ComponentMismatch({ profile: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -968,8 +968,8 @@ check_negatives = |context| {
 		{ ..valid_single_profile_store, tags: list_set(KernelSrgbProfile.tags, 0, shifted_tag) },
 		single_profile_limits,
 		|error| match error {
-			TagRecordMismatch({ profile: 0, tag: 0 }) => Bool.True
-			_ => Bool.False
+			TagRecordMismatch({ profile: 0, tag: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -984,8 +984,8 @@ check_negatives = |context| {
 			max_tags: KernelSrgbProfile.tag_count + 1,
 		}),
 		|error| match error {
-			OrphanTag({ tag: 16 }) => Bool.True
-			_ => Bool.False
+			OrphanTag({ tag: 16 }) => True
+			_ => False
 		},
 	)?
 
@@ -1000,8 +1000,8 @@ check_negatives = |context| {
 			max_tags: KernelSrgbProfile.tag_count,
 		}),
 		|error| match error {
-			LimitExceeded({ attempted: _, dimension: IccBytes, limit: _ }) => Bool.True
-			_ => Bool.False
+			LimitExceeded({ attempted: _, dimension: IccBytes, limit: _ }) => True
+			_ => False
 		},
 	)?
 
@@ -1017,8 +1017,8 @@ check_negatives = |context| {
 		},
 		single_profile_limits,
 		|error| match error {
-			ComponentMismatch({ profile: 0 }) => Bool.True
-			_ => Bool.False
+			ComponentMismatch({ profile: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1034,8 +1034,8 @@ check_negatives = |context| {
 		},
 		single_profile_limits,
 		|error| match error {
-			IndexOutOfRange({ available: 1, index: 7 }) => Bool.True
-			_ => Bool.False
+			IndexOutOfRange({ available: 1, index: 7 }) => True
+			_ => False
 		},
 	)?
 
@@ -1051,8 +1051,8 @@ check_negatives = |context| {
 		},
 		single_profile_limits,
 		|error| match error {
-			InvalidCalibratedGray({ space: 0 }) => Bool.True
-			_ => Bool.False
+			InvalidCalibratedGray({ space: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1063,8 +1063,8 @@ check_negatives = |context| {
 		{ resources: [{ id: Image.Id.from_index(0), payload: EncodedJpeg({ bytes: bad_marker, color_space: Color.SpaceId.from_index(0), orientation_policy: RequireDisplayReady }) }] },
 		negative_image_limits,
 		|error| match error {
-			InvalidJpegMarker({ marker: 0xd8, offset: 2, resource: 0 }) => Bool.True
-			_ => Bool.False
+			InvalidJpegMarker({ marker: 0xd8, offset: 2, resource: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1075,8 +1075,8 @@ check_negatives = |context| {
 		{ resources: [{ id: Image.Id.from_index(0), payload: EncodedJpeg({ bytes: bad_length, color_space: Color.SpaceId.from_index(0), orientation_policy: RequireDisplayReady }) }] },
 		negative_image_limits,
 		|error| match error {
-			InvalidJpegSegment({ offset: 2, resource: 0 }) => Bool.True
-			_ => Bool.False
+			InvalidJpegSegment({ offset: 2, resource: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1087,8 +1087,8 @@ check_negatives = |context| {
 		{ resources: [{ id: Image.Id.from_index(0), payload: EncodedJpeg({ bytes: two_components, color_space: Color.SpaceId.from_index(0), orientation_policy: RequireDisplayReady }) }] },
 		negative_image_limits,
 		|error| match error {
-			UnsupportedJpegComponents({ components: 2, resource: 0 }) => Bool.True
-			_ => Bool.False
+			UnsupportedJpegComponents({ components: 2, resource: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1099,8 +1099,8 @@ check_negatives = |context| {
 		{ resources: [{ id: Image.Id.from_index(0), payload: EncodedJpeg({ bytes: rotated, color_space: Color.SpaceId.from_index(0), orientation_policy: ApplyBeforePlacement }) }] },
 		negative_image_limits,
 		|error| match error {
-			OrientationRequiresTransform({ resource: 0 }) => Bool.True
-			_ => Bool.False
+			OrientationRequiresTransform({ resource: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1110,8 +1110,8 @@ check_negatives = |context| {
 		{ resources: [{ id: Image.Id.from_index(0), payload: EncodedJpeg({ bytes: showcase_jpeg({}), color_space: Color.SpaceId.from_index(0), orientation_policy: RequireDisplayReady }) }] },
 		negative_image_limits,
 		|error| match error {
-			ColorComponentMismatch({ resource: 0 }) => Bool.True
-			_ => Bool.False
+			ColorComponentMismatch({ resource: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1121,8 +1121,8 @@ check_negatives = |context| {
 		{ resources: [with_raster(|raster| { ..raster, format: Rgb8, pixels: rgb_pixels, row_stride: 6 })] },
 		negative_image_limits,
 		|error| match error {
-			ColorComponentMismatch({ resource: 0 }) => Bool.True
-			_ => Bool.False
+			ColorComponentMismatch({ resource: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1132,8 +1132,8 @@ check_negatives = |context| {
 		{ resources: [with_raster(|raster| { ..raster, row_stride: 1 })] },
 		negative_image_limits,
 		|error| match error {
-			InvalidRowStride({ minimum: 2, resource: 0, stride: 1 }) => Bool.True
-			_ => Bool.False
+			InvalidRowStride({ minimum: 2, resource: 0, stride: 1 }) => True
+			_ => False
 		},
 	)?
 
@@ -1143,8 +1143,8 @@ check_negatives = |context| {
 		{ resources: [with_raster(|raster| { ..raster, pixels: gray_pixels.append(0) })] },
 		negative_image_limits,
 		|error| match error {
-			DecodedLengthMismatch({ actual: 5, expected: 4, resource: 0 }) => Bool.True
-			_ => Bool.False
+			DecodedLengthMismatch({ actual: 5, expected: 4, resource: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1154,8 +1154,8 @@ check_negatives = |context| {
 		{ resources: [with_raster(|raster| { ..raster, alpha: PackedAlpha({ bytes: [255, 255, 0], row_stride: 2 }) })] },
 		negative_image_limits,
 		|error| match error {
-			DecodedLengthMismatch({ actual: 3, expected: 4, resource: 0 }) => Bool.True
-			_ => Bool.False
+			DecodedLengthMismatch({ actual: 3, expected: 4, resource: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1165,8 +1165,8 @@ check_negatives = |context| {
 		{ resources: [with_raster(|raster| { ..raster, dimensions: { height: 2, width: 0 } })] },
 		negative_image_limits,
 		|error| match error {
-			InvalidDimensions({ height: 2, resource: 0, width: 0 }) => Bool.True
-			_ => Bool.False
+			InvalidDimensions({ height: 2, resource: 0, width: 0 }) => True
+			_ => False
 		},
 	)?
 
@@ -1176,8 +1176,8 @@ check_negatives = |context| {
 		{ resources: [gray_raster_source] },
 		KernelImage.Limits.make({ max_decoded_bytes: 3, max_encoded_bytes: 0, max_height: 2, max_markers: 0, max_resources: 1, max_width: 2 }),
 		|error| match error {
-			LimitExceeded({ attempted: 4, dimension: DecodedBytes, limit: 3 }) => Bool.True
-			_ => Bool.False
+			LimitExceeded({ attempted: 4, dimension: DecodedBytes, limit: 3 }) => True
+			_ => False
 		},
 	)?
 
@@ -1192,8 +1192,8 @@ check_negatives = |context| {
 		KernelColor.Limits.make({ max_icc_bytes: KernelSrgbProfile.byte_count, max_profiles: 1, max_spaces: 1, max_tags: KernelSrgbProfile.tag_count }),
 	)
 	unreachable_rejected = match build_facts_for(unreferenced) {
-		Err(Graph(UnreachableResource(_))) => Bool.True
-		_ => Bool.False
+		Err(Graph(UnreachableResource(_))) => True
+		_ => False
 	}
 	if !unreachable_rejected {
 		return Err(MissingRejection(23))
@@ -1207,8 +1207,8 @@ check_negatives = |context| {
 		max_recipe_bytes: 4194304,
 	})
 	payload_rejected = match build_plan_with_limits(grid_scenario(context, Duplicated), tight) {
-		Err(FormPlanFailure(Graph(PayloadByteLimitExceeded({ attempted: _, limit: 8 })))) => Bool.True
-		_ => Bool.False
+		Err(FormPlanFailure(Graph(PayloadByteLimitExceeded({ attempted: _, limit: 8 })))) => True
+		_ => False
 	}
 	if !payload_rejected {
 		return Err(MissingRejection(24))
@@ -1336,27 +1336,27 @@ list_set = |items, index, value| match items.set(index, value) {
 	}
 }
 
-## The showcase deduplicates two profiles into one, four color spaces into
-## two, and five images into three while both authored orders emit identical
-## bytes.
+# The showcase deduplicates two profiles into one, four color spaces into
+# two, and five images into three while both authored orders emit identical
+# bytes.
 expect {
 	result = Fixture.scenario("showcase", 0)?
 	result.work.get(0) == Ok(2) and result.work.get(1) == Ok(1) and result.work.get(3) == Ok(4) and result.work.get(4) == Ok(2) and result.work.get(6) == Ok(5) and result.work.get(7) == Ok(3)
 }
 
-## Byte-identical authored rasters collapse to one canonical emitted image.
+# Byte-identical authored rasters collapse to one canonical emitted image.
 expect {
 	result = Fixture.scenario("dedup", 5)?
 	result.work.get(7) == Ok(1) and result.work.get(8) == Ok(4) and result.work.get(28) == Ok(1)
 }
 
-## Distinct rasters stay distinct canonical images.
+# Distinct rasters stay distinct canonical images.
 expect {
 	result = Fixture.scenario("distinct", 5)?
 	result.work.get(7) == Ok(5) and result.work.get(8) == Ok(0) and result.work.get(28) == Ok(5)
 }
 
-## Every negative twin is rejected and no plan escapes.
+# Every negative twin is rejected and no plan escapes.
 expect {
 	result = Fixture.atomic_negatives(1)?
 	result.work.get(0) == Ok(24) and result.work.get(1) == Ok(0)

@@ -325,7 +325,7 @@ Review of the distribution:
   `Pdf.next_chunk` with a `Done => { $done = True }` flag loop keeps the old
   encoder live and, with `--opt=dev`, copies its object offsets once per
   object (cause 2). The archive and facade chunk fixtures use that loop, and
-  `examples/chunked_export.roc` grows its output with `bytes.concat(chunk)`.
+  `examples/chunked-export/main.roc` grows its output with `bytes.concat(chunk)`.
   Their documents are small and have no scale pair. The package cannot
   prevent the copy; the public documentation of chunked output should show
   a loop that returns from `Done`.

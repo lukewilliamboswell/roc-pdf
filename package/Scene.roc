@@ -15,18 +15,57 @@ Scene :: [].{
 		AuthorPath({ path : AuthorPath, style : AuthorPathStyle }),
 		AuthorGroup({ kind : AuthorGroupKind, value : U16 }),
 
+		## A text label and the face it is set in, boxed so the command
+		## union keeps its size.
+		AuthorText(Box({ face : LabelFace, label : Label })),
+
 		## The next `commands` commands (counted after flattening, so nested
 		## groups are included) form one group translated by `offset`.
 		AuthorTranslate({ commands : U64, offset : Layout.Point }),
 	]
 
+	## A single line of text inside a drawing: its Unicode text, the
+	## baseline point it is aligned to in drawing-local coordinates, its
+	## size, fill color, and how it aligns to that point (`Start` begins
+	## there, `Center` centers on it, `End` ends there). A label is shaped
+	## in the document's body face, or with `Drawing.text_in` in the face
+	## of an inline role, by the same pipeline as body text, never outlined
+	## or rasterized, and must lie inside its drawing.
+	##
+	## Label text is page-artifact text (`Decoration`): it is extractable
+	## and searchable through its Unicode mapping, but it belongs to no
+	## structure element. In a figure, the figure's alternative text is
+	## what assistive technology reads, so it must convey what the labels
+	## say; in a decoration or a custom block's panel the labels are
+	## decoration like the rest of the drawing.
+	##
+	## `align` is `Start` and `color` black unless given.
+	Label := {
+		align : LabelAlign ?? Start,
+		color : Color.SourceValue ?? Srgb(Rgb({ blue: 0, green: 0, red: 0 })),
+		origin : Layout.Point,
+		size : Layout.Unit,
+		text : Str,
+	}
+
+	LabelAlign : [Center, End, Start]
+
+	## The face a label is set in: the body face, or the face the theme
+	## gives an inline role (its `inline` style's `font`), such as a bold
+	## face for `Strong`. A role without a face in the theme sets the label in
+	## the body face, as it does inline text.
+	LabelFace : [BodyFace, RoleFace([Code, Emphasis, Quote, Strong])]
+
 	## Stable group vocabulary reserved for validated drawing composition.
 	AuthorGroupKind : [ClipGroup, OpacityGroup, SoftMaskGroup, TransformGroup]
 
-	## Explicit fill and stroke paint for an authored path.
-	AuthorPathStyle : {
-		fill : [AuthorNoFill, AuthorSolidFill(Color.SourceValue)],
-		stroke : [AuthorNoStroke, AuthorSolidStroke({ color : Color.SourceValue, width : Layout.Unit })],
+	## Explicit fill and stroke paint for an authored path: no fill and no
+	## stroke unless given (a path with neither is rejected when the
+	## document is prepared), so `{ fill: AuthorSolidFill(color) }` is a
+	## filled path.
+	AuthorPathStyle := {
+		fill : [AuthorNoFill, AuthorSolidFill(Color.SourceValue)] ?? AuthorNoFill,
+		stroke : [AuthorNoStroke, AuthorSolidStroke({ color : Color.SourceValue, width : Layout.Unit })] ?? AuthorNoStroke,
 	}
 
 	## Ordered path segments produced by `PathBuilder.finish`.
@@ -35,6 +74,8 @@ Scene :: [].{
 	## An opaque persistent drawing. It acquires semantic or artifact ownership
 	## only when attached to a document.
 	Drawing :: { commands : List(AuthorCommand) }.{
+
+		## The empty drawing every drawing starts from.
 		empty : Drawing
 		empty = Drawing.({ commands: [] })
 
@@ -59,6 +100,24 @@ Scene :: [].{
 			Drawing.({ commands: $commands })
 		}
 
+		## Add a text label (see `Label`) in the body face.
+		text : Drawing, Label -> Drawing
+		text = |Drawing.(state), label| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: BodyFace, label }))) })
+
+		## Add a text label in the theme's face for an inline role, such as
+		## a chart title in the `Strong` face: `drawing.text_in(Strong,
+		## label)`. The label's face joins the document's output fonts even
+		## when no body text uses it.
+		text_in : Drawing, [Code, Emphasis, Quote, Strong], Label -> Drawing
+		text_in = |Drawing.(state), role, label| Drawing.({ commands: state.commands.append(AuthorText(Box.box({ face: RoleFace(role), label }))) })
+
+		## Append a solid filled rectangle: `Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 40, 2), ink)`.
+		rectangle : Drawing, Layout.Rect, Color.SourceValue -> Drawing
+		rectangle = |drawing_value, bounds, color| {
+			path_value = PathBuilder.start.rectangle(bounds).finish()
+			drawing_value.path(path_value, { fill: AuthorSolidFill(color), stroke: AuthorNoStroke })
+		}
+
 		command_count : Drawing -> U64
 		command_count = |Drawing.(state)| state.commands.len()
 
@@ -69,6 +128,8 @@ Scene :: [].{
 
 	## Persistent builder for an ordered path in PDF user-space coordinates.
 	PathBuilder :: { segments : List(PathSegment) }.{
+
+		## The empty path every path starts from.
 		start : PathBuilder
 		start = PathBuilder.({ segments: [] })
 
@@ -91,10 +152,6 @@ Scene :: [].{
 		finish = |PathBuilder.(state)| state.segments
 	}
 
-	## Start an empty authoring drawing.
-	drawing : {} -> Drawing
-	drawing = |_| Drawing.empty
-
 	## Paint a path fill with an explicit source color and no stroke.
 	solid_fill : Color.SourceValue -> AuthorPathStyle
 	solid_fill = |color| { fill: AuthorSolidFill(color), stroke: AuthorNoStroke }
@@ -103,18 +160,10 @@ Scene :: [].{
 	solid_stroke : Color.SourceValue, Layout.Unit -> AuthorPathStyle
 	solid_stroke = |color, width| { fill: AuthorNoFill, stroke: AuthorSolidStroke({ color, width }) }
 
-	## Append a solid filled rectangle to a drawing.
-	rectangle : Drawing, Layout.Rect, Color.SourceValue -> Drawing
-	rectangle = |drawing_value, bounds, color| {
-		path_value = PathBuilder.start.rectangle(bounds).finish()
-		drawing_value.path(path_value, solid_fill(color))
-	}
-
-	## Start an empty path builder.
-	path : {} -> PathBuilder
-	path = |_| PathBuilder.start
-
 	GroupId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> GroupId
 		from_index = |index| GroupId.(index)
 
@@ -123,6 +172,9 @@ Scene :: [].{
 	}
 
 	PathId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> PathId
 		from_index = |index| PathId.(index)
 
@@ -131,6 +183,9 @@ Scene :: [].{
 	}
 
 	FormId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> FormId
 		from_index = |index| FormId.(index)
 
@@ -139,6 +194,9 @@ Scene :: [].{
 	}
 
 	ShadingId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> ShadingId
 		from_index = |index| ShadingId.(index)
 
@@ -147,6 +205,9 @@ Scene :: [].{
 	}
 
 	PatternId :: U64.{
+		is_eq : _
+		to_hash : _
+
 		from_index : U64 -> PatternId
 		from_index = |index| PatternId.(index)
 
@@ -410,21 +471,21 @@ Scene :: [].{
 	no_patterns = { cells: [], commands: [] }
 }
 
-## Scene group IDs preserve their dense index.
+# Scene group IDs preserve their dense index.
 expect Scene.GroupId.from_index(2).index() == 2
 
-## Path IDs preserve their dense index.
+# Path IDs preserve their dense index.
 expect Scene.PathId.from_index(4).index() == 4
 
-## The public coordinate model matches the fixed-point layout scale.
+# The public coordinate model matches the fixed-point layout scale.
 expect Scene.coordinate_model.units_per_point == 1000
 
-## Nested public type modules construct opaque scene group IDs directly.
+# Nested public type modules construct opaque scene group IDs directly.
 expect Scene.GroupId.from_index(10).index() == 10
 
-## Form IDs preserve their dense index and the empty store carries no forms.
+# Form IDs preserve their dense index and the empty store carries no forms.
 expect Scene.FormId.from_index(3).index() == 3 and Scene.no_forms.forms.len() == 0
 
-## Shading and pattern IDs preserve their dense indices, and the empty paint
-## stores carry no resources.
+# Shading and pattern IDs preserve their dense indices, and the empty paint
+# stores carry no resources.
 expect Scene.ShadingId.from_index(5).index() == 5 and Scene.PatternId.from_index(7).index() == 7 and Scene.no_shadings.shadings.len() == 0 and Scene.no_patterns.cells.len() == 0

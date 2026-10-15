@@ -756,6 +756,126 @@ def verify_toolchain(toolchain: Toolchain) -> None:
         )
 
 
+LOCAL_IMPORT = re.compile(r"^\s*import\s+([A-Z][A-Za-z0-9_]*)\b", re.MULTILINE)
+TOP_LEVEL_EXPECT = re.compile(r"^\s*expect\b", re.MULTILINE)
+
+
+@dataclass(frozen=True)
+class ValidationTask:
+    action: str
+    sources: tuple[Path, ...]
+    # The expect-bearing files this `roc test` root is responsible for, or
+    # the reason a root needs no task of its own.
+    covers: tuple[Path, ...] = ()
+
+    @property
+    def label(self) -> str:
+        if self.action == "fmt":
+            return f"{len(self.sources)} files"
+        return relative(self.sources[0])
+
+
+@dataclass(frozen=True)
+class ValidationPlan:
+    tasks: tuple[ValidationTask, ...]
+    # Roots whose type checking is provided by another task, with the reason.
+    delegated: tuple[tuple[Path, str], ...]
+
+
+def local_import_closure(root: Path) -> tuple[Path, ...]:
+    """The root plus the same-directory modules it reaches through plain imports."""
+    seen: list[Path] = [root]
+    pending = [root]
+    while pending:
+        source = pending.pop()
+        for name in LOCAL_IMPORT.findall(source.read_text(encoding="utf-8")):
+            module = source.parent / f"{name}.roc"
+            if module.is_file() and module not in seen:
+                seen.append(module)
+                pending.append(module)
+    return tuple(seen)
+
+
+def has_expect(source: Path) -> bool:
+    return TOP_LEVEL_EXPECT.search(source.read_text(encoding="utf-8")) is not None
+
+
+def plan_validation(
+    fmt_sources: list[Path],
+    roots: list[Path],
+    fixture_sources: set[Path],
+    jobs: int,
+) -> ValidationPlan:
+    """Choose the fewest compiler invocations that keep every check and expect.
+
+    Every `roc check`, `roc test`, and `roc build` re-checks the whole package
+    (seconds and gigabytes per root), so each root gets at most one of them:
+
+    - `roc test` reports exactly the errors and warnings `roc check` does, with
+      the same exit codes, before running expects; a tested root is not also
+      checked.
+    - `roc build --no-cache` of a fixture source does the same, so a fixture
+      root that no `roc test` needs is checked by its evidence build.
+    - `package/all.roc` runs every package-module expect (it exposes every
+      module, see verify_all_package_root). An application root's `roc test`
+      would re-run them all, so application roots are tested only for the
+      expects in their own file and same-directory modules: every root whose
+      own file has expects, then, per directory, the fewest roots whose local
+      import closures cover the remaining expect-bearing modules.
+    - Every other root gets one `roc check`.
+
+    fmt is cheap and takes many files, so it runs as one batch per worker.
+    """
+    package_all = (ROOT / "package" / "all.roc").resolve()
+    tasks: list[ValidationTask] = []
+    delegated: list[tuple[Path, str]] = []
+
+    ordered_fmt = sorted(fmt_sources)
+    batches = max(1, min(jobs, len(ordered_fmt)))
+    for index in range(batches):
+        batch = tuple(ordered_fmt[index::batches])
+        if batch:
+            tasks.append(ValidationTask("fmt", batch))
+
+    closures = {root: local_import_closure(root) for root in roots}
+    tested: dict[Path, tuple[Path, ...]] = {}
+    if package_all in closures:
+        tested[package_all] = tuple(
+            module for module in sorted((ROOT / "package").glob("*.roc")) if has_expect(module)
+        )
+    uncovered: set[Path] = set()
+    for root, closure in closures.items():
+        if root == package_all or root.parent == ROOT / "package":
+            continue
+        uncovered.update(module for module in closure if has_expect(module))
+    for root in sorted(closures):
+        if root in uncovered:
+            tested[root] = tuple(module for module in closures[root] if module in uncovered)
+            uncovered.difference_update(tested[root])
+    while uncovered:
+        root = min(
+            (candidate for candidate in closures if candidate not in tested),
+            key=lambda candidate: (
+                -len(uncovered.intersection(closures[candidate])),
+                relative(candidate),
+            ),
+        )
+        covered = tuple(module for module in closures[root] if module in uncovered)
+        if not covered:
+            raise SystemExit(f"no validation root reaches {sorted(relative(item) for item in uncovered)}")
+        tested[root] = covered
+        uncovered.difference_update(covered)
+
+    for root in sorted(closures):
+        if root in tested:
+            tasks.append(ValidationTask("test", (root,), tested[root]))
+        elif root in fixture_sources:
+            delegated.append((root, "checked by its fixture build"))
+        else:
+            tasks.append(ValidationTask("check", (root,)))
+    return ValidationPlan(tuple(tasks), tuple(delegated))
+
+
 def build_case_sources(
     cases: tuple[TestCase, ...],
     build_dir: Path,
@@ -778,6 +898,7 @@ def build_case_sources(
         # fixture compiles exactly as a standalone `roc build --no-cache`
         # does, whatever the order or cache state
         # (docs/performance/lowering-uniqueness.md).
+        # --no-cache works around roc-lang/roc#11826; remove it once that is fixed.
         roc(
             "build",
             relative(source),
@@ -801,23 +922,30 @@ def build_case_sources(
         executor.shutdown()
 
 
-def run_parallel_roc_tasks(tasks: list[tuple[str, Path]], jobs: int) -> None:
-    def run_task(item: tuple[str, Path]) -> tuple[str, Path, float]:
-        action, source = item
+def run_parallel_roc_tasks(tasks: list[ValidationTask], jobs: int) -> None:
+    def run_task(task: ValidationTask) -> tuple[ValidationTask, float]:
         started = time.monotonic()
-        detail(f"START {action.upper():5s} {relative(source)}")
-        if action == "fmt":
-            roc("fmt", "--check", relative(source))
-        else:
-            roc(action, relative(source))
-        return action, source, time.monotonic() - started
+        detail(f"START {task.action.upper():5s} {task.label}")
+        try:
+            if task.action == "fmt":
+                roc("fmt", "--check", *(relative(source) for source in task.sources))
+            else:
+                roc(task.action, relative(task.sources[0]))
+        except SystemExit as error:
+            if task.action != "test":
+                raise
+            # A failing expect names its own file and line; also name the
+            # family root and every module this root was responsible for.
+            covered = ", ".join(relative(module) for module in task.covers)
+            raise SystemExit(f"{error}\nTEST root {task.label} covers expects in: {covered}") from None
+        return task, time.monotonic() - started
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=jobs)
     futures = [executor.submit(run_task, item) for item in tasks]
     try:
         for future in concurrent.futures.as_completed(futures):
-            action, source, elapsed = future.result()
-            progress("PASS", f"{action.upper():5s} {relative(source)} ({elapsed:.1f}s)")
+            task, elapsed = future.result()
+            progress("PASS", f"{task.action.upper():5s} {task.label} ({elapsed:.1f}s)")
     except KeyboardInterrupt:
         cancel_parallel(executor, futures)
         raise
@@ -1005,8 +1133,12 @@ def default_jobs() -> int:
     if memory is None:
         memory_jobs = cpu_jobs
     else:
+        # Each check, test, or build root type-checks the whole package and
+        # peaks at 4 to 5.2 GB resident with the pinned compiler; on a 32 GB
+        # machine 8 and 10 workers were killed for memory, 6 were not
+        # (docs/performance/test-suite-speed.md).
         reserve = 2 * 1024**3
-        per_job = 2 * 1024**3
+        per_job = 5 * 1024**3
         memory_jobs = max(1, (max(0, memory - reserve)) // per_job)
     # Beyond sixteen simultaneous compiler/linker processes, filesystem and
     # cache contention tends to dominate even on large build machines.
@@ -1133,7 +1265,8 @@ def main() -> None:
     verify_toolchain(suite.toolchain)
     verify_all_package_root()
 
-    validation_tasks: list[tuple[str, Path]] = []
+    fmt_sources: list[Path] = []
+    roots: list[Path] = []
     skipped_tasks = 0
     for source in suite.validation_sources:
         source_name = Path(relative(source))
@@ -1152,31 +1285,53 @@ def main() -> None:
                 log(
                     f"SKIP {action} {relative(source)}: {matching_skips[0].reason}"
                 )
-            else:
-                validation_tasks.append((action, source))
+            elif action == "fmt":
+                fmt_sources.append(source)
+            elif action == "check":
+                roots.append(source)
+    # Selecting cases never drops validation: every root is still checked by
+    # a test, a check, or one of the fixture builds, so delegate a root to a
+    # fixture build only when that build runs in this invocation.
+    plan = plan_validation(
+        fmt_sources,
+        roots,
+        {case.source for case in suite.cases},
+        args.jobs,
+    )
+    for task in plan.tasks:
+        if task.action == "test":
+            log(
+                f"PLAN test {task.label} (checks it and runs expects in "
+                f"{', '.join(relative(module) for module in task.covers)})"
+            )
+        elif task.action == "check":
+            log(f"PLAN check {task.label}")
+    for root, reason in plan.delegated:
+        log(f"PLAN {relative(root)}: {reason}")
 
     PROGRESS_TOTAL = (
-        len(validation_tasks)
+        len(plan.tasks)
         + len({case.source for case in suite.cases})
         + len(suite.cases)
     )
 
-    non_test_tasks = [task for task in validation_tasks if task[0] != "test"]
-    test_tasks = [task for task in validation_tasks if task[0] == "test"]
+    # The package roots run first and alone so that every later root reads
+    # the package's checked modules from a warm cache.
     seed_paths = {
         (ROOT / "package" / "main.roc").resolve(),
         (ROOT / "package" / "all.roc").resolve(),
     }
-    seed_test_tasks = [task for task in test_tasks if task[1] in seed_paths]
-    dependent_test_tasks = [task for task in test_tasks if task[1] not in seed_paths]
+    seed_tasks = [task for task in plan.tasks if task.action != "fmt" and task.sources[0] in seed_paths]
+    other_tasks = [task for task in plan.tasks if task not in seed_tasks]
+    counts = {action: sum(1 for task in plan.tasks if task.action == action) for action in ("fmt", "check", "test")}
     phase(
-        f"Running {len(validation_tasks)} spec-defined Roc validation tasks "
-        f"({skipped_tasks} documented skips); seeding {len(seed_test_tasks)} shared "
-        "test roots before parallel dependent tests"
+        f"Running {len(plan.tasks)} Roc validation tasks: {counts['fmt']} fmt batches over "
+        f"{len(fmt_sources)} files, {counts['test']} test roots, {counts['check']} check roots; "
+        f"{len(plan.delegated)} fixture roots are checked by their builds "
+        f"({skipped_tasks} documented skips)"
     )
-    run_parallel_roc_tasks(non_test_tasks, args.jobs)
-    run_parallel_roc_tasks(seed_test_tasks, 1)
-    run_parallel_roc_tasks(dependent_test_tasks, args.jobs)
+    run_parallel_roc_tasks(seed_tasks, 1)
+    run_parallel_roc_tasks(other_tasks, args.jobs)
     command(
         ZIG,
         "fmt",

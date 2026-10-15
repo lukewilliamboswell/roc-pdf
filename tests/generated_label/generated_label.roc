@@ -1,6 +1,6 @@
 app [main!] {
-	pf: platform "../platform/main.roc",
 	pdf: "../../package/main.roc",
+	pf: platform "../platform/main.roc",
 }
 
 import pdf.Pdf
@@ -11,8 +11,8 @@ make_document = |title| Pdf.document({
 	title,
 })
 
-## The facade owns the logical bullet source and carries an explicit
-## GeneratedText presentation fact into the private text pipeline.
+# The facade owns the logical bullet source and carries an explicit
+# GeneratedText presentation fact into the private text pipeline.
 expect {
 	bytes = Pdf.to_bytes(make_document("text-layout generated labels"))?
 	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n") and bytes.len() > 667

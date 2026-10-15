@@ -747,7 +747,7 @@ synthetic_jpeg_with_exif = |_| {
 	append_range(append_list([0xff, 0xd8], exif), base, 2, base.len())
 }
 
-## Packed gray raster rows are validated without pixel-record allocation.
+# Packed gray raster rows are validated without pixel-record allocation.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
 	sources : Image.SourceStore
@@ -758,7 +758,7 @@ expect {
 	KernelImage.Plan.resource_count(plan) == 1 and work.bytes_checked == 4 and work.rows_checked == 2
 }
 
-## Raster formats must match their typed color-space component count.
+# Raster formats must match their typed color-space component count.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
 	sources : Image.SourceStore
@@ -770,7 +770,7 @@ expect {
 	}
 }
 
-## Zero raster dimensions are rejected before stride or payload arithmetic.
+# Zero raster dimensions are rejected before stride or payload arithmetic.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
 	sources : Image.SourceStore
@@ -782,7 +782,7 @@ expect {
 	}
 }
 
-## Supported JPEG markers are checked and irrelevant comments are stripped.
+# Supported JPEG markers are checked and irrelevant comments are stripped.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
 	input = synthetic_jpeg({})
@@ -799,7 +799,7 @@ expect {
 	}
 }
 
-## Segment lengths are checked before any JPEG table access.
+# Segment lengths are checked before any JPEG table access.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
 	bad = list_set(synthetic_jpeg({}), 11, 0xff)
@@ -812,7 +812,7 @@ expect {
 	}
 }
 
-## Top-left EXIF orientation becomes typed evidence and metadata is removed.
+# Top-left EXIF orientation becomes typed evidence and metadata is removed.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
 	input = synthetic_jpeg_with_exif({})
@@ -827,7 +827,7 @@ expect {
 	}
 }
 
-## Encoded orientations needing pixel transforms never reach final placement.
+# Encoded orientations needing pixel transforms never reach final placement.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
 	input = list_set(synthetic_jpeg_with_exif({}), 30, 6)
@@ -840,7 +840,7 @@ expect {
 	}
 }
 
-## Truncated JPEGs fail before marker inspection crosses input bounds.
+# Truncated JPEGs fail before marker inspection crosses input bounds.
 expect {
 	colors = KernelColor.Plan.build(gray_color_store, gray_color_limits)?
 	sources : Image.SourceStore

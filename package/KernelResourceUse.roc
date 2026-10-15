@@ -264,8 +264,8 @@ collect_command_use = |commands, colors, color_count, image_count| {
 	var $image_placements = 0
 	var $index = 0
 
-	## Every per-resource count and the placement total are bounded by the
-	## in-memory command length, so one preflight keeps the hot loop infallible.
+	# Every per-resource count and the placement total are bounded by the
+	# in-memory command length, so one preflight keeps the hot loop infallible.
 	if commands.len() == U64.highest {
 		return Err(ArithmeticOverflow)
 	}
@@ -528,7 +528,7 @@ color_limits = |spaces| KernelColor.Limits.make({ max_icc_bytes: 0, max_profiles
 image_limits : KernelImage.Limits
 image_limits = KernelImage.Limits.make({ max_decoded_bytes: 1, max_encoded_bytes: 0, max_height: 1, max_markers: 0, max_resources: 1, max_width: 1 })
 
-## Repeated placements count twice while retaining one image payload resource.
+# Repeated placements count twice while retaining one image payload resource.
 expect {
 	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0)], tags: [] }, color_limits(1))?
 	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
@@ -539,7 +539,7 @@ expect {
 	KernelResourceUse.Plan.color_use_count(plan, Color.SpaceId.from_index(0)) == 2 and KernelResourceUse.Plan.image_use_count(plan, Image.Id.from_index(0)) == 2 and work.image_resources == 1 and work.image_placements == 2 and work.image_reuses == 1 and work.path_color_references == 1 and work.image_color_references == 1 and work.command_visits == 3
 }
 
-## Channel shape must agree with the selected validated color space.
+# Channel shape must agree with the selected validated color space.
 expect {
 	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0)], tags: [] }, color_limits(1))?
 	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
@@ -553,7 +553,7 @@ expect {
 	}
 }
 
-## Declared scene resource counts cannot diverge from inspected stores.
+# Declared scene resource counts cannot diverge from inspected stores.
 expect {
 	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0)], tags: [] }, color_limits(1))?
 	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
@@ -565,7 +565,7 @@ expect {
 	}
 }
 
-## Validated image payloads that never receive a placement are rejected.
+# Validated image payloads that never receive a placement are rejected.
 expect {
 	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0)], tags: [] }, color_limits(1))?
 	images = KernelImage.Plan.build(image_sources, colors, image_limits)?
@@ -577,7 +577,7 @@ expect {
 	}
 }
 
-## Color spaces enter the normalized closure only when paint or image data uses them.
+# Color spaces enter the normalized closure only when paint or image data uses them.
 expect {
 	colors = KernelColor.Plan.build({ profiles: [], spaces: [gray_space(0), gray_space(1)], tags: [] }, color_limits(2))?
 	images = KernelImage.Plan.build(image_sources, colors, image_limits)?

@@ -37,7 +37,7 @@ accepted as conformance evidence.
 
 `scripts/check_arlington.py --cases` validates every distinct non-empty
 snapshot referenced by `tests/spec.json` and every public example in
-`examples/*.pdf`. Zero-byte snapshots are negative cases that deliberately emit
+`examples/*/*.pdf`. Zero-byte snapshots are negative cases that deliberately emit
 no bytes. The only permitted failure is an explicit, reasoned entry in
 `FIXTURE_EXCEPTIONS`, and that file must fail exactly its recorded rule set; an
 exception that starts passing, fails a different rule, or hits a parser

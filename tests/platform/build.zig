@@ -59,8 +59,17 @@ pub fn build(b: *std.Build) void {
 
         copy_hosts.addCopyFileToSource(
             retention_host.getEmittedBin(),
-            b.pathJoin(&.{ "targets", roc_target.directory(), "libretention_host.a" }),
+            b.pathJoin(&.{ "../retention_platform/targets", roc_target.directory(), "libretention_host.a" }),
         );
+
+        if (roc_target == .x64musl) {
+            for ([_][]const u8{ "crt1.o", "libc.a" }) |input| {
+                copy_hosts.addCopyFileToSource(
+                    b.path(b.pathJoin(&.{ "targets", roc_target.directory(), input })),
+                    b.pathJoin(&.{ "../retention_platform/targets", roc_target.directory(), input }),
+                );
+            }
+        }
     }
 
     b.getInstallStep().dependOn(&copy_hosts.step);

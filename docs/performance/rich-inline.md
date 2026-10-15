@@ -153,6 +153,279 @@ natural language, and the occurrence's origin in the source.
   occurrence-relative contract of the final text store, fragments, and
   lowering. `WholeSources` states that no rebasing is needed.
 
+## Shared sources with different face splits
+
+Identical text interns to one source (`KernelFacadeSources`), so a table
+cell `10` and a strong cell `10`, or a plain and a strong paragraph with the
+same text, share a source. Under role faces those occurrences need
+different font splits, but `KernelShape.shape_selected_batch` required every
+group over one source to carry the identical split and rejected the second
+with `SelectedRequestInvalid({ reason: SplitMismatch })`, which the facade
+reported as `UnsupportedAuthoringContent`. The release notes hit it with a
+strong `—` beside a plain `—` in the compatibility table.
+
+The shaper now treats a group's split as that group's fact. The first
+group over a source defines its primary split, as before. A later group is
+compared cluster by cluster with the primary split while it agrees; at its
+first differing cluster it copies the primary split (whose earlier clusters
+it matched) and records its own fonts from there. When such a group
+completes, its split becomes a variant with its own glyph template, built
+once from that group's clusters in pass two, and every request of the group
+reads that template in pass three. Variants are not deduplicated against
+each other: a differing group costs exactly its own cluster count in
+template work, so the total stays linear in the requested clusters instead
+of comparing every variant with every other. Identical splits (the common
+case) allocate nothing new: the variant list and the per-request variant
+index stay empty until a split first differs, so every existing case keeps
+its allocation count, allocated bytes, work, and snapshot. The pass-three
+consistency check that each template glyph's font is the request's font is
+kept as an internal invariant. The ordered-policy path is unchanged: it
+selects once per unique source, so its occurrences share one split by
+construction.
+
+The line-template cache had the same hidden assumption. `KernelLineLayout`
+keyed a logical run's template by (source, first instance, size, width),
+documented as complete because "one policy per build makes the physical
+split of a source deterministic". With per-occurrence splits it is not: a
+plain paragraph and the same text whose second half is strong both begin
+with a body-face run, so the second reused the first's line breaks and its
+wider strong text overran the right margin (seen in a MuPDF render before
+the fix). The logical key now also carries a signature over the exact
+physical-run sequence (each run's instance, size, and cluster count) and
+the defining run range, and an equal signature is confirmed run by run, so
+a collision never shares lines. The probe hash is unchanged (the same base
+fields as `hash_key`: source, first instance, size, and width), so documents
+with one split per source probe exactly as before. The key stays four words
+(source and run count as `U32`, first run, signature, width): a first
+version that added the signature and run range to the old fields made each
+key eight words, and the key list's growth then reallocated one to four more
+times in 47 existing cases (for example `rich inline mixed` went from 18,557
+to 18,559 allocations) with no change in work. At four words every existing
+case keeps its exact allocation count, allocated bytes, and work.
+
+Evidence, `rich inline shared source faces x10` and `x50`: N table rows
+with a plain `10`, a strong `10`, a strong `n/a`, and a plain `n/a`; N
+pairs of plain and strong `Revision 10` paragraphs; and one paragraph
+twice, plain and with its second half strong. The Noto Sans Mono fixture is
+the strong face. Each occurrence paints in its own face and the half-strong
+paragraph wraps inside the margin (checked in MuPDF renders); the
+rich-inline, structure-semantics, and PDF/A-4 validators pass. Strong text
+the strong face does not cover (`Café`) is `text.coverage_missing` at its
+inline path, never the body face. The pair is linear: 80 and 360 shaped
+runs (7N + 10), 81 and 361 lines, 26,965 and 90,561 allocations, and
+8.24 MB and 34.18 MB allocated.
+
+## Inline role scale
+
+A monospace face drawn at the body size looks larger than the body text, so
+`Theme.with_inline_scale(theme, role, percent)` paints one inline role at 50
+to 100 percent of its paragraph size (`Theme.InlineScale : [Inherited,
+Percent(U64)]`); the innermost role with a scale decides, as for faces and
+colors. The scaled size is a shaping fact: `KernelFacadeShape` gives the
+leaf's request the paragraph size times the percentage, rounded down to a
+thousandth of a point, so advances, glyph runs, and the PDF `Tf` size all
+carry it and no later stage rescales anything.
+
+A scaled run keeps its line's box. Pagination previously required every
+physical run of a logical run, and every cell of a table row, to carry one
+size, which it used as the baseline offset. It now requires one leading and
+takes the largest run size of the logical run (and the largest cell size
+of a row) as the baseline offset, so a paragraph or cell that is all code
+sits on a baseline at its code size and mixed text shares the paragraph's
+baseline. `KernelLineLayout.logical_bounds` no longer requires equal run
+sizes; the line-template key's run signature already includes every run's
+size, so a scaled and an unscaled occurrence of one text never share line
+breaks.
+
+A scale outside 50 to 100 percent is `text.inline_scale` at
+`theme.inline_scale.<role>`, checked before any work. Above 100 percent a
+run would need a taller line box than its paragraph's leading, which this
+slice does not lay out; below 50 percent is not a useful text size. The
+check is a top-level function rather than a closure, so it allocates
+nothing on the common path.
+
+Evidence, `rich inline scaled code x10` and `x50`: N paragraphs whose `Code`
+runs (one nested in `Strong`) paint in the Noto Sans Mono fixture at 85%, a
+paragraph that is all code, and a table row whose command cell is all code
+(MuPDF render: shared baselines, the code cell aligned with its row). The
+accepted boundaries 50% and 100% and the rejected 49% and 101% are checked
+in the same case. The pair is linear: 56 and 256 shaped runs (5N + 6), 26
+and 106 lines, 47,683 and 201,608 allocations for five preparations each.
+Every existing case keeps its allocation count, allocated bytes, work, and
+snapshot: without a scale every request keeps the paragraph size, and the
+largest run size of a single-size logical run is that size.
+
+## Link style
+
+Links had no presentation of their own. `Theme.with_link_color(theme,
+color)` paints link text (inline links and `Pdf.link` blocks) in a color,
+and `Theme.with_link_underline(theme, Underline({ offset, thickness }))`
+underlines it (`Theme.LinkStyle`, `Theme.LinkUnderline`).
+
+- **Color** is a shaping-stage paint fact like the inline role colors: a
+  `Link` or `InternalLink` inline is one more role in the innermost-themed
+  chain, so a themed `Strong` inside a link keeps its own color, and a link
+  block's style is the body style with the link color.
+- **Underline** is a post-layout decoration. `KernelFacadeFragments`
+  already owns the exact link facts (each link's occurrences) and every
+  final run's placement, so when the theme asks for an underline it emits
+  one filled rectangle per painted line run of a link: from the run's
+  baseline start across its glyph advances, `offset` below the baseline,
+  `thickness` tall, in the run's fill color. A run that ends its line stops
+  before the U+0020 spaces it carries; each space is read through a slice
+  of the source (`Str.drop_first_bytes`), never a copy. The rectangles
+  join the text plan's decoration rules (`KernelFacadeText.Plan.with_rules`,
+  merged in page order after the table rules), and scenes paint them as
+  `Decoration` page artifacts like table rules. The underline is
+  presentation only: the `Link` element, its text, `/Contents`, annotation
+  rectangle, and quadrilaterals are unchanged, and it is not tagged content.
+- **Validation.** The offset must be non-negative, the thickness positive,
+  and together they must fit in the body leading less the body size, so an
+  underline never reaches the next line (`text.link_underline` at
+  `theme.link_underline`).
+
+Evidence, `rich inline link style x10` and `x50`: N paragraphs whose inline
+URI link (with a nested themed `Strong`) wraps across two lines, and N link
+blocks, in blue with a 0.6 pt underline 1.2 pt below the baseline. The new
+`link_underlines` checker requires every link quadrilateral on every page to
+have a `Layout` artifact rectangle inside its extent and below nothing but
+its own line; its self-test rejects the `mixed` snapshot, whose links have
+no underline. The MuPDF render shows underlines stopping at the last
+visible glyph of each line. The rejections are a negative offset, a zero
+thickness, and an underline taller than the 3 pt below the body text. The
+pair is linear: 16,961 and 76,682 allocations, 4.16 MB and 20.28 MB. No
+existing case changes: without an underline no rule is built, and a
+document whose theme has no link color resolves every color as before.
+
+## Scoped inline colors
+
+Inline role colors were theme-wide, so one document could not give a
+warning callout an amber `Strong` label and a note callout a teal one.
+`Pdf.scoped(scope, blocks)` wraps blocks in a `Theme.Scope`
+(`Theme.Scope.empty.with_color(Strong, amber).with_color(Link, amber)`;
+roles `Code`, `Emphasis`, `Link`, `Quote`, `Strong`). Inside it, the
+innermost scope that colors a role decides that role's color, then the
+theme; a role the inner scope leaves inherited keeps the outer scope's.
+
+- **Authoring.** `Document.Block` gains a boxed `Scoped` alternative, so
+  the block union keeps its size, and normalization records it as a
+  `Scope(U32)` group over `NormalizedAuthoring.scopes`, allocated only
+  when a document has a scope. A scope may hold whatever a section may,
+  including a custom block; it may not appear among list-item content
+  (`semantics.list_item_content`, like the other groups), and an empty
+  scope is `semantics.scope_empty`.
+- **Semantics and layout.** A scope is transparent: like a keep group it
+  has no structure element (its children belong to the nearest semantic
+  ancestor), and unlike one it is not a keep, so pagination never sees it.
+- **Shaping.** Color resolution takes the leaf's block: each role in the
+  inline chain, including link text, asks `role_color`, which walks the
+  block's group ancestors for a `Scope` that colors the role and otherwise
+  answers the theme. A link block asks the same for its link color. A
+  document without scopes never walks its groups, so its preparation is
+  unchanged. The walk is bounded by the container depth limit per inline
+  ancestor, a constant.
+
+Evidence, `rich inline scoped colors x10` and `x50`: N warning and N note
+callouts, each scoped (labels and links amber or teal over a dark-red
+theme `Strong` and a blue theme link), a nested scope whose inner `Strong`
+is teal while its link keeps the outer amber, and a scoped custom block
+(MuPDF render). The fixture plans the same content without scopes and
+requires equal semantic node, content, and occurrence writes, so a scope
+adds no structure. The rejections are an empty scope and a scope in a list
+item. The pair is linear: 61 and 261 node writes (5N + 11), 17,949 and
+67,493 allocations. No existing case changes.
+
+### Scoped text color (examples showcase)
+
+Scopes colored only the inline roles and links, so a callout's ordinary
+text kept the theme's body color and light text on a dark custom-block
+panel was impossible. `Theme.ScopeRole` gains `Text` and `Theme.Scope` a
+`text` color. Shaping resolves it through the same scope walk
+(`role_color`) as the other roles, as the base color beneath inline role
+colors: for plain blocks (paragraphs, headings, list items) in
+`block_style`, for rich paragraphs as the paragraph color, and for
+generated list labels. A table's themed header colors still take
+precedence inside a scoped table. A document without scopes returns
+before any walk, so no existing case changes its allocation count; the
+wider `Scope` record moves the scoped-colors pair's allocated bytes by
+under 0.04%.
+
+Evidence: `rich inline scoped text x10` and `x50`: dark-panel callouts
+whose scope paints text near-white, `Strong` amber, and links sky blue,
+after a slate-scoped heading, bullet list, and table. The semantic plan
+with scopes equals the plan without (nodes, content items, and
+occurrences), proving scope stays presentation-only. x10: 11,140
+allocations, 1 page; x50: 39,732 allocations (3.6×), 4 pages.
+
+## Code spans keep their words whole (examples showcase)
+
+UAX #14 allows a break after a hyphen that precedes a letter (LB21 forbids
+a break before `HY`, not after it), so a callout could end a line at
+`--lumen-` and start the next with `indigo`. The package implements the
+pinned, untailored UAX #14 boundaries (`KernelUnicode` retains every
+boundary with its `Tailorable` or `NonTailorable` authority), and the
+architecture's business authoring contract makes unbreakable-token
+behavior a typed layout policy, so the tailoring is explicit and scoped
+to one semantic role rather than a change to the boundary data:
+
+- **Policy (facade).** Inside a `Code` span, each word (a maximal run of
+  scalars other than U+0020) withholds its interior tailorable
+  opportunities. Opportunities after the spaces between words stay, so a
+  long command still wraps between words. No new public constructor is
+  needed: `Pdf.code` is where identifiers are authored. A separate
+  `Pdf.no_break` inline was considered and not added, because it would
+  need a structure element (an inline element always owns one) for a
+  purely presentational fact.
+- **Facts.** `KernelFacadeShape.Plan.code_holds` derives a block's holds
+  from normalized authoring (the `Code` ancestry of each text leaf) and
+  the shaped store (each leaf's physical runs and their source scalars):
+  one `CodeHold { run, scalars }` per word that has an interior
+  opportunity. Words are found with `Str.split_first`, which slices
+  without copying, and byte offsets become scalars through the
+  boundaries' byte offsets; a block without `Code` costs one scan of its
+  inline records and allocates nothing.
+- **Kernel.** `KernelLineLayout.Hold` is a scalar range whose interior
+  `Allowed`, `Tailorable` boundaries line selection and measurement treat
+  as `Prohibited` (`held_decision`, a binary search over the request's
+  holds, borrowed as a range of the batch's list). The kernel gives holds
+  no other meaning. `BatchPlan.build_logical_held` lays out a request
+  with holds outside the template cache (neither probed nor inserted), so
+  an equal request without holds never shares its lines;
+  `measure_logical_held` measures table cells, and a cell segment with
+  holds bypasses the per-source measurement cache for the same reason.
+- **Routing.** A document whose runs are all single takes the one-run
+  batch only when no code span holds a word; otherwise it takes the
+  logical batch, which applies holds.
+
+A code word wider than its container has no opportunity left, so it is
+`layout.unbreakable_token` as any unbreakable token: nothing is squeezed
+or broken silently.
+
+Evidence: `rich inline code holds x14` and `x140` move a code identifier
+across the line end one letter at a time beside a long spaced command and
+a table of hyphenated commands. The fixture lays the document out and
+counts lines that end strictly inside a held word (0), and lays out the
+same document with every code span written as plain text, whose lines
+must end inside the identifier at least once (10 and 100 times): the
+positions do reach a hyphen break, and the holds prevent it. It rejects a
+code word wider than its 40 pt column (`layout.unbreakable_token`).
+
+| Case | Pages | Allocations | Holds | Lines |
+| --- | ---: | ---: | ---: | ---: |
+| code holds x14 | 1 | 30,515 | 22 | 38 |
+| code holds x140 | 8 | 170,320 | 148 | 290 |
+
+The pair is linear. No gallery PDF and no other snapshot changes: no
+existing document ends a line inside a code word. `rich inline scaled code`
+x10 and x50 paint `roc build --opt=size` in every paragraph, whose
+`--opt=size` holds; they gain 56 and 224 allocations (about two per
+paragraph per pipeline, and the fixture runs the pipeline twice: the
+block's hold list and the document hold list's growth), with allocated
+bytes +0.02%. Every other case keeps its allocation count. Earlier drafts
+copied each request's holds out of the batch list and materialized each
+code leaf's bytes; both were removed after they added allocations to
+documents whose code spans hold nothing.
+
 ## Link annotations
 
 An inline link keeps the facade contract: one annotation per page its text

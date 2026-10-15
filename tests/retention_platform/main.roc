@@ -13,7 +13,7 @@ platform ""
 	packages {}
 	provides { "roc_main": main_for_host! }
 	targets: {
-		inputs_dir: "../platform/targets/",
+		inputs_dir: "targets/",
 		arm64mac: { inputs: ["libretention_host.a", app] },
 		x64musl: { inputs: ["crt1.o", "libretention_host.a", app, "libc.a"] },
 	}

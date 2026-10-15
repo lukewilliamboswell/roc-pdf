@@ -17,8 +17,8 @@ Fixture :: [].{
 
 	uax_boundary_vectors : U64 -> Try({ bytes : List(U8), work : List(U64) }, VectorError)
 	uax_boundary_vectors = |runtime_context| {
-		## Retain an explicit runtime context so test-application failure is a
-		## normal typed result, never a compile-time-known match.
+		# Retain an explicit runtime context so test-application failure is a
+		# normal typed result, never a compile-time-known match.
 		if runtime_context > 1 {
 			return Err(EvidenceFailure)
 		}
@@ -30,9 +30,9 @@ Fixture :: [].{
 			return Err(GraphemeVectorMismatch)
 		}
 
-		## UAX #14 rev. 55 LineBreakTest-17.0.0 vectors: AI+SP+RI and AK+RI.
-		## Start and final positions are retained as Prohibited/Mandatory facts by
-		## the project boundary even though the official notation only marks breaks.
+		# UAX #14 rev. 55 LineBreakTest-17.0.0 vectors: AI+SP+RI and AK+RI.
+		# Start and final positions are retained as Prohibited/Mandatory facts by
+		# the project boundary even though the official notation only marks breaks.
 		if !lines_equal(
 			ak_ri.line_boundaries,
 			[
@@ -87,12 +87,12 @@ Fixture :: [].{
 			return Err(EvidenceFailure)
 		}
 		grapheme_limit = match KernelUnicode.analyze("\r\n", { ..limits(2, 3), max_graphemes: runtime_context - 1 }) {
-			Err(GraphemeLimitExceeded({ limit: 0, required: 1 })) => Bool.True
-			_ => Bool.False
+			Err(GraphemeLimitExceeded({ limit: 0, required: 1 })) => True
+			_ => False
 		}
 		line_limit = match KernelUnicode.analyze("ଅ🇦", { ..limits(2, 3), max_line_boundaries: runtime_context + 1 }) {
-			Err(LineBoundaryLimitExceeded({ limit: 2, required: 3 })) => Bool.True
-			_ => Bool.False
+			Err(LineBoundaryLimitExceeded({ limit: 2, required: 3 })) => True
+			_ => False
 		}
 		if !grapheme_limit or !line_limit {
 			return Err(MissingAtomicLimitRejection)

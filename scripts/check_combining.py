@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from check_text import PDFBOX_JAR, PDFBOX_SOURCE, cmap_mappings, decoded_stream, only_object, replace_once
+from text_positions import shown_cids
 from check_pdf_structure import ValidationError, dictionary_ref, dictionary_ref_array, object_slices, require, validate_pdf
 
 
@@ -40,7 +41,7 @@ def validate_combining_pdf(pdf: bytes) -> None:
 
     _, cmap = decoded_stream(bodies, dictionary_ref(type0, b"ToUnicode"))
     mappings = cmap_mappings(cmap)
-    shown = [int(value, 16) for value in re.findall(rb"<([0-9A-F]{4})> Tj", content)]
+    shown = shown_cids(content)
     require(shown == [2], f"combining content CIDs differ: {shown!r}")
     require(mappings == {2: (0x0041, 0x0300)}, "combining ToUnicode row does not retain decomposed source scalars")
     direct = "".join(chr(scalar) for cid in shown for scalar in mappings[cid])

@@ -25,7 +25,7 @@ import pdf.Semantics
 import pdf.Scene
 import pdf.Text
 import pdf.Image
-import "../../vendor/fonts/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
+import "../../package/RocPdfSans-Regular.ttf" as built_in_font_bytes : List(U8)
 
 ## Kernel lowering of node facts that no public constructor produces yet:
 ## an `en-AU` Document owning a Table (with `/Alt` and a Table-owned

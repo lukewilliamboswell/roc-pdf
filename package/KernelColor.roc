@@ -279,20 +279,20 @@ test_store = {
 test_limits : KernelColor.Limits
 test_limits = KernelColor.Limits.make({ max_icc_bytes: 132, max_profiles: 1, max_spaces: 2, max_tags: 0 })
 
-## Typed gray and RGB spaces retain their exact component counts.
+# Typed gray and RGB spaces retain their exact component counts.
 expect {
 	plan = KernelColor.Plan.build(test_store, test_limits)?
 	KernelColor.Plan.components(plan, Color.SpaceId.from_index(0)) == One and KernelColor.Plan.components(plan, Color.SpaceId.from_index(1)) == Three
 }
 
-## ICC inspection records bounded byte, profile, and space work.
+# ICC inspection records bounded byte, profile, and space work.
 expect {
 	plan = KernelColor.Plan.build(test_store, test_limits)?
 	work = KernelColor.Plan.work(plan)
 	work.bytes_checked == 132 and work.profile_visits == 1 and work.space_visits == 2 and work.tags_checked == 0
 }
 
-## A malformed ICC signature is rejected before a color plan escapes.
+# A malformed ICC signature is rejected before a color plan escapes.
 expect {
 	bad_bytes = set_byte(test_profile_bytes, 36, 0)
 	profile = list_at(test_store.profiles, 0)

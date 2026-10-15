@@ -402,9 +402,10 @@ within an early correctness gate.
 - Catalog, page tree, page objects, content streams, resources, and trailer
   information.
 - Xref streams, `startxref`, and end-of-file marker.
-- Flate streams through the private package-owned stateful compressor seam;
-  the independent Python checker uses zlib to reconstruct the exact emitted
-  payload, while the package dependency graph remains compressor-free.
+- Flate streams through the package's single private compressor seam over the
+  pinned pure-Roc `roc-deflate` dependency (a libdeflate port); the
+  independent Python checker uses zlib to reconstruct the exact emitted
+  payload.
 - Stable object allocation, resource naming, stream length handling, and file
   identifiers.
 - Deterministic fixed-fanout balanced builders for page, name, number, ID, and
@@ -415,7 +416,8 @@ within an early correctness gate.
 - Flat object/value/edge stores, a consumption-shaped builder, and bulk lexical
   emission without one allocation or `Iter` step per token or byte.
 - A compact replayable sealed plan, preassigned indirect stream-length objects,
-  stateful deterministic DEFLATE, fixed-width unfiltered xref streams, bounded
+  deterministic per-stream DEFLATE, compressed object streams and a
+  predicted compressed xref stream, bounded
   owned generated chunks, and optional seamless slices of validated unchanged
   resource allocations.
 - Default consume-and-release chunk sharing plus an explicit owned-chunk
@@ -548,7 +550,7 @@ This is the first genuinely useful public document milestone.
   contiguous glyph buffers, global used-glyph accumulation, and once-only
   composite closure/subset-table emission.
 - At this gate `Pdf.Options.default` selects public profile `Standard`, whose
-  claim set is `Pdf20`. `Pdf.Options.with_profile` is the only way to request a
+  claim set is `Pdf20`. The options' `profile` is the only way to request a
   different implemented profile; incomplete `Archive` or `AccessibleArchive`
   claims remain unavailable.
 
@@ -859,6 +861,16 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   plus one separately authored chart or callout exercising the custom-block
   seam. Its supported measurement and fragmentation contract is explicit;
   neither PDF operators nor arbitrary custom pagination become public.
+  Bounded text labels inside those drawings (`Scene.Drawing.text`: one
+  shaped line per label in the body face, or with `Scene.Drawing.text_in`
+  in the style face of an inline role, aligned to an anchor, scaled
+  with its figure, proved inside its drawing, and painted as `Decoration`
+  artifact text) are part of this subset. They were moved forward from
+  Gate 8's vector-scene integration because the gallery's charts and
+  diagrams need real axis, tick, and legend text, and they reuse the
+  closed artifact-text path of page furniture without any new composition,
+  fragmentation, or structure; labels in decorations and under ordered
+  font policies remain outside it.
 - Typed mandatory layout constraints and ranked preferences, including
   oversize-content and unbreakable-token behavior, supported wrapping and
   splitting, required/preferred keeps, deterministic tie breaks, and bounded
@@ -985,10 +997,12 @@ headings keep with their next block, `semantics.heading_skip` is returned,
 and table semantics no longer copy the document's node lists once per table.
 Closing Gate 6 makes no PDF/UA-2 or combined-profile claim.
 
-**Merge blocker (not closure evidence).** `.roc-version` names
-`nightly-2026-09-30-df1f747`, a local build of Roc commit `df1f747ebb` that
-is not a published nightly, so CI cannot provision it; see the pin record
-below.
+The compiler pin is the published `nightly-2026-10-14-38a3029`, replacing
+the former unpublished local build. Its reviewed allocation baselines and the
+basic-cli `0.26.0-rc2` example upgrade are recorded in the
+[October 14 compiler review](docs/performance/roc-nightly-2026-10-14-38a3029.md).
+This retires the compiler-provisioning blocker without changing Gate 6's
+capability or conformance claims.
 
 The following public authoring is executable under the default `Archive`
 profile, with exact allocation, work, and allocated-byte ceilings, scale
@@ -1021,7 +1035,7 @@ independent structure checker. Each record lists its own open issues:
   text under ordered font policies (page-templates.md), a caller face per
   inline role such as a monospace `Code` (rich-inline.md), list label
   columns widened for wide labels and a U+0020 separator for explicit line
-  breaks (layout-policies.md), per-cell alignment with `Pdf.aligned`
+  breaks (layout-policies.md), per-cell alignment with `cell.aligned`
   (tables.md), located `text.coverage_missing`/`text.unsupported_script`/
   `text.unsupported_cluster` for every remaining coverage failure
   (rich-inline.md), and removal of the unreachable facade artifact-block
@@ -1035,8 +1049,9 @@ independent structure checker. Each record lists its own open issues:
   callout (`tests/custom_block/Callout.roc`), and `Pdf.prepare_with_report`
   with separate facts and obligations, applied figure scales, relaxations,
   repeated headers, and an explicit budget:
-  `docs/performance/custom-block-report.md`. Its open issues: extensions
-  measure from theme metrics only (no public text measurement), only
+  `docs/performance/custom-block-report.md`. Extensions can measure content
+  height with `Pdf.measure_custom_content` (examples-showcase follow-up), so
+  callouts hold wrapped rich paragraphs. Its open issues: only
   `Unsplittable` fragmentation, probe work stops at text, and inline report
   paths scan line breaks. (The `Quote`/`Code` 8.2.4 finding is resolved by
   the closure.)
@@ -1047,25 +1062,33 @@ independent structure checker. Each record lists its own open issues:
 - The CIDSystemInfo ASCII-string correction and the CI Arlington lane:
   `docs/performance/cid-system-info-ascii.md`.
 
+- The gallery's API gaps: odd-length Macintosh `name` records and fonts
+  without TrueType hinting tables (`font-inspection.md`,
+  `font-subsetting.md`); specific located diagnostics in place of the
+  `UnsupportedAuthoringContent` catch-all (`facade-diagnostics.md`);
+  title and heading faces and per-level heading styles
+  (`block-faces.md`); shared text shaped per occurrence, inline role
+  scales, link color and underline, and scoped inline colors
+  (`rich-inline.md`); the built-in face through
+  `Font.Registry.register_built_in` (`caller-font-registration.md`); and
+  bounded text labels inside drawings (`drawing-labels.md`).
 - Reference documents and closure (S10): the gallery programs
-  `examples/prepared_invoice.roc`, `examples/business_report.roc`, and
-  `examples/letter.roc`, the `tests/reference_documents` family, the
+  `examples/tax-invoice/main.roc`, `examples/business-report/main.roc`, and
+  `examples/warranty-letter/main.roc`, the `tests/reference_documents` family, the
   structure-extraction and reference-document checkers, and the closure
   review: `docs/performance/business-authoring-closure.md`.
 
-The intermittent `roc check` crash seen in harness runs is Roc #11777, fixed
-upstream by commit 329a48a04d. The pin advances to
-`nightly-2026-09-28-9927ba8`, which contains the fix, with its own bulk
-re-baseline ([record](docs/performance/roc-nightly-2026-09-28-9927ba8.md)).
-Before that pin merges, the fuzz targets need a roc-fuzz release pinned to
-the same nightly, and the upstream LLVM `roc build --fuzz` segfault recorded
-there must be resolved.
-Because that nightly still crashes in places, the pin then moves for now to a
-local build of Roc commit `df1f747ebb`, recorded as `nightly-2026-09-30-df1f747`
-([record](docs/performance/roc-nightly-2026-09-30-df1f747.md)). That tag is
-not a published nightly, so CI cannot provision it until a nightly containing
-the commit is published; the record also documents an upstream uniqueness
-regression that copies the compact builder's buffers once per document.
+The September compiler reviews record the earlier `roc check` crash
+(Roc #11777), the September 28 LLVM fuzz-build crashes, and the temporary
+local September 30 pin:
+[September 28](docs/performance/roc-nightly-2026-09-28-9927ba8.md),
+[September 30](docs/performance/roc-nightly-2026-09-30-df1f747.md).
+The current published October 14 pin passes both formerly crashing fuzz
+targets and the complete bounded workspace fuzz lane. Its review retains the
+cache constraints, records the October 4 comparison compiler's transparency
+failure, and uses the working October 1 release for the full old/new
+allocation comparison on both targets. The reviewed upgrade changes no PDF
+snapshot or deterministic work vector.
 
 ## Gate 7: business-document production release and combined closure
 

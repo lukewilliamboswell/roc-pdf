@@ -1,3 +1,4 @@
+import deflate.Deflate
 import "../tests/structural_kernel/blank.pdf" as blank_document : List(U8)
 import "../tests/structural_kernel/deflate.pdf" as deflate_document : List(U8)
 import "../tests/color_images/color_images.pdf" as image_document : List(U8)
@@ -64,13 +65,13 @@ StructureOracle :: [].{
 	## The boolean form, for callers that only need the verdict.
 	accepts : List(U8) -> Bool
 	accepts = |bytes| match inspect_document(bytes) {
-		Err(_) => Bool.False
-		Ok(_) => Bool.True
+		Err(_) => False
+		Ok(_) => True
 	}
 }
 
 ## `%PDF-2.0\n` and the binary comment marker, exactly fifteen bytes, which is
-## why object one always begins at offset fifteen.
+## why the first top-level object always begins at offset fifteen.
 header_bytes : List(U8)
 header_bytes = [37, 80, 68, 70, 45, 50, 46, 48, 10, 37, 226, 227, 207, 211, 10]
 
@@ -98,8 +99,11 @@ end_stream_bytes = Str.to_utf8("\nendstream\nendobj\n")
 ## The cross-reference dictionary is written from a fixed sequence of writers
 ## with no conditional parts, so its canonical shape can be spelled out
 ## verbatim and matched in one pass.
+xref_columns_bytes : List(U8)
+xref_columns_bytes = Str.to_utf8("<< /DecodeParms << /Columns ")
+
 xref_prefix_bytes : List(U8)
-xref_prefix_bytes = Str.to_utf8("<< /ID [<")
+xref_prefix_bytes = Str.to_utf8(" /Predictor 12 >> /Filter /FlateDecode /ID [<")
 
 xref_id_gap_bytes : List(U8)
 xref_id_gap_bytes = Str.to_utf8("> <")
@@ -116,8 +120,20 @@ xref_root_bytes = Str.to_utf8(" /Root ")
 xref_size_bytes : List(U8)
 xref_size_bytes = Str.to_utf8(" 0 R /Size ")
 
+xref_width_bytes : List(U8)
+xref_width_bytes = Str.to_utf8(" /Type /XRef /W [1 ")
+
 xref_suffix_bytes : List(U8)
-xref_suffix_bytes = Str.to_utf8(" /Type /XRef /W [1 8 2] >>")
+xref_suffix_bytes = Str.to_utf8(" 2] >>")
+
+object_stream_bytes : List(U8)
+object_stream_bytes = Str.to_utf8("ObjStm")
+
+first_key_bytes : List(U8)
+first_key_bytes = Str.to_utf8("First")
+
+count_key_bytes : List(U8)
+count_key_bytes = Str.to_utf8("N")
 
 true_bytes : List(U8)
 true_bytes = Str.to_utf8("true")
@@ -146,20 +162,22 @@ type_key_bytes = Str.to_utf8("Type")
 catalog_bytes : List(U8)
 catalog_bytes = Str.to_utf8("Catalog")
 
-## `/W [1 8 2]` is hardcoded by the emitter, so every cross-reference entry is
-## one type byte, an eight-byte big-endian offset, and a two-byte big-endian
-## generation.
-entry_width : U64
-entry_width = 11
+Xref : { columns : U64, end : U64, length : U64, root : U64, size : U64, width : U64 }
 
-Xref : { end : U64, length : U64, root : U64, size : U64 }
+## One cross-reference row: type 1 is a top-level object at a file offset,
+## type 2 an object stream member (the stream's number and the member index).
+Entry : { field : U64, index : U64, kind : U8 }
+
+## Where an object's value lives: a top-level `N 0 obj` in the file, or a
+## member body inside the decoded payload of object stream `stream`.
+Location : [Missing, Top({ body : U64, end : U64 }), Member({ end : U64, start : U64, stream : U64 })]
 
 inspect_document : List(U8) -> Try({}, StructureOracle.Failure)
 inspect_document = |bytes| {
 	total = bytes.len()
 
-	## Tier one starts with framing, which needs no tokenizer at all: the header
-	## is fixed, and `%%EOF\n` is the last six bytes with nothing after it.
+	# Tier one starts with framing, which needs no tokenizer at all: the header
+	# is fixed, and `%%EOF\n` is the last six bytes with nothing after it.
 	if total < 21 {
 		return Err(TooShort)
 	}
@@ -178,13 +196,12 @@ inspect_document = |bytes| {
 	xref_object = header.number
 
 	dictionary = read_xref_dictionary(bytes, header.body, total)?
-	if dictionary.size != xref_object + 1 or dictionary.length != dictionary.size * entry_width {
+	if dictionary.size != xref_object + 1 or dictionary.width != byte_width(startxref.xref_offset) or dictionary.columns != dictionary.width + 3 {
 		return Err(BadXrefDictionary)
 	}
 
-	## The cross-reference stream is the one stream with a direct `/Length`, and
-	## its payload is raw big-endian binary with no filter and no predictor,
-	## which is what makes reading it here tractable at all.
+	# The cross-reference stream has a direct `/Length` and its payload ends
+	# exactly at the `startxref` keyword.
 	if !matches_at(bytes, dictionary.end, stream_keyword_bytes) {
 		return Err(BadXrefFraming)
 	}
@@ -195,32 +212,35 @@ inspect_document = |bytes| {
 	if !matches_at(bytes, payload_start + dictionary.length, end_stream_bytes) {
 		return Err(BadXrefFraming)
 	}
-
-	offsets = read_entries(bytes, payload_start, dictionary.size, total)?
-	if list_at(offsets, 1) != 15 or list_at(offsets, xref_object) != startxref.xref_offset {
-		return Err(BadXrefEntry(0))
+	rows = inflate(bytes, payload_start, dictionary.length) ? |_| BadXrefFraming
+	entries = read_entries(rows, dictionary)?
+	if list_at(entries, xref_object) != { field: startxref.xref_offset, index: 0, kind: 1 } {
+		return Err(BadXrefEntry(xref_object))
 	}
 
-	## The single most valuable check here: every recorded offset must land on
-	## the header of exactly the object it claims to describe, so any offset
-	## drift or object-numbering mismatch dies on the spot.
+	# Every top-level offset must land on the header of exactly the object it
+	# describes, and top-level objects end where the next one (in file order)
+	# begins, so any offset drift or numbering mismatch dies on the spot.
+	var $starts = []
 	var $number = 1
-	while $number < dictionary.size {
-		object_header = read_object_header(bytes, list_at(offsets, $number), total) ? |_| BadObjectHeader($number)
-		if object_header.number != $number {
-			return Err(BadObjectHeader($number))
-		}
-		if $number + 1 < dictionary.size and !ends_at(bytes, list_at(offsets, $number + 1), end_object_bytes) {
-			return Err(BadContiguity($number))
+	while $number < xref_object {
+		entry = list_at(entries, $number)
+		if entry.kind == 1 {
+			object_header = read_object_header(bytes, entry.field, total) ? |_| BadObjectHeader($number)
+			if object_header.number != $number {
+				return Err(BadObjectHeader($number))
+			}
+			$starts = $starts.append(entry.field)
 		}
 		$number = $number + 1
 	}
+	sorted_starts = $starts.sort_with(|left, right| if left < right Before else if left > right After else Same)
 
 	if dictionary.root == 0 or dictionary.root >= xref_object {
 		return Err(RootNotCatalog)
 	}
 
-	inspect_objects(bytes, offsets, dictionary, xref_object)
+	inspect_objects(bytes, entries, sorted_starts, dictionary, xref_object, startxref.xref_offset)
 }
 
 ## Read the trailing `startxref\n<offset>\n%%EOF\n` backwards. Backwards is the
@@ -252,8 +272,9 @@ read_startxref = |bytes| {
 
 ## Demand the exact canonical cross-reference dictionary:
 ##
-##     << /ID [<64 hex> <64 hex>] /Index [0 SIZE] /Length <int> /Root <n> 0 R
-##        /Size SIZE /Type /XRef /W [1 8 2] >>
+##     << /DecodeParms << /Columns C /Predictor 12 >> /Filter /FlateDecode
+##        /ID [<64 hex> <64 hex>] /Index [0 SIZE] /Length <int> /Root <n> 0 R
+##        /Size SIZE /Type /XRef /W [1 WIDTH 2] >>
 ##
 ## Checking the whole shape at once is the cheapest way to catch a miscounted
 ## object family. A plan that appends objects without moving the
@@ -261,13 +282,15 @@ read_startxref = |bytes| {
 ## the object number, long before any renderer would notice.
 read_xref_dictionary : List(U8), U64, U64 -> Try(Xref, StructureOracle.Failure)
 read_xref_dictionary = |bytes, from, total| {
-	first_id = expect_bytes(bytes, from, xref_prefix_bytes) ? |_| BadXrefDictionary
+	columns_start = expect_bytes(bytes, from, xref_columns_bytes) ? |_| BadXrefDictionary
+	columns = read_unsigned(bytes, columns_start, total) ? |_| BadXrefDictionary
+	first_id = expect_bytes(bytes, columns.end, xref_prefix_bytes) ? |_| BadXrefDictionary
 	after_first_id = expect_hex_digits(bytes, first_id, 64) ? |_| BadXrefDictionary
 	second_id = expect_bytes(bytes, after_first_id, xref_id_gap_bytes) ? |_| BadXrefDictionary
 	after_second_id = expect_hex_digits(bytes, second_id, 64) ? |_| BadXrefDictionary
 
-	## Both halves of `/ID` stay the same digest until a document is updated in
-	## place, and this emitter never writes an incremental update.
+	# Both halves of `/ID` stay the same digest until a document is updated in
+	# place, and this emitter never writes an incremental update.
 	if bytes.sublist({ start: first_id, len: 64 }) != bytes.sublist({ start: second_id, len: 64 }) {
 		return Err(BadXrefDictionary)
 	}
@@ -280,71 +303,189 @@ read_xref_dictionary = |bytes, from, total| {
 	root = read_unsigned(bytes, root_start, total) ? |_| BadXrefDictionary
 	size_start = expect_bytes(bytes, root.end, xref_size_bytes) ? |_| BadXrefDictionary
 	size = read_unsigned(bytes, size_start, total) ? |_| BadXrefDictionary
-	dictionary_end = expect_bytes(bytes, size.end, xref_suffix_bytes) ? |_| BadXrefDictionary
+	width_start = expect_bytes(bytes, size.end, xref_width_bytes) ? |_| BadXrefDictionary
+	width = read_unsigned(bytes, width_start, total) ? |_| BadXrefDictionary
+	dictionary_end = expect_bytes(bytes, width.end, xref_suffix_bytes) ? |_| BadXrefDictionary
 
-	## `/Index [0 SIZE]` is what makes the subsection contiguous, so a mismatch
-	## means the recorded entries do not describe objects zero upwards.
-	if index_size.value != size.value {
+	# `/Index [0 SIZE]` is what makes the subsection contiguous, so a mismatch
+	# means the recorded entries do not describe objects zero upwards.
+	if index_size.value != size.value or width.value == 0 or width.value > 8 {
 		return Err(BadXrefDictionary)
 	}
-	Ok({ end: dictionary_end, length: length.value, root: root.value, size: size.value })
+	Ok({ columns: columns.value, end: dictionary_end, length: length.value, root: root.value, size: size.value, width: width.value })
 }
 
-## Decode the raw eleven-byte entries into a dense offset table. Entry zero is
-## the free head, every other entry is an in-use object at generation zero, and
-## a type-two compressed entry never occurs because this emitter writes no
-## object streams.
-read_entries : List(U8), U64, U64, U64 -> Try(List(U64), StructureOracle.Failure)
-read_entries = |bytes, payload_start, size, total| {
-	var $offsets = List.with_capacity(size)
-	var $previous = 0
+## Undo the PNG Up predictor (every row starts with filter byte 2 and adds the
+## row above) and decode each `[type, field, index]` row. Entry zero is the
+## free head; every other entry is a type 1 generation-zero object or a type 2
+## object stream member.
+read_entries : List(U8), Xref -> Try(List(Entry), StructureOracle.Failure)
+read_entries = |rows, xref| {
+	columns = xref.columns
+	if rows.len() != xref.size * (columns + 1) {
+		return Err(BadXrefEntry(0))
+	}
+	var $entries = List.with_capacity(xref.size)
+	var $previous = List.repeat(0, columns)
 	var $number = 0
-	while $number < size {
-		base = payload_start + $number * entry_width
-		kind = list_at(bytes, base)
-		offset = read_big_endian(bytes, base + 1, 8)
-		generation = read_big_endian(bytes, base + 9, 2)
+	while $number < xref.size {
+		base = $number * (columns + 1)
+		if list_at(rows, base) != 2 {
+			return Err(BadXrefEntry($number))
+		}
+		var $row = List.with_capacity(columns)
+		var $column = 0
+		while $column < columns {
+			$row = $row.append(U8.plus_wrap(list_at(rows, base + 1 + $column), list_at($previous, $column)))
+			$column = $column + 1
+		}
+		kind = list_at($row, 0)
+		field = read_big_endian($row, 1, xref.width)
+		index = read_big_endian($row, 1 + xref.width, 2)
 		if $number == 0 {
-			if kind != 0 or offset != 0 or generation != 65535 {
+			if kind != 0 or field != 0 or index != 65535 {
 				return Err(BadXrefEntry(0))
 			}
-			$offsets = $offsets.append(0)
-		} else {
-			if kind != 1 or generation != 0 or offset >= total or offset <= $previous {
+		} else if kind == 1 {
+			if index != 0 or field < 15 {
 				return Err(BadXrefEntry($number))
 			}
-			$previous = offset
-			$offsets = $offsets.append(offset)
+		} else if kind == 2 {
+			if field == 0 or field >= xref.size or field == $number {
+				return Err(BadXrefEntry($number))
+			}
+		} else {
+			return Err(BadXrefEntry($number))
+		}
+		$entries = $entries.append({ field, index, kind })
+		$previous = $row
+		$number = $number + 1
+	}
+	Ok($entries)
+}
+
+## Inflate a zlib stream (RFC 1950 header, DEFLATE payload, Adler-32 trailer)
+## with the DEFLATE dependency's inflater, which shares no code with its
+## compressor.
+inflate : List(U8), U64, U64 -> Try(List(U8), [Malformed])
+inflate = |bytes, start, length| {
+	if length < 6 {
+		return Err(Malformed)
+	}
+	cmf = list_at(bytes, start).to_u64()
+	flg = list_at(bytes, start + 1).to_u64()
+	if cmf != 0x78 or flg.bitwise_and(0x20) != 0 or U64.mod_by(cmf * 256 + flg, 31) != 0 {
+		return Err(Malformed)
+	}
+	raw = bytes.sublist({ start: start + 2, len: length - 6 })
+	decoded = Deflate.decompress(raw) ? |_| Malformed
+	if read_big_endian(bytes, start + length - 4, 4) != adler32(decoded) {
+		return Err(Malformed)
+	}
+	Ok(decoded)
+}
+
+adler32 : List(U8) -> U64
+adler32 = |bytes| {
+	var $a = 1
+	var $b = 0
+	var $index = 0
+	while $index < bytes.len() {
+		$a = U64.mod_by($a + list_at(bytes, $index).to_u64(), 65521)
+		$b = U64.mod_by($b + $a, 65521)
+		$index = $index + 1
+	}
+	$b.shl_wrap(16).bitwise_or($a)
+}
+
+byte_width : U64 -> U64
+byte_width = |value| {
+	var $width = 1
+	var $rest = value.shr_wrap(8)
+	while $rest > 0 {
+		$width = $width + 1
+		$rest = $rest.shr_wrap(8)
+	}
+	$width
+}
+
+## The end of the top-level object starting at `start`: the next top-level
+## object's start, or the cross-reference stream's.
+top_level_end : List(U64), U64, U64 -> U64
+top_level_end = |sorted_starts, start, xref_offset| {
+	var $index = 0
+	var $end = xref_offset
+	while $index < sorted_starts.len() {
+		candidate = list_at(sorted_starts, $index)
+		if candidate > start and candidate < $end {
+			$end = candidate
+		}
+		$index = $index + 1
+	}
+	$end
+}
+
+## Tier two. Every top-level object is a stream whose dictionary is tokenized
+## and whose payload is framed by its length; object streams are decoded and
+## their headers checked against the cross-reference rows; then every object
+## is tokenized where it lives, and the root must be the catalog.
+inspect_objects : List(U8), List(Entry), List(U64), Xref, U64, U64 -> Try({}, StructureOracle.Failure)
+inspect_objects = |bytes, entries, sorted_starts, dictionary, xref_object, xref_offset| {
+	# Pass one: decode each object stream and place its members.
+	var $locations = List.repeat(Missing, xref_object)
+	var $decoded = []
+	var $number = 1
+	while $number < xref_object {
+		entry = list_at(entries, $number)
+		if entry.kind == 1 {
+			end = top_level_end(sorted_starts, entry.field, xref_offset)
+			header = read_object_header(bytes, entry.field, end) ? |_| BadObjectHeader($number)
+			$locations = list_put($locations, $number, Top({ body: header.body, end }))
+			if is_object_stream(bytes, header.body, end) {
+				placed = decode_object_stream(bytes, header.body, end, $number, entries, $decoded.len())?
+				$decoded = $decoded.append(placed.content)
+				var $member = 0
+				while $member < placed.members.len() {
+					item = list_at(placed.members, $member)
+					$locations = list_put($locations, item.number, Member({ end: item.end, start: item.start, stream: $decoded.len() - 1 }))
+					$member = $member + 1
+				}
+			}
 		}
 		$number = $number + 1
 	}
-	Ok($offsets)
-}
 
-## Tier two walks each stored object between its recorded offsets. The offsets
-## give exact boundaries, so the dictionary region and the payload region are
-## known separately and the payload is never tokenized.
-inspect_objects : List(U8), List(U64), Xref, U64 -> Try({}, StructureOracle.Failure)
-inspect_objects = |bytes, offsets, dictionary, xref_object| {
-	var $root_seen = Bool.False
-	var $number = 1
+	# Pass two: every object, where it lives.
+	var $root_seen = False
+	$number = 1
 	while $number < xref_object {
-		start = list_at(offsets, $number)
-		end = list_at(offsets, $number + 1)
-		header = read_object_header(bytes, start, end) ? |_| BadObjectHeader($number)
-		marker = find_bytes(bytes, header.body, end, stream_keyword_bytes)
-		body_end = match marker {
-			Found(position) => position
-			Missing => end - end_object_bytes.len()
-		}
-		tokens = tokenize(bytes, header.body, body_end, $number)?
-		top_keys = walk_structure(bytes, tokens, $number, dictionary.size)?
-
-		match marker {
-			Missing => {}
-			Found(position) => {
+		match list_at($locations, $number) {
+			Missing => return Err(BadXrefEntry($number))
+			Member({ end, start, stream }) => {
+				content = list_at($decoded, stream)
+				tokens = tokenize(content, start, end, $number)?
+				top_keys = walk_structure(content, tokens, $number, dictionary.size)?
+				if $number == dictionary.root {
+					match top_key_value(content, tokens, top_keys, type_key_bytes) {
+						Missing => return Err(RootNotCatalog)
+						Found(token) => {
+							if token.kind != NameToken or !region_equals(content, token.start, token.len, catalog_bytes) {
+								return Err(RootNotCatalog)
+							}
+							$root_seen = True
+						}
+					}
+				}
+			}
+			Top({ body, end }) => {
+				position = match find_bytes(bytes, body, end, stream_keyword_bytes) {
+					Found(value) => value
+					Missing => return Err(BadStreamFraming($number))
+				}
+				tokens = tokenize(bytes, body, position, $number)?
+				top_keys = walk_structure(bytes, tokens, $number, dictionary.size)?
 				payload_start = position + stream_keyword_bytes.len()
-				payload_length = read_stream_length(bytes, offsets, tokens, top_keys, $number, xref_object)?
+				payload_length = read_stream_length(bytes, tokens, top_keys, $number, $locations, $decoded)?
 				if payload_length > bytes.len() or payload_start + payload_length + end_stream_bytes.len() != end {
 					return Err(BadStreamFraming($number))
 				}
@@ -352,21 +493,11 @@ inspect_objects = |bytes, offsets, dictionary, xref_object| {
 					return Err(BadStreamFraming($number))
 				}
 				check_filter(bytes, tokens, top_keys, payload_start, payload_length, $number)?
-			}
-		}
-
-		if $number == dictionary.root {
-			match top_key_value(bytes, tokens, top_keys, type_key_bytes) {
-				Missing => return Err(RootNotCatalog)
-				Found(token) => {
-					if token.kind != NameToken or !region_equals(bytes, token.start, token.len, catalog_bytes) {
-						return Err(RootNotCatalog)
-					}
-					$root_seen = Bool.True
+				if $number == dictionary.root {
+					return Err(RootNotCatalog)
 				}
 			}
 		}
-
 		$number = $number + 1
 	}
 	if !$root_seen {
@@ -375,38 +506,129 @@ inspect_objects = |bytes, offsets, dictionary, xref_object| {
 	Ok({})
 }
 
-## Every stream except the cross-reference stream carries an indirect
-## `/Length m 0 R`, and sealing requires `m` to be the very next object, whose
-## whole body is one bare decimal integer. Resolving the length that way and
-## then requiring it to land exactly on `\nendstream\nendobj\n` is what ties a
-## declared length to the real payload extent.
-read_stream_length : List(U8), List(U64), List(Token), List(TopKey), U64, U64 -> Try(U64, StructureOracle.Failure)
-read_stream_length = |bytes, offsets, tokens, top_keys, number, xref_object| {
+## Whether the top-level object's dictionary is `/Type /ObjStm`.
+is_object_stream : List(U8), U64, U64 -> Bool
+is_object_stream = |bytes, body, end| match find_bytes(bytes, body, end, stream_keyword_bytes) {
+	Missing => False
+	Found(position) => match tokenize(bytes, body, position, 0) {
+		Err(_) => False
+		Ok(tokens) => match walk_structure(bytes, tokens, 0, U64.highest) {
+			Err(_) => False
+			Ok(top_keys) => match top_key_value(bytes, tokens, top_keys, type_key_bytes) {
+				Found(token) => token.kind == NameToken and region_equals(bytes, token.start, token.len, object_stream_bytes)
+				Missing => False
+			}
+		}
+	}
+}
+
+## Decode one object stream: a direct `/Length`, `/N` members, and a header of
+## `/First` bytes listing `number offset` pairs separated by single spaces and
+## ended by a newline. Each member must be the type 2 entry the
+## cross-reference rows record for it, in order, and end with a newline.
+decode_object_stream : List(U8), U64, U64, U64, List(Entry), U64 -> Try({ content : List(U8), members : List({ end : U64, number : U64, start : U64 }) }, StructureOracle.Failure)
+decode_object_stream = |bytes, body, end, number, entries, _ordinal| {
+	position = match find_bytes(bytes, body, end, stream_keyword_bytes) {
+		Found(value) => value
+		Missing => return Err(BadStreamFraming(number))
+	}
+	tokens = tokenize(bytes, body, position, number)?
+	top_keys = walk_structure(bytes, tokens, number, U64.highest)?
+	length = direct_integer(bytes, tokens, top_keys, length_key_bytes) ? |_| BadStreamLength(number)
+	first = direct_integer(bytes, tokens, top_keys, first_key_bytes) ? |_| BadStreamFraming(number)
+	count = direct_integer(bytes, tokens, top_keys, count_key_bytes) ? |_| BadStreamFraming(number)
+	payload_start = position + stream_keyword_bytes.len()
+	if payload_start + length + end_stream_bytes.len() != end or !matches_at(bytes, payload_start + length, end_stream_bytes) {
+		return Err(BadStreamFraming(number))
+	}
+	content = inflate(bytes, payload_start, length) ? |_| BadFilter(number)
+	if first == 0 or first > content.len() or list_at(content, first - 1) != 10 {
+		return Err(BadStreamFraming(number))
+	}
+	var $members = List.with_capacity(count)
+	var $cursor = 0
+	var $index = 0
+	while $index < count {
+		member_number = read_unsigned(content, $cursor, first - 1) ? |_| BadStreamFraming(number)
+		if !matches_at(content, member_number.end, [32]) {
+			return Err(BadStreamFraming(number))
+		}
+		offset = read_unsigned(content, member_number.end + 1, first - 1) ? |_| BadStreamFraming(number)
+		separator = if $index + 1 == count 10 else 32
+		if list_at(content, offset.end) != separator {
+			return Err(BadStreamFraming(number))
+		}
+		if member_number.value >= entries.len() or list_at(entries, member_number.value) != { field: number, index: $index, kind: 2 } {
+			return Err(BadXrefEntry(member_number.value))
+		}
+		$members = $members.append({ end: 0, number: member_number.value, start: first + offset.value })
+		$cursor = offset.end + 1
+		$index = $index + 1
+	}
+	if $cursor != first {
+		return Err(BadStreamFraming(number))
+	}
+
+	# Each member runs to the next member's start; its body excludes the
+	# newline that ends it.
+	var $placed = List.with_capacity(count)
+	$index = 0
+	while $index < count {
+		member = list_at($members, $index)
+		next_start = if $index + 1 == count content.len() else list_at($members, $index + 1).start
+		if next_start <= member.start or next_start > content.len() or list_at(content, next_start - 1) != 10 {
+			return Err(BadStreamFraming(member.number))
+		}
+		$placed = $placed.append({ ..member, end: next_start - 1 })
+		$index = $index + 1
+	}
+	Ok({ content, members: $placed })
+}
+
+direct_integer : List(U8), List(Token), List(TopKey), List(U8) -> Try(U64, [Malformed])
+direct_integer = |bytes, tokens, top_keys, key| match top_key_index(bytes, top_keys, key) {
+	Missing => Err(Malformed)
+	Found(index) => {
+		if is_reference(tokens, index) {
+			return Err(Malformed)
+		}
+		token = list_at(tokens, index)
+		if token.kind == IntegerToken Ok(token.value) else Err(Malformed)
+	}
+}
+
+## An object stream carries a direct `/Length`. Every other stream carries an
+## indirect `/Length m 0 R`, and sealing requires `m` to be the very next
+## object, whose whole body is one bare decimal integer. Resolving the length
+## that way and then requiring it to land exactly on `\nendstream\nendobj\n`
+## is what ties a declared length to the real payload extent.
+read_stream_length : List(U8), List(Token), List(TopKey), U64, List(Location), List(List(U8)) -> Try(U64, StructureOracle.Failure)
+read_stream_length = |bytes, tokens, top_keys, number, locations, decoded| {
 	index = match top_key_index(bytes, top_keys, length_key_bytes) {
 		Missing => return Err(BadStreamLength(number))
 		Found(value) => value
 	}
 	if !is_reference(tokens, index) {
-		return Err(BadStreamLength(number))
+		token = list_at(tokens, index)
+		if token.kind != IntegerToken {
+			return Err(BadStreamLength(number))
+		}
+		return Ok(token.value)
 	}
 	length_object = list_at(tokens, index).value
-	if length_object != number + 1 or length_object >= xref_object {
+	if length_object != number + 1 or length_object >= locations.len() {
 		return Err(BadStreamLength(number))
 	}
-	start = list_at(offsets, length_object)
-	end = list_at(offsets, length_object + 1)
-	header = read_object_header(bytes, start, end) ? |_| BadStreamLength(number)
-	if !ends_at(bytes, end, end_object_bytes) {
-		return Err(BadStreamLength(number))
+	match list_at(locations, length_object) {
+		Member({ end, start, stream }) => Ok(read_decimal(list_at(decoded, stream), start, end) ? |_| BadStreamLength(number))
+		_ => Err(BadStreamLength(number))
 	}
-	declared = read_decimal(bytes, header.body, end - end_object_bytes.len()) ? |_| BadStreamLength(number)
-	Ok(declared)
 }
 
 ## A filtered payload announces itself in its own first bytes, so the declared
 ## filter and the payload have to agree. An absent `/Filter` means the payload
-## is stored unchanged, which is how XMP metadata and ICC profiles are written,
-## and there is nothing to assert about those bytes from out here.
+## is stored unchanged, which is how XMP metadata is written, and there is
+## nothing to assert about those bytes from out here.
 check_filter : List(U8), List(Token), List(TopKey), U64, U64, U64 -> Try({}, StructureOracle.Failure)
 check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| match top_key_value(bytes, tokens, top_keys, filter_key_bytes) {
 	Missing => Ok({})
@@ -415,7 +637,14 @@ check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| 
 			return Err(BadFilter(number))
 		}
 		if region_equals(bytes, token.start, token.len, flate_decode_bytes) {
-			if payload_length < 2 or list_at(bytes, payload_start) != 0x78 or list_at(bytes, payload_start + 1) != 0x9c {
+			# RFC 1950: CMF 0x78 (DEFLATE, 32 KiB window), no preset
+			# dictionary, and a header that is a multiple of 31.
+			if payload_length < 2 {
+				return Err(BadFilter(number))
+			}
+			cmf = list_at(bytes, payload_start).to_u64()
+			flg = list_at(bytes, payload_start + 1).to_u64()
+			if cmf != 0x78 or flg.bitwise_and(0x20) != 0 or U64.mod_by(cmf * 256 + flg, 31) != 0 {
 				return Err(BadFilter(number))
 			}
 			Ok({})
@@ -434,11 +663,11 @@ check_filter = |bytes, tokens, top_keys, payload_start, payload_length, number| 
 	}
 }
 
-## The emitted grammar is far smaller than real PDF: single-space separation, no
-## literal `( )` strings, no comments inside objects, and a newline only at
-## framing positions. Tokenizing exactly that grammar and rejecting everything
+## The emitted grammar is far smaller than real PDF: single-space separation,
+## literal `( )` strings only in their canonical escaped form, no comments
+## inside objects, and a newline only at framing positions. Tokenizing exactly that grammar and rejecting everything
 ## else makes the tokenizer itself a canonical-output check.
-Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, NameToken, NullToken, NumberToken, ReferenceToken, TrueToken]
+Kind : [ArrayClose, ArrayOpen, DictClose, DictOpen, FalseToken, HexToken, IntegerToken, LiteralToken, NameToken, NullToken, NumberToken, ReferenceToken, TrueToken]
 
 Token : { kind : Kind, len : U64, start : U64, value : U64 }
 
@@ -456,8 +685,8 @@ tokenize = |bytes, from, to, number| {
 		if byte == 32 {
 			$index = $index + 1
 		} else if byte == 60 {
-			## A dictionary opener and a hex string are told apart by peeking one
-			## byte past the `<`.
+			# A dictionary opener and a hex string are told apart by peeking one
+			# byte past the `<`.
 			if $index + 1 < to and list_at(bytes, $index + 1) == 60 {
 				$tokens = $tokens.append({ kind: DictOpen, len: 0, start: $index, value: 0 })
 				$index = $index + 2
@@ -479,6 +708,39 @@ tokenize = |bytes, from, to, number| {
 			}
 			$tokens = $tokens.append({ kind: DictClose, len: 0, start: $index, value: 0 })
 			$index = $index + 2
+		} else if byte == 40 {
+			# A canonical literal string: printable ASCII, with `(`, `)`, and
+			# `\\` always escaped and every other byte a three-digit octal
+			# escape, so parentheses never nest.
+			var $scan = $index + 1
+			var $closed = False
+			while !$closed {
+				if $scan >= to {
+					return Err(BadToken(number))
+				}
+				current = list_at(bytes, $scan)
+				if current == 41 {
+					$closed = True
+				} else if current == 92 {
+					if $scan + 1 >= to {
+						return Err(BadToken(number))
+					}
+					escaped = list_at(bytes, $scan + 1)
+					if escaped == 40 or escaped == 41 or escaped == 92 {
+						$scan = $scan + 2
+					} else if $scan + 3 < to and is_octal(escaped) and is_octal(list_at(bytes, $scan + 2)) and is_octal(list_at(bytes, $scan + 3)) {
+						$scan = $scan + 4
+					} else {
+						return Err(BadToken(number))
+					}
+				} else if current < 32 or current > 126 or current == 40 {
+					return Err(BadToken(number))
+				} else {
+					$scan = $scan + 1
+				}
+			}
+			$tokens = $tokens.append({ kind: LiteralToken, len: $scan - $index - 1, start: $index + 1, value: 0 })
+			$index = $scan + 1
 		} else if byte == 91 {
 			$tokens = $tokens.append({ kind: ArrayOpen, len: 0, start: $index, value: 0 })
 			$index = $index + 1
@@ -537,8 +799,8 @@ classify = |bytes, from, to, number| {
 		return Err(BadToken(number))
 	}
 	if $cursor == to {
-		## Only a non-negative integer can take part in a reference, so a signed
-		## whole number stays an ordinary number token.
+		# Only a non-negative integer can take part in a reference, so a signed
+		# whole number stays an ordinary number token.
 		if negative {
 			return Ok({ kind: NumberToken, len: length, start: from, value: 0 })
 		}
@@ -581,7 +843,7 @@ walk_structure = |bytes, tokens, number, size| {
 	var $index = 0
 	while $index < tokens.len() {
 		token = list_at(tokens, $index)
-		awaiting_key = if $depth == 0 Bool.False else {
+		awaiting_key = if $depth == 0 False else {
 			frame = list_at($stack, $depth - 1)
 			frame.is_dict and frame.expecting_key
 		}
@@ -600,7 +862,7 @@ walk_structure = |bytes, tokens, number, size| {
 					if $depth == 1 {
 						$top_keys = $top_keys.append({ key_len: token.len, key_start: token.start, value_index: $index + 1 })
 					}
-					$stack = list_put($stack, $depth - 1, { ..frame, expecting_key: Bool.False, has_key: Bool.True, key_len: token.len, key_start: token.start })
+					$stack = list_put($stack, $depth - 1, { ..frame, expecting_key: False, has_key: True, key_len: token.len, key_start: token.start })
 					$index = $index + 1
 				}
 				_ => return Err(UnbalancedObject(number))
@@ -608,12 +870,12 @@ walk_structure = |bytes, tokens, number, size| {
 		} else {
 			match token.kind {
 				DictOpen => {
-					$stack = push_frame($stack, $depth, { expecting_key: Bool.True, has_key: Bool.False, is_dict: Bool.True, key_len: 0, key_start: 0 })
+					$stack = push_frame($stack, $depth, { expecting_key: True, has_key: False, is_dict: True, key_len: 0, key_start: 0 })
 					$depth = $depth + 1
 					$index = $index + 1
 				}
 				ArrayOpen => {
-					$stack = push_frame($stack, $depth, { expecting_key: Bool.False, has_key: Bool.False, is_dict: Bool.False, key_len: 0, key_start: 0 })
+					$stack = push_frame($stack, $depth, { expecting_key: False, has_key: False, is_dict: False, key_len: 0, key_start: 0 })
 					$depth = $depth + 1
 					$index = $index + 1
 				}
@@ -662,13 +924,13 @@ push_frame = |stack, depth, frame| if depth < stack.len() list_put(stack, depth,
 complete_value : List(Frame), U64 -> List(Frame)
 complete_value = |stack, depth| if depth == 0 stack else {
 	frame = list_at(stack, depth - 1)
-	if frame.is_dict list_put(stack, depth - 1, { ..frame, expecting_key: Bool.True }) else stack
+	if frame.is_dict list_put(stack, depth - 1, { ..frame, expecting_key: True }) else stack
 }
 
 is_reference : List(Token), U64 -> Bool
 is_reference = |tokens, index| {
 	if index + 2 >= tokens.len() {
-		return Bool.False
+		return False
 	}
 	generation = list_at(tokens, index + 1)
 	keyword = list_at(tokens, index + 2)
@@ -780,20 +1042,20 @@ expect_hex_digits = |bytes, from, count| {
 matches_at : List(U8), U64, List(U8) -> Bool
 matches_at = |bytes, from, needle| {
 	if from + needle.len() > bytes.len() {
-		return Bool.False
+		return False
 	}
 	var $index = 0
 	while $index < needle.len() {
 		if list_at(bytes, from + $index) != list_at(needle, $index) {
-			return Bool.False
+			return False
 		}
 		$index = $index + 1
 	}
-	Bool.True
+	True
 }
 
 ends_at : List(U8), U64, List(U8) -> Bool
-ends_at = |bytes, at, needle| if at < needle.len() Bool.False else matches_at(bytes, at - needle.len(), needle)
+ends_at = |bytes, at, needle| if at < needle.len() False else matches_at(bytes, at - needle.len(), needle)
 
 ## Scan for a marker inside a known non-payload window only. The dictionary of a
 ## stream object carries no newline, so the first `\nstream\n` at or after the
@@ -837,6 +1099,9 @@ compare_regions = |bytes, left_start, left_len, right_start, right_len| {
 is_digit : U8 -> Bool
 is_digit = |byte| byte >= 48 and byte <= 57
 
+is_octal : U8 -> Bool
+is_octal = |byte| byte >= 48 and byte <= 55
+
 is_hex_digit : U8 -> Bool
 is_hex_digit = |byte| is_digit(byte) or (byte >= 65 and byte <= 70)
 
@@ -845,7 +1110,7 @@ is_hex_digit = |byte| is_digit(byte) or (byte >= 65 and byte <= 70)
 is_regular : U8 -> Bool
 is_regular = |byte| {
 	if byte <= 32 or byte == 127 {
-		return Bool.False
+		return False
 	}
 	byte != 37 and
 		byte != 40 and
@@ -879,12 +1144,12 @@ corrupted = |bytes, index| {
 	list_put(bytes, index, if byte == 48 49 else 48)
 }
 
-## The positive expects pin the oracle against real emitter output rather than a
-## hand-written sample: a facade document with no visible content, a document
-## whose content stream is deflated, and a document carrying a JPEG image and an
-## unfiltered ICC profile. Committed snapshots are used rather than documents
-## generated here so no part of the emitter runs at compile time;
-## `fuzz/facade_structure.roc` generates documents at run time.
+# The positive expects pin the oracle against real emitter output rather than a
+# hand-written sample: a facade document with no visible content, a document
+# whose content stream is deflated, and a document carrying a JPEG image and an
+# unfiltered ICC profile. Committed snapshots are used rather than documents
+# generated here so no part of the emitter runs at compile time;
+# `fuzz/facade_structure.roc` generates documents at run time.
 expect StructureOracle.check(blank_document) == Ok({})
 expect StructureOracle.check(deflate_document) == Ok({})
 expect StructureOracle.check(image_document) == Ok({})
@@ -892,18 +1157,19 @@ expect StructureOracle.check(image_document) == Ok({})
 ## An oracle that never rejects is worthless, so these prove that it does.
 ## `scripts/check_pdf_structure.py --self-test` exists for the same reason.
 
-## Moving the last digit of the `startxref` offset points it at bytes that are
-## not the cross-reference object header.
+# Moving the last digit of the `startxref` offset points it at bytes that are
+# not the cross-reference object header.
 expect StructureOracle.check(corrupted(blank_document, blank_document.len() - 8)) != Ok({})
 
-## Dropping the final newline destroys the `%%EOF\n` marker.
+# Dropping the final newline destroys the `%%EOF\n` marker.
 expect StructureOracle.check(blank_document.sublist({ start: 0, len: blank_document.len() - 1 })) == Err(BadEndOfFile)
 
-## Object one always starts at offset fifteen, so renumbering its header makes
-## the recorded offset describe a different object than the one it indexes.
-expect StructureOracle.check(corrupted(blank_document, 15)) == Err(BadObjectHeader(1))
+# The first top-level object always starts at offset fifteen, so renumbering
+# its header makes the recorded offset describe a different object than the
+# one it indexes.
+expect StructureOracle.check(corrupted(blank_document, 15)) != Ok({})
 
-## Corrupting the header, and the empty document, are both rejected before any
-## parsing begins.
+# Corrupting the header, and the empty document, are both rejected before any
+# parsing begins.
 expect StructureOracle.check(corrupted(blank_document, 1)) == Err(BadHeader)
 expect StructureOracle.check([]) == Err(TooShort)

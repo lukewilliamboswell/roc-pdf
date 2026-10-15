@@ -345,7 +345,7 @@ semantic_limits = KernelSemantics.Limits.make({ max_attributes: 0, max_content_s
 text_limits : KernelTextSemantics.Limits
 text_limits = KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 2, max_text_source_bytes: 3, max_text_source_scalars: 2, max_text_sources: 1 })
 
-## text-layout text semantics retain exact scalar-to-byte boundaries and bounded work.
+# text-layout text semantics retain exact scalar-to-byte boundaries and bounded work.
 expect {
 	plan = KernelTextSemantics.Plan.build(test_store, 1, 1, semantic_limits, text_limits)?
 	fact = list_at(KernelTextSemantics.Plan.source_facts(plan), 0)
@@ -353,13 +353,13 @@ expect {
 	fact.byte_count == 3 and fact.scalar_count == 2 and fact.scalar_byte_offsets == [0, 2, 3] and work.source_bytes == 3 and work.source_scalars == 2 and work.property_visits == 1 and work.property_bytes == 2
 }
 
-## tagged-visual cannot silently accept a text semantic store.
+# tagged-visual cannot silently accept a text semantic store.
 expect match KernelSemantics.Plan.build(test_store, 1, 1, semantic_limits) {
 	Err(UnsupportedStoreContent) => True
 	_ => False
 }
 
-## Scalar and UTF-8 occurrence coordinates must name the same boundaries.
+# Scalar and UTF-8 occurrence coordinates must name the same boundaries.
 expect {
 	occurrence = list_at(test_store.occurrences, 0)
 	bad_range = { ..full_range, utf8_bytes: Semantics.Range.from_start_and_length(0, 2) }
@@ -370,7 +370,7 @@ expect {
 	}
 }
 
-## Fragment text coordinates are validated against their occurrence and source.
+# Fragment text coordinates are validated against their occurrence and source.
 expect {
 	fragment = list_at(test_store.fragments, 0)
 	bad_range = { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) }
@@ -381,7 +381,7 @@ expect {
 	}
 }
 
-## Text-property ownership stays unique across nodes and occurrences.
+# Text-property ownership stays unique across nodes and occurrences.
 expect {
 	node = list_at(test_store.nodes, 0)
 	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.Range.from_start_and_length(0, 1) }) }
@@ -391,7 +391,7 @@ expect {
 	}
 }
 
-## Cumulative Unicode work is rejected at the exact configured limit.
+# Cumulative Unicode work is rejected at the exact configured limit.
 expect {
 	too_small = KernelTextSemantics.Limits.make({ max_text_properties: 1, max_text_property_bytes: 2, max_text_source_bytes: 3, max_text_source_scalars: 1, max_text_sources: 1 })
 	match KernelTextSemantics.Plan.build(test_store, 1, 1, semantic_limits, too_small) {
@@ -400,8 +400,8 @@ expect {
 	}
 }
 
-## Empty property ranges still validate their cursor without allocating a
-## per-owner marking result.
+# Empty property ranges still validate their cursor without allocating a
+# per-owner marking result.
 expect {
 	node = list_at(test_store.nodes, 0)
 	bad = { ..test_store, nodes: list_set(test_store.nodes, 0, { ..node, text_properties: Semantics.Range.from_start_and_length(2, 0) }) }

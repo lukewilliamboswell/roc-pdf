@@ -45,8 +45,8 @@ run = |start, budget, step| {
 			return Ok({ candidate: Candidate(stepped.candidate), outcome: Stable({ passes: $pass, state: next, work: $comparisons }) })
 		}
 
-		## A repeated earlier state is confirmed by exact equality; the
-		## history is bounded by the pass budget.
+		# A repeated earlier state is confirmed by exact equality; the
+		# history is bounded by the pass budget.
 		var $seen = 0
 		while $seen + 1 < $history.len() {
 			$comparisons = $comparisons + 1
@@ -69,8 +69,8 @@ list_at = |items, index| match items.get(index) {
 	Err(OutOfBounds) => crash "stabilization history index escaped"
 }
 
-## A synthetic system whose second pass repeats the first pass's state
-## stabilizes in exactly two passes, as page furniture does.
+# A synthetic system whose second pass repeats the first pass's state
+# stabilizes in exactly two passes, as page furniture does.
 expect {
 	stepped = KernelStabilization.stabilize(KernelStabilization.initial, 4, |_state, _candidate, pass| Ok({ candidate: pass, state: { pages: 3, values: [] } }))
 	match stepped {
@@ -79,8 +79,8 @@ expect {
 	}
 }
 
-## A synthetic system that alternates between two states is a cycle at the
-## pass that repeats the earlier non-identical state.
+# A synthetic system that alternates between two states is a cycle at the
+# pass that repeats the earlier non-identical state.
 expect {
 	stepped = KernelStabilization.stabilize(
 		KernelStabilization.initial,
@@ -96,8 +96,8 @@ expect {
 	}
 }
 
-## A synthetic system that never repeats exhausts the fixed pass budget and
-## reports its last attempted state, never accepting it.
+# A synthetic system that never repeats exhausts the fixed pass budget and
+# reports its last attempted state, never accepting it.
 expect {
 	stepped = KernelStabilization.stabilize(KernelStabilization.initial, 4, |state, _candidate, _pass| Ok({ candidate: {}, state: { pages: state.pages + 1, values: [state.pages] } }))
 	match stepped {
@@ -106,7 +106,7 @@ expect {
 	}
 }
 
-## A failing pass propagates its error unchanged.
+# A failing pass propagates its error unchanged.
 expect {
 	stepped : Try({ candidate : [Candidate({}), NoCandidate], outcome : Layout.Stabilization(KernelStabilization.State) }, [Rejected])
 	stepped = KernelStabilization.stabilize(KernelStabilization.initial, 4, |_state, _candidate, _pass| Err(Rejected))

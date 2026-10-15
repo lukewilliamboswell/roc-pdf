@@ -29,6 +29,11 @@ Conformance :: [].{
 		InvalidOwnership,
 		InvalidRelationship,
 		InvalidStructureAttribute,
+
+		## A compiler stage rejected one of its own preconditions: a package
+		## defect rather than an authoring error, reported with the stage's
+		## exact failure instead of an unlocated catch-all.
+		InternalInvariant,
 		LayoutConstraintViolated,
 		LayoutCycle,
 		ProfileRequirementViolated,
@@ -138,17 +143,17 @@ Conformance :: [].{
 	}
 }
 
-## Standard always carries the PDF 2.0 claim.
+# Standard always carries the PDF 2.0 claim.
 expect Conformance.claims_for_profile(Standard).pdf20
 
-## Standard does not silently add the archival claim.
+# Standard does not silently add the archival claim.
 expect !Conformance.claims_for_profile(Standard).static_pdf_a4
 
-## Archive adds the static PDF/A-4 claim.
+# Archive adds the static PDF/A-4 claim.
 expect Conformance.claims_for_profile(Archive).static_pdf_a4
 
-## AccessibleArchive adds the PDF/UA-2 claim.
+# AccessibleArchive adds the PDF/UA-2 claim.
 expect Conformance.claims_for_profile(AccessibleArchive).pdf_ua2
 
-## WTPDF accessibility remains an orthogonal declaration.
+# WTPDF accessibility remains an orthogonal declaration.
 expect !Conformance.claims_for_profile(AccessibleArchive).wtpdf_accessibility

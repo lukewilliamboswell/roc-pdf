@@ -8,6 +8,8 @@ import contextlib
 import functools
 import http.server
 import os
+import re
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -17,19 +19,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GALLERY = ROOT / "examples"
 ROC = os.environ.get("ROC", "roc")
-PACKAGE_DEPENDENCY = 'pdf: "../package/main.roc",'
-EXAMPLES = {
-    "brand_brief.roc": "brand-brief.pdf",
-    "business_report.roc": "business-report.pdf",
-    "chunked_export.roc": "chunked-export.pdf",
-    "field_guide.roc": "field-guide.pdf",
-    "letter.roc": "warranty-letter.pdf",
-    "operations_handbook.roc": "operations-handbook.pdf",
-    "prepared_invoice.roc": "tax-invoice.pdf",
-    "product_brief.roc": "product-brief.pdf",
-    "quarterly_report.roc": "quarterly-report.pdf",
-    "release_notes.roc": "release-notes.pdf",
-}
+PACKAGE_DEPENDENCY = 'pdf: "../../package/main.roc",'
+# Each example is a directory holding its app root `main.roc`, the assets it
+# imports, the PDF it writes (named after the directory), and a preview.
+EXAMPLES = (
+    "brand-brief",
+    "business-report",
+    "chunked-export",
+    "field-guide",
+    "operations-handbook",
+    "product-brief",
+    "quarterly-report",
+    "release-notes",
+    "tax-invoice",
+    "warranty-letter",
+)
+LOCAL_IMPORT = re.compile(r'^import "([^"]+)"', re.MULTILINE)
 
 
 class BundleRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -63,16 +68,26 @@ class BundleServer:
         return int(self.server.bundle_get_requests)  # type: ignore[attr-defined]
 
 
-def bundled_source(source: Path, destination: Path, bundle_url: str) -> Path:
-    text = source.read_text(encoding="utf-8")
+def bundled_example(example: Path, destination: Path, bundle_url: str) -> Path:
+    """Copy one example directory and point it at the served bundle.
+
+    A bundle consumer has only the example's own directory, so every byte
+    import must name a file inside it.
+    """
+    text = (example / "main.roc").read_text(encoding="utf-8")
     if text.count(PACKAGE_DEPENDENCY) != 1:
-        raise SystemExit(f"{source.name}: expected one local package dependency")
-    destination.write_text(
+        raise SystemExit(f"{example.name}: expected one local package dependency")
+    for imported in LOCAL_IMPORT.findall(text):
+        resolved = (example / imported).resolve()
+        if not resolved.is_relative_to(example.resolve()) or not resolved.is_file():
+            raise SystemExit(f"{example.name}: import {imported!r} is not a file inside the example directory")
+    shutil.copytree(example, destination, ignore=shutil.ignore_patterns("*.pdf", "preview.png"))
+    (destination / "main.roc").write_text(
         text.replace(PACKAGE_DEPENDENCY, f'pdf: "{bundle_url}",'),
         encoding="utf-8",
         newline="\n",
     )
-    return destination
+    return destination / "main.roc"
 
 
 def main() -> None:
@@ -90,20 +105,22 @@ def main() -> None:
         temporary_path = Path(temporary)
         server_context = BundleServer(bundle) if bundle is not None else contextlib.nullcontext()
         with server_context as server:
-            for source_name, pdf_name in EXAMPLES.items():
-                source = GALLERY / source_name
+            for name in EXAMPLES:
+                example = GALLERY / name
+                pdf_name = f"{name}.pdf"
+                source = example / "main.roc"
                 if server is not None:
-                    source = bundled_source(source, temporary_path / source_name, server.url)
+                    source = bundled_example(example, temporary_path / name, server.url)
                 generated_path = output / pdf_name
                 if generated_path.exists():
                     generated_path.unlink()
                 subprocess.run([ROC, "run", str(source)], cwd=output, check=True)
                 generated = generated_path.read_bytes()
-                expected = (GALLERY / pdf_name).read_bytes()
+                expected = (example / pdf_name).read_bytes()
                 if generated != expected:
-                    raise SystemExit(f"{source_name}: generated PDF differs from {pdf_name}")
+                    raise SystemExit(f"{name}: generated PDF differs from {pdf_name}")
                 generated_path.unlink()
-                print(f"PASS {source_name} -> {pdf_name} ({len(expected)} bytes)", flush=True)
+                print(f"PASS {name}/main.roc -> {pdf_name} ({len(expected)} bytes)", flush=True)
             if server is not None and server.get_requests == 0:
                 raise SystemExit("gallery never requested the served package bundle")
 

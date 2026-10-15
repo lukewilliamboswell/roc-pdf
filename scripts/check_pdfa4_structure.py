@@ -31,7 +31,9 @@ import sys
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
+from pdf_layout import LayoutError, flatten, twin as layout_twin
 from check_pdf_structure import (
+    decode_stream,
     ValidationError,
     dictionary_ref,
     indirect_length,
@@ -45,7 +47,7 @@ from check_pdf_structure import (
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "tests" / "archive"
-SRGB_PROFILE = ROOT / "vendor" / "icc" / "sRGB2014.icc"
+SRGB_PROFILE = ROOT / "package" / "sRGB2014.icc"
 
 SNAPSHOTS: tuple[tuple[str, int], ...] = (
     ("archive_blank.pdf", 1),
@@ -115,14 +117,7 @@ def skeleton(pdf: bytes, pages: int) -> tuple[dict[int, int], dict[int, bytes], 
 
 
 def stream_payload(bodies: dict[int, bytes], number: int) -> tuple[bytes, bytes]:
-    body = bodies.get(number)
-    require(body is not None, f"object {number} does not resolve")
-    marker = body.find(b"stream\n")
-    require(marker >= 0, f"object {number} is not a stream")
-    dictionary = body[:marker]
-    length = indirect_length(bodies, dictionary_ref(dictionary, b"Length"))
-    _, payload = stream_parts(body, length)
-    return dictionary, payload
+    return decode_stream(bodies, number)
 
 
 def check_metadata(bodies: dict[int, bytes], catalog: bytes) -> bytes:
@@ -207,8 +202,10 @@ def check_resources(bodies: dict[int, bytes]) -> None:
 
 def replace_first(pdf: bytes, old: bytes, new: bytes) -> bytes:
     require(len(old) == len(new), "self-test mutations must preserve length")
-    require(old in pdf, f"self-test mutation target {old!r} is absent")
-    return pdf.replace(old, new, 1)
+    try:
+        return layout_twin(pdf, old, new)
+    except LayoutError as error:
+        raise ValidationError(f"self-test mutation target {old!r} is absent: {error}") from error
 
 
 def validate_archive_pdf(pdf: bytes, pages: int = 0) -> dict[str, int]:
@@ -225,7 +222,7 @@ def validate_archive_pdf(pdf: bytes, pages: int = 0) -> dict[str, int]:
 
 
 def validate_standard_pdf(pdf: bytes) -> None:
-    require(b"pdfaid" not in pdf, "Standard output must never declare PDF/A identification")
+    require(b"pdfaid" not in flatten(pdf), "Standard output must never declare PDF/A identification")
 
 
 def validate_pdfa4_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
