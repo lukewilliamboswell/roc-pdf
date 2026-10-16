@@ -186,6 +186,10 @@
     {
       "source": "tests/reference_documents/main.roc",
       "cases_jsonl": "tests/reference_documents/cases.jsonl"
+    },
+    {
+      "source": "tests/source_text/main.roc",
+      "cases_jsonl": "tests/source_text/cases.jsonl"
     }
   ],
   "cases": [
@@ -26997,6 +27001,108 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline"
+      ]
+    },
+    {
+      "name": "source-text whitespace 16",
+      "scenario_revision": "source-text-v1",
+      "source": "tests/source_text/main.roc",
+      "snapshot": "tests/source_text/whitespace.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "repetitions": 16,
+        "source_lines": 49,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "output_bytes",
+        "line_writes",
+        "tab_spaces",
+        "range_checks",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 399,
+          "allocated_bytes": 1254595,
+          "work": {
+            "input_bytes": 192,
+            "output_bytes": 224,
+            "line_writes": 49,
+            "tab_spaces": 64,
+            "range_checks": 49,
+            "atomic_rejections": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 399,
+          "allocated_bytes": 1254595,
+          "work": {
+            "input_bytes": 192,
+            "output_bytes": 224,
+            "line_writes": 49,
+            "tab_spaces": 64,
+            "range_checks": 49,
+            "atomic_rejections": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdf_structure"
+      ]
+    },
+    {
+      "name": "source-text whitespace 160",
+      "scenario_revision": "source-text-v1",
+      "source": "tests/source_text/main.roc",
+      "snapshot": "tests/source_text/whitespace.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "repetitions": 160,
+        "source_lines": 481,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "output_bytes",
+        "line_writes",
+        "tab_spaces",
+        "range_checks",
+        "atomic_rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 407,
+          "allocated_bytes": 1317443,
+          "work": {
+            "input_bytes": 1920,
+            "output_bytes": 2240,
+            "line_writes": 481,
+            "tab_spaces": 640,
+            "range_checks": 481,
+            "atomic_rejections": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 407,
+          "allocated_bytes": 1317443,
+          "work": {
+            "input_bytes": 1920,
+            "output_bytes": 2240,
+            "line_writes": 481,
+            "tab_spaces": 640,
+            "range_checks": 481,
+            "atomic_rejections": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdf_structure"
       ]
     }
   ]
