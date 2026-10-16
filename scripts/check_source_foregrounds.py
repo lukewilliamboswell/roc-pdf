@@ -32,6 +32,9 @@ def original(dimensions: dict[str, int]) -> tuple[str, list[tuple[int, int, tupl
     elif kind == 1:
         text = URL + '\n' + 'x' * 220 + '\n  final = 42\n' + '\n'.join(f'line {n} = "kept exactly once"' for n in range(1, 81))
         ranges = [(0, 122, STRING), (123, len(text.encode()), COMMENT)]
+    elif kind == 4:
+        text = 'iii Www Mmm eek !99 = blue\nsecond line with words\n'
+        ranges = [(0, 3, KEYWORD), (4, 7, STRING), (8, 12, COMMENT)]
     elif kind == 2:
         line = 'let x = 42 # note\n'
         text = line * lines
@@ -75,16 +78,21 @@ def inspect(pdf: bytes) -> tuple[str, list[tuple[object, ...]], list[tuple[objec
     codes: list[str] = []
     logical: list[str] = []
     roles: list[str] = []
-    def walk(number: int) -> None:
+    source_marks: set[tuple[int, int]] = set()
+    def walk(number: int, source: bool = False) -> None:
         element = document.get(number)
         roles.append(element['S'])
+        source = source or element['S'] == 'Code'
         if element['S'] == 'Code':
             codes.append(text_string(element['ActualText']))
         for child in element_children(document, element):
             if isinstance(child, Ref):
-                walk(int(child))
+                walk(int(child), source)
             elif isinstance(child, dict) and child.get('Type') == 'MCR':
-                logical.append(marked[(int(child['Pg']), int(child['MCID']))])
+                key = (int(child['Pg']), int(child['MCID']))
+                logical.append(marked[key])
+                if source:
+                    source_marks.add(key)
     walk(int(document.get(int(catalog['StructTreeRoot']))['K']))
     require(len(codes) >= 1 and roles.count('Code') == len(codes) and not {'Span', 'Strong', 'Em', 'Figure'} & set(roles), 'foreground colours changed source semantic elements')
     glyphs: list[tuple[object, ...]] = []
@@ -114,7 +122,7 @@ def inspect(pdf: bytes) -> tuple[str, list[tuple[object, ...]], list[tuple[objec
             components = tuple(Fraction(part.decode()) for part in colors[0])
             color = tuple(round(component * 255) for component in components)
             require(all(abs(component - Fraction(channel, 255)) <= Fraction(1, 10**9) for component, channel in zip(components, color)), 'foreground colour lost exact sRGB channel values')
-            source_font = 'SourceCodePro' in str(document.get(int(fonts[name.decode()]))['BaseFont'])
+            source_font = (page, int(match.group(1))) in source_marks
             positions = glyph_positions(block, advances)
             require(len(positions) == len(text), 'source glyph/text cardinality changed')
             for character, (font, cid, x, y) in zip(text, positions):
@@ -135,10 +143,16 @@ def validate_source_foregrounds_pdf(pdf: bytes, dimensions: dict[str, int]) -> N
 
 def self_test() -> None:
     cases = [case for case in json.loads((ROOT / 'tests/spec.json').read_text())['cases'] if 'source_foregrounds' in case['validators']]
-    require(len(cases) == 10, 'foreground paired coverage incomplete')
+    require(len(cases) == 12, 'foreground paired coverage incomplete')
     for case in cases:
         pdf = (ROOT / case['snapshot']).read_bytes()
         validate_source_foregrounds_pdf(pdf, case['dimensions'])
+        if case['dimensions']['foreground_kind'] == 4 and case['dimensions']['colored']:
+            document = Document(pdf)
+            pages: list[int] = []
+            page_order(document, int(document.get(document.root)['Pages']), pages)
+            streams = b''.join(document.stream(int(document.get(page)['Contents'])) for page in pages)
+            require(len(re.findall(rb'\[-[0-9]+\.[0-9]+ <', streams)) >= 3, 'proportional regression no longer exercises multiple fractional paint boundaries')
         if case['dimensions']['colored']:
             plain = (ROOT / case['snapshot'].replace('_color.pdf', '_plain.pdf')).read_bytes()
             a, ga, pa, ra = inspect(pdf)

@@ -25,3 +25,5 @@
 {"name":"source foregrounds atomic negatives","schema_version":1,"case":{"ForegroundNegatives":{"context":0}}}
 {"name":"source foregrounds kind3 x0 plain","schema_version":1,"case":{"Foregrounds":{"colored":false,"kind":3,"lines":0}}}
 {"name":"source foregrounds kind3 x0 color","schema_version":1,"case":{"Foregrounds":{"colored":true,"kind":3,"lines":0}}}
+{"name":"source foregrounds kind4 x0 plain","schema_version":1,"case":{"Foregrounds":{"colored":false,"kind":4,"lines":0}}}
+{"name":"source foregrounds kind4 x0 color","schema_version":1,"case":{"Foregrounds":{"colored":true,"kind":4,"lines":0}}}

@@ -118,16 +118,16 @@ faces = |han| {
 	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
 }
 
-EvidenceProps :: { text : Str, spacer : I64 ?? 0, scale : U64 ?? 0, negative : Bool ?? False, defaults : Bool ?? False, han : Bool ?? False, source_only : Bool ?? False, same_body : Bool ?? False, foregrounds : List(Pdf.SourceForeground) ?? [], foreground_negative : Bool ?? False, highlighted : Bool ?? False, repeat_source : Bool ?? False }
+EvidenceProps :: { text : Str, spacer : I64 ?? 0, scale : U64 ?? 0, negative : Bool ?? False, defaults : Bool ?? False, han : Bool ?? False, source_only : Bool ?? False, same_body : Bool ?? False, foregrounds : List(Pdf.SourceForeground) ?? [], foreground_negative : Bool ?? False, highlighted : Bool ?? False, repeat_source : Bool ?? False, source_body : Bool ?? False }
 
 evidence : EvidenceProps -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
-evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source_only, same_body, foregrounds, foreground_negative, highlighted, repeat_source }| {
+evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source_only, same_body, foregrounds, foreground_negative, highlighted, repeat_source, source_body }| {
 	if scale > 1000 {
 		return Err(InvalidCase)
 	}
 	registered = faces(han)?
 	props : Pdf.SourceBlockProps
-	props = if defaults { text, face: registered.mono, foregrounds } else { text, face: registered.mono, foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
+	props = if defaults { text, face: if source_body registered.body else registered.mono, foregrounds } else { text, face: if source_body registered.body else registered.mono, foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
 	header = Pdf.region({ height: 10, start: [Pdf.furniture_text([Pdf.text("Quiet running header")])] })
 	templates = Templates({ first: Pdf.first_page_template({ header: header }), continuation: Pdf.page_template({ header: header }) })
 	make = |block| Pdf.document({
@@ -428,6 +428,9 @@ foreground_evidence = |kind, lines, colored| {
 	} else if kind == 1 {
 		text = "${wrap_text}\n${long_text(80)}"
 		return evidence({ text, highlighted: True, foregrounds: if colored [{ start: 0, end: 122, color: string }, { start: 123, end: text.count_utf8_bytes(), color: comment }] else [] })
+	} else if kind == 4 {
+		text = "iii Www Mmm eek !99 = blue\nsecond line with words\n"
+		return evidence({ text, highlighted: True, source_body: True, foregrounds: if colored [{ start: 0, end: 3, color: keyword }, { start: 4, end: 7, color: string }, { start: 8, end: 12, color: comment }] else [] })
 	} else if kind == 2 {
 		var $line = 0
 		while $line < lines {

@@ -14,6 +14,11 @@ Text :: [].{
 		index = |RunId.(index)| index
 	}
 
+	## The baseline segment origin and accepted prefix advance before a
+	## paint-only subdivision. This preserves the original text-position
+	## rounding phase without copying or remeasuring preceding glyphs.
+	PaintPhase : { run : RunId, advance : Layout.Unit, origin : Layout.Point }
+
 	GlyphId :: U32.{
 		is_eq : _
 		to_hash : _

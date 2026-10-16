@@ -986,7 +986,10 @@ Foreground ranges never enter shaping, measurement, wrapping, or pagination.
 After accepted layout, paint subdivision reuses existing glyph and cluster
 arenas and preserves occurrence identity, advances, offsets and source order.
 Only paint-run spans, placements and their ordinary fragment associations
-split; no token semantic elements are invented. Colours use the existing
+split; no token semantic elements are invented. Sparse continuation facts retain
+the original baseline-segment origin and accepted prefix advance through scenes
+to emission. Every piece uses the unsplit segment's exact TJ quantization grid;
+colour boundaries cannot reset proportional-font rounding. Colours use the existing
 profile-aware sRGB path, and unsupported channel models reject with a located
 source-range diagnostic.
 

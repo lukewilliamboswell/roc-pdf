@@ -82,6 +82,7 @@ KernelFacadeText :: [].{
 	LabelPiece : { color : Color.SourceValue, origin : Layout.Point, page : U64, run : U64, size : Layout.Unit }
 
 	Plan :: {
+		paint_phases : List(Text.PaintPhase),
 		paint_work : { clusters : U64, ranges : U64 },
 		artifact_kinds : ArtifactKinds,
 		artifact_runs : List(U64),
@@ -95,6 +96,9 @@ KernelFacadeText :: [].{
 		text : Text.Store,
 		work : Work,
 	}.{
+		paint_phases : Plan -> List(Text.PaintPhase)
+		paint_phases = |plan| plan.paint_phases
+
 		paint_work : Plan -> { clusters : U64, ranges : U64 }
 		paint_work = |plan| plan.paint_work
 
@@ -452,6 +456,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	}
 	Ok(
 		KernelFacadeText.Plan.{
+			paint_phases: [],
 			paint_work: { clusters: 0, ranges: 0 },
 			artifact_kinds: RepeatedHeaders,
 			artifact_runs: $artifact_runs,
@@ -725,6 +730,7 @@ interleave_furniture = |plan, furniture, limits| {
 	text = { ..body, clusters: $clusters, glyph_indices: $glyph_indices, glyphs: $glyphs, runs: $runs }
 	Ok(
 		KernelFacadeText.Plan.{
+			paint_phases: plan.paint_phases,
 			paint_work: plan.paint_work,
 			artifact_kinds: Kinds($artifact_kinds),
 			artifact_runs: $artifact_runs,
@@ -823,6 +829,7 @@ append_labels = |plan, pieces, source, sources, limits| {
 	text = { ..body, clusters: $clusters, glyph_indices: $glyph_indices, glyphs: $glyphs, runs: $runs }
 	Ok(
 		KernelFacadeText.Plan.{
+			paint_phases: plan.paint_phases,
 			paint_work: plan.paint_work,
 			artifact_kinds: Kinds($artifact_kinds),
 			artifact_runs: $artifact_runs,
@@ -1122,6 +1129,7 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 		}
 		$source_index = $source_index + 1
 	}
+	var $paint_phases = []
 	var $cluster_visits = 0
 	var $range_visits = 0
 	var $cursors = authoring.sources.map(|source| source.foregrounds.start())
@@ -1161,6 +1169,8 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 					var $cluster = run.clusters.start()
 					cluster_end = run.clusters.start() + run.clusters.length()
 					var $advance = 0
+					initial = list_at(text.glyphs, run.glyphs.start())
+					var $segment_origin = { x: initial.offset_x, y: initial.offset_y }
 					while $cluster < cluster_end {
 						first = list_at(text.clusters, $cluster)
 						start = byte + first.source.utf8_bytes.start()
@@ -1174,6 +1184,11 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 						} else { color: style.color, end: byte + run.source.utf8_bytes.start() + run.source.utf8_bytes.length() }
 						first_cluster = $cluster
 						first_glyph = list_at(text.glyph_indices, first.glyphs.start())
+						initial_glyph = list_at(text.glyphs, first_glyph)
+						if initial_glyph.offset_y != $segment_origin.y {
+							$segment_origin = { x: Layout.Unit.from_raw(checked_i64_add($advance, initial_glyph.offset_x.raw())?), y: initial_glyph.offset_y }
+						}
+						phase_origin = $segment_origin
 						var $last = first
 						var $width = 0
 						while $cluster < cluster_end and byte + list_at(text.clusters, $cluster).source.utf8_bytes.start() < paint.end {
@@ -1186,6 +1201,9 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 							var $reference = cluster.glyphs.start()
 							while $reference < cluster.glyphs.start() + cluster.glyphs.length() {
 								glyph = list_at(text.glyphs, list_at(text.glyph_indices, $reference))
+								if glyph.offset_y != $segment_origin.y {
+									$segment_origin = { x: Layout.Unit.from_raw(checked_i64_add(checked_i64_add($advance, $width)?, glyph.offset_x.raw())?), y: glyph.offset_y }
+								}
 								$width = checked_i64_add($width, glyph.advance_x.raw())?
 								$reference = $reference + 1
 							}
@@ -1200,6 +1218,9 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 						check_limit($runs.len() + 1, limits.max_runs, Runs)?
 						check_limit($placements.len() + 1, limits.max_placements, Placements)?
 						id = Text.RunId.from_index($runs.len())
+						if $advance != 0 {
+							$paint_phases = $paint_phases.append({ run: id, advance: Layout.Unit.from_raw($advance), origin: phase_origin })
+						}
 						$runs = $runs.append({
 							..run,
 							id,
@@ -1219,7 +1240,7 @@ paint_source_foregrounds = |plan, authoring, owners, limits| {
 		}
 		$pages = $pages.append({ ..page, runs: Semantics.Range.from_start_and_length(page_start, $runs.len() - page_start) })
 	}
-	Ok({ ..plan, paint_work: { clusters: $cluster_visits, ranges: $range_visits }, text: { ..text, runs: $runs }, styles: $styles, placements: $placements, pages: $pages, artifact_runs: $artifacts, work: { ..plan.work, run_writes: $runs.len(), placement_visits: $placements.len() } })
+	Ok({ ..plan, paint_phases: $paint_phases, paint_work: { clusters: $cluster_visits, ranges: $range_visits }, text: { ..text, runs: $runs }, styles: $styles, placements: $placements, pages: $pages, artifact_runs: $artifacts, work: { ..plan.work, run_writes: $runs.len(), placement_visits: $placements.len() } })
 }
 
 list_set : List(a), U64, a -> List(a)

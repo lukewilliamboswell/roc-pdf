@@ -292,8 +292,8 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 		Policy(_) => PolicyLabels
 		Styled(styled) => LabelFonts(StyledFonts({ fonts: KernelFacadeShape.Plan.fonts(shape), instances: KernelFacadeShape.Plan.label_instances(shape, styled) }))
 	}
-	painted = KernelFacadeText.Plan.with_source_foregrounds(unlabelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
-	text = label_text(authoring, painted, preliminary, label_fonts, source_store.len(), limits)?
+	labelled = label_text(authoring, unlabelled, preliminary, label_fonts, source_store.len(), limits)?
+	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	layout_facts = match request {
 		Collect => LayoutFacts(KernelFacadeReport.layout(pages))
 		NoCollect => NoLayoutFacts
@@ -453,8 +453,8 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
 	line_count = KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len()
 	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, selection, source_store.len(), limits)?
-	painted = KernelFacadeText.Plan.with_source_foregrounds(unlabelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
-	text = label_text(authoring, painted, preliminary, PolicyLabels, source_store.len(), limits)?
+	labelled = label_text(authoring, unlabelled, preliminary, PolicyLabels, source_store.len(), limits)?
+	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	page_count_value = KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len()
 	final_runs = KernelFacadeText.Plan.text(text).runs.len()
 	fragments = KernelFacadeFragments.Plan.build(preliminary, text, limits.fragments, limits.fragment_semantics) ? Fragments
@@ -499,8 +499,8 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 	## The laid-out record is destructured at once so its plans stay uniquely
 	## owned by the stages that consume them.
 	{ pages, text: unlabelled, work: laid_work } = lay_out(authoring, shape, lines, page_size, theme, SingleFace(font), source_store.len(), limits)?
-	painted = KernelFacadeText.Plan.with_source_foregrounds(unlabelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
-	text = label_text(authoring, painted, preliminary, LabelFonts(SingleFont(font)), source_store.len(), limits)?
+	labelled = label_text(authoring, unlabelled, preliminary, LabelFonts(SingleFont(font)), source_store.len(), limits)?
+	text = KernelFacadeText.Plan.with_source_foregrounds(labelled, authoring, KernelFacadeSemantics.Plan.block_ownership(semantics), limits.text) ? Text
 	collected = match request {
 		Collect => { layout: LayoutFacts(KernelFacadeReport.layout(pages)), ownership: KernelFacadeSemantics.Plan.block_ownership(semantics) }
 		NoCollect => { layout: NoLayoutFacts, ownership: [] }
