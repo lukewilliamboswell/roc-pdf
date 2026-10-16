@@ -289,6 +289,7 @@ lines_ending_inside = |document, ranges_of| {
 				}
 			}
 			ContentlessCell => {}
+			EmptySourceLine(_) => return Err(EvidenceFailure)
 		}
 		$block = $block + 1
 	}

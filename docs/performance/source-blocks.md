@@ -109,6 +109,12 @@ or duplicating source text.
 
 ## Ownership and feature evidence
 
+Font option validation and base-face preparation precede authoring
+normalization. Source-face enrichment consumes the normalized source arena
+and reuses the prepared base faces, so invalid source-independent font
+options reject before allocating an authoring plan. Focused code-face and
+heading-face regressions retain their original exact allocation counts.
+
 Source documents select only font candidates used by actual text or drawing
 labels. Wholly blank source output has zero font plans and no empty CMap; a
 source-only document does not retain an unused body font. Textless scene

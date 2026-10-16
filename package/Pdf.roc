@@ -958,8 +958,9 @@ build_plan = |doc, options| {
 		language: validated.facts.language,
 		xmp: KernelXmp.Packet.bytes(xmp),
 	})
+	base_fonts = selected_fonts(options)?
 	normalized = Document.normalize(doc)
-	pipeline = match selected_fonts(options, normalized)? {
+	pipeline = match enrich_source_fonts(base_fonts, options, normalized)? {
 		Single(font) => KernelFacadePipeline.Plan.build_with_facts(
 			normalized,
 			font,
@@ -1031,8 +1032,9 @@ measure_content = |options, contents, language, width| {
 		Err(error) => Err(on_error(error))
 		Ok(_) => Err(InternalGenerationFailure)
 	}
+	base_fonts = selected_fonts(options)?
 	normalized = Document.normalize(probe)
-	match selected_fonts(options, normalized)? {
+	match enrich_source_fonts(base_fonts, options, normalized)? {
 		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(normalized, single, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
 		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
 		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
@@ -1045,7 +1047,6 @@ measure_content = |options, contents, language, width| {
 ## returned for the report's path materialization.
 build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_reporting_plan = |doc, options| {
-	normalized = Document.normalize(doc)
 	claim = validate_profile_request(options)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
@@ -1081,7 +1082,7 @@ build_reporting_plan = |doc, options| {
 			},
 		) ? |_| InternalGenerationFailure
 		validate_lowered_plan(claim, xmp, plan)?
-		return Ok({ facts: NoFacts, normalized, plan })
+		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan })
 	}
 	facts = WithDocumentFacts({
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
@@ -1090,7 +1091,9 @@ build_reporting_plan = |doc, options| {
 		language: validated.facts.language,
 		xmp: KernelXmp.Packet.bytes(xmp),
 	})
-	pipeline = match selected_fonts(options, normalized)? {
+	base_fonts = selected_fonts(options)?
+	normalized = Document.normalize(doc)
+	pipeline = match enrich_source_fonts(base_fonts, options, normalized)? {
 		Single(font) => KernelFacadePipeline.Plan.build_reporting(
 			normalized,
 			font,
@@ -1164,10 +1167,9 @@ profile_batch = |violation, stage| {
 ## selection requires the caller registry that constructed the policy; the
 ## packaged built-in face defines no policies, so that combination is a
 ## stable typed error rather than an implicit single-face fallback.
-selected_fonts : Pdf.Options, Document.NormalizedAuthoring -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
-selected_fonts = |options, authoring| match options.theme.font_selection {
-	StyleFaces => if authoring.sources.is_empty() and !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options, authoring)
-	Policy(_) if !authoring.sources.is_empty() => Err(InvalidDocument(located_batch(FeatureUnavailable, "source.font_policy", "A source block requires its explicit registered face. Use style faces instead of an ordered font policy.", [group_path(authoring.groups, source_at(authoring.sources, 0).group)])))
+selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+selected_fonts = |options| match options.theme.font_selection {
+	StyleFaces => if !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
 	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A furniture, title, or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give furniture, titles, and headings the body face or use style faces.", [])))
 	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove the inline role faces or use style faces.", []))) else match options.fonts {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
@@ -1176,6 +1178,56 @@ selected_fonts = |options, authoring| match options.theme.font_selection {
 			Ok(Ordered({ policy, registry }))
 		}
 	}
+}
+
+## Option-level selection validates and prepares the base candidates before
+## authoring normalization. Source facts extend those same candidates once;
+## source-free documents retain the original selection and validation path.
+enrich_source_fonts : KernelFacadeShape.FontSelection, Pdf.Options, Document.NormalizedAuthoring -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+enrich_source_fonts = |base, options, authoring| {
+	if authoring.sources.is_empty() {
+		return Ok(base)
+	}
+	styled = match base {
+		Ordered(_) => return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.font_policy", "A source block requires its explicit registered face. Use style faces instead of an ordered font policy.", [group_path(authoring.groups, source_at(authoring.sources, 0).group)])))
+		Single(font) => { faces: [Theme.body_font(options.theme)], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+		Styled(value) => value
+	}
+	registry = match options.fonts {
+		Registered(value) => value
+		BuiltIn => return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.face", "Register the source block's face and pass that registry in Pdf.Options.fonts.", [group_path(authoring.groups, source_at(authoring.sources, 0).group)])))
+	}
+	append_source_fonts(styled, registry, authoring)
+}
+
+## Consume the candidate record before extending either parallel arena.
+## Registry identities are dense, so each additional source face is inspected
+## once in O(registry faces + source blocks), preserving encounter order.
+append_source_fonts : KernelFacadeShape.StyledFaces, Font.Registry, Document.NormalizedAuthoring -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+append_source_fonts = |{ faces, fonts, roles }, registry, authoring| {
+	var $seen = List.repeat(False, registry.store().faces.len())
+	for face in faces {
+		$seen = set_at($seen, face.index(), True)
+	}
+	var $faces = faces
+	var $fonts = fonts
+	for source in authoring.sources {
+		index = source.face.index()
+		if index >= $seen.len() {
+			return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.face", "The source block's face is not present in Pdf.Options.fonts; no face is substituted.", [group_path(authoring.groups, source.group)])))
+		}
+		seen = match $seen.get(index) {
+			Ok(value) => value
+			Err(OutOfBounds) => False
+		}
+		if !seen {
+			font = registry.prepared_face(source.face) ? InvalidFontResource
+			$faces = $faces.append(source.face)
+			$fonts = $fonts.append(font)
+			$seen = set_at($seen, index, True)
+		}
+	}
+	Ok(Styled({ faces: $faces, fonts: $fonts, roles }))
 }
 
 ## Ordered-selection failures surface the exact planner rejections; script
@@ -2215,8 +2267,8 @@ role_faces = |theme| {
 ## each distinct role face, all prepared from the caller registry. The
 ## packaged face alone has no second face, so another face there is an
 ## unknown face.
-selected_styled_fonts : Pdf.Options, Document.NormalizedAuthoring -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
-selected_styled_fonts = |options, authoring| {
+selected_styled_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+selected_styled_fonts = |options| {
 	body_face = Theme.body_font(options.theme)
 	body = selected_font(options)?
 	other_faces = if has_block_face(options.theme) {
@@ -2226,12 +2278,7 @@ selected_styled_fonts = |options, authoring| {
 	}
 	registry = match options.fonts {
 		Registered(value) => value
-		BuiltIn => {
-			if !authoring.sources.is_empty() {
-				return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.face", "Register the source block's face and pass that registry in Pdf.Options.fonts.", [group_path(authoring.groups, source_at(authoring.sources, 0).group)])))
-			}
-			return Err(InvalidFontResource(UnknownFace(list_first_or(other_faces, body_face))))
-		}
+		BuiltIn => return Err(InvalidFontResource(UnknownFace(list_first_or(other_faces, body_face))))
 	}
 	var $faces = [body_face]
 	var $fonts = [body]
@@ -2242,31 +2289,6 @@ selected_styled_fonts = |options, authoring| {
 			$fonts = $fonts.append(font)
 		}
 	}
-	if !authoring.sources.is_empty() {
-		## Registry handles are dense. A source face is prepared once, with
-		## O(registry faces + sources) deduplication and encounter order.
-		var $seen = List.repeat(False, registry.store().faces.len())
-		for face in $faces {
-			$seen = set_at($seen, face.index(), True)
-		}
-		for source in authoring.sources {
-			index = source.face.index()
-			if index >= $seen.len() {
-				return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.face", "The source block's face is not present in Pdf.Options.fonts; no face is substituted.", [group_path(authoring.groups, source.group)])))
-			}
-			seen = match $seen.get(index) {
-				Ok(value) => value
-				Err(OutOfBounds) => False
-			}
-			if !seen {
-				font = registry.prepared_face(source.face) ? InvalidFontResource
-				$faces = $faces.append(source.face)
-				$fonts = $fonts.append(font)
-				$seen = set_at($seen, index, True)
-			}
-		}
-	}
-
 	candidate = |role| match Theme.inline_font(options.theme, role) {
 		Face(face) => if face == body_face Inherited else Candidate(index_of($faces, face))
 		Inherited => Inherited
