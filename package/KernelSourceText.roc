@@ -1,4 +1,7 @@
 import Semantics
+import Color
+import unicode.Grapheme
+import unicode.ByteRange
 
 ## Preformatted source preparation. The canonical source retains LF line
 ## separators, indentation, trailing spaces and empty lines. CRLF becomes LF;
@@ -8,9 +11,11 @@ import Semantics
 ## stages consume these ranges rather than splitting or rescanning the text.
 KernelSourceText :: [].{
 	Tabs : [ExpandTo(U16), RejectTabs]
-	Dimension : [InputBytes, Lines, OutputBytes]
+	Dimension : [InputBytes, Lines, OutputBytes, Foregrounds]
 	Error : [
 		BareCarriageReturn({ byte : U64 }),
+		ForegroundColor({ range : U64, byte : U64 }),
+		ForegroundRange({ range : U64, byte : U64, reason : [EmptyOrReversed, OutOfBounds, Overlap, ClusterBoundary] }),
 		InvalidTabWidth,
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		TabRejected({ byte : U64 }),
@@ -18,14 +23,22 @@ KernelSourceText :: [].{
 	Limits : { max_input_bytes : U64, max_lines : U64, max_output_bytes : U64 }
 	Line : { scalars : Semantics.Range, utf8_bytes : Semantics.Range }
 	Work : { input_bytes : U64, line_writes : U64, output_bytes : U64, tab_spaces : U64 }
-	Prepared : { lines : List(Line), text : Str, work : Work }
+	Foreground : { start : U64, end : U64, color : Color.SourceValue }
+	Prepared : { foregrounds : List(Foreground), lines : List(Line), text : Str, work : Work }
 
 	prepare : Str, Tabs, Limits -> Try(Prepared, Error)
-	prepare = |text, tabs, limits| prepare_source(text, tabs, limits)
+	prepare = |text, tabs, limits| prepare_source(text, tabs, limits, [])
+	prepare_foregrounds : Str, Tabs, Limits, List(Foreground), U64 -> Try(Prepared, Error)
+	prepare_foregrounds = |text, tabs, limits, foregrounds, remaining| {
+		check_limit(text.count_utf8_bytes(), limits.max_input_bytes, InputBytes)?
+		check_limit(foregrounds.len(), remaining, Foregrounds)?
+		validate_foregrounds(text, foregrounds)?
+		prepare_source(text, tabs, limits, foregrounds)
+	}
 }
 
-prepare_source : Str, KernelSourceText.Tabs, KernelSourceText.Limits -> Try(KernelSourceText.Prepared, KernelSourceText.Error)
-prepare_source = |text, tabs, limits| {
+prepare_source : Str, KernelSourceText.Tabs, KernelSourceText.Limits, List(KernelSourceText.Foreground) -> Try(KernelSourceText.Prepared, KernelSourceText.Error)
+prepare_source = |text, tabs, limits, foregrounds| {
 	input = text.to_utf8()
 	check_limit(input.len(), limits.max_input_bytes, InputBytes)?
 	width = match tabs {
@@ -34,6 +47,9 @@ prepare_source = |text, tabs, limits| {
 		RejectTabs => 1
 	}
 	check_limit(1, limits.max_lines, Lines)?
+	var $foregrounds = List.with_capacity(foregrounds.len())
+	var $range = 0
+	var $range_start = 0
 	var $bytes = List.with_capacity(U64.min(input.len(), limits.max_output_bytes))
 	var $lines = []
 	var $cursor = 0
@@ -43,6 +59,9 @@ prepare_source = |text, tabs, limits| {
 	var $column = 0
 	var $tab_spaces = 0
 	while $cursor < input.len() {
+		if $range < foregrounds.len() and list_at(foregrounds, $range).start == $cursor {
+			$range_start = $bytes.len()
+		}
 		byte = list_at(input, $cursor)
 		if byte == 13 or byte == 10 {
 			if byte == 13 {
@@ -90,6 +109,10 @@ prepare_source = |text, tabs, limits| {
 			}
 		}
 		$cursor = $cursor + 1
+		if $range < foregrounds.len() and list_at(foregrounds, $range).end == $cursor {
+			$foregrounds = $foregrounds.append({ ..list_at(foregrounds, $range), start: $range_start, end: $bytes.len() })
+			$range = $range + 1
+		}
 	}
 	$lines = $lines.append({
 		scalars: Semantics.Range.from_start_and_length($line_scalar, $scalars - $line_scalar),
@@ -100,7 +123,7 @@ prepare_source = |text, tabs, limits| {
 		Ok(value) => value
 		Err(_) => crash "source preparation corrupted validated UTF-8"
 	}
-	Ok({ lines: $lines, text: canonical, work: { input_bytes: input.len(), line_writes: $lines.len(), output_bytes, tab_spaces: $tab_spaces } })
+	Ok({ foregrounds: $foregrounds, lines: $lines, text: canonical, work: { input_bytes: input.len(), line_writes: $lines.len(), output_bytes, tab_spaces: $tab_spaces } })
 }
 
 check_limit : U64, U64, KernelSourceText.Dimension -> Try({}, KernelSourceText.Error)
@@ -147,5 +170,85 @@ expect match KernelSourceText.prepare("\t", ExpandTo(4), { ..test_limits, max_ou
 
 expect match KernelSourceText.prepare("a\n", ExpandTo(4), { ..test_limits, max_lines: 1 }) {
 	Err(LimitExceeded({ attempted: 2, dimension: Lines, limit: 1 })) => True
+	_ => False
+}
+
+## Original-input grapheme boundaries include CRLF as one indivisible unit.
+## Two monotone walks validate all endpoints without per-token rescanning.
+validate_foregrounds : Str, List(KernelSourceText.Foreground) -> Try({}, KernelSourceText.Error)
+validate_foregrounds = |text, ranges| {
+	if ranges.is_empty() {
+		return Ok({})
+	}
+	var $previous_end = 0
+	var $index = 0
+	for range in ranges {
+		match range.color {
+			Srgb(Rgb(_)) => {}
+			_ => return Err(ForegroundColor({ range: $index, byte: range.start }))
+		}
+		if range.start >= range.end {
+			return Err(ForegroundRange({ range: $index, byte: range.start, reason: EmptyOrReversed }))
+		}
+		if range.end > text.count_utf8_bytes() {
+			return Err(ForegroundRange({ range: $index, byte: range.end, reason: OutOfBounds }))
+		}
+		if range.start < $previous_end {
+			return Err(ForegroundRange({ range: $index, byte: range.start, reason: Overlap }))
+		}
+		$previous_end = range.end
+		$index = $index + 1
+	}
+	var $range = 0
+	var $start_checked = False
+	for cluster in Grapheme.iter_ranges(text) {
+		if $range < ranges.len() {
+			range = list_at(ranges, $range)
+			start = ByteRange.start(cluster)
+			end = ByteRange.end(cluster)
+			if !$start_checked {
+				if range.start == start {
+					$start_checked = True
+				}
+					else if range.start < end {
+						return Err(ForegroundRange({ range: $range, byte: range.start, reason: ClusterBoundary }))
+					}
+			}
+			if $start_checked {
+				if range.end == end {
+					$range = $range + 1
+					$start_checked = False
+				}
+					else if range.end < end {
+						return Err(ForegroundRange({ range: $range, byte: range.end, reason: ClusterBoundary }))
+					}
+			}
+		}
+	}
+	Ok({})
+}
+
+expect {
+	red = Color.srgb8({ red: 255, green: 0, blue: 0 })
+	ranges = [{ start: 0, end: 1, color: red }, { start: 1, end: 3, color: red }, { start: 3, end: 5, color: red }]
+	match KernelSourceText.prepare_foregrounds("\té\r\n", ExpandTo(4), test_limits, ranges, 3) {
+		Ok(value) => value.text == "    é\n" and value.foregrounds == [{ start: 0, end: 4, color: red }, { start: 4, end: 6, color: red }, { start: 6, end: 7, color: red }]
+		Err(_) => False
+	}
+}
+
+expect match KernelSourceText.prepare_foregrounds("ab", ExpandTo(4), test_limits, [{ start: 0, end: 1, color: Color.srgb8({ red: 0, green: 0, blue: 0 }) }, { start: 1, end: 2, color: Color.srgb8({ red: 0, green: 0, blue: 0 }) }], 1) {
+	Err(LimitExceeded({ attempted: 2, dimension: Foregrounds, limit: 1 })) => True
+	_ => False
+}
+
+expect match KernelSourceText.prepare_foregrounds("a\r\nb", ExpandTo(4), test_limits, [{ start: 0, end: 2, color: Color.srgb8({ red: 0, green: 0, blue: 0 }) }], 1) {
+	Err(ForegroundRange({ range: 0, byte: 2, reason: ClusterBoundary })) => True
+	_ => False
+}
+
+# Unsupported foreground channels reject even if their range paints no glyph.
+expect match KernelSourceText.prepare_foregrounds("\n", ExpandTo(4), test_limits, [{ start: 0, end: 1, color: Color.gray8(128) }], 1) {
+	Err(ForegroundColor({ range: 0, byte: 0 })) => True
 	_ => False
 }

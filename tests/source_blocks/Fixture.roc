@@ -39,6 +39,10 @@ import "../../examples/source-blocks/fonts/SourceCodePro-Regular.ttf" as mono_by
 ## retains exact stage work on the same source, typography and page geometry.
 Fixture :: [].{
 	Error : [InvalidCase, FontFailure, PdfFailure(Pdf.Error), PipelineFailure, ReportFailure, MissingRejection(U64)]
+	foregrounds : U64, U64, Bool -> Try({ bytes : List(U8), work : List(U64) }, Error)
+	foregrounds = |kind, lines, colored| foreground_evidence(kind, lines, colored)
+	foreground_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
+	foreground_negatives = |context| evidence({ text: short_text, scale: context, foreground_negative: True })
 	han_only : Bool -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	han_only = |same_body| evidence({ text: "中\n\n中\n", han: True, source_only: True, same_body })
 	multiple : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
@@ -114,23 +118,23 @@ faces = |han| {
 	Ok({ body: body.face, mono: mono.face, registry: mono.registry })
 }
 
-EvidenceProps :: { text : Str, spacer : I64 ?? 0, scale : U64 ?? 0, negative : Bool ?? False, defaults : Bool ?? False, han : Bool ?? False, source_only : Bool ?? False, same_body : Bool ?? False }
+EvidenceProps :: { text : Str, spacer : I64 ?? 0, scale : U64 ?? 0, negative : Bool ?? False, defaults : Bool ?? False, han : Bool ?? False, source_only : Bool ?? False, same_body : Bool ?? False, foregrounds : List(Pdf.SourceForeground) ?? [], foreground_negative : Bool ?? False, highlighted : Bool ?? False, repeat_source : Bool ?? False }
 
 evidence : EvidenceProps -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
-evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source_only, same_body }| {
+evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source_only, same_body, foregrounds, foreground_negative, highlighted, repeat_source }| {
 	if scale > 1000 {
 		return Err(InvalidCase)
 	}
 	registered = faces(han)?
 	props : Pdf.SourceBlockProps
-	props = if defaults { text, face: registered.mono } else { text, face: registered.mono, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
+	props = if defaults { text, face: registered.mono, foregrounds } else { text, face: registered.mono, foregrounds, size: 9, leading: 12, color: Color.srgb8({ red: 20, green: 40, blue: 80 }), padding: 8, background: Background(Color.srgb8({ red: 240, green: 242, blue: 245 })) }
 	header = Pdf.region({ height: 10, start: [Pdf.furniture_text([Pdf.text("Quiet running header")])] })
 	templates = Templates({ first: Pdf.first_page_template({ header: header }), continuation: Pdf.page_template({ header: header }) })
 	make = |block| Pdf.document({
 		title: "Preformatted source blocks",
 		language: "en",
 		page_templates: if defaults and !source_only templates else NoTemplates,
-		contents: if source_only [block] else [Pdf.paragraph("Body before source."), Pdf.spacer(Layout.Unit.points(spacer)), block, Pdf.paragraph("Body after source."), Pdf.paragraph("Body spacing stays unchanged.")],
+		contents: if source_only [block] else if repeat_source [Pdf.paragraph("Body before source."), Pdf.spacer(Layout.Unit.points(spacer)), block, Pdf.source_block({ ..props, foregrounds: [], color: Theme.black, background: NoBackground }), Pdf.paragraph("Body after source."), Pdf.paragraph("Body spacing stays unchanged.")] else [Pdf.paragraph("Body before source."), Pdf.spacer(Layout.Unit.points(spacer)), block, Pdf.paragraph("Body after source."), Pdf.paragraph("Body spacing stays unchanged.")],
 	})
 	document = make(Pdf.source_block(props))
 	theme : Theme
@@ -139,17 +143,41 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 	options = { theme, fonts: Registered(registered.registry) }
 	{ prepared, report } = Pdf.prepare_with_report(document, options) ? PdfFailure
 	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
-	reported = report_evidence(report, text, source_only)?
+	reported = if highlighted source_report_counts(report) else report_evidence(report, text, source_only)?
 	body_font = registered.registry.prepared_face(registered.body) ? |_| FontFailure
 	mono_font = registered.registry.prepared_face(registered.mono) ? |_| FontFailure
 	styled = { faces: [registered.body, registered.mono], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	# Color requires a profile at emission. The work probe uses black text
 	# and a black background; geometry and the panel paint work agree.
 	probe_background = if defaults NoBackground else Background(Theme.black)
-	probe_document = make(Pdf.source_block({ ..props, color: Theme.black, background: probe_background }))
+	probe_document = make(Pdf.source_block({ ..props, color: Theme.black, background: probe_background, foregrounds: foregrounds.map(|range| { ..range, color: Theme.black }) }))
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(probe_document), styled, theme, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
-	rejections = if negative {
+	rejections = if foreground_negative {
+		reject = |source, range, byte, reason| foreground_rejected(Pdf.to_bytes_with(make(Pdf.source_block(source)), options), "source.foreground_range", range, byte, reason)
+		red : Color.SourceValue
+		red = "#cc0000"
+		checks = [
+			foreground_rejected(Pdf.to_bytes_with(make(Pdf.source_block({ ..props, text: "x", foregrounds: [{ start: 0, end: 1, color: Color.gray8(128) }] })), options), "source.foreground_color", 0, 0, "supported sRGB"),
+			reject({ ..props, text: "abc", foregrounds: [{ start: 1, end: 1, color: red }] }, 0, 1, "EmptyOrReversed"),
+			reject({ ..props, text: "abc", foregrounds: [{ start: 2, end: 1, color: red }] }, 0, 2, "EmptyOrReversed"),
+			reject({ ..props, text: "abc", foregrounds: [{ start: 0, end: 4, color: red }] }, 0, 4, "OutOfBounds"),
+			reject({ ..props, text: "abc", foregrounds: [{ start: 0, end: 2, color: red }, { start: 1, end: 3, color: red }] }, 1, 1, "Overlap"),
+			reject({ ..props, text: "abc", foregrounds: [{ start: 2, end: 3, color: red }, { start: 0, end: 1, color: red }] }, 1, 0, "Overlap"),
+			reject({ ..props, text: "éx", foregrounds: [{ start: 1, end: 2, color: red }] }, 0, 1, "ClusterBoundary"),
+			reject({ ..props, text: "éx", foregrounds: [{ start: 0, end: 1, color: red }] }, 0, 1, "ClusterBoundary"),
+			reject({ ..props, text: "éx", foregrounds: [{ start: 0, end: 1, color: red }] }, 0, 1, "ClusterBoundary"),
+			reject({ ..props, text: "éx", foregrounds: [{ start: 1, end: 3, color: red }] }, 0, 1, "ClusterBoundary"),
+			reject({ ..props, text: "a\r\nb", foregrounds: [{ start: 0, end: 2, color: red }] }, 0, 2, "ClusterBoundary"),
+			reject({ ..props, text: "a\r\nb", foregrounds: [{ start: 2, end: 4, color: red }] }, 0, 2, "ClusterBoundary"),
+		]
+		for rejected in checks {
+			if !rejected {
+				return Err(MissingRejection(checks.len()))
+			}
+		}
+		checks.len()
+	} else if negative {
 		reject = |source, feature| source_rejected(Pdf.to_bytes_with(make(Pdf.source_block(source)), options), feature)
 		policy = registered.registry.with_policy([registered.body]) ? |_| FontFailure
 		policy_options = { ..options, fonts: Registered(policy.registry), theme: { ..theme, font_selection: Policy(policy.policy) } }
@@ -174,7 +202,8 @@ evidence = |EvidenceProps.{ text, spacer, scale, negative, defaults, han, source
 		}
 		checks.len()
 	} else 0
-	Ok({ bytes, work: [text.count_utf8_bytes(), flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, reported.fragments, reported.lines, rejections, bytes.len()] })
+	work = [text.count_utf8_bytes(), flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, reported.fragments, reported.lines, rejections, bytes.len()]
+	Ok({ bytes, work: if highlighted work.concat([flow.source_foreground_ranges, flow.source_paint_clusters, flow.source_paint_ranges]) else work })
 }
 
 report_evidence : Pdf.Report, Str, Bool -> Try({ fragments : U64, lines : U64 }, Fixture.Error)
@@ -377,4 +406,69 @@ object_limits = {
 	max_text_string_bytes: 1000000,
 	max_text_strings: 16384,
 	max_values: 4000000,
+}
+
+foreground_evidence : U64, U64, Bool -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
+foreground_evidence = |kind, lines, colored| {
+	if lines > 600 {
+		return Err(InvalidCase)
+	}
+	keyword : Color.SourceValue
+	keyword = "#8000c0"
+	string : Color.SourceValue
+	string = "#0050d0"
+	comment : Color.SourceValue
+	comment = "#008040"
+	var $ranges = []
+	var $bytes = []
+	if kind == 0 or kind == 3 {
+		text = "\tlet café = \"blue\"\r\n\r\n  # comment  \n\n"
+		# Original UTF-8 offsets, including tab and both CRLF bytes.
+		return evidence({ text, highlighted: True, repeat_source: kind == 3, foregrounds: if colored [{ start: 0, end: 4, color: keyword }, { start: 5, end: 10, color: string }, { start: 13, end: 19, color: string }, { start: 25, end: 36, color: comment }] else [] })
+	} else if kind == 1 {
+		text = "${wrap_text}\n${long_text(80)}"
+		return evidence({ text, highlighted: True, foregrounds: if colored [{ start: 0, end: 122, color: string }, { start: 123, end: text.count_utf8_bytes(), color: comment }] else [] })
+	} else if kind == 2 {
+		var $line = 0
+		while $line < lines {
+			start = $bytes.len()
+			for byte in "let x = 42 # note\n".to_utf8() {
+				$bytes = $bytes.append(byte)
+			}
+			if colored {
+				$ranges = $ranges.append({ start, end: start + 3, color: keyword })
+				$ranges = $ranges.append({ start: start + 8, end: start + 10, color: string })
+				$ranges = $ranges.append({ start: start + 11, end: start + 16, color: comment })
+			}
+			$line = $line + 1
+		}
+		text = match Str.from_utf8($bytes) {
+			Ok(value) => value
+			Err(_) => crash "foreground fixture UTF8"
+		}
+		return evidence({ text, scale: lines, highlighted: True, foregrounds: $ranges })
+	}
+	Err(InvalidCase)
+}
+
+source_report_counts : Pdf.Report -> { fragments : U64, lines : U64 }
+source_report_counts = |report| {
+	var $fragments = 0
+	var $lines = 0
+	for outcome in report.facts.outcomes {
+		match outcome {
+			SourceFragmentPlaced(fragment) => {
+				$fragments = $fragments + 1
+				$lines = $lines + fragment.visual_lines.count
+			}
+			_ => {}
+		}
+	}
+	{ fragments: $fragments, lines: $lines }
+}
+
+foreground_rejected : Try(List(U8), Pdf.Error), Str, U64, U64, Str -> Bool
+foreground_rejected = |outcome, feature, range, byte, reason| match outcome {
+	Err(InvalidDocument({ diagnostics: [{ details, feature: Feature(name), location: Document, message, .. }], truncation: Complete, .. })) => details == ["contents[2]"] and name == feature and message.contains("range ${range.to_str()} at original UTF-8 byte ${byte.to_str()}") and message.contains(reason)
+	_ => False
 }

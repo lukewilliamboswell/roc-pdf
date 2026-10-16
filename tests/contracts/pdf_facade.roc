@@ -4,6 +4,7 @@ app [main!] {
 }
 
 import pdf.Pdf
+import pdf.Font
 import pdf.Color
 import pdf.Layout
 import pdf.Image
@@ -133,3 +134,15 @@ expect {
 
 main! : List(Str) => { bytes : List(U8), work : List(U64) }
 main! = |_| { bytes: [], work: [] }
+
+# Original-byte foreground ranges use only the supported release facade.
+# The source face can be the registered packaged face; no private module or
+# token semantic element is needed by an external highlighter.
+expect {
+	registered = Font.Registry.empty.register_built_in(Font.ValidationLimits.default)?
+	keyword : Pdf.SourceForeground
+	keyword = { start: 0, end: 3, color: "#8000c0" }
+	document = Pdf.document({ title: "Source foreground contract", language: "en", contents: [Pdf.source_block({ text: "app [main!] {}\n", face: registered.face, foregrounds: [keyword] })] })
+	bytes = Pdf.to_bytes_with(document, { fonts: Registered(registered.registry) })?
+	bytes.sublist({ start: 0, len: 9 }) == Str.to_utf8("%PDF-2.0\n")
+}

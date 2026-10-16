@@ -53,7 +53,8 @@
     "roc_diagnostics",
     "structure_extraction",
     "reference_documents",
-    "source_blocks"
+    "source_blocks",
+    "source_foregrounds"
   ],
   "post_update_checks": [
     "contracts",
@@ -66,7 +67,8 @@
     "rich_inline",
     "structure_extraction",
     "reference_documents",
-    "source_blocks"
+    "source_blocks",
+    "source_foregrounds"
   ],
   "validation": {
     "sources": [
@@ -27698,7 +27700,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 5893,
-          "allocated_bytes": 7241329,
+          "allocated_bytes": 7241409,
           "work": {
             "input_bytes": 37,
             "shaped_runs": 5,
@@ -27719,7 +27721,7 @@
         },
         "x64musl": {
           "allocations": 5893,
-          "allocated_bytes": 7241329,
+          "allocated_bytes": 7241409,
           "work": {
             "input_bytes": 37,
             "shaped_runs": 5,
@@ -27778,7 +27780,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 14109,
-          "allocated_bytes": 11764848,
+          "allocated_bytes": 11764928,
           "work": {
             "input_bytes": 1790,
             "shaped_runs": 63,
@@ -27799,7 +27801,7 @@
         },
         "x64musl": {
           "allocations": 14109,
-          "allocated_bytes": 11764848,
+          "allocated_bytes": 11764928,
           "work": {
             "input_bytes": 1790,
             "shaped_runs": 63,
@@ -27858,7 +27860,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 90209,
-          "allocated_bytes": 58407714,
+          "allocated_bytes": 58407794,
           "work": {
             "input_bytes": 18491,
             "shaped_runs": 603,
@@ -27879,7 +27881,7 @@
         },
         "x64musl": {
           "allocations": 90209,
-          "allocated_bytes": 58407714,
+          "allocated_bytes": 58407794,
           "work": {
             "input_bytes": 18491,
             "shaped_runs": 603,
@@ -27938,7 +27940,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 17105,
-          "allocated_bytes": 14317186,
+          "allocated_bytes": 14317266,
           "work": {
             "input_bytes": 2390,
             "shaped_runs": 83,
@@ -27959,7 +27961,7 @@
         },
         "x64musl": {
           "allocations": 17105,
-          "allocated_bytes": 14317186,
+          "allocated_bytes": 14317266,
           "work": {
             "input_bytes": 2390,
             "shaped_runs": 83,
@@ -28018,7 +28020,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 6862,
-          "allocated_bytes": 7987060,
+          "allocated_bytes": 7987140,
           "work": {
             "input_bytes": 361,
             "shaped_runs": 6,
@@ -28039,7 +28041,7 @@
         },
         "x64musl": {
           "allocations": 6862,
-          "allocated_bytes": 7987060,
+          "allocated_bytes": 7987140,
           "work": {
             "input_bytes": 361,
             "shaped_runs": 6,
@@ -28098,7 +28100,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 5953,
-          "allocated_bytes": 7329669,
+          "allocated_bytes": 7329749,
           "work": {
             "input_bytes": 52,
             "shaped_runs": 5,
@@ -28119,7 +28121,7 @@
         },
         "x64musl": {
           "allocations": 5953,
-          "allocated_bytes": 7329669,
+          "allocated_bytes": 7329749,
           "work": {
             "input_bytes": 52,
             "shaped_runs": 5,
@@ -28178,7 +28180,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 8267,
-          "allocated_bytes": 9410789,
+          "allocated_bytes": 9411637,
           "work": {
             "input_bytes": 37,
             "shaped_runs": 5,
@@ -28199,7 +28201,7 @@
         },
         "x64musl": {
           "allocations": 8267,
-          "allocated_bytes": 9410789,
+          "allocated_bytes": 9411637,
           "work": {
             "input_bytes": 37,
             "shaped_runs": 5,
@@ -28258,7 +28260,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 3113,
-          "allocated_bytes": 3322105,
+          "allocated_bytes": 3322185,
           "work": {
             "input_bytes": 0,
             "shaped_runs": 0,
@@ -28279,7 +28281,7 @@
         },
         "x64musl": {
           "allocations": 3113,
-          "allocated_bytes": 3322105,
+          "allocated_bytes": 3322185,
           "work": {
             "input_bytes": 0,
             "shaped_runs": 0,
@@ -28338,7 +28340,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 3185,
-          "allocated_bytes": 3334148,
+          "allocated_bytes": 3334228,
           "work": {
             "input_bytes": 2,
             "shaped_runs": 0,
@@ -28359,7 +28361,7 @@
         },
         "x64musl": {
           "allocations": 3185,
-          "allocated_bytes": 3334148,
+          "allocated_bytes": 3334228,
           "work": {
             "input_bytes": 2,
             "shaped_runs": 0,
@@ -28418,7 +28420,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 6255,
-          "allocated_bytes": 7502805,
+          "allocated_bytes": 7502885,
           "work": {
             "input_bytes": 29,
             "shaped_runs": 5,
@@ -28439,7 +28441,7 @@
         },
         "x64musl": {
           "allocations": 6255,
-          "allocated_bytes": 7502805,
+          "allocated_bytes": 7502885,
           "work": {
             "input_bytes": 29,
             "shaped_runs": 5,
@@ -28498,7 +28500,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 5121,
-          "allocated_bytes": 6600918,
+          "allocated_bytes": 6600998,
           "work": {
             "input_bytes": 9,
             "shaped_runs": 5,
@@ -28519,7 +28521,7 @@
         },
         "x64musl": {
           "allocations": 5121,
-          "allocated_bytes": 6600918,
+          "allocated_bytes": 6600998,
           "work": {
             "input_bytes": 9,
             "shaped_runs": 5,
@@ -28578,7 +28580,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 2873,
-          "allocated_bytes": 2674208,
+          "allocated_bytes": 2674288,
           "work": {
             "input_bytes": 0,
             "shaped_runs": 0,
@@ -28599,7 +28601,7 @@
         },
         "x64musl": {
           "allocations": 2873,
-          "allocated_bytes": 2674208,
+          "allocated_bytes": 2674288,
           "work": {
             "input_bytes": 0,
             "shaped_runs": 0,
@@ -28658,7 +28660,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 4196,
-          "allocated_bytes": 5101989,
+          "allocated_bytes": 5102069,
           "work": {
             "input_bytes": 9,
             "shaped_runs": 2,
@@ -28679,7 +28681,7 @@
         },
         "x64musl": {
           "allocations": 4196,
-          "allocated_bytes": 5101989,
+          "allocated_bytes": 5102069,
           "work": {
             "input_bytes": 9,
             "shaped_runs": 2,
@@ -28738,7 +28740,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 5836,
-          "allocated_bytes": 7380762,
+          "allocated_bytes": 7381034,
           "work": {
             "input_bytes": 82,
             "shaped_runs": 7,
@@ -28759,7 +28761,7 @@
         },
         "x64musl": {
           "allocations": 5836,
-          "allocated_bytes": 7380762,
+          "allocated_bytes": 7381034,
           "work": {
             "input_bytes": 82,
             "shaped_runs": 7,
@@ -28819,7 +28821,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 3472,
-          "allocated_bytes": 4559408,
+          "allocated_bytes": 4559488,
           "work": {
             "input_bytes": 9,
             "shaped_runs": 2,
@@ -28840,7 +28842,7 @@
         },
         "x64musl": {
           "allocations": 3472,
-          "allocated_bytes": 4559408,
+          "allocated_bytes": 4559488,
           "work": {
             "input_bytes": 9,
             "shaped_runs": 2,
@@ -28900,7 +28902,7 @@
       "expectations": {
         "arm64mac": {
           "allocations": 3470,
-          "allocated_bytes": 4558575,
+          "allocated_bytes": 4558655,
           "work": {
             "input_bytes": 9,
             "shaped_runs": 2,
@@ -28921,7 +28923,7 @@
         },
         "x64musl": {
           "allocations": 3470,
-          "allocated_bytes": 4558575,
+          "allocated_bytes": 4558655,
           "work": {
             "input_bytes": 9,
             "shaped_runs": 2,
@@ -28946,6 +28948,988 @@
         "pdfa4",
         "structure_semantics",
         "source_blocks"
+      ]
+    },
+    {
+      "name": "source foregrounds kind0 x0 plain",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_0_0_plain.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 0,
+        "source_lines": 0,
+        "colored": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5919,
+          "allocated_bytes": 7273988,
+          "work": {
+            "input_bytes": 38,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 0,
+            "output_bytes": 16102,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 5919,
+          "allocated_bytes": 7273988,
+          "work": {
+            "input_bytes": 38,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 0,
+            "output_bytes": 16102,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds kind0 x0 color",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_0_0_color.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 0,
+        "source_lines": 0,
+        "colored": 1,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6220,
+          "allocated_bytes": 7509399,
+          "work": {
+            "input_bytes": 38,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 10,
+            "fragments": 10,
+            "scene_commands": 21,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 0,
+            "output_bytes": 16198,
+            "foreground_ranges": 4,
+            "paint_clusters": 34,
+            "paint_range_advances": 3
+          }
+        },
+        "x64musl": {
+          "allocations": 6220,
+          "allocated_bytes": 7509399,
+          "work": {
+            "input_bytes": 38,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 10,
+            "fragments": 10,
+            "scene_commands": 21,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 0,
+            "output_bytes": 16198,
+            "foreground_ranges": 4,
+            "paint_clusters": 34,
+            "paint_range_advances": 3
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds kind1 x0 plain",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_1_0_plain.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 1,
+        "source_lines": 0,
+        "colored": 0,
+        "pages": 2
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 17903,
+          "allocated_bytes": 14021267,
+          "work": {
+            "input_bytes": 2752,
+            "shaped_runs": 86,
+            "lines": 89,
+            "pages": 2,
+            "final_runs": 89,
+            "fragments": 89,
+            "scene_commands": 180,
+            "objects": 33,
+            "shape_metric_reads": 2736,
+            "line_candidate_visits": 2772,
+            "page_candidate_visits": 88,
+            "reported_fragments": 2,
+            "reported_visual_lines": 86,
+            "rejections": 0,
+            "output_bytes": 20815,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 17903,
+          "allocated_bytes": 14021267,
+          "work": {
+            "input_bytes": 2752,
+            "shaped_runs": 86,
+            "lines": 89,
+            "pages": 2,
+            "final_runs": 89,
+            "fragments": 89,
+            "scene_commands": 180,
+            "objects": 33,
+            "shape_metric_reads": 2736,
+            "line_candidate_visits": 2772,
+            "page_candidate_visits": 88,
+            "reported_fragments": 2,
+            "reported_visual_lines": 86,
+            "rejections": 0,
+            "output_bytes": 20815,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds kind1 x0 color",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_1_0_color.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 1,
+        "source_lines": 0,
+        "colored": 1,
+        "pages": 2
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 18055,
+          "allocated_bytes": 14154359,
+          "work": {
+            "input_bytes": 2752,
+            "shaped_runs": 86,
+            "lines": 89,
+            "pages": 2,
+            "final_runs": 91,
+            "fragments": 91,
+            "scene_commands": 184,
+            "objects": 33,
+            "shape_metric_reads": 2736,
+            "line_candidate_visits": 2772,
+            "page_candidate_visits": 88,
+            "reported_fragments": 2,
+            "reported_visual_lines": 86,
+            "rejections": 0,
+            "output_bytes": 20837,
+            "foreground_ranges": 2,
+            "paint_clusters": 2670,
+            "paint_range_advances": 1
+          }
+        },
+        "x64musl": {
+          "allocations": 18055,
+          "allocated_bytes": 14154359,
+          "work": {
+            "input_bytes": 2752,
+            "shaped_runs": 86,
+            "lines": 89,
+            "pages": 2,
+            "final_runs": 91,
+            "fragments": 91,
+            "scene_commands": 184,
+            "objects": 33,
+            "shape_metric_reads": 2736,
+            "line_candidate_visits": 2772,
+            "page_candidate_visits": 88,
+            "reported_fragments": 2,
+            "reported_visual_lines": 86,
+            "rejections": 0,
+            "output_bytes": 20837,
+            "foreground_ranges": 2,
+            "paint_clusters": 2670,
+            "paint_range_advances": 1
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds kind2 x60 plain",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_2_60_plain.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 2,
+        "source_lines": 60,
+        "colored": 0,
+        "pages": 2
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 12622,
+          "allocated_bytes": 10552080,
+          "work": {
+            "input_bytes": 1080,
+            "shaped_runs": 63,
+            "lines": 63,
+            "pages": 2,
+            "final_runs": 63,
+            "fragments": 63,
+            "scene_commands": 128,
+            "objects": 33,
+            "shape_metric_reads": 1086,
+            "line_candidate_visits": 1086,
+            "page_candidate_visits": 63,
+            "reported_fragments": 2,
+            "reported_visual_lines": 61,
+            "rejections": 0,
+            "output_bytes": 16379,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 12622,
+          "allocated_bytes": 10552080,
+          "work": {
+            "input_bytes": 1080,
+            "shaped_runs": 63,
+            "lines": 63,
+            "pages": 2,
+            "final_runs": 63,
+            "fragments": 63,
+            "scene_commands": 128,
+            "objects": 33,
+            "shape_metric_reads": 1086,
+            "line_candidate_visits": 1086,
+            "page_candidate_visits": 63,
+            "reported_fragments": 2,
+            "reported_visual_lines": 61,
+            "rejections": 0,
+            "output_bytes": 16379,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds kind2 x60 color",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_2_60_color.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 2,
+        "source_lines": 60,
+        "colored": 1,
+        "pages": 2
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 29557,
+          "allocated_bytes": 15001149,
+          "work": {
+            "input_bytes": 1080,
+            "shaped_runs": 63,
+            "lines": 63,
+            "pages": 2,
+            "final_runs": 363,
+            "fragments": 363,
+            "scene_commands": 728,
+            "objects": 33,
+            "shape_metric_reads": 1086,
+            "line_candidate_visits": 1086,
+            "page_candidate_visits": 63,
+            "reported_fragments": 2,
+            "reported_visual_lines": 61,
+            "rejections": 0,
+            "output_bytes": 19038,
+            "foreground_ranges": 180,
+            "paint_clusters": 1020,
+            "paint_range_advances": 180
+          }
+        },
+        "x64musl": {
+          "allocations": 29557,
+          "allocated_bytes": 15001149,
+          "work": {
+            "input_bytes": 1080,
+            "shaped_runs": 63,
+            "lines": 63,
+            "pages": 2,
+            "final_runs": 363,
+            "fragments": 363,
+            "scene_commands": 728,
+            "objects": 33,
+            "shape_metric_reads": 1086,
+            "line_candidate_visits": 1086,
+            "page_candidate_visits": 63,
+            "reported_fragments": 2,
+            "reported_visual_lines": 61,
+            "rejections": 0,
+            "output_bytes": 19038,
+            "foreground_ranges": 180,
+            "paint_clusters": 1020,
+            "paint_range_advances": 180
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds kind2 x600 plain",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_2_600_plain.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 2,
+        "source_lines": 600,
+        "colored": 0,
+        "pages": 11
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 74121,
+          "allocated_bytes": 49007192,
+          "work": {
+            "input_bytes": 10800,
+            "shaped_runs": 603,
+            "lines": 603,
+            "pages": 11,
+            "final_runs": 603,
+            "fragments": 603,
+            "scene_commands": 1217,
+            "objects": 60,
+            "shape_metric_reads": 10266,
+            "line_candidate_visits": 10266,
+            "page_candidate_visits": 603,
+            "reported_fragments": 11,
+            "reported_visual_lines": 601,
+            "rejections": 0,
+            "output_bytes": 23767,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 74121,
+          "allocated_bytes": 49007192,
+          "work": {
+            "input_bytes": 10800,
+            "shaped_runs": 603,
+            "lines": 603,
+            "pages": 11,
+            "final_runs": 603,
+            "fragments": 603,
+            "scene_commands": 1217,
+            "objects": 60,
+            "shape_metric_reads": 10266,
+            "line_candidate_visits": 10266,
+            "page_candidate_visits": 603,
+            "reported_fragments": 11,
+            "reported_visual_lines": 601,
+            "rejections": 0,
+            "output_bytes": 23767,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds kind2 x600 color",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_2_600_color.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 2,
+        "source_lines": 600,
+        "colored": 1,
+        "pages": 11
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 248012,
+          "allocated_bytes": 118772395,
+          "work": {
+            "input_bytes": 10800,
+            "shaped_runs": 603,
+            "lines": 603,
+            "pages": 11,
+            "final_runs": 3603,
+            "fragments": 3603,
+            "scene_commands": 7217,
+            "objects": 60,
+            "shape_metric_reads": 10266,
+            "line_candidate_visits": 10266,
+            "page_candidate_visits": 603,
+            "reported_fragments": 11,
+            "reported_visual_lines": 601,
+            "rejections": 0,
+            "output_bytes": 50224,
+            "foreground_ranges": 1800,
+            "paint_clusters": 10200,
+            "paint_range_advances": 1800
+          }
+        },
+        "x64musl": {
+          "allocations": 248012,
+          "allocated_bytes": 118772395,
+          "work": {
+            "input_bytes": 10800,
+            "shaped_runs": 603,
+            "lines": 603,
+            "pages": 11,
+            "final_runs": 3603,
+            "fragments": 3603,
+            "scene_commands": 7217,
+            "objects": 60,
+            "shape_metric_reads": 10266,
+            "line_candidate_visits": 10266,
+            "page_candidate_visits": 603,
+            "reported_fragments": 11,
+            "reported_visual_lines": 601,
+            "rejections": 0,
+            "output_bytes": 50224,
+            "foreground_ranges": 1800,
+            "paint_clusters": 10200,
+            "paint_range_advances": 1800
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds atomic negatives",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_negatives.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 0,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6462,
+          "allocated_bytes": 7338793,
+          "work": {
+            "input_bytes": 37,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 12,
+            "output_bytes": 16027
+          }
+        },
+        "x64musl": {
+          "allocations": 6462,
+          "allocated_bytes": 7338793,
+          "work": {
+            "input_bytes": 37,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 12,
+            "output_bytes": 16027
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source foregrounds kind3 x0 plain",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_3_0_plain.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 3,
+        "source_lines": 0,
+        "colored": 0,
+        "pages": 1,
+        "panels": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6226,
+          "allocated_bytes": 7371633,
+          "work": {
+            "input_bytes": 38,
+            "shaped_runs": 7,
+            "lines": 7,
+            "pages": 1,
+            "final_runs": 7,
+            "fragments": 7,
+            "scene_commands": 15,
+            "objects": 32,
+            "shape_metric_reads": 134,
+            "line_candidate_visits": 134,
+            "page_candidate_visits": 12,
+            "reported_fragments": 2,
+            "reported_visual_lines": 10,
+            "rejections": 0,
+            "output_bytes": 16158,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        },
+        "x64musl": {
+          "allocations": 6226,
+          "allocated_bytes": 7371633,
+          "work": {
+            "input_bytes": 38,
+            "shaped_runs": 7,
+            "lines": 7,
+            "pages": 1,
+            "final_runs": 7,
+            "fragments": 7,
+            "scene_commands": 15,
+            "objects": 32,
+            "shape_metric_reads": 134,
+            "line_candidate_visits": 134,
+            "page_candidate_visits": 12,
+            "reported_fragments": 2,
+            "reported_visual_lines": 10,
+            "rejections": 0,
+            "output_bytes": 16158,
+            "foreground_ranges": 0,
+            "paint_clusters": 0,
+            "paint_range_advances": 0
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
+      ]
+    },
+    {
+      "name": "source foregrounds kind3 x0 color",
+      "scenario_revision": "source-foregrounds-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/foreground_3_0_color.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "foreground_kind": 3,
+        "source_lines": 0,
+        "colored": 1,
+        "pages": 1,
+        "panels": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes",
+        "foreground_ranges",
+        "paint_clusters",
+        "paint_range_advances"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6523,
+          "allocated_bytes": 7511829,
+          "work": {
+            "input_bytes": 38,
+            "shaped_runs": 7,
+            "lines": 7,
+            "pages": 1,
+            "final_runs": 12,
+            "fragments": 12,
+            "scene_commands": 25,
+            "objects": 32,
+            "shape_metric_reads": 134,
+            "line_candidate_visits": 134,
+            "page_candidate_visits": 12,
+            "reported_fragments": 2,
+            "reported_visual_lines": 10,
+            "rejections": 0,
+            "output_bytes": 16262,
+            "foreground_ranges": 4,
+            "paint_clusters": 34,
+            "paint_range_advances": 3
+          }
+        },
+        "x64musl": {
+          "allocations": 6523,
+          "allocated_bytes": 7511829,
+          "work": {
+            "input_bytes": 38,
+            "shaped_runs": 7,
+            "lines": 7,
+            "pages": 1,
+            "final_runs": 12,
+            "fragments": 12,
+            "scene_commands": 25,
+            "objects": 32,
+            "shape_metric_reads": 134,
+            "line_candidate_visits": 134,
+            "page_candidate_visits": 12,
+            "reported_fragments": 2,
+            "reported_visual_lines": 10,
+            "rejections": 0,
+            "output_bytes": 16262,
+            "foreground_ranges": 4,
+            "paint_clusters": 34,
+            "paint_range_advances": 3
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_foregrounds"
       ]
     }
   ]

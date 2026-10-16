@@ -1,4 +1,6 @@
 import Color
+import Document
+import KernelFacadeSemantics
 import Font
 import KernelFacadeFurniture
 import KernelFacadeLines
@@ -80,6 +82,7 @@ KernelFacadeText :: [].{
 	LabelPiece : { color : Color.SourceValue, origin : Layout.Point, page : U64, run : U64, size : Layout.Unit }
 
 	Plan :: {
+		paint_work : { clusters : U64, ranges : U64 },
 		artifact_kinds : ArtifactKinds,
 		artifact_runs : List(U64),
 		flow : KernelFacadePages.FlowPaints,
@@ -92,6 +95,12 @@ KernelFacadeText :: [].{
 		text : Text.Store,
 		work : Work,
 	}.{
+		paint_work : Plan -> { clusters : U64, ranges : U64 }
+		paint_work = |plan| plan.paint_work
+
+		with_source_foregrounds : Plan, Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), Limits -> Try(Plan, Error)
+		with_source_foregrounds = |plan, authoring, owners, limits| paint_source_foregrounds(plan, authoring, owners, limits)
+
 		build : KernelFacadeShape.Plan, KernelFacadeLines.Plan, KernelFacadePages.Plan, Limits -> Try(Plan, Error)
 		build = |shape, lines, pages, limits| build_plan(shape, lines, pages, limits)
 
@@ -443,6 +452,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	}
 	Ok(
 		KernelFacadeText.Plan.{
+			paint_work: { clusters: 0, ranges: 0 },
 			artifact_kinds: RepeatedHeaders,
 			artifact_runs: $artifact_runs,
 			flow,
@@ -715,6 +725,7 @@ interleave_furniture = |plan, furniture, limits| {
 	text = { ..body, clusters: $clusters, glyph_indices: $glyph_indices, glyphs: $glyphs, runs: $runs }
 	Ok(
 		KernelFacadeText.Plan.{
+			paint_work: plan.paint_work,
 			artifact_kinds: Kinds($artifact_kinds),
 			artifact_runs: $artifact_runs,
 			flow: plan.flow,
@@ -812,6 +823,7 @@ append_labels = |plan, pieces, source, sources, limits| {
 	text = { ..body, clusters: $clusters, glyph_indices: $glyph_indices, glyphs: $glyphs, runs: $runs }
 	Ok(
 		KernelFacadeText.Plan.{
+			paint_work: plan.paint_work,
 			artifact_kinds: Kinds($artifact_kinds),
 			artifact_runs: $artifact_runs,
 			flow: plan.flow,
@@ -1069,4 +1081,149 @@ expect {
 	plan = KernelFacadeText.Plan.build_prepared(prepared, test_limits)?
 	text = KernelFacadeText.Plan.text(plan)
 	text.runs.is_empty() and text.glyphs.is_empty() and KernelFacadeText.Plan.pages(plan).len() == 1 and KernelFacadeText.Plan.work(plan).placement_visits == 1
+}
+
+## Paint subdivision consumes final layout, never feeds shaping or pagination.
+## Glyphs and clusters remain in their existing arenas; only run spans and
+## placements split. Explicit semantic owners locate source lines even when
+## different blocks intern identical canonical strings.
+paint_source_foregrounds : KernelFacadeText.Plan, Document.NormalizedAuthoring, List(KernelFacadeSemantics.BlockOwnership), KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+paint_source_foregrounds = |plan, authoring, owners, limits| {
+	if authoring.source_foregrounds.is_empty() {
+		return Ok(plan)
+	}
+	text = plan.text
+	var $occurrences = 0
+	for run in text.runs {
+		match run.unicode {
+			OccurrenceText(id) => {
+				$occurrences = U64.max($occurrences, id.index() + 1)
+			}
+			ArtifactText(_) => {}
+		}
+	}
+	var $line_sources = List.repeat(NoSource, $occurrences)
+	var $source_index = 0
+	for source in authoring.sources {
+		if source.foregrounds.length() != 0 {
+			group = list_at(authoring.groups, source.group)
+			var $line = 0
+			while $line < source.lines.length() {
+				match list_at(owners, group.first_block + $line) {
+					TextBlock({ body, .. }) => {
+						line = list_at(authoring.source_lines, source.lines.start() + $line)
+						$line_sources = list_set($line_sources, body.index(), SourceLine({ source: $source_index, byte: line.utf8_bytes.start() }))
+					}
+					EmptySourceLine => {}
+					_ => return Err(InvalidRun({ run: group.first_block + $line }))
+				}
+				$line = $line + 1
+			}
+		}
+		$source_index = $source_index + 1
+	}
+	var $cluster_visits = 0
+	var $range_visits = 0
+	var $cursors = authoring.sources.map(|source| source.foregrounds.start())
+	var $runs = List.with_capacity(text.runs.len())
+	var $styles = List.with_capacity(text.runs.len())
+	var $placements = List.with_capacity(text.runs.len())
+	var $pages = List.with_capacity(plan.pages.len())
+	var $artifacts = List.with_capacity(plan.artifact_runs.len())
+	var $artifact = 0
+	for page in plan.pages {
+		page_start = $runs.len()
+		var $index = page.runs.start()
+		while $index < page.runs.start() + page.runs.length() {
+			run = list_at(text.runs, $index)
+			placement = list_at(plan.placements, $index)
+			style = list_at(plan.styles, $index)
+			is_artifact = $artifact < plan.artifact_runs.len() and list_at(plan.artifact_runs, $artifact) == $index
+			if is_artifact {
+				$artifacts = $artifacts.append($runs.len())
+				$artifact = $artifact + 1
+			}
+			located = match run.unicode {
+				OccurrenceText(id) if !is_artifact => list_at($line_sources, id.index())
+				_ => NoSource
+			}
+			match located {
+				NoSource => {
+					id = Text.RunId.from_index($runs.len())
+					$runs = $runs.append({ ..run, id })
+					$styles = $styles.append(style)
+					$placements = $placements.append({ ..placement, run: id })
+				}
+				SourceLine({ source, byte }) => {
+					facts = list_at(authoring.sources, source)
+					paint_end = facts.foregrounds.start() + facts.foregrounds.length()
+					var $paint = list_at($cursors, source)
+					var $cluster = run.clusters.start()
+					cluster_end = run.clusters.start() + run.clusters.length()
+					var $advance = 0
+					while $cluster < cluster_end {
+						first = list_at(text.clusters, $cluster)
+						start = byte + first.source.utf8_bytes.start()
+						while $paint < paint_end and list_at(authoring.source_foregrounds, $paint).end <= start {
+							$paint = $paint + 1
+							$range_visits = $range_visits + 1
+						}
+						paint = if $paint < paint_end {
+							value = list_at(authoring.source_foregrounds, $paint)
+							if value.start <= start { color: value.color, end: value.end } else { color: style.color, end: value.start }
+						} else { color: style.color, end: byte + run.source.utf8_bytes.start() + run.source.utf8_bytes.length() }
+						first_cluster = $cluster
+						first_glyph = list_at(text.glyph_indices, first.glyphs.start())
+						var $last = first
+						var $width = 0
+						while $cluster < cluster_end and byte + list_at(text.clusters, $cluster).source.utf8_bytes.start() < paint.end {
+							cluster = list_at(text.clusters, $cluster)
+							# A paint boundary must also be an accepted shaped-cluster
+							# boundary; never colour only part of an indivisible glyph.
+							if byte + cluster.source.utf8_bytes.start() + cluster.source.utf8_bytes.length() > paint.end {
+								return Err(InvalidCluster({ cluster: $cluster, line: $index }))
+							}
+							var $reference = cluster.glyphs.start()
+							while $reference < cluster.glyphs.start() + cluster.glyphs.length() {
+								glyph = list_at(text.glyphs, list_at(text.glyph_indices, $reference))
+								$width = checked_i64_add($width, glyph.advance_x.raw())?
+								$reference = $reference + 1
+							}
+							$cluster_visits = $cluster_visits + 1
+							$last = cluster
+							$cluster = $cluster + 1
+						}
+						if $cluster == first_cluster {
+							return Err(InvalidCluster({ cluster: $cluster, line: $index }))
+						}
+						last_glyph = list_at(text.glyph_indices, $last.glyphs.start() + $last.glyphs.length() - 1)
+						check_limit($runs.len() + 1, limits.max_runs, Runs)?
+						check_limit($placements.len() + 1, limits.max_placements, Placements)?
+						id = Text.RunId.from_index($runs.len())
+						$runs = $runs.append({
+							..run,
+							id,
+							clusters: Semantics.Range.from_start_and_length(first_cluster, $cluster - first_cluster),
+							glyphs: Semantics.Range.from_start_and_length(first_glyph, last_glyph + 1 - first_glyph),
+							source: { scalars: Semantics.Range.from_start_and_length(first.source.scalars.start(), $last.source.scalars.start() + $last.source.scalars.length() - first.source.scalars.start()), utf8_bytes: Semantics.Range.from_start_and_length(first.source.utf8_bytes.start(), $last.source.utf8_bytes.start() + $last.source.utf8_bytes.length() - first.source.utf8_bytes.start()) },
+						})
+						$styles = $styles.append({ ..style, color: paint.color })
+						x = checked_i64_add(placement.origin.x.raw(), $advance)?
+						$placements = $placements.append({ ..placement, run: id, origin: { ..placement.origin, x: Layout.Unit.from_raw(x) } })
+						$advance = checked_i64_add($advance, $width)?
+					}
+					$cursors = list_set($cursors, source, $paint)
+				}
+			}
+			$index = $index + 1
+		}
+		$pages = $pages.append({ ..page, runs: Semantics.Range.from_start_and_length(page_start, $runs.len() - page_start) })
+	}
+	Ok({ ..plan, paint_work: { clusters: $cluster_visits, ranges: $range_visits }, text: { ..text, runs: $runs }, styles: $styles, placements: $placements, pages: $pages, artifact_runs: $artifacts, work: { ..plan.work, run_writes: $runs.len(), placement_visits: $placements.len() } })
+}
+
+list_set : List(a), U64, a -> List(a)
+list_set = |items, index, value| match items.set(index, value) {
+	Ok(updated) => updated
+	Err(_) => crash "validated foreground owner index escaped"
 }

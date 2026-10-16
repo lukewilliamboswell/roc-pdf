@@ -66,11 +66,17 @@ CustomSpec : { contents : List(DocumentBlock), inset : Layout.Unit, name : Str, 
 ## RejectLongToken keeps ordinary wrapping but rejects an oversized token.
 SourceTabs : [ExpandTo(U16), RejectTabs]
 
+## Sorted, nonempty half-open ranges in the original `text` UTF-8 bytes.
+## Endpoints must be extended-grapheme boundaries (CRLF is indivisible).
+## A covered tab colours every expanded space. Gaps use the block colour.
+SourceForeground : KernelSourceText.Foreground
+
 SourceBlockProps := {
 	background : [Background(Color.SourceValue), NoBackground] ?? NoBackground,
 	color : Color.SourceValue ?? Theme.black,
 	face : Font.FaceId,
 	fragmentation : [Lines, Unsplittable] ?? Lines,
+	foregrounds : List(SourceForeground) ?? [],
 	leading : Layout.Unit ?? 12,
 	padding : Layout.Unit ?? 8,
 	size : Layout.Unit ?? 9,
@@ -87,6 +93,7 @@ NormalizedSource : {
 	color : Color.SourceValue,
 	face : Font.FaceId,
 	fragmentation : [Lines, Unsplittable],
+	foregrounds : Semantics.Range,
 	group : U64,
 	leading : Layout.Unit,
 	lines : Semantics.Range,
@@ -581,6 +588,7 @@ NormalizedAuthoring := {
 	rich_paragraphs : List(NormalizedRich),
 	scopes : List(Theme.Scope),
 	sources : List(NormalizedSource),
+	source_foregrounds : List(KernelSourceText.Foreground),
 	source_lines : List(KernelSourceText.Line),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
@@ -845,6 +853,7 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedDecoration : NormalizedDecoration
 	NormalizedCustom : NormalizedCustom
 	CustomSpec : CustomSpec
+	SourceForeground : SourceForeground
 	SourceTabs : SourceTabs
 	SourceBlockProps : SourceBlockProps
 	NormalizedSource : NormalizedSource
@@ -1414,12 +1423,12 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1580,6 +1589,7 @@ normalize_compact = |compact, initial| {
 		rich_paragraphs: initial.rich_paragraphs,
 		scopes: initial.scopes,
 		sources: initial.sources,
+		source_foregrounds: initial.source_foregrounds,
 		source_lines: initial.source_lines,
 		spacers: initial.spacers,
 		tables: initial.tables,
@@ -1606,6 +1616,7 @@ SimpleState : {
 	rich_paragraphs : List(NormalizedRich),
 	scopes : List(Theme.Scope),
 	sources : List(NormalizedSource),
+	source_foregrounds : List(KernelSourceText.Foreground),
 	source_lines : List(KernelSourceText.Line),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
@@ -1638,6 +1649,7 @@ normalize_simple = |simple, initial| {
 		rich_paragraphs: $state.rich_paragraphs,
 		scopes: $state.scopes,
 		sources: $state.sources,
+		source_foregrounds: $state.source_foregrounds,
 		source_lines: $state.source_lines,
 		spacers: $state.spacers,
 		tables: $state.tables,
@@ -1807,31 +1819,35 @@ source_normalization_limits = { max_input_bytes: 1000000, max_lines: 1000000, ma
 append_source_limited : SimpleState, SourceBlockProps, U64, U64, KernelSourceText.Limits -> SimpleState
 append_source_limited = |state, spec, parent, position, limits| {
 	facts = match state.source_exhaustion {
-		SourceExhausted(error) => { bytes: 0, exhaustion: state.source_exhaustion, lines: [], text: "", validation: InvalidSource(error) }
+		SourceExhausted(error) => { foregrounds: [], bytes: 0, exhaustion: state.source_exhaustion, lines: [], text: "", validation: InvalidSource(error) }
 		NoSourceExhaustion => {
 			remaining = { max_input_bytes: limits.max_input_bytes, max_lines: limits.max_lines - state.source_lines.len(), max_output_bytes: limits.max_output_bytes - state.source_bytes }
-			match KernelSourceText.prepare(spec.text, spec.tabs, remaining) {
-				Ok(value) => { bytes: value.work.output_bytes, exhaustion: NoSourceExhaustion, lines: value.lines, text: value.text, validation: ValidSource }
+			match KernelSourceText.prepare_foregrounds(spec.text, spec.tabs, remaining, spec.foregrounds, 100000 - state.source_foregrounds.len()) {
+				Ok(value) => { foregrounds: value.foregrounds, bytes: value.work.output_bytes, exhaustion: NoSourceExhaustion, lines: value.lines, text: value.text, validation: ValidSource }
 				Err(error) => {
 					located = match error {
 						LimitExceeded({ attempted, dimension: OutputBytes, .. }) => LimitExceeded({ attempted: state.source_bytes + attempted, dimension: OutputBytes, limit: limits.max_output_bytes })
 						LimitExceeded({ attempted, dimension: Lines, .. }) => LimitExceeded({ attempted: state.source_lines.len() + attempted, dimension: Lines, limit: limits.max_lines })
+						LimitExceeded({ attempted, dimension: Foregrounds, .. }) => LimitExceeded({ attempted: state.source_foregrounds.len() + attempted, dimension: Foregrounds, limit: 100000 })
 						other => other
 					}
 					exhaustion = match located {
 						LimitExceeded(_) => SourceExhausted(located)
 						_ => NoSourceExhaustion
 					}
-					{ bytes: 0, exhaustion, lines: [], text: "", validation: InvalidSource(located) }
+					{ foregrounds: [], bytes: 0, exhaustion, lines: [], text: "", validation: InvalidSource(located) }
 				}
 			}
 		}
 	}
 	source = state.sources.len()
 	group = state.groups.len()
-	record = { background: spec.background, color: spec.color, face: spec.face, fragmentation: spec.fragmentation, group, leading: spec.leading, lines: Semantics.Range.from_start_and_length(state.source_lines.len(), facts.lines.len()), padding: spec.padding, size: spec.size, text: facts.text, validation: facts.validation, wrap: spec.wrap }
+	record = { foregrounds: Semantics.Range.from_start_and_length(state.source_foregrounds.len(), facts.foregrounds.len()), background: spec.background, color: spec.color, face: spec.face, fragmentation: spec.fragmentation, group, leading: spec.leading, lines: Semantics.Range.from_start_and_length(state.source_lines.len(), facts.lines.len()), padding: spec.padding, size: spec.size, text: facts.text, validation: facts.validation, wrap: spec.wrap }
 	next_bytes = state.source_bytes + facts.bytes
 	var $state = open_group({ ..state, source_bytes: next_bytes, source_exhaustion: facts.exhaustion, sources: state.sources.append(record) }, Source(source), parent, 0, position)
+	for foreground in facts.foregrounds {
+		$state = { ..$state, source_foregrounds: $state.source_foregrounds.append(foreground) }
+	}
 	for line in facts.lines {
 		$state = { ..$state, source_lines: $state.source_lines.append(line) }
 	}
@@ -2792,6 +2808,19 @@ expect {
 	second = append_source_limited(first, { face: Font.FaceId.from_index(0), text: "b\n" }, 0, 1, limits)
 	match list_at(second.sources, 1).validation {
 		InvalidSource(LimitExceeded({ attempted: 4, dimension: Lines, limit: 3 })) => second.source_lines.len() == 2 and second.source_bytes == 2 and list_at(second.sources, 1).text.is_empty()
+		_ => False
+	}
+}
+
+# The range limit is document-wide and sticky: no partial source is retained
+# after it is reached, including for following sources with no foregrounds.
+expect {
+	black = Color.srgb8({ red: 0, green: 0, blue: 0 })
+	state = { ..empty_state, source_foregrounds: List.repeat({ start: 0, end: 1, color: black }, 100000) }
+	first = append_source(state, { face: Font.FaceId.from_index(0), text: "a", foregrounds: [{ start: 0, end: 1, color: black }] }, 0, 0)
+	second = append_source(first, { face: Font.FaceId.from_index(0), text: "\r" }, 0, 1)
+	match (list_at(second.sources, 0).validation, list_at(second.sources, 1).validation) {
+		(InvalidSource(LimitExceeded({ attempted: 100001, dimension: Foregrounds, limit: 100000 })), InvalidSource(LimitExceeded({ attempted: 100001, dimension: Foregrounds, limit: 100000 }))) => second.source_bytes == 0 and second.source_lines.is_empty() and second.source_foregrounds.len() == 100000 and list_at(second.sources, 0).text.is_empty() and list_at(second.sources, 1).text.is_empty()
 		_ => False
 	}
 }

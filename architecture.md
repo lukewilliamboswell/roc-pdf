@@ -974,6 +974,22 @@ panels and their padding are planned for each fragment before page placement
 and remain page-content decoration artifacts. The bounded source-block path
 does not grant arbitrary custom extensions pagination callbacks.
 
+Source foreground ranges are language-neutral, sorted, non-overlapping,
+nonempty half-open ranges in the original authored UTF-8 bytes. Original
+extended-grapheme boundaries are required, including the indivisible CRLF
+pair. Normalization maps their endpoints in its forward byte walk; covered
+tabs propagate their colour to every expanded space and CRLF maps to one LF.
+Canonical ranges occupy a bounded global dense arena referenced by source
+spans. Original text, token strings, and a per-byte mapping table are not
+retained. An external highlighter owns tokenization and theme selection.
+Foreground ranges never enter shaping, measurement, wrapping, or pagination.
+After accepted layout, paint subdivision reuses existing glyph and cluster
+arenas and preserves occurrence identity, advances, offsets and source order.
+Only paint-run spans, placements and their ordinary fragment associations
+split; no token semantic elements are invented. Colours use the existing
+profile-aware sRGB path, and unsupported channel models reject with a located
+source-range diagnostic.
+
 This is also the safe extension boundary for charts, callouts, invoice widgets,
 and other domain-specific blocks. Each extension supplies its semantic
 occurrences or explicit page artifacts and lowers visual content to validated

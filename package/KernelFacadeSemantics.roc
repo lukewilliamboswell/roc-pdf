@@ -2530,6 +2530,7 @@ test_authoring = {
 	page_labels: [],
 	rich_paragraphs: [],
 	sources: [],
+	source_foregrounds: [],
 	source_lines: [],
 	scopes: [],
 	spacers: [],
