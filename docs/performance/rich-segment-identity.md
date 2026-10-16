@@ -41,7 +41,8 @@ compiler. Existing fixtures retain their exact output and work; the scalar
 metadata addition permits a reviewed linear allocated-byte increase within the
 existing 10% guard.
 
-Pinned arm64mac evidence (dev backend, `--no-cache`):
+Pinned arm64mac evidence at the segment-identity slice boundary (dev backend,
+`--no-cache`):
 
 | Path / units | Allocations | Allocated bytes | Lines | Unique sources / scalars |
 | --- | ---: | ---: | ---: | ---: |
@@ -66,3 +67,8 @@ veraPDF 1.30.2 accepts all four as PDF/A-4. PDFium Chromium 7988 and
 MuPDF 1.28.2 render every original-document page (6/27 and 7/31), with
 A4 dimensions and visible ink throughout. These renderer checks supplement
 the exact decoded-line oracle; they do not replace its content assertions.
+
+The subsequent source-block integration adds typed page and empty-row facts.
+Current combined baselines are in `tests/spec.json`; its reviewed costs and
+font-selection savings are described in [source-block integration evidence](source-blocks.md#integration-ratchet-review).
+The table above preserves the isolated identity-change measurements.

@@ -301,7 +301,13 @@ or `lead` is no region, and a missing `gap` is zero. Body text flows only in wha
 pages can hold different body heights. Each slot (`start`, `center`, `end`)
 stacks its furniture: a header's stack sits on the region's bottom edge and a
 footer's hangs from its top edge. `Pdf.furniture_text` is one line of text,
-page fields, and reserved widths in the body style; `Pdf.furniture_image`
+page fields, and reserved widths in the resolved `Theme.furniture` style.
+The default `BodyStyle` follows the current body typography. Select
+`Own({ face: Face(face_id), size: 8, leading: 10, color })` for independent
+furniture typography; the face must be registered. Page fields and reserved
+widths use this same style, and overflow remains an explicit error.
+See the [furniture typography example](../examples/furniture-typography/main.roc).
+`Pdf.furniture_image`
 paints a drawing of images and solid paths (`drawing.rectangle`,
 `Scene.solid_fill`, `Scene.solid_stroke`) whose origin is the item's
 bottom-left corner; `Scene.Drawing.group` reuses a mark at an offset. Furniture is a page artifact (`Header`, `Footer`, or
