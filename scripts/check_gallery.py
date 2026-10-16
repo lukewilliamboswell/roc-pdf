@@ -27,6 +27,7 @@ EXAMPLES = (
     "business-report",
     "chunked-export",
     "field-guide",
+    "furniture-typography",
     "operations-handbook",
     "product-brief",
     "quarterly-report",

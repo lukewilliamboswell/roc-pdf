@@ -45,6 +45,7 @@ every PDF and checks that it equals the committed bytes, and with
 </tr>
 <tr>
 <td><a href="business-report/business-report.pdf"><img src="business-report/preview.png" alt="Reference business report preview"></a><br><a href="business-report/main.roc">Business report source</a></td>
+<td><a href="furniture-typography/furniture-typography.pdf"><img src="furniture-typography/preview.png" alt="Independent furniture typography preview"></a><br><a href="furniture-typography/main.roc">Furniture typography source</a></td>
 </tr>
 </table>
 
