@@ -955,6 +955,22 @@ page, and incompatible keeps must not trigger implicit shrinking, clipping,
 content removal, or font substitution. Applications select supported layout
 policies before preparation rather than discover an undocumented recovery mode.
 
+Preformatted source blocks have their own whitespace and typography contract,
+separate from inline code and measured custom blocks. Preparation produces one
+canonical LF source with explicit scalar/UTF-8 line ranges, retaining empty
+lines, indentation and trailing spaces. CRLF normalization and tab expansion
+are declared source policies, never incidental rich-paragraph behavior. Source
+typography selects an exact registered face, size, leading and color without
+changing body, table or furniture styles. Wrapping consumes measured grapheme
+ranges and an explicit oversized-token policy. A continuation is a scalar
+visual-line cursor into the accepted measurements; it neither copies remaining
+source nor remeasures preceding lines. Empty visual lines reserve their declared
+leading without inventing source characters or painted glyphs. Code semantics
+and canonical source ranges survive every page fragment. Optional background
+panels and their padding are planned for each fragment before page placement
+and remain page-content decoration artifacts. The bounded source-block path
+does not grant arbitrary custom extensions pagination callbacks.
+
 This is also the safe extension boundary for charts, callouts, invoice widgets,
 and other domain-specific blocks. Each extension supplies its semantic
 occurrences or explicit page artifacts and lowers visual content to validated
