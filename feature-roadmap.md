@@ -94,6 +94,14 @@ and assistive-technology review were not performed and are optional. Gate 6's
 historical closure did not substitute for this evidence; the extension makes
 no Gate 7 or PDF/UA-2 claim.
 
+Issue #47 extends that same bounded Gate 6 source path with foreground-only
+original-UTF-8 ranges for external highlighters. This is a separate evidence
+slice: original-to-canonical endpoint mapping, grapheme-safe range rejection,
+paint-only layout invariance, shared-source ownership, token-scale pairs and
+colour-sensitive independent reader/conformance checks are recorded in
+[source foreground ranges](docs/performance/source-foregrounds.md). It adds no
+language parser, token semantics, font changes or new conformance claim.
+
 Gate 7 closes combined-profile, public-use, and scale-growth evidence for these
 references; human review of them is recorded where performed but is optional.
 It is not complete merely because the private

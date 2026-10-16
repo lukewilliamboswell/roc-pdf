@@ -70,7 +70,10 @@ KernelPdfText :: [].{
 
 	ScenePlan :: { actual_text_private_use : ActualTextPrivateUse, content : KernelContent.TextPlan, mappings : List(List(KernelPdfFont.UnicodeMapping)), work : Work }.{
 		build : KernelTextOwnership.Plan, List(KernelFontPlan.Plan), Limits -> Try(ScenePlan, Error)
-		build = |ownership, fonts, limits| build_scene_plan(ownership, fonts, limits)
+		build = |ownership, fonts, limits| build_scene_plan(ownership, fonts, limits, [])
+
+		build_with_phases : KernelTextOwnership.Plan, List(KernelFontPlan.Plan), List(Text.PaintPhase), Limits -> Try(ScenePlan, Error)
+		build_with_phases = |ownership, fonts, phases, limits| build_scene_plan(ownership, fonts, limits, phases)
 
 		actual_text_private_use : ScenePlan -> ActualTextPrivateUse
 		actual_text_private_use = |plan| plan.actual_text_private_use
@@ -175,8 +178,8 @@ build_plan = |semantics, text, fonts, placements, limits| {
 	)
 }
 
-build_scene_plan : KernelTextOwnership.Plan, List(KernelFontPlan.Plan), KernelPdfText.Limits -> Try(KernelPdfText.ScenePlan, KernelPdfText.Error)
-build_scene_plan = |ownership, fonts, limits| {
+build_scene_plan : KernelTextOwnership.Plan, List(KernelFontPlan.Plan), KernelPdfText.Limits, List(Text.PaintPhase) -> Try(KernelPdfText.ScenePlan, KernelPdfText.Error)
+build_scene_plan = |ownership, fonts, limits, phases| {
 	text = KernelTextOwnership.Plan.text(ownership)
 	semantics = KernelTagged.Plan.semantics(KernelTextOwnership.Plan.tagged(ownership))
 	states = initialize_fonts(fonts)?
@@ -189,6 +192,7 @@ build_scene_plan = |ownership, fonts, limits| {
 	var $glyph_visits = 0
 	var $mapping_conflicts = 0
 	var $private_use = NoPrivateUse
+	var $phase_cursor = 0
 	var $run_index = 0
 	while $run_index < text.runs.len() {
 		run = list_at(text.runs, $run_index)
@@ -226,13 +230,39 @@ build_scene_plan = |ownership, fonts, limits| {
 		## selection is resource naming, so content lowering emits the `Tf`
 		## operator through its authored-to-canonical name map, and the run
 		## records the authored font ordinal and exact size that map needs.
-		emitted = emit_run_glyphs([], text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, remaining_body)?
+		var $phase = FirstPiece
+		if $phase_cursor < phases.len() {
+			phase = list_at(phases, $phase_cursor)
+			if phase.run.index() < $run_index {
+				return Err(RunInvalid({ run: phase.run.index() }))
+			}
+			if phase.run.index() == $run_index {
+				if phase.advance.raw() < 0 {
+					return Err(RunInvalid({ run: $run_index }))
+				}
+				first = list_at(text.glyphs, run.glyphs.start())
+				if first.offset_y != phase.origin.y {
+					return Err(RunInvalid({ run: $run_index }))
+				}
+				distance = checked_i64_sub(checked_i64_add(phase.advance.raw(), first.offset_x.raw())?, phase.origin.x.raw())?
+				target = checked_i64_times(distance, checked_i64_times(1000, adjustment_scale)?)?
+				# An aligned start has the identical rounding grid already.
+				if I64.rem_by(target, run.size.raw()) != 0 {
+					$phase = Continued(phase)
+				}
+				$phase_cursor = $phase_cursor + 1
+			}
+		}
+		emitted = emit_run_glyphs_phase([], text, run, { x: Layout.Unit.from_raw(0), y: Layout.Unit.from_raw(0) }, list_at($states, font_index).plan, $phase, remaining_body)?
 		run_bytes = checked_add(actual_text_begin.len(), emitted.bytes.len())?
 		$content_bytes = checked_add($content_bytes, run_bytes)?
 		check_limit($content_bytes, limits.max_content_bytes, ContentBytes)?
 		$runs = $runs.append({ actual_text_begin, body: emitted.bytes, close_actual_text: actual_length > 0, font: font_index, size: run.size })
 		$glyph_visits = checked_add($glyph_visits, emitted.glyphs)?
 		$run_index = $run_index + 1
+	}
+	if $phase_cursor != phases.len() {
+		return Err(RunInvalid({ run: list_at(phases, $phase_cursor).run.index() }))
 	}
 	finished = finish_mappings($states, limits.max_mappings)?
 	Ok(
@@ -631,13 +661,23 @@ pow10 = |digits| {
 ## adjustment step, 0.0005 em at scale 1, and never accumulates along the
 ## segment. All arithmetic is checked `I64` integer arithmetic.
 emit_run_glyphs : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
-emit_run_glyphs = |bytes, text, run, origin, font, limit| {
+emit_run_glyphs = |bytes, text, run, origin, font, limit| emit_run_glyphs_phase(bytes, text, run, origin, font, FirstPiece, limit)
+
+## A paint piece retains the original baseline segment's rounding grid.
+## Its scene placement includes the prefix advance; Td cancels that prefix
+## and an initial TJ adjustment selects the same quantized position the
+## unsplit run would have emitted. No prefix glyphs are replayed or measured.
+emit_run_glyphs_phase : List(U8), Text.Store, Text.Run, Layout.Point, KernelFontPlan.Plan, [FirstPiece, Continued(Text.PaintPhase)], U64 -> Try({ bytes : List(U8), glyphs : U64 }, KernelPdfText.Error)
+emit_run_glyphs_phase = |bytes, text, run, origin, font, phase, limit| {
 	size = run.size.raw()
 	if size <= 0 {
 		return Err(RunInvalid({ run: run.id.index() }))
 	}
 	var $out = bytes
-	var $cursor_x = 0
+	var $cursor_x = match phase {
+		FirstPiece => 0
+		Continued(value) => value.advance.raw()
+	}
 	var $segment_x = 0
 	var $segment_y = 0
 	var $pen = 0
@@ -654,7 +694,37 @@ emit_run_glyphs = |bytes, text, run, origin, font, limit| {
 		y = checked_i64_add(origin.y.raw(), glyph.offset_y.raw())?
 		cid = cid_for_glyph(font, glyph.id.raw(), run.id.index())?
 		width = emitted_width(font, cid)?
-		if $open == False or y != $segment_y {
+		continued = match phase {
+			FirstPiece => False
+			Continued(_) => !$open
+		}
+		if continued {
+			value = match phase {
+				Continued(stored_phase) => stored_phase
+				FirstPiece => crash "paint phase escaped"
+			}
+			sx = checked_i64_add(origin.x.raw(), value.origin.x.raw())?
+			sy = checked_i64_add(origin.y.raw(), value.origin.y.raw())?
+			dx = checked_i64_sub(sx, value.advance.raw())?
+			if dx != 0 or sy != 0 {
+				$out = append_layout($out, Layout.Unit.from_raw(dx), limit)?
+				$out = append_literal($out, " ", limit)?
+				$out = append_layout($out, Layout.Unit.from_raw(sy), limit)?
+				$out = append_literal($out, " Td\n", limit)?
+			}
+			target = checked_i64_times(checked_i64_sub(x, sx)?, checked_i64_times(1000, adjustment_scale)?)?
+			steps = round_half_up(checked_i64_sub(0, target)?, size)?
+			$out = append_literal($out, "[", limit)?
+			if steps != 0 {
+				$out = append_adjustment($out, steps, limit)?
+				$out = append_literal($out, " ", limit)?
+			}
+			$out = append_literal($out, "<", limit)?
+			$segment_x = sx
+			$segment_y = sy
+			$pen = checked_i64_sub(0, checked_i64_times(steps, size)?)?
+			$open = True
+		} else if $open == False or y != $segment_y {
 			if $open {
 				$out = append_literal($out, ">] TJ\n", limit)?
 			}

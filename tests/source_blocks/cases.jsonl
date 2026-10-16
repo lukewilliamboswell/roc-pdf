@@ -14,3 +14,16 @@
 {"name":"source blocks source identities","schema_version":1,"case":{"Multiple":{"context":0}}}
 {"name":"source blocks Han source only","schema_version":1,"case":{"HanOnly":{"same_body":false}}}
 {"name":"source blocks Han shared face","schema_version":1,"case":{"HanOnly":{"same_body":true}}}
+{"name":"source foregrounds kind0 x0 plain","schema_version":1,"case":{"Foregrounds":{"colored":false,"kind":0,"lines":0}}}
+{"name":"source foregrounds kind0 x0 color","schema_version":1,"case":{"Foregrounds":{"colored":true,"kind":0,"lines":0}}}
+{"name":"source foregrounds kind1 x0 plain","schema_version":1,"case":{"Foregrounds":{"colored":false,"kind":1,"lines":0}}}
+{"name":"source foregrounds kind1 x0 color","schema_version":1,"case":{"Foregrounds":{"colored":true,"kind":1,"lines":0}}}
+{"name":"source foregrounds kind2 x60 plain","schema_version":1,"case":{"Foregrounds":{"colored":false,"kind":2,"lines":60}}}
+{"name":"source foregrounds kind2 x60 color","schema_version":1,"case":{"Foregrounds":{"colored":true,"kind":2,"lines":60}}}
+{"name":"source foregrounds kind2 x600 plain","schema_version":1,"case":{"Foregrounds":{"colored":false,"kind":2,"lines":600}}}
+{"name":"source foregrounds kind2 x600 color","schema_version":1,"case":{"Foregrounds":{"colored":true,"kind":2,"lines":600}}}
+{"name":"source foregrounds atomic negatives","schema_version":1,"case":{"ForegroundNegatives":{"context":0}}}
+{"name":"source foregrounds kind3 x0 plain","schema_version":1,"case":{"Foregrounds":{"colored":false,"kind":3,"lines":0}}}
+{"name":"source foregrounds kind3 x0 color","schema_version":1,"case":{"Foregrounds":{"colored":true,"kind":3,"lines":0}}}
+{"name":"source foregrounds kind4 x0 plain","schema_version":1,"case":{"Foregrounds":{"colored":false,"kind":4,"lines":0}}}
+{"name":"source foregrounds kind4 x0 color","schema_version":1,"case":{"Foregrounds":{"colored":true,"kind":4,"lines":0}}}

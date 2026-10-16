@@ -93,7 +93,7 @@ KernelFacadeScenes :: [].{
 		work : Arena -> Work
 		work = |arena| arena.work
 	}
-	Plan :: { colors : KernelColor.Plan, images : Image.SourceStore, ownership : KernelTextOwnership.Plan, scene : KernelScene.Plan, work : Work }.{
+	Plan :: { paint_phases : List(Text.PaintPhase), colors : KernelColor.Plan, images : Image.SourceStore, ownership : KernelTextOwnership.Plan, scene : KernelScene.Plan, work : Work }.{
 		build : KernelFacadeFragments.Plan, Layout.Size, Limits -> Try(Plan, Error)
 		build = |fragments, page_size, limits| build_plan(fragments, page_size, empty_authoring, NoIntentProfile, limits)
 
@@ -121,7 +121,11 @@ KernelFacadeScenes :: [].{
 			},
 			NoIntentProfile,
 			limits,
+			[],
 		)
+
+		paint_phases : Plan -> List(Text.PaintPhase)
+		paint_phases = |plan| plan.paint_phases
 
 		colors : Plan -> KernelColor.Plan
 		colors = |plan| plan.colors
@@ -178,7 +182,7 @@ no_flow : KernelFacadePages.FlowPaints
 no_flow = { decorations: [], figure_scales: [], panels: [] }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
+empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {
@@ -197,11 +201,11 @@ build_plan = |fragment_plan, page_size, authoring, intent, limits| {
 		styles: KernelFacadeText.Plan.styles(text_plan),
 		text,
 	}
-	build_validated(KernelFacadeFragments.Plan.semantics(fragment_plan), prepared, intent, limits)
+	build_validated(KernelFacadeFragments.Plan.semantics(fragment_plan), prepared, intent, limits, KernelFacadeText.Plan.paint_phases(text_plan))
 }
 
-build_validated : KernelTextSemantics.Plan, InternalPrepared, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
-build_validated = |semantics, prepared, intent, limits| {
+build_validated : KernelTextSemantics.Plan, InternalPrepared, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits, List(Text.PaintPhase) -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
+build_validated = |semantics, prepared, intent, limits, paint_phases| {
 	text = prepared.text
 	semantic_store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(semantics))
 	arena_prepared = prepare_arena(prepared)
@@ -214,7 +218,7 @@ build_validated = |semantics, prepared, intent, limits| {
 		limits.scene,
 	) ? Scene
 	ownership = (if prepared.artifact_runs.is_empty() KernelTextOwnership.Plan.build(semantics, scene, text) else KernelTextOwnership.Plan.build_with_artifact_text(semantics, scene, text)) ? Ownership
-	Ok(KernelFacadeScenes.Plan.{ colors, images: arena.images, ownership, scene, work: arena.work })
+	Ok(KernelFacadeScenes.Plan.{ paint_phases, colors, images: arena.images, ownership, scene, work: arena.work })
 }
 
 prepare_arena : InternalPrepared -> InternalArenaPrepared

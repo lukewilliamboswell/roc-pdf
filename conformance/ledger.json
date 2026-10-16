@@ -514,7 +514,7 @@
     },
     {
       "id": "ROC-PDF-PDF20-SOURCE-BLOCKS",
-      "summary": "Preformatted source blocks retain one canonical LF source in a paragraph containing a PDF 1.7 Code element; canonical ActualText and real-line occurrence ranges preserve logical source order across visual-line page continuations. Empty lines reserve geometry without synthetic characters or glyphs. Local registered typography stays independent of body and furniture, and optional padded fragment backgrounds are Layout artifacts without MCIDs.",
+      "summary": "Preformatted source blocks retain one canonical LF source in a paragraph containing a PDF 1.7 Code element; canonical ActualText and real-line occurrence ranges preserve logical source order across visual-line page continuations. Empty lines reserve geometry without synthetic characters or glyphs. Local registered typography stays independent of body and furniture, and optional padded fragment backgrounds are Layout artifacts without MCIDs. Optional original-UTF8 foreground ranges map through tab/CRLF normalization, split only accepted paint runs, preserve line occurrence identity and use the existing profile-managed sRGB path.",
       "source_ids": [
         "iso-32000-2-2020-ec3"
       ],
@@ -522,14 +522,15 @@
         "ISO 32000-2:2020 14.8.2.2.2",
         "ISO 32000-2:2020 14.8.4.7.2",
         "docs/authoring.md: Preformatted source blocks",
-        "docs/performance/source-blocks.md"
+        "docs/performance/source-blocks.md",
+        "docs/performance/source-foregrounds.md"
       ],
       "capabilities": [
         "Pdf20"
       ],
       "implementation": "implemented",
       "applicability": "applicable",
-      "machine_verification": "roc_source_preparation_ranged_shape_line_page_and_multisource_expects; source_blocks_harness_with_exact_allocations_work_and_60_600_scale_pair; independent_cid_canonical_actualtext_blank_row_wrap_panel_and_body_spacing_oracle; whole_original_pdf_readers; arlington_zero_failures; verapdf_pdfa4_zero_failures; located_atomic_source_negatives_emit_no_bytes",
+      "machine_verification": "roc_source_preparation_ranged_shape_line_page_and_multisource_expects; source_blocks_harness_with_exact_allocations_work_and_60_600_scale_pair; independent_cid_canonical_actualtext_blank_row_wrap_panel_and_body_spacing_oracle; whole_original_pdf_readers; arlington_zero_failures; verapdf_pdfa4_zero_failures; located_atomic_source_negatives_emit_no_bytes; source_foreground_original_byte_mapping_cluster_and_colour_rejections; colour_plain_exact_glyph_page_panel_semantic_oracle_and_monochrome_twins; 180_1800_range_scale_pair",
       "human_verification": "not_required",
       "positive_scenarios": [
         "examples/source-blocks/main.roc",
@@ -539,6 +540,7 @@
         "package/Document.roc",
         "package/KernelSourceText.roc",
         "scripts/check_source_blocks.py",
+        "scripts/check_source_foregrounds.py",
         "tests/source_blocks/Fixture.roc"
       ],
       "external_rule_ids": []

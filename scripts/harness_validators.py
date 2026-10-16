@@ -31,6 +31,7 @@ from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
 from check_pdf_structure import canonical_text, dictionary_ref, is_structure_element, object_slices, require, structure_kids, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
+from check_source_foregrounds import validate_source_foregrounds_pdf
 from check_source_blocks import validate_source_blocks_pdf, validate_multiple_sources_pdf
 from check_rtl import validate_rtl_pdf
 from check_shadings import validate_shadings_pdf
@@ -168,6 +169,7 @@ VALIDATORS: dict[str, Validator] = {
     "metadata": _dimensioned(validate_metadata_pdf, "catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally"),
     "structure_semantics": _dimensioned(validate_structure_semantics_pdf, "object-number-independent structure tree, Table 5 containment, ParentTree/MCID/OBJR exactly-once, IDTree/ID, language inheritance, typed attributes, DisplayDocTitle, MarkInfo, Tabs, and MCID-free page furniture with exact page fields verified independently"),
     "source_blocks_multiple": _dimensioned(validate_multiple_sources_pdf, "three source Code owners, shared/distinct canonical source identities, exact text/reading order and font reuse"),
+    "source_foregrounds": _dimensioned(validate_source_foregrounds_pdf, "original UTF8 colour mapping, searchable source text and canonical semantic ownership"),
     "source_blocks": _dimensioned(validate_source_blocks_pdf, "canonical source ActualText, exact measured text/blank rows, line continuation, local typography, padded artifact panels, and body spacing"),
     "furniture_typography": _simple(validate_furniture_typography_pdf, "independent furniture face, size, color, page fields, and artifact ownership"),
     "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
@@ -221,6 +223,7 @@ PREFLIGHT_CHECKS["structure_semantics"] = PreflightCheck("check_structure_semant
 # The rich-inline self-test pins the rich-inline snapshots' logical text.
 PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
+PREFLIGHT_CHECKS["source_foregrounds"] = PreflightCheck("check_source_foregrounds.py", True)
 # Both reference-document self-tests read the reference and gallery
 # snapshots, which are in flux during --update-snapshots.
 PREFLIGHT_CHECKS["structure_extraction"] = PreflightCheck("check_structure_extraction.py", True)

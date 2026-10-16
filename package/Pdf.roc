@@ -80,6 +80,7 @@ Pdf :: [].{
 
 	## Opaque inline content of a rich paragraph. Each constructor below fixes
 	## the semantic role its content becomes; `Theme` decides presentation.
+	SourceForeground : Document.SourceForeground
 	SourceTabs : Document.SourceTabs
 	SourceBlockProps : Document.SourceBlockProps
 
@@ -1325,8 +1326,10 @@ pipeline_error = |error, doc| match error {
 	Semantics(SourceWhitespace({ source, error: whitespace_error })) => match whitespace_error {
 		BareCarriageReturn({ byte }) => source_error(doc, source, InvalidRelationship, "source.carriage_return", "A bare carriage return at byte ${byte.to_str()} is unsupported; author LF or CRLF line endings.")
 		TabRejected({ byte }) => source_error(doc, source, InvalidRelationship, "source.tab", "A tab at byte ${byte.to_str()} is forbidden by RejectTabs; supply explicit spaces or ExpandTo(n).")
+		ForegroundColor({ range, byte }) => source_error(doc, source, FeatureUnavailable, "source.foreground_color", "Foreground range ${range.to_str()} at original UTF-8 byte ${byte.to_str()} needs supported sRGB RGB channels. Supply a hex colour, Color.srgb8, or Color.srgb16; unsupported channel models are never converted.")
+		ForegroundRange({ range, byte, reason }) => source_error(doc, source, InvalidRelationship, "source.foreground_range", "Foreground range ${range.to_str()} at original UTF-8 byte ${byte.to_str()} is invalid (${Str.inspect(reason)}). Supply sorted, nonempty, non-overlapping ranges at original grapheme boundaries.")
 		InvalidTabWidth => source_error(doc, source, InvalidRelationship, "source.tab_width", "A source tab stop must be greater than zero.")
-		LimitExceeded(_) => source_error(doc, source, BudgetExceeded, "source.budget", "Source whitespace preparation exceeded its explicit input, output, or logical-line budget.")
+		LimitExceeded(_) => source_error(doc, source, BudgetExceeded, "source.budget", "Source preparation exceeded its explicit input, output, logical-line, or foreground-range budget.")
 	}
 	Semantics(EmptyKeep({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.keep_empty", "A keep contains no laid-out block.")
 	Semantics(EmptyScope({ group })) => group_error(doc, group, InvalidRelationship, "semantics.scope_empty", "A scoped group contains no block; its colors would apply to nothing.")

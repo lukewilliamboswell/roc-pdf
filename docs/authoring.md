@@ -423,6 +423,41 @@ Pdf.source_block({
 })
 ```
 
+Optional `foregrounds: List(Pdf.SourceForeground)` lets an external highlighter
+paint tokens without changing source layout:
+
+```roc
+Pdf.source_block({
+    text: "app [main!] {}\n",
+    face: mono.face,
+    foregrounds: [
+        { start: 0, end: 3, color: "#8000c0" },
+        { start: 5, end: 10, color: "#0050d0" },
+    ],
+})
+```
+
+`start` and `end` are zero-based, half-open **original `text` UTF-8 byte
+offsets**, before CRLF normalization or tab expansion. Ranges must be sorted,
+nonempty, non-overlapping and within the text, with both endpoints at extended
+grapheme boundaries. CRLF is one indivisible boundary unit. A covered tab
+colours all of its expanded spaces; a covered CRLF maps to its canonical LF,
+which occupies no painted glyph. Unstyled gaps retain the block's `color`.
+A colour range can cross lines, visual wraps and page continuations.
+`foregrounds` defaults to `[]`. Foregrounds use the facade's supported sRGB RGB
+channels (`"#RRGGBB"`, `Color.srgb8`, or `Color.srgb16`); unsupported channel
+models reject with `source.foreground_color`, including on an unpainted
+newline. Invalid ranges reject with `source.foreground_range`; the diagnostic
+names the zero-based range index and original byte offset and locates the
+source block. Source preparation retains at most 100,000 foreground ranges
+across the document, checked before normalization grows retained buffers.
+
+Foregrounds are paint-only: they retain one face, size and leading, reuse the
+accepted glyphs and preserve advances, wrapping and pagination. The source
+keeps its existing `P > Code`, canonical `ActualText`, line occurrences and
+reading order. Applications own tokenization and colours; no language name,
+lexer, font change, token background or per-token semantic element is added.
+
 Only `text` and `face` are required. Defaults are 9-point type, 12-point
 leading, black text, 8-point padding, `NoBackground`, `tabs: ExpandTo(4)`,
 `wrap: Wrap`, and `fragmentation: Lines`. Tabs expand at scalar-column tab

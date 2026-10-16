@@ -6,7 +6,7 @@ app [main!] {
 import Fixture
 import pf.Metrics
 
-Case : [HanOnly({ same_body : Bool }), Multiple({ context : U64 }), OnlyText({ context : U64 }), BareBlank({ context : U64 }), Han({ context : U64 }), Defaults({ context : U64 }), Blank({ lines : U64 }), Short({ context : U64 }), Long({ lines : U64 }), NearBottom({ lines : U64 }), Wrapping({ context : U64 }), Unicode({ context : U64 }), Negatives({ context : U64 })]
+Case : [Foregrounds({ kind : U64, lines : U64, colored : Bool }), ForegroundNegatives({ context : U64 }), HanOnly({ same_body : Bool }), Multiple({ context : U64 }), OnlyText({ context : U64 }), BareBlank({ context : U64 }), Han({ context : U64 }), Defaults({ context : U64 }), Blank({ lines : U64 }), Short({ context : U64 }), Long({ lines : U64 }), NearBottom({ lines : U64 }), Wrapping({ context : U64 }), Unicode({ context : U64 }), Negatives({ context : U64 })]
 
 CaseSpec : { case : Case, schema_version : U64 }
 
@@ -27,6 +27,8 @@ main! = |args| {
 	}
 	Metrics.reset_allocations!()
 	result = match spec.case {
+		Foregrounds({ kind, lines, colored }) => Fixture.foregrounds(kind, lines, colored)
+		ForegroundNegatives({ context }) => Fixture.foreground_negatives(context)
 		HanOnly({ same_body }) => Fixture.han_only(same_body)
 		Multiple({ context }) => Fixture.multiple(context)
 		OnlyText({ context }) => Fixture.only_text(context)

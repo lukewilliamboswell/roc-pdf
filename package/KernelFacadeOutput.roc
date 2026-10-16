@@ -119,7 +119,7 @@ build_plan = |scenes, font, descriptor, facts, navigation, limits| {
 	subset = KernelFontSubset.build(font, font_plan) ? Subset
 	images = KernelImage.Plan.build(KernelFacadeScenes.Plan.images(scenes), colors, limits.images) ? Images
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? Resources
-	text = KernelPdfText.ScenePlan.build(ownership, [font_plan], limits.text) ? Text
+	text = KernelPdfText.ScenePlan.build_with_phases(ownership, [font_plan], KernelFacadeScenes.Plan.paint_phases(scenes), limits.text) ? Text
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
@@ -223,7 +223,7 @@ build_multi_plan = |scenes, fonts, descriptor, facts, navigation, limits| {
 
 	images = KernelImage.Plan.build(KernelFacadeScenes.Plan.images(scenes), colors, limits.images) ? Images
 	resource_use = KernelResourceUse.TextPlan.build(scene, colors, images) ? Resources
-	text = KernelPdfText.ScenePlan.build(ownership, $font_plans, limits.text) ? Text
+	text = KernelPdfText.ScenePlan.build_with_phases(ownership, $font_plans, KernelFacadeScenes.Plan.paint_phases(scenes), limits.text) ? Text
 	tagged = KernelTextOwnership.Plan.tagged(ownership)
 	content = KernelContent.Plan.build_with_text(tagged, KernelPdfText.ScenePlan.content(text), limits.content) ? Content
 	objects = KernelObjectPlan.Plan.build_with_text(tagged, colors, images, resource_use, content, limits.objects) ? Objects
