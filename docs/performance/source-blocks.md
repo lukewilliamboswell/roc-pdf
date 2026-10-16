@@ -2,8 +2,8 @@
 
 Issue #45 adds a distinct whitespace, local typography and continuation
 contract. The implementation below keeps canonical source ownership and
-measured visual-line continuation explicit. Final integration and cross-target
-evidence are recorded separately before this extension slice closes.
+measured visual-line continuation explicit. The bounded Gate 6 extension is
+closed by the public, cross-target, conformance and integration evidence below.
 
 ## Source preparation
 
@@ -58,8 +58,7 @@ with exact allocation/work equality and independent PDF structure checks on
 arm64mac and on cross-compiled x64musl in local `alpine:3.22`. Both targets
 match the registered metrics and PDF bytes. Arlington 1.30.2 reports 9,022
 passed rules, 286 object checks and zero failures for the envelope.
-Full integration-suite validation remains
-pending.
+The final integration suite passes, as recorded below.
 
 ## Public lowering and continuation
 
@@ -129,8 +128,8 @@ colors and rectangles, not scene copies. No continuation holds a suffix slice
 of a larger source allocation. Reports share only compact accepted placement
 facts. Worst-case storage is linear in accepted canonical bytes, clusters,
 visual lines and fragments. Work is bounded by explicit stage limits and
-recorded metric-read, line-candidate and page-candidate counters; the scale
-pair must demonstrate growth before this slice closes.
+recorded metric-read, line-candidate and page-candidate counters. The scale
+pair below demonstrates bounded growth.
 
 ## Public feature evidence
 
@@ -172,8 +171,15 @@ emitted semantic and glyph facts. The two-page public gallery example also
 passes all three readers, Arlington and PDF/A-4; all 90 repeated recipe lines
 and the resumed body paragraph survive extraction.
 
-Full integration-suite regression validation remains pending. General custom
-fragmentation and PDF/UA-2 remain outside this extension's declared subset.
+The final strict `./scripts/test.py --allocation-baselines --jobs 4` run
+passes all 476 tasks: 62 Roc validation tasks, 57 fixture builds and 357 cases.
+All nine bounded fuzz targets pass 2,000 executions each; the release-bundle
+consumer and all 12 public gallery examples pass. The full Arlington corpus
+passes for 293 files, with its one recorded exception failing exactly as
+recorded. This closes the bounded extension's backend, facade, scale and
+PDF 2.0 / Archive conformance evidence. General custom fragmentation and
+PDF/UA-2 remain outside this extension's declared subset. Human reader and
+assistive-technology review were not performed and are optional.
 
 The final font-selection preflight separates option validation from source
 face enrichment and consumes the prepared base candidates. This avoids the

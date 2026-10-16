@@ -84,9 +84,14 @@ continuation. Preformatted source blocks are assigned to a separate Gate 6
 extension slice, reusing its text, single-column pagination and artifact-panel
 foundations. This explicitly brings that bounded capability forward from
 Gate 8; general custom-block fragmentation remains there. The new slice is
-pending until its own public API, whitespace, typography, wrapping, continuation,
-conformance and allocation/scale evidence close. Gate 6's historical closure
-does not establish evidence for the new feature, and this scope decision makes
+closed with its own public API, whitespace, typography, wrapping, continuation,
+conformance and allocation/scale evidence in
+[preformatted source blocks](docs/performance/source-blocks.md). This includes
+the strict 357-case integration suite, focused arm64mac/x64musl equality,
+PDF/A-4 and Arlington checks, independent readers and scale pairs. General
+custom callbacks are inapplicable to this native bounded path. Human reader
+and assistive-technology review were not performed and are optional. Gate 6's
+historical closure did not substitute for this evidence; the extension makes
 no Gate 7 or PDF/UA-2 claim.
 
 Gate 7 closes combined-profile, public-use, and scale-growth evidence for these
@@ -892,8 +897,9 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   measured wrapping with a declared oversized-token policy, and continuation
   between visual lines. Optional padded panels repeat as decoration artifacts
   on each page fragment; Code semantics and source order remain logical facts.
-  This extension slice is pending its own evidence and is distinct from the
-  historical business-authoring closure below.
+  This extension slice is closed by its own
+  [public, conformance and performance evidence](docs/performance/source-blocks.md),
+  distinct from the historical business-authoring closure below.
 - The declared production text-support matrix and any additions needed by the
   reference documents, including bounded boundary reshaping and final fit
   verification where applicable.
