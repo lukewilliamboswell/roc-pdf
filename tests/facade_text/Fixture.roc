@@ -152,7 +152,7 @@ synthetic_input = |source_runs| {
 			unicode: OccurrenceText(Semantics.OccurrenceId.from_index($run_index)),
 			writing_mode: Horizontal,
 		})
-		$styles = $styles.append({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(1200) })
+		$styles = $styles.append({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(1200), segment: $run_index })
 		var $line_local = 0
 		while $line_local < lines_per_run {
 			line_index = $lines.len()

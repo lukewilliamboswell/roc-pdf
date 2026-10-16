@@ -102,7 +102,7 @@ synthetic_input = |repetitions| {
 			page: Semantics.PageId.from_index(page_index),
 			run: Text.RunId.from_index($run_index),
 		})
-		$styles = $styles.append({ color: black, leading: Layout.Unit.from_raw(12000) })
+		$styles = $styles.append({ color: black, leading: Layout.Unit.from_raw(12000), segment: $run_index })
 		$run_index = $run_index + 1
 	}
 	var $pages = []

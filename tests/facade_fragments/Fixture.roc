@@ -57,7 +57,7 @@ evidence_output_validate = |repetitions| {
 	page_count = prepared.pages.len()
 	semantics = KernelTextSemantics.Plan.attach_fragments(input.preliminary, fragments, page_count, page_count, semantic_limits(input.repetitions, fragments.len())) ? |_| EvidenceFailure
 	run_count = prepared.text.runs.len()
-	styles = List.repeat({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(12000) }, run_count)
+	styles = List.repeat({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(12000), segment: 0 }, run_count)
 	scenes = KernelFacadeScenes.Plan.build_prepared(
 		semantics,
 		{
@@ -196,7 +196,7 @@ evidence_scene_validate = |repetitions| {
 	page_count = input.prepared.pages.len()
 	semantics = KernelTextSemantics.Plan.attach_fragments(input.preliminary, fragments, page_count, page_count, semantic_limits(input.repetitions, fragments.len())) ? |_| EvidenceFailure
 	run_count = input.prepared.text.runs.len()
-	styles = List.repeat({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(12000) }, run_count)
+	styles = List.repeat({ color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(12000), segment: 0 }, run_count)
 	scenes = KernelFacadeScenes.Plan.build_prepared(
 		semantics,
 		{
