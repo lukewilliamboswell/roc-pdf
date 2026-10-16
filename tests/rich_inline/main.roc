@@ -7,6 +7,8 @@ import Fixture
 import pf.Metrics
 
 Case : [
+	RepeatedSegments({ count : U64 }),
+	RepeatedSegmentsOrdered({ count : U64 }),
 	Mixed({ context : U64 }),
 	Paragraphs({ count : U64 }),
 	Ordered({ context : U64 }),
@@ -47,6 +49,8 @@ main! = |args| {
 	}
 	Metrics.reset_allocations!()
 	result = match spec.case {
+		RepeatedSegments({ count }) => Fixture.repeated_segments(count)
+		RepeatedSegmentsOrdered({ count }) => Fixture.repeated_segments_ordered(count)
 		Mixed({ context }) => Fixture.mixed(context)
 		Paragraphs({ count }) => Fixture.paragraphs(count)
 		Ordered({ context }) => Fixture.ordered(context)
@@ -62,6 +66,6 @@ main! = |args| {
 	}
 	match result {
 		Ok(value) => value
-		Err(_) => crash "CASE_EXECUTION_FAILED: rich_inline fixture rejected the typed case"
+		Err(error) => crash "CASE_EXECUTION_FAILED: rich_inline fixture rejected the typed case: ${Str.inspect(error)}"
 	}
 }

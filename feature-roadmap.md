@@ -79,6 +79,21 @@ pages, or advanced writing modes. A separately authored bounded chart or
 callout exercises the custom-block seam before that subset becomes stable.
 General custom pagination remains Gate 8.
 
+Issue #45 supplies a bounded source-document use case for line-based
+continuation. Preformatted source blocks are assigned to a separate Gate 6
+extension slice, reusing its text, single-column pagination and artifact-panel
+foundations. This explicitly brings that bounded capability forward from
+Gate 8; general custom-block fragmentation remains there. The new slice is
+closed with its own public API, whitespace, typography, wrapping, continuation,
+conformance and allocation/scale evidence in
+[preformatted source blocks](docs/performance/source-blocks.md). This includes
+the strict 357-case integration suite, focused arm64mac/x64musl equality,
+PDF/A-4 and Arlington checks, independent readers and scale pairs. General
+custom callbacks are inapplicable to this native bounded path. Human reader
+and assistive-technology review were not performed and are optional. Gate 6's
+historical closure did not substitute for this evidence; the extension makes
+no Gate 7 or PDF/UA-2 claim.
+
 Gate 7 closes combined-profile, public-use, and scale-growth evidence for these
 references; human review of them is recorded where performed but is optional.
 It is not complete merely because the private
@@ -853,7 +868,8 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   policy rather than inventing new logical table relationships.
 - Bounded first-page and continuation-page templates with single-column body
   flow, explicit headers/footers/decorations, and resolved page/total-page
-  numbers. Template regions have reserved geometry; decorative/repeated page
+  numbers, with independently themed furniture face, size, leading, and color
+  (body-style inheritance by default). Template regions have reserved geometry; decorative/repeated page
   furniture has explicit artifact ownership, and meaningful authored content
   retains semantic ownership. General fixed pages, columns, and float/footnote
   interaction remain Gate 8.
@@ -876,6 +892,14 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   splitting, required/preferred keeps, deterministic tie breaks, and bounded
   conflict diagnostics. Final reference fields may have explicit fixed widths
   only when their resolved values are shaped and checked to fit.
+- Bounded preformatted source blocks with independent registered typography,
+  explicit LF/CRLF and tab policy, preserved indentation and empty lines,
+  measured wrapping with a declared oversized-token policy, and continuation
+  between visual lines. Optional padded panels repeat as decoration artifacts
+  on each page fragment; Code semantics and source order remain logical facts.
+  This extension slice is closed by its own
+  [public, conformance and performance evidence](docs/performance/source-blocks.md),
+  distinct from the historical business-authoring closure below.
 - The declared production text-support matrix and any additions needed by the
   reference documents, including bounded boundary reshaping and final fit
   verification where applicable.
@@ -1152,7 +1176,8 @@ or structure role; unsupported inputs remain errors.
 
 These features extend an already usable business-document release. Ordinary
 table continuation, repeated headers, single-column page templates, bounded
-flow figures, and page/total-page numbers are Gate 6 requirements; they do not
+flow figures, page/total-page numbers, and the separately evidenced bounded
+source-block extension are assigned to Gate 6; they do not
 wait for the broader algorithms below.
 
 ### Capabilities

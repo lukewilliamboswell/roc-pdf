@@ -38,9 +38,6 @@ KernelFontObjects :: [].{
 
 build_plan : KernelObjectPlan.Plan, U64, U64 -> Try(KernelFontObjects.Plan, KernelFontObjects.Error)
 build_plan = |base, font_count, max_objects| {
-	if font_count == 0 {
-		return Err(NoFonts)
-	}
 	font_objects = checked_times(font_count, objects_per_font)?
 	base_count = KernelObjectPlan.Plan.object_count(base)
 	object_count = checked_add(base_count, font_objects)?
@@ -107,4 +104,19 @@ list_at = |items, index| match items.get(index) {
 		crash "validated text-layout font-plan index escaped"
 	}
 	Ok(value) => value
+}
+
+# Contentless source pages do not invent an unused font. An empty font plan
+# preserves every base identity and leaves xref directly after that base.
+expect {
+	pipeline = KernelPipelineFixture.pipeline({})?
+	base = pipeline.objects
+	count = KernelObjectPlan.Plan.object_count(base)
+	plan = KernelFontObjects.Plan.build(base, 0, count)?
+	KernelFontObjects.Plan.fonts(plan).is_empty() and
+		KernelObjectPlan.Plan.catalog(KernelFontObjects.Plan.base(plan)) == KernelObjectPlan.Plan.catalog(base) and
+			KernelObjectPlan.Plan.pages(KernelFontObjects.Plan.base(plan)) == KernelObjectPlan.Plan.pages(base) and
+				KernelFontObjects.Plan.object_count(plan) == count and
+					KernelFontObjects.Plan.work(plan) == { font_objects: 0, fonts: 0, object_identities: count } and
+						KernelObject.ObjectId.number(KernelFontObjects.Plan.xref(plan)) == count + 1
 }

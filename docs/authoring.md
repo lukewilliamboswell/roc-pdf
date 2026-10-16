@@ -301,7 +301,13 @@ or `lead` is no region, and a missing `gap` is zero. Body text flows only in wha
 pages can hold different body heights. Each slot (`start`, `center`, `end`)
 stacks its furniture: a header's stack sits on the region's bottom edge and a
 footer's hangs from its top edge. `Pdf.furniture_text` is one line of text,
-page fields, and reserved widths in the body style; `Pdf.furniture_image`
+page fields, and reserved widths in the resolved `Theme.furniture` style.
+The default `BodyStyle` follows the current body typography. Select
+`Own({ face: Face(face_id), size: 8, leading: 10, color })` for independent
+furniture typography; the face must be registered. Page fields and reserved
+widths use this same style, and overflow remains an explicit error.
+See the [furniture typography example](../examples/furniture-typography/main.roc).
+`Pdf.furniture_image`
 paints a drawing of images and solid paths (`drawing.rectangle`,
 `Scene.solid_fill`, `Scene.solid_stroke`) whose origin is the item's
 bottom-left corner; `Scene.Drawing.group` reuses a mark at an offset. Furniture is a page artifact (`Header`, `Footer`, or
@@ -397,6 +403,48 @@ bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 `AccessibleArchive` still rejects with an `InvalidDocument` diagnostic batch
 until PDF/UA-2 closes. The package does not read, repair, sign, encrypt,
 outline, or rasterize PDFs.
+
+## Preformatted source blocks
+
+`Pdf.source_block` owns preformatted source layout with a required registered
+face. It retains indentation, trailing spaces, empty lines, and exact logical
+line ranges; it does not change body or inline `Code` styles. Register the
+package face with `register_built_in` beside the chosen caller monospace face,
+and pass that registry through `Pdf.Options.fonts`:
+
+```roc
+Pdf.source_block({
+    text: "deploy:\n    service: billing\n\n    replicas: 3\n",
+    face: mono.face,
+    size: 9,
+    leading: 12,
+    padding: 8,
+    background: Background(Color.srgb8({ red: 242, green: 246, blue: 244 })),
+})
+```
+
+Only `text` and `face` are required. Defaults are 9-point type, 12-point
+leading, black text, 8-point padding, `NoBackground`, `tabs: ExpandTo(4)`,
+`wrap: Wrap`, and `fragmentation: Lines`. Tabs expand at scalar-column tab
+stops; `RejectTabs` forbids them. CRLF becomes LF and bare CR rejects.
+`Wrap` uses Unicode and slash boundaries, then grapheme boundaries for long
+identifiers; `RejectLongToken` still wraps ordinary lines but rejects a token
+wider than its content box. `Unsplittable` moves the whole block to a page
+where it fits, and rejects an oversize block. `Lines` continues at visual-line
+boundaries, with padding and the optional panel on every page fragment.
+
+The semantic block is `P > Code`, with canonical source `ActualText` once on
+`Code`, including its LF and blank lines. Blank logical lines reserve vertical
+rows without painted spaces or content occurrences. An empty source reserves
+one row and has no `ActualText` override. Source faces require style-face
+selection: ordered policies report `source.font_policy`, missing source
+registrations `source.face`, invalid whitespace `source.*`, and invalid size,
+leading, or padding `source.style`. Normalization accepts at most 1,000,000
+input bytes per source block and retains at most 1,000,000 canonical source
+bytes and 1,000,000 logical source lines across the document. Exhaustion is a
+located `source.budget` error; later source blocks are not materialized.
+Unsupported glyphs reject; there is no font substitution. [The source-block example](../examples/source-blocks/main.roc)
+shows a block continuing over pages with ordinary paragraphs before and after.
 
 ## Themes and options
 
@@ -520,7 +568,9 @@ PDF object or operator: it supplies ordinary paragraphs, its own
 measurement of the block (`size` and a content `inset`), and a panel of
 solid paths drawn behind the content. The block is `Unsplittable` (its
 `fragmentation`, the only value), and `inset` and `panel` default to zero
-and an empty drawing. To size content whose paragraphs wrap, an extension calls
+and an empty drawing. The empty panel paints no decoration; zero inset uses
+the full measured width and height for content. Negative insets and content
+that does not fit remain errors. To size content whose paragraphs wrap, an extension calls
 `Pdf.measure_custom_content(options, { contents, language, width })` with
 the content width (the box width less twice the inset) and the options the
 document is prepared with; it returns the exact content height preparation

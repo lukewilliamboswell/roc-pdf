@@ -119,6 +119,17 @@ import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 ## profile). Work comes from one additional semantic planning pass and one
 ## facade pipeline build over the same normalized authoring.
 Fixture :: [].{
+	repeated_segments : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	repeated_segments = |count| repeated_segment_evidence(count, Theme.default, BuiltInFace)
+
+	repeated_segments_ordered : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	repeated_segments_ordered = |count| {
+		registered = Font.Registry.empty.register_built_in(Font.ValidationLimits.default) ? |_| EvidenceFailure
+		cjk = registered.registry.register(cjk_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Hani")] }, Font.ValidationLimits.default) ? |_| EvidenceFailure
+		configured = cjk.registry.with_policy([registered.face, cjk.face]) ? |_| EvidenceFailure
+		repeated_segment_evidence(count, Theme.{ font_selection: Policy(configured.policy) }, Policy({ policy: configured.policy, registry: configured.registry }))
+	}
+
 	EvidenceError : [EvidenceFailure, InvalidScale, MissingRejection(U64)]
 
 	mixed : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -172,6 +183,42 @@ Fixture :: [].{
 		}
 		run_code_holds(count)
 	}
+}
+
+## Mandatory segments repeat identical interned sources, including styled
+## leaves and cells. The ordered arm also exercises selection cursor reset.
+repeated_segment_evidence : U64, Theme, Faces -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+repeated_segment_evidence = |count, theme, faces| {
+	var $contents = []
+	var $index = 0
+	while $index < count {
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("same"), Pdf.line_break, Pdf.text("same"), Pdf.line_break, Pdf.text("same")]))
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.code("--same-token"), Pdf.line_break, Pdf.code("--same-token"), Pdf.line_break, Pdf.code("--same-token")]))
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text(" "), Pdf.line_break, Pdf.text(" "), Pdf.line_break, Pdf.text(" ")]))
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("tail "), Pdf.line_break, Pdf.text("tail "), Pdf.line_break, Pdf.text("tail ")]))
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("joined "), Pdf.strong([Pdf.text("leaf")]), Pdf.line_break, Pdf.text("joined "), Pdf.strong([Pdf.text("leaf")]), Pdf.line_break, Pdf.text("joined "), Pdf.strong([Pdf.text("leaf")])]))
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("again"), Pdf.line_break, Pdf.text("middle"), Pdf.line_break, Pdf.text("again")]))
+		$contents = $contents.append(Pdf.table({ body_rows: [Pdf.row([Pdf.cell([Pdf.code("--table-token"), Pdf.line_break, Pdf.code("--table-token"), Pdf.line_break, Pdf.code("--table-token")])])], caption: Pdf.no_caption, columns: [{ align: Start, width: Share(1) }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Segment")])])] }))
+		match faces {
+			BuiltInFace => {}
+			Policy(_) => {
+				$contents = $contents.append(Pdf.rich_paragraph([Pdf.text("A"), Pdf.in_language("zh-Hans", [Pdf.text("中")]), Pdf.text("A"), Pdf.line_break, Pdf.text("A"), Pdf.in_language("zh-Hans", [Pdf.text("中")]), Pdf.text("A"), Pdf.line_break, Pdf.text("A"), Pdf.in_language("zh-Hans", [Pdf.text("中")]), Pdf.text("A")]))
+			}
+		}
+		$index = $index + 1
+	}
+	document = Pdf.document({ contents: $contents, language: "en-AU", title: "Repeated segments" })
+	planned = KernelFacadeSemantics.Plan.build(Document.normalize(document), semantic_limits) ? |_| EvidenceFailure
+	sources = KernelFacadeSources.Plan.work(KernelFacadeSemantics.Plan.sources(planned))
+	evidenced = evidence_with_limits(document, theme, faces, shared_source_limits)?
+	lines_per_unit = match faces {
+		BuiltInFace => 22
+		Policy(_) => 25
+	}
+	if list_at(evidenced.work, 8) != count * lines_per_unit {
+		return Err(EvidenceFailure)
+	}
+	Ok({ bytes: evidenced.bytes, work: evidenced.work.append(sources.inputs).append(sources.unique_sources).append(sources.unique_source_scalars).append(sources.hash_scalar_visits) })
 }
 
 ## The identifiers the code-holds document sets, as code or as plain text.
@@ -242,6 +289,7 @@ lines_ending_inside = |document, ranges_of| {
 				}
 			}
 			ContentlessCell => {}
+			EmptySourceLine(_) => return Err(EvidenceFailure)
 		}
 		$block = $block + 1
 	}

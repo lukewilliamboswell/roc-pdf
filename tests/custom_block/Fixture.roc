@@ -56,6 +56,9 @@ import pdf.Theme
 ##   preparation proves. It also rejects a measurement at zero width
 ##   (`layout.custom_block_measure`). The 10/50 pair is the linear scale
 ##   pair.
+## - `defaults`: four custom blocks independently omit the panel/inset,
+##   explicitly select zero inset, and omit both fields; every paragraph
+##   and placement survives, while only two panels are painted.
 ## - `atomic_negatives`: every custom-block rejection with its stable
 ##   dotted code and authored path (REP-A10 among them), and report budget
 ##   exhaustion for entries and for text bytes, each with no bytes and no
@@ -81,6 +84,34 @@ Fixture :: [].{
 			return Err(InvalidScale)
 		}
 		evidence(callouts_document(count), |observed| callout_observations(observed, count))
+	}
+
+	defaults : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	defaults = |_context| {
+		contents = [Pdf.paragraph("Text inside a measured block.")]
+		panel = Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 300, 80), sea)
+		blocks = [
+			Pdf.custom_block({ contents, inset: 8, name: "Default panel", size: { width: 300, height: 80 } }),
+			Pdf.custom_block({ contents, panel, name: "Default inset", size: { width: 300, height: 80 } }),
+			Pdf.custom_block({ contents, inset: 0, panel, name: "Explicit zero inset", size: { width: 300, height: 80 } }),
+			Pdf.custom_block({ contents, name: "Both defaults", size: { width: 300, height: 80 } }),
+		]
+		document = Pdf.document({ contents: blocks, language: "en-AU", title: "Custom block defaults" })
+		evidence(
+			document,
+			|observed| [
+				has_block(observed, "contents[0].contents[0]", "P"),
+				has_block(observed, "contents[1].contents[0]", "P"),
+				has_block(observed, "contents[2].contents[0]", "P"),
+				has_block(observed, "contents[3].contents[0]", "P"),
+				observed.facts.outcomes.count_if(
+					|outcome| match outcome {
+						CustomBlockPlaced(_) => True
+						_ => False
+					},
+				) == 4,
+			],
+		)
 	}
 
 	atomic_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
@@ -388,7 +419,7 @@ run_negatives = |context| {
 		rejects(document([Pdf.paragraph("Lead"), sized(80, 500)]), LayoutConstraintViolated, "layout.oversize_block", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), sized(40, 300)]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[1]"]),
 		rejects(document([Pdf.section([Pdf.paragraph("Lead"), Callout.key_figures(report_theme, { lines: ["A figure line long enough that it must wrap inside a narrow callout panel"], name: "Key figures", width: 160 })])]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[0].contents[1]"]),
-		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 0, "Key figures", square)]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[1]"]),
+		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], -1, "Key figures", square)]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body")], 40, "Key figures", square)]), LayoutConstraintViolated, "layout.custom_block_measure", ["contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body"), Pdf.heading(2, "Not in a callout")], 10, "Key figures", square)]), InvalidRelationship, "semantics.custom_block_content", ["contents[1]", "contents[1].contents[1]"]),
 		rejects(document([Pdf.paragraph("Lead"), custom([Pdf.paragraph("Body"), Pdf.division([Pdf.paragraph("Nested")])], 10, "Key figures", square)]), InvalidRelationship, "semantics.custom_block_content", ["contents[1]", "contents[1].contents[1]"]),

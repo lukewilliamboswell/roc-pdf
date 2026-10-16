@@ -80,6 +80,9 @@ Pdf :: [].{
 
 	## Opaque inline content of a rich paragraph. Each constructor below fixes
 	## the semantic role its content becomes; `Theme` decides presentation.
+	SourceTabs : Document.SourceTabs
+	SourceBlockProps : Document.SourceBlockProps
+
 	Inline : Document.Inline
 
 	## One list item: its body blocks, with a generated label.
@@ -316,6 +319,10 @@ Pdf :: [].{
 		PreferenceRelaxed({ page : U64, path : Str, preference : [AuthorKeep, FooterCarry, HeadingKeep, Orphan, Widow] }),
 		RepeatedHeader({ page : U64, path : Str, rows : U64 }),
 		RowContinued({ page : U64, path : Str }),
+
+		## Accepted source-panel placement, including empty source rows.
+		## Pages and visual_lines.first are one-based; rect is page-local.
+		SourceFragmentPlaced({ page : U64, part : [First, Last, Middle, Whole], path : Str, rect : Layout.Rect, visual_lines : { count : U64, first : U64 } }),
 	]
 
 	## One human-review obligation at an authored location: whether a
@@ -601,6 +608,12 @@ Pdf :: [].{
 	## inline nesting deeper than 8 elements, malformed language tags, and
 	## malformed URIs reject with stable `semantics.*` codes and the inline's
 	## path, such as `contents[2].inlines[1].inlines[0]`.
+	## A preformatted source block with an explicitly registered local face.
+	## Canonical source and blank lines retain their logical meaning across
+	## wrapping and page fragmentation. It does not change body typography.
+	source_block : SourceBlockProps -> Document.Block
+	source_block = |props| Document.source_block(props)
+
 	rich_paragraph : List(Inline) -> Document.Block
 	rich_paragraph = |inlines| Document.rich_paragraph(inlines)
 
@@ -787,8 +800,8 @@ Pdf :: [].{
 	no_lead = Document.no_lead
 
 	## One line of furniture text: plain text, page fields, and reserved
-	## widths, in the theme's body style. It is never wrapped, clipped, or
-	## shrunk.
+	## widths, in `Theme.furniture` (the body style by default). It is never
+	## wrapped, clipped, or shrunk.
 	furniture_text : List(Inline) -> Furniture
 	furniture_text = |contents| Document.furniture_text(contents)
 
@@ -945,9 +958,11 @@ build_plan = |doc, options| {
 		language: validated.facts.language,
 		xmp: KernelXmp.Packet.bytes(xmp),
 	})
-	pipeline = match selected_fonts(options)? {
+	base_fonts = selected_fonts(options)?
+	normalized = Document.normalize(doc)
+	pipeline = match enrich_source_fonts(base_fonts, options, normalized)? {
 		Single(font) => KernelFacadePipeline.Plan.build_with_facts(
-			Document.normalize(doc),
+			normalized,
 			font,
 			options.theme,
 			layout_page_size(options.page_size),
@@ -956,7 +971,7 @@ build_plan = |doc, options| {
 			standard_pipeline_limits,
 		) ? |error| pipeline_error(error, doc)
 		Styled(styled) => KernelFacadePipeline.Plan.build_styled_with_facts(
-			Document.normalize(doc),
+			normalized,
 			styled,
 			options.theme,
 			layout_page_size(options.page_size),
@@ -965,7 +980,7 @@ build_plan = |doc, options| {
 			standard_pipeline_limits,
 		) ? |error| pipeline_error(error, doc)
 		Ordered(ordered) => KernelFacadePipeline.Plan.build_ordered_with_facts(
-			Document.normalize(doc),
+			normalized,
 			ordered,
 			options.theme,
 			layout_page_size(options.page_size),
@@ -1017,10 +1032,12 @@ measure_content = |options, contents, language, width| {
 		Err(error) => Err(on_error(error))
 		Ok(_) => Err(InternalGenerationFailure)
 	}
-	match selected_fonts(options)? {
-		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(Document.normalize(probe), single, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
-		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(probe), styled, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
-		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(Document.normalize(probe), ordered, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
+	base_fonts = selected_fonts(options)?
+	normalized = Document.normalize(probe)
+	match enrich_source_fonts(base_fonts, options, normalized)? {
+		Single(single) => measured(KernelFacadePipeline.Plan.build_with_facts(normalized, single, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
+		Styled(styled) => measured(KernelFacadePipeline.Plan.build_styled_with_facts(normalized, styled, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| pipeline_error(error, probe))
+		Ordered(ordered) => measured(KernelFacadePipeline.Plan.build_ordered_with_facts(normalized, ordered, options.theme, layout_page_size(options.page_size), standard_font_descriptor, facts, standard_pipeline_limits), |error| ordered_pipeline_error(error, ordered.policy, probe))
 	}
 }
 
@@ -1030,7 +1047,6 @@ measure_content = |options, contents, language, width| {
 ## returned for the report's path materialization.
 build_reporting_plan : Document, Pdf.Options -> Try({ facts : [Facts(KernelFacadeReport.Facts), NoFacts], normalized : Document.NormalizedAuthoring, plan : KernelStructure.Plan }, Pdf.Error)
 build_reporting_plan = |doc, options| {
-	normalized = Document.normalize(doc)
 	claim = validate_profile_request(options)?
 	validate_theme(options.theme)?
 	validate_page_size(options.page_size)?
@@ -1066,7 +1082,7 @@ build_reporting_plan = |doc, options| {
 			},
 		) ? |_| InternalGenerationFailure
 		validate_lowered_plan(claim, xmp, plan)?
-		return Ok({ facts: NoFacts, normalized, plan })
+		return Ok({ facts: NoFacts, normalized: Document.normalize(doc), plan })
 	}
 	facts = WithDocumentFacts({
 		condition_identifier: KernelMetadata.srgb_condition_identifier,
@@ -1075,7 +1091,9 @@ build_reporting_plan = |doc, options| {
 		language: validated.facts.language,
 		xmp: KernelXmp.Packet.bytes(xmp),
 	})
-	pipeline = match selected_fonts(options)? {
+	base_fonts = selected_fonts(options)?
+	normalized = Document.normalize(doc)
+	pipeline = match enrich_source_fonts(base_fonts, options, normalized)? {
 		Single(font) => KernelFacadePipeline.Plan.build_reporting(
 			normalized,
 			font,
@@ -1152,7 +1170,7 @@ profile_batch = |violation, stage| {
 selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_fonts = |options| match options.theme.font_selection {
 	StyleFaces => if !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
-	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A title or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give the title and headings the body face or use style faces.", [])))
+	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A furniture, title, or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give furniture, titles, and headings the body face or use style faces.", [])))
 	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove the inline role faces or use style faces.", []))) else match options.fonts {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
@@ -1160,6 +1178,56 @@ selected_fonts = |options| match options.theme.font_selection {
 			Ok(Ordered({ policy, registry }))
 		}
 	}
+}
+
+## Option-level selection validates and prepares the base candidates before
+## authoring normalization. Source facts extend those same candidates once;
+## source-free documents retain the original selection and validation path.
+enrich_source_fonts : KernelFacadeShape.FontSelection, Pdf.Options, Document.NormalizedAuthoring -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+enrich_source_fonts = |base, options, authoring| {
+	if authoring.sources.is_empty() {
+		return Ok(base)
+	}
+	styled = match base {
+		Ordered(_) => return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.font_policy", "A source block requires its explicit registered face. Use style faces instead of an ordered font policy.", [group_path(authoring.groups, source_at(authoring.sources, 0).group)])))
+		Single(font) => { faces: [Theme.body_font(options.theme)], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+		Styled(value) => value
+	}
+	registry = match options.fonts {
+		Registered(value) => value
+		BuiltIn => return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.face", "Register the source block's face and pass that registry in Pdf.Options.fonts.", [group_path(authoring.groups, source_at(authoring.sources, 0).group)])))
+	}
+	append_source_fonts(styled, registry, authoring)
+}
+
+## Consume the candidate record before extending either parallel arena.
+## Registry identities are dense, so each additional source face is inspected
+## once in O(registry faces + source blocks), preserving encounter order.
+append_source_fonts : KernelFacadeShape.StyledFaces, Font.Registry, Document.NormalizedAuthoring -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
+append_source_fonts = |{ faces, fonts, roles }, registry, authoring| {
+	var $seen = List.repeat(False, registry.store().faces.len())
+	for face in faces {
+		$seen = set_at($seen, face.index(), True)
+	}
+	var $faces = faces
+	var $fonts = fonts
+	for source in authoring.sources {
+		index = source.face.index()
+		if index >= $seen.len() {
+			return Err(InvalidDocument(located_batch(FeatureUnavailable, "source.face", "The source block's face is not present in Pdf.Options.fonts; no face is substituted.", [group_path(authoring.groups, source.group)])))
+		}
+		seen = match $seen.get(index) {
+			Ok(value) => value
+			Err(OutOfBounds) => False
+		}
+		if !seen {
+			font = registry.prepared_face(source.face) ? InvalidFontResource
+			$faces = $faces.append(source.face)
+			$fonts = $fonts.append(font)
+			$seen = set_at($seen, index, True)
+		}
+	}
+	Ok(Styled({ faces: $faces, fonts: $fonts, roles }))
 }
 
 ## Ordered-selection failures surface the exact planner rejections; script
@@ -1211,7 +1279,7 @@ pipeline_error = |error, doc| match error {
 	Semantics(CustomContent({ child, custom })) => custom_content_error(doc, custom, child)
 	Semantics(CustomDrawing({ custom, reason })) => custom_error(doc, custom, InvalidRelationship, "layout.custom_block_drawing", "A custom block's panel is not a supported panel drawing: ${reason}.")
 	Semantics(CustomName({ custom })) => custom_error(doc, custom, InvalidRelationship, "semantics.custom_block_name", "A custom block's name is empty; the name identifies the block in diagnostics and the preparation report.")
-	Semantics(CustomMeasure({ custom })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.custom_block_measure", "A custom block's measured width and height must be positive and its inset positive and less than half of each, so its content has a box to fill.")
+	Semantics(CustomMeasure({ custom })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.custom_block_measure", "A custom block's measured width and height must be positive and its inset nonnegative and less than half of each, so its content has a box to fill.")
 	Lines(CustomWidth({ available, custom, width })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.oversize_block", "A custom block is measured ${points_text(width)} wide, but the flow region gives it ${points_text(available)}; a custom block is never clipped or shrunk.")
 	Pages(CustomOversize({ custom, frame_height, height })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.oversize_block", "A custom block is unsplittable and needs ${points_text(height)}, but a page flow region holds at most ${points_text(frame_height)}; it is never split, clipped, or shrunk.")
 	Pages(CustomMeasureShort({ available, content, custom })) => custom_error(doc, custom, LayoutConstraintViolated, "layout.custom_block_measure", "A custom block's content needs ${points_text(content)}, but its measured height less twice its inset leaves ${points_text(available)}; the extension must measure the block at least that tall.")
@@ -1250,6 +1318,16 @@ pipeline_error = |error, doc| match error {
 	Shape(UnsupportedInlineScript({ block, inline, script })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_script", "Inline text uses the script ${script}, which the convenience text path does not shape.")
 	Shape(InlineClusterBoundary({ block, inline })) => inline_error(doc, block, AtInline(inline), FontCoverageMissing, "text.unsupported_cluster", "An inline boundary falls inside a multi-scalar grapheme cluster, which the convenience shaper does not support.")
 	Semantics(LineBreakPosition({ block, line_break })) => line_break_error(doc, block, line_break)
+	Lines(SourceTokenTooWide({ available, line, scalars, source })) => source_error(doc, source, LayoutConstraintViolated, "layout.unbreakable_token", "Source logical line ${(line + 1).to_str()} has a token at scalars ${scalars.start().to_str()} to ${(scalars.start() + scalars.length()).to_str()} wider than ${points_text(available)}. Select Wrap to permit grapheme boundaries, or supply a wider content box; a glyph wider than the box still rejects.")
+	Lines(SourceContentWidth({ available, padding, source })) => source_error(doc, source, LayoutConstraintViolated, "source.content_width", "The source block has ${points_text(padding)} padding on each side, leaving no positive content width inside ${points_text(available)}.")
+	Semantics(SourceStyle({ source })) => source_error(doc, source, LayoutConstraintViolated, "source.style", "A source block needs a positive size, leading at least its size, and nonnegative padding.")
+	Semantics(SourcePosition({ source })) => source_error(doc, source, LayoutConstraintViolated, "source.position", "A source block belongs in the document flow, outside the first-page lead region.")
+	Semantics(SourceWhitespace({ source, error: whitespace_error })) => match whitespace_error {
+		BareCarriageReturn({ byte }) => source_error(doc, source, InvalidRelationship, "source.carriage_return", "A bare carriage return at byte ${byte.to_str()} is unsupported; author LF or CRLF line endings.")
+		TabRejected({ byte }) => source_error(doc, source, InvalidRelationship, "source.tab", "A tab at byte ${byte.to_str()} is forbidden by RejectTabs; supply explicit spaces or ExpandTo(n).")
+		InvalidTabWidth => source_error(doc, source, InvalidRelationship, "source.tab_width", "A source tab stop must be greater than zero.")
+		LimitExceeded(_) => source_error(doc, source, BudgetExceeded, "source.budget", "Source whitespace preparation exceeded its explicit input, output, or logical-line budget.")
+	}
 	Semantics(EmptyKeep({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.keep_empty", "A keep contains no laid-out block.")
 	Semantics(EmptyScope({ group })) => group_error(doc, group, InvalidRelationship, "semantics.scope_empty", "A scoped group contains no block; its colors would apply to nothing.")
 	Semantics(EmptyList({ group })) => group_error(doc, group, InvalidRelationship, "semantics.list_empty", "A list has no items.")
@@ -1575,16 +1653,19 @@ table_layout_error = |doc, error, sources, units| {
 	}
 	unit_path = |index| match unit_at(index) {
 		LeafUnit(block) => leaf_path(doc, block)
+		SourceUnit(source) => group_path(normalized.groups, source_at(normalized.sources, source).group)
 		RowUnit(group) => group_path(normalized.groups, group)
 	}
 	leaf_of = |index| match unit_at(index) {
 		LeafUnit(block) => block
+		SourceUnit(source) => group_record(normalized.groups, source_at(normalized.sources, source).group + 1).block_end - 1
 		RowUnit(group) => group_record(normalized.groups, group + 1).block_end - 1
 	}
 	feature = "layout.keep_conflict"
 	match error {
 		Oversize({ available, block, required }) => match unit_at(block) {
 			LeafUnit(leaf) => oversize_error(doc, leaf, required, available)
+			SourceUnit(source) => source_error(doc, source, LayoutConstraintViolated, "source.oversize", "An unsplittable source block needs ${points_text(required)}, but a page body holds ${points_text(available)}; source text is never shrunk or clipped.")
 			RowUnit(group) => located_error(doc, LayoutConstraintViolated, "layout.oversize_row", "A table row needs ${points_text(required)}, with the repeated header rows, but a page body holds ${points_text(available)}; under KeepRows a row is never split, shrunk, or clipped. Select SplitRows to let rows break at line boundaries.", [group_path(normalized.groups, group)])
 		}
 		KeepConflict(conflict) => match conflict {
@@ -1732,6 +1813,12 @@ keep_conflict_error = |doc, conflict| {
 	}
 }
 
+source_error : Document, U64, Conformance.DiagnosticCode, Str, Str -> Pdf.Error
+source_error = |doc, source, code, feature, message| {
+	normalized = Document.normalize(doc)
+	group_error(doc, source_at(normalized.sources, source).group, code, feature, message)
+}
+
 ## An unsplittable block taller than a page body: a figure is
 ## `document.figure_oversize`, any other block `layout.oversize_block`.
 oversize_error : Document, U64, U64, U64 -> Pdf.Error
@@ -1873,6 +1960,7 @@ leaf_path = |doc, block| {
 		NotFigure
 	} else {
 		match group_record(normalized.groups, record.parent).kind {
+			Source(_) => FigureLeaf
 			FigureGroup(_) => match record.kind {
 				FigureCaption(_) => CaptionLeaf
 				_ => FigureLeaf
@@ -2133,9 +2221,10 @@ has_role_face = |theme| {
 	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong))
 }
 
-## The title and heading style faces, in title then level order.
+## Furniture, title, and heading style faces, in that order.
 block_faces : Theme -> List(Font.FaceId)
 block_faces = |theme| [
+	Theme.furniture_style(theme).font,
 	Theme.title_style(theme).font,
 	Theme.heading_level_style(theme, H1).font,
 	Theme.heading_level_style(theme, H2).font,
@@ -2145,13 +2234,13 @@ block_faces = |theme| [
 	Theme.heading_level_style(theme, H6).font,
 ]
 
-## Whether a title or heading style selects a face other than the body
+## Whether furniture, title, or heading styles select a face other than the body
 ## face, without building a list on the common path.
 has_block_face : Theme -> Bool
 has_block_face = |theme| {
 	body = Theme.body_font(theme).index()
 	differs = |style| style.font.index() != body
-	differs(Theme.title_style(theme)) or differs(Theme.heading_level_style(theme, H1)) or differs(Theme.heading_level_style(theme, H2)) or differs(Theme.heading_level_style(theme, H3)) or differs(Theme.heading_level_style(theme, H4)) or differs(Theme.heading_level_style(theme, H5)) or differs(Theme.heading_level_style(theme, H6))
+	differs(Theme.furniture_style(theme)) or differs(Theme.title_style(theme)) or differs(Theme.heading_level_style(theme, H1)) or differs(Theme.heading_level_style(theme, H2)) or differs(Theme.heading_level_style(theme, H3)) or differs(Theme.heading_level_style(theme, H4)) or differs(Theme.heading_level_style(theme, H5)) or differs(Theme.heading_level_style(theme, H6))
 }
 
 ## The inline role faces a theme selects that differ from its body face.
@@ -2265,6 +2354,14 @@ selected_registered_font = |registry, face| {
 ## scaled run keeps its line's baseline and leading.
 validate_theme : Theme -> Try({}, Pdf.Error)
 validate_theme = |theme| {
+	match theme.furniture {
+		BodyStyle => {}
+		Own(furniture) => {
+			if furniture.size <= 0 or furniture.leading < furniture.size {
+				return Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.furniture_style", "Furniture needs a positive size and leading at least its size; text never shrinks or clips to fit.", ["theme.furniture"])))
+			}
+		}
+	}
 	check_scale(theme, Code, "code")?
 	check_scale(theme, Emphasis, "emphasis")?
 	check_scale(theme, Quote, "quote")?
@@ -3362,13 +3459,13 @@ build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), N
 build_report = |normalized, collected, budget| {
 	facts = match collected {
 		Facts(value) => value
-		NoFacts => { blocks: [], coverage: [], layout: { panels: [], relaxations: [], repeats: [], scales: [], splits: [] }, pages: [1] }
+		NoFacts => { blocks: [], coverage: [], layout: { panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
 	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
-	outcome_count = facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len()
+	outcome_count = facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
 	if entries > budget.max_entries {
 		return Err(report_budget_error("entries", entries, budget.max_entries))
@@ -3491,9 +3588,13 @@ build_report = |normalized, collected, budget| {
 		}
 		$group = $group + 1
 	}
+	for fragment in facts.layout.source_fragments {
+		$outcomes = $outcomes.append(SourceFragmentPlaced({ page: fragment.page + 1, part: fragment.part, path: group_path(normalized.groups, source_at(normalized.sources, fragment.source).group), rect: fragment.rect, visual_lines: { count: fragment.lines.length(), first: fragment.lines.start() + 1 } }))
+	}
 	for relaxation in facts.layout.relaxations {
 		path = match relaxation.unit {
 			LeafUnit(block) => path_at(block)
+			SourceUnit(source) => group_path(normalized.groups, source_at(normalized.sources, source).group)
 			RowUnit(group) => group_path(normalized.groups, group)
 		}
 		$outcomes = $outcomes.append(PreferenceRelaxed({ page: relaxation.page + 1, path, preference: relaxation.rank }))
@@ -3556,6 +3657,7 @@ report_text_bytes = |report| {
 			PreferenceRelaxed({ page: _, path, preference: _ }) => path.count_utf8_bytes()
 			RepeatedHeader({ page: _, path, rows: _ }) => path.count_utf8_bytes()
 			RowContinued({ page: _, path }) => path.count_utf8_bytes()
+			SourceFragmentPlaced({ page: _, part: _, path, rect: _, visual_lines: _ }) => path.count_utf8_bytes()
 		}
 	}
 	for covered in facts.coverage {
@@ -3623,6 +3725,7 @@ leaf_role = |normalized, record| {
 		DestinationParagraph(_) => "P"
 		EmptyCell => "TD"
 		Figure(_) => "Figure"
+		SourceLine(_) | EmptySourceLine(_) => "Code"
 		FigureCaption(_) => "Caption"
 		Heading(level) => "H${level.to_str()}"
 		InternalLink(_) | Link(_) => "Link"
@@ -3689,6 +3792,7 @@ leaf_paths = |normalized| {
 			NotFigure
 		} else {
 			match group_record(groups, parent).kind {
+				Source(_) => FigureLeaf
 				FigureGroup(_) => match record.kind {
 					FigureCaption(_) => CaptionLeaf
 					_ => FigureLeaf
@@ -3846,4 +3950,10 @@ expect {
 		Err(error) => Str.inspect(error).starts_with("Pdf.Error.InvalidDocument (1 diagnostic):\n  semantics.empty_container at contents[0]: ")
 		Ok(_) => False
 	}
+}
+
+source_at : List(Document.NormalizedSource), U64 -> Document.NormalizedSource
+source_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(OutOfBounds) => crash "validated source identity escaped"
 }

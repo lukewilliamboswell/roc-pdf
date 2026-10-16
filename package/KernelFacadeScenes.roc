@@ -178,7 +178,7 @@ no_flow : KernelFacadePages.FlowPaints
 no_flow = { decorations: [], figure_scales: [], panels: [] }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [], templates: NoTemplates }
+empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {
@@ -272,8 +272,9 @@ build_arena_with_intent = |prepared, intent, limits| {
 	flow = flow_facts(prepared.authoring, prepared.flow)?
 	decoration_count = prepared.flow.decorations.len()
 	panel_count = prepared.flow.panels.len()
+	panel_groups = prepared.flow.panels.count_if(|paint| !list_at(flow.panels, paint.custom).commands.is_empty())
 	command_count = checked_add(checked_add(checked_add(checked_times(run_count, 2)?, flow.commands)?, rule_count)?, furniture_counts.commands)?
-	group_count = checked_add(checked_add(checked_add(checked_add(run_count, rule_count)?, paint_count)?, decoration_count)?, panel_count)?
+	group_count = checked_add(checked_add(checked_add(checked_add(run_count, rule_count)?, paint_count)?, decoration_count)?, panel_groups)?
 	check_limit(command_count, limits.max_commands, Commands)?
 	check_limit(group_count, limits.max_groups, Groups)?
 	check_limit(group_count, limits.max_page_group_edges, PageGroupEdges)?
@@ -346,37 +347,39 @@ build_arena_with_intent = |prepared, intent, limits| {
 				## around its paths.
 				paint = list_at(prepared.flow.panels, $panel_cursor)
 				panel = list_at(flow.panels, paint.custom)
-				command_start = $commands.len()
-				$commands = $commands.append(
-					Transform({
-						children: Semantics.Range.from_start_and_length(command_start + 1, panel.commands.len()),
-						matrix: {
-							a: Layout.Unit.from_raw(1000),
-							b: Layout.Unit.from_raw(0),
-							c: Layout.Unit.from_raw(0),
-							d: Layout.Unit.from_raw(1000),
-							e: paint.origin.x,
-							f: paint.origin.y,
-						},
-					}),
-				)
-				for drawing_command in panel.commands {
-					match drawing_command {
-						FlowImage(_) => {}
-						FlowText(_) => {}
-						FlowPath({ fill, segments, stroke }) => {
-							path = Scene.PathId.from_index($paths.len())
-							$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
-							for segment in segments {
-								$path_segments = $path_segments.append(segment)
+				if !panel.commands.is_empty() {
+					command_start = $commands.len()
+					$commands = $commands.append(
+						Transform({
+							children: Semantics.Range.from_start_and_length(command_start + 1, panel.commands.len()),
+							matrix: {
+								a: Layout.Unit.from_raw(1000),
+								b: Layout.Unit.from_raw(0),
+								c: Layout.Unit.from_raw(0),
+								d: Layout.Unit.from_raw(1000),
+								e: paint.origin.x,
+								f: paint.origin.y,
+							},
+						}),
+					)
+					for drawing_command in panel.commands {
+						match drawing_command {
+							FlowImage(_) => {}
+							FlowText(_) => {}
+							FlowPath({ fill, segments, stroke }) => {
+								path = Scene.PathId.from_index($paths.len())
+								$paths = $paths.append({ id: path, segments: Semantics.Range.from_start_and_length($path_segments.len(), segments.len()) })
+								for segment in segments {
+									$path_segments = $path_segments.append(segment)
+								}
+								$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, intent, use_srgb) }))
 							}
-							$commands = $commands.append(DrawPath({ path, style: checked_flow_style(fill, stroke, intent, use_srgb) }))
 						}
 					}
+					group = Scene.GroupId.from_index($groups.len())
+					$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
+					$page_groups = $page_groups.append(group)
 				}
-				group = Scene.GroupId.from_index($groups.len())
-				$groups = $groups.append({ commands: Semantics.Range.from_start_and_length(command_start, 1), id: group, owner: PageArtifact(Decoration) })
-				$page_groups = $page_groups.append(group)
 				$panel_cursor = $panel_cursor + 1
 			} else if !backdrop_ready and !behind_ready and $placement_cursor < page_end and !($rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index and list_at(prepared.rules, $rule_cursor).layer == Behind) {
 				## Table row and cell fills (`Behind` rules, first on their
@@ -527,8 +530,8 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$page_groups = $page_groups.append(group)
 				$placement_cursor = $placement_cursor + 1
 			} else if !backdrop_ready and !behind_ready and $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
-				## Table fills paint before the page's text and table rules and
-				## link underlines after it, each a filled rectangle owned by a
+				## Table fills and source-fragment panels paint before page text;
+				## table rules and link underlines follow it. Each rectangle is a
 				## layout decoration artifact.
 				rule = list_at(prepared.rules, $rule_cursor)
 				fill = match paint_color(rule.color, intent, use_srgb) {
@@ -648,7 +651,11 @@ build_arena_with_intent = |prepared, intent, limits| {
 			white_point: { x: 950000, y: 1000000, z: 1089000 },
 		}),
 	}
-	painting_spaces = [
+
+	## A semantic source containing only blank rows may have no painting.
+	## Its output intent still owns the ICC profile, but no page resource
+	## claims a color space unless a scene command can use it.
+	painting_spaces = if $commands.is_empty() [] else [
 		{
 			id: Color.SpaceId.from_index(0),
 			space: CalibratedGray({
@@ -665,7 +672,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 		}
 		PackagedSrgbIntent => {
 			profiles: [KernelSrgbProfile.profile(0, 0)],
-			spaces: if use_srgb {
+			spaces: if $commands.is_empty() [] else if use_srgb {
 				rgb_space = { id: Color.SpaceId.from_index(0), space: Srgb(Color.ProfileId.from_index(0)) }
 				if has_gray_images [rgb_space, gray_space] else [rgb_space]
 			} else painting_spaces,
@@ -800,7 +807,7 @@ flow_facts = |authoring, paints| {
 		}
 		$panels = $panels.append({ commands: drawing.commands, image_base: 0 })
 		counted = count_flow(drawing.commands)?
-		$commands = checked_add($commands, checked_add(counted.commands, 1)?)?
+		$commands = checked_add($commands, if drawing.commands.is_empty() 0 else checked_add(counted.commands, 1)?)?
 		$paths = checked_add($paths, counted.paths)?
 		$segments = checked_add($segments, counted.segments)?
 		$nonblack = $nonblack or counted.nonblack

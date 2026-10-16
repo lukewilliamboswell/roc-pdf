@@ -18,3 +18,7 @@
 {"name":"rich inline scoped text x50","schema_version":1,"case":{"ScopedText":{"count":50}}}
 {"name":"rich inline code holds x14","schema_version":1,"case":{"CodeHolds":{"count":14}}}
 {"name":"rich inline code holds x140","schema_version":1,"case":{"CodeHolds":{"count":140}}}
+{"name":"rich inline repeated segments x10","schema_version":1,"case":{"RepeatedSegments":{"count":10}}}
+{"name":"rich inline repeated segments x50","schema_version":1,"case":{"RepeatedSegments":{"count":50}}}
+{"name":"rich inline repeated ordered segments x10","schema_version":1,"case":{"RepeatedSegmentsOrdered":{"count":10}}}
+{"name":"rich inline repeated ordered segments x50","schema_version":1,"case":{"RepeatedSegmentsOrdered":{"count":50}}}

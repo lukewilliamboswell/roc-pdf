@@ -30,7 +30,8 @@ themselves (the final slice).
 `Custom(Box(CustomSpec))`. Normalization opens a new group kind
 `Custom(k)` at container depth + 1 and records `NormalizedCustom { group,
 width, height, inset, name, panel }` in the new `NormalizedAuthoring.customs`
-arena; the panel is validated once by `validate_flow_drawing`. Paths are the
+arena; `validate_custom_panel` treats an empty panel as no decoration and
+validates a nonempty panel once with `validate_flow_drawing`. Paths are the
 container paths (`contents[2].contents[3].contents[0]`).
 
 **Semantics.** A `Custom` group is a `Div` (list-item containment and depth
@@ -38,7 +39,7 @@ checks as for containers). `check_customs` rejects, in order: a block in the
 lead region or with any non-paragraph child, nested group, decoration,
 spacer, or page break (`semantics.custom_block_content`, naming the block and
 the child); an empty name (`semantics.custom_block_name`); a non-positive box
-or an inset that is not positive and below half of each side
+or an inset that is not nonnegative and below half of each side
 (`layout.custom_block_measure`); a panel that is invalid, holds an image, or
 extends beyond the box (`layout.custom_block_drawing`).
 
@@ -57,10 +58,10 @@ content (lines plus inter-paragraph spacing) fits `height − 2·inset`
 trailing so the block occupies exactly `height`. `plan_flow` rejects a block
 (with decorations above it) taller than the largest frame as
 `layout.oversize_block` (REP-A10). `panel_paints` places each panel from its
-first leaf's band.
+first leaf's semantic occurrence and accepted page fragment.
 
 **Scenes.** `FlowPaints.panels` paint first on their page, before any text,
-each as one `PageArtifact(Decoration)` group (`/Artifact <</Type /Layout>>`,
+each nonempty panel as one `PageArtifact(Decoration)` group (`/Artifact <</Type /Layout>>`,
 no MCID); panel colors are proven convertible before any accumulator grows.
 
 ## Preparation report
@@ -85,8 +86,8 @@ is `report.budget_exceeded` with no report and no prepared document.
 ## Ownership, copying, retention, and complexity
 
 - Custom blocks add O(customs + custom leaves) validation, geometry, and
-  fitting; one band and one panel group per block; no per-document list
-  unless customs exist.
+  fitting; at most one band per block and one panel group per nonempty panel; no
+  per-document list unless customs exist.
 - Collection is O(blocks + occurrences + fragments + runs); materialization
   is O(entries × path depth), plus O(line breaks) per inline path segment
   (see open issues).
@@ -120,7 +121,7 @@ tables, captioned figures, flow items, and a custom block).
   placement, every obligation kind, coverage).
 - **Callouts xN**: N sections of a heading, a paragraph, and a callout.
 - **Atomic negatives**: REP-A10 height and an over-wide box
-  (`layout.oversize_block`); an under-measured box, a wrapping line, a zero
+  (`layout.oversize_block`); an under-measured box, a wrapping line, a negative
   inset, and an inset too large (`layout.custom_block_measure`); a heading, a
   nested division, and a spacer inside (`semantics.custom_block_content`);
   an empty name; a panel with an image and one beyond the box
@@ -213,3 +214,50 @@ code, a link) and a plain paragraph, measured by the package and fitted
 exactly; each also rejects a measurement at zero width. x10: 67,457
 allocations, 2 pages; x50: 316,292 (4.7× for 5×): linear. No existing
 baseline changes.
+
+## Custom-block defaults (#42)
+
+An empty panel is an explicitly absent decoration, and a zero inset uses the
+whole measured box for content. `validate_custom_panel` alone admits the empty
+case; generic figure and decoration drawings still require commands and
+positive extent. Width, height, content-fit and panel-bounds checks remain.
+The normalized empty panel has empty command/image buffers and zero extent,
+so no drawing payload or resource is copied or retained.
+
+Panel placement consumes the first leaf's semantic occurrence and the accepted
+fragment's content box; its top plus the inset is the measured box's top.
+This works when zero inset produces no decoration band, using only explicit
+earlier stage ownership and geometry. The ordered occurrence/fragment scan
+remains linear and allocates no index.
+
+Pagination still records every custom block's placement, including those
+without a panel, so the preparation report continues to report its name,
+height, path and page from earlier stage facts. Scene materialization omits
+empty panel transforms and artifact groups; its command and group budget
+counts match the commands that are actually emitted. Counting nonempty panel
+groups adds one linear traversal of placement IDs and allocates no storage.
+All existing custom-block scale pairs continue to exercise the same traversal
+and ownership strategy.
+
+The `custom block defaults` fixture independently omits the panel with an
+8 pt inset, omits the inset with a solid panel, explicitly selects zero inset
+with a panel, and omits both fields. It proves prepared and one-shot bytes
+match, checks every contained paragraph and all four placement outcomes, and
+checks four semantic paragraph Divs with exactly two layout artifact panels.
+The atomic negative fixture now rejects a negative inset; too-short boxes,
+over-wide/tall boxes, excessive insets and out-of-bounds panels stay covered.
+
+Pinned arm64mac and x64musl evidence for `custom block defaults`: 5,782 allocations,
+9,571,042 allocated bytes, four lines/fragments on one page, four placement
+outcomes, six obligations and five named observations. The independent PDF
+check proves the positive inset's first baseline starts 8 pt to the right of
+all three zero/default-inset baselines. Existing decorated snapshots and exact
+allocation/work counters stay unchanged across report, callouts 10/100, rich
+callouts 10/50 and atomic negatives. The negative fixture allocates 18 additional
+bytes for the longer nonnegative-inset diagnostic; its allocation count and
+17 rejection results are unchanged, well inside the existing byte guard.
+
+Independent checks of the defaults snapshot pass PDF/A-4 with veraPDF
+1.30.2 and Arlington 1.30.2 (9,022 rules, 947 object checks, zero failures).
+PDFium Chromium 7988, PDFBox 3.0.8 and MuPDF 1.28.2 render the original
+one-page A4 file; PDFBox and MuPDF extract all four contained paragraphs.

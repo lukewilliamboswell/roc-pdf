@@ -1,15 +1,20 @@
 import Document
+import Font
 import KernelFacadeSources
 import KernelNavigation
 import KernelSemantics
 import KernelTextSemantics
 import KernelUnicode
+import KernelSourceText
 import Semantics
 
 KernelFacadeSemantics :: [].{
 	Dimension : [ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
 	Error : [
 		ArithmeticOverflow,
+		SourceWhitespace({ error : KernelSourceText.Error, source : U64 }),
+		SourceStyle({ source : U64 }),
+		SourcePosition({ source : U64 }),
 		ContainerDepthExceeded({ attempted : U64, group : U64, limit : U64 }),
 
 		## A custom block holds something other than paragraphs and rich
@@ -129,7 +134,7 @@ KernelFacadeSemantics :: [].{
 	## `ContentlessCell` is a table cell authored with no content: its
 	## `TD` or `TH` element owns no occurrence, so no later stage shapes,
 	## lays out, or paints anything for it.
-	BlockOwnership : [ContentlessCell, RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
+	BlockOwnership : [EmptySourceLine, ContentlessCell, RichTextBlock({ label : [Label(Semantics.OccurrenceId), NoLabel], level : U64, occurrences : Semantics.Range }), TextBlock({ body : Semantics.OccurrenceId, label : [Label(Semantics.OccurrenceId), NoLabel], level : U64 })]
 
 	## One authored destination declaration: the block's semantic node is the
 	## structure target and its content occurrence is the explicit layout
@@ -322,6 +327,42 @@ plan_blocks = |authoring, limits| {
 			group = list_at(groups, $next_group)
 			in_item = in_list_item(groups, group.parent)
 			match group.kind {
+				Source(source_index) => {
+					if in_item {
+						return Err(ListItemGroup({ group: $next_group }))
+					}
+					source = list_at(authoring.sources, source_index)
+					check_source(authoring, source_index)?
+					var $painted = 0
+					var $line_index = source.lines.start()
+					while $line_index < source.lines.start() + source.lines.length() {
+						if list_at(authoring.source_lines, $line_index).utf8_bytes.length() > 0 {
+							$painted = $painted + 1
+						}
+						$line_index = $line_index + 1
+					}
+					attempted_nodes = checked_add($next_node, 2)?
+					attempted_content = checked_add($content_count, checked_add(2, $painted)?)?
+					attempted_occurrences = checked_add($next_occurrence, $painted)?
+					nonempty = if source.text.is_empty() 0 else 1
+					attempted_properties = checked_add($property_count, nonempty)?
+					check_at(attempted_nodes, limits.max_nodes, Nodes, group.first_block)?
+					check_at(attempted_content, limits.max_content_spine, ContentSpine, group.first_block)?
+					check_at(attempted_occurrences, limits.max_occurrences, Occurrences, group.first_block)?
+					check_at(attempted_properties, limits.max_properties, Properties, group.first_block)?
+					check_at(checked_add($sources.len(), nonempty)?, limits.max_source_inputs, SourceInputs, group.first_block)?
+					$group_nodes = $group_nodes.append($next_node)
+					$top_nodes = $top_nodes.append({ node: Semantics.NodeId.from_index($next_node), parent: semantic_code(groups, group.parent) })
+					if nonempty > 0 {
+						$sources = $sources.append(source.text)
+					}
+					$next_node = attempted_nodes
+					$content_count = attempted_content
+					$next_occurrence = attempted_occurrences
+					$property_count = attempted_properties
+					$block_index = group.block_end
+					$next_group = group.group_end - 1
+				}
 				Container(_) | Custom(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
 						return Err(ListItemGroup({ group: $next_group }))
@@ -493,6 +534,9 @@ plan_blocks = |authoring, limits| {
 				}
 			}
 			match block.kind {
+				SourceLine(_) | EmptySourceLine(_) => {
+					crash "source leaf escaped its source group"
+				}
 				EmptyCell => {
 					crash "normalized empty cell escaped its table"
 				}
@@ -806,6 +850,9 @@ plan_table = |authoring, group_index, table_index, at, max_depth| {
 
 				## A contentless cell is one element with no source, no
 				## occurrence, and no content of its own.
+				SourceLine(_) | EmptySourceLine(_) => {
+					crash "source leaf escaped its source group"
+				}
 				EmptyCell => {
 					$next_node = $next_node + 1
 					$empty_cells = $empty_cells + 1
@@ -1060,8 +1107,8 @@ check_figure = |figure, block| {
 ## paragraphs directly: no nested groups, decorations, spacers, or page
 ## breaks, which would need layout inside the extension's measured box. It
 ## is a body-flow block, never in the lead region. Its name is non-empty
-## and its panel a valid flow drawing of solid paths only (no images) that
-## lies inside its box. O(customs + leaves + flow items).
+## and its panel is absent or a valid flow drawing of solid paths only (no
+## images) that lies inside its box. O(customs + leaves + flow items).
 check_customs : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
 check_customs = |authoring| {
 	if authoring.customs.is_empty() {
@@ -1105,7 +1152,7 @@ check_customs = |authoring| {
 			return Err(CustomName({ custom: $index }))
 		}
 		inset = custom.inset.raw()
-		if custom.width <= 0 or custom.height <= 0 or inset <= 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
+		if custom.width <= 0 or custom.height <= 0 or inset < 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
 			return Err(CustomMeasure({ custom: $index }))
 		}
 		match custom.panel {
@@ -1538,7 +1585,7 @@ build_store = |authoring, planning, source_plan| {
 				}
 
 				## A table places its whole subtree in the block walk below.
-				Table(_) | TableRow(_) => {}
+				Source(_) | Table(_) | TableRow(_) => {}
 			}
 			$span_start = $span_start + children
 			$group = $group + 1
@@ -1560,6 +1607,43 @@ build_store = |authoring, planning, source_plan| {
 		if $next_group < groups.len() and list_at(groups, $next_group).first_block <= $index {
 			group = list_at(groups, $next_group)
 			match group.kind {
+				Source(source_index) => {
+					source = list_at(authoring.sources, source_index)
+					wrapper = $next_node
+					code = wrapper + 1
+					wrapper_start = $content.len()
+					$content = $content.append(ChildNode(Semantics.NodeId.from_index(code)))
+					$nodes = list_set($nodes, wrapper, make_node(wrapper, ParentNode(parent_node(group.parent, planning.group_nodes)), "P", Semantics.Range.from_start_and_length(wrapper_start, 1), Inherited))
+					code_start = $content.len()
+					var $line = 0
+					while $line < source.lines.length() {
+						line = list_at(authoring.source_lines, source.lines.start() + $line)
+						if line.utf8_bytes.length() == 0 {
+							$ownership = list_set($ownership, group.first_block + $line, EmptySourceLine)
+						} else {
+							id = Semantics.OccurrenceId.from_index($next_occurrence)
+							$content = $content.append(ContentOccurrence(id))
+							occurrence = make_occurrence($next_occurrence, $source_input, source_plan, language, empty)
+							source_id = list_at(KernelFacadeSources.Plan.input_sources(source_plan), $source_input)
+							$occurrences = $occurrences.append({ ..occurrence, source: Text(source_id, UnicodeRange({ scalars: line.scalars, utf8_bytes: line.utf8_bytes })) })
+							$ownership = list_set($ownership, group.first_block + $line, TextBlock({ body: id, label: NoLabel, level: 0 }))
+							$next_occurrence = $next_occurrence + 1
+						}
+						$line = $line + 1
+					}
+					property_start = $properties.len()
+					if !source.text.is_empty() {
+						$properties = $properties.append(ActualText(source.text))
+					}
+					node = make_node(code, ParentNode(Semantics.NodeId.from_index(wrapper)), "Code", Semantics.Range.from_start_and_length(code_start, $content.len() - code_start), Inherited)
+					$nodes = list_set($nodes, code, { ..node, text_properties: Semantics.Range.from_start_and_length(property_start, if source.text.is_empty() 0 else 1) })
+					$next_node = $next_node + 2
+					if !source.text.is_empty() {
+						$source_input = $source_input + 1
+					}
+					$index = group.block_end
+					$next_group = group.group_end - 1
+				}
 				Container(_) | Custom(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
@@ -1626,6 +1710,9 @@ build_store = |authoring, planning, source_plan| {
 			block = list_at(blocks, $index)
 			list_level = block_level(groups, block.parent)
 			match block.kind {
+				SourceLine(_) | EmptySourceLine(_) => {
+					crash "source leaf escaped its source group"
+				}
 				EmptyCell => {
 					crash "normalized empty cell escaped its table"
 				}
@@ -2058,6 +2145,9 @@ place_table = |attributes, { content, nodes, occurrences, properties }, identifi
 					## A contentless cell's element has no children: it owns
 					## no marked content, so it lowers to a `TD` or `TH`
 					## with no `/K`.
+					SourceLine(_) | EmptySourceLine(_) => {
+						crash "source leaf escaped its source group"
+					}
 					EmptyCell => {
 						$nodes = list_set($nodes, $cell_node, { ..make_node($cell_node, ParentNode(Semantics.NodeId.from_index(row_node)), role, Semantics.Range.from_start_and_length($content.len(), 0), Inherited), attributes: cell_attributes, element_identifier: HasElementIdentifier(Semantics.ElementId.from_index(ordinal)) })
 						$ownership = list_set($ownership, $block, ContentlessCell)
@@ -2324,6 +2414,30 @@ same_normalized_list = |block, list| match block.kind {
 	_ => False
 }
 
+## Validate source author facts before the compiler consumes its canonical
+## line ranges. No whitespace or style repair occurs in later stages.
+check_source : Document.NormalizedAuthoring, U64 -> Try({}, KernelFacadeSemantics.Error)
+check_source = |authoring, index| {
+	source = list_at(authoring.sources, index)
+	match source.validation {
+		InvalidSource(error) => return Err(SourceWhitespace({ error, source: index }))
+		ValidSource => {}
+	}
+	if source.size.raw() <= 0 or source.leading < source.size or source.padding.raw() < 0 {
+		return Err(SourceStyle({ source: index }))
+	}
+	var $parent = list_at(authoring.groups, source.group).parent
+	while $parent != 0 {
+		group = list_at(authoring.groups, $parent - 1)
+		match group.kind {
+			LeadRegion => return Err(SourcePosition({ source: index }))
+			_ => {}
+		}
+		$parent = group.parent
+	}
+	Ok({})
+}
+
 ## A facade content bound checked at authored leaf `block`.
 check_at : U64, U64, KernelFacadeSemantics.Dimension, U64 -> Try({}, KernelFacadeSemantics.Error)
 check_at = |attempted, limit, dimension, block| if attempted > limit Err(BlockLimitExceeded({ attempted, block, dimension, limit })) else Ok({})
@@ -2415,6 +2529,8 @@ test_authoring = {
 	page_breaks: [],
 	page_labels: [],
 	rich_paragraphs: [],
+	sources: [],
+	source_lines: [],
 	scopes: [],
 	spacers: [],
 	tables: [],
@@ -2728,4 +2844,55 @@ expect {
 		(Err(TableEmpty({ group: 0 })), Err(TableGridMismatch({ columns: 1, group: 2, spanned: 2 })), Err(TableHeaderMissing({ group: 0 })), Err(TableRowSpan({ block: 1 }))) => True
 		_ => False
 	}
+}
+
+# Source text is interned once; logical line occurrences carry exact ranges,
+# while blank lines have explicit owners and the one Code node owns ActualText.
+expect {
+	authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text: "a\r\n\t\n\n", face: Font.FaceId.from_index(0) })], language: "en", title: "Source" }))
+	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, semantics: KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: 32, max_fragments: 0, max_namespaces: 2, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }) })
+	plan = KernelFacadeSemantics.Plan.build(authoring, limits)?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	first = list_at(store.occurrences, 0)
+	second = list_at(store.occurrences, 1)
+	ranges = match (first.source, second.source) {
+		(Text(a, UnicodeRange(left)), Text(b, UnicodeRange(right))) => a == b and left.utf8_bytes.start() == 0 and left.utf8_bytes.length() == 1 and right.utf8_bytes.start() == 2 and right.utf8_bytes.length() == 4
+		_ => False
+	}
+	store.nodes.len() == 3 and list_at(store.nodes, 1).role.local_name == "P" and list_at(store.nodes, 2).role.local_name == "Code" and store.text_properties == [ActualText("a\n    \n\n")] and store.text_sources == [{ unicode: "a\n    \n\n" }] and store.occurrences.len() == 2 and ranges and KernelFacadeSemantics.Plan.block_ownership(plan).len() == 4
+}
+
+# All-empty and all-blank sources retain their semantic block and visual
+# rows without inventing an occurrence or a source containing a space.
+expect {
+	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, semantics: KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: 32, max_fragments: 0, max_namespaces: 2, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }) })
+	check = |text, lines| {
+		authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text, face: Font.FaceId.from_index(0) })], language: "en", title: "Blank source" }))
+		match KernelFacadeSemantics.Plan.build(authoring, limits) {
+			Err(_) => False
+			Ok(plan) => {
+				store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+				store.occurrences.is_empty() and store.nodes.len() == 3 and KernelFacadeSemantics.Plan.block_ownership(plan) == List.repeat(EmptySourceLine, lines)
+			}
+		}
+	}
+	check("", 1) and check("\n\n", 3)
+}
+
+# Distinct source placements keep dense adjacent line spans and distinct
+# owners even when their canonical text shares one Unicode source analysis.
+expect {
+	authoring = Document.normalize(Document.from_blocks({ contents: [Document.source_block({ text: "a\nb", face: Font.FaceId.from_index(0) }), Document.source_block({ text: "a\nb", face: Font.FaceId.from_index(1), size: 10, leading: 14 })], language: "en", title: "Repeated source" }))
+	limits = KernelFacadeSemantics.Limits.make({ ..test_limits_record, semantics: KernelSemantics.Limits.make({ max_attributes: 4, max_content_spine: 32, max_fragments: 0, max_namespaces: 2, max_nodes: 16, max_occurrences: 12, max_semantic_depth: 8 }) })
+	plan = KernelFacadeSemantics.Plan.build(authoring, limits)?
+	store = KernelSemantics.Plan.store(KernelTextSemantics.Plan.semantics(KernelFacadeSemantics.Plan.preliminary(plan)))
+	first = list_at(authoring.sources, 0)
+	second = list_at(authoring.sources, 1)
+	ranges = store.occurrences.map(
+		|occurrence| match occurrence.source {
+			Text(source, UnicodeRange(range)) => (source.index(), range.utf8_bytes.start(), range.utf8_bytes.length())
+			_ => (99, 99, 99)
+		},
+	)
+	first.group != second.group and first.face != second.face and first.lines.start() == 0 and first.lines.length() == 2 and second.lines.start() == 2 and second.lines.length() == 2 and authoring.source_lines.len() == 4 and store.text_sources == [{ unicode: "a\nb" }] and store.nodes.len() == 5 and store.occurrences.len() == 4 and ranges == [(0, 0, 1), (0, 2, 1), (0, 0, 1), (0, 2, 1)]
 }

@@ -77,6 +77,7 @@ CacheSlot : [Measured({ measure : CellMeasure, size : I64 }), Unmeasured]
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, Theme, KernelLineLayout.Limits -> Try(KernelFacadeTables.Plan, KernelFacadeTables.Error)
 build_plan = |authoring, shape, sources, available, theme, limits| {
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
+	styles = KernelFacadeShape.Plan.styles(shape)
 	requests = KernelFacadeShape.Plan.requests(shape)
 	store = KernelFacadeShape.Plan.shape(shape).store
 	simple_sources = sources.map(|source| { analysis: source.analysis, unicode: source.unicode })
@@ -96,6 +97,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 		## never widens a column.
 		physical = match list_at(block_runs, record.block) {
 			TextBlock({ body, label: _, level: _ }) => body.physical
+			EmptySourceLine(_) => return Err(InvalidCell({ block: record.block }))
 			ContentlessCell => Semantics.Range.from_start_and_length(0, 0)
 		}
 		var $cell = { max_content: 0, min_content: 0, token: Semantics.Range.from_start_and_length(0, 0) }
@@ -103,7 +105,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 		var $segment = physical.start()
 		end = physical.start() + physical.length()
 		while $segment < end {
-			length = segment_length(requests, $segment, end)
+			length = segment_length(styles, $segment, end)
 			source = list_at(requests, $segment).source
 			size = list_at(store.runs, $segment).size.raw()
 			held = segment_holds(code, $segment, $segment + length)
@@ -164,6 +166,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 						span = record.column_span.to_u64()
 						cell_width = sum_range(columns, $column, span)
 						contentless = match list_at(block_runs, $block) {
+							EmptySourceLine(_) => return Err(InvalidCell({ block: $block }))
 							ContentlessCell => True
 							TextBlock(_) => False
 						}
@@ -466,12 +469,12 @@ sum_range = |values, start, length| {
 }
 
 ## The number of physical runs from `start` (before `end`) sharing its
-## source: one explicit-line-break segment of a cell.
-segment_length : List(KernelShape.SimpleRequest), U64, U64 -> U64
+## explicit segment occurrence, independently of interned source identity.
+segment_length : List(KernelFacadeShape.RunStyle), U64, U64 -> U64
 segment_length = |requests, start, end| {
-	source = list_at(requests, start).source.index()
+	segment = list_at(requests, start).segment
 	var $index = start + 1
-	while $index < end and list_at(requests, $index).source.index() == source {
+	while $index < end and list_at(requests, $index).segment == segment {
 		$index = $index + 1
 	}
 	$index - start

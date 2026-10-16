@@ -27,10 +27,12 @@ EXAMPLES = (
     "business-report",
     "chunked-export",
     "field-guide",
+    "furniture-typography",
     "operations-handbook",
     "product-brief",
     "quarterly-report",
     "release-notes",
+    "source-blocks",
     "tax-invoice",
     "warranty-letter",
 )

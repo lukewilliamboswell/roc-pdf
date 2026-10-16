@@ -654,7 +654,9 @@ constructors create their semantic structure automatically:
 - A title block becomes the PDF 2.0 `Title` structure element independently of
   the metadata title.
 - Headings carry an explicit level and become heading structure elements.
-- Paragraph and inline constructors retain canonical Unicode.
+- Paragraph and inline constructors retain canonical Unicode. Explicit line
+  breaks retain segment occurrence identity through shaping and layout,
+  independently of shared interned text and Unicode analysis.
 - Lists create labels, bodies, and list-item relationships.
 - Tables require declared headers and retain a logical grid.
 - A meaningful image is constructed as a figure with author-supplied
@@ -794,7 +796,8 @@ business block must be exercised by a separately authored public consumer
 before that subset is called stable; the conceptual shape alone does not close
 the general custom-layout capability. The first such subset is
 `Pdf.custom_block`: a data-only block whose extension supplies ordinary
-paragraphs, its own measurement of the block, and a decorative panel, with
+paragraphs, its own measurement of the block, an optional decorative panel, and
+a nonnegative content inset (zero by default), with
 `Unsplittable` fragmentation; the package lays out and proves the content
 inside that measurement. An extension may take its content height from
 `Pdf.measure_custom_content`, which runs the same facade stages as
@@ -955,6 +958,22 @@ page, and incompatible keeps must not trigger implicit shrinking, clipping,
 content removal, or font substitution. Applications select supported layout
 policies before preparation rather than discover an undocumented recovery mode.
 
+Preformatted source blocks have their own whitespace and typography contract,
+separate from inline code and measured custom blocks. Preparation produces one
+canonical LF source with explicit scalar/UTF-8 line ranges, retaining empty
+lines, indentation and trailing spaces. CRLF normalization and tab expansion
+are declared source policies, never incidental rich-paragraph behavior. Source
+typography selects an exact registered face, size, leading and color without
+changing body, table or furniture styles. Wrapping consumes measured grapheme
+ranges and an explicit oversized-token policy. A continuation is a scalar
+visual-line cursor into the accepted measurements; it neither copies remaining
+source nor remeasures preceding lines. Empty visual lines reserve their declared
+leading without inventing source characters or painted glyphs. Code semantics
+and canonical source ranges survive every page fragment. Optional background
+panels and their padding are planned for each fragment before page placement
+and remain page-content decoration artifacts. The bounded source-block path
+does not grant arbitrary custom extensions pagination callbacks.
+
 This is also the safe extension boundary for charts, callouts, invoice widgets,
 and other domain-specific blocks. Each extension supplies its semantic
 occurrences or explicit page artifacts and lowers visual content to validated
@@ -1090,6 +1109,11 @@ only the shaping and presentation evidence for that range. An `OwnedGroup`
 supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
 never a second run-local string.
+
+Page furniture has an explicit resolved text style, inherited from body text
+by default or independently selected by the theme. Its size and face govern
+shaping and reserved-field measurement; its leading governs slot stacking.
+These presentation facts never alter artifact ownership or body typography.
 
 Page-content artifact text is the one other source. Page furniture and text
 labels inside drawings, both resolved after pagination, are shaped from
@@ -1651,6 +1675,12 @@ comparable only under the same configuration. An increased count fails review
 until its ownership or representation cause is understood and the checked-in
 baseline is accepted deliberately; a decrease is also recorded deliberately
 rather than silently rewriting expectations.
+
+Baselines describe the current reviewed implementation; preserving historical
+allocation counts is not a design goal. Use measured results to remove waste
+as features evolve, and lower allocation and allocated-byte baselines when
+improvements are verified. Necessary representation costs still require
+review, while scale-pair work evidence guards against worsening complexity.
 
 A pinned Roc compiler or target upgrade uses an explicit bulk re-baseline
 procedure rather than treating every changed count as an implementation

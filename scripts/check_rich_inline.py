@@ -69,7 +69,7 @@ def to_unicode(document: Document, font: int) -> dict[int, str]:
     return mappings
 
 
-def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]] | None = None, artifacts: bool = False) -> list[tuple[int, str]]:
+def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]] | None = None, artifacts: bool = False, shown_positions: list[tuple[float, str]] | None = None) -> list[tuple[int, str]]:
     """(MCID, decoded text) for each MCID-bearing marked-content sequence in stream order.
 
     With ``by_font``, the decoded logical text is also collected per font
@@ -86,6 +86,7 @@ def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]
     operands: list[object] = []
     current: dict[int, str] | None = None
     current_font = ""
+    baseline = 0.0
     at = 0
     while at < len(content):
         if content[at] in b" \t\r\n":
@@ -136,6 +137,8 @@ def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]
             elif operator == "EMC":
                 require(stack, "EMC without an open marked-content sequence")
                 stack.pop()
+            elif operator in ("Tm", "cm"):
+                baseline = float(operands[-1])
             elif operator == "Tf":
                 name = str(operands[-2])[1:]
                 require(name in fonts, f"content selects an undeclared font /{name}")
@@ -153,6 +156,8 @@ def page_marked_text(document: Document, page: int, by_font: dict[str, list[str]
                     require(len(string) % 2 == 0, "Identity-H string has an odd byte length")
                     if by_font is not None and (owner is ARTIFACT) == artifacts:
                         by_font.setdefault(current_font, []).append("".join(current.get(int.from_bytes(string[i : i + 2], "big"), "") for i in range(0, len(string), 2)))
+                    if shown_positions is not None and owner is not ARTIFACT:
+                        shown_positions.append((baseline, "".join(current.get(int.from_bytes(string[i : i + 2], "big"), "") for i in range(0, len(string), 2))))
                     for index in range(0, len(string), 2):
                         cid = int.from_bytes(string[index : index + 2], "big")
                         require(cid in current, f"CID {cid} has no ToUnicode mapping")
@@ -247,6 +252,27 @@ def render(pdf: bytes, dimensions: dict[str, int] | None = None) -> list[str]:
 
 def validate_rich_inline_pdf(pdf: bytes, dimensions: dict[str, int]) -> None:
     render(pdf, dimensions)
+    repeated = dimensions.get("repeated_segments")
+    if repeated is not None:
+        document = Document(pdf)
+        pages: list[int] = []
+        page_order(document, int(document.get(document.root)["Pages"]), pages)
+        lines: list[str] = []
+        for page in pages:
+            shown: list[tuple[float, str]] = []
+            page_marked_text(document, page, shown_positions=shown)
+            prior = None
+            for baseline, text in shown:
+                if baseline == prior:
+                    lines[-1] += text
+                else:
+                    lines.append(text)
+                prior = baseline
+        expected = ["same ", "same ", "same", "--same-token ", "--same-token ", "--same-token", " ", " ", " ", "tail ", "tail ", "tail ", "joined leaf ", "joined leaf ", "joined leaf", "again ", "middle ", "again", "Segment", "--table-token ", "--table-token ", "--table-token"]
+        if dimensions.get("repeated_ordered", 0):
+            expected += ["A中A ", "A中A ", "A中A"]
+        expected *= repeated
+        require(lines == expected, f"repeated segment visual lines differ: expected {expected!r}, found {lines!r}")
 
 
 MIXED_EXPECTED = [
@@ -371,9 +397,26 @@ def self_test() -> None:
             rejected += 1
             continue
         raise SystemExit(f"rich-inline checker accepted {label}")
+    for name in ("repeated_segments", "repeated_ordered_segments"):
+        for count in (10, 50):
+            repeated = (ROOT / "tests" / "rich_inline" / f"{name}_{count}.pdf").read_bytes()
+            validate_rich_inline_pdf(repeated, {"repeated_segments": count, "repeated_ordered": int("ordered" in name)})
+    repeated = (ROOT / "tests" / "rich_inline" / "repeated_segments_10.pdf").read_bytes()
+    document = Document(repeated)
+    pages: list[int] = []
+    page_order(document, int(document.get(document.root)["Pages"]), pages)
+    matrices = re.findall(rb"1 0 0 1 [-.0-9]+ [-.0-9]+ cm", document.stream(int(document.get(pages[0])["Contents"])))
+    require(len(matrices) > 1 and matrices[0] != matrices[1], "repeated fixture has no distinct first two baselines")
+    try:
+        validate_rich_inline_pdf(mutate(repeated, matrices[0], matrices[1]), {"repeated_segments": 10})
+    except ValidationError as error:
+        require("repeated segment visual lines differ" in str(error), f"collapsed-baseline twin rejected for {error}")
+        rejected += 1
+    else:
+        raise SystemExit("rich-inline checker accepted collapsed repeated segment baselines")
     print(
         "PASS rich-inline checker self-test: ToUnicode-decoded logical text, structure/paint order agreement, "
-        f"inline roles, /E, /Lang, link annotations, line-break separators, the Code role face, and ordered-policy furniture faces pinned on 5 snapshots; {rejected} mutation twins rejected",
+        f"inline roles, /E, /Lang, link annotations, line-break separators, the Code role face, and ordered-policy furniture faces and repeated-segment visual lines pinned on 9 snapshots; {rejected} mutation twins rejected",
         flush=True,
     )
 

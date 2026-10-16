@@ -13,8 +13,9 @@ import Text
 ## each index back to its authored path.
 KernelFacadeReport :: [].{
 
-	## A page-layout unit: a leaf block, or a table row by its row group.
-	Unit : [LeafUnit(U64), RowUnit(U64)]
+	## A page-layout unit: a leaf block, a table row by its row group,
+	## or a preformatted source block by its normalized source identity.
+	Unit : [LeafUnit(U64), RowUnit(U64), SourceUnit(U64)]
 
 	## A preference the accepted pagination relaxed, at its declaring unit.
 	Relaxation : { page : U64, rank : KernelPageLayout.Rank, unit : Unit }
@@ -24,6 +25,10 @@ KernelFacadeReport :: [].{
 	## tables repaint header rows and split rows continue, and the page of
 	## each custom block.
 	LayoutFacts : {
+		## Accepted source-fragment geometry and visual-line spans, including
+		## contentless source blocks. These scalar records retain no source,
+		## font, scene, or discarded layout plan.
+		source_fragments : List(KernelFacadePages.SourceFragment),
 		panels : List({ custom : U64, page : U64 }),
 		relaxations : List(Relaxation),
 		repeats : List(KernelFacadePages.Repeat),
@@ -61,6 +66,7 @@ KernelFacadeReport :: [].{
 				match units.get(relaxation.block) {
 					Ok(LeafUnit(leaf)) => LeafUnit(leaf)
 					Ok(RowUnit(group)) => RowUnit(group)
+					Ok(SourceUnit(source)) => SourceUnit(source)
 					Err(OutOfBounds) => LeafUnit(relaxation.block)
 				}
 			}
@@ -68,6 +74,7 @@ KernelFacadeReport :: [].{
 		}
 		{
 			panels: flow.panels.map(|panel| { custom: panel.custom, page: panel.page }),
+			source_fragments: KernelFacadePages.Plan.source_fragments(pages),
 			relaxations: $relaxations,
 			repeats: KernelFacadePages.Plan.repeats(pages),
 			scales: flow.figure_scales,
@@ -139,7 +146,7 @@ occurrence_owners = |ownership| {
 		end = match owned {
 			TextBlock({ body, label, level: _ }) => U64.max(body.index() + 1, label_end(label))
 			RichTextBlock({ label, level: _, occurrences }) => U64.max(occurrences.start() + occurrences.length(), label_end(label))
-			ContentlessCell => 0
+			EmptySourceLine | ContentlessCell => 0
 		}
 		$count = U64.max($count, end)
 	}
@@ -169,7 +176,7 @@ occurrence_owners = |ownership| {
 					NoLabel => {}
 				}
 			}
-			ContentlessCell => {}
+			EmptySourceLine | ContentlessCell => {}
 		}
 		$block = $block + 1
 	}
