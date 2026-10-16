@@ -85,7 +85,10 @@ KernelPageLayout :: [].{
 		lead : Layout.Unit,
 		leading : Layout.Unit,
 		lines : Semantics.Range,
-		occurrence : Semantics.OccurrenceId,
+
+		## A source unit owns canonical visual rows and its per-fragment
+		## padding, including when every row is blank.
+		owner : [Content(Semantics.OccurrenceId), SourceBlock({ source : U64, padding : Layout.Unit })],
 		policy : Policy,
 		space_after : Layout.Unit,
 		trailing : Layout.Unit,
@@ -110,7 +113,9 @@ KernelPageLayout :: [].{
 	}
 
 	Fragment : {
-		layout : Layout.Fragment,
+		geometry : Layout.Rect,
+		owner : [Content(Semantics.OccurrenceId), SourceBlock(U64)],
+		source_range : Semantics.SourceRange,
 		lines : Semantics.Range,
 		page : Semantics.PageId,
 	}
@@ -254,14 +259,16 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 				take = block.lines.length()
 				leading = positive_raw(block.leading)?
 				fragment_height = checked_mul(take, leading)?
+				padding = fragment_padding(block)?
 				decoration = nonnegative_raw(block.decoration)?
-				if checked_add(checked_add($used, decoration)?, fragment_height)? > lead_height {
+				if checked_add(checked_add(checked_add($used, decoration)?, checked_mul(padding, 2)?)?, fragment_height)? > lead_height {
 					return Err(LeadOverflow({ available: lead_height, required: lead_total(blocks, lead_blocks)? }))
 				}
 				if decoration > 0 {
 					$bands = $bands.append({ block: $block, page: 0, top: lead_geometry.page_height - lead_geometry.margin_top - $used })
 					$used = $used + decoration
 				}
+				$used = checked_add($used, padding)?
 				fragment_id = Semantics.FragmentId.from_index($fragments.len())
 				fragment = make_fragment(block, lines, block.lines.start(), take, fragment_height, $used, lead_geometry, 0)?
 				check_limit(checked_add($fragments.len(), 1)?, limits.max_fragments, Fragments)?
@@ -278,7 +285,7 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 					})
 					$local = $local + 1
 				}
-				$used = checked_add(checked_add($used, fragment_height)?, nonnegative_raw(block.trailing)?)?
+				$used = checked_add(checked_add(checked_add($used, fragment_height)?, padding)?, nonnegative_raw(block.trailing)?)?
 				if $block + 1 < lead_blocks {
 					$used = checked_add($used, nonnegative_raw(block.space_after)?)?
 				}
@@ -314,11 +321,13 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 			take = stop - $cursor_line
 			leading = positive_raw(block.leading)?
 			fragment_height = checked_mul(take, leading)?
+			padding = fragment_padding(block)?
 			decoration = if $cursor_line == 0 nonnegative_raw(block.decoration)? else 0
 			if decoration > 0 {
 				$bands = $bands.append({ block: $cursor_block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - $used })
 				$used = checked_add($used, decoration)?
 			}
+			$used = checked_add($used, padding)?
 			fragment_id = Semantics.FragmentId.from_index($fragments.len())
 			line_start = block.lines.start() + $cursor_line
 			fragment = make_fragment(block, lines, line_start, take, fragment_height, $used, page_geometry, page_index)?
@@ -336,7 +345,7 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 				})
 				$local = $local + 1
 			}
-			$used = checked_add($used, fragment_height)?
+			$used = checked_add(checked_add($used, fragment_height)?, padding)?
 			if stop == line_count {
 				$used = checked_add($used, nonnegative_raw(block.trailing)?)?
 				spaced = checked_add($used, nonnegative_raw(block.space_after)?)?
@@ -441,7 +450,8 @@ scan_page = |blocks, validation, height, start_block, start_line| {
 
 			## A block starting here places its decoration band first.
 			decoration = if $first_line == 0 nonnegative_raw(block.decoration)? else 0
-			$used = checked_add($used, decoration)?
+			padding = checked_mul(fragment_padding(block)?, 2)?
+			$used = checked_add(checked_add($used, decoration)?, padding)?
 			fit = if $used >= height 0 else (height - $used) / leading
 			take_max = if fit < remaining fit else remaining
 			starts_here = $first_line == 0
@@ -633,6 +643,13 @@ frame_scalars = |frame, content_height| {
 	}
 }
 
+## Insets are a typed source-block fact, reserved on every accepted fragment.
+fragment_padding : KernelPageLayout.Block -> Try(U64, KernelPageLayout.Error)
+fragment_padding = |block| match block.owner {
+	Content(_) => Ok(0)
+	SourceBlock({ padding, .. }) => nonnegative_raw(padding)
+}
+
 ## The lead region's content height: its blocks' lines and the spacing
 ## between them.
 lead_total : List(KernelPageLayout.Block), U64 -> Try(U64, KernelPageLayout.Error)
@@ -642,6 +659,7 @@ lead_total = |blocks, count| {
 	while $index < count {
 		block = list_at(blocks, $index)
 		$total = checked_add($total, checked_add(checked_add(nonnegative_raw(block.decoration)?, nonnegative_raw(block.trailing)?)?, checked_mul(block.lines.length(), positive_raw(block.leading)?)?)?)?
+		$total = checked_add($total, checked_mul(fragment_padding(block)?, 2)?)?
 		if $index + 1 < count {
 			$total = checked_add($total, nonnegative_raw(block.space_after)?)?
 		}
@@ -681,7 +699,7 @@ validate_input = |blocks, groups, lines, content_height| {
 		if trailing > 0 and !block.policy.keep_together {
 			return Err(InvalidBlock({ block: $block_index }))
 		}
-		height = checked_add(checked_add(checked_mul(line_count, leading)?, decoration)?, trailing)?
+		height = checked_add(checked_add(checked_add(checked_mul(line_count, leading)?, decoration)?, trailing)?, checked_mul(fragment_padding(block)?, 2)?)?
 		lead = nonnegative_raw(block.lead) ? |_| InvalidBlock({ block: $block_index })
 		if block.policy.keep_together and checked_add(height, lead)? > content_height {
 			return Err(Oversize({ available: content_height, block: $block_index, required: checked_add(height, lead)? }))
@@ -700,7 +718,11 @@ validate_input = |blocks, groups, lines, content_height| {
 			## explicit-line-break segment at its own source origin.
 			continues = line.source.scalars.start() == $scalar_cursor and line.source.utf8_bytes.start() == $byte_cursor
 			restarts = line.source.scalars.start() == 0 and line.source.utf8_bytes.start() == 0
-			if $local > 0 and !continues and !restarts {
+			valid_order = match block.owner {
+				Content(_) => continues or restarts
+				SourceBlock(_) => line.source.scalars.start() >= $scalar_cursor and line.source.utf8_bytes.start() >= $byte_cursor
+			}
+			if $local > 0 and !valid_order {
 				return Err(InvalidLine({ line: line_index }))
 			}
 			$scalar_cursor = range_end(line.source.scalars)?
@@ -757,7 +779,7 @@ first_unit = |block, height, atomic_ends, index, blocks, heights| {
 	} else if block.policy.keep_together {
 		Ok(height)
 	} else {
-		checked_add(checked_mul(block.policy.minimum_first_lines, positive_raw(block.leading)?)?, nonnegative_raw(block.decoration)?)
+		checked_add(checked_add(checked_mul(block.policy.minimum_first_lines, positive_raw(block.leading)?)?, nonnegative_raw(block.decoration)?)?, checked_mul(fragment_padding(block)?, 2)?)
 	}
 }
 
@@ -816,17 +838,18 @@ make_fragment = |block, lines, start, length, height, used, geometry, page_index
 	byte_start = if byte_end < first.source.utf8_bytes.start() 0 else first.source.utf8_bytes.start()
 	origin_y = geometry.page_height - geometry.margin_top - used - height
 	Ok({
-		layout: {
-			geometry: {
-				origin: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(origin_y.to_i64_wrap()) },
-				size: { height: Layout.Unit.from_raw(height.to_i64_wrap()), width: Layout.Unit.from_raw(geometry.content_width.to_i64_wrap()) },
-			},
-			occurrence: block.occurrence,
-			source_range: UnicodeRange({
-				scalars: Semantics.Range.from_start_and_length(scalar_start, scalar_end - scalar_start),
-				utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_end - byte_start),
-			}),
+		geometry: {
+			origin: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(origin_y.to_i64_wrap()) },
+			size: { height: Layout.Unit.from_raw(height.to_i64_wrap()), width: Layout.Unit.from_raw(geometry.content_width.to_i64_wrap()) },
 		},
+		owner: match block.owner {
+			Content(value) => Content(value)
+			SourceBlock({ source, .. }) => SourceBlock(source)
+		},
+		source_range: UnicodeRange({
+			scalars: Semantics.Range.from_start_and_length(scalar_start, scalar_end - scalar_start),
+			utf8_bytes: Semantics.Range.from_start_and_length(byte_start, byte_end - byte_start),
+		}),
 		lines: Semantics.Range.from_start_and_length(start, length),
 		page: Semantics.PageId.from_index(page_index),
 	})
@@ -939,7 +962,7 @@ test_block = {
 	lead: Layout.Unit.from_raw(0),
 	leading: Layout.Unit.from_raw(1000),
 	lines: Semantics.Range.from_start_and_length(0, 1),
-	occurrence: Semantics.OccurrenceId.from_index(0),
+	owner: Content(Semantics.OccurrenceId.from_index(0)),
 	policy: test_policy,
 	space_after: Layout.Unit.from_raw(0),
 	trailing: Layout.Unit.from_raw(0),
@@ -1190,6 +1213,41 @@ expect {
 	}
 	match KernelPageLayout.Plan.build_with_template(blocks, [], test_lines.take_first(3), test_constraints, template, test_limits) {
 		Err(LeadOverflow({ available: 1000, required: 2000 })) => True
+		_ => False
+	}
+}
+
+# Source continuation reserves padding on every accepted fragment, including
+# fragments whose first/last rows are blank. Canonical offsets may cross LF
+# separators; blank rows retain an empty range and have no invented glyph.
+expect {
+	rows = [
+		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.Range.from_start_and_length(0, 1), source: { scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) } },
+		{ advance: Layout.Unit.from_raw(0), clusters: Semantics.Range.from_start_and_length(1, 0), source: { scalars: Semantics.Range.from_start_and_length(2, 0), utf8_bytes: Semantics.Range.from_start_and_length(2, 0) } },
+		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.Range.from_start_and_length(1, 1), source: { scalars: Semantics.Range.from_start_and_length(3, 1), utf8_bytes: Semantics.Range.from_start_and_length(3, 1) } },
+		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.Range.from_start_and_length(2, 1), source: { scalars: Semantics.Range.from_start_and_length(5, 1), utf8_bytes: Semantics.Range.from_start_and_length(5, 1) } },
+		{ advance: Layout.Unit.from_raw(1000), clusters: Semantics.Range.from_start_and_length(3, 1), source: { scalars: Semantics.Range.from_start_and_length(7, 1), utf8_bytes: Semantics.Range.from_start_and_length(7, 1) } },
+	]
+	block = { ..test_block, owner: SourceBlock({ source: 0, padding: Layout.Unit.from_raw(500) }), lines: Semantics.Range.from_start_and_length(0, 5), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	plan = KernelPageLayout.Plan.build([block], rows, test_constraints, test_limits)?
+	fragments = KernelPageLayout.Plan.fragments(plan)
+	placements = KernelPageLayout.Plan.placements(plan)
+	fragments.len() == 3 and placements.len() == 5 and list_at(fragments, 0).lines.length() == 2 and list_at(fragments, 1).lines.length() == 2 and list_at(fragments, 2).lines.length() == 1 and list_at(placements, 0).baseline.y.raw() == 2700 and list_at(placements, 2).baseline.y.raw() == 2700 and list_at(placements, 4).baseline.y.raw() == 2700
+}
+
+# A wholly blank source has explicit contentless ownership and still occupies
+# its measured visual rows; it has no phantom semantic occurrence.
+expect {
+	rows = List.map([0, 1, 2], |index| { advance: Layout.Unit.from_raw(0), clusters: Semantics.Range.from_start_and_length(0, 0), source: { scalars: Semantics.Range.from_start_and_length(index, 0), utf8_bytes: Semantics.Range.from_start_and_length(index, 0) } })
+	block = { ..test_block, owner: SourceBlock({ source: 7, padding: Layout.Unit.from_raw(500) }), lines: Semantics.Range.from_start_and_length(0, 3), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	plan = KernelPageLayout.Plan.build([block], rows, test_constraints, test_limits)?
+	KernelPageLayout.Plan.pages(plan).len() == 2 and KernelPageLayout.Plan.placements(plan).len() == 3 and KernelPageLayout.Plan.fragments(plan).all(|fragment| fragment.owner == SourceBlock(7))
+}
+
+expect {
+	block = { ..test_block, owner: SourceBlock({ source: 0, padding: Layout.Unit.from_raw(1600) }), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	match KernelPageLayout.Plan.build([block], test_lines.take_first(1), test_constraints, test_limits) {
+		Err(Oversize({ available: 3000, block: 0, required: 4200 })) => True
 		_ => False
 	}
 }

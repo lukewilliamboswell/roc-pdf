@@ -45,6 +45,7 @@ KernelFacadeText :: [].{
 	Page : { id : Semantics.PageId, runs : Semantics.Range }
 	Placement : { origin : Layout.Point, page : Semantics.PageId, run : Text.RunId }
 	Prepared : {
+		blank_rows : U64,
 		fragment_count : U64,
 		label_rows : U64,
 		lines : List(KernelLineLayout.Line),
@@ -167,6 +168,7 @@ build_plan = |shape_plan, line_plan, page_plan, limits| {
 	pagination = KernelFacadePages.Plan.page(page_plan)
 	build_prepared_plan(
 		{
+			blank_rows: KernelFacadePages.Plan.work(page_plan).blank_rows,
 			fragment_count: KernelPageLayout.Plan.fragments(pagination).len(),
 			label_rows: KernelFacadePages.Plan.work(page_plan).label_rows,
 			lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(line_plan)),
@@ -205,7 +207,10 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	if rows.len() != page_placements.len() {
 		return Err(InvalidPlacement({ placement: page_placements.len() }))
 	}
-	run_count = checked_add(rows.len(), prepared.label_rows)?
+	if prepared.blank_rows > rows.len() {
+		return Err(InvalidPlacement({ placement: rows.len() }))
+	}
+	run_count = checked_add(rows.len() - prepared.blank_rows, prepared.label_rows)?
 	check_limit(shape.clusters.len(), limits.max_clusters, Clusters)?
 	check_limit(shape.glyph_indices.len(), limits.max_glyph_indices, GlyphIndices)?
 	check_limit(shape.glyphs.len(), limits.max_glyphs, Glyphs)?
@@ -215,6 +220,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	var $requests = List.with_capacity(run_count)
 	var $artifact_cursor = 0
 	var $placement_cursor = 0
+	var $blank_rows = 0
 	var $page_index = 0
 	while $page_index < pages.len() {
 		page = list_at(pages, $page_index)
@@ -228,31 +234,47 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 				return Err(InvalidPlacement({ placement: $placement_cursor }))
 			}
 			row = list_at(rows, placement.line)
-			match row.label {
-				NoLabel => {}
-				Label(label) => {
-					if label.offset < 0 {
+			match row.kind {
+				EmptySourceRow(_) => {
+					# An empty authored source line reserves a row of geometry;
+					# it never becomes a synthetic glyph or semantic paint.
+					has_label = match row.label {
+						NoLabel => False
+						Label(_) => True
+					}
+					if row.body_runs.physical.length() != 0 or has_label or ($artifact_cursor < artifact_rows.len() and list_at(artifact_rows, $artifact_cursor) == $placement_cursor) {
 						return Err(InvalidPlacement({ placement: $placement_cursor }))
 					}
-					label_x = checked_i64_add(placement.baseline.x.raw(), label.offset.raw())?
-					$requests = $requests.append({ artifact: False, line: label.line, origin: { x: Layout.Unit.from_raw(label_x), y: placement.baseline.y }, page: page.id, source_runs: label.runs })
+					$blank_rows = $blank_rows + 1
+				}
+				ContentRow => {
+					match row.label {
+						NoLabel => {}
+						Label(label) => {
+							if label.offset < 0 {
+								return Err(InvalidPlacement({ placement: $placement_cursor }))
+							}
+							label_x = checked_i64_add(placement.baseline.x.raw(), label.offset.raw())?
+							$requests = $requests.append({ artifact: False, line: label.line, origin: { x: Layout.Unit.from_raw(label_x), y: placement.baseline.y }, page: page.id, source_runs: label.runs })
+						}
+					}
+					if row.body_offset < 0 {
+						return Err(InvalidPlacement({ placement: $placement_cursor }))
+					}
+					body_x = checked_i64_add(placement.baseline.x.raw(), row.body_offset.raw())?
+					body_origin = { x: Layout.Unit.from_raw(body_x), y: placement.baseline.y }
+					artifact = $artifact_cursor < artifact_rows.len() and list_at(artifact_rows, $artifact_cursor) == $placement_cursor
+					if artifact {
+						$artifact_cursor = $artifact_cursor + 1
+					}
+					$requests = $requests.append({ artifact, line: row.body_line, origin: body_origin, page: page.id, source_runs: row.body_runs })
 				}
 			}
-			if row.body_offset < 0 {
-				return Err(InvalidPlacement({ placement: $placement_cursor }))
-			}
-			body_x = checked_i64_add(placement.baseline.x.raw(), row.body_offset.raw())?
-			body_origin = { x: Layout.Unit.from_raw(body_x), y: placement.baseline.y }
-			artifact = $artifact_cursor < artifact_rows.len() and list_at(artifact_rows, $artifact_cursor) == $placement_cursor
-			if artifact {
-				$artifact_cursor = $artifact_cursor + 1
-			}
-			$requests = $requests.append({ artifact, line: row.body_line, origin: body_origin, page: page.id, source_runs: row.body_runs })
 			$placement_cursor = $placement_cursor + 1
 		}
 		$page_index = $page_index + 1
 	}
-	if $placement_cursor != rows.len() or $requests.len() != run_count {
+	if $placement_cursor != rows.len() or $requests.len() != run_count or $blank_rows != prepared.blank_rows {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
 	var $clusters = List.with_capacity(shape.clusters.len())
@@ -327,6 +349,8 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 			}
 			run = list_at(shape.runs, source_run_index)
 			line = list_at(lines, request.line)
+			origin = origin_of(prepared.origins, source_run_index)
+			offset_source = origin.byte != 0 or origin.scalar != 0
 			if run.id.index() != source_run_index or !range_fits(run.clusters, shape.clusters.len()) or !range_fits(run.glyphs, shape.glyphs.len()) or run.clusters.length() == 0 or run.glyphs.length() == 0 {
 				return Err(InvalidRun({ run: source_run_index }))
 			}
@@ -370,6 +394,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 				$clusters = $clusters.append({
 					..cluster,
 					glyphs: Semantics.Range.from_start_and_length(new_references, $glyph_indices.len() - new_references),
+					source: if offset_source rebase(cluster.source, origin, source_run_index)? else cluster.source,
 				})
 				$cluster_index = $cluster_index + 1
 			}
@@ -382,7 +407,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 				clusters: Semantics.Range.from_start_and_length(cluster_start, $clusters.len() - cluster_start),
 				glyphs: Semantics.Range.from_start_and_length(glyph_start, $glyphs.len() - glyph_start),
 				id: new_run_id,
-				source: line.source,
+				source: if offset_source rebase(line.source, origin, source_run_index)? else line.source,
 				substitutions: Semantics.Range.from_start_and_length(0, 0),
 				transformations: Semantics.Range.from_start_and_length(0, 0),
 			})
@@ -935,6 +960,7 @@ test_limits = KernelFacadeText.Limits.make({ max_clusters: 2, max_glyph_indices:
 
 test_prepared : Text.Store -> KernelFacadeText.Prepared
 test_prepared = |shape| {
+	blank_rows: 0,
 	fragment_count: 1,
 	label_rows: 1,
 	lines: test_lines,
@@ -943,6 +969,7 @@ test_prepared = |shape| {
 	pages: [{ fragments: Semantics.Range.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.Range.from_start_and_length(0, 1) }],
 	rows: [
 		{
+			kind: ContentRow,
 			body_line: 1,
 			body_offset: Layout.Unit.from_raw(5),
 			body_runs: { physical: Semantics.Range.from_start_and_length(0, 1) },
@@ -998,4 +1025,48 @@ expect {
 		Err(InvalidLine({ line: 1, run: 0 })) => True
 		_ => False
 	}
+}
+
+# An explicit blank source row consumes its placement and vertical geometry,
+# while the next content row retains its baseline and exact glyph payload.
+# No space glyph or unowned semantic occurrence is invented for the blank.
+expect {
+	base = test_prepared(test_text)
+	content = list_at(base.rows, 0)
+	placement = list_at(base.page_placements, 0)
+	prepared = {
+		..base,
+		blank_rows: 1,
+		rows: [
+			{ body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.Range.from_start_and_length(0, 0) }, kind: EmptySourceRow({ source: 0, line: 0 }), label: NoLabel },
+			content,
+		],
+		page_placements: [{ ..placement, baseline: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(1220) } }, { ..placement, line: 1 }],
+		pages: [{ ..list_at(base.pages, 0), placements: Semantics.Range.from_start_and_length(0, 2) }],
+	}
+	plan = KernelFacadeText.Plan.build_prepared(prepared, test_limits)?
+	text = KernelFacadeText.Plan.text(plan)
+	placements = KernelFacadeText.Plan.placements(plan)
+	text.runs.len() == 2 and text.clusters.len() == 2 and text.glyphs.len() == 2 and list_at(placements, 0).origin.y.raw() == 20 and list_at(placements, 1).origin.y.raw() == 20
+}
+
+# A fully blank source fragment is a real placed page with no glyph payload.
+# Its layout fact is sufficient; a dummy text occurrence would violate this.
+expect {
+	prepared : KernelFacadeText.Prepared
+	prepared = {
+		blank_rows: 1,
+		fragment_count: 1,
+		label_rows: 0,
+		lines: [],
+		origins: WholeSources,
+		page_placements: [{ baseline: { x: Layout.Unit.from_raw(80000), y: Layout.Unit.from_raw(750000) }, fragment: Semantics.FragmentId.from_index(0), line: 0 }],
+		pages: [{ fragments: Semantics.Range.from_start_and_length(0, 1), id: Semantics.PageId.from_index(0), placements: Semantics.Range.from_start_and_length(0, 1) }],
+		rows: [{ body_line: 0, body_offset: Layout.Unit.from_raw(0), body_runs: { physical: Semantics.Range.from_start_and_length(0, 0) }, kind: EmptySourceRow({ source: 0, line: 0 }), label: NoLabel }],
+		shape: { clusters: [], glyph_indices: [], glyphs: [], runs: [], substitutions: [], transformations: [] },
+		styles: [],
+	}
+	plan = KernelFacadeText.Plan.build_prepared(prepared, test_limits)?
+	text = KernelFacadeText.Plan.text(plan)
+	text.runs.is_empty() and text.glyphs.is_empty() and KernelFacadeText.Plan.pages(plan).len() == 1 and KernelFacadeText.Plan.work(plan).placement_visits == 1
 }

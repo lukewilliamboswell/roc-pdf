@@ -76,18 +76,24 @@ KernelFacadePipeline :: [].{
 	## `reference_passes` counts stabilization passes (zero without page
 	## templates); `field_resolutions` counts resolved page-field values and
 	## `furniture_items` furniture lines shaped, one per line per page.
+	## The metric-read and candidate-visit counters consume earlier stage
+	## work facts; feature evidence need not replay those stages to inspect
+	## their actual traversal cost.
 	Work : {
 		blocks : U64,
 		field_resolutions : U64,
 		final_runs : U64,
 		fragments : U64,
 		furniture_items : U64,
+		line_candidate_visits : U64,
 		lines : U64,
 		objects : U64,
 		occurrences : U64,
+		page_candidate_visits : U64,
 		pages : U64,
 		reference_passes : U64,
 		scene_commands : U64,
+		shape_metric_reads : U64,
 		shaped_runs : U64,
 	}
 
@@ -327,6 +333,9 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 				reference_passes: laid_work.reference_passes,
 				scene_commands: KernelFacadeScenes.Plan.work(scenes).command_writes,
 				shaped_runs: shape_store.runs.len(),
+				shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
+				line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
+				page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
 			},
 		},
 	)
@@ -378,6 +387,9 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 		reference_passes: 0,
 		scene_commands: 0,
 		shaped_runs: 0,
+		shape_metric_reads: 0,
+		line_candidate_visits: 0,
+		page_candidate_visits: 0,
 	}
 	if stage == SemanticsReady {
 		return Ok(work)
@@ -393,12 +405,12 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 		theme,
 		limits.shape,
 	) ? Shape
-	shape_work = { ..work, shaped_runs: KernelFacadeShape.Plan.shape(shape).store.runs.len() }
+	shape_work = { ..work, shaped_runs: KernelFacadeShape.Plan.shape(shape).store.runs.len(), shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads }
 	if stage == ShapeReady {
 		return Ok(shape_work)
 	}
 	lines = KernelFacadeLines.Plan.build_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
-	line_work = { ..shape_work, lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len() }
+	line_work = { ..shape_work, lines: KernelLineLayout.BatchPlan.lines(KernelFacadeLines.Plan.line(lines)).len(), line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits }
 	if stage == LinesReady {
 		return Ok(line_work)
 	}
@@ -409,7 +421,7 @@ probe_early = |authoring, font, theme, page_size, limits, stage| {
 			KernelFacadePages.Plan.build_with_template(authoring, shape, lines, page_size, theme, KernelFacadeFurniture.Static.flow(static), limits.pages) ? Pages
 		}
 	}
-	Ok({ ..line_work, pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len() })
+	Ok({ ..line_work, pages: KernelPageLayout.Plan.pages(KernelFacadePages.Plan.page(pages)).len(), page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits })
 }
 
 probe_ordered_plan : Document.NormalizedAuthoring, { policy : Font.PolicyId, registry : Font.Registry }, Theme, Layout.Size, KernelFacadePipeline.Limits -> Try(KernelFacadePipeline.Work, KernelFacadePipeline.Error)
@@ -448,6 +460,9 @@ probe_ordered_plan = |authoring, ordered, theme, page_size, limits| {
 		reference_passes: laid_work.reference_passes,
 		scene_commands: 0,
 		shaped_runs,
+		shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
+		line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
+		page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
 	})
 }
 
@@ -502,6 +517,9 @@ build_upstream = |authoring, font, theme, page_size, descriptor, request, limits
 			reference_passes: laid_work.reference_passes,
 			scene_commands: 0,
 			shaped_runs: shape_store.runs.len(),
+			shape_metric_reads: KernelFacadeShape.Plan.shape(shape).work.metric_reads,
+			line_candidate_visits: KernelLineLayout.BatchPlan.work(KernelFacadeLines.Plan.line(lines)).candidate_visits,
+			page_candidate_visits: KernelPageLayout.Plan.work(KernelFacadePages.Plan.page(pages)).candidate_visits,
 		},
 	})
 }

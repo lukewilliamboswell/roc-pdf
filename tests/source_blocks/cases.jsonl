@@ -1,0 +1,16 @@
+{"name":"source blocks whitespace","schema_version":1,"case":{"Short":{"context":0}}}
+{"name":"source blocks long x60","schema_version":1,"case":{"Long":{"lines":60}}}
+{"name":"source blocks long x600","schema_version":1,"case":{"Long":{"lines":600}}}
+{"name":"source blocks near bottom","schema_version":1,"case":{"NearBottom":{"lines":80}}}
+{"name":"source blocks wrapping","schema_version":1,"case":{"Wrapping":{"context":0}}}
+{"name":"source blocks unicode","schema_version":1,"case":{"Unicode":{"context":0}}}
+{"name":"source blocks atomic negatives","schema_version":1,"case":{"Negatives":{"context":0}}}
+{"name":"source blocks empty","schema_version":1,"case":{"Blank":{"lines":0}}}
+{"name":"source blocks blank lines","schema_version":1,"case":{"Blank":{"lines":2}}}
+{"name":"source blocks defaults","schema_version":1,"case":{"Defaults":{"context":0}}}
+{"name":"source blocks Han","schema_version":1,"case":{"Han":{"context":0}}}
+{"name":"source blocks empty without background","schema_version":1,"case":{"BareBlank":{"context":0}}}
+{"name":"source blocks source only","schema_version":1,"case":{"OnlyText":{"context":0}}}
+{"name":"source blocks source identities","schema_version":1,"case":{"Multiple":{"context":0}}}
+{"name":"source blocks Han source only","schema_version":1,"case":{"HanOnly":{"same_body":false}}}
+{"name":"source blocks Han shared face","schema_version":1,"case":{"HanOnly":{"same_body":true}}}

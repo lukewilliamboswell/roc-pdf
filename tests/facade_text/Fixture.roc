@@ -171,6 +171,7 @@ synthetic_input = |source_runs| {
 				line: line_index,
 			})
 			$rows = $rows.append({
+				kind: ContentRow,
 				body_line: line_index,
 				body_offset: Layout.Unit.from_raw(0),
 				body_runs: { physical: Semantics.Range.from_start_and_length($run_index, 1) },
@@ -194,6 +195,7 @@ synthetic_input = |source_runs| {
 	}
 	{
 		prepared: {
+			blank_rows: 0,
 			fragment_count: $pages.len(),
 			label_rows: 0,
 			lines: $lines,

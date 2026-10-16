@@ -14,6 +14,9 @@ KernelFacadeLines :: [].{
 	Error : [
 		ArithmeticOverflow,
 
+		SourceContentWidth({ available : U64, padding : U64, source : U64 }),
+		SourceTokenTooWide({ available : U64, line : U64, scalars : Semantics.Range, source : U64 }),
+
 		## A custom block's measured box is wider than the flow region
 		## around it.
 		CustomWidth({ available : U64, custom : U64, width : U64 }),
@@ -44,7 +47,7 @@ KernelFacadeLines :: [].{
 	## request per segment, and its `lines` range covers them in order.
 	##
 	## `ContentlessCell` is a table cell with no content: it has no line.
-	BlockLines : [ContentlessCell, TextBlock({ body : { lines : Semantics.Range, runs : KernelFacadeShape.LogicalRun }, body_offset : Layout.Unit, label : [Label({ lines : Semantics.Range, offset : Layout.Unit, runs : KernelFacadeShape.LogicalRun }), NoLabel] })]
+	BlockLines : [ContentlessCell, EmptySourceLine({ source : U64, line : U64 }), TextBlock({ body : { lines : Semantics.Range, runs : KernelFacadeShape.LogicalRun }, body_offset : Layout.Unit, label : [Label({ lines : Semantics.Range, offset : Layout.Unit, runs : KernelFacadeShape.LogicalRun }), NoLabel] })]
 	Work : {
 		block_mapping_visits : U64,
 		blocks : U64,
@@ -55,7 +58,9 @@ KernelFacadeLines :: [].{
 
 	## `geometry` holds the resolved table geometry when the document has
 	## tables; each cell's lines are laid out at its column text width.
-	Plan :: { blocks : List(BlockLines), geometry : [NoTables, WithTables(KernelFacadeTables.Plan)], line : KernelLineLayout.BatchPlan, work : Work }.{
+	SourceFrame : { offset : Layout.Unit, width : Layout.Unit }
+
+	Plan :: { source_frames : List(SourceFrame), blocks : List(BlockLines), geometry : [NoTables, WithTables(KernelFacadeTables.Plan)], line : KernelLineLayout.BatchPlan, work : Work }.{
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build = |authoring, shape, sources, page, theme, limits| build_plan(authoring, shape, sources, page, theme, limits)
 
@@ -64,7 +69,7 @@ KernelFacadeLines :: [].{
 		## cell out at its text width through the logical batch; any other
 		## document takes `build` exactly.
 		build_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() and authoring.sources.is_empty() build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits)
 
 		geometry : Plan -> [NoTables, WithTables(KernelFacadeTables.Plan)]
 		geometry = |plan| plan.geometry
@@ -75,7 +80,10 @@ KernelFacadeLines :: [].{
 		build_ordered = |authoring, shape, sources, page, theme, limits| build_ordered_plan(authoring, shape, sources, page, theme, limits, [])
 
 		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() build_ordered_plan(authoring, shape, sources, page, theme, limits, []) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() and authoring.sources.is_empty() build_ordered_plan(authoring, shape, sources, page, theme, limits, []) else build_table_plan(authoring, shape, sources, page, theme, limits)
+
+		source_frames : Plan -> List(SourceFrame)
+		source_frames = |plan| plan.source_frames
 
 		blocks : Plan -> List(BlockLines)
 		blocks = |plan| plan.blocks
@@ -90,13 +98,16 @@ KernelFacadeLines :: [].{
 
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_plan = |authoring, shape, sources, page, theme, limits| {
+	if !authoring.sources.is_empty() {
+		return build_table_plan(authoring, shape, sources, page, theme, limits)
+	}
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 
 	# A rich paragraph's logical run spans several physical runs; the
 	# logical batch measures such ranges. Documents whose runs are all
 	# single keep the exact one-run batch, unless a code span holds its
 	# words together, which only the logical batch applies.
-	if has_multi_run(block_runs) or has_code_holds(authoring, shape, sources) {
+	if !authoring.sources.is_empty() or has_multi_run(block_runs) or has_code_holds(authoring, shape, sources) {
 		return build_ordered_plan(authoring, shape, sources, page, theme, limits, [])
 	}
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
@@ -139,7 +150,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 				$line_requests = list_set($line_requests, body_index, { source: list_at(shape_requests, body_index).source, width: Layout.Unit.from_raw(geometry.body_width.to_i64_wrap()) })
 				$next_run = checked_add($next_run, 1)?
 			}
-			ContentlessCell => {}
+			ContentlessCell | EmptySourceLine(_) => {}
 		}
 		$block_index = $block_index + 1
 	}
@@ -168,11 +179,15 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 			ContentlessCell => {
 				$blocks = $blocks.append(ContentlessCell)
 			}
+			EmptySourceLine(value) => {
+				$blocks = $blocks.append(EmptySourceLine(value))
+			}
 		}
 		$block_index = $block_index + 1
 	}
 	Ok(
 		KernelFacadeLines.Plan.{
+			source_frames: [],
 			blocks: $blocks,
 			geometry: NoTables,
 			line,
@@ -212,7 +227,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 	run_count = shape_requests.len()
 	check_limit(block_runs.len(), limits.max_blocks, Blocks)?
 	check_limit(run_count, limits.max_runs, Runs)?
-	if run_count == 0 or run_count != shape_batch.store.runs.len() {
+	if (run_count == 0 and authoring.sources.is_empty()) or run_count != shape_batch.store.runs.len() {
 		return Err(RunCoverage({ actual: shape_batch.store.runs.len(), expected: run_count }))
 	}
 	content_width = calculate_content_width(page, theme.page_margin)?
@@ -221,8 +236,15 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 		return Err(InvalidGeometry)
 	}
 	geometries = list_geometries(authoring, block_runs, shape_batch.store, indent, content_width)?
+	var $source_frames = List.with_capacity(authoring.sources.len())
+	for source in authoring.sources {
+		first = list_at(authoring.groups, source.group).first_block
+		geometry = list_at(geometries, first)
+		$source_frames = $source_frames.append({ offset: Layout.Unit.from_raw(geometry.body_offset.to_i64_wrap()), width: Layout.Unit.from_raw(geometry.body_width.to_i64_wrap()) })
+	}
 	var $line_requests = []
 	var $holds = []
+	var $modes = []
 	var $logical_index_of_body = List.repeat(0, block_runs.len())
 	var $logical_index_of_label = List.repeat(0, block_runs.len())
 	var $next_physical = 0
@@ -264,6 +286,24 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 						Label(_) => 1
 					}
 				)
+				mode = match list_at(authoring.blocks, $block_index).kind {
+					SourceLine({ source, .. }) => SourceRange(
+						match list_at(authoring.sources, source).wrap {
+							Wrap => Wrap
+							RejectLongToken => RejectOverflow
+						},
+					)
+					_ => WholeSource
+				}
+				if !authoring.sources.is_empty() {
+					match label_request {
+						NoLabel => {}
+						Label(_) => {
+							$modes = $modes.append(WholeSource)
+						}
+					}
+					$modes = $modes.append(mode)
+				}
 				$holds = append_holds($holds, KernelFacadeShape.Plan.code_holds(shape, authoring, $block_index, sources), styles, first_body_request, body_start, body_start + body.physical.length())
 				$line_requests = append_logical_requests(
 					$line_requests,
@@ -280,6 +320,9 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 				var $segment_start = body_start + segment_length(styles, body_start, body_start + body.physical.length())
 				while $segment_start < body_start + body.physical.length() {
 					length = segment_length(styles, $segment_start, body_start + body.physical.length())
+					if !authoring.sources.is_empty() {
+						$modes = $modes.append(mode)
+					}
 					$line_requests = $line_requests.append({
 						runs: Semantics.Range.from_start_and_length($segment_start, length),
 						source: list_at(shape_requests, $segment_start).source,
@@ -288,14 +331,20 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 					$segment_start = $segment_start + length
 				}
 			}
-			ContentlessCell => {}
+			ContentlessCell | EmptySourceLine(_) => {}
 		}
 		$block_index = $block_index + 1
 	}
 	if $next_physical != run_count {
 		return Err(RunCoverage({ actual: $next_physical, expected: run_count }))
 	}
-	line = (if $holds.is_empty() KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? LineLayout
+	line = if run_count == 0 {
+		KernelLineLayout.BatchPlan.empty({})
+	} else if !authoring.sources.is_empty() {
+		KernelLineLayout.BatchPlan.build_source_mixed(sources, shape_batch.store, $line_requests, $holds, $modes, limits.line) ? |error| source_layout_error(authoring, $logical_index_of_body, geometries, shape_batch.store, error)
+	} else {
+		(if $holds.is_empty() KernelLineLayout.BatchPlan.build_logical(sources, shape_batch.store, $line_requests, limits.line) else KernelLineLayout.BatchPlan.build_logical_held(sources, shape_batch.store, $line_requests, $holds, limits.line)) ? LineLayout
+	}
 	run_lines = KernelLineLayout.BatchPlan.run_lines(line)
 	var $blocks = List.with_capacity(block_runs.len())
 	$block_index = 0
@@ -317,11 +366,15 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 			ContentlessCell => {
 				$blocks = $blocks.append(ContentlessCell)
 			}
+			EmptySourceLine(value) => {
+				$blocks = $blocks.append(EmptySourceLine(value))
+			}
 		}
 		$block_index = $block_index + 1
 	}
 	Ok(
 		KernelFacadeLines.Plan.{
+			source_frames: $source_frames,
 			blocks: $blocks,
 			geometry: NoTables,
 			line,
@@ -334,6 +387,26 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 			},
 		},
 	)
+}
+
+source_layout_error : Document.NormalizedAuthoring, List(U64), List(BlockGeometry), Text.Store, KernelLineLayout.Error -> KernelFacadeLines.Error
+source_layout_error = |authoring, logical, geometries, store, error| match error {
+	SourceUnbreakable({ request, cluster_start, cluster_end }) => {
+		var $block = 0
+		while $block < authoring.blocks.len() {
+			match list_at(authoring.blocks, $block).kind {
+				SourceLine({ source, line }) if list_at(logical, $block) == request => {
+					first = list_at(store.clusters, cluster_start).source.scalars
+					last = list_at(store.clusters, cluster_end - 1).source.scalars
+					return SourceTokenTooWide({ available: list_at(geometries, $block).body_width, source, line, scalars: Semantics.Range.from_start_and_length(first.start(), last.start() + last.length() - first.start()) })
+				}
+				_ => {}
+			}
+			$block = $block + 1
+		}
+		LineLayout(error)
+	}
+	_ => LineLayout(error)
 }
 
 ## Whether any block's code span holds a word together. It scans each
@@ -408,7 +481,7 @@ has_multi_run = |block_runs| {
 	while !$found and $index < block_runs.len() {
 		$found = match list_at(block_runs, $index) {
 			TextBlock({ body, label: _, level: _ }) => body.physical.length() != 1
-			ContentlessCell => False
+			ContentlessCell | EmptySourceLine(_) => False
 		}
 		$index = $index + 1
 	}
@@ -448,7 +521,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 					NoList => return Err(InvalidGeometry)
 				}
 			}
-			TextBlock(_) | ContentlessCell => {}
+			TextBlock(_) | ContentlessCell | EmptySourceLine(_) => {}
 		}
 		$block = $block + 1
 	}
@@ -459,15 +532,17 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 	## edge (only then, so other documents allocate nothing for it).
 	customs = authoring.customs
 	var $offsets = List.with_capacity(groups.len())
-	var $ends = if customs.is_empty() [] else List.with_capacity(groups.len())
+	has_boxes = !customs.is_empty() or !authoring.sources.is_empty()
+	var $ends = if has_boxes List.with_capacity(groups.len()) else []
 	for group in groups {
 		outer = if group.parent == 0 0 else list_at($offsets, group.parent - 1)
 		own = match group.kind {
 			ItemList(_) => list_at($group_columns, $offsets.len())
 			Custom(_) => nonnegative_raw(list_at(customs, custom_index(group.kind)).inset)?
+			Source(index) => nonnegative_raw(list_at(authoring.sources, index).padding)?
 			_ => 0
 		}
-		if !customs.is_empty() {
+		if has_boxes {
 			outer_end = if group.parent == 0 content_width else list_at($ends, group.parent - 1)
 			end = match group.kind {
 				Custom(index) => {
@@ -478,6 +553,14 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 						return Err(CustomWidth({ available, custom: index.to_u64(), width }))
 					}
 					outer + width - nonnegative_raw(custom.inset)?
+				}
+				Source(index) => {
+					padding = nonnegative_raw(list_at(authoring.sources, index).padding)?
+					available = if outer_end > outer outer_end - outer else 0
+					if padding >= (available + 1) // 2 {
+						return Err(SourceContentWidth({ available, padding, source: index }))
+					}
+					outer_end - padding
 				}
 				_ => outer_end
 			}
@@ -506,7 +589,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 				}
 				{ body_offset: placed.body_offset, body_width: content_width - placed.body_offset, column: placed.column, label_offset }
 			}
-			TextBlock(_) | ContentlessCell => {
+			TextBlock(_) | ContentlessCell | EmptySourceLine(_) => {
 				end = if $ends.is_empty() or record.parent == 0 content_width else list_at($ends, record.parent - 1)
 				if outer >= end {
 					return Err(InvalidGeometry)

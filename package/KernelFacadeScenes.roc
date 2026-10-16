@@ -178,7 +178,7 @@ no_flow : KernelFacadePages.FlowPaints
 no_flow = { decorations: [], figure_scales: [], panels: [] }
 
 empty_authoring : Document.NormalizedAuthoring
-empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [], templates: NoTemplates }
+empty_authoring = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: "", line_breaks: [], lists: [], metadata_title: "", outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 
 build_plan : KernelFacadeFragments.Plan, Layout.Size, Document.NormalizedAuthoring, KernelFacadeScenes.IntentProfile, KernelFacadeScenes.Limits -> Try(KernelFacadeScenes.Plan, KernelFacadeScenes.Error)
 build_plan = |fragment_plan, page_size, authoring, intent, limits| {
@@ -530,8 +530,8 @@ build_arena_with_intent = |prepared, intent, limits| {
 				$page_groups = $page_groups.append(group)
 				$placement_cursor = $placement_cursor + 1
 			} else if !backdrop_ready and !behind_ready and $rule_cursor < rule_count and list_at(prepared.rules, $rule_cursor).page == $page_index {
-				## Table fills paint before the page's text and table rules and
-				## link underlines after it, each a filled rectangle owned by a
+				## Table fills and source-fragment panels paint before page text;
+				## table rules and link underlines follow it. Each rectangle is a
 				## layout decoration artifact.
 				rule = list_at(prepared.rules, $rule_cursor)
 				fill = match paint_color(rule.color, intent, use_srgb) {
@@ -651,7 +651,11 @@ build_arena_with_intent = |prepared, intent, limits| {
 			white_point: { x: 950000, y: 1000000, z: 1089000 },
 		}),
 	}
-	painting_spaces = [
+
+	## A semantic source containing only blank rows may have no painting.
+	## Its output intent still owns the ICC profile, but no page resource
+	## claims a color space unless a scene command can use it.
+	painting_spaces = if $commands.is_empty() [] else [
 		{
 			id: Color.SpaceId.from_index(0),
 			space: CalibratedGray({
@@ -668,7 +672,7 @@ build_arena_with_intent = |prepared, intent, limits| {
 		}
 		PackagedSrgbIntent => {
 			profiles: [KernelSrgbProfile.profile(0, 0)],
-			spaces: if use_srgb {
+			spaces: if $commands.is_empty() [] else if use_srgb {
 				rgb_space = { id: Color.SpaceId.from_index(0), space: Srgb(Color.ProfileId.from_index(0)) }
 				if has_gray_images [rgb_space, gray_space] else [rgb_space]
 			} else painting_spaces,

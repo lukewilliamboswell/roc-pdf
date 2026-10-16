@@ -52,7 +52,8 @@
     "rich_inline",
     "roc_diagnostics",
     "structure_extraction",
-    "reference_documents"
+    "reference_documents",
+    "source_blocks"
   ],
   "post_update_checks": [
     "contracts",
@@ -64,7 +65,8 @@
     "structure_semantics",
     "rich_inline",
     "structure_extraction",
-    "reference_documents"
+    "reference_documents",
+    "source_blocks"
   ],
   "validation": {
     "sources": [
@@ -190,6 +192,10 @@
     {
       "source": "tests/source_text/main.roc",
       "cases_jsonl": "tests/source_text/cases.jsonl"
+    },
+    {
+      "source": "tests/source_blocks/main.roc",
+      "cases_jsonl": "tests/source_blocks/cases.jsonl"
     }
   ],
   "cases": [
@@ -27658,6 +27664,1288 @@
         "pdfa4",
         "structure_semantics",
         "rich_inline"
+      ]
+    },
+    {
+      "name": "source blocks whitespace",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/whitespace.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 0,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5894,
+          "allocated_bytes": 7241401,
+          "work": {
+            "input_bytes": 37,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 0,
+            "output_bytes": 16027
+          }
+        },
+        "x64musl": {
+          "allocations": 5894,
+          "allocated_bytes": 7241401,
+          "work": {
+            "input_bytes": 37,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 0,
+            "output_bytes": 16027
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks long x60",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/long_60.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 1,
+        "source_lines": 60,
+        "pages": 2
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 14110,
+          "allocated_bytes": 11764920,
+          "work": {
+            "input_bytes": 1790,
+            "shaped_runs": 63,
+            "lines": 63,
+            "pages": 2,
+            "final_runs": 63,
+            "fragments": 63,
+            "scene_commands": 128,
+            "objects": 33,
+            "shape_metric_reads": 1797,
+            "line_candidate_visits": 1797,
+            "page_candidate_visits": 62,
+            "reported_fragments": 2,
+            "reported_visual_lines": 60,
+            "rejections": 0,
+            "output_bytes": 18462
+          }
+        },
+        "x64musl": {
+          "allocations": 14110,
+          "allocated_bytes": 11764920,
+          "work": {
+            "input_bytes": 1790,
+            "shaped_runs": 63,
+            "lines": 63,
+            "pages": 2,
+            "final_runs": 63,
+            "fragments": 63,
+            "scene_commands": 128,
+            "objects": 33,
+            "shape_metric_reads": 1797,
+            "line_candidate_visits": 1797,
+            "page_candidate_visits": 62,
+            "reported_fragments": 2,
+            "reported_visual_lines": 60,
+            "rejections": 0,
+            "output_bytes": 18462
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks long x600",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/long_600.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 1,
+        "source_lines": 600,
+        "pages": 11
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 90210,
+          "allocated_bytes": 58407786,
+          "work": {
+            "input_bytes": 18491,
+            "shaped_runs": 603,
+            "lines": 603,
+            "pages": 11,
+            "final_runs": 603,
+            "fragments": 603,
+            "scene_commands": 1217,
+            "objects": 60,
+            "shape_metric_reads": 17958,
+            "line_candidate_visits": 17958,
+            "page_candidate_visits": 602,
+            "reported_fragments": 11,
+            "reported_visual_lines": 600,
+            "rejections": 0,
+            "output_bytes": 29197
+          }
+        },
+        "x64musl": {
+          "allocations": 90210,
+          "allocated_bytes": 58407786,
+          "work": {
+            "input_bytes": 18491,
+            "shaped_runs": 603,
+            "lines": 603,
+            "pages": 11,
+            "final_runs": 603,
+            "fragments": 603,
+            "scene_commands": 1217,
+            "objects": 60,
+            "shape_metric_reads": 17958,
+            "line_candidate_visits": 17958,
+            "page_candidate_visits": 602,
+            "reported_fragments": 11,
+            "reported_visual_lines": 600,
+            "rejections": 0,
+            "output_bytes": 29197
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks near bottom",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/near_bottom.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 2,
+        "source_lines": 80,
+        "pages": 3
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 17106,
+          "allocated_bytes": 14317258,
+          "work": {
+            "input_bytes": 2390,
+            "shaped_runs": 83,
+            "lines": 83,
+            "pages": 3,
+            "final_runs": 83,
+            "fragments": 83,
+            "scene_commands": 169,
+            "objects": 36,
+            "shape_metric_reads": 2377,
+            "line_candidate_visits": 2377,
+            "page_candidate_visits": 82,
+            "reported_fragments": 3,
+            "reported_visual_lines": 80,
+            "rejections": 0,
+            "output_bytes": 19156
+          }
+        },
+        "x64musl": {
+          "allocations": 17106,
+          "allocated_bytes": 14317258,
+          "work": {
+            "input_bytes": 2390,
+            "shaped_runs": 83,
+            "lines": 83,
+            "pages": 3,
+            "final_runs": 83,
+            "fragments": 83,
+            "scene_commands": 169,
+            "objects": 36,
+            "shape_metric_reads": 2377,
+            "line_candidate_visits": 2377,
+            "page_candidate_visits": 82,
+            "reported_fragments": 3,
+            "reported_visual_lines": 80,
+            "rejections": 0,
+            "output_bytes": 19156
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks wrapping",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/wrapping.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 3,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6863,
+          "allocated_bytes": 7987132,
+          "work": {
+            "input_bytes": 361,
+            "shaped_runs": 6,
+            "lines": 9,
+            "pages": 1,
+            "final_runs": 9,
+            "fragments": 9,
+            "scene_commands": 19,
+            "objects": 30,
+            "shape_metric_reads": 425,
+            "line_candidate_visits": 461,
+            "page_candidate_visits": 8,
+            "reported_fragments": 1,
+            "reported_visual_lines": 6,
+            "rejections": 0,
+            "output_bytes": 19007
+          }
+        },
+        "x64musl": {
+          "allocations": 6863,
+          "allocated_bytes": 7987132,
+          "work": {
+            "input_bytes": 361,
+            "shaped_runs": 6,
+            "lines": 9,
+            "pages": 1,
+            "final_runs": 9,
+            "fragments": 9,
+            "scene_commands": 19,
+            "objects": 30,
+            "shape_metric_reads": 425,
+            "line_candidate_visits": 461,
+            "page_candidate_visits": 8,
+            "reported_fragments": 1,
+            "reported_visual_lines": 6,
+            "rejections": 0,
+            "output_bytes": 19007
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks unicode",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/unicode.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 4,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5954,
+          "allocated_bytes": 7329741,
+          "work": {
+            "input_bytes": 52,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 110,
+            "line_candidate_visits": 110,
+            "page_candidate_visits": 6,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 17001
+          }
+        },
+        "x64musl": {
+          "allocations": 5954,
+          "allocated_bytes": 7329741,
+          "work": {
+            "input_bytes": 52,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 110,
+            "line_candidate_visits": 110,
+            "page_candidate_visits": 6,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 17001
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks atomic negatives",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/negatives.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 5,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 8276,
+          "allocated_bytes": 9411213,
+          "work": {
+            "input_bytes": 37,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 12,
+            "output_bytes": 16027
+          }
+        },
+        "x64musl": {
+          "allocations": 8276,
+          "allocated_bytes": 9411213,
+          "work": {
+            "input_bytes": 37,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 100,
+            "line_candidate_visits": 100,
+            "page_candidate_visits": 7,
+            "reported_fragments": 1,
+            "reported_visual_lines": 5,
+            "rejections": 12,
+            "output_bytes": 16027
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks empty",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/empty.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 6,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3114,
+          "allocated_bytes": 3322177,
+          "work": {
+            "input_bytes": 0,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 1,
+            "objects": 13,
+            "shape_metric_reads": 0,
+            "line_candidate_visits": 0,
+            "page_candidate_visits": 0,
+            "reported_fragments": 1,
+            "reported_visual_lines": 1,
+            "rejections": 0,
+            "output_bytes": 4563
+          }
+        },
+        "x64musl": {
+          "allocations": 3114,
+          "allocated_bytes": 3322177,
+          "work": {
+            "input_bytes": 0,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 1,
+            "objects": 13,
+            "shape_metric_reads": 0,
+            "line_candidate_visits": 0,
+            "page_candidate_visits": 0,
+            "reported_fragments": 1,
+            "reported_visual_lines": 1,
+            "rejections": 0,
+            "output_bytes": 4563
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks blank lines",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/blank_lines.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 6,
+        "source_lines": 2,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3186,
+          "allocated_bytes": 3334220,
+          "work": {
+            "input_bytes": 2,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 1,
+            "objects": 13,
+            "shape_metric_reads": 0,
+            "line_candidate_visits": 0,
+            "page_candidate_visits": 2,
+            "reported_fragments": 1,
+            "reported_visual_lines": 3,
+            "rejections": 0,
+            "output_bytes": 4584
+          }
+        },
+        "x64musl": {
+          "allocations": 3186,
+          "allocated_bytes": 3334220,
+          "work": {
+            "input_bytes": 2,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 1,
+            "objects": 13,
+            "shape_metric_reads": 0,
+            "line_candidate_visits": 0,
+            "page_candidate_visits": 2,
+            "reported_fragments": 1,
+            "reported_visual_lines": 3,
+            "rejections": 0,
+            "output_bytes": 4584
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks defaults",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/defaults.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 7,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6256,
+          "allocated_bytes": 7502877,
+          "work": {
+            "input_bytes": 29,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 6,
+            "fragments": 5,
+            "scene_commands": 12,
+            "objects": 30,
+            "shape_metric_reads": 94,
+            "line_candidate_visits": 94,
+            "page_candidate_visits": 4,
+            "reported_fragments": 1,
+            "reported_visual_lines": 2,
+            "rejections": 0,
+            "output_bytes": 16151
+          }
+        },
+        "x64musl": {
+          "allocations": 6256,
+          "allocated_bytes": 7502877,
+          "work": {
+            "input_bytes": 29,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 6,
+            "fragments": 5,
+            "scene_commands": 12,
+            "objects": 30,
+            "shape_metric_reads": 94,
+            "line_candidate_visits": 94,
+            "page_candidate_visits": 4,
+            "reported_fragments": 1,
+            "reported_visual_lines": 2,
+            "rejections": 0,
+            "output_bytes": 16151
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks Han",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/han.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 8,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5122,
+          "allocated_bytes": 6600990,
+          "work": {
+            "input_bytes": 9,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 68,
+            "line_candidate_visits": 68,
+            "page_candidate_visits": 6,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 12119
+          }
+        },
+        "x64musl": {
+          "allocations": 5122,
+          "allocated_bytes": 6600990,
+          "work": {
+            "input_bytes": 9,
+            "shaped_runs": 5,
+            "lines": 5,
+            "pages": 1,
+            "final_runs": 5,
+            "fragments": 5,
+            "scene_commands": 11,
+            "objects": 30,
+            "shape_metric_reads": 68,
+            "line_candidate_visits": 68,
+            "page_candidate_visits": 6,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 12119
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks empty without background",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/empty_plain.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 9,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 2874,
+          "allocated_bytes": 2674280,
+          "work": {
+            "input_bytes": 0,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 0,
+            "objects": 12,
+            "shape_metric_reads": 0,
+            "line_candidate_visits": 0,
+            "page_candidate_visits": 0,
+            "reported_fragments": 1,
+            "reported_visual_lines": 1,
+            "rejections": 0,
+            "output_bytes": 4432
+          }
+        },
+        "x64musl": {
+          "allocations": 2874,
+          "allocated_bytes": 2674280,
+          "work": {
+            "input_bytes": 0,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 0,
+            "objects": 12,
+            "shape_metric_reads": 0,
+            "line_candidate_visits": 0,
+            "page_candidate_visits": 0,
+            "reported_fragments": 1,
+            "reported_visual_lines": 1,
+            "rejections": 0,
+            "output_bytes": 4432
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks source only",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/source_only.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 10,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4197,
+          "allocated_bytes": 5102061,
+          "work": {
+            "input_bytes": 9,
+            "shaped_runs": 2,
+            "lines": 2,
+            "pages": 1,
+            "final_runs": 2,
+            "fragments": 2,
+            "scene_commands": 5,
+            "objects": 20,
+            "shape_metric_reads": 6,
+            "line_candidate_visits": 6,
+            "page_candidate_visits": 3,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 8429
+          }
+        },
+        "x64musl": {
+          "allocations": 4197,
+          "allocated_bytes": 5102061,
+          "work": {
+            "input_bytes": 9,
+            "shaped_runs": 2,
+            "lines": 2,
+            "pages": 1,
+            "final_runs": 2,
+            "fragments": 2,
+            "scene_commands": 5,
+            "objects": 20,
+            "shape_metric_reads": 6,
+            "line_candidate_visits": 6,
+            "page_candidate_visits": 3,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 8429
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks source identities",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/multiple.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 11,
+        "source_lines": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5837,
+          "allocated_bytes": 7380834,
+          "work": {
+            "input_bytes": 82,
+            "shaped_runs": 7,
+            "lines": 7,
+            "pages": 1,
+            "final_runs": 7,
+            "fragments": 7,
+            "scene_commands": 14,
+            "objects": 32,
+            "shape_metric_reads": 97,
+            "line_candidate_visits": 97,
+            "page_candidate_visits": 10,
+            "reported_fragments": 3,
+            "reported_visual_lines": 10,
+            "rejections": 0,
+            "output_bytes": 15412
+          }
+        },
+        "x64musl": {
+          "allocations": 5837,
+          "allocated_bytes": 7380834,
+          "work": {
+            "input_bytes": 82,
+            "shaped_runs": 7,
+            "lines": 7,
+            "pages": 1,
+            "final_runs": 7,
+            "fragments": 7,
+            "scene_commands": 14,
+            "objects": 32,
+            "shape_metric_reads": 97,
+            "line_candidate_visits": 97,
+            "page_candidate_visits": 10,
+            "reported_fragments": 3,
+            "reported_visual_lines": 10,
+            "rejections": 0,
+            "output_bytes": 15412
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks_multiple"
+      ]
+    },
+    {
+      "name": "source blocks Han source only",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/han_only.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 12,
+        "source_lines": 0,
+        "same_body": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3473,
+          "allocated_bytes": 4559480,
+          "work": {
+            "input_bytes": 9,
+            "shaped_runs": 2,
+            "lines": 2,
+            "pages": 1,
+            "final_runs": 2,
+            "fragments": 2,
+            "scene_commands": 5,
+            "objects": 20,
+            "shape_metric_reads": 2,
+            "line_candidate_visits": 2,
+            "page_candidate_visits": 3,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 5957
+          }
+        },
+        "x64musl": {
+          "allocations": 3473,
+          "allocated_bytes": 4559480,
+          "work": {
+            "input_bytes": 9,
+            "shaped_runs": 2,
+            "lines": 2,
+            "pages": 1,
+            "final_runs": 2,
+            "fragments": 2,
+            "scene_commands": 5,
+            "objects": 20,
+            "shape_metric_reads": 2,
+            "line_candidate_visits": 2,
+            "page_candidate_visits": 3,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 5957
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
+      ]
+    },
+    {
+      "name": "source blocks Han shared face",
+      "scenario_revision": "source-blocks-v1",
+      "source": "tests/source_blocks/main.roc",
+      "snapshot": "tests/source_blocks/han_shared.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "source_scenario": 12,
+        "source_lines": 0,
+        "same_body": 1,
+        "pages": 1
+      },
+      "work_counters": [
+        "input_bytes",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "shape_metric_reads",
+        "line_candidate_visits",
+        "page_candidate_visits",
+        "reported_fragments",
+        "reported_visual_lines",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3471,
+          "allocated_bytes": 4558647,
+          "work": {
+            "input_bytes": 9,
+            "shaped_runs": 2,
+            "lines": 2,
+            "pages": 1,
+            "final_runs": 2,
+            "fragments": 2,
+            "scene_commands": 5,
+            "objects": 20,
+            "shape_metric_reads": 2,
+            "line_candidate_visits": 2,
+            "page_candidate_visits": 3,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 5957
+          }
+        },
+        "x64musl": {
+          "allocations": 3471,
+          "allocated_bytes": 4558647,
+          "work": {
+            "input_bytes": 9,
+            "shaped_runs": 2,
+            "lines": 2,
+            "pages": 1,
+            "final_runs": 2,
+            "fragments": 2,
+            "scene_commands": 5,
+            "objects": 20,
+            "shape_metric_reads": 2,
+            "line_candidate_visits": 2,
+            "page_candidate_visits": 3,
+            "reported_fragments": 1,
+            "reported_visual_lines": 4,
+            "rejections": 0,
+            "output_bytes": 5957
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "source_blocks"
       ]
     }
   ]

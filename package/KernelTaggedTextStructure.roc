@@ -124,7 +124,7 @@ build_plan : KernelTagged.Plan, KernelColor.Plan, KernelImage.Plan, KernelConten
 build_plan = |tagged, colors, images, content, font_plan, text, fonts, facts, navigation, limits| {
 	planned_fonts = KernelFontObjects.Plan.fonts(font_plan)
 	mappings = KernelPdfText.ScenePlan.mappings(text)
-	if fonts.len() == 0 or fonts.len() != mappings.len() or fonts.len() != planned_fonts.len() {
+	if fonts.len() != mappings.len() or fonts.len() != planned_fonts.len() {
 		return Err(FontCountMismatch({ fonts: fonts.len(), mappings: mappings.len(), planned: planned_fonts.len() }))
 	}
 	objects = KernelFontObjects.Plan.base(font_plan)

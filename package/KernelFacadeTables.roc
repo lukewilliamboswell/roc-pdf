@@ -97,6 +97,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 		## never widens a column.
 		physical = match list_at(block_runs, record.block) {
 			TextBlock({ body, label: _, level: _ }) => body.physical
+			EmptySourceLine(_) => return Err(InvalidCell({ block: record.block }))
 			ContentlessCell => Semantics.Range.from_start_and_length(0, 0)
 		}
 		var $cell = { max_content: 0, min_content: 0, token: Semantics.Range.from_start_and_length(0, 0) }
@@ -165,6 +166,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 						span = record.column_span.to_u64()
 						cell_width = sum_range(columns, $column, span)
 						contentless = match list_at(block_runs, $block) {
+							EmptySourceLine(_) => return Err(InvalidCell({ block: $block }))
 							ContentlessCell => True
 							TextBlock(_) => False
 						}

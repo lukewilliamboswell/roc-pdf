@@ -32,6 +32,7 @@ EXAMPLES = (
     "product-brief",
     "quarterly-report",
     "release-notes",
+    "source-blocks",
     "tax-invoice",
     "warranty-letter",
 )

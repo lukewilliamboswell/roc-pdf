@@ -629,7 +629,7 @@ synthetic_page_input = |block_count| {
 			lead: Layout.Unit.from_raw(0),
 			leading: Layout.Unit.from_raw(1000),
 			lines: Semantics.Range.from_start_and_length(line_start, 6),
-			occurrence: Semantics.OccurrenceId.from_index($block_index),
+			owner: Content(Semantics.OccurrenceId.from_index($block_index)),
 			policy: {
 				break_before: $block_index > 0 and $block_index % 10 == 0,
 				keep_together: kept,
@@ -889,7 +889,7 @@ inspect = |store| {
 			Title => {
 				$titles = $titles + 1
 			}
-			DestinationHeading(_) | DestinationParagraph(_) | EmptyCell | Figure(_) | FigureCaption(_) | InternalLink(_) | Link(_) | RichParagraph(_) => return Err(InvalidStore)
+			DestinationHeading(_) | DestinationParagraph(_) | EmptyCell | EmptySourceLine(_) | Figure(_) | FigureCaption(_) | InternalLink(_) | Link(_) | RichParagraph(_) | SourceLine(_) => return Err(InvalidStore)
 		}
 		$index = $index + 1
 	}

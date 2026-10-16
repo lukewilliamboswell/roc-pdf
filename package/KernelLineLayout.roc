@@ -17,6 +17,7 @@ KernelLineLayout :: [].{
 		LimitExceeded({ attempted : U64, dimension : Dimension, limit : U64 }),
 		TableExhausted,
 		Unbreakable({ cluster_end : U64, cluster_start : U64 }),
+		SourceUnbreakable({ request : U64, cluster_end : U64, cluster_start : U64 }),
 	]
 
 	Limits :: {
@@ -90,6 +91,8 @@ KernelLineLayout :: [].{
 	## global cluster range is `token`. Laying the request out at any width
 	## of at least `min_content` never meets an unbreakable piece, and at
 	## `max_content` every mandatory-break line takes exactly one line.
+	SourceMode : [WholeSource, SourceRange([Wrap, RejectOverflow])]
+
 	Measure : { max_content : I64, min_content : I64, token : Semantics.Range }
 
 	## Measure one logical request with the same boundary and advance
@@ -115,6 +118,10 @@ KernelLineLayout :: [].{
 		build : List(KernelShape.SimpleSource), List(KernelShape.SimpleRequest), Text.Store, List(RunRequest), BatchLimits -> Try(BatchPlan, Error)
 		build = |sources, shape_requests, store, requests, limits| build_batch(sources, shape_requests, store, requests, limits)
 
+		## A wholly contentless source still has visual rows for pagination.
+		empty : {} -> BatchPlan
+		empty = |_| BatchPlan.{ lines: [], run_lines: [], work: { boundary_visits: 0, cache_hits: 0, candidate_visits: 0, cluster_visits: 0, glyph_index_visits: 0, glyph_visits: 0, key_probes: 0, line_writes: 0, run_visits: 0, table_slots: 0, templates: 0 } }
+
 		## The logical (rich paragraph and multi-face) batch. One interned
 		## source can be split differently by different occurrences (plain
 		## text beside the same text inside a strong run with its own face),
@@ -123,14 +130,20 @@ KernelLineLayout :: [].{
 		## instance, size, and cluster count. A signature over that sequence
 		## narrows probes, and equal signatures are confirmed run by run.
 		build_logical : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), BatchLimits -> Try(BatchPlan, Error)
-		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, [], limits)
+		build_logical = |sources, store, requests, limits| build_logical_batch(sources, store, requests, [], [], limits)
 
 		## `build_logical` with holds, sorted by request and then by start.
 		## A request with holds is laid out on its own: its template is
 		## neither found in nor added to the template cache, so it never
 		## shares lines with an equal request that has none.
 		build_logical_held : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), BatchLimits -> Try(BatchPlan, Error)
-		build_logical_held = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, limits)
+		build_logical_held = |sources, store, requests, holds, limits| build_logical_batch(sources, store, requests, holds, [], limits)
+
+		## A source-aware batch: aligned request modes mark exact canonical
+		## logical-line ranges. Source requests bypass whole-source caching;
+		## prose preserves its usual holds and cache contract.
+		build_source_mixed : List(KernelShape.SimpleSource), Text.Store, List(LogicalRunRequest), List(Hold), List(SourceMode), BatchLimits -> Try(BatchPlan, Error)
+		build_source_mixed = |sources, store, requests, holds, modes, limits| build_logical_batch(sources, store, requests, holds, modes, limits)
 
 		lines : BatchPlan -> List(Line)
 		lines = |plan| plan.lines
@@ -349,13 +362,17 @@ build_batch = |sources, shape_requests, store, requests, limits| {
 ## adjacent physical runs, proven contiguous before any measurement.
 LogicalBounds := { bounds : RangeBounds, glyph_length : U64, instance : U64, signature : U64, size : I64 }
 
-build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), List(KernelLineLayout.Hold), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
-build_logical_batch = |sources, store, requests, holds, limits| {
+build_logical_batch : List(KernelShape.SimpleSource), Text.Store, List(KernelLineLayout.LogicalRunRequest), List(KernelLineLayout.Hold), List(KernelLineLayout.SourceMode), KernelLineLayout.BatchLimits -> Try(KernelLineLayout.BatchPlan, KernelLineLayout.Error)
+build_logical_batch = |sources, store, requests, holds, modes, limits| {
 	if requests.len() == 0 or store.runs.len() == 0 {
 		return Err(InvalidAnalysis)
 	}
+	if !modes.is_empty() and modes.len() != requests.len() {
+		return Err(InvalidAnalysis)
+	}
 	check_limit(requests.len(), limits.max_runs, Runs)?
-	capacity = table_capacity(requests.len(), limits.max_table_slots)?
+	cacheable = if modes.is_empty() requests.len() else modes.count_if(|mode| mode == WholeSource)
+	capacity = if cacheable == 0 0 else table_capacity(cacheable, limits.max_table_slots)?
 	var $assignments = List.repeat(empty_slot, requests.len())
 	var $slots = List.repeat(empty_slot, capacity)
 	var $keys = []
@@ -382,7 +399,8 @@ build_logical_batch = |sources, store, requests, holds, limits| {
 		while $hold_cursor < holds.len() and list_at(holds, $hold_cursor).request == $request_index {
 			$hold_cursor = $hold_cursor + 1
 		}
-		held = $hold_cursor > hold_start
+		mode = if modes.is_empty() WholeSource else list_at(modes, $request_index)
+		held = $hold_cursor > hold_start or mode != WholeSource
 		if source_index >= sources.len() or request.width <= 0 {
 			return Err(InvalidRun({ run: $request_index }))
 		}
@@ -427,7 +445,13 @@ build_logical_batch = |sources, store, requests, holds, limits| {
 			check_limit(template_count, limits.max_templates, Templates)?
 			source = list_at(sources, source_index)
 			bounds = logical.bounds
-			selected = build_range(source.analysis, store, bounds, request.width, { holds, length: $hold_cursor - hold_start, start: hold_start }, limits.line)?
+			selected = match mode {
+				WholeSource => build_range(source.analysis, store, bounds, request.width, { holds, length: $hold_cursor - hold_start, start: hold_start }, limits.line)?
+				SourceRange(policy) => build_source_range(source.analysis, store, bounds, request.width, policy, limits.line) ? |error| match error {
+					Unbreakable({ cluster_end, cluster_start }) => SourceUnbreakable({ request: $request_index, cluster_end, cluster_start })
+					_ => error
+				}
+			}
 			if selected.work.glyph_index_visits != logical.glyph_length {
 				return Err(InvalidRun({ run: $request_index }))
 			}
@@ -809,6 +833,112 @@ build_range = |analysis, store, bounds, width, holds, limits| {
 	)
 }
 
+build_source_range : KernelUnicode.UnicodeAnalysis, Text.Store, RangeBounds, Layout.Unit, [Wrap, RejectOverflow], KernelLineLayout.Limits -> Try(KernelLineLayout.Plan, KernelLineLayout.Error)
+build_source_range = |analysis, store, bounds, width, policy, limits| {
+	cluster_start = bounds.cluster_start
+	cluster_end = bounds.cluster_end
+	glyph_start = bounds.glyph_start
+	glyph_end = bounds.glyph_end
+	max_width = width.raw()
+	if max_width <= 0 {
+		return Err(InvalidWidth(max_width))
+	}
+	cluster_count = if cluster_end >= cluster_start cluster_end - cluster_start else 0
+	if cluster_count == 0 or cluster_end > store.clusters.len() or glyph_end > store.glyphs.len() {
+		return Err(InvalidAnalysis)
+	}
+	first = list_at(store.clusters, cluster_start)
+	last = list_at(store.clusters, cluster_end - 1)
+	scalar_end = range_end(last.source.scalars)?
+	if analysis.line_boundaries.len() != analysis.work.scalar_visits + 1 or scalar_end > analysis.work.scalar_visits {
+		return Err(InvalidAnalysis)
+	}
+	check_limit(cluster_count, limits.max_boundaries, Boundaries)?
+	check_limit(cluster_count, limits.max_clusters, Clusters)?
+	check_limit(glyph_end - glyph_start, limits.max_glyph_indices, GlyphIndices)?
+	check_limit(glyph_end - glyph_start, limits.max_glyphs, Glyphs)?
+	measure = measure_source_clusters(store.clusters, store.glyph_indices, store.glyphs, cluster_start, cluster_end, glyph_start, glyph_end, scalar_end)?
+	var $boundary = cluster_start
+	while $boundary < cluster_end {
+		cluster = list_at(store.clusters, $boundary)
+		index = range_end(cluster.source.scalars)?
+		if index >= analysis.line_boundaries.len() {
+			return Err(InvalidAnalysis)
+		}
+		boundary = list_at(analysis.line_boundaries, index)
+		if boundary.scalar_offset != index or boundary.byte_offset != range_end(cluster.source.utf8_bytes)? or (index < scalar_end and boundary.decision == Mandatory) {
+			return Err(InvalidAnalysis)
+		}
+		$boundary = $boundary + 1
+	}
+	if first.source.scalars.start() >= scalar_end {
+		return Err(InvalidAnalysis)
+	}
+	var $lines = []
+	var $line_start = cluster_start
+	var $candidate = cluster_start + 1
+	var $last_break = cluster_start
+	var $candidate_visits = 0
+	while $line_start < cluster_end {
+		if $candidate > cluster_end {
+			return Err(InvalidAnalysis)
+		}
+		$candidate_visits = checked_add($candidate_visits, 1)?
+		check_limit($candidate_visits, limits.max_candidates, Candidates)?
+		cluster = list_at(store.clusters, $candidate - 1)
+		boundary_index = range_end(cluster.source.scalars)?
+		boundary = list_at(analysis.line_boundaries, boundary_index)
+		decision = if $candidate == cluster_end Mandatory else boundary.decision
+		line_width = list_at(measure.prefix, $candidate - cluster_start) - list_at(measure.prefix, $line_start - cluster_start)
+		if line_width > max_width {
+			selected = if $last_break > $line_start {
+				$last_break
+			} else if policy == Wrap and $candidate > $line_start + 1 {
+				$candidate - 1
+			} else {
+				return Err(Unbreakable({ cluster_end: $candidate, cluster_start: $line_start }))
+			}
+			line = source_line(store.clusters, measure.prefix, cluster_start, $line_start, selected)?
+			check_limit(checked_add($lines.len(), 1)?, limits.max_lines, Lines)?
+			$lines = $lines.append(line)
+			$line_start = selected
+			$candidate = $line_start + 1
+			$last_break = $line_start
+		} else {
+			match decision {
+				Allowed => {
+					$last_break = $candidate
+					$candidate = $candidate + 1
+				}
+				Mandatory => {
+					line = source_line(store.clusters, measure.prefix, cluster_start, $line_start, $candidate)?
+					check_limit(checked_add($lines.len(), 1)?, limits.max_lines, Lines)?
+					$lines = $lines.append(line)
+					$line_start = $candidate
+					$candidate = $line_start + 1
+					$last_break = $line_start
+				}
+				Prohibited => {
+					$candidate = $candidate + 1
+				}
+			}
+		}
+	}
+	Ok(
+		KernelLineLayout.Plan.{
+			lines: $lines,
+			work: {
+				boundary_visits: cluster_count,
+				candidate_visits: $candidate_visits,
+				cluster_visits: cluster_count,
+				glyph_index_visits: measure.glyph_index_visits,
+				glyph_visits: measure.glyph_index_visits,
+				line_writes: $lines.len(),
+			},
+		},
+	)
+}
+
 ## A boundary's decision under holds: an `Allowed`, `Tailorable` boundary
 ## strictly inside a hold is `Prohibited`. Holds are sorted and disjoint,
 ## so the last hold starting before the boundary is the only candidate;
@@ -927,6 +1057,70 @@ measure_clusters = |clusters, glyph_indices, glyphs, cluster_start, cluster_end,
 	} else {
 		Ok({ cluster_visits: cluster_end - cluster_start, glyph_index_visits: $glyph_index_visits, prefix: $prefix })
 	}
+}
+
+measure_source_clusters : List(Text.Cluster), List(U64), List(Text.Glyph), U64, U64, U64, U64, U64 -> Try({ cluster_visits : U64, glyph_index_visits : U64, prefix : List(I64) }, KernelLineLayout.Error)
+measure_source_clusters = |clusters, glyph_indices, glyphs, cluster_start, cluster_end, glyph_start, glyph_end, scalars| {
+	var $prefix = [0]
+	var $total = 0
+	var $scalar_cursor = list_at(clusters, cluster_start).source.scalars.start()
+	var $byte_cursor = list_at(clusters, cluster_start).source.utf8_bytes.start()
+	var $cluster_index = cluster_start
+	var $glyph_index_visits = 0
+	while $cluster_index < cluster_end {
+		cluster = list_at(clusters, $cluster_index)
+		if cluster.source.scalars.start() != $scalar_cursor or cluster.source.utf8_bytes.start() != $byte_cursor or cluster.source.scalars.length() == 0 or cluster.glyphs.length() == 0 {
+			return Err(InvalidCluster({ cluster: $cluster_index }))
+		}
+		$scalar_cursor = range_end(cluster.source.scalars)?
+		$byte_cursor = range_end(cluster.source.utf8_bytes)?
+		cluster_glyph_end = range_end(cluster.glyphs)?
+		if cluster_glyph_end > glyph_indices.len() {
+			return Err(InvalidCluster({ cluster: $cluster_index }))
+		}
+		var $reference = cluster.glyphs.start()
+		while $reference < cluster_glyph_end {
+			glyph_index = list_at(glyph_indices, $reference)
+			if glyph_index < glyph_start or glyph_index >= glyph_end {
+				return Err(InvalidCluster({ cluster: $cluster_index }))
+			}
+			advance = list_at(glyphs, glyph_index).advance_x.raw()
+			if advance < 0 {
+				return Err(InvalidGlyphAdvance({ glyph: glyph_index }))
+			}
+			$total = match I64.plus_try($total, advance) {
+				Err(_) => return Err(ArithmeticOverflow)
+				Ok(value) => value
+			}
+			$glyph_index_visits = checked_add($glyph_index_visits, 1)?
+			$reference = $reference + 1
+		}
+		$prefix = $prefix.append($total)
+		$cluster_index = $cluster_index + 1
+	}
+	if $scalar_cursor != scalars {
+		Err(InvalidAnalysis)
+	} else {
+		Ok({ cluster_visits: cluster_end - cluster_start, glyph_index_visits: $glyph_index_visits, prefix: $prefix })
+	}
+}
+
+## Validate one source visual-line value before consuming its growing line
+## buffer. No Try carries an accumulator back to a caller that grows it.
+source_line : List(Text.Cluster), List(I64), U64, U64, U64 -> Try(KernelLineLayout.Line, KernelLineLayout.Error)
+source_line = |clusters, prefix, prefix_start, start, end| {
+	if end <= start {
+		return Err(InvalidAnalysis)
+	}
+	first = list_at(clusters, start)
+	last = list_at(clusters, end - 1)
+	scalar_end = range_end(last.source.scalars)?
+	byte_end = range_end(last.source.utf8_bytes)?
+	Ok({
+		advance: Layout.Unit.from_raw(list_at(prefix, end - prefix_start) - list_at(prefix, start - prefix_start)),
+		clusters: Semantics.Range.from_start_and_length(start, end - start),
+		source: { scalars: Semantics.Range.from_start_and_length(first.source.scalars.start(), scalar_end - first.source.scalars.start()), utf8_bytes: Semantics.Range.from_start_and_length(first.source.utf8_bytes.start(), byte_end - first.source.utf8_bytes.start()) },
+	})
 }
 
 append_line : List(KernelLineLayout.Line), List(Text.Cluster), List(I64), U64, U64, U64, U64 -> Try(List(KernelLineLayout.Line), KernelLineLayout.Error)
@@ -1118,3 +1312,31 @@ expect {
 
 u32_max : U64
 u32_max = 4294967295
+
+# Ranged source layout consumes exactly a canonical middle span; it never
+# requires or emits a source prefix/suffix or a delimiter glyph.
+expect {
+	boundaries = test_analysis.line_boundaries.map(|boundary| if boundary.scalar_offset == 6 { ..boundary, decision: Mandatory } else { ..boundary, decision: Prohibited })
+	analysis = { ..test_analysis, line_boundaries: boundaries }
+	plan = build_source_range(analysis, test_store, { cluster_start: 2, cluster_end: 5, glyph_start: 2, glyph_end: 5 }, Layout.Unit.from_raw(2000), Wrap, test_limits)?
+	lines = KernelLineLayout.Plan.lines(plan)
+	work = KernelLineLayout.Plan.work(plan)
+	lines.len() == 2 and list_at(lines, 0).source.scalars == Semantics.Range.from_start_and_length(2, 2) and list_at(lines, 1).source.scalars == Semantics.Range.from_start_and_length(4, 1) and work.cluster_visits == 3 and work.boundary_visits == 3 and work.candidate_visits == 4
+}
+
+# The same measured token rejects under the no-grapheme-fallback policy.
+expect {
+	boundaries = test_analysis.line_boundaries.map(|boundary| if boundary.scalar_offset == 6 { ..boundary, decision: Mandatory } else { ..boundary, decision: Prohibited })
+	analysis = { ..test_analysis, line_boundaries: boundaries }
+	match build_source_range(analysis, test_store, { cluster_start: 2, cluster_end: 5, glyph_start: 2, glyph_end: 5 }, Layout.Unit.from_raw(2000), RejectOverflow, test_limits) {
+		Err(Unbreakable({ cluster_start: 2, cluster_end: 5 })) => True
+		_ => False
+	}
+}
+
+# Natural opportunities remain available when grapheme fallback is forbidden.
+expect {
+	plan = build_source_range(test_analysis, test_store, { cluster_start: 2, cluster_end: 5, glyph_start: 2, glyph_end: 5 }, Layout.Unit.from_raw(2000), RejectOverflow, test_limits)?
+	lines = KernelLineLayout.Plan.lines(plan)
+	lines.len() == 2 and list_at(lines, 0).source.scalars == Semantics.Range.from_start_and_length(2, 2) and list_at(lines, 1).source.scalars == Semantics.Range.from_start_and_length(4, 1)
+}

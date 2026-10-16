@@ -2,6 +2,7 @@ import Color
 import Conformance
 import Font
 import Image
+import KernelSourceText
 import Layout
 import Metadata
 import Scene
@@ -35,6 +36,7 @@ DocumentBlock :: [
 	## Blocks whose inline colors a `Theme.Scope` overrides, boxed so the
 	## block union keeps the size of its other alternatives.
 	Scoped(Box({ contents : List(DocumentBlock), scope : Theme.Scope })),
+	Source(Box(SourceBlockProps)),
 	Spacer(Layout.Unit),
 	Table(Box(TableSpec)),
 	Title(Str),
@@ -56,6 +58,44 @@ DecorationSpec : { above : Layout.Unit, behind : Bool, below : Layout.Unit, draw
 ## unsplittable: it moves whole to the next page. No PDF operators, stores,
 ## or pagination callbacks cross this boundary.
 CustomSpec : { contents : List(DocumentBlock), inset : Layout.Unit, name : Str, panel : Scene.Drawing, size : Layout.Size }
+
+## Preformatted source has one explicitly registered face, independent of
+## paragraph and inline Code styles. Tabs expand at scalar-column stops or
+## reject; CRLF normalizes to LF and a bare CR rejects. Empty lines retain
+## layout rows. Wrap permits grapheme fallback for long paths/identifiers;
+## RejectLongToken keeps ordinary wrapping but rejects an oversized token.
+SourceTabs : [ExpandTo(U16), RejectTabs]
+
+SourceBlockProps := {
+	background : [Background(Color.SourceValue), NoBackground] ?? NoBackground,
+	color : Color.SourceValue ?? Theme.black,
+	face : Font.FaceId,
+	fragmentation : [Lines, Unsplittable] ?? Lines,
+	leading : Layout.Unit ?? 12,
+	padding : Layout.Unit ?? 8,
+	size : Layout.Unit ?? 9,
+	tabs : SourceTabs ?? ExpandTo(4),
+	text : Str,
+	wrap : [RejectLongToken, Wrap] ?? Wrap,
+}.{}
+
+## One canonical source, its explicit logical lines, and local presentation.
+## Invalid whitespace is carried as a typed fact for located preparation
+## diagnostics; later stages consume only semantically validated sources.
+NormalizedSource : {
+	background : [Background(Color.SourceValue), NoBackground],
+	color : Color.SourceValue,
+	face : Font.FaceId,
+	fragmentation : [Lines, Unsplittable],
+	group : U64,
+	leading : Layout.Unit,
+	lines : Semantics.Range,
+	padding : Layout.Unit,
+	size : Layout.Unit,
+	text : Str,
+	validation : [InvalidSource(KernelSourceText.Error), ValidSource],
+	wrap : [RejectLongToken, Wrap],
+}
 
 ## An ordinary table: boxed, so the authored block union keeps the size of
 ## its other alternatives. An optional caption, the column declarations, and its
@@ -368,6 +408,8 @@ FixedPageBuilder :: FixedPage.{
 }
 
 NormalizedBlockKind := [
+	SourceLine({ line : U64, source : U64 }),
+	EmptySourceLine({ line : U64, source : U64 }),
 	Bullet({ item : U64, list : U64 }),
 	DestinationHeading({ level : U8, name : Str }),
 	DestinationParagraph({ name : Str }),
@@ -468,7 +510,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -538,6 +580,8 @@ NormalizedAuthoring := {
 	page_labels : List(PageLabelRange),
 	rich_paragraphs : List(NormalizedRich),
 	scopes : List(Theme.Scope),
+	sources : List(NormalizedSource),
+	source_lines : List(KernelSourceText.Line),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
 	templates : NormalizedTemplates,
@@ -801,6 +845,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedDecoration : NormalizedDecoration
 	NormalizedCustom : NormalizedCustom
 	CustomSpec : CustomSpec
+	SourceTabs : SourceTabs
+	SourceBlockProps : SourceBlockProps
+	NormalizedSource : NormalizedSource
 	NormalizedFigure : NormalizedFigure
 	FigureFit : FigureFit
 	FigurePolicy : FigurePolicy
@@ -1213,6 +1260,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	custom_block : CustomSpec -> DocumentBlock
 	custom_block = |spec| DocumentBlock.Custom(Box.box(spec))
 
+	source_block : SourceBlockProps -> DocumentBlock
+	source_block = |spec| DocumentBlock.Source(Box.box(spec))
+
 	## Construct an optional visible figure caption.
 	caption : Str -> Caption
 	caption = |text| Caption(text)
@@ -1364,12 +1414,12 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [] }
+empty_state = { source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1529,13 +1579,19 @@ normalize_compact = |compact, initial| {
 		page_labels: [],
 		rich_paragraphs: initial.rich_paragraphs,
 		scopes: initial.scopes,
+		sources: initial.sources,
+		source_lines: initial.source_lines,
 		spacers: initial.spacers,
 		tables: initial.tables,
 		templates: NoTemplates,
 	}
 }
 
+SourceExhaustion : [NoSourceExhaustion, SourceExhausted(KernelSourceText.Error)]
+
 SimpleState : {
+	source_bytes : U64,
+	source_exhaustion : SourceExhaustion,
 	blocks : List(NormalizedBlock),
 	cells : List(NormalizedCell),
 	customs : List(NormalizedCustom),
@@ -1549,6 +1605,8 @@ SimpleState : {
 	page_breaks : List(NormalizedPageBreak),
 	rich_paragraphs : List(NormalizedRich),
 	scopes : List(Theme.Scope),
+	sources : List(NormalizedSource),
+	source_lines : List(KernelSourceText.Line),
 	spacers : List(NormalizedSpacer),
 	tables : List(NormalizedTable),
 }
@@ -1579,6 +1637,8 @@ normalize_simple = |simple, initial| {
 		page_labels: [],
 		rich_paragraphs: $state.rich_paragraphs,
 		scopes: $state.scopes,
+		sources: $state.sources,
+		source_lines: $state.source_lines,
 		spacers: $state.spacers,
 		tables: $state.tables,
 		templates: NoTemplates,
@@ -1724,12 +1784,64 @@ append_leaf = |state, block, parent, position| match block {
 	PageBreak => { ..state, page_breaks: state.page_breaks.append({ block: state.blocks.len(), parent, position }) }
 	Paragraph(text) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text }) }
 	RichParagraph(contents) => append_rich(state, contents, parent, position)
+	Source(boxed) => append_source(state, Box.unbox(boxed), parent, position)
 	Spacer(amount) => { ..state, spacers: state.spacers.append({ amount, block: state.blocks.len(), parent, position }) }
 	Table(spec) => append_table(state, Box.unbox(spec), parent, position)
 	Title(text) => { ..state, blocks: state.blocks.append({ kind: Title, parent, text }) }
 
 	## Preparation rejects this branch before normalization.
 	Unavailable({ feature: _, summary: _ }) => { ..state, blocks: state.blocks.append({ kind: Paragraph, parent, text: "" }) }
+}
+
+## The parser owns the canonical byte buffer once. Leaf text stays empty:
+## all later text ranges reference this source arena, including blank lines.
+append_source : SimpleState, SourceBlockProps, U64, U64 -> SimpleState
+append_source = |state, spec, parent, position| append_source_limited(state, spec, parent, position, source_normalization_limits)
+
+source_normalization_limits : KernelSourceText.Limits
+source_normalization_limits = { max_input_bytes: 1000000, max_lines: 1000000, max_output_bytes: 1000000 }
+
+## Canonical bytes and line rows have aggregate document bounds. Remaining
+## capacities pass to the parser, so it rejects before retaining an oversized
+## source. A compact exhaustion fact prevents parsing subsequent sources.
+append_source_limited : SimpleState, SourceBlockProps, U64, U64, KernelSourceText.Limits -> SimpleState
+append_source_limited = |state, spec, parent, position, limits| {
+	facts = match state.source_exhaustion {
+		SourceExhausted(error) => { bytes: 0, exhaustion: state.source_exhaustion, lines: [], text: "", validation: InvalidSource(error) }
+		NoSourceExhaustion => {
+			remaining = { max_input_bytes: limits.max_input_bytes, max_lines: limits.max_lines - state.source_lines.len(), max_output_bytes: limits.max_output_bytes - state.source_bytes }
+			match KernelSourceText.prepare(spec.text, spec.tabs, remaining) {
+				Ok(value) => { bytes: value.work.output_bytes, exhaustion: NoSourceExhaustion, lines: value.lines, text: value.text, validation: ValidSource }
+				Err(error) => {
+					located = match error {
+						LimitExceeded({ attempted, dimension: OutputBytes, .. }) => LimitExceeded({ attempted: state.source_bytes + attempted, dimension: OutputBytes, limit: limits.max_output_bytes })
+						LimitExceeded({ attempted, dimension: Lines, .. }) => LimitExceeded({ attempted: state.source_lines.len() + attempted, dimension: Lines, limit: limits.max_lines })
+						other => other
+					}
+					exhaustion = match located {
+						LimitExceeded(_) => SourceExhausted(located)
+						_ => NoSourceExhaustion
+					}
+					{ bytes: 0, exhaustion, lines: [], text: "", validation: InvalidSource(located) }
+				}
+			}
+		}
+	}
+	source = state.sources.len()
+	group = state.groups.len()
+	record = { background: spec.background, color: spec.color, face: spec.face, fragmentation: spec.fragmentation, group, leading: spec.leading, lines: Semantics.Range.from_start_and_length(state.source_lines.len(), facts.lines.len()), padding: spec.padding, size: spec.size, text: facts.text, validation: facts.validation, wrap: spec.wrap }
+	next_bytes = state.source_bytes + facts.bytes
+	var $state = open_group({ ..state, source_bytes: next_bytes, source_exhaustion: facts.exhaustion, sources: state.sources.append(record) }, Source(source), parent, 0, position)
+	for line in facts.lines {
+		$state = { ..$state, source_lines: $state.source_lines.append(line) }
+	}
+	var $line = 0
+	while $line < U64.max(1, facts.lines.len()) {
+		kind = if $line >= facts.lines.len() or list_at(facts.lines, $line).utf8_bytes.length() == 0 EmptySourceLine({ line: $line, source }) else SourceLine({ line: $line, source })
+		$state = { ..$state, blocks: $state.blocks.append({ kind, parent: group + 1, text: "" }) }
+		$line = $line + 1
+	}
+	close_group($state, group)
 }
 
 ## Lower one table: its `Table` group, an optional caption paragraph leaf,
@@ -2655,4 +2767,31 @@ expect {
 		ValidDrawing(_) => False
 	}
 	rejected($deep) and rejected(Scene.Drawing.empty.group(Layout.point(-5, 0), mark)) and rejected(Scene.Drawing.empty.group(Layout.point(1, 1), Scene.Drawing.empty)) and rejected(Scene.Drawing.empty)
+}
+
+# Two source placements share one aggregate retained-byte budget. Expansion
+# must fit before its buffer is retained, and later sources are not parsed.
+expect {
+	limits = { max_input_bytes: 32, max_lines: 8, max_output_bytes: 8 }
+	first = append_source_limited(empty_state, { face: Font.FaceId.from_index(0), text: "12345" }, 0, 0, limits)
+	second = append_source_limited(first, { face: Font.FaceId.from_index(0), text: "\t" }, 0, 1, limits)
+	third = append_source_limited(second, { face: Font.FaceId.from_index(0), text: "\r" }, 0, 2, limits)
+	tab = list_at(third.sources, 1)
+	after = list_at(third.sources, 2)
+	bounded = match (tab.validation, after.validation) {
+		(InvalidSource(LimitExceeded({ attempted: 9, dimension: OutputBytes, limit: 8 })), InvalidSource(LimitExceeded({ attempted: 9, dimension: OutputBytes, limit: 8 }))) => True
+		_ => False
+	}
+	bounded and third.source_bytes == 5 and third.source_lines.len() == 1 and tab.text.is_empty() and tab.lines.length() == 0 and after.lines.length() == 0
+}
+
+# Logical line limits also apply across source blocks, including blank rows.
+expect {
+	limits = { max_input_bytes: 32, max_lines: 3, max_output_bytes: 32 }
+	first = append_source_limited(empty_state, { face: Font.FaceId.from_index(0), text: "a\n" }, 0, 0, limits)
+	second = append_source_limited(first, { face: Font.FaceId.from_index(0), text: "b\n" }, 0, 1, limits)
+	match list_at(second.sources, 1).validation {
+		InvalidSource(LimitExceeded({ attempted: 4, dimension: Lines, limit: 3 })) => second.source_lines.len() == 2 and second.source_bytes == 2 and list_at(second.sources, 1).text.is_empty()
+		_ => False
+	}
 }
