@@ -55,8 +55,10 @@ allocation events are geometric growth of the source and line buffers; the
 tenfold input does not copy growing prefixes. Both cases retain six atomic
 rejections. The focused cases pass the `scripts/test.py` build/run harness functions
 with exact allocation/work equality and independent PDF structure checks on
-arm64mac. Cross-compiled x64musl executions in local `alpine:3.22` match the
-registered metrics and PDF bytes. Full integration-suite validation remains
+arm64mac and on cross-compiled x64musl in local `alpine:3.22`. Both targets
+match the registered metrics and PDF bytes. Arlington 1.30.2 reports 9,022
+passed rules, 286 object checks and zero failures for the envelope.
+Full integration-suite validation remains
 pending.
 
 ## Remaining feature evidence
