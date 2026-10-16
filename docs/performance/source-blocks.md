@@ -149,8 +149,8 @@ and wholly empty source output both with and without a background.
 
 | Source lines | Allocations | Allocated bytes | Pages / panels | Metric reads | Line candidates | Page candidates |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 60 | 14,110 | 11,764,920 | 2 / 2 | 1,797 | 1,797 | 62 |
-| 600 | 90,210 | 58,407,786 | 11 / 11 | 17,958 | 17,958 | 602 |
+| 60 | 14,109 | 11,764,848 | 2 / 2 | 1,797 | 1,797 | 62 |
+| 600 | 90,209 | 58,407,714 | 11 / 11 | 17,958 | 17,958 | 602 |
 
 The tenfold input grows metric and candidate work approximately tenfold.
 Allocation and byte growth include fixed face inspection, font subsetting,
@@ -174,3 +174,13 @@ and the resumed body paragraph survive extraction.
 
 Full integration-suite regression validation remains pending. General custom
 fragmentation and PDF/UA-2 remain outside this extension's declared subset.
+
+The final font-selection preflight separates option validation from source
+face enrichment and consumes the prepared base candidates. This avoids the
+temporary candidate list in general styled-font preparation: each
+positive source case saves exactly one allocation and 72 bytes, independent
+of source length. The twelve-negative fixture saves nine allocations and
+424 bytes through earlier option rejection and avoiding unused candidates.
+Both pinned targets reproduce these changes with identical PDF bytes, stage
+work, source-fragment reports, and all twelve located diagnostic checks.
+These fixed selection costs were reviewed before updating the exact baselines.
