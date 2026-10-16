@@ -1676,6 +1676,12 @@ until its ownership or representation cause is understood and the checked-in
 baseline is accepted deliberately; a decrease is also recorded deliberately
 rather than silently rewriting expectations.
 
+Baselines describe the current reviewed implementation; preserving historical
+allocation counts is not a design goal. Use measured results to remove waste
+as features evolve, and lower allocation and allocated-byte baselines when
+improvements are verified. Necessary representation costs still require
+review, while scale-pair work evidence guards against worsening complexity.
+
 A pinned Roc compiler or target upgrade uses an explicit bulk re-baseline
 procedure rather than treating every changed count as an implementation
 regression. The old and proposed toolchains run the full allocation suite on

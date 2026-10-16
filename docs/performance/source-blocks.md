@@ -184,3 +184,23 @@ of source length. The twelve-negative fixture saves nine allocations and
 Both pinned targets reproduce these changes with identical PDF bytes, stage
 work, source-fragment reports, and all twelve located diagnostic checks.
 These fixed selection costs were reviewed before updating the exact baselines.
+
+## Integration ratchet review
+
+Existing fixture baselines now record the combined implementation rather than
+preserving pre-feature counts. Source-aware page ownership, fragment ranges
+and explicit empty-row facts widen dense records even for documents without
+source blocks. Stage-prefix controls locate the first byte increase at page
+layout; isolated fragment-list growth and whole-source text controls preserve
+allocation counts. Whole-fixture observations include one to four additional
+allocations in affected combined or retained-output cases. All existing work
+vectors and PDF bytes remain identical, and every byte increase stays within
+the existing 10% guard. These costs are recorded deliberately, without claiming
+an isolated cause for each individual allocation event.
+
+Early font-option rejection removes 226 allocations from the reference variant
+rejection fixture. Its total allocated bytes still increase because other
+rejected variants reach the wider layout records. Source cases separately
+save the allocation and byte costs recorded above. Ratchets follow these
+measured improvements and reviewed representation costs; historical counts
+are not a reason to retain waste or complicate the implementation.
