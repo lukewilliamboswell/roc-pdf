@@ -37,6 +37,7 @@ import pdf.Layout
 import pdf.Pdf
 import pdf.Scene
 import pdf.Theme
+import "../assets/NotoSansMono-Code-Fixture.ttf" as mono_font_bytes : List(U8)
 import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 
 ## Page templates, furniture, and page fields through the public `Pdf`
@@ -139,6 +140,9 @@ Fixture :: [].{
 
 	furniture_groups : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	furniture_groups = |context| run_furniture_groups(context)
+
+	typography : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	typography = |pages| run_typography(pages)
 
 	slot_inset : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	slot_inset = |context| run_slot_inset(context)
@@ -876,4 +880,50 @@ list_at : List(a), U64 -> a
 list_at = |items, index| match items.get(index) {
 	Ok(value) => value
 	Err(OutOfBounds) => crash "page-template evidence index escaped"
+}
+
+## Independent furniture typography, including a face never used by body text.
+run_typography : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_typography = |pages| {
+	if pages == 0 or pages > 100 {
+		return Err(InvalidScale)
+	}
+	limits = Font.ValidationLimits.default
+	body = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
+	mono = body.registry.register(mono_font_bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, limits) ? |_| EvidenceFailure
+	quiet = Color.srgb8({ red: 80, green: 80, blue: 80 })
+	theme : Theme
+	theme = { body: { size: 11, leading: 15 }, furniture: Own({ face: Face(mono.face), size: 8, leading: 10, color: quiet }) }
+	make = |height, width| {
+		header = Pdf.region({ height, start: [Pdf.furniture_text([Pdf.text("Quiet running header")])] })
+		footer = Pdf.region({ height, end: [Pdf.furniture_text([Pdf.reserved_width(width, End, [Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])])] })
+		var $contents = []
+		var $page = 0
+		while $page < pages {
+			if $page > 0 {
+				$contents = $contents.append(Pdf.page_break)
+			}
+			$contents = $contents.append(Pdf.paragraph("Body remains eleven points."))
+			$page = $page + 1
+		}
+		Pdf.document({ contents: $contents, language: "en-AU", title: "Independent furniture typography", page_templates: Templates({ first: Pdf.first_page_template({ header, footer }), continuation: Pdf.page_template({ header, footer }) }) })
+	}
+	options = Pdf.Options.{ theme, fonts: Registered(mono.registry) }
+	document = make(10, 70)
+	bytes = Pdf.to_bytes_with(document, options) ? |_| EvidenceFailure
+	body_font = mono.registry.prepared_face(body.face) ? |_| EvidenceFailure
+	mono_font = mono.registry.prepared_face(mono.face) ? |_| EvidenceFailure
+	styled = { faces: [body.face, mono.face], fonts: [body_font, mono_font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	probe_theme = { ..theme, furniture: Own({ face: Face(mono.face), size: 8, leading: 10 }) }
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, probe_theme, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.Plan.work(pipeline)
+	reject = |doc, opts, feature| match Pdf.to_bytes_with(doc, opts) {
+		Err(InvalidDocument({ diagnostics: [{ feature: Feature(found), .. }], .. })) => if found == feature 1 else 0
+		_ => 0
+	}
+	rejections = reject(make(9, 70), options, "layout.template_region_overflow") + reject(make(10, 1), options, "layout.field_overflow") + reject(document, { ..options, theme: { ..theme, furniture: Own({ size: 8, leading: 7 }) } }, "text.furniture_style")
+	if rejections != 3 {
+		return Err(MissingRejection(rejections))
+	}
+	Ok({ bytes, work: [flow.lines, flow.pages, flow.reference_passes, flow.field_resolutions, flow.furniture_items, flow.fragments, flow.final_runs - flow.fragments, rejections, bytes.len()] })
 }

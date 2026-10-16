@@ -257,11 +257,21 @@ build_ordered_pipeline = |authoring, multi, theme, page_size, descriptor, facts,
 	) ? Shape
 	furniture_selection = match multi {
 		Policy(ordered) => PolicyFaces({ faces: KernelFacadeShape.Plan.selected_faces(shape), fonts: KernelFacadeShape.Plan.fonts(shape), policy: ordered.policy, registry: ordered.registry })
-		Styled(styled) => match styled.fonts.first() {
-			Ok(body) => SingleFace(body)
-			Err(_) => {
-				crash "styled font selection has no body face"
+		Styled(styled) => {
+			face = Theme.furniture_style(theme).font
+			var $candidate = 0
+			while $candidate < styled.faces.len() and list_at(styled.faces, $candidate) != face {
+				$candidate = $candidate + 1
 			}
+			if $candidate >= styled.faces.len() {
+				crash "furniture face escaped prepared candidates"
+			}
+			faces = KernelFacadeShape.Plan.selected_faces(shape)
+			var $instance = 0
+			while $instance < faces.len() and list_at(faces, $instance) != face {
+				$instance = $instance + 1
+			}
+			StyledFace({ font: list_at(styled.fonts, $candidate), instance: $instance, extra: $instance == faces.len() })
 		}
 	}
 	lines = KernelFacadeLines.Plan.build_ordered_authoring(authoring, shape, source_store, page_size, theme, limits.lines) ? Lines
@@ -507,7 +517,7 @@ LaidOut : { pages : KernelFacadePages.Plan, text : KernelFacadeText.Plan, work :
 ## the same pagination. No pass can change a flow frame, so pass 2 always
 ## repeats pass 1's state and stabilization ends after exactly two passes;
 ## the fixed budget of four passes and the cycle check still govern it.
-lay_out : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection)], U64, KernelFacadePipeline.Limits -> Try(LaidOut, KernelFacadePipeline.Error)
+lay_out : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], U64, KernelFacadePipeline.Limits -> Try(LaidOut, KernelFacadePipeline.Error)
 lay_out = |authoring, shape, lines, page_size, theme, selection, source_base, limits| match authoring.templates {
 	NoTemplates => {
 		pages = KernelFacadePages.Plan.build(authoring, shape, lines, page_size, theme, limits.pages) ? Pages
@@ -594,3 +604,9 @@ furniture_source_limits = KernelFacadeSources.Limits.make({
 	max_unique_sources: 1000000,
 	unicode: { max_graphemes: 1000000, max_line_boundaries: 1000001, max_scalars: 1000000, max_script_runs: 2048 },
 })
+
+list_at : List(a), U64 -> a
+list_at = |items, index| match items.get(index) {
+	Ok(value) => value
+	Err(_) => crash "validated furniture font index escaped"
+}

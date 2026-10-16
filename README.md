@@ -18,6 +18,24 @@ edit, or repair PDFs, and unsupported requests return typed errors rather than
 producing blank output, substituting fonts, outlining text, or rasterizing
 content.
 
+Running headers and footers can use independent typography while body, list,
+and table text keep their own style:
+
+```roc
+theme : Theme
+theme = {
+    body: { size: 11, leading: 15 },
+    furniture: Own({ size: 8, leading: 10, color: Color.srgb8({ red: 80, green: 80, blue: 80 }) }),
+}
+```
+
+`Theme.furniture` defaults to `BodyStyle`, inheriting the current body style.
+`Own` accepts the same face, size, leading, and color fields as `Theme.BodyStyle`;
+`face: Face(registered_face)` selects a registered face under `StyleFaces`.
+Ordered font policies keep selecting each cluster from their declared faces.
+Page fields and reserved widths use the furniture style, and text that exceeds
+a field or region returns a diagnostic without shrinking, wrapping, or clipping.
+
 Default output claims static PDF/A-4 (`Pdf20 + StaticPdfA4`): the package
 validates a closed whitelist before emitting any byte, and every Archive
 fixture passes the pinned veraPDF PDF/A-4 profile with zero failed checks. A

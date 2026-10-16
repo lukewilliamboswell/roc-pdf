@@ -36,6 +36,7 @@ Theme := {
 	bullet_indent : Layout.Unit ?? 18,
 	face : Font.FaceId ?? Font.FaceId.from_index(0),
 	font_selection : FontSelection ?? StyleFaces,
+	furniture : FurnitureStyle ?? BodyStyle,
 	headings : Headings ?? {},
 	inline : InlineRoles ?? {},
 	link : LinkStyle ?? {},
@@ -58,7 +59,8 @@ Theme := {
 	## headings. It must cover the text it sets.
 	FaceChoice : [Face(Font.FaceId), ThemeFace]
 
-	## Body text: paragraphs, list items, table cells, and page furniture.
+	## Body text: paragraphs, list items, and table cells. Furniture inherits
+	## this style unless `furniture` selects its own.
 	BodyStyle := {
 		# TODO(roc-lang/roc#11922): a default names a sibling by its
 		# qualified name (`Theme.black`); a bare `black` is not in scope.
@@ -69,6 +71,11 @@ Theme := {
 	}.{
 		is_eq : _
 	}
+
+	## Page furniture inherits the current body style by default; `Own`
+	## selects independent face, size, leading, and color for every header
+	## and footer line, including page fields and reserved widths.
+	FurnitureStyle : [BodyStyle, Own(BodyStyle)]
 
 	## The document title (`Pdf.title`).
 	TitleStyle := {
@@ -312,6 +319,13 @@ Theme := {
 		{ color: style.color, font: resolve_face(theme, style.face), leading: style.leading, size: style.size }
 	}
 
+	## The resolved furniture style.
+	furniture_style : Theme -> TextStyle
+	furniture_style = |theme| match theme.furniture {
+		BodyStyle => body_style(theme)
+		Own(style) => { color: style.color, font: resolve_face(theme, style.face), leading: style.leading, size: style.size }
+	}
+
 	## The resolved title style.
 	title_style : Theme -> TextStyle
 	title_style = |theme| {
@@ -413,4 +427,10 @@ expect {
 	reset = { ..base, body: { leading: 20 } }
 	kept = { ..base, body: { ..base.body, leading: 20 } }
 	reset.body.size == Layout.Unit.points(11) and kept.body.size == Layout.Unit.points(12) and kept.body.leading == Layout.Unit.points(20)
+}
+
+expect {
+	theme : Theme
+	theme = { body: { size: 11, leading: 15 }, furniture: Own({ size: 8, leading: 10, face: Face(Font.FaceId.from_index(2)) }) }
+	Theme.furniture_style(theme).size == Layout.Unit.points(8) and Theme.furniture_style(theme).font == Font.FaceId.from_index(2) and Theme.body_style(theme).leading == Layout.Unit.points(15) and Theme.furniture_style({ body: { size: 13, leading: 17 } }) == Theme.body_style({ body: { size: 13, leading: 17 } })
 }

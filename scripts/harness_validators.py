@@ -7,7 +7,7 @@ from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
 from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
 from check_link_underlines import validate_link_underlines_pdf
-from check_drawing_labels import validate_drawing_label_faces_pdf, validate_drawing_labels_pdf
+from check_drawing_labels import validate_drawing_label_faces_pdf, validate_drawing_labels_pdf, validate_furniture_typography_pdf
 from check_caller_text import validate_caller_text_pdf
 from check_case_text import validate_case_pdf
 from check_cjk_text import EXPECTED_CONTENT as CJK_TEXT_CONTENT
@@ -166,6 +166,7 @@ VALIDATORS: dict[str, Validator] = {
     "pdfa4_standard_twin": _dimensioned(validate_standard_twin_pdf, "PDF 2.0 file skeleton of a Standard twin with no PDF/A identification"),
     "metadata": _dimensioned(validate_metadata_pdf, "catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally"),
     "structure_semantics": _dimensioned(validate_structure_semantics_pdf, "object-number-independent structure tree, Table 5 containment, ParentTree/MCID/OBJR exactly-once, IDTree/ID, language inheritance, typed attributes, DisplayDocTitle, MarkInfo, Tabs, and MCID-free page furniture with exact page fields verified independently"),
+    "furniture_typography": _simple(validate_furniture_typography_pdf, "independent furniture face, size, color, page fields, and artifact ownership"),
     "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),

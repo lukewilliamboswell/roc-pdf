@@ -106,6 +106,37 @@ def validate_drawing_label_faces_pdf(pdf: bytes) -> None:
     require(body[0] in tagged, "the body face sets no tagged text")
 
 
+def validate_furniture_typography_pdf(pdf: bytes) -> None:
+    """Independent furniture-only face, 8 pt artifact text and 11 pt body."""
+    artifacts, tagged = label_fonts(pdf)
+    require(len(artifacts) == 1, "furniture does not use exactly one face")
+    furniture_font = next(iter(artifacts))
+    require("NotoMonoCodeFixture" in furniture_font, "furniture did not select the registered mono face")
+    require(furniture_font not in tagged, "furniture entered tagged reading order")
+    require(len(tagged) == 1 and "Body remains eleven points." in next(iter(tagged.values())), "body typography or content changed")
+    document = Document(pdf)
+    pages: list[int] = []
+    page_order(document, int(document.get(document.root)["Pages"]), pages)
+    for ordinal, page in enumerate(pages, 1):
+        value = document.get(page)
+        content = document.stream(int(value["Contents"]))
+        # Artifact ownership and ToUnicode are read independently above;
+        # verify selected sizes directly from each marked text sequence.
+        artifact_blocks = re.findall(rb"/Artifact.*?BDC\n(.*?)EMC", content, re.S)
+        text_artifacts = [block for block in artifact_blocks if b" Tf" in block]
+        require(len(text_artifacts) == 2, "header/footer artifact pair missing")
+        for block in text_artifacts:
+            require(re.findall(rb"/\S+ ([0-9.]+) Tf", block) == [b"8"], "furniture size is not 8 pt")
+            require(b"0.31372549 0.31372549 0.31372549 scn" in block, "furniture gray was not painted")
+        tagged_blocks = re.findall(rb"/P <</MCID [0-9]+>> BDC\n(.*?)EMC", content, re.S)
+        require(len(tagged_blocks) == 1 and re.findall(rb"/\S+ ([0-9.]+) Tf", tagged_blocks[0]) == [b"11"], "body size changed")
+        # Exact page fields are decoded per page, never inferred from glyph IDs.
+        fonts: dict[str, list[str]] = {}
+        page_marked_text(document, page, fonts, artifacts=True)
+        text = "".join(part for parts in fonts.values() for part in parts)
+        require("Quiet running header" in text and f"Page {ordinal} of {len(pages)}" in text, "selected furniture face lost fields or literals")
+
+
 def self_test() -> None:
     validate_drawing_labels_pdf(SNAPSHOT.read_bytes())
     validate_drawing_label_faces_pdf(FACES_SNAPSHOT.read_bytes())
@@ -123,7 +154,14 @@ def self_test() -> None:
         pass
     else:
         raise SystemExit("drawing-label checker accepted charts without labels")
-    print("PASS drawing label checker self-test (labels and label faces)")
+    validate_furniture_typography_pdf((ROOT / "tests" / "page_templates" / "typography_3.pdf").read_bytes())
+    try:
+        validate_furniture_typography_pdf((ROOT / "tests" / "page_templates" / "slot_inset.pdf").read_bytes())
+    except ValidationError:
+        pass
+    else:
+        raise SystemExit("furniture typography checker accepted inherited body typography")
+    print("PASS drawing label and furniture typography checker self-test")
 
 
 def main() -> None:

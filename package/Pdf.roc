@@ -787,8 +787,8 @@ Pdf :: [].{
 	no_lead = Document.no_lead
 
 	## One line of furniture text: plain text, page fields, and reserved
-	## widths, in the theme's body style. It is never wrapped, clipped, or
-	## shrunk.
+	## widths, in `Theme.furniture` (the body style by default). It is never
+	## wrapped, clipped, or shrunk.
 	furniture_text : List(Inline) -> Furniture
 	furniture_text = |contents| Document.furniture_text(contents)
 
@@ -1152,7 +1152,7 @@ profile_batch = |violation, stage| {
 selected_fonts : Pdf.Options -> Try(KernelFacadeShape.FontSelection, Pdf.Error)
 selected_fonts = |options| match options.theme.font_selection {
 	StyleFaces => if !has_role_face(options.theme) and !has_block_face(options.theme) Ok(Single(selected_font(options)?)) else selected_styled_fonts(options)
-	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A title or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give the title and headings the body face or use style faces.", [])))
+	Policy(_) if has_block_face(options.theme) => Err(InvalidDocument(located_batch(FeatureUnavailable, "text.block_font_policy", "A furniture, title, or heading face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Give furniture, titles, and headings the body face or use style faces.", [])))
 	Policy(policy) => if has_role_face(options.theme) Err(InvalidDocument(located_batch(FeatureUnavailable, "text.inline_font_policy", "An inline role face applies to style faces only; under an ordered font policy every cluster takes the first policy face that covers it. Remove the inline role faces or use style faces.", []))) else match options.fonts {
 		BuiltIn => Err(InvalidFontSelection([InvalidPolicy(policy)]))
 		Registered(registry) => {
@@ -2133,9 +2133,10 @@ has_role_face = |theme| {
 	differs(Theme.inline_font(theme, Code)) or differs(Theme.inline_font(theme, Emphasis)) or differs(Theme.inline_font(theme, Quote)) or differs(Theme.inline_font(theme, Strong))
 }
 
-## The title and heading style faces, in title then level order.
+## Furniture, title, and heading style faces, in that order.
 block_faces : Theme -> List(Font.FaceId)
 block_faces = |theme| [
+	Theme.furniture_style(theme).font,
 	Theme.title_style(theme).font,
 	Theme.heading_level_style(theme, H1).font,
 	Theme.heading_level_style(theme, H2).font,
@@ -2145,13 +2146,13 @@ block_faces = |theme| [
 	Theme.heading_level_style(theme, H6).font,
 ]
 
-## Whether a title or heading style selects a face other than the body
+## Whether furniture, title, or heading styles select a face other than the body
 ## face, without building a list on the common path.
 has_block_face : Theme -> Bool
 has_block_face = |theme| {
 	body = Theme.body_font(theme).index()
 	differs = |style| style.font.index() != body
-	differs(Theme.title_style(theme)) or differs(Theme.heading_level_style(theme, H1)) or differs(Theme.heading_level_style(theme, H2)) or differs(Theme.heading_level_style(theme, H3)) or differs(Theme.heading_level_style(theme, H4)) or differs(Theme.heading_level_style(theme, H5)) or differs(Theme.heading_level_style(theme, H6))
+	differs(Theme.furniture_style(theme)) or differs(Theme.title_style(theme)) or differs(Theme.heading_level_style(theme, H1)) or differs(Theme.heading_level_style(theme, H2)) or differs(Theme.heading_level_style(theme, H3)) or differs(Theme.heading_level_style(theme, H4)) or differs(Theme.heading_level_style(theme, H5)) or differs(Theme.heading_level_style(theme, H6))
 }
 
 ## The inline role faces a theme selects that differ from its body face.
@@ -2265,6 +2266,14 @@ selected_registered_font = |registry, face| {
 ## scaled run keeps its line's baseline and leading.
 validate_theme : Theme -> Try({}, Pdf.Error)
 validate_theme = |theme| {
+	match theme.furniture {
+		BodyStyle => {}
+		Own(furniture) => {
+			if furniture.size <= 0 or furniture.leading < furniture.size {
+				return Err(InvalidDocument(located_batch(LayoutConstraintViolated, "text.furniture_style", "Furniture needs a positive size and leading at least its size; text never shrinks or clips to fit.", ["theme.furniture"])))
+			}
+		}
+	}
 	check_scale(theme, Code, "code")?
 	check_scale(theme, Emphasis, "emphasis")?
 	check_scale(theme, Quote, "quote")?

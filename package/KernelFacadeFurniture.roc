@@ -147,7 +147,7 @@ KernelFacadeFurniture :: [].{
 		## an ordered font policy (`PolicyFaces`), selects each cluster's
 		## face exactly as body text does. A selected face the body did not
 		## use becomes an extra output font after the body's fonts.
-		resolve : Static, U64, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection)], Semantics.Language, U64, Limits -> Try(Plan, Error)
+		resolve : Static, U64, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
 		resolve = |static, pages, font, language, source_base, limits| resolve_plan(static, pages, font, language, source_base, limits)
 
 		drawing_paints : Plan -> List(DrawingPaint)
@@ -170,7 +170,7 @@ KernelFacadeFurniture :: [].{
 		sources : Plan -> List(Str)
 		sources = |plan| plan.sources
 
-		## Output fonts after the body's under an ordered policy, in first
+		## Output fonts after the body's under a policy or style selection, in first
 		## use order; the dense run instance of extra font `k` is the body
 		## font count plus `k`. Empty through the single face.
 		extra_fonts : Plan -> List(KernelFont.Inspection)
@@ -240,8 +240,8 @@ build_static = |authoring, theme, page_size| {
 	right_margin = nonnegative(margins.right)?
 	frame_height = checked_sub(page_height, checked_add(top_margin, bottom_margin)?)?
 	frame_width = checked_sub(page_width, checked_add(left_margin, right_margin)?)?
-	style = Theme.body_style(theme)
-	line = nonnegative(style.leading)?
+	style = Theme.furniture_style(theme)
+	line = nonnegative(Theme.body_style(theme).leading)?
 	lead_leaves = match templates.lead {
 		NoLead => 0
 		Lead(_) => lead_block_end(authoring)
@@ -771,10 +771,11 @@ path_bounds = |segments| {
 }
 
 ## Pass 2: resolve, shape, prove, and place.
-resolve_plan : KernelFacadeFurniture.Static, U64, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection)], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
+resolve_plan : KernelFacadeFurniture.Static, U64, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
 resolve_plan = |static, page_count, selection, language, source_base, limits| {
-	## The single face is the theme's body face, which is the furniture
-	## style's face whatever its registry index.
+	## The single face is the resolved furniture face, which is the furniture
+	## style's face whatever its registry index. Styled selection supplies
+	## its explicit dense output instance and whether it adds a furniture-only face.
 	check_limit(static.items.len(), limits.max_items, Items)?
 
 	# Resolve every text item on every page into its line string and
@@ -818,15 +819,20 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	unique = KernelFacadeSources.Plan.sources(interned)
 	input_sources = KernelFacadeSources.Plan.input_sources(interned)
 	shaped = match selection {
-		SingleFace(font) => {
+		SingleFace(_) | StyledFace(_) => {
+			{ font, instance, extra } = match selection {
+				SingleFace(value) => { font: value, instance: 0, extra: False }
+				StyledFace(value) => value
+				PolicyFaces(_) => crash "policy escaped furniture selection"
+			}
 			var $requests = List.with_capacity(unique.len())
 			while $requests.len() < unique.len() {
 				index = $requests.len()
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(index), size: static.style.size, source: Semantics.TextSourceId.from_index(index) })
 			}
-			options = { direction: LeftToRight, instance: Font.InstanceId.from_index(0), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
+			options = { direction: LeftToRight, instance: Font.InstanceId.from_index(instance), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
 			batch = if unique.is_empty() { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? Shape
-			{ batch, extra_fonts: [], run_sources: [], source_runs: [] }
+			{ batch, extra_fonts: if extra and !unique.is_empty() [font] else [], run_sources: [], source_runs: [] }
 		}
 		PolicyFaces(policy) => shape_under_policy(policy, unique, static, input_sources, $pending, language, limits)?
 	}

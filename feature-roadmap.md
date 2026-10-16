@@ -863,7 +863,8 @@ Closing Gate 6 alone does not make a PDF/UA-2 or combined-profile claim.
   policy rather than inventing new logical table relationships.
 - Bounded first-page and continuation-page templates with single-column body
   flow, explicit headers/footers/decorations, and resolved page/total-page
-  numbers. Template regions have reserved geometry; decorative/repeated page
+  numbers, with independently themed furniture face, size, leading, and color
+  (body-style inheritance by default). Template regions have reserved geometry; decorative/repeated page
   furniture has explicit artifact ownership, and meaningful authored content
   retains semantic ownership. General fixed pages, columns, and float/footnote
   interaction remain Gate 8.

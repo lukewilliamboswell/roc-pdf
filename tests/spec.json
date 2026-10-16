@@ -27104,6 +27104,134 @@
       "validators": [
         "pdf_structure"
       ]
+    },
+    {
+      "name": "page templates typography x3",
+      "scenario_revision": "furniture-typography-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/typography_3.pdf",
+      "args": [
+        "typography",
+        "3"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6565,
+          "allocated_bytes": 8418136,
+          "work": {
+            "lines": 3,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 6,
+            "furniture_items": 6,
+            "fragments": 3,
+            "artifact_runs": 6,
+            "rejections": 3,
+            "output_bytes": 16533
+          }
+        },
+        "x64musl": {
+          "allocations": 6565,
+          "allocated_bytes": 8418136,
+          "work": {
+            "lines": 3,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 6,
+            "furniture_items": 6,
+            "fragments": 3,
+            "artifact_runs": 6,
+            "rejections": 3,
+            "output_bytes": 16533
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "furniture_typography"
+      ]
+    },
+    {
+      "name": "page templates typography x30",
+      "scenario_revision": "furniture-typography-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/typography_30.pdf",
+      "args": [
+        "typography",
+        "30"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 30
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "rejections",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 25157,
+          "allocated_bytes": 30526505,
+          "work": {
+            "lines": 30,
+            "pages": 30,
+            "reference_passes": 2,
+            "field_resolutions": 60,
+            "furniture_items": 60,
+            "fragments": 30,
+            "artifact_runs": 60,
+            "rejections": 3,
+            "output_bytes": 28928
+          }
+        },
+        "x64musl": {
+          "allocations": 25157,
+          "allocated_bytes": 30526505,
+          "work": {
+            "lines": 30,
+            "pages": 30,
+            "reference_passes": 2,
+            "field_resolutions": 60,
+            "furniture_items": 60,
+            "fragments": 30,
+            "artifact_runs": 60,
+            "rejections": 3,
+            "output_bytes": 28928
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "furniture_typography"
+      ]
     }
   ]
 }

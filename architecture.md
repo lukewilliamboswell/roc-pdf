@@ -1107,6 +1107,11 @@ supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
 never a second run-local string.
 
+Page furniture has an explicit resolved text style, inherited from body text
+by default or independently selected by the theme. Its size and face govern
+shaping and reserved-field measurement; its leading governs slot stacking.
+These presentation facts never alter artifact ownership or body typography.
+
 Page-content artifact text is the one other source. Page furniture and text
 labels inside drawings, both resolved after pagination, are shaped from
 artifact text sources appended to the same dense Unicode store after the

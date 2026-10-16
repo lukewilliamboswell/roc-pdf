@@ -493,3 +493,48 @@ image) reused three times in a header item, nested two deep in a footer
 item, and grouped inside a backdrop; nine nested groups are
 `layout.furniture_drawing`. 14,721 allocations. Validation stays linear in
 commands with a stack of at most eight. No existing baseline changes.
+
+## Independent furniture typography (#43)
+
+`Theme.furniture` selects `BodyStyle` (the default, resolved from the current
+body style) or `Own(Theme.BodyStyle)` with independent face, size, leading,
+and color. Static template validation retains that resolved style: its leading
+sizes slot stacks, and its size and selected face shape and measure every
+literal and page field, including content inside reserved widths. The body
+frame's minimum line test still uses body leading. Furniture remains page
+artifact text with no semantic owner.
+
+Style face preparation includes the furniture face. A face already selected
+by body shaping reuses its dense output font instance; a furniture-only face
+is appended after the body fonts only when furniture text actually uses it.
+Ordered policies retain their declared cluster selection and reject a distinct
+explicit furniture face through the existing style-face policy diagnostic.
+No glyph metric, Unicode, font, or ownership facts are inferred downstream.
+
+The fixed style is scalar data, resolved once per template build. Face discovery
+scans the finite style candidates and selected faces once per document; no
+per-page font parsing is introduced. The existing distinct-source intern table
+and shaping batch still shape each resolved furniture line once, and page
+materialization stays linear in pages and painted pieces. The style introduces
+no growing list aliases, retained authoring trees, speculative scenes, or
+new cache identities. A source cache remains exact because every furniture
+line in one plan shares this one resolved style.
+
+`page templates typography x3/x30` exercise an 11/15 pt body alongside 8/10 pt
+gray furniture in a registered monospace face unused by the body. The public
+API emits the bytes; an additional styled-pipeline probe records deterministic
+work. The independent PDF oracle verifies the actual embedded face, font sizes,
+color, exact current/total fields on every page, and artifact-only ownership.
+A 10 pt region proves the selected leading controls fit. Atomic negative
+checks cover a 9 pt region, a 1 pt reserved width, and invalid leading.
+The corresponding public example is `examples/furniture-typography/main.roc`.
+
+Both pinned targets (`arm64mac` and `x64musl`) produce identical bytes and
+exact metrics: 6,565 allocations / 8,418,136 allocated bytes at 3 pages;
+25,157 / 30,526,505 at 30 pages. Lines, pages, fields, furniture items,
+fragments, and painted artifact runs grow exactly tenfold (3/30, 6/60),
+while reference passes stay at two. These are new feature baselines, not
+changes accepted for old cases: the report and slot-inset snapshots, exact
+allocation counts, bytes, and work remain unchanged. The new allocation
+cost is the explicitly registered second face and its subset, two artifact
+lines per page, and the bounded positive/negative preparation evidence.

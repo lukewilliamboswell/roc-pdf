@@ -16,6 +16,7 @@ Case : [
 	PageSizes({ context : U64 }),
 	Backdrops({ pages : U64 }),
 	SlotInset({ context : U64 }),
+	Typography({ pages : U64 }),
 	FurnitureGroups({ context : U64 }),
 ]
 
@@ -54,6 +55,7 @@ main! = |args| {
 		PageSizes({ context }) => Fixture.page_sizes(context)
 		Backdrops({ pages }) => Fixture.backdrops(pages)
 		SlotInset({ context }) => Fixture.slot_inset(context)
+		Typography({ pages }) => Fixture.typography(pages)
 		FurnitureGroups({ context }) => Fixture.furniture_groups(context)
 	}
 	match result {
