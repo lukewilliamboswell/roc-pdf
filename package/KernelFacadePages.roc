@@ -223,7 +223,6 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	block_lines = KernelFacadeLines.Plan.blocks(line_plan)
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 	styles = KernelFacadeShape.Plan.styles(shape)
-	shape_requests = KernelFacadeShape.Plan.requests(shape)
 	shape_batch = KernelFacadeShape.Plan.shape(shape)
 	line_batch = KernelFacadeLines.Plan.line(line_plan)
 	lines = KernelLineLayout.BatchPlan.lines(line_batch)
@@ -276,10 +275,10 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 				line_size = assert_logical_identity(shape_batch.store.runs, styles, body_run, $block_index)?
 				body_record = list_at(shape_batch.store.runs, body_index)
 				body_style = list_at(styles, body_index)
-				segmented = list_at(shape_requests, body_index).source != list_at(shape_requests, body_index + body_run.physical.length() - 1).source
+				segmented = list_at(styles, body_index).segment != list_at(styles, body_index + body_run.physical.length() - 1).segment
 				visual_start = $visual_lines.len()
 				var $segment_start = body_index
-				var $segment_length = if segmented segment_length(shape_requests, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
+				var $segment_length = if segmented segment_length(styles, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
 				var $local = 0
 				while $local < body_lines.lines.length() {
 					body_line_index = body_lines.lines.start() + $local
@@ -307,7 +306,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 					if segmented {
 						while $segment_start + $segment_length < body_index + body_run.physical.length() and line.clusters.start() >= segment_cluster_end(shape_batch.store.runs, $segment_start, $segment_length)? {
 							$segment_start = $segment_start + $segment_length
-							$segment_length = segment_length(shape_requests, $segment_start, body_index + body_run.physical.length())
+							$segment_length = segment_length(styles, $segment_start, body_index + body_run.physical.length())
 						}
 					}
 					runs = if segmented { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
@@ -534,7 +533,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			if table.caption {
 				caption_block = group.first_block
 				placed = table_leaf_unit(
-					{ block_lines, block_runs, lines, shape_batch, shape_requests, styles },
+					{ block_lines, block_runs, lines, shape_batch, styles },
 					caption_block,
 					{ lines: $visual_lines, rows: $line_rows },
 				)?
@@ -590,7 +589,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 								$size = U64.max($size, positive_raw(cell_size)?)
 							}
 							$cell_starts = $cell_starts.append($cell_rows.len())
-							$cell_rows = append_cell_rows($cell_rows, { body_lines: body_lines.lines, body_run, geometry, lines, requests: shape_requests, sources: table_sources, store: shape_batch.store }, $block)?
+							$cell_rows = append_cell_rows($cell_rows, { body_lines: body_lines.lines, body_run, geometry, lines, requests: shape_requests, styles, sources: table_sources, store: shape_batch.store }, $block)?
 							$grid = U64.max($grid, body_lines.lines.length())
 						}
 
@@ -707,7 +706,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 		} else {
 			author_block = list_at(blocks, $block_index)
 			placed = table_leaf_unit(
-				{ block_lines, block_runs, lines, shape_batch, shape_requests, styles },
+				{ block_lines, block_runs, lines, shape_batch, styles },
 				$block_index,
 				{ lines: $visual_lines, rows: $line_rows },
 			)?
@@ -944,7 +943,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 ## The painted rows of one leaf block, appended to the visual line and row
 ## lists exactly as the table-free path builds them, and its page block
 ## before its policy is set.
-table_leaf_unit : { block_lines : List(KernelFacadeLines.BlockLines), block_runs : List(KernelFacadeShape.BlockRuns), lines : List(KernelLineLayout.Line), shape_batch : KernelShape.Batch, shape_requests : List(KernelShape.SimpleRequest), styles : List(KernelFacadeShape.RunStyle) }, U64, { lines : List(KernelLineLayout.Line), rows : List(KernelFacadePages.Row) } -> Try({ block : KernelPageLayout.Block, labels : U64, lines : List(KernelLineLayout.Line), minimum : U64, rows : List(KernelFacadePages.Row) }, KernelFacadePages.Error)
+table_leaf_unit : { block_lines : List(KernelFacadeLines.BlockLines), block_runs : List(KernelFacadeShape.BlockRuns), lines : List(KernelLineLayout.Line), shape_batch : KernelShape.Batch, styles : List(KernelFacadeShape.RunStyle) }, U64, { lines : List(KernelLineLayout.Line), rows : List(KernelFacadePages.Row) } -> Try({ block : KernelPageLayout.Block, labels : U64, lines : List(KernelLineLayout.Line), minimum : U64, rows : List(KernelFacadePages.Row) }, KernelFacadePages.Error)
 table_leaf_unit = |at, block_index, buffers| {
 	lines = at.lines
 	shape_batch = at.shape_batch
@@ -958,13 +957,13 @@ table_leaf_unit = |at, block_index, buffers| {
 			line_size = assert_logical_identity(shape_batch.store.runs, at.styles, body_run, block_index)?
 			body_record = list_at(shape_batch.store.runs, body_index)
 			body_style = list_at(at.styles, body_index)
-			segmented = list_at(at.shape_requests, body_index).source != list_at(at.shape_requests, body_index + body_run.physical.length() - 1).source
+			segmented = list_at(at.styles, body_index).segment != list_at(at.styles, body_index + body_run.physical.length() - 1).segment
 			visual_start = buffers.lines.len()
 			var $visual_lines = buffers.lines
 			var $rows = buffers.rows
 			var $labels = 0
 			var $segment_start = body_index
-			var $segment_length = if segmented segment_length(at.shape_requests, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
+			var $segment_length = if segmented segment_length(at.styles, body_index, body_index + body_run.physical.length()) else body_run.physical.length()
 			var $local = 0
 			while $local < body_lines.lines.length() {
 				body_line_index = body_lines.lines.start() + $local
@@ -984,7 +983,7 @@ table_leaf_unit = |at, block_index, buffers| {
 				if segmented {
 					while $segment_start + $segment_length < body_index + body_run.physical.length() and line.clusters.start() >= segment_cluster_end(shape_batch.store.runs, $segment_start, $segment_length)? {
 						$segment_start = $segment_start + $segment_length
-						$segment_length = segment_length(at.shape_requests, $segment_start, body_index + body_run.physical.length())
+						$segment_length = segment_length(at.styles, $segment_start, body_index + body_run.physical.length())
 					}
 				}
 				runs = if segmented { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
@@ -1021,15 +1020,15 @@ table_leaf_unit = |at, block_index, buffers| {
 ## line's visible advance inside the cell's text box. A line that ends at a
 ## soft break carries the spaces before it in its advance; end and center
 ## alignment measure the line without them.
-append_cell_rows : List(KernelFacadePages.Row), { body_lines : Semantics.Range, body_run : KernelFacadeShape.LogicalRun, geometry : KernelFacadeTables.CellGeometry, lines : List(KernelLineLayout.Line), requests : List(KernelShape.SimpleRequest), sources : List(KernelFacadeSources.Source), store : Text.Store }, U64 -> Try(List(KernelFacadePages.Row), KernelFacadePages.Error)
+append_cell_rows : List(KernelFacadePages.Row), { body_lines : Semantics.Range, body_run : KernelFacadeShape.LogicalRun, geometry : KernelFacadeTables.CellGeometry, lines : List(KernelLineLayout.Line), requests : List(KernelShape.SimpleRequest), styles : List(KernelFacadeShape.RunStyle), sources : List(KernelFacadeSources.Source), store : Text.Store }, U64 -> Try(List(KernelFacadePages.Row), KernelFacadePages.Error)
 append_cell_rows = |rows, at, block| {
 	body_run = at.body_run
 	body_index = body_run.physical.start()
 	body_end = body_index + body_run.physical.length()
-	segmented = list_at(at.requests, body_index).source != list_at(at.requests, body_end - 1).source
+	segmented = list_at(at.styles, body_index).segment != list_at(at.styles, body_end - 1).segment
 	var $rows = rows
 	var $segment_start = body_index
-	var $segment_length = if segmented segment_length(at.requests, body_index, body_end) else body_run.physical.length()
+	var $segment_length = if segmented segment_length(at.styles, body_index, body_end) else body_run.physical.length()
 	var $local = 0
 	while $local < at.body_lines.length() {
 		line_index = at.body_lines.start() + $local
@@ -1040,7 +1039,7 @@ append_cell_rows = |rows, at, block| {
 		if segmented {
 			while $segment_start + $segment_length < body_end and line.clusters.start() >= segment_cluster_end(at.store.runs, $segment_start, $segment_length)? {
 				$segment_start = $segment_start + $segment_length
-				$segment_length = segment_length(at.requests, $segment_start, body_end)
+				$segment_length = segment_length(at.styles, $segment_start, body_end)
 			}
 		}
 		runs = if segmented { physical: Semantics.Range.from_start_and_length($segment_start, $segment_length) } else body_run
@@ -1420,12 +1419,12 @@ spacer_total = |spacers, cursor, next| {
 }
 
 ## The number of physical runs from `start` (before `end`) sharing its
-## source: one explicit-line-break segment of a body.
-segment_length : List(KernelShape.SimpleRequest), U64, U64 -> U64
+## explicit segment occurrence, independently of interned source identity.
+segment_length : List(KernelFacadeShape.RunStyle), U64, U64 -> U64
 segment_length = |requests, start, end| {
-	source = list_at(requests, start).source.index()
+	segment = list_at(requests, start).segment
 	var $index = start + 1
-	while $index < end and list_at(requests, $index).source.index() == source {
+	while $index < end and list_at(requests, $index).segment == segment {
 		$index = $index + 1
 	}
 	$index - start

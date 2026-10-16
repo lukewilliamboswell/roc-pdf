@@ -205,6 +205,7 @@ build_table_plan = |authoring, shape, sources, page, theme, limits| {
 ## entry (a table cell's) replaces the block's flow width.
 build_ordered_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits, List(U64) -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
+	styles = KernelFacadeShape.Plan.styles(shape)
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
 	shape_batch = KernelFacadeShape.Plan.shape(shape)
@@ -263,22 +264,22 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 						Label(_) => 1
 					}
 				)
-				$holds = append_holds($holds, KernelFacadeShape.Plan.code_holds(shape, authoring, $block_index, sources), shape_requests, first_body_request, body_start, body_start + body.physical.length())
+				$holds = append_holds($holds, KernelFacadeShape.Plan.code_holds(shape, authoring, $block_index, sources), styles, first_body_request, body_start, body_start + body.physical.length())
 				$line_requests = append_logical_requests(
 					$line_requests,
 					label_request,
 					{
-						runs: Semantics.Range.from_start_and_length(body_start, segment_length(shape_requests, body_start, body_start + body.physical.length())),
+						runs: Semantics.Range.from_start_and_length(body_start, segment_length(styles, body_start, body_start + body.physical.length())),
 						source: list_at(shape_requests, body_start).source,
 						width: Layout.Unit.from_raw(width.to_i64_wrap()),
 					},
 				)
 
 				# Each further explicit-line-break segment of the body is its
-				# own source and its own line request.
-				var $segment_start = body_start + segment_length(shape_requests, body_start, body_start + body.physical.length())
+				# own line request, even when its source is shared.
+				var $segment_start = body_start + segment_length(styles, body_start, body_start + body.physical.length())
 				while $segment_start < body_start + body.physical.length() {
-					length = segment_length(shape_requests, $segment_start, body_start + body.physical.length())
+					length = segment_length(styles, $segment_start, body_start + body.physical.length())
 					$line_requests = $line_requests.append({
 						runs: Semantics.Range.from_start_and_length($segment_start, length),
 						source: list_at(shape_requests, $segment_start).source,
@@ -303,7 +304,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 			TextBlock({ body, label, level: _ }) => {
 				geometry = list_at(geometries, $block_index)
 				first_request = list_at($logical_index_of_body, $block_index)
-				segments = segment_count(shape_requests, body.physical.start(), body.physical.start() + body.physical.length())
+				segments = segment_count(styles, body.physical.start(), body.physical.start() + body.physical.length())
 				first_lines = list_at(run_lines, first_request)
 				last_lines = list_at(run_lines, first_request + segments - 1)
 				body_lines = if segments == 1 first_lines else Semantics.Range.from_start_and_length(first_lines.start(), last_lines.start() + last_lines.length() - first_lines.start())
@@ -352,7 +353,7 @@ has_code_holds = |authoring, shape, sources| {
 ## A block's code holds as line-layout holds: each goes to the line
 ## request of the explicit-line-break segment holding its run. The body's
 ## segments are its line requests from `first_request` on, in run order.
-append_holds : List(KernelLineLayout.Hold), List(KernelFacadeShape.CodeHold), List(KernelShape.SimpleRequest), U64, U64, U64 -> List(KernelLineLayout.Hold)
+append_holds : List(KernelLineLayout.Hold), List(KernelFacadeShape.CodeHold), List(KernelFacadeShape.RunStyle), U64, U64, U64 -> List(KernelLineLayout.Hold)
 append_holds = |holds, code, requests, first_request, body_start, body_end| {
 	if code.is_empty() {
 		return holds
@@ -560,18 +561,18 @@ label_width = |store, label| {
 }
 
 ## The number of physical runs from `start` (before `end`) sharing its
-## source: one explicit-line-break segment of a body.
-segment_length : List(KernelShape.SimpleRequest), U64, U64 -> U64
+## explicit segment occurrence, independently of interned source identity.
+segment_length : List(KernelFacadeShape.RunStyle), U64, U64 -> U64
 segment_length = |requests, start, end| {
-	source = list_at(requests, start).source.index()
+	segment = list_at(requests, start).segment
 	var $index = start + 1
-	while $index < end and list_at(requests, $index).source.index() == source {
+	while $index < end and list_at(requests, $index).segment == segment {
 		$index = $index + 1
 	}
 	$index - start
 }
 
-segment_count : List(KernelShape.SimpleRequest), U64, U64 -> U64
+segment_count : List(KernelFacadeShape.RunStyle), U64, U64 -> U64
 segment_count = |requests, start, end| {
 	var $count = 0
 	var $index = start

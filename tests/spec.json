@@ -27305,6 +27305,360 @@
         "structure_semantics",
         "rich_inline"
       ]
+    },
+    {
+      "name": "rich inline repeated segments x10",
+      "scenario_revision": "rich-inline-segment-identity-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/repeated_segments_10.pdf",
+      "args": [
+        "repeated_segments",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "repeated_segments": 10,
+        "pages": 6
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes",
+        "source_inputs",
+        "unique_sources",
+        "unique_source_scalars",
+        "hash_scalar_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 37204,
+          "allocated_bytes": 23385211,
+          "work": {
+            "node_writes": 221,
+            "inline_elements": 90,
+            "inline_leaves": 250,
+            "content_writes": 470,
+            "occurrence_writes": 250,
+            "node_visits": 221,
+            "containment_edges": 220,
+            "shaped_runs": 250,
+            "lines": 220,
+            "final_runs": 250,
+            "fragments": 250,
+            "pages": 6,
+            "output_bytes": 17365,
+            "source_inputs": 220,
+            "unique_sources": 14,
+            "unique_source_scalars": 115,
+            "hash_scalar_visits": 1150
+          }
+        },
+        "x64musl": {
+          "allocations": 37204,
+          "allocated_bytes": 23385211,
+          "work": {
+            "node_writes": 221,
+            "inline_elements": 90,
+            "inline_leaves": 250,
+            "content_writes": 470,
+            "occurrence_writes": 250,
+            "node_visits": 221,
+            "containment_edges": 220,
+            "shaped_runs": 250,
+            "lines": 220,
+            "final_runs": 250,
+            "fragments": 250,
+            "pages": 6,
+            "output_bytes": 17365,
+            "source_inputs": 220,
+            "unique_sources": 14,
+            "unique_source_scalars": 115,
+            "hash_scalar_visits": 1150
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline repeated segments x50",
+      "scenario_revision": "rich-inline-segment-identity-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/repeated_segments_50.pdf",
+      "args": [
+        "repeated_segments",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "repeated_segments": 50,
+        "pages": 27
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes",
+        "source_inputs",
+        "unique_sources",
+        "unique_source_scalars",
+        "hash_scalar_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 166201,
+          "allocated_bytes": 111467330,
+          "work": {
+            "node_writes": 1101,
+            "inline_elements": 450,
+            "inline_leaves": 1250,
+            "content_writes": 2350,
+            "occurrence_writes": 1250,
+            "node_visits": 1101,
+            "containment_edges": 1100,
+            "shaped_runs": 1250,
+            "lines": 1100,
+            "final_runs": 1250,
+            "fragments": 1250,
+            "pages": 27,
+            "output_bytes": 43851,
+            "source_inputs": 1100,
+            "unique_sources": 14,
+            "unique_source_scalars": 115,
+            "hash_scalar_visits": 5750
+          }
+        },
+        "x64musl": {
+          "allocations": 166201,
+          "allocated_bytes": 111467330,
+          "work": {
+            "node_writes": 1101,
+            "inline_elements": 450,
+            "inline_leaves": 1250,
+            "content_writes": 2350,
+            "occurrence_writes": 1250,
+            "node_visits": 1101,
+            "containment_edges": 1100,
+            "shaped_runs": 1250,
+            "lines": 1100,
+            "final_runs": 1250,
+            "fragments": 1250,
+            "pages": 27,
+            "output_bytes": 43851,
+            "source_inputs": 1100,
+            "unique_sources": 14,
+            "unique_source_scalars": 115,
+            "hash_scalar_visits": 5750
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline repeated ordered segments x10",
+      "scenario_revision": "rich-inline-segment-identity-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/repeated_ordered_segments_10.pdf",
+      "args": [
+        "repeated_segments_ordered",
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "repeated_segments": 10,
+        "pages": 7,
+        "repeated_ordered": 1
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes",
+        "source_inputs",
+        "unique_sources",
+        "unique_source_scalars",
+        "hash_scalar_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 45938,
+          "allocated_bytes": 31619813,
+          "work": {
+            "node_writes": 261,
+            "inline_elements": 120,
+            "inline_leaves": 340,
+            "content_writes": 600,
+            "occurrence_writes": 340,
+            "node_visits": 261,
+            "containment_edges": 260,
+            "shaped_runs": 340,
+            "lines": 250,
+            "final_runs": 340,
+            "fragments": 340,
+            "pages": 7,
+            "output_bytes": 20259,
+            "source_inputs": 250,
+            "unique_sources": 16,
+            "unique_source_scalars": 122,
+            "hash_scalar_visits": 1220
+          }
+        },
+        "x64musl": {
+          "allocations": 45938,
+          "allocated_bytes": 31619813,
+          "work": {
+            "node_writes": 261,
+            "inline_elements": 120,
+            "inline_leaves": 340,
+            "content_writes": 600,
+            "occurrence_writes": 340,
+            "node_visits": 261,
+            "containment_edges": 260,
+            "shaped_runs": 340,
+            "lines": 250,
+            "final_runs": 340,
+            "fragments": 340,
+            "pages": 7,
+            "output_bytes": 20259,
+            "source_inputs": 250,
+            "unique_sources": 16,
+            "unique_source_scalars": 122,
+            "hash_scalar_visits": 1220
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich inline repeated ordered segments x50",
+      "scenario_revision": "rich-inline-segment-identity-v1",
+      "source": "tests/rich_inline/main.roc",
+      "snapshot": "tests/rich_inline/repeated_ordered_segments_50.pdf",
+      "args": [
+        "repeated_segments_ordered",
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "repeated_segments": 50,
+        "pages": 31,
+        "repeated_ordered": 1
+      },
+      "work_counters": [
+        "node_writes",
+        "inline_elements",
+        "inline_leaves",
+        "content_writes",
+        "occurrence_writes",
+        "node_visits",
+        "containment_edges",
+        "shaped_runs",
+        "lines",
+        "final_runs",
+        "fragments",
+        "pages",
+        "output_bytes",
+        "source_inputs",
+        "unique_sources",
+        "unique_source_scalars",
+        "hash_scalar_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 203414,
+          "allocated_bytes": 144557491,
+          "work": {
+            "node_writes": 1301,
+            "inline_elements": 600,
+            "inline_leaves": 1700,
+            "content_writes": 3000,
+            "occurrence_writes": 1700,
+            "node_visits": 1301,
+            "containment_edges": 1300,
+            "shaped_runs": 1700,
+            "lines": 1250,
+            "final_runs": 1700,
+            "fragments": 1700,
+            "pages": 31,
+            "output_bytes": 53649,
+            "source_inputs": 1250,
+            "unique_sources": 16,
+            "unique_source_scalars": 122,
+            "hash_scalar_visits": 6100
+          }
+        },
+        "x64musl": {
+          "allocations": 203414,
+          "allocated_bytes": 144557491,
+          "work": {
+            "node_writes": 1301,
+            "inline_elements": 600,
+            "inline_leaves": 1700,
+            "content_writes": 3000,
+            "occurrence_writes": 1700,
+            "node_visits": 1301,
+            "containment_edges": 1300,
+            "shaped_runs": 1700,
+            "lines": 1250,
+            "final_runs": 1700,
+            "fragments": 1700,
+            "pages": 31,
+            "output_bytes": 53649,
+            "source_inputs": 1250,
+            "unique_sources": 16,
+            "unique_source_scalars": 122,
+            "hash_scalar_visits": 6100
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
     }
   ]
 }

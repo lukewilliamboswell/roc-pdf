@@ -654,7 +654,9 @@ constructors create their semantic structure automatically:
 - A title block becomes the PDF 2.0 `Title` structure element independently of
   the metadata title.
 - Headings carry an explicit level and become heading structure elements.
-- Paragraph and inline constructors retain canonical Unicode.
+- Paragraph and inline constructors retain canonical Unicode. Explicit line
+  breaks retain segment occurrence identity through shaping and layout,
+  independently of shared interned text and Unicode analysis.
 - Lists create labels, bodies, and list-item relationships.
 - Tables require declared headers and retain a logical grid.
 - A meaningful image is constructed as a figure with author-supplied

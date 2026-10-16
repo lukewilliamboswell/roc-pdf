@@ -62,10 +62,10 @@ KernelFacadeShape :: [].{
 	## creates exactly one physical run; later multi-face materialization will
 	## be allowed to widen this range without changing block ownership.
 	##
-	## A rich paragraph is one logical run over its one interned source: its
+	## A rich paragraph is one logical run over its explicit segments: its
 	## physical runs are the per-occurrence (and, on the ordered path, per
 	## face) segments in logical order, all at the paragraph's size and
-	## leading, so line breaking measures the whole paragraph at once.
+	## leading. Line breaking measures each mandatory segment separately.
 	LogicalRun : { physical : Semantics.Range }
 
 	## A code span keeps its words whole. UAX #14 allows a break after a
@@ -86,7 +86,11 @@ KernelFacadeShape :: [].{
 	## line layout gives it no line and pagination sizes its row from its
 	## other cells.
 	BlockRuns : [ContentlessCell, TextBlock({ body : LogicalRun, label : [Label(LogicalRun), NoLabel], level : U64 })]
-	RunStyle : { color : Color.SourceValue, leading : Layout.Unit }
+
+	## Segment occurrence identity is the first semantic leaf occurrence of
+	## the explicit-break segment. Interned source identity is reusable data,
+	## never a mandatory line boundary. Face expansion preserves this fact.
+	RunStyle : { color : Color.SourceValue, leading : Layout.Unit, segment : U64 }
 
 	## Where each physical run's occurrence begins inside its interned source.
 	## Shaped and line-layout ranges are source coordinates; the final text
@@ -628,7 +632,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 						}
 						run = logical_run_single(Text.RunId.from_index($request_index))
 						$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: source_id })
-						$styles = $styles.append({ color: scoped_text_color(authoring, $block_index, theme, label_style.color), leading: label_style.leading })
+						$styles = $styles.append({ color: scoped_text_color(authoring, $block_index, theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
 						$request_index = $request_index + 1
 						Label(run)
 					}
@@ -653,7 +657,7 @@ prepare_whole_plan = |authoring, owners, store, sources, theme, face_check| {
 				}
 				body_run = logical_run_single(Text.RunId.from_index($request_index))
 				$requests = $requests.append({ occurrence: body, size: body_style.size, source: source_id })
-				$styles = $styles.append({ color: body_style.color, leading: body_style.leading })
+				$styles = $styles.append({ color: body_style.color, leading: body_style.leading, segment: body.index() })
 				$request_index = $request_index + 1
 				$block_runs = match $block_runs.set($block_index, TextBlock({ body: body_run, label: label_run, level })) {
 					Err(OutOfBounds) => {
@@ -775,13 +779,13 @@ append_plain_requests = |ranges, requests, styles, at, body, label| {
 				return Err(GeneratedLabelEvidenceInvalid({ block: at.block, occurrence: occurrence_id.index() }))
 			}
 			$requests = $requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source })
-			$styles = $styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading })
+			$styles = $styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() })
 			$ranges = $ranges.append(whole_source_range(at.sources, occurrence.source, at.language))
 		}
 	}
 	occurrence = whole_occurrence(at, body)?
 	$requests = $requests.append({ occurrence: body, size: body_style.size, source: occurrence.source })
-	$styles = $styles.append({ color: body_style.color, leading: body_style.leading })
+	$styles = $styles.append({ color: body_style.color, leading: body_style.leading, segment: body.index() })
 	$ranges = $ranges.append(whole_source_range(at.sources, occurrence.source, at.language))
 	Ok({ ranges: $ranges, requests: $requests, styles: $styles })
 }
@@ -803,7 +807,7 @@ append_label_request = |ranges, requests, styles, at, label| match label {
 		Ok({
 			ranges: ranges.append(whole_source_range(at.sources, occurrence.source, at.language)),
 			requests: requests.append({ occurrence: occurrence_id, size: label_style.size, source: occurrence.source }),
-			styles: styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading }),
+			styles: styles.append({ color: scoped_text_color(at.authoring, at.block, at.theme, label_style.color), leading: label_style.leading, segment: occurrence_id.index() }),
 		})
 	}
 }
@@ -843,7 +847,22 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 	var $styles = styles
 	var $cluster = 0
 	var $script_run = 0
-	var $source = U64.highest
+	var $segment = occurrences.start()
+	paragraph = match list_at(at.authoring.blocks, at.block).kind {
+		RichParagraph(index) => index
+		_ => return Err(InvalidOccurrence({ block: at.block, occurrence: occurrences.start() }))
+	}
+	var $low = 0
+	var $high = at.authoring.line_breaks.len()
+	while $low < $high {
+		middle = $low + ($high - $low) // 2
+		if list_at(at.authoring.line_breaks, middle).paragraph < paragraph {
+			$low = middle + 1
+		} else {
+			$high = middle
+		}
+	}
+	var $break = $low
 	var $inline = rich.inlines
 	while $inline < rich.inlines + rich.length {
 		record = list_at(at.authoring.inlines, $inline)
@@ -864,10 +883,11 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				}
 				analysis = list_at(at.sources, located.id.index()).analysis
 
-				# Each explicit-line-break segment is its own source; the
-				# forward cursors restart at its origin.
-				if located.id.index() != $source {
-					$source = located.id.index()
+				# Mandatory boundaries come from authoring, even when adjacent
+				# segments share exactly the same interned source.
+				while $break < at.authoring.line_breaks.len() and list_at(at.authoring.line_breaks, $break).paragraph == paragraph and list_at(at.authoring.line_breaks, $break).leaf <= record.first_leaf {
+					$break = $break + 1
+					$segment = occurrence_index
 					$cluster = 0
 					$script_run = 0
 				}
@@ -882,7 +902,7 @@ append_rich_requests = |ranges, requests, styles, at, occurrences, rich| {
 				cluster_end = cluster_at(analysis.graphemes, cluster_start, scalar_end, at.block, $inline)?
 				$cluster = cluster_end
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(occurrence_index), size: inline_size(at.authoring.inlines, record.parent, at.theme, body.size), source: located.id })
-				$styles = $styles.append({ color: inline_color(at.authoring, at.block, record.parent, at.theme, paragraph_color), leading: body.leading })
+				$styles = $styles.append({ color: inline_color(at.authoring, at.block, record.parent, at.theme, paragraph_color), leading: body.leading, segment: $segment })
 				$ranges = $ranges.append({
 					clusters: Semantics.Range.from_start_and_length(cluster_start, cluster_end - cluster_start),
 					language: occurrence.language,
@@ -1592,10 +1612,10 @@ expand_logical = |logical, preparation, segments_per_source, buffers, max_reques
 		style = list_at(preparation.styles, $request_index)
 		source_index = request.source.index()
 
-		# A logical run spans several sources only across explicit line
-		# breaks; each source's segment cursor restarts at its origin.
-		if source_index != $cursor_source {
-			$cursor_source = source_index
+		# A source may be reused by adjacent segments. Reset the selection
+		# cursor at the explicit segment occurrence boundary.
+		if style.segment != $cursor_source {
+			$cursor_source = style.segment
 			$cursor = 0
 		}
 		if source_index >= segments_per_source.len() {

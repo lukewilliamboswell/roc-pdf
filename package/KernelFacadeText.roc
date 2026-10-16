@@ -595,7 +595,7 @@ interleave_furniture = |plan, furniture, limits| {
 	pieces = KernelFacadeFurniture.Plan.pieces(furniture)
 	source = KernelFacadeFurniture.Plan.store(furniture)
 	style = KernelFacadeFurniture.Plan.style(furniture)
-	furniture_style = { color: style.color, leading: style.leading }
+	furniture_style = { color: style.color, leading: style.leading, segment: 0 }
 	run_count = checked_add(body.runs.len(), pieces.len())?
 	check_limit(run_count, limits.max_runs, Runs)?
 	check_limit(run_count, limits.max_placements, Placements)?
@@ -776,7 +776,7 @@ append_labels = |plan, pieces, source, sources, limits| {
 				transformations: Semantics.Range.from_start_and_length(0, 0),
 			})
 			$placements = $placements.append({ origin: piece.origin, page: page.id, run: new_id })
-			$styles = $styles.append({ color: piece.color, leading: piece.size })
+			$styles = $styles.append({ color: piece.color, leading: piece.size, segment: 0 })
 			$piece_cursor = $piece_cursor + 1
 		}
 		$pages = $pages.append({ id: page.id, runs: Semantics.Range.from_start_and_length(page_start, $runs.len() - page_start) })
@@ -928,7 +928,7 @@ test_lines = [
 ]
 
 test_style : KernelFacadeShape.RunStyle
-test_style = { color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(1200) }
+test_style = { color: Srgb(Rgb({ blue: 0, green: 0, red: 0 })), leading: Layout.Unit.from_raw(1200), segment: 0 }
 
 test_limits : KernelFacadeText.Limits
 test_limits = KernelFacadeText.Limits.make({ max_clusters: 2, max_glyph_indices: 2, max_glyphs: 2, max_pages: 1, max_placements: 2, max_runs: 2 })
