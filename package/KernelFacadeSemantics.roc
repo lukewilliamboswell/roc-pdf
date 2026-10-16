@@ -1060,8 +1060,8 @@ check_figure = |figure, block| {
 ## paragraphs directly: no nested groups, decorations, spacers, or page
 ## breaks, which would need layout inside the extension's measured box. It
 ## is a body-flow block, never in the lead region. Its name is non-empty
-## and its panel a valid flow drawing of solid paths only (no images) that
-## lies inside its box. O(customs + leaves + flow items).
+## and its panel is absent or a valid flow drawing of solid paths only (no
+## images) that lies inside its box. O(customs + leaves + flow items).
 check_customs : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
 check_customs = |authoring| {
 	if authoring.customs.is_empty() {
@@ -1105,7 +1105,7 @@ check_customs = |authoring| {
 			return Err(CustomName({ custom: $index }))
 		}
 		inset = custom.inset.raw()
-		if custom.width <= 0 or custom.height <= 0 or inset <= 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
+		if custom.width <= 0 or custom.height <= 0 or inset < 0 or inset > (custom.width.raw() - 1) // 2 or inset > (custom.height.raw() - 1) // 2 {
 			return Err(CustomMeasure({ custom: $index }))
 		}
 		match custom.panel {

@@ -68,6 +68,7 @@ SNAPSHOTS = {
     "figures": ROOT / "tests" / "flow_figures" / "report.pdf",
     "figure_sections": ROOT / "tests" / "flow_figures" / "sections_10.pdf",
     "custom_blocks": ROOT / "tests" / "custom_block" / "callouts_10.pdf",
+    "custom_defaults": ROOT / "tests" / "custom_block" / "defaults.pdf",
     "inline_roles": ROOT / "tests" / "rich_inline" / "mixed.pdf",
     "empty_cells": ROOT / "tests" / "tables" / "empty_cells_40.pdf",
 }
@@ -683,6 +684,23 @@ def check_custom_blocks(document: Document, visited: set[int], pages: list[int],
         if expected is not None:
             require(count == expected, f"expected {expected} {key.replace('_', ' ')}, found {count}")
 
+    inset_delta = dimensions.get("custom_inset_delta")
+    if inset_delta is not None:
+        # The defaults fixture has one line in each of four custom blocks:
+        # +8 pt, omitted, explicit zero, and both defaults. Inspect the
+        # emitted transforms, independently of the Roc geometry planner.
+        offsets = []
+        for page in pages:
+            content = document.stream(int(document.get(page)["Contents"]))
+            offsets.extend(float(match.group(1)) for match in re.finditer(
+                rb"<</MCID \d+>> BDC\s+q\s+1 0 0 1 (-?[0-9.]+) -?[0-9.]+ cm", content
+            ))
+        require(len(offsets) == 4, f"expected four custom-block text origins, found {offsets}")
+        origin = dimensions.get("custom_origin_x")
+        require(origin is not None, "custom inset geometry needs its body-margin origin")
+        require(all(offset == origin for offset in offsets[1:]), f"zero/default insets must start at body margin {origin}, found {offsets}")
+        require(offsets[0] - offsets[1] == inset_delta, f"expected custom inset offset {inset_delta}, found {offsets}")
+
 
 def table_attributes(element: dict) -> dict:
     values = element.get("A")
@@ -929,8 +947,10 @@ def self_test() -> None:
     callouts = SNAPSHOTS["custom_blocks"].read_bytes()
     callout_dimensions = {"paragraph_divs": 10, "underlays": 10, "layout_artifacts": 10}
     check_structure_semantics(callouts, callout_dimensions)
+    check_structure_semantics(SNAPSHOTS["custom_defaults"].read_bytes(), {"paragraph_divs": 4, "layout_artifacts": 2, "custom_inset_delta": 8, "custom_origin_x": 56})
     check_structure_semantics(SNAPSHOTS["empty_cells"].read_bytes(), {"empty_cells": 75})
     callout_twins = [
+        ("a wrong default custom inset", SNAPSHOTS["custom_defaults"].read_bytes(), {"custom_inset_delta": 9, "custom_origin_x": 56}),
         ("a callout Div that is not a Div", replace_once(callouts, b"/S /Div ", b"/S /Art "), callout_dimensions),
         ("decorations painted after text counted as underlays", figure_sections, {"underlays": 10}),
         ("a table without empty cells counted as having one", table, {"empty_cells": 1}),

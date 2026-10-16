@@ -794,7 +794,8 @@ business block must be exercised by a separately authored public consumer
 before that subset is called stable; the conceptual shape alone does not close
 the general custom-layout capability. The first such subset is
 `Pdf.custom_block`: a data-only block whose extension supplies ordinary
-paragraphs, its own measurement of the block, and a decorative panel, with
+paragraphs, its own measurement of the block, an optional decorative panel, and
+a nonnegative content inset (zero by default), with
 `Unsplittable` fragmentation; the package lays out and proves the content
 inside that measurement. An extension may take its content height from
 `Pdf.measure_custom_content`, which runs the same facade stages as

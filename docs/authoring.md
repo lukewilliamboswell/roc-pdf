@@ -520,7 +520,9 @@ PDF object or operator: it supplies ordinary paragraphs, its own
 measurement of the block (`size` and a content `inset`), and a panel of
 solid paths drawn behind the content. The block is `Unsplittable` (its
 `fragmentation`, the only value), and `inset` and `panel` default to zero
-and an empty drawing. To size content whose paragraphs wrap, an extension calls
+and an empty drawing. The empty panel paints no decoration; zero inset uses
+the full measured width and height for content. Negative insets and content
+that does not fit remain errors. To size content whose paragraphs wrap, an extension calls
 `Pdf.measure_custom_content(options, { contents, language, width })` with
 the content width (the box width less twice the inset) and the options the
 document is prepared with; it returns the exact content height preparation

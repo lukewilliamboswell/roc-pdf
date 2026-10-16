@@ -8,6 +8,7 @@ import pf.Metrics
 
 Case : [
 	Report({ context : U64 }),
+	Defaults({ context : U64 }),
 	Callouts({ callouts : U64 }),
 	AtomicNegatives({ context : U64 }),
 	RichCallouts({ callouts : U64 }),
@@ -40,12 +41,13 @@ main! = |args| {
 	Metrics.reset_allocations!()
 	result = match spec.case {
 		Report({ context }) => Fixture.report(context)
+		Defaults({ context }) => Fixture.defaults(context)
 		Callouts({ callouts }) => Fixture.callouts(callouts)
 		AtomicNegatives({ context }) => Fixture.atomic_negatives(context)
 		RichCallouts({ callouts }) => Fixture.rich_callouts(callouts)
 	}
 	match result {
 		Ok(value) => value
-		Err(_) => crash "CASE_EXECUTION_FAILED: custom_block fixture rejected the typed case"
+		Err(error) => crash "CASE_EXECUTION_FAILED: custom_block fixture rejected the typed case: ${Str.inspect(error)}"
 	}
 }

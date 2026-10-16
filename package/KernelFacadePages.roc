@@ -378,7 +378,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 		}
 	}
 	decorations = decoration_paints(authoring, KernelPageLayout.Plan.bands(page), [], nonnegative_raw(theme.page_margin.left)?)?
-	panels = panel_paints(authoring, KernelPageLayout.Plan.bands(page), [], flow_facts, nonnegative_raw(theme.page_margin.left)?)?
+	panels = panel_paints(authoring, KernelPageLayout.Plan.fragments(page), block_runs, shape_batch.store.runs)?
 	Ok(
 		KernelFacadePages.Plan.{
 			artifact_rows: [],
@@ -917,7 +917,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	}
 	check_limit($rows.len(), limits.max_rows, Rows)?
 	decorations = decoration_paints(authoring, KernelPageLayout.Plan.bands(page), $unit_of_block, margin_left)?
-	panels = panel_paints(authoring, KernelPageLayout.Plan.bands(page), $unit_of_block, flow_facts, margin_left)?
+	panels = panel_paints(authoring, KernelPageLayout.Plan.fragments(page), block_runs, shape_batch.store.runs)?
 	Ok(
 		KernelFacadePages.Plan.{
 			artifact_rows: $artifact_rows,
@@ -1945,32 +1945,38 @@ apply_customs = |authoring, page_blocks, units| {
 	Ok($blocks)
 }
 
-## Place every custom block's panel from the band pagination recorded
-## above its first leaf: the band's authored decorations stack from its
-## top, and the measured box follows them. The box's bottom-left corner is
-## the panel's origin.
-panel_paints : Document.NormalizedAuthoring, List(KernelPageLayout.Band), List(U64), FlowFacts, U64 -> Try(List(KernelFacadePages.PanelPaint), KernelFacadePages.Error)
-panel_paints = |authoring, bands, units, facts, margin_left| {
+## Place every custom panel from its first leaf's explicit semantic occurrence
+## and accepted page fragment. A zero inset has no decoration band; the
+## fragment's content top plus the inset is the measured box's top.
+## Both arenas are ordered, so the cursor visits each fragment at most once.
+panel_paints : Document.NormalizedAuthoring, List(KernelPageLayout.Fragment), List(KernelFacadeShape.BlockRuns), List(Text.Run) -> Try(List(KernelFacadePages.PanelPaint), KernelFacadePages.Error)
+panel_paints = |authoring, fragments, block_runs, runs| {
 	if authoring.customs.is_empty() {
 		return Ok([])
 	}
 	var $paints = List.with_capacity(authoring.customs.len())
-	var $band = 0
+	var $fragment = 0
 	var $custom = 0
 	while $custom < authoring.customs.len() {
 		custom = list_at(authoring.customs, $custom)
 		leaf = list_at(authoring.groups, custom.group).first_block
-		unit = if units.is_empty() leaf else list_at(units, leaf)
-		while $band < bands.len() and list_at(bands, $band).block < unit {
-			$band = $band + 1
+		body = match list_at(block_runs, leaf) {
+			TextBlock({ body: logical, .. }) => logical
+			ContentlessCell => return Err(InvalidBlock({ block: leaf }))
 		}
-		if $band >= bands.len() or list_at(bands, $band).block != unit {
+		run = logical_run_first(body, leaf, runs.len())?
+		occurrence = semantic_occurrence(list_at(runs, run), leaf, run)?
+		while $fragment < fragments.len() and list_at(fragments, $fragment).layout.occurrence.index() < occurrence.index() {
+			$fragment = $fragment + 1
+		}
+		if $fragment >= fragments.len() or list_at(fragments, $fragment).layout.occurrence != occurrence {
 			return Err(InvalidBlock({ block: leaf }))
 		}
-		band = list_at(bands, $band)
-		above = if facts.decorations.is_empty() 0 else list_at(facts.decorations, leaf)
-		bottom = checked_sub(band.top, checked_add(above, nonnegative_raw(custom.height)?)?)?
-		$paints = $paints.append({ custom: $custom, origin: { x: Layout.Unit.from_raw(margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(bottom.to_i64_wrap()) }, page: band.page })
+		fragment = list_at(fragments, $fragment)
+		geometry = fragment.layout.geometry
+		top = checked_add(nonnegative_raw(geometry.origin.y)?, checked_add(nonnegative_raw(geometry.size.height)?, nonnegative_raw(custom.inset)?)?)?
+		bottom = checked_sub(top, nonnegative_raw(custom.height)?)?
+		$paints = $paints.append({ custom: $custom, origin: { x: geometry.origin.x, y: Layout.Unit.from_raw(bottom.to_i64_wrap()) }, page: fragment.page.index() })
 		$custom = $custom + 1
 	}
 	Ok($paints)

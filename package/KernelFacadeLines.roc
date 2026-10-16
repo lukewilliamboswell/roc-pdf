@@ -463,7 +463,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 		outer = if group.parent == 0 0 else list_at($offsets, group.parent - 1)
 		own = match group.kind {
 			ItemList(_) => list_at($group_columns, $offsets.len())
-			Custom(_) => positive_raw(list_at(customs, custom_index(group.kind)).inset)?
+			Custom(_) => nonnegative_raw(list_at(customs, custom_index(group.kind)).inset)?
 			_ => 0
 		}
 		if !customs.is_empty() {
@@ -476,7 +476,7 @@ list_geometries = |authoring, block_runs, store, indent, content_width| {
 					if width > available {
 						return Err(CustomWidth({ available, custom: index.to_u64(), width }))
 					}
-					outer + width - positive_raw(custom.inset)?
+					outer + width - nonnegative_raw(custom.inset)?
 				}
 				_ => outer_end
 			}

@@ -299,10 +299,11 @@ FlowCommand : [
 FlowLabel : { align : Scene.LabelAlign, color : Color.SourceValue, face : Scene.LabelFace, origin : Layout.Point, size : Layout.Unit, text : Str }
 
 ## A validated flow drawing: its flattened commands, the image sources
-## they place in command order, and its extent from the origin.
+## they place in command order, and its extent from the origin. An absent
+## custom panel alone may have no commands and zero extent.
 FlowDrawing : { commands : List(FlowCommand), height : U64, images : List(Image.Source), width : U64 }
 
-## A figure or decoration drawing after validation at normalization. An
+## A figure, decoration, or custom panel after normalization validation. An
 ## invalid drawing keeps its reason so semantic planning can reject it at
 ## its authored location.
 ValidatedDrawing : [InvalidDrawing(Str), ValidDrawing(FlowDrawing)]
@@ -427,6 +428,7 @@ NormalizedDecoration : { behind : Bool, block : U64, drawing : ValidatedDrawing,
 
 ## One custom block: its `Custom` group, the name the extension gave it,
 ## its measured box, the content inset, and its validated panel drawing.
+## An empty valid panel explicitly means no decoration.
 NormalizedCustom : { group : U64, height : Layout.Unit, inset : Layout.Unit, name : Str, panel : ValidatedDrawing, width : Layout.Unit }
 
 ## One authored list: its item count and label marker.
@@ -1655,7 +1657,7 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 	Custom(boxed) => {
 		spec = Box.unbox(boxed)
 		index = state.customs.len()
-		custom = { group: state.groups.len(), height: spec.size.height, inset: spec.inset, name: spec.name, panel: validate_flow_drawing(spec.panel), width: spec.size.width }
+		custom = { group: state.groups.len(), height: spec.size.height, inset: spec.inset, name: spec.name, panel: validate_custom_panel(spec.panel), width: spec.size.width }
 		opened = open_group({ ..state, customs: state.customs.append(custom) }, Custom(index.to_u32_wrap()), parent, depth + 1, position)
 		{ frame: { blocks: spec.contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
@@ -1849,6 +1851,17 @@ lift_segments = |segments, dy| {
 			Rectangle(rect) => Rectangle({ origin: lift(rect.origin), size: rect.size })
 		},
 	)
+}
+
+## An empty custom panel means no decoration. Figures and decorations still
+## require a drawing with commands and positive extent.
+validate_custom_panel : Scene.Drawing -> ValidatedDrawing
+validate_custom_panel = |drawing| {
+	if drawing.commands().is_empty() {
+		ValidDrawing({ commands: [], height: 0, images: [], width: 0 })
+	} else {
+		validate_flow_drawing(drawing)
+	}
 }
 
 validate_flow_drawing : Scene.Drawing -> ValidatedDrawing

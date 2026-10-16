@@ -27232,6 +27232,79 @@
         "rich_inline",
         "furniture_typography"
       ]
+    },
+    {
+      "name": "custom block defaults",
+      "scenario_revision": "custom-block-defaults-v1",
+      "source": "tests/custom_block/main.roc",
+      "snapshot": "tests/custom_block/defaults.pdf",
+      "args": [
+        "defaults"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "layout_artifacts": 2,
+        "paragraph_divs": 4,
+        "underlays": 2,
+        "custom_inset_delta": 8,
+        "custom_origin_x": 56
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "fragments",
+        "custom_blocks",
+        "report_blocks",
+        "report_alternatives",
+        "report_outcomes",
+        "report_coverage",
+        "report_obligations",
+        "observations",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5782,
+          "allocated_bytes": 9571042,
+          "work": {
+            "lines": 4,
+            "pages": 1,
+            "fragments": 4,
+            "custom_blocks": 4,
+            "report_blocks": 4,
+            "report_alternatives": 0,
+            "report_outcomes": 4,
+            "report_coverage": 4,
+            "report_obligations": 6,
+            "observations": 5,
+            "output_bytes": 10635
+          }
+        },
+        "x64musl": {
+          "allocations": 5782,
+          "allocated_bytes": 9571042,
+          "work": {
+            "lines": 4,
+            "pages": 1,
+            "fragments": 4,
+            "custom_blocks": 4,
+            "report_blocks": 4,
+            "report_alternatives": 0,
+            "report_outcomes": 4,
+            "report_coverage": 4,
+            "report_obligations": 6,
+            "observations": 5,
+            "output_bytes": 10635
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
     }
   ]
 }
