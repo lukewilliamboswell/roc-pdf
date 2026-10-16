@@ -256,3 +256,8 @@ allocation/work counters stay unchanged across report, callouts 10/100, rich
 callouts 10/50 and atomic negatives. The negative fixture allocates 18 additional
 bytes for the longer nonnegative-inset diagnostic; its allocation count and
 17 rejection results are unchanged, well inside the existing byte guard.
+
+Independent checks of the defaults snapshot pass PDF/A-4 with veraPDF
+1.30.2 and Arlington 1.30.2 (9,022 rules, 947 object checks, zero failures).
+PDFium Chromium 7988, PDFBox 3.0.8 and MuPDF 1.28.2 render the original
+one-page A4 file; PDFBox and MuPDF extract all four contained paragraphs.

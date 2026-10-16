@@ -57,3 +57,12 @@ explicit-breaks fixture likewise retains its allocation count, PDF, and work.
 The independent checker rejects a mutation that collapses the first two
 repeated segments onto one baseline, in addition to its existing structure,
 Unicode, and role mutation twins.
+
+Cross-compiled x64musl executions in `alpine:3.22` match all four registered
+allocation counts, work vectors and PDF snapshots. Arlington 1.30.2 reports
+9,022 passed rules per PDF and 12,742 / 61,148 / 14,659 / 70,028 object checks
+for the single-face x10/x50 and ordered x10/x50 cases, with zero failures.
+veraPDF 1.30.2 accepts all four as PDF/A-4. PDFium Chromium 7988 and
+MuPDF 1.28.2 render every original-document page (6/27 and 7/31), with
+A4 dimensions and visible ink throughout. These renderer checks supplement
+the exact decoded-line oracle; they do not replace its content assertions.

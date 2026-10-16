@@ -538,3 +538,10 @@ changes accepted for old cases: the report and slot-inset snapshots, exact
 allocation counts, bytes, and work remain unchanged. The new allocation
 cost is the explicitly registered second face and its subset, two artifact
 lines per page, and the bounded positive/negative preparation evidence.
+
+Both typography snapshots pass veraPDF 1.30.2 PDF/A-4 and Arlington 1.30.2
+(9,022 rules each, 1,136 / 4,815 object checks, zero failures). PDFium
+Chromium 7988 renders all 3/30 original-document pages; PDFBox 3.0.8 and
+MuPDF 1.28.2 also render all 30 pages of the large case without warnings.
+Every rendered page has A4 dimensions and ink. Independent extraction confirms
+the first and final fields are `Page 1 of 30` and `Page 30 of 30`.
