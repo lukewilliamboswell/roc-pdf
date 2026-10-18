@@ -156,3 +156,52 @@ cells and 41 cache slots: `16 * (52N + 41)` gives exactly 3,152 / 25,616
 bytes at N=3/30. These are explicit token-domain facts needed by reference
 measurement, with unchanged allocation/traversal counts and no copied growing
 buffer. Existing baselines remain unchanged.
+
+## Default table-frame allocation review
+
+An isolated pinned native allocation-size trace compared the original main
+`7cdd4d1` with the rich-flow implementation `71fff41` on the unchanged
+`page templates letter x6` fixture. Allocations rose from 31,722 to 31,724;
+work and the 23,130-byte PDF were identical. Each of the fixture's two
+pipelines allocated one additional 24-byte arena for its single table's
+`{ offset, width }` frame. The preexisting group columns, group offsets and
+block geometry allocations moved earlier in the pipeline; they were not
+additional allocations. The same trace accounted for the remaining
+232-byte-per-pipeline increase through widened layout records. This is a
+fixed representation cost, not repeated growth or a super-linear traversal.
+
+`KernelFacadeLines` now selects the table kernel's existing empty-frame
+contract only when the earlier block geometry proves every table has offset
+zero and the full content width. If any table uses a narrower or shifted
+parent frame, it builds the complete dense table-indexed arena, including
+default frames before and after that table. No frame is inferred from paint.
+The default check and optional arena construction take at most two group
+traversals; the latter owns one exact-capacity list without a fallible growing
+builder. A unit case covers a default/narrow/default sequence.
+
+The three existing letter scales replayed through `scripts/test.py` with
+unchanged allocation baselines, deterministic work and exact PDF snapshots:
+
+| Paragraphs | Exact allocations | Observed allocated bytes | PDF bytes |
+| ---: | ---: | ---: | ---: |
+| 6 | 31,722 | 24,528,826 | 23,130 |
+| 20 | 68,405 | 54,467,551 | 30,577 |
+| 200 | 534,892 | 426,196,384 | 125,791 |
+
+Their allocated-byte differences stay within the existing guard and retain
+the separately reviewed typed table-token and chapter-scope storage costs.
+No legacy allocation, work or PDF baseline changed.
+
+
+Nested-callout x3/x30 replay also retains its exact 107,123 / 1,013,043
+allocations, complete work vectors and 27,236 / 149,551-byte PDF snapshots.
+Both use nondefault enclosing frames, so their table arenas remain present.
+Their observed allocated bytes, 56,010,713 / 521,585,187, include the reviewed
+typed table-token cost. All registered independent byte validators pass.
+
+The new zero-padding table case is eligible for the explicit default frame.
+Its reviewed allocation count decreases by two, 79,855 to 79,853, for the same
+two removed 24-byte arenas; work and the 20,088-byte PDF remain identical.
+Its observed 35,060,525 allocated bytes include the existing token-domain
+widening, less those 48 bytes. This result is recorded separately from the
+unchanged legacy letter baselines rather than concealing the new-case change.

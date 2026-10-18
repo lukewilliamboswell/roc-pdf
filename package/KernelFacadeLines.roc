@@ -258,6 +258,38 @@ build_table_plan = |authoring, shape, sources, page, theme, limits| {
 	content_width = calculate_content_width(page, theme.page_margin)?
 	geometry_plan = list_geometries(authoring, KernelFacadeShape.Plan.block_runs(shape), KernelFacadeShape.Plan.shape(shape).store, positive_raw(theme.bullet_indent)?, content_width)?
 	geometries = geometry_plan.blocks
+	frames = table_frames(authoring, geometries, content_width)
+	tables = KernelFacadeTables.Plan.build_framed(authoring, shape, sources, content_width, frames, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
+	var $widths = List.repeat(0, authoring.blocks.len())
+	for cell in KernelFacadeTables.Plan.cells(tables) {
+		$widths = list_set($widths, cell.block, cell.width)
+	}
+	plan = build_ordered_plan(authoring, shape, sources, page, theme, limits, $widths, Calculated(geometry_plan))?
+	Ok({ ..plan, geometry: WithTables(tables) })
+}
+
+## The table kernel's empty arena explicitly means offset zero and the
+## full content width. Select it from already-resolved block geometry; only
+## a nondefault enclosing frame needs a dense table-indexed arena. The two
+## bounded group traversals retain no growing list through a fallible call.
+table_frames : Document.NormalizedAuthoring, List(BlockGeometry), U64 -> List({ offset : U64, width : U64 })
+table_frames = |authoring, geometries, content_width| {
+	var $required = False
+	for group in authoring.groups {
+		match group.kind {
+			Table(_) => {
+				geometry = list_at(geometries, group.first_block)
+				if geometry.body_offset != 0 or geometry.body_width != content_width {
+					$required = True
+					break
+				}
+			}
+			_ => {}
+		}
+	}
+	if !$required {
+		return []
+	}
 	var $frames = List.with_capacity(authoring.tables.len())
 	for group in authoring.groups {
 		match group.kind {
@@ -268,13 +300,7 @@ build_table_plan = |authoring, shape, sources, page, theme, limits| {
 			_ => {}
 		}
 	}
-	tables = KernelFacadeTables.Plan.build_framed(authoring, shape, sources, content_width, $frames, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
-	var $widths = List.repeat(0, authoring.blocks.len())
-	for cell in KernelFacadeTables.Plan.cells(tables) {
-		$widths = list_set($widths, cell.block, cell.width)
-	}
-	plan = build_ordered_plan(authoring, shape, sources, page, theme, limits, $widths, Calculated(geometry_plan))?
-	Ok({ ..plan, geometry: WithTables(tables) })
+	$frames
 }
 
 ## `widths` is empty, or holds one text width per block where a nonzero
@@ -851,4 +877,25 @@ custom_index : Document.NormalizedGroupKind -> U64
 custom_index = |kind| match kind {
 	Custom(index) => index.to_u64()
 	_ => 0
+}
+
+# Default tables retain the explicit empty-arena contract. One nested frame
+# retains every table's dense index, including defaults before and after it.
+expect {
+	table = Document.table({ body_rows: [Document.row([Document.cell([Document.plain_text("Cell")])])], caption: NoCaption, columns: [{ align: Start, width: Share(1) }], footer_rows: [], header_rows: [], row_split: KeepRows })
+	authoring = Document.normalize(Document.from_blocks({ contents: [table, Document.paragraph("Between"), table, table], language: "en", title: "Frame facts" }))
+	default = { body_offset: 0, body_width: 100, column: 0, label_offset: 0 }
+	geometries = List.repeat(default, authoring.blocks.len())
+	var $second = 0
+	for group in authoring.groups {
+		match group.kind {
+			Table(index) if index == 1 => {
+				$second = group.first_block
+			}
+			_ => {}
+		}
+	}
+	narrowed = list_set(geometries, $second, { ..default, body_offset: 20, body_width: 80 })
+	table_frames(authoring, geometries, 100).is_empty() and
+		table_frames(authoring, narrowed, 100) == [{ offset: 0, width: 100 }, { offset: 20, width: 80 }, { offset: 0, width: 100 }]
 }

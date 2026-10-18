@@ -31913,7 +31913,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 79855,
+          "allocations": 79853,
           "allocated_bytes": 35056637,
           "work": {
             "authored_scale": 80,
@@ -31936,7 +31936,7 @@
           }
         },
         "x64musl": {
-          "allocations": 79855,
+          "allocations": 79853,
           "allocated_bytes": 35056637,
           "work": {
             "authored_scale": 80,
