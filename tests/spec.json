@@ -54,7 +54,8 @@
     "structure_extraction",
     "reference_documents",
     "source_blocks",
-    "source_foregrounds"
+    "source_foregrounds",
+    "chapter_templates"
   ],
   "post_update_checks": [
     "contracts",
@@ -68,7 +69,8 @@
     "structure_extraction",
     "reference_documents",
     "source_blocks",
-    "source_foregrounds"
+    "source_foregrounds",
+    "chapter_templates"
   ],
   "validation": {
     "sources": [
@@ -30110,6 +30112,302 @@
         "pdfa4",
         "structure_semantics",
         "source_foregrounds"
+      ]
+    },
+    {
+      "name": "chapter templates x2",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_2.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "chapters": 2,
+        "chapter_mode": 0,
+        "header_artifacts": 2,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 6
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "scope_pages",
+        "scope_openings",
+        "scope_visits",
+        "template_region_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 93012,
+          "allocated_bytes": 50101969,
+          "work": {
+            "lines": 125,
+            "pages": 6,
+            "reference_passes": 2,
+            "field_resolutions": 15,
+            "furniture_items": 9,
+            "fragments": 125,
+            "artifact_runs": 8,
+            "output_bytes": 19167,
+            "scope_pages": 4,
+            "scope_openings": 2,
+            "scope_visits": 10,
+            "template_region_visits": 18
+          }
+        },
+        "x64musl": {
+          "allocations": 93012,
+          "allocated_bytes": 50101969,
+          "work": {
+            "lines": 125,
+            "pages": 6,
+            "reference_passes": 2,
+            "field_resolutions": 15,
+            "furniture_items": 9,
+            "fragments": 125,
+            "artifact_runs": 8,
+            "output_bytes": 19167,
+            "scope_pages": 4,
+            "scope_openings": 2,
+            "scope_visits": 10,
+            "template_region_visits": 18
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "chapter_templates"
+      ]
+    },
+    {
+      "name": "chapter templates x20",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_20.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 42,
+        "chapters": 20,
+        "chapter_mode": 0,
+        "header_artifacts": 20,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 42
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "scope_pages",
+        "scope_openings",
+        "scope_visits",
+        "template_region_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 866711,
+          "allocated_bytes": 469042045,
+          "work": {
+            "lines": 1223,
+            "pages": 42,
+            "reference_passes": 2,
+            "field_resolutions": 105,
+            "furniture_items": 63,
+            "fragments": 1223,
+            "artifact_runs": 62,
+            "output_bytes": 66863,
+            "scope_pages": 40,
+            "scope_openings": 20,
+            "scope_visits": 82,
+            "template_region_visits": 126
+          }
+        },
+        "x64musl": {
+          "allocations": 866711,
+          "allocated_bytes": 469042045,
+          "work": {
+            "lines": 1223,
+            "pages": 42,
+            "reference_passes": 2,
+            "field_resolutions": 105,
+            "furniture_items": 63,
+            "fragments": 1223,
+            "artifact_runs": 62,
+            "output_bytes": 66863,
+            "scope_pages": 40,
+            "scope_openings": 20,
+            "scope_visits": 82,
+            "template_region_visits": 126
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "chapter_templates"
+      ]
+    },
+    {
+      "name": "chapter templates without document templates",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_no_templates.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "chapters": 1,
+        "chapter_mode": 1,
+        "header_artifacts": 1,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 2
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "scope_pages",
+        "scope_openings",
+        "scope_visits",
+        "template_region_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 48286,
+          "allocated_bytes": 27495591,
+          "work": {
+            "lines": 62,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 5,
+            "furniture_items": 3,
+            "fragments": 62,
+            "artifact_runs": 3,
+            "output_bytes": 15690,
+            "scope_pages": 2,
+            "scope_openings": 1,
+            "scope_visits": 5,
+            "template_region_visits": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 48286,
+          "allocated_bytes": 27495591,
+          "work": {
+            "lines": 62,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 5,
+            "furniture_items": 3,
+            "fragments": 62,
+            "artifact_runs": 3,
+            "output_bytes": 15690,
+            "scope_pages": 2,
+            "scope_openings": 1,
+            "scope_visits": 5,
+            "template_region_visits": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "chapter_templates"
+      ]
+    },
+    {
+      "name": "chapter templates reset label",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_reset.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "chapters": 1,
+        "chapter_mode": 2,
+        "header_artifacts": 0,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 4
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "scope_pages",
+        "scope_openings",
+        "scope_visits",
+        "template_region_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 49748,
+          "allocated_bytes": 28576016,
+          "work": {
+            "lines": 64,
+            "pages": 4,
+            "reference_passes": 2,
+            "field_resolutions": 10,
+            "furniture_items": 6,
+            "fragments": 64,
+            "artifact_runs": 4,
+            "output_bytes": 16304,
+            "scope_pages": 2,
+            "scope_openings": 1,
+            "scope_visits": 6,
+            "template_region_visits": 12
+          }
+        },
+        "x64musl": {
+          "allocations": 49748,
+          "allocated_bytes": 28576016,
+          "work": {
+            "lines": 64,
+            "pages": 4,
+            "reference_passes": 2,
+            "field_resolutions": 10,
+            "furniture_items": 6,
+            "fragments": 64,
+            "artifact_runs": 4,
+            "output_bytes": 16304,
+            "scope_pages": 2,
+            "scope_openings": 1,
+            "scope_visits": 6,
+            "template_region_visits": 12
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "chapter_templates"
       ]
     }
   ]

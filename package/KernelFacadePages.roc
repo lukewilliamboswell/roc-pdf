@@ -86,6 +86,8 @@ KernelFacadePages :: [].{
 	## `leaves` normalized leaf blocks (the lead region's group).
 	FlowTemplate : { continuation : KernelPageLayout.Frame, first : KernelPageLayout.Frame, lead : [Lead({ frame : KernelPageLayout.Frame, leaves : U64 }), NoLead] }
 
+	FlowScope : { leaves : Semantics.Range, opening : KernelPageLayout.Frame, continuation : KernelPageLayout.Frame }
+
 	## A filled rectangle owned by a layout decoration artifact: a table
 	## rule or link underline painted after its page's text (`Front`), or
 	## a table row or cell fill painted before it (`Behind`). On each page
@@ -157,6 +159,9 @@ KernelFacadePages :: [].{
 		build_with_template : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowTemplate, Limits -> Try(Plan, Error)
 		build_with_template = |authoring, shape, lines, page, theme, template, limits| build_plan(authoring, shape, lines, page, theme, WithFlowTemplate(template), limits)
 
+		build_with_scopes : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowTemplate, List(FlowScope), Limits -> Try(Plan, Error)
+		build_with_scopes = |authoring, shape, lines, page, theme, template, scopes, limits| build_plan(authoring, shape, lines, page, theme, WithScopedFlow({ template, scopes }), limits)
+
 		page : Plan -> KernelPageLayout.Plan
 		page = |plan| plan.page
 
@@ -220,7 +225,7 @@ KernelFacadePages :: [].{
 ## mandatory `break_before`; spacers add to the preceding leaf's spacing;
 ## `keep_together` groups become required atomic groups. Documents without
 ## these constructs allocate nothing for them.
-FlowSelection : [NoFlowTemplate, WithFlowTemplate(KernelFacadePages.FlowTemplate)]
+FlowSelection : [NoFlowTemplate, WithFlowTemplate(KernelFacadePages.FlowTemplate), WithScopedFlow({ template : KernelFacadePages.FlowTemplate, scopes : List(KernelFacadePages.FlowScope) })]
 
 build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, KernelFacadeLines.Plan, Layout.Size, Theme, FlowSelection, KernelFacadePages.Limits -> Try(KernelFacadePages.Plan, KernelFacadePages.Error)
 build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
@@ -379,9 +384,9 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 				KernelPageLayout.Plan.build_with_groups($page_blocks, keep_groups, $visual_lines, constraints, limits.page)
 			}
 		) ? PageLayout
-		WithFlowTemplate(template) => {
+		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => {
 			leaves = lead_leaves(flow)
-			KernelPageLayout.Plan.build_with_template(lead_policies($page_blocks, leaves), flow_groups(keep_groups, leaves), $visual_lines, constraints, layout_template(template, leaves), limits.page) ? PageLayout
+			KernelPageLayout.Plan.build_with_scopes(scope_policies(lead_policies($page_blocks, leaves), flow, []), flow_groups(keep_groups, leaves), $visual_lines, constraints, layout_template(template, leaves), layout_scopes(flow, []), limits.page) ? PageLayout
 		}
 	}
 	decorations = decoration_paints(authoring, KernelPageLayout.Plan.bands(page), [], nonnegative_raw(theme.page_margin.left)?)?
@@ -835,10 +840,10 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				KernelPageLayout.Plan.build_with_groups($page_blocks, merged.groups, $visual_lines, constraints, limits.page)
 			}
 		) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
-		WithFlowTemplate(template) => {
+		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => {
 			leaves = lead_leaves(flow)
 			units = if leaves == 0 0 else list_at($unit_of_block, leaves - 1) + 1
-			KernelPageLayout.Plan.build_with_template(lead_policies($page_blocks, units), flow_groups(merged.groups, units), $visual_lines, constraints, layout_template(template, units), limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
+			KernelPageLayout.Plan.build_with_scopes(scope_policies(lead_policies($page_blocks, units), flow, $unit_of_block), flow_groups(merged.groups, units), $visual_lines, constraints, layout_template(template, units), layout_scopes(flow, $unit_of_block), limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
 		}
 	}
 
@@ -849,9 +854,9 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 
 	## A continued table repaints its header rows at the top of a later
 	## page's flow region, which a continuation template may move down.
-	page_top = match flow {
+	default_page_top = match flow {
 		NoFlowTemplate => frame_top
-		WithFlowTemplate(template) => checked_sub(frame_top, nonnegative_raw(template.continuation.top)?)?
+		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => checked_sub(frame_top, nonnegative_raw(template.continuation.top)?)?
 	}
 	margin_left = nonnegative_raw(margins.left)?
 	layout_pages = KernelPageLayout.Plan.pages(page)
@@ -873,6 +878,8 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	var $segment = NoSegment
 	for layout_page in layout_pages {
 		page_index = layout_page.id.index()
+		page_frames = KernelPageLayout.Plan.page_frames(page)
+		page_top = if page_frames.is_empty() default_page_top else checked_sub(frame_top, nonnegative_raw(list_at(page_frames, page_index).top)?)?
 		placement_start = $placements.len()
 		first_fragment = layout_page.fragments.start()
 		fragment_end = first_fragment + layout_page.fragments.length()
@@ -1679,19 +1686,13 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 	margins = theme.page_margin
 	width = checked_sub(nonnegative_raw(page_size.width)?, checked_add(nonnegative_raw(margins.left)?, nonnegative_raw(margins.right)?)?)?
 	body_height = checked_sub(nonnegative_raw(page_size.height)?, checked_add(nonnegative_raw(margins.top)?, nonnegative_raw(margins.bottom)?)?)?
-	frames = match flow {
-		NoFlowTemplate => { largest: body_height, smallest: body_height }
-		WithFlowTemplate(template) => {
-			first = nonnegative_raw(template.first.height)?
-			continuation = nonnegative_raw(template.continuation.height)?
-			{ largest: U64.max(first, continuation), smallest: U64.min(first, continuation) }
-		}
-	}
+
 	var $decorations = if authoring.decorations.is_empty() [] else List.repeat(0, authoring.blocks.len())
 	var $index = 0
 	while $index < authoring.decorations.len() {
 		decoration = list_at(authoring.decorations, $index)
 		drawing = valid_drawing(decoration.drawing, decoration.block)?
+		frames = scope_frame_bounds(flow, body_height, decoration.block)?
 		if drawing.width > width or drawing.height > frames.largest {
 			return Err(DecorationOversize({ decoration: $index, frame_height: frames.largest, frame_width: width, height: drawing.height, width: drawing.width }))
 		}
@@ -1708,6 +1709,7 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 	while $custom < authoring.customs.len() {
 		custom = list_at(authoring.customs, $custom)
 		first = list_at(authoring.groups, custom.group).first_block
+		frames = scope_frame_bounds(flow, body_height, first)?
 		above = if $decorations.is_empty() 0 else list_at($decorations, first)
 		height = checked_add(nonnegative_raw(custom.height)?, above)?
 		if height > frames.largest {
@@ -1726,6 +1728,7 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 	while $block < authoring.blocks.len() {
 		match list_at(authoring.blocks, $block).kind {
 			Figure(figure_index) => {
+				frames = scope_frame_bounds(flow, body_height, $block)?
 				if figure_index != $scales.len() {
 					return Err(InvalidBlock({ block: $block }))
 				}
@@ -1780,6 +1783,40 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 		return Err(InvalidBlock({ block: authoring.blocks.len() }))
 	}
 	Ok({ decorations: $decorations, heights: $heights, scales: $scales })
+}
+
+## Binary lookup of the owning scope, independent of paint/current y.
+## Unrelated chapters cannot constrain a figure's accepted scale.
+scope_frame_bounds : FlowSelection, U64, U64 -> Try({ largest : U64, smallest : U64 }, KernelFacadePages.Error)
+scope_frame_bounds = |flow, body_height, block| {
+	default_template = match flow {
+		NoFlowTemplate => return Ok({ largest: body_height, smallest: body_height })
+		WithFlowTemplate(value) => value
+		WithScopedFlow({ template, scopes }) => {
+			var $low = 0
+			var $high = scopes.len()
+			while $low < $high {
+				middle = $low + ($high - $low) // 2
+				if list_at(scopes, middle).leaves.start() <= block {
+					$low = middle + 1
+				} else {
+					$high = middle
+				}
+			}
+			if $low > 0 {
+				scope = list_at(scopes, $low - 1)
+				if block < scope.leaves.start() + scope.leaves.length() {
+					first = nonnegative_raw(scope.opening.height)?
+					continuation = nonnegative_raw(scope.continuation.height)?
+					return Ok({ largest: U64.max(first, continuation), smallest: U64.min(first, continuation) })
+				}
+			}
+			template
+		}
+	}
+	first = nonnegative_raw(default_template.first.height)?
+	continuation = nonnegative_raw(default_template.continuation.height)?
+	Ok({ largest: U64.max(first, continuation), smallest: U64.min(first, continuation) })
 }
 
 ## A figure or decoration drawing that semantic planning already accepted.
@@ -1939,7 +1976,7 @@ semantic_occurrence = |run, block, run_index| match run.unicode {
 lead_leaves : FlowSelection -> U64
 lead_leaves = |flow| match flow {
 	NoFlowTemplate => 0
-	WithFlowTemplate({ continuation: _, first: _, lead }) => match lead {
+	WithFlowTemplate({ continuation: _, first: _, lead }) | WithScopedFlow({ template: { continuation: _, first: _, lead }, scopes: _ }) => match lead {
 		NoLead => 0
 		Lead({ frame: _, leaves }) => leaves
 	}
@@ -1965,6 +2002,42 @@ lead_policies = |blocks, count| {
 ## unit; only body-flow groups reach page layout.
 flow_groups : List(KernelPageLayout.KeepGroup), U64 -> List(KernelPageLayout.KeepGroup)
 flow_groups = |groups, lead_units| if lead_units == 0 groups else groups.keep_if(|group| group.blocks.start() >= lead_units)
+
+## Scope boundaries name original leaves and are translated once into
+## paginator units. No unit may straddle one of these full-child boundaries.
+layout_scopes : FlowSelection, List(U64) -> List(KernelPageLayout.ScopedFrame)
+layout_scopes = |flow, unit_of_block| match flow {
+	WithScopedFlow({ scopes, template: _ }) => {
+		var $scopes = List.with_capacity(scopes.len())
+		for scope in scopes {
+			first = scope.leaves.start()
+			last = first + scope.leaves.length()
+			start = if unit_of_block.is_empty() first else list_at(unit_of_block, first)
+			end = if unit_of_block.is_empty() last else list_at(unit_of_block, last - 1) + 1
+			$scopes = $scopes.append({ blocks: Semantics.Range.from_start_and_length(start, end - start), opening: scope.opening, continuation: scope.continuation })
+		}
+		$scopes
+	}
+	_ => []
+}
+
+scope_policies : List(KernelPageLayout.Block), FlowSelection, List(U64) -> List(KernelPageLayout.Block)
+scope_policies = |blocks, flow, unit_of_block| {
+	var $blocks = blocks
+	for scope in layout_scopes(flow, unit_of_block) {
+		start = scope.blocks.start()
+		end = start + scope.blocks.length()
+		if start > 0 {
+			block = list_at($blocks, start)
+			$blocks = list_set($blocks, start, { ..block, policy: { ..block.policy, break_before: True } })
+		}
+		if end < $blocks.len() {
+			block = list_at($blocks, end)
+			$blocks = list_set($blocks, end, { ..block, policy: { ..block.policy, break_before: True } })
+		}
+	}
+	$blocks
+}
 
 layout_template : KernelFacadePages.FlowTemplate, U64 -> KernelPageLayout.Template
 layout_template = |template, lead_units| {

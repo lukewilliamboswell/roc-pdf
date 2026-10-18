@@ -54,6 +54,10 @@ KernelPageLayout :: [].{
 	## the first `blocks` blocks as one unit before the body flow begins.
 	Template : { continuation : Frame, first : Frame, lead : [Lead({ blocks : U64, frame : Frame }), NoLead] }
 
+	## A page-aligned scope over paginator units; frames are prevalidated
+	## explicit geometry. Spans are ordered, nonempty and disjoint.
+	ScopedFrame : { blocks : Semantics.Range, opening : Frame, continuation : Frame }
+
 	## Typed per-block policy. `break_before` is a mandatory explicit page
 	## break and `keep_together` a mandatory unsplittable block;
 	## `keep_with_next` binds the block's end to the next block's first
@@ -135,6 +139,7 @@ KernelPageLayout :: [].{
 	## chosen; it is bounded by the placed lines plus one page of look-back
 	## per page, so it grows linearly with the document.
 	Work : {
+		scope_visits : U64,
 		block_visits : U64,
 		candidate_visits : U64,
 		fragment_writes : U64,
@@ -143,20 +148,31 @@ KernelPageLayout :: [].{
 		page_writes : U64,
 		placement_writes : U64,
 	}
-	Plan :: { bands : List(Band), fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
+	ScopePage : { scope : U64, page : U64, opening : Bool }
+
+	Plan :: { page_frames : List(Frame), scope_pages : List(ScopePage), bands : List(Band), fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
+		page_frames : Plan -> List(Frame)
+		page_frames = |plan| plan.page_frames
+
+		scope_pages : Plan -> List(ScopePage)
+		scope_pages = |plan| plan.scope_pages
+
 		build : List(Block), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, NoTemplate, limits)
+		build = |blocks, lines, constraints, limits| build_plan(blocks, [], lines, constraints, NoTemplate, [], limits)
 
 		## Pagination with required keep-together groups.
 		build_with_groups : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Limits -> Try(Plan, Error)
-		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, NoTemplate, limits)
+		build_with_groups = |blocks, groups, lines, constraints, limits| build_plan(blocks, groups, lines, constraints, NoTemplate, [], limits)
 
 		## Pagination under page templates: the first page flows in the
 		## first frame and every later page in the continuation frame, after
 		## the lead region (when present) receives its blocks on the first
 		## page. Every fit check uses its page's own flow height.
 		build_with_template : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Template, Limits -> Try(Plan, Error)
-		build_with_template = |blocks, groups, lines, constraints, template, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), limits)
+		build_with_template = |blocks, groups, lines, constraints, template, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), [], limits)
+
+		build_with_scopes : List(Block), List(KeepGroup), List(KernelLineLayout.Line), Constraints, Template, List(ScopedFrame), Limits -> Try(Plan, Error)
+		build_with_scopes = |blocks, groups, lines, constraints, template, scopes, limits| build_plan(blocks, groups, lines, constraints, WithTemplate(template), scopes, limits)
 
 		fragments : Plan -> List(Fragment)
 		fragments = |plan| plan.fragments
@@ -227,8 +243,8 @@ Frames := {
 	largest : U64,
 }
 
-build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
-build_plan = |blocks, groups, lines, constraints, template, limits| {
+build_plan : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], List(KernelPageLayout.ScopedFrame), KernelPageLayout.Limits -> Try(KernelPageLayout.Plan, KernelPageLayout.Error)
+build_plan = |blocks, groups, lines, constraints, template, scopes, limits| {
 	if blocks.len() == 0 or lines.len() == 0 {
 		return Err(InvalidConstraints)
 	}
@@ -237,7 +253,8 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 	check_limit(groups.len(), limits.max_blocks, Groups)?
 	geometry = validate_geometry(constraints)?
 	frames = validate_frames(template, geometry, blocks.len())?
-	validation = validate_input(blocks, groups, lines, frames.largest)?
+	scope_largest = validate_scope_frames(scopes, geometry.content_height, blocks)?
+	validation = validate_input(blocks, groups, lines, U64.max(frames.largest, scope_largest))?
 	var $pages = []
 	var $fragments = []
 	var $placements = []
@@ -293,12 +310,39 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 			}
 		}
 	}
+	var $page_frames = []
+	var $scope_pages = []
+	var $scope_visits = scopes.len()
+	var $scope_cursor = 0
+	var $previous_scope = scopes.len()
 	var $page_fragment_start = 0
 	var $page_placement_start = 0
 	while $block < blocks.len() {
 		page_index = $pages.len()
-		flow_height = if page_index == 0 frames.first_height else frames.continuation_height
-		flow_top = if page_index == 0 frames.first_top else frames.continuation_top
+		if !scopes.is_empty() {
+			$scope_visits = $scope_visits + 1
+		}
+		while $scope_cursor < scopes.len() and list_at(scopes, $scope_cursor).blocks.start() + list_at(scopes, $scope_cursor).blocks.length() <= $block {
+			$scope_visits = $scope_visits + 1
+			$scope_cursor = $scope_cursor + 1
+		}
+		scope_index = if $scope_cursor < scopes.len() and list_at(scopes, $scope_cursor).blocks.start() <= $block $scope_cursor else scopes.len()
+		selected = if scope_index < scopes.len() {
+			scope = list_at(scopes, scope_index)
+			frame = if scope_index == $previous_scope scope.continuation else scope.opening
+			{ height: frame.height.raw().to_u64_wrap(), top: frame.top.raw().to_u64_wrap() }
+		} else {
+			{ height: if page_index == 0 frames.first_height else frames.continuation_height, top: if page_index == 0 frames.first_top else frames.continuation_top }
+		}
+		if scope_index < scopes.len() {
+			$scope_pages = $scope_pages.append({ scope: scope_index, page: page_index, opening: scope_index != $previous_scope })
+		}
+		$previous_scope = scope_index
+		if !scopes.is_empty() {
+			$page_frames = $page_frames.append({ height: Layout.Unit.from_raw(selected.height.to_i64_wrap()), top: Layout.Unit.from_raw(selected.top.to_i64_wrap()) })
+		}
+		flow_height = selected.height
+		flow_top = selected.top
 		page_geometry = { ..geometry, content_height: flow_height, margin_top: checked_add(geometry.margin_top, flow_top)? }
 		scan = scan_page(blocks, validation, flow_height, $block, $line)?
 		$candidate_visits = checked_add($candidate_visits, scan.candidates)?
@@ -370,12 +414,15 @@ build_plan = |blocks, groups, lines, constraints, template, limits| {
 	}
 	Ok(
 		KernelPageLayout.Plan.{
+			page_frames: $page_frames,
+			scope_pages: $scope_pages,
 			bands: $bands,
 			fragments: $fragments,
 			pages: $pages,
 			placements: $placements,
 			relaxations: $relaxations,
 			work: {
+				scope_visits: $scope_visits,
 				block_visits: blocks.len(),
 				candidate_visits: $candidate_visits,
 				fragment_writes: $fragments.len(),
@@ -630,6 +677,32 @@ validate_frames = |template, geometry, block_count| match template {
 			lead: lead_frame,
 		})
 	}
+}
+
+## Scope boundaries must already be mandatory breaks; keeps crossing them
+## are rejected by the ordinary input validator. Validate once, never per page.
+validate_scope_frames : List(KernelPageLayout.ScopedFrame), U64, List(KernelPageLayout.Block) -> Try(U64, KernelPageLayout.Error)
+validate_scope_frames = |scopes, height, blocks| {
+	var $end = 0
+	var $largest = 0
+	for scope in scopes {
+		start = scope.blocks.start()
+		end = start + scope.blocks.length()
+		if scope.blocks.length() == 0 or start < $end or end > blocks.len() {
+			return Err(InvalidConstraints)
+		}
+		if start > 0 and !list_at(blocks, start).policy.break_before {
+			return Err(InvalidConstraints)
+		}
+		if end < blocks.len() and !list_at(blocks, end).policy.break_before {
+			return Err(InvalidConstraints)
+		}
+		opening = frame_scalars(scope.opening, height)?
+		continuation = frame_scalars(scope.continuation, height)?
+		$largest = U64.max($largest, U64.max(opening.height, continuation.height))
+		$end = end
+	}
+	Ok($largest)
 }
 
 frame_scalars : KernelPageLayout.Frame, U64 -> Try({ height : U64, top : U64 }, KernelPageLayout.Error)
@@ -1248,6 +1321,36 @@ expect {
 	block = { ..test_block, owner: SourceBlock({ source: 0, padding: Layout.Unit.from_raw(1600) }), policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
 	match KernelPageLayout.Plan.build([block], test_lines.take_first(1), test_constraints, test_limits) {
 		Err(Oversize({ available: 3000, block: 0, required: 4200 })) => True
+		_ => False
+	}
+}
+
+# Explicit scope entry and exit are full-page boundaries. The opener and
+# continuation consume different declared frames without an empty opener.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		{ ..base, lines: Semantics.Range.from_start_and_length(0, 1) },
+		{ ..base, lines: Semantics.Range.from_start_and_length(1, 3), policy: { ..base.policy, break_before: True } },
+		{ ..base, lines: Semantics.Range.from_start_and_length(4, 1), policy: { ..base.policy, break_before: True } },
+	]
+	default_frame = { height: Layout.Unit.from_raw(3000), top: Layout.Unit.from_raw(0) }
+	scope = { blocks: Semantics.Range.from_start_and_length(1, 1), opening: { height: Layout.Unit.from_raw(1000), top: Layout.Unit.from_raw(500) }, continuation: { height: Layout.Unit.from_raw(2000), top: Layout.Unit.from_raw(1000) } }
+	plan = KernelPageLayout.Plan.build_with_scopes(blocks, [], test_lines.take_first(5), test_constraints, { first: default_frame, continuation: default_frame, lead: NoLead }, [scope], test_limits)?
+	KernelPageLayout.Plan.pages(plan).len() == 4 and KernelPageLayout.Plan.scope_pages(plan) == [{ opening: True, page: 1, scope: 0 }, { opening: False, page: 2, scope: 0 }]
+}
+
+# A required keep crossing a scope boundary is an error, rather than
+# permission to put the new chapter on the preceding page.
+expect {
+	base = { ..test_block, policy: { ..test_policy, minimum_first_lines: 1, minimum_last_lines: 1 } }
+	blocks = [
+		{ ..base, lines: Semantics.Range.from_start_and_length(0, 1), policy: { ..base.policy, keep_with_next: Required } },
+		{ ..base, lines: Semantics.Range.from_start_and_length(1, 1), policy: { ..base.policy, break_before: True } },
+	]
+	frame = { height: Layout.Unit.from_raw(3000), top: Layout.Unit.from_raw(0) }
+	match KernelPageLayout.Plan.build_with_scopes(blocks, [], test_lines.take_first(2), test_constraints, { first: frame, continuation: frame, lead: NoLead }, [{ blocks: Semantics.Range.from_start_and_length(1, 1), opening: frame, continuation: frame }], test_limits) {
+		Err(KeepConflict(BreakAfterRequiredKeep(_))) => True
 		_ => False
 	}
 }

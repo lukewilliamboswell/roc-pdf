@@ -101,6 +101,12 @@ import "../assets/NotoSansSC-CJK-Fixture.ttf" as cjk_font_bytes : List(U8)
 Fixture :: [].{
 	EvidenceError : [EvidenceFailure, InvalidScale, MissingRejection(U64)]
 
+	chapter_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	chapter_negatives = |context| run_chapter_negatives(context)
+
+	chapters : U64, U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
+	chapters = |count, mode| chapter_evidence(count, mode)
+
 	letter : U64 -> Try({ bytes : List(U8), work : List(U64) }, EvidenceError)
 	letter = |paragraphs| {
 		if paragraphs == 0 or paragraphs > 200 {
@@ -926,4 +932,81 @@ run_typography = |pages| {
 		return Err(MissingRejection(rejections))
 	}
 	Ok({ bytes, work: [flow.lines, flow.pages, flow.reference_passes, flow.field_resolutions, flow.furniture_items, flow.fragments, flow.final_runs - flow.fragments, rejections, bytes.len()] })
+}
+
+## Chapter scopes keep their own exact frames and resolve repeated labels
+## only after final placement. The report proves scope identities, not headings.
+chapter_evidence : U64, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+chapter_evidence = |count, mode| {
+	if count == 0 or count > 20 or mode > 2 {
+		return Err(InvalidScale)
+	}
+	footer = Pdf.region({ height: 18, end: [Pdf.furniture_text([Pdf.text("Page "), Pdf.page_number(Decimal), Pdf.text(" of "), Pdf.total_pages(Decimal)])] })
+	header = Pdf.region({ height: 44, start: [Pdf.furniture_text([Pdf.reserved_width(400, Start, [Pdf.running_label])])] })
+	opening = Pdf.page_template({ footer, gap: 10 })
+	continuation = Pdf.page_template({ footer, gap: 10, header })
+	var $contents = if mode == 1 [] else [Pdf.paragraph("Front matter belongs to the document.")]
+	var $chapter = 0
+	while $chapter < count {
+		number = $chapter + 1
+		label = "Chapter ${number.to_str()} · Café"
+		var $body = [Pdf.heading(1, "Chapter ${number.to_str()}")]
+		var $paragraph = 0
+		while $paragraph < 20 {
+			$body = $body.append(Pdf.paragraph("Chapter ${number.to_str()} paragraph ${($paragraph + 1).to_str()}. ${Str.repeat("The body keeps its authored order while chapter furniture changes only at committed full-page boundaries. ", 2)}"))
+			$paragraph = $paragraph + 1
+		}
+		$contents = $contents.append(Pdf.page_scope({ page_templates: Templates({ opening, continuation }), running_label: if mode == 2 Reset else Label(label) }, $body))
+		$chapter = $chapter + 1
+	}
+	$contents = $contents.append(Pdf.paragraph("Unscoped ending resets the chapter label."))
+	doc = Pdf.document({ contents: $contents, language: "en-AU", title: "Chapter scope evidence", page_templates: if mode == 1 NoTemplates else Templates({ first: Pdf.first_page_template({ footer, gap: 10, lead: Pdf.lead_region(40, [Pdf.paragraph("Semantic document lead")]) }), continuation: Pdf.page_template({ footer, gap: 10, header }) }) })
+	reported = Pdf.prepare_with_report(doc, Pdf.Options.{ theme: report_theme }) ? |error| crash Str.inspect(error)
+	var $scopes = 0
+	var $openings = 0
+	for outcome in reported.report.facts.outcomes {
+		match outcome {
+			PageScopeApplied({ page: _, path: _, part, running_label: _ }) => {
+				$scopes = $scopes + 1
+				if part == Opening {
+					$openings = $openings + 1
+				}
+			}
+			_ => {}
+		}
+	}
+	if $openings != count or $scopes <= count {
+		crash "unexpected scope facts ${$openings.to_str()} / ${$scopes.to_str()}"
+	}
+	result = evidence(doc, report_theme)?
+	font = KernelFont.inspect(KernelBuiltInFont.bytes, KernelFont.Limits.make({ max_bytes: 200000, max_cmap_mappings: 10000, max_glyphs: 10000, max_tables: 32 })) ? |_| EvidenceFailure
+	flow = KernelFacadePipeline.probe(Document.normalize(doc), font, report_theme, page_size, descriptor, pipeline_limits, FragmentsReady) ? |_| EvidenceFailure
+	Ok({ bytes: result.bytes, work: result.work.append($scopes).append($openings).append(flow.scope_visits).append(flow.template_region_visits) })
+}
+
+run_chapter_negatives : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.EvidenceError)
+run_chapter_negatives = |context| {
+	paragraph = Pdf.paragraph("A scoped body paragraph.")
+	document = |contents| Pdf.document({ contents, language: "en-AU", title: if context == 0 "Scope rejections" else "Guard" })
+	scope = |contents| Pdf.page_scope({}, contents)
+	reject = |doc, feature, paths| rejects(doc, InvalidRelationship, feature, paths)
+	bad_header = Pdf.region({ height: 740, start: [Pdf.furniture_text([Pdf.text("Impossible")])] })
+	bad_template = Pdf.page_template({ header: bad_header, gap: 20 })
+	checks = [
+		reject(document([paragraph, scope([])]), "layout.page_scope", ["contents[1]"]),
+		reject(document([scope([scope([paragraph])])]), "layout.page_scope", ["contents[0].contents[0]"]),
+		reject(document([Pdf.numbered_list({ start: 1, style: Decimal }, [Pdf.list_item([paragraph, scope([paragraph])])])]), "layout.page_scope", ["contents[0].items[0].contents[1]"]),
+		rejects(document([Pdf.page_scope({ page_templates: Templates({ opening: bad_template, continuation: Pdf.page_template({}) }) }, [paragraph])]), LayoutConstraintViolated, "layout.template_body_space", ["contents[0].page_templates.opening"]),
+		rejects(document([Pdf.keep_with_next(Required, paragraph), scope([paragraph])]), LayoutConstraintViolated, "layout.keep_conflict", ["contents[0]", "contents[1]"]),
+		rejects(document([scope([Pdf.keep_with_next(Required, paragraph)]), paragraph]), LayoutConstraintViolated, "layout.keep_conflict", ["contents[0].contents[0]", "contents[0]"]),
+	]
+	var $passed = 0
+	for check in checks {
+		$passed = $passed + check
+	}
+	if $passed != checks.len() {
+		crash "chapter rejections ${$passed.to_str()} / ${checks.len().to_str()} ${Str.inspect(checks)}"
+	}
+	result = evidence(document([paragraph]), letter_theme)?
+	Ok({ bytes: result.bytes, work: result.work.append($passed) })
 }

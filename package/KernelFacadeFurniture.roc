@@ -35,6 +35,7 @@ KernelFacadeFurniture :: [].{
 	## `templates.continuation.footer.end[0].inlines[0]`.
 	Error : [
 		ArithmeticOverflow,
+		ScopeInvalid({ group : U64, reason : Str }),
 
 		## A document with page templates has no body block.
 		BodyEmpty,
@@ -62,6 +63,7 @@ KernelFacadeFurniture :: [].{
 		## outside the declared set, or a cluster no policy face covers.
 		## `path` names the furniture item.
 		FurnitureText({ path : Str, reason : [Coverage, Script(Str)] }),
+		FurnitureCluster({ path : Str }),
 
 		## A region that reserves no height or holds no furniture.
 		RegionEmpty({ path : Str }),
@@ -111,6 +113,7 @@ KernelFacadeFurniture :: [].{
 	Piece : { band : Band, clusters : Semantics.Range, kind : Scene.PageArtifactKind, origin : Layout.Point, page : U64, run : U64, source : Semantics.TextRange }
 
 	Work : {
+		template_region_visits : U64,
 		drawing_paints : U64,
 		field_resolutions : U64,
 		items_shaped : U64,
@@ -119,12 +122,15 @@ KernelFacadeFurniture :: [].{
 
 	## The pre-flow template facts. `flow` is the page-layout geometry;
 	## nothing else here may influence pagination.
-	Static :: { drawings : List(Drawing), flow : KernelFacadePages.FlowTemplate, frame : FrameFacts, images : List(Image.Source), items : List(Item), regions : List(Region), style : Theme.TextStyle, texts : List(TextTemplate) }.{
+	Static :: { scope_flows : List(KernelFacadePages.FlowScope), scope_templates : List({ opening : U64, continuation : U64, label : Str }), template_regions : List(Semantics.Range), drawings : List(Drawing), flow : KernelFacadePages.FlowTemplate, frame : FrameFacts, images : List(Image.Source), items : List(Item), regions : List(Region), style : Theme.TextStyle, texts : List(TextTemplate) }.{
 		build : Document.NormalizedAuthoring, Theme, Layout.Size -> Try(Static, Error)
 		build = |authoring, theme, page_size| build_static(authoring, theme, page_size)
 
 		flow : Static -> KernelFacadePages.FlowTemplate
 		flow = |plan| plan.flow
+
+		scope_flows : Static -> List(KernelFacadePages.FlowScope)
+		scope_flows = |plan| plan.scope_flows
 
 		## Every furniture image source, in drawing order.
 		images : Static -> List(Image.Source)
@@ -148,7 +154,10 @@ KernelFacadeFurniture :: [].{
 		## face exactly as body text does. A selected face the body did not
 		## use becomes an extra output font after the body's fonts.
 		resolve : Static, U64, [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
-		resolve = |static, pages, font, language, source_base, limits| resolve_plan(static, pages, font, language, source_base, limits)
+		resolve = |static, pages, font, language, source_base, limits| resolve_plan(static, pages, [], font, language, source_base, limits)
+
+		resolve_scoped : Static, U64, List(KernelPageLayout.ScopePage), [PolicyFaces(PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, Limits -> Try(Plan, Error)
+		resolve_scoped = |static, pages, scopes, font, language, source_base, limits| resolve_plan(static, pages, scopes, font, language, source_base, limits)
 
 		drawing_paints : Plan -> List(DrawingPaint)
 		drawing_paints = |plan| plan.drawing_paints
@@ -191,7 +200,7 @@ KernelFacadeFurniture :: [].{
 ## The body frame: its left edge and top edge in page space, and its width.
 FrameFacts : { left : U64, top : U64, width : U64 }
 
-TemplateKind : [ContinuationTemplate, FirstTemplate]
+TemplateKind : U64
 
 ## `BackdropSlot` is a region's backdrop: full frame width available, on
 ## the region's bottom edge, outside the slots' overlap checks.
@@ -213,6 +222,7 @@ Part : [
 	BoxClose,
 	BoxOpen({ align : Document.ReservedAlign, path : Str, width : U64 }),
 	FieldPart({ field : Field, path : Str, style : Document.PageFieldStyle }),
+	RunningPart({ path : Str }),
 	Literal({ scalars : U64, text : Str }),
 ]
 
@@ -223,12 +233,149 @@ TextTemplate : { fields : Bool, parts : List(Part) }
 Segment : { box : [Box({ align : Document.ReservedAlign, path : Str, width : U64 }), Free], bytes : Semantics.Range, field : [Field({ path : Str, value : Str }), NoField], scalars : Semantics.Range }
 
 ## One resolved text item on one page, before shaping.
-Pending : { input : U64, item : U64, page : U64, region : U64, segments : List(Segment) }
+Pending : { input : [Input(U64), NoText], item : U64, page : U64, region : U64, segments : List(Segment) }
 
+## Validate explicit page-scope context, build each template exactly once,
+## then merge the independent validated plans into exact-capacity arenas.
+## No growing arena is threaded through a fallible caller that extends it.
 build_static : Document.NormalizedAuthoring, Theme, Layout.Size -> Try(KernelFacadeFurniture.Static, KernelFacadeFurniture.Error)
 build_static = |authoring, theme, page_size| {
+	check_scopes(authoring)?
+	base = build_static_basic(authoring, theme, page_size, { first: "templates.first", continuation: "templates.continuation" })?
+	if authoring.page_scopes.is_empty() {
+		return Ok(base)
+	}
+	var $plans = [base]
+	var $choices = []
+	var $flows = []
+	var $first_flow = base.flow
+	for scope in authoring.page_scopes {
+		group = list_at(authoring.groups, scope.group)
+		leaves = span(group.first_block, group.block_end)
+		first_body = group.first_block == lead_block_end(authoring)
+		match scope.templates {
+			Inherit => {
+				$choices = $choices.append({ opening: 0, continuation: 1, label: scope.running_label })
+				$flows = $flows.append({ leaves, opening: if first_body base.flow.first else base.flow.continuation, continuation: base.flow.continuation })
+			}
+			Templates({ opening, continuation }) => {
+				lead = if first_body {
+					match authoring.templates {
+						NoTemplates => NoLead
+						Templates(t) => t.lead
+					}
+				} else NoLead
+				normalized = { ..authoring, page_scopes: [], templates: Templates({ first: opening, continuation, lead }) }
+				prepared = build_static_basic(normalized, theme, page_size, { first: "${scope_location(authoring.groups, scope.group)}.page_templates.opening", continuation: "${scope_location(authoring.groups, scope.group)}.page_templates.continuation" })?
+				id = $plans.len() * 2
+				$choices = $choices.append({ opening: id, continuation: id + 1, label: scope.running_label })
+				$flows = $flows.append({ leaves, opening: prepared.flow.first, continuation: prepared.flow.continuation })
+				if first_body {
+					$first_flow = { ..base.flow, first: prepared.flow.first, lead: prepared.flow.lead }
+				}
+				$plans = $plans.append(prepared)
+			}
+		}
+	}
+	var $drawings = []
+	var $images = []
+	var $items = []
+	var $regions = []
+	var $texts = []
+	var $spans = []
+	var $plan_id = 0
+	for plan in $plans {
+		drawing_base = $drawings.len()
+		image_base = $images.len()
+		item_base = $items.len()
+		text_base = $texts.len()
+		region_base = $regions.len()
+		for drawing in plan.drawings {
+			var $commands = List.with_capacity(drawing.commands.len())
+			for command in drawing.commands {
+				converted = match command {
+					DrawingImage(image) => DrawingImage({ ..image, image: image.image + image_base })
+					path => path
+				}
+				$commands = $commands.append(converted)
+			}
+			$drawings = $drawings.append({ ..drawing, commands: $commands })
+		}
+		for image in plan.images {
+			$images = $images.append(image)
+		}
+		for text in plan.texts {
+			$texts = $texts.append(text)
+		}
+		for item in plan.items {
+			content = match item.content {
+				DrawingContent(id) => DrawingContent(id + drawing_base)
+				TextContent(id) => TextContent(id + text_base)
+			}
+			$items = $items.append({ ..item, content })
+		}
+		for region in plan.regions {
+			$regions = $regions.append({ ..region, items: Semantics.Range.from_start_and_length(region.items.start() + item_base, region.items.length()), template: region.template + $plan_id * 2 })
+		}
+		var $template_id = 0
+		while $template_id < 2 {
+			region_span = regions_for(plan, $template_id)
+			$spans = $spans.append(Semantics.Range.from_start_and_length(region_span.start() + region_base, region_span.length()))
+			$template_id = $template_id + 1
+		}
+		$plan_id = $plan_id + 1
+	}
+	Ok(KernelFacadeFurniture.Static.{ scope_flows: $flows, scope_templates: $choices, template_regions: $spans, flow: $first_flow, frame: base.frame, style: base.style, drawings: $drawings, images: $images, items: $items, regions: $regions, texts: $texts })
+}
+
+check_scopes : Document.NormalizedAuthoring -> Try({}, KernelFacadeFurniture.Error)
+check_scopes = |authoring| {
+	var $end = 0
+	for scope in authoring.page_scopes {
+		group = list_at(authoring.groups, scope.group)
+		if group.first_block >= group.block_end {
+			return Err(ScopeInvalid({ group: scope.group, reason: "a page scope needs body content" }))
+		}
+		if group.first_block < $end {
+			return Err(ScopeInvalid({ group: scope.group, reason: "page scopes cannot nest or overlap" }))
+		}
+		var $parent = group.parent
+		while $parent != 0 {
+			ancestor = list_at(authoring.groups, $parent - 1)
+			match ancestor.kind {
+				Container(_) | Scope(_) | KeepTogether | KeepWithNext(_) => {}
+				_ => return Err(ScopeInvalid({ group: scope.group, reason: "a page scope cannot occur inside a list, table, callout, figure, or lead region" }))
+			}
+			$parent = ancestor.parent
+		}
+		$end = group.block_end
+	}
+	Ok({})
+}
+
+scope_location : List(Document.NormalizedGroup), U64 -> Str
+scope_location = |groups, index| {
+	var $positions = []
+	var $code = index + 1
+	while $code > 0 {
+		group = list_at(groups, $code - 1)
+		$positions = $positions.append(group.position)
+		$code = group.parent
+	}
+	var $path = ""
+	var $next = $positions.len()
+	while $next > 0 {
+		$next = $next - 1
+		segment = "contents[${list_at($positions, $next).to_str()}]"
+		$path = if $path.is_empty() segment else "${$path}.${segment}"
+	}
+	$path
+}
+
+build_static_basic : Document.NormalizedAuthoring, Theme, Layout.Size, { first : Str, continuation : Str } -> Try(KernelFacadeFurniture.Static, KernelFacadeFurniture.Error)
+build_static_basic = |authoring, theme, page_size, paths| {
 	templates = match authoring.templates {
-		NoTemplates => return Err(BodyEmpty)
+		NoTemplates => { first: { header: NoRegion, footer: NoRegion, gap: Layout.Unit.from_raw(0) }, continuation: { header: NoRegion, footer: NoRegion, gap: Layout.Unit.from_raw(0) }, lead: NoLead }
 		Templates(value) => value
 	}
 	margins = theme.page_margin
@@ -252,7 +399,7 @@ build_static = |authoring, theme, page_size| {
 	var $state = { drawings: [], images: [], items: [], regions: [], texts: [] }
 
 	## The first page: header, then the lead region, then the footer.
-	first_path = "templates.first"
+	first_path = paths.first
 	first_gap = gap_of(templates.first.gap, first_path)?
 	first_header = region_height(templates.first.header, "${first_path}.header")?
 	lead_height = match templates.lead {
@@ -275,7 +422,7 @@ build_static = |authoring, theme, page_size| {
 	}
 
 	## Continuation pages: header and footer.
-	next_path = "templates.continuation"
+	next_path = paths.continuation
 	next_gap = gap_of(templates.continuation.gap, next_path)?
 	next_header = region_height(templates.continuation.header, "${next_path}.header")?
 	next_footer = region_height(templates.continuation.footer, "${next_path}.footer")?
@@ -287,15 +434,18 @@ build_static = |authoring, theme, page_size| {
 	}
 
 	## Regions in template order; each validates its slots and items.
-	$state = add_region($state, templates.first.header, { band: Above, kind: Header, path: "${first_path}.header", template: FirstTemplate, top: 0 }, style)?
-	$state = add_region($state, templates.first.footer, { band: Below, kind: Footer, path: "${first_path}.footer", template: FirstTemplate, top: frame_height - first_footer }, style)?
-	$state = add_region($state, templates.continuation.header, { band: Above, kind: Header, path: "${next_path}.header", template: ContinuationTemplate, top: 0 }, style)?
-	$state = add_region($state, templates.continuation.footer, { band: Below, kind: Footer, path: "${next_path}.footer", template: ContinuationTemplate, top: frame_height - next_footer }, style)?
+	$state = add_region($state, templates.first.header, { band: Above, kind: Header, path: "${first_path}.header", template: 0, top: 0 }, style)?
+	$state = add_region($state, templates.first.footer, { band: Below, kind: Footer, path: "${first_path}.footer", template: 0, top: frame_height - first_footer }, style)?
+	$state = add_region($state, templates.continuation.header, { band: Above, kind: Header, path: "${next_path}.header", template: 1, top: 0 }, style)?
+	$state = add_region($state, templates.continuation.footer, { band: Below, kind: Footer, path: "${next_path}.footer", template: 1, top: frame_height - next_footer }, style)?
 	first_frame = { height: unit(first_remaining.to_u64_wrap()), top: unit(first_top) }
 	next_frame = { height: unit(next_remaining.to_u64_wrap()), top: unit(next_top) }
 	lead = if lead_height == 0 NoLead else Lead({ frame: { height: unit(lead_height), top: unit(lead_top) }, leaves: lead_leaves })
 	Ok(
 		KernelFacadeFurniture.Static.{
+			scope_flows: [],
+			scope_templates: [],
+			template_regions: [],
 			drawings: $state.drawings,
 			flow: { continuation: next_frame, first: first_frame, lead },
 			frame: { left: left_margin, top: checked_sub(page_height, top_margin)?, width: frame_width },
@@ -470,6 +620,10 @@ text_template = |inlines, path| {
 				}
 				$open = used_box($open)
 				$parts = $parts.append(Literal({ scalars: scalar_count(text), text }))
+			}
+			RunningLabel({ inner, position }) => {
+				$open = used_box($open)
+				$parts = $parts.append(RunningPart({ path: furniture_path(path, position, inner) }))
 			}
 			Field({ field, inner, position, style }) => {
 				$open = used_box($open)
@@ -771,8 +925,8 @@ path_bounds = |segments| {
 }
 
 ## Pass 2: resolve, shape, prove, and place.
-resolve_plan : KernelFacadeFurniture.Static, U64, [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
-resolve_plan = |static, page_count, selection, language, source_base, limits| {
+resolve_plan : KernelFacadeFurniture.Static, U64, List(KernelPageLayout.ScopePage), [PolicyFaces(KernelFacadeFurniture.PolicyFonts), SingleFace(KernelFont.Inspection), StyledFace({ font : KernelFont.Inspection, instance : U64, extra : Bool })], Semantics.Language, U64, KernelFacadeFurniture.Limits -> Try(KernelFacadeFurniture.Plan, KernelFacadeFurniture.Error)
+resolve_plan = |static, page_count, scope_pages, selection, language, source_base, limits| {
 	## The single face is the resolved furniture face, which is the furniture
 	## style's face whatever its registry index. Styled selection supplies
 	## its explicit dense output instance and whether it adds a furniture-only face.
@@ -784,11 +938,19 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	var $inputs = []
 	var $pending = []
 	var $field_resolutions = 0
+	var $region_visits = 0
+	var $scope_cursor = 0
 	var $page = 0
 	while $page < page_count {
-		template = if $page == 0 FirstTemplate else ContinuationTemplate
-		var $region = 0
-		while $region < static.regions.len() {
+		while $scope_cursor < scope_pages.len() and list_at(scope_pages, $scope_cursor).page < $page {
+			$scope_cursor = $scope_cursor + 1
+		}
+		context = page_context(static, scope_pages, $scope_cursor, $page)
+		template = context.template
+		regions = regions_for(static, template)
+		var $region = regions.start()
+		while $region < regions.start() + regions.length() {
+			$region_visits = $region_visits + 1
 			region = list_at(static.regions, $region)
 			if region.template == template {
 				var $item = region.items.start()
@@ -797,11 +959,13 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 						DrawingContent(_) => {}
 						TextContent(text_index) => {
 							text = list_at(static.texts, text_index)
-							resolved = resolve_line(text.parts, $page + 1, page_count)
+							resolved = resolve_line(text.parts, $page + 1, page_count, context.label)
 							$field_resolutions = checked_add($field_resolutions, resolved.fields)?
-							check_limit(checked_add($inputs.len(), 1)?, limits.max_inputs, Inputs)?
-							$pending = $pending.append({ input: $inputs.len(), item: $item, page: $page, region: $region, segments: resolved.segments })
-							$inputs = $inputs.append(resolved.text)
+							check_limit(checked_add($pending.len(), 1)?, limits.max_inputs, Inputs)?
+							$pending = $pending.append({ input: if resolved.text.is_empty() NoText else Input($inputs.len()), item: $item, page: $page, region: $region, segments: resolved.segments })
+							if !resolved.text.is_empty() {
+								$inputs = $inputs.append(resolved.text)
+							}
 						}
 					}
 					$item = $item + 1
@@ -831,7 +995,7 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 				$requests = $requests.append({ occurrence: Semantics.OccurrenceId.from_index(index), size: static.style.size, source: Semantics.TextSourceId.from_index(index) })
 			}
 			options = { direction: LeftToRight, instance: Font.InstanceId.from_index(instance), language, script: Font.Script.from_iso15924("Latn"), writing_mode: Horizontal }
-			batch = if unique.is_empty() { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? Shape
+			batch = if unique.is_empty() { advances: [], store: empty_store, work: empty_shape_work } else KernelShape.shape_simple_batch(font, unique, options, $requests, limits.shape) ? |error| locate_single_text_error(static, font, unique, options, input_sources, $pending, error, limits.shape)
 			{ batch, extra_fonts: if extra and !unique.is_empty() [font] else [], run_sources: [], source_runs: [] }
 		}
 		PolicyFaces(policy) => shape_under_policy(policy, unique, static, input_sources, $pending, language, limits)?
@@ -848,10 +1012,17 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 	var $drawing_paints = []
 	var $cursor = 0
 	$page = 0
+	$scope_cursor = 0
 	while $page < page_count {
-		template = if $page == 0 FirstTemplate else ContinuationTemplate
-		var $region = 0
-		while $region < static.regions.len() {
+		while $scope_cursor < scope_pages.len() and list_at(scope_pages, $scope_cursor).page < $page {
+			$scope_cursor = $scope_cursor + 1
+		}
+		context = page_context(static, scope_pages, $scope_cursor, $page)
+		template = context.template
+		regions = regions_for(static, template)
+		var $region = regions.start()
+		while $region < regions.start() + regions.length() {
+			$region_visits = $region_visits + 1
 			region = list_at(static.regions, $region)
 			if region.template == template {
 				measured = measure_region(static, store, source_runs, input_sources, $pending, $cursor, region, $region, $page)?
@@ -877,6 +1048,7 @@ resolve_plan = |static, page_count, selection, language, source_base, limits| {
 			store,
 			style: static.style,
 			work: {
+				template_region_visits: $region_visits,
 				drawing_paints: $drawing_paints.len(),
 				field_resolutions: $field_resolutions,
 				items_shaped: $pending.len(),
@@ -929,9 +1101,34 @@ empty_store = { clusters: [], glyph_indices: [], glyphs: [], runs: [], substitut
 empty_shape_work : KernelShape.Work
 empty_shape_work = { cluster_visits: 0, glyph_visits: 0, metric_reads: 0, scalar_visits: 0, script_run_visits: 0, utf8_bytes: 0 }
 
+## Error-only bounded replay over already-analyzed sources locates the
+## failing authored item, as the body shaper does. No source is re-inspected
+## and no fallback run or replacement font can be produced.
+locate_single_text_error : KernelFacadeFurniture.Static, KernelFont.Inspection, List(KernelFacadeSources.Source), KernelShape.BatchOptions, List(Semantics.TextSourceId), List(Pending), KernelShape.Error, KernelShape.Limits -> KernelFacadeFurniture.Error
+locate_single_text_error = |static, font, sources, options, input_sources, pending, original, limits| {
+	var $index = 0
+	while $index < sources.len() {
+		request = { occurrence: Semantics.OccurrenceId.from_index(0), size: static.style.size, source: Semantics.TextSourceId.from_index(0) }
+		match KernelShape.shape_simple_batch(font, [list_at(sources, $index)], options, [request], limits) {
+			Ok(_) => {}
+			Err(error) => {
+				path = source_path(static, input_sources, pending, $index)
+				return match error {
+					UnsupportedScript({ actual, expected: _, run: _ }) => FurnitureText({ path, reason: Script(actual) })
+					UnsupportedCluster(_) => FurnitureCluster({ path: path })
+					MissingGlyph(_) | NotdefGlyph(_) => FurnitureText({ path, reason: Coverage })
+					other => Shape(other)
+				}
+			}
+		}
+		$index = $index + 1
+	}
+	Shape(original)
+}
+
 ## One resolved line: its text, its segments, and how many fields resolved.
-resolve_line : List(Part), U64, U64 -> { fields : U64, segments : List(Segment), text : Str }
-resolve_line = |parts, page, pages| {
+resolve_line : List(Part), U64, U64, Str -> { fields : U64, segments : List(Segment), text : Str }
+resolve_line = |parts, page, pages, label| {
 	var $pieces = List.with_capacity(parts.len())
 	var $segments = []
 	var $bytes = 0
@@ -947,6 +1144,16 @@ resolve_line = |parts, page, pages| {
 				$pieces = $pieces.append(text)
 				$bytes = $bytes + text.count_utf8_bytes()
 				$scalars = $scalars + scalars
+			}
+			RunningPart({ path }) => {
+				$pieces = $pieces.append(label)
+				$bytes = $bytes + label.count_utf8_bytes()
+				$scalars = $scalars + scalar_count(label)
+				$fields = $fields + 1
+				$field = match $field {
+					NoField => Field({ path, value: label })
+					found => found
+				}
 			}
 			FieldPart({ field, path, style }) => {
 				value = KernelFacadeSemantics.number_text(Document.page_field_number_style(style), if field == PageField page else pages)
@@ -1012,7 +1219,7 @@ measure_region = |static, store, source_runs, input_sources, pending, cursor, re
 					crash "furniture pending order escaped"
 				}
 				$cursor = $cursor + 1
-				runs = runs_of(source_runs, list_at(input_sources, entry.input).index())
+				runs = pending_runs(source_runs, input_sources, entry.input)
 				var $total = 0
 				var $free_field = NoField
 				for segment in entry.segments {
@@ -1161,7 +1368,7 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 				entry = list_at(pending, $cursor)
 				$cursor = $cursor + 1
 				kind = if list_at(static.texts, text_index).fields PageNumber else region.kind
-				runs = runs_of(source_runs, list_at(input_sources, entry.input).index())
+				runs = pending_runs(source_runs, input_sources, entry.input)
 				baseline = checked_sub(top_y, size)?
 				var $pen = x
 				for segment in entry.segments {
@@ -1207,6 +1414,39 @@ place_region = |static, store, source_runs, input_sources, pending, cursor, regi
 		$offset = $offset + 1
 	}
 	Ok({ cursor: $cursor, drawing_paints: $drawing_paints, pieces: $pieces })
+}
+
+## No index allocation for the legacy two-template path (at most four
+## regions). Scoped templates use one indexed span, independent of scopes.
+regions_for : KernelFacadeFurniture.Static, U64 -> Semantics.Range
+regions_for = |static, template| {
+	if !static.template_regions.is_empty() {
+		return list_at(static.template_regions, template)
+	}
+	var $split = 0
+	while $split < static.regions.len() and list_at(static.regions, $split).template == 0 {
+		$split = $split + 1
+	}
+	if template == 0 span(0, $split) else span($split, static.regions.len())
+}
+
+page_context : KernelFacadeFurniture.Static, List(KernelPageLayout.ScopePage), U64, U64 -> { template : U64, label : Str }
+page_context = |static, pages, cursor, page| {
+	if cursor < pages.len() {
+		context = list_at(pages, cursor)
+		if context.page == page {
+			scope = list_at(static.scope_templates, context.scope)
+			id = if context.opening scope.opening else scope.continuation
+			return { template: if id == 0 and page > 0 1 else id, label: scope.label }
+		}
+	}
+	{ template: if page == 0 0 else 1, label: "" }
+}
+
+pending_runs : List(Semantics.Range), List(Semantics.TextSourceId), [Input(U64), NoText] -> Semantics.Range
+pending_runs = |source_runs, input_sources, input| match input {
+	NoText => Semantics.Range.from_start_and_length(0, 0)
+	Input(index) => runs_of(source_runs, list_at(input_sources, index).index())
 }
 
 ## The runs shaping one furniture source: `source_runs` is empty through
@@ -1311,7 +1551,12 @@ face_position = |faces, face| {
 source_path : KernelFacadeFurniture.Static, List(Semantics.TextSourceId), List(Pending), U64 -> Str
 source_path = |static, input_sources, pending, source| {
 	for entry in pending {
-		if list_at(input_sources, entry.input).index() == source {
+		if (
+			match entry.input {
+				NoText => False
+				Input(input) => list_at(input_sources, input).index() == source
+			}
+		) {
 			return list_at(static.items, entry.item).path
 		}
 	}

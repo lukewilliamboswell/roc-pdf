@@ -315,6 +315,7 @@ Pdf :: [].{
 	## repaints its header rows, each page on which a split table row
 	## continues, and the page and measured height of each custom block.
 	ReportOutcome : [
+		PageScopeApplied({ page : U64, path : Str, part : [Opening, Continuation], running_label : Str }),
 		CustomBlockPlaced({ height : Layout.Unit, name : Str, page : U64, path : Str }),
 		FigureScale({ fit : [Exact, ScaleToFit], path : Str, scale : U64 }),
 		PreferenceRelaxed({ page : U64, path : Str, preference : [AuthorKeep, FooterCarry, HeadingKeep, Orphan, Widow] }),
@@ -811,6 +812,14 @@ Pdf :: [].{
 	## bottom-left, y upward), whose extent is the item's size.
 	furniture_image : Scene.Drawing -> Furniture
 	furniture_image = |drawing| Document.furniture_image(drawing)
+
+	## Explicit page-aligned chapter/front-matter scope; labels are artifacts.
+	PageScopeProps : Document.PageScopeProps
+	page_scope : PageScopeProps, List(Document.Block) -> Document.Block
+	page_scope = |props, contents| Document.page_scope(props, contents)
+
+	running_label : Inline
+	running_label = Document.running_label
 
 	## The physical page number (1-based) in a number style. Page fields are
 	## page furniture only; in body content they report
@@ -1351,6 +1360,7 @@ pipeline_error = |error, doc| match error {
 	Pages(PageLayout(LimitExceeded({ attempted, dimension: Pages, limit }))) => located_error(doc, BudgetExceeded, "document.content_limit", "The document needs ${attempted.to_str()} pages but the facade accepts at most ${limit.to_str()}.", [])
 	Pages(PageLayout(LeadOverflow({ available, required }))) => lead_overflow_error(available, required)
 	Semantics(FurnitureInline({ block, inline })) => inline_error(doc, block, AtInline(inline), FeatureUnavailable, "document.generated_reference", "Page fields and reserved widths are page furniture only: they may appear in a template region's furniture text, never in body content. Generated references in the body are scheduled for Gate 8.")
+	Furniture(ScopeInvalid({ group, reason })) => group_error(doc, group, InvalidRelationship, "layout.page_scope", reason)
 	Furniture(furniture) => furniture_error(furniture)
 	ReferenceCycle({ first_seen_pass, repeated_at_pass }) => located_error(doc, LayoutCycle, "layout.reference_cycle", "Reference stabilization repeated the state of pass ${first_seen_pass.to_str()} at pass ${repeated_at_pass.to_str()}; no attempted state is accepted.", [])
 	ReferenceBudget({ passes }) => located_error(doc, BudgetExceeded, "layout.budget_exhausted", "Reference stabilization did not repeat a state within its budget of ${passes.to_str()} passes; no attempted state is accepted.", [])
@@ -1597,6 +1607,7 @@ furniture_error = |error| {
 			lead_text = if lead == 0 "" else ", lead region ${points_text(lead)}"
 			located(LayoutConstraintViolated, "layout.template_body_space", "The template's regions (header ${points_text(header)}${lead_text}, footer ${points_text(footer)}, gap ${points_text(gap)}) leave ${remaining_text} of body flow, less than one body line of ${points_text(line)}.", [template])
 		}
+		ScopeInvalid({ group, reason }) => located(InvalidRelationship, "layout.page_scope", reason, ["page_scopes[${group.to_str()}]"])
 		BodyEmpty => located(LayoutConstraintViolated, "layout.template_body_empty", "A document with page templates needs at least one body block; a lead region alone does not start the body.", [])
 		RegionEmpty({ path }) => located(LayoutConstraintViolated, "layout.template_region_empty", "A template region must reserve a positive height and hold at least one furniture item; use no_region (or no_lead) for a page without that region.", [path])
 		RegionOverflow({ available, path, required }) => located(LayoutConstraintViolated, "layout.template_region_overflow", "Furniture needs ${points_text(required)} but its region or reserved width holds ${points_text(available)}; furniture is never wrapped, shrunk, or clipped.", [path])
@@ -1607,6 +1618,7 @@ furniture_error = |error| {
 		DrawingInvalid({ path, reason }) => located(InvalidRelationship, "layout.furniture_drawing", "A furniture drawing is not a supported decorative drawing: ${reason}.", [path])
 		GapNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template gap is negative; spacing never overlaps content.", [path])
 		InsetNegative({ path }) => located(LayoutConstraintViolated, "layout.spacer_negative", "A template region's slot inset is negative; slot furniture never leaves its region.", [path])
+		FurnitureCluster({ path }) => located(FontCoverageMissing, "text.unsupported_cluster", "Furniture text contains a cluster the selected shaping subset cannot represent.", [path])
 		FurnitureText({ path, reason: Coverage }) => located(FontCoverageMissing, "text.coverage_missing", "No face of the ordered font policy covers every cluster of this furniture text; no face is substituted.", [path])
 		FurnitureText({ path, reason: Script(script) }) => located(FontCoverageMissing, "text.unsupported_script", "Furniture text uses the script ${if script.is_empty() "Unknown" else script}, which the convenience text path does not shape.", [path])
 		other => stage_error(Furniture(other))
@@ -1866,6 +1878,14 @@ break_path = |normalized, block| {
 	for record in normalized.page_breaks {
 		if record.block == block and $path.is_empty() {
 			$path = child_path(normalized.groups, record.parent, record.position)
+		}
+	}
+	if $path.is_empty() {
+		for scope in normalized.page_scopes {
+			group = normalized.groups.get(scope.group) ?? crash "scope boundary identity escaped"
+			if group.first_block == block or group.block_end == block {
+				return group_path(normalized.groups, scope.group)
+			}
 		}
 	}
 	$path
@@ -3462,13 +3482,13 @@ build_report : Document.NormalizedAuthoring, [Facts(KernelFacadeReport.Facts), N
 build_report = |normalized, collected, budget| {
 	facts = match collected {
 		Facts(value) => value
-		NoFacts => { blocks: [], coverage: [], layout: { panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
+		NoFacts => { blocks: [], coverage: [], layout: { scope_pages: [], panels: [], relaxations: [], repeats: [], scales: [], source_fragments: [], splits: [] }, pages: [1] }
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
 	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
-	outcome_count = facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
+	outcome_count = facts.layout.scope_pages.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count
 	if entries > budget.max_entries {
 		return Err(report_budget_error("entries", entries, budget.max_entries))
@@ -3591,6 +3611,10 @@ build_report = |normalized, collected, budget| {
 		}
 		$group = $group + 1
 	}
+	for context in facts.layout.scope_pages {
+		scope = normalized.page_scopes.get(context.scope) ?? crash "scope report identity escaped"
+		$outcomes = $outcomes.append(PageScopeApplied({ page: context.page + 1, path: group_path(normalized.groups, scope.group), part: if context.opening Opening else Continuation, running_label: scope.running_label }))
+	}
 	for fragment in facts.layout.source_fragments {
 		$outcomes = $outcomes.append(SourceFragmentPlaced({ page: fragment.page + 1, part: fragment.part, path: group_path(normalized.groups, source_at(normalized.sources, fragment.source).group), rect: fragment.rect, visual_lines: { count: fragment.lines.length(), first: fragment.lines.start() + 1 } }))
 	}
@@ -3655,6 +3679,7 @@ report_text_bytes = |report| {
 	}
 	for outcome in facts.outcomes {
 		$bytes = $bytes + match outcome {
+			PageScopeApplied({ page: _, path, part: _, running_label }) => path.count_utf8_bytes() + running_label.count_utf8_bytes()
 			CustomBlockPlaced({ height: _, name, page: _, path }) => path.count_utf8_bytes() + name.count_utf8_bytes()
 			FigureScale({ fit: _, path, scale: _ }) => path.count_utf8_bytes()
 			PreferenceRelaxed({ page: _, path, preference: _ }) => path.count_utf8_bytes()

@@ -7,6 +7,8 @@ import Fixture
 import pf.Metrics
 
 Case : [
+	Chapters({ chapters : U64, mode : U64 }),
+	ChapterNegatives({ context : U64 }),
 	Letter({ paragraphs : U64 }),
 	Report({ sections : U64 }),
 	Ordered({ sections : U64 }),
@@ -46,6 +48,8 @@ main! = |args| {
 	}
 	Metrics.reset_allocations!()
 	result = match spec.case {
+		Chapters({ chapters, mode }) => Fixture.chapters(chapters, mode)
+		ChapterNegatives({ context }) => Fixture.chapter_negatives(context)
 		Letter({ paragraphs }) => Fixture.letter(paragraphs)
 		Report({ sections }) => Fixture.report(sections)
 		Ordered({ sections }) => Fixture.ordered(sections)

@@ -30,6 +30,7 @@ DocumentBlock :: [
 	Link({ text : Str, uri : Str }),
 	ListBlock({ items : List(DocumentListItem), marker : ListMarker }),
 	PageBreak,
+	PageScope(Box(PageScopeSpec)),
 	Paragraph(Str),
 	RichParagraph(List(DocumentInline)),
 
@@ -211,6 +212,7 @@ DocumentInline :: [
 	## in a number style. Page fields are resolved after pagination and are
 	## page furniture only.
 	PageNumber(PageFieldStyle),
+	RunningLabel,
 	Quote(List(DocumentInline)),
 
 	## Furniture inline content laid out in an exact reserved width, aligned
@@ -270,6 +272,17 @@ DocumentFurniture :: [FurnitureDrawing(Scene.Drawing), FurnitureText(List(Docume
 ## down from its top edge. `NoRegion` reserves nothing.
 DocumentRegion :: [NoRegion, Region({ backdrop : Backdrop, center : List(DocumentFurniture), end : List(DocumentFurniture), height : Layout.Unit, inset : Layout.Unit, start : List(DocumentFurniture) })].{}
 
+## An explicit full-body-page scope. Templates are data fixed before flow;
+## the running label may be a short title, or explicitly reset.
+PageScopeProps := {
+	running_label : [Label(Str), Reset] ?? Reset,
+	page_templates : [Inherit, Templates({ opening : DocumentPageTemplate, continuation : DocumentPageTemplate })] ?? Inherit,
+}
+
+PageScopeSpec : { contents : List(DocumentBlock), props : PageScopeProps }
+
+NormalizedPageScope : { group : U64, running_label : Str, templates : [Inherit, Templates({ opening : NormalizedPageTemplate, continuation : NormalizedPageTemplate })] }
+
 ## A region's backdrop: a decorative drawing painted behind its slots, or
 ## none.
 Backdrop : [Backdrop(Scene.Drawing), NoBackdrop]
@@ -295,6 +308,7 @@ DocumentTemplates : [NoTemplates, Templates({ continuation : DocumentPageTemplat
 ## `inlines[k].inlines[j]`. `Unsupported` is any other inline (including a
 ## reserved width inside a reserved width), rejected by the template stage.
 NormalizedFurnitureInline : [
+	RunningLabel({ inner : [Inner(U64), Outer], position : U64 }),
 	BoxEnd,
 	BoxStart({ align : ReservedAlign, position : U64, width : Layout.Unit }),
 	Field({ field : [PageNumberField, TotalPagesField], inner : [Inner(U64), Outer], position : U64, style : PageFieldStyle }),
@@ -517,7 +531,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), PageScope(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -584,6 +598,7 @@ NormalizedAuthoring := {
 	metadata_title : Str,
 	outline : List(OutlineEntry),
 	page_breaks : List(NormalizedPageBreak),
+	page_scopes : List(NormalizedPageScope),
 	page_labels : List(PageLabelRange),
 	rich_paragraphs : List(NormalizedRich),
 	scopes : List(Theme.Scope),
@@ -873,6 +888,8 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedPageTemplate : NormalizedPageTemplate
 	NormalizedFurniture : NormalizedFurniture
 	NormalizedFurnitureInline : NormalizedFurnitureInline
+	NormalizedPageScope : NormalizedPageScope
+	PageScopeProps : PageScopeProps
 	NormalizedRegion : NormalizedRegion
 	PageFieldStyle : PageFieldStyle
 	ReservedAlign : ReservedAlign
@@ -1124,6 +1141,12 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 
 	furniture_image : Scene.Drawing -> DocumentFurniture
 	furniture_image = |drawing_value| DocumentFurniture.FurnitureDrawing(drawing_value)
+
+	page_scope : PageScopeProps, List(DocumentBlock) -> DocumentBlock
+	page_scope = |props, contents| DocumentBlock.PageScope(Box.box({ contents, props }))
+
+	running_label : DocumentInline
+	running_label = DocumentInline.RunningLabel
 
 	page_number : NumberStyle -> DocumentInline
 	page_number = |style| DocumentInline.PageNumber(page_field_style(style))
@@ -1418,17 +1441,18 @@ furniture_leaf : DocumentInline, U64, [Inner(U64), Outer] -> NormalizedFurniture
 furniture_leaf = |inline, position, inner| match inline {
 	Text(text) => Text({ inner, position, text })
 	PageNumber(style) => Field({ field: PageNumberField, inner, position, style })
+	RunningLabel => RunningLabel({ inner, position })
 	TotalPages(style) => Field({ field: TotalPagesField, inner, position, style })
 	_ => Unsupported({ inner, position })
 }
 
 empty_state : SimpleState
-empty_state = { source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], page_scopes: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_scopes: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1438,6 +1462,10 @@ first_unavailable_block = |blocks| {
 	while $index < blocks.len() {
 		match list_at(blocks, $index) {
 			Container({ contents, kind: _ }) => match first_unavailable_nested(contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			PageScope(spec) => match first_unavailable_nested(Box.unbox(spec).contents) {
 				Available => {}
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
@@ -1486,6 +1514,9 @@ first_unavailable_nested = |contents| {
 			match list_at(top.blocks, top.next) {
 				Container({ contents: nested, kind: _ }) => {
 					$frames = $frames.append({ blocks: nested, next: 0 })
+				}
+				PageScope(spec) => {
+					$frames = $frames.append({ blocks: Box.unbox(spec).contents, next: 0 })
 				}
 				Custom(spec) => {
 					$frames = $frames.append({ blocks: Box.unbox(spec).contents, next: 0 })
@@ -1585,6 +1616,7 @@ normalize_compact = |compact, initial| {
 		metadata_title: compact.metadata_title,
 		outline: [],
 		page_breaks: initial.page_breaks,
+		page_scopes: initial.page_scopes,
 		page_labels: [],
 		rich_paragraphs: initial.rich_paragraphs,
 		scopes: initial.scopes,
@@ -1613,6 +1645,7 @@ SimpleState : {
 	list_index : U64,
 	lists : List(NormalizedList),
 	page_breaks : List(NormalizedPageBreak),
+	page_scopes : List(NormalizedPageScope),
 	rich_paragraphs : List(NormalizedRich),
 	scopes : List(Theme.Scope),
 	sources : List(NormalizedSource),
@@ -1645,6 +1678,7 @@ normalize_simple = |simple, initial| {
 		metadata_title: simple.metadata_title,
 		outline: [],
 		page_breaks: $state.page_breaks,
+		page_scopes: $state.page_scopes,
 		page_labels: [],
 		rich_paragraphs: $state.rich_paragraphs,
 		scopes: $state.scopes,
@@ -1659,7 +1693,7 @@ normalize_simple = |simple, initial| {
 
 is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
-	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => True
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | PageScope(_) | Scoped(_) => True
 	_ => False
 }
 
@@ -1741,6 +1775,20 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 		opened = open_group(state, KeepWithNext(keep), parent, depth, position)
 		{ frame: { blocks: contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
+	PageScope(boxed) => {
+		spec = Box.unbox(boxed)
+		index = state.page_scopes.len()
+		label = match spec.props.running_label {
+			Label(text) => text
+			Reset => ""
+		}
+		templates = match spec.props.page_templates {
+			Inherit => Inherit
+			Templates({ opening, continuation }) => Templates({ opening: { header: normalize_region(opening.header), footer: normalize_region(opening.footer), gap: opening.gap }, continuation: { header: normalize_region(continuation.header), footer: normalize_region(continuation.footer), gap: continuation.gap } })
+		}
+		opened = open_group({ ..state, page_scopes: state.page_scopes.append({ group: state.groups.len(), running_label: label, templates }) }, PageScope(index.to_u32_wrap()), parent, depth, position)
+		{ frame: { blocks: spec.contents, depth, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
 	Scoped(boxed) => {
 		scoped = Box.unbox(boxed)
 		index = state.scopes.len()
@@ -1781,7 +1829,7 @@ append_leaf = |state, block, parent, position| match block {
 		}
 		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
 	}
-	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => {
+	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | PageScope(_) | Scoped(_) => {
 		crash "normalized group escaped the frame walk"
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
@@ -2440,7 +2488,7 @@ append_rich = |state, contents, parent, position| {
 
 				## Furniture-only inlines hold no text here; semantic
 				## planning rejects them with their inline path.
-				PageNumber(_) | ReservedWidth(_) | TotalPages(_) => {
+				PageNumber(_) | RunningLabel | ReservedWidth(_) | TotalPages(_) => {
 					$inlines = $inlines.append(inline_element(top, slot, FurnitureOnly, 0, $elements, $leaves))
 					$elements = $elements + 1
 				}
