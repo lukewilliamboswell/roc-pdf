@@ -466,7 +466,8 @@ Pdf :: [].{
 
 	## An unordered list (`L` with `ListNumbering /Disc`). Each item is an
 	## `LI` holding a generated bullet `Lbl` and an `LBody` of its blocks.
-	## Items hold paragraphs, rich paragraphs, and nested lists, and begin
+	## Items hold paragraphs, rich paragraphs, source blocks, figures, tables,
+	## and nested lists, and begin
 	## with a paragraph; lists nest at most four deep. Nested levels are
 	## indented by `Theme.bullet_indent` each.
 	bullet_list : List(ListItem) -> Document.Block

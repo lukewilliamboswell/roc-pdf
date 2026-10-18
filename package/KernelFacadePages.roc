@@ -245,7 +245,7 @@ build_plan = |authoring, shape, line_plan, page_size, theme, flow, limits| {
 	check_limit(authoring.blocks.len(), limits.max_blocks, Blocks)?
 	check_page_breaks(authoring.page_breaks, authoring.blocks.len(), lead_leaves(flow))?
 	author_keeps = authored_keeps(authoring.groups, authoring.blocks.len())
-	flow_facts = plan_flow(authoring, block_lines, page_size, theme, flow)?
+	flow_facts = plan_flow(authoring, block_lines, figure_widths(authoring, line_plan), page_size, theme, flow)?
 	var $row_count = 0
 	var $block_index = 0
 	while $block_index < block_lines.len() {
@@ -426,7 +426,7 @@ RowInfo : { body_rule : Bool, cells : Semantics.Range, fill : Theme.TableFill, g
 
 ## One table's repeat facts: its header row units, the height they and the
 ## gap after them reserve on a continuation page, and its width.
-TableInfo : { header_height : U64, header_units : Semantics.Range, width : U64 }
+TableInfo : { offset : U64, header_height : U64, header_units : Semantics.Range, width : U64 }
 
 TableRuleStyle : [NoTableRule, TableRule({ color : Color.SourceValue, width : U64 })]
 
@@ -507,7 +507,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 		}
 	}
 	paragraph_spacing = nonnegative_raw(theme.paragraph_spacing)?
-	flow_facts = plan_flow(authoring, block_lines, page_size, theme, flow)?
+	flow_facts = plan_flow(authoring, block_lines, figure_widths(authoring, line_plan), page_size, theme, flow)?
 	cell_geometry = KernelFacadeTables.Plan.cells(tables)
 	table_geometry = KernelFacadeTables.Plan.tables(tables)
 	table_sources = KernelFacadeTables.Plan.sources(tables)
@@ -771,7 +771,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				$footer_groups = $footer_groups.append({ blocks: Semantics.Range.from_start_and_length($units.len() - table.footer_rows, table.footer_rows) })
 				$footer_sources = $footer_sources.append(FooterRows({ first: group.group_end - table.footer_rows, last: group.group_end - 1 }))
 			}
-			$table_info = $table_info.append({ header_height: $header_height, header_units: Semantics.Range.from_start_and_length(header_first, table.header_rows), width: list_at(table_geometry, $table_cursor).width })
+			$table_info = $table_info.append({ offset: list_at(table_geometry, $table_cursor).offset, header_height: $header_height, header_units: Semantics.Range.from_start_and_length(header_first, table.header_rows), width: list_at(table_geometry, $table_cursor).width })
 			$table_cursor = $table_cursor + 1
 			$block_index = group.block_end
 		} else {
@@ -913,16 +913,16 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				}
 				row_top = checked_sub(page_top, $used)?
 				row_bottom = checked_sub(row_top, checked_mul(header_row.grid, leading)?)?
-				$fills = append_fill($fills, header_row.fill, page_index, { bottom: row_bottom, gap, top: row_top, width: info.width, x: margin_left })
-				$fills = append_cell_fills($fills, authoring, cell_geometry, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left })
-				$rules = append_column_rules($rules, column_rule, cell_geometry, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left })
+				$fills = append_fill($fills, header_row.fill, page_index, { bottom: row_bottom, gap, top: row_top, width: info.width, x: margin_left + info.offset })
+				$fills = append_cell_fills($fills, authoring, cell_geometry, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left + info.offset })
+				$rules = append_column_rules($rules, column_rule, cell_geometry, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left + info.offset })
 				$segment = extend_segment($segment, header_row.table, row_top, row_bottom, gap)
 				$used = checked_add($used, checked_add(checked_mul(header_row.grid, leading)?, gap)?)?
 				$header = $header + 1
 			}
 			$repeated = $repeated + info.header_units.length()
 			$repeats = $repeats.append({ group: list_at(table_geometry, list_at($row_info, $unit).table).group, page: page_index, rows: info.header_units.length() })
-			$rules = append_rule($rules, rule, page_index, margin_left, info.width, checked_sub(page_top, checked_sub($used, gap / 2)?)?)
+			$rules = append_rule($rules, rule, page_index, margin_left + info.offset, info.width, checked_sub(page_top, checked_sub($used, gap / 2)?)?)
 		}
 		var $fragment = first_fragment
 		while $fragment < fragment_end {
@@ -998,21 +998,22 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 						$cell = $cell + 1
 					}
 					table_width = list_at($table_info, info.table).width
+					table_x = margin_left + list_at($table_info, info.table).offset
 					bottom = fragment.geometry.origin.y.raw().to_u64_wrap()
 					top = checked_add(bottom, fragment.geometry.size.height.raw().to_u64_wrap())?
-					$fills = append_fill($fills, info.fill, page_index, { bottom, gap, top, width: table_width, x: margin_left })
-					$fills = append_cell_fills($fills, authoring, cell_geometry, info.cells, { bottom, gap, padding, page: page_index, top, x: margin_left })
-					$rules = append_column_rules($rules, column_rule, cell_geometry, info.cells, { bottom, gap, padding, page: page_index, top, x: margin_left })
+					$fills = append_fill($fills, info.fill, page_index, { bottom, gap, top, width: table_width, x: table_x })
+					$fills = append_cell_fills($fills, authoring, cell_geometry, info.cells, { bottom, gap, padding, page: page_index, top, x: table_x })
+					$rules = append_column_rules($rules, column_rule, cell_geometry, info.cells, { bottom, gap, padding, page: page_index, top, x: table_x })
 					$rules = close_other_segment($rules, frame, $segment, info.table, { page: page_index, tables: $table_info, x: margin_left })
 					$segment = extend_segment($segment, info.table, top, bottom, gap)
 					if info.body_rule and first_grid == 0 and $fragment > first_fragment {
-						$rules = append_rule($rules, body_rule, page_index, margin_left, table_width, checked_add(top, gap / 2)?)
+						$rules = append_rule($rules, body_rule, page_index, table_x, table_width, checked_add(top, gap / 2)?)
 					}
 					if info.rule_below and first_grid + taken == info.grid {
-						$rules = append_rule($rules, rule, page_index, margin_left, table_width, checked_sub(bottom, gap / 2)?)
+						$rules = append_rule($rules, rule, page_index, table_x, table_width, checked_sub(bottom, gap / 2)?)
 					}
 					if info.rule_above and first_grid == 0 and $fragment > first_fragment {
-						$rules = append_rule($rules, rule, page_index, margin_left, table_width, checked_add(top, gap / 2)?)
+						$rules = append_rule($rules, rule, page_index, table_x, table_width, checked_add(top, gap / 2)?)
 					}
 				}
 			}
@@ -1163,7 +1164,7 @@ append_cell_rows = |rows, at, block| {
 				if alignment == End at.geometry.x + slack else at.geometry.x + slack // 2
 			}
 		}
-		$rows = $rows.append({ kind: ContentRow, body_line: line_index, body_offset: Layout.Unit.from_raw(offset.to_i64_wrap()), body_runs: runs, label: NoLabel })
+		$rows = $rows.append({ kind: ContentRow, body_line: line_index, body_offset: Layout.Unit.from_raw((at.geometry.offset + offset).to_i64_wrap()), body_runs: runs, label: NoLabel })
 		$local = $local + 1
 	}
 	Ok($rows)
@@ -1295,9 +1296,10 @@ extend_segment = |segment, table, top, bottom, gap| {
 ## Close an open segment: its frame is four rectangles inside the rows'
 ## outer boxes, across the table's width.
 close_segment : List(KernelFacadePages.Rule), TableRuleStyle, Segment, U64, U64, List(TableInfo) -> List(KernelFacadePages.Rule)
-close_segment = |rules, frame, segment, page, x, tables| match (frame, segment) {
+close_segment = |rules, frame, segment, page, margin_x, tables| match (frame, segment) {
 	(TableRule({ color, width: thickness }), Segment({ bottom, table, top })) => {
 		width = list_at(tables, table).width
+		x = margin_x + list_at(tables, table).offset
 		height = if top > bottom top - bottom else 0
 		rect = |left, low, w, h| {
 			color,
@@ -1678,13 +1680,29 @@ FlowFacts : { decorations : List(U64), heights : List(U64), scales : List(U64) }
 ##   than the largest page frame (`DecorationOversize`).
 ##
 ## Nothing else is scaled, and nothing is clipped.
-plan_flow : Document.NormalizedAuthoring, List(KernelFacadeLines.BlockLines), Layout.Size, Theme, FlowSelection -> Try(FlowFacts, KernelFacadePages.Error)
-plan_flow = |authoring, block_lines, page_size, theme, flow| {
+figure_widths : Document.NormalizedAuthoring, KernelFacadeLines.Plan -> List(U64)
+figure_widths = |authoring, line_plan| {
+	var $widths = List.with_capacity(authoring.figures.len())
+	var $block = 0
+	while $block < authoring.blocks.len() {
+		match list_at(authoring.blocks, $block).kind {
+			Figure(_) => {
+				$widths = $widths.append(KernelFacadeLines.Plan.frame(line_plan, $block).width)
+			}
+			_ => {}
+		}
+		$block = $block + 1
+	}
+	$widths
+}
+
+plan_flow : Document.NormalizedAuthoring, List(KernelFacadeLines.BlockLines), List(U64), Layout.Size, Theme, FlowSelection -> Try(FlowFacts, KernelFacadePages.Error)
+plan_flow = |authoring, block_lines, widths, page_size, theme, flow| {
 	if authoring.figures.is_empty() and authoring.decorations.is_empty() and authoring.customs.is_empty() {
 		return Ok({ decorations: [], heights: [], scales: [] })
 	}
 	margins = theme.page_margin
-	width = checked_sub(nonnegative_raw(page_size.width)?, checked_add(nonnegative_raw(margins.left)?, nonnegative_raw(margins.right)?)?)?
+	flow_width = checked_sub(nonnegative_raw(page_size.width)?, checked_add(nonnegative_raw(margins.left)?, nonnegative_raw(margins.right)?)?)?
 	body_height = checked_sub(nonnegative_raw(page_size.height)?, checked_add(nonnegative_raw(margins.top)?, nonnegative_raw(margins.bottom)?)?)?
 
 	var $decorations = if authoring.decorations.is_empty() [] else List.repeat(0, authoring.blocks.len())
@@ -1693,8 +1711,8 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 		decoration = list_at(authoring.decorations, $index)
 		drawing = valid_drawing(decoration.drawing, decoration.block)?
 		frames = scope_frame_bounds(flow, body_height, decoration.block)?
-		if drawing.width > width or drawing.height > frames.largest {
-			return Err(DecorationOversize({ decoration: $index, frame_height: frames.largest, frame_width: width, height: drawing.height, width: drawing.width }))
+		if drawing.width > flow_width or drawing.height > frames.largest {
+			return Err(DecorationOversize({ decoration: $index, frame_height: frames.largest, frame_width: flow_width, height: drawing.height, width: drawing.width }))
 		}
 		if decoration.block >= authoring.blocks.len() {
 			return Err(InvalidBlock({ block: decoration.block }))
@@ -1734,6 +1752,7 @@ plan_flow = |authoring, block_lines, page_size, theme, flow| {
 				}
 				figure = list_at(authoring.figures, figure_index)
 				drawing = valid_drawing(figure.drawing, $block)?
+				width = if widths.is_empty() flow_width else list_at(widths, figure_index)
 				above = if $decorations.is_empty() 0 else list_at($decorations, $block)
 				caption = if figure.captioned {
 					if $block + 1 >= block_lines.len() {
@@ -2057,15 +2076,15 @@ expect {
 	page = { height: Layout.Unit.points(842), width: Layout.Unit.points(595) }
 	theme = Theme.{ page_margin: { bottom: Layout.Unit.points(48), left: Layout.Unit.points(56), right: Layout.Unit.points(56), top: Layout.Unit.points(48) } }
 	authoring = |fit| Document.normalize(Document.from_blocks({ contents: [Document.fitted_figure(drawing, "A plan", NoCaption, fit)], language: "en-AU", title: "Fit" }))
-	scaled = match plan_flow(authoring(ScaleToFit({ minimum_percent: 50 })), [], page, theme, NoFlowTemplate) {
+	scaled = match plan_flow(authoring(ScaleToFit({ minimum_percent: 50 })), [], [], page, theme, NoFlowTemplate) {
 		Ok({ decorations: [], heights: [height], scales: [scale] }) => scale == 805 and height == 724500
 		_ => False
 	}
-	floored = match plan_flow(authoring(ScaleToFit({ minimum_percent: 90 })), [], page, theme, NoFlowTemplate) {
+	floored = match plan_flow(authoring(ScaleToFit({ minimum_percent: 90 })), [], [], page, theme, NoFlowTemplate) {
 		Err(FigureScaleFloor({ block: 0, floor: 90, scale: 805 })) => True
 		_ => False
 	}
-	exact = match plan_flow(authoring(Exact), [], page, theme, NoFlowTemplate) {
+	exact = match plan_flow(authoring(Exact), [], [], page, theme, NoFlowTemplate) {
 		Err(FigureOversize({ block: 0, frame_height: 746000, frame_width: 483000, height: 900000, width: 600000 })) => True
 		_ => False
 	}
