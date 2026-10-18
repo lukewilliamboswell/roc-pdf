@@ -1,4 +1,5 @@
 import Document
+import Font
 import KernelBuiltInFont
 import KernelFont
 import KernelSemantics
@@ -552,4 +553,42 @@ expect {
 		_ => False
 	}
 	unknown and empty and overflow and budget
+}
+
+# Introducing a face used only by a resolved reference can shift the dense
+# instance id of an existing literal. Literal mapping follows occurrence,
+# source and glyph facts while final font instances retain their new ids.
+expect {
+	font = test_font({})?
+	faces = [Font.FaceId.from_index(0), Font.FaceId.from_index(1), Font.FaceId.from_index(2)]
+	selection = Styled({ faces, fonts: [font, font, font], roles: { code: Inherited, emphasis: Candidate(2), quote: Inherited, strong: Candidate(1) } })
+	theme : Theme
+	theme = { inline: { strong: { font: Face(list_at(faces, 1)) }, emphasis: { font: Face(list_at(faces, 2)) } } }
+	authoring = test_document([Document.strong([Document.page_reference({ destination: "end", width: 24 })]), Document.emphasis([Document.plain_text("A")])], [])
+	plan = KernelFacadeReferences.Plan.build(authoring, selection, theme, { width: 595, height: 842 }, NoFlowTemplate, test_limits)?
+	view = KernelFacadeReferences.Plan.view(plan)
+	KernelFacadeText.Plan.text(view.text).runs.map(|run| run.instance.index()) == [1, 2, 0]
+}
+
+# Start, center and end align inside distinct reserved slots. The following
+# slot's origin depends on the reserved advance, never the label's width.
+expect {
+	font = test_font({})?
+	authoring = test_document(
+		[
+			Document.page_reference({ destination: "end", width: 24, align: Start }),
+			Document.page_reference({ destination: "end", width: 24, align: Center }),
+			Document.page_reference({ destination: "end", width: 24, align: End }),
+		],
+		[],
+	)
+	plan = KernelFacadeReferences.Plan.build(authoring, Single(font), Theme.default, { width: 595, height: 842 }, NoFlowTemplate, test_limits)?
+	view = KernelFacadeReferences.Plan.view(plan)
+	text = KernelFacadeText.Plan.text(view.text)
+	placements = KernelFacadeText.Plan.placements(view.text)
+	advance = list_at(text.glyphs, 0).advance_x.raw()
+	left = Theme.default.page_margin.left.raw()
+	list_at(placements, 0).origin.x.raw() == left
+		and list_at(placements, 1).origin.x.raw() == left + 24000 + (24000 - advance) // 2
+			and list_at(placements, 2).origin.x.raw() == left + 48000 + 24000 - advance
 }
