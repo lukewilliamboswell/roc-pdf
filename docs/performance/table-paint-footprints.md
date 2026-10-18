@@ -185,5 +185,6 @@ report whose overflow is rejected during furniture resolution after layout.
 Those paths now construct the bounded outer-paint span/context facts even
 though the failed document emits no PDF. Its exact count is recorded;
 the earlier allocated-byte guard remains. The separate default-table
-15-rejection carrier still has an unexplained six-allocation difference
-under independent error-path review; its earlier expectation is retained.
+15-rejection carrier retains its original 56,677 allocations after deferring
+default geometry until intrinsic table validation succeeds. The
+[geometry-order review](rich-flow.md) records the cause and strict replay.

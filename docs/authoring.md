@@ -720,6 +720,7 @@ budget is `report.budget_exceeded` rather than a shorter report.
 | Authoring surface | Status |
 | --- | --- |
 | titles, headings, paragraphs, links, destinations | executable |
+| fixed-width destination page references (`Pdf.page_reference`) and page-label furniture (`Pdf.page_label`) | executable; [reference contract](destination-page-references.md) |
 | sRGB role styling, font selection, page size, spacing and margins | executable |
 | prepared and chunked emission | executable |
 | figures of typed JPEG/packed raster images and solid vector paths, grouped and multi-command, with captions and `ScaleToFit` | executable |
@@ -734,6 +735,7 @@ budget is `report.budget_exceeded` rather than a shorter report.
 | explicit line and page breaks, spacers, required and preferred keeps | executable |
 | ordinary tables with captions, header rows, column spans, footers, and repeated headers | executable |
 | page templates: header, footer, and lead regions, furniture text and drawings, page and total-page fields | executable |
+| chapter scopes (`Pdf.page_scope`), opening/continuation templates and running labels | executable |
 | a caller-registered face per inline role (style faces) | executable |
 | furniture text under an ordered font policy | executable |
 | fixed pages, columns, floats, footnotes, row spans, complex tables | representable; Gate 8 diagnostic |

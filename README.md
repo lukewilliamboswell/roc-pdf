@@ -67,7 +67,7 @@ with a stable feature code and roadmap explanation. See the
 [authoring support matrix](docs/authoring.md#forward-authoring-api).
 
 The current candidate scope is recorded in [the 0.1.0-rc2 release
-notes](docs/releases/0.1.0-rc2.md), and the pending default-profile change in
+notes](docs/releases/0.1.0-rc2.md), and the current Archive default in
 the [draft 0.1.0-rc3 notes](docs/releases/0.1.0-rc3.md). Gate 4 is closed; its
 aggregated evidence is recorded in the [production-visual closure
 review](docs/performance/production-visual-closure.md). Gate 5 (static

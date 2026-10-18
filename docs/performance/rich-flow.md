@@ -56,11 +56,15 @@ Pinned native metrics, independent checks, negative cases and reviewed
 baseline causes are recorded below. Cross-target observations and the full
 integrated regression suite remain separate completion evidence.
 
-### Pinned native observation, 2026-10-18
+### Initial pinned native observation, 2026-10-18
 
 The pinned `dev`, `arm64mac`, `--no-cache` build was produced through
 `scripts/test.py`'s `build_case_sources`. All twelve family cases generated
 successfully with exact work vectors recorded in `tests/spec.json`:
+
+This table preserves the initial observations. The default-frame and
+repeated-header arena reviews below record subsequent allocation removals;
+the accepted exact expectations are maintained in `tests/spec.json`.
 
 | Case | Roc allocations | Allocated bytes | Pages |
 | --- | ---: | ---: | ---: |
