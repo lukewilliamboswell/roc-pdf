@@ -262,6 +262,8 @@ KernelNavigation :: [].{
 	## fragment, dense by fragment identity, produced from the prepared
 	## fragment/page geometry after pagination. Destination resolution is the
 	## only consumer; nothing re-derives geometry from scenes or content.
+	CommittedAnchor : [Unplaced, At({ page : Semantics.PageId, rect : Layout.Rect })]
+
 	AnchorRect : [AnchorAt(Layout.Rect), NoAnchor]
 
 	## One destination resolved to both of its paired targets: the semantic
