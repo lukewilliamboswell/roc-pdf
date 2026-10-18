@@ -60,12 +60,13 @@ result fits the following public drawing vocabulary:
 - Rectangles without rounded corners, lines, polygons and polylines; relative
   or absolute M/L/H/V/C/S/Q/T/Z paths. Quadratics become exact cubics before
   final fixed-point rounding. Arcs, circles and ellipses reject.
-- Local path-based start/end arrow markers with automatic tangent orientation,
+- Local path-based start/end arrow markers on one open subpath with automatic tangent orientation,
   uniform viewBox scaling and visible overflow. Their geometry is expanded;
   no private PDF operator or transform group is required.
 - Horizontal, plain regular Inter text, ASCII plus U+00E9 “é”, without kerning,
   ligatures, per-character positioning, decorations or font substitution.
-  Multiline text is explicit tspan rows. Same-style word spans inside a row
+  Whitespace is single interior U+0020 spaces; source and browser character
+  counts must agree. Multiline text is explicit tspan rows. Same-style word spans inside a row
   remain one searchable label. Each line retains its start/center/end anchor.
   Other text coverage needs a separately evidenced profile.
 - Labels must remain above all overlapping geometry. Figure drawings paint

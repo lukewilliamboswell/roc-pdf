@@ -148,6 +148,7 @@ export function resolveSvg(source) {
   const addMarker = (el, raw, which) => {
     const value=getComputedStyle(el)[which==='start'?'markerStart':'markerEnd'];
     if (value==='none') return;
+    if (raw.some(segment=>segment[0]==='Z') || raw.filter(segment=>segment[0]==='M').length!==1) fail(el,'marker','markers require one open subpath');
     const id=/#([^)'"\s]+)['"]?\)$/.exec(value)?.[1];
     const marker=id&&svg.querySelector(`[id="${CSS.escape(id)}"]`);
     if (!marker||marker.localName!=='marker') fail(el,'marker','local marker required');
@@ -179,10 +180,11 @@ export function resolveSvg(source) {
     if (['defs','style','title','desc','metadata','marker','filter','linearGradient','radialGradient','clipPath','mask'].includes(el.localName)) return;
     if (el.localName==='rect') { const w=number(el,'width'), h=number(el,'height'); if(w<0||h<0)fail(el,'geometry','negative rectangle dimensions'); if(w===0||h===0)return; }
     const s=getComputedStyle(el);
-    if(s.display==='none'||s.visibility==='hidden')return;
+    if(s.display==='none')return;
     const matrix=matrixOf(el);
+    if(['svg','g'].includes(el.localName)){styleOf(el,matrix);for(const child of el.children)visit(child,depth+1);return;}
+    if(s.visibility!=='visible')return;
     styleOf(el,matrix);
-    if(['svg','g'].includes(el.localName)){for(const child of el.children)visit(child,depth+1);return;}
     if(['path','rect','line','polygon','polyline'].includes(el.localName)) {
       if (!color(el,s.fill) && (!color(el,s.stroke) || parseFloat(s.strokeWidth) === 0)) return;
       const raw=segmentsOf(el);emitPath(el,matrix,raw);
@@ -205,6 +207,8 @@ export function resolveSvg(source) {
         if(child.localName!=='tspan'||['fontFamily','fontSize','fontWeight','fontStyle','fill','letterSpacing','wordSpacing','textAnchor','textTransform','fontKerning','fontVariantLigatures','textDecorationLine','baselineShift','webkitTextStrokeWidth'].some(k=>cs[k]!==ps[k])||['x','y','dx','dy','transform'].some(k=>child.hasAttribute(k)))fail(child,'text','line spans must keep one style and baseline');
       }
       const ls=getComputedStyle(line);
+      if (line!==el && (line.hasAttribute('transform') || ls.transform!=='none')) fail(line,'transform','line transforms are unsupported');
+      styleOf(line,matrix);
       if ((ls.stroke !== 'none' && parseFloat(ls.strokeWidth)>0) || !['normal','100%'].includes(ls.fontStretch) || ls.fontFeatureSettings !== 'normal' || ls.fontVariationSettings !== 'normal' || !['auto','alphabetic'].includes(ls.dominantBaseline)) fail(line,'text','unsupported text paint or font features');
       if (ls.textTransform !== 'none' || ls.textShadow !== 'none' || parseFloat(ls.webkitTextStrokeWidth) !== 0 || ls.fontKerning !== 'none' || ls.fontVariantLigatures !== 'none') fail(line,'text','unsupported text presentation');
       if ([el,line].some(n=>n.hasAttribute('rotate')||n.hasAttribute('textLength')||['x','y','dx','dy'].some(k=>/[, ]/.test(n.getAttribute(k)||'')))) fail(line,'text','per-character positioning unsupported');
@@ -212,6 +216,7 @@ export function resolveSvg(source) {
       const text=line.textContent;
       if (text.includes('${')) fail(line,'text','Roc interpolation syntax is unsupported');
       if (ls.textDecorationLine !== 'none') fail(line,'text','text decoration unsupported');
+      if (text!==text.trim() || text.includes('  ') || line.getNumberOfChars()!==text.length) fail(line,'text','unsupported whitespace or addressable-character layout');
       if(!text||/[\r\n\t]/.test(text))fail(line,'text','one nonempty line required');
       if([...text].some(c=>!((c.codePointAt(0)>=32&&c.codePointAt(0)<=126)||c==='é')))fail(line,'text','profile accepts ASCII and é');
       const start=line.getStartPositionOfChar(0),length=line.getComputedTextLength();
