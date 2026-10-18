@@ -1349,7 +1349,7 @@ pipeline_error = |error, doc| match error {
 		InvalidTabWidth => source_error(doc, source, InvalidRelationship, "source.tab_width", "A source tab stop must be greater than zero.")
 		LimitExceeded(_) => source_error(doc, source, BudgetExceeded, "source.budget", "Source preparation exceeded its explicit input, output, logical-line, or foreground-range budget.")
 	}
-	Semantics(CalloutStyle({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.callout_style", "A callout needs a name, nonnegative padding, and a positive border no wider than its padding, outside the lead region.")
+	Semantics(CalloutStyle({ group })) => group_error(doc, group, LayoutConstraintViolated, "layout.callout_style", "A callout needs a name, nonnegative padding, a fill or border, and any border must be positive and no wider than its padding; callouts cannot appear in the lead region.")
 	Semantics(CalloutContent({ group })) => group_error(doc, group, InvalidRelationship, "semantics.callout_content", "A callout holds paragraphs, lists, source blocks, figures, tables, and nested callouts.")
 	Semantics(CalloutBlock({ block })) => located_error(doc, InvalidRelationship, "semantics.callout_content", "This block kind cannot appear in a callout.", [leaf_path(doc, block)])
 	Semantics(CalloutFlow({ group, position })) => {
@@ -3502,7 +3502,7 @@ build_report = |normalized, collected, budget| {
 	}
 	inline_counts = count_inline_entries(normalized)
 	link_blocks = count_link_blocks(normalized)
-	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
+	obligation_count = 2 + normalized.figures.len() + normalized.tables.len() + normalized.customs.len() + normalized.callouts.len() + link_blocks + inline_counts.links + inline_counts.languages + inline_counts.expansions
 	alternative_count = normalized.figures.len() + inline_counts.languages + inline_counts.expansions
 	outcome_count = facts.layout.callouts.len() + facts.layout.relaxations.len() + normalized.figures.len() + facts.layout.repeats.len() + facts.layout.splits.len() + facts.layout.panels.len() + facts.layout.source_fragments.len()
 	entries = facts.pages.len() + normalized.blocks.len() + alternative_count + outcome_count + facts.coverage.len() + obligation_count

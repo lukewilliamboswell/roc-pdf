@@ -623,8 +623,8 @@ continuation at the existing child boundaries; `Unsplittable` requires the
 whole callout on one page. Every fragment repeats the full rectangular
 panel and padding, including at continuation edges. The default panel has
 no fill and a 1 pt black border; default padding is 8 pt. A border must be
-positive and no wider than the padding. To omit it, use
-`panel: { fill: NoFill, border: NoBorder }`.
+positive and no wider than the padding. A panel must have a fill or border;
+use `panel: { fill: Fill(tint), border: NoBorder }` for a borderless panel.
 
 Callouts hold paragraphs, rich paragraphs, lists, source blocks, figures,
 ordinary tables, and nested callouts, including callouts in list items.
