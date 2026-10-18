@@ -11,6 +11,10 @@ import Semantics
 KernelFacadeSemantics :: [].{
 	Dimension : [ContentSpine, Nodes, Occurrences, Properties, SourceInputs]
 	Error : [
+		CalloutStyle({ group : U64 }),
+		CalloutContent({ group : U64 }),
+		CalloutBlock({ block : U64 }),
+		CalloutFlow({ group : U64, position : U64 }),
 		ArithmeticOverflow,
 		SourceWhitespace({ error : KernelSourceText.Error, source : U64 }),
 		SourceStyle({ source : U64 }),
@@ -360,10 +364,10 @@ plan_blocks = |authoring, limits| {
 					$block_index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | Custom(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | Custom(_) | Callout(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
 						match group.kind {
-							FigureGroup(_) => {}
+							FigureGroup(_) | Callout(_) => {}
 							_ => return Err(ListItemGroup({ group: $next_group }))
 						}
 					}
@@ -761,6 +765,7 @@ plan_blocks = |authoring, limits| {
 	}
 	check_layout_items(authoring)?
 	check_customs(authoring)?
+	check_callouts(authoring)?
 	check_decorations(authoring)?
 	Ok({ attribute_count: $attribute_count, cell_headers: $cell_headers, content_count: $content_count, destinations: $destinations, empty_cells: $empty_cells, group_nodes: $group_nodes, header_ranges: $header_ranges, inline_elements: $inline_elements, inline_leaves: $inline_leaves, links: $links, list_count: $list_count, list_item_count: $list_item_count, node_count: $next_node, occurrence_count: $next_occurrence, property_count: $property_count, relationship_count: $relationship_count, source_inputs: $sources, table_count: $table_count, top_nodes: $top_nodes })
 }
@@ -1097,6 +1102,83 @@ check_figure = |figure, block| {
 		ExactFit => Ok({})
 		ScaleFit(floor) => if floor > 100 Err(FigureFitInvalid({ block: block })) else Ok({})
 	}
+}
+
+## A transparent layout wrapper does not change a callout's child grammar.
+callout_parent : List(Document.NormalizedGroup), U64 -> [InCallout(U64), OutsideCallout]
+callout_parent = |groups, code| {
+	var $code = code
+	while $code != 0 {
+		group = list_at(groups, $code - 1)
+		match group.kind {
+			Callout(_) => return InCallout($code - 1)
+			KeepTogether | KeepWithNext(_) | Scope(_) => {
+				$code = group.parent
+			}
+			_ => return OutsideCallout
+		}
+	}
+	OutsideCallout
+}
+
+check_callouts : Document.NormalizedAuthoring -> Try({}, KernelFacadeSemantics.Error)
+check_callouts = |authoring| {
+	if authoring.callouts.is_empty() {
+		return Ok({})
+	}
+	for callout_value in authoring.callouts {
+		padding = callout_value.padding.raw()
+		if padding < 0 or callout_value.name.is_empty() or in_lead_region(authoring.groups, list_at(authoring.groups, callout_value.group).parent) {
+			return Err(CalloutStyle({ group: callout_value.group }))
+		}
+		match callout_value.panel.border {
+			NoBorder => {}
+			Border(border) => if border.width <= 0 or border.width.raw() > padding {
+				return Err(CalloutStyle({ group: callout_value.group }))
+			}
+		}
+	}
+	var $group = 0
+	for group in authoring.groups {
+		match callout_parent(authoring.groups, group.parent) {
+			OutsideCallout => {}
+			InCallout(_) => match group.kind {
+				Callout(_) | ItemList(_) | Source(_) | Table(_) | FigureGroup(_) | KeepTogether | KeepWithNext(_) | Scope(_) => {}
+				_ => return Err(CalloutContent({ group: $group }))
+			}
+		}
+		$group = $group + 1
+	}
+	var $block = 0
+	for block in authoring.blocks {
+		match callout_parent(authoring.groups, block.parent) {
+			OutsideCallout => {}
+			InCallout(_) => match block.kind {
+				Paragraph | RichParagraph(_) | Figure(_) => {}
+				_ => return Err(CalloutBlock({ block: $block }))
+			}
+		}
+		$block = $block + 1
+	}
+	for item in authoring.spacers {
+		match callout_parent(authoring.groups, item.parent) {
+			InCallout(group) => return Err(CalloutFlow({ group, position: item.position }))
+			OutsideCallout => {}
+		}
+	}
+	for item in authoring.decorations {
+		match callout_parent(authoring.groups, item.parent) {
+			InCallout(group) => return Err(CalloutFlow({ group, position: item.position }))
+			OutsideCallout => {}
+		}
+	}
+	for item in authoring.page_breaks {
+		match callout_parent(authoring.groups, item.parent) {
+			InCallout(group) => return Err(CalloutFlow({ group, position: item.position }))
+			OutsideCallout => {}
+		}
+	}
+	Ok({})
 }
 
 ## A custom block (v1 of the seam) holds only paragraphs and rich
@@ -1545,7 +1627,7 @@ build_store = |authoring, planning, source_plan| {
 				}
 
 				## A custom block is a `Div` of its paragraphs.
-				Custom(_) => {
+				Custom(_) | Callout(_) => {
 					if children == 0 {
 						return Err(EmptyContainer({ group: $group }))
 					}
@@ -1640,7 +1722,7 @@ build_store = |authoring, planning, source_plan| {
 					$index = group.block_end
 					$next_group = group.group_end - 1
 				}
-				Container(_) | Custom(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
+				Container(_) | Custom(_) | Callout(_) | ItemList(_) | LeadRegion | FigureGroup(_) => {
 					$next_node = checked_add($next_node, 1)?
 				}
 				KeepTogether | KeepWithNext(_) | Scope(_) => {}
@@ -2513,6 +2595,7 @@ test_authoring = {
 	],
 	cells: [],
 	customs: [],
+	callouts: [],
 	decorations: [],
 	figures: [],
 	groups: [],

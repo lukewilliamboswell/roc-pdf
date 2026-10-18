@@ -38,6 +38,98 @@ Fixture :: [].{
 	Error : [PdfFailure(Pdf.Error), PipelineFailure, FontFailure, InvalidCase]
 	lists : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
 	lists = |count| list_evidence(count)
+	callouts : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
+	callouts = |count| callout_evidence(count)
+	paragraphs : U64 -> Try({ bytes : List(U8), work : List(U64) }, Error)
+	paragraphs = |count| paragraph_evidence(count)
+}
+
+callout_evidence : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
+callout_evidence = |count| {
+	if count == 0 or count > 100 {
+		return Err(InvalidCase)
+	}
+	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	var $contents = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		var $rows = []
+		var $row = 0
+		while $row < 25 {
+			$rows = $rows.append(Pdf.row([Pdf.header_cell(Row, [Pdf.text("Task ${($row + 1).to_str()}")]), Pdf.cell([Pdf.text("This cell remains inside both panels and its numbered instruction.")])]))
+			$row = $row + 1
+		}
+		$contents = $contents.append(
+			Pdf.callout({
+				name: "Outer ${(1 + $index).to_str()}",
+				padding: 10,
+				contents: [
+					Pdf.rich_paragraph([Pdf.strong([Pdf.text("Warning. ")]), Pdf.text("Preserve the complete procedure and its examples."), Pdf.inline_link([Pdf.text("Reference")], "https://example.test/manual")]),
+					Pdf.numbered_list(
+						{ start: 100 },
+						[
+							Pdf.list_item([
+								Pdf.paragraph("The inner callout belongs to instruction 100."),
+								Pdf.callout({
+									name: "Inner ${(1 + $index).to_str()}",
+									padding: 8,
+									contents: [
+										Pdf.paragraph("Inner paragraph before the exact source."),
+										Pdf.source_block({ face: registered.face, text: Str.repeat("  exact = source  \n\n", 25), padding: 6 }),
+										Pdf.figure({ drawing: Scene.Drawing.empty.rectangle(Layout.rect(0, 0, 120, 35), Theme.black), alt: "A bounded procedure diagram", caption: Pdf.caption("Inner diagram") }),
+										Pdf.table({ caption: Pdf.caption("Inner tasks"), columns: [{ width: Fixed(60), align: Start }, { width: Share(1), align: Start }], header_rows: [Pdf.row([Pdf.header_cell(Column, [Pdf.text("Task")]), Pdf.header_cell(Column, [Pdf.text("Detail")])])], body_rows: $rows, row_split: SplitRows }),
+										Pdf.paragraph("Inner paragraph after the continued table."),
+									],
+								}),
+								Pdf.paragraph("Finish the instruction without generating another label."),
+							]),
+							Pdf.list_item([Pdf.paragraph("The next generated label is 101.")]),
+						],
+					),
+					Pdf.paragraph("Outer paragraph after the complete numbered procedure."),
+				],
+			}),
+		)
+		$index = $index + 1
+	}
+	prepared_evidence(Pdf.document({ title: "Rich continued callouts", language: "en", contents: $contents }), { face: registered.face, registry: registered.registry }, count)
+}
+
+paragraph_evidence : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
+paragraph_evidence = |count| {
+	if count == 0 or count > 500 {
+		return Err(InvalidCase)
+	}
+	registered = Font.Registry.empty.register(KernelBuiltInFont.bytes, { provision: BuiltIn, scripts: [Font.Script.from_iso15924("Latn")] }, Font.ValidationLimits.default) ? |_| FontFailure
+	var $contents = List.with_capacity(count)
+	var $index = 0
+	while $index < count {
+		$contents = $contents.append(Pdf.rich_paragraph([Pdf.strong([Pdf.text("Note ${($index + 1).to_str()}. ")]), Pdf.text(Str.repeat("This wrapped paragraph belongs to one logical callout. ", 6))]))
+		$index = $index + 1
+	}
+	prepared_evidence(Pdf.document({ title: "Paragraph callout continuation", language: "en", contents: [Pdf.paragraph("Before the callout."), Pdf.callout({ name: "Long note", contents: $contents }), Pdf.paragraph("After the callout.")] }), { face: registered.face, registry: registered.registry }, count)
+}
+
+prepared_evidence : Document, { registry : Font.Registry, face : Font.FaceId }, U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
+prepared_evidence = |document, registered, count| {
+	theme : Theme
+	theme = { face: registered.face, table: { header_color: Themed(Theme.black), row_header_color: Themed(Theme.black) } }
+	{ prepared, report } = Pdf.prepare_with_report(document, { theme, fonts: Registered(registered.registry) }) ? PdfFailure
+	bytes = Pdf.to_bytes_prepared(prepared) ? PdfFailure
+	font = registered.registry.prepared_face(registered.face) ? |_| FontFailure
+	styled = { faces: [registered.face], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
+	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| PipelineFailure
+	flow = KernelFacadePipeline.Plan.work(pipeline)
+	var $panels = 0
+	for outcome in report.facts.outcomes {
+		match outcome {
+			CalloutFragmentPlaced(_) => {
+				$panels = $panels + 1
+			}
+			_ => {}
+		}
+	}
+	Ok({ bytes, work: [count, flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, $panels, flow.callout_contexts, flow.callout_ancestors, flow.callout_updates, flow.callout_fragments, bytes.len()] })
 }
 
 list_evidence : U64 -> Try({ bytes : List(U8), work : List(U64) }, Fixture.Error)
@@ -77,7 +169,7 @@ list_evidence = |count| {
 	styled = { faces: [registered.face], fonts: [font], roles: { code: Inherited, emphasis: Inherited, quote: Inherited, strong: Inherited } }
 	pipeline = KernelFacadePipeline.Plan.build_styled_with_facts(Document.normalize(document), styled, theme, page_size, descriptor, NoDocumentFacts, pipeline_limits) ? |_| PipelineFailure
 	flow = KernelFacadePipeline.Plan.work(pipeline)
-	Ok({ bytes, work: [count, flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, report.facts.outcomes.len(), bytes.len()] })
+	Ok({ bytes, work: [count, flow.shaped_runs, flow.lines, flow.pages, flow.final_runs, flow.fragments, flow.scene_commands, flow.objects, flow.shape_metric_reads, flow.line_candidate_visits, flow.page_candidate_visits, report.facts.outcomes.len(), flow.callout_contexts, flow.callout_ancestors, flow.callout_updates, flow.callout_fragments, bytes.len()] })
 }
 
 page_size : Layout.Size

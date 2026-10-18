@@ -17,6 +17,7 @@ DocumentBlock :: [
 	## A separately authored extension block (the custom-block seam),
 	## boxed so the block union keeps the size of its other alternatives.
 	Custom(Box(CustomSpec)),
+	Callout(Box(CalloutSpec)),
 	DestinationHeading({ level : U8, name : Str, text : Str }),
 	DestinationParagraph({ name : Str, text : Str }),
 	Heading({ level : U8, text : Str }),
@@ -58,6 +59,13 @@ DecorationSpec : { above : Layout.Unit, behind : Bool, below : Layout.Unit, draw
 ## unsplittable: it moves whole to the next page. No PDF operators, stores,
 ## or pagination callbacks cross this boundary.
 CustomSpec : { contents : List(DocumentBlock), inset : Layout.Unit, name : Str, panel : Scene.Drawing, size : Layout.Size }
+
+## Automatically measured flow container; the panel is data, never a callback.
+CalloutPanel : { fill : [NoFill, Fill(Color.SourceValue)], border : [NoBorder, Border({ color : Color.SourceValue, width : Layout.Unit })] }
+
+CalloutSpec : { contents : List(DocumentBlock), fragmentation : [Lines, Unsplittable], padding : Layout.Unit, name : Str, panel : CalloutPanel }
+
+NormalizedCallout : { group : U64, fragmentation : [Lines, Unsplittable], padding : Layout.Unit, name : Str, panel : CalloutPanel }
 
 ## Preformatted source has one explicitly registered face, independent of
 ## paragraph and inline Code styles. Tabs expand at scalar-column stops or
@@ -517,7 +525,7 @@ TableSection : [Body, Footer, Header]
 ##
 ## `Custom` is a custom block (payload: its `customs` index): a `Div` of its
 ## paragraphs for semantics and one unsplittable unit for layout.
-NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Scope(U32), Table(U32), TableRow(TableSection)]
+NormalizedGroupKind := [Source(U64), Container(ContainerKind), Custom(U32), Callout(U32), FigureGroup(U32), ItemList(U32), KeepTogether, KeepWithNext(Keep), LeadRegion, ListItem(U32), Scope(U32), Table(U32), TableRow(TableSection)]
 
 ## The semantic role of one normalized inline. Text leaves hold their exact
 ## authored string and its byte range in the paragraph's concatenated text.
@@ -574,6 +582,7 @@ NormalizedAuthoring := {
 	blocks : List(NormalizedBlock),
 	cells : List(NormalizedCell),
 	customs : List(NormalizedCustom),
+	callouts : List(NormalizedCallout),
 	decorations : List(NormalizedDecoration),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
@@ -852,6 +861,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	NormalizedCell : NormalizedCell
 	NormalizedDecoration : NormalizedDecoration
 	NormalizedCustom : NormalizedCustom
+	CalloutSpec : CalloutSpec
+	CalloutPanel : CalloutPanel
+	NormalizedCallout : NormalizedCallout
 	CustomSpec : CustomSpec
 	SourceForeground : SourceForeground
 	SourceTabs : SourceTabs
@@ -1269,6 +1281,9 @@ Document :: { authoring : DocumentAuthoring, created : Metadata.TimestampInput, 
 	custom_block : CustomSpec -> DocumentBlock
 	custom_block = |spec| DocumentBlock.Custom(Box.box(spec))
 
+	callout : CalloutSpec -> DocumentBlock
+	callout = |spec| DocumentBlock.Callout(Box.box(spec))
+
 	source_block : SourceBlockProps -> DocumentBlock
 	source_block = |spec| DocumentBlock.Source(Box.box(spec))
 
@@ -1423,12 +1438,12 @@ furniture_leaf = |inline, position, inner| match inline {
 }
 
 empty_state : SimpleState
-empty_state = { source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
+empty_state = { source_bytes: 0, source_exhaustion: NoSourceExhaustion, blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], line_breaks: [], list_index: 0, lists: [], page_breaks: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [] }
 
 normalize_authoring : DocumentAuthoring, SimpleState -> NormalizedAuthoring
 normalize_authoring = |authoring, initial| match authoring {
 	Compact(compact) => normalize_compact(compact, initial)
-	Fixed(fixed) => { blocks: [], cells: [], customs: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
+	Fixed(fixed) => { blocks: [], cells: [], customs: [], callouts: [], decorations: [], figures: [], groups: [], inlines: [], language: fixed.language, line_breaks: [], lists: [], metadata_title: fixed.metadata_title, outline: [], page_breaks: [], page_labels: [], rich_paragraphs: [], scopes: [], source_foregrounds: [], source_lines: [], sources: [], spacers: [], tables: [], templates: NoTemplates }
 	Simple(simple) => normalize_simple(simple, initial)
 }
 
@@ -1442,6 +1457,10 @@ first_unavailable_block = |blocks| {
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
 			Custom(spec) => match first_unavailable_nested(Box.unbox(spec).contents) {
+				Available => {}
+				UnavailableFeature(found) => return UnavailableFeature(found)
+			}
+			Callout(spec) => match first_unavailable_nested(Box.unbox(spec).contents) {
 				Available => {}
 				UnavailableFeature(found) => return UnavailableFeature(found)
 			}
@@ -1488,6 +1507,9 @@ first_unavailable_nested = |contents| {
 					$frames = $frames.append({ blocks: nested, next: 0 })
 				}
 				Custom(spec) => {
+					$frames = $frames.append({ blocks: Box.unbox(spec).contents, next: 0 })
+				}
+				Callout(spec) => {
 					$frames = $frames.append({ blocks: Box.unbox(spec).contents, next: 0 })
 				}
 				KeepTogether(nested) => {
@@ -1575,6 +1597,7 @@ normalize_compact = |compact, initial| {
 		blocks: $blocks,
 		cells: initial.cells,
 		customs: initial.customs,
+		callouts: initial.callouts,
 		decorations: initial.decorations,
 		figures: initial.figures,
 		groups: initial.groups,
@@ -1605,6 +1628,7 @@ SimpleState : {
 	blocks : List(NormalizedBlock),
 	cells : List(NormalizedCell),
 	customs : List(NormalizedCustom),
+	callouts : List(NormalizedCallout),
 	decorations : List(NormalizedDecoration),
 	figures : List(NormalizedFigure),
 	groups : List(NormalizedGroup),
@@ -1635,6 +1659,7 @@ normalize_simple = |simple, initial| {
 		blocks: $state.blocks,
 		cells: $state.cells,
 		customs: $state.customs,
+		callouts: $state.callouts,
 		decorations: $state.decorations,
 		figures: $state.figures,
 		groups: $state.groups,
@@ -1659,7 +1684,7 @@ normalize_simple = |simple, initial| {
 
 is_grouping : DocumentBlock -> Bool
 is_grouping = |block| match block {
-	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => True
+	Container(_) | Custom(_) | Callout(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => True
 	_ => False
 }
 
@@ -1726,6 +1751,13 @@ open_block_group = |state, block, parent, depth, list_depth, position| match blo
 		opened = open_group(state, Container(kind), parent, depth + 1, position)
 		{ frame: { blocks: contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
 	}
+	Callout(boxed) => {
+		spec = Box.unbox(boxed)
+		index = state.callouts.len()
+		callout_value = { group: state.groups.len(), fragmentation: spec.fragmentation, padding: spec.padding, name: spec.name, panel: spec.panel }
+		opened = open_group({ ..state, callouts: state.callouts.append(callout_value) }, Callout(index.to_u32_wrap()), parent, depth + 1, position)
+		{ frame: { blocks: spec.contents, depth: depth + 1, group: opened.groups.len(), items: [], list_depth, listing: False, next: 0 }, state: opened }
+	}
 	Custom(boxed) => {
 		spec = Box.unbox(boxed)
 		index = state.customs.len()
@@ -1781,7 +1813,7 @@ append_leaf = |state, block, parent, position| match block {
 		}
 		{ ..state, blocks: $blocks, list_index: state.list_index + 1 }
 	}
-	Container(_) | Custom(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => {
+	Container(_) | Custom(_) | Callout(_) | KeepTogether(_) | KeepWithNext(_) | ListBlock(_) | Scoped(_) => {
 		crash "normalized group escaped the frame walk"
 	}
 	DestinationHeading({ level, name, text }) => { ..state, blocks: state.blocks.append({ kind: DestinationHeading({ level, name }), parent, text }) }
