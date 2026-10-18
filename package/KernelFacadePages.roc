@@ -113,9 +113,15 @@ KernelFacadePages :: [].{
 		table_info : List(TableInfo),
 		flow : FlowFacts,
 	}
+	PositionedRow : { row : U64, block : U64, origin : Layout.Point, page : U64, artifact : Bool }
+	MeasuredPaint : { rows : List(PositionedRow), rules : List(Rule), flow : FlowPaints, repeats : List(Repeat), splits : List(RowContinuation), source_fragments : List(SourceFragment), callout_fragments : List(KernelPageLayout.ContainerFragment), work : { blank_rows : U64, repeated_header_paints : U64 } }
+
 	Measured :: MeasuredView.{
 		build : Document.NormalizedAuthoring, MeasuredInput, Layout.Size, Theme, FlowSelection, Limits -> Try(Measured, Error)
 		build = |authoring, input, page, theme, flow, limits| build_measured(authoring, input, page, theme, flow, limits)
+		paint : Measured, Document.NormalizedAuthoring, MeasuredInput, List(U64), Layout.Size, Theme, Limits -> Try(MeasuredPaint, Error)
+		paint = |Measured.(plan), authoring, input, advances, page, theme, limits| paint_measured(plan, authoring, input, advances, page, theme, limits)
+
 		view : Measured -> MeasuredView
 		view = |Measured.(plan)| plan
 	}
@@ -2690,5 +2696,282 @@ expect {
 	page = { height: Layout.Unit.points(842), width: Layout.Unit.points(595) }
 	plan = KernelFacadePages.Measured.build(authoring, input, page, Theme.{ page_margin: { bottom: 48, top: 48, left: 56, right: 56 } }, NoFlowTemplate, limits)?
 	view = KernelFacadePages.Measured.view(plan)
-	KernelPageLayout.Choice.pages(view.choice).len() == 2 and view.grid_rows.len() == 100 and KernelPageLayout.Choice.spans(view.choice).map(|span| span.rows.length()) == [53, 47]
+	paint = KernelFacadePages.Measured.paint(plan, authoring, input, List.repeat(1, 100), page, Theme.{ page_margin: { bottom: 48, top: 48, left: 56, right: 56 } }, limits)?
+	KernelPageLayout.Choice.pages(view.choice).len() == 2 and view.grid_rows.len() == 100 and KernelPageLayout.Choice.spans(view.choice).map(|span| span.rows.length()) == [53, 47] and paint.rows.len() == 100 and list_at(paint.rows, 0).origin.y.raw() == 783000 and list_at(paint.rows, 99).origin.y.raw() == 139000 and list_at(paint.rows, 99).row == 99
+}
+
+MeasuredRuleStyle : { gap : U64, padding : U64, rule : TableRuleStyle, body_rule : TableRuleStyle, column_rule : TableRuleStyle, frame : TableRuleStyle }
+
+measured_rule_style : Theme -> Try(MeasuredRuleStyle, KernelFacadePages.Error)
+measured_rule_style = |theme| {
+	table_style = theme.table
+	gap = nonnegative_raw(table_style.row_gap)?
+	rule = match table_style.rule {
+		NoRule => NoTableRule
+		Rule({ color, width }) => {
+			thickness = nonnegative_raw(width)?
+			if thickness > gap {
+				return Err(TableRuleWidth({ gap, rule: HeaderFooterRule, width: thickness }))
+			}
+			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+		}
+	}
+	body_rule = match table_style.body_rule {
+		NoRule => NoTableRule
+		Rule({ color, width }) => {
+			thickness = nonnegative_raw(width)?
+			if thickness > gap {
+				return Err(TableRuleWidth({ gap, rule: BodyRule, width: thickness }))
+			}
+			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+		}
+	}
+	padding = nonnegative_raw(table_style.cell_padding)?
+	column_rule = match table_style.column_rule {
+		NoRule => NoTableRule
+		Rule({ color, width }) => {
+			thickness = nonnegative_raw(width)?
+			if thickness > 2 * padding {
+				return Err(TableRuleWidth({ gap: 2 * padding, rule: ColumnRule, width: thickness }))
+			}
+			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+		}
+	}
+	frame = match table_style.frame {
+		NoRule => NoTableRule
+		Rule({ color, width }) => {
+			thickness = nonnegative_raw(width)?
+			room = U64.min(padding, gap / 2)
+			if thickness > room {
+				return Err(TableRuleWidth({ gap: room, rule: FrameRule, width: thickness }))
+			}
+			if thickness == 0 NoTableRule else TableRule({ color, width: thickness })
+		}
+	}
+	Ok({ gap, padding, rule, body_rule, column_rule, frame })
+}
+
+paint_measured : KernelFacadePages.MeasuredView, Document.NormalizedAuthoring, KernelFacadePages.MeasuredInput, List(U64), Layout.Size, Theme, KernelFacadePages.Limits -> Try(KernelFacadePages.MeasuredPaint, KernelFacadePages.Error)
+paint_measured = |plan, authoring, input, advances, _page_size, theme, limits| {
+	style = measured_rule_style(theme)?
+	gap = style.gap
+	padding = style.padding
+	margin_left = nonnegative_raw(theme.page_margin.left)?
+	spans = KernelPageLayout.Choice.spans(plan.choice)
+	leads = KernelPageLayout.Choice.lead_bands(plan.choice)
+	var $lead = 0
+	var $paints = []
+	var $rules = []
+	var $fills = []
+	var $repeats = []
+	var $splits = []
+	var $sources = []
+	var $repeated = 0
+	var $blank = 0
+	var $segment = NoSegment
+	for page in KernelPageLayout.Choice.pages(plan.choice) {
+		page_index = page.id.index()
+		first_span = list_at(spans, page.spans.start())
+		first_unit = first_span.block
+		first_block = list_at(plan.blocks, first_unit)
+		if nonnegative_raw(first_block.lead)? > 0 {
+			while $lead < leads.len() and list_at(leads, $lead).page < page_index {
+				$lead = $lead + 1
+			}
+			if $lead >= leads.len() or list_at(leads, $lead).page != page_index {
+				return Err(InvalidBlock({ block: first_unit }))
+			}
+			page_top = list_at(leads, $lead).top
+			info = list_at(plan.table_info, list_at(plan.row_info, first_unit).table)
+			var $used = 0
+			var $header = info.header_units.start()
+			while $header < range_end(info.header_units)? {
+				header_block = list_at(plan.blocks, $header)
+				header_row = list_at(plan.row_info, $header)
+				leading = positive_raw(header_block.leading)?
+				baseline_offset = positive_raw(header_block.baseline_offset)?
+				var $cell = header_row.cells.start()
+				while $cell < range_end(header_row.cells)? {
+					cell = list_at(input.cells, $cell)
+					match list_at(input.blocks, cell.block) {
+						ContentlessCell => {}
+						MeasuredText(text) => {
+							var $local = 0
+							while $local < text.rows.length() {
+								row = text.rows.start() + $local
+								y = checked_sub(page_top, checked_add($used, checked_add(baseline_offset, checked_mul($local, leading)?)?)?)?
+								x = checked_add(margin_left, measured_cell_offset(cell, list_at(advances, row))?)?
+								check_limit(checked_add($paints.len(), 1)?, limits.max_rows, Rows)?
+								$paints = $paints.append({ row, block: cell.block, origin: { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }, page: page_index, artifact: True })
+								$local = $local + 1
+							}
+						}
+						_ => return Err(InvalidBlock({ block: cell.block }))
+					}
+					$cell = $cell + 1
+				}
+				row_top = checked_sub(page_top, $used)?
+				row_bottom = checked_sub(row_top, checked_mul(header_row.grid, leading)?)?
+				$fills = append_fill($fills, header_row.fill, page_index, { bottom: row_bottom, gap, top: row_top, width: info.width, x: margin_left + info.offset })
+				$fills = append_cell_fills($fills, authoring, input.cells, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left + info.offset })
+				$rules = append_column_rules($rules, style.column_rule, input.cells, header_row.cells, { bottom: row_bottom, gap, padding, page: page_index, top: row_top, x: margin_left + info.offset })
+				$segment = extend_segment($segment, header_row.table, row_top, row_bottom, gap)
+				$used = checked_add($used, checked_add(checked_mul(header_row.grid, leading)?, gap)?)?
+				$header = $header + 1
+			}
+			$repeated = $repeated + info.header_units.length()
+			$repeats = $repeats.append({ group: list_at(input.tables, list_at(plan.row_info, first_unit).table).group, page: page_index, rows: info.header_units.length() })
+			$rules = append_rule($rules, style.rule, page_index, margin_left + info.offset, info.width, checked_sub(page_top, checked_sub($used, gap / 2)?)?)
+		}
+		var $index = page.spans.start()
+		while $index < range_end(page.spans)? {
+			span = list_at(spans, $index)
+			unit = span.block
+			unit_block = list_at(plan.blocks, unit)
+			first_grid = span.rows.start() - unit_block.lines.start()
+			taken = span.rows.length()
+			match list_at(plan.units, unit) {
+				LeafUnit(_) | SourceUnit(_) => {
+					$rules = close_segment($rules, style.frame, $segment, page_index, margin_left, plan.table_info)
+					$segment = NoSegment
+					match list_at(plan.units, unit) {
+						SourceUnit(source_id) => {
+							source = list_at(authoring.sources, source_id)
+							frame = list_at(input.source_frames, source_id)
+							source_padding = nonnegative_raw(source.padding)?
+							x = checked_sub(checked_add(margin_left, nonnegative_raw(frame.offset)?)?, source_padding)?
+							y = checked_sub(nonnegative_raw(span.geometry.origin.y)?, source_padding)?
+							rect = { origin: { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }, size: { width: Layout.Unit.from_raw(checked_add(nonnegative_raw(frame.width)?, checked_mul(source_padding, 2)?)?.to_i64_wrap()), height: Layout.Unit.from_raw(checked_add(nonnegative_raw(span.geometry.size.height)?, checked_mul(source_padding, 2)?)?.to_i64_wrap()) } }
+							is_first = first_grid == 0
+							is_last = first_grid + taken == unit_block.lines.length()
+							part = if is_first and is_last Whole else if is_first First else if is_last Last else Middle
+							$sources = $sources.append({ source: source_id, page: page_index, lines: Semantics.Range.from_start_and_length(first_grid, taken), rect, part })
+							match source.background {
+								NoBackground => {}
+								Background(color) => {
+									$fills = $fills.append({ color, layer: Behind, page: page_index, rect })
+								}
+							}
+						}
+						_ => {}
+					}
+					var $local = 0
+					while $local < taken {
+						grid = list_at(plan.grid_rows, span.rows.start() + $local)
+						y = checked_sub(nonnegative_raw(span.baseline.y)?, checked_mul($local, positive_raw(span.leading)?)?)?
+						match grid {
+							NoTextRow(_) => {
+								$blank = $blank + 1
+							}
+							BodyRow(row) => {
+								match row.label {
+									NoLabel => {}
+									Label(label) => {
+										x = checked_add(margin_left, nonnegative_raw(label.offset)?)?
+										check_limit(checked_add($paints.len(), 1)?, limits.max_rows, Rows)?
+										$paints = $paints.append({ row: label.row, block: row.block, origin: { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }, page: page_index, artifact: False })
+									}
+								}
+								x = checked_add(margin_left, nonnegative_raw(row.offset)?)?
+								check_limit(checked_add($paints.len(), 1)?, limits.max_rows, Rows)?
+								$paints = $paints.append({ row: row.row, block: row.block, origin: { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }, page: page_index, artifact: False })
+							}
+							TableGrid => return Err(InvalidBlock({ block: unit }))
+						}
+						$local = $local + 1
+					}
+				}
+				RowUnit(row_group) => {
+					info = list_at(plan.row_info, unit)
+					if first_grid > 0 {
+						$splits = $splits.append({ group: row_group, page: page_index })
+					}
+					var $cell = info.cells.start()
+					while $cell < range_end(info.cells)? {
+						cell = list_at(input.cells, $cell)
+						match list_at(input.blocks, cell.block) {
+							ContentlessCell => {}
+							MeasuredText(text) => {
+								var $grid = first_grid
+								while $grid < first_grid + taken and $grid < text.rows.length() {
+									row = text.rows.start() + $grid
+									y = checked_sub(nonnegative_raw(span.baseline.y)?, checked_mul($grid - first_grid, positive_raw(span.leading)?)?)?
+									x = checked_add(margin_left, measured_cell_offset(cell, list_at(advances, row))?)?
+									check_limit(checked_add($paints.len(), 1)?, limits.max_rows, Rows)?
+									$paints = $paints.append({ row, block: cell.block, origin: { x: Layout.Unit.from_raw(x.to_i64_wrap()), y: Layout.Unit.from_raw(y.to_i64_wrap()) }, page: page_index, artifact: False })
+									$grid = $grid + 1
+								}
+							}
+							_ => return Err(InvalidBlock({ block: cell.block }))
+						}
+						$cell = $cell + 1
+					}
+					info_table = list_at(plan.table_info, info.table)
+					table_width = info_table.width
+					table_x = margin_left + info_table.offset
+					bottom = nonnegative_raw(span.geometry.origin.y)?
+					top = checked_add(bottom, nonnegative_raw(span.geometry.size.height)?)?
+					$fills = append_fill($fills, info.fill, page_index, { bottom, gap, top, width: table_width, x: table_x })
+					$fills = append_cell_fills($fills, authoring, input.cells, info.cells, { bottom, gap, padding, page: page_index, top, x: table_x })
+					$rules = append_column_rules($rules, style.column_rule, input.cells, info.cells, { bottom, gap, padding, page: page_index, top, x: table_x })
+					$rules = close_other_segment($rules, style.frame, $segment, info.table, { page: page_index, tables: plan.table_info, x: margin_left })
+					$segment = extend_segment($segment, info.table, top, bottom, gap)
+					if info.body_rule and first_grid == 0 and $index > page.spans.start() {
+						$rules = append_rule($rules, style.body_rule, page_index, table_x, table_width, checked_add(top, gap / 2)?)
+					}
+					if info.rule_below and first_grid + taken == info.grid {
+						$rules = append_rule($rules, style.rule, page_index, table_x, table_width, checked_sub(bottom, gap / 2)?)
+					}
+					if info.rule_above and first_grid == 0 and $index > page.spans.start() {
+						$rules = append_rule($rules, style.rule, page_index, table_x, table_width, checked_add(top, gap / 2)?)
+					}
+				}
+			}
+			$index = $index + 1
+		}
+		$rules = close_segment($rules, style.frame, $segment, page_index, margin_left, plan.table_info)
+		$segment = NoSegment
+	}
+	decorations = decoration_paints(authoring, KernelPageLayout.Choice.bands(plan.choice), plan.unit_of_block, margin_left)?
+	panels = measured_custom_panels(authoring, plan)?
+	callouts = KernelPageLayout.Choice.container_fragments(plan.choice)
+	Ok({ rows: $paints, rules: merge_callout_rules(callout_rules(authoring, callouts), behind_first($fills, $rules)), flow: { decorations, figure_scales: plan.flow.scales, panels }, repeats: $repeats, splits: $splits, source_fragments: $sources, callout_fragments: callouts, work: { blank_rows: $blank, repeated_header_paints: $repeated } })
+}
+
+measured_cell_offset : KernelFacadeTables.CellGeometry, U64 -> Try(U64, KernelFacadePages.Error)
+measured_cell_offset = |cell, advance| {
+	if advance > cell.width {
+		return Err(InvalidLine({ block: cell.block, line: 0 }))
+	}
+	slack = cell.width - advance
+	align = match cell.align {
+		Start => 0
+		End => slack
+		Center => slack // 2
+	}
+	checked_add(cell.offset, checked_add(cell.x, align)?)
+}
+
+measured_custom_panels : Document.NormalizedAuthoring, KernelFacadePages.MeasuredView -> Try(List(KernelFacadePages.PanelPaint), KernelFacadePages.Error)
+measured_custom_panels = |authoring, plan| {
+	var $out = []
+	var $index = 0
+	var $span = 0
+	spans = KernelPageLayout.Choice.spans(plan.choice)
+	for custom in authoring.customs {
+		leaf = list_at(authoring.groups, custom.group).first_block
+		unit = list_at(plan.unit_of_block, leaf)
+		while $span < spans.len() and list_at(spans, $span).block < unit {
+			$span = $span + 1
+		}
+		if $span >= spans.len() or list_at(spans, $span).block != unit {
+			return Err(InvalidBlock({ block: leaf }))
+		}
+		span = list_at(spans, $span)
+		top = checked_add(nonnegative_raw(span.geometry.origin.y)?, checked_add(nonnegative_raw(span.geometry.size.height)?, nonnegative_raw(custom.inset)?)?)?
+		bottom = checked_sub(top, nonnegative_raw(custom.height)?)?
+		$out = $out.append({ custom: $index, origin: { x: span.geometry.origin.x, y: Layout.Unit.from_raw(bottom.to_i64_wrap()) }, page: span.page.index() })
+		$index = $index + 1
+	}
+	Ok($out)
 }
