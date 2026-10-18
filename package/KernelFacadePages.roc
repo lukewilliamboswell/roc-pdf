@@ -105,6 +105,9 @@ KernelFacadePages :: [].{
 	MeasuredGridRow : [NoTextRow({ source : U64, line : U64 }), BodyRow({ block : U64, row : U64, offset : Layout.Unit, label : [NoLabel, Label({ row : U64, offset : Layout.Unit })] }), TableGrid]
 	MeasuredView : {
 		choice : KernelPageLayout.Choice,
+
+		## Declared continuation-frame offset when no scoped page arena exists.
+		continuation_top : Layout.Unit,
 		blocks : List(KernelPageLayout.Block),
 		units : List(Unit),
 		unit_of_block : List(U64),
@@ -2758,7 +2761,11 @@ build_measured = |authoring, input, page_size, theme, flow, limits| {
 	}
 	$blocks = scope_policies(lead_policies($blocks, lead), flow, $unit_of_block)
 	choice = KernelPageLayout.Choice.build($blocks, flow_groups(merged.groups, lead), $grid_rows.len(), { margins: theme.page_margin, page: page_size }, selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
-	Ok(KernelFacadePages.Measured.({ choice, blocks: $blocks, units: $units, unit_of_block: $unit_of_block, grid_rows: $grid_rows, row_info: $row_info, table_info: $table_info, flow: flow_facts }))
+	continuation_top = match flow {
+		NoFlowTemplate => Layout.Unit.from_raw(0)
+		WithFlowTemplate(template) | WithScopedFlow({ template, scopes: _ }) => template.continuation.top
+	}
+	Ok(KernelFacadePages.Measured.({ choice, continuation_top, blocks: $blocks, units: $units, unit_of_block: $unit_of_block, grid_rows: $grid_rows, row_info: $row_info, table_info: $table_info, flow: flow_facts }))
 }
 
 MeasuredTextInfo : { rows : Semantics.Range, size : Layout.Unit, leading : Layout.Unit, owner : Semantics.OccurrenceId, level : U64, body_offset : Layout.Unit, label : [NoLabel, Label({ rows : Semantics.Range, offset : Layout.Unit })] }
@@ -2806,6 +2813,43 @@ expect {
 	paint = KernelFacadePages.Measured.paint(plan, authoring, input, List.repeat(1, 100), page, Theme.{ page_margin: { bottom: 48, top: 48, left: 56, right: 56 } }, limits)?
 	KernelPageLayout.Choice.pages(view.choice).len() == 2 and view.grid_rows.len() == 100 and KernelPageLayout.Choice.spans(view.choice).map(|span| span.rows.length()) == [53, 47] and paint.rows.len() == 100 and list_at(paint.rows, 0).origin.y.raw() == 783000 and list_at(paint.rows, 99).origin.y.raw() == 139000 and list_at(paint.rows, 99).row == 99
 }
+
+## With no active table/container span, repeated measured headers consume
+## the same frame facts as ordinary text: default, global, or scoped.
+measured_header_frame_test : [Plain, Template, Scoped] -> Try(Bool, KernelFacadePages.Error)
+measured_header_frame_test = |kind| {
+	table = Document.table({ caption: NoCaption, columns: [{ width: Share(1), align: Start }], header_rows: [Document.row([Document.header_cell(Column, [Document.plain_text("Head")])])], body_rows: [0, 1, 2, 3].map(|_| Document.row([Document.cell([Document.plain_text("Body")])])), footer_rows: [], row_split: KeepRows })
+	contents = if kind == Scoped [Document.page_scope({}, [table])] else [table]
+	authoring = Document.normalize(Document.from_blocks({ contents, language: "en", title: "Measured header frames" }))
+	input = {
+		blocks: [0, 1, 2, 3, 4].map(|index| MeasuredText({ rows: Semantics.Range.from_start_and_length(index, 1), size: Layout.Unit.points(11), leading: Layout.Unit.points(14), owner: Semantics.OccurrenceId.from_index(index), level: 0, body_offset: Layout.Unit.points(0), label: NoLabel })),
+		cells: authoring.cells.map(|cell| { offset: 0, align: Start, block: cell.block, width: 72000, x: 4000 }),
+		tables: [{ offset: 0, columns: [80000], group: if kind == Scoped 1 else 0, width: 80000 }],
+		group_frames: List.repeat({ offset: 0, width: 80000 }, authoring.groups.len()),
+		source_frames: [],
+		figure_frames: [],
+	}
+	first = { height: Layout.Unit.points(80), top: Layout.Unit.points(0) }
+	next = { height: Layout.Unit.points(60), top: Layout.Unit.points(20) }
+	flow = match kind {
+		Plain => NoFlowTemplate
+		Template => WithFlowTemplate({ first, continuation: next, lead: NoLead })
+		Scoped => WithScopedFlow({ template: { first, continuation: first, lead: NoLead }, scopes: [{ leaves: Semantics.Range.from_start_and_length(0, 5), opening: first, continuation: next }] })
+	}
+	theme : Theme
+	theme = { body: { size: 11, leading: 14 }, page_margin: { top: 10, bottom: 10, left: 10, right: 10 } }
+	page = { height: Layout.Unit.points(100), width: Layout.Unit.points(100) }
+	limits = KernelFacadePages.Limits.make({ max_blocks: 10, max_rows: 100, page: KernelPageLayout.Limits.make({ max_blocks: 10, max_fragments: 10, max_lines: 100, max_pages: 10, max_placements: 100 }) })
+	plan = KernelFacadePages.Measured.build(authoring, input, page, theme, flow, limits)?
+	view = KernelFacadePages.Measured.view(plan)
+	paint = KernelFacadePages.Measured.paint(plan, authoring, input, List.repeat(1000, 5), page, theme, limits)?
+	repeated = paint.rows.keep_if(|row| row.artifact)
+	Ok(KernelPageLayout.Choice.pages(view.choice).len() == 2 and KernelPageLayout.Choice.lead_bands(view.choice).is_empty() and repeated.len() == 1 and list_at(repeated, 0).page == 1 and list_at(repeated, 0).origin.y == Layout.Unit.points(if kind == Plain 79 else 59))
+}
+
+expect measured_header_frame_test(Plain) == Ok(True)
+expect measured_header_frame_test(Template) == Ok(True)
+expect measured_header_frame_test(Scoped) == Ok(True)
 
 MeasuredRuleStyle : { gap : U64, padding : U64, rule : TableRuleStyle, body_rule : TableRuleStyle, column_rule : TableRuleStyle, frame : TableRuleStyle }
 
@@ -2859,11 +2903,14 @@ measured_rule_style = |theme| {
 }
 
 paint_measured : KernelFacadePages.MeasuredView, Document.NormalizedAuthoring, KernelFacadePages.MeasuredInput, List(U64), Layout.Size, Theme, KernelFacadePages.Limits -> Try(KernelFacadePages.MeasuredPaint, KernelFacadePages.Error)
-paint_measured = |plan, authoring, input, advances, _page_size, theme, limits| {
+paint_measured = |plan, authoring, input, advances, page_size, theme, limits| {
 	style = measured_rule_style(theme)?
 	gap = style.gap
 	padding = style.padding
 	margin_left = nonnegative_raw(theme.page_margin.left)?
+	frame_top = checked_sub(positive_raw(page_size.height)?, nonnegative_raw(theme.page_margin.top)?)?
+	default_page_top = checked_sub(frame_top, nonnegative_raw(plan.continuation_top)?)?
+	page_frames = KernelPageLayout.Choice.page_frames(plan.choice)
 	spans = KernelPageLayout.Choice.spans(plan.choice)
 	leads = KernelPageLayout.Choice.lead_bands(plan.choice)
 	var $lead = 0
@@ -2885,10 +2932,11 @@ paint_measured = |plan, authoring, input, advances, _page_size, theme, limits| {
 			while $lead < leads.len() and list_at(leads, $lead).page < page_index {
 				$lead = $lead + 1
 			}
-			if $lead >= leads.len() or list_at(leads, $lead).page != page_index {
-				return Err(InvalidBlock({ block: first_unit }))
-			}
-			page_top = list_at(leads, $lead).top
+
+			## Uncontained headers need only the declared/committed page frame;
+			## active containers retain their padding-aware accepted lead band.
+			selected_page_top = if page_frames.is_empty() default_page_top else checked_sub(frame_top, nonnegative_raw(list_at(page_frames, page_index).top)?)?
+			page_top = if $lead < leads.len() and list_at(leads, $lead).page == page_index list_at(leads, $lead).top else selected_page_top
 			info = list_at(plan.table_info, list_at(plan.row_info, first_unit).table)
 			var $used = 0
 			var $header = info.header_units.start()

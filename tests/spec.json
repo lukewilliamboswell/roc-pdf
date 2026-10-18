@@ -32686,7 +32686,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 20212,
+          "allocations": 20210,
           "allocated_bytes": 25107207,
           "work": {
             "reference_atoms": 43,
@@ -32716,7 +32716,7 @@
           }
         },
         "x64musl": {
-          "allocations": 20212,
+          "allocations": 20210,
           "allocated_bytes": 25107207,
           "work": {
             "reference_atoms": 43,
