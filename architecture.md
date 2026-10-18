@@ -51,7 +51,7 @@ assistive-technology behavior evidence is recorded where reviewed but is
 optional.
 
 This document owns enduring contracts. Versioned representation and repository
-harness details live in [implementation contracts](docs/implementation-contracts.md),
+harness details live in [implementation contracts](development/implementation-contracts.md),
 and executable evidence lives in the roadmap's linked records. Those contracts
 remain binding until explicitly revised; moving them out of this document does
 not permit unreviewed byte, allocation, or capability changes.
@@ -375,7 +375,7 @@ segments have bounded owned buffers; unchanged final-form resources may use
 exact shared ranges under the selected retention policy. Buffered output uses
 the same transition directly into its final accumulator.
 
-The binding [emission representation contract](docs/implementation-contracts.md#emission-representation)
+The binding [emission representation contract](development/implementation-contracts.md#emission-representation)
 specifies the current compressor seam, stream-length and xref representation,
 output-bound proofs, chunk ownership, and accumulator growth. Changing those
 choices requires reviewed determinism, allocation, and retention evidence.
@@ -736,7 +736,7 @@ Preparation provides a bounded, read-only report alongside the opaque prepared
 result through a supported inspection surface: `Pdf.prepare_with_report`
 returns the unchanged `Pdf.Prepared` beside a `Pdf.Report` whose mechanical
 facts and human-review obligations are separate fields
-([reference-documents.md](docs/reference-documents.md#preparation-report)).
+([reference-documents.md](development/reference-documents.md#preparation-report)).
 The report contains
 authoring locations, page and fragment summaries, logical reading order,
 authored alternatives and assertions, layout-policy outcomes, selected text
@@ -1000,6 +1000,41 @@ scene nodes. Raw PDF objects and operators are not extension points. A separate
 pure Roc SVG or vector package may target the scene boundary; rasterization is
 not a fallback.
 
+The bounded manual-authoring extensions preserve that boundary. Enclosing
+list columns and native callout padding produce explicit dense flow-frame
+facts before child width resolution. Tables, figures, source blocks and
+paragraphs consume those facts rather than sizing against the whole page.
+Native callouts have computed height and bounded rich children; the separately
+measured `CustomBlock` remains unsplittable. Callout continuation retains scalar
+unit/line cursors and parent IDs, reserves ancestor padding during break
+selection, and materializes explicit fragment rectangles only after a break
+is accepted. Repeated table headers consume accepted placement facts inside
+those frames. Every table fragment also reserves its outer painted row
+footprint inside the selected body frame: applicable row/cell fills, column
+rules and frames include the outer half row gaps. Internal horizontal rules
+alone need no additional footprint. This is an explicit layout-only span
+produced from authored table/style facts before pagination, including on the
+source-free reference path; painters consume accepted placement facts and
+never clip or retroactively adjust page breaks. Panels remain artifacts and
+each semantic child occurs once.
+
+Page scopes are explicit layout-only, nonnested full-body-page boundaries.
+Their opening and continuation geometry is declared before pagination;
+running labels are author text rather than inferred headings. Accepted page
+contexts carry scope/template identity forward to furniture and reporting.
+The physical first-page lead remains semantic content and is composed with
+the selected first-body opening frame; no lead-only page is introduced.
+
+Fixed-width destination references are typed symbolic inline atoms before
+layout. Their reserved advance, style, language and semantic identity are
+known without inventing placeholder Unicode. Committed destination anchor
+facts resolve their exact values; final source ranges, font use, glyphs and
+fit proofs exist before the prepared boundary. Navigation and printed
+references consume the same destination facts. Physical page numbers and
+configured page labels are distinct explicit choices. Preparation-time vector
+exporters may target public drawings, but do not become production parsers,
+resource acquisition services or rasterization fallbacks.
+
 Layout-dependent references are symbolic before layout and fully resolved in a
 `PreparedDocument`. Stabilization is deterministic:
 
@@ -1127,7 +1162,12 @@ ownership. A glyph run covers an exact range of that occurrence and supplies
 only the shaping and presentation evidence for that range. An `OwnedGroup`
 supplies placement ownership; the run does not duplicate it. Emitted
 `ActualText` comes from the occurrence range or its explicit semantic override,
-never a second run-local string.
+never a second run-local string. A physical run may name an explicit UTF-8 byte
+interval of that owned override. Materialization partitions an authored
+reference-break replacement across its real font runs; only its last interval
+includes the authored separator. This retains exact label source/shaping ranges
+and emits the logical separator once even when a label uses multiple faces.
+The interval evidence is boxed so ordinary run storage does not widen.
 
 Page furniture has an explicit resolved text style, inherited from body text
 by default or independently selected by the theme. Its size and face govern
@@ -1160,7 +1200,9 @@ source-to-presentation transformations, reordered or contextual clusters, and
 clusters that reference more than one painted glyph. Occurrence-derived text
 copies the run's exact scalar range from the bounded source cache. A semantic
 override is accepted only when its dense ID lies within that occurrence's
-owned text-property range and identifies an `ActualText` value. Both paths are
+owned text-property range and identifies an `ActualText` value. An override
+interval additionally proves nonempty bounds and valid UTF-8 boundaries; lowering
+decodes only that interval rather than scanning a source prefix per run. All paths are
 bounded by a cumulative scalar limit before content emission. The value is
 serialized canonically as a BOM-prefixed UTF-16BE hex string around the run's
 marked-content sequence.
@@ -1426,7 +1468,7 @@ hold its own offset, and it is FlateDecode with the PNG Up predictor. Object
 streams and the cross-reference stream carry direct lengths.
 
 This is an enduring decision, and the evidence behind it is recorded in
-[`docs/performance/output-size.md`](docs/performance/output-size.md). In a
+[`development/performance/output-size.md`](development/performance/output-size.md). In a
 tagged business document most bytes are small dictionaries: structure
 elements, the ParentTree, annotations, and the page tree. Written as top-level
 uncompressed objects they were about half the file, and object streams remove
@@ -1574,7 +1616,7 @@ consumer-visible surface.
 
 Evidence applications exercise private stage contracts through the repository
 integration root and public behavior through the release root. The binding
-[fixture protocol](docs/implementation-contracts.md#repository-fixture-protocol)
+[fixture protocol](development/implementation-contracts.md#repository-fixture-protocol)
 defines app families, versioned scenarios, manifest dispatch, and checker
 selection. Neither test integration nor fixture conventions expand the public
 package boundary.

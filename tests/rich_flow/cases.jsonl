@@ -1,0 +1,19 @@
+{"name":"rich flow list items x10","schema_version":1,"case":{"Lists":{"count":10}}}
+{"name":"rich flow list items x100","schema_version":1,"case":{"Lists":{"count":100}}}
+{"name":"rich flow paragraph callout x10","schema_version":1,"case":{"Paragraphs":{"count":10}}}
+{"name":"rich flow paragraph callout x100","schema_version":1,"case":{"Paragraphs":{"count":100}}}
+{"name":"rich flow nested callouts x3","schema_version":1,"case":{"Callouts":{"count":3}}}
+{"name":"rich flow nested callouts x30","schema_version":1,"case":{"Callouts":{"count":30}}}
+{"name":"rich flow atomic negatives","schema_version":1,"case":{"Negatives":{"context":0}}}
+{"name":"rich flow rebuilt callouts x10","schema_version":1,"case":{"Ownership":{"count":10,"shared":false}}}
+{"name":"rich flow rebuilt callouts x100","schema_version":1,"case":{"Ownership":{"count":100,"shared":false}}}
+{"name":"rich flow shared callouts x10","schema_version":1,"case":{"Ownership":{"count":10,"shared":true}}}
+{"name":"rich flow shared callouts x100","schema_version":1,"case":{"Ownership":{"count":100,"shared":true}}}
+{"name":"rich flow zero padding table","schema_version":1,"case":{"ZeroPadding":{"context":0}}}
+{"name":"scoped table paint decorated x2","schema_version":1,"case":{"ScopedTables":{"count":2,"mode":0}}}
+{"name":"scoped table paint decorated x20","schema_version":1,"case":{"ScopedTables":{"count":20,"mode":0}}}
+{"name":"scoped table paint cell fill x1","schema_version":1,"case":{"ScopedTables":{"count":1,"mode":1}}}
+{"name":"scoped table paint column rule x1","schema_version":1,"case":{"ScopedTables":{"count":1,"mode":2}}}
+{"name":"scoped table paint internal rules x1","schema_version":1,"case":{"ScopedTables":{"count":1,"mode":3}}}
+{"name":"scoped table paint spanning control x1","schema_version":1,"case":{"ScopedTables":{"count":1,"mode":4}}}
+{"name":"scoped table paint reference header x1","schema_version":1,"case":{"ScopedTables":{"count":1,"mode":5}}}

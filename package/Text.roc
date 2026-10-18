@@ -109,7 +109,22 @@ Text :: [].{
 		source : Semantics.TextRange,
 	}
 
-	ActualTextEvidence : [FromOccurrence, SemanticOverride(Semantics.TextPropertyId)]
+	## An explicit byte slice of an owned ActualText property. Boxed so the
+	## evidence union and ordinary Run records retain their existing size.
+	ActualTextSlice :: Box({ property : Semantics.TextPropertyId, utf8_bytes : Semantics.Range }).{
+		make : Semantics.TextPropertyId, Semantics.Range -> ActualTextSlice
+		make = |property, utf8_bytes| ActualTextSlice.(Box.box({ property, utf8_bytes }))
+		value : ActualTextSlice -> { property : Semantics.TextPropertyId, utf8_bytes : Semantics.Range }
+		value = |ActualTextSlice.(boxed)| Box.unbox(boxed)
+		is_eq : ActualTextSlice, ActualTextSlice -> Bool
+		is_eq = |ActualTextSlice.(left), ActualTextSlice.(right)| Box.unbox(left) == Box.unbox(right)
+	}
+	ActualTextEvidence : [FromOccurrence, SemanticOverride(Semantics.TextPropertyId), SemanticOverrideSlice(ActualTextSlice)]
+
+	## An authored break immediately following an occurrence. The semantic
+	## stage owns ActualText(source + U+0020); materialization partitions that
+	## exact property across physical runs and appends its separator once.
+	OccurrenceSeparator : { occurrence : Semantics.OccurrenceId, property : Semantics.TextPropertyId, source_utf8_bytes : U64 }
 
 	## The Unicode a run's `source` range indexes. A semantic run shapes the
 	## text of its content occurrence and is painted by that occurrence's

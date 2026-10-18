@@ -54,7 +54,13 @@
     "structure_extraction",
     "reference_documents",
     "source_blocks",
-    "source_foregrounds"
+    "source_foregrounds",
+    "chapter_templates",
+    "vector_diagrams",
+    "rich_flow",
+    "technical_manual",
+    "destination_references",
+    "table_paint_frames"
   ],
   "post_update_checks": [
     "contracts",
@@ -68,7 +74,13 @@
     "structure_extraction",
     "reference_documents",
     "source_blocks",
-    "source_foregrounds"
+    "source_foregrounds",
+    "chapter_templates",
+    "vector_diagrams",
+    "rich_flow",
+    "technical_manual",
+    "destination_references",
+    "table_paint_frames"
   ],
   "validation": {
     "sources": [
@@ -198,6 +210,26 @@
     {
       "source": "tests/source_blocks/main.roc",
       "cases_jsonl": "tests/source_blocks/cases.jsonl"
+    },
+    {
+      "source": "tests/reference_layout/main.roc",
+      "cases_jsonl": "tests/reference_layout/cases.jsonl"
+    },
+    {
+      "source": "tests/technical_manual/main.roc",
+      "cases_jsonl": "tests/technical_manual/cases.jsonl"
+    },
+    {
+      "source": "tests/rich_flow/main.roc",
+      "cases_jsonl": "tests/rich_flow/cases.jsonl"
+    },
+    {
+      "source": "tests/destination_references/main.roc",
+      "cases_jsonl": "tests/destination_references/cases.jsonl"
+    },
+    {
+      "source": "tests/vector_diagrams/main.roc",
+      "cases_jsonl": "tests/vector_diagrams/cases.jsonl"
     }
   ],
   "cases": [
@@ -23181,7 +23213,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 27439,
+          "allocations": 27447,
           "allocated_bytes": 20100494,
           "work": {
             "node_writes": 176,
@@ -23201,11 +23233,11 @@
             "artifact_runs": 3,
             "fills": 24,
             "rules": 38,
-            "output_bytes": 20835
+            "output_bytes": 20840
           }
         },
         "x64musl": {
-          "allocations": 27439,
+          "allocations": 27447,
           "allocated_bytes": 20100494,
           "work": {
             "node_writes": 176,
@@ -23225,7 +23257,7 @@
             "artifact_runs": 3,
             "fills": 24,
             "rules": 38,
-            "output_bytes": 20835
+            "output_bytes": 20840
           }
         }
       },
@@ -23272,7 +23304,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 207871,
+          "allocations": 207997,
           "allocated_bytes": 178356714,
           "work": {
             "node_writes": 1616,
@@ -23292,11 +23324,11 @@
             "artifact_runs": 33,
             "fills": 214,
             "rules": 388,
-            "output_bytes": 64058
+            "output_bytes": 64129
           }
         },
         "x64musl": {
-          "allocations": 207871,
+          "allocations": 207997,
           "allocated_bytes": 178356714,
           "work": {
             "node_writes": 1616,
@@ -23316,7 +23348,7 @@
             "artifact_runs": 33,
             "fills": 214,
             "rules": 388,
-            "output_bytes": 64058
+            "output_bytes": 64129
           }
         }
       },
@@ -23361,7 +23393,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 20799,
+          "allocations": 20817,
           "allocated_bytes": 18262348,
           "work": {
             "node_writes": 218,
@@ -23378,11 +23410,11 @@
             "artifact_runs": 3,
             "fills": 31,
             "rules": 38,
-            "output_bytes": 18351
+            "output_bytes": 18356
           }
         },
         "x64musl": {
-          "allocations": 20799,
+          "allocations": 20817,
           "allocated_bytes": 18262348,
           "work": {
             "node_writes": 218,
@@ -23399,7 +23431,7 @@
             "artifact_runs": 3,
             "fills": 31,
             "rules": 38,
-            "output_bytes": 18351
+            "output_bytes": 18356
           }
         }
       },
@@ -23444,7 +23476,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 160583,
+          "allocations": 160578,
           "allocated_bytes": 159190161,
           "work": {
             "node_writes": 2018,
@@ -23461,11 +23493,11 @@
             "artifact_runs": 30,
             "fills": 292,
             "rules": 389,
-            "output_bytes": 56581
+            "output_bytes": 56596
           }
         },
         "x64musl": {
-          "allocations": 160583,
+          "allocations": 160578,
           "allocated_bytes": 159190161,
           "work": {
             "node_writes": 2018,
@@ -23482,7 +23514,7 @@
             "artifact_runs": 30,
             "fills": 292,
             "rules": 389,
-            "output_bytes": 56581
+            "output_bytes": 56596
           }
         }
       },
@@ -23529,7 +23561,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 30821,
+          "allocations": 30831,
           "allocated_bytes": 21514800,
           "work": {
             "node_writes": 176,
@@ -23553,7 +23585,7 @@
           }
         },
         "x64musl": {
-          "allocations": 30821,
+          "allocations": 30831,
           "allocated_bytes": 21514800,
           "work": {
             "node_writes": 176,
@@ -23620,7 +23652,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 229012,
+          "allocations": 229134,
           "allocated_bytes": 189981488,
           "work": {
             "node_writes": 1616,
@@ -23640,11 +23672,11 @@
             "artifact_runs": 33,
             "fills": 214,
             "rules": 1261,
-            "output_bytes": 68863
+            "output_bytes": 68934
           }
         },
         "x64musl": {
-          "allocations": 229012,
+          "allocations": 229134,
           "allocated_bytes": 189981488,
           "work": {
             "node_writes": 1616,
@@ -23664,7 +23696,7 @@
             "artifact_runs": 33,
             "fills": 214,
             "rules": 1261,
-            "output_bytes": 68863
+            "output_bytes": 68934
           }
         }
       },
@@ -25686,7 +25718,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 35704,
+          "allocations": 35714,
           "allocated_bytes": 29067690,
           "work": {
             "pages": 2,
@@ -25698,11 +25730,11 @@
             "report_obligations": 9,
             "report_coverage": 194,
             "observations": 12,
-            "output_bytes": 32353
+            "output_bytes": 32369
           }
         },
         "x64musl": {
-          "allocations": 35704,
+          "allocations": 35714,
           "allocated_bytes": 29067690,
           "work": {
             "pages": 2,
@@ -25714,7 +25746,7 @@
             "report_obligations": 9,
             "report_coverage": 194,
             "observations": 12,
-            "output_bytes": 32353
+            "output_bytes": 32369
           }
         }
       },
@@ -25751,7 +25783,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 47869,
+          "allocations": 47915,
           "allocated_bytes": 50053442,
           "work": {
             "pages": 4,
@@ -25763,11 +25795,11 @@
             "report_obligations": 14,
             "report_coverage": 279,
             "observations": 17,
-            "output_bytes": 104231
+            "output_bytes": 104215
           }
         },
         "x64musl": {
-          "allocations": 47869,
+          "allocations": 47915,
           "allocated_bytes": 50053442,
           "work": {
             "pages": 4,
@@ -25779,7 +25811,7 @@
             "report_obligations": 14,
             "report_coverage": 279,
             "observations": 17,
-            "output_bytes": 104231
+            "output_bytes": 104215
           }
         }
       },
@@ -25817,7 +25849,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 22816,
+          "allocations": 22808,
           "allocated_bytes": 21753676,
           "work": {
             "pages": 3,
@@ -25829,11 +25861,11 @@
             "report_obligations": 5,
             "report_coverage": 53,
             "observations": 8,
-            "output_bytes": 37682
+            "output_bytes": 37679
           }
         },
         "x64musl": {
-          "allocations": 22816,
+          "allocations": 22808,
           "allocated_bytes": 21753676,
           "work": {
             "pages": 3,
@@ -25845,7 +25877,7 @@
             "report_obligations": 5,
             "report_coverage": 53,
             "observations": 8,
-            "output_bytes": 37682
+            "output_bytes": 37679
           }
         }
       },
@@ -25882,7 +25914,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 37996,
+          "allocations": 37966,
           "allocated_bytes": 32513408,
           "work": {
             "pages": 3,
@@ -25894,11 +25926,11 @@
             "report_obligations": 9,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 34061
+            "output_bytes": 34052
           }
         },
         "x64musl": {
-          "allocations": 37996,
+          "allocations": 37966,
           "allocated_bytes": 32513408,
           "work": {
             "pages": 3,
@@ -25910,7 +25942,7 @@
             "report_obligations": 9,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 34061
+            "output_bytes": 34052
           }
         }
       },
@@ -25947,7 +25979,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 36937,
+          "allocations": 36927,
           "allocated_bytes": 30257602,
           "work": {
             "pages": 3,
@@ -25959,11 +25991,11 @@
             "report_obligations": 9,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 33709
+            "output_bytes": 33710
           }
         },
         "x64musl": {
-          "allocations": 36937,
+          "allocations": 36927,
           "allocated_bytes": 30257602,
           "work": {
             "pages": 3,
@@ -25975,7 +26007,7 @@
             "report_obligations": 9,
             "report_coverage": 199,
             "observations": 3,
-            "output_bytes": 33709
+            "output_bytes": 33710
           }
         }
       },
@@ -26012,7 +26044,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 60289,
+          "allocations": 60332,
           "allocated_bytes": 53150004,
           "work": {
             "pages": 7,
@@ -26024,11 +26056,11 @@
             "report_obligations": 9,
             "report_coverage": 224,
             "observations": 3,
-            "output_bytes": 40586
+            "output_bytes": 40691
           }
         },
         "x64musl": {
-          "allocations": 60289,
+          "allocations": 60332,
           "allocated_bytes": 53150004,
           "work": {
             "pages": 7,
@@ -26040,7 +26072,7 @@
             "report_obligations": 9,
             "report_coverage": 224,
             "observations": 3,
-            "output_bytes": 40586
+            "output_bytes": 40691
           }
         }
       },
@@ -26076,7 +26108,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 70035,
+          "allocations": 70095,
           "allocated_bytes": 43555345,
           "work": {
             "pages": 3,
@@ -26088,11 +26120,11 @@
             "report_obligations": 10,
             "report_coverage": 219,
             "observations": 5,
-            "output_bytes": 33948
+            "output_bytes": 33969
           }
         },
         "x64musl": {
-          "allocations": 70035,
+          "allocations": 70095,
           "allocated_bytes": 43555345,
           "work": {
             "pages": 3,
@@ -26104,7 +26136,7 @@
             "report_obligations": 10,
             "report_coverage": 219,
             "observations": 5,
-            "output_bytes": 33948
+            "output_bytes": 33969
           }
         }
       },
@@ -26141,7 +26173,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 47218,
+          "allocations": 47177,
           "allocated_bytes": 43033288,
           "work": {
             "pages": 3,
@@ -26153,11 +26185,11 @@
             "report_obligations": 11,
             "report_coverage": 289,
             "observations": 3,
-            "output_bytes": 36570
+            "output_bytes": 36582
           }
         },
         "x64musl": {
-          "allocations": 47218,
+          "allocations": 47177,
           "allocated_bytes": 43033288,
           "work": {
             "pages": 3,
@@ -26169,7 +26201,7 @@
             "report_obligations": 11,
             "report_coverage": 289,
             "observations": 3,
-            "output_bytes": 36570
+            "output_bytes": 36582
           }
         }
       },
@@ -26206,7 +26238,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 343234,
+          "allocations": 343240,
           "allocated_bytes": 327030764,
           "work": {
             "pages": 21,
@@ -26218,11 +26250,11 @@
             "report_obligations": 68,
             "report_coverage": 2629,
             "observations": 3,
-            "output_bytes": 134285
+            "output_bytes": 134338
           }
         },
         "x64musl": {
-          "allocations": 343234,
+          "allocations": 343240,
           "allocated_bytes": 327030764,
           "work": {
             "pages": 21,
@@ -26234,7 +26266,7 @@
             "report_obligations": 68,
             "report_coverage": 2629,
             "observations": 3,
-            "output_bytes": 134285
+            "output_bytes": 134338
           }
         }
       },
@@ -26271,7 +26303,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 50571,
+          "allocations": 50551,
           "allocated_bytes": 50874894,
           "work": {
             "pages": 5,
@@ -26283,11 +26315,11 @@
             "report_obligations": 14,
             "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 104851
+            "output_bytes": 104836
           }
         },
         "x64musl": {
-          "allocations": 50571,
+          "allocations": 50551,
           "allocated_bytes": 50874894,
           "work": {
             "pages": 5,
@@ -26299,7 +26331,7 @@
             "report_obligations": 14,
             "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 104851
+            "output_bytes": 104836
           }
         }
       },
@@ -26337,7 +26369,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 51941,
+          "allocations": 51960,
           "allocated_bytes": 51674793,
           "work": {
             "pages": 5,
@@ -26349,11 +26381,11 @@
             "report_obligations": 14,
             "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 104870
+            "output_bytes": 104852
           }
         },
         "x64musl": {
-          "allocations": 51941,
+          "allocations": 51960,
           "allocated_bytes": 51674793,
           "work": {
             "pages": 5,
@@ -26365,7 +26397,7 @@
             "report_obligations": 14,
             "report_coverage": 280,
             "observations": 4,
-            "output_bytes": 104870
+            "output_bytes": 104852
           }
         }
       },
@@ -26403,7 +26435,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 50405,
+          "allocations": 50322,
           "allocated_bytes": 50847536,
           "work": {
             "pages": 5,
@@ -26415,11 +26447,11 @@
             "report_obligations": 14,
             "report_coverage": 284,
             "observations": 6,
-            "output_bytes": 105103
+            "output_bytes": 105084
           }
         },
         "x64musl": {
-          "allocations": 50405,
+          "allocations": 50322,
           "allocated_bytes": 50847536,
           "work": {
             "pages": 5,
@@ -26431,7 +26463,7 @@
             "report_obligations": 14,
             "report_coverage": 284,
             "observations": 6,
-            "output_bytes": 105103
+            "output_bytes": 105084
           }
         }
       },
@@ -26469,7 +26501,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 47140,
+          "allocations": 47191,
           "allocated_bytes": 44645156,
           "work": {
             "pages": 4,
@@ -26481,11 +26513,11 @@
             "report_obligations": 15,
             "report_coverage": 284,
             "observations": 4,
-            "output_bytes": 88886
+            "output_bytes": 88877
           }
         },
         "x64musl": {
-          "allocations": 47140,
+          "allocations": 47191,
           "allocated_bytes": 44645156,
           "work": {
             "pages": 4,
@@ -26497,7 +26529,7 @@
             "report_obligations": 15,
             "report_coverage": 284,
             "observations": 4,
-            "output_bytes": 88886
+            "output_bytes": 88877
           }
         }
       },
@@ -26535,7 +26567,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 46918,
+          "allocations": 46874,
           "allocated_bytes": 49200411,
           "work": {
             "pages": 5,
@@ -26547,11 +26579,11 @@
             "report_obligations": 14,
             "report_coverage": 279,
             "observations": 2,
-            "output_bytes": 103887
+            "output_bytes": 103896
           }
         },
         "x64musl": {
-          "allocations": 46918,
+          "allocations": 46874,
           "allocated_bytes": 49200411,
           "work": {
             "pages": 5,
@@ -26563,7 +26595,7 @@
             "report_obligations": 14,
             "report_coverage": 279,
             "observations": 2,
-            "output_bytes": 103887
+            "output_bytes": 103896
           }
         }
       },
@@ -26601,7 +26633,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 38308,
+          "allocations": 38281,
           "allocated_bytes": 39726200,
           "work": {
             "pages": 4,
@@ -26613,11 +26645,11 @@
             "report_obligations": 22,
             "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 33555
+            "output_bytes": 33570
           }
         },
         "x64musl": {
-          "allocations": 38308,
+          "allocations": 38281,
           "allocated_bytes": 39726200,
           "work": {
             "pages": 4,
@@ -26629,7 +26661,7 @@
             "report_obligations": 22,
             "report_coverage": 201,
             "observations": 3,
-            "output_bytes": 33555
+            "output_bytes": 33570
           }
         }
       },
@@ -26651,7 +26683,7 @@
       ],
       "measurement_boundary": "before_fixture_main",
       "dimensions": {
-        "pages": 37
+        "pages": 38
       },
       "work_counters": [
         "pages",
@@ -26667,35 +26699,35 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 311426,
+          "allocations": 312172,
           "allocated_bytes": 351475903,
           "work": {
-            "pages": 37,
+            "pages": 38,
             "fragments": 2401,
             "report_blocks": 2001,
-            "report_outcomes": 9,
-            "repeated_headers": 9,
+            "report_outcomes": 12,
+            "repeated_headers": 12,
             "relaxations": 0,
             "report_obligations": 202,
-            "report_coverage": 2028,
+            "report_coverage": 2037,
             "observations": 3,
-            "output_bytes": 144382
+            "output_bytes": 145918
           }
         },
         "x64musl": {
-          "allocations": 311426,
+          "allocations": 312172,
           "allocated_bytes": 351475903,
           "work": {
-            "pages": 37,
+            "pages": 38,
             "fragments": 2401,
             "report_blocks": 2001,
-            "report_outcomes": 9,
-            "repeated_headers": 9,
+            "report_outcomes": 12,
+            "repeated_headers": 12,
             "relaxations": 0,
             "report_obligations": 202,
-            "report_coverage": 2028,
+            "report_coverage": 2037,
             "observations": 3,
-            "output_bytes": 144382
+            "output_bytes": 145918
           }
         }
       },
@@ -26733,7 +26765,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 23446,
+          "allocations": 23422,
           "allocated_bytes": 22170990,
           "work": {
             "pages": 3,
@@ -26745,11 +26777,11 @@
             "report_obligations": 5,
             "report_coverage": 53,
             "observations": 2,
-            "output_bytes": 38011
+            "output_bytes": 38009
           }
         },
         "x64musl": {
-          "allocations": 23446,
+          "allocations": 23422,
           "allocated_bytes": 22170990,
           "work": {
             "pages": 3,
@@ -26761,7 +26793,7 @@
             "report_obligations": 5,
             "report_coverage": 53,
             "observations": 2,
-            "output_bytes": 38011
+            "output_bytes": 38009
           }
         }
       },
@@ -26798,7 +26830,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 82480,
+          "allocations": 82472,
           "allocated_bytes": 61649981,
           "work": {
             "pages": 11,
@@ -26810,11 +26842,11 @@
             "report_obligations": 14,
             "report_coverage": 107,
             "observations": 3,
-            "output_bytes": 63175
+            "output_bytes": 63173
           }
         },
         "x64musl": {
-          "allocations": 82480,
+          "allocations": 82472,
           "allocated_bytes": 61649981,
           "work": {
             "pages": 11,
@@ -26826,7 +26858,7 @@
             "report_obligations": 14,
             "report_coverage": 107,
             "observations": 3,
-            "output_bytes": 63175
+            "output_bytes": 63173
           }
         }
       },
@@ -26863,7 +26895,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 38166,
+          "allocations": 38142,
           "allocated_bytes": 31803331,
           "work": {
             "pages": 5,
@@ -26875,11 +26907,11 @@
             "report_obligations": 7,
             "report_coverage": 67,
             "observations": 3,
-            "output_bytes": 44313
+            "output_bytes": 44311
           }
         },
         "x64musl": {
-          "allocations": 38166,
+          "allocations": 38142,
           "allocated_bytes": 31803331,
           "work": {
             "pages": 5,
@@ -26891,7 +26923,7 @@
             "report_obligations": 7,
             "report_coverage": 67,
             "observations": 3,
-            "output_bytes": 44313
+            "output_bytes": 44311
           }
         }
       },
@@ -26928,7 +26960,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 236423,
+          "allocations": 236431,
           "allocated_bytes": 171460346,
           "work": {
             "pages": 31,
@@ -26944,7 +26976,7 @@
           }
         },
         "x64musl": {
-          "allocations": 236423,
+          "allocations": 236431,
           "allocated_bytes": 171460346,
           "work": {
             "pages": 31,
@@ -26986,7 +27018,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 161990,
+          "allocations": 162055,
           "allocated_bytes": 114874783,
           "work": {
             "rejections": 24,
@@ -26995,7 +27027,7 @@
           }
         },
         "x64musl": {
-          "allocations": 161990,
+          "allocations": 162055,
           "allocated_bytes": 114874783,
           "work": {
             "rejections": 24,
@@ -28179,7 +28211,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8267,
+          "allocations": 8264,
           "allocated_bytes": 9411637,
           "work": {
             "input_bytes": 37,
@@ -28200,7 +28232,7 @@
           }
         },
         "x64musl": {
-          "allocations": 8267,
+          "allocations": 8264,
           "allocated_bytes": 9411637,
           "work": {
             "input_bytes": 37,
@@ -30110,6 +30142,3231 @@
         "pdfa4",
         "structure_semantics",
         "source_foregrounds"
+      ]
+    },
+    {
+      "name": "chapter templates x2",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_2.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "chapters": 2,
+        "chapter_mode": 0,
+        "header_artifacts": 2,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 6
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "scope_pages",
+        "scope_openings",
+        "scope_visits",
+        "template_region_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 93012,
+          "allocated_bytes": 50101969,
+          "work": {
+            "lines": 125,
+            "pages": 6,
+            "reference_passes": 2,
+            "field_resolutions": 15,
+            "furniture_items": 9,
+            "fragments": 125,
+            "artifact_runs": 8,
+            "output_bytes": 19167,
+            "scope_pages": 4,
+            "scope_openings": 2,
+            "scope_visits": 10,
+            "template_region_visits": 18
+          }
+        },
+        "x64musl": {
+          "allocations": 93012,
+          "allocated_bytes": 50101969,
+          "work": {
+            "lines": 125,
+            "pages": 6,
+            "reference_passes": 2,
+            "field_resolutions": 15,
+            "furniture_items": 9,
+            "fragments": 125,
+            "artifact_runs": 8,
+            "output_bytes": 19167,
+            "scope_pages": 4,
+            "scope_openings": 2,
+            "scope_visits": 10,
+            "template_region_visits": 18
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "chapter_templates"
+      ]
+    },
+    {
+      "name": "chapter templates x20",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_20.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 42,
+        "chapters": 20,
+        "chapter_mode": 0,
+        "header_artifacts": 20,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 42
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "scope_pages",
+        "scope_openings",
+        "scope_visits",
+        "template_region_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 866711,
+          "allocated_bytes": 469042045,
+          "work": {
+            "lines": 1223,
+            "pages": 42,
+            "reference_passes": 2,
+            "field_resolutions": 105,
+            "furniture_items": 63,
+            "fragments": 1223,
+            "artifact_runs": 62,
+            "output_bytes": 66863,
+            "scope_pages": 40,
+            "scope_openings": 20,
+            "scope_visits": 82,
+            "template_region_visits": 126
+          }
+        },
+        "x64musl": {
+          "allocations": 866711,
+          "allocated_bytes": 469042045,
+          "work": {
+            "lines": 1223,
+            "pages": 42,
+            "reference_passes": 2,
+            "field_resolutions": 105,
+            "furniture_items": 63,
+            "fragments": 1223,
+            "artifact_runs": 62,
+            "output_bytes": 66863,
+            "scope_pages": 40,
+            "scope_openings": 20,
+            "scope_visits": 82,
+            "template_region_visits": 126
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "chapter_templates"
+      ]
+    },
+    {
+      "name": "chapter templates without document templates",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_no_templates.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "chapters": 1,
+        "chapter_mode": 1,
+        "header_artifacts": 1,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 2
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "scope_pages",
+        "scope_openings",
+        "scope_visits",
+        "template_region_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 48286,
+          "allocated_bytes": 27495591,
+          "work": {
+            "lines": 62,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 5,
+            "furniture_items": 3,
+            "fragments": 62,
+            "artifact_runs": 3,
+            "output_bytes": 15690,
+            "scope_pages": 2,
+            "scope_openings": 1,
+            "scope_visits": 5,
+            "template_region_visits": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 48286,
+          "allocated_bytes": 27495591,
+          "work": {
+            "lines": 62,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 5,
+            "furniture_items": 3,
+            "fragments": 62,
+            "artifact_runs": 3,
+            "output_bytes": 15690,
+            "scope_pages": 2,
+            "scope_openings": 1,
+            "scope_visits": 5,
+            "template_region_visits": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "chapter_templates"
+      ]
+    },
+    {
+      "name": "chapter templates reset label",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_reset.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "chapters": 1,
+        "chapter_mode": 2,
+        "header_artifacts": 0,
+        "footer_artifacts": 0,
+        "page_number_artifacts": 4
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "scope_pages",
+        "scope_openings",
+        "scope_visits",
+        "template_region_visits"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 49748,
+          "allocated_bytes": 28576016,
+          "work": {
+            "lines": 64,
+            "pages": 4,
+            "reference_passes": 2,
+            "field_resolutions": 10,
+            "furniture_items": 6,
+            "fragments": 64,
+            "artifact_runs": 4,
+            "output_bytes": 16304,
+            "scope_pages": 2,
+            "scope_openings": 1,
+            "scope_visits": 6,
+            "template_region_visits": 12
+          }
+        },
+        "x64musl": {
+          "allocations": 49748,
+          "allocated_bytes": 28576016,
+          "work": {
+            "lines": 64,
+            "pages": 4,
+            "reference_passes": 2,
+            "field_resolutions": 10,
+            "furniture_items": 6,
+            "fragments": 64,
+            "artifact_runs": 4,
+            "output_bytes": 16304,
+            "scope_pages": 2,
+            "scope_openings": 1,
+            "scope_visits": 6,
+            "template_region_visits": 12
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "chapter_templates"
+      ]
+    },
+    {
+      "name": "vector diagrams x1",
+      "scenario_revision": "vector-diagrams-v1",
+      "source": "tests/vector_diagrams/main.roc",
+      "snapshot": "tests/vector_diagrams/diagrams_1.pdf",
+      "args": [
+        "1"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "diagrams": 1,
+        "figure_nodes": 1,
+        "captioned_figures": 1
+      },
+      "work_counters": [
+        "diagrams",
+        "authored_scene_commands",
+        "label_sources",
+        "pages",
+        "fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4733,
+          "allocated_bytes": 5449647,
+          "work": {
+            "diagrams": 1,
+            "authored_scene_commands": 18,
+            "label_sources": 5,
+            "pages": 1,
+            "fragments": 2,
+            "output_bytes": 12068
+          }
+        },
+        "x64musl": {
+          "allocations": 4733,
+          "allocated_bytes": 5449647,
+          "work": {
+            "diagrams": 1,
+            "authored_scene_commands": 18,
+            "label_sources": 5,
+            "pages": 1,
+            "fragments": 2,
+            "output_bytes": 12068
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "vector_diagrams"
+      ]
+    },
+    {
+      "name": "vector diagrams x10",
+      "scenario_revision": "vector-diagrams-v1",
+      "source": "tests/vector_diagrams/main.roc",
+      "snapshot": "tests/vector_diagrams/diagrams_10.pdf",
+      "args": [
+        "10"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "diagrams": 10,
+        "figure_nodes": 10,
+        "captioned_figures": 10
+      },
+      "work_counters": [
+        "diagrams",
+        "authored_scene_commands",
+        "label_sources",
+        "pages",
+        "fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 13516,
+          "allocated_bytes": 9591741,
+          "work": {
+            "diagrams": 10,
+            "authored_scene_commands": 180,
+            "label_sources": 50,
+            "pages": 3,
+            "fragments": 20,
+            "output_bytes": 15140
+          }
+        },
+        "x64musl": {
+          "allocations": 13516,
+          "allocated_bytes": 9591741,
+          "work": {
+            "diagrams": 10,
+            "authored_scene_commands": 180,
+            "label_sources": 50,
+            "pages": 3,
+            "fragments": 20,
+            "output_bytes": 15140
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "vector_diagrams"
+      ]
+    },
+    {
+      "name": "vector diagrams x50",
+      "scenario_revision": "vector-diagrams-v1",
+      "source": "tests/vector_diagrams/main.roc",
+      "snapshot": "tests/vector_diagrams/diagrams_50.pdf",
+      "args": [
+        "50"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 13,
+        "diagrams": 50,
+        "figure_nodes": 50,
+        "captioned_figures": 50
+      },
+      "work_counters": [
+        "diagrams",
+        "authored_scene_commands",
+        "label_sources",
+        "pages",
+        "fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 52470,
+          "allocated_bytes": 33080663,
+          "work": {
+            "diagrams": 50,
+            "authored_scene_commands": 900,
+            "label_sources": 250,
+            "pages": 13,
+            "fragments": 100,
+            "output_bytes": 29586
+          }
+        },
+        "x64musl": {
+          "allocations": 52470,
+          "allocated_bytes": 33080663,
+          "work": {
+            "diagrams": 50,
+            "authored_scene_commands": 900,
+            "label_sources": 250,
+            "pages": 13,
+            "fragments": 100,
+            "output_bytes": 29586
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "vector_diagrams"
+      ]
+    },
+    {
+      "name": "page labels visible x3",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/page_labels_3.pdf",
+      "args": [
+        "page-labels",
+        "3"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4518,
+          "allocated_bytes": 6458019,
+          "work": {
+            "lines": 3,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 9,
+            "furniture_items": 3,
+            "fragments": 3,
+            "artifact_runs": 9,
+            "output_bytes": 12101
+          }
+        },
+        "x64musl": {
+          "allocations": 4518,
+          "allocated_bytes": 6458019,
+          "work": {
+            "lines": 3,
+            "pages": 3,
+            "reference_passes": 2,
+            "field_resolutions": 9,
+            "furniture_items": 3,
+            "fragments": 3,
+            "artifact_runs": 9,
+            "output_bytes": 12101
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "page_labels"
+      ]
+    },
+    {
+      "name": "page labels visible x30",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/page_labels_30.pdf",
+      "args": [
+        "page-labels",
+        "30"
+      ],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 30
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 19105,
+          "allocated_bytes": 27978223,
+          "work": {
+            "lines": 30,
+            "pages": 30,
+            "reference_passes": 2,
+            "field_resolutions": 90,
+            "furniture_items": 30,
+            "fragments": 30,
+            "artifact_runs": 90,
+            "output_bytes": 24991
+          }
+        },
+        "x64musl": {
+          "allocations": 19105,
+          "allocated_bytes": 27978223,
+          "work": {
+            "lines": 30,
+            "pages": 30,
+            "reference_passes": 2,
+            "field_resolutions": 90,
+            "furniture_items": 30,
+            "fragments": 30,
+            "artifact_runs": 90,
+            "output_bytes": 24991
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "page_labels"
+      ]
+    },
+    {
+      "name": "reference item layout x100",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/reference_layout/main.roc",
+      "snapshot": "tests/reference_layout/measurement_100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "atoms": 100,
+        "pages": 1
+      },
+      "work_counters": [
+        "atom_writes",
+        "cluster_visits",
+        "glyph_index_visits",
+        "measure_item_visits",
+        "measure_validation_visits",
+        "wrap_item_visits",
+        "wrap_boundary_visits",
+        "line_writes",
+        "range_checks",
+        "range_sum",
+        "advance_sum"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 632,
+          "allocated_bytes": 2010648,
+          "work": {
+            "atom_writes": 100,
+            "cluster_visits": 0,
+            "glyph_index_visits": 0,
+            "measure_item_visits": 100,
+            "measure_validation_visits": 100,
+            "wrap_item_visits": 165,
+            "wrap_boundary_visits": 165,
+            "line_writes": 66,
+            "range_checks": 66,
+            "range_sum": 5016,
+            "advance_sum": 199000
+          }
+        },
+        "x64musl": {
+          "allocations": 632,
+          "allocated_bytes": 2010648,
+          "work": {
+            "atom_writes": 100,
+            "cluster_visits": 0,
+            "glyph_index_visits": 0,
+            "measure_item_visits": 100,
+            "measure_validation_visits": 100,
+            "wrap_item_visits": 165,
+            "wrap_boundary_visits": 165,
+            "line_writes": 66,
+            "range_checks": 66,
+            "range_sum": 5016,
+            "advance_sum": 199000
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "reference item layout x1000",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/reference_layout/main.roc",
+      "snapshot": "tests/reference_layout/measurement_1000.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "atoms": 1000,
+        "pages": 1
+      },
+      "work_counters": [
+        "atom_writes",
+        "cluster_visits",
+        "glyph_index_visits",
+        "measure_item_visits",
+        "measure_validation_visits",
+        "wrap_item_visits",
+        "wrap_boundary_visits",
+        "line_writes",
+        "range_checks",
+        "range_sum",
+        "advance_sum"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 640,
+          "allocated_bytes": 2219985,
+          "work": {
+            "atom_writes": 1000,
+            "cluster_visits": 0,
+            "glyph_index_visits": 0,
+            "measure_item_visits": 1000,
+            "measure_validation_visits": 1000,
+            "wrap_item_visits": 1665,
+            "wrap_boundary_visits": 1665,
+            "line_writes": 666,
+            "range_checks": 666,
+            "range_sum": 500166,
+            "advance_sum": 1999000
+          }
+        },
+        "x64musl": {
+          "allocations": 640,
+          "allocated_bytes": 2219985,
+          "work": {
+            "atom_writes": 1000,
+            "cluster_visits": 0,
+            "glyph_index_visits": 0,
+            "measure_item_visits": 1000,
+            "measure_validation_visits": 1000,
+            "wrap_item_visits": 1665,
+            "wrap_boundary_visits": 1665,
+            "line_writes": 666,
+            "range_checks": 666,
+            "range_sum": 500166,
+            "advance_sum": 1999000
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4"
+      ]
+    },
+    {
+      "name": "chapter templates atomic negatives",
+      "scenario_revision": "chapter-templates-v1",
+      "source": "tests/page_templates/main.roc",
+      "snapshot": "tests/page_templates/chapters_negative.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "rejections": 6
+      },
+      "work_counters": [
+        "lines",
+        "pages",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "fragments",
+        "artifact_runs",
+        "output_bytes",
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 3569,
+          "allocated_bytes": 4842968,
+          "work": {
+            "lines": 1,
+            "pages": 1,
+            "reference_passes": 0,
+            "field_resolutions": 0,
+            "furniture_items": 0,
+            "fragments": 1,
+            "artifact_runs": 0,
+            "output_bytes": 10202,
+            "rejections": 6
+          }
+        },
+        "x64musl": {
+          "allocations": 3569,
+          "allocated_bytes": 4842968,
+          "work": {
+            "lines": 1,
+            "pages": 1,
+            "reference_passes": 0,
+            "field_resolutions": 0,
+            "furniture_items": 0,
+            "fragments": 1,
+            "artifact_runs": 0,
+            "output_bytes": 10202,
+            "rejections": 6
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics"
+      ]
+    },
+    {
+      "name": "rich flow list items x10",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/list_items_x10.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 12,
+        "structure_elements": 512,
+        "rich_kind": 0,
+        "rich_count": 10
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 130132,
+          "allocated_bytes": 73369891,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 430,
+            "lines": 430,
+            "pages": 12,
+            "final_runs": 454,
+            "fragments": 450,
+            "scene_commands": 940,
+            "objects": 570,
+            "metric_reads": 9741,
+            "line_candidates": 4308,
+            "page_candidates": 479,
+            "outcomes_or_panels": 36,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 33662
+          }
+        },
+        "x64musl": {
+          "allocations": 130132,
+          "allocated_bytes": 73369891,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 430,
+            "lines": 430,
+            "pages": 12,
+            "final_runs": 454,
+            "fragments": 450,
+            "scene_commands": 940,
+            "objects": 570,
+            "metric_reads": 9741,
+            "line_candidates": 4308,
+            "page_candidates": 479,
+            "outcomes_or_panels": 36,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 33662
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow list items x100",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/list_items_x100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 112,
+        "structure_elements": 5102,
+        "rich_kind": 0,
+        "rich_count": 100
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1252916,
+          "allocated_bytes": 743807483,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 4300,
+            "lines": 4300,
+            "pages": 112,
+            "final_runs": 4544,
+            "fragments": 4500,
+            "scene_commands": 9410,
+            "objects": 5490,
+            "metric_reads": 97492,
+            "line_candidates": 40669,
+            "page_candidates": 4799,
+            "outcomes_or_panels": 366,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 213745
+          }
+        },
+        "x64musl": {
+          "allocations": 1252916,
+          "allocated_bytes": 743807483,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 4300,
+            "lines": 4300,
+            "pages": 112,
+            "final_runs": 4544,
+            "fragments": 4500,
+            "scene_commands": 9410,
+            "objects": 5490,
+            "metric_reads": 97492,
+            "line_candidates": 40669,
+            "page_candidates": 4799,
+            "outcomes_or_panels": 366,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 213745
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow paragraph callout x10",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/paragraph_callout_x10.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 2,
+        "structure_elements": 24,
+        "rich_kind": 1,
+        "rich_count": 10
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 35068,
+          "allocated_bytes": 15160221,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 22,
+            "lines": 52,
+            "pages": 2,
+            "final_runs": 62,
+            "fragments": 62,
+            "scene_commands": 132,
+            "objects": 47,
+            "metric_reads": 3418,
+            "line_candidates": 3637,
+            "page_candidates": 51,
+            "outcomes_or_panels": 2,
+            "callout_contexts": 12,
+            "callout_ancestors": 1,
+            "callout_updates": 11,
+            "callout_fragments": 2,
+            "output_bytes": 14614
+          }
+        },
+        "x64musl": {
+          "allocations": 35068,
+          "allocated_bytes": 15160221,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 22,
+            "lines": 52,
+            "pages": 2,
+            "final_runs": 62,
+            "fragments": 62,
+            "scene_commands": 132,
+            "objects": 47,
+            "metric_reads": 3418,
+            "line_candidates": 3637,
+            "page_candidates": 51,
+            "outcomes_or_panels": 2,
+            "callout_contexts": 12,
+            "callout_ancestors": 1,
+            "callout_updates": 11,
+            "callout_fragments": 2,
+            "output_bytes": 14614
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow paragraph callout x100",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/paragraph_callout_x100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 12,
+        "structure_elements": 204,
+        "rich_kind": 1,
+        "rich_count": 100
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 314682,
+          "allocated_bytes": 103939473,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 202,
+            "lines": 502,
+            "pages": 12,
+            "final_runs": 602,
+            "fragments": 602,
+            "scene_commands": 1252,
+            "objects": 257,
+            "metric_reads": 33929,
+            "line_candidates": 36037,
+            "page_candidates": 510,
+            "outcomes_or_panels": 12,
+            "callout_contexts": 102,
+            "callout_ancestors": 1,
+            "callout_updates": 106,
+            "callout_fragments": 12,
+            "output_bytes": 30981
+          }
+        },
+        "x64musl": {
+          "allocations": 314682,
+          "allocated_bytes": 103939473,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 202,
+            "lines": 502,
+            "pages": 12,
+            "final_runs": 602,
+            "fragments": 602,
+            "scene_commands": 1252,
+            "objects": 257,
+            "metric_reads": 33929,
+            "line_candidates": 36037,
+            "page_candidates": 510,
+            "outcomes_or_panels": 12,
+            "callout_contexts": 102,
+            "callout_ancestors": 1,
+            "callout_updates": 106,
+            "callout_fragments": 12,
+            "output_bytes": 30981
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow nested callouts x3",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/nested_callouts_x3.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 9,
+        "structure_elements": 322,
+        "rich_kind": 2,
+        "rich_count": 3
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 107123,
+          "allocated_bytes": 56007561,
+          "work": {
+            "authored_scale": 3,
+            "shaped_runs": 273,
+            "lines": 342,
+            "pages": 9,
+            "final_runs": 356,
+            "fragments": 348,
+            "scene_commands": 809,
+            "objects": 374,
+            "metric_reads": 7935,
+            "line_candidates": 1969,
+            "page_candidates": 336,
+            "outcomes_or_panels": 21,
+            "callout_contexts": 111,
+            "callout_ancestors": 18,
+            "callout_updates": 294,
+            "callout_fragments": 21,
+            "output_bytes": 27236
+          }
+        },
+        "x64musl": {
+          "allocations": 107123,
+          "allocated_bytes": 56007561,
+          "work": {
+            "authored_scale": 3,
+            "shaped_runs": 273,
+            "lines": 342,
+            "pages": 9,
+            "final_runs": 356,
+            "fragments": 348,
+            "scene_commands": 809,
+            "objects": 374,
+            "metric_reads": 7935,
+            "line_candidates": 1969,
+            "page_candidates": 336,
+            "outcomes_or_panels": 21,
+            "callout_contexts": 111,
+            "callout_ancestors": 18,
+            "callout_updates": 294,
+            "callout_fragments": 21,
+            "output_bytes": 27236
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow nested callouts x30",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/nested_callouts_x30.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 81,
+        "structure_elements": 3211,
+        "rich_kind": 2,
+        "rich_count": 30
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1013043,
+          "allocated_bytes": 521559571,
+          "work": {
+            "authored_scale": 30,
+            "shaped_runs": 2730,
+            "lines": 3420,
+            "pages": 81,
+            "final_runs": 3554,
+            "fragments": 3480,
+            "scene_commands": 8079,
+            "objects": 3531,
+            "metric_reads": 79350,
+            "line_candidates": 14119,
+            "page_candidates": 3373,
+            "outcomes_or_panels": 211,
+            "callout_contexts": 1110,
+            "callout_ancestors": 180,
+            "callout_updates": 2940,
+            "callout_fragments": 211,
+            "output_bytes": 149551
+          }
+        },
+        "x64musl": {
+          "allocations": 1013043,
+          "allocated_bytes": 521559571,
+          "work": {
+            "authored_scale": 30,
+            "shaped_runs": 2730,
+            "lines": 3420,
+            "pages": 81,
+            "final_runs": 3554,
+            "fragments": 3480,
+            "scene_commands": 8079,
+            "objects": 3531,
+            "metric_reads": 79350,
+            "line_candidates": 14119,
+            "page_candidates": 3373,
+            "outcomes_or_panels": 211,
+            "callout_contexts": 1110,
+            "callout_ancestors": 180,
+            "callout_updates": 2940,
+            "callout_fragments": 211,
+            "output_bytes": 149551
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow atomic negatives",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/atomic_negatives.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 2
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 6487,
+          "allocated_bytes": 19182015,
+          "work": {
+            "authored_scale": 18,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 0,
+            "objects": 0,
+            "metric_reads": 0,
+            "line_candidates": 0,
+            "page_candidates": 0,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 10914
+          }
+        },
+        "x64musl": {
+          "allocations": 6487,
+          "allocated_bytes": 19182015,
+          "work": {
+            "authored_scale": 18,
+            "shaped_runs": 0,
+            "lines": 0,
+            "pages": 1,
+            "final_runs": 0,
+            "fragments": 0,
+            "scene_commands": 0,
+            "objects": 0,
+            "metric_reads": 0,
+            "line_candidates": 0,
+            "page_candidates": 0,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 10914
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline"
+      ]
+    },
+    {
+      "name": "rich flow rebuilt callouts x10",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/rebuilt_callouts_x10.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 31,
+        "rich_kind": 3,
+        "rich_count": 10
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 11051,
+          "allocated_bytes": 6905079,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 20,
+            "lines": 10,
+            "pages": 1,
+            "final_runs": 20,
+            "fragments": 20,
+            "scene_commands": 80,
+            "objects": 51,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 9,
+            "outcomes_or_panels": 10,
+            "callout_contexts": 10,
+            "callout_ancestors": 10,
+            "callout_updates": 10,
+            "callout_fragments": 10,
+            "output_bytes": 11757
+          }
+        },
+        "x64musl": {
+          "allocations": 11051,
+          "allocated_bytes": 6905079,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 20,
+            "lines": 10,
+            "pages": 1,
+            "final_runs": 20,
+            "fragments": 20,
+            "scene_commands": 80,
+            "objects": 51,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 9,
+            "outcomes_or_panels": 10,
+            "callout_contexts": 10,
+            "callout_ancestors": 10,
+            "callout_updates": 10,
+            "callout_fragments": 10,
+            "output_bytes": 11757
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow rebuilt callouts x100",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/rebuilt_callouts_x100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "structure_elements": 301,
+        "rich_kind": 3,
+        "rich_count": 100
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 80329,
+          "allocated_bytes": 33216079,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 200,
+            "lines": 100,
+            "pages": 6,
+            "final_runs": 200,
+            "fragments": 200,
+            "scene_commands": 800,
+            "objects": 336,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 99,
+            "outcomes_or_panels": 100,
+            "callout_contexts": 100,
+            "callout_ancestors": 100,
+            "callout_updates": 100,
+            "callout_fragments": 100,
+            "output_bytes": 19677
+          }
+        },
+        "x64musl": {
+          "allocations": 80329,
+          "allocated_bytes": 33216079,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 200,
+            "lines": 100,
+            "pages": 6,
+            "final_runs": 200,
+            "fragments": 200,
+            "scene_commands": 800,
+            "objects": 336,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 99,
+            "outcomes_or_panels": 100,
+            "callout_contexts": 100,
+            "callout_ancestors": 100,
+            "callout_updates": 100,
+            "callout_fragments": 100,
+            "output_bytes": 19677
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow shared callouts x10",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/rebuilt_callouts_x10.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 1,
+        "structure_elements": 31,
+        "rich_kind": 3,
+        "rich_count": 10
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 11041,
+          "allocated_bytes": 6903879,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 20,
+            "lines": 10,
+            "pages": 1,
+            "final_runs": 20,
+            "fragments": 20,
+            "scene_commands": 80,
+            "objects": 51,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 9,
+            "outcomes_or_panels": 10,
+            "callout_contexts": 10,
+            "callout_ancestors": 10,
+            "callout_updates": 10,
+            "callout_fragments": 10,
+            "output_bytes": 11757
+          }
+        },
+        "x64musl": {
+          "allocations": 11041,
+          "allocated_bytes": 6903879,
+          "work": {
+            "authored_scale": 10,
+            "shaped_runs": 20,
+            "lines": 10,
+            "pages": 1,
+            "final_runs": 20,
+            "fragments": 20,
+            "scene_commands": 80,
+            "objects": 51,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 9,
+            "outcomes_or_panels": 10,
+            "callout_contexts": 10,
+            "callout_ancestors": 10,
+            "callout_updates": 10,
+            "callout_fragments": 10,
+            "output_bytes": 11757
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow shared callouts x100",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/rebuilt_callouts_x100.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 6,
+        "structure_elements": 301,
+        "rich_kind": 3,
+        "rich_count": 100
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 80229,
+          "allocated_bytes": 33204079,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 200,
+            "lines": 100,
+            "pages": 6,
+            "final_runs": 200,
+            "fragments": 200,
+            "scene_commands": 800,
+            "objects": 336,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 99,
+            "outcomes_or_panels": 100,
+            "callout_contexts": 100,
+            "callout_ancestors": 100,
+            "callout_updates": 100,
+            "callout_fragments": 100,
+            "output_bytes": 19677
+          }
+        },
+        "x64musl": {
+          "allocations": 80229,
+          "allocated_bytes": 33204079,
+          "work": {
+            "authored_scale": 100,
+            "shaped_runs": 200,
+            "lines": 100,
+            "pages": 6,
+            "final_runs": 200,
+            "fragments": 200,
+            "scene_commands": 800,
+            "objects": 336,
+            "metric_reads": 74,
+            "line_candidates": 74,
+            "page_candidates": 99,
+            "outcomes_or_panels": 100,
+            "callout_contexts": 100,
+            "callout_ancestors": 100,
+            "callout_updates": 100,
+            "callout_fragments": 100,
+            "output_bytes": 19677
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "rich flow zero padding table",
+      "scenario_revision": "rich-flow-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/zero_padding_table.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 3,
+        "structure_elements": 250,
+        "rich_kind": 4,
+        "rich_count": 80
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 79853,
+          "allocated_bytes": 35056637,
+          "work": {
+            "authored_scale": 80,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 3,
+            "final_runs": 167,
+            "fragments": 163,
+            "scene_commands": 478,
+            "objects": 280,
+            "metric_reads": 584,
+            "line_candidates": 584,
+            "page_candidates": 81,
+            "outcomes_or_panels": 3,
+            "callout_contexts": 82,
+            "callout_ancestors": 3,
+            "callout_updates": 164,
+            "callout_fragments": 3,
+            "output_bytes": 20088
+          }
+        },
+        "x64musl": {
+          "allocations": 79853,
+          "allocated_bytes": 35056637,
+          "work": {
+            "authored_scale": 80,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 3,
+            "final_runs": 167,
+            "fragments": 163,
+            "scene_commands": 478,
+            "objects": 280,
+            "metric_reads": 584,
+            "line_candidates": 584,
+            "page_candidates": 81,
+            "outcomes_or_panels": 3,
+            "callout_contexts": 82,
+            "callout_ancestors": 3,
+            "callout_updates": 164,
+            "callout_fragments": 3,
+            "output_bytes": 20088
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "rich_flow"
+      ]
+    },
+    {
+      "name": "technical manual chapters x2",
+      "scenario_revision": "technical-manual-v1",
+      "source": "tests/technical_manual/main.roc",
+      "snapshot": "tests/technical_manual/manual_2.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 9,
+        "chapters": 2,
+        "structure_elements": 302
+      },
+      "work_counters": [
+        "authored_chapters",
+        "authored_table_rows",
+        "prepared_vector_commands",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "fragments",
+        "final_runs",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "scope_visits",
+        "template_region_visits",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 125868,
+          "allocated_bytes": 70509264,
+          "work": {
+            "authored_chapters": 2,
+            "authored_table_rows": 80,
+            "prepared_vector_commands": 36,
+            "shaped_runs": 245,
+            "lines": 305,
+            "pages": 9,
+            "fragments": 331,
+            "final_runs": 386,
+            "scene_commands": 1018,
+            "objects": 359,
+            "metric_reads": 17114,
+            "line_candidates": 9199,
+            "page_candidates": 256,
+            "callout_contexts": 109,
+            "callout_ancestors": 12,
+            "callout_updates": 274,
+            "callout_fragments": 14,
+            "scope_visits": 12,
+            "template_region_visits": 30,
+            "reference_passes": 1,
+            "field_resolutions": 33,
+            "furniture_items": 15,
+            "output_bytes": 31510
+          }
+        },
+        "x64musl": {
+          "allocations": 125868,
+          "allocated_bytes": 70509264,
+          "work": {
+            "authored_chapters": 2,
+            "authored_table_rows": 80,
+            "prepared_vector_commands": 36,
+            "shaped_runs": 245,
+            "lines": 305,
+            "pages": 9,
+            "fragments": 331,
+            "final_runs": 386,
+            "scene_commands": 1018,
+            "objects": 359,
+            "metric_reads": 17114,
+            "line_candidates": 9199,
+            "page_candidates": 256,
+            "callout_contexts": 109,
+            "callout_ancestors": 12,
+            "callout_updates": 274,
+            "callout_fragments": 14,
+            "scope_visits": 12,
+            "template_region_visits": 30,
+            "reference_passes": 1,
+            "field_resolutions": 33,
+            "furniture_items": 15,
+            "output_bytes": 31510
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "technical_manual"
+      ]
+    },
+    {
+      "name": "technical manual chapters x20",
+      "scenario_revision": "technical-manual-v1",
+      "source": "tests/technical_manual/main.roc",
+      "snapshot": "tests/technical_manual/manual_20.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 81,
+        "chapters": 20,
+        "structure_elements": 3002
+      },
+      "work_counters": [
+        "authored_chapters",
+        "authored_table_rows",
+        "prepared_vector_commands",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "fragments",
+        "final_runs",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "scope_visits",
+        "template_region_visits",
+        "reference_passes",
+        "field_resolutions",
+        "furniture_items",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1181381,
+          "allocated_bytes": 670031777,
+          "work": {
+            "authored_chapters": 20,
+            "authored_table_rows": 800,
+            "prepared_vector_commands": 360,
+            "shaped_runs": 2441,
+            "lines": 3041,
+            "pages": 81,
+            "fragments": 3301,
+            "final_runs": 3824,
+            "scene_commands": 10108,
+            "objects": 3337,
+            "metric_reads": 171250,
+            "line_candidates": 92007,
+            "page_candidates": 2560,
+            "callout_contexts": 1081,
+            "callout_ancestors": 120,
+            "callout_updates": 2740,
+            "callout_fragments": 140,
+            "scope_visits": 120,
+            "template_region_visits": 282,
+            "reference_passes": 1,
+            "field_resolutions": 303,
+            "furniture_items": 141,
+            "output_bytes": 183074
+          }
+        },
+        "x64musl": {
+          "allocations": 1181381,
+          "allocated_bytes": 670031777,
+          "work": {
+            "authored_chapters": 20,
+            "authored_table_rows": 800,
+            "prepared_vector_commands": 360,
+            "shaped_runs": 2441,
+            "lines": 3041,
+            "pages": 81,
+            "fragments": 3301,
+            "final_runs": 3824,
+            "scene_commands": 10108,
+            "objects": 3337,
+            "metric_reads": 171250,
+            "line_candidates": 92007,
+            "page_candidates": 2560,
+            "callout_contexts": 1081,
+            "callout_ancestors": 120,
+            "callout_updates": 2740,
+            "callout_fragments": 140,
+            "scope_visits": 120,
+            "template_region_visits": 282,
+            "reference_passes": 1,
+            "field_resolutions": 303,
+            "furniture_items": 141,
+            "output_bytes": 183074
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "technical_manual"
+      ]
+    },
+    {
+      "name": "destination references x2",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/references_2.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 2,
+        "styled": 0,
+        "pages": 3
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 8480,
+          "allocated_bytes": 8977547,
+          "work": {
+            "reference_atoms": 15,
+            "normalization_chunks": 33,
+            "literal_shape_requests": 26,
+            "measured_items": 258,
+            "measured_rows": 18,
+            "committed_row_visits": 18,
+            "anchor_item_visits": 258,
+            "registry_lookup_steps": 24,
+            "resolved_labels": 15,
+            "resolved_label_bytes": 43,
+            "mapping_cluster_visits": 243,
+            "mapping_glyph_visits": 243,
+            "reference_fit_run_visits": 15,
+            "positioned_pieces": 41,
+            "shape_metric_reads": 527,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 58,
+            "wrapped_item_visits": 258,
+            "boundary_visits": 258,
+            "positioned_items": 258,
+            "alignment_items": 4,
+            "separator_run_visits": 41,
+            "separator_override_writes": 1,
+            "output_bytes": 15743
+          }
+        },
+        "x64musl": {
+          "allocations": 8480,
+          "allocated_bytes": 8977547,
+          "work": {
+            "reference_atoms": 15,
+            "normalization_chunks": 33,
+            "literal_shape_requests": 26,
+            "measured_items": 258,
+            "measured_rows": 18,
+            "committed_row_visits": 18,
+            "anchor_item_visits": 258,
+            "registry_lookup_steps": 24,
+            "resolved_labels": 15,
+            "resolved_label_bytes": 43,
+            "mapping_cluster_visits": 243,
+            "mapping_glyph_visits": 243,
+            "reference_fit_run_visits": 15,
+            "positioned_pieces": 41,
+            "shape_metric_reads": 527,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 58,
+            "wrapped_item_visits": 258,
+            "boundary_visits": 258,
+            "positioned_items": 258,
+            "alignment_items": 4,
+            "separator_run_visits": 41,
+            "separator_override_writes": 1,
+            "output_bytes": 15743
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "destination references x20",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/references_20.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 20,
+        "styled": 0,
+        "pages": 21
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 30512,
+          "allocated_bytes": 34408471,
+          "work": {
+            "reference_atoms": 87,
+            "normalization_chunks": 213,
+            "literal_shape_requests": 152,
+            "measured_items": 1180,
+            "measured_rows": 72,
+            "committed_row_visits": 72,
+            "anchor_item_visits": 1180,
+            "registry_lookup_steps": 342,
+            "resolved_labels": 87,
+            "resolved_label_bytes": 292,
+            "mapping_cluster_visits": 1093,
+            "mapping_glyph_visits": 1093,
+            "reference_fit_run_visits": 87,
+            "positioned_pieces": 239,
+            "shape_metric_reads": 2458,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 58,
+            "wrapped_item_visits": 1180,
+            "boundary_visits": 1180,
+            "positioned_items": 1180,
+            "alignment_items": 4,
+            "separator_run_visits": 239,
+            "separator_override_writes": 1,
+            "output_bytes": 29082
+          }
+        },
+        "x64musl": {
+          "allocations": 30512,
+          "allocated_bytes": 34408471,
+          "work": {
+            "reference_atoms": 87,
+            "normalization_chunks": 213,
+            "literal_shape_requests": 152,
+            "measured_items": 1180,
+            "measured_rows": 72,
+            "committed_row_visits": 72,
+            "anchor_item_visits": 1180,
+            "registry_lookup_steps": 342,
+            "resolved_labels": 87,
+            "resolved_label_bytes": 292,
+            "mapping_cluster_visits": 1093,
+            "mapping_glyph_visits": 1093,
+            "reference_fit_run_visits": 87,
+            "positioned_pieces": 239,
+            "shape_metric_reads": 2458,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 58,
+            "wrapped_item_visits": 1180,
+            "boundary_visits": 1180,
+            "positioned_items": 1180,
+            "alignment_items": 4,
+            "separator_run_visits": 239,
+            "separator_override_writes": 1,
+            "output_bytes": 29082
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "destination references inherited face",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/styled.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 2,
+        "styled": 1,
+        "pages": 2
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4408,
+          "allocated_bytes": 7246354,
+          "work": {
+            "reference_atoms": 1,
+            "normalization_chunks": 3,
+            "literal_shape_requests": 4,
+            "measured_items": 55,
+            "measured_rows": 3,
+            "committed_row_visits": 3,
+            "anchor_item_visits": 55,
+            "registry_lookup_steps": 2,
+            "resolved_labels": 1,
+            "resolved_label_bytes": 3,
+            "mapping_cluster_visits": 54,
+            "mapping_glyph_visits": 54,
+            "reference_fit_run_visits": 1,
+            "positioned_pieces": 5,
+            "shape_metric_reads": 111,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 55,
+            "boundary_visits": 55,
+            "positioned_items": 55,
+            "alignment_items": 0,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 14450
+          }
+        },
+        "x64musl": {
+          "allocations": 4408,
+          "allocated_bytes": 7246354,
+          "work": {
+            "reference_atoms": 1,
+            "normalization_chunks": 3,
+            "literal_shape_requests": 4,
+            "measured_items": 55,
+            "measured_rows": 3,
+            "committed_row_visits": 3,
+            "anchor_item_visits": 55,
+            "registry_lookup_steps": 2,
+            "resolved_labels": 1,
+            "resolved_label_bytes": 3,
+            "mapping_cluster_visits": 54,
+            "mapping_glyph_visits": 54,
+            "reference_fit_run_visits": 1,
+            "positioned_pieces": 5,
+            "shape_metric_reads": 111,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 55,
+            "boundary_visits": 55,
+            "positioned_items": 55,
+            "alignment_items": 0,
+            "separator_run_visits": 0,
+            "separator_override_writes": 0,
+            "output_bytes": 14450
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "destination references atomic negatives",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/atomic_negatives.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 2,
+        "styled": 0,
+        "pages": 1
+      },
+      "work_counters": [
+        "rejections"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 4531,
+          "allocated_bytes": 4988340,
+          "work": {
+            "rejections": 13
+          }
+        },
+        "x64musl": {
+          "allocations": 4531,
+          "allocated_bytes": 4988340,
+          "work": {
+            "rejections": 13
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics"
+      ]
+    },
+    {
+      "name": "destination references ordered mixed fonts",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/ordered.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 0,
+        "pages": 2,
+        "ordered": 1
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 5047,
+          "allocated_bytes": 7390032,
+          "work": {
+            "reference_atoms": 2,
+            "normalization_chunks": 5,
+            "literal_shape_requests": 5,
+            "measured_items": 58,
+            "measured_rows": 4,
+            "committed_row_visits": 4,
+            "anchor_item_visits": 58,
+            "registry_lookup_steps": 4,
+            "resolved_labels": 2,
+            "resolved_label_bytes": 5,
+            "mapping_cluster_visits": 56,
+            "mapping_glyph_visits": 56,
+            "reference_fit_run_visits": 3,
+            "positioned_pieces": 8,
+            "shape_metric_reads": 115,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 58,
+            "boundary_visits": 58,
+            "positioned_items": 58,
+            "alignment_items": 0,
+            "separator_run_visits": 8,
+            "separator_override_writes": 2,
+            "output_bytes": 12639
+          }
+        },
+        "x64musl": {
+          "allocations": 5047,
+          "allocated_bytes": 7390032,
+          "work": {
+            "reference_atoms": 2,
+            "normalization_chunks": 5,
+            "literal_shape_requests": 5,
+            "measured_items": 58,
+            "measured_rows": 4,
+            "committed_row_visits": 4,
+            "anchor_item_visits": 58,
+            "registry_lookup_steps": 4,
+            "resolved_labels": 2,
+            "resolved_label_bytes": 5,
+            "mapping_cluster_visits": 56,
+            "mapping_glyph_visits": 56,
+            "reference_fit_run_visits": 3,
+            "positioned_pieces": 8,
+            "shape_metric_reads": 115,
+            "hold_scalars": 0,
+            "intrinsic_item_visits": 0,
+            "wrapped_item_visits": 58,
+            "boundary_visits": 58,
+            "positioned_items": 58,
+            "alignment_items": 0,
+            "separator_run_visits": 8,
+            "separator_override_writes": 2,
+            "output_bytes": 12639
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "destination references measured geometry",
+      "scenario_revision": "destination-page-references-v1",
+      "source": "tests/destination_references/main.roc",
+      "snapshot": "tests/destination_references/geometry.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "sections": 0,
+        "geometry": 1,
+        "pages": 3
+      },
+      "work_counters": [
+        "reference_atoms",
+        "normalization_chunks",
+        "literal_shape_requests",
+        "measured_items",
+        "measured_rows",
+        "committed_row_visits",
+        "anchor_item_visits",
+        "registry_lookup_steps",
+        "resolved_labels",
+        "resolved_label_bytes",
+        "mapping_cluster_visits",
+        "mapping_glyph_visits",
+        "reference_fit_run_visits",
+        "positioned_pieces",
+        "shape_metric_reads",
+        "hold_scalars",
+        "intrinsic_item_visits",
+        "wrapped_item_visits",
+        "boundary_visits",
+        "positioned_items",
+        "alignment_items",
+        "separator_run_visits",
+        "separator_override_writes",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 20210,
+          "allocated_bytes": 25107207,
+          "work": {
+            "reference_atoms": 43,
+            "normalization_chunks": 46,
+            "literal_shape_requests": 88,
+            "measured_items": 1384,
+            "measured_rows": 169,
+            "committed_row_visits": 173,
+            "anchor_item_visits": 1384,
+            "registry_lookup_steps": 43,
+            "resolved_labels": 43,
+            "resolved_label_bytes": 43,
+            "mapping_cluster_visits": 1341,
+            "mapping_glyph_visits": 1341,
+            "reference_fit_run_visits": 43,
+            "positioned_pieces": 177,
+            "shape_metric_reads": 2725,
+            "hold_scalars": 27,
+            "intrinsic_item_visits": 1341,
+            "wrapped_item_visits": 1424,
+            "boundary_visits": 1424,
+            "positioned_items": 1384,
+            "alignment_items": 286,
+            "separator_run_visits": 177,
+            "separator_override_writes": 1,
+            "output_bytes": 20365
+          }
+        },
+        "x64musl": {
+          "allocations": 20210,
+          "allocated_bytes": 25107207,
+          "work": {
+            "reference_atoms": 43,
+            "normalization_chunks": 46,
+            "literal_shape_requests": 88,
+            "measured_items": 1384,
+            "measured_rows": 169,
+            "committed_row_visits": 173,
+            "anchor_item_visits": 1384,
+            "registry_lookup_steps": 43,
+            "resolved_labels": 43,
+            "resolved_label_bytes": 43,
+            "mapping_cluster_visits": 1341,
+            "mapping_glyph_visits": 1341,
+            "reference_fit_run_visits": 43,
+            "positioned_pieces": 177,
+            "shape_metric_reads": 2725,
+            "hold_scalars": 27,
+            "intrinsic_item_visits": 1341,
+            "wrapped_item_visits": 1424,
+            "boundary_visits": 1424,
+            "positioned_items": 1384,
+            "alignment_items": 286,
+            "separator_run_visits": 177,
+            "separator_override_writes": 1,
+            "output_bytes": 20365
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "destination_references"
+      ]
+    },
+    {
+      "name": "scoped table paint decorated x2",
+      "scenario_revision": "table-paint-footprints-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/scoped_tables_2_0.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 7,
+        "structure_elements": 494,
+        "table_scope_count": 2,
+        "table_paint_mode": 0
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 106032,
+          "allocated_bytes": 57961159,
+          "work": {
+            "authored_scale": 2,
+            "shaped_runs": 325,
+            "lines": 325,
+            "pages": 7,
+            "final_runs": 345,
+            "fragments": 325,
+            "scene_commands": 1046,
+            "objects": 540,
+            "metric_reads": 1455,
+            "line_candidates": 1455,
+            "page_candidates": 162,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 163,
+            "callout_ancestors": 2,
+            "callout_updates": 162,
+            "callout_fragments": 0,
+            "output_bytes": 26794
+          }
+        },
+        "x64musl": {
+          "allocations": 106032,
+          "allocated_bytes": 57961159,
+          "work": {
+            "authored_scale": 2,
+            "shaped_runs": 325,
+            "lines": 325,
+            "pages": 7,
+            "final_runs": 345,
+            "fragments": 325,
+            "scene_commands": 1046,
+            "objects": 540,
+            "metric_reads": 1455,
+            "line_candidates": 1455,
+            "page_candidates": 162,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 163,
+            "callout_ancestors": 2,
+            "callout_updates": 162,
+            "callout_fragments": 0,
+            "output_bytes": 26794
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "table_paint_frames"
+      ]
+    },
+    {
+      "name": "scoped table paint decorated x20",
+      "scenario_revision": "table-paint-footprints-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/scoped_tables_20_0.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 61,
+        "structure_elements": 4922,
+        "table_scope_count": 20,
+        "table_paint_mode": 0
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 1025525,
+          "allocated_bytes": 568307410,
+          "work": {
+            "authored_scale": 20,
+            "shaped_runs": 3241,
+            "lines": 3241,
+            "pages": 61,
+            "final_runs": 3441,
+            "fragments": 3241,
+            "scene_commands": 10442,
+            "objects": 5179,
+            "metric_reads": 15133,
+            "line_candidates": 15133,
+            "page_candidates": 1620,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 1621,
+            "callout_ancestors": 20,
+            "callout_updates": 1620,
+            "callout_fragments": 0,
+            "output_bytes": 147746
+          }
+        },
+        "x64musl": {
+          "allocations": 1025525,
+          "allocated_bytes": 568307410,
+          "work": {
+            "authored_scale": 20,
+            "shaped_runs": 3241,
+            "lines": 3241,
+            "pages": 61,
+            "final_runs": 3441,
+            "fragments": 3241,
+            "scene_commands": 10442,
+            "objects": 5179,
+            "metric_reads": 15133,
+            "line_candidates": 15133,
+            "page_candidates": 1620,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 1621,
+            "callout_ancestors": 20,
+            "callout_updates": 1620,
+            "callout_fragments": 0,
+            "output_bytes": 147746
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "table_paint_frames"
+      ]
+    },
+    {
+      "name": "scoped table paint cell fill x1",
+      "scenario_revision": "table-paint-footprints-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/scoped_tables_1_1.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "structure_elements": 248,
+        "table_scope_count": 1,
+        "table_paint_mode": 1
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 52612,
+          "allocated_bytes": 28853813,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 4,
+            "final_runs": 173,
+            "fragments": 163,
+            "scene_commands": 426,
+            "objects": 282,
+            "metric_reads": 744,
+            "line_candidates": 744,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 82,
+            "callout_ancestors": 1,
+            "callout_updates": 81,
+            "callout_fragments": 0,
+            "output_bytes": 19327
+          }
+        },
+        "x64musl": {
+          "allocations": 52612,
+          "allocated_bytes": 28853813,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 4,
+            "final_runs": 173,
+            "fragments": 163,
+            "scene_commands": 426,
+            "objects": 282,
+            "metric_reads": 744,
+            "line_candidates": 744,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 82,
+            "callout_ancestors": 1,
+            "callout_updates": 81,
+            "callout_fragments": 0,
+            "output_bytes": 19327
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "table_paint_frames"
+      ]
+    },
+    {
+      "name": "scoped table paint column rule x1",
+      "scenario_revision": "table-paint-footprints-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/scoped_tables_1_2.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "structure_elements": 248,
+        "table_scope_count": 1,
+        "table_paint_mode": 2
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 51674,
+          "allocated_bytes": 28750812,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 4,
+            "final_runs": 173,
+            "fragments": 163,
+            "scene_commands": 429,
+            "objects": 282,
+            "metric_reads": 744,
+            "line_candidates": 744,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 82,
+            "callout_ancestors": 1,
+            "callout_updates": 81,
+            "callout_fragments": 0,
+            "output_bytes": 19267
+          }
+        },
+        "x64musl": {
+          "allocations": 51674,
+          "allocated_bytes": 28750812,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 4,
+            "final_runs": 173,
+            "fragments": 163,
+            "scene_commands": 429,
+            "objects": 282,
+            "metric_reads": 744,
+            "line_candidates": 744,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 82,
+            "callout_ancestors": 1,
+            "callout_updates": 81,
+            "callout_fragments": 0,
+            "output_bytes": 19267
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "table_paint_frames"
+      ]
+    },
+    {
+      "name": "scoped table paint internal rules x1",
+      "scenario_revision": "table-paint-footprints-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/scoped_tables_1_3.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "structure_elements": 248,
+        "table_scope_count": 1,
+        "table_paint_mode": 3
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 51598,
+          "allocated_bytes": 28740564,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 4,
+            "final_runs": 173,
+            "fragments": 163,
+            "scene_commands": 426,
+            "objects": 282,
+            "metric_reads": 744,
+            "line_candidates": 744,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 19257
+          }
+        },
+        "x64musl": {
+          "allocations": 51598,
+          "allocated_bytes": 28740564,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 163,
+            "lines": 163,
+            "pages": 4,
+            "final_runs": 173,
+            "fragments": 163,
+            "scene_commands": 426,
+            "objects": 282,
+            "metric_reads": 744,
+            "line_candidates": 744,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 19257
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "table_paint_frames"
+      ]
+    },
+    {
+      "name": "scoped table paint spanning control x1",
+      "scenario_revision": "table-paint-footprints-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/scoped_tables_1_4.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "structure_elements": 167,
+        "table_scope_count": 1,
+        "table_paint_mode": 4
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 28889,
+          "allocated_bytes": 17778116,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 82,
+            "lines": 82,
+            "pages": 4,
+            "final_runs": 90,
+            "fragments": 82,
+            "scene_commands": 180,
+            "objects": 197,
+            "metric_reads": 725,
+            "line_candidates": 725,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 15693
+          }
+        },
+        "x64musl": {
+          "allocations": 28889,
+          "allocated_bytes": 17778116,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 82,
+            "lines": 82,
+            "pages": 4,
+            "final_runs": 90,
+            "fragments": 82,
+            "scene_commands": 180,
+            "objects": 197,
+            "metric_reads": 725,
+            "line_candidates": 725,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 0,
+            "callout_ancestors": 0,
+            "callout_updates": 0,
+            "callout_fragments": 0,
+            "output_bytes": 15693
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "table_paint_frames"
+      ]
+    },
+    {
+      "name": "scoped table paint reference header x1",
+      "scenario_revision": "table-paint-footprints-v1",
+      "source": "tests/rich_flow/main.roc",
+      "snapshot": "tests/rich_flow/scoped_tables_1_5.pdf",
+      "args": [],
+      "measurement_boundary": "before_fixture_main",
+      "dimensions": {
+        "pages": 4,
+        "structure_elements": 248,
+        "table_scope_count": 1,
+        "table_paint_mode": 5
+      },
+      "work_counters": [
+        "authored_scale",
+        "shaped_runs",
+        "lines",
+        "pages",
+        "final_runs",
+        "fragments",
+        "scene_commands",
+        "objects",
+        "metric_reads",
+        "line_candidates",
+        "page_candidates",
+        "outcomes_or_panels",
+        "callout_contexts",
+        "callout_ancestors",
+        "callout_updates",
+        "callout_fragments",
+        "output_bytes"
+      ],
+      "expectations": {
+        "arm64mac": {
+          "allocations": 55144,
+          "allocated_bytes": 30556365,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 164,
+            "lines": 163,
+            "pages": 4,
+            "final_runs": 176,
+            "fragments": 164,
+            "scene_commands": 530,
+            "objects": 282,
+            "metric_reads": 3539,
+            "line_candidates": 1770,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 82,
+            "callout_ancestors": 1,
+            "callout_updates": 81,
+            "callout_fragments": 0,
+            "output_bytes": 19589
+          }
+        },
+        "x64musl": {
+          "allocations": 55144,
+          "allocated_bytes": 30556365,
+          "work": {
+            "authored_scale": 1,
+            "shaped_runs": 164,
+            "lines": 163,
+            "pages": 4,
+            "final_runs": 176,
+            "fragments": 164,
+            "scene_commands": 530,
+            "objects": 282,
+            "metric_reads": 3539,
+            "line_candidates": 1770,
+            "page_candidates": 81,
+            "outcomes_or_panels": 0,
+            "callout_contexts": 82,
+            "callout_ancestors": 1,
+            "callout_updates": 81,
+            "callout_fragments": 0,
+            "output_bytes": 19589
+          }
+        }
+      },
+      "retention": null,
+      "validators": [
+        "pdfa4",
+        "structure_semantics",
+        "rich_inline",
+        "table_paint_frames"
       ]
     }
   ]

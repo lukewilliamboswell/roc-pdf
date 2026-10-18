@@ -181,7 +181,7 @@ KernelEmit :: [].{
 			## Every arm either returns or reassigns `$encoder`. An arm that
 			## kept the old encoder (the `Done` arm setting a flag) made it
 			## live across `Encoder.next`, which then copied the offsets on
-			## every object (docs/performance/emission-linearity.md).
+			## every object (development/performance/emission-linearity.md).
 			match Encoder.next($encoder) {
 				Err(error) => {
 					return Err(error)
@@ -286,7 +286,7 @@ emit_object = |encoder, index| {
 
 		## A stream object is written top-level. Its offset is recorded
 		## before any value read from the plan is still live, so the append
-		## cannot copy the offsets (docs/performance/emission-linearity.md).
+		## cannot copy the offsets (development/performance/emission-linearity.md).
 		body = match object.content {
 			LengthOf(stream_id) => match $encoder.stream_lengths.get(KernelObject.StreamId.index(stream_id)) {
 				Err(OutOfBounds) => return Err(StreamLengthUnavailable(stream_id))
@@ -623,7 +623,7 @@ encoder_with_copied_resource_bytes = |encoder, copied_resource_bytes| KernelEmit
 ## Records one object offset. The encoder is taken apart before the append:
 ## appending to `encoder.offsets` while the encoder was still read afterwards
 ## held a second reference to the offsets, and every object copied them
-## (docs/performance/emission-linearity.md).
+## (development/performance/emission-linearity.md).
 encoder_with_offset : KernelEmit.Encoder, U64 -> KernelEmit.Encoder
 encoder_with_offset = |encoder, offset| {
 	{ copied_resource_bytes, deflate_work, file_id, object_streams, offsets, output_bound, phase, plan, position, retention, stream_lengths } = encoder

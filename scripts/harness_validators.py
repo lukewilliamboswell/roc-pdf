@@ -3,6 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from check_destination_references import validate_destination_references_pdf
+from check_chapter_templates import validate_chapter_templates_pdf
+from check_vector_diagrams import validate_vector_diagrams_pdf
 from check_actual_text import EXPECTED_CONTENT as ACTUAL_TEXT_CONTENT
 from check_actual_text import validate_actual_text_pdf
 from check_caller_facade import validate_caller_facade_pdf, validate_unhinted_caller_pdf
@@ -29,8 +32,12 @@ from check_pdfa4_structure import validate_pdfa4_pdf, validate_standard_twin_pdf
 from check_multiface_facade import validate_multiface_facade_pdf
 from check_multiface_text import validate_multiface_text_pdf
 from check_navigation import validate_navigation_pdf
+from check_page_labels import validate_page_labels_pdf
 from check_pdf_structure import canonical_text, dictionary_ref, is_structure_element, object_slices, require, structure_kids, validate_pdf
 from check_rich_inline import validate_rich_inline_pdf
+from check_rich_flow import validate_rich_flow_pdf
+from check_table_paint_frames import validate_table_paint_frames_pdf
+from check_technical_manual import validate_technical_manual_pdf
 from check_source_foregrounds import validate_source_foregrounds_pdf
 from check_source_blocks import validate_source_blocks_pdf, validate_multiple_sources_pdf
 from check_rtl import validate_rtl_pdf
@@ -135,6 +142,9 @@ def _facade_image(data: bytes, dimensions: dict[str, int], report: Reporter) -> 
 
 
 VALIDATORS: dict[str, Validator] = {
+    "destination_references": _dimensioned(validate_destination_references_pdf, "printed reference Unicode agrees with emitted destinations and page labels, fixed advances, semantic owners and explicit annotations"),
+    "vector_diagrams": _dimensioned(validate_vector_diagrams_pdf, "exact prepared-vector Unicode labels, caption/Alt ownership and cubic/arrowhead paths"),
+    "page_labels": _dimensioned(validate_page_labels_pdf, "visible labels match emitted PDF label ranges; repeated labels remain artifacts"),
     "pdf_structure": _pdf_structure_with(None),
     "pdf_structure_text": _pdf_structure_with(TEXT_CONTENT),
     "pdf_structure_actual_text": _pdf_structure_with(ACTUAL_TEXT_CONTENT),
@@ -167,12 +177,16 @@ VALIDATORS: dict[str, Validator] = {
     "pdfa4": _dimensioned(validate_pdfa4_pdf, "PDF/A-4 identification packet, single GTS_PDFA1 sRGB2014 intent, printable links, FontFile2 Type 0 fonts, permitted filters and images, no /Info or excluded keys, verified structurally"),
     "pdfa4_standard_twin": _dimensioned(validate_standard_twin_pdf, "PDF 2.0 file skeleton of a Standard twin with no PDF/A identification"),
     "metadata": _dimensioned(validate_metadata_pdf, "catalog /Lang, canonical XMP metadata stream, GTS_PDFA1 output intent, and the single shared sRGB2014 profile stream verified structurally"),
+    "chapter_templates": _dimensioned(validate_chapter_templates_pdf, "chapter scope opening/continuation boundaries, selected body frames, exact running-label artifacts, reset and global numbering verified independently"),
     "structure_semantics": _dimensioned(validate_structure_semantics_pdf, "object-number-independent structure tree, Table 5 containment, ParentTree/MCID/OBJR exactly-once, IDTree/ID, language inheritance, typed attributes, DisplayDocTitle, MarkInfo, Tabs, and MCID-free page furniture with exact page fields verified independently"),
     "source_blocks_multiple": _dimensioned(validate_multiple_sources_pdf, "three source Code owners, shared/distinct canonical source identities, exact text/reading order and font reuse"),
     "source_foregrounds": _dimensioned(validate_source_foregrounds_pdf, "original UTF8 colour mapping, searchable source text and canonical semantic ownership"),
     "source_blocks": _dimensioned(validate_source_blocks_pdf, "canonical source ActualText, exact measured text/blank rows, line continuation, local typography, padded artifact panels, and body spacing"),
     "furniture_typography": _simple(validate_furniture_typography_pdf, "independent furniture face, size, color, page fields, and artifact ownership"),
     "rich_inline": _dimensioned(validate_rich_inline_pdf, "ToUnicode-decoded logical text in structure order equal to paint order, text-bearing inline roles, /E on Span only, and one OBJR-owning link annotation per page painted"),
+    "technical_manual": _dimensioned(validate_technical_manual_pdf, "combined printed destinations, scoped chapter furniture, rich source/vector/table ownership, nested padding and repeated-reference artifacts"),
+    "table_paint_frames": _dimensioned(validate_table_paint_frames_pdf, "scoped table outer paint, exact row boundaries, semantic text and repeated-reference artifacts"),
+    "rich_flow": _dimensioned(validate_rich_flow_pdf, "exact rich LI/callout source/figure/table ownership, reading order, original source and foregrounds, parent frames, panel padding, and artifact table headers"),
     "tagged_visual": _simple(validate_tagged_visual_pdf, "exact normalized tagged structure and resources"),
     "visible_text": _simple(validate_text_pdf, "exact font, CID, Unicode mapping, and visible text facts"),
     "caller_text": _simple(validate_caller_text_pdf, "exact caller font identity, CID, Unicode mapping, and visible text facts"),
@@ -222,7 +236,12 @@ PREFLIGHT_CHECKS["fonts"] = PreflightCheck("check_fonts.py", True)
 PREFLIGHT_CHECKS["structure_semantics"] = PreflightCheck("check_structure_semantics.py", True)
 # The rich-inline self-test pins the rich-inline snapshots' logical text.
 PREFLIGHT_CHECKS["rich_inline"] = PreflightCheck("check_rich_inline.py", True)
+PREFLIGHT_CHECKS["table_paint_frames"] = PreflightCheck("check_table_paint_frames.py", True)
+PREFLIGHT_CHECKS["rich_flow"] = PreflightCheck("check_rich_flow.py", True)
+PREFLIGHT_CHECKS["technical_manual"] = PreflightCheck("check_technical_manual.py", True)
+PREFLIGHT_CHECKS["destination_references"] = PreflightCheck("check_destination_references.py", True)
 PREFLIGHT_CHECKS["source_blocks"] = PreflightCheck("check_source_blocks.py", True)
+PREFLIGHT_CHECKS["vector_diagrams"] = PreflightCheck("check_vector_diagrams.py", True)
 PREFLIGHT_CHECKS["source_foregrounds"] = PreflightCheck("check_source_foregrounds.py", True)
 # Both reference-document self-tests read the reference and gallery
 # snapshots, which are in flux during --update-snapshots.
@@ -251,3 +270,5 @@ def run_validators(
 ) -> None:
     for validator_id in validator_ids:
         VALIDATORS[validator_id](data, dimensions, report)
+
+PREFLIGHT_CHECKS["chapter_templates"] = PreflightCheck("check_chapter_templates.py", True)

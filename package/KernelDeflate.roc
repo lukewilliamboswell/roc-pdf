@@ -81,7 +81,7 @@ KernelDeflate :: [].{
 	to_bytes = |plan| compress_plan(plan)
 
 	## The libdeflate level: 10, the first of its near-optimal parsing
-	## levels. docs/performance/output-size.md records the measurements
+	## levels. development/performance/output-size.md records the measurements
 	## behind the choice.
 	level : U64
 	level = 10

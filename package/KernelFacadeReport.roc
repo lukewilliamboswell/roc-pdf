@@ -24,7 +24,13 @@ KernelFacadeReport :: [].{
 	## figure's applied scale in thousandths, the pages on which continued
 	## tables repaint header rows and split rows continue, and the page of
 	## each custom block.
+	ResolvedReference : { reference : U64, physical_page : U64, value : Str }
+
 	LayoutFacts : {
+		references : List(ResolvedReference),
+		scope_pages : List(KernelPageLayout.ScopePage),
+		callouts : List(KernelPageLayout.ContainerFragment),
+
 		## Accepted source-fragment geometry and visual-line spans, including
 		## contentless source blocks. These scalar records retain no source,
 		## font, scene, or discarded layout plan.
@@ -73,6 +79,9 @@ KernelFacadeReport :: [].{
 			$relaxations = $relaxations.append({ page: relaxation.page, rank: relaxation.rank, unit })
 		}
 		{
+			references: [],
+			scope_pages: KernelPageLayout.Plan.scope_pages(KernelFacadePages.Plan.page(pages)),
+			callouts: KernelFacadePages.Plan.callout_fragments(pages),
 			panels: flow.panels.map(|panel| { custom: panel.custom, page: panel.page }),
 			source_fragments: KernelFacadePages.Plan.source_fragments(pages),
 			relaxations: $relaxations,
@@ -80,6 +89,21 @@ KernelFacadeReport :: [].{
 			scales: flow.figure_scales,
 			splits: KernelFacadePages.Plan.splits(pages),
 		}
+	}
+
+	layout_measured : KernelFacadePages.Measured, KernelFacadePages.MeasuredPaint, List(ResolvedReference) -> LayoutFacts
+	layout_measured = |measured, paint, references| {
+		view = KernelFacadePages.Measured.view(measured)
+		var $relaxations = []
+		for relaxation in KernelPageLayout.Choice.relaxations(view.choice) {
+			unit = match list_at(view.units, relaxation.block) {
+				LeafUnit(leaf) => LeafUnit(leaf)
+				RowUnit(group) => RowUnit(group)
+				SourceUnit(source) => SourceUnit(source)
+			}
+			$relaxations = $relaxations.append({ page: relaxation.page, rank: relaxation.rank, unit })
+		}
+		{ references, scope_pages: KernelPageLayout.Choice.scope_pages(view.choice), callouts: paint.callout_fragments, panels: paint.flow.panels.map(|panel| { custom: panel.custom, page: panel.page }), source_fragments: paint.source_fragments, relaxations: $relaxations, repeats: paint.repeats, scales: paint.flow.figure_scales, splits: paint.splits }
 	}
 
 	## Final block spans, per-page fragment counts, and text coverage, from

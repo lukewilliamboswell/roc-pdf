@@ -411,6 +411,18 @@ actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
 				Ok(UseActualText(values))
 			}
 		}
+		SemanticOverrideSlice(boxed) => {
+			slice = Text.ActualTextSlice.value(boxed)
+			property_index = slice.property.index()
+			if property_index < source.properties.start() or property_index - source.properties.start() >= source.properties.length() or property_index >= semantics.text_properties.len() {
+				return Err(ActualTextRequired({ run: run_index }))
+			}
+			value = match list_at(semantics.text_properties, property_index) {
+				ActualText(actual) => actual
+				_ => return Err(ActualTextRequired({ run: run_index }))
+			}
+			actual_text_slice(value, slice.utf8_bytes, used, limit, run_index)
+		}
 		SemanticOverride(property_id) => {
 			property_index = property_id.index()
 			property_start = source.properties.start()
@@ -435,6 +447,24 @@ actual_text_for_run = |semantics, scalars, text, run, run_index, used, limit| {
 			}
 		}
 	}
+}
+
+## Decode only the explicit owned byte interval. Across a split occurrence
+## the intervals partition its replacement, so this never rescans prefixes.
+actual_text_slice : Str, Semantics.Range, U64, U64, U64 -> Try(ActualText, KernelPdfText.Error)
+actual_text_slice = |value, range, used, limit, run_index| {
+	bytes = value.to_utf8()
+	if range.length() == 0 or range.start() > bytes.len() or range.length() > bytes.len() - range.start() {
+		return Err(ActualTextRequired({ run: run_index }))
+	}
+	part = Str.from_utf8(bytes.sublist({ start: range.start(), len: range.length() })) ? |_| ActualTextRequired({ run: run_index })
+	var $values = List.with_capacity(range.length())
+	for located in Scalar.iter(part) {
+		attempted = checked_add(used, checked_add($values.len(), 1)?)?
+		check_limit(attempted, limit, ActualTextScalars)?
+		$values = $values.append(Scalar.to_u32(located.scalar))
+	}
+	Ok(UseActualText($values))
 }
 
 requires_actual_text : Text.Store, Text.Run, U64 -> Try(Bool, KernelPdfText.Error)
@@ -624,7 +654,7 @@ emit_run_body = |bytes, text, run, origin, font, limit| {
 ## so one adjustment step is 10^-digits thousandths of text space. One digit
 ## keeps every glyph within 0.00005 em of its layout position (0.0006 pt at
 ## 12 pt); whole thousandths would allow 0.0005 em for about 1% less output
-## (docs/performance/output-size.md, step 3).
+## (development/performance/output-size.md, step 3).
 adjustment_digits : U8
 adjustment_digits = 1
 
@@ -864,7 +894,7 @@ append_bytes = |bytes, added, limit| {
 ## the length and reserves nothing: an explicit `List.reserve` sizes the
 ## allocation exactly, and a list returned through `?` and then appended to
 ## was copied per token by the pinned dev backend
-## (docs/performance/lowering-uniqueness.md).
+## (development/performance/lowering-uniqueness.md).
 check_room : U64, U64, U64 -> Try({}, KernelPdfText.Error)
 check_room = |length, additional, limit| {
 	if length > limit or additional > limit - length {
@@ -939,3 +969,27 @@ expect round_half_up(5, 10) == Ok(1) and
 expect append_adjustment([], -3, 16) == Ok(Str.to_utf8("-0.3")) and
 	append_adjustment([], 25, 16) == Ok(Str.to_utf8("2.5")) and
 		append_adjustment([], 40, 16) == Ok(Str.to_utf8("4"))
+
+# Explicit replacement intervals preserve UTF-8 boundaries and share the
+# cumulative scalar budget. Splitting a label emits its separator once.
+expect {
+	first = actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(0, 5), 0, 6, 0)?
+	last = actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(5, 2), 4, 6, 1)?
+	valid = match (first, last) {
+		(UseActualText(a), UseActualText(b)) => a == [112, 114, 233, 45] and b == [50, 32]
+		_ => False
+	}
+	bad_utf8 = match actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(3, 1), 0, 6, 0) {
+		Err(ActualTextRequired({ run: 0 })) => True
+		_ => False
+	}
+	bad_range = match actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(0, 8), 0, 6, 0) {
+		Err(ActualTextRequired({ run: 0 })) => True
+		_ => False
+	}
+	budget = match actual_text_slice("pré-2 ", Semantics.Range.from_start_and_length(5, 2), 5, 6, 0) {
+		Err(LimitExceeded({ dimension: ActualTextScalars, attempted: 7, limit: 6 })) => True
+		_ => False
+	}
+	valid and bad_utf8 and bad_range and budget
+}

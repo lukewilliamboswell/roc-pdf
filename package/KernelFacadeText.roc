@@ -58,6 +58,9 @@ KernelFacadeText :: [].{
 		shape : Text.Store,
 		styles : List(KernelFacadeShape.RunStyle),
 	}
+	PositionedPiece : { artifact : Bool, line : U64, origin : Layout.Point, page : Semantics.PageId, source_runs : KernelFacadeShape.LogicalRun }
+	Positioned : { shape : Text.Store, styles : List(KernelFacadeShape.RunStyle), lines : List(KernelLineLayout.Line), origins : KernelFacadeShape.Origins, pages : U64, pieces : List(PositionedPiece) }
+
 	Work : {
 		cluster_visits : U64,
 		glyph_index_visits : U64,
@@ -113,6 +116,17 @@ KernelFacadeText :: [].{
 		## preceding plans without exposing this internal module publicly.
 		build_prepared : Prepared, Limits -> Try(Plan, Error)
 		build_prepared = |prepared, limits| build_prepared_plan(prepared, [], [], { decorations: [], figure_scales: [], panels: [] }, limits)
+
+		## Exact Unicode runs placed against previously committed geometry.
+		## Every piece names real final clusters; this entry never wraps text.
+		build_positioned : Positioned, List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, Limits -> Try(Plan, Error)
+		build_positioned = |positioned, rules, flow, limits| build_positioned_plan(positioned, rules, flow, limits)
+
+		## Apply earlier semantic authored-break facts after physical run
+		## splitting. Each byte interval is explicit, and the final interval
+		## alone owns the separator; artifacts retain no semantic override.
+		with_occurrence_separators : Plan, List(Text.OccurrenceSeparator), U64, Limits -> Try({ plan : Plan, work : { run_visits : U64, override_writes : U64 } }, Error)
+		with_occurrence_separators = |plan, separators, occurrences, limits| apply_occurrence_separators(plan, separators, occurrences, limits)
 
 		## Interleave resolved page furniture into a built plan: on every
 		## page, header furniture runs precede the page's body runs and footer
@@ -290,6 +304,20 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	if $placement_cursor != rows.len() or $requests.len() != run_count or $blank_rows != prepared.blank_rows {
 		return Err(InvalidPlacement({ placement: $placement_cursor }))
 	}
+	if $artifact_cursor != artifact_rows.len() {
+		return Err(InvalidPlacement({ placement: $placement_cursor }))
+	}
+	materialize_requests({ shape, styles, lines, origins: prepared.origins, pages: pages.len(), placements: page_placements.len() }, $requests, rules, flow, limits)
+}
+
+MaterializeInput : { shape : Text.Store, styles : List(KernelFacadeShape.RunStyle), lines : List(KernelLineLayout.Line), origins : KernelFacadeShape.Origins, pages : U64, placements : U64 }
+
+materialize_requests : MaterializeInput, List(KernelFacadeText.PositionedPiece), List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+materialize_requests = |at, requests, rules, flow, limits| {
+	shape = at.shape
+	styles = at.styles
+	lines = at.lines
+	run_count = requests.len()
 	var $clusters = List.with_capacity(shape.clusters.len())
 	var $glyph_indices = List.with_capacity(shape.glyph_indices.len())
 	var $glyphs = List.with_capacity(shape.glyphs.len())
@@ -299,7 +327,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 
 	# Page run ranges are counted over the final materialized runs, because
 	# one paint request may split into several physical face runs.
-	var $page_records = List.with_capacity(pages.len())
+	var $page_records = List.with_capacity(at.pages)
 	var $page_cursor = 0
 	var $page_run_start = 0
 	var $artifact_runs = []
@@ -307,8 +335,8 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 	var $artifact_glyphs = 0
 	var $artifact_references = 0
 	var $request_index = 0
-	while $request_index < $requests.len() {
-		request = list_at($requests, $request_index)
+	while $request_index < requests.len() {
+		request = list_at(requests, $request_index)
 		runs_before = $runs.len()
 		clusters_before = $clusters.len()
 		glyphs_before = $glyphs.len()
@@ -334,7 +362,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 				shape,
 				styles,
 				lines,
-				prepared.origins,
+				at.origins,
 				request,
 				limits,
 			)?
@@ -362,7 +390,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 			}
 			run = list_at(shape.runs, source_run_index)
 			line = list_at(lines, request.line)
-			origin = origin_of(prepared.origins, source_run_index)
+			origin = origin_of(at.origins, source_run_index)
 			offset_source = origin.byte != 0 or origin.scalar != 0
 			if run.id.index() != source_run_index or !range_fits(run.clusters, shape.clusters.len()) or !range_fits(run.glyphs, shape.glyphs.len()) or run.clusters.length() == 0 or run.glyphs.length() == 0 {
 				return Err(InvalidRun({ run: source_run_index }))
@@ -435,7 +463,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 			$request_index = $request_index + 1
 		}
 	}
-	while $page_cursor < pages.len() {
+	while $page_cursor < at.pages {
 		$page_records = $page_records.append({
 			id: Semantics.PageId.from_index($page_cursor),
 			runs: Semantics.Range.from_start_and_length($page_run_start, $runs.len() - $page_run_start),
@@ -443,7 +471,7 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 		$page_cursor = $page_cursor + 1
 		$page_run_start = $runs.len()
 	}
-	if $artifact_cursor != artifact_rows.len() or $clusters.len() - $artifact_clusters != shape.clusters.len() or $glyph_indices.len() - $artifact_references != shape.glyph_indices.len() or $glyphs.len() - $artifact_glyphs != shape.glyphs.len() {
+	if $clusters.len() - $artifact_clusters != shape.clusters.len() or $glyph_indices.len() - $artifact_references != shape.glyph_indices.len() or $glyphs.len() - $artifact_glyphs != shape.glyphs.len() {
 		return Err(InvalidRun({ run: $runs.len() }))
 	}
 	text = {
@@ -472,8 +500,8 @@ build_prepared_plan = |prepared, artifact_rows, rules, flow, limits| {
 				cluster_visits: text.clusters.len(),
 				glyph_index_visits: text.glyph_indices.len(),
 				glyph_writes: text.glyphs.len(),
-				page_visits: pages.len(),
-				placement_visits: page_placements.len(),
+				page_visits: at.pages,
+				placement_visits: at.placements,
 				run_writes: text.runs.len(),
 			},
 		},
@@ -1247,4 +1275,125 @@ list_set : List(a), U64, a -> List(a)
 list_set = |items, index, value| match items.set(index, value) {
 	Ok(updated) => updated
 	Err(_) => crash "validated foreground owner index escaped"
+}
+
+build_positioned_plan : KernelFacadeText.Positioned, List(KernelFacadePages.Rule), KernelFacadePages.FlowPaints, KernelFacadeText.Limits -> Try(KernelFacadeText.Plan, KernelFacadeText.Error)
+build_positioned_plan = |at, rules, flow, limits| {
+	if at.pages == 0 {
+		return Err(InvalidPage({ page: 0 }))
+	}
+	if at.styles.len() != at.shape.runs.len() {
+		return Err(InvalidRun({ run: at.shape.runs.len() }))
+	}
+	if !at.shape.substitutions.is_empty() or !at.shape.transformations.is_empty() {
+		return Err(UnsupportedRunEvidence({ run: 0 }))
+	}
+	check_limit(at.shape.clusters.len(), limits.max_clusters, Clusters)?
+	check_limit(at.shape.glyph_indices.len(), limits.max_glyph_indices, GlyphIndices)?
+	check_limit(at.shape.glyphs.len(), limits.max_glyphs, Glyphs)?
+	check_limit(at.pages, limits.max_pages, Pages)?
+	check_limit(at.pieces.len(), limits.max_placements, Placements)?
+	check_limit(at.pieces.len(), limits.max_runs, Runs)?
+	var $page = 0
+	var $index = 0
+	for piece in at.pieces {
+		if piece.page.index() < $page or piece.page.index() >= at.pages {
+			return Err(InvalidPlacement({ placement: $index }))
+		}
+		$page = piece.page.index()
+		$index = $index + 1
+	}
+	materialize_requests({ shape: at.shape, styles: at.styles, lines: at.lines, origins: at.origins, pages: at.pages, placements: at.pieces.len() }, at.pieces, rules, flow, limits)
+}
+
+SeparatorSlot : [NoSeparator, WithSeparator({ property : Semantics.TextPropertyId, bytes : U64 })]
+
+apply_occurrence_separators : KernelFacadeText.Plan, List(Text.OccurrenceSeparator), U64, KernelFacadeText.Limits -> Try({ plan : KernelFacadeText.Plan, work : { run_visits : U64, override_writes : U64 } }, KernelFacadeText.Error)
+apply_occurrence_separators = |plan, separators, occurrences, limits| {
+	if separators.is_empty() {
+		return Ok({ plan, work: { run_visits: 0, override_writes: 0 } })
+	}
+	check_limit(occurrences, limits.max_runs, Runs)?
+	var $slots = List.repeat(NoSeparator, occurrences)
+	for separator in separators {
+		index = separator.occurrence.index()
+		if index >= occurrences or separator.source_utf8_bytes == 0 {
+			return Err(InvalidRun({ run: index }))
+		}
+		match list_at($slots, index) {
+			WithSeparator(_) => return Err(InvalidRun({ run: index }))
+			NoSeparator => {}
+		}
+		$slots = list_set($slots, index, WithSeparator({ property: separator.property, bytes: separator.source_utf8_bytes }))
+	}
+	var $runs = List.with_capacity(plan.text.runs.len())
+	var $artifact = 0
+	var $overrides = 0
+	for run in plan.text.runs {
+		is_artifact = $artifact < plan.artifact_runs.len() and list_at(plan.artifact_runs, $artifact) == run.id.index()
+		if is_artifact {
+			$artifact = $artifact + 1
+			$runs = $runs.append(run)
+		} else {
+			index = match run.unicode {
+				OccurrenceText(id) if id.index() < occurrences => id.index()
+				_ => return Err(InvalidRun({ run: run.id.index() }))
+			}
+			match list_at($slots, index) {
+				NoSeparator => {
+					$runs = $runs.append(run)
+				}
+				WithSeparator(separator) => {
+					end = checked_add(run.source.utf8_bytes.start(), run.source.utf8_bytes.length())?
+					if end > separator.bytes {
+						return Err(InvalidRun({ run: run.id.index() }))
+					}
+					length = checked_add(run.source.utf8_bytes.length(), if end == separator.bytes 1 else 0)?
+					fact = { property: separator.property, utf8_bytes: Semantics.Range.from_start_and_length(run.source.utf8_bytes.start(), length) }
+					$runs = $runs.append({ ..run, actual_text: SemanticOverrideSlice(Text.ActualTextSlice.make(fact.property, fact.utf8_bytes)) })
+					$overrides = $overrides + 1
+				}
+			}
+		}
+	}
+	Ok({ plan: { ..plan, text: { ..plan.text, runs: $runs } }, work: { run_visits: $runs.len(), override_writes: $overrides } })
+}
+
+# Committed geometry paints exact final Unicode through the same materializer
+# as ordinary flow, with no second line break or synthetic source range.
+expect {
+	prepared = test_prepared(test_text)
+	base = KernelFacadeText.Plan.build_prepared(prepared, test_limits)?
+	pieces = [
+		{ artifact: False, line: 0, origin: { x: Layout.Unit.from_raw(10), y: Layout.Unit.from_raw(20) }, page: Semantics.PageId.from_index(0), source_runs: { physical: Semantics.Range.from_start_and_length(0, 1) } },
+		{ artifact: False, line: 1, origin: { x: Layout.Unit.from_raw(15), y: Layout.Unit.from_raw(20) }, page: Semantics.PageId.from_index(0), source_runs: { physical: Semantics.Range.from_start_and_length(0, 1) } },
+	]
+	positioned = KernelFacadeText.Plan.build_positioned({ shape: prepared.shape, styles: prepared.styles, origins: prepared.origins, lines: prepared.lines, pages: 1, pieces }, [], { decorations: [], figure_scales: [], panels: [] }, test_limits)?
+	KernelFacadeText.Plan.text(positioned) == KernelFacadeText.Plan.text(base) and KernelFacadeText.Plan.placements(positioned) == KernelFacadeText.Plan.placements(base)
+}
+
+# Semantic replacements are partitioned by final occurrence-relative byte
+# ranges. Only the final physical run includes the authored separator.
+expect {
+	base = KernelFacadeText.Plan.build_prepared(test_prepared(test_text), test_limits)?
+	fact = { occurrence: Semantics.OccurrenceId.from_index(0), property: Semantics.TextPropertyId.from_index(0), source_utf8_bytes: 2 }
+	applied = KernelFacadeText.Plan.with_occurrence_separators(base, [fact], 1, test_limits)?
+	slices = applied.plan.text.runs.map(
+		|run| match run.actual_text {
+			SemanticOverrideSlice(boxed) => {
+				slice = Text.ActualTextSlice.value(boxed)
+				(slice.utf8_bytes.start(), slice.utf8_bytes.length())
+			}
+			_ => (99, 99)
+		},
+	)
+	duplicate = match KernelFacadeText.Plan.with_occurrence_separators(base, [fact, fact], 1, test_limits) {
+		Err(InvalidRun(_)) => True
+		_ => False
+	}
+	bad_range = match KernelFacadeText.Plan.with_occurrence_separators(base, [{ ..fact, source_utf8_bytes: 1 }], 1, test_limits) {
+		Err(InvalidRun(_)) => True
+		_ => False
+	}
+	slices == [(0, 1), (1, 2)] and applied.work == { run_visits: 2, override_writes: 2 } and duplicate and bad_range
 }

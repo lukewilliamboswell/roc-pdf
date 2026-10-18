@@ -38,7 +38,7 @@ exactly one place, `KernelDeflate.compress_raw`, at the fixed level
 Upgrade policy: move to an upstream `niclas-ahden/roc-deflate` release as soon
 as one includes the libdeflate port, and treat any version or level change as
 a byte-contract change: every snapshot, gallery PDF, and allocation baseline is
-regenerated and reviewed, and `docs/performance/output-size.md` records the
+regenerated and reviewed, and `development/performance/output-size.md` records the
 size and work movement.
 
 ## Retained artifacts
@@ -96,9 +96,9 @@ file's own length and digest.
 Earlier selections were narrowed by two package limits that are now lifted:
 the font validator rejected odd-length Macintosh-platform `name` records
 (IBM Plex, JetBrains Mono, Noto Sans Italic 2.015;
-`docs/performance/font-inspection.md`), and the subsetter required the
+`development/performance/font-inspection.md`), and the subsetter required the
 `cvt `, `fpgm`, `gasp`, and `prep` hinting tables (Fraunces 1.000, the Source
-Serif 4 desktop TTFs, unhinted Noto; `docs/performance/font-subsetting.md`).
+Serif 4 desktop TTFs, unhinted Noto; `development/performance/font-subsetting.md`).
 
 Keep upstream tool archives and source font files byte-for-byte intact. To update one, review its license
 and bundled notices, download the exact immutable release, verify the upstream

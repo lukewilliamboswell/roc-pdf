@@ -1,7 +1,7 @@
 # Authoring with roc-pdf
 
-Use `Pdf` for ordinary documents. It owns normalization, layout, font
-planning, tagging, resource planning, and deterministic PDF 2.0 emission.
+Use `Pdf` to create documents with automatic pagination, searchable text,
+and semantic structure.
 
 ```roc
 document = Pdf.document({
@@ -133,11 +133,14 @@ empty inline), `semantics.link_text_empty`, `semantics.nested_link`,
 `semantics.language_tag`, `semantics.link_uri`, and, for unsupported text in a
 span, `text.unsupported_script` and `text.unsupported_cluster`.
 
+## Lists
+
 Build lists from items that hold blocks. `Pdf.bullet_list` and
 `Pdf.numbered_list` become an `L` whose `ListNumbering` states its labels
 (`/Disc`, or the number style); each `Pdf.list_item` becomes an `LI` with a
 generated `Lbl` and an `LBody` of its blocks. Items hold paragraphs, rich
-paragraphs, and nested lists, and begin with a paragraph, whose first line the
+paragraphs, nested lists, source blocks, figures, tables, and callouts. They
+begin with a paragraph, whose first line the
 label paints beside. Every nesting level is indented by the theme's list
 indent (the theme's `bullet_indent`):
 
@@ -169,7 +172,11 @@ anything else, or not beginning with a paragraph), `semantics.list_depth`,
 numerals past 3999), and `layout.list_label_width` (a list label column,
 widened for a label wider than the list indent, that leaves its body no
 width). A wide label such as `100.` widens its whole list's label column
-instead of being rejected.
+instead of being rejected. Every child uses the actual list-body width,
+including widened label columns and all enclosing callout padding. An item
+may continue over pages with one logical `LI`/`LBody` and one painted label;
+source and table continuations preserve their existing policies and figures
+remain intact with their captions.
 
 Control the flow explicitly:
 
@@ -186,6 +193,8 @@ Control the flow explicitly:
 - `Pdf.keep_with_next(Required, block)` keeps a block on the same page as
   the next block's first lines (its orphan minimum, or all of an unsplittable
   block). `Preferred` makes the keep a ranked preference instead.
+
+## Tables
 
 Build ordinary tables from columns and rows of cells. `Pdf.table` becomes a
 `Table` with an optional `Caption`, one `THead`, `TBody`, and `TFoot`, a `TR`
@@ -253,10 +262,13 @@ one cell. `Pdf.cell([])` is an empty cell
 (a `TD` with no content) for a value the table leaves blank; it keeps its
 grid position, fill, and `Headers`, and a row of only empty cells is one
 line tall. Fills paint behind the text as
-layout artifacts and never change layout. Rejections name the table,
+layout artifacts. Row and cell fills, column rules and frames reserve the
+outer half row gaps when fitting each page fragment, including a repeated
+header, so all paint stays inside the selected body frame. Internal
+horizontal rules already fit inside the gaps. Rejections name the table,
 row, or cell, such as `contents[4].table.body_rows[17].cells[1]`:
 `table.grid_mismatch`, `table.header_missing`, `table.empty`,
-`table.cell_empty`, `table.row_span` (row spans are Gate 8),
+`table.cell_empty`, `table.row_span` (row spans are not supported),
 `layout.table_width`, `layout.unbreakable_token`, and `layout.table_rule`.
 
 Give pages running headers, footers, and page numbers with page templates.
@@ -325,11 +337,9 @@ and the stacks and inset must fit the region. The lead
 region's blocks are semantic: a `Div` that comes first in reading order.
 
 `Pdf.page_number` and `Pdf.total_pages` take a number style (`Decimal`,
-`LowerAlpha`, `UpperAlpha`, `LowerRoman`, or `UpperRoman`) and resolve after
-pagination: the first pass paginates the body, the second resolves every
-field with the final page count and proves it fits. Because regions have
-fixed heights, furniture never changes pagination and two passes always
-suffice. Put a field in `Pdf.reserved_width(width, align, inlines)` to keep
+`LowerAlpha`, `UpperAlpha`, `LowerRoman`, or `UpperRoman`) and display the
+final page numbers. Header and footer regions have fixed heights, so their
+text never changes the body pagination. Put a field in `Pdf.reserved_width(width, align, inlines)` to keep
 its position fixed; its resolved content must fit the width on every page.
 Page fields are furniture only; in body content they report
 `document.generated_reference`. Rejections name template paths, such as
@@ -358,10 +368,10 @@ that satisfy them, pagination prefers, in rank order, heading keeps (R1),
 preferred author keeps (R2), a table's footer rows carrying a body row (R3),
 the orphan minimum (R4), and the widow minimum (R5), choosing the latest best break on each page. A preference that no legal
 break can satisfy is relaxed deterministically and recorded as a layout
-outcome for the planned preparation report.
+outcome in the report returned by `Pdf.prepare_with_report`.
 
 For deferred or repeated emission, prepare once. `Pdf.Prepared` is opaque: a
-successful value has completed document validation and object planning.
+successful value has passed validation and is ready for emission.
 
 ```roc
 prepared = Pdf.prepare(document, {})?
@@ -382,8 +392,8 @@ default), `Letter`, `A4Landscape`, `LetterLandscape`, or `Custom({ width,
 height })` in whole points from 3 to 14,400 pt a side (`layout.page_size`
 otherwise). Margins and templates apply unchanged, so the body frame of a
 landscape page is wider; margins that leave no body frame are
-`layout.page_margin`. Mixing sizes or orientations within one document is
-fixed-page composition (Gate 8).
+`layout.page_margin`. Every page in a flowing document must use the same
+size and orientation.
 
 The default options (`{}`, also `Pdf.Options.default`) select the `Archive` profile, which claims PDF 2.0 plus
 static PDF/A-4. The canonical XMP declares `pdfaid:part` 4 and `pdfaid:rev`
@@ -400,9 +410,43 @@ To produce plain PDF 2.0 deliberately, opt out explicitly:
 bytes = Pdf.to_bytes_with(document, { profile: Standard })?
 ```
 
-`AccessibleArchive` still rejects with an `InvalidDocument` diagnostic batch
-until PDF/UA-2 closes. The package does not read, repair, sign, encrypt,
-outline, or rasterize PDFs.
+`AccessibleArchive` is unavailable and returns `InvalidDocument` with
+`profile.accessible_archive`. Output does not claim PDF/UA-2 conformance.
+Reading, repairing, signing and encrypting PDFs are unsupported, as is
+converting text to outlines or raster images.
+
+## Chapter-aware page scopes
+
+`Pdf.page_scope(props, contents)` declares an explicit full-body-page scope.
+The `running_label` property is `Label("Short chapter title")` or `Reset`
+(the default). Header/footer furniture reads it through `Pdf.running_label`;
+use `Pdf.reserved_width` to reserve and check a slot. A reset resolves to no
+painted text, including when it is the only field, without inheriting the
+preceding chapter's label.
+
+`page_templates` defaults to `Inherit`. Select
+`Templates({ opening: Pdf.page_template(...), continuation: Pdf.page_template(...) })`
+for a quiet opener and a different continuation header. These templates may
+reserve different heights: every frame is fixed before pagination and its
+furniture must fit without wrapping, shrinking or clipping.
+
+The wrapper starts a fresh body page when body content precedes it, and the
+following body content starts fresh too. Adjacent boundaries coalesce without
+blank pages. Its first page is the first page containing its contents; an
+opening frame too small for the first required placement is an error, never an
+empty opener. A scope at the start of the body may share physical page zero
+with the document's existing first-page lead; its opening header/footer/gap
+compose with that semantic lead before flow. Leaving the scope restores the
+document continuation template and resets the running label.
+
+Scopes do not add semantic headings or duplicate them in the structure tree.
+Author ordinary headings, destinations, sections and outlines explicitly.
+Scopes cannot nest or occur inside lists, callouts, table cells, figures or a
+lead region. Required keeps crossing a scope boundary fail. Every repeated
+label is a pagination artifact. Page and total-page fields still describe the
+whole document. `prepare_with_report` adds a `PageScopeApplied` outcome for
+each accepted scoped page, with its authored path, label, and
+`Opening | Continuation` placement.
 
 ## Preformatted source blocks
 
@@ -544,7 +588,7 @@ other heading field to the built-in value. Each sub-record with different
 defaults (`BodyStyle`, `TitleStyle`, `HeadingStyle`) is its own type, so a
 partial `title` literal never picks up the body's size.
 
-## Images, figures, and forward authoring
+## Images and figures
 
 Packed grayscale, packed sRGB, and validated sRGB JPEG sources can be placed
 without leaking PDF objects or caller-assigned resource IDs. A figure's
@@ -595,8 +639,53 @@ negative `below` overlaps the next block's first lines (by at most the
 drawing's height), and `layer: Behind` paints the drawing before the page's
 text, such as a band behind a heading. Drawings are
 validated at their authored path (`document.figure_drawing`,
-`layout.decoration_drawing`). Fixed pages remain forward API: they report
-`layout.custom` and emit no bytes or chunks.
+`layout.decoration_drawing`). Fixed-page composition is unavailable through
+`Pdf.prepare`: requests report `layout.custom` and emit no bytes or chunks.
+
+## Callouts
+
+`Pdf.callout` lays out a bounded flow container automatically:
+
+```roc
+note = Pdf.callout({
+    name: "Deployment warning",
+    contents: [
+        Pdf.rich_paragraph([Pdf.strong([Pdf.text("Warning. ")]), Pdf.text("Review the following steps.")]),
+        Pdf.numbered_list({}, [Pdf.list_item([Pdf.paragraph("Check the service before deployment.")])]),
+    ],
+    padding: 8,
+    panel: { fill: Fill("#f5f7fa"), border: Border({ color: "#596779", width: 1 }) },
+})
+```
+
+Its width fills the space available inside its parent, and its height
+adapts to its contents. `fragmentation: Lines` (the default) permits
+continuation where a child can split; `Unsplittable` requires the
+whole callout on one page. Every fragment repeats the full rectangular
+panel and padding, including at continuation edges. The default panel has
+no fill and a 1 pt black border; default padding is 8 pt. A border must be
+positive and no wider than the padding. A panel must have a fill or border;
+use `panel: { fill: Fill(tint), border: NoBorder }` for a borderless panel.
+
+Callouts hold paragraphs, rich paragraphs, lists, source blocks, figures,
+ordinary tables, and nested callouts, including callouts in list items.
+The existing four-list-level limit applies across callouts. Callouts share
+the 16-level semantic-container limit with ordinary sections/divisions.
+Table cells keep their existing inline-only contract. Free decorations,
+spacers, explicit page breaks, headings, arbitrary semantic containers and
+measured custom blocks are outside this callout child subset. Existing keep
+and style-scope wrappers may group supported children inside a callout.
+
+One semantic `Div` owns the authored children once across all fragments;
+panels and repeated table headers are artifacts. Child source padding and
+table fills and rules are included when choosing page breaks, and repeated
+headers stay inside all enclosing callout padding. Impossible padding,
+width, children or required keeps return located diagnostics without
+clipping, shrinking, empty continuation panels or partial output.
+`CalloutFragmentPlaced` report outcomes expose the accepted rectangle,
+page, authored path/name, and `Whole`, `First`, `Middle` or `Last` part.
+
+## Custom blocks
 
 An extension can contribute a block through `Pdf.custom_block` without any
 PDF object or operator: it supplies ordinary paragraphs, its own
@@ -623,47 +712,55 @@ callout = Pdf.custom_block({
 
 The paragraphs become a `Div`; the package lays them out inside the box and
 proves they fit (`layout.custom_block_measure` otherwise), and the block
-moves whole to the next page. `tests/custom_block/Callout.roc` is a complete
-extension that measures itself from the theme's public metrics.
+moves whole to the next page. The [custom-block example](../tests/custom_block/Callout.roc)
+shows an extension that measures itself from the theme's public metrics.
+
+## Preparation reports
 
 `Pdf.prepare_with_report` returns the prepared document together with a
 bounded, read-only `Pdf.Report`: pages, leaf blocks in reading order with
 their pages, alternatives and nested languages, layout outcomes (relaxed
 preferences, figure scales, repeated table headers, continued rows, placed
-custom blocks), text coverage, and, separately, the human-review
-obligations. Every entry names the authored path diagnostics use. The
+custom blocks and callout fragments), text coverage, and author checks
+that the package cannot verify automatically. Every entry names the authored path diagnostics use. The
 prepared bytes are identical to `Pdf.prepare`'s, and a report over its
 budget is `report.budget_exceeded` rather than a shorter report.
 
-| Authoring surface | Status |
-| --- | --- |
-| titles, headings, paragraphs, links, destinations | executable |
-| sRGB role styling, font selection, page size, spacing and margins | executable |
-| prepared and chunked emission | executable |
-| figures of typed JPEG/packed raster images and solid vector paths, grouped and multi-command, with captions and `ScaleToFit` | executable |
-| in-flow decorations (`Pdf.decoration`) | executable |
-| extension blocks (`Pdf.custom_block`, unsplittable) | executable |
-| preparation report (`Pdf.prepare_with_report`) | executable |
-| clip, opacity, and soft-mask groups and non-solid paint in flow drawings | not yet offered |
-| parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | executable |
-| rich paragraphs: emphasis, strong, code, quote, inline links, language spans, and expansions | executable |
-| bulleted and numbered lists with nested blocks, `Pdf.bullets` | executable |
-| explicit line and page breaks, spacers, required and preferred keeps | executable |
-| ordinary tables with captions, header rows, column spans, footers, and repeated headers | executable |
-| page templates: header, footer, and lead regions, furniture text and drawings, page and total-page fields | executable |
-| a caller-registered face per inline role (style faces) | executable |
-| furniture text under an ordered font policy | executable |
-| fixed pages, columns, floats, footnotes, row spans, complex tables | representable; Gate 8 diagnostic |
-| `Archive` profile (static PDF/A-4, the default) and `Standard` | executable |
-| `AccessibleArchive` profile | representable; profile diagnostic |
+## Supported features
 
-Capability diagnostics carry a stable dotted feature code, a human-facing
-roadmap explanation, validation stage, and deterministic location. Branch on
-the code and display the message.
+| Authoring surface | Support |
+| --- | --- |
+| titles, headings, paragraphs, links, destinations | supported |
+| fixed-width destination page references (`Pdf.page_reference`) and page-label furniture (`Pdf.page_label`) | supported; [page reference guide](destination-page-references.md) |
+| sRGB role styling, font selection, page size, spacing and margins | supported |
+| prepared and chunked emission | supported |
+| figures of typed JPEG/packed raster images and solid vector paths, grouped and multi-command, with captions and `ScaleToFit` | supported |
+| in-flow decorations (`Pdf.decoration`) | supported |
+| extension blocks (`Pdf.custom_block`, unsplittable) | supported |
+| continued callouts (`Pdf.callout`, rich nested contents) | supported; [callout guide](#callouts) |
+| preparation report (`Pdf.prepare_with_report`) | supported |
+| clip, opacity, and soft-mask groups and non-solid paint in flow drawings | unavailable |
+| parts, sections, and divisions (`Pdf.part`, `Pdf.section`, `Pdf.division`) | supported |
+| rich paragraphs: emphasis, strong, code, quote, inline links, language spans, and expansions | supported |
+| bulleted and numbered lists with nested blocks, `Pdf.bullets` | supported |
+| explicit line and page breaks, spacers, required and preferred keeps | supported |
+| ordinary tables with captions, header rows, column spans, footers, and repeated headers | supported |
+| page templates: header, footer, and lead regions, furniture text and drawings, page and total-page fields | supported |
+| chapter scopes (`Pdf.page_scope`), opening/continuation templates and running labels | supported |
+| a caller-registered face per inline role (style faces) | supported |
+| furniture text under an ordered font policy | supported |
+| fixed pages, columns, floats, footnotes, row spans, complex tables | unavailable; requests return a feature diagnostic |
+| `Archive` profile (static PDF/A-4, the default) and `Standard` | supported |
+| `AccessibleArchive` profile | unavailable; returns `profile.accessible_archive` |
+
+Capability diagnostics identify the unsupported request with a stable dotted
+feature code, a readable explanation, and its location in the authored
+document. Branch on the code and display the message.
 
 ## Advanced modules
 
-The lower-level modules expose public authoring values and the typed vocabulary
-used between compiler stages. Raw stores are not a shortcut around validation.
+Applications that provide their own layout can use the public `Document`,
+`Semantics`, `Layout`, `Scene`, `Text`, and resource modules. Their values
+still require validation before emission.
 The common path uses opaque `Scene.Drawing`, `Image.Source`, and `Pdf.Prepared`
 values; PDF object and serialization internals remain private.

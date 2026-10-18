@@ -1,0 +1,6 @@
+{"name":"destination references x2","schema_version":1,"case":{"References":{"sections":2}}}
+{"name":"destination references x20","schema_version":1,"case":{"References":{"sections":20}}}
+{"name":"destination references inherited face","schema_version":1,"case":{"Styled":{"context":0}}}
+{"name":"destination references atomic negatives","schema_version":1,"case":{"Negatives":{"context":0}}}
+{"name":"destination references ordered mixed fonts","schema_version":1,"case":{"Ordered":{"context":0}}}
+{"name":"destination references measured geometry","schema_version":1,"case":{"Geometry":{"context":0}}}

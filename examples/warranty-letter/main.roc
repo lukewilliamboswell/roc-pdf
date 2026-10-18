@@ -15,7 +15,7 @@ import "fonts/Literata-Regular.ttf" as regular_bytes : List(U8)
 import "fonts/Literata-Bold.ttf" as bold_bytes : List(U8)
 import "fonts/Literata-Italic.ttf" as italic_bytes : List(U8)
 
-## The reference business letter (docs/reference-documents.md), set in
+## The reference business letter (development/reference-documents.md), set in
 ## Literata: a letterhead whose mark sits above a navy and brass rule as
 ## page furniture, with the sender's name and address as semantic blocks
 ## in the first-page lead region; a footer over a hairline; continuation

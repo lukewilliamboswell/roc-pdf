@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "node": "v23.9.0",
+  "browser": "Chrome/155.0.8059.79",
+  "font_sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82",
+  "inputs": {
+    "diagram.mmd": "d15e98d9c1557aeb07f08fffdc7d6d1e10e4e584d6c2cc4c18b6e9041ba35257",
+    "mermaid.json": "c4bb323f42df993bfa3f2d7f35ce7894bc2f68fc18a14d8f425df17d2cfa7e59",
+    "diagram.svg": "ace66d956567180acf4e537bd0357e0830d2fa895a966225ce859913ffe9847a",
+    "resolved.json": "80b31e2b44287f37518fac68561e264288e3d85db2c751e76f7a2c3e4504be5b",
+    "reference.png": "5abb847664993f869acc18e333d785ecfbbfe8c7f6f0fd4300e341720e1fabf0",
+    "package-lock.json": "465c51dce6d209ee47134e91c76ad022942c3425bb3f984bb43a9760ceae3c7b",
+    "prepare.mjs": "11d1ff9c0dd2ec0b3d43ff394b14e66c19e9f41361c62ab9112b1d337e0261fd",
+    "test.mjs": "11d000889d8c3626dc44d854c9d7df7bccb55c808b6346b583bb8d905ef4aeb7",
+    "../PreparedDiagram.roc": "ea2b4be45996a9f1c3c9e2081cbeba4b404584f253172b1efa02240ad80499ea"
+  }
+}

@@ -2385,7 +2385,7 @@ build_canonical_plan = |form_plan, shading_store, pattern_store, facts, leaves, 
 			## The planes are appended by statements, not inside the `match`
 			## that yields the descriptor: a value-producing `match` whose arms
 			## reassigned `$payload` carried the payload beside the arm's value,
-			## and the next append copied it (docs/performance/emission-linearity.md).
+			## and the next append copied it (development/performance/emission-linearity.md).
 			descriptor = image_descriptor(resource.payload)
 			match resource.payload {
 				Jpeg(jpeg) => {
@@ -3445,7 +3445,7 @@ append_text_paint = |out, paint, digests| {
 ## The arms consume `with_space` without reassigning a `var`: an arm that
 ## reassigned the recipe `var` and then passed it on as its value kept a
 ## second reference to the recipe across that call, which copied it
-## (docs/performance/emission-linearity.md).
+## (development/performance/emission-linearity.md).
 append_color : List(U8), Color.Value, List(List(U8)) -> List(U8)
 append_color = |out, color, digests| {
 	with_space = append_bytes(out, list_at(digests, color_node(color.space.index())))
@@ -3544,7 +3544,7 @@ image_descriptor = |payload| match payload {
 ## Appends every byte of `source`. `List.concat` sizes its result exactly,
 ## so an accumulator grown by `concat` was reallocated, and copied, on every
 ## call; `append` grows geometrically
-## (docs/performance/emission-linearity.md).
+## (development/performance/emission-linearity.md).
 append_bytes : List(U8), List(U8) -> List(U8)
 append_bytes = |target, source| {
 	var $out = target

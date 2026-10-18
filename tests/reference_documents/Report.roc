@@ -13,7 +13,7 @@ import "../../examples/business-report/fonts/SourceSans3-It.ttf" as italic_bytes
 import "../../examples/business-report/fonts/SourceCodePro-Regular.ttf" as code_bytes : List(U8)
 import "../../examples/business-report/drying-yard.jpg" as drying_photo : List(U8)
 
-## The reference business report (docs/reference-documents.md), authored
+## The reference business report (development/reference-documents.md), authored
 ## through the public `Pdf` constructors exactly as
 ## `examples/business-report/main.roc` authors it (its "Key figures" callout
 ## through the separately authored `Callout` extension), with the knobs

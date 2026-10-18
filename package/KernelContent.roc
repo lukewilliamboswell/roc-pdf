@@ -996,7 +996,7 @@ emit_stroke = |bytes, stroke, dash_lengths, naming, limit| {
 ## both reassigns the stream `var` and passes it on as the arm's value. When
 ## one did, the join after the `match` carried the `var` beside the arm's
 ## result, the other arm's call saw a second reference, and it copied the
-## whole stream once per stroke (docs/performance/emission-linearity.md).
+## whole stream once per stroke (development/performance/emission-linearity.md).
 emit_dash : List(U8), Semantics.Range, Layout.Unit, List(Layout.Unit), U64 -> Try(List(U8), KernelContent.Error)
 emit_dash = |bytes, lengths, phase, dash_lengths, limit| {
 	var $out = append_literal(bytes, "[", limit)?
@@ -1140,7 +1140,7 @@ append_bytes = |bytes, addition, limit| {
 ## on every token by the pinned dev backend, and it reserves nothing, because
 ## an explicit `List.reserve` sizes the allocation exactly and reserving
 ## before every token reallocated the whole stream once per token
-## (docs/performance/lowering-uniqueness.md).
+## (development/performance/lowering-uniqueness.md).
 check_room : U64, U64, U64 -> Try({}, KernelContent.Error)
 check_room = |length, additional, limit| {
 	attempted = checked_add(length, additional)?

@@ -1,16 +1,22 @@
 # Migrating to 0.1.0-rc2
 
-rc2 adds an explicit prepare/emit lifecycle and completes sRGB theme-color
-output. Existing `Pdf.to_bytes*` and `Pdf.to_chunks*` calls remain valid.
+This guide describes the changes from rc1 to rc2. For the current API and
+profile defaults, see the [authoring guide](authoring.md) and
+[rc3 release notes](releases/0.1.0-rc3.md).
 
-- Use `Pdf.prepare(document, options)` when the same validated plan feeds more
-  than one output strategy.
-- Use `Pdf.to_bytes_prepared` or `Pdf.to_chunks_prepared` after preparation.
-- Use `Theme.with_body_color`, `with_heading_color`, `with_title_color`, or
-  `with_text_color`; the opaque `Theme` representation is not public state.
-- Do not depend on the conceptual open `Document.Prepared` record. It was never
-  executable and is not the supported prepared-output boundary.
-- Do not claim PDF/A-4 or PDF/UA-2. Their profile selectors remain deliberate
-  transactional errors.
+rc2 adds an explicit prepare/emit lifecycle and sRGB theme-color output.
+Existing `Pdf.to_bytes*` and `Pdf.to_chunks*` calls remain valid.
 
-The rc1 notes remain available as the historical description of that release.
+- Use `Pdf.prepare(document, options)` to validate once before choosing an
+  output strategy.
+- Use `Pdf.to_bytes_prepared` or `Pdf.to_chunks_prepared` to emit that plan.
+- In rc2, configure colors through `Theme.with_body_color`,
+  `with_heading_color`, `with_title_color`, or `with_text_color`. Its `Theme`
+  value is opaque.
+- Use the opaque `Pdf.Prepared` returned by preparation. The earlier open
+  `Document.Prepared` description is not a supported output API.
+- rc2 supports the `Standard` profile only. Its `Archive` and
+  `AccessibleArchive` selectors return capability errors; do not claim
+  PDF/A-4 or PDF/UA-2 from rc2 output.
+
+The [rc1 notes](releases/0.1.0-rc1.md) describe that earlier release.

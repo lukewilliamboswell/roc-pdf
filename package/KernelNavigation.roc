@@ -151,6 +151,48 @@ KernelNavigation :: [].{
 	standard_limits : Limits
 	standard_limits = Limits.make(standard_limit_values)
 
+	## Destination names and semantic anchors validated before generated
+	## references resolve. The same registry transfers to final navigation;
+	## destination names are never independently reinterpreted there.
+	Registry :: { context : { nodes : U64, occurrences : U64 }, destinations : DestinationStore, name_bytes_checked : U64, name_order : List(U64), ordering_steps : U64 }.{
+		build : List(DestinationInput), Context, Limits -> Try(Registry, Document.NavigationError)
+		build = |inputs, context, Limits.(limits)| {
+			validated = validate_destinations(inputs, context, limits)?
+			ordering = order_names(validated.store, inputs.len())?
+			Ok(Registry.{ context: { nodes: context.nodes, occurrences: context.occurrences }, destinations: validated.store, name_bytes_checked: validated.name_bytes_checked, name_order: ordering.order, ordering_steps: ordering.steps })
+		}
+
+		lookup : Registry, Str -> { result : [Found(Semantics.DestinationId), Missing], steps : U64 }
+		lookup = |registry, name| {
+			found = find_name(registry.destinations, registry.name_order, name.to_utf8())
+			result = match found.result {
+				Found(index) => Found(Semantics.DestinationId.from_index(index))
+				Missing => Missing
+			}
+			{ result, steps: found.steps }
+		}
+
+		destinations : Registry -> List(Destination)
+		destinations = |registry| registry.destinations.destinations
+	}
+
+	## Page-label rules checked against the accepted physical page count.
+	## Visible reference/furniture formatting and final /PageLabels emission
+	## consume these exact facts, rather than validating authored ranges again.
+	LabelPlan :: { pages : U64, ranges : List(LabelRange) }.{
+		build : List(Document.PageLabelRange), U64, Limits -> Try(LabelPlan, Document.NavigationError)
+		build = |inputs, pages, Limits.(limits)| {
+			validated = validate_labels(inputs, { forms: 0, nodes: 0, occurrences: 0, pages, semantic_annotations: 0 }, limits)?
+			Ok(LabelPlan.{ pages, ranges: validated.ranges })
+		}
+
+		ranges : LabelPlan -> List(LabelRange)
+		ranges = |plan| plan.ranges
+
+		pages : LabelPlan -> U64
+		pages = |plan| plan.pages
+	}
+
 	## Normalized actions reference the dense destination identity resolved
 	## through the deterministic name registry.
 	Action : [GoToDestination(Semantics.DestinationId), UriAction(Semantics.Range)]
@@ -220,6 +262,8 @@ KernelNavigation :: [].{
 	## fragment, dense by fragment identity, produced from the prepared
 	## fragment/page geometry after pagination. Destination resolution is the
 	## only consumer; nothing re-derives geometry from scenes or content.
+	CommittedAnchor : [Unplaced, At({ page : Semantics.PageId, rect : Layout.Rect })]
+
 	AnchorRect : [AnchorAt(Layout.Rect), NoAnchor]
 
 	## One destination resolved to both of its paired targets: the semantic
@@ -325,6 +369,41 @@ KernelNavigation :: [].{
 				label_ranges_checked: input.page_labels.len(),
 				name_bytes_checked: destinations.name_bytes_checked,
 				name_ordering_steps: ordering.steps + annotations.lookup_steps + outline.lookup_steps,
+				outline_entries_checked: input.outline.len(),
+				quads_checked: annotations.quads_checked,
+				uri_bytes_checked: annotations.uri_bytes_checked,
+			},
+		})
+	}
+
+	## Final annotation and outline validation with earlier destination and
+	## label proofs. The context is checked before consuming either proof.
+	validate_planned : { annotations : List(AnnotationInput), outline : List(Document.OutlineEntry) }, Context, Registry, LabelPlan, Limits -> Try({ store : Store, work : Work }, Document.NavigationError)
+	validate_planned = |input, context, registry, labels, Limits.(limits)| {
+		if context.nodes != registry.context.nodes or context.occurrences != registry.context.occurrences or context.pages != labels.pages {
+			return Err(NavigationPlanContextMismatch)
+		}
+		annotations = validate_annotations(input.annotations, registry.destinations, registry.name_order, context, limits)?
+		outline = validate_outline(input.outline, registry.destinations, registry.name_order, limits)?
+		Ok({
+			store: {
+				annotations: annotations.annotations,
+				destinations: registry.destinations.destinations,
+				label_ranges: labels.ranges,
+				name_bytes: registry.destinations.name_bytes,
+				name_order: registry.name_order,
+				outline_entries: outline.entries,
+				page_annotation_offsets: annotations.page_offsets,
+				page_annotations: annotations.page_order,
+				quad_points: annotations.quad_points,
+				uri_bytes: annotations.uri_bytes,
+			},
+			work: {
+				annotations_checked: input.annotations.len(),
+				destinations_checked: registry.destinations.destinations.len(),
+				label_ranges_checked: labels.ranges.len(),
+				name_bytes_checked: registry.name_bytes_checked,
+				name_ordering_steps: registry.ordering_steps + annotations.lookup_steps + outline.lookup_steps,
 				outline_entries_checked: input.outline.len(),
 				quads_checked: annotations.quads_checked,
 				uri_bytes_checked: annotations.uri_bytes_checked,
@@ -903,7 +982,7 @@ is_uri_byte = |byte| is_ascii_alpha(byte) or
 ## Appends every element of `source`. `List.concat` sizes its result
 ## exactly, so an accumulator grown by `concat` in a loop was reallocated,
 ## and copied, on every call; `append` grows geometrically
-## (docs/performance/emission-linearity.md).
+## (development/performance/emission-linearity.md).
 append_all : List(a), List(a) -> List(a)
 append_all = |target, source| {
 	var $out = target
@@ -1546,6 +1625,35 @@ expect {
 
 	match KernelNavigation.resolve(validated.store, resolve_semantics, resolve_owners, overflowing) {
 		Err(InvalidAnchorGeometry({ destination: 0 })) => True
+		_ => False
+	}
+}
+
+# Generated references and final annotation validation consume one name
+# registry and one exact label-range proof.
+expect {
+	registry = KernelNavigation.Registry.build(test_input.destinations, test_context, test_limits)?
+	labels = KernelNavigation.LabelPlan.build(test_input.page_labels, test_context.pages, test_limits)?
+	found = KernelNavigation.Registry.lookup(registry, "intro")
+	missing = KernelNavigation.Registry.lookup(registry, "absent")
+	planned = KernelNavigation.validate_planned({ annotations: test_input.annotations, outline: test_input.outline }, test_context, registry, labels, test_limits)?
+	ordinary = KernelNavigation.validate(test_input, test_context, test_limits)?
+	known = match found.result {
+		Found(id) => id.index() == 1
+		Missing => False
+	}
+	unknown = match missing.result {
+		Missing => True
+		_ => False
+	}
+	known and unknown and planned.store.name_bytes == ordinary.store.name_bytes and planned.store.label_ranges == ordinary.store.label_ranges and planned.work.name_ordering_steps == ordinary.work.name_ordering_steps
+}
+
+expect {
+	registry = KernelNavigation.Registry.build(test_input.destinations, test_context, test_limits)?
+	labels = KernelNavigation.LabelPlan.build(test_input.page_labels, test_context.pages, test_limits)?
+	match KernelNavigation.validate_planned({ annotations: test_input.annotations, outline: test_input.outline }, { ..test_context, pages: 3 }, registry, labels, test_limits) {
+		Err(NavigationPlanContextMismatch) => True
 		_ => False
 	}
 }

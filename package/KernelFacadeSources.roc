@@ -48,6 +48,11 @@ KernelFacadeSources :: [].{
 		build : List(Str), Limits -> Try(Plan, Error)
 		build = |inputs, limits| build_plan(inputs, limits)
 
+		## Append exact resolved sources after pagination, reusing every
+		## existing Unicode analysis and preserving all source identities.
+		extend : Plan, List(Str), Limits -> Try(Plan, Error)
+		extend = |plan, inputs, limits| extend_plan(plan, inputs, limits)
+
 		input_sources : Plan -> List(Semantics.TextSourceId)
 		input_sources = |plan| plan.input_sources
 
@@ -147,6 +152,125 @@ build_plan = |inputs, limits| {
 				equality_checks: $equality_checks,
 				hash_scalar_visits: $hash_scalar_visits,
 				inputs: inputs.len(),
+				probes: $probes,
+				table_slots: capacity,
+				unique_source_bytes: $source_bytes,
+				unique_source_scalars: $source_scalars,
+				unique_sources: $sources.len(),
+			},
+		},
+	)
+}
+
+extend_plan : KernelFacadeSources.Plan, List(Str), KernelFacadeSources.Limits -> Try(KernelFacadeSources.Plan, KernelFacadeSources.Error)
+extend_plan = |plan, inputs, limits| {
+	initial = plan.work
+	first_input = plan.input_sources.len()
+	total_inputs = checked_add(first_input, inputs.len())?
+	check_limit(total_inputs, limits.max_inputs, Inputs)?
+	capacity = table_capacity(total_inputs, limits.max_table_slots)?
+	var $slots = List.repeat(empty_slot, capacity)
+	var $sources = plan.sources
+	var $input_sources = plan.input_sources
+	var $source_bytes = initial.unique_source_bytes
+	var $source_scalars = initial.unique_source_scalars
+	var $hash_scalar_visits = initial.hash_scalar_visits
+	var $probes = initial.probes
+	var $equality_checks = initial.equality_checks
+	var $equality_byte_bound = initial.equality_byte_bound
+	var $adjacent_hits = initial.adjacent_hits
+	var $previous = if $input_sources.is_empty() empty_slot else list_at($input_sources, $input_sources.len() - 1).index()
+
+	## Rebuild only the bounded interning index; source Unicode facts are
+	## retained. Every hash/probe is charged to the same work/error bounds.
+	var $seed = 0
+	while $seed < $sources.len() {
+		hashed = hash_source(list_at($sources, $seed).unicode)
+		$hash_scalar_visits = checked_add($hash_scalar_visits, hashed.scalars)?
+		var $probe = 0
+		var $placed = False
+		while $probe < capacity and !$placed {
+			$probes = checked_add($probes, 1)?
+			check_limit($probes, limits.max_hash_probes, HashProbes)?
+			slot_index = (hashed.value + $probe) % capacity
+			if list_at($slots, slot_index) == empty_slot {
+				$slots = list_set($slots, slot_index, $seed)
+				$placed = True
+			}
+			$probe = $probe + 1
+		}
+		if !$placed {
+			return Err(TableExhausted)
+		}
+		$seed = $seed + 1
+	}
+	var $input_index = 0
+	while $input_index < inputs.len() {
+		source = list_at(inputs, $input_index)
+		if source.is_empty() {
+			return Err(EmptySource({ input: first_input + $input_index }))
+		}
+		var $resolved = False
+		if $previous != empty_slot {
+			adjacent = list_at($sources, $previous)
+			$equality_checks = checked_add($equality_checks, 1)?
+			$equality_byte_bound = checked_add($equality_byte_bound, U64.max(adjacent.unicode.count_utf8_bytes(), source.count_utf8_bytes()))?
+			if adjacent.unicode == source {
+				$input_sources = $input_sources.append(Semantics.TextSourceId.from_index($previous))
+				$adjacent_hits = checked_add($adjacent_hits, 1)?
+				$resolved = True
+			}
+		}
+		if $resolved == False {
+			hashed = hash_source(source)
+			$hash_scalar_visits = checked_add($hash_scalar_visits, hashed.scalars)?
+			var $probe = 0
+			while $probe < capacity and $resolved == False {
+				$probes = checked_add($probes, 1)?
+				check_limit($probes, limits.max_hash_probes, HashProbes)?
+				slot_index = (hashed.value + $probe) % capacity
+				candidate = list_at($slots, slot_index)
+				if candidate == empty_slot {
+					unique_count = checked_add($sources.len(), 1)?
+					check_limit(unique_count, limits.max_unique_sources, UniqueSources)?
+					analysis = KernelUnicode.analyze(source, limits.unicode) ? Unicode
+					$source_bytes = checked_add($source_bytes, source.count_utf8_bytes())?
+					$source_scalars = checked_add($source_scalars, analysis.work.scalar_visits)?
+					check_limit($source_bytes, limits.max_source_bytes, SourceBytes)?
+					check_limit($source_scalars, limits.max_source_scalars, SourceScalars)?
+					id = $sources.len()
+					$sources = $sources.append({ analysis, unicode: source })
+					$slots = list_set($slots, slot_index, id)
+					$input_sources = $input_sources.append(Semantics.TextSourceId.from_index(id))
+					$resolved = True
+				} else {
+					candidate_source = list_at($sources, candidate).unicode
+					$equality_checks = checked_add($equality_checks, 1)?
+					$equality_byte_bound = checked_add($equality_byte_bound, U64.max(candidate_source.count_utf8_bytes(), source.count_utf8_bytes()))?
+					if candidate_source == source {
+						$input_sources = $input_sources.append(Semantics.TextSourceId.from_index(candidate))
+						$resolved = True
+					}
+				}
+				$probe = $probe + 1
+			}
+		}
+		if $resolved == False {
+			return Err(TableExhausted)
+		}
+		$previous = list_at($input_sources, $input_sources.len() - 1).index()
+		$input_index = $input_index + 1
+	}
+	Ok(
+		KernelFacadeSources.Plan.{
+			input_sources: $input_sources,
+			sources: $sources,
+			work: {
+				adjacent_hits: $adjacent_hits,
+				equality_byte_bound: $equality_byte_bound,
+				equality_checks: $equality_checks,
+				hash_scalar_visits: $hash_scalar_visits,
+				inputs: total_inputs,
 				probes: $probes,
 				table_slots: capacity,
 				unique_source_bytes: $source_bytes,
@@ -267,4 +391,14 @@ expect {
 expect match KernelFacadeSources.Plan.build([""], test_limits) {
 	Err(EmptySource({ input: 0 })) => True
 	_ => False
+}
+
+# Late exact labels reuse existing source identities and Unicode analyses;
+# the explicit index rebuild is charged, without analyzing literal text again.
+expect {
+	initial = KernelFacadeSources.Plan.build(["Café", "A"], test_limits)?
+	final = KernelFacadeSources.Plan.extend(initial, ["Café", "12", "12"], test_limits)?
+	KernelFacadeSources.Plan.input_sources(final).map(|id| id.index()) == [0, 1, 0, 2, 2]
+		and KernelFacadeSources.Plan.sources(final).map(|source| source.unicode) == ["Café", "A", "12"]
+			and KernelFacadeSources.Plan.work(final).unique_source_scalars == 7
 }

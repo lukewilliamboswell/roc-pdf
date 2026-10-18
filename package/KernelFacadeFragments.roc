@@ -60,6 +60,8 @@ KernelFacadeFragments :: [].{
 		),
 	]
 
+	NavigationProof : { registry : KernelNavigation.Registry, labels : KernelNavigation.LabelPlan, anchors : List(KernelNavigation.CommittedAnchor) }
+
 	## The theme's link underline: a decoration below every painted line
 	## run of a link, `offset` below its baseline and `thickness` thick.
 	LinkUnderline : [NoUnderline, Underline({ offset : Layout.Unit, thickness : Layout.Unit })]
@@ -81,7 +83,7 @@ KernelFacadeFragments :: [].{
 	}
 	Plan :: { anchor_rects : List(KernelNavigation.AnchorRect), arena : Arena, navigation : [NoNavigationStore, WithNavigationStore(KernelNavigation.Store)], semantics : KernelTextSemantics.Plan, text : KernelFacadeText.Plan }.{
 		build : KernelTextSemantics.Plan, KernelFacadeText.Plan, Limits, KernelSemantics.Limits -> Try(Plan, Error)
-		build = |preliminary, text, limits, semantic_limits| build_plan(preliminary, text, NoNavigationAuthoring, limits, semantic_limits, no_navigation_limits)
+		build = |preliminary, text, limits, semantic_limits| build_plan(preliminary, text, NoNavigationAuthoring, NoProof, limits, semantic_limits, no_navigation_limits)
 
 		## The navigation-aware build: after pagination, every link lowers to
 		## one annotation per page its line runs land on — each page's
@@ -92,7 +94,10 @@ KernelFacadeFragments :: [].{
 		## navigation store validates once. `NoNavigationAuthoring` is
 		## identical to `build`.
 		build_with_navigation : KernelTextSemantics.Plan, KernelFacadeText.Plan, NavigationAuthoring, Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(Plan, Error)
-		build_with_navigation = |preliminary, text, navigation, limits, semantic_limits, navigation_limits| build_plan(preliminary, text, navigation, limits, semantic_limits, navigation_limits)
+		build_with_navigation = |preliminary, text, navigation, limits, semantic_limits, navigation_limits| build_plan(preliminary, text, navigation, NoProof, limits, semantic_limits, navigation_limits)
+
+		build_with_planned_navigation : KernelTextSemantics.Plan, KernelFacadeText.Plan, NavigationAuthoring, NavigationProof, Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(Plan, Error)
+		build_with_planned_navigation = |preliminary, text, navigation, proof, limits, semantic_limits, navigation_limits| build_plan(preliminary, text, navigation, Proof(proof), limits, semantic_limits, navigation_limits)
 
 		anchor_rects : Plan -> List(KernelNavigation.AnchorRect)
 		anchor_rects = |plan| plan.anchor_rects
@@ -134,8 +139,10 @@ no_navigation_limits = KernelNavigation.Limits.make({
 	max_uri_bytes: 0,
 })
 
-build_plan : KernelTextSemantics.Plan, KernelFacadeText.Plan, KernelFacadeFragments.NavigationAuthoring, KernelFacadeFragments.Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
-build_plan = |preliminary, text, navigation, limits, semantic_limits, navigation_limits| {
+ProofSelection : [NoProof, Proof(KernelFacadeFragments.NavigationProof)]
+
+build_plan : KernelTextSemantics.Plan, KernelFacadeText.Plan, KernelFacadeFragments.NavigationAuthoring, ProofSelection, KernelFacadeFragments.Limits, KernelSemantics.Limits, KernelNavigation.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
+build_plan = |preliminary, text, navigation, proofs, limits, semantic_limits, navigation_limits| {
 	arena = build_arena(preliminary, prepare_text(text), KernelFacadeText.Plan.artifact_runs(text), limits)?
 
 	## Page furniture's artifact text sources join the Unicode store after
@@ -146,21 +153,21 @@ build_plan = |preliminary, text, navigation, limits, semantic_limits, navigation
 	labels = KernelFacadeText.Plan.label_sources(text)
 	match KernelFacadeText.Plan.furniture(text) {
 		NoFurniture => if labels.is_empty() {
-			attach_plan(preliminary, arena, text, navigation, semantic_limits, navigation_limits)
+			attach_plan(preliminary, arena, text, navigation, proofs, semantic_limits, navigation_limits)
 		} else {
 			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, labels, artifact_source_limits) ? TextSemantics
-			attach_plan(with_sources, arena, text, navigation, semantic_limits, navigation_limits)
+			attach_plan(with_sources, arena, text, navigation, proofs, semantic_limits, navigation_limits)
 		}
 		WithFurniture(furniture) => {
 			sources = if labels.is_empty() KernelFacadeFurniture.Plan.sources(furniture) else KernelFacadeFurniture.Plan.sources(furniture).concat(labels)
 			with_sources = KernelTextSemantics.Plan.attach_artifact_sources(preliminary, sources, artifact_source_limits) ? TextSemantics
-			attach_plan(with_sources, arena, text, navigation, semantic_limits, navigation_limits)
+			attach_plan(with_sources, arena, text, navigation, proofs, semantic_limits, navigation_limits)
 		}
 	}
 }
 
-attach_plan : KernelTextSemantics.Plan, KernelFacadeFragments.Arena, KernelFacadeText.Plan, KernelFacadeFragments.NavigationAuthoring, KernelSemantics.Limits, KernelNavigation.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
-attach_plan = |preliminary, arena, text, navigation, semantic_limits, navigation_limits| {
+attach_plan : KernelTextSemantics.Plan, KernelFacadeFragments.Arena, KernelFacadeText.Plan, KernelFacadeFragments.NavigationAuthoring, ProofSelection, KernelSemantics.Limits, KernelNavigation.Limits -> Try(KernelFacadeFragments.Plan, KernelFacadeFragments.Error)
+attach_plan = |preliminary, arena, text, navigation, proofs, semantic_limits, navigation_limits| {
 	page_count = KernelFacadeText.Plan.pages(text).len()
 	match navigation {
 		NoNavigationAuthoring => {
@@ -192,7 +199,15 @@ attach_plan = |preliminary, arena, text, navigation, semantic_limits, navigation
 				pages: page_count,
 				semantic_annotations: patch.annotations.len(),
 			}
-			validated = KernelNavigation.validate(navigation_input, context, navigation_limits) ? Navigation
+			validated = (
+				match proofs {
+					NoProof => KernelNavigation.validate(navigation_input, context, navigation_limits)
+					Proof(proof) => {
+						verify_committed_anchors(proof, arena.fragments, geometry.rects, store.occurrences.len()) ? Navigation
+						KernelNavigation.validate_planned({ annotations: grouped.annotations, outline: authored.outline }, context, proof.registry, proof.labels, navigation_limits)
+					}
+				}
+			) ? Navigation
 			semantics = KernelTextSemantics.Plan.attach_fragments_navigation(
 				preliminary,
 				{ annotations: patch.annotations, content_spine: patch.content_spine, nodes: patch.nodes },
@@ -752,4 +767,65 @@ list_set = |items, index, value| match items.set(index, value) {
 	Err(OutOfBounds) => {
 		crash "validated facade-fragment update escaped"
 	}
+}
+
+## The same accepted anchor left/top/page that resolved printed references
+## must survive exact Unicode materialization and semantic attachment.
+verify_committed_anchors : KernelFacadeFragments.NavigationProof, List(Semantics.LayoutFragment), List(KernelNavigation.AnchorRect), U64 -> Try({}, Document.NavigationError)
+verify_committed_anchors = |proof, fragments, rects, occurrences| {
+	var $first = List.repeat(U64.highest, occurrences)
+	for fragment in fragments {
+		index = fragment.occurrence.index()
+		if index >= occurrences {
+			return Err(DestinationAnchorOutOfRange({ attempted: index, destination: 0, occurrences }))
+		}
+		if list_at($first, index) == U64.highest {
+			$first = list_set($first, index, fragment.id.index())
+		}
+	}
+	var $destination = 0
+	for destination in KernelNavigation.Registry.destinations(proof.registry) {
+		index = destination.anchor.index()
+		if index >= occurrences or index >= proof.anchors.len() {
+			return Err(UnresolvedDestinationAnchor({ destination: $destination }))
+		}
+		fragment = list_at($first, index)
+		if fragment == U64.highest or fragment >= rects.len() {
+			return Err(UnresolvedDestinationAnchor({ destination: $destination }))
+		}
+		accepted = match list_at(proof.anchors, index) {
+			At(value) => value
+			Unplaced => return Err(UnresolvedDestinationAnchor({ destination: $destination }))
+		}
+		actual = match list_at(rects, fragment) {
+			AnchorAt(value) => value
+			NoAnchor => return Err(UnresolvedDestinationAnchor({ destination: $destination }))
+		}
+		actual_top = I64.plus_try(actual.origin.y.raw(), actual.size.height.raw()) ? |_| InvalidAnchorGeometry({ destination: $destination })
+		accepted_top = I64.plus_try(accepted.rect.origin.y.raw(), accepted.rect.size.height.raw()) ? |_| InvalidAnchorGeometry({ destination: $destination })
+		if list_at(fragments, fragment).page != accepted.page or actual.origin.x != accepted.rect.origin.x or actual_top != accepted_top {
+			return Err(InvalidAnchorGeometry({ destination: $destination }))
+		}
+		$destination = $destination + 1
+	}
+	Ok({})
+}
+
+# Printed references and final destinations share committed physical anchors.
+# Literal clusters may coalesce into a wider run without moving that point.
+expect {
+	registry = KernelNavigation.Registry.build([{ anchor: Semantics.OccurrenceId.from_index(0), name: "chapter", target: Semantics.NodeId.from_index(0) }], { forms: 0, nodes: 1, occurrences: 1, pages: 1, semantic_annotations: 0 }, KernelNavigation.standard_limits)?
+	labels = KernelNavigation.LabelPlan.build([], 1, KernelNavigation.standard_limits)?
+	rect = Layout.rect(10, 20, 1, 14)
+	proof = { registry, labels, anchors: [At({ page: Semantics.PageId.from_index(0), rect })] }
+	fragment = { content_stream: Semantics.ContentStreamId.from_index(0), continuation_index: 0, id: Semantics.FragmentId.from_index(0), occurrence: Semantics.OccurrenceId.from_index(0), page: Semantics.PageId.from_index(0), source_range: UnicodeRange({ scalars: Semantics.Range.from_start_and_length(0, 1), utf8_bytes: Semantics.Range.from_start_and_length(0, 1) }) }
+	accepted = match verify_committed_anchors(proof, [fragment], [AnchorAt(Layout.rect(10, 20, 100, 14))], 1) {
+		Ok(_) => True
+		Err(_) => False
+	}
+	rejected = match verify_committed_anchors(proof, [fragment], [AnchorAt(Layout.rect(10, 19, 100, 14))], 1) {
+		Err(InvalidAnchorGeometry({ destination: 0 })) => True
+		_ => False
+	}
+	accepted and rejected
 }

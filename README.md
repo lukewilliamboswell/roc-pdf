@@ -36,10 +36,15 @@ Ordered font policies keep selecting each cluster from their declared faces.
 Page fields and reserved widths use the furniture style, and text that exceeds
 a field or region returns a diagnostic without shrinking, wrapping, or clipping.
 
-Default output claims static PDF/A-4 (`Pdf20 + StaticPdfA4`): the package
-validates a closed whitelist before emitting any byte, and every Archive
-fixture passes the pinned veraPDF PDF/A-4 profile with zero failed checks. A
-document that cannot meet the claim returns a structured error; it is never
+For technical manuals, print destination page numbers, give chapters distinct
+opening pages and running headers, and keep code, figures and tables inside
+numbered instructions. Callouts can continue across pages with their panels.
+Prepared vector diagrams use the public drawing API. See
+[Composing a technical manual](docs/manual-composition.md) for usage and limits.
+
+Default output claims static PDF/A-4 (`Pdf20 + StaticPdfA4`). The package
+validates the requested profile before emitting any byte. A document that
+cannot meet the claim returns a structured error; it is never
 downgraded to `Standard`. PDF/UA-2 is not claimed yet: `AccessibleArchive`
 deliberately returns a structured feature diagnostic, so do not make
 accessibility-conformance claims from it. Automatic hyphenation is not
@@ -52,27 +57,22 @@ The package exposes the high-level `Pdf` facade plus the advanced conceptual
 `Metadata`, `Encode`, `Conformance`, and `Theme` boundaries. PDF object,
 lowering, and serialization internals are not public.
 
-Typed packed-raster and JPEG sources can now be placed as a meaningful
-single-image `Pdf.figure` with required alternative text and an optional
-caption. Broader drawings and content-first fixed pages remain available for
-early integration; `Pdf.prepare` rejects their unsupported forms atomically
-with a stable feature code and roadmap explanation. See the
-[authoring support matrix](docs/authoring.md#forward-authoring-api).
+Use `Pdf.figure` for packed-raster or JPEG images and solid vector drawings,
+including grouped drawings and searchable labels. Figures require alternative
+text and accept an optional caption. Fixed-page composition and unsupported
+drawing effects return located feature diagnostics. See the
+[authoring support matrix](docs/authoring.md#supported-features).
 
 The current candidate scope is recorded in [the 0.1.0-rc2 release
-notes](docs/releases/0.1.0-rc2.md), and the pending default-profile change in
-the [draft 0.1.0-rc3 notes](docs/releases/0.1.0-rc3.md). Gate 4 is closed; its
-aggregated evidence is recorded in the [production-visual closure
-review](docs/performance/production-visual-closure.md). Gate 5 (static
-PDF/A-4) is closed on the pinned veraPDF profile basis; see the [static PDF/A-4
-record](docs/performance/static-pdfa4.md).
+notes](docs/releases/0.1.0-rc2.md), and the current Archive default in
+the [draft 0.1.0-rc3 notes](docs/releases/0.1.0-rc3.md).
 
 ## Start here
 
 - [Authoring guide](docs/authoring.md)
 - [Example gallery](examples/README.md)
-- [Reference business documents](docs/reference-documents.md) (the Gate 6
-  contract; the invoice, report, and letter are gallery examples below)
+- [Composing a technical manual](docs/manual-composition.md)
+- [Destination page references](docs/destination-page-references.md)
 - [Generated API documentation](https://lukewilliamboswell.github.io/roc-pdf/)
 - [Migrating to rc2](docs/migrating-to-rc2.md)
 
@@ -123,9 +123,8 @@ Run the complete test suite with the pinned Roc compiler:
 ./scripts/test.py
 ```
 
-See [Testing and fixture development](docs/testing.md) for focused runs,
-compiler selection, allocation and snapshot workflows, and the family-fixture
-schema.
+See the [contributor documentation](development/README.md) for testing,
+implementation contracts, performance evidence and release validation.
 
 ## License
 

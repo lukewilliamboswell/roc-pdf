@@ -1,5 +1,17 @@
 # AGENTS
 
+- Keep `docs/` and the root README user-facing: explain supported behavior,
+  runnable usage, limits, diagnostics, and migration steps. Introduce features
+  by the task they solve, not by issue numbers, delivery gates, or compiler work.
+- Put contributor workflows, design reviews, implementation history, performance
+  baselines, validator reports, and integration/closure records in `development/`.
+  Keep capability planning in `feature-roadmap.md` and enduring decisions in
+  `architecture.md`. Preserve evidence and repair links when moving records;
+  do not remove required evidence to simplify user documentation.
+- Public release notes describe user-visible changes and migration impact.
+  Keep branch names, agent coordination, commit-by-commit narratives, and gate
+  checklists out of user guides and release notes. Technical details belong in
+  a user guide only when they help someone use the supported API.
 - Read `architecture.md` and `feature-roadmap.md` before making changes in this
   repository.
 - Treat `architecture.md` as the enduring source of truth for package scope,
@@ -44,8 +56,8 @@
   inside the branches of an `if` or `match` that produces a value (including
   a function's tail expression), and do not read a record or projection
   after the call that grows one of its lists. See
-  `docs/performance/lowering-uniqueness.md` and
-  `docs/performance/emission-linearity.md`.
+  `development/performance/lowering-uniqueness.md` and
+  `development/performance/emission-linearity.md`.
 - If a proposed change alters an enduring architectural decision or roadmap
   capability boundary, update the corresponding document in the same change.
   Do not use an implementation workaround to avoid resolving the conflict.
