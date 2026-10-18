@@ -28211,7 +28211,7 @@
       ],
       "expectations": {
         "arm64mac": {
-          "allocations": 8267,
+          "allocations": 8264,
           "allocated_bytes": 9411637,
           "work": {
             "input_bytes": 37,
@@ -28232,7 +28232,7 @@
           }
         },
         "x64musl": {
-          "allocations": 8267,
+          "allocations": 8264,
           "allocated_bytes": 9411637,
           "work": {
             "input_bytes": 37,

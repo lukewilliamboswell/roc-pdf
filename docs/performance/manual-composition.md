@@ -128,3 +128,25 @@ that unrelated preview is retained. The other eight previews stay exact.
 All thirteen originals pass pinned veraPDF 1.30.2 PDF/A-4 with zero failed
 checks and the independent structure checker. PDFBox 3.0.8 and MuPDF 1.28.2
 extract and render every page: 35 pages per reader, 70 renders in total.
+
+
+## Final native integration observation
+
+The 2026-10-18 pinned native run at production source `8c5af2e` completes all
+61 validation tasks, 62 cold fixture builds and 409 cases. Every PDF snapshot,
+deterministic work vector and registered independent validator passes. Its
+final comparison reports one allocation expectation reduction: the source-block
+negative carrier avoids three arenas before excessive-padding rejection. The
+[exact cause](source-blocks.md#manual-composition-integration-review) is reviewed
+and the changed expectation passes strict harness replay from the same retained
+cold-built executable. The complete comparison and affected strict replay
+together establish the native allocation/work/snapshot evidence; the initial
+comparison itself exits nonzero for that reviewed expectation.
+
+The comparison also records 123 byte-only differences; all remain within their
+existing guards, with a maximum increase below 0.9%. No requested-byte ceiling
+changes. Pinned veraPDF 1.30.2 with explicit PDF/A-4 flavour validates all 193
+Archive snapshots with zero failed checks; a retained manifest records their
+accepted SHA-256 hashes. The thirteen gallery originals independently retain
+the zero-failure profile and whole-file reader evidence above. Linux and
+Arlington integration evidence remain pending.

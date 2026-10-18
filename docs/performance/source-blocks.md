@@ -210,3 +210,21 @@ rejected variants reach the wider layout records. Source cases separately
 save the allocation and byte costs recorded above. Ratchets follow these
 measured improvements and reviewed representation costs; historical counts
 are not a reason to retain waste or complicate the implementation.
+
+
+## Manual-composition integration review
+
+The final 409-case native comparison observes 8,264 allocations instead of
+8,267 for the twelve-negative carrier, with unchanged work and the exact
+16,027-byte PDF. The excessive-padding rejection now validates its parent
+geometry before constructing source analysis, table-cache and width arenas.
+It avoids 520, 200 and 72 requested bytes respectively: three allocations and
+792 bytes. The richer width token widens existing cache slots by eight bytes;
+four other preparations each retain four slots, adding 128 bytes. The net
+reduction is exactly 664 bytes, from 9,411,637 to 9,410,973. Only the allocation
+expectation changes; the requested-byte guard and snapshot remain unchanged.
+
+The native result is observed with the pinned build and replayed strictly from
+the same cold-built executable. The mirrored Linux allocation expectation
+remains provisional until the independent integrated run. The full extension
+evidence is tracked in [manual composition](manual-composition.md).
