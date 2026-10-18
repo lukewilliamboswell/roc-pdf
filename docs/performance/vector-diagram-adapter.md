@@ -42,6 +42,14 @@ scene/text/structure work plus fixed font/package costs. Each case retains the
 10% allocated-byte ceiling. Cross-target expected counts are registered by the
 ordinary harness and must be verified when that target runs.
 
+A final integration replay through `scripts/test.py --compare-baselines`, using
+the registered canonical JSON cases, retains all three original allocation
+counts, complete work vectors and exact PDF snapshots. Observed requested bytes
+are 5,449,655 / 9,591,821 / 33,081,063: eight bytes per figure above the initial
+observations, inside the unchanged byte ceilings. The default figure-frame
+selection does not imply a net allocation-target reduction relative to this
+slice's earlier isolated baseline; no vector allocation or byte target changes.
+
 `check_vector_diagrams.py` checks original emitted bytes, exact Unicode labels,
 Alt/caption/artifact ownership, cubic/arrowhead paths, input/font/tool hashes and
 source Chrome versus independent PDFBox rendering. Visual comparison allows one

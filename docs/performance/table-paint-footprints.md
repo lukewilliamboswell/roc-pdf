@@ -124,7 +124,7 @@ specification: every new observation stays inside its 10% guard.
 | tables ruled grid x40 | 2 / 2 | 30,831 |
 | tables ruled grid x400 | 12 / 12 | 229,134 |
 | reference invoice | 2 / 2 | 35,714 |
-| reference report | 4 / 4 | 47,916 |
+| reference report | 4 / 4 | 47,915 |
 | reference letter | 3 / 3 | 22,808 |
 | reference invoice long text (INV-A1) | 3 / 3 | 37,966 |
 | reference invoice wide code (INV-A2a) | 3 / 3 | 36,927 |
@@ -132,11 +132,11 @@ specification: every new observation stays inside its 10% guard.
 | reference invoice totals carry (INV-A5) | 3 / 3 | 70,095 |
 | reference invoice rows x50 | 3 / 3 | 47,177 |
 | reference invoice rows x500 (INV-A3) | 21 / 21 | 343,240 |
-| reference report heading keep (REP-A1) | 5 / 5 | 50,552 |
-| reference report figure and caption (REP-A2) | 5 / 5 | 51,962 |
-| reference report table break (REP-A3) | 5 / 5 | 50,323 |
-| reference report ordered faces (REP-A5) | 4 / 4 | 47,192 |
-| reference report scaled figure (REP-A6b) | 5 / 5 | 46,875 |
+| reference report heading keep (REP-A1) | 5 / 5 | 50,551 |
+| reference report figure and caption (REP-A2) | 5 / 5 | 51,960 |
+| reference report table break (REP-A3) | 5 / 5 | 50,322 |
+| reference report ordered faces (REP-A5) | 4 / 4 | 47,191 |
+| reference report scaled figure (REP-A6b) | 5 / 5 | 46,874 |
 | reference report sections x10 | 4 / 4 | 38,281 |
 | reference report sections x100 | 37 / 38 | 312,172 |
 | reference letter long recipient (LET-A1) | 3 / 3 | 23,422 |
@@ -150,6 +150,15 @@ than attributing those allocations to this paint correction. Negative carrier
 expectations are reviewed separately because their measured preparations
 include rejected/accepted intermediate documents even when their final PDF
 contains no table.
+
+The final default-figure-frame selection removes one redundant arena from each
+ordinary report preparation above. The figure/caption placement case also
+prepares an uncaptioned control, so it removes two. Each two-figure report saves
+40 requested bytes; that one-figure control saves another 24. A final native
+`scripts/test.py --compare-baselines` observation of all 21 reference cases
+confirms these exact allocation changes, unchanged PDF bytes and work, and all
+existing allocated-byte ceilings. Only allocation targets change; matching
+x64 target deltas remain provisional until that target's independent run.
 
 All seven new originals also pass whole-file PDFBox 3.0.8 and MuPDF 1.28.2
 Unicode extraction and rendering: 176 page renders across 88 pages, with
@@ -176,15 +185,20 @@ band records, not changed measurements or page breaks. Painted contexts
 continue to retain their bands, including a zero-padding panel, so the
 painted scope and nested-callout snapshots remain exact.
 
-The final reference rejection matrix was rebuilt after the lead-band
-optimization and observed at 162,065 allocations (previously 161,990),
-115,105,578 requested bytes, with exactly 24 rejections, two report
+The final reference rejection matrix was rebuilt after the lead-band,
+default-figure-frame and default-table-ordering corrections and observed at
+162,055 allocations (previously 161,990), 115,091,802 requested bytes, with
+exactly 24 rejections, two report
 obligations and the byte-identical 15,428-byte carrier. Its measured work
 includes intermediate painted invoices/reports, including the 100-table
 report whose overflow is rejected during furniture resolution after layout.
 Those paths now construct the bounded outer-paint span/context facts even
 though the failed document emits no PDF. Its exact count is recorded;
-the earlier allocated-byte guard remains. The separate default-table
+the earlier allocated-byte guard remains. Four ordinary report preparations
+avoid default figure arenas (two tall-figure rejections, a missing destination
+and an oversize custom panel). The two invoice intrinsic-layout rejections
+avoid three unused default geometry arenas each. Together these remove ten
+allocations from the intermediate 162,065 observation. The separate default-table
 15-rejection carrier retains its original 56,677 allocations after deferring
 default geometry until intrinsic table validation succeeds. The
 [geometry-order review](rich-flow.md) records the cause and strict replay.
