@@ -431,6 +431,7 @@ def self_test() -> None:
         (next(c for c in cases if c['dimensions']['rich_kind'] == 0), b'0.501960784 0 0.752941176 scn', b'0 0 0 scn'),
         (next(c for c in cases if c['dimensions']['rich_kind'] == 0), b'00200020000A000A', b'002000200020000A'),
         (next(c for c in cases if c['dimensions']['rich_kind'] == 2), b'/Artifact <</Type /Pagination>>', b'/Artifact <</Type /Layout>>'),
+        (next(c for c in cases if c['dimensions']['rich_kind'] == 4), b'0.858823529 0.894117647 0.91372549 scn\n72 734 451 18 re', b'0.858823529 0.894117647 0.91372549 scn\n72 734 452 18 re'),
     ]
     for case, old, new in mutations:
         original = (ROOT / case['snapshot']).read_bytes()
