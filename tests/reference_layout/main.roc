@@ -74,7 +74,7 @@ main! = |args| {
 	## The blank PDF is only a common output carrier for this kernel's
 	## allocation/work evidence. No symbolic item is painted or presented
 	## as a resolved document reference by this focused measurement case.
-	bytes = match Pdf.to_bytes(Pdf.document({ contents: [], language: "en", title: "Symbolic reference measurement "+count.to_str() })) {
+	bytes = match Pdf.to_bytes(Pdf.document({ contents: [], language: "en", title: "Symbolic reference measurement ${count.to_str()}" })) {
 		Ok(value) => value
 		Err(_) => crash "CASE_CARRIER_FAILED: reference_layout"
 	}

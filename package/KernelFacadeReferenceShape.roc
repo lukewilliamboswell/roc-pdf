@@ -10,6 +10,7 @@ import Layout
 import Semantics
 import Text
 import Theme
+import unicode.Scalar
 
 ## Shapes only exact authored literals. Pending page-reference occurrences
 ## remain absent from this store and keep their global semantic identities.
@@ -116,7 +117,10 @@ build_plan = |authoring, literals, sources, selection, theme, limits| {
 	batch = if $selected.is_empty() {
 		{ store: empty_store, advances: [], work: empty_work }
 	} else {
-		KernelShape.shape_ranged_selected_batch(selected.fonts, sources, { direction: LeftToRight, language: Language(authoring.language), writing_mode: Horizontal }, $selected, KernelFacadeShape.Limits.shape(limits)) ? Shape
+		match KernelShape.shape_ranged_selected_batch(selected.fonts, sources, { direction: LeftToRight, language: Language(authoring.language), writing_mode: Horizontal }, $selected, KernelFacadeShape.Limits.shape(limits)) {
+			Ok(value) => value
+			Err(error) => return Err(locate_failure(literals, $literal_runs, sources, selected.fonts, $selected, error))
+		}
 	}
 	Ok(KernelFacadeReferenceShape.Plan.{ literals, literal_runs: $literal_runs, requests: $requests, styles: $styles, origins: $origins, store: batch.store, advances: batch.advances, selection: selected.selection, fonts: selected.fonts, work: { literal_visits: literals.len(), range_probes: $range_probes, selected_runs: $requests.len(), source_selections: selected.selections, shape: batch.work } })
 }
@@ -430,4 +434,75 @@ expect {
 		Err(InvalidLiteral({ occurrence: 9 })) => True
 		_ => False
 	}
+}
+
+## Audit only an unsuccessful shape, using exact selected source slices.
+## This locates coverage, cluster and script failures without rescanning a
+## preceding source prefix for each styled leaf or retaining source bytes
+## inside the public diagnostic.
+locate_failure : List(KernelFacadeReferenceShape.LiteralContext), List(KernelFacadeReferenceShape.LiteralRuns), List(KernelFacadeSources.Source), List(KernelFont.Inspection), List(KernelShape.SelectedBatchRequest), KernelShape.Error -> KernelFacadeReferenceShape.Error
+locate_failure = |contexts, spans, sources, fonts, requests, error| {
+	var $context = 0
+	var $request = 0
+	while $request < requests.len() {
+		while $context < spans.len() and list_at(spans, $context).runs.start() + list_at(spans, $context).runs.length() <= $request {
+			$context = $context + 1
+		}
+		if $context >= contexts.len() {
+			return Shape(error)
+		}
+		context = list_at(contexts, $context)
+		request = list_at(requests, $request)
+		if request.source.index() >= sources.len() or request.instance.index() >= fonts.len() {
+			return Shape(error)
+		}
+		source = list_at(sources, request.source.index())
+		font = list_at(fonts, request.instance.index())
+		if request.clusters.length() == 0 {
+			return Shape(error)
+		}
+		first = list_at(source.analysis.graphemes, request.clusters.start())
+		last = list_at(source.analysis.graphemes, request.clusters.start() + request.clusters.length() - 1)
+		chunk = match Str.from_utf8(source.unicode.to_utf8().sublist({ start: first.byte_start, len: last.byte_end - first.byte_start })) {
+			Ok(value) => value
+			Err(_) => return Shape(error)
+		}
+		var $cluster = request.clusters.start()
+		var $script = 0
+		var $high = source.analysis.script_runs.len()
+		while $script < $high {
+			middle = $script + ($high - $script) // 2
+			if list_at(source.analysis.script_runs, middle).range.scalar_end <= first.scalar_start {
+				$script = middle + 1
+			} else {
+				$high = middle
+			}
+		}
+		for located in Scalar.iter(chunk) {
+			scalar = first.scalar_start + located.scalar_index
+			while $cluster < request.clusters.start() + request.clusters.length() and list_at(source.analysis.graphemes, $cluster).scalar_end <= scalar {
+				$cluster = $cluster + 1
+			}
+			while $script < source.analysis.script_runs.len() and list_at(source.analysis.script_runs, $script).range.scalar_end <= scalar {
+				$script = $script + 1
+			}
+			if $cluster >= source.analysis.graphemes.len() or $script >= source.analysis.script_runs.len() {
+				return Shape(error)
+			}
+			grapheme = list_at(source.analysis.graphemes, $cluster)
+			actual_script = list_at(source.analysis.script_runs, $script).script
+			value = Scalar.to_u32(located.scalar)
+			covered = match KernelFont.glyph_for_scalar(font, value) {
+				Some(glyph) => glyph != 0
+				None => False
+			}
+			reason = if grapheme.scalar_end - grapheme.scalar_start != 1 Failed(Cluster) else if !covered Failed(Coverage(value)) else if actual_script != "Zyyy" and actual_script != "Zinh" and actual_script != request.script.to_str() Failed(Script(actual_script)) else Passed
+			match reason {
+				Failed(found) => return Style(UnsupportedText({ block: context.block, inline: context.inline, reason: found, scalars: Semantics.Range.from_start_and_length(grapheme.scalar_start - literal_start(context), grapheme.scalar_end - grapheme.scalar_start) }))
+				Passed => {}
+			}
+		}
+		$request = $request + 1
+	}
+	Shape(error)
 }
