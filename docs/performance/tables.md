@@ -408,8 +408,11 @@ document has no fills), and the scene loop paints a page's `Behind`
 rectangles before its first text placement. A row fill covers the row box
 across the table and half the row gap above and below, so filled neighbours
 meet; a cell fill covers the cell's spanned columns including padding.
-Repeated headers repaint their fills with their text. Fills never move
-layout.
+Repeated headers repaint their fills with their text. The table
+[paint-footprint correction](table-paint-footprints.md) supersedes the
+original layout-invariance contract: applicable outer paints reserve the
+half row gaps during page fitting, while text widths and row heights stay
+unchanged. This keeps every painted fragment inside its accepted body frame.
 
 The body rule is drawn centered in the gap above each body row that is not
 the first body row and not the first unit on its page, so it never

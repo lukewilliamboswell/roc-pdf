@@ -198,7 +198,8 @@ Theme := {
 	## body, different fills are zebra stripes. A fill covers the row's box
 	## across the table's width and half the row gap above and below it, so
 	## filled neighbours meet; it is a layout decoration artifact painted
-	## before the page's text, and never changes layout.
+	## before the page's text. The outer half gaps participate in page
+	## fitting, so the full painted fragment stays inside the body frame.
 	##
 	## Columns have no gap of their own: adjacent cells' boxes abut, and the
 	## space between two columns' text is the two cells' padding. A
@@ -210,8 +211,8 @@ Theme := {
 	## (repeated header rows included, the caption excluded) inside the
 	## rows' outer boxes, so it must fit in the cell padding and in half
 	## the row gap. Both are layout decoration artifacts painted after the
-	## text, like the other rules, and never change layout
-	## (`layout.table_rule` otherwise).
+	## text, like the other rules. Their outer half-gap footprint participates
+	## in page fitting; invalid widths report `layout.table_rule`.
 	TableStyle := {
 		body_fills : BodyFills ?? {},
 		body_rule : TableRule ?? NoRule,

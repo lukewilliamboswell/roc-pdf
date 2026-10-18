@@ -276,31 +276,46 @@ is_splittable_callout = |authoring, kind| match kind {
 
 callout_containers : Document.NormalizedAuthoring, (U64 -> { offset : U64, width : U64 }), List(U64), Theme -> Try(List(KernelPageLayout.Container), KernelFacadePages.Error)
 callout_containers = |authoring, group_frame, units, theme| {
-	if authoring.callouts.is_empty() {
+	has_outer_paint = theme.table.row_gap > 0 and (table_theme_outer_paint(theme) or authoring.cells.any(|cell| cell.fill != 0))
+	if authoring.callouts.is_empty() and !has_outer_paint {
 		return Ok([])
 	}
 	var $containers = []
 	var $group = 0
+	var $cell = 0
 	for group in authoring.groups {
 		policy = match group.kind {
 			Callout(index) => {
 				callout_value = list_at(authoring.callouts, index.to_u64())
 				padding = nonnegative_raw(callout_value.padding)?
 				frame = group_frame($group)
-				ContainerFacts({ padding, offset: frame.offset - padding, width: checked_add(frame.width, checked_mul(padding, 2)?)?, paint: Paint(index.to_u64()) })
+				ContainerFacts({ padding, offset: frame.offset - padding, width: checked_add(frame.width, checked_mul(padding, 2)?)?, paint: Paint(index.to_u64()), skip_caption: False })
 			}
-			Table(_) => if has_callout_ancestor(authoring, group.parent) {
-				frame = group_frame($group)
-				# Fills and frame rules occupy the outer halves of a row
-				# gap. Reserve them once per continued table fragment.
-				ContainerFacts({ padding: (nonnegative_raw(theme.table.row_gap)? + 1) // 2, offset: frame.offset, width: frame.width, paint: NoPaint })
-			} else NoContainerFacts
+			Table(index) => {
+				## Tables and cells are in leaf order. Advance this cursor once
+				## across the cell arena, never search all cells for each table.
+				var $filled = False
+				while $cell < authoring.cells.len() and list_at(authoring.cells, $cell).block < group.block_end {
+					$filled = $filled or list_at(authoring.cells, $cell).fill != 0
+					$cell = $cell + 1
+				}
+				in_callout = has_callout_ancestor(authoring, group.parent)
+				outer_paint = theme.table.row_gap > 0 and ($filled or table_outer_paint(authoring, $group, list_at(authoring.tables, index.to_u64()), theme))
+				if in_callout or outer_paint {
+					frame = group_frame($group)
+
+					## Outer fills, column rules and frames occupy the half gaps.
+					## Reserve their footprint in every accepted fragment.
+					ContainerFacts({ padding: (nonnegative_raw(theme.table.row_gap)? + 1) // 2, offset: frame.offset, width: frame.width, paint: NoPaint, skip_caption: !in_callout and list_at(authoring.tables, index.to_u64()).caption })
+				} else NoContainerFacts
+			}
 			_ => NoContainerFacts
 		}
 		match policy {
 			NoContainerFacts => {}
 			ContainerFacts(facts) => {
-				first = if units.is_empty() group.first_block else list_at(units, group.first_block)
+				first_block = group.first_block + if facts.skip_caption 1 else 0
+				first = if units.is_empty() first_block else list_at(units, first_block)
 				last = if units.is_empty() group.block_end else list_at(units, group.block_end - 1) + 1
 				$containers = $containers.append({ paint: facts.paint, blocks: Semantics.Range.from_start_and_length(first, last - first), padding: Layout.Unit.from_raw(facts.padding.to_i64_wrap()), offset: Layout.Unit.from_raw(facts.offset.to_i64_wrap()), width: Layout.Unit.from_raw(facts.width.to_i64_wrap()) })
 			}
@@ -308,6 +323,58 @@ callout_containers = |authoring, group_frame, units, theme| {
 		$group = $group + 1
 	}
 	Ok($containers)
+}
+
+## Internal horizontal rules stay inside row gaps. Only these paints reach
+## above/below the first/last row, and then only when the section exists.
+table_theme_outer_paint : Theme -> Bool
+table_theme_outer_paint = |theme| theme.table.header_fill != NoFill or theme.table.body_fills.odd != NoFill or theme.table.body_fills.even != NoFill or theme.table.footer_fill != NoFill or positive_table_rule(theme.table.column_rule) or positive_table_rule(theme.table.frame)
+
+positive_table_rule : Theme.TableRule -> Bool
+positive_table_rule = |rule| match rule {
+	NoRule => False
+	Rule({ width, .. }) => width > 0
+}
+
+table_outer_paint : Document.NormalizedAuthoring, U64, Document.NormalizedTable, Theme -> Bool
+table_outer_paint = |authoring, group_index, table, theme| {
+	if positive_table_rule(theme.table.frame) or (table.header_rows > 0 and theme.table.header_fill != NoFill) or (table.footer_rows > 0 and theme.table.footer_fill != NoFill) or (table.body_rows > 0 and theme.table.body_fills.odd != NoFill) or (table.body_rows > 1 and theme.table.body_fills.even != NoFill) {
+		return True
+	}
+	if !positive_table_rule(theme.table.column_rule) {
+		return False
+	}
+	group = list_at(authoring.groups, group_index)
+	var $row = group_index + 1
+	while $row < group.group_end {
+		row = list_at(authoring.groups, $row)
+		if row.block_end - row.first_block > 1 {
+			return True
+		}
+		$row = $row + 1
+	}
+	False
+}
+
+## A cell fill belongs only to its own table. The cursor must not carry it
+## forward to the next unpainted table or lose it after a preceding table.
+expect {
+	make = |filled| Document.table({ caption: NoCaption, columns: [{ width: Share(1), align: Start }], header_rows: [], footer_rows: [], body_rows: [Document.row([if filled Document.cell([Document.plain_text("Cell")]).shaded(Theme.black) else Document.cell([Document.plain_text("Cell")])])], row_split: KeepRows })
+	authoring = Document.normalize(Document.from_blocks({ title: "Paint", language: "en", contents: [make(False), make(True), make(False)] }))
+	match callout_containers(authoring, |_| { offset: 0, width: 100000 }, [], Theme.{}) {
+		Ok(spans) => spans.len() == 1 and list_at(spans, 0).blocks.start() == 1 and list_at(spans, 0).blocks.length() == 1 and list_at(spans, 0).paint == NoPaint and list_at(spans, 0).padding == 2
+		Err(_) => False
+	}
+}
+
+## Theme declarations that paint no outer box add no layout span: absent
+## sections, one even-only body stripe, zero-width rules, and a column rule
+## where every row consists of a single spanning cell.
+expect {
+	authoring = Document.normalize(Document.from_blocks({ title: "Paint", language: "en", contents: [Document.table({ caption: NoCaption, columns: [{ width: Share(1), align: Start }, { width: Share(1), align: Start }], header_rows: [], footer_rows: [], body_rows: [Document.row([Document.cell([Document.plain_text("Spanning")]).spanning(2)])], row_split: KeepRows })] }))
+	theme : Theme
+	theme = { table: { header_fill: Fill(Theme.black), footer_fill: Fill(Theme.black), body_fills: { even: Fill(Theme.black) }, column_rule: Rule({ color: Theme.black, width: 0.5 }), frame: Rule({ color: Theme.black, width: 0 }), body_rule: Rule({ color: Theme.black, width: 0.5 }) } }
+	callout_containers(authoring, |_| { offset: 0, width: 100000 }, [], theme) == Ok([])
 }
 
 has_callout_ancestor : Document.NormalizedAuthoring, U64 -> Bool

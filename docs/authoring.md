@@ -258,7 +258,10 @@ one cell. `Pdf.cell([])` is an empty cell
 (a `TD` with no content) for a value the table leaves blank; it keeps its
 grid position, fill, and `Headers`, and a row of only empty cells is one
 line tall. Fills paint behind the text as
-layout artifacts and never change layout. Rejections name the table,
+layout artifacts. Row and cell fills, column rules and frames reserve the
+outer half row gaps when fitting each page fragment, including a repeated
+header, so all paint stays inside the selected body frame. Internal
+horizontal rules already fit inside the gaps. Rejections name the table,
 row, or cell, such as `contents[4].table.body_rows[17].cells[1]`:
 `table.grid_mismatch`, `table.header_missing`, `table.empty`,
 `table.cell_empty`, `table.row_span` (row spans are Gate 8),

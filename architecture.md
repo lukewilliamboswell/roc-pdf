@@ -1009,7 +1009,14 @@ measured `CustomBlock` remains unsplittable. Callout continuation retains scalar
 unit/line cursors and parent IDs, reserves ancestor padding during break
 selection, and materializes explicit fragment rectangles only after a break
 is accepted. Repeated table headers consume accepted placement facts inside
-those frames. Panels remain artifacts and each semantic child occurs once.
+those frames. Every table fragment also reserves its outer painted row
+footprint inside the selected body frame: applicable row/cell fills, column
+rules and frames include the outer half row gaps. Internal horizontal rules
+alone need no additional footprint. This is an explicit layout-only span
+produced from authored table/style facts before pagination, including on the
+source-free reference path; painters consume accepted placement facts and
+never clip or retroactively adjust page breaks. Panels remain artifacts and
+each semantic child occurs once.
 
 Page scopes are explicit layout-only, nonnested full-body-page boundaries.
 Their opening and continuation geometry is declared before pagination;
