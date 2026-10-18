@@ -978,7 +978,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 				WithTemplate(layout_template(template, units))
 			}
 		}
-		KernelPageLayout.Plan.build_with_contexts(scope_policies(lead_policies($page_blocks, lead_units(flow, $unit_of_block)), flow, $unit_of_block), flow_groups(merged.groups, lead_units(flow, $unit_of_block)), $visual_lines, constraints, selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
+		KernelPageLayout.Plan.build_with_contexts(scope_policies(lead_policies($page_blocks, mapped_lead_count(flow, $unit_of_block)), flow, $unit_of_block), flow_groups(merged.groups, mapped_lead_count(flow, $unit_of_block)), $visual_lines, constraints, selection, layout_scopes(flow, $unit_of_block), containers, limits.page) ? |error| TableLayout({ error, groups: merged.sources, units: $units })
 	} else match flow {
 		NoFlowTemplate => (
 			if merged.groups.is_empty() {
@@ -1028,7 +1028,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 	for layout_page in layout_pages {
 		page_index = layout_page.id.index()
 		page_frames = KernelPageLayout.Plan.page_frames(page)
-		page_top = if page_frames.is_empty() default_page_top else checked_sub(frame_top, nonnegative_raw(list_at(page_frames, page_index).top)?)?
+		selected_page_top = if page_frames.is_empty() default_page_top else checked_sub(frame_top, nonnegative_raw(list_at(page_frames, page_index).top)?)?
 		placement_start = $placements.len()
 		first_fragment = layout_page.fragments.start()
 		fragment_end = first_fragment + layout_page.fragments.length()
@@ -1041,7 +1041,7 @@ build_table_plan = |authoring, shape, line_plan, page_size, theme, flow, limits,
 			while $lead_cursor < lead_bands.len() and list_at(lead_bands, $lead_cursor).page < page_index {
 				$lead_cursor = $lead_cursor + 1
 			}
-			page_top = if $lead_cursor < lead_bands.len() and list_at(lead_bands, $lead_cursor).page == page_index list_at(lead_bands, $lead_cursor).top else default_page_top
+			page_top = if $lead_cursor < lead_bands.len() and list_at(lead_bands, $lead_cursor).page == page_index list_at(lead_bands, $lead_cursor).top else selected_page_top
 			info = list_at($table_info, list_at($row_info, $unit).table)
 			var $used = 0
 			var $header = info.header_units.start()
@@ -2357,8 +2357,8 @@ panel_paints = |authoring, fragments, block_runs, runs| {
 	Ok($paints)
 }
 
-lead_units : FlowSelection, List(U64) -> U64
-lead_units = |flow, units| {
+mapped_lead_count : FlowSelection, List(U64) -> U64
+mapped_lead_count = |flow, units| {
 	leaves = lead_leaves(flow)
 	if leaves == 0 0 else list_at(units, leaves - 1) + 1
 }

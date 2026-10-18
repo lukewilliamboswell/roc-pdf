@@ -19,3 +19,4 @@
 {"name":"chapter templates reset label","schema_version":1,"case":{"Chapters":{"chapters":1,"mode":2}}}
 {"name":"page labels visible x3","schema_version":1,"case":{"PageLabels":{"pages":3}}}
 {"name":"page labels visible x30","schema_version":1,"case":{"PageLabels":{"pages":30}}}
+{"name":"chapter templates atomic negatives","schema_version":1,"case":{"ChapterNegatives":{"context":0}}}

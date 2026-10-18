@@ -156,6 +156,40 @@ KernelPageLayout :: [].{
 	ContainerFragment : { container : U64, page : U64, rect : Layout.Rect, part : [Whole, First, Middle, Last] }
 	ScopePage : { scope : U64, page : U64, opening : Bool }
 
+	ChosenSpan : { block : U64, rows : Semantics.Range, page : Semantics.PageId, geometry : Layout.Rect, baseline : Layout.Point, leading : Layout.Unit }
+	ChosenPage : { spans : Semantics.Range, id : Semantics.PageId }
+	Choice :: { spans : List(ChosenSpan), pages : List(ChosenPage), bands : List(Band), lead_bands : List(Band), container_fragments : List(ContainerFragment), scope_pages : List(ScopePage), page_frames : List(Frame), relaxations : List(Relaxation), work : Work }.{
+		build : List(Block), List(KeepGroup), U64, Constraints, [NoTemplate, WithTemplate(Template)], List(ScopedFrame), List(Container), Limits -> Try(Choice, Error)
+		build = |blocks, groups, rows, constraints, template, scopes, containers, limits| choose_rows(blocks, groups, rows, constraints, template, scopes, containers, limits)
+		spans : Choice -> List(ChosenSpan)
+		spans = |choice| choice.spans
+
+		pages : Choice -> List(ChosenPage)
+		pages = |choice| choice.pages
+
+		bands : Choice -> List(Band)
+		bands = |choice| choice.bands
+
+		lead_bands : Choice -> List(Band)
+		lead_bands = |choice| choice.lead_bands
+
+		container_fragments : Choice -> List(ContainerFragment)
+		container_fragments = |choice| choice.container_fragments
+
+		scope_pages : Choice -> List(ScopePage)
+		scope_pages = |choice| choice.scope_pages
+
+		page_frames : Choice -> List(Frame)
+		page_frames = |choice| choice.page_frames
+
+		relaxations : Choice -> List(Relaxation)
+		relaxations = |choice| choice.relaxations
+
+		work : Choice -> Work
+		work = |choice| choice.work
+
+	}
+
 	Plan :: { container_fragments : List(ContainerFragment), lead_bands : List(Band), page_frames : List(Frame), scope_pages : List(ScopePage), bands : List(Band), fragments : List(Fragment), pages : List(Page), placements : List(PlacedLine), relaxations : List(Relaxation), work : Work }.{
 		page_frames : Plan -> List(Frame)
 		page_frames = |plan| plan.page_frames
@@ -350,8 +384,11 @@ container_internal_height = |facts, start, end| if facts.contexts.is_empty() 0 e
 
 ## Accepted unit fragments plus explicit ancestry/padding determine panel
 ## rectangles. No semantic identity or order is recovered from geometry.
-materialize_containers : List(KernelPageLayout.Container), ContainerFacts, List(KernelPageLayout.Block), List(KernelPageLayout.Fragment), List(KernelPageLayout.Band), U64 -> Try({ fragments : List(KernelPageLayout.ContainerFragment), updates : U64 }, KernelPageLayout.Error)
-materialize_containers = |containers, facts, blocks, fragments, leads, limit| {
+ContainerGeometry : { geometry : Layout.Rect, lines : Semantics.Range, page : Semantics.PageId }
+
+materialize_containers : List(KernelPageLayout.Container), ContainerFacts, List(KernelPageLayout.Block), List(a), (a -> ContainerGeometry), List(KernelPageLayout.Band), U64 -> Try({ fragments : List(KernelPageLayout.ContainerFragment), updates : U64 }, KernelPageLayout.Error)
+
+materialize_containers = |containers, facts, blocks, fragments, view, leads, limit| {
 	if containers.is_empty() {
 		return Ok({ fragments: [], updates: 0 })
 	}
@@ -360,7 +397,8 @@ materialize_containers = |containers, facts, blocks, fragments, leads, limit| {
 	var $last = List.repeat(U64.highest, containers.len())
 	var $unit = 0
 	var $lead = 0
-	for fragment in fragments {
+	for item in fragments {
+		fragment = view(item)
 		while $unit < blocks.len() and range_end(list_at(blocks, $unit).lines)? <= fragment.lines.start() {
 			$unit = $unit + 1
 		}
@@ -470,7 +508,7 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 	geometry = validate_geometry(constraints)?
 	frames = validate_frames(template, geometry, blocks.len())?
 	scope_largest = validate_scope_frames(scopes, geometry.content_height, blocks)?
-	validation = validate_input(blocks, groups, lines, U64.max(frames.largest, scope_largest))?
+	validation = validate_input(blocks, groups, ConcreteLines(lines), U64.max(frames.largest, scope_largest))?
 	check_limit(containers.len(), limits.max_blocks, Groups)?
 	for container in containers {
 		if checked_add(nonnegative_raw(container.offset)?, positive_raw(container.width)?)? > geometry.content_width {
@@ -643,7 +681,7 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 		$block = end.block
 		$line = end.line
 	}
-	materialized = materialize_containers(containers, container_facts, blocks, $fragments, $lead_bands, limits.max_fragments)?
+	materialized = materialize_containers(containers, container_facts, blocks, $fragments, |fragment| { geometry: fragment.geometry, lines: fragment.lines, page: fragment.page }, $lead_bands, limits.max_fragments)?
 	Ok(
 		KernelPageLayout.Plan.{
 			page_frames: $page_frames,
@@ -668,6 +706,195 @@ build_plan = |blocks, groups, lines, constraints, template, scopes, containers, 
 				line_visits: validation.line_visits,
 				page_writes: $pages.len(),
 				placement_writes: $placements.len(),
+			},
+		},
+	)
+}
+
+choose_rows : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), U64, KernelPageLayout.Constraints, [NoTemplate, WithTemplate(KernelPageLayout.Template)], List(KernelPageLayout.ScopedFrame), List(KernelPageLayout.Container), KernelPageLayout.Limits -> Try(KernelPageLayout.Choice, KernelPageLayout.Error)
+choose_rows = |blocks, groups, row_count, constraints, template, scopes, containers, limits| {
+	if blocks.len() == 0 or row_count == 0 {
+		return Err(InvalidConstraints)
+	}
+	check_limit(blocks.len(), limits.max_blocks, Blocks)?
+	check_limit(row_count, limits.max_lines, Lines)?
+	check_limit(groups.len(), limits.max_blocks, Groups)?
+	geometry = validate_geometry(constraints)?
+	frames = validate_frames(template, geometry, blocks.len())?
+	scope_largest = validate_scope_frames(scopes, geometry.content_height, blocks)?
+	validation = validate_input(blocks, groups, MeasuredRows(row_count), U64.max(frames.largest, scope_largest))?
+	check_limit(containers.len(), limits.max_blocks, Groups)?
+	for container in containers {
+		if checked_add(nonnegative_raw(container.offset)?, positive_raw(container.width)?)? > geometry.content_width {
+			return Err(InvalidConstraints)
+		}
+	}
+	container_facts = plan_containers(containers, blocks.len())?
+	var $pages = []
+	var $spans = []
+	var $placement_count = 0
+	var $relaxations = []
+	var $bands = []
+	var $lead_bands = []
+	var $candidate_visits = 0
+	var $block = 0
+	var $line = 0
+
+	## The lead region receives its blocks on the first page, stacked from
+	## its top with their spacing between them, as one unit.
+	match frames.lead {
+		NoLead => {}
+		Lead({ blocks: lead_blocks, height: lead_height, top: lead_top }) => {
+			lead_geometry = { ..geometry, content_height: lead_height, margin_top: checked_add(geometry.margin_top, lead_top)? }
+			var $used = 0
+			while $block < lead_blocks {
+				block = list_at(blocks, $block)
+				take = block.lines.length()
+				leading = positive_raw(block.leading)?
+				fragment_height = checked_mul(take, leading)?
+				padding = fragment_padding(block)?
+				decoration = nonnegative_raw(block.decoration)?
+				if checked_add(checked_add(checked_add($used, decoration)?, checked_mul(padding, 2)?)?, fragment_height)? > lead_height {
+					return Err(LeadOverflow({ available: lead_height, required: lead_total(blocks, lead_blocks)? }))
+				}
+				if decoration > 0 {
+					$bands = $bands.append({ block: $block, page: 0, top: lead_geometry.page_height - lead_geometry.margin_top - $used })
+					$used = $used + decoration
+				}
+				$used = checked_add($used, padding)?
+				fragment = make_span($block, block, block.lines.start(), take, fragment_height, $used, lead_geometry, 0)?
+				check_limit(checked_add($spans.len(), 1)?, limits.max_fragments, Fragments)?
+				$spans = $spans.append(fragment)
+				$placement_count = checked_add($placement_count, take)?
+				check_limit($placement_count, limits.max_placements, Placements)?
+				$used = checked_add(checked_add(checked_add($used, fragment_height)?, padding)?, nonnegative_raw(block.trailing)?)?
+				if $block + 1 < lead_blocks {
+					$used = checked_add($used, nonnegative_raw(block.space_after)?)?
+				}
+				$block = $block + 1
+			}
+		}
+	}
+	var $page_frames = []
+	var $scope_pages = []
+	var $scope_visits = scopes.len()
+	var $scope_cursor = 0
+	var $previous_scope = scopes.len()
+	var $page_fragment_start = 0
+	while $block < blocks.len() {
+		page_index = $pages.len()
+		if !scopes.is_empty() {
+			$scope_visits = $scope_visits + 1
+		}
+		while $scope_cursor < scopes.len() and list_at(scopes, $scope_cursor).blocks.start() + list_at(scopes, $scope_cursor).blocks.length() <= $block {
+			$scope_visits = $scope_visits + 1
+			$scope_cursor = $scope_cursor + 1
+		}
+		scope_index = if $scope_cursor < scopes.len() and list_at(scopes, $scope_cursor).blocks.start() <= $block $scope_cursor else scopes.len()
+		selected = if scope_index < scopes.len() {
+			scope = list_at(scopes, scope_index)
+			frame = if scope_index == $previous_scope scope.continuation else scope.opening
+			{ height: frame.height.raw().to_u64_wrap(), top: frame.top.raw().to_u64_wrap() }
+		} else {
+			{ height: if page_index == 0 frames.first_height else frames.continuation_height, top: if page_index == 0 frames.first_top else frames.continuation_top }
+		}
+		if scope_index < scopes.len() {
+			$scope_pages = $scope_pages.append({ scope: scope_index, page: page_index, opening: scope_index != $previous_scope })
+		}
+		$previous_scope = scope_index
+		if !scopes.is_empty() {
+			$page_frames = $page_frames.append({ height: Layout.Unit.from_raw(selected.height.to_i64_wrap()), top: Layout.Unit.from_raw(selected.top.to_i64_wrap()) })
+		}
+		flow_height = selected.height
+		flow_top = selected.top
+		page_geometry = { ..geometry, content_height: flow_height, margin_top: checked_add(geometry.margin_top, flow_top)? }
+		scan = scan_page(blocks, validation, container_facts, flow_height, $block, $line)?
+		$candidate_visits = checked_add($candidate_visits, scan.candidates)?
+		end = match scan.end {
+			AllFits => { block: blocks.len(), line: 0 }
+			Break(position) => position
+		}
+		fragment_start = $page_fragment_start
+
+		# Materialize the accepted page once, from the page start to the
+		# chosen break, exactly as the scan measured it.
+		page_lead = nonnegative_raw(list_at(blocks, $block).lead)?
+		if page_lead > 0 {
+			$lead_bands = $lead_bands.append({ block: $block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - container_padding(container_facts, $block) })
+		}
+		var $used = checked_add(page_lead, container_padding(container_facts, $block))?
+		var $cursor_block = $block
+		var $cursor_line = $line
+		while $cursor_block < end.block or ($cursor_block == end.block and $cursor_line < end.line) {
+			block = list_at(blocks, $cursor_block)
+			if $cursor_block > $block {
+				$used = checked_add($used, container_transition(container_facts, $cursor_block))?
+			}
+			line_count = block.lines.length()
+			stop = if $cursor_block == end.block end.line else line_count
+			take = stop - $cursor_line
+			leading = positive_raw(block.leading)?
+			fragment_height = checked_mul(take, leading)?
+			padding = fragment_padding(block)?
+			decoration = if $cursor_line == 0 nonnegative_raw(block.decoration)? else 0
+			if decoration > 0 {
+				$bands = $bands.append({ block: $cursor_block, page: page_index, top: page_geometry.page_height - page_geometry.margin_top - $used })
+				$used = checked_add($used, decoration)?
+			}
+			$used = checked_add($used, padding)?
+			line_start = block.lines.start() + $cursor_line
+			fragment = make_span($cursor_block, block, line_start, take, fragment_height, $used, page_geometry, page_index)?
+			check_limit(checked_add($spans.len(), 1)?, limits.max_fragments, Fragments)?
+			$spans = $spans.append(fragment)
+			$placement_count = checked_add($placement_count, take)?
+			check_limit($placement_count, limits.max_placements, Placements)?
+			$used = checked_add(checked_add($used, fragment_height)?, padding)?
+			if stop == line_count {
+				$used = checked_add($used, nonnegative_raw(block.trailing)?)?
+				spaced = checked_add($used, nonnegative_raw(block.space_after)?)?
+				$used = if spaced > page_geometry.content_height page_geometry.content_height else spaced
+				$cursor_block = $cursor_block + 1
+				$cursor_line = 0
+			} else {
+				$cursor_line = stop
+			}
+		}
+		check_limit(checked_add($pages.len(), 1)?, limits.max_pages, Pages)?
+		$pages = $pages.append({ id: Semantics.PageId.from_index($pages.len()), spans: Semantics.Range.from_start_and_length(fragment_start, $spans.len() - fragment_start) })
+		$page_fragment_start = $spans.len()
+		match scan.end {
+			AllFits => {}
+			Break(position) => {
+				$relaxations = record_relaxations($relaxations, blocks, position, $block, $line, page_index)
+			}
+		}
+		$block = end.block
+		$line = end.line
+	}
+	materialized = materialize_containers(containers, container_facts, blocks, $spans, |fragment| { geometry: fragment.geometry, lines: fragment.rows, page: fragment.page }, $lead_bands, limits.max_fragments)?
+	Ok(
+		KernelPageLayout.Choice.{
+			page_frames: $page_frames,
+			scope_pages: $scope_pages,
+			container_fragments: materialized.fragments,
+			lead_bands: $lead_bands,
+			bands: $bands,
+			spans: $spans,
+			pages: $pages,
+			relaxations: $relaxations,
+			work: {
+				scope_visits: $scope_visits,
+				container_contexts: container_facts.contexts.len(),
+				container_ancestors: container_facts.ancestors.len(),
+				container_updates: materialized.updates,
+				container_fragments: materialized.fragments.len(),
+				block_visits: blocks.len(),
+				candidate_visits: $candidate_visits,
+				fragment_writes: $spans.len(),
+				keep_policy_visits: blocks.len(),
+				line_visits: validation.line_visits,
+				page_writes: $pages.len(),
+				placement_writes: $placement_count,
 			},
 		},
 	)
@@ -991,8 +1218,16 @@ lead_total = |blocks, count| {
 ## next block's first placement unit or, when that block keeps too, its own
 ## chain. A chain taller than a fresh page is a conflict naming the keep and
 ## the block it binds.
-validate_input : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), List(KernelLineLayout.Line), U64 -> Try(Validation, KernelPageLayout.Error)
-validate_input = |blocks, groups, lines, content_height| {
+ValidationRows : [ConcreteLines(List(KernelLineLayout.Line)), MeasuredRows(U64)]
+
+row_count : ValidationRows -> U64
+row_count = |rows| match rows {
+	ConcreteLines(lines) => lines.len()
+	MeasuredRows(count) => count
+}
+
+validate_input : List(KernelPageLayout.Block), List(KernelPageLayout.KeepGroup), ValidationRows, U64 -> Try(Validation, KernelPageLayout.Error)
+validate_input = |blocks, groups, rows, content_height| {
 	var $heights = List.with_capacity(blocks.len())
 	var $line_cursor = 0
 	var $line_visits = 0
@@ -1024,24 +1259,29 @@ validate_input = |blocks, groups, lines, content_height| {
 		var $byte_cursor = 0
 		while $local < line_count {
 			line_index = $line_cursor + $local
-			if line_index >= lines.len() {
+			if line_index >= row_count(rows) {
 				return Err(InvalidBlock({ block: $block_index }))
 			}
-			line = list_at(lines, line_index)
+			match rows {
+				MeasuredRows(_) => {}
+				ConcreteLines(lines) => {
+					line = list_at(lines, line_index)
 
-			## Lines of one block continue one source, or begin the next
-			## explicit-line-break segment at its own source origin.
-			continues = line.source.scalars.start() == $scalar_cursor and line.source.utf8_bytes.start() == $byte_cursor
-			restarts = line.source.scalars.start() == 0 and line.source.utf8_bytes.start() == 0
-			valid_order = match block.owner {
-				Content(_) => continues or restarts
-				SourceBlock(_) => line.source.scalars.start() >= $scalar_cursor and line.source.utf8_bytes.start() >= $byte_cursor
+					## Lines of one block continue one source, or begin the next
+					## explicit-line-break segment at its own source origin.
+					continues = line.source.scalars.start() == $scalar_cursor and line.source.utf8_bytes.start() == $byte_cursor
+					restarts = line.source.scalars.start() == 0 and line.source.utf8_bytes.start() == 0
+					valid_order = match block.owner {
+						Content(_) => continues or restarts
+						SourceBlock(_) => line.source.scalars.start() >= $scalar_cursor and line.source.utf8_bytes.start() >= $byte_cursor
+					}
+					if $local > 0 and !valid_order {
+						return Err(InvalidLine({ line: line_index }))
+					}
+					$scalar_cursor = range_end(line.source.scalars)?
+					$byte_cursor = range_end(line.source.utf8_bytes)?
+				}
 			}
-			if $local > 0 and !valid_order {
-				return Err(InvalidLine({ line: line_index }))
-			}
-			$scalar_cursor = range_end(line.source.scalars)?
-			$byte_cursor = range_end(line.source.utf8_bytes)?
 			$line_visits = checked_add($line_visits, 1)?
 			$local = $local + 1
 		}
@@ -1049,7 +1289,7 @@ validate_input = |blocks, groups, lines, content_height| {
 		$heights = $heights.append(height)
 		$block_index = $block_index + 1
 	}
-	if $line_cursor != lines.len() {
+	if $line_cursor != row_count(rows) {
 		return Err(InvalidBlock({ block: blocks.len() }))
 	}
 	atomic_ends = validate_groups(blocks, groups, $heights, content_height)?
@@ -1625,4 +1865,38 @@ expect {
 	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
 	plan = KernelPageLayout.Plan.build_with_containers([block], [], test_lines.take_first(2), test_constraints, NoTemplate, [container], test_limits)?
 	KernelPageLayout.Plan.lead_bands(plan).map(|band| band.top) == [3500, 3500] and KernelPageLayout.Plan.container_fragments(plan).all(|panel| panel.rect.size.height.raw() == 2500 and panel.rect.origin.y.raw() == 1500)
+}
+
+## A committed row span carries no provisional Unicode or semantic fragment.
+make_span : U64, KernelPageLayout.Block, U64, U64, U64, U64, Geometry, U64 -> Try(KernelPageLayout.ChosenSpan, KernelPageLayout.Error)
+make_span = |block_index, block, start, length, height, used, geometry, page_index| {
+	baseline = geometry.page_height - geometry.margin_top - checked_add(used, positive_raw(block.baseline_offset)?)?
+	Ok({
+		block: block_index,
+		rows: Semantics.Range.from_start_and_length(start, length),
+		page: Semantics.PageId.from_index(page_index),
+		geometry: { origin: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw((geometry.page_height - geometry.margin_top - used - height).to_i64_wrap()) }, size: { width: Layout.Unit.from_raw(geometry.content_width.to_i64_wrap()), height: Layout.Unit.from_raw(height.to_i64_wrap()) } },
+		baseline: { x: Layout.Unit.from_raw(geometry.margin_left.to_i64_wrap()), y: Layout.Unit.from_raw(baseline.to_i64_wrap()) },
+		leading: block.leading,
+	})
+}
+
+# Measured rows and concrete lines consume identical policy/container/scoped
+# geometry; only the concrete path carries and validates Unicode continuity.
+expect {
+	block = { ..test_block, lines: Semantics.Range.from_start_and_length(0, 8), space_after: Layout.Unit.from_raw(0) }
+	container = { paint: Paint(0), blocks: Semantics.Range.from_start_and_length(0, 1), padding: Layout.Unit.from_raw(500), offset: Layout.Unit.from_raw(0), width: Layout.Unit.from_raw(8000) }
+	frame = { height: Layout.Unit.from_raw(3000), top: Layout.Unit.from_raw(0) }
+	scopes = [{ blocks: Semantics.Range.from_start_and_length(0, 1), opening: { height: Layout.Unit.from_raw(2000), top: Layout.Unit.from_raw(1000) }, continuation: frame }]
+	template = WithTemplate({ first: frame, continuation: frame, lead: NoLead })
+	concrete = KernelPageLayout.Plan.build_with_contexts([block], [], test_lines, test_constraints, template, scopes, [container], test_limits)?
+	choice = KernelPageLayout.Choice.build([block], [], 8, test_constraints, template, scopes, [container], test_limits)?
+	KernelPageLayout.Choice.spans(choice).map(|span| { geometry: span.geometry, lines: span.rows, page: span.page }) == KernelPageLayout.Plan.fragments(concrete).map(|fragment| { geometry: fragment.geometry, lines: fragment.lines, page: fragment.page }) and KernelPageLayout.Choice.scope_pages(choice) == KernelPageLayout.Plan.scope_pages(concrete) and KernelPageLayout.Choice.container_fragments(choice) == KernelPageLayout.Plan.container_fragments(concrete) and KernelPageLayout.Choice.work(choice) == KernelPageLayout.Plan.work(concrete)
+}
+
+expect {
+	match KernelPageLayout.Choice.build([test_block], [], 1, test_constraints, NoTemplate, [], [], test_limits) {
+		Err(InvalidBlock(_)) => True
+		_ => False
+	}
 }

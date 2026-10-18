@@ -1443,6 +1443,9 @@ check_callouts = |authoring| {
 		if padding < 0 or callout_value.name.is_empty() or in_lead_region(authoring.groups, list_at(authoring.groups, callout_value.group).parent) {
 			return Err(CalloutStyle({ group: callout_value.group }))
 		}
+		if callout_value.panel.fill == NoFill and callout_value.panel.border == NoBorder {
+			return Err(CalloutStyle({ group: callout_value.group }))
+		}
 		match callout_value.panel.border {
 			NoBorder => {}
 			Border(border) => if border.width <= 0 or border.width.raw() > padding {
