@@ -1000,6 +1000,34 @@ scene nodes. Raw PDF objects and operators are not extension points. A separate
 pure Roc SVG or vector package may target the scene boundary; rasterization is
 not a fallback.
 
+The bounded manual-authoring extensions preserve that boundary. Enclosing
+list columns and native callout padding produce explicit dense flow-frame
+facts before child width resolution. Tables, figures, source blocks and
+paragraphs consume those facts rather than sizing against the whole page.
+Native callouts have computed height and bounded rich children; the separately
+measured `CustomBlock` remains unsplittable. Callout continuation retains scalar
+unit/line cursors and parent IDs, reserves ancestor padding during break
+selection, and materializes explicit fragment rectangles only after a break
+is accepted. Repeated table headers consume accepted placement facts inside
+those frames. Panels remain artifacts and each semantic child occurs once.
+
+Page scopes are explicit layout-only, nonnested full-body-page boundaries.
+Their opening and continuation geometry is declared before pagination;
+running labels are author text rather than inferred headings. Accepted page
+contexts carry scope/template identity forward to furniture and reporting.
+The physical first-page lead remains semantic content and is composed with
+the selected first-body opening frame; no lead-only page is introduced.
+
+Fixed-width destination references are typed symbolic inline atoms before
+layout. Their reserved advance, style, language and semantic identity are
+known without inventing placeholder Unicode. Committed destination anchor
+facts resolve their exact values; final source ranges, font use, glyphs and
+fit proofs exist before the prepared boundary. Navigation and printed
+references consume the same destination facts. Physical page numbers and
+configured page labels are distinct explicit choices. Preparation-time vector
+exporters may target public drawings, but do not become production parsers,
+resource acquisition services or rasterization fallbacks.
+
 Layout-dependent references are symbolic before layout and fully resolved in a
 `PreparedDocument`. Stabilization is deterministic:
 

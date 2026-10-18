@@ -109,6 +109,38 @@ compiler can produce conforming examples. Every additional accepted feature
 must also have its own applicable-requirement closure; the three references
 are not a substitute for the full conformance ledger.
 
+### Bounded manual-authoring extensions (issues #49–#53)
+
+The following selected Gate 8 capabilities are brought forward as dependency-
+gated Gate 6 extensions. Their acceptance does not close Gate 7, enable
+`PdfUa2`, or change the default profile. Each extension closes its own public
+API, diagnostics, structural/reader/conformance, allocation and scale evidence
+before being described as available; the eventual Gate 7 audit includes every
+accepted extension.
+
+- #49: fixed-width, selectable inline destination-page references, explicitly
+  choosing physical decimal numbers or configured PDF page labels; matching
+  page-label furniture. General generated TOCs, counters and flow-changing
+  references remain Gate 8.
+- #50: explicit, nonnested, full-body-page scopes with short running labels
+  and separately declared opening/continuation frames. Midpage scope changes
+  and geometry derived from resolved furniture remain unsupported.
+- #52: source blocks, captioned figures, ordinary tables and bounded callouts
+  after a list item's lead paragraph, retaining one logical item across pages.
+- #53: native data-only callouts with automatic height, bounded rich nesting
+  and line continuation; rectangular artifact panels repeat per fragment.
+  The measured, unsplittable custom-block contract remains separate.
+- #51: a worked preparation-time vector adapter over the existing public
+  drawing/figure API, with a declared Mermaid/SVG subset, checked text and
+  geometry, and explicit rejection of unsupported visible features. General
+  browser SVG/HTML rendering remains outside the package.
+
+Implementation order is explicit parent frames and continuation contracts,
+rich list bodies, rich callout fragmentation, destination references, scoped
+templates, then combined-manual closure. Independent work may proceed against
+frozen contracts; closure requires integration evidence. The implementation
+and ownership record is [manual composition](docs/performance/manual-composition.md).
+
 ### Performance intent
 
 Every focused case keeps its exact Roc allocation count and deterministic work
