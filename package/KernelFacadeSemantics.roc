@@ -328,9 +328,6 @@ plan_blocks = |authoring, limits| {
 			in_item = in_list_item(groups, group.parent)
 			match group.kind {
 				Source(source_index) => {
-					if in_item {
-						return Err(ListItemGroup({ group: $next_group }))
-					}
 					source = list_at(authoring.sources, source_index)
 					check_source(authoring, source_index)?
 					var $painted = 0
@@ -365,7 +362,10 @@ plan_blocks = |authoring, limits| {
 				}
 				Container(_) | Custom(_) | LeadRegion | FigureGroup(_) => {
 					if in_item {
-						return Err(ListItemGroup({ group: $next_group }))
+						match group.kind {
+							FigureGroup(_) => {}
+							_ => return Err(ListItemGroup({ group: $next_group }))
+						}
 					}
 					if group.depth > limits.max_container_depth {
 						return Err(ContainerDepthExceeded({ attempted: group.depth, group: $next_group, limit: limits.max_container_depth }))
@@ -423,10 +423,6 @@ plan_blocks = |authoring, limits| {
 					$list_count = checked_add($list_count, 1)?
 				}
 				Table(table_index) => {
-					if in_item {
-						return Err(ListItemGroup({ group: $next_group }))
-					}
-
 					## A table plans its whole subtree at once: its rows and
 					## cells are fixed-depth descendants, so the walk resumes
 					## after the table's last group and leaf.
@@ -529,7 +525,7 @@ plan_blocks = |authoring, limits| {
 			block = list_at(blocks, $block_index)
 			if in_list_item(groups, block.parent) {
 				match block.kind {
-					Paragraph | RichParagraph(_) => {}
+					Paragraph | RichParagraph(_) | Figure(_) => {}
 					_ => return Err(ListItemBlock({ block: $block_index }))
 				}
 			}

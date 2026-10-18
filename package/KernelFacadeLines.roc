@@ -60,7 +60,7 @@ KernelFacadeLines :: [].{
 	## tables; each cell's lines are laid out at its column text width.
 	SourceFrame : { offset : Layout.Unit, width : Layout.Unit }
 
-	Plan :: { source_frames : List(SourceFrame), blocks : List(BlockLines), geometry : [NoTables, WithTables(KernelFacadeTables.Plan)], line : KernelLineLayout.BatchPlan, work : Work }.{
+	Plan :: { frames : List(BlockGeometry), source_frames : List(SourceFrame), blocks : List(BlockLines), geometry : [NoTables, WithTables(KernelFacadeTables.Plan)], line : KernelLineLayout.BatchPlan, work : Work }.{
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build = |authoring, shape, sources, page, theme, limits| build_plan(authoring, shape, sources, page, theme, limits)
 
@@ -71,16 +71,22 @@ KernelFacadeLines :: [].{
 		build_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
 		build_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() and authoring.sources.is_empty() build_plan(authoring, shape, sources, page, theme, limits) else build_table_plan(authoring, shape, sources, page, theme, limits)
 
+		frame : Plan, U64 -> { offset : U64, width : U64 }
+		frame = |plan, block| {
+			frame = list_at(plan.frames, block)
+			{ offset: frame.body_offset, width: frame.body_width }
+		}
+
 		geometry : Plan -> [NoTables, WithTables(KernelFacadeTables.Plan)]
 		geometry = |plan| plan.geometry
 
 		## The logical path: one line-layout request per logical run,
 		## measured across its adjacent physical face or occurrence runs.
 		build_ordered : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_ordered = |authoring, shape, sources, page, theme, limits| build_ordered_plan(authoring, shape, sources, page, theme, limits, [])
+		build_ordered = |authoring, shape, sources, page, theme, limits| build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate)
 
 		build_ordered_authoring : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, Limits -> Try(Plan, Error)
-		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() and authoring.sources.is_empty() build_ordered_plan(authoring, shape, sources, page, theme, limits, []) else build_table_plan(authoring, shape, sources, page, theme, limits)
+		build_ordered_authoring = |authoring, shape, sources, page, theme, limits| if authoring.tables.is_empty() and authoring.sources.is_empty() build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate) else build_table_plan(authoring, shape, sources, page, theme, limits)
 
 		source_frames : Plan -> List(SourceFrame)
 		source_frames = |plan| plan.source_frames
@@ -108,7 +114,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 	# single keep the exact one-run batch, unless a code span holds its
 	# words together, which only the logical batch applies.
 	if !authoring.sources.is_empty() or has_multi_run(block_runs) or has_code_holds(authoring, shape, sources) {
-		return build_ordered_plan(authoring, shape, sources, page, theme, limits, [])
+		return build_ordered_plan(authoring, shape, sources, page, theme, limits, [], Calculate)
 	}
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
 	shape_batch = KernelFacadeShape.Plan.shape(shape)
@@ -187,6 +193,7 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 	}
 	Ok(
 		KernelFacadeLines.Plan.{
+			frames: geometries,
 			source_frames: [],
 			blocks: $blocks,
 			geometry: NoTables,
@@ -207,19 +214,30 @@ build_plan = |authoring, shape, sources, page, theme, limits| {
 build_table_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
 build_table_plan = |authoring, shape, sources, page, theme, limits| {
 	content_width = calculate_content_width(page, theme.page_margin)?
-	tables = KernelFacadeTables.Plan.build(authoring, shape, sources, content_width, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
+	geometries = list_geometries(authoring, KernelFacadeShape.Plan.block_runs(shape), KernelFacadeShape.Plan.shape(shape).store, positive_raw(theme.bullet_indent)?, content_width)?
+	var $frames = List.with_capacity(authoring.tables.len())
+	for group in authoring.groups {
+		match group.kind {
+			Table(_) => {
+				geometry = list_at(geometries, group.first_block)
+				$frames = $frames.append({ offset: geometry.body_offset, width: geometry.body_width })
+			}
+			_ => {}
+		}
+	}
+	tables = KernelFacadeTables.Plan.build_framed(authoring, shape, sources, content_width, $frames, theme, KernelLineLayout.BatchLimits.line(limits.line)) ? Tables
 	var $widths = List.repeat(0, authoring.blocks.len())
 	for cell in KernelFacadeTables.Plan.cells(tables) {
 		$widths = list_set($widths, cell.block, cell.width)
 	}
-	plan = build_ordered_plan(authoring, shape, sources, page, theme, limits, $widths)?
+	plan = build_ordered_plan(authoring, shape, sources, page, theme, limits, $widths, Calculated(geometries))?
 	Ok({ ..plan, geometry: WithTables(tables) })
 }
 
 ## `widths` is empty, or holds one text width per block where a nonzero
 ## entry (a table cell's) replaces the block's flow width.
-build_ordered_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits, List(U64) -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
-build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
+build_ordered_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), Layout.Size, Theme, KernelFacadeLines.Limits, List(U64), [Calculate, Calculated(List(BlockGeometry))] -> Try(KernelFacadeLines.Plan, KernelFacadeLines.Error)
+build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths, prepared| {
 	styles = KernelFacadeShape.Plan.styles(shape)
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 	shape_requests = KernelFacadeShape.Plan.requests(shape)
@@ -235,7 +253,10 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 	if indent >= content_width {
 		return Err(InvalidGeometry)
 	}
-	geometries = list_geometries(authoring, block_runs, shape_batch.store, indent, content_width)?
+	geometries = match prepared {
+		Calculate => list_geometries(authoring, block_runs, shape_batch.store, indent, content_width)?
+		Calculated(value) => value
+	}
 	var $source_frames = List.with_capacity(authoring.sources.len())
 	for source in authoring.sources {
 		first = list_at(authoring.groups, source.group).first_block
@@ -374,6 +395,7 @@ build_ordered_plan = |authoring, shape, sources, page, theme, limits, widths| {
 	}
 	Ok(
 		KernelFacadeLines.Plan.{
+			frames: geometries,
 			source_frames: $source_frames,
 			blocks: $blocks,
 			geometry: NoTables,

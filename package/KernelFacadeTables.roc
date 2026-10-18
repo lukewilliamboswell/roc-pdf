@@ -31,10 +31,10 @@ KernelFacadeTables :: [].{
 	## One cell's resolved geometry: its text box starts `x` from the flow
 	## edge and is `width` wide (its spanned columns less the cell padding
 	## on both sides), and its lines align within it.
-	CellGeometry : { align : Document.ColumnAlign, block : U64, width : U64, x : U64 }
+	CellGeometry : { offset : U64, align : Document.ColumnAlign, block : U64, width : U64, x : U64 }
 
 	## One table's resolved column widths (left to right) and total width.
-	TableGeometry : { columns : List(U64), group : U64, width : U64 }
+	TableGeometry : { offset : U64, columns : List(U64), group : U64, width : U64 }
 
 	Work : {
 		cell_measurements : U64,
@@ -47,7 +47,10 @@ KernelFacadeTables :: [].{
 	## `tables` by table index.
 	Plan :: { cells : List(CellGeometry), sources : List(KernelFacadeSources.Source), tables : List(TableGeometry), work : Work }.{
 		build : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, Theme, KernelLineLayout.Limits -> Try(Plan, Error)
-		build = |authoring, shape, sources, available, theme, limits| build_plan(authoring, shape, sources, available, theme, limits)
+		build = |authoring, shape, sources, available, theme, limits| build_plan(authoring, shape, sources, available, [], theme, limits)
+
+		build_framed : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, List({ offset : U64, width : U64 }), Theme, KernelLineLayout.Limits -> Try(Plan, Error)
+		build_framed = |authoring, shape, sources, available, frames, theme, limits| build_plan(authoring, shape, sources, available, frames, theme, limits)
 
 		cells : Plan -> List(CellGeometry)
 		cells = |plan| plan.cells
@@ -74,8 +77,8 @@ CellMeasure : { max_content : U64, min_content : U64, token : Semantics.Range }
 ## and size are fixed for the document, so identical cell texts measure once.
 CacheSlot : [Measured({ measure : CellMeasure, size : I64 }), Unmeasured]
 
-build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, Theme, KernelLineLayout.Limits -> Try(KernelFacadeTables.Plan, KernelFacadeTables.Error)
-build_plan = |authoring, shape, sources, available, theme, limits| {
+build_plan : Document.NormalizedAuthoring, KernelFacadeShape.Plan, List(KernelFacadeSources.Source), U64, List({ offset : U64, width : U64 }), Theme, KernelLineLayout.Limits -> Try(KernelFacadeTables.Plan, KernelFacadeTables.Error)
+build_plan = |authoring, shape, sources, available, frames, theme, limits| {
 	block_runs = KernelFacadeShape.Plan.block_runs(shape)
 	styles = KernelFacadeShape.Plan.styles(shape)
 	requests = KernelFacadeShape.Plan.requests(shape)
@@ -151,9 +154,10 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 		match group.kind {
 			Table(table_index) => {
 				table = list_at(authoring.tables, table_index.to_u64())
+				frame = if frames.is_empty() { offset: 0, width: available } else list_at(frames, table_index.to_u64())
 				first_cell = $cell_cursor
 				cell_end = first_cell + count_cells(authoring, group)
-				columns = resolve_columns(authoring, table, group, $group_index, $measures, first_cell, cell_end, padding, available)?
+				columns = resolve_columns(authoring, table, group, $group_index, $measures, first_cell, cell_end, padding, frame.width)?
 				var $row = $group_index + 1
 				var $ordinal_cursor = first_cell
 				while $row < group.group_end {
@@ -182,7 +186,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 							Aligned(value) => value
 							FirstColumn => list_at(table.columns, $column).align
 						}
-						$cells = $cells.append({ align, block: $block, width: text_width, x: $x + padding })
+						$cells = $cells.append({ offset: frame.offset, align, block: $block, width: text_width, x: $x + padding })
 						$x = $x + cell_width
 						$column = $column + span
 						$ordinal_cursor = $ordinal_cursor + 1
@@ -191,7 +195,7 @@ build_plan = |authoring, shape, sources, available, theme, limits| {
 					$row_visits = $row_visits + 1
 					$row = $row + 1
 				}
-				$tables = $tables.append({ columns, group: $group_index, width: sum_range(columns, 0, columns.len()) })
+				$tables = $tables.append({ offset: frame.offset, columns, group: $group_index, width: sum_range(columns, 0, columns.len()) })
 				$cell_cursor = cell_end
 			}
 			_ => {}
